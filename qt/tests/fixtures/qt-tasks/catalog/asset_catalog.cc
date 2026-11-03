@@ -1,4 +1,4 @@
-#include "examples/qt-tasks/catalog/asset_catalog.h"
+#include "qt/tests/fixtures/qt-tasks/catalog/asset_catalog.h"
 
 #include <QFile>
 #include <QJsonArray>

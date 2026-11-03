@@ -4,7 +4,7 @@ use std::process::Command;
 use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, Run};
 
-pub const APP: &str = "//examples/qt-tasks/app:tasks";
+pub const APP: &str = "//qt/tests/fixtures/qt-tasks/app:tasks";
 
 /// The qualified Qt cell the nested consumers build for: the host's.
 pub const HOST_CELL: &str = if cfg!(target_arch = "aarch64") {

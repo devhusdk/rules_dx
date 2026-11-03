@@ -10,9 +10,9 @@ qt_cc_binary(
     modules = ["qml"],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
-        "//examples/qt-tasks/browser",
-        "//examples/qt-tasks/catalog",
-        "//examples/qt-tasks/store",
+        "//qt/tests/fixtures/qt-tasks/browser",
+        "//qt/tests/fixtures/qt-tasks/catalog",
+        "//qt/tests/fixtures/qt-tasks/store",
         "@cpp_app_fmt//:fmt",
     ],
 )
@@ -28,9 +28,9 @@ qt_cc_test(
     ],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
-        "//examples/qt-tasks/browser",
-        "//examples/qt-tasks/catalog",
-        "//examples/qt-tasks/store",
+        "//qt/tests/fixtures/qt-tasks/browser",
+        "//qt/tests/fixtures/qt-tasks/catalog",
+        "//qt/tests/fixtures/qt-tasks/store",
     ],
 )
 
@@ -40,8 +40,8 @@ qt_cc_binary(
     modules = ["quick"],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
-        "//examples/qt-tasks/board",
-        "//examples/qt-tasks/store",
+        "//qt/tests/fixtures/qt-tasks/board",
+        "//qt/tests/fixtures/qt-tasks/store",
     ],
 )
 
@@ -54,8 +54,8 @@ qt_cc_test(
     modules = ["quick_test"],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
-        "//examples/qt-tasks/board",
-        "//examples/qt-tasks/store",
+        "//qt/tests/fixtures/qt-tasks/board",
+        "//qt/tests/fixtures/qt-tasks/store",
     ],
 )
 

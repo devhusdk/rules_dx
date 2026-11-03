@@ -5,7 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 _VISIBILITY = [
-    "//examples/qt-rust:__subpackages__",
+    "//qt/tests/fixtures/qt-rust:__subpackages__",
     "//qt/tests:__pkg__",
 ]
 
@@ -18,7 +18,7 @@ qt_rust_library(
     target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Ledger.Model",
     visibility = _VISIBILITY,
-    deps = ["//examples/qt-rust/ledger"],
+    deps = ["//qt/tests/fixtures/qt-rust/ledger"],
 )
 
 real_source_target(

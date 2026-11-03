@@ -1,4 +1,4 @@
-#include "examples/qt-rust/app/ledger_test.h"
+#include "qt/tests/fixtures/qt-rust/app/ledger_test.h"
 
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -8,7 +8,7 @@
 #include <climits>
 #include <memory>
 
-#include "examples/qt-rust/model/ledger_model.cxxqt.h"
+#include "qt/tests/fixtures/qt-rust/model/ledger_model.cxxqt.h"
 
 namespace {
 

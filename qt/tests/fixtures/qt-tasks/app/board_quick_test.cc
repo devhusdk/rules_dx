@@ -1,4 +1,4 @@
-#include "examples/qt-tasks/app/board_quick_test.h"
+#include "qt/tests/fixtures/qt-tasks/app/board_quick_test.h"
 
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -12,5 +12,5 @@ void BoardSetup::qmlEngineAvailable(QQmlEngine *engine) {
 int main(int argc, char **argv) {
   BoardSetup setup;
   return quick_test_main_with_setup(argc, argv, "board",
-                                    "examples/qt-tasks/app", &setup);
+                                    "qt/tests/fixtures/qt-tasks/app", &setup);
 }

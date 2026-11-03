@@ -1,4 +1,4 @@
-#include "examples/qt-tasks/store/task_model.h"
+#include "qt/tests/fixtures/qt-tasks/store/task_model.h"
 
 #include <QFile>
 #include <QJsonArray>

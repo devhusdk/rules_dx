@@ -2,8 +2,8 @@ use dx_nested as nested;
 use dx_testing::Run;
 use qt_board_support::*;
 
-const APP: &str = "//examples/qt-rust/app:ledger";
-const MODEL: &str = "examples/qt-rust/model";
+const APP: &str = "//qt/tests/fixtures/qt-rust/app:ledger";
+const MODEL: &str = "qt/tests/fixtures/qt-rust/model";
 
 fn ledger(consumer: &Consumer, args: &[&str]) -> Run {
     consumer.dx("run", &[APP], args)
@@ -58,7 +58,7 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
     assert!(!model.contains("@rules_dx//"), "{model}");
 
     assert_exit(
-        &consumer.dx("test", &["//examples/qt-rust/ledger/..."], &[]),
+        &consumer.dx("test", &["//qt/tests/fixtures/qt-rust/ledger/..."], &[]),
         0,
     );
     let pure_rust = fetched(&consumer);
@@ -73,8 +73,8 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
     assert_exit(&consumer.dx("build", &["//..."], &[]), 0);
     let tested = consumer.dx("test", &["//..."], &[]);
     assert_exit(&tested, 0);
-    assert_has(&tested.combined(), "//examples/qt-rust/app:ledger_test");
-    assert_has(&tested.combined(), "//examples/qt-rust/ledger:ledger_test");
+    assert_has(&tested.combined(), "//qt/tests/fixtures/qt-rust/app:ledger_test");
+    assert_has(&tested.combined(), "//qt/tests/fixtures/qt-rust/ledger:ledger_test");
     let full = fetched(&consumer);
     for integration in ["dx_qt", "crates__cxx-qt-0.10.0", "crates__cxx-1.0.202"] {
         assert!(has_repo(&full, integration), "{integration}: {full:?}");
@@ -154,7 +154,7 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
         "qt_sdk.configure(modules = [\"qtdeclarative\"])",
         "qt_sdk.configure(modules = [\"qtbase\"])",
     );
-    let no_qml = consumer.dx("build", &["//examples/qt-rust/model"], &[]);
+    let no_qml = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model"], &[]);
     assert_fails(&no_qml);
     assert_has(
         &no_qml.combined(),
@@ -185,14 +185,14 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         &consumer.dx(
             "build",
             &[
-                "//examples/qt-rust/app:ledger_release_archive",
-                "//examples/qt-rust/app:ledger_release_checksum",
+                "//qt/tests/fixtures/qt-rust/app:ledger_release_archive",
+                "//qt/tests/fixtures/qt-rust/app:ledger_release_checksum",
             ],
             &[],
         ),
         0,
     );
-    let elsewhere = extract(&consumer, "examples/qt-rust/app", "ledger_release");
+    let elsewhere = extract(&consumer, "qt/tests/fixtures/qt-rust/app", "ledger_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
 
     let app = elsewhere.join("ledger");
@@ -284,13 +284,13 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
     let consumer = Consumer::new("qt-rust-errors", "DX_QT_RUST_MANIFEST", Some("rules_dx"));
     let bridge = format!("{MODEL}/ledger_model.rs");
     let build = format!("{MODEL}/BUILD.bazel");
-    let main_qml = "examples/qt-rust/ui/Main.qml";
+    let main_qml = "qt/tests/fixtures/qt-rust/ui/Main.qml";
 
-    assert_exit(&lint(&consumer, "//examples/qt-rust/ui"), 0);
+    assert_exit(&lint(&consumer, "//qt/tests/fixtures/qt-rust/ui"), 0);
     let original = consumer.edit(main_qml, "ledger.total + ", "ledger.totl + ");
-    let lint = lint(&consumer, "//examples/qt-rust/ui");
+    let lint = lint(&consumer, "//qt/tests/fixtures/qt-rust/ui");
     assert_exit(&lint, 1);
-    assert_has(&lint.stdout, "examples/qt-rust/ui/Main.qml:");
+    assert_has(&lint.stdout, "qt/tests/fixtures/qt-rust/ui/Main.qml:");
     assert_has(
         &lint.stdout,
         "Member \"totl\" not found on type \"LedgerModel\"",
@@ -312,12 +312,12 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
         "#[qproperty(i32, total, READ, NOTIFY)]",
         "#[qproperty(i32, total, READ, NOTIFY = refreshed)]",
     );
-    let notify = consumer.dx("build", &["//examples/qt-rust/model"], &[]);
+    let notify = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model"], &[]);
     assert_fails(&notify);
     assert_has(&notify.combined(), "QtRustBridge");
     assert_has(
         &notify.combined(),
-        "examples/qt-rust/model/ledger_model.rs:14:",
+        "qt/tests/fixtures/qt-rust/model/ledger_model.rs:14:",
     );
     assert_has(
         &notify.combined(),
@@ -330,7 +330,7 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
         "fn rejected(self: Pin<&mut LedgerModel>, amount: i32);",
         "fn rejected(self: &LedgerModel, amount: i32);",
     );
-    let signal = consumer.dx("build", &["//examples/qt-rust/model"], &[]);
+    let signal = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model"], &[]);
     assert_fails(&signal);
     assert_has(
         &signal.combined(),
@@ -343,18 +343,18 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
         "self.as_mut().rejected(amount);",
         "self.as_mut().refused(amount);",
     );
-    let caller = consumer.dx("build", &["//examples/qt-rust/model:model_rust"], &[]);
+    let caller = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model:model_rust"], &[]);
     assert_fails(&caller);
     assert_has(&caller.combined(), "model_rust");
     assert_has(&caller.combined(), "refused");
     write(&consumer.path(&bridge), &original);
 
     consumer.edit(&bridge, "#[cxx_qt::bridge]\n", "");
-    let missing = consumer.dx("build", &["//examples/qt-rust/model"], &[]);
+    let missing = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model"], &[]);
     assert_fails(&missing);
     assert_has(
         &missing.combined(),
-        "examples/qt-rust/model/ledger_model.rs: holds 0 bridge modules; want exactly one",
+        "qt/tests/fixtures/qt-rust/model/ledger_model.rs: holds 0 bridge modules; want exactly one",
     );
     write(&consumer.path(&bridge), &original);
 
@@ -363,11 +363,11 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
         "    srcs = [\"lib.rs\"],\n    bridges = [\"ledger_model.rs\"],\n",
         "    srcs = [\n        \"ledger_model.rs\",\n        \"lib.rs\",\n    ],\n    bridges = [],\n",
     );
-    let unbridged = consumer.dx("build", &["//examples/qt-rust/app:ledger_test"], &[]);
+    let unbridged = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/app:ledger_test"], &[]);
     assert_fails(&unbridged);
     assert_has(
         &unbridged.combined(),
-        "//examples/qt-rust/model:model_bridge",
+        "//qt/tests/fixtures/qt-rust/model:model_bridge",
     );
     assert_has(&unbridged.combined(), "attribute must be non empty");
     write(&consumer.path(&build), &original_build);
@@ -378,7 +378,7 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
     );
     write(
         &consumer.path(&format!("{MODEL}/orphan/main.cc")),
-        "#include \"examples/qt-rust/model/orphan/ledger_model.cxxqt.h\"\n\nint main() { return 0; }\n",
+        "#include \"qt/tests/fixtures/qt-rust/model/orphan/ledger_model.cxxqt.h\"\n\nint main() { return 0; }\n",
     );
 
     let stale = read_text(&consumer.path(&bridge)).replace(
@@ -388,7 +388,7 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
     write(&consumer.path(&format!("{MODEL}/stale_model.rs")), &stale);
     write(
         &consumer.path(&format!("{MODEL}/stale/main.cc")),
-        "#include \"examples/qt-rust/model/stale_model.cxxqt.h\"\n\nint main() {\n  LedgerModel model;\n  return model.deposit(1) ? 0 : 1;\n}\n",
+        "#include \"qt/tests/fixtures/qt-rust/model/stale_model.cxxqt.h\"\n\nint main() {\n  LedgerModel model;\n  return model.deposit(1) ? 0 : 1;\n}\n",
     );
     let repo = &consumer.repo;
     write(
@@ -397,19 +397,19 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
             "load(\"@{repo}//qt/rules:defs.bzl\", \"qt_cc_binary\", \"qt_rust_cc_library\")\n{original_build}\nqt_rust_cc_library(\n    name = \"stale\",\n    bridges = [\"stale_model.rs\"],\n    rust = \":model_rust\",\n    uri = \"Ledger.Stale\",\n)\n\nqt_rust_cc_library(\n    name = \"nested\",\n    bridges = [\"orphan/ledger_model.rs\"],\n    rust = \":model_rust\",\n)\n\nqt_cc_binary(\n    name = \"stale_app\",\n    srcs = [\"stale/main.cc\"],\n    deps = [\":stale\"],\n)\n\nqt_cc_binary(\n    name = \"orphan_app\",\n    srcs = [\"orphan/main.cc\"],\n    deps = [\":model\"],\n)\n"
         ),
     );
-    let nested = consumer.dx("build", &["//examples/qt-rust/model:nested"], &[]);
+    let nested = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model:nested"], &[]);
     assert_fails(&nested);
     assert_has(
         &nested.combined(),
         "bridge 'orphan/ledger_model.rs' must sit in the package directory",
     );
-    let ungenerated = consumer.dx("build", &["//examples/qt-rust/model:orphan_app"], &[]);
+    let ungenerated = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model:orphan_app"], &[]);
     assert_fails(&ungenerated);
     assert_has(
         &ungenerated.combined(),
-        "'examples/qt-rust/model/orphan/ledger_model.cxxqt.h' file not found",
+        "'qt/tests/fixtures/qt-rust/model/orphan/ledger_model.cxxqt.h' file not found",
     );
-    let mismatch = consumer.dx("build", &["//examples/qt-rust/model:stale_app"], &[]);
+    let mismatch = consumer.dx("build", &["//qt/tests/fixtures/qt-rust/model:stale_app"], &[]);
     assert_fails(&mismatch);
     assert_has(
         &mismatch.combined(),
@@ -425,5 +425,5 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
         };
         removed.unwrap_or_else(|error| panic!("remove {path:?}: {error}"));
     }
-    assert_exit(&consumer.dx("test", &["//examples/qt-rust/..."], &[]), 0);
+    assert_exit(&consumer.dx("test", &["//qt/tests/fixtures/qt-rust/..."], &[]), 0);
 }

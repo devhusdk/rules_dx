@@ -8,8 +8,8 @@
 
 #include <fmt/format.h>
 
-#include "examples/qt-tasks/catalog/asset_catalog.h"
-#include "examples/qt-tasks/store/task_model.h"
+#include "qt/tests/fixtures/qt-tasks/catalog/asset_catalog.h"
+#include "qt/tests/fixtures/qt-tasks/store/task_model.h"
 
 namespace {
 

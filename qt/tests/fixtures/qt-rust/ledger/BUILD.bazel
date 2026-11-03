@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-_VISIBILITY = ["//examples/qt-rust:__subpackages__"]
+_VISIBILITY = ["//qt/tests/fixtures/qt-rust:__subpackages__"]
 
 rust_library(
     name = "ledger",

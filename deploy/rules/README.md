@@ -288,7 +288,7 @@ builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
 other member with mode 0644, in both formats.
 
 Examples: [Qt packaging](../../qt/README.md#packaging) and
-[qt-rust](../../examples/qt-rust/app/BUILD.bazel).
+[qt-rust](../../qt/tests/fixtures/qt-rust/app/BUILD.bazel).
 
 # crates_deploy
 

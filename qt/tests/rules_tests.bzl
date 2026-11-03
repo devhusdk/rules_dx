@@ -257,7 +257,7 @@ def _rust_module_test_impl(ctx):
     asserts.equals(env, {}, {key: value for key, value in target[QualitySourcesInfo].direct_sources.items() if value.to_list()})
     paths = [f.short_path for f in target[DefaultInfo].files.to_list()]
     for want in ["model_qml/Ledger/Model/qmldir", "model_qml/Ledger/Model/model.qmltypes"]:
-        asserts.true(env, "examples/qt-rust/model/" + want in paths, "missing " + want + " in " + str(paths))
+        asserts.true(env, "qt/tests/fixtures/qt-rust/model/" + want in paths, "missing " + want + " in " + str(paths))
     asserts.equals(env, ["model_metatypes.json"], _basenames(target[QtInfo].metatypes.to_list()))
     asserts.true(env, CcInfo in target, "CcInfo is not forwarded")
     return analysistest.end(env)
@@ -269,7 +269,7 @@ def _bridge_test_impl(ctx):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv
-    asserts.equals(env, ["qt", "examples/qt-rust/model/ledger_model.rs", "examples/qt-rust/model/ledger_model"], argv[1:4], str(argv))
+    asserts.equals(env, ["qt", "qt/tests/fixtures/qt-rust/model/ledger_model.rs", "qt/tests/fixtures/qt-rust/model/ledger_model"], argv[1:4], str(argv))
     outputs = [f.basename for f in actions[0].outputs.to_list()]
     asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))
     asserts.equals(env, [f.basename for f in actions[0].outputs.to_list()], [arg.rpartition("/")[2] for arg in argv[4:]])
@@ -358,7 +358,7 @@ _frameworks_test = analysistest.make(_frameworks_test_impl, attrs = {
 
 def _bundle_test_impl(ctx):
     env = analysistest.begin(ctx)
-    prefix = "examples/qt-tasks/app/runtime/"
+    prefix = "qt/tests/fixtures/qt-tasks/app/runtime/"
     members = [f.short_path[len(prefix):] for f in analysistest.target_under_test(env)[DefaultInfo].files.to_list()]
     for want in ["lib/libQt6Core.so.6", "lib/libQt6Qml.so.6", "lib/libicuuc.so.73", "lib/libstdc++.so.6", "qml/QML/qmldir", "qml/QtQml/qmldir", "qml/QtQml/libqmlplugin.so", "licenses/qt/LGPL-3.0-only.txt"]:
         asserts.true(env, want in members, "missing " + want)
@@ -445,17 +445,17 @@ def qt_rules_tests(name):
     )
     _bundle_test(
         name = name + "_bundle",
-        target_under_test = "//examples/qt-tasks/app:runtime",
+        target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
         target_compatible_with = _LINUX,
     )
     _rust_module_test(
         name = name + "_rust_module",
-        target_under_test = "//examples/qt-rust/model",
+        target_under_test = "//qt/tests/fixtures/qt-rust/model",
         target_compatible_with = _LINUX,
     )
     _bridge_test(
         name = name + "_bridge",
-        target_under_test = "//examples/qt-rust/model:model_bridge",
+        target_under_test = "//qt/tests/fixtures/qt-rust/model:model_bridge",
         target_compatible_with = _LINUX,
     )
     failures = {

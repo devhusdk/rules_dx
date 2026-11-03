@@ -12,9 +12,9 @@ reads its properties and handles its signal. It builds against the pinned
 | `app` | `ledger` binary, `ledger_test` QtTest suite, `runtime` bundle and `ledger_release` archive |
 
 ```sh
-bazel build //examples/qt-rust/...
-bazel test //examples/qt-rust/...
-bazel run //examples/qt-rust/app:ledger -- 5 -2 7
+bazel build //qt/tests/fixtures/qt-rust/...
+bazel test //qt/tests/fixtures/qt-rust/...
+bazel run //qt/tests/fixtures/qt-rust/app:ledger -- 5 -2 7
 ```
 
 `ledger` takes one or more integer amounts. It prints `added <n>` or
@@ -27,8 +27,8 @@ usage error, `3` at least one amount was rejected.
 ## Package
 
 ```sh
-bazel build //examples/qt-rust/app:ledger_release_archive
-mkdir /tmp/ledger && tar -xzf bazel-bin/examples/qt-rust/app/ledger_release.tar.gz -C /tmp/ledger
+bazel build //qt/tests/fixtures/qt-rust/app:ledger_release_archive
+mkdir /tmp/ledger && tar -xzf bazel-bin/qt/tests/fixtures/qt-rust/app/ledger_release.tar.gz -C /tmp/ledger
 env -i /tmp/ledger/ledger 5 7
 ```
 

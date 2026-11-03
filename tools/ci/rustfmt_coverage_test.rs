@@ -166,7 +166,7 @@ const PACKAGES: [&str; 129] = [
     "examples/lua-app/diagnostics",
     "examples/node-app/cli",
     "examples/node-app/diagnostics",
-    "examples/qt-rust/ledger",
+    "qt/tests/fixtures/qt-rust/ledger",
     "examples/shared-rust",
     "examples/zig-app/diagnostics",
     "fortran/tests/negative",

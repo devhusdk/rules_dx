@@ -10,14 +10,14 @@ fn native_display_renders_the_relocated_board() {
         &consumer.dx(
             "build",
             &[
-                "//examples/qt-tasks/app:board_release_archive",
-                "//examples/qt-tasks/app:board_release_checksum",
+                "//qt/tests/fixtures/qt-tasks/app:board_release_archive",
+                "//qt/tests/fixtures/qt-tasks/app:board_release_checksum",
             ],
             &[],
         ),
         0,
     );
-    let board_dir = extract(&consumer, "examples/qt-tasks/app", "board_release");
+    let board_dir = extract(&consumer, "qt/tests/fixtures/qt-tasks/app", "board_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
     let board = board_dir.join("board");
     let store = board_dir.join("tasks.json");

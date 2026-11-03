@@ -8,7 +8,7 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
         &read_text(&consumer.path("MODULE.bazel")),
         "repo_name = \"my_dx\"",
     );
-    let browser = read_text(&consumer.path("examples/qt-tasks/browser/BUILD.bazel"));
+    let browser = read_text(&consumer.path("qt/tests/fixtures/qt-tasks/browser/BUILD.bazel"));
     assert_has(
         &browser,
         "load(\"@my_dx//qt/rules:defs.bzl\", \"QT_COMPATIBLE_WITH\", \"qt_qml_module\")",
@@ -18,19 +18,19 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
     assert_exit(&consumer.dx("build", &["//..."], &[]), 0);
     let tested = consumer.dx("test", &["//..."], &[]);
     assert_exit(&tested, 0);
-    assert_has(&tested.combined(), "//examples/qt-tasks/app:browser_test");
+    assert_has(&tested.combined(), "//qt/tests/fixtures/qt-tasks/app:browser_test");
     assert_has(
         &tested.combined(),
-        "//examples/qt-tasks/app:board_quick_test",
+        "//qt/tests/fixtures/qt-tasks/app:board_quick_test",
     );
 
     let qmltypes = read_text(
-        &consumer.path("bazel-bin/examples/qt-tasks/store/store_qml/Tasks/Store/store.qmltypes"),
+        &consumer.path("bazel-bin/qt/tests/fixtures/qt-tasks/store/store_qml/Tasks/Store/store.qmltypes"),
     );
     assert_has(&qmltypes, "name: \"TaskModel\"");
     assert_has(&qmltypes, "exports: [\"Tasks.Store/TaskModel 1.0\"]");
     let qm = std::fs::read(
-        consumer.path("bazel-bin/examples/qt-tasks/browser/_qt/browser/i18n/tasks_de.qm"),
+        consumer.path("bazel-bin/qt/tests/fixtures/qt-tasks/browser/_qt/browser/i18n/tasks_de.qm"),
     )
     .expect("lrelease wrote tasks_de.qm");
     assert_eq!(&qm[..4], b"\x3c\xb8\x64\x18", "not a .qm file");
@@ -96,9 +96,9 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
         &format!("tasks: {store_arg}: not a task list"),
     );
 
-    let store_build = "examples/qt-tasks/store/BUILD.bazel";
+    let store_build = "qt/tests/fixtures/qt-tasks/store/BUILD.bazel";
     let original = consumer.edit(store_build, "@my_dx//qt/rules", "@rules_dx//qt/rules");
-    let default_name = consumer.dx("build", &["//examples/qt-tasks/store"], &[]);
+    let default_name = consumer.dx("build", &["//qt/tests/fixtures/qt-tasks/store"], &[]);
     assert_ne!(
         default_name.status.code(),
         Some(0),
@@ -116,17 +116,17 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         &consumer.dx(
             "build",
             &[
-                "//examples/qt-tasks/app:board_release_archive",
-                "//examples/qt-tasks/app:board_release_checksum",
-                "//examples/qt-tasks/app:tasks_release_archive",
-                "//examples/qt-tasks/app:tasks_release_checksum",
+                "//qt/tests/fixtures/qt-tasks/app:board_release_archive",
+                "//qt/tests/fixtures/qt-tasks/app:board_release_checksum",
+                "//qt/tests/fixtures/qt-tasks/app:tasks_release_archive",
+                "//qt/tests/fixtures/qt-tasks/app:tasks_release_checksum",
             ],
             &[],
         ),
         0,
     );
-    let elsewhere = extract(&consumer, "examples/qt-tasks/app", "tasks_release");
-    let board_dir = extract(&consumer, "examples/qt-tasks/app", "board_release");
+    let elsewhere = extract(&consumer, "qt/tests/fixtures/qt-tasks/app", "tasks_release");
+    let board_dir = extract(&consumer, "qt/tests/fixtures/qt-tasks/app", "board_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
 
     let app = elsewhere.join("tasks");
@@ -489,30 +489,30 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
 #[test]
 fn quality_and_interface_errors_fail_inside_the_modules() {
     let consumer = Consumer::new("tasks", "DX_QT_TASKS_MANIFEST", Some("rules_dx"));
-    let main_qml = "examples/qt-tasks/browser/Main.qml";
+    let main_qml = "qt/tests/fixtures/qt-tasks/browser/Main.qml";
 
     assert_exit(
-        &consumer.quality("lint", "qmllint", "//examples/qt-tasks/..."),
+        &consumer.quality("lint", "qmllint", "//qt/tests/fixtures/qt-tasks/..."),
         0,
     );
     assert_exit(
-        &consumer.quality("format", "qmlformat", "//examples/qt-tasks/..."),
+        &consumer.quality("format", "qmlformat", "//qt/tests/fixtures/qt-tasks/..."),
         0,
     );
 
     let original = consumer.edit(main_qml, "arg(tasks.remaining)", "arg(tasks.remainder)");
-    let lint = consumer.quality("lint", "qmllint", "//examples/qt-tasks/browser");
+    let lint = consumer.quality("lint", "qmllint", "//qt/tests/fixtures/qt-tasks/browser");
     assert_exit(&lint, 1);
-    assert_has(&lint.stdout, "examples/qt-tasks/browser/Main.qml:");
+    assert_has(&lint.stdout, "qt/tests/fixtures/qt-tasks/browser/Main.qml:");
     assert_has(
         &lint.stdout,
         "Member \"remainder\" not found on type \"TaskModel\"",
     );
     write(&consumer.path(main_qml), &original);
 
-    let store = "examples/qt-tasks/store/BUILD.bazel";
+    let store = "qt/tests/fixtures/qt-tasks/store/BUILD.bazel";
     let original_store = consumer.edit(store, "    qml_depends = [\"QtQml.Models\"],\n", "");
-    let depends = consumer.quality("lint", "qmllint", "//examples/qt-tasks/browser");
+    let depends = consumer.quality("lint", "qmllint", "//qt/tests/fixtures/qt-tasks/browser");
     assert_exit(&depends, 1);
     assert_has(&depends.stdout, "QAbstractListModel was not found");
     write(&consumer.path(store), &original_store);
@@ -522,9 +522,9 @@ fn quality_and_interface_errors_fail_inside_the_modules() {
         "    property TaskModel tasks",
         "property  TaskModel tasks",
     );
-    let format = consumer.quality("format", "qmlformat", "//examples/qt-tasks/browser");
+    let format = consumer.quality("format", "qmlformat", "//qt/tests/fixtures/qt-tasks/browser");
     assert_exit(&format, 1);
-    assert_has(&format.combined(), "examples/qt-tasks/browser/Main.qml");
+    assert_has(&format.combined(), "qt/tests/fixtures/qt-tasks/browser/Main.qml");
     write(&consumer.path(main_qml), &original);
 
     consumer.edit(main_qml, "import Tasks.Store", "import Tasks.Storage");
@@ -533,15 +533,15 @@ fn quality_and_interface_errors_fail_inside_the_modules() {
     assert_has(&import.stderr, "module \"Tasks.Storage\" is not installed");
     write(&consumer.path(main_qml), &original);
 
-    let header = "examples/qt-tasks/store/task_model.h";
+    let header = "qt/tests/fixtures/qt-tasks/store/task_model.h";
     let original = consumer.edit(header, "READ count NOTIFY", "READ countMissing NOTIFY");
-    let generated = consumer.dx("build", &["//examples/qt-tasks/store"], &[]);
+    let generated = consumer.dx("build", &["//qt/tests/fixtures/qt-tasks/store"], &[]);
     assert_ne!(generated.status.code(), Some(0), "{}", generated.combined());
     assert_has(&generated.combined(), "moc_task_model");
     assert_has(&generated.combined(), "countMissing");
     write(&consumer.path(header), &original);
 
-    let catalog = "examples/qt-tasks/catalog/BUILD.bazel";
+    let catalog = "qt/tests/fixtures/qt-tasks/catalog/BUILD.bazel";
     let original = consumer.edit(catalog, "    resources = [\"assets.json\"],\n", "");
     let resource = consumer.tasks(&["--store", "unused.json", "list"]);
     assert_exit(&resource, 2);
@@ -551,9 +551,9 @@ fn quality_and_interface_errors_fail_inside_the_modules() {
     );
     write(&consumer.path(catalog), &original);
 
-    let translations_ts = "examples/qt-tasks/browser/tasks_de.ts";
+    let translations_ts = "qt/tests/fixtures/qt-tasks/browser/tasks_de.ts";
     let original = consumer.edit(translations_ts, "<message>", "<message");
-    let translation = consumer.dx("build", &["//examples/qt-tasks/browser"], &[]);
+    let translation = consumer.dx("build", &["//qt/tests/fixtures/qt-tasks/browser"], &[]);
     assert_ne!(
         translation.status.code(),
         Some(0),
@@ -563,5 +563,5 @@ fn quality_and_interface_errors_fail_inside_the_modules() {
     assert_has(&translation.combined(), "QtLrelease");
     assert_has(&translation.combined(), "tasks_de.ts");
     write(&consumer.path(translations_ts), &original);
-    assert_exit(&consumer.dx("test", &["//examples/qt-tasks/..."], &[]), 0);
+    assert_exit(&consumer.dx("test", &["//qt/tests/fixtures/qt-tasks/..."], &[]), 0);
 }

@@ -3,22 +3,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-_VISIBILITY = ["//examples/qt-tasks:__subpackages__"]
+_VISIBILITY = ["//qt/tests/fixtures/qt-tasks:__subpackages__"]
 
 qt_qml_module(
-    name = "board",
-    modules = ["quick"],
-    qml_srcs = [
-        "Board.qml",
-        "TaskRow.qml",
-    ],
+    name = "store",
+    srcs = ["task_model.cc"],
+    moc_hdrs = ["task_model.h"],
+    qml_depends = ["QtQml.Models"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    uri = "Tasks.Board",
+    uri = "Tasks.Store",
     visibility = _VISIBILITY,
-    deps = [
-        "//examples/qt-tasks/catalog",
-        "//examples/qt-tasks/store",
-    ],
 )
 
 real_source_target(

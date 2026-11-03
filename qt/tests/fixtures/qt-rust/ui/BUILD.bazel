@@ -3,19 +3,15 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-_VISIBILITY = ["//examples/qt-tasks:__subpackages__"]
+_VISIBILITY = ["//qt/tests/fixtures/qt-rust:__subpackages__"]
 
 qt_qml_module(
-    name = "browser",
+    name = "ui",
     qml_srcs = ["Main.qml"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    translations = ["tasks_de.ts"],
-    uri = "Tasks.Browser",
+    uri = "Ledger.Ui",
     visibility = _VISIBILITY,
-    deps = [
-        "//examples/qt-tasks/catalog",
-        "//examples/qt-tasks/store",
-    ],
+    deps = ["//qt/tests/fixtures/qt-rust/model"],
 )
 
 real_source_target(

@@ -551,7 +551,7 @@ rust_test(
         "//examples/lua-app/diagnostics:corpus_starlark",
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
-        "//examples/qt-rust/ledger:corpus_starlark",
+        "//qt/tests/fixtures/qt-rust/ledger:corpus_starlark",
         "//examples/shared-rust:corpus_starlark",
         "//examples/zig-app/diagnostics:corpus_starlark",
         "//fortran/tests/negative:corpus_starlark",

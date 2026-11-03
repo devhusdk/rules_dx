@@ -9,7 +9,7 @@ qt_cc_binary(
     srcs = ["main.cc"],
     modules = ["qml"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = ["//examples/qt-rust/ui"],
+    deps = ["//qt/tests/fixtures/qt-rust/ui"],
 )
 
 qt_cc_test(
@@ -23,8 +23,8 @@ qt_cc_test(
     ],
     target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
-        "//examples/qt-rust/model",
-        "//examples/qt-rust/ui",
+        "//qt/tests/fixtures/qt-rust/model",
+        "//qt/tests/fixtures/qt-rust/ui",
     ],
 )
 

@@ -194,7 +194,6 @@ ROWS = [
     },
     {
         "ci_tests": ["//cmake/tests:bad_name_fails", "//cmake/tests:owns_cmake_class_test"],
-        "consumer_tests": ["//quality/tests:cmake_consumer_test"],
         "families": ["cmake"],
         "name": "cmake",
         "section": "targets",
@@ -238,10 +237,13 @@ ROWS = [
 ]
 
 NOT_LANGUAGES = [
+    "bcr_test_module",
+    "ci",
     "cli",
     "config",
     "deploy",
     "docs",
+    "dotnet",
     "dx",
     "env",
     "examples",

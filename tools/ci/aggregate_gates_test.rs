@@ -354,13 +354,13 @@ fn pull_request_comments_stay_pull_request_only() {
 }
 
 #[test]
-fn pages_publication_stays_on_main_push_only() {
+fn pages_publication_stays_on_default_branch_push() {
     let text = read_runfiles("examples/docs-ci/caller.yml");
     assert!(
         text.contains(
-            "publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
+            "publish: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
         ),
-        "publish must be limited to pushes to main"
+        "publish must be limited to pushes to the default branch"
     );
 }
 

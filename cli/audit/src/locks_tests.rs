@@ -1502,3 +1502,11 @@ fn cargo_manifest_license_reads_the_package_table() {
         assert_eq!(cargo_manifest_license(text), None, "{text}");
     }
 }
+
+#[test]
+fn package_lock_skips_workspace_link_sources() {
+    let text = r#"{"lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/a":{"resolved":"packages/a","link":true},"packages/a":{"name":"a","version":"1.0.0"},"node_modules/lodash":{"version":"4.17.21","resolved":"https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"}}}"#;
+    let packages = parse_package_lock(text).expect("parses");
+    let names: Vec<&str> = packages.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["lodash"]);
+}

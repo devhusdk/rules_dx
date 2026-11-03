@@ -217,8 +217,19 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         let packages = packages
             .as_object()
             .ok_or_else(|| "invalid package-lock.json: packages is not an object".to_owned())?;
+        let linked: std::collections::HashSet<&str> = packages
+            .values()
+            .filter_map(|detail| detail.as_object())
+            .filter(|detail| {
+                detail
+                    .get("link")
+                    .and_then(|value| value.as_bool())
+                    .unwrap_or(false)
+            })
+            .filter_map(|detail| detail.get("resolved").and_then(|value| value.as_str()))
+            .collect();
         for (path, detail) in packages {
-            if path.trim().is_empty() {
+            if path.trim().is_empty() || linked.contains(path.as_str()) {
                 continue;
             }
             let detail = detail.as_object().ok_or_else(|| {

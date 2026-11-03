@@ -12,6 +12,10 @@ path = "src/lib.rs"
 name = "dx"
 path = "src/main.rs"
 
+[[bin]]
+name = "fake_dx"
+path = "fake/fake_dx.rs"
+
 [dependencies]
 semver = "1"
 sha2 = "0.10"

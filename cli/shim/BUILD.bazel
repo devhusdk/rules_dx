@@ -5,11 +5,6 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
 
-_UNIX_ONLY = select({
-    "@platforms//os:windows": ["@platforms//:incompatible"],
-    "//conditions:default": [],
-})
-
 rust_library(
     name = "dx_shim",
     srcs = [
@@ -108,10 +103,15 @@ rust_test(
     ),
     crate_name = "e2e_test",
     crate_root = "tests/e2e.rs",
-    data = [":dx_shim_bin"],
+    data = [
+        ":dx_shim_bin",
+        ":fake_dx",
+    ],
     edition = "2021",
-    env = {"DX_SHIM_BIN": "$(rootpath :dx_shim_bin)"},
-    target_compatible_with = _UNIX_ONLY,
+    env = {
+        "DX_FAKE_BIN": "$(rootpath :fake_dx)",
+        "DX_SHIM_BIN": "$(rootpath :dx_shim_bin)",
+    },
     deps = all_crate_deps(
         package_name = "cli/dx_shim",
         normal = True,
@@ -133,10 +133,15 @@ rust_test(
     ),
     crate_name = "interop_test",
     crate_root = "tests/interop.rs",
-    data = [":dx_shim_bin"],
+    data = [
+        ":dx_shim_bin",
+        ":fake_dx",
+    ],
     edition = "2021",
-    env = {"DX_SHIM_BIN": "$(rootpath :dx_shim_bin)"},
-    target_compatible_with = _UNIX_ONLY,
+    env = {
+        "DX_FAKE_BIN": "$(rootpath :fake_dx)",
+        "DX_SHIM_BIN": "$(rootpath :dx_shim_bin)",
+    },
     deps = all_crate_deps(
         package_name = "cli/dx_shim",
         normal = True,
@@ -154,6 +159,7 @@ rustfmt_test(
         ":dx_shim",
         ":dx_shim_bin",
         ":dx_shim_test",
+        ":fake_dx",
         ":fetch_test",
         ":e2e_test",
         ":interop_test",
@@ -167,6 +173,7 @@ rust_clippy_test(
         ":dx_shim",
         ":dx_shim_bin",
         ":dx_shim_test",
+        ":fake_dx",
         ":fetch_test",
         ":e2e_test",
         ":interop_test",
@@ -197,4 +204,20 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+rust_binary(
+    name = "fake_dx",
+    srcs = ["fake/fake_dx.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+    ),
+    crate_name = "fake_dx",
+    crate_root = "fake/fake_dx.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+    ) + [":dx_shim"],
 )

@@ -1,9 +1,6 @@
-#![cfg(unix)]
-
 mod support;
 
 use std::io::Write;
-use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -11,17 +8,9 @@ use support::Server;
 
 const VERSION: &str = "1.2.3";
 
-const FAKE_DX: &str = r#"#!/bin/sh
-printf 'shim=%s\n' "${DX_SHIM:-}"
-printf 'bazel=%s\n' "$(command -v bazel || echo none)"
-for a in "$@"; do printf 'arg=[%s]\n' "$a"; done
-case "${1:-}" in
-  stdin) cat ;;
-  exit) exit "$2" ;;
-  kill) kill -TERM $$ ;;
-esac
-exit 0
-"#;
+fn fake_dx() -> Vec<u8> {
+    std::fs::read(std::env::var("DX_FAKE_BIN").expect("DX_FAKE_BIN")).expect("fake dx")
+}
 
 fn shim_bin() -> PathBuf {
     let raw = std::env::var("DX_SHIM_BIN")
@@ -35,14 +24,14 @@ struct Fixture {
     server: Server,
     cache: tempfile::TempDir,
     workspace: tempfile::TempDir,
-    tools: tempfile::TempDir,
 }
 
 impl Fixture {
     fn new() -> Self {
         let server = Server::start();
         let (asset, _) = support::host_asset();
-        server.release(VERSION, &asset, FAKE_DX.as_bytes(), FAKE_DX.as_bytes());
+        let fake = fake_dx();
+        server.release(VERSION, &asset, &fake, &fake);
         let workspace = tempfile::tempdir().expect("workspace");
         std::fs::create_dir_all(workspace.path().join(".dx")).expect("mkdir");
         std::fs::write(
@@ -50,18 +39,10 @@ impl Fixture {
             format!("{VERSION}\r\n"),
         )
         .expect("pin");
-        let tools = tempfile::tempdir().expect("tools");
-        let cat = ["/bin/cat", "/usr/bin/cat"]
-            .into_iter()
-            .map(Path::new)
-            .find(|path| path.exists())
-            .expect("cat");
-        std::os::unix::fs::symlink(cat, tools.path().join("cat")).expect("link");
         Self {
             server,
             cache: tempfile::tempdir().expect("cache"),
             workspace,
-            tools,
         }
     }
 
@@ -71,10 +52,13 @@ impl Fixture {
             .args(args)
             .current_dir(cwd)
             .env_clear()
-            .env("PATH", self.tools.path())
             .env("HOME", self.cache.path())
+            .env("USERPROFILE", self.cache.path())
             .env("DX_CACHE_DIR", self.cache.path())
             .env("DX_RELEASE_BASE_URL", &self.server.base);
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            command.env("SystemRoot", root);
+        }
         command
     }
 
@@ -99,7 +83,7 @@ fn passes_args_through_unchanged() {
     let args = ["a b", "\"quoted\"", "it's", "ünïcødé ✓", "", "--flag=x y"];
     let output = fixture.run(&args);
     assert!(output.status.success(), "{}", stderr(&output));
-    let mut want = String::from("shim=1\nbazel=none\n");
+    let mut want = String::from("shim=1\n");
     for arg in args {
         want.push_str(&format!("arg=[{arg}]\n"));
     }
@@ -107,6 +91,7 @@ fn passes_args_through_unchanged() {
     assert_eq!(stderr(&output), "");
 }
 
+#[cfg(unix)]
 #[test]
 fn passes_non_utf8_args_through() {
     use std::os::unix::ffi::OsStrExt;
@@ -150,8 +135,10 @@ fn exit_codes_pass_through() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn signal_exit_passes_through() {
+    use std::os::unix::process::ExitStatusExt;
     let fixture = Fixture::new();
     let output = fixture.run(&["kill"]);
     assert_eq!(output.status.signal(), Some(15));
@@ -161,7 +148,6 @@ fn signal_exit_passes_through() {
         .arg(shim_bin())
         .current_dir(fixture.workspace.path())
         .env_clear()
-        .env("PATH", fixture.tools.path())
         .env("DX_CACHE_DIR", fixture.cache.path())
         .env("DX_RELEASE_BASE_URL", &fixture.server.base)
         .output()
@@ -203,9 +189,8 @@ fn finds_the_pin_from_a_nested_directory() {
 fn dx_version_env_overrides_the_file() {
     let fixture = Fixture::new();
     let (asset, _) = support::host_asset();
-    fixture
-        .server
-        .release("4.5.6", &asset, FAKE_DX.as_bytes(), FAKE_DX.as_bytes());
+    let fake = fake_dx();
+    fixture.server.release("4.5.6", &asset, &fake, &fake);
     let output = fixture
         .command(fixture.workspace.path(), &[])
         .env("DX_VERSION", "4.5.6")
@@ -223,7 +208,11 @@ fn outside_a_workspace_fails_with_exit_1() {
     if dx_shim::protocol::find_version_file(outside.path()).is_some() {
         return;
     }
-    let cwd = std::fs::canonicalize(outside.path()).expect("canonical");
+    let cwd = if cfg!(windows) {
+        outside.path().to_path_buf()
+    } else {
+        std::fs::canonicalize(outside.path()).expect("canonical")
+    };
     let output = fixture.command(&cwd, &[]).output().expect("run");
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
@@ -264,12 +253,9 @@ fn plain_http_mirror_is_refused() {
 fn checksum_mismatch_exits_1_and_runs_nothing() {
     let fixture = Fixture::new();
     let (asset, file) = support::host_asset();
-    fixture.server.release(
-        VERSION,
-        &asset,
-        b"#!/bin/sh\necho pwned\n",
-        FAKE_DX.as_bytes(),
-    );
+    fixture
+        .server
+        .release(VERSION, &asset, b"pwned", &fake_dx());
     let output = fixture.run(&[]);
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(stdout(&output), "");

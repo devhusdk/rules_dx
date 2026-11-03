@@ -1,7 +1,7 @@
 use super::common::*;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, with_correlation, FinishedCounts,
-    NoticeEvent, OutputMode,
+    command_finished, error_event, notice_event, with_correlation, FinishedCounts, NoticeEvent,
+    OutputMode,
 };
 use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::plan_reports;
@@ -29,67 +29,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
     } {
         return update_consumer::execute_configured(invocation, env, &registry, verbose, mode);
     }
-    let Env {
-        workspace,
-        runner,
-        out,
-        err,
-        ..
-    } = env;
-    let resolved = match dx_update::selector::resolve(&invocation.targets) {
-        Ok(resolved) => resolved,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let summary = frozen_summary(
-        offline_summary(display_summary(&resolved, mode), invocation.offline),
-        invocation.frozen,
-    );
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_built(
-            out,
-            command_started(invocation.command.name(), mode.mode_text()),
-        ) {
-            return exit;
-        }
-    } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
-    }
-    let mut gate = SlotGate {
-        err: &mut *err,
-        events: &mut *out,
-        phase: dx_plan::slots::Phase::new(invocation.command),
-    };
-    let outcomes = run_backends(&resolved, runner, workspace, invocation, mode, &mut gate);
-    drop(gate);
-    let (attempted, details) = match outcomes {
-        Ok(outcomes) => outcomes,
-        Err(signo) => {
-            return super::failure::cancelled(err, signo);
-        }
-    };
-    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
-    let locks: BTreeMap<String, Vec<String>> = resolved
-        .keys()
-        .map(|set| {
-            (
-                set.name().to_owned(),
-                set.locks().iter().map(|path| (*path).to_owned()).collect(),
-            )
-        })
-        .collect();
-    finish_update(FinishUpdate {
-        invocation,
-        out,
-        err,
-        selected,
-        attempted,
-        details,
-        verbose,
-        mode,
-        locks,
-    })
+    pre_exec(invocation.output, env.out, env.err, "no dependency sets")
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -294,150 +234,6 @@ impl SlotGate<'_> {
             )
             .map(|_| ())
     }
-}
-
-type Outcomes = (
-    Vec<dx_update::outcome::SetOutcome>,
-    BTreeMap<String, SetDetail>,
-);
-
-fn run_backends(
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    runner: &dyn dx_process::Runner,
-    workspace: &std::path::Path,
-    invocation: &Invocation,
-    mode: RunMode,
-    gate: &mut SlotGate<'_>,
-) -> Result<Outcomes, i32> {
-    let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
-    let head = invocation.bazel_head();
-    let verb = mode.verb();
-    for (set, request) in resolved {
-        let name = set.name();
-        let planned = match mode {
-            RunMode::Update => dx_update::backend::plan(
-                workspace,
-                *set,
-                request,
-                invocation.offline,
-                invocation.frozen,
-                &head,
-            )
-            .map(|plan| match plan {
-                dx_update::backend::BackendPlan::Run { argv, env } => {
-                    dx_update::backend::CheckPlan::Run { argv, env }
-                }
-                dx_update::backend::BackendPlan::Staged(run) => {
-                    dx_update::backend::CheckPlan::Staged(run)
-                }
-                dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
-            }),
-            RunMode::Check => dx_update::backend::check(
-                workspace,
-                *set,
-                request,
-                invocation.offline,
-                invocation.frozen,
-                &head,
-            ),
-        };
-        match planned {
-            Err(error) => {
-                record_backend_error(&mut attempted, &mut details, &error, verb, name);
-            }
-            Ok(dx_update::backend::CheckPlan::Pinned) => {
-                record_named(
-                    &mut attempted,
-                    &mut details,
-                    name,
-                    dx_update::outcome::SetStatus::Pinned,
-                    pinned_line(*set),
-                );
-            }
-            Ok(dx_update::backend::CheckPlan::Unavailable) => {
-                record_named(
-                    &mut attempted,
-                    &mut details,
-                    name,
-                    dx_update::outcome::SetStatus::Unsupported,
-                    unavailable_message(name),
-                );
-            }
-            // Builtin sets never plan a staged run; only configured nuget sets do.
-            Ok(dx_update::backend::CheckPlan::Staged(_)) => {
-                record_named(
-                    &mut attempted,
-                    &mut details,
-                    name,
-                    dx_update::outcome::SetStatus::Unsupported,
-                    unavailable_message(name),
-                );
-            }
-            Ok(dx_update::backend::CheckPlan::Run { argv, env: extra }) => {
-                gate.before(&argv)?;
-                let held = gate.phase.slot().map(|slot| slot.runner(runner));
-                run_update_backend(BackendRun {
-                    attempted: &mut attempted,
-                    details: &mut details,
-                    set: *set,
-                    request,
-                    runner: held
-                        .as_ref()
-                        .map_or(runner, |held| held as &dyn dx_process::Runner),
-                    workspace,
-                    argv: &argv,
-                    extra: &extra,
-                    mode,
-                });
-            }
-        }
-    }
-    Ok((attempted, details))
-}
-
-struct BackendRun<'a> {
-    attempted: &'a mut Vec<dx_update::outcome::SetOutcome>,
-    details: &'a mut BTreeMap<String, SetDetail>,
-    set: dx_update::sets::SetId,
-    request: &'a dx_update::selector::SetRequest,
-    runner: &'a dyn dx_process::Runner,
-    workspace: &'a std::path::Path,
-    argv: &'a [String],
-    extra: &'a [(String, String)],
-    mode: RunMode,
-}
-
-fn run_update_backend(run: BackendRun<'_>) {
-    let BackendRun {
-        attempted,
-        details,
-        set,
-        request,
-        runner,
-        workspace,
-        argv,
-        extra,
-        mode,
-    } = run;
-    let env_refs: Vec<(&str, &str)> = extra
-        .iter()
-        .map(|(key, value)| (key.as_str(), value.as_str()))
-        .collect();
-    let ok = match mode {
-        RunMode::Update => (
-            dx_update::outcome::SetStatus::Updated,
-            success_line(set, request),
-        ),
-        RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
-    };
-    let (status, message) = runner_status(
-        runner.run(argv, workspace, &env_refs),
-        mode.verb(),
-        set.name(),
-        ok,
-    );
-    record_named(attempted, details, set.name(), status, message);
 }
 
 fn emit_update_json(
@@ -653,35 +449,6 @@ fn emit_update_text(
     exit
 }
 
-fn display_summary(
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    mode: RunMode,
-) -> String {
-    let command = match mode {
-        RunMode::Update => "Running update for",
-        RunMode::Check => "Running update --check for",
-    };
-    let all_full = resolved.len() == dx_update::sets::SetId::ALL.len()
-        && resolved
-            .values()
-            .all(|request| *request == dx_update::selector::SetRequest::Full);
-    if all_full {
-        return format!("{command} all dependency sets");
-    }
-    let mut parts = Vec::new();
-    for (set, request) in resolved {
-        match request {
-            dx_update::selector::SetRequest::Full => parts.push(set.name().to_owned()),
-            dx_update::selector::SetRequest::Packages(packages) => {
-                for package in packages {
-                    parts.push(format!("{}:{package}", set.name()));
-                }
-            }
-        }
-    }
-    format!("{command} {}", parts.join(", "))
-}
-
 fn status_summary(report: &dx_update::outcome::UpdateReport, mode: RunMode) -> String {
     let mut parts = Vec::new();
     for (status, verb) in [
@@ -705,85 +472,6 @@ fn status_summary(report: &dx_update::outcome::UpdateReport, mode: RunMode) -> S
         }
     }
     format!("{}: {}", mode.command_text(), parts.join(", "))
-}
-
-fn current_line(set: dx_update::sets::SetId) -> String {
-    format!(
-        "{} lockfile current ({})",
-        set.name(),
-        set.locks().join(", ")
-    )
-}
-
-fn pinned_line(set: dx_update::sets::SetId) -> String {
-    match set {
-        dx_update::sets::SetId::Go => "go pins are manual (track Gazelle for the shared go_deps extension; widen via `dx update go:<module> <version>`); nothing to resolve"
-            .to_owned(),
-        dx_update::sets::SetId::Ruby => {
-            "ruby pins are manual (regenerate with `bundle lock` on the seed host); nothing to resolve"
-                .to_owned()
-        }
-        dx_update::sets::SetId::PowerShell => "powershell pins are manual (hand-regenerate PSGallery.lock.json; builds never run Install-Module); nothing to resolve"
-            .to_owned(),
-        other => format!("{} pins are manual; nothing to resolve", other.name()),
-    }
-}
-
-fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetRequest) -> String {
-    match request {
-        dx_update::selector::SetRequest::Full => match set {
-            dx_update::sets::SetId::Cargo => {
-                "updated cargo (rust/tests/fixtures/hello/Cargo.lock, cargo-bazel-lock.json)"
-                    .to_owned()
-            }
-            dx_update::sets::SetId::Npm => "updated npm (pnpm-lock.yaml)".to_owned(),
-            dx_update::sets::SetId::NpmTools => {
-                "updated npm-tools (quality/tools/javascript/pnpm-lock.yaml)".to_owned()
-            }
-            dx_update::sets::SetId::NpmAdopt => {
-                "updated npm-adopt (examples/adopt-js-ts/pnpm-lock.yaml)".to_owned()
-            }
-            dx_update::sets::SetId::NpmAdoptPolyglot => {
-                "updated npm-adopt-polyglot (examples/adopt-polyglot/pnpm-lock.yaml)".to_owned()
-            }
-            dx_update::sets::SetId::Maven => {
-                "updated maven (third_party/jvm/maven_install.json)".to_owned()
-            }
-            dx_update::sets::SetId::NuGet => {
-                "updated nuget (third_party/dotnet/paket.lock)".to_owned()
-            }
-            dx_update::sets::SetId::Uv => {
-                "updated uv (python/tests/fixtures/hello/uv.lock)".to_owned()
-            }
-            dx_update::sets::SetId::UvTools => {
-                "updated uv-tools (quality/tools/python/uv.lock)".to_owned()
-            }
-            dx_update::sets::SetId::UvAdopt => {
-                "updated uv-adopt (examples/adopt-python/uv.lock)".to_owned()
-            }
-            dx_update::sets::SetId::UvAdoptPolyglot => {
-                "updated uv-adopt-polyglot (examples/adopt-polyglot/uv.lock)".to_owned()
-            }
-            dx_update::sets::SetId::Go
-            | dx_update::sets::SetId::Ruby
-            | dx_update::sets::SetId::PowerShell => {
-                let locks = set.locks().join(", ");
-                format!("updated {} ({locks})", set.name())
-            }
-        },
-        dx_update::selector::SetRequest::Packages(packages) => {
-            let locks = set.locks().join(", ");
-            let selections: Vec<String> = packages
-                .iter()
-                .map(|package| format!("{}:{package}", set.name()))
-                .collect();
-            if locks.is_empty() {
-                format!("updated {} (nothing to update)", selections.join(", "))
-            } else {
-                format!("updated {} ({locks})", selections.join(", "))
-            }
-        }
-    }
 }
 
 #[cfg(test)]

@@ -505,7 +505,8 @@ A `uv.project` whose `pyproject` is at the workspace root is named
 `<hub_name>`. Each set's scopes are the directories of its manifests and
 locks, except `MODULE.bazel`. A path or label that names a manifest or lock,
 such as `//:cargo-bazel-lock.json`, selects only the set that owns it. A
-workspace with none of these hubs uses the built-in sets. Hub arguments must be
+workspace with none of these hubs makes `dx update` exit `2` with
+`no dependency sets`. Hub arguments must be
 literal; a computed one, two sets with one name, and two sets that own one
 manifest or lock fail with exit `2` before anything runs.
 

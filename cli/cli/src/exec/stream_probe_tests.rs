@@ -1231,8 +1231,6 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
     let json: &[&str] = &["build", "//...", "--output=json"];
     let run_text: &[&str] = &["run", "//demo:app"];
     let run_json: &[&str] = &["run", "//demo:app", "--output=json"];
-    let update_text: &[&str] = &["update", "--apply", "cargo"];
-    let update_json: &[&str] = &["update", "--apply", "cargo", "--output=json"];
     let sets_text: &[&str] = &["update", "--apply", "crates"];
     let sets_json: &[&str] = &["update", "--apply", "crates", "--output=json"];
     for signo in [libc::SIGINT, libc::SIGTERM] {
@@ -1241,8 +1239,6 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
             (json, false),
             (run_text, false),
             (run_json, false),
-            (update_text, false),
-            (update_json, false),
             (sets_text, true),
             (sets_json, true),
         ] {

@@ -908,6 +908,7 @@ mod tests {
     #[test]
     fn run_pattern_expands_to_runnables() {
         let harness = Harness::new("run-pattern");
+        harness.write_source("demo/BUILD.bazel", "");
         harness
             .query
             .script_stdout("//demo:backend\n//demo:frontend\n");
@@ -932,6 +933,7 @@ mod tests {
     #[test]
     fn run_pattern_without_runnable_is_operational() {
         let harness = Harness::new("run-pattern-empty");
+        harness.write_source("demo/BUILD.bazel", "");
         harness.query.script_stdout("");
         let (code, _, err) = harness.run(&["run", "//demo/..."]);
         assert_eq!(code, 1, "{err}");

@@ -56,8 +56,6 @@ mod workflow;
 mod worktree;
 
 use dx_plan::args::{Command, Invocation};
-#[cfg(test)]
-pub(crate) use umbrella::UMBRELLA_PHASES;
 
 pub use audit::AUDIT_TODAY_ENV;
 pub use bump::COMMIT_JSON_ENV as BUMP_COMMIT_JSON_ENV;
@@ -327,7 +325,9 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 10] = [
+    const NO_BAZEL_BUILD: [Command; 12] = [
+        Command::Init,
+        Command::Install,
         Command::Security,
         Command::License,
         Command::Clean,

@@ -339,8 +339,7 @@ impl Invocation {
 
     /// The `command_started` mode: check unless `--apply` authorizes writing.
     pub fn started_mode(&self) -> &'static str {
-        let check_only = self.command.supports_apply() && !self.applies();
-        if self.command == Command::Check || check_only {
+        if self.command.supports_apply() && !self.applies() {
             "check"
         } else {
             "default"

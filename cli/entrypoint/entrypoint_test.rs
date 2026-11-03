@@ -247,8 +247,8 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     );
     let bump = read("DX_SETS_BUMP_CARGO");
     assert!(
-        bump.contains("no declared requirement for \"serde\" in any manifest of set rs"),
-        "bump widens configured cargo manifests: {bump}"
+        bump.contains("bump pending: rs:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),
+        "bump plans an undeclared cargo package without writing: {bump}"
     );
     assert!(
         bump.contains("cannot resolve cargo hub \"crates\""),
@@ -333,7 +333,7 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        19,
+        25,
         "init --apply writes the essentials, launcher and override files: {apply}"
     );
     for file in [

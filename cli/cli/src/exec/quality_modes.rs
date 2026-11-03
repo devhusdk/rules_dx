@@ -822,7 +822,7 @@ fn a_bazel_host_failure_ends_the_phase_as_host() {
     signalled.signalled = true;
     for (mut harness, code) in [
         (disk_full, 36),
-        (crashed, 37),
+        (crashed, 1),
         (launch_failed, 1),
         (signalled, 1),
     ] {

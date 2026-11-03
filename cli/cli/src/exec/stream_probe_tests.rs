@@ -51,7 +51,9 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
     for dir in [&workspace, &bin, &tmp, &workspace.join(".dx")] {
         fs::create_dir_all(dir).expect("probe dir");
     }
-    fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
+    if !workspace.join("MODULE.bazel").exists() {
+        fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
+    }
     fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     fs::create_dir_all(workspace.join("pkg")).expect("pkg dir");
@@ -1211,7 +1213,8 @@ fn write_dependency_sets(base: &Path) {
     // dx refuses a cargo set whose crate_universe hub is not declared.
     fs::write(
         workspace.join("MODULE.bazel"),
-        "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//app:Cargo.lock\", lockfile = \"//app:cargo-bazel-lock.json\", manifests = [\"//app:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
+        MODULE.to_owned()
+            + "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//app:Cargo.lock\", lockfile = \"//app:cargo-bazel-lock.json\", manifests = [\"//app:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
     )
     .expect("module");
 }

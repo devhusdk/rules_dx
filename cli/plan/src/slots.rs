@@ -1537,6 +1537,7 @@ trait Warm {
 
 impl Warmth {
     /// The full command a ping runs: launcher, startup options, then a lock-free `info`.
+    #[allow(clippy::disallowed_methods)]
     fn ping_argv(&self) -> Vec<String> {
         let mut argv = dx_process::startup_argv(&self.startup_options);
         argv.extend(["--noblock_for_lock", "info", "server_pid"].map(str::to_owned));

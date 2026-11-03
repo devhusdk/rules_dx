@@ -2334,7 +2334,7 @@ mod tests {
         let failure = event(&events, "error");
         assert_eq!(failure["code"], serde_json::json!("verification_failed"));
         assert_eq!(failure["phase"], serde_json::json!("format"));
-        assert_eq!(failure["correlation"], serde_json::json!("fix/format"));
+        assert_eq!(failure["correlation"], serde_json::json!("check/format"));
         assert_eq!(
             events.last().expect("last")["exit_code"],
             serde_json::json!(1)
@@ -2402,7 +2402,7 @@ mod tests {
         assert_eq!(failures[0]["code"], serde_json::json!("collection_failed"));
         assert_eq!(
             failures[0]["correlation"],
-            serde_json::json!("fix/verify/lint")
+            serde_json::json!("check/verify/lint")
         );
         assert!(!out.contains("verification_failed"), "{out}");
     }
@@ -2640,7 +2640,7 @@ mod tests {
             .iter()
             .map(|event| event["correlation"].as_str().expect("correlation"))
             .collect();
-        assert_eq!(failures, vec!["fix/format"], "{out}");
+        assert_eq!(failures, vec!["check/format"], "{out}");
         assert!(
             events_of_kind(&events, "notice")
                 .iter()
@@ -2723,10 +2723,10 @@ mod tests {
         let verify: Vec<&str> = events
             .iter()
             .filter_map(|event| event["correlation"].as_str())
-            .filter(|correlation| correlation.starts_with("fix/verify/"))
+            .filter(|correlation| correlation.starts_with("check/verify/"))
             .collect();
-        assert!(verify.contains(&"fix/verify/format"), "{out}{err}");
-        assert!(!verify.contains(&"fix/verify/lint"), "{out}");
+        assert!(verify.contains(&"check/verify/format"), "{out}{err}");
+        assert!(!verify.contains(&"check/verify/lint"), "{out}");
         assert!(
             err.contains("verification passed after apply for generate, format")
                 && err.contains("failed during apply: lint"),
@@ -2876,7 +2876,7 @@ mod tests {
     fn fix_stops_after_a_lint_compile_error() {
         let harness = umbrella_clean("umbrella-fix-compile");
         let runner = compile_fail_at_lint(&harness);
-        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--apply", "--output=json"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(runner.launches.get(), 3, "typecheck never launches");
@@ -2892,9 +2892,9 @@ mod tests {
         );
         let errors = events_of_kind(&events, "error");
         assert!(
-            errors
-                .iter()
-                .any(|event| event["code"] == "bazel_failed" && event["correlation"] == "fix/lint"),
+            errors.iter().any(
+                |event| event["code"] == "bazel_failed" && event["correlation"] == "check/lint"
+            ),
             "{out}"
         );
     }
@@ -3208,7 +3208,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_reports_a_full_disk_once_and_skips_the_later_phases() {
+    fn check_reports_a_full_disk_once_and_skips_the_later_phases() {
         let mut harness = umbrella_clean("umbrella-disk-full");
         harness.free_disk_bytes = Some(1 << 20);
         let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
@@ -3228,7 +3228,7 @@ mod tests {
         assert_eq!(errors.len(), 1, "{out}");
         assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
         assert_eq!(errors[0]["cause"], serde_json::json!("host"));
-        assert_eq!(errors[0]["correlation"], serde_json::json!("fix/lint"));
+        assert_eq!(errors[0]["correlation"], serde_json::json!("check/lint"));
         let skipped: Vec<&str> = events_of_kind(&events, "notice")
             .iter()
             .filter(|notice| notice["code"] == serde_json::json!("umbrella_phase_skipped"))
@@ -3822,6 +3822,7 @@ mod tests {
     #[test]
     fn check_affected_hints_name_dx_check_apply_with_the_affected_flag() {
         let harness = umbrella_findings("umbrella-affected-hint");
+        harness.write_source("test/BUILD.bazel", "");
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
         inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
@@ -3840,6 +3841,7 @@ mod tests {
     #[test]
     fn check_affected_generate_runs_on_affected_packages() {
         let harness = umbrella_clean("umbrella-affected-generate");
+        harness.write_source("test/BUILD.bazel", "");
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
         inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
@@ -4311,7 +4313,7 @@ mod tests {
         );
         let rerun: Vec<&serde_json::Value> = events
             .iter()
-            .filter(|event| event["correlation"] == "fix/rerun/generate")
+            .filter(|event| event["correlation"] == "check/rerun/generate")
             .collect();
         assert!(!rerun.is_empty(), "{out}");
         assert!(
@@ -4356,7 +4358,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_apply_stop_skips_the_rerun() {
+    fn check_apply_reruns_generate_after_a_lint_compile_error() {
         let harness = partial_failure_harness("umbrella-fix-stop-no-rerun");
         let mut staged = staged_runner(
             &harness,
@@ -4389,7 +4391,7 @@ mod tests {
         let events = json_events(&out);
         assert_eq!(
             started_phases(&events),
-            vec!["generate", "format", "lint"],
+            vec!["generate", "format", "lint", "rerun/generate"],
             "{out}"
         );
         let skipped: Vec<&str> = events_of_kind(&events, "notice")
@@ -4401,7 +4403,7 @@ mod tests {
             skipped,
             vec!["typecheck skipped after lint failed to compile"]
         );
-        assert_eq!(runner.launches.get(), 3, "{out}");
+        assert_eq!(runner.launches.get(), 4, "{out}");
     }
 
     #[test]

@@ -508,7 +508,7 @@ mod tests {
     fn watch_reruns_the_wrapped_command_after_every_change() {
         let mut harness = Harness::new("dx-watch-rerun-");
         let mut waits = 0;
-        let code = harness.run(&["watch", "build", "//cli/..."], None, &mut |_| {
+        let code = harness.run(&["watch", "build", "//..."], None, &mut |_| {
             waits += 1;
             match waits {
                 1 | 2 => Ok(vec![

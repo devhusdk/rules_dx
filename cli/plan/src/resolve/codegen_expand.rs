@@ -252,7 +252,7 @@ mod tests {
         let got = expand_codegen_roots("//shop:spec", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
-            vec!["//shop:spec".to_owned(), "//shop:client_shard".to_owned()]
+            vec!["//shop:client_shard".to_owned(), "//shop:spec".to_owned()]
         );
     }
 

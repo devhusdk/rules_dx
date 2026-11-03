@@ -426,6 +426,17 @@ matrix_unit_tests(name = "matrix_unit")
 inventory_unit_tests(name = "inventory_unit")
 
 inventory_file_tests(
+    name = "dx_archive_inventory_test",
+    absent = [],
+    app = "//libs/archive:dx_archive",
+    present = [
+        "flate2",
+        "libz-sys",
+    ],
+    texts_contain = ["Jean-loup Gailly"],
+)
+
+inventory_file_tests(
     name = "release_tool_inventory_test",
     absent = [
         "dx_audit",
@@ -576,6 +587,7 @@ test_suite(
     tests = [
         ":bcr_unit",
         ":candidate_identity_test",
+        ":dx_archive_inventory_test",
         ":dx_release_tools_test",
         ":inventory_unit",
         ":matrix_unit",

@@ -13,6 +13,8 @@ INVENTORY_SCHEMA = "shipped-inventory/v1"
 
 _TEXT_PREFIXES = ["LICENSE", "LICENCE", "COPYING", "NOTICE"]
 
+_BUNDLED_TEXTS = {"libz-sys": ["src/zlib/LICENSE"]}
+
 _WALKED_ATTRS = ["deps", "upstream"]
 
 def license_text_name(basename):
@@ -23,8 +25,10 @@ def license_text_name(basename):
             return True
     return False
 
-def license_text_member(name):
-    """Returns whether a crate root file path is a license text: LICENSE* at the root or a file in LICENSES/."""
+def license_text_member(name, crate = ""):
+    """Returns whether a crate file path is a license text: LICENSE* at the root, a file in LICENSES/, or a listed bundled text."""
+    if name in _BUNDLED_TEXTS.get(crate, []):
+        return True
     if "/" not in name:
         return license_text_name(name)
     return name.startswith("LICENSES/") and name.count("/") == 1
@@ -64,7 +68,7 @@ def _shipped_crates_aspect_impl(target, ctx):
         texts = [
             f
             for f in getattr(ctx.rule.files, "compile_data", [])
-            if f.owner.package == "" and license_text_member(f.owner.name)
+            if f.owner.package == "" and license_text_member(f.owner.name, crate)
         ]
         manifests = [
             f

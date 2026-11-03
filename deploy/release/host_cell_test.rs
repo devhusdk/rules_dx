@@ -30,7 +30,7 @@ fn host_cell_ships_exactly_its_members() {
     let (cell, archive) = host_cell();
     let listing = dx_deploy_tools::archive_listing(&archive).expect("archive listing");
     let have: BTreeSet<String> = listing.iter().map(|(name, _, _)| name.clone()).collect();
-    let mut want: BTreeSet<String> = ["NOTICE", "IDENTITY.txt"]
+    let mut want: BTreeSet<String> = ["LICENSE", "NOTICE", "IDENTITY.txt"]
         .into_iter()
         .map(str::to_owned)
         .collect();

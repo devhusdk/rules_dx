@@ -102,6 +102,7 @@ def release_cells(name):
             app = "//cli/cli:dx",
             arch = cell["machine"],
             format = cell["format"],
+            license_file = "//:LICENSE",
             linkage = cell["linkage"],
             min_runtime = cell["min_runtime"],
             notice = ":" + cell_name + "_notice_notice",

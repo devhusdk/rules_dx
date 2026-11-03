@@ -218,7 +218,7 @@ def _consumer_stage_impl(ctx):
     app_out = ctx.actions.declare_file(ctx.label.name + "/" + exe.basename)
     ctx.actions.symlink(output = app_out, target_file = exe)
     by_member[exe.basename] = app_out
-    reserved = [exe.basename, "NOTICE", "IDENTITY.txt"]
+    reserved = [exe.basename, "LICENSE", "NOTICE", "IDENTITY.txt"]
     runtime = []
     for target in ctx.attr.runtime:
         files = target[DefaultInfo].files.to_list()
@@ -258,6 +258,14 @@ def _consumer_stage_impl(ctx):
     notice_out = ctx.actions.declare_file(ctx.label.name + "/NOTICE")
     ctx.actions.symlink(output = notice_out, target_file = notice_files[0])
     by_member["NOTICE"] = notice_out
+    if ctx.attr.license_file != None:
+        license_files = ctx.attr.license_file[DefaultInfo].files.to_list()
+        if len(license_files) != 1:
+            fail("consumer_archive " + str(ctx.label) + ": " +
+                 display_label(ctx.attr.license_file.label) + " must provide exactly one file")
+        license_out = ctx.actions.declare_file(ctx.label.name + "/LICENSE")
+        ctx.actions.symlink(output = license_out, target_file = license_files[0])
+        by_member["LICENSE"] = license_out
     identity_out = ctx.actions.declare_file(ctx.label.name + "/IDENTITY.txt")
     ctx.actions.write(
         output = identity_out,
@@ -292,6 +300,10 @@ _consumer_stage = rule(
             mandatory = True,
         ),
         "format": attr.string(doc = "Archive format, tar.gz or zip.", default = "tar.gz"),
+        "license_file": attr.label(
+            doc = "Optional license file packaged as LICENSE, exactly one file.",
+            allow_files = True,
+        ),
         "linkage": attr.string(
             doc = "Linkage mode, either static or dynamic, recorded in IDENTITY.txt.",
             mandatory = True,
@@ -364,7 +376,7 @@ _consumer_tarball = rule(
     },
 )
 
-def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, format = "tar.gz", tags = None, target_compatible_with = None):
+def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, format = "tar.gz", tags = None, target_compatible_with = None):
     """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file."""
     (tarball, checksum) = archive_filenames(name, format)
     stage_target = name + "_stage"
@@ -379,6 +391,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         format = format,
         linkage = linkage,
         min_runtime = min_runtime,
+        license_file = license_file,
         notice = notice,
         os = os,
         resources = resources,

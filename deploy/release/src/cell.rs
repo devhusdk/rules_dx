@@ -161,7 +161,9 @@ fn cell_error(cell: &Cell) -> Option<String> {
     if cell.name.is_empty() || cell.arch.is_empty() {
         return Some("name and arch must be non-empty".to_owned());
     }
-    let mut members: BTreeSet<&str> = ["NOTICE", "IDENTITY.txt"].into_iter().collect();
+    let mut members: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt"]
+        .into_iter()
+        .collect();
     for member in std::iter::once(&cell.exe).chain(&cell.runtime) {
         if member.contains('/') {
             return Some(format!("member {member:?} must be a top-level name"));
@@ -497,7 +499,7 @@ fn installed_checks(
     let install = inputs.work.join(INSTALL_DIR);
     let exe = install.join(&cell.exe);
     let have: BTreeSet<&str> = listing.iter().map(|entry| entry.0.as_str()).collect();
-    let want: BTreeSet<&str> = ["NOTICE", "IDENTITY.txt", cell.exe.as_str()]
+    let want: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt", cell.exe.as_str()]
         .into_iter()
         .chain(cell.runtime.iter().map(String::as_str))
         .collect();

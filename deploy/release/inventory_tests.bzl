@@ -24,6 +24,11 @@ def inventory_unit_tests(name):
                 [True, True, False, False, False],
             ),
             expect_equal(
+                "license_text_member keeps a bundled text only for its crate",
+                [license_text_member(n, c) for (n, c) in [("src/zlib/LICENSE", "libz-sys"), ("src/zlib/LICENSE", ""), ("src/zlib/LICENSE", "serde"), ("src/LICENSE", "libz-sys")]],
+                [True, False, False, False],
+            ),
+            expect_equal(
                 "crate_name_tag reads the crate-name tag",
                 crate_name_tag(["cargo-bazel", "crate-name=aho-corasick", "manual"]),
                 "aho-corasick",
@@ -58,7 +63,7 @@ _shipped_crates_probe = rule(
     },
 )
 
-def inventory_file_tests(name, app, present, absent):
+def inventory_file_tests(name, app, present, absent, texts_contain = []):
     """Checks the inventory of one binary lists `present` crates and skips `absent` ones."""
     shipped_inventory(name = name + "_inventory", app = app)
     _shipped_crates_probe(
@@ -66,11 +71,20 @@ def inventory_file_tests(name, app, present, absent):
         app = app,
         probes = present + absent,
     )
+    file_checks = {
+        ":" + name + "_inventory": "\n".join([c + "|cargo|" for c in present]),
+        ":" + name + "_probe": "\n".join([c + " present" for c in present] + [c + " absent" for c in absent]),
+    }
+    if texts_contain:
+        native.genrule(
+            name = name + "_all_texts",
+            srcs = [":" + name + "_inventory_texts"],
+            outs = [name + "_all_texts.txt"],
+            cmd = "find $(locations :" + name + "_inventory_texts) -type f | sort | xargs cat > $@",
+        )
+        file_checks[":" + name + "_all_texts"] = "\n".join(texts_contain)
     starlark_test(
         name = name,
         mode = "execution",
-        file_checks = {
-            ":" + name + "_inventory": "\n".join([c + "|cargo|" for c in present]),
-            ":" + name + "_probe": "\n".join([c + " present" for c in present] + [c + " absent" for c in absent]),
-        },
+        file_checks = file_checks,
     )

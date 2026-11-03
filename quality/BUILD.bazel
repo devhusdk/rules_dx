@@ -1,15 +1,15 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load(":consumer_policy_tests.bzl", "consumer_policy_tests")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
-load(":consumer_policy_tests.bzl", "consumer_policy_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
-load(":dart_context_tests.bzl", "dart_context_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
+load(":dart_context_tests.bzl", "dart_context_unit_tests")
 load(":fixtures_tests.bzl", "fixtures_unit_tests")
 load(":js_responsibilities_tests.bzl", "js_responsibilities_unit_tests")
 load(":native_config.bzl", "checkstyle_config", "vale_config")
@@ -443,8 +443,8 @@ consumer_policy_tests(
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:lua_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_lua",
-        },
-        {
+          },
+          {
             "case": "haskell_formatted",
             "expected_dx_results": [
                 "clean_haskell-real-format-haskell.pb",
@@ -669,18 +669,14 @@ sh_test(
 test_suite(
     name = "all",
     tests = [
-        ":clang_tidy_run_test",
-        ":compile_check_exec_test",
         ":consumer_policy_ansible_linted_test",
         ":consumer_policy_api_spec_linted_test",
-        ":consumer_policy_asciidoc_vale_test",
-        ":consumer_policy_bicep_checked_test",
+        ":clang_tidy_run_test",
+        ":compile_check_exec_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
+        ":consumer_policy_bicep_checked_test",
         ":consumer_policy_cloudformation_linted_test",
-        ":consumer_policy_cmake_formatted_test",
-        ":consumer_policy_cmake_linted_test",
-        ":consumer_policy_helm_linted_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
@@ -688,10 +684,14 @@ test_suite(
         ":consumer_policy_jupyter_formatted_test",
         ":consumer_policy_jupyter_outputs_linted_test",
         ":consumer_policy_kubernetes_linted_test",
-        ":consumer_policy_latex_formatted_test",
+        ":consumer_policy_helm_linted_test",
+        ":consumer_policy_cmake_formatted_test",
+        ":consumer_policy_cmake_linted_test",
         ":consumer_policy_make_formatted_test",
         ":consumer_policy_make_linted_test",
+        ":consumer_policy_latex_formatted_test",
         ":consumer_policy_nix_linted_test",
+        ":consumer_policy_asciidoc_vale_test",
         ":consumer_policy_rst_vale_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
@@ -827,8 +827,8 @@ rust_test(
         "//deploy/release:src/lib.rs",
         "//deploy/rules:src/bin_archiver.rs",
         "//deploy/rules:src/bin_deploy_app.rs",
-        "//deploy/rules:src/bin_deploy_program.rs",
         "//deploy/rules:src/bin_deploy_tool.rs",
+        "//deploy/rules:src/bin_deploy_program.rs",
         "//deploy/rules:src/bin_hasher.rs",
         "//deploy/rules:src/bin_npm_pack.rs",
         "//deploy/rules:src/lib.rs",

@@ -1,7 +1,7 @@
 """Unit tests for the clang_syntax argv rewrite."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":clang_syntax.bzl", "clang_syntax_argv", "clang_syntax_source", "clang_tidy_argv", "cuda_tidy_argv")
+load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
 
 _CLANG = "external/llvm/bin/clang"
 

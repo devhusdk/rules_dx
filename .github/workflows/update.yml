@@ -33,6 +33,26 @@ env:
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
 
 jobs:
+  verify-pins:
+    name: quality artifact pins match upstream bytes
+    if: github.event_name == 'schedule' || inputs.selector == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Verify the pinned quality tools
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run --noshow_progress "$@" //quality/artifacts:update -- --verify-only
   widen-one:
     name: widen-one-requirement loop (one dep per PR)
     runs-on: ubuntu-latest

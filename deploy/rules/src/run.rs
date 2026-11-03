@@ -23,6 +23,14 @@ pub(crate) fn env_or_empty(key: &str) -> String {
     std::env::var(key).unwrap_or_default()
 }
 
+/// Returns the refusal when a version or tag is a placeholder (0.0.0 or 0.0.0-dryrun, with or without a leading v).
+pub(crate) fn placeholder_refusal(tool: &str, value: &str) -> Option<String> {
+    let bare = value.strip_prefix('v').unwrap_or(value);
+    (bare == "0.0.0" || bare == "0.0.0-dryrun").then(|| {
+        format!("{tool}: live publish refuses placeholder version {value}; set a real version")
+    })
+}
+
 /// Credential values read by a passed owner gate.
 pub(crate) struct Secrets(Vec<(&'static str, String)>);
 
@@ -267,6 +275,22 @@ mod tests {
             .lines()
             .map(str::to_owned)
             .collect()
+    }
+
+    #[test]
+    fn placeholder_refusal_covers_all_placeholders() {
+        for value in ["0.0.0", "v0.0.0", "0.0.0-dryrun", "v0.0.0-dryrun"] {
+            let message = placeholder_refusal("demo", value).expect("refused");
+            assert_eq!(
+                message,
+                format!(
+                    "demo: live publish refuses placeholder version {value}; set a real version"
+                )
+            );
+        }
+        for value in ["1.0.0", "v1.0.0", "0.0.1", "0.0.0-rc1"] {
+            assert!(placeholder_refusal("demo", value).is_none());
+        }
     }
 
     #[test]

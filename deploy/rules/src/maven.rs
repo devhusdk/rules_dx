@@ -8,7 +8,7 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
 use crate::http;
-use crate::run::{env_or_empty, OwnerGate};
+use crate::run::{env_or_empty, placeholder_refusal, OwnerGate};
 use crate::{copy_verified, deploy_profile, tempfile_stage_dir, zip_archive, DeployRun};
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
@@ -607,10 +607,8 @@ pub fn maven_live_gate(
     version: &str,
     repository_url: &str,
 ) -> Result<MavenLive, String> {
-    if version == "0.0.0" {
-        return Err(
-            "maven_deploy: live staging refuses version 0.0.0; set a real version".to_owned(),
-        );
+    if let Some(error) = placeholder_refusal("maven_deploy", version) {
+        return Err(error);
     }
     if version.contains("-SNAPSHOT") {
         return Err(
@@ -882,6 +880,16 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn maven_live_gate_refuses_placeholder_versions() {
+        for version in ["0.0.0", "v0.0.0", "0.0.0-dryrun", "v0.0.0-dryrun"] {
+            let error = gate_error(&APPROVED, version, MAVEN_DEFAULT_REPOSITORY_URL)
+                .expect("placeholder refused");
+            assert!(error.contains("set a real version"), "{error}");
+            assert!(error.contains(version), "{error}");
+        }
+    }
+
+    #[test]
     fn maven_checksums_match_known_vectors() {
         let sums = maven_checksums(b"abc");
         assert_eq!(
@@ -1066,7 +1074,10 @@ pub(crate) mod tests {
         vars.push(("MAVEN_GPG_PASSPHRASE", "pw"));
         assert_eq!(
             gate_error(&vars, "0.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
-            Some("maven_deploy: live staging refuses version 0.0.0; set a real version".to_owned())
+            Some(
+                "maven_deploy: live publish refuses placeholder version 0.0.0; set a real version"
+                    .to_owned()
+            )
         );
     }
 

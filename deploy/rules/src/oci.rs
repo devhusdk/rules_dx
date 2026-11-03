@@ -2,7 +2,7 @@
 
 use crate::archive::*;
 use crate::registry;
-use crate::run::{deploy_profile, env_or_empty, DeployRun, OwnerGate};
+use crate::run::{deploy_profile, env_or_empty, placeholder_refusal, DeployRun, OwnerGate};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
@@ -1081,8 +1081,8 @@ pub fn oci_main(
         return 1;
     };
     if OCI_GATE.requested(env_or_empty) {
-        if tag == "0.0.0" || tag == "0.0.0-dryrun" {
-            eprintln!("oci_deploy: live push refuses placeholder tag; set a real tag");
+        if let Some(error) = placeholder_refusal("oci_deploy", tag) {
+            eprintln!("{error}");
             return 1;
         }
         let secrets = match OCI_GATE.authorize(env_or_empty) {

@@ -1,7 +1,10 @@
 //! GitHub release publisher: asset staging and the gh release upload.
 
 use crate::archive::*;
-use crate::run::{env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
+use crate::run::{
+    env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
+    PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::stage::*;
 use std::io;
 use std::path::Path;
@@ -112,10 +115,8 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
         }
     };
     if GITHUB_GATE.requested(env_or_empty) {
-        if tag == "v0.0.0-dryrun" {
-            eprintln!(
-                "github_deploy: live publish refuses placeholder tag v0.0.0-dryrun; push a real tag first"
-            );
+        if let Some(error) = placeholder_refusal("github_deploy", tag) {
+            eprintln!("{error}");
             return 1;
         }
         if let Some(error) = GITHUB_GATE.refusal(env_or_empty) {

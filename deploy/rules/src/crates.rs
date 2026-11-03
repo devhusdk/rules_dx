@@ -1,7 +1,8 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
 use crate::run::{
-    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    deploy_profile, env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
+    PUBLISH_CHILD_ENV_KEEP,
 };
 use crate::stage::*;
 use std::io;
@@ -128,8 +129,8 @@ pub fn crates_main(
             );
             return 1;
         }
-        if version == "0.0.0" {
-            eprintln!("crates_deploy: live publish refuses version 0.0.0; set a real version");
+        if let Some(error) = placeholder_refusal("crates_deploy", version) {
+            eprintln!("{error}");
             return 1;
         }
         let secrets = match CRATES_GATE.authorize(env_or_empty) {

@@ -74,6 +74,8 @@ def d_binary(name, srcs, visibility = None, **kwargs):
     upstream = dict(kwargs, tags = dx_upstream_tags(kwargs.get("tags", None)))
     dx_wrap_binary(name, _d_binary, _d_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs")), **kwargs)
 
+D_COVERAGE_COLLECTOR = False
+
 def d_test(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_test rule."""
-    dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs")), **kwargs)
+    dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs")), coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)

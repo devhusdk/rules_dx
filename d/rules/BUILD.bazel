@@ -1,8 +1,8 @@
 load("//d/toolchain:pins.bzl", "LDC_CELLS", "LDC_UNPROVEN_CELLS")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "D_CELLS", "D_QUALITY_TOOLS", "d_quality_srcs")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "D_QUALITY_TOOLS", "d_quality_srcs")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,21 +12,40 @@ exports_files([
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
-    file_classes = ["d"],
     extra_checks = [
+        expect_equal(
+            "d tests have no coverage collector yet",
+            D_COVERAGE_COLLECTOR,
+            False,
+        ),
         expect_equal(
             "wrappers carry dfmt and dscanner",
             sorted(D_QUALITY_TOOLS.keys()),
-            ["dfmt", "dscanner"],
+            [
+                "dfmt",
+                "dscanner",
+            ],
         ),
         expect_equal(
             "modules and interface files are owned in order",
-            d_quality_srcs(["app.d", "api.di"]),
-            ["app.d", "api.di"],
+            d_quality_srcs([
+                "app.d",
+                "api.di",
+            ]),
+            [
+                "app.d",
+                "api.di",
+            ],
         ),
         expect_equal(
             "string import files are not owned",
-            d_quality_srcs(["app.d", "banner.txt"], ["banner.txt"]),
+            d_quality_srcs(
+                [
+                    "app.d",
+                    "banner.txt",
+                ],
+                ["banner.txt"],
+            ),
             ["app.d"],
         ),
         expect_equal(
@@ -40,6 +59,7 @@ dx_wrapper_contract_tests(
             sorted([cell for cell in LDC_CELLS.keys() if cell not in LDC_UNPROVEN_CELLS]),
         ),
     ],
+    file_classes = ["d"],
 )
 
 real_source_target(
@@ -48,6 +68,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        ],
+    ],
     tags = ["corpus"],
 )

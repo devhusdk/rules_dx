@@ -100,3 +100,49 @@ jobs:
     assert_eq!(scanned, 1);
     assert!(found.is_empty(), "{found:?}");
 }
+
+/// Names every job that runs steps but sets no `timeout-minutes`.
+fn jobs_without_timeout(name: &str, document: &Value) -> Vec<String> {
+    let Some(jobs) = document.get("jobs").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    jobs.iter()
+        .filter(|(_, job)| job.get("uses").is_none() && job.get("timeout-minutes").is_none())
+        .map(|(job_id, _)| format!("{name}: job {job_id}"))
+        .collect()
+}
+
+#[test]
+fn every_job_sets_a_timeout() {
+    let mut missing = Vec::new();
+    for name in dx_testing::workflow_files() {
+        missing.extend(jobs_without_timeout(
+            &name,
+            &parse(&name, &read_runfiles(&name)),
+        ));
+    }
+    assert!(
+        missing.is_empty(),
+        "set timeout-minutes on these jobs:\n{}",
+        missing.join("\n")
+    );
+}
+
+#[test]
+fn missing_timeouts_are_flagged() {
+    let text = r#"
+jobs:
+  bare:
+    steps: []
+  set:
+    timeout-minutes: 5
+    steps: []
+  dynamic:
+    timeout-minutes: ${{ matrix.check.timeout }}
+    steps: []
+  reusable:
+    uses: ./.github/workflows/x.yml
+"#;
+    let found = jobs_without_timeout("t.yml", &parse("t.yml", text));
+    assert_eq!(found, ["t.yml: job bare"]);
+}

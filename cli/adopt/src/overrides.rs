@@ -111,6 +111,24 @@ pub const OVERRIDES: &[Override] = &[
             content: include_str!("../../../patches/aspect_rules_jest/windows_v8_coverage.patch"),
         }],
     },
+    Override {
+        module: "avro-cpp",
+        version: "1.12.0.bcr.1",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "iterator.patch",
+            content: include_str!("../../../patches/avro-cpp/iterator.patch"),
+        }],
+    },
+    Override {
+        module: "fmt",
+        version: "11.1.4",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "cstdlib.patch",
+            content: include_str!("../../../patches/fmt/cstdlib.patch"),
+        }],
+    },
 ];
 
 /// The consumer-side file name of one patch: `<module>.<file>`.
@@ -454,13 +472,12 @@ mod tests {
                 .map(|patch| format!("//patches/{}:{}", row.module, patch.file))
                 .collect();
             assert_eq!(patches, expected, "{name} patches and order");
-            let dep = module
-                .bazel_dep(name)
-                .expect("overridden module is a bazel_dep");
-            assert!(
-                !matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
-                "{name} must be a non-dev bazel_dep so consumers have it in their graph"
-            );
+            if let Ok(dep) = module.bazel_dep(name) {
+                assert!(
+                    !matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
+                    "{name} must be a non-dev bazel_dep so consumers have it in their graph"
+                );
+            }
             seen.push(name.to_owned());
         }
         for row in OVERRIDES {

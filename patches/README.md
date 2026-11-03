@@ -34,6 +34,8 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `aspect_rules_py` | 2.0.0-alpha.10 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |
 | `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |
+| `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes with libc++ |
+| `fmt` | 11.1.4 | `cstdlib.patch` | Missing `<cstdlib>` include with libc++ |
 
 The trade-off: a `single_version_override` pins the module for the whole
 graph. If another dependency of yours needs a newer version of one of these

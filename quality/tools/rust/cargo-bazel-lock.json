@@ -2,7 +2,7 @@
   "binary_crates": [
     "deadnix 1.3.1"
   ],
-  "checksum": "12299d24fdb28b6c9d376cc396a3015ea0f1d9b7e2eb6ec9e27c0964b2f437d7",
+  "checksum": "59c1f02eb16000fc0882d3bf13d84b0560322585ec35c26a30693090e49d37cd",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2588,6 +2588,10 @@
         ]
       },
       "library_target_name": "dx_quality_tools",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_quality_tools",
       "repository": null,
       "targets": [

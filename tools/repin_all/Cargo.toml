@@ -1,4 +1,5 @@
 [package]
+license = "Apache-2.0"
 name = "repin_all"
 version = "0.0.0"
 edition = "2021"

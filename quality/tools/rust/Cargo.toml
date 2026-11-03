@@ -3,6 +3,7 @@
 # statix is built from source (//quality/tools/rust:statix.BUILD.bazel), so its
 # dependencies are pinned to the versions in statix's own Cargo.lock.
 [package]
+license = "Apache-2.0"
 name = "dx_quality_tools"
 version = "0.0.0"
 edition = "2021"

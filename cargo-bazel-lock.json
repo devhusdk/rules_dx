@@ -1,5 +1,5 @@
 {
-  "checksum": "1a0e6cc2124543842bea09c9b2d31cd4d4a4b8f3a4c013206208bc4177fd7120",
+  "checksum": "c06fdfa7bb469aeb9946060861918ba0aa923b7fef2a1b30a9a4ae34e970868e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1127,6 +1127,10 @@
         "edition": "2021"
       },
       "library_target_name": "appimage_packer",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "appimage_packer",
       "repository": null,
       "targets": [
@@ -2749,6 +2753,10 @@
         "edition": "2021"
       },
       "library_target_name": "cc_context",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "cc_context",
       "repository": null,
       "targets": [
@@ -3437,6 +3445,10 @@
         "edition": "2021"
       },
       "library_target_name": "codegen_shard",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "codegen_shard",
       "repository": null,
       "targets": [
@@ -3603,6 +3615,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_component_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "component_extract",
       "repository": null,
       "targets": [
@@ -6251,6 +6267,10 @@
         "edition": "2021"
       },
       "library_target_name": "documentation_ir",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "documentation_ir",
       "repository": null,
       "targets": [
@@ -6282,6 +6302,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_dotnet_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dotnet_extract",
       "repository": null,
       "targets": [
@@ -6477,6 +6501,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_adopt",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_adopt",
       "repository": null,
       "targets": [
@@ -6520,6 +6548,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_advisory_prep",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_advisory_prep",
       "repository": null,
       "targets": [
@@ -6551,6 +6583,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_apply",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_apply",
       "repository": null,
       "targets": [
@@ -6588,6 +6624,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_archive",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_archive",
       "repository": null,
       "targets": [
@@ -6615,6 +6655,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_atomic_fs",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_atomic_fs",
       "repository": null,
       "targets": [
@@ -6712,6 +6756,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_audit",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_audit",
       "repository": null,
       "targets": [
@@ -6745,6 +6793,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_bep",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_bep",
       "repository": null,
       "targets": [
@@ -6768,6 +6820,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_binfmt",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_binfmt",
       "repository": null,
       "targets": [
@@ -6785,6 +6841,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_bootstrap",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_bootstrap",
       "repository": null,
       "targets": [
@@ -6820,6 +6880,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_clean",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_clean",
       "repository": null,
       "targets": [
@@ -6889,6 +6953,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_cli",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_cli",
       "repository": null,
       "targets": [
@@ -6922,6 +6990,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_codegen",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_codegen",
       "repository": null,
       "targets": [
@@ -6979,6 +7051,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_depcheck",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_depcheck",
       "repository": null,
       "targets": [
@@ -7064,6 +7140,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_deploy_tools",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_deploy_tools",
       "repository": null,
       "targets": [
@@ -7091,6 +7171,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_diff",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_diff",
       "repository": null,
       "targets": [
@@ -7136,6 +7220,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_digest",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_digest",
       "repository": null,
       "targets": [
@@ -7175,6 +7263,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_env",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_env",
       "repository": null,
       "targets": [
@@ -7208,6 +7300,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_env_plan",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_env_plan",
       "repository": null,
       "targets": [
@@ -7235,6 +7331,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_execlog",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_execlog",
       "repository": null,
       "targets": [
@@ -7266,6 +7366,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_fingerprint",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_fingerprint",
       "repository": null,
       "targets": [
@@ -7289,6 +7393,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_gomod",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_gomod",
       "repository": null,
       "targets": [
@@ -7330,6 +7438,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_install_tools",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_install_tools",
       "repository": null,
       "targets": [
@@ -7347,6 +7459,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_js_launcher",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_js_launcher",
       "repository": null,
       "targets": [
@@ -7378,6 +7494,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_lcov",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_lcov",
       "repository": null,
       "targets": [
@@ -7409,6 +7529,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_merge",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_merge",
       "repository": null,
       "targets": [
@@ -7436,6 +7560,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_module_bazel",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_module_bazel",
       "repository": null,
       "targets": [
@@ -7479,6 +7607,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_output",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_output",
       "repository": null,
       "targets": [
@@ -7512,6 +7644,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_path",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_path",
       "repository": null,
       "targets": [
@@ -7589,6 +7725,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_plan",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_plan",
       "repository": null,
       "targets": [
@@ -7612,6 +7752,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_preset",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_preset",
       "repository": null,
       "targets": [
@@ -7639,6 +7783,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_process",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_process",
       "repository": null,
       "targets": [
@@ -7672,6 +7820,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_release_tools",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_release_tools",
       "repository": null,
       "targets": [
@@ -7689,6 +7841,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_roots",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_roots",
       "repository": null,
       "targets": [
@@ -7722,6 +7878,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_sbom",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_sbom",
       "repository": null,
       "targets": [
@@ -7749,6 +7909,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_sbom_schema",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_sbom_schema",
       "repository": null,
       "targets": [
@@ -7778,6 +7942,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_setup",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_setup",
       "repository": null,
       "targets": [
@@ -7815,6 +7983,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_shard_writer",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_shard_writer",
       "repository": null,
       "targets": [
@@ -7862,6 +8034,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_shim",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_shim",
       "repository": null,
       "targets": [
@@ -7885,6 +8061,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_test_scratch",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_test_scratch",
       "repository": null,
       "targets": [
@@ -7918,6 +8098,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_testing",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_testing",
       "repository": null,
       "targets": [
@@ -7951,6 +8135,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_tool_resolve",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_tool_resolve",
       "repository": null,
       "targets": [
@@ -7996,6 +8184,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_update",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_update",
       "repository": null,
       "targets": [
@@ -8033,6 +8225,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_worktree",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "dx_worktree",
       "repository": null,
       "targets": [
@@ -8654,6 +8850,10 @@
         "edition": "2021"
       },
       "library_target_name": "env_shard",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "env_shard",
       "repository": null,
       "targets": [
@@ -8670,6 +8870,10 @@
       "common_attrs": {
         "edition": "2021"
       },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "env_stubs",
       "repository": null,
       "targets": [],
@@ -9668,6 +9872,10 @@
         "edition": "2021"
       },
       "library_target_name": "generation_result",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "generation_result",
       "repository": null,
       "targets": [
@@ -10158,6 +10366,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_go_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "go_extract",
       "repository": null,
       "targets": [
@@ -10556,6 +10768,10 @@
         "edition": "2021"
       },
       "library_target_name": "hello",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "hello",
       "repository": null,
       "targets": [
@@ -12531,6 +12747,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_jvm_convert",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "jvm_convert",
       "repository": null,
       "targets": [
@@ -16569,6 +16789,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_powershell_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "powershell_extract",
       "repository": null,
       "targets": [
@@ -17035,6 +17259,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_python_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "python_extract",
       "repository": null,
       "targets": [
@@ -17140,6 +17368,10 @@
         ],
         "edition": "2021"
       },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "qt_rust_bridge",
       "repository": null,
       "targets": [],
@@ -17200,6 +17432,10 @@
         "edition": "2021"
       },
       "library_target_name": "quality_adapter",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "quality_adapter",
       "repository": null,
       "targets": [
@@ -17249,6 +17485,10 @@
         "edition": "2021"
       },
       "library_target_name": "quality_markdown",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "quality_markdown",
       "repository": null,
       "targets": [
@@ -17272,6 +17512,10 @@
         "edition": "2021"
       },
       "library_target_name": "quality_notebook",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "quality_notebook",
       "repository": null,
       "targets": [
@@ -17303,6 +17547,10 @@
         "edition": "2021"
       },
       "library_target_name": "quality_result",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "quality_result",
       "repository": null,
       "targets": [
@@ -17350,6 +17598,10 @@
         "edition": "2021"
       },
       "library_target_name": "quality_runner",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "quality_runner",
       "repository": null,
       "targets": [
@@ -18495,6 +18747,10 @@
       "common_attrs": {
         "edition": "2021"
       },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "repin_all",
       "repository": null,
       "targets": [],
@@ -18826,6 +19082,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_ruby_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "ruby_extract",
       "repository": null,
       "targets": [
@@ -18853,6 +19113,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_rust_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "rust_extract",
       "repository": null,
       "targets": [
@@ -21097,6 +21361,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_site_aggregate",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "site_aggregate",
       "repository": null,
       "targets": [
@@ -21120,6 +21388,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_site_browser",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "site_browser",
       "repository": null,
       "targets": [
@@ -21137,6 +21409,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_site_build",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "site_build",
       "repository": null,
       "targets": [
@@ -21154,6 +21430,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_site_check",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "site_check",
       "repository": null,
       "targets": [
@@ -23802,6 +24082,10 @@
         "edition": "2021"
       },
       "library_target_name": "dx_docs_typescript_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
       "name": "typescript_extract",
       "repository": null,
       "targets": [

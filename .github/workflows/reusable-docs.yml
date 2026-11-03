@@ -157,7 +157,7 @@ jobs:
   docs-publish:
     name: docs-publish (GitHub Pages)
     needs: [docs-check]
-    if: ${{ inputs.publish }}
+    if: ${{ inputs.publish && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -109,6 +109,15 @@ fn the_docs_check_renders_and_validates_the_artifact_without_deploying() {
 }
 
 #[test]
+fn the_publish_job_is_skipped_on_pull_requests_even_when_publish_is_set() {
+    assert_eq!(
+        job(WORKFLOW, PUBLISH)["if"],
+        json!("${{ inputs.publish && github.event_name != 'pull_request' }}"),
+        "{WORKFLOW} job {PUBLISH} must not deploy PR code with pages and id-token scopes"
+    );
+}
+
+#[test]
 fn the_publish_job_reads_the_declared_site_instead_of_a_guessed_path() {
     let script = scripts(WORKFLOW, PUBLISH);
     assert!(

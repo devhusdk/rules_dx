@@ -52,6 +52,14 @@ dx_aspect_note = aspect(
     attr_aspects = ["deps"],
 )
 
+def fake_file(**fields):
+    """Builds a stand-in File with the given fields for BUILD files."""
+    return struct(**fields)
+
+def label_string(label):
+    """Returns the Label for a string, for BUILD files."""
+    return Label(label)
+
 def expect_equal(name, actual, expected):
     """Builds one equality-check record as a JSON string."""
     return json.encode({

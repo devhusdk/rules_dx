@@ -233,7 +233,10 @@ pub fn maven_build_file_repo(
         let asc = dest_dir.join(format!("{base}.asc"));
         match signer {
             Some(signer) => {
-                maven_sign_detached(signer, &dest)?;
+                let out = maven_sign_detached(signer, &dest)?;
+                signer
+                    .verify(&bytes, &std::fs::read_to_string(&out)?)
+                    .map_err(|error| io::Error::other(format!("{error}: {}", out.display())))?;
             }
             None if asc.is_file() => std::fs::remove_file(&asc)?,
             None => {}
@@ -421,6 +424,21 @@ impl MavenSigner {
             "maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY; refusing".to_owned()
         })?;
         Ok(Self { key })
+    }
+
+    /// Checks a detached signature against this signer's own public key.
+    fn verify(&self, data: &[u8], asc: &str) -> Result<(), String> {
+        let (signature, _) = DetachedSignature::from_armor_single(asc.as_bytes())
+            .map_err(|error| format!("maven verify: signature is not valid: {error}"))?;
+        let ok = match &self.key {
+            MavenSigningKey::Primary(key) => signature.verify(&key.public_key(), data).is_ok(),
+            MavenSigningKey::Subkey(key) => signature.verify(&key.public_key(), data).is_ok(),
+        };
+        if ok {
+            Ok(())
+        } else {
+            Err("maven verify: signature does not match the data and key".to_owned())
+        }
     }
 }
 
@@ -1662,6 +1680,23 @@ pub(crate) mod tests {
         let doc = scratch.join("d.jar");
         std::fs::write(&doc, b"javadoc").expect("doc");
         (jar, pom, src, doc)
+    }
+
+    #[test]
+    fn maven_signer_verify_rejects_a_bad_signature() {
+        let scratch = scratch_dir();
+        let (secret, _) = test_key(true);
+        let signer = MavenSigner::from_armored(&secret, PASSPHRASE).expect("signer");
+        let (other, _) = test_key(false);
+        let other = MavenSigner::from_armored(&other, PASSPHRASE).expect("other signer");
+        let file = scratch.path().join("a.jar");
+        std::fs::write(&file, b"payload").expect("write");
+        let asc = std::fs::read_to_string(maven_sign_detached(&signer, &file).expect("sign"))
+            .expect("asc");
+        signer.verify(b"payload", &asc).expect("good signature");
+        assert!(signer.verify(b"tampered", &asc).is_err());
+        assert!(other.verify(b"payload", &asc).is_err());
+        assert!(signer.verify(b"payload", "not armor").is_err());
     }
 
     #[test]

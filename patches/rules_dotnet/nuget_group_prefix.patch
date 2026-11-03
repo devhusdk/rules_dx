@@ -1,0 +1,47 @@
+diff -ruN a/dotnet/private/rules/nuget/nuget_repo.bzl b/dotnet/private/rules/nuget/nuget_repo.bzl
+--- a/dotnet/private/rules/nuget/nuget_repo.bzl
++++ b/dotnet/private/rules/nuget/nuget_repo.bzl
+@@ -5,6 +5,9 @@
+ 
+ _GLOBAL_NUGET_PREFIX = "nuget"
+ 
++def _prefix(group):
++    return "{}.{}".format(_GLOBAL_NUGET_PREFIX, group)
++
+ def _deps_select_statment(ctx, deps):
+     if len(deps) == 0:
+         return "\"//conditions:default\": []"
+@@ -53,13 +56,13 @@
+                 ENTRYPOINT_BY_TFM = ",\n".join(entrypoint_by_tfm),
+                 RUNNER_BY_TFM = ",\n".join(runner_by_tfm),
+                 TFMS = json.encode(tfms.keys()),
+-                PREFIX = _GLOBAL_NUGET_PREFIX,
++                PREFIX = _prefix(ctx.attr.repo_name),
+                 ID_LOWER = id.lower(),
+                 VERSION = version,
+             ))
+ 
+         ctx.template("{}/{}/BUILD.bazel".format(id.lower(), version), ctx.attr._template, {
+-            "{PREFIX}": _GLOBAL_NUGET_PREFIX,
++            "{PREFIX}": _prefix(ctx.attr.repo_name),
+             "{ID}": id,
+             "{ID_LOWER}": id.lower(),
+             "{VERSION}": version,
+@@ -75,7 +78,7 @@
+ alias(name = "{name}", actual = "//{id}/{version}")
+ alias(name = "content_files", actual = "@{prefix}.{id}.v{version}//:content_files")
+ alias(name = "files", actual = "@{prefix}.{id}.v{version}//:files")
+-""".format(prefix = _GLOBAL_NUGET_PREFIX, name = name.lower(), id = id.lower(), version = version))
++""".format(prefix = _prefix(ctx.attr.repo_name), name = name.lower(), id = id.lower(), version = version))
+ 
+         tool_aliases = []
+         for tool_name in tools:
+@@ -129,7 +132,7 @@
+         # maybe another nuget_repo has the same nuget package dependency
+         maybe(
+             nuget_archive,
+-            name = "{}.{}.v{}".format(_GLOBAL_NUGET_PREFIX, id, version),
++            name = "{}.{}.v{}".format(_prefix(name), id, version),
+             sources = package["sources"],
+             netrc = package.get("netrc", None),
+             id = id,

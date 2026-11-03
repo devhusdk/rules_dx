@@ -257,6 +257,7 @@ single_version_override(
     patches = [
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
+        "//patches/rules_dotnet:nuget_group_prefix.patch",
         "//patches/rules_dotnet:sdk_versions.patch",
     ],
     version = "0.22.2",

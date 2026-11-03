@@ -339,7 +339,7 @@ _runner_matrix_test = rule(
     },
 )
 
-def _compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False):
+def compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False):
     """Returns the platforms one matrix case runs on."""
     linux = ["@platforms//os:linux"] if linux_arm64 else ["@platforms//os:linux", "@platforms//cpu:x86_64"]
     if not macos_arm64 and not windows_x86_64 and not windows_arm64:
@@ -359,9 +359,9 @@ def _compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False)
     })
 
 def matrix_case_platforms(case):
-    """Returns the platform ids one matrix case runs on, mirroring `_compatible`.
+    """Returns the platform ids one matrix case runs on, mirroring `compatible`.
 
-    linux_x86_64 is always included. Keep this next to `_compatible` so they cannot drift.
+    linux_x86_64 is always included. Keep this next to `compatible` so they cannot drift.
     """
     linux_arm64 = case.get("linux_arm64", False)
     macos_arm64 = case.get("macos_arm64", False)
@@ -393,8 +393,8 @@ def matrix_platform_case_names(cases, platform):
     """Returns the names of the cases that run on `platform`, per `matrix_case_platforms`."""
     return [case["name"] for case in cases if platform in matrix_case_platforms(case)]
 
-def runner_matrix_suite(name, cases):
-    """Instantiates one _runner_matrix_test per matrix case plus a suite."""
+def runner_matrix_suite(name, cases, extra_cases = []):
+    """Instantiates one _runner_matrix_test per matrix case plus a suite; extra_cases are existing tests."""
     tests = []
     for case in cases:
         _runner_matrix_test(
@@ -430,10 +430,10 @@ def runner_matrix_suite(name, cases):
             ambient_files = case.get("ambient_files", {}),
             size = "small",
             tags = ["no-coverage"] + case.get("tags", []),
-            target_compatible_with = _compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False), case.get("windows_arm64", False)),
+            target_compatible_with = compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False), case.get("windows_arm64", False)),
         )
         tests.append(":" + case["name"])
-    native.test_suite(name = name, tests = tests)
+    native.test_suite(name = name, tests = tests + [":" + case["name"] for case in extra_cases])
 
     # One evidence suite per non-default platform, derived from the same flags as
     # `matrix_case_platforms`. The CI preflight lane for a platform runs exactly its suite.
@@ -441,7 +441,7 @@ def runner_matrix_suite(name, cases):
     for platform in SUPPORT_PLATFORMS:
         if platform == "linux_x86_64":
             continue
-        members = matrix_platform_case_names(cases, platform)
+        members = matrix_platform_case_names(cases + extra_cases, platform)
         if not members:
             fail("runner_matrix_suite: no case is flagged for " + platform + "; an empty test_suite would run every test")
         native.test_suite(name = name + "_" + platform, tests = [":" + m for m in members])

@@ -14,6 +14,7 @@ load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
 load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subject")
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_tests")
+load(":real_result_cases.bzl", "real_result_cases")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "rmeta_typecheck_test")
@@ -1901,6 +1902,8 @@ java_library(
     srcs = ["spotbugs_matrix/SpotbugsDirty.java"],
     tags = ["manual"],
 )
+
+real_result_cases()
 
 runner_matrix_cases(name = "runner_matrix")
 

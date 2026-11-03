@@ -1,5 +1,6 @@
 """Layer-2 matrix cases (snapshot workflow): every supported language x capability cell."""
 
+load(":real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load(":runner_matrix_data.bzl", "DATA_CASES")
 load(":runner_matrix_file_family.bzl", "FILE_FAMILY_CASES")
 load(":runner_matrix_js.bzl", "JS_CASES")
@@ -18,4 +19,4 @@ load(":runner_matrix_ts.bzl", "TS_CASES")
 RUNNER_MATRIX_CASES = (RUST_CASES + PYTHON_CASES + JS_CASES + TS_CASES + JSON_CASES + MARKUP_CASES + DATA_CASES + MARKDOWN_CASES + JVM_CASES + SCALA_DOTNET_CASES + NATIVE_CASES + STRUCTURED_CASES + FILE_FAMILY_CASES)
 
 def runner_matrix_cases(name):
-    runner_matrix_suite(name, RUNNER_MATRIX_CASES)
+    runner_matrix_suite(name, RUNNER_MATRIX_CASES, [real_result_evidence(case) | {"name": case["name"]} for case in REAL_RESULT_CASES])

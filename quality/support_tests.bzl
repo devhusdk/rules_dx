@@ -9,6 +9,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
+load("//quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
 load(":real_aspects.bzl", "real_wired_capabilities")
@@ -153,6 +154,14 @@ def _evidence_checks():
             "a case with another class is not evidence",
             unproven_claims([record], [dict(case, stages = ["yamlfmt;json;matrix/a.json"], macos_arm64 = True)]),
             ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "a real result proves its own class and not another",
+            [
+                unproven_claims([dict(record, platforms = ["linux_x86_64"])], [real_result_evidence({"name": "r", "tool": "yamlfmt", "capability": "format", "class": "yaml"})]),
+                unproven_claims([dict(record, platforms = ["linux_x86_64"])], [real_result_evidence({"name": "r", "tool": "yamlfmt", "capability": "format", "class": "json"})]),
+            ],
+            [[], ["yamlfmt:format:yaml:linux_x86_64"]],
         ),
         expect_equal(
             "a case for another tool is not evidence",
@@ -300,6 +309,11 @@ def support_unit_tests(name):
             expect_equal(
                 "nix and rego claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["deadnix", "nixfmt", "opa", "regal", "statix"]], RUNNER_MATRIX_CASES),
+                [],
+            ),
+            expect_equal(
+                "zanuda claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "zanuda"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],
             ),
             expect_equal(

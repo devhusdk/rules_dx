@@ -1,0 +1,55 @@
+"""Cases where the real aspect and runner run on a fixture and the result file is checked."""
+
+load(":real_results.bzl", "real_result_test")
+
+_ZANUDA_POLICY = "//quality/testdata/zanuda_owned:policy"
+
+REAL_RESULT_CASES = [
+    {
+        "name": "real_result_zanuda_clean",
+        "target": "//quality/testdata/zanuda_owned:clean",
+        "policy": _ZANUDA_POLICY,
+        "tool": "zanuda",
+        "capability": "lint",
+        "class": "ocaml",
+        "contains": ["quality/testdata/zanuda_owned/clean.ml"],
+        "absent": ["if_bool", "list_length_comparisons", "Fatal error", "no such file"],
+    },
+    {
+        "name": "real_result_zanuda_dirty",
+        "target": "//quality/testdata/zanuda_owned:dirty",
+        "policy": _ZANUDA_POLICY,
+        "tool": "zanuda",
+        "capability": "lint",
+        "class": "ocaml",
+        "contains": ["quality/testdata/zanuda_owned/dirty.ml", "if_bool", "list_length_comparisons"],
+        "absent": [],
+    },
+]
+
+def real_result_evidence(case):
+    """Returns a matrix-shaped evidence case for one real-result case."""
+    evidence = {
+        "capability": case["capability"],
+        "tool_names": [case["tool"]],
+        "stages": [case["tool"] + ";" + case["class"] + ";" + case["name"]],
+    }
+    for flag in ["linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]:
+        if flag in case:
+            evidence[flag] = case[flag]
+    return evidence
+
+def real_result_cases():
+    """Instantiates every real-result case."""
+    for case in REAL_RESULT_CASES:
+        real_result_test(
+            name = case["name"],
+            target = case["target"],
+            policy = case["policy"],
+            contains = case["contains"],
+            absent = case["absent"],
+            linux_arm64 = case.get("linux_arm64", False),
+            macos_arm64 = case.get("macos_arm64", False),
+            windows_x86_64 = case.get("windows_x86_64", False),
+            windows_arm64 = case.get("windows_arm64", False),
+        )

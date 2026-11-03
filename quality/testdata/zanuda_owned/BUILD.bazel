@@ -1,7 +1,7 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//ocaml/rules:defs.bzl", "ocaml_module")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
-load(":results.bzl", "zanuda_results")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
 
 quality_family(
     name = "ocaml_family",
@@ -27,23 +27,4 @@ ocaml_module(
 ocaml_module(
     name = "dirty",
     struct = "dirty.ml",
-)
-
-zanuda_results(
-    name = "clean_results",
-    target = ":clean",
-)
-
-zanuda_results(
-    name = "dirty_results",
-    target = ":dirty",
-)
-
-sh_test(
-    name = "zanuda_owned_test",
-    srcs = ["check.sh"],
-    data = [
-        ":clean_results",
-        ":dirty_results",
-    ],
 )

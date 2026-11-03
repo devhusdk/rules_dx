@@ -45,6 +45,7 @@ dx_rust_crate(
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/ide:dx_ide",
         "//cli/path:dx_path",
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",

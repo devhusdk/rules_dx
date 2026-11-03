@@ -27,6 +27,7 @@ pub(crate) fn env<'a>(
 ) -> AdoptEnv<'a> {
     AdoptEnv {
         workspace: root,
+        query_runner: None,
         out,
         err,
     }

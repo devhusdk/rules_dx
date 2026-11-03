@@ -19,6 +19,7 @@ pub(crate) use crate::exec::common::{operational, pre_exec};
 
 pub struct AdoptEnv<'a> {
     pub workspace: &'a std::path::Path,
+    pub query_runner: Option<&'a dyn dx_plan::resolve::QueryRunner>,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
 }
@@ -30,12 +31,13 @@ fn summaries_suppressed(invocation: &Invocation) -> bool {
 pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
     let AdoptEnv {
         workspace,
+        query_runner,
         out,
         err,
     } = env;
     match invocation.command {
         Command::Init => init::execute_init(invocation, workspace, out, err),
-        Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
+        Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, query_runner, out, err),
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Completion => completion::execute_completion(invocation, out, err),
         _ => pre_exec(invocation.output, out, err, "not an adoption command"),

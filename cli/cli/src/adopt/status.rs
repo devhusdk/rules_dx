@@ -397,11 +397,7 @@ mod tests {
         .expect("settings");
         let check = agents_check(root);
         assert_eq!(check.status, "warn");
-        assert!(
-            check.detail.contains("CLAUDE.md"),
-            "{}",
-            check.detail
-        );
+        assert!(check.detail.contains("CLAUDE.md"), "{}", check.detail);
         std::fs::write(root.join("CLAUDE.md"), "@AGENTS.md\n").expect("claude");
         assert_eq!(agents_check(root).status, "ok");
         #[cfg(unix)]

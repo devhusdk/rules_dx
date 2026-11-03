@@ -57,6 +57,8 @@ of the `pin` event, and a pending check emits `status_pin_mismatch`.
 
 Output: `--output text|json`.
 
+`--apply` also refreshes the editor files in `.dx/ide/`. A failed refresh prints one `ide_refresh_failed` warning and never changes the exit code.
+
 Exit codes: `0` success (moved or already current), `2` usage errors
 including a missing `--to`, `1` the pin can move or the move was refused.
 

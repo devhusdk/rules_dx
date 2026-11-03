@@ -21,6 +21,7 @@ mod generate;
 mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
+pub(crate) mod ide_refresh;
 mod install;
 mod managed;
 mod managed_codegen;
@@ -233,6 +234,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Init | Command::Upgrade | Command::Status | Command::Completion => {
             let Env {
                 workspace,
+                query_runner,
                 out,
                 err,
                 ..
@@ -241,6 +243,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
                 invocation,
                 crate::adopt::AdoptEnv {
                     workspace,
+                    query_runner: Some(query_runner),
                     out,
                     err,
                 },

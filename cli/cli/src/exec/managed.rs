@@ -194,6 +194,14 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     drop(staged_leases);
     let _ = std::fs::remove_file(&bep);
+    super::ide_refresh::refresh_and_warn(
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+        invocation.output,
+        out,
+        err,
+    );
     if json {
         let setup_id = dx_setup::setup_hex(&pair);
         if let Err(exit) = emit_built(

@@ -1049,6 +1049,7 @@ crate.from_cargo(
         "//cli/cli:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",
+        "//cli/ide:Cargo.toml",
         "//cli/lcov:Cargo.toml",
         "//cli/env:Cargo.toml",
         "//cli/codegen:Cargo.toml",

@@ -457,6 +457,28 @@ fn init_plan_check(root: &Path) -> StatusCheck {
     }
 }
 
+fn ide_check(root: &Path) -> Option<StatusCheck> {
+    let failed = dx_ide::failed_plugins(root)?;
+    if failed.is_empty() {
+        return Some(check(
+            "ide",
+            "ok",
+            "editor files are current".to_owned(),
+            "tools/dx env --apply",
+        ));
+    }
+    let names: Vec<String> = failed
+        .iter()
+        .map(|(name, error)| format!("{name}: {error}"))
+        .collect();
+    Some(check(
+        "ide",
+        "error",
+        format!("failed: {}", names.join("; ")),
+        "tools/dx env --apply",
+    ))
+}
+
 pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
     let mut checks = vec![
         toolchain_check(root),
@@ -471,6 +493,7 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
         pin_check(pinned),
     ];
     checks.extend(launcher_check(root, pinned));
+    checks.extend(ide_check(root));
     checks
 }
 
@@ -487,6 +510,24 @@ mod tests {
             detail: "unknown: pinned tools (//quality/artifacts) resolve at build time".to_owned(),
             hint: "bazel build //...".to_owned(),
         }
+    }
+
+    #[test]
+    fn ide_check_reads_state_json() {
+        let scratch = dx_test_scratch::scratch("dx-status-ide-");
+        let root = scratch.path();
+        assert!(super::ide_check(root).is_none());
+        std::fs::create_dir_all(root.join(".dx/ide")).expect("dir");
+        let state =
+            |text: &str| std::fs::write(root.join(".dx/ide/state.json"), text).expect("state");
+        state(r#"{"digest":"d","plugins":{"typescript":"ok"}}"#);
+        assert_eq!(super::ide_check(root).expect("ok").status, "ok");
+        state(r#"{"digest":"d","plugins":{"typescript":"boom"}}"#);
+        let bad = super::ide_check(root).expect("error");
+        assert_eq!(bad.status, "error");
+        assert!(bad.detail.contains("typescript: boom"), "{}", bad.detail);
+        assert_eq!(bad.hint, "tools/dx env --apply");
+        scratch.close().expect("cleanup");
     }
 
     #[test]

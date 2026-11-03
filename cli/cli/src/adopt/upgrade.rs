@@ -4,6 +4,7 @@ use std::path::Path;
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
 use dx_output::{command_finished, command_started, status_event, FinishedCounts, StatusEvent};
 use dx_plan::args::Invocation;
+use dx_plan::resolve::QueryRunner;
 
 use dx_output::OutputMode;
 
@@ -17,8 +18,12 @@ fn json_pin(
     out: &mut dyn Write,
     mode: &str,
     detail: &str,
+    notice: Option<&str>,
 ) -> Result<(), i32> {
     emit_built(out, command_started(invocation.command.name(), mode))?;
+    if let Some(message) = notice {
+        emit_built(out, crate::exec::ide_refresh::warning_event(message))?;
+    }
     emit_built(
         out,
         status_event(&StatusEvent {
@@ -52,6 +57,7 @@ fn fail(
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
     workspace: &Path,
+    query_runner: Option<&dyn QueryRunner>,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -91,7 +97,8 @@ pub(crate) fn execute_upgrade(
     if !invocation.applies() {
         if rerun {
             if is_json {
-                return json_pin(invocation, out, "check", to).map_or_else(|exit| exit, |()| 0);
+                return json_pin(invocation, out, "check", to, None)
+                    .map_or_else(|exit| exit, |()| 0);
             }
             if !summaries_suppressed(invocation) {
                 if let Err(exit) = check_stdout_write(writeln!(out, "upgrade current: {to}")) {
@@ -132,8 +139,19 @@ pub(crate) fn execute_upgrade(
         Ok(false) => {}
         Err(error) => return landed(out, err, &format!("AGENTS.md not refreshed: {error}")),
     }
+    let ide_warning = query_runner.and_then(|runner| {
+        crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
+    });
     if is_json {
-        return json_pin(invocation, out, "default", to).map_or_else(|exit| exit, |()| 0);
+        return json_pin(invocation, out, "default", to, ide_warning.as_deref())
+            .map_or_else(|exit| exit, |()| 0);
+    }
+    if let Some(message) = &ide_warning {
+        let _ = writeln!(
+            err,
+            "dx: {}: {message}",
+            crate::exec::notice_codes::CODE_IDE_REFRESH_FAILED
+        );
     }
     let line = if rerun {
         format!("pinned {to} (upgrade current)")

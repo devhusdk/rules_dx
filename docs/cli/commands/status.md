@@ -160,6 +160,8 @@ when the pin is semver, otherwise `write <module version> to .dx/version`. Under
 error event, then `command_finished` with `exit_code` `1` and
 `results_complete` `false`.
 
+Once `.dx/ide/state.json` exists, the `ide` check reports `ok`, or `error` with the failing editor plug-ins and the hint `tools/dx env --apply`.
+
 ```sh
 bazel run @rules_dx//:dx -- status
 bazel run @rules_dx//:dx -- upgrade --to 1.3.0 --apply

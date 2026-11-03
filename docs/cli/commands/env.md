@@ -1,5 +1,7 @@
 # `dx env`
 
+`dx env --apply` also refreshes the editor files in `.dx/ide/`, for example the TypeScript `lib` link. A failed refresh prints one `ide_refresh_failed` warning and never changes the exit code.
+
 ```sh
 bazel run @rules_dx//:dx -- env
 bazel run @rules_dx//:dx -- env --apply

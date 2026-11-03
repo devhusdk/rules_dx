@@ -4,6 +4,12 @@ load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
+filegroup(
+    name = "tsdk",
+    srcs = ["@npm_typescript//:node_modules/typescript"],
+    visibility = ["//visibility:public"],
+)
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
     binary = "@npm_typescript//:tsc",

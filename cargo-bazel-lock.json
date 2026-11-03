@@ -1,5 +1,5 @@
 {
-  "checksum": "8db9e41f1008604cbd58301833bcded75b501bfdb4d7655f0fb7fd794f7e4084",
+  "checksum": "defe32a886a6dce899619dc552090ead68cb5684f912f05fd0c248cdb7acd104",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7403,6 +7403,33 @@
         {
           "Library": {
             "crate_name": "dx_gomod",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_ide 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_ide",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_ide",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_ide",
             "crate_root": "src/lib.rs"
           }
         }
@@ -27879,6 +27906,7 @@
     "dx_execlog 0.0.0": "cli/dx_execlog",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_gomod 0.0.0": "libs/dx_gomod",
+    "dx_ide 0.0.0": "cli/dx_ide",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
     "dx_js_launcher 0.0.0": "quality/tools/javascript/dx_js_launcher",
     "dx_lcov 0.0.0": "cli/dx_lcov",

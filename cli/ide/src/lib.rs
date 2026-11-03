@@ -1,0 +1,339 @@
+//! Editor support files under `.dx/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
+
+mod link;
+mod typescript;
+
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+pub use link::link;
+
+pub const IDE_DIR: &str = ".dx/ide";
+pub const STATE_FILE: &str = ".dx/ide/state.json";
+
+/// Everything one plug-in sees when it writes.
+pub struct Ctx<'a> {
+    pub workspace: &'a Path,
+    pub dir: &'a Path,
+    pub outputs: &'a [PathBuf],
+}
+
+/// One editor integration: what turns it on, what it needs built, and how it writes.
+pub struct Plugin {
+    pub name: &'static str,
+    pub extensions: &'static [&'static str],
+    pub labels: &'static [&'static str],
+    pub write: fn(&Ctx<'_>) -> Result<(), String>,
+}
+
+/// Builds rules_dx labels and returns the absolute paths of their files.
+pub trait Runner {
+    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String>;
+}
+
+/// What one refresh did.
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct Report {
+    pub ran: bool,
+    pub failed: Vec<(String, String)>,
+}
+
+impl Report {
+    /// One line naming every failed plug-in, or `None` when all are fine.
+    pub fn warning(&self) -> Option<String> {
+        if self.failed.is_empty() {
+            return None;
+        }
+        let list: Vec<String> = self
+            .failed
+            .iter()
+            .map(|(name, error)| format!("{name}: {error}"))
+            .collect();
+        Some(format!("ide refresh failed: {}", list.join("; ")))
+    }
+}
+
+const PLUGINS: &[&Plugin] = &[&typescript::PLUGIN];
+
+/// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
+pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, String> {
+    refresh_with(workspace, runner, PLUGINS)
+}
+
+fn refresh_with(
+    workspace: &Path,
+    runner: &dyn Runner,
+    plugins: &[&Plugin],
+) -> Result<Report, String> {
+    let mut extensions = Vec::new();
+    collect_extensions(workspace, &mut extensions);
+    let active: Vec<&Plugin> = plugins
+        .iter()
+        .copied()
+        .filter(|plugin| {
+            plugin
+                .extensions
+                .iter()
+                .any(|e| extensions.iter().any(|x| x == e))
+        })
+        .collect();
+    let digest = inputs_digest(workspace, &active);
+    let state_path = workspace.join(STATE_FILE);
+    if let Some(old) = read_state(&state_path) {
+        if old.digest == digest && old.errors.is_empty() {
+            return Ok(Report::default());
+        }
+    }
+    remove_stale(workspace, plugins, &active);
+    let mut labels: Vec<String> = Vec::new();
+    for plugin in &active {
+        for label in plugin.labels {
+            if !labels.iter().any(|l| l == label) {
+                labels.push((*label).to_owned());
+            }
+        }
+    }
+    let built = if labels.is_empty() {
+        Ok(Vec::new())
+    } else {
+        runner.build(&labels)
+    };
+    let mut report = Report {
+        ran: true,
+        failed: Vec::new(),
+    };
+    let mut results = BTreeMap::new();
+    for plugin in &active {
+        let result = match &built {
+            Ok(outputs) => {
+                let dir = workspace.join(IDE_DIR).join(plugin.name);
+                (plugin.write)(&Ctx {
+                    workspace,
+                    dir: &dir,
+                    outputs,
+                })
+            }
+            Err(error) => Err(error.clone()),
+        };
+        match result {
+            Ok(()) => results.insert(plugin.name.to_owned(), "ok".to_owned()),
+            Err(error) => {
+                report.failed.push((plugin.name.to_owned(), error.clone()));
+                results.insert(plugin.name.to_owned(), error)
+            }
+        };
+    }
+    write_state(&state_path, &digest, &results)?;
+    Ok(report)
+}
+
+fn collect_extensions(dir: &Path, found: &mut Vec<String>) {
+    let ignored = bazelignore(dir);
+    walk(dir, &ignored, found);
+}
+
+fn bazelignore(root: &Path) -> Vec<PathBuf> {
+    std::fs::read_to_string(root.join(".bazelignore"))
+        .map(|text| {
+            text.lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                .map(|line| root.join(line.trim_end_matches('/')))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
+        if kind.is_dir() {
+            let skip = name == ".git"
+                || name == ".dx"
+                || name.starts_with("bazel-")
+                || ignored.contains(&path);
+            if !skip {
+                walk(&path, ignored, found);
+            }
+        } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            if !found.iter().any(|f| f == ext) {
+                found.push(ext.to_owned());
+            }
+        }
+    }
+}
+
+fn inputs_digest(workspace: &Path, active: &[&Plugin]) -> String {
+    let mut bytes = Vec::new();
+    for file in [".dx/version", "MODULE.bazel", "MODULE.bazel.lock"] {
+        bytes.extend_from_slice(file.as_bytes());
+        bytes.push(0);
+        bytes.extend(std::fs::read(workspace.join(file)).unwrap_or_default());
+        bytes.push(0);
+    }
+    for plugin in active {
+        bytes.extend_from_slice(plugin.name.as_bytes());
+        bytes.push(0);
+    }
+    dx_digest::sha256_hex(&bytes)
+}
+
+struct State {
+    digest: String,
+    errors: Vec<String>,
+}
+
+fn read_state(path: &Path) -> Option<State> {
+    let value: serde_json::Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
+    let digest = value.get("digest")?.as_str()?.to_owned();
+    let errors = value
+        .get("plugins")?
+        .as_object()?
+        .values()
+        .filter_map(|v| v.as_str())
+        .filter(|v| *v != "ok")
+        .map(str::to_owned)
+        .collect();
+    Some(State { digest, errors })
+}
+
+fn write_state(
+    path: &Path,
+    digest: &str,
+    results: &BTreeMap<String, String>,
+) -> Result<(), String> {
+    let state = serde_json::json!({ "digest": digest, "plugins": results });
+    let mut text = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
+    text.push('\n');
+    dx_atomic_fs::write_atomic(path, text.as_bytes())
+        .map_err(|error| format!("writing {STATE_FILE}: {error}"))
+}
+
+fn remove_stale(workspace: &Path, all: &[&Plugin], active: &[&Plugin]) {
+    for plugin in all {
+        if !active.iter().any(|a| a.name == plugin.name) {
+            let _ = std::fs::remove_dir_all(workspace.join(IDE_DIR).join(plugin.name));
+        }
+    }
+}
+
+/// Reads the plug-in results from `state.json`: `None` when it has never run.
+pub fn failed_plugins(workspace: &Path) -> Option<Vec<(String, String)>> {
+    let value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(workspace.join(STATE_FILE)).ok()?).ok()?;
+    let plugins = value.get("plugins")?.as_object()?;
+    Some(
+        plugins
+            .iter()
+            .filter_map(|(name, v)| Some((name.clone(), v.as_str()?.to_owned())))
+            .filter(|(_, v)| v != "ok")
+            .collect(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    struct Fake {
+        calls: Cell<usize>,
+        lib: PathBuf,
+    }
+
+    impl Runner for Fake {
+        fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
+            self.calls.set(self.calls.get() + 1);
+            Ok(vec![self.lib.clone()])
+        }
+    }
+
+    fn fake(root: &Path) -> Fake {
+        let lib = root.join("store").join("typescript");
+        std::fs::create_dir_all(lib.join("lib")).expect("lib");
+        Fake {
+            calls: Cell::new(0),
+            lib,
+        }
+    }
+
+    fn fail(_: &Ctx<'_>) -> Result<(), String> {
+        Err("boom".to_owned())
+    }
+
+    #[test]
+    fn second_run_skips_bazel_and_a_new_pin_runs_it_again() {
+        let scratch = dx_test_scratch::scratch("dx-ide-skip-");
+        let root = scratch.path();
+        std::fs::write(root.join("a.ts"), "").expect("ts");
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "1").expect("pin");
+        let runner = fake(root);
+        assert!(refresh(root, &runner).expect("first").ran);
+        assert!(!refresh(root, &runner).expect("second").ran);
+        assert_eq!(runner.calls.get(), 1);
+        std::fs::write(root.join(".dx/version"), "2").expect("pin");
+        refresh(root, &runner).expect("third");
+        assert_eq!(runner.calls.get(), 2);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_failing_plugin_is_recorded_and_the_others_still_write() {
+        let scratch = dx_test_scratch::scratch("dx-ide-fail-");
+        let root = scratch.path();
+        std::fs::write(root.join("a.ts"), "").expect("ts");
+        std::fs::write(root.join("b.bad"), "").expect("bad");
+        let runner = fake(root);
+        let bad = Plugin {
+            name: "bad",
+            extensions: &["bad"],
+            labels: &[],
+            write: fail,
+        };
+        let report = refresh_with(root, &runner, &[&bad, &typescript::PLUGIN]).expect("ok");
+        assert_eq!(report.failed, [("bad".to_owned(), "boom".to_owned())]);
+        assert_eq!(
+            failed_plugins(root),
+            Some(vec![("bad".to_owned(), "boom".to_owned())])
+        );
+        #[cfg(unix)]
+        assert!(root.join(".dx/ide/typescript/lib").exists());
+        assert!(
+            refresh_with(root, &runner, &[&bad, &typescript::PLUGIN])
+                .expect("retry")
+                .ran
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn typescript_needs_a_ts_file_and_stale_dirs_go() {
+        let scratch = dx_test_scratch::scratch("dx-ide-ts-");
+        let root = scratch.path();
+        let runner = fake(root);
+        std::fs::create_dir_all(root.join(".dx/ide/typescript")).expect("stale");
+        std::fs::create_dir_all(root.join(".dx/ide/rust")).expect("rust");
+        refresh(root, &runner).expect("empty tree");
+        assert!(!root.join(".dx/ide/typescript").exists());
+        assert!(root.join(".dx/ide/rust").exists());
+        assert_eq!(runner.calls.get(), 0);
+        std::fs::create_dir_all(root.join("src")).expect("src");
+        std::fs::write(root.join("src/app.tsx"), "").expect("tsx");
+        refresh(root, &runner).expect("with ts");
+        assert_eq!(runner.calls.get(), 1);
+        #[cfg(unix)]
+        assert_eq!(
+            std::fs::read_link(root.join(".dx/ide/typescript/lib")).expect("link"),
+            runner.lib.join("lib")
+        );
+        scratch.close().expect("cleanup");
+    }
+}

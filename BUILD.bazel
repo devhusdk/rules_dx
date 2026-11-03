@@ -17,6 +17,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_diff //cli/diff:dx_diff
 # gazelle:resolve rust dx_digest //cli/digest:dx_digest
 # gazelle:resolve rust dx_env //cli/env:dx_env
+# gazelle:resolve rust dx_ide //cli/ide:dx_ide
 # gazelle:resolve rust dx_env_plan //cli/env_plan:dx_env_plan
 # gazelle:resolve rust dx_execlog //cli/execlog:dx_execlog
 # gazelle:resolve rust dx_fingerprint //cli/fingerprint:dx_fingerprint

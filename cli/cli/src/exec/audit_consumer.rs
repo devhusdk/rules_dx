@@ -754,7 +754,8 @@ source = { registry = "https://pypi.org/simple" }
         }
     }
 
-    const NUGET_MODULE: &str = "paket = use_extension(\"//dn/deps:paket.main_extension.bzl\", \"main_extension\")\n";
+    const NUGET_MODULE: &str =
+        "paket = use_extension(\"//dn/deps:paket.main_extension.bzl\", \"main_extension\")\n";
 
     const NUGET_ADVISORY: &str = r#"[{
         "id": "GHSA-nuget-0001",

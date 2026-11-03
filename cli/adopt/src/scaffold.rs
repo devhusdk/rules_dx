@@ -185,7 +185,7 @@ pub fn render_editor_settings(windows: bool) -> String {
         "files.watcherExclude": excludes,
         "search.exclude": excludes,
         "python.defaultInterpreterPath": python,
-        "typescript.tsdk": ".dx/setups/current/node_modules/typescript/lib",
+        "typescript.tsdk": ".dx/ide/typescript/lib",
         "go.toolsManagement.checkForUpdates": "off",
         "clangd.path": clangd,
         "clangd.arguments": ["--compile-commands-dir=.dx/setups/current"],

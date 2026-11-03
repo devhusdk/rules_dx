@@ -18,6 +18,8 @@ pub(crate) fn block() -> String {
          - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
          - Fix first: `{dx} {check} --apply --affected`.\n\
          - Then verify: `{dx} {test} --affected`.\n\
+         - One file: `{dx} {test} <file>`.\n\
+         - One test: `{dx} {test} <label> -- --test_filter=<name>`.\n\
          - Read the `--output=json` result.\n\
          {END}\n"
     )
@@ -124,6 +126,8 @@ mod tests {
             "tools/dx worktree release",
             "tools/dx check --apply --affected",
             "tools/dx test --affected",
+            "tools/dx test <file>",
+            "tools/dx test <label> -- --test_filter=<name>",
             "--output=json",
         ] {
             assert!(text.contains(want), "{want}: {text}");

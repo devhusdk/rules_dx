@@ -88,7 +88,7 @@ impl Target {
     /// The files this run plans, relative to `root`: the init files, plus a
     /// `MODULE.bazel` and `.bazelversion` when the directory is fresh.
     fn plan(&self) -> Result<Vec<dx_adopt::scaffold::ScaffoldFile>, dx_adopt::AdoptError> {
-        let mut files = dx_adopt::plan_init_files(&self.module)?;
+        let mut files = dx_adopt::plan_init_files_at(&self.root, &self.module)?;
         if self.fresh {
             files.extend(dx_adopt::plan_fresh_files(&self.module));
         }

@@ -51,7 +51,7 @@ pub use preset::{
     PresetState,
 };
 pub use scaffold::{
-    apply_init, bazelignore_covers_dx, plan_init_files, preflight_destinations,
+    apply_init, bazelignore_covers_dx, plan_init_files, plan_init_files_at, preflight_destinations,
     render_consumer_module_setup, Applied,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};

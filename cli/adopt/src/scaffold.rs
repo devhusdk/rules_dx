@@ -94,9 +94,49 @@ pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.ym
 
 pub const CONSUMER_WORKFLOW_PIN: &str = "e97ab7b550d08e047c35edc5f50c7d242227842f";
 
+pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
+
+/// The repo's default branch: `origin/HEAD`, then `init.defaultBranch`, then `main`.
+pub fn detect_default_branch(root: &Path) -> String {
+    let git = |args: &[&str]| -> Option<String> {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
+    };
+    let from_origin = git(&["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+        .and_then(|name| name.strip_prefix("origin/").map(str::to_owned));
+    pick_default_branch(from_origin, git(&["config", "init.defaultBranch"]))
+}
+
+fn pick_default_branch(origin: Option<String>, configured: Option<String>) -> String {
+    [origin, configured]
+        .into_iter()
+        .flatten()
+        .find(|name| is_plain_branch(name))
+        .unwrap_or_else(|| DEFAULT_BRANCH_FALLBACK.to_owned())
+}
+
+fn is_plain_branch(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '/'))
+}
+
 pub fn render_consumer_caller() -> String {
+    render_consumer_caller_for(DEFAULT_BRANCH_FALLBACK)
+}
+
+pub fn render_consumer_caller_for(branch: &str) -> String {
     format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n    secrets: inherit\n    permissions:\n      contents: read\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n    secrets: inherit\n    permissions:\n      contents: read\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -169,9 +209,27 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
     plan_init_files_for_host(module_name, cfg!(windows))
 }
 
+/// Plans the init files for `root`, with the repo's default branch in the caller workflow.
+pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    let branch = if root.is_dir() {
+        detect_default_branch(root)
+    } else {
+        DEFAULT_BRANCH_FALLBACK.to_owned()
+    };
+    plan_init_files_full(module_name, cfg!(windows), &branch)
+}
+
 pub fn plan_init_files_for_host(
     module_name: &str,
     windows: bool,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_full(module_name, windows, DEFAULT_BRANCH_FALLBACK)
+}
+
+fn plan_init_files_full(
+    module_name: &str,
+    windows: bool,
+    branch: &str,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     let consumer_setup = render_consumer_module_setup();
@@ -208,7 +266,7 @@ pub fn plan_init_files_for_host(
         },
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
-            content: render_consumer_caller(),
+            content: render_consumer_caller_for(branch),
         },
         ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
@@ -327,7 +385,7 @@ pub fn apply_scaffold(
 }
 
 pub fn apply_init(root: &Path, module_name: &str, applied: &mut Applied) -> Result<(), AdoptError> {
-    apply_scaffold(root, &plan_init_files(module_name)?, applied)
+    apply_scaffold(root, &plan_init_files_at(root, module_name)?, applied)
 }
 
 /// Test view of a run: written paths, then `refused:` paths.
@@ -351,8 +409,9 @@ pub(crate) fn entries(
 mod tests {
     use super::{
         apply_init, entries, plan_init_files, plan_init_files_for_host, render_consumer_caller,
-        render_editor_settings, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
-        CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+        render_consumer_caller_for, render_editor_settings, CONSUMER_WORKFLOW_OWNER,
+        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -612,7 +671,56 @@ mod tests {
                 .join("examples/consumer-ci/caller.yml"),
         )
         .expect("examples/consumer-ci/caller.yml ships as test data");
-        assert_eq!(render_consumer_caller(), starter);
+        let generated = render_consumer_caller();
+        let without_defaults: String = starter
+            .lines()
+            .filter(|l| {
+                !l.trim_start().starts_with("disabled_checks:")
+                    && !l.trim_start().starts_with("platforms:")
+            })
+            .map(|l| format!("{l}\n"))
+            .collect();
+        assert_eq!(generated, without_defaults);
+    }
+
+    #[test]
+    fn default_branch_prefers_origin_then_config_then_main() {
+        let pick = super::pick_default_branch;
+        assert_eq!(pick(Some("trunk".into()), Some("dev".into())), "trunk");
+        assert_eq!(pick(None, Some("dev".into())), "dev");
+        assert_eq!(pick(None, None), "main");
+        assert_eq!(pick(Some("a b".into()), Some("".into())), "main");
+    }
+
+    #[test]
+    fn detects_default_branch_from_git_config_and_falls_back() {
+        let dir = std::env::temp_dir().join(format!("dx-adopt-branch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(args)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        };
+        if git(&["init", "-q"]) && git(&["config", "init.defaultBranch", "trunk"]) {
+            assert_eq!(super::detect_default_branch(&dir), "trunk");
+            assert!(render_consumer_caller_for("trunk").contains("branches: [trunk]"));
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            super::detect_default_branch(std::path::Path::new("/nonexistent-dx-dir")),
+            "main"
+        );
+    }
+
+    #[test]
+    fn caller_leaves_reusable_defaults_out() {
+        let caller = render_consumer_caller();
+        assert!(!caller.contains("platforms:"), "{caller}");
+        assert!(!caller.contains("disabled_checks:"), "{caller}");
     }
 
     #[test]
@@ -635,8 +743,6 @@ mod tests {
         );
         for required in [
             "merge_group:\n    types: [checks_requested]",
-            "disabled_checks:",
-            "platforms: '[\"linux_x86_64\"]'",
             "secrets: inherit",
             "permissions:",
             "contents: read",

@@ -762,6 +762,7 @@ def _android_sdk_impl(module_ctx):
             emulator_repos = repos.get("emulator", {}),
         )},
     )
+    return module_ctx.extension_metadata(reproducible = True)
 
 android_sdk = module_extension(
     implementation = _android_sdk_impl,

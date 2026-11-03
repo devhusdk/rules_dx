@@ -43,8 +43,9 @@ _luals = repository_rule(
     doc = "Downloads the pinned LuaLS release archive of the host platform.",
 )
 
-def _lua_impl(_mctx):
+def _lua_impl(mctx):
     _luals(name = "dx_luals")
+    return mctx.extension_metadata(reproducible = True)
 
 lua = module_extension(
     implementation = _lua_impl,

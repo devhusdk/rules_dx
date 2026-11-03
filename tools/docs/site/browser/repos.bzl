@@ -179,6 +179,7 @@ def _firefox_impl(module_ctx):
             url = url_for(artifact),
         )
     hub_repo(name = _HUB_NAME, files = {"BUILD.bazel": hub_build()})
+    return module_ctx.extension_metadata(reproducible = True)
 
 firefox = module_extension(
     implementation = _firefox_impl,

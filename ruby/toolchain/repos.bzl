@@ -60,7 +60,7 @@ _sorbet = repository_rule(
     doc = "Downloads and unpacks the pinned sorbet-static gem of the host platform.",
 )
 
-def _ruby_tools_impl(_mctx):
+def _ruby_tools_impl(mctx):
     _sorbet(name = "dx_sorbet")
     pinned_archive(
         name = "rules_ruby",
@@ -73,6 +73,8 @@ def _ruby_tools_impl(_mctx):
         strip_prefix = "rules_ruby-" + RULES_RUBY_VERSION,
         urls = [RULES_RUBY_URL],
     )
+    return mctx.extension_metadata(reproducible = True)
+
 ruby_tools = module_extension(
     implementation = _ruby_tools_impl,
     doc = "Creates the pinned Sorbet repository and the patched rules_ruby.",

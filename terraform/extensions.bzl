@@ -129,6 +129,7 @@ def _extension_impl(ctx):
             repos[target] = repo
         hub[name] = {"repos": repos, "source": source}
     hub_repo(name = "dx_terraform_providers", files = {"BUILD.bazel": hub_build(hub)})
+    return ctx.extension_metadata(reproducible = True)
 
 _provider = tag_class(
     doc = "Declares a Terraform provider to fetch into @dx_terraform_providers.",

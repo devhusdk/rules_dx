@@ -29,9 +29,10 @@ impl Problem {
 
     fn unreadable(path: &Path, error: &ExeclogError) -> Problem {
         match error {
-            ExeclogError::Missing(path) => {
-                Problem::missing(format!("no execution log at {}", path.display()))
-            }
+            ExeclogError::Missing(path) => Problem::missing(format!(
+                "no execution log at {}; run `dx build --explain` to record one",
+                path.display()
+            )),
             _ => Problem {
                 code: CODE_EXPLAIN_LOG_UNREADABLE,
                 message: format!("cannot read {}: {error}", path.display()),
@@ -330,6 +331,11 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("explain_log_missing"), "{err}");
         assert!(err.contains("gone.zst"), "{err}");
+        assert!(err.contains("dx build --explain"), "{err}");
+        let (code, _, err) = harness.run(&["explain", "--new=gone.zst"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("gone.zst"), "{err}");
+        assert!(err.contains("dx build --explain"), "{err}");
     }
 
     #[test]

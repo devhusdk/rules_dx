@@ -62,6 +62,7 @@ dx_rust_crate(
         "src/slots.rs",
         "src/slots/pressure.rs",
     ],
+    compile_data = ["//docs:tutorial.md"],
     dev_deps = ["insta"],
     extra_deps = [
         "//cli/adopt:dx_adopt",
@@ -109,6 +110,7 @@ dx_rust_crate(
         "src/args/parser_commands.rs",
         "src/args/parser_core.rs",
         "src/args/strict_tests.rs",
+        "src/args/tutorial_tests.rs",
         "src/resolve/fake_query.rs",
     ],
     deps = [

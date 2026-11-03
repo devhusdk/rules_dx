@@ -77,7 +77,7 @@ and C toolchains. Only the root module's tags count.
 `dx init --apply` writes the overrides `rules_dx` needs; see
 [patches/README.md](patches/README.md).
 
-Next: [docs index](docs/README.md),
+Next: [tutorial](docs/tutorial.md), [docs index](docs/README.md),
 [adopting rules_dx in an existing Bazel repo](docs/adopting-existing-bazel.md),
 [command reference](docs/cli/commands/README.md),
 [examples](examples/README.md), [CI](docs/github-ci.md),

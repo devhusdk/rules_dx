@@ -651,6 +651,9 @@ mod parser_core;
 #[cfg(test)]
 #[path = "strict_tests.rs"]
 mod strict_tests;
+#[cfg(test)]
+#[path = "tutorial_tests.rs"]
+mod tutorial_tests;
 
 #[cfg(test)]
 mod startup_tests {

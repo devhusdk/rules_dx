@@ -4,6 +4,7 @@ Start here to use `dx`. `dx` runs through Bazel. To put a standalone binary on a
 machine, use [`dx install`](cli/commands/install.md). Otherwise install Bazel via
 Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 
+- [Tutorial](tutorial.md): from an empty directory to a passing `dx test`.
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md): move from upstream rules one package at a time.
 
 ## Support

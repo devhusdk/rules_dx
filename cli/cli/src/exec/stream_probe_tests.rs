@@ -374,7 +374,10 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
                 )
             });
             let build = run.build_pid();
-            std::thread::sleep(Duration::from_millis(300));
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while !(group_alive(build) && run_dirs(&run).len() == 1) && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(20));
+            }
             assert!(group_alive(build), "{}", run.context());
             assert_eq!(run_dirs(&run).len(), 1, "{}", run.context());
             let sent = run.signal(signo);

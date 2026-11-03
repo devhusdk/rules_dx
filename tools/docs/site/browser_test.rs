@@ -1,8 +1,5 @@
 //! Serves the rendered site and drives it in a real Firefox at every hosting base.
 
-use std::thread;
-use std::time::Duration;
-
 use dx_site_browser::{wait_for, Browser};
 
 mod preview_server;
@@ -219,11 +216,13 @@ fn the_sidebar_toggle_hides_the_navigation_and_focus_is_visible() {
         .expect("poll the hidden sidebar"),
         "the toggle must mark the navigation hidden"
     );
-    thread::sleep(Duration::from_millis(800));
     assert!(
-        browser
-            .truthy("return document.getElementById('sidebar').getBoundingClientRect().right <= 0")
-            .expect("the hidden sidebar box"),
+        wait_for(
+            &mut browser,
+            "return document.getElementById('sidebar').getBoundingClientRect().right <= 0",
+            30,
+        )
+        .expect("poll the hidden sidebar box"),
         "the toggle must move the navigation off screen"
     );
 
@@ -324,12 +323,13 @@ fn a_phone_sized_viewport_collapses_the_navigation() {
     browser
         .script("document.getElementById('sidebar-toggle').click(); return 1")
         .expect("open the navigation on a phone");
-    thread::sleep(Duration::from_millis(800));
-    assert_ne!(
-        browser
-            .text("return getComputedStyle(document.getElementById('sidebar')).display")
-            .expect("the phone sidebar display"),
-        "none",
+    assert!(
+        wait_for(
+            &mut browser,
+            "return getComputedStyle(document.getElementById('sidebar')).display !== 'none'",
+            30,
+        )
+        .expect("poll the phone sidebar display"),
         "the toggle must open the navigation on a phone"
     );
     let overflow = browser

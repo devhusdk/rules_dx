@@ -1,0 +1,21 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+"""BCR submission templates."""
+
+package(default_visibility = ["//:__subpackages__"])
+
+filegroup(
+    name = "templates",
+    srcs = [
+        "metadata.template.json",
+        "presubmit.yml",
+        "source.template.json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

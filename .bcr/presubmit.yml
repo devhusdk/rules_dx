@@ -1,0 +1,27 @@
+bcr_test_module:
+  module_path: "bcr_test_module"
+  matrix:
+    platform:
+      - debian11
+      - ubuntu2204
+      - macos_arm64
+      - windows
+      - ubuntu2204_arm64
+    bazel:
+      - 9.x
+  tasks:
+    run_dx_help:
+      name: Run dx --help
+      platform: ${{ platform }}
+      bazel: ${{ bazel }}
+      run_targets:
+        - "@rules_dx//:dx"
+      run_flags:
+        - "--"
+        - "--help"
+    test_hello:
+      name: Test hello
+      platform: ${{ platform }}
+      bazel: ${{ bazel }}
+      test_targets:
+        - "//:hello_test"

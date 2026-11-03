@@ -1,0 +1,63 @@
+use dx_release_tools::render_bcr_source_for_digest;
+
+fn template(name: &str) -> String {
+    dx_testing::read_runfiles(&format!(".bcr/{name}"))
+}
+
+fn fill(text: &str, version: &str) -> String {
+    text.replace("{OWNER}", "devhusdk")
+        .replace("{REPO}", "rules_dx")
+        .replace("{VERSION}", version)
+        .replace("{TAG}", &format!("v{version}"))
+}
+
+fn json(text: &str) -> serde_json::Value {
+    serde_json::from_str(text).expect("template is JSON")
+}
+
+#[test]
+fn metadata_template_names_homepage_maintainer_and_repository() {
+    let meta = json(&fill(&template("metadata.template.json"), "1.2.3"));
+    assert_eq!(meta["homepage"], "https://github.com/devhusdk/rules_dx");
+    assert_eq!(meta["repository"][0], "github:devhusdk/rules_dx");
+    assert_eq!(meta["maintainers"][0]["github"], "devhusdk");
+}
+
+#[test]
+fn source_template_matches_the_bcr_source_output() {
+    let digest = "0".repeat(64);
+    let want = json(&render_bcr_source_for_digest("rules_dx", "1.2.3", &digest).unwrap());
+    let got = json(&fill(&template("source.template.json"), "1.2.3"));
+    assert_eq!(got["url"], want["url"]);
+    assert_eq!(got["strip_prefix"], want["strip_prefix"]);
+}
+
+#[test]
+fn templates_carry_the_placeholders_bcr_substitutes() {
+    let text = template("source.template.json");
+    for key in ["{OWNER}", "{REPO}", "{VERSION}", "{TAG}"] {
+        assert!(text.contains(key), "source.template.json lacks {key}");
+    }
+    json(
+        &template("metadata.template.json")
+            .replace("{OWNER}", "o")
+            .replace("{REPO}", "r"),
+    );
+}
+
+#[test]
+fn presubmit_covers_five_platforms_and_the_dx_commands() {
+    let text = template("presubmit.yml");
+    for want in [
+        "debian11",
+        "ubuntu2204",
+        "macos_arm64",
+        "windows",
+        "ubuntu2204_arm64",
+        "@rules_dx//:dx",
+        "--help",
+        "//:hello_test",
+    ] {
+        assert!(text.contains(want), "presubmit.yml lacks {want}");
+    }
+}

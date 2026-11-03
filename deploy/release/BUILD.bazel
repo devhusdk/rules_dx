@@ -187,6 +187,21 @@ rust_test(
 
 # keep
 rust_test(
+    name = "bcr_templates_test",
+    size = "small",
+    srcs = ["bcr_templates_test.rs"],
+    data = ["//.bcr:templates"],
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "deploy/dx_release_tools",
+    ) + [
+        ":dx_release_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+rust_test(
     name = "candidate_identity_test",
     size = "medium",
     srcs = ["candidate_test.rs"],
@@ -591,6 +606,7 @@ notice_file_tests(
 test_suite(
     name = "all",
     tests = [
+        ":bcr_templates_test",
         ":bcr_unit",
         ":candidate_identity_test",
         ":dx_archive_inventory_test",

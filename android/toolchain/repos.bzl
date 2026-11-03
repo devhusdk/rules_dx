@@ -100,6 +100,7 @@ cc_toolchain(
 
 toolchain(
     name = "ndk_cc_toolchain_{tuple}",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
     target_compatible_with = {compatible_with},
     toolchain = ":cc_toolchain_{tuple}",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
@@ -132,14 +133,11 @@ _TUPLE_CONSTRAINTS = {
     for name in ["device", "emulator"]
 }
 
-def _clang_version(ctx, clang):
-    result = ctx.execute([clang, "--print-resource-dir"])
-    if result.return_code != 0:
-        fail("android_ndk_toolchain: '" + clang + "' cannot report its resource directory: " + result.stderr)
-    fields = result.stdout.strip().split("/lib/clang/")
-    if len(fields) != 2:
-        fail("android_ndk_toolchain: '" + clang + "' reported an unexpected resource directory: " + result.stdout)
-    return fields[1].split("/")[0]
+def _clang_version(ctx, prebuilt):
+    dirs = ctx.path(prebuilt + "/lib/clang").readdir()
+    if len(dirs) != 1:
+        fail("android_ndk_toolchain: expected one directory under '" + prebuilt + "/lib/clang', found " + str(len(dirs)))
+    return dirs[0].basename
 
 def _android_ndk_toolchain_repo_impl(ctx):
     local_path = ctx.attr.local_path
@@ -164,8 +162,7 @@ def _android_ndk_toolchain_repo_impl(ctx):
     ctx.symlink(sdk, "sdk")
     prebuilt = _HOST_PREBUILT
     sysroot = "sysroot"
-    clang = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/bin/clang"
-    clang_version = _clang_version(ctx, clang)
+    clang_version = _clang_version(ctx, str(sdk) + "/ndk/" + revision + "/" + prebuilt)
 
     # Execroot-relative so remote execution never sees a host-absolute path.
     root = "external/" + ctx.name + "/sdk/ndk/" + revision + "/" + prebuilt

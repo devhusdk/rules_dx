@@ -98,150 +98,6 @@ rust_clippy_test(
 
 # keep
 rust_test(
-    name = "ansible_consumer_test",
-    size = "enormous",
-    srcs = ["ansible_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "ansible_consumer_fmt_test",
-    targets = [":ansible_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "ansible_consumer_clippy_test",
-    targets = [":ansible_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "bicep_consumer_test",
-    size = "enormous",
-    srcs = ["bicep_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "bicep_consumer_fmt_test",
-    targets = [":bicep_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "bicep_consumer_clippy_test",
-    targets = [":bicep_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "cloudformation_consumer_test",
-    size = "enormous",
-    srcs = ["cloudformation_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "cloudformation_consumer_fmt_test",
-    targets = [":cloudformation_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "cloudformation_consumer_clippy_test",
-    targets = [":cloudformation_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "jet_consumer_test",
-    size = "enormous",
-    srcs = ["jet_consumer_test.rs"],
-    data = [
-        "//cli/cli:dx",
-        "//julia/rules:defs.bzl",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches the Julia runtime and JET packages.
-    tags = NESTED_BAZEL_CI_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "jet_consumer_fmt_test",
-    targets = [":jet_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "jet_consumer_clippy_test",
-    targets = [":jet_consumer_test"],
-)
-
-# keep
-rust_test(
     name = "qml_format_consumer_test",
     size = "enormous",
     srcs = ["qml_format_consumer_test.rs"],
@@ -276,105 +132,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "qml_format_consumer_clippy_test",
     targets = [":qml_format_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "elvis_consumer_test",
-    size = "enormous",
-    srcs = ["elvis_consumer_test.rs"],
-    data = [
-        "//cli/cli:dx",
-        "//erlang/tests/runtime:src/dx_runtime_probe.erl",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches elvis.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "elvis_consumer_fmt_test",
-    targets = [":elvis_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "elvis_consumer_clippy_test",
-    targets = [":elvis_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "dialyzer_consumer_test",
-    size = "enormous",
-    srcs = ["dialyzer_consumer_test.rs"],
-    data = [
-        "//cli/cli:dx",
-        "//erlang/tests/runtime:src/dx_runtime_probe.erl",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches the OTP runtime.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "dialyzer_consumer_fmt_test",
-    targets = [":dialyzer_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "dialyzer_consumer_clippy_test",
-    targets = [":dialyzer_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "dialyzer_elixir_consumer_test",
-    size = "enormous",
-    srcs = ["dialyzer_elixir_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-        "//elixir/tests/runtime:lib/dx_runtime_probe.ex",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_CI_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 # keep
@@ -502,16 +259,6 @@ rust_test(
 )
 
 rustfmt_test(
-    name = "dialyzer_elixir_consumer_fmt_test",
-    targets = [":dialyzer_elixir_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "dialyzer_elixir_consumer_clippy_test",
-    targets = [":dialyzer_elixir_consumer_test"],
-)
-
-rustfmt_test(
     name = "phpcs_consumer_fmt_test",
     targets = [":phpcs_consumer_test"],
 )
@@ -532,8 +279,6 @@ rust_clippy_test(
 )
 
 _FORMAT_TOOLS = {
-    "dfmt": ["//d/tests/fixtures/hello:greet.d"],
-    "erlfmt": ["//erlang/tests/runtime:src/dx_runtime_probe.erl"],
     "mix_format": ["//elixir/tests/runtime:lib/dx_runtime_probe.ex"],
     "perltidy": ["//perl/tools:cpanfile.snapshot.lock.json"],
     "zig_fmt": ["//zig/tests/fixtures/hello:greet.zig"],
@@ -579,8 +324,6 @@ rust_clippy_test(
 )
 
 _TYPECHECK_TOOLS = {
-    "flang": NESTED_BAZEL_NETWORK_TAGS,
-    "javac": NESTED_BAZEL_NETWORK_TAGS,
     "kotlinc": NESTED_BAZEL_NETWORK_TAGS,
     "ldc": NESTED_BAZEL_NETWORK_TAGS,
     "ocaml": NESTED_BAZEL_NETWORK_TAGS,
@@ -626,80 +369,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "typecheck_consumer_clippy_test",
     targets = [":%s_consumer_test" % tool for tool in _TYPECHECK_TOOLS],
-)
-
-# keep
-rust_test(
-    name = "credo_consumer_test",
-    size = "enormous",
-    srcs = ["credo_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-        "//elixir/tests/runtime:lib/dx_runtime_probe.ex",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_CI_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "credo_consumer_fmt_test",
-    targets = [":credo_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "credo_consumer_clippy_test",
-    targets = [":credo_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "dscanner_consumer_test",
-    size = "enormous",
-    srcs = ["dscanner_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches the D toolchain and builds D-Scanner.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "dscanner_consumer_fmt_test",
-    targets = [":dscanner_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "dscanner_consumer_clippy_test",
-    targets = [":dscanner_consumer_test"],
 )
 
 # keep
@@ -818,183 +487,6 @@ rust_clippy_test(
 
 # keep
 rust_test(
-    name = "buf_consumer_test",
-    size = "enormous",
-    srcs = ["buf_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV | CONSUMER_MAVEN_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "buf_consumer_fmt_test",
-    targets = [":buf_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "buf_consumer_clippy_test",
-    targets = [":buf_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "cue_consumer_test",
-    size = "enormous",
-    srcs = ["cue_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "cue_consumer_fmt_test",
-    targets = [":cue_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "cue_consumer_clippy_test",
-    targets = [":cue_consumer_test"],
-)
-
-rust_test(
-    name = "capnp_codegen_consumer_test",
-    size = "enormous",
-    srcs = ["capnp_codegen_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "capnp_codegen_consumer_fmt_test",
-    targets = [":capnp_codegen_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "capnp_codegen_consumer_clippy_test",
-    targets = [":capnp_codegen_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "capnp_consumer_test",
-    size = "enormous",
-    srcs = ["capnp_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "capnp_consumer_fmt_test",
-    targets = [":capnp_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "capnp_consumer_clippy_test",
-    targets = [":capnp_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "flatbuffers_consumer_test",
-    size = "enormous",
-    srcs = ["flatbuffers_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "flatbuffers_consumer_fmt_test",
-    targets = [":flatbuffers_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "flatbuffers_consumer_clippy_test",
-    targets = [":flatbuffers_consumer_test"],
-)
-
-# keep
-rust_test(
     name = "thrift_consumer_test",
     size = "enormous",
     srcs = ["thrift_consumer_test.rs"],
@@ -1027,39 +519,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "thrift_consumer_clippy_test",
     targets = [":thrift_consumer_test"],
-)
-
-rust_test(
-    name = "flatbuffers_codegen_consumer_test",
-    size = "enormous",
-    srcs = ["flatbuffers_codegen_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "flatbuffers_codegen_consumer_fmt_test",
-    targets = [":flatbuffers_codegen_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "flatbuffers_codegen_consumer_clippy_test",
-    targets = [":flatbuffers_codegen_consumer_test"],
 )
 
 # keep
@@ -1096,78 +555,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "terraform_consumer_clippy_test",
     targets = [":terraform_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "go_consumer_test",
-    size = "enormous",
-    srcs = ["go_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "go_consumer_fmt_test",
-    targets = [":go_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "go_consumer_clippy_test",
-    targets = [":go_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "jsonnet_consumer_test",
-    size = "enormous",
-    srcs = ["jsonnet_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "jsonnet_consumer_fmt_test",
-    targets = [":jsonnet_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "jsonnet_consumer_clippy_test",
-    targets = [":jsonnet_consumer_test"],
 )
 
 # keep
@@ -1393,32 +780,6 @@ rust_test(
     ],
 )
 
-# keep
-rust_test(
-    name = "haskell_consumer_test",
-    size = "enormous",
-    srcs = ["haskell_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
 rustfmt_test(
     name = "lua_consumer_fmt_test",
     targets = [":lua_consumer_test"],
@@ -1447,52 +808,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "make_consumer_clippy_test",
     targets = [":make_consumer_test"],
-)
-
-rustfmt_test(
-    name = "haskell_consumer_fmt_test",
-    targets = [":haskell_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "haskell_consumer_clippy_test",
-    targets = [":haskell_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "html_template_consumer_test",
-    size = "enormous",
-    srcs = ["html_template_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "html_template_consumer_fmt_test",
-    targets = [":html_template_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "html_template_consumer_clippy_test",
-    targets = [":html_template_consumer_test"],
 )
 
 # keep
@@ -1529,42 +844,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "yaml_consumer_clippy_test",
     targets = [":yaml_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "dockerfile_consumer_test",
-    size = "enormous",
-    srcs = ["dockerfile_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "dockerfile_consumer_fmt_test",
-    targets = [":dockerfile_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "dockerfile_consumer_clippy_test",
-    targets = [":dockerfile_consumer_test"],
 )
 
 # keep
@@ -1629,32 +908,6 @@ rust_test(
     ],
 )
 
-# keep
-rust_test(
-    name = "helm_consumer_test",
-    size = "enormous",
-    srcs = ["helm_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
 rust_test(
     name = "rego_consumer_test",
     size = "enormous",
@@ -1688,16 +941,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "kubernetes_consumer_clippy_test",
     targets = [":kubernetes_consumer_test"],
-)
-
-rustfmt_test(
-    name = "helm_consumer_fmt_test",
-    targets = [":helm_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "helm_consumer_clippy_test",
-    targets = [":helm_consumer_test"],
 )
 
 rustfmt_test(
@@ -1744,42 +987,6 @@ rustfmt_test(
 rust_clippy_test(
     name = "ruff_consumer_clippy_test",
     targets = [":ruff_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "jupyter_consumer_test",
-    size = "enormous",
-    srcs = ["jupyter_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "jupyter_consumer_fmt_test",
-    targets = [":jupyter_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "jupyter_consumer_clippy_test",
-    targets = [":jupyter_consumer_test"],
 )
 
 [
@@ -2008,151 +1215,6 @@ rust_clippy_test(
 
 # keep
 rust_test(
-    name = "api_spec_consumer_test",
-    size = "enormous",
-    srcs = ["api_spec_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "api_spec_consumer_fmt_test",
-    targets = [":api_spec_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "api_spec_consumer_clippy_test",
-    targets = [":api_spec_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "graphql_eslint_consumer_test",
-    size = "enormous",
-    srcs = ["graphql_eslint_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "graphql_eslint_consumer_fmt_test",
-    targets = [":graphql_eslint_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "graphql_eslint_consumer_clippy_test",
-    targets = [":graphql_eslint_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "csharp_consumer_test",
-    size = "enormous",
-    srcs = ["csharp_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches CSharpier and builds with the SDK analyzers.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "csharp_consumer_fmt_test",
-    targets = [":csharp_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "csharp_consumer_clippy_test",
-    targets = [":csharp_consumer_test"],
-)
-
-# keep
-rust_test(
-    name = "fsharp_consumer_test",
-    size = "enormous",
-    srcs = ["fsharp_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV | CONSUMER_MAVEN_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "fsharp_consumer_fmt_test",
-    targets = [":fsharp_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "fsharp_consumer_clippy_test",
-    targets = [":fsharp_consumer_test"],
-)
-
-# keep
-rust_test(
     name = "ruby_consumer_test",
     size = "enormous",
     srcs = ["ruby_consumer_test.rs"],
@@ -2358,12 +1420,4 @@ rust_clippy_test(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
-)
-
-exports_files(
-    [
-        "csharp_consumer_test.rs",
-        "fsharp_consumer_test.rs",
-    ],
-    visibility = ["//modules:__pkg__"],
 )

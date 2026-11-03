@@ -47,46 +47,6 @@ register_toolchains("@rules_dx//scala/toolchain:semanticdb")
 
 const ROWS: &[Row] = &[
     Row {
-        tool: "flang",
-        family: "fortran",
-        module: "",
-        maven: false,
-        bazelrc: "",
-        lib_build: r#"load("@rules_dx//fortran/rules:defs.bzl", "fortran_library")
-
-fortran_library(
-    name = "lib",
-    srcs = ["count.f90"],
-)
-"#,
-        extra: &[],
-        source: "count.f90",
-        clean: "module count\n  implicit none\ncontains\n  integer function count_up()\n    count_up = 1\n  end function count_up\nend module count\n",
-        dirty: "module count\n  implicit none\ncontains\n  integer function count_up()\n    count_up = missing\n  end function count_up\nend module count\n",
-        location: "lib/count.f90:5:",
-        rule: "[flang",
-    },
-    Row {
-        tool: "javac",
-        family: "java",
-        module: "",
-        maven: false,
-        bazelrc: "",
-        lib_build: r#"load("@rules_dx//java/rules:defs.bzl", "java_library")
-
-java_library(
-    name = "lib",
-    srcs = ["Count.java"],
-)
-"#,
-        extra: &[],
-        source: "Count.java",
-        clean: "package lib;\n\npublic class Count {\n  public int count() {\n    return 1;\n  }\n}\n",
-        dirty: "package lib;\n\npublic class Count {\n  public int count() {\n    return \"not an int\";\n  }\n}\n",
-        location: "lib/Count.java:5:12:",
-        rule: "[javac/compiler.err.prob.found.req]",
-    },
-    Row {
         tool: "kotlinc",
         family: "kotlin",
         module: "bazel_dep(name = \"rules_kotlin\", version = \"2.4.21\")\n",

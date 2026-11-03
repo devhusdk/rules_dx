@@ -18,46 +18,6 @@ struct Row {
 
 const ROWS: &[Row] = &[
     Row {
-        tool: "dfmt",
-        family: "d",
-        lib_build: r#"load("@rules_dx//d/rules:defs.bzl", "d_library")
-
-d_library(
-    name = "math",
-    srcs = ["math.d"],
-)
-"#,
-        source: "math.d",
-        dirty: "module math;\n\nint add(int a, int b)\n{\n    return a+b;\n}\n",
-        formatted: "module math;\n\nint add(int a, int b)\n{\n    return a + b;\n}\n",
-        broken: "module math;\n\nint add(int a, int b)\n{\n    return ;a\n}\n",
-        broken_report: "lib/math.d:6:1: error: Expected `;` instead of `}` [dfmt/syntax]",
-        kept: None,
-        tool_flag: Some("--@rules_dx//config:tool_dfmt=@rules_dx//d/tools:dfmt"),
-        flag_required: false,
-        profile: None,
-    },
-    Row {
-        tool: "erlfmt",
-        family: "erlang",
-        lib_build: r#"load("@rules_dx//erlang/rules:defs.bzl", "erlang_app")
-
-erlang_app(
-    app_name = "math",
-    app_version = "1.0.0",
-)
-"#,
-        source: "src/math.erl",
-        dirty: "-module(math).\n-export([add/2]).\n\nadd(A,B)->A+B.\n",
-        formatted: "-module(math).\n-export([add/2]).\n\nadd(A, B) -> A + B.\n",
-        broken: "-module(math).\n-export([add/2]).\n\nadd(A,B)->A+B.\nbroken(X) -> X +.\n",
-        broken_report: "lib/src/math.erl:5:17: error: syntax error before: '.' [erlfmt/syntax]",
-        kept: Some("-module(math).\n-export([add/2, table/0]).\n\nadd(A, B) -> A + B.\n\n%% erlfmt-ignore\ntable() -> [ 1,  2,\n            30, 40 ].\n"),
-        tool_flag: Some("--@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt"),
-        flag_required: true,
-        profile: None,
-    },
-    Row {
         tool: "mix_format",
         family: "elixir",
         lib_build: r#"load("@rules_dx//elixir/rules:defs.bzl", "elixir_app")

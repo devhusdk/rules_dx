@@ -1,0 +1,38 @@
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "go_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "go",
+    lint = [
+        "errcheck",
+        "govet",
+    ],
+)
+
+quality_family(
+    name = "go_typecheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "go",
+    typecheck = ["gotype"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":go_family"],
+)
+
+workspace_policy(
+    name = "typecheck_policy",
+    families = [":go_typecheck_family"],
+)

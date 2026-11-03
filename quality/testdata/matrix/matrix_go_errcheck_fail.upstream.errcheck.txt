@@ -1,1 +1,0 @@
-{"matrix/errcheck":{"errcheck":[{"posn":"matrix/errcheck_dirty.go:8:15","end":"matrix/errcheck_dirty.go:8:15","message":"unchecked error"},{"posn":"matrix/errcheck_dirty.go:9:9","end":"matrix/errcheck_dirty.go:9:9","message":"unchecked error"}]}}

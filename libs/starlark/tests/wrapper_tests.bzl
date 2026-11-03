@@ -727,6 +727,11 @@ def wrapper_resource_tags_tests(name):
                 ["a", "resources:cpu:2", "resources:memory:2048"],
             ),
             expect_equal(
+                "browser tests keep the no-remote tag and declare large cost",
+                dx_test_resource_tags("large", ["no-remote-exec"]),
+                ["no-remote-exec", "resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
                 "enormous tests declare four cpus and 4 GB",
                 dx_test_resource_tags("enormous", None),
                 ["resources:cpu:4", "resources:memory:4096"],

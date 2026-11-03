@@ -1,6 +1,7 @@
 """JVM API reference shards built from public sources by Javadoc, Dokka and Scaladoc."""
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
@@ -93,6 +94,7 @@ def _shard_impl(ctx):
         inputs = own + classpath + compiled + [manifest, classpath_file],
         outputs = [api_json],
         mnemonic = ctx.attr._mnemonic,
+        resource_set = dx_quality_heavy_resources,
         progress_message = "Reading " + language + " API docs for %{label}",
         use_default_shell_env = False,
     )

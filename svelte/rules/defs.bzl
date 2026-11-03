@@ -20,6 +20,7 @@ def _svelte_node_modules(node_modules, packages):
 def _svelte_vite_build(name, out, srcs, config, node_modules, package_json, public, deps, visibility, tags, ssr_entry = None):
     """Runs one Vite build of a Svelte app into one output directory."""
     js_run_binary(
+        resource_set = "mem_2g",
         name = name,
         srcs = list(srcs) + [config] + ([package_json] if package_json else []) + (public or []) + (deps or []) +
                _svelte_node_modules(node_modules, ["vite", "@sveltejs/vite-plugin-svelte", "svelte"]),
@@ -45,6 +46,7 @@ def svelte_check(name, srcs, tsconfig, node_modules, package_json = None, deps =
     """Runs svelte-check into a cached report and fails the test on errors."""
     report = name + ".svelte_check.txt"
     js_run_binary(
+        resource_set = "mem_2g",
         name = name + "_report",
         srcs = list(srcs) + [tsconfig] + ([package_json] if package_json else []) + (deps or []) +
                _svelte_node_modules(node_modules, ["svelte", "svelte-check", "typescript"]),

@@ -3,6 +3,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo", "DotnetTargetingPackInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
+load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 load("//third_party/dotnet:framework.bzl", "dotnet_tool_pin")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
@@ -146,6 +147,7 @@ def _shard_impl(ctx):
         outputs = [api_json, scratch],
         env = env,
         mnemonic = "DxDocs" + language.capitalize() + "Api",
+        resource_set = dx_quality_heavy_resources,
         progress_message = "Reading {} API docs for %{{label}}".format(label),
     )
     shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")

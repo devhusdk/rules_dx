@@ -20,6 +20,7 @@ def _mdx_node_modules(node_modules, packages):
 def _mdx_vite_build(name, out, srcs, config, node_modules, package_json, public, deps, visibility, tags, ssr_entry = None):
     """Runs one Vite build of an MDX app into one output directory."""
     js_run_binary(
+        resource_set = "mem_2g",
         name = name,
         srcs = list(srcs) + [config] + ([package_json] if package_json else []) + (public or []) + (deps or []) +
                _mdx_node_modules(node_modules, ["vite", "@mdx-js/rollup"]),
@@ -46,6 +47,7 @@ def mdx_check(name, srcs, node_modules, package_json = None, deps = None, visibi
     """Compiles each MDX file into a cached report and fails the test on errors."""
     report = name + ".mdx_check.txt"
     js_run_binary(
+        resource_set = "mem_2g",
         name = name + "_report",
         srcs = list(srcs) + ([package_json] if package_json else []) + (deps or []) +
                _mdx_node_modules(node_modules, ["@mdx-js/mdx"]),

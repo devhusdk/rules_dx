@@ -21,6 +21,7 @@ def astro_build(name, srcs, config, node_modules, package_json = None, public = 
     """Builds one static Astro site into a bundled web app tree."""
     dist = name + "_dist"
     js_run_binary(
+        resource_set = "mem_2g",
         name = dist,
         srcs = list(srcs) + [config] + ([package_json] if package_json else []) + (public or []) + (deps or []) +
                _astro_node_modules(node_modules, ["astro"]),
@@ -38,6 +39,7 @@ def astro_check(name, srcs, tsconfig, config, node_modules, package_json = None,
     """Runs astro check into a cached report and fails the test on errors."""
     report = name + ".astro_check.txt"
     js_run_binary(
+        resource_set = "mem_2g",
         name = name + "_report",
         srcs = list(srcs) + [tsconfig, config] + ([package_json] if package_json else []) + (deps or []) +
                _astro_node_modules(node_modules, ["astro", "@astrojs/check", "typescript"]),

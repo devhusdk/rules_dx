@@ -73,6 +73,7 @@ def vue_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, pac
         args = arguments,
         chdir = native.package_name(),
         mnemonic = "DxVueComponentMeta",
+        resource_set = "mem_2g",
         outs = [meta],
         tags = kwargs.get("tags", []),
         tool = _VUE_COMPONENT_META,

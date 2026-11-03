@@ -243,6 +243,20 @@ pub(crate) const NUGET_GATE: OwnerGate = OwnerGate {
 };
 
 /// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
+const DUPLICATE_NOTICE: &str = "already exists";
+
+fn is_duplicate_notice(output: &str) -> bool {
+    output.to_lowercase().contains(DUPLICATE_NOTICE)
+}
+
+fn push_result(duplicate: bool, id: &str, version: &str, source: &str) -> String {
+    if duplicate {
+        format!("nuget_deploy: skipped {id} {version}: already on {source}")
+    } else {
+        format!("nuget_deploy: pushed {id} {version}")
+    }
+}
+
 const NUGET_ENV_KEY_MIN: (u32, u32) = (7, 6);
 
 /// Reads `MAJOR.MINOR` from the last non-empty line of `dotnet nuget --version` output.
@@ -307,13 +321,20 @@ pub fn nuget_live_push(
         .arg("--source")
         .arg(source)
         .arg("--skip-duplicate");
-    match cmd.status() {
-        Ok(status) if status.success() => {
-            println!("nuget_deploy: pushed {id} {version}");
+    match cmd.output() {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            print!("{stdout}");
+            eprint!("{stderr}");
+            let duplicate = is_duplicate_notice(&stdout) || is_duplicate_notice(&stderr);
+            println!("{}", push_result(duplicate, id, version, source));
             0
         }
-        Ok(status) => {
-            eprintln!("nuget_deploy: dotnet failed with {status}");
+        Ok(out) => {
+            print!("{}", String::from_utf8_lossy(&out.stdout));
+            eprint!("{}", String::from_utf8_lossy(&out.stderr));
+            eprintln!("nuget_deploy: dotnet failed with {}", out.status);
             1
         }
         Err(error) => {
@@ -668,6 +689,22 @@ mod tests {
                 "1.0.0"
             ),
             1
+        );
+    }
+
+    #[test]
+    fn nuget_duplicate_push_prints_skipped() {
+        assert!(is_duplicate_notice(
+            "Conflict - The package Already Exists on the feed"
+        ));
+        assert!(!is_duplicate_notice("Your package was pushed."));
+        assert_eq!(
+            push_result(true, "a", "1.0.0", "https://n.invalid"),
+            "nuget_deploy: skipped a 1.0.0: already on https://n.invalid"
+        );
+        assert_eq!(
+            push_result(false, "a", "1.0.0", "https://n.invalid"),
+            "nuget_deploy: pushed a 1.0.0"
         );
     }
 

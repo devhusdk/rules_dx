@@ -892,7 +892,7 @@ source = { registry = "https://pypi.org/simple" }
             let (code, out, err, _) = run_consumer(&["update"], &runner);
             assert_eq!(code, 1, "{out}{err}");
             assert!(err.contains("backend_unavailable"), "{err}");
-            assert!(err.contains("uv 0.12.23"), "{err}");
+            assert!(err.contains("uv 0.13.7"), "{err}");
             assert!(!out.contains("lockfile current"), "{out}");
             assert!(runner.calls.borrow().is_empty());
         }

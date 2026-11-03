@@ -754,13 +754,13 @@ scope `.` owns the root package only: `//:x` and `//:` select the sets scoped
 `.`, while `//pkg:x` and `//pkg/...` never do; `//...` selects every set.
 Unknown names and unowned paths fail with exit `2`.
 
-`dx update` and `dx update` run the pinned uv `0.12.23` and the pinned
+`dx update` and `dx update` run the pinned uv `0.13.7` and the pinned
 interpreter. When `DX_UV_BIN` holds an absolute path, dx runs that file; when
 it is unset, dx resolves `@dx_tools//:uv` through Bazel in the workspace.
 `DX_UV_PYTHON` works the same way for
 `@rules_dx//cli/update:python_interpreter`. A relative path is rejected and
 never falls back to Bazel, and `PATH` is never searched. A uv that does not
-report `0.12.23` is rejected. When neither source gives a usable tool the set
+report `0.13.7` is rejected. When neither source gives a usable tool the set
 fails with `backend_unavailable` and the run exits `1`; JSON reports an
 `error` event with that code. It is never reported current. Under `--offline`
 the Bazel resolution adds `--repository_disable_download`, so cached

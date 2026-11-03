@@ -14,8 +14,8 @@ A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
 `.dx/version` without Bazel. See
 [Global Shim](docs/cli/commands/README.md#global-shim).
 
-To run `dx` without Bazel, download a release archive with `gh` and install it
-with [`dx install`](docs/cli/commands/install.md).
+Once releases ship, run `dx` without Bazel: download a release archive with `gh`
+and install it with [`dx install`](docs/cli/commands/install.md).
 
 Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-and-ca.md).
 
@@ -57,8 +57,8 @@ bazel run @rules_dx//:dx -- --help
 bazel run @rules_dx//:dx -- build //...
 ```
 
-In your module, `@rules_dx//:dx` will run the released `dx` binary for the
-target platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
+In your module, `@rules_dx//:dx` will run the `dx` binary for the target
+platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
 Release binaries are planned for linux x86_64, linux aarch64, macos aarch64,
 windows x86_64 and windows aarch64. Until a release ships, a version with no
 pinned sha256 builds `dx` from source, with the Rust and C toolchains

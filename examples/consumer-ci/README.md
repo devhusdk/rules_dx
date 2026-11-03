@@ -6,6 +6,8 @@ cp caller.yml .github/workflows/ci.yml
 
 Starter caller for the reusable consumer workflow. Pin to a reviewed commit.
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 ```python
 bazel_dep(name = "rules_dx", version = "0.0.0")
 ```

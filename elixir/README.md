@@ -89,6 +89,8 @@ The build file declares the package as an `elixir_app` with
 
 ## Adopt a Mix project
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
 2. Run `bazel run @rules_dx//:dx -- generate --apply`.
 3. For each Hex entry in `mix.lock`, add a `hex_package`. Its `sha256` is the

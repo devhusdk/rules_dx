@@ -1,5 +1,7 @@
 # `dx install`
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 ```text
 dx install --tag <tag> --archive <path> [--dir DIR] [--apply]
 ```

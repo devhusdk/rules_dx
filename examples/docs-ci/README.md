@@ -4,6 +4,8 @@
 cp caller.yml .github/workflows/docs.yml
 ```
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 Pin the same version the caller passes as `rules_dx_version`:
 
 ```python

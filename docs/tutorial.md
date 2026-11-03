@@ -5,6 +5,8 @@ For other hosts, see [`dx install`](cli/commands/install.md).
 
 ## Install
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 Install Bazelisk, then install `dx` from a release. Pick the tag with `gh release view`.
 
 ```sh

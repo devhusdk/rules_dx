@@ -37,6 +37,8 @@ To run the same steps on another CI provider:
 
 ## Consumer setup
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 Declare the module in `MODULE.bazel`:
 
 ```python

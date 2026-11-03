@@ -222,6 +222,14 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
 
     return dx_scoped_tsconfig_out(name, kwargs)
 
+def typescript_forward_kwargs(scoped):
+    """Returns the kwargs the public typescript_project forwarder keeps."""
+    out = {}
+    for key in ("aspect_hints", "hdrs", "tags", "testonly", "target_compatible_with"):
+        if scoped.get(key, None) != None:
+            out[key] = scoped[key]
+    return out
+
 def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
     empty_rejection = typescript_empty_project_rejection(srcs, declaration_srcs)
     if empty_rejection != None:
@@ -258,15 +266,7 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
         visibility = visibility,
         **inner_kwargs
     )
-    forward_kwargs = {}
-    if scoped.get("aspect_hints", None) != None:
-        forward_kwargs["aspect_hints"] = scoped["aspect_hints"]
-    if scoped.get("hdrs", None) != None:
-        forward_kwargs["hdrs"] = scoped["hdrs"]
-    if scoped.get("tags", None) != None:
-        forward_kwargs["tags"] = scoped["tags"]
-    if scoped.get("testonly", None) != None:
-        forward_kwargs["testonly"] = scoped["testonly"]
+    forward_kwargs = typescript_forward_kwargs(scoped)
     _typescript_project_forward(
         name = name,
         upstream = name + "_upstream",

@@ -527,6 +527,8 @@ def dx_binary_run_kwargs(kwargs):
 def dx_binary_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one binary shape: the library keys plus run kwargs."""
     out = dx_wrap_forward_kwargs(kwargs)
+    if kwargs.get("exec_compatible_with", None) != None:
+        out["exec_compatible_with"] = kwargs["exec_compatible_with"]
     out.update(dx_binary_run_kwargs(kwargs))
     return out
 

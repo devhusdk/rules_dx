@@ -264,6 +264,17 @@ def app_sources(kwargs, glob = None):
     excluded = [entry for entry in _listed(kwargs, ["extra_srcs", "extra_hdrs"]) if not _is_label(entry)]
     return glob(ERLANG_SOURCE_GLOBS, exclude = excluded, allow_empty = True)
 
+def app_forward_kwargs(testonly, nifs, tags, kwargs):
+    """Returns the kwargs the public erlang_app forwarder keeps."""
+    out = {"testonly": True} if testonly else {}
+    if nifs:
+        out["nifs"] = nifs
+    if tags != None:
+        out["tags"] = tags
+    if kwargs.get("target_compatible_with", None) != None:
+        out["target_compatible_with"] = kwargs["target_compatible_with"]
+    return out
+
 def _app(upstream_macro, name, testonly, visibility, kwargs):
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
@@ -276,11 +287,7 @@ def _app(upstream_macro, name, testonly, visibility, kwargs):
             kwargs["extra_priv"] = list(kwargs.get("extra_priv", [])) + nifs
     owned = app_sources(kwargs)
     upstream_macro(name = name + "_upstream", testonly = testonly, tags = dx_upstream_tags(tags), **kwargs)
-    forward_kwargs = {"testonly": True} if testonly else {}
-    if nifs:
-        forward_kwargs["nifs"] = nifs
-    if tags != None:
-        forward_kwargs["tags"] = tags
+    forward_kwargs = app_forward_kwargs(testonly, nifs, tags, kwargs)
     _erlang_app_forward(
         name = name,
         upstream = ":" + name + "_upstream",

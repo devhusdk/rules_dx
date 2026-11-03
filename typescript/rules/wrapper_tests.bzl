@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_inner_kwargs", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_forward_kwargs", "typescript_inner_kwargs", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -287,6 +287,8 @@ def typescript_wrapper_contract_tests(name):
             expect_equal("transpiler false passes through", typescript_transpiler(False), False),
             expect_equal("inner kwargs take tags", typescript_inner_kwargs(["manual"], {}), {"tags": ["manual"]}),
             expect_equal("inner kwargs fall back to kwargs tags", typescript_inner_kwargs(None, {"tags": ["manual"]}), {"tags": ["manual"]}),
+            expect_equal("project forwarder keeps target_compatible_with", typescript_forward_kwargs({"target_compatible_with": ["@platforms//:incompatible"], "visibility": []}), {"target_compatible_with": ["@platforms//:incompatible"]}),
+            expect_equal("project forwarder omits unset target_compatible_with", typescript_forward_kwargs({}), {}),
             expect_equal("inner kwargs forward target_compatible_with", typescript_inner_kwargs(None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"target_compatible_with": ["@platforms//:incompatible"]}),
             expect_equal("inner kwargs drop test-only keys", typescript_inner_kwargs(None, {"size": "small", "env": {"A": "b"}}), {}),
             expect_equal("inner kwargs empty", typescript_inner_kwargs(None, {}), {}),

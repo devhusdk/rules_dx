@@ -326,6 +326,11 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
+                "binary exec_compatible_with rides forwarder",
+                dx_binary_forward_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}),
+                {"exec_compatible_with": ["@platforms//os:linux"]},
+            ),
+            expect_equal(
                 "binary testonly rides forwarder",
                 dx_binary_forward_kwargs({"testonly": True}),
                 {"testonly": True},

@@ -49,7 +49,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json
-# gazelle:dx_external python tools/ci/tooling/uv.lock
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_notebook //quality/notebook:quality_notebook_lib
 # gazelle:resolve rust quality_result //quality/result:quality_result

@@ -5,7 +5,7 @@ use super::*;
 
 /// What a `br:` module reference means for the user; Bicep itself only says "not restored".
 const UNRESTORED_HINT: &str =
-    " (dx lints without restoring modules, so registry modules are not supported yet)";
+    " (declare the module with bicep.registry_module in MODULE.bazel and add it to deps)";
 
 impl RealBackend {
     /// Formats (stdout compared to the file) or lints (SARIF) each owned Bicep file in turn.

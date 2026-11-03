@@ -1865,7 +1865,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    bicep_registry = []
     if "bicep" in stage_tools and BicepInfo in target:
+        for f in target[BicepInfo].transitive_registry.to_list():
+            rel = f.short_path.partition("/home/.bicep/")[2]
+            if rel:
+                bicep_registry.append((rel, f))
         for f in depset(transitive = [target[BicepInfo].transitive_srcs, target[BicepInfo].transitive_data]).to_list():
             ws_path = f.short_path
             if ".." in ws_path.split("/"):
@@ -2016,6 +2021,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(staged_file)
             tool_files.append(real_request_tool_file("dx-jet/config.toml", jet_config.path))
             inputs.append(jet_config)
+        if tool == "bicep":
+            for (rel, cached) in bicep_registry:
+                tool_files.append(real_request_tool_file("dx-bicep/home/.bicep/" + rel, cached.path))
+                inputs.append(cached)
         if tool == "luals":
             for (rel, module_file) in luals_modules:
                 tool_files.append(real_request_tool_file(rel, module_file.path))

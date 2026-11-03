@@ -3996,10 +3996,42 @@ fn bicep_registry_reference_is_an_error_finding_with_a_hint() {
     assert!(
         findings[0]
             .message
-            .contains("registry modules are not supported yet"),
+            .contains("declare the module with bicep.registry_module"),
         "{}",
         findings[0].message
     );
+}
+
+#[test]
+fn bicep_staged_registry_file_lands_in_the_home_cache() {
+    fn cached(
+        argv: &[OsString],
+        _cwd: &Path,
+        env: &[(OsString, OsString)],
+    ) -> io::Result<ChildOutput> {
+        let home = env
+            .iter()
+            .find(|(key, _)| key == "HOME")
+            .map(|(_, value)| PathBuf::from(value))
+            .expect("HOME is pinned");
+        let file = home.join(".bicep/br/example/m$/main.json");
+        assert_eq!(std::fs::read_to_string(file)?, "{}");
+        assert_eq!(argv[1], "lint");
+        Ok(ChildOutput {
+            code: Some(0),
+            stdout: br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"bicep"}},"results":[]}]}"#
+                .to_vec(),
+            stderr: Vec::new(),
+        })
+    }
+    let tool = RealTool {
+        tool_files: vec![("dx-bicep/home/.bicep/br/example/m$/main.json".to_owned(), b"{}".to_vec())],
+        ..plain_tool()
+    };
+    let findings = backend_for("bicep", tool, cached)
+        .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
 }
 
 #[test]

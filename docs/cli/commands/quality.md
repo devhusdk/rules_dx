@@ -2358,12 +2358,13 @@ accepts `.bicep` and `.bicepparam` files in `srcs`, other Bicep modules in
 never checked, and a `bicepconfig.json` there is refused: bind the configuration
 with `bicep_config` instead.
 
-dx runs Bicep with an empty scratch home, so the `~/.bicep` module cache is never
-read, and it never restores modules (`lint --no-restore`). A `bicepconfig.json`
+dx runs Bicep with a scratch home, so the `~/.bicep` module cache is never read.
+Only registry modules in `deps` are copied into it, and dx never restores modules
+(`lint --no-restore`). A `cacheRootDirectory` in your `bicepconfig.json` is ignored. A `bicepconfig.json`
 is always written at the scratch root, so Bicep's upward search never reaches
 the host: it is the bound `bicep_config`, or an empty `{}`. Diagnostics in a
-dependency are not reported on the target that references it. A module from a
-registry (`br:`) is not supported yet: it is reported as an error with a hint.
+dependency are not reported on the target that references it. A `br:` module that is
+not declared with `bicep.registry_module` is reported as an error with a hint.
 
 Restore a registry module at fetch time with the `bicep` extension. Pin the
 `br:` reference and the sha256 of its manifest:

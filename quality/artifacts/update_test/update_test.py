@@ -217,3 +217,87 @@ def test_zip_accepts(dirs):
     assert digest == hashlib.sha256(PAYLOAD).hexdigest()
     assert not (work / "README").exists()
     assert list(outside.iterdir()) == []
+
+
+class FakeResponse:
+    def __init__(self, body, length=None):
+        self.body = io.BytesIO(body)
+        self.headers = {} if length is None else {"Content-Length": str(length)}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self, size):
+        return self.body.read(size)
+
+
+@pytest.fixture
+def fetch(monkeypatch):
+    calls = []
+    monkeypatch.setattr(update.time, "sleep", lambda _seconds: None)
+
+    def install(*results):
+        queue = list(results)
+
+        def urlopen(request, timeout=None):
+            calls.append(request.full_url)
+            result = queue.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+        monkeypatch.setattr(update.urllib.request, "urlopen", urlopen)
+        return calls
+
+    return install
+
+
+def test_download_writes_full_body(tmp_path, fetch):
+    fetch(FakeResponse(b"abcd", 4))
+    out = tmp_path / "a"
+    update._download("https://example.com/a", str(out))
+    assert out.read_bytes() == b"abcd"
+
+
+def test_download_short_body_fails_the_run(tmp_path, fetch):
+    calls = fetch(*[FakeResponse(b"ab", 4) for _ in range(update.FETCH_RETRIES)])
+    with pytest.raises(SystemExit, match="short body"):
+        update._download("https://example.com/a", str(tmp_path / "a"))
+    assert len(calls) == update.FETCH_RETRIES
+
+
+def test_download_retries_after_failure(tmp_path, fetch):
+    calls = fetch(OSError("reset"), FakeResponse(b"abcd", 4))
+    out = tmp_path / "a"
+    update._download("https://example.com/a", str(out))
+    assert out.read_bytes() == b"abcd"
+    assert len(calls) == 2
+
+
+def test_download_fails_when_every_attempt_fails(tmp_path, fetch):
+    calls = fetch(*[OSError("reset") for _ in range(update.FETCH_RETRIES)])
+    with pytest.raises(SystemExit, match="download failed after"):
+        update._download("https://example.com/a", str(tmp_path / "a"))
+    assert len(calls) == update.FETCH_RETRIES
+
+
+def test_collect_rejects_digest_not_in_published_checksums(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        update,
+        "_download",
+        lambda url, path: pathlib.Path(path).write_bytes(
+            ("%s  tool.tgz\n" % ("0" * 64)).encode()
+            if url.endswith("sums")
+            else b"asset"
+        ),
+    )
+    spec = {
+        "asset": "tool.tgz",
+        "url": "https://example.com/tool.tgz",
+        "checksums_url": "https://example.com/sums",
+    }
+    with pytest.raises(SystemExit, match="does not match published"):
+        update._collect("demo", "linux_x86_64", spec, str(tmp_path))

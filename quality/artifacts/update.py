@@ -2013,8 +2013,13 @@ def _download(url, path):
                 urllib.request.urlopen(request, timeout=FETCH_TIMEOUT) as response,
                 open(path, "wb") as out,
             ):
+                written = 0
                 for chunk in iter(lambda: response.read(65536), b""):
                     out.write(chunk)
+                    written += len(chunk)
+                expected = response.headers.get("Content-Length")
+            if expected is not None and written != int(expected):
+                raise OSError("short body: got %d of %s bytes" % (written, expected))
             return
         except Exception as error:  # noqa: BLE001
             last_error = error

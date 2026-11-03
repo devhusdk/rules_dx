@@ -2,7 +2,7 @@ load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library", "haskell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//examples/haskell-app:__subpackages__"])
+package(default_visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"])
 
 exports_files(
     [
@@ -38,7 +38,7 @@ haskell_library(
         ":version_hs",
     ],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    visibility = ["//examples/haskell-app:__subpackages__"],
+    visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"],
     deps = [
         ":checksum",
         "@haskell_app_split//:split",

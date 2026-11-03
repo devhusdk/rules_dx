@@ -12,18 +12,18 @@ dependency, a generated source, a C foreign call and a build flag.
 ## Build, run and test
 
 ```sh
-bazel build //examples/haskell-app/...
-printf 'lamp,4,1250\n' | bazel run //examples/haskell-app/cli:stockctl
-bazel test //examples/haskell-app/...
+bazel build //haskell/tests/fixtures/haskell-app/...
+printf 'lamp,4,1250\n' | bazel run //haskell/tests/fixtures/haskell-app/cli:stockctl
+bazel test //haskell/tests/fixtures/haskell-app/...
 ```
 
 ## The limit flag
 
-The string flag `//examples/haskell-app/cli:limit` selects the quantity limit
+The string flag `//haskell/tests/fixtures/haskell-app/cli:limit` selects the quantity limit
 compiled into `stockctl` through `-DSTOCK_LIMIT`. It defaults to `60`.
 
 ```sh
-bazel test //examples/haskell-app/... --//examples/haskell-app/cli:limit=144
+bazel test //haskell/tests/fixtures/haskell-app/... --//haskell/tests/fixtures/haskell-app/cli:limit=144
 ```
 
 ## The pinned dependency
@@ -33,7 +33,7 @@ bazel test //examples/haskell-app/... --//examples/haskell-app/cli:limit=144
 license is BSD-3-Clause. The overlay turns off the dx `-Werror` default for
 this third-party code.
 
-`//examples/haskell-app/cli:report_without_split` imports `Data.List.Split`
+`//haskell/tests/fixtures/haskell-app/cli:report_without_split` imports `Data.List.Split`
 without declaring the dependency. It is tagged `manual`, and building it fails
 with `Could not find module`.
 

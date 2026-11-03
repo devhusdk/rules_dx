@@ -2,7 +2,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//examples/haskell-app:__subpackages__"])
+package(default_visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"])
 
 exports_files(
     [
@@ -41,7 +41,7 @@ haskell_library(
     }),
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
-        "//examples/haskell-app/stock",
+        "//haskell/tests/fixtures/haskell-app/stock",
         "@dx_haskell_toolchains//:base",
     ],
 )

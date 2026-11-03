@@ -9,7 +9,7 @@ import Stock (Item (..), parseItems, render)
 #define STOCK_LIMIT 60
 #endif
 
--- | Largest quantity accepted for one item; set with @--//examples/haskell-app/cli:limit@.
+-- | Largest quantity accepted for one item; set with @--//haskell/tests/fixtures/haskell-app/cli:limit@.
 stockLimit :: Int
 stockLimit = STOCK_LIMIT
 

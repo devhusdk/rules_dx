@@ -101,4 +101,4 @@ On other platforms Haskell targets fail toolchain resolution.
 
 ## Example
 
-See [examples/haskell-app](../examples/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.
+See [haskell-app](tests/fixtures/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

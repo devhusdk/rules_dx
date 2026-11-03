@@ -1,7 +1,7 @@
 """Unit tests for the Dart staging helpers."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_package_entries", "dart_pubspec_stub", "dart_pubspec_stubs")
+load(":dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stub", "dart_pubspec_stubs")
 
 def _pkg(name, lib_root, language_version = ""):
     return struct(package_name = name, lib_root = lib_root, language_version = language_version)
@@ -12,6 +12,8 @@ _PACKAGES = [
     _pkg("collection", "../dx_dart_deps+collection", "3.4"),
     _pkg("sub", "../repo/sub"),
 ]
+
+_LINTS = _pkg("lints", "../dx_dart_deps+lints")
 
 def dart_context_unit_tests(name):
     starlark_test(
@@ -25,5 +27,7 @@ def dart_context_unit_tests(name):
             expect_equal("stub lists sorted deps without itself", dart_pubspec_stub(_PACKAGES, "lib_a"), 'name: lib_a\nenvironment:\n  sdk: ">=3.0.0 <4.0.0"\ndependencies:\n  app: any\n  collection: any\n  sub: any\n'),
             expect_equal("stub takes the package language version", dart_pubspec_stub(_PACKAGES, "app").split("\n")[2], '  sdk: "^3.4.0"'),
             expect_equal("stubs sit at in-repo roots", [path for path, _ in dart_pubspec_stubs(_PACKAGES)], ["pubspec.yaml", "pkgs/a/pubspec.yaml"]),
+            expect_equal("config packages join the analyze entries", [e["name"] for e in dart_package_entries(dart_merge_packages(_PACKAGES, [_LINTS, _pkg("app", "")]), DART_ANALYZE)], ["app", "collection", "lints", "sub", "lib_a"]),
+            expect_equal("config packages stay out of the format entries", [e["name"] for e in dart_package_entries(_PACKAGES, DART_FORMAT)], ["app", "lib_a"]),
         ],
     )

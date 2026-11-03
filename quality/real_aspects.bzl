@@ -20,9 +20,9 @@ load(
     "REAL_ADAPTERS",
     "REAL_CLASS_TO_FAMILY",
 )
-load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_package_entries", "dart_pubspec_stubs")
+load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stubs")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "native_config_scratch_rel", "missing_required_config_error")
+load("//quality:native_config.bzl", "DxDartConfigInfo", "DxNativeConfigInfo", "collect_native_configs", "native_config_scratch_rel", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
@@ -1246,7 +1246,7 @@ def _dart_info(target, what):
         return target[DartAnalyzableInfo].dart_info
     fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
 
-def _dart_context(target, ctx, what, capability):
+def _dart_context(target, ctx, what, capability, config_packages = []):
     """Writes the package config that gives each Dart file the language version Dart itself would use.
 
     The version is the one of the in-repo package whose root holds the file (`test/` and `bin/`
@@ -1258,6 +1258,8 @@ def _dart_context(target, ctx, what, capability):
     info = _dart_info(target, what)
     mode = DART_FORMAT if capability == "format" else DART_ANALYZE
     packages = info.transitive_packages.to_list()
+    if mode == DART_ANALYZE:
+        packages = dart_merge_packages(packages, config_packages)
     config = ctx.actions.declare_file(target.label.name + "-dart-package-config-" + capability + ".json")
     ctx.actions.write(output = config, content = json.encode({"configVersion": 2, "packages": dart_package_entries(packages, mode)}))
     options = ctx.actions.declare_file(target.label.name + "-dart-analysis-options-" + capability + ".yaml")
@@ -1585,8 +1587,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     dart_package_config = None
     dart_options = None
     dart_stubs = []
+    dart_config_files = []
     if "dart" in [stage["tool"] for stage in resolved]:
-        (dart_package_config, dart_options, dart_stubs) = _dart_context(target, ctx, what, capability)
+        dart_config_packages = []
+        if capability != "format" and hasattr(ctx.rule.attr, "aspect_hints"):
+            for hint_target in ctx.rule.attr.aspect_hints:
+                if DxDartConfigInfo in hint_target:
+                    dart_config_packages.extend(hint_target[DxDartConfigInfo].packages.to_list())
+                    dart_config_files.extend(hint_target[DxDartConfigInfo].srcs.to_list())
+                    dart_config_files.extend(hint_target[DxDartConfigInfo].resources.to_list())
+        (dart_package_config, dart_options, dart_stubs) = _dart_context(target, ctx, what, capability, dart_config_packages)
 
     jvm_check = None
     for jvm_tool in _JVM_CHECK_TOOLS:
@@ -1787,11 +1797,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 continue
             resolve_pairs[ws_path] = f
     if "dart" in stage_tools and capability != "format":
-        for f in _dart_info(target, what).transitive_srcs.to_list():
+        dart_files = [f for f in _dart_info(target, what).transitive_srcs.to_list() if f.extension == "dart"]
+        for f in dart_files + dart_config_files:
             ws_path = f.short_path
             if ws_path.startswith("../"):
                 ws_path = dart_external_root(ws_path)
-            if ".." in ws_path.split("/") or f.extension != "dart":
+            if ".." in ws_path.split("/"):
                 continue
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue

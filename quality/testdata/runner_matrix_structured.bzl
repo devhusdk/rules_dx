@@ -760,6 +760,23 @@ STRUCTURED_CASES = [
         "windows_x86_64": True,
     },
     {
+        "name": "matrix_dart_lint_include",
+        "generated": {
+            "matrix/dart_lint_include.dart": "class bad_name {}\n\nvoid main() {\n  var unused = 1;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["dart;dart;matrix/dart_lint_include.dart"],
+        "tool_names": ["dart"],
+        "tool_binaries": ["//dart/tools:dart"],
+        "toolfile_tools": ["dart", "dart", "dart"],
+        "toolfile_srcs": [":dart_cfg/lints_options.yaml", ":dart_cfg/lints_package_config.json", ":dart_cfg/lints/lib/recommended.yaml"],
+        "toolfile_rels": ["analysis_options.yaml", ".dart_tool/package_config.json", "lints/lib/recommended.yaml"],
+        "expected_file": ":matrix/matrix_dart_lint_include.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "matrix_dart_typecheck_fail",
         "generated": {
             "matrix/dart_type_dirty.dart": "void main() {\n  int x = 'a';\n  print(x);\n}\n",

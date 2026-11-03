@@ -5,7 +5,7 @@ load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
+load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "dart_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -24,6 +24,7 @@ load(
     "credo_flag_tests",
     "d_lint_subject",
     "d_subject",
+    "dart_config_deps_test",
     "dart_format_flag_tests",
     "dart_subject",
     "dfmt_flag_tests",
@@ -86,6 +87,9 @@ exports_files(
         "buildifier_cfg/.buildifier.json",
         "dart_cfg/analysis_options.yaml",
         "dart_cfg/bad_analysis_options.yaml",
+        "dart_cfg/lints/lib/recommended.yaml",
+        "dart_cfg/lints_options.yaml",
+        "dart_cfg/lints_package_config.json",
         "dart_cfg/package_config.json",
         "ruff.toml",
         "styles/Dx/Markers.yml",
@@ -1737,6 +1741,18 @@ dart_subject(
 dart_format_flag_tests(
     name = "dart_format_flag",
     subject = ":dart_subject",
+)
+
+dart_config(
+    name = "dart_lints_config",
+    src = "dart_cfg/lints_options.yaml",
+    deps = ["@dx_dart_deps//:lints"],
+)
+
+dart_config_deps_test(
+    name = "dart_config_deps",
+    size = "small",
+    target_under_test = ":dart_lints_config",
 )
 
 quality_family(

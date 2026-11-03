@@ -16,6 +16,11 @@ def dart_external_root(lib_root):
     """Maps an external `../<repo>[/<sub>]` package root onto the shared `_external/` scratch dir."""
     return "_external/" + lib_root[3:]
 
+def dart_merge_packages(packages, extra):
+    """Returns packages plus the extra ones whose root is not already listed."""
+    known = {pkg.lib_root: True for pkg in packages}
+    return packages + [pkg for pkg in extra if pkg.lib_root not in known]
+
 def dart_package_entries(packages, mode):
     """Returns the `package_config.json` package entries, sorted by root.
 

@@ -5,6 +5,7 @@ load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
+load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect", "real_typecheck_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -1362,3 +1363,15 @@ def sorbet_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+
+def _dart_config_deps_impl(ctx):
+    """Asserts a dart_config carries the lints package and its recommended.yaml."""
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[DxDartConfigInfo]
+    names = [pkg.package_name for pkg in info.packages.to_list()]
+    asserts.true(env, "lints" in names, "want lints in the config packages, got %s" % names)
+    paths = [f.path for f in info.resources.to_list()]
+    asserts.true(env, [p for p in paths if p.endswith("lints/lib/recommended.yaml")], "want recommended.yaml in the config resources, got %s" % paths)
+    return analysistest.end(env)
+
+dart_config_deps_test = analysistest.make(_dart_config_deps_impl)

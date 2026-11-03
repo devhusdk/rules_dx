@@ -132,7 +132,19 @@ The two share the run's output and split it by diagnostic type: typecheck keeps
 `TODO`. Any other type fails closed. The staged `analysis_options.yaml` is analyzed too, so an
 unusable `include:` or an unknown lint is an error, not a silent pass. Without a `dart_config`
 only the analyzer's default warnings are reported and no lint rules are on. An
-`include: package:...` (for example `package:lints/recommended.yaml`) fails closed for now.
+`include: package:...` needs the package in the config's `deps`:
+
+```starlark
+load("@rules_dx//quality:native_config.bzl", "dart_config")
+
+dart_config(
+    name = "analysis_options",
+    src = "analysis_options.yaml",
+    deps = ["@my_pub_deps//:lints"],
+)
+```
+
+Bind it with `aspect_hints = [":analysis_options"]`. Format ignores `deps`.
 `dx lint --fix` does not rewrite Dart sources.
 
 ## Platforms

@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":ocaml.bzl", "COMPILERS", "TOOLS", "native_cc_env", "toolchain_fields")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")
-load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "placeholder_files", "relative_prefix")
+load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "hub_build", "placeholder_files", "relative_prefix")
 
 def _checks():
     linux = OCAML_CELLS["linux_amd64"]
@@ -36,6 +36,9 @@ def _checks():
                 "PATH": "ext/dist/bin:/usr/bin:/bin",
             },
         ),
+        expect_true("hub loads nothing", "load(" not in hub_build()),
+        expect_true("hub names no rules_ocaml toolchain type", "toolchain/type" not in hub_build().replace("//ocaml/toolchain/type", "")),
+        expect_contains("hub uses the rules_dx std type", hub_build(), "//ocaml/toolchain/type:std"),
         expect_equal("conda stem", conda_stem("https://x/linux-64/zstd-1.5.7-h_7.conda"), "zstd-1.5.7-h_7"),
         expect_equal("root files keep a dot prefix", relative_prefix("ld.conf"), "."),
         expect_equal("nested files climb to the root", relative_prefix("lib/ocaml/ld.conf"), "../.."),

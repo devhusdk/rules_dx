@@ -57,7 +57,7 @@ _TOOLCHAINS = """toolchain(
     exec_compatible_with = {exec_constraints},
     target_compatible_with = {target_constraints},
     toolchain = "@{repo}//:{emitter}",
-    toolchain_type = "@rules_ocaml//toolchain/type:std",
+    toolchain_type = "{std_type}",
 )
 
 toolchain(
@@ -65,7 +65,7 @@ toolchain(
     exec_compatible_with = {exec_constraints},
     target_compatible_with = {target_constraints},
     toolchain = "@{repo}//:{emitter}_profile",
-    toolchain_type = "@rules_ocaml//toolchain/type:profile",
+    toolchain_type = "{profile_type}",
 )
 """
 
@@ -179,6 +179,8 @@ def hub_build():
                 exec_constraints = repr(OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].exec_compatible_with),
                 target_constraints = repr(OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].target_compatible_with),
                 repo = DIST_PREFIX + cell,
+                std_type = str(Label("//ocaml/toolchain/type:std")),
+                profile_type = str(Label("//ocaml/toolchain/type:profile")),
             ))
     for cell in sorted(OCAML_CELLS.keys()):
         content.append(_CELL.format(cell = cell, constraints = repr(OCAML_CELLS[cell].exec_compatible_with)))
@@ -198,6 +200,7 @@ def _ocaml_impl(mctx):
         patches = [
             Label("//patches/rules_ocaml:hermetic_ocaml.patch"),
             Label("//patches/rules_ocaml:native_cc_env.patch"),
+            Label("//patches/rules_ocaml:toolchain_type_alias.patch"),
         ],
         sha256 = RULES_OCAML_SHA256,
         strip_prefix = "rules_ocaml-" + RULES_OCAML_COMMIT,

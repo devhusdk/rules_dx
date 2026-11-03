@@ -1,0 +1,46 @@
+diff -ruN a/platform/emitter/BUILD.bazel b/platform/emitter/BUILD.bazel
+--- a/platform/emitter/BUILD.bazel
++++ b/platform/emitter/BUILD.bazel
+@@ -1,16 +1,9 @@
+-# generated file - DO NOT EDIT
+-
+ package(default_visibility = ["//visibility:public"])
+ 
+-constraint_setting(name = "emitter",
+-                   default_constraint_value = ":sys")
++alias(name = "emitter", actual = "@rules_dx//ocaml/toolchain/platform/emitter:emitter")
+ 
+-constraint_value(name = "vm",  constraint_setting = ":emitter")
+-constraint_value(name = "sys", constraint_setting = ":emitter")
++alias(name = "sys", actual = "@rules_dx//ocaml/toolchain/platform/emitter:sys")
+ 
+-config_setting(name = "vm?", constraint_values = [":vm"])
++alias(name = "vm", actual = "@rules_dx//ocaml/toolchain/platform/emitter:vm")
+ 
+-# not currently supported:
+-constraint_value(name = "x86_64", constraint_setting = ":emitter")
+-constraint_value(name = "arm64", constraint_setting = ":emitter")
+-# etc
++config_setting(name = "vm?", constraint_values = [":vm"])
+diff -ruN a/platform/executor/BUILD.bazel b/platform/executor/BUILD.bazel
+--- a/platform/executor/BUILD.bazel
++++ b/platform/executor/BUILD.bazel
+@@ -1,13 +1,10 @@
+-# generated file - DO NOT EDIT
+-
+ package(default_visibility = ["//visibility:public"])
+ 
+-constraint_setting(name = "executor",
+-                   default_constraint_value = ":sys")
++alias(name = "executor", actual = "@rules_dx//ocaml/toolchain/platform/executor:executor")
+ 
+-constraint_value(name = "sys", constraint_setting = ":executor")
+-config_setting(name = "sys?", constraint_values = [":sys"])
++alias(name = "sys", actual = "@rules_dx//ocaml/toolchain/platform/executor:sys")
+ 
+-constraint_value(name = "vm",  constraint_setting = ":executor")
+-config_setting(name = "vm?", constraint_values = [":vm"])
++alias(name = "vm", actual = "@rules_dx//ocaml/toolchain/platform/executor:vm")
+ 
++config_setting(name = "vm?", constraint_values = [":vm"])
++config_setting(name = "sys?", constraint_values = [":sys"])

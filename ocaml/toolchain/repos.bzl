@@ -29,12 +29,12 @@ DROPPED_PATHS = [
 
 EMITTERS = {
     "sys": struct(
-        exec_compatible_with = ["@rules_ocaml//platform/emitter:sys"],
-        target_compatible_with = ["@rules_ocaml//platform/executor:sys"],
+        exec_compatible_with = [str(Label("//ocaml/toolchain/platform/emitter:sys"))],
+        target_compatible_with = [str(Label("//ocaml/toolchain/platform/executor:sys"))],
     ),
     "vm": struct(
-        exec_compatible_with = ["@rules_ocaml//platform/emitter:vm"],
-        target_compatible_with = ["@rules_ocaml//platform/executor:vm"],
+        exec_compatible_with = [str(Label("//ocaml/toolchain/platform/emitter:vm"))],
+        target_compatible_with = [str(Label("//ocaml/toolchain/platform/executor:vm"))],
     ),
 }
 
@@ -200,6 +200,7 @@ def _ocaml_impl(mctx):
         patches = [
             Label("//patches/rules_ocaml:hermetic_ocaml.patch"),
             Label("//patches/rules_ocaml:native_cc_env.patch"),
+            Label("//patches/rules_ocaml:platform_alias.patch"),
             Label("//patches/rules_ocaml:toolchain_type_alias.patch"),
         ],
         sha256 = RULES_OCAML_SHA256,

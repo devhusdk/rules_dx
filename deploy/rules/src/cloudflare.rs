@@ -1,3 +1,4 @@
+use crate::run::OwnerGate;
 use crate::stage::copy_verified;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -436,17 +437,14 @@ fn pages_check_run(
     0
 }
 
-fn pages_live_gate(vars: &dyn Fn(&str) -> Option<String>) -> Result<bool, &'static str> {
-    let live = vars("CLOUDFLARE_PAGES_LIVE").as_deref() == Some("1");
-    let approved = vars("CLOUDFLARE_PAGES_APPROVED").as_deref() == Some("1");
-    match (live, approved) {
-        (false, _) => Ok(false),
-        (true, true) => Ok(true),
-        (true, false) => {
-            Err("live upload needs CLOUDFLARE_PAGES_APPROVED=1 (owner approval); refusing")
-        }
-    }
-}
+/// Owner approval gate for cloudflare_pages_deploy.
+const CLOUDFLARE_GATE: OwnerGate = OwnerGate {
+    tool: "cloudflare_pages_deploy",
+    action: "upload",
+    credentials: &["CLOUDFLARE_API_TOKEN"],
+    approved: "CLOUDFLARE_PAGES_APPROVED",
+    live: "CLOUDFLARE_PAGES_LIVE",
+};
 
 #[allow(clippy::too_many_arguments)]
 fn pages_deploy_with(
@@ -614,17 +612,18 @@ fn pages_main_with(
     }
     let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
     let profile = text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned());
-    match pages_live_gate(&text) {
-        Err(message) => return pages_fail(err, name, message),
-        Ok(false) => {
-            let site = match pages_site(launch, resolve) {
-                Ok(site) => site,
-                Err(error) => return pages_fail(err, name, &error.to_string()),
-            };
-            let account_id = text("CLOUDFLARE_ACCOUNT_ID");
-            return pages_check_run(launch, &site, account_id.as_deref(), &profile, out, err);
+    let var = |key: &str| text(key).unwrap_or_default();
+    if CLOUDFLARE_GATE.requested(var) {
+        if let Some(message) = CLOUDFLARE_GATE.refusal(var) {
+            return pages_fail(err, name, &message);
         }
-        Ok(true) => {}
+    } else {
+        let site = match pages_site(launch, resolve) {
+            Ok(site) => site,
+            Err(error) => return pages_fail(err, name, &error.to_string()),
+        };
+        let account_id = text("CLOUDFLARE_ACCOUNT_ID");
+        return pages_check_run(launch, &site, account_id.as_deref(), &profile, out, err);
     }
     let (site, wrangler) = match (pages_site(launch, resolve), resolve(launch.wrangler_rloc)) {
         (Ok(site), Ok(wrangler)) => (site, wrangler),
@@ -1235,6 +1234,24 @@ exit 7
         );
         assert_eq!(code, 1);
         assert!(err.contains("CLOUDFLARE_PAGES_APPROVED=1"), "{err}");
+        assert!(out.is_empty(), "{out}");
+        assert!(!uploaded, "wrangler must not run");
+    }
+
+    #[test]
+    fn main_live_without_token_refuses() {
+        let (code, out, err, uploaded) = run_gated(
+            &[
+                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ],
+            &SITE,
+        );
+        assert_eq!(code, 1);
+        assert!(
+            err.contains("live upload needs CLOUDFLARE_API_TOKEN"),
+            "{err}"
+        );
         assert!(out.is_empty(), "{out}");
         assert!(!uploaded, "wrangler must not run");
     }

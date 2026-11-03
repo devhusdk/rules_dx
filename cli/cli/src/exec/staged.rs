@@ -10,15 +10,19 @@ pub(super) struct Scratch(pub(super) std::path::PathBuf);
 
 impl Scratch {
     pub(super) fn create(label: &str) -> std::io::Result<Scratch> {
-        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let safe: String = label
             .chars()
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect();
-        let dir = std::env::temp_dir().join(format!("dx-staged-{}-{n}-{safe}", std::process::id()));
-        std::fs::create_dir(&dir)?;
-        let scratch = Scratch(dir);
+        let prefix = format!("dx-staged-{safe}-");
+        let mut builder = tempfile::Builder::new();
+        builder.prefix(&prefix);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(std::fs::Permissions::from_mode(0o700));
+        }
+        let scratch = Scratch(builder.tempdir()?.keep());
         std::fs::create_dir(scratch.0.join("out"))?;
         Ok(scratch)
     }
@@ -259,4 +263,29 @@ pub(super) fn write_outputs(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn scratch_dir_is_private_with_a_random_name() {
+        use super::Scratch;
+        use std::os::unix::fs::PermissionsExt;
+        let first = Scratch::create("go").expect("scratch");
+        let second = Scratch::create("go").expect("scratch");
+        let mode = std::fs::metadata(&first.0)
+            .expect("metadata")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700);
+        assert_ne!(first.0, second.0);
+        let name = first
+            .0
+            .file_name()
+            .expect("name")
+            .to_string_lossy()
+            .into_owned();
+        assert!(name.starts_with("dx-staged-go-"), "{name}");
+    }
 }

@@ -1,6 +1,7 @@
 """Builds the Apache Thrift compiler from the release tarball."""
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_java//java:java_library.bzl", "java_library")
 
 # Generators register through static constructors in t_generator_registry.h, so every
 # generator source is compiled straight into the binary rather than via a library.
@@ -63,4 +64,27 @@ cc_library(
         "lib/cpp/src",
     ],
     visibility = ["//visibility:public"],
+)
+
+java_library(
+    name = "java_runtime",
+    srcs = glob(
+        ["lib/java/src/main/java/**/*.java"],
+        exclude = [
+            "lib/java/src/main/java/org/apache/thrift/server/TExtensibleServlet.java",
+            "lib/java/src/main/java/org/apache/thrift/server/TServlet.java",
+            "lib/java/src/main/java/org/apache/thrift/THttpClientResponseHandler.java",
+            "lib/java/src/main/java/org/apache/thrift/transport/THttpClient.java",
+        ],
+    ),
+    exports = ["@dx_thrift_slf4j//jar"],
+    javacopts = [
+        "-Xlint:none",
+        "-nowarn",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@dx_thrift_commons_lang3//jar",
+        "@dx_thrift_slf4j//jar",
+    ],
 )

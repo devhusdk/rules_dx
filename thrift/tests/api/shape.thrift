@@ -1,4 +1,5 @@
 namespace cpp dx.api
+namespace java dx.api
 
 include "thrift/tests/base/common.thrift"
 

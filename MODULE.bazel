@@ -934,6 +934,11 @@ uv.project(
     lock = "//quality/tools/python/sqlfluff:uv.lock",
     pyproject = "//quality/tools/python/sqlfluff:pyproject.toml",
 )
+uv.project(
+    hub_name = "dx_pypi",
+    lock = "//tools/ci/tooling:uv.lock",
+    pyproject = "//tools/ci/tooling:pyproject.toml",
+)
 use_repo(uv, pypi = "dx_pypi")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
@@ -1400,6 +1405,20 @@ _http_archive(
     sha256 = "66da4707214c54c94bac082103dc67adaf9e08925662700f269170a7b534b214",
     strip_prefix = "thrift-0.25.0",
     urls = ["https://archive.apache.org/dist/thrift/0.25.0/thrift-0.25.0.tar.gz"],
+)
+
+_http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
+
+_http_jar(
+    name = "dx_thrift_commons_lang3",
+    sha256 = "4eeeae8d20c078abb64b015ec158add383ac581571cddc45c68f0c9ae0230720",
+    urls = ["https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar"],
+)
+
+_http_jar(
+    name = "dx_thrift_slf4j",
+    sha256 = "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832",
+    urls = ["https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar"],
 )
 
 # Rust runtime from the same archive (same sha256, so one download) and its bitflags dep.

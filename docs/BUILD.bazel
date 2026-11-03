@@ -46,6 +46,7 @@ real_source_target(
         "cli/commands/scope-defaults.md",
         "cli/commands/status.md",
         "cli/commands/watch.md",
+        "cli/commands/windows.md",
         "cli/commands/worktree.md",
         "github-ci.md",
         "support-matrix.md",

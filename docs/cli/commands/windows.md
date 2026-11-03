@@ -1,0 +1,70 @@
+# Windows
+
+What a Windows host needs before `dx` works. Run the PowerShell commands as
+the user who runs Bazel. Commands marked administrator need an elevated shell.
+
+## Git for Windows
+
+Install Git for Windows. It provides Git Bash, which runs the `dx init` hooks.
+
+```powershell
+winget install --id Git.Git -e
+```
+
+## PowerShell
+
+`tools\dx.cmd` calls PowerShell to rebuild `dx`. Windows PowerShell 5.1 ships
+with Windows. Check it is on `PATH`:
+
+```powershell
+powershell -NoProfile -Command '$PSVersionTable.PSVersion'
+```
+
+## Symlinks
+
+The consumer preset sets `build:windows --enable_runfiles`. That needs symlinks.
+Turn on Developer Mode in Settings, under System, then For developers. Or grant
+the "Create symbolic links" right to your user in Local Security Policy, under
+User Rights Assignment. Sign out and in again afterwards.
+
+Add this to `.bazelrc` or `user.bazelrc`:
+
+```text
+startup:windows --windows_enable_symlinks
+```
+
+## Long paths
+
+Use a short output root. Add this to `.bazelrc`:
+
+```text
+startup:windows --output_user_root=C:/bz
+```
+
+Turn on long paths in Windows (administrator):
+
+```powershell
+Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1 -Type DWord
+```
+
+Turn on long paths in Git:
+
+```powershell
+git config --global core.longpaths true
+```
+
+## Defender exclusions
+
+Real-time scanning of the output root and `.dx` slows builds. Exclude both
+(administrator):
+
+```powershell
+Add-MpPreference -ExclusionPath 'C:\bz'
+Add-MpPreference -ExclusionPath 'C:\path\to\your\repo\.dx'
+```
+
+Use the path from `--output_user_root` if you chose another one.
+
+## C/C++ toolchain
+
+The default C/C++ toolchain needs no Visual Studio install.

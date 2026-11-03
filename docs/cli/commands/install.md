@@ -34,6 +34,8 @@ GitHub CLI (`gh`) with `gh attestation verify --bundle`. Set `DX_INSTALL_GH` to
 use another `gh` binary. It selects only the binary; the trust identity is
 fixed and has no flag or environment override.
 
+On Windows, see [Windows](windows.md) for Git, PowerShell, symlinks and long paths.
+
 ## Flags
 
 - `--tag <tag>`: the release tag the archive belongs to, `v` plus a semver

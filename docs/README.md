@@ -29,6 +29,7 @@ Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 - [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.
 - [Worktree](cli/commands/worktree.md): worktree slots.
+- [Windows](cli/commands/windows.md): what a Windows host needs before `dx` works.
 
 ## CI And Examples
 

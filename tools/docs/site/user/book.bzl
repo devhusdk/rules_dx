@@ -73,6 +73,7 @@ USER_BOOK = [
         "//docs:cli/commands/status.md",
     ),
     mdbook_page("Watch", "docs/cli/commands/watch.md", "//docs:cli/commands/watch.md"),
+    mdbook_page("Windows", "docs/cli/commands/windows.md", "//docs:cli/commands/windows.md"),
     mdbook_page("Worktree", "docs/cli/commands/worktree.md", "//docs:cli/commands/worktree.md"),
     mdbook_page(
         "Completion",

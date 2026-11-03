@@ -1,6 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//go/rules:defs.bzl", "go_library", "go_test")
 load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":toolchain_test.bzl", "toolchain_test")
 
 package(
     default_testonly = True,
@@ -35,8 +37,50 @@ go_test(
     srcs = ["cgo_test.go"],
     embed = [":cgo"],
     pure = "off",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+go_test(
+    name = "cgo_race_test",
+    srcs = ["cgo_test.go"],
+    embed = [":cgo"],
+    pure = "off",
     race = "on",
     target_compatible_with = ["@platforms//os:linux"],
+)
+
+cc_library(
+    name = "cxx_adder",
+    srcs = ["adder.cc"],
+    hdrs = ["adder.h"],
+    copts = ["-std=c++17"],
+)
+
+go_library(
+    name = "cxx",
+    srcs = [
+        "adder.h",
+        "cxx.go",
+    ],
+    cdeps = [":cxx_adder"],
+    cgo = True,
+    clinkopts = ["-Wl,-z,now"],
+    copts = ["-DDX_CGO_COPT=1"],
+    importpath = "rules_dx/go/tests/fixtures/cgo/cxx",
+)
+
+go_test(
+    name = "cxx_test",
+    srcs = ["cxx_test.go"],
+    embed = [":cxx"],
+    pure = "off",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+toolchain_test(
+    name = "toolchain_test",
+    target_compatible_with = ["@platforms//os:linux"],
+    target_under_test = ":cxx_test",
 )
 
 real_source_target(

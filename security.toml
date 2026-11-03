@@ -82,6 +82,14 @@ reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environm
 expires = "2027-01-28"
 
 [[exception]]
+advisory = "GHSA-g98v-hv3f-hcfr"
+package = "atty"
+set = "dx_quality_crates"
+versions = "=0.2.14"
+reason = "Unaligned read; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
 advisory = "RUSTSEC-2021-0145"
 package = "atty"
 set = "dx_quality_crates"

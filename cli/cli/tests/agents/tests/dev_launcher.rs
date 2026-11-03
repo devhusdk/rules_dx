@@ -596,7 +596,10 @@ mod sh {
                 "{err}"
             );
             assert_eq!(repo.builds(), 2);
-            assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
+            assert_eq!(
+                repo.state_files(),
+                vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+            );
         }
     }
 
@@ -630,7 +633,10 @@ mod sh {
         assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert!(err.contains(CRASH_NOTICE), "{err}");
         assert!(!repo.inputs().contains("dx:"), "{}", repo.inputs());
-        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+        );
     }
 
     #[test]
@@ -668,7 +674,10 @@ mod sh {
             assert_eq!(code, Some(0), "{err}");
             assert!(out.ends_with(" unset\n"), "{out}");
             assert_eq!((repo.builds(), repo.repins()), (2, 1));
-            assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
+            assert_eq!(
+                repo.state_files(),
+                vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+            );
         }
     }
 
@@ -1329,7 +1338,10 @@ mod sh {
         repo.run_ok();
         assert_eq!(repo.builds(), 4);
         assert_eq!(repo.inputs(), "//:BUILD.bazel\n//cli/cli:BUILD.bazel\n");
-        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+        );
         repo.run_ok();
         assert_eq!(repo.builds(), 5, "the stamp did not move, so it is stale");
     }

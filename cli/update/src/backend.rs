@@ -3219,9 +3219,7 @@ mod tests {
                 "third_party/dotnet/paket.dependencies".to_owned(),
                 "third_party/dotnet/paket.lock".to_owned(),
             ],
-            outputs: vec![
-                "third_party/dotnet/deps/paket.main.bzl".to_owned(),
-            ],
+            outputs: vec!["third_party/dotnet/deps/paket.main.bzl".to_owned()],
         };
         let closure = UvClosure::default();
         // Frozen is allowed: paket.lock never changes, so the run is a pinned fetch.

@@ -1327,6 +1327,26 @@ pub fn thrift_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invo
     }
 }
 
+/// Checks one schema with avro-tools and writes only under `out`. An `.avdl`
+/// runs `idl2schemata`. An `.avsc` runs `compile schema` over `deps` and then
+/// the file; avro-tools needs absolute paths for both.
+pub fn avro_check(binary: &Path, file: &Path, deps: &[&Path], out: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    if file.extension().is_some_and(|ext| ext == "avdl") {
+        argv.push(OsString::from("idl2schemata"));
+    } else {
+        argv.push(OsString::from("compile"));
+        argv.push(OsString::from("schema"));
+        argv.extend(deps.iter().map(|dep| dep.as_os_str().to_owned()));
+    }
+    argv.push(file.as_os_str().to_owned());
+    argv.push(out.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn buf_lint_check(
     binary: &Path,
     files: &[&Path],

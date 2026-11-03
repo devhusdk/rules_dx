@@ -36,6 +36,7 @@ load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//avro/rules:defs.bzl", "AvroInfo")
 load("//capnproto/rules:defs.bzl", "CapnpInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
@@ -330,6 +331,14 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "light",
         "shard": "flatbuffers",
+    },
+    "avro_tools": {
+        "attr": attr.label(default = "//config:tool_avro", allow_files = True, cfg = "exec", executable = True),
+        "capabilities": ["lint", "typecheck"],
+        "fallback": " to an avro-tools binary",
+        "kind": "setting",
+        "resources": "light",
+        "shard": "avro",
     },
     "thrift": {
         "attr": attr.label(default = "//config:tool_thrift", allow_files = True, cfg = "exec", executable = True),
@@ -1072,6 +1081,9 @@ def _flatc_closure(target):
         staged.append((ws_path, f))
     return staged
 
+def _avro_closure(target):
+    return [(f.short_path, f) for f in target[AvroInfo].transitive_srcs.to_list() if ".." not in f.short_path.split("/")]
+
 def _thrift_closure(target):
     return [(i.path, i.file) for i in target[ThriftInfo].transitive_includes.to_list()]
 
@@ -1083,6 +1095,7 @@ _CLOSURE_STAGING = {
     "capnp": (CapnpInfo, _capnp_closure, True),
     "flatc": (FlatBuffersInfo, _flatc_closure, False),
     "thrift": (ThriftInfo, _thrift_closure, True),
+    "avro_tools": (AvroInfo, _avro_closure, True),
 }
 
 QmlContextInfo = provider(
@@ -2484,6 +2497,18 @@ _REAL_SHARD_SPECS = {
         "shard": "flatbuffers",
         "suffix": "-flatbuffers",
     },
+    "real_avro_lint": {
+        "capability": "lint",
+        "doc": "Additive Avro lint family aspect (avro-tools).",
+        "shard": "avro",
+        "suffix": "-avro",
+    },
+    "real_avro_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Avro typecheck family aspect (avro-tools errors only).",
+        "shard": "avro",
+        "suffix": "-avro",
+    },
     "real_thrift_lint": {
         "capability": "lint",
         "doc": "Additive Thrift lint family aspect (thrift).",
@@ -3012,6 +3037,8 @@ real_capnp_lint_aspect = _make_real_aspect("real_capnp_lint")
 real_capnp_typecheck_aspect = _make_real_aspect("real_capnp_typecheck")
 real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
 real_flatbuffers_typecheck_aspect = _make_real_aspect("real_flatbuffers_typecheck")
+real_avro_lint_aspect = _make_real_aspect("real_avro_lint")
+real_avro_typecheck_aspect = _make_real_aspect("real_avro_typecheck")
 real_thrift_lint_aspect = _make_real_aspect("real_thrift_lint")
 real_thrift_typecheck_aspect = _make_real_aspect("real_thrift_typecheck")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")

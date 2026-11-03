@@ -1272,6 +1272,52 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "avro_tools" => {
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let out_dir = root.join(".dx-avro-out");
+                std::fs::create_dir_all(&out_dir)
+                    .map_err(|err| execution(tool_id, format!("create output dir: {err}")))?;
+                let mut staged: Vec<PathBuf> = pairs
+                    .iter()
+                    .map(|(workspace, _)| root.join(workspace))
+                    .collect();
+                staged.extend(sibling_pairs.iter().map(|(_, copy)| copy.clone()));
+                staged.extend(resolve_pairs.iter().map(|(_, copy)| copy.clone()));
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    let file = std::fs::canonicalize(root.join(workspace))
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    let deps: Vec<&Path> = staged
+                        .iter()
+                        .filter(|dep| dep.extension().is_some_and(|ext| ext == "avsc"))
+                        .filter(|dep| **dep != file)
+                        .map(PathBuf::as_path)
+                        .collect();
+                    if file.extension().is_some_and(|ext| ext == "avdl") {
+                        let source = std::fs::read_to_string(&file).map_err(|err| {
+                            execution(tool_id, format!("read {workspace}: {err}"))
+                        })?;
+                        let outside = avdl_imports_outside(&source, &file, &root);
+                        declared_input_escape(tool_id, workspace, &root, &outside)?;
+                    }
+                    let invocation = commands::avro_check(&tool.binary, &file, &deps, &out_dir);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let name = file.to_string_lossy().into_owned();
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_avro(&out.stdout, &out.stderr, out.code, &[name.as_str()]),
+                    )?;
+                    let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+                    for mut item in found {
+                        item.file = absolute.to_string_lossy().into_owned();
+                        item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                        findings.push(item);
+                    }
+                }
+                Ok(findings)
+            }
             "qmlformat" => {
                 let mut findings = Vec::new();
                 for (workspace, absolute) in pairs {
@@ -2651,6 +2697,17 @@ fn declared_input_escape(
     Ok(())
 }
 
+/// The imports of an `.avdl` source that resolve outside the scratch `root`.
+fn avdl_imports_outside(source: &str, file: &Path, root: &Path) -> Vec<String> {
+    let dir = file.parent().unwrap_or(root);
+    parsers::avdl_imports(source)
+        .into_iter()
+        .map(|import| lexical_normal(&dir.join(import)))
+        .filter(|path| !path.starts_with(root))
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect()
+}
+
 fn import_path_copy(
     tool_id: &str,
     workspace: &str,
@@ -2749,7 +2806,7 @@ mod clamp_tests {
 
 #[cfg(test)]
 mod declared_input_tests {
-    use super::declared_input_escape;
+    use super::{avdl_imports_outside, declared_input_escape};
 
     #[test]
     fn dependencies_inside_the_root_pass_and_escapes_fail() {
@@ -2771,6 +2828,23 @@ mod declared_input_tests {
             .contains("is outside the declared inputs of pkg/a.fbs"));
         let missing = vec![inner.join("pkg/none.fbs").to_string_lossy().into_owned()];
         assert!(declared_input_escape("flatc", "pkg/a.fbs", &inner, &missing).is_err());
+    }
+
+    #[test]
+    fn avdl_imports_outside_the_root_fail() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let root = std::fs::canonicalize(dir.path()).expect("root");
+        std::fs::create_dir_all(root.join("pkg")).expect("pkg");
+        let file = root.join("pkg/a.avdl");
+        let source = "protocol P { import schema \"b.avsc\"; import schema \"../../outside.avsc\"; import idl \"/etc/hosts\"; }";
+        let outside = avdl_imports_outside(source, &file, &root);
+        assert_eq!(outside.len(), 2, "{outside:?}");
+        let err =
+            declared_input_escape("avro_tools", "pkg/a.avdl", &root, &outside).expect_err("escape");
+        assert!(err
+            .to_string()
+            .contains("is outside the declared inputs of pkg/a.avdl"));
+        assert!(avdl_imports_outside("import schema \"b.avsc\";", &file, &root).is_empty());
     }
 
     #[test]

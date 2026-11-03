@@ -1,4 +1,5 @@
 pub mod ansible_lint;
+pub mod avro;
 pub mod bicep;
 pub mod biome;
 pub mod buf;
@@ -120,6 +121,7 @@ pub mod zig_compile;
 pub mod zig_fmt;
 
 pub use ansible_lint::parse_ansible_lint;
+pub use avro::{avdl_imports, parse_avro};
 pub use bicep::{parse_bicep_format, parse_bicep_lint};
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
@@ -1823,6 +1825,14 @@ mod tests {
         Ok(both.findings)
     }
 
+    fn fuzz_avro(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::avro::parse_avro(input, input, code, files)
+    }
+
     fn fuzz_thrift(
         input: &[u8],
         code: Option<i32>,
@@ -2819,6 +2829,7 @@ mod tests {
         ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
         ("thrift", fuzz_thrift),
+        ("avro", fuzz_avro),
         ("topiary", fuzz_topiary),
         ("clang_format", fuzz_clang_format),
         ("clang_syntax", fuzz_clang_syntax),
@@ -2956,6 +2967,7 @@ mod tests {
         ("cmakelint", include_str!("cmakelint.rs")),
         ("tflint", include_str!("tflint.rs")),
         ("thrift", include_str!("thrift.rs")),
+        ("avro", include_str!("avro.rs")),
         ("topiary", include_str!("topiary.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_syntax", include_str!("clang_syntax.rs")),

@@ -234,6 +234,7 @@ to.
 | Tool ID | Verbs | Families |
 | --- | --- | --- |
 | `ansible_lint` | lint | ansible |
+| `avro_tools` | lint, typecheck | avro |
 | `bicep` | format, lint | bicep |
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
@@ -1654,6 +1655,49 @@ executable fails with `set --@rules_dx//config:tool_thrift to a thrift binary`.
 `thrift` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
 macOS arm64 and Windows x86_64 are marked unsupported until `thrift` is
 qualified there. Code generation for Thrift is not available yet.
+
+### Avro
+
+`avro-tools` 1.12.2 lints `.avsc` and `.avdl` schemas. It runs on the JDK on
+every platform dx supports for Java. Select it in an `avro` family. The family is
+opt-in and part of no curated default. Format is not applicable: avro-tools has
+no formatter and only validates.
+
+```python
+load("@rules_dx//avro/rules:defs.bzl", "avro_library")
+
+quality_family(
+    name = "avro_family",
+    family_id = "avro",
+    lint = ["avro_tools"],
+)
+
+avro_library(
+    name = "order",
+    srcs = ["order.avsc"],
+    deps = ["//item"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //api/...
+```
+
+Own schemas with `avro_library`. List the package files in `srcs` and the
+libraries they import in `deps`. A `.avdl` file runs
+`avro-tools idl2schemata <file> <scratch>`. A `.avsc` file runs
+`avro-tools compile schema <declared .avsc files> <file> <scratch>`. Both run in
+a scratch root that holds only the declared inputs, and output is written only
+under it. An `.avdl` import that leaves the scratch root, such as an absolute
+path or a `..` path above the root, fails the run. A syntax error, an undefined
+name or output the adapter cannot read fails the run and never counts as clean.
+Findings are reported at the line and column avro-tools prints, or at line 1 of
+the file when it prints none. Typecheck reports the same errors. Avro has no
+formatter, so format is not applicable, and `--apply` has nothing to fix.
+
+To run another `avro-tools`, point the flag at it:
+`--@rules_dx//config:tool_avro=//tools:avro_tools`. A target without an
+executable fails with `set --@rules_dx//config:tool_avro to an avro-tools binary`.
 
 ### CUE
 

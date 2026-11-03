@@ -940,6 +940,34 @@ CAPNP_CAPNP_TYPECHECK_SUPPORT = {
     "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
+AVRO_AVRO_TOOLS_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["avro"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "avro",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "avro_tools",
+    "transport": "batched",
+}
+
+AVRO_AVRO_TOOLS_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["avro"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "avro",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "avro_tools",
+    "transport": "batched",
+}
+
 THRIFT_THRIFT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2128,6 +2156,8 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     CAPNP_CAPNP_TYPECHECK_SUPPORT,
     FLATBUFFERS_FLATC_LINT_SUPPORT,
     FLATBUFFERS_FLATC_TYPECHECK_SUPPORT,
+    AVRO_AVRO_TOOLS_LINT_SUPPORT,
+    AVRO_AVRO_TOOLS_TYPECHECK_SUPPORT,
     THRIFT_THRIFT_LINT_SUPPORT,
     THRIFT_THRIFT_TYPECHECK_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,

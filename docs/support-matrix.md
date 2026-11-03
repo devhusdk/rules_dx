@@ -103,6 +103,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Ansible | `ansible_lint` | `prettier` | n/a |
 | API specs | `redocly` | `prettier` | n/a |
 | AsciiDoc | `vale` | no | n/a |
+| Avro | `avro_tools` | n/a | `avro_tools` |
 | Bicep | `bicep` | `bicep` | n/a |
 | Cap'n Proto | `capnp` | n/a | `capnp` |
 | CloudFormation | `cfn_lint` | no | n/a |
@@ -130,6 +131,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 
 Not applicable for `format`:
 
+- `avro`: schema files; avro-tools has no formatter, it only validates
 - `capnp`: schema IDL; no maintained .capnp formatter exists, capnp only validates
 - `flatbuffers`: schema IDL; no maintained .fbs formatter exists, flatc only validates
 - `thrift`: schema IDL; the thrift compiler has no formatter, it only validates

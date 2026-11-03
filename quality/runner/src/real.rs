@@ -12,6 +12,7 @@ use crate::RunnerError;
 
 pub const REAL_TOOLS: &[&str] = &[
     "ansible_lint",
+    "avro_tools",
     "bicep",
     "biome",
     "buf",

@@ -3192,6 +3192,30 @@ fn thrift_check_is_strict_verbose_and_writes_only_to_out() {
 }
 
 #[test]
+fn avro_check_runs_idl_alone_and_schemas_after_their_deps() {
+    let idl = avro_check(
+        Path::new(BIN),
+        Path::new("/s/a.avdl"),
+        &[Path::new("/s/b.avsc")],
+        Path::new("/s/out"),
+    );
+    assert_eq!(
+        argv_strings(&idl),
+        vec![BIN, "idl2schemata", "/s/a.avdl", "/s/out"]
+    );
+    let schema = avro_check(
+        Path::new(BIN),
+        Path::new("/s/a.avsc"),
+        &[Path::new("/s/b.avsc")],
+        Path::new("/s/out"),
+    );
+    assert_eq!(
+        argv_strings(&schema),
+        vec![BIN, "compile", "schema", "/s/b.avsc", "/s/a.avsc", "/s/out"]
+    );
+}
+
+#[test]
 fn terraform_init_chdirs_first_and_repeats_plugin_dir_in_order() {
     let argv = argv_strings(&terraform_init(
         Path::new(BIN),

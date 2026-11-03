@@ -133,6 +133,7 @@ REAL_ADAPTERS = {
     "terraform": {"format": ["terraform"], "typecheck": ["terraform"]},
     "tflint": {"lint": ["terraform"]},
     "thrift": {"lint": ["thrift"], "typecheck": ["thrift"]},
+    "avro_tools": {"lint": ["avro"], "typecheck": ["avro"]},
     "topiary": {"format": ["ocaml"]},
     "ty": {"typecheck": ["jupyter", "python", "python_stub"]},
     "tsc": {"typecheck": ["javascript", "jsx", "mdx", "tsx", "typescript"]},
@@ -247,6 +248,7 @@ NOT_APPLICABLE = {
     "format": {
         "capnp": "schema IDL; no maintained .capnp formatter exists, capnp only validates",
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
+        "avro": "schema files; avro-tools has no formatter, it only validates",
         "thrift": "schema IDL; the thrift compiler has no formatter, it only validates",
     },
     "typecheck": {

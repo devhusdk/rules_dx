@@ -51,11 +51,11 @@ targets are incompatible there; build `<name>`.
 
 ## Target triples
 
-Your `MODULE.bazel` needs the Wasm triples for browser and WASI builds.
-`dx init --apply --rust-target-triple=wasm32-unknown-unknown,wasm32-wasip1`
-writes them into `MODULE.bazel.snippet`:
+Add the Wasm triples for browser and WASI builds to your root `MODULE.bazel`:
 
 ```python
+bazel_dep(name = "rules_rust", version = "0.75.0")
+
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",

@@ -27,8 +27,6 @@ def _hermetic_manifest_impl(ctx):
         "module_fragment": ctx.file.module_fragment.short_path if ctx.file.module_fragment else "",
         "patterns": ctx.attr.patterns,
         "repo_name": ctx.attr.repo_name,
-        "rust_extra_rustc_flags": ctx.attr.rust_extra_rustc_flags,
-        "rust_target_triples": ctx.attr.rust_target_triples,
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
@@ -59,8 +57,6 @@ hermetic_manifest = rule(
         "patterns": attr.string_list(mandatory = True, doc = "Consumer target patterns to fetch, build and test."),
         "qualification": attr.string(mandatory = True, doc = "Label of the qualification test."),
         "repo_name": attr.string(mandatory = True, doc = "Repository name the consumer gives rules_dx."),
-        "rust_extra_rustc_flags": attr.string_list(doc = "rustc flags added to the dx init rust.toolchain as extra_rustc_flags."),
-        "rust_target_triples": attr.string_list(doc = "Rust target triples added to the dx init rust.toolchain."),
         "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
@@ -95,8 +91,6 @@ def hermetic_qualification(
         fragment_before_toolchains = False,
         module = "hermetic_consumer",
         repo_name = "my_dx",
-        rust_extra_rustc_flags = [],
-        rust_target_triples = [],
         srcs = [],
         workspace_dir = "consumer ws",
         **kwargs):
@@ -115,8 +109,6 @@ def hermetic_qualification(
         patterns = patterns,
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
-        rust_extra_rustc_flags = rust_extra_rustc_flags,
-        rust_target_triples = rust_target_triples,
         srcs = srcs,
         target_compatible_with = HERMETIC_COMPATIBLE_WITH,
         workspace_dir = workspace_dir,

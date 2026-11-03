@@ -761,8 +761,6 @@ hermetic_qualification(
     languages = ["rust"],
     module_fragment = "consumers/rust_wasi/module_fragment.bazel",
     patterns = ["//..."],
-    rust_extra_rustc_flags = ["--cfg=consumer_toolchain"],
-    rust_target_triples = ["wasm32-wasip1"],
 )
 
 hermetic_qualification(
@@ -798,10 +796,6 @@ hermetic_qualification(
         "//examples/adopt-android/app:report",
         "//examples/adopt-android/app:report_test",
         "//examples/adopt-android/app:start",
-    ],
-    rust_target_triples = [
-        "aarch64-linux-android",
-        "x86_64-linux-android",
     ],
 )
 

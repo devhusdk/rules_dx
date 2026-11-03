@@ -275,8 +275,6 @@ pub struct Invocation {
     pub force: bool,
     pub disk: bool,
     pub bases: bool,
-    /// Extra Rust target triples `--rust-target-triple` adds to the init snippet.
-    pub init_rust_target_triples: Vec<String>,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
     /// An umbrella phase's execution log file; set instead of `explain` so the umbrella owns the store entry.
@@ -653,7 +651,6 @@ mod tests {
             force: false,
             disk: false,
             bases: false,
-            init_rust_target_triples: Vec::new(),
             explain: false,
             exec_log: None,
             old_log: None,

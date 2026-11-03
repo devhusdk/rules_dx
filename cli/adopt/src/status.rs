@@ -6,8 +6,10 @@ use crate::overrides::{OverridesState, OVERRIDES_INCLUDE};
 use crate::AdoptError;
 
 use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
-use crate::scaffold::{CONSUMER_RULES_RUST_VERSION, CONSUMER_RUST_VERSION};
 use crate::version::version_move_hint;
+use dx_versions::{
+    RULES_RUST_VERSION as CONSUMER_RULES_RUST_VERSION, RUST_VERSION as CONSUMER_RUST_VERSION,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StatusCheck {
@@ -474,7 +476,8 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::super::{render_consumer_module_setup, StatusCheck, MODULE_VERSION};
+    use super::super::{StatusCheck, MODULE_VERSION};
+
     use super::{init_plan_check, pin_check, render_status_text, toolchain_check};
 
     fn tools_check() -> StatusCheck {
@@ -490,7 +493,11 @@ mod tests {
     fn status_renders_text() {
         let scratch = dx_test_scratch::scratch("dx-status-render-");
         let dir = scratch.path();
-        std::fs::write(dir.join("MODULE.bazel"), render_consumer_module_setup()).expect("module");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            crate::preflight::legacy_consumer_setup(),
+        )
+        .expect("module");
         let checks = vec![toolchain_check(dir), pin_check(MODULE_VERSION)];
         let text = render_status_text(&checks);
         assert!(text.contains("pin: ok"), "{text}");
@@ -514,7 +521,7 @@ mod tests {
         let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n");
         assert_eq!(none.status, "warn");
         assert!(none.detail.starts_with("unknown:"), "{}", none.detail);
-        let setup = render_consumer_module_setup();
+        let setup = crate::preflight::legacy_consumer_setup();
         let ok = run(&setup);
         assert_eq!(ok.status, "ok", "{}", ok.detail);
         assert_eq!(
@@ -893,16 +900,11 @@ mod tests {
         assert!(none.status == "ok" && none.detail.starts_with("not applicable"));
         let adopted = run(Some(&format!(
             "module(name = \"app\")\n{}",
-            render_consumer_module_setup()
+            crate::preflight::legacy_consumer_setup()
         )));
         assert!(
             adopted.status == "ok" && adopted.detail.starts_with("none"),
             "{adopted:?}"
         );
-        let conflict = run(Some(
-            "r = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nr.toolchain(versions = [\"1.80.0\"])\n",
-        ));
-        assert_eq!(conflict.status, "warn");
-        assert!(conflict.detail.contains("rust"), "{conflict:?}");
     }
 }

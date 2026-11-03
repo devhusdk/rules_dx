@@ -202,8 +202,6 @@ pub struct Manifest {
     pub languages: Vec<String>,
     pub module: String,
     pub repo_name: String,
-    pub rust_target_triples: Vec<String>,
-    pub rust_extra_rustc_flags: Vec<String>,
     pub workspace_dir: String,
     pub patterns: Vec<String>,
     pub failures: Vec<(String, String)>,
@@ -357,8 +355,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let fragment_before_toolchains = value["fragment_before_toolchains"]
         .as_bool()
         .unwrap_or(false);
-    let rust_target_triples = strings(&value, "rust_target_triples")?;
-    let rust_extra_rustc_flags = strings(&value, "rust_extra_rustc_flags")?;
     let repo_name = string(&value, "repo_name")?;
     let module_fragment = if fragment.is_empty() {
         None
@@ -373,8 +369,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         languages,
         module: string(&value, "module")?,
         repo_name,
-        rust_target_triples,
-        rust_extra_rustc_flags,
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         failures,
@@ -393,29 +387,6 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// Adds the list attribute `name = [values]` to the one `rust.toolchain` in the `dx init` snippet.
-pub fn add_rust_toolchain_list(
-    snippet: &str,
-    name: &str,
-    values: &[String],
-) -> Result<String, String> {
-    if values.is_empty() {
-        return Ok(snippet.to_owned());
-    }
-    let needle = "rust.toolchain(\n";
-    if snippet.matches("rust.toolchain(").count() != 1 || !snippet.contains(needle) {
-        return Err(format!(
-            "dx init snippet must hold exactly one rust.toolchain: {snippet}"
-        ));
-    }
-    let quoted: Vec<String> = values.iter().map(|value| starlark_string(value)).collect();
-    Ok(snippet.replacen(
-        needle,
-        &format!("{needle}    {name} = [{}],\n", quoted.join(", ")),
-        1,
-    ))
-}
-
 /// Inserts `fragment` before the first `register_toolchains(` line of `setup`.
 fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, String> {
     let mut at = None;
@@ -427,9 +398,9 @@ fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, Strin
         }
         offset += line.len();
     }
-    let at = at.ok_or_else(|| {
-        format!("dx init snippet has no register_toolchains to put the fragment before: {setup}")
-    })?;
+    let Some(at) = at else {
+        return Ok(format!("{}\n{}", setup.trim_end(), fragment.trim_end()));
+    };
     Ok(format!(
         "{}{}\n\n{}",
         &setup[..at],
@@ -1252,16 +1223,6 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         .ok_or("manifest needs a module_fragment")?;
     let fragment = std::fs::read_to_string(fragment_path)
         .map_err(|err| format!("cannot read {}: {err}", fragment_path.display()))?;
-    let snippet = add_rust_toolchain_list(
-        &snippet,
-        "extra_target_triples",
-        &manifest.rust_target_triples,
-    )?;
-    let snippet = add_rust_toolchain_list(
-        &snippet,
-        "extra_rustc_flags",
-        &manifest.rust_extra_rustc_flags,
-    )?;
     let module = compose_module(
         &snippet,
         &manifest.module,

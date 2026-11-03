@@ -13,7 +13,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--rust-target-triple=<triples>] [dir]
+dx init [--apply] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -33,10 +33,9 @@ before any file is written.
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
-`--rust-target-triple=<triples>` (comma-separated, repeatable) adds
-`extra_target_triples` to the Rust toolchain in `MODULE.bazel.snippet`, for
-example `--rust-target-triple=wasm32-unknown-unknown,wasm32-wasip1`. It only
-shapes the snippet.
+`MODULE.bazel.snippet` holds the `rules_dx` pin and one `include()` of the
+rules_dx overrides. It carries no toolchain versions and no language
+stanzas, and it is the same for every tree.
 
 Init writes the `dx worktree` hooks for each agent:
 
@@ -58,7 +57,7 @@ stderr.
 
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
 `/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
@@ -68,7 +67,7 @@ rust-analyzer with the `rules_rust` discover and flycheck targets. Both run
 with `bazel run` on separate output bases under `.dx/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--rust-target-triple=<triples>`.
+Flags: `--apply`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.

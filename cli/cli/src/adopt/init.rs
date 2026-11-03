@@ -87,15 +87,8 @@ impl Target {
 
     /// The files this run plans, relative to `root`: the init files, plus a
     /// `MODULE.bazel` and `.bazelversion` when the directory is fresh.
-    fn plan(
-        &self,
-        invocation: &Invocation,
-    ) -> Result<Vec<dx_adopt::scaffold::ScaffoldFile>, dx_adopt::AdoptError> {
-        let mut files = dx_adopt::plan_init_files_at(
-            &self.root,
-            &self.module,
-            &invocation.init_rust_target_triples,
-        )?;
+    fn plan(&self) -> Result<Vec<dx_adopt::scaffold::ScaffoldFile>, dx_adopt::AdoptError> {
+        let mut files = dx_adopt::plan_init_files(&self.module)?;
         if self.fresh {
             files.extend(dx_adopt::plan_fresh_files(&self.module));
         }
@@ -138,7 +131,7 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, &target, out, err);
     }
-    let planned = match target.plan(invocation) {
+    let planned = match target.plan() {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
@@ -157,14 +150,7 @@ pub(crate) fn execute_init(
     } else {
         Ok(())
     })
-    .and_then(|()| {
-        dx_adopt::apply_init_triples(
-            root,
-            &target.module,
-            &invocation.init_rust_target_triples,
-            &mut own,
-        )
-    });
+    .and_then(|()| dx_adopt::apply_init(root, &target.module, &mut own));
     if own.refused.iter().any(|path| path == ".bazelignore")
         && !std::fs::read_to_string(root.join(".bazelignore"))
             .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
@@ -204,7 +190,7 @@ fn check_init(
 ) -> i32 {
     let workspace = target.root.as_path();
     let module = target.module.as_str();
-    let files = match target.plan(invocation) {
+    let files = match target.plan() {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
@@ -663,18 +649,6 @@ mod tests {
                 .any(|e| e["event"] == "init_plan" && e["severity"] == "hard"),
             "{out}"
         );
-    }
-
-    #[test]
-    fn init_check_names_both_toolchain_registrations() {
-        let root = adopted_root(
-            "dx-adopt-init-plan-toolchain-",
-            "my = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nmy.toolchain(versions = [\"1.80.0\"])\nuse_repo(my, \"rust_toolchains\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
-        );
-        let (code, out, err) = run(&invocation(&["init"]), &root);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("MODULE.bazel:4"), "{out}");
-        assert!(out.contains("@rust_toolchains//:all"), "{out}");
     }
 
     #[test]

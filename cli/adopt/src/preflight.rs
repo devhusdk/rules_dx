@@ -125,6 +125,21 @@ struct Source<'a> {
     module: &'a ModuleFile,
 }
 
+/// The full toolchain setup older `dx init` versions wrote, for tests that need a rich snippet.
+#[cfg(test)]
+pub(crate) fn legacy_consumer_setup() -> String {
+    format!(
+        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rules_rust}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
+        dx = crate::DX_VERSION,
+        cc = dx_versions::RULES_CC_VERSION,
+        llvm = dx_versions::LLVM_VERSION,
+        rules_rust = dx_versions::RULES_RUST_VERSION,
+        edition = dx_versions::RUST_EDITION,
+        rustfmt = dx_versions::RUSTFMT_VERSION,
+        rust = dx_versions::RUST_VERSION,
+    )
+}
+
 /// Plans against the `MODULE.bazel` under `root`, using `snippet` as what init would add.
 pub fn preflight(root: &Path, snippet: &str) -> Preflight {
     let mut result = Preflight::default();
@@ -683,7 +698,7 @@ mod tests {
     }
 
     fn snippet() -> String {
-        crate::render_consumer_module_setup()
+        super::legacy_consumer_setup()
     }
 
     #[test]

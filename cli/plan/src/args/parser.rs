@@ -343,7 +343,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         force,
         disk,
         bases,
-        rust_target_triple,
         explain,
         old_log,
         new_log,
@@ -621,8 +620,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         force,
         disk,
         bases,
-        init_rust_target_triples: dx_adopt::validate_rust_target_triples(&rust_target_triple)
-            .map_err(|detail| ArgsError::BadDefault { detail })?,
         explain,
         exec_log: None,
         old_log,

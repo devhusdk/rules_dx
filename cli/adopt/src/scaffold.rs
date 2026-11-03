@@ -28,18 +28,6 @@ pub const ENVRC_CONTENT: &str = concat!(
     "eval \"$dx_env_lines\"\n",
 );
 
-pub const CONSUMER_RULES_CC_VERSION: &str = dx_versions::RULES_CC_VERSION;
-
-pub const CONSUMER_LLVM_VERSION: &str = dx_versions::LLVM_VERSION;
-
-pub const CONSUMER_RULES_RUST_VERSION: &str = dx_versions::RULES_RUST_VERSION;
-
-pub const CONSUMER_RUST_EDITION: &str = dx_versions::RUST_EDITION;
-
-pub const CONSUMER_RUST_VERSION: &str = dx_versions::RUST_VERSION;
-
-pub const CONSUMER_RUSTFMT_VERSION: &str = dx_versions::RUSTFMT_VERSION;
-
 /// Bazel output base that rust-analyzer discovery runs on.
 pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
 
@@ -56,69 +44,8 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
-/// Checks `--rust-target-triple` values: non-empty, lowercase triple characters only.
-pub fn validate_rust_target_triples(triples: &[String]) -> Result<Vec<String>, String> {
-    let mut out: Vec<String> = Vec::new();
-    for triple in triples {
-        let ok = !triple.is_empty()
-            && triple.contains('-')
-            && triple.chars().all(|c| {
-                c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | '.')
-            });
-        if !ok {
-            return Err(format!("invalid Rust target triple: {triple:?}"));
-        }
-        if !out.contains(triple) {
-            out.push(triple.clone());
-        }
-    }
-    Ok(out)
-}
-
 pub fn render_consumer_module_setup() -> String {
-    render_consumer_module_setup_with(&[])
-}
-
-/// The consumer setup with `extra_target_triples` on the Rust toolchain when non-empty.
-pub fn render_consumer_module_setup_with(triples: &[String]) -> String {
-    let extra = if triples.is_empty() {
-        String::new()
-    } else {
-        let list: Vec<String> = triples.iter().map(|t| format!("\"{t}\"")).collect();
-        format!("    extra_target_triples = [{}],\n", list.join(", "))
-    };
-    format!(
-        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n{extra})\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
-        dx = DX_VERSION,
-        cc = CONSUMER_RULES_CC_VERSION,
-        llvm = CONSUMER_LLVM_VERSION,
-        rust_rules = CONSUMER_RULES_RUST_VERSION,
-        edition = CONSUMER_RUST_EDITION,
-        rustfmt = CONSUMER_RUSTFMT_VERSION,
-        rust = CONSUMER_RUST_VERSION,
-        extra = extra,
-    )
-}
-
-/// Puts the CUDA stanza ahead of the first `register_toolchains` call.
-///
-/// The first registered toolchain wins, and the CUDA host compiler only applies when its
-/// flag is on. If `@llvm//toolchain:all` came first, it would also match for nvcc's host
-/// compilation and nvcc would get a clang it does not support.
-fn with_cuda_stanza(setup: &str) -> Result<String, AdoptError> {
-    let stanza = format!(
-        "# CUDA: this workspace has .cu sources, so the pinned toolkit and its host compiler follow.\n{}\n",
-        crate::cuda_stanza::render_cuda_module_stanza("rules_dx"),
-    );
-    let module = parse_init_snippet(setup)?;
-    let first = module
-        .calls_named("register_toolchains")
-        .next()
-        .map(|call| call.span.start);
-    Ok(match first {
-        Some(at) => format!("{}{}{}", &setup[..at], stanza, &setup[at..]),
-        None => format!("{setup}\n{stanza}"),
-    })
+    format!("bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n")
 }
 
 /// Adds the include of the dx-written overrides right after the rules_dx `bazel_dep`.
@@ -246,42 +173,8 @@ pub fn plan_init_files_for_host(
     module_name: &str,
     windows: bool,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_with(module_name, windows, false)
-}
-
-/// Plans the init files for `root`, adding the CUDA stanza when it has CUDA sources.
-pub fn plan_init_files_at(
-    root: &Path,
-    module_name: &str,
-    triples: &[String],
-) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    let cuda = root.is_dir() && crate::load_graph::workspace_has_cuda_sources(root)?;
-    plan_init_files_full(module_name, cfg!(windows), cuda, triples)
-}
-
-/// Plans every init file.
-///
-/// `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`.
-pub fn plan_init_files_with(
-    module_name: &str,
-    windows: bool,
-    cuda: bool,
-) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_full(module_name, windows, cuda, &[])
-}
-
-fn plan_init_files_full(
-    module_name: &str,
-    windows: bool,
-    cuda: bool,
-    triples: &[String],
-) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
-    let consumer_setup = if cuda {
-        with_cuda_stanza(&render_consumer_module_setup_with(triples))?
-    } else {
-        render_consumer_module_setup_with(triples)
-    };
+    let consumer_setup = render_consumer_module_setup();
     let setup = with_overrides_include(&consumer_setup)?;
     let files = vec![
         ScaffoldFile {
@@ -434,21 +327,7 @@ pub fn apply_scaffold(
 }
 
 pub fn apply_init(root: &Path, module_name: &str, applied: &mut Applied) -> Result<(), AdoptError> {
-    apply_init_triples(root, module_name, &[], applied)
-}
-
-/// Like `apply_init`, with extra Rust target triples in the module snippet.
-pub fn apply_init_triples(
-    root: &Path,
-    module_name: &str,
-    triples: &[String],
-    applied: &mut Applied,
-) -> Result<(), AdoptError> {
-    apply_scaffold(
-        root,
-        &plan_init_files_at(root, module_name, triples)?,
-        applied,
-    )
+    apply_scaffold(root, &plan_init_files(module_name)?, applied)
 }
 
 /// Test view of a run: written paths, then `refused:` paths.
@@ -471,12 +350,9 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_init, entries, plan_init_files, plan_init_files_at, plan_init_files_for_host,
-        plan_init_files_with, render_consumer_caller, render_editor_settings, ScaffoldFile,
-        CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
-        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
-        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
-        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+        apply_init, entries, plan_init_files, plan_init_files_for_host, render_consumer_caller,
+        render_editor_settings, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
+        CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -934,153 +810,39 @@ mod tests {
         let setup = parse_consumer_setup(&text);
         assert_eq!(
             setup.deps,
-            vec![
-                ("rules_dx".to_owned(), DX_VERSION.to_owned()),
-                ("rules_cc".to_owned(), CONSUMER_RULES_CC_VERSION.to_owned()),
-                ("llvm".to_owned(), CONSUMER_LLVM_VERSION.to_owned()),
-                (
-                    "rules_rust".to_owned(),
-                    CONSUMER_RULES_RUST_VERSION.to_owned()
-                ),
-            ]
+            vec![("rules_dx".to_owned(), DX_VERSION.to_owned())]
         );
-        assert!(
-            setup
-                .extensions
-                .iter()
-                .any(|(label, tag)| label == "@rules_rust//rust:extensions.bzl" && tag == "rust"),
-            "snippet must opt into the upstream rust extension: {setup:?}"
-        );
-        assert_eq!(
-            setup.tag_arg("rust.toolchain", "edition").as_deref(),
-            Some(CONSUMER_RUST_EDITION)
-        );
-        assert_eq!(
-            setup
-                .tag_arg("rust.toolchain", "rustfmt_version")
-                .as_deref(),
-            Some(CONSUMER_RUSTFMT_VERSION)
-        );
-        assert_eq!(
-            setup.tag_list_arg("rust.toolchain", "versions"),
-            vec![CONSUMER_RUST_VERSION.to_owned()]
-        );
-        assert!(
-            setup
-                .repos
-                .iter()
-                .any(|(var, repo)| var == "rust" && repo == "rust_toolchains"),
-            "snippet must materialize the rust toolchains repo: {setup:?}"
-        );
-        assert!(
-            setup
-                .registered
-                .contains(&"@llvm//toolchain:all".to_owned()),
-            "snippet must register the hermetic LLVM toolchains: {setup:?}"
-        );
-        assert!(
-            setup
-                .registered
-                .contains(&"@rust_toolchains//:all".to_owned()),
-            "snippet must register the rust toolchains: {setup:?}"
-        );
+        assert!(setup.extensions.is_empty() && setup.registered.is_empty());
+        let versions = text.matches(char::is_numeric).count();
+        assert_eq!(versions, DX_VERSION.matches(char::is_numeric).count());
         scratch.close().expect("cleanup");
     }
 
     #[test]
-    fn rust_target_triples_extend_the_toolchain_and_default_is_unchanged() {
-        let triples = vec![
-            "wasm32-unknown-unknown".to_owned(),
-            "wasm32-wasip1".to_owned(),
-        ];
-        assert_eq!(
-            super::render_consumer_module_setup_with(&[]),
-            super::render_consumer_module_setup()
-        );
-        let text = super::render_consumer_module_setup_with(&triples);
-        assert!(text.contains(
-            "    extra_target_triples = [\"wasm32-unknown-unknown\", \"wasm32-wasip1\"],\n)"
-        ));
-        assert!(super::validate_rust_target_triples(&["Bad Triple".to_owned()]).is_err());
-        assert!(super::validate_rust_target_triples(&[String::new()]).is_err());
-    }
-
-    #[test]
-    fn cuda_snippet_adds_the_stanza_and_registers_the_host_compiler_first() {
-        let plain = plan_init_files_with("demo", false, false).expect("plans");
-        let cuda = plan_init_files_with("demo", false, true).expect("plans");
-        let snippet = |files: &[super::ScaffoldFile]| {
-            files
-                .iter()
-                .find(|file| file.path == "MODULE.bazel.snippet")
-                .expect("snippet")
-                .content
-                .clone()
+    fn snippet_is_the_same_with_or_without_cuda_sources() {
+        let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
+        entries(|a| apply_init(plain.path(), "demo", a)).expect("init");
+        let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
+        std::fs::write(with.path().join("a.cu"), "").expect("write");
+        std::fs::write(with.path().join("a.rs"), "").expect("write");
+        entries(|a| apply_init(with.path(), "demo", a)).expect("init");
+        let read = |dir: &std::path::Path| {
+            std::fs::read_to_string(dir.join("MODULE.bazel.snippet")).expect("read")
         };
-        let (plain, cuda) = (snippet(&plain), snippet(&cuda));
-        assert!(!plain.contains("cuda"), "non-CUDA snippet must not change");
-        let setup = parse_consumer_setup(&cuda);
-        let base = parse_consumer_setup(&plain);
-        assert!(base.deps.iter().all(|dep| setup.deps.contains(dep)));
-        assert!(setup.deps.iter().any(|(name, _)| name == "rules_cuda"));
-        assert_eq!(
-            setup.registered,
-            [
-                "@cuda_host_llvm//:all",
-                "@llvm//toolchain:all",
-                "@rust_toolchains//:all"
-            ]
-        );
-        assert!(cuda.contains("cuda-eula"));
+        assert_eq!(read(plain.path()), read(with.path()));
+        plain.close().expect("cleanup");
+        with.close().expect("cleanup");
     }
 
     #[test]
     fn snippet_edits_follow_parsed_calls_not_text() {
-        let setup = "# register_toolchains(\nbazel_dep(name = \"rules_dx\", version = \"1\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
+        let setup = "# bazel_dep(
+bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let included = super::with_overrides_include(setup).expect("include");
         assert!(included.contains(&format!(
             "bazel_dep(name = \"rules_dx\", version = \"1\")\ninclude(\"{}\")\n",
             crate::overrides::OVERRIDES_INCLUDE
         )));
-        let staged = super::with_cuda_stanza(&included).expect("stanza");
-        let stanza_at = staged.find("# CUDA:").expect("stanza");
-        assert!(stanza_at > staged.find("include(").expect("include"));
-        assert!(stanza_at < staged.find("register_toolchains(\"@llvm").expect("llvm"));
-    }
-
-    #[test]
-    fn plan_at_root_adds_the_stanza_for_cuda_workspaces() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-plan-cuda-");
-        let root = scratch.path();
-        let snippet = |files: Vec<ScaffoldFile>| {
-            files
-                .into_iter()
-                .find(|file| file.path == "MODULE.bazel.snippet")
-                .expect("snippet")
-                .content
-        };
-        let plain = snippet(plan_init_files_at(root, "demo", &[]).expect("plans"));
-        assert!(!plain.contains("rules_cuda"));
-        std::fs::write(root.join("k.cu"), "").expect("cu");
-        let cuda = snippet(plan_init_files_at(root, "demo", &[]).expect("plans"));
-        assert!(cuda.contains("bazel_dep(name = \"rules_cuda\""), "{cuda}");
-    }
-
-    #[test]
-    fn apply_init_adds_the_stanza_only_for_cuda_workspaces() {
-        let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
-        entries(|a| apply_init(plain.path(), "demo", a)).expect("init");
-        let text =
-            std::fs::read_to_string(plain.path().join("MODULE.bazel.snippet")).expect("read");
-        assert!(!text.contains("rules_cuda"));
-        plain.close().expect("cleanup");
-        let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
-        std::fs::create_dir_all(with.path().join("k")).expect("mkdir");
-        std::fs::write(with.path().join("k/a.cu"), "").expect("write");
-        entries(|a| apply_init(with.path(), "demo", a)).expect("init");
-        let text = std::fs::read_to_string(with.path().join("MODULE.bazel.snippet")).expect("read");
-        assert!(text.contains("bazel_dep(name = \"rules_cuda\""), "{text}");
-        with.close().expect("cleanup");
     }
 
     #[test]

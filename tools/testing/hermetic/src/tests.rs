@@ -11,8 +11,6 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
             .collect(),
         module: "m".to_owned(),
         repo_name: "r".to_owned(),
-        rust_target_triples: Vec::new(),
-        rust_extra_rustc_flags: Vec::new(),
         workspace_dir: "ws".to_owned(),
         patterns: vec!["//...".to_owned()],
         failures: Vec::new(),
@@ -160,6 +158,20 @@ fn module_puts_the_fragment_before_the_first_toolchain_registration_on_request()
 }
 
 #[test]
+fn module_appends_the_fragment_when_the_snippet_registers_nothing() {
+    let module = compose_module(
+        "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        "m",
+        "rules_dx",
+        "register_toolchains(\"@x//:all\")\n",
+        true,
+        Path::new("/src"),
+    )
+    .unwrap();
+    assert!(module.contains("0.0.0\")\nregister_toolchains(\"@x//:all\")\nlocal_path"));
+}
+
+#[test]
 fn module_appends_the_fragment_unchanged_without_the_flag() {
     let fragment = "register_toolchains(\"@cuda_host_llvm//:all\")\n";
     let module = compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
@@ -167,20 +179,6 @@ fn module_appends_the_fragment_unchanged_without_the_flag() {
         module.find("@llvm//toolchain:all").unwrap() < module.find("@cuda_host_llvm").unwrap(),
         "{module}"
     );
-}
-
-#[test]
-fn module_rejects_the_flag_when_the_snippet_registers_no_toolchain() {
-    let err = compose_module(
-        "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
-        "m",
-        "my_dx",
-        "bazel_dep(name = \"rules_cuda\", version = \"0.3.0\")\n",
-        true,
-        Path::new("/"),
-    )
-    .unwrap_err();
-    assert!(err.contains("no register_toolchains"), "{err}");
 }
 
 #[test]
@@ -210,8 +208,6 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         "languages": ["cpp", "java", "javascript", "kotlin", "rust", "typescript"],
         "module": "hermetic_consumer",
         "repo_name": "my_dx",
-        "rust_target_triples": [],
-        "rust_extra_rustc_flags": [],
         "workspace_dir": "consumer ws",
         "patterns": ["//..."],
         "failures": {},
@@ -255,8 +251,6 @@ fn manifest_rejects_escaping_files_and_empty_patterns() {
         "languages": ["cpp"],
         "module": "m",
         "repo_name": "r",
-        "rust_target_triples": [],
-        "rust_extra_rustc_flags": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
         "failures": {},
@@ -290,66 +284,6 @@ fn manifest_rejects_escaping_files_and_empty_patterns() {
     unnamed["label"] = json!("");
     let err = parse_manifest(&unnamed.to_string(), Path::new("/")).unwrap_err();
     assert_eq!(err, "manifest field label must be a non-empty string");
-    let mut no_triples = unnamed;
-    no_triples["label"] = json!("//x:y");
-    no_triples
-        .as_object_mut()
-        .unwrap()
-        .remove("rust_target_triples");
-    let err = parse_manifest(&no_triples.to_string(), Path::new("/")).unwrap_err();
-    assert_eq!(err, "manifest field rust_target_triples must be a list");
-}
-
-const RUST_SNIPPET: &str = "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n";
-
-#[test]
-fn rust_target_triples_extend_the_init_toolchain() {
-    let triples = vec![
-        "wasm32-wasip1".to_owned(),
-        "wasm32-unknown-unknown".to_owned(),
-    ];
-    assert_eq!(
-        add_rust_toolchain_list(RUST_SNIPPET, "extra_target_triples", &triples).unwrap(),
-        "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    extra_target_triples = [\"wasm32-wasip1\", \"wasm32-unknown-unknown\"],\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n"
-    );
-    assert_eq!(
-        add_rust_toolchain_list(SNIPPET, "extra_target_triples", &[]).unwrap(),
-        SNIPPET
-    );
-}
-
-#[test]
-fn rust_extra_rustc_flags_extend_the_init_toolchain() {
-    let triples = vec!["wasm32-wasip1".to_owned()];
-    let flags = vec!["--cfg=consumer_toolchain".to_owned()];
-    let snippet = add_rust_toolchain_list(RUST_SNIPPET, "extra_target_triples", &triples).unwrap();
-    assert_eq!(
-        add_rust_toolchain_list(&snippet, "extra_rustc_flags", &flags).unwrap(),
-        "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    extra_rustc_flags = [\"--cfg=consumer_toolchain\"],\n    extra_target_triples = [\"wasm32-wasip1\"],\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n"
-    );
-}
-
-#[test]
-fn rust_toolchain_lists_need_one_rust_toolchain() {
-    let triples = vec!["wasm32-wasip1".to_owned()];
-    let err = add_rust_toolchain_list(SNIPPET, "extra_target_triples", &triples).unwrap_err();
-    assert!(err.contains("exactly one rust.toolchain"), "{err}");
-    let twice = format!("{RUST_SNIPPET}{RUST_SNIPPET}");
-    assert!(add_rust_toolchain_list(&twice, "extra_rustc_flags", &triples).is_err());
-}
-
-#[test]
-fn manifest_rejects_missing_or_bad_rust_extra_rustc_flags() {
-    let mut value = probe_manifest_json();
-    value["rust_extra_rustc_flags"] = json!("--cfg=x");
-    let err = parse_manifest(&value.to_string(), Path::new("/")).unwrap_err();
-    assert_eq!(err, "manifest field rust_extra_rustc_flags must be a list");
-    value
-        .as_object_mut()
-        .unwrap()
-        .remove("rust_extra_rustc_flags");
-    let err = parse_manifest(&value.to_string(), Path::new("/")).unwrap_err();
-    assert_eq!(err, "manifest field rust_extra_rustc_flags must be a list");
 }
 
 #[test]
@@ -774,8 +708,6 @@ fn the_consumer_materializes_from_dx_init() {
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",
-        "register_toolchains(\"@llvm//toolchain:all\")",
-        "register_toolchains(\"@rust_toolchains//:all\")",
         "bazel_dep(name = \"googletest\", version = \"1.18.0\")",
         "path = \"/rules dx source\",",
     ] {
@@ -958,9 +890,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
                 "languages": ["cpp"],
                 "module": "m",
                 "repo_name": "r",
-                "rust_target_triples": [],
-                "rust_extra_rustc_flags": [],
-                "workspace_dir": "ws",
+                                "workspace_dir": "ws",
                 "patterns": ["//..."],
                 "failures": {},
                 "coverage": [],
@@ -1190,8 +1120,6 @@ fn probe_manifest_json() -> Value {
         "languages": ["java"],
         "module": "m",
         "repo_name": "r",
-        "rust_target_triples": [],
-        "rust_extra_rustc_flags": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
         "failures": {
@@ -1464,8 +1392,6 @@ fn a_manifest_needs_a_fragment() {
         "languages": ["c"],
         "module": "m",
         "repo_name": "rules_dx",
-        "rust_target_triples": [],
-        "rust_extra_rustc_flags": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
         "failures": {},

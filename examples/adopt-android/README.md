@@ -46,18 +46,24 @@ bridge=jni
 ## Consumer setup
 
 Add this to `MODULE.bazel`. The Rust core is built for the APK's ABIs, so
-add the Android target triples to the `rust.toolchain` call that `dx init`
-wrote. Remove any `rules_android` override you added earlier; rules_dx now
+the root module needs a `rust.toolchain` with the Android target triples.
+Remove any `rules_android` override you added earlier; rules_dx now
 needs no `rules_android` patch.
 
 ```python
+bazel_dep(name = "rules_rust", version = "0.75.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
-    # Keep the edition, rustfmt_version and versions that dx init wrote.
+    edition = "2021",
     extra_target_triples = [
         "aarch64-linux-android",
         "x86_64-linux-android",
     ],
+    rustfmt_version = "1.98.1",
+    versions = ["1.98.1"],
 )
+use_repo(rust, "rust_toolchains")
 
 android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android/toolchain:repos.bzl", "android_ndk_toolchain_repo")
 

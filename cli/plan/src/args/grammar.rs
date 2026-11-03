@@ -85,7 +85,6 @@ pub(crate) struct Flags {
     pub(crate) force: bool,
     pub(crate) disk: bool,
     pub(crate) bases: bool,
-    pub(crate) rust_target_triple: Vec<String>,
     pub(crate) explain: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
@@ -386,21 +385,6 @@ flag_group! {
     ScaffoldApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
-    }
-}
-
-flag_group! {
-    /// Add extra Rust target triples to the MODULE.bazel.snippet toolchain.
-    InitRustTargetTripleFlag, {
-        #[arg(long, value_name = "TRIPLES", require_equals = true, value_delimiter = ',')]
-        rust_target_triple: Vec<String>,
-    }
-}
-
-composite_group! {
-    /// The flags `dx init` takes.
-    InitArgs, {
-        rust_target_triple: InitRustTargetTripleFlag,
     }
 }
 
@@ -930,7 +914,7 @@ command_args! {
     /// The flags `dx env` accepts.
     Env => 14, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, shell: EnvShellFlag, };
     /// The flags `dx init` accepts.
-    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitArgs, };
+    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, };
     /// The flags `dx upgrade` accepts.
     Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.

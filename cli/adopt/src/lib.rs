@@ -9,7 +9,6 @@
 )]
 
 pub mod build_output;
-pub mod cuda_stanza;
 pub mod defaults;
 pub mod dependency_sets;
 pub mod error;
@@ -52,8 +51,8 @@ pub use preset::{
     PresetState,
 };
 pub use scaffold::{
-    apply_init, apply_init_triples, bazelignore_covers_dx, plan_init_files, plan_init_files_at,
-    preflight_destinations, render_consumer_module_setup, validate_rust_target_triples, Applied,
+    apply_init, bazelignore_covers_dx, plan_init_files, preflight_destinations,
+    render_consumer_module_setup, Applied,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent};

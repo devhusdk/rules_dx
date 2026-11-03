@@ -531,18 +531,6 @@ fn build_files(workspace: &Path) -> Result<Vec<(String, String)>, String> {
     Ok(found)
 }
 
-/// Whether the workspace has a `.cu` or `.cuh` source Bazel can see. Stops at the first one.
-pub fn workspace_has_cuda_sources(root: &Path) -> Result<bool, crate::AdoptError> {
-    let mut found = false;
-    walk_workspace(root, &[".git", ".dx"], |name, rel, _| {
-        let cuda = name.ends_with(".cu") || name.ends_with(".cuh");
-        found = cuda && root.join(rel).is_file();
-        found
-    })
-    .map_err(|detail| crate::AdoptError::WorkspaceScan { detail })?;
-    Ok(found)
-}
-
 struct LoadGraph<'a> {
     workspace: &'a Path,
     names: Vec<String>,
@@ -1245,38 +1233,6 @@ mod tests {
             impact(root, &["defs.bzl"], &[]),
             [packages("defs.bzl", &["//nested:all", "//real:all"])]
         );
-    }
-
-    #[test]
-    fn cuda_sources_are_detected_outside_ignored_dirs() {
-        let scratch = dx_test_scratch::scratch("dx-cuda-detect-");
-        let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, "a.cc", "");
-        assert!(!super::workspace_has_cuda_sources(root).expect("scan"));
-        write(root, ".bazelignore", "vendor\n");
-        write(root, "vendor/k.cu", "");
-        write(root, ".dx/k.cu", "");
-        write(root, ".git/k.cu", "");
-        assert!(!super::workspace_has_cuda_sources(root).expect("scan"));
-        #[cfg(unix)]
-        {
-            let outside = dx_test_scratch::scratch("dx-cuda-outside-");
-            write(outside.path(), "k.cu", "");
-            std::os::unix::fs::symlink(outside.path(), root.join("bazel-out")).expect("symlink");
-            assert!(!super::workspace_has_cuda_sources(root).expect("scan"));
-            outside.close().expect("cleanup");
-        }
-        write(root, "k/a.cu", "");
-        assert!(super::workspace_has_cuda_sources(root).expect("scan"));
-    }
-
-    #[test]
-    fn cuh_alone_counts_as_cuda() {
-        let scratch = dx_test_scratch::scratch("dx-cuda-cuh-");
-        let root = scratch.path();
-        write(root, "include/k.cuh", "");
-        assert!(super::workspace_has_cuda_sources(root).expect("scan"));
     }
 
     #[test]

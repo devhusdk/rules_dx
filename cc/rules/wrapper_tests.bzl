@@ -6,7 +6,7 @@ load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":defs.bzl", "cc_coverage_features")
+load(":defs.bzl", "cc_coverage_features", "cc_coverage_unsupported")
 
 def cc_wrapper_contract_tests(name):
     """Instantiates C, C++ and Objective-C wrapper contract tests."""
@@ -26,6 +26,10 @@ def cc_wrapper_contract_tests(name):
             expect_equal("gcc gets no llvm maps", cc_coverage_features(["a"], True, "gcc"), ["a"]),
             expect_equal("msvc gets no llvm maps", cc_coverage_features(["a"], True, "msvc-cl"), ["a"]),
             expect_equal("custom compiler gets no llvm maps", cc_coverage_features(["a"], True, "icx"), ["a"]),
+            expect_equal("llvm coverage supported", cc_coverage_unsupported("clang"), ""),
+            expect_equal("unknown compiler not blocked", cc_coverage_unsupported("icx"), ""),
+            expect_equal("gcc coverage reported", "gcc" in cc_coverage_unsupported("gcc"), True),
+            expect_equal("msvc coverage reported", "msvc-cl" in cc_coverage_unsupported("msvc-cl"), True),
         ],
     )
 

@@ -1,6 +1,7 @@
 """Minimal C, C++ and Objective-C wrappers."""
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
@@ -68,6 +69,22 @@ _cc_coverage_transition = transition(
     outputs = ["//command_line_option:features"],
 )
 
+def cc_coverage_unsupported(compiler):
+    """Returns why native coverage cannot run on a known non-LLVM compiler, or an empty string."""
+    if not compiler:
+        return ""
+    identity = cc_compiler_identity(compiler, "")
+    if identity.family == "unknown" or identity.coverage == "llvm":
+        return ""
+    return "cc_test coverage needs an LLVM compiler (clang or clang-cl); the toolchain compiler is '%s'. Run without --collect_code_coverage or select an LLVM toolchain." % compiler
+
+def _cc_test_coverage(ctx, upstream):
+    toolchain = find_cc_toolchain(ctx, mandatory = False)
+    reason = cc_coverage_unsupported(toolchain.compiler if toolchain else "")
+    if reason:
+        fail(reason)
+    return dx_native_test_coverage(ctx, upstream)
+
 CC_COVERAGE_TRANSITION = _cc_coverage_transition
 
 _cc_forward_test = dx_executable_forward_rule(
@@ -81,7 +98,7 @@ _cc_forward_test = dx_executable_forward_rule(
     extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs(),
     optional_providers = [CcInfo],
     upstream_cfg = _cc_coverage_transition,
-    coverage_providers = dx_native_test_coverage,
+    coverage_providers = _cc_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
 )
 

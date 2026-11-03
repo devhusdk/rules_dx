@@ -205,6 +205,7 @@ pub struct ArchiveFacts {
 #[serde(deny_unknown_fields)]
 pub struct BinaryFacts {
     pub sha256: String,
+    pub bytes: u64,
     pub format: String,
     pub machine: String,
     pub abi: String,
@@ -551,6 +552,7 @@ fn installed_checks(
         .map_err(|error| format!("cannot read {}: {error}", cell.exe))
         .and_then(|bytes| {
             binary.sha256 = dx_digest::sha256_hex(&bytes);
+            binary.bytes = bytes.len() as u64;
             dx_binfmt::inspect(&bytes).map_err(|error| error.to_string())
         })
         .and_then(|images| match <[dx_binfmt::Image; 1]>::try_from(images) {

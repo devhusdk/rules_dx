@@ -109,7 +109,7 @@ mod tests {
             "schema": cell::RECORD_SCHEMA,
             "cell": "dx-linux-x86_64",
             "archive": {"name": "dx-linux-x86_64.tar.gz", "sha256": "", "bytes": 0},
-            "binary": {"sha256": "", "format": "elf", "machine": "x86_64", "abi": "gnu", "needed": []},
+            "binary": {"sha256": "", "bytes": 0, "format": "elf", "machine": "x86_64", "abi": "gnu", "needed": []},
             "members": [],
             "sha": "", "version": "", "workflow_ref": "", "workflow_sha": "",
             "run_id": "", "job": "",

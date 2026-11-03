@@ -372,6 +372,7 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
         assert_eq!(record.schema, RECORD_SCHEMA);
         assert_eq!(record.binary.machine, cell.machine);
         assert_eq!(record.binary.sha256, dx_digest::sha256_hex(&exe));
+        assert_eq!(record.binary.bytes, exe.len() as u64);
         assert_eq!(record.archive.name, cell.archive_name());
         assert_eq!(record.members.len(), 3 + cell.runtime.len());
         let exe_name = cell.exe.clone();
@@ -407,6 +408,7 @@ fn qualify_passes_a_synthetic_cell_and_round_trips_the_record() {
         let record = qualify(&fixture.inputs, &FakeRunner::new());
         assert_eq!(record.result, Verdict::Ok, "{:#?}", record.checks);
         assert_eq!(record.binary.format, "elf");
+        assert!(record.binary.bytes > 0);
         assert_eq!(record.binary.abi, "static");
         assert_eq!(
             record.binary.needed,

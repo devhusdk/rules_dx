@@ -111,13 +111,8 @@ fn setup_bazel_documents() -> Vec<(String, serde_json::Value)> {
 const SAVERS: &[(&str, &str, &str)] = &[
     (
         ".github/workflows/reusable-consumer.yml",
-        "coverage",
-        "needs.validate.outputs.cache_saver == github.job",
-    ),
-    (
-        ".github/workflows/reusable-consumer.yml",
         "checks",
-        "needs.validate.outputs.cache_saver == matrix.check.id",
+        "needs.validate.outputs.cache_saver == github.job",
     ),
     (".github/workflows/ci.yml", "preflight", ""),
 ];

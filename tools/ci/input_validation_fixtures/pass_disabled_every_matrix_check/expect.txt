@@ -3,8 +3,10 @@ exit 0
 says DX_DISABLED_CHECKS lint,typecheck,format,generate,license-audit,test,build
 says checks (none)
 out artifact_suffix ""
-out cache_saver "coverage"
+out cache_saver "checks"
+out check_lines ""
 out checks []
+out checks_timeout "120"
 out disabled "lint,typecheck,format,generate,license-audit,test,build"
 out min_changed_line_coverage ""
 out min_coverage ""

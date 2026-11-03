@@ -59,8 +59,12 @@ every platform in `platforms`:
   `min_coverage` is set. With `min_changed_line_coverage` on pull requests it
   adds `--min-changed-line-coverage <percent>`.
 
-Each check reports once per platform as `<check> (<platform>)`, for example
-`lint (linux_x86_64)`.
+`lint`, `typecheck`, `format`, `generate`, `license-audit`, `test`, `build` and
+`coverage` run one after another in one `checks (<platform>)` job per
+platform, so they share one Bazel server. A failing check does not stop the
+next one. The job summary lists `<check>: passed` or `failed (exit N)` for each
+check, and the job fails if any check failed. `security-audit` runs in its own
+job per platform. Require `dx-ci (aggregate)`, not the per-platform jobs.
 
 `validate (inputs)` runs first and checks the pin and every input. One
 `advisory snapshots (one run, every platform)` job fetches the advisory
@@ -100,7 +104,7 @@ Inputs:
   artifacts, as in `dx-reports-test-linux_x86_64-api-linux`.
 
 Grant `contents: read` and `pull-requests: write` on the calling job;
-`coverage` posts its pull-request comment with it.
+the `checks` job posts the `coverage` pull-request comment with it.
 `examples/consumer-ci/caller.yml` does.
 
 ## Affected Scope on Pull Requests
@@ -155,7 +159,7 @@ the whole-repo threshold:
 ```
 
 It runs on `pull_request` events only, as
-`dx coverage --min-changed-line-coverage <percent>` in the `coverage` job. Other events
+`dx coverage --min-changed-line-coverage <percent>` in the `checks` job. Other events
 print a notice and skip it. The job fetches full history and points
 `origin/HEAD` at the first parent of the pull request merge commit, or at the
 pull request base commit when the checkout is not a merge commit. Deleted lines
@@ -165,7 +169,7 @@ count the result is `not-applicable`, not 100 percent.
 
 The `dx: changed…` lines from the coverage log go to the step summary: the
 covered and eligible line counts and each uncovered `path:line`. The
-`coverage` job fails when:
+`checks` job fails when:
 
 - fewer than the threshold percent of eligible lines are covered. The compare is
   exact, with no rounding.
@@ -244,9 +248,8 @@ the BuildBuddy remote cache. Codecov is optional.
 
 Every job restores the Bazel repository cache that Bazel and `dx` use. Each
 platform shares one copy, keyed on `MODULE.bazel` and `MODULE.bazel.lock`.
-On the default branch, `coverage` saves it. If `coverage` is disabled, `test`
-saves it. If both are disabled, `build` saves it. With all three disabled,
-nothing saves it. The saved copy holds only the downloads the saving job
+On the default branch, each platform's `checks` job saves its copy. With every
+check and `coverage` disabled, nothing saves it. The saved copy holds only the downloads the saving job
 used. Pull requests, forks included, merge queues and other branches only
 restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
 are not cached between runs.

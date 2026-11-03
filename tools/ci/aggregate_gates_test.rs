@@ -123,7 +123,7 @@ fn the_consumer_gate_requires_every_declared_check() {
         .into_iter()
         .filter(|name| name != "validate")
         .collect();
-    assert_eq!(wanted.len(), 4, "{CONSUMER_WORKFLOW} declares the checks");
+    assert_eq!(wanted.len(), 3, "{CONSUMER_WORKFLOW} declares the checks");
     let script = aggregate_script(CONSUMER_WORKFLOW, AGGREGATE);
     assert_eq!(
         json!(required_of(&script)),
@@ -297,11 +297,7 @@ fn preflight_passes_no_runner_specific_test_args() {
 
 #[test]
 fn every_matrix_cell_records_its_runner_image() {
-    for (workflow, job) in [
-        (CI_WORKFLOW, "preflight"),
-        (CONSUMER_WORKFLOW, "checks"),
-        (CONSUMER_WORKFLOW, "coverage"),
-    ] {
+    for (workflow, job) in [(CI_WORKFLOW, "preflight"), (CONSUMER_WORKFLOW, "checks")] {
         let all = steps(workflow, job);
         let found = all
             .iter()
@@ -346,9 +342,7 @@ fn main_pushes_share_one_group_and_only_prs_cancel() {
 fn pull_request_comments_stay_pull_request_only() {
     let text = read_runfiles(CONSUMER_WORKFLOW);
     assert!(
-        text.contains(
-            "if: always() && github.event_name == 'pull_request'\n        env:\n          GH_TOKEN"
-        ),
+        text.contains("github.event_name == 'pull_request' }}\n        env:\n          GH_TOKEN"),
         "the PR comment step must stay gated to pull_request"
     );
 }

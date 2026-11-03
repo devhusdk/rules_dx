@@ -19,9 +19,11 @@ const INPUTS: [&str; 5] = [
     "DX_MIN_CHANGED_LINE_COVERAGE",
     "DX_INVOCATION_ID",
 ];
-const PLAIN_OUTPUTS: [&str; 6] = [
+const PLAIN_OUTPUTS: [&str; 8] = [
     "artifact_suffix",
     "cache_saver",
+    "check_lines",
+    "checks_timeout",
     "disabled",
     "min_changed_line_coverage",
     "min_coverage",
@@ -111,12 +113,21 @@ fn run(
         String::from_utf8_lossy(&done.stdout),
         String::from_utf8_lossy(&done.stderr)
     );
-    let written = std::fs::read_to_string(&output)
+    let mut written = BTreeMap::new();
+    let mut lines = std::fs::read_to_string(&output)
         .unwrap_or_default()
         .lines()
-        .filter_map(|line| line.split_once('='))
-        .map(|(key, value)| (key.to_string(), value.to_string()))
-        .collect();
+        .map(str::to_string)
+        .collect::<Vec<_>>()
+        .into_iter();
+    while let Some(line) = lines.next() {
+        if let Some((key, _)) = line.split_once("<<DX_EOF") {
+            let body: Vec<String> = lines.by_ref().take_while(|l| l != "DX_EOF").collect();
+            written.insert(key.to_string(), body.join("\n"));
+        } else if let Some((key, value)) = line.split_once('=') {
+            written.insert(key.to_string(), value.to_string());
+        }
+    }
     (done.status.code().unwrap_or(-1), text, written)
 }
 

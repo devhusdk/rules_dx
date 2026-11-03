@@ -28,7 +28,13 @@ fn main() -> ExitCode {
     let text: String = validated
         .outputs
         .iter()
-        .map(|(key, value)| format!("{key}={value}\n"))
+        .map(|(key, value)| {
+            if value.contains('\n') {
+                format!("{key}<<DX_EOF\n{value}\nDX_EOF\n")
+            } else {
+                format!("{key}={value}\n")
+            }
+        })
         .collect();
     let written = std::fs::OpenOptions::new()
         .create(true)

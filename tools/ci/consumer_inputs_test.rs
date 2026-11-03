@@ -13,11 +13,9 @@ const AGGREGATE: &str = "dx-ci";
 
 const MATRIX_JOB: &str = "checks";
 
-const PLATFORM_JOBS: [&str; 3] = [MATRIX_JOB, "security-audit", "coverage"];
+const PLATFORM_JOBS: [&str; 2] = [MATRIX_JOB, "security-audit"];
 
 const CHECKS_LIST: &str = "${{ needs.validate.outputs.checks }}";
-
-const CHECKS_MATRIX: &str = "${{ fromJSON(needs.validate.outputs.checks) }}";
 
 const PLATFORMS_REF: &str = "needs.validate.outputs.platforms";
 
@@ -62,7 +60,7 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
     assert_eq!(
         job_names(),
         wanted,
-        "{WORKFLOW} must name the validate job, the checks matrix, security-audit, coverage, the \
+        "{WORKFLOW} must name the validate job, the checks job, security-audit, the \
 shared advisory preparation and the aggregate"
     );
 }
@@ -101,8 +99,9 @@ fn every_check_job_waits_for_the_validated_inputs() {
         let gate = text_at(&job(WORKFLOW, name)["if"], &format!("{name} if"));
         if name == MATRIX_JOB {
             assert_eq!(
-                gate, "${{ needs.validate.outputs.checks != '[]' }}",
-                "{WORKFLOW} job {name} must skip only an empty checks list"
+                gate,
+                "${{ needs.validate.outputs.checks != '[]' || !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}",
+                "{WORKFLOW} job {name} must skip only when no check and no coverage is enabled"
             );
             continue;
         }
@@ -155,73 +154,88 @@ fn matrix_step(prefix: &str) -> Value {
 }
 
 #[test]
-fn the_checks_job_runs_one_cell_per_validated_check_and_platform() {
+fn the_checks_job_runs_every_validated_check_in_one_job_per_platform() {
     let checks = job(WORKFLOW, MATRIX_JOB);
     assert_eq!(
         checks["name"],
-        json!("${{ matrix.check.id }} (${{ matrix.platform }})"),
-        "{WORKFLOW} job {MATRIX_JOB} must keep the per-check names branch protection reads"
+        json!("checks (${{ matrix.platform }})"),
+        "{WORKFLOW} job {MATRIX_JOB} is one job per platform"
     );
     assert_eq!(
         checks["timeout-minutes"],
-        json!("${{ matrix.check.timeout }}")
+        json!("${{ fromJSON(needs.validate.outputs.checks_timeout) }}")
     );
-    assert_eq!(checks["strategy"]["matrix"]["check"], json!(CHECKS_MATRIX));
-    let run = matrix_step("Run ");
-    for (key, value) in [
-        ("DX_CHECK", "${{ matrix.check.id }}"),
-        ("DX_ARGS", "${{ join(matrix.check.args, ' ') }}"),
-        ("DX_REPORTS", "${{ join(matrix.check.reports, ' ') }}"),
-        ("DX_PASSTHROUGH", "${{ matrix.check.passthrough }}"),
-    ] {
-        assert_eq!(
-            run["env"][key],
-            json!(value),
-            "{WORKFLOW} run step env {key}"
-        );
-    }
+    assert!(
+        checks["strategy"]["matrix"].get("check").is_none(),
+        "{WORKFLOW} job {MATRIX_JOB} must not expand a per-check matrix"
+    );
+    let run = matrix_step("Run the checks");
+    assert_eq!(
+        run["env"]["DX_CHECK_LINES"],
+        json!("${{ needs.validate.outputs.check_lines }}"),
+        "{WORKFLOW} run step reads the validated check lines"
+    );
     let script = text_at(&run["run"], "checks run step");
     assert!(
         !script.contains("${{"),
-        "{WORKFLOW} job {MATRIX_JOB} must read the row through env: {script}"
+        "{WORKFLOW} job {MATRIX_JOB} must read the lines through env: {script}"
     );
-    let upload = matrix_step("Upload the ");
-    assert_eq!(
-        upload["with"]["name"],
-        json!(
-            "dx-reports-${{ matrix.check.id }}-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}"
-        ),
-        "{WORKFLOW} job {MATRIX_JOB} must keep the report artifact names"
-    );
+    for needle in [
+        "done <<< \"$DX_CHECK_LINES\"",
+        "$GITHUB_STEP_SUMMARY",
+        "exit \"$failed\"",
+    ] {
+        assert!(
+            script.contains(needle),
+            "{WORKFLOW} run step must state {needle:?}: {script}"
+        );
+    }
+    for id in ["lint", "typecheck", "test", "build"] {
+        let upload = matrix_step(&format!("Upload the {id} reports"));
+        assert_eq!(
+            upload["with"]["name"],
+            json!(format!(
+                "dx-reports-{id}-${{{{ matrix.platform }}}}${{{{ needs.validate.outputs.artifact_suffix }}}}"
+            )),
+            "{WORKFLOW} job {MATRIX_JOB} must keep the report artifact names"
+        );
+        assert_eq!(
+            upload["if"],
+            json!(format!(
+                "${{{{ always() && contains(needs.validate.outputs.checks, '\"id\":\"{id}\"') }}}}"
+            )),
+            "{WORKFLOW} upload {id} runs only when the check is enabled"
+        );
+    }
     assert_eq!(
         matrix_step("Prove dx run works noninteractively in CI")["if"],
-        json!("${{ matrix.check.id == 'build' }}"),
-        "{WORKFLOW} job {MATRIX_JOB} must prove dx run on the build cell only"
+        json!("${{ !cancelled() && contains(needs.validate.outputs.checks, '\"id\":\"build\"') }}"),
+        "{WORKFLOW} job {MATRIX_JOB} must prove dx run only when build is enabled"
     );
 }
 
 #[test]
-fn the_coverage_job_takes_its_threshold_from_the_validated_inputs() {
-    let coverage = job(WORKFLOW, "coverage");
+fn the_coverage_steps_take_their_threshold_from_the_validated_inputs() {
+    let coverage = job(WORKFLOW, MATRIX_JOB);
     let steps = coverage["steps"]
         .as_array()
-        .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no steps"));
+        .unwrap_or_else(|| panic!("{WORKFLOW} job checks has no steps"));
     let thresholds = steps
         .iter()
         .filter(|step| step["env"]["DX_MIN_COVERAGE"] == json!(THRESHOLD))
         .count();
     assert_eq!(
         thresholds, 1,
-        "{WORKFLOW} job coverage must pass the validated threshold exactly once"
+        "{WORKFLOW} job checks must pass the validated threshold exactly once"
     );
 }
 
 /// Returns the coverage job step whose name starts with the given prefix.
 fn coverage_step(prefix: &str) -> Value {
-    let coverage = job(WORKFLOW, "coverage");
+    let coverage = job(WORKFLOW, MATRIX_JOB);
     let steps = coverage["steps"]
         .as_array()
-        .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no steps"))
+        .unwrap_or_else(|| panic!("{WORKFLOW} job checks has no steps"))
         .clone();
     steps
         .into_iter()
@@ -230,7 +244,7 @@ fn coverage_step(prefix: &str) -> Value {
                 .as_str()
                 .is_some_and(|name| name.starts_with(prefix))
         })
-        .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no step named {prefix:?}"))
+        .unwrap_or_else(|| panic!("{WORKFLOW} job checks has no step named {prefix:?}"))
 }
 
 #[test]
@@ -263,7 +277,10 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     }
 
     let render = coverage_step("Render first-party coverage summary");
-    assert_eq!(render["if"], json!("always()"));
+    assert_eq!(
+        render["if"],
+        json!("${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}")
+    );
     let render_run = text_at(&render["run"], "render step run");
     for needle in [
         "dx_changed_lines.rc",
@@ -280,7 +297,7 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     let publish = coverage_step("Publish PR summary comment");
     assert_eq!(
         publish["if"],
-        json!("always() && github.event_name == 'pull_request'"),
+        json!("${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}"),
         "{WORKFLOW} must publish the coverage comment even after a failed gate"
     );
     let publish_run = text_at(&publish["run"], "publish step run");
@@ -300,7 +317,7 @@ fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
     let aggregate = job(WORKFLOW, AGGREGATE);
     assert_eq!(
         aggregate["needs"],
-        json!([VALIDATE, MATRIX_JOB, "security-audit", PREP, "coverage"])
+        json!([VALIDATE, MATRIX_JOB, "security-audit", PREP])
     );
     let step = aggregate["steps"][0].clone();
     assert_eq!(step["env"]["DISABLED"], json!(DISABLED));
@@ -314,6 +331,7 @@ fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
         "skipped without disabled_checks",
         "results.get(\"validate\") != \"success\"",
         "os.environ[\"CHECKS\"]",
+        "if listed == \"[]\" and \"coverage\" in disabled:",
         "disabled.add(\"checks\")",
     ] {
         assert!(
@@ -324,12 +342,7 @@ fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
 }
 
 #[test]
-fn no_matrix_expands_from_a_raw_workflow_input() {
-    assert_eq!(
-        job(WORKFLOW, MATRIX_JOB)["strategy"]["matrix"]["check"],
-        json!(CHECKS_MATRIX),
-        "{WORKFLOW} must expand matrix.check only from the validated checks list"
-    );
+fn no_job_reads_a_raw_workflow_input() {
     let text = read_runfiles(WORKFLOW);
     for needle in RAW_INPUTS {
         let uses: Vec<&str> = text.lines().filter(|line| line.contains(needle)).collect();
@@ -368,93 +381,83 @@ fn affected_on_pr_is_a_boolean_defaulting_to_true() {
 }
 
 #[test]
-fn the_checks_scope_is_affected_only_for_scoped_cells_on_pull_request() {
-    let scope = scope_text(&job(WORKFLOW, MATRIX_JOB)["env"]["DX_SCOPE"]);
-    for needle in [
-        "'pull_request'",
-        "inputs.affected_on_pr",
-        "matrix.check.id",
-        "'--affected'",
-        "'//...'",
-    ] {
+fn the_checks_scope_is_affected_only_for_scoped_checks_on_pull_request() {
+    let checks = job(WORKFLOW, MATRIX_JOB);
+    let affected = scope_text(&checks["env"]["DX_AFFECTED"]);
+    for needle in ["'pull_request'", "inputs.affected_on_pr"] {
         assert!(
-            scope.contains(needle),
-            "{WORKFLOW} {MATRIX_JOB} DX_SCOPE misses {needle}: {scope}"
-        );
-    }
-    for id in SCOPED {
-        assert!(
-            scope.contains(&format!("\"{id}\"")),
-            "{WORKFLOW} {MATRIX_JOB} DX_SCOPE must scope {id}: {scope}"
-        );
-    }
-    for id in ["generate", "license-audit"] {
-        assert!(
-            !scope.contains(id),
-            "{WORKFLOW} {MATRIX_JOB} DX_SCOPE must keep {id} on //...: {scope}"
+            affected.contains(needle),
+            "{WORKFLOW} {MATRIX_JOB} DX_AFFECTED misses {needle}: {affected}"
         );
     }
     assert!(
-        !scope.contains("pull_request_target"),
-        "{WORKFLOW} DX_SCOPE: {scope}"
+        !affected.contains("pull_request_target"),
+        "{WORKFLOW} DX_AFFECTED: {affected}"
     );
+    let script = text_at(&matrix_step("Run the checks")["run"], "checks run step");
+    let ids = SCOPED.join("|");
+    assert!(
+        script.contains(&format!("{ids})")),
+        "{WORKFLOW} run step must scope exactly {ids}: {script}"
+    );
+    for id in ["generate", "license-audit"] {
+        assert!(
+            !script.contains(&format!("|{id}")),
+            "{WORKFLOW} run step must keep {id} on //...: {script}"
+        );
+    }
 }
 
 #[test]
-fn scoped_jobs_pin_the_base_and_run_dx_on_the_scope() {
-    for name in [MATRIX_JOB, "coverage"] {
-        let steps = job(WORKFLOW, name)["steps"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
-        let checkout = steps
-            .iter()
-            .position(|s| {
-                s["uses"]
-                    .as_str()
-                    .is_some_and(|u| u.starts_with("actions/checkout"))
-            })
-            .unwrap_or_else(|| panic!("{name} has no checkout"));
-        let depth = scope_text(&steps[checkout]["with"]["fetch-depth"]);
-        assert!(depth.contains("DX_SCOPE"), "{name} fetch-depth: {depth}");
-        let pin = steps
-            .iter()
-            .position(|s| {
-                s["name"]
-                    .as_str()
-                    .is_some_and(|n| n.starts_with("Pin the pull request base"))
-            })
-            .unwrap_or_else(|| panic!("{name} has no pin step"));
-        assert!(pin > checkout, "{name} pins before checkout");
-        assert!(
-            scope_text(&steps[pin]["if"]).contains("--affected"),
-            "{name} pin guard"
-        );
-        assert_eq!(
-            name == MATRIX_JOB,
-            !scope_text(&steps[pin]["if"]).contains("min_changed_line_coverage"),
-            "{name} pin guard: only coverage pins for the changed-line gate"
-        );
-        assert!(
-            scope_text(&steps[pin]["env"]["GITHUB_BASE_REF"]).contains("github.base_ref"),
-            "{name} pin must read the base ref through env"
-        );
-        assert!(
-            !scope_text(&steps[pin]["run"]).contains("${{"),
-            "{name} pin run has an expression"
-        );
-        let dx = steps
-            .iter()
-            .position(|s| scope_text(&s["run"]).contains("@rules_dx//:dx"))
-            .unwrap_or_else(|| panic!("{name} has no dx step"));
-        assert!(pin < dx, "{name} pins after dx");
-        let run = scope_text(&steps[dx]["run"]);
-        assert!(run.contains("\"$DX_SCOPE\""), "{name} dx line: {run}");
-        assert!(
-            !run.contains("//..."),
-            "{name} dx line still names //...: {run}"
-        );
-    }
+fn the_checks_job_pins_the_base_and_runs_dx_on_the_scope() {
+    let steps = job(WORKFLOW, MATRIX_JOB)["steps"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let checkout = steps
+        .iter()
+        .position(|s| {
+            s["uses"]
+                .as_str()
+                .is_some_and(|u| u.starts_with("actions/checkout"))
+        })
+        .unwrap_or_else(|| panic!("no checkout"));
+    let depth = scope_text(&steps[checkout]["with"]["fetch-depth"]);
+    assert!(
+        depth.starts_with("${{ needs.validate.outputs.min_changed_line_coverage != '' && '0'"),
+        "fetch-depth: {depth}"
+    );
+    assert!(depth.contains("DX_AFFECTED"), "fetch-depth: {depth}");
+    let pin = steps
+        .iter()
+        .position(|s| {
+            s["name"]
+                .as_str()
+                .is_some_and(|n| n.starts_with("Pin the pull request base"))
+        })
+        .unwrap_or_else(|| panic!("no pin step"));
+    assert!(pin > checkout, "pins before checkout");
+    let guard = scope_text(&steps[pin]["if"]);
+    assert!(guard.contains("DX_AFFECTED"), "pin guard: {guard}");
+    assert!(
+        guard.contains("min_changed_line_coverage"),
+        "pin guard: {guard}"
+    );
+    assert!(
+        scope_text(&steps[pin]["env"]["GITHUB_BASE_REF"]).contains("github.base_ref"),
+        "pin must read the base ref through env"
+    );
+    assert!(
+        !scope_text(&steps[pin]["run"]).contains("${{"),
+        "pin run has an expression"
+    );
+    let dx = steps
+        .iter()
+        .position(|s| scope_text(&s["run"]).contains("@rules_dx//:dx"))
+        .unwrap_or_else(|| panic!("no dx step"));
+    assert!(pin < dx, "pins after dx");
+    let run = scope_text(&steps[dx]["run"]);
+    assert!(run.contains("\"$scope\""), "dx line: {run}");
 }
 
 #[test]
@@ -469,25 +472,11 @@ fn security_audit_keeps_the_whole_workspace() {
 
 #[test]
 fn coverage_scope_falls_back_when_a_threshold_is_set() {
-    let coverage = job(WORKFLOW, "coverage");
-    let scope = scope_text(&coverage["env"]["DX_SCOPE"]);
-    for needle in [
-        "'pull_request'",
-        "inputs.affected_on_pr",
-        "needs.validate.outputs.min_coverage == ''",
-        "needs.validate.outputs.min_changed_line_coverage == ''",
-        "'--affected'",
-        "'//...'",
-    ] {
-        assert!(
-            scope.contains(needle),
-            "coverage DX_SCOPE misses {needle}: {scope}"
-        );
-    }
-    let steps = coverage["steps"].as_array().cloned().unwrap_or_default();
-    let depth = scope_text(&steps[0]["with"]["fetch-depth"]);
+    let run = text_at(&coverage_step("Run coverage")["run"], "coverage run");
     assert!(
-        depth.starts_with("${{ needs.validate.outputs.min_changed_line_coverage != '' && '0'"),
-        "coverage fetch-depth: {depth}"
+        run.contains("\"$DX_AFFECTED\" = true ] && [ -z \"$DX_MIN_COVERAGE\" ] && [ -z \"$DX_MIN_CHANGED_LINE_COVERAGE\" ]"),
+        "coverage scope: {run}"
     );
+    assert!(run.contains("scope=//..."), "coverage scope: {run}");
+    assert!(run.contains("\"$scope\""), "coverage scope: {run}");
 }

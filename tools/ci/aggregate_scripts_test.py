@@ -39,7 +39,6 @@ CONSUMER_JOBS = (
     "checks",
     "security-audit",
     "advisory-snapshots",
-    "coverage",
 )
 RESULTS = ("success", "failure", "skipped", "cancelled")
 

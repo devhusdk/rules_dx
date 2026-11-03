@@ -11,17 +11,13 @@ const UPLOAD_PIN: &str = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a8
 
 const SUFFIX: &str = "${{ needs.validate.outputs.artifact_suffix }}";
 
-/// Each report-capable job and the report kinds its dx step requests.
-const REPORTING: &[(&str, &[&str])] = &[
-    ("lint", &["sarif"]),
-    ("typecheck", &["sarif"]),
-    ("test", &["junit", "failures", "results"]),
-    ("build", &["failures"]),
-    ("coverage", &["failures", "results"]),
-];
+/// The checks that upload reports from the per-platform job.
+const REPORTING: &[&str] = &["lint", "typecheck", "test", "build", "coverage"];
+
+const JOB: &str = "checks";
 
 /// Jobs that upload no reports. Flip these when the follow-ups land.
-const UNREPORTED: &[&str] = &["format", "generate", "security-audit", "license-audit"];
+const UNREPORTED: &[&str] = &["security-audit"];
 
 fn uploads(name: &str) -> Vec<(usize, Value)> {
     steps(WORKFLOW, name)
@@ -39,81 +35,79 @@ fn artifact_name(job: &str) -> String {
     format!("dx-reports-{job}-${{{{ matrix.platform }}}}{SUFFIX}")
 }
 
-#[test]
-fn each_reporting_job_passes_exactly_its_report_kinds() {
-    for (job, kinds) in REPORTING {
-        let dx_steps: Vec<String> = steps(WORKFLOW, job)
-            .iter()
-            .filter_map(|step| step["run"].as_str())
-            .filter(|run| run.contains("@rules_dx//:dx -- "))
-            .filter(|run| run.contains("--report"))
-            .map(str::to_owned)
-            .collect();
-        assert_eq!(dx_steps.len(), 1, "{job} needs one dx step with reports");
-        let run = &dx_steps[0];
-        assert!(run.contains(&format!("dx-reports/{job}\"")), "{job}: {run}");
-        let mut found: Vec<String> = run
-            .split("--report \"")
-            .skip(1)
-            .map(|rest| rest.split('=').next().unwrap_or("").to_owned())
-            .collect();
-        found.sort();
-        let mut expected: Vec<String> = kinds.iter().map(|kind| (*kind).to_owned()).collect();
-        expected.sort();
-        assert_eq!(found, expected, "{job} requests the wrong report kinds");
-        assert!(!run.contains("${{"), "{job}: no expressions in run blocks");
-    }
+fn upload_of(id: &str) -> (usize, Value) {
+    let name = artifact_name(id);
+    let found: Vec<(usize, Value)> = uploads(JOB)
+        .into_iter()
+        .filter(|(_, step)| step["with"]["name"].as_str() == Some(name.as_str()))
+        .collect();
+    assert_eq!(found.len(), 1, "{id} needs exactly one upload step");
+    found[0].clone()
 }
 
 #[test]
-fn each_reporting_job_uploads_once_after_dx_and_before_the_cache_steps() {
-    for (job, _) in REPORTING {
-        let found = uploads(job);
-        assert_eq!(found.len(), 1, "{job} needs exactly one upload step");
-        let (at, step) = &found[0];
-        assert_eq!(step["uses"].as_str(), Some(UPLOAD_PIN), "{job} pin");
-        assert_eq!(step["if"].as_str(), Some("${{ always() }}"), "{job} if");
-        assert_eq!(
-            step["with"]["name"].as_str(),
-            Some(artifact_name(job).as_str())
-        );
+fn the_run_step_writes_every_report_under_its_check_directory() {
+    let run = steps(WORKFLOW, JOB)
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .find(|run| run.contains("@rules_dx//:dx -- \"${args[@]}\""))
+        .expect("run step")
+        .to_owned();
+    assert!(
+        run.contains("reports=\"${RUNNER_TEMP:-/tmp}/dx-reports/$id\""),
+        "{run}"
+    );
+    assert!(
+        run.contains("--report \"${token%%=*}=$reports/${token#*=}\""),
+        "{run}"
+    );
+    assert!(!run.contains("${{"), "no expressions in run blocks");
+}
+
+#[test]
+fn each_reporting_check_uploads_once_after_dx_and_before_the_cache_steps() {
+    let all = steps(WORKFLOW, JOB);
+    let dx_at = all
+        .iter()
+        .position(|s| {
+            s["run"]
+                .as_str()
+                .is_some_and(|r| r.contains("@rules_dx//:dx -- \"${args[@]}\""))
+        })
+        .expect("dx step");
+    let first_cache = all
+        .iter()
+        .position(|s| {
+            s["name"].as_str().is_some_and(|n| {
+                n.starts_with("Prune the Bazel repository cache")
+                    || n.starts_with("Save the Bazel repository cache")
+            })
+        })
+        .unwrap_or(all.len());
+    for id in REPORTING {
+        let (at, step) = upload_of(id);
+        assert_eq!(step["uses"].as_str(), Some(UPLOAD_PIN), "{id} pin");
+        let guard = step["if"].as_str().unwrap_or("");
+        assert!(guard.starts_with("${{ always() && "), "{id} if: {guard}");
         assert_eq!(
             step["with"]["path"].as_str(),
-            Some(format!("${{{{ runner.temp }}}}/dx-reports/{job}").as_str())
+            Some(format!("${{{{ runner.temp }}}}/dx-reports/{id}").as_str())
         );
         assert_eq!(step["with"]["if-no-files-found"].as_str(), Some("warn"));
         assert_eq!(step["with"]["retention-days"].as_u64(), Some(14));
         assert!(
             step["with"]["overwrite"].is_null(),
-            "{job} must not overwrite"
+            "{id} must not overwrite"
         );
-        let all = steps(WORKFLOW, job);
-        let dx_at = all
-            .iter()
-            .position(|s| {
-                s["run"]
-                    .as_str()
-                    .is_some_and(|r| r.contains("@rules_dx//:dx -- ") && r.contains("--report"))
-            })
-            .expect("dx step");
-        assert!(dx_at < *at, "{job} uploads before dx runs");
-        let first_cache = all
-            .iter()
-            .position(|s| {
-                s["name"].as_str().is_some_and(|n| {
-                    n.starts_with("Prune the Bazel repository cache")
-                        || n.starts_with("Save the Bazel repository cache")
-                })
-            })
-            .unwrap_or(all.len());
-        assert!(*at < first_cache, "{job} uploads after the cache steps");
+        assert!(dx_at < at, "{id} uploads before dx runs");
+        assert!(at < first_cache, "{id} uploads after the cache steps");
     }
 }
 
 #[test]
 fn upload_names_are_unique_and_never_the_advisory_name() {
     let mut names = Vec::new();
-    for (job, _) in REPORTING {
+    for job in REPORTING {
         let name = artifact_name(job);
         assert!(name.contains("matrix.platform") && name.ends_with(SUFFIX));
         assert!(!name.starts_with("advisory-snapshots"));
@@ -135,7 +129,7 @@ fn unreported_jobs_upload_no_reports() {
 #[test]
 fn docs_name_every_artifact_and_the_download_command() {
     let docs = read_runfiles(DOCS);
-    for (job, _) in REPORTING {
+    for job in REPORTING {
         assert!(
             docs.contains(&format!("dx-reports-{job}-<platform>")),
             "{DOCS} omits the {job} artifact"

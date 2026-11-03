@@ -94,9 +94,21 @@ pub const MATRIX_CHECKS: [MatrixCheck; 7] = [
     },
 ];
 
-pub const CACHE_SAVERS: [&str; 3] = ["coverage", "test", "build"];
+pub const CACHE_SAVERS: [&str; 1] = ["checks"];
+const COVERAGE_TIMEOUT: u32 = 120;
+const MAX_TIMEOUT: u32 = 360;
 
 const SNAPSHOT_ARTIFACT: &str = "advisory-snapshots";
+
+fn check_line(check: &MatrixCheck) -> String {
+    format!(
+        "{}|{}|{}|{}",
+        check.id,
+        check.args.join(" "),
+        check.reports.join(" "),
+        check.passthrough
+    )
+}
 
 pub struct Validated {
     pub outputs: BTreeMap<String, String>,
@@ -475,11 +487,21 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
         .map(|(name, runner)| format!("\"{name}\":\"{runner}\""))
         .collect();
     let platform_list: Vec<&str> = platforms.iter().map(String::as_str).collect();
-    let cache_saver = CACHE_SAVERS
+    let coverage_on = !disabled.iter().any(|id| id == "coverage");
+    let mut timeout: u32 = enabled.iter().map(|check| check.timeout).sum();
+    if coverage_on {
+        timeout += COVERAGE_TIMEOUT;
+    }
+    let cache_saver = if !enabled.is_empty() || coverage_on {
+        CACHE_SAVERS[0]
+    } else {
+        ""
+    };
+    let check_lines = enabled
         .iter()
-        .find(|job| !disabled.iter().any(|id| id == **job))
-        .copied()
-        .unwrap_or_default();
+        .map(|check| check_line(check))
+        .collect::<Vec<_>>()
+        .join("\n");
     let suffix = if invocation.is_empty() {
         String::new()
     } else {
@@ -499,6 +521,11 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
                 .collect::<Vec<_>>()
                 .join(",")
         ),
+    );
+    outputs.insert("check_lines".to_string(), check_lines);
+    outputs.insert(
+        "checks_timeout".to_string(),
+        timeout.min(MAX_TIMEOUT).to_string(),
     );
     outputs.insert("cache_saver".to_string(), cache_saver.to_string());
     outputs.insert("min_coverage".to_string(), coverage.clone());

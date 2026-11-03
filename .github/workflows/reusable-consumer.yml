@@ -66,6 +66,8 @@ jobs:
       contents: read
     outputs:
       cache_saver: ${{ steps.validate.outputs.cache_saver }}
+      check_lines: ${{ steps.validate.outputs.check_lines }}
+      checks_timeout: ${{ steps.validate.outputs.checks_timeout }}
       disabled: ${{ steps.validate.outputs.disabled }}
       min_changed_line_coverage: ${{ steps.validate.outputs.min_changed_line_coverage }}
       min_coverage: ${{ steps.validate.outputs.min_coverage }}
@@ -116,40 +118,44 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:input_validation_bin
   checks:
-    name: ${{ matrix.check.id }} (${{ matrix.platform }})
+    name: checks (${{ matrix.platform }})
     needs: [validate]
-    if: ${{ needs.validate.outputs.checks != '[]' }}
-    timeout-minutes: ${{ matrix.check.timeout }}
+    if: ${{ needs.validate.outputs.checks != '[]' || !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+    timeout-minutes: ${{ fromJSON(needs.validate.outputs.checks_timeout) }}
     defaults:
       run:
         shell: bash
     strategy:
       fail-fast: false
       matrix:
-        check: ${{ fromJSON(needs.validate.outputs.checks) }}
         platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
+      pull-requests: write
     env:
-      # Target scope of this cell: lint, typecheck, format, test and build run --affected on pull_request only.
-      DX_SCOPE: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr && contains(fromJSON('["lint","typecheck","format","test","build"]'), matrix.check.id) && '--affected' || '//...' }}
+      DX_AFFECTED: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-          fetch-depth: ${{ env.DX_SCOPE == '--affected' && '2' || '1' }}
+          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || env.DX_AFFECTED == 'true' && '2' || '1' }}
       - name: Pin the pull request base for --affected
-        if: ${{ env.DX_SCOPE == '--affected' }}
+        if: ${{ env.DX_AFFECTED == 'true' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
+          DX_PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
+          base='HEAD^1'
           if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
-            echo "::warning::checkout is not a merge commit; falling back to //..."
-            echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
-            exit 0
+            if [ "$DX_AFFECTED" = "true" ]; then
+              echo "::warning::checkout is not a merge commit; falling back to //..."
+              echo "DX_AFFECTED=false" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            base="$DX_PR_BASE"
           fi
-          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" 'HEAD^1'
+          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" "$base"
           git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
           echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
@@ -171,44 +177,214 @@ jobs:
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == matrix.check.id && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Run ${{ matrix.check.id }}
+      - name: Run the checks
         env:
-          DX_CHECK: ${{ matrix.check.id }}
-          DX_ARGS: ${{ join(matrix.check.args, ' ') }}
-          DX_REPORTS: ${{ join(matrix.check.reports, ' ') }}
-          DX_PASSTHROUGH: ${{ matrix.check.passthrough }}
+          DX_CHECK_LINES: ${{ needs.validate.outputs.check_lines }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/$DX_CHECK"
-          mkdir -p "$reports"
-          read -ra args <<< "$DX_ARGS"
-          read -ra tokens <<< "$DX_REPORTS"
-          for token in "${tokens[@]}"; do
-            args+=(--report "${token%%=*}=$reports/${token#*=}")
-          done
-          args+=("$DX_SCOPE")
-          if [ "$DX_PASSTHROUGH" = "true" ]; then
-            args+=(-- "$@")
-          fi
-          bazel run "$@" @rules_dx//:dx -- "${args[@]}"
-      - name: Upload the ${{ matrix.check.id }} reports
-        if: ${{ always() && join(matrix.check.reports, '') != '' }}
+          failed=0
+          while IFS='|' read -r id dx_args dx_reports passthrough; do
+            [ -n "$id" ] || continue
+            scope='//...'
+            case "$id" in
+              lint|typecheck|format|test|build)
+                if [ "$DX_AFFECTED" = "true" ]; then scope='--affected'; fi
+                ;;
+            esac
+            reports="${RUNNER_TEMP:-/tmp}/dx-reports/$id"
+            mkdir -p "$reports"
+            read -ra args <<< "$dx_args"
+            read -ra tokens <<< "$dx_reports"
+            for token in "${tokens[@]}"; do
+              args+=(--report "${token%%=*}=$reports/${token#*=}")
+            done
+            args+=("$scope")
+            if [ "$passthrough" = "true" ]; then
+              args+=(-- "$@")
+            fi
+            echo "::group::$id"
+            rc=0
+            bazel run "$@" @rules_dx//:dx -- "${args[@]}" < /dev/null || rc=$?
+            echo "::endgroup::"
+            if [ "$rc" -eq 0 ]; then
+              echo "$id: passed (exit 0)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "$id: failed (exit $rc)" >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+            fi
+          done <<< "$DX_CHECK_LINES"
+          exit "$failed"
+      - name: Upload the lint reports
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"lint"') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: dx-reports-${{ matrix.check.id }}-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
-          path: ${{ runner.temp }}/dx-reports/${{ matrix.check.id }}
+          name: dx-reports-lint-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/lint
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload the typecheck reports
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"typecheck"') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-typecheck-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/typecheck
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload the test reports
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"test"') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-test-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/test
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload the build reports
+        if: ${{ always() && contains(needs.validate.outputs.checks, '"id":"build"') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-build-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/build
           if-no-files-found: warn
           retention-days: 14
       - name: Prove dx run works noninteractively in CI
-        if: ${{ matrix.check.id == 'build' }}
+        if: ${{ !cancelled() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
+      - name: Run coverage with optional threshold
+        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        env:
+          DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
+          DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
+          DX_EVENT: ${{ github.event_name }}
+        run: |
+          set +e
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          scope=//...
+          if [ "$DX_AFFECTED" = true ] && [ -z "$DX_MIN_COVERAGE" ] && [ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
+            scope=--affected
+          fi
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/coverage"
+          mkdir -p "$reports"
+          extra=(--report "failures=$reports/failures.json" --report "results=$reports/results.json")
+          # Bash array keeps an empty threshold at zero words.
+          if [ -n "$DX_MIN_COVERAGE" ]; then
+            extra+=(--min-coverage "$DX_MIN_COVERAGE")
+          fi
+          if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
+            if [ "$DX_EVENT" = "pull_request" ]; then
+              extra+=(--min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE")
+            else
+              echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
+              echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
+            fi
+          fi
+          bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" "$scope" -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
+          rc=${PIPESTATUS[0]}
+          echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
+          exit "$rc"
+      - name: Upload the coverage reports
+        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-coverage-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/coverage
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Check changed-line coverage
+        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && needs.validate.outputs.min_changed_line_coverage != '' && github.event_name == 'pull_request' }}
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          grep -E -e '^dx: (changed-line coverage |changed_line_)' "${RUNNER_TEMP}/dx_coverage.log" > "${RUNNER_TEMP}/dx_changed_lines.txt" 2>/dev/null || true
+          if grep -q -e '^dx: changed_line_coverage_' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
+            rc=1
+          elif grep -q -e '^dx: changed-line coverage ' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
+            rc=0
+          else
+            rc="not run"
+          fi
+          echo "$rc" > "${RUNNER_TEMP}/dx_changed_lines.rc"
+          {
+            echo "## Changed-line coverage - ${PLATFORM}"
+            echo '```text'
+            cat "${RUNNER_TEMP}/dx_changed_lines.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Render first-party coverage summary (per-cell, no union)
+        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        env:
+          DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          cell="coverage ${PLATFORM}"
+          dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
+          dx_line="$(grep -E -e '^dx: (coverage .*lines.*meets minimum|coverage_below_minimum)' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
+          sources_lines="$(grep -E -e '^dx: (coverage sources |coverage_sources_incomplete: )' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 200 || true)"
+          if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
+            changed_rc="not configured"
+          else
+            changed_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.rc 2>/dev/null || echo "not run")"
+          fi
+          changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | tail -n 1 || true)"
+          status="PASS"
+          if [[ "$dx_rc" != "0" ]]; then status="FAIL"; fi
+          if [[ "$changed_rc" =~ ^[0-9]+$ && "$changed_rc" != "0" ]]; then status="FAIL"; fi
+          {
+            echo "<!-- dx-coverage-summary: $cell -->"
+            echo "## Coverage summary — $cell — $status"
+            echo ""
+            echo "Analyzed revision: \`${GITHUB_SHA}\` | Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | Cell: \`$cell\`."
+            echo ""
+            if [[ -n "$dx_line" ]]; then echo "$dx_line"; echo ""; fi
+            if [[ -n "$sources_lines" ]]; then echo '```text'; echo "$sources_lines"; echo '```'; echo ""; fi
+            echo "Gate exit: $dx_rc (comment never changes this outcome)."
+            echo ""
+            echo "Changed-line gate exit: $changed_rc"
+            echo ""
+            if [[ -n "$changed_line" ]]; then echo "$changed_line"; echo ""; fi
+            echo "LCOV: Bazel-owned combined report for this cell (see workflow run ${GITHUB_RUN_ID})."
+            echo ""
+            echo "Scope: per-cell exact counts only; no cross-cell union, no averaged percentages, no rounding up. Codecov stays opt-in only, never required."
+            echo ""
+            echo "Findings outside the diff stay in counts only; no invented review locations."
+          } > "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
+          cat "${RUNNER_TEMP:-/tmp}"/coverage_comment.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish PR summary comment (dedup marker, fork-safe)
+        if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PLATFORM: ${{ matrix.platform }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh --version
+          jq --version
+          gh --version | head -n 1 | grep -qE '^gh version ([2-9]|[1-9][0-9])\.'
+          jq --version | grep -qE '^jq-(1\.([6-9]|[0-9]{2,})|[2-9])'
+          head_repo="${HEAD_REPO}"
+          base_repo="${GITHUB_REPOSITORY}"
+          if [[ "$head_repo" != "$base_repo" ]]; then
+            echo "Fork PR detected: step-summary only, no PR comment." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          marker="dx-coverage-summary: coverage ${PLATFORM}"
+          pr="${PR_NUMBER}"
+          existing="$(gh api --paginate "repos/$base_repo/issues/$pr/comments?per_page=100" --jq ".[] | select(.body | contains(\"$marker\")) | .id" | tail -n 1 || true)"
+          if [[ -n "$existing" ]]; then
+            jq -Rs '{body: .}' "${RUNNER_TEMP:-/tmp}"/coverage_comment.md > "${RUNNER_TEMP:-/tmp}"/coverage_payload.json
+            gh api -X PATCH "repos/$base_repo/issues/comments/$existing" --input "${RUNNER_TEMP:-/tmp}"/coverage_payload.json --jq .id
+          else
+            gh pr comment "$pr" --body-file "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
+          fi
       - name: Record the runner image
         if: always()
         shell: bash
@@ -216,7 +392,7 @@ jobs:
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
       - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == matrix.check.id && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         env:
           DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
@@ -238,7 +414,7 @@ jobs:
           size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
           echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == matrix.check.id && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
@@ -352,231 +528,9 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- security //...
-  coverage:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
-    timeout-minutes: 120
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-      pull-requests: write
-    env:
-      DX_SCOPE: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr && needs.validate.outputs.min_coverage == '' && needs.validate.outputs.min_changed_line_coverage == '' && '--affected' || '//...' }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || env.DX_SCOPE == '--affected' && '2' || '1' }}
-      - name: Pin the pull request base for --affected
-        if: ${{ env.DX_SCOPE == '--affected' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
-        env:
-          GITHUB_BASE_REF: ${{ github.base_ref }}
-          DX_PR_BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          base='HEAD^1'
-          if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
-            if [ "$DX_SCOPE" = "--affected" ]; then
-              echo "::warning::checkout is not a merge commit; falling back to //..."
-              echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
-              exit 0
-            fi
-            base="$DX_PR_BASE"
-          fi
-          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" "$base"
-          git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
-          echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Run coverage with optional threshold
-        env:
-          DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
-          DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
-          DX_EVENT: ${{ github.event_name }}
-        run: |
-          set +e
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/coverage"
-          mkdir -p "$reports"
-          extra=(--report "failures=$reports/failures.json" --report "results=$reports/results.json")
-          # Bash array keeps an empty threshold at zero words.
-          if [ -n "$DX_MIN_COVERAGE" ]; then
-            extra+=(--min-coverage "$DX_MIN_COVERAGE")
-          fi
-          if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
-            if [ "$DX_EVENT" = "pull_request" ]; then
-              extra+=(--min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE")
-            else
-              echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
-              echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
-            fi
-          fi
-          bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" "$DX_SCOPE" -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
-          rc=${PIPESTATUS[0]}
-          echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
-          exit "$rc"
-      - name: Upload the coverage reports
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dx-reports-coverage-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
-          path: ${{ runner.temp }}/dx-reports/coverage
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Check changed-line coverage
-        if: ${{ always() && needs.validate.outputs.min_changed_line_coverage != '' && github.event_name == 'pull_request' }}
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          grep -E -e '^dx: (changed-line coverage |changed_line_)' "${RUNNER_TEMP}/dx_coverage.log" > "${RUNNER_TEMP}/dx_changed_lines.txt" 2>/dev/null || true
-          if grep -q -e '^dx: changed_line_coverage_' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
-            rc=1
-          elif grep -q -e '^dx: changed-line coverage ' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
-            rc=0
-          else
-            rc="not run"
-          fi
-          echo "$rc" > "${RUNNER_TEMP}/dx_changed_lines.rc"
-          {
-            echo "## Changed-line coverage - ${PLATFORM}"
-            echo '```text'
-            cat "${RUNNER_TEMP}/dx_changed_lines.txt"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Render first-party coverage summary (per-cell, no union)
-        # Presents this cell's counts; the gate above stays authoritative.
-        if: always()
-        env:
-          DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          cell="coverage ${PLATFORM}"
-          dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
-          dx_line="$(grep -E -e '^dx: (coverage .*lines.*meets minimum|coverage_below_minimum)' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
-          sources_lines="$(grep -E -e '^dx: (coverage sources |coverage_sources_incomplete: )' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 200 || true)"
-          if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
-            changed_rc="not configured"
-          else
-            changed_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.rc 2>/dev/null || echo "not run")"
-          fi
-          changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | tail -n 1 || true)"
-          status="PASS"
-          if [[ "$dx_rc" != "0" ]]; then status="FAIL"; fi
-          if [[ "$changed_rc" =~ ^[0-9]+$ && "$changed_rc" != "0" ]]; then status="FAIL"; fi
-          {
-            echo "<!-- dx-coverage-summary: $cell -->"
-            echo "## Coverage summary — $cell — $status"
-            echo ""
-            echo "Analyzed revision: \`${GITHUB_SHA}\` | Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} | Cell: \`$cell\`."
-            echo ""
-            if [[ -n "$dx_line" ]]; then echo "$dx_line"; echo ""; fi
-            if [[ -n "$sources_lines" ]]; then echo '```text'; echo "$sources_lines"; echo '```'; echo ""; fi
-            echo "Gate exit: $dx_rc (comment never changes this outcome)."
-            echo ""
-            echo "Changed-line gate exit: $changed_rc"
-            echo ""
-            if [[ -n "$changed_line" ]]; then echo "$changed_line"; echo ""; fi
-            echo "LCOV: Bazel-owned combined report for this cell (see workflow run ${GITHUB_RUN_ID})."
-            echo ""
-            echo "Scope: per-cell exact counts only; no cross-cell union, no averaged percentages, no rounding up. Codecov stays opt-in only, never required."
-            echo ""
-            echo "Findings outside the diff stay in counts only; no invented review locations."
-          } > "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
-          cat "${RUNNER_TEMP:-/tmp}"/coverage_comment.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish PR summary comment (dedup marker, fork-safe)
-        # One comment per PR per cell marker; forks skip.
-        if: always() && github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          PLATFORM: ${{ matrix.platform }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          gh --version
-          jq --version
-          gh --version | head -n 1 | grep -qE '^gh version ([2-9]|[1-9][0-9])\.'
-          jq --version | grep -qE '^jq-(1\.([6-9]|[0-9]{2,})|[2-9])'
-          head_repo="${HEAD_REPO}"
-          base_repo="${GITHUB_REPOSITORY}"
-          if [[ "$head_repo" != "$base_repo" ]]; then
-            echo "Fork PR detected: step-summary only, no PR comment." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          marker="dx-coverage-summary: coverage ${PLATFORM}"
-          pr="${PR_NUMBER}"
-          existing="$(gh api --paginate "repos/$base_repo/issues/$pr/comments?per_page=100" --jq ".[] | select(.body | contains(\"$marker\")) | .id" | tail -n 1 || true)"
-          if [[ -n "$existing" ]]; then
-            jq -Rs '{body: .}' "${RUNNER_TEMP:-/tmp}"/coverage_comment.md > "${RUNNER_TEMP:-/tmp}"/coverage_payload.json
-            gh api -X PATCH "repos/$base_repo/issues/comments/$existing" --input "${RUNNER_TEMP:-/tmp}"/coverage_payload.json --jq .id
-          else
-            gh pr comment "$pr" --body-file "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
-          fi
-      - name: Record the runner image
-        if: always()
-        shell: bash
-        run: |
-          line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
-          echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
-      - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        env:
-          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
-        run: |
-          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
-          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
-          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
-            exit 0
-          fi
-          pruned=0
-          for entry in "$DX_REPO_CACHE"/*/*/; do
-            entry="${entry%/}"
-            [ -d "$entry" ] || continue
-            if [ ! "$entry/file" -nt "$stamp" ]; then
-              rm -rf "$entry"
-              pruned=$((pruned + 1))
-            fi
-          done
-          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
-          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   dx-ci:
     name: dx-ci (aggregate)
-    needs: [validate, checks, security-audit, advisory-snapshots, coverage]
+    needs: [validate, checks, security-audit, advisory-snapshots]
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -589,7 +543,7 @@ jobs:
           python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
           python3 - <<'EOF'
           import json, os, sys
-          required = ["checks", "security-audit", "advisory-snapshots", "coverage"]
+          required = ["checks", "security-audit", "advisory-snapshots"]
           needs = json.loads(os.environ["NEEDS"])
           disabled = {name for name in os.environ["DISABLED"].split(",") if name}
           if "security-audit" in disabled:
@@ -603,7 +557,7 @@ jobs:
           if listed == "":
               print("dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit")
               sys.exit(1)
-          if listed == "[]":
+          if listed == "[]" and "coverage" in disabled:
               disabled.add("checks")
           checks = {name: result for name, result in results.items() if name != "validate"}
           missing = sorted(name for name in required if name not in results)

@@ -10,10 +10,10 @@ relocatable Perl 5.40 that rules_perl pins, with nothing installed on the host.
 | `cli` | `stockctl` command line and a launcher test |
 
 ```sh
-bazel build //examples/perl-app/...
-bazel test //examples/perl-app/...
-bazel run //examples/perl-app/cli:stockctl -- "add 2 dozen pears" "count pears"
-bazel test //examples/perl-app/... --//examples/perl-app/cli:limit=144
+bazel build //perl/tests/fixtures/perl-app/...
+bazel test //perl/tests/fixtures/perl-app/...
+bazel run //perl/tests/fixtures/perl-app/cli:stockctl -- "add 2 dozen pears" "count pears"
+bazel test //perl/tests/fixtures/perl-app/... --//perl/tests/fixtures/perl-app/cli:limit=144
 ```
 
 The run prints `24`, `24` and the report `name,units` / `pears,24`. A command
@@ -24,7 +24,7 @@ per-item limit through `select()` on `env`, and the launcher test follows it.
 lock is `third_party/cpanfile.snapshot.lock.json`, and every distribution
 carries a sha256. `Text::CSV` runs on its pure-Perl `Text::CSV_PP` backend. To
 change the pin, edit `third_party/cpanfile` and run
-`bazel run //examples/perl-app/third_party:compiler`.
+`bazel run //perl/tests/fixtures/perl-app/third_party:compiler`.
 
 | Platform | Status |
 | --- | --- |

@@ -32,8 +32,8 @@ perl_binary(
         "//conditions:default": {"STOCK_LIMIT": "60"},
     }),
     deps = [
-        "//examples/perl-app/inventory",
-        "//examples/perl-app/report",
+        "//perl/tests/fixtures/perl-app/inventory",
+        "//perl/tests/fixtures/perl-app/report",
     ],
 )
 

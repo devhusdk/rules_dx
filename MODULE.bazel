@@ -607,7 +607,7 @@ single_version_override(
 cpan = use_extension("//perl/cpan:extensions.bzl", "cpan_dev", dev_dependency = True)
 cpan.install(
     name = "perl_app_cpan",
-    lock = "//examples/perl-app/third_party:cpanfile.snapshot.lock.json",
+    lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 

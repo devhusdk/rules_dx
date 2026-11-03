@@ -3,34 +3,35 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
     glob([
-        "data/*",
         "lib/**",
         "t/*",
     ]) + ["BUILD.bazel"],
     visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
-APPS = ["//examples/perl-app:__subpackages__"]
+APPS = ["//perl/tests/fixtures/perl-app:__subpackages__"]
 
 perl_library(
-    name = "report",
-    srcs = ["lib/Report.pm"],
-    data = ["data/units.csv"],
-    visibility = APPS,
-    deps = [
-        "@perl_cpan//:Text-CSV",
-        "@rules_perl//perl/runfiles",
+    name = "inventory",
+    srcs = [
+        "lib/Inventory/Item.pm",
+        "lib/Inventory/Ledger.pm",
     ],
+    visibility = APPS,
 )
 
 perl_test(
-    name = "report_test",
+    name = "item_test",
     size = "small",
-    srcs = ["t/report.t"],
-    deps = [
-        ":report",
-        "@perl_cpan//:Text-CSV",
-    ],
+    srcs = ["t/item.t"],
+    deps = [":inventory"],
+)
+
+perl_test(
+    name = "ledger_test",
+    size = "small",
+    srcs = ["t/ledger.t"],
+    deps = [":inventory"],
 )
 
 real_source_target(

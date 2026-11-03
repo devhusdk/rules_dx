@@ -9,7 +9,7 @@ rules_perl registers the toolchains, so there is no toolchain setup in
 ## Start
 
 Run `dx init --apply demo-app` and add sources. The language is wired when
-its sources appear. See `examples/perl-app` for a working app.
+its sources appear.
 
 ## Rules
 

@@ -6,7 +6,7 @@ use warnings;
 use Runfiles;
 use Text::CSV;
 
-my $UNITS_CSV = '_main/examples/perl-app/report/data/units.csv';
+my $UNITS_CSV = '_main/perl/tests/fixtures/perl-app/report/data/units.csv';
 
 sub units_table {
     my $path = Runfiles->create()->rlocation($UNITS_CSV)

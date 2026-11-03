@@ -7,3 +7,4 @@ with the commands to run.
 - [docs-ci](docs-ci/) GitHub Actions caller for the docs workflow.
 - [gitlab-ci](gitlab-ci/) GitLab CI starter pipeline, without the GitHub workflow features listed in its README.
 - [adopt-polyglot](adopt-polyglot/) a Python, Rust, JS/TS and C++ tree adopted with `dx generate`.
+- [iac](iac/) a Terraform module, a CloudFormation template and a Bicep module.

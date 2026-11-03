@@ -327,19 +327,15 @@ fn consumer_new_is_removed_and_points_at_init() {
 #[test]
 fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     let apply = read("DX_INIT_APPLY");
-    let wrote: Vec<&str> = apply
-        .lines()
-        .filter(|line| line.starts_with("wrote "))
-        .collect();
-    assert_eq!(
-        wrote.len(),
-        25,
-        "init --apply writes the essentials, launcher and override files: {apply}"
-    );
     for file in [
         ".bazelignore",
         "tools/dx",
         "third_party/rules_dx/rules_dx.MODULE.bazel",
+        ".envrc",
+        ".vscode/settings.json",
+        ".github/workflows/ci.yml",
+        ".claude/settings.json",
+        "AGENTS.md",
     ] {
         assert!(
             apply.contains(&format!("wrote {file}\n")),
@@ -350,19 +346,6 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         !apply.contains("wrote MODULE.bazel\n"),
         "init leaves a non-empty tree without MODULE.bazel: {apply}"
     );
-    for file in [
-        ".envrc",
-        ".vscode/settings.json",
-        ".github/workflows/ci.yml",
-        ".claude/settings.json",
-        "AGENTS.md",
-        ".dx/init.toml",
-    ] {
-        assert!(
-            !apply.contains(&format!("wrote {file}\n")),
-            "init without --with skips {file}: {apply}"
-        );
-    }
     assert!(
         apply.contains("wrote MODULE.bazel.snippet"),
         "init scaffolds the consumer setup: {apply}"

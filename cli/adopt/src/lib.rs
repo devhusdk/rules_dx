@@ -15,7 +15,6 @@ pub mod dependency_sets;
 pub mod error;
 pub mod git_changes;
 pub mod init_dir;
-pub mod init_parts;
 pub mod launcher;
 pub mod load_graph;
 pub mod overrides;
@@ -37,10 +36,6 @@ pub use git_changes::{
 pub use init_dir::{
     init_dir_module, is_fresh_dir, plan_fresh_files, validate_init_dir, DEFAULT_INIT_MODULE,
     FRESH_BAZEL_VERSION,
-};
-pub use init_parts::{
-    merge_init_record, read_init_record, InitPart, InitParts, InitRecord, INIT_PART_NAMES,
-    INIT_RECORD_REL,
 };
 pub use launcher::{
     launcher_version, plan_launcher_files, refresh_launcher_files, release_pins,

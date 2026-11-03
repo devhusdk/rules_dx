@@ -4,7 +4,6 @@
 bazel run @rules_dx//:dx -- init
 bazel run @rules_dx//:dx -- init --apply
 bazel run @rules_dx//:dx -- init --apply my-app
-bazel run @rules_dx//:dx -- init --apply --with=vscode,agents
 ```
 
 ```text
@@ -14,7 +13,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [dir]
+dx init [--apply] [--rust-target-triple=<triples>] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -33,46 +32,18 @@ before any file is written.
 Writes each file only when it is missing. The exceptions are the marked
 block in `AGENTS.md`, stale launchers and stale Bazel preset layers (see below).
 
-By default it writes only the essentials: `.dx/version`, `.gitignore`,
-`.bazelignore`, `MODULE.bazel.snippet`, the launcher (`tools/dx` and
-`tools/dx.cmd`), the [rules_dx overrides](#rules_dx-overrides) and the
-[Bazel preset](#bazel-preset). Add optional
-parts with `--with=<parts>`, a comma-separated list that can repeat, or all of
-them with `--full`:
-
-| Part | Writes |
-| --- | --- |
-| `envrc` | `.envrc` |
-| `devcontainer` | `.devcontainer/devcontainer.json` |
-| `vscode` | `.vscode/settings.json`, `.vscode/extensions.json` |
-| `github-ci` | `.github/workflows/ci.yml` |
-| `agents` | `.claude/settings.json`, `.codex/hooks.json`, `.gemini/settings.json`, `AGENTS.md`, `CLAUDE.md` |
-
-```sh
-bazel run @rules_dx//:dx -- init --apply --with=vscode,agents
-bazel run @rules_dx//:dx -- init --apply --full
-```
-
-An unknown part name is a usage error that lists the five names. `--with` and
-`--full` cannot be combined.
+It writes `.dx/version`, `.gitignore`, `.bazelignore`, `MODULE.bazel.snippet`,
+`.envrc`, `.devcontainer/devcontainer.json`, `.vscode/settings.json`,
+`.vscode/extensions.json`, `.github/workflows/ci.yml`, the launcher (`tools/dx`
+and `tools/dx.cmd`), the [rules_dx overrides](#rules_dx-overrides), the
+[Bazel preset](#bazel-preset) and the agent files below.
 
 `--rust-target-triple=<triples>` (comma-separated, repeatable) adds
 `extra_target_triples` to the Rust toolchain in `MODULE.bazel.snippet`, for
 example `--rust-target-triple=wasm32-unknown-unknown,wasm32-wasip1`. It only
-shapes the snippet; it is not recorded in `.dx/init.toml`.
+shapes the snippet.
 
-`--apply` records the parts it was given in `.dx/init.toml`. Commit it:
-
-```toml
-with = ["vscode", "agents"]
-```
-
-Apply only adds to the record; a plain `dx init --apply` keeps it and rewrites
-the recorded parts that are missing. Remove a name from the file to stop
-checking that part. No file is written when no part was ever selected. Names
-this dx does not know are kept and noted on stderr in check mode.
-
-The `agents` part writes the `dx worktree` hooks for each agent:
+Init writes the `dx worktree` hooks for each agent:
 
 | Agent | Hooks file | Hooks |
 | --- | --- | --- |
@@ -88,37 +59,31 @@ The new `.claude/settings.json` also carries a `permissions.allow` list for the
 read-only commands `tools/dx check *`, `test *`, `build *`,
 `status *` and `version *`. If a hooks file
 already exists, it is left alone and the missing hook and allow entries are printed to
-stderr. Without the `agents` part, init never reads or writes these files.
+stderr.
 
-The `github-ci` caller pins the
+The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
 `/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`, so Bazel skips
 the IDE output bases. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
-to stderr if it does not list `.dx`. The `vscode` editor settings point at the managed
+to stderr if it does not list `.dx`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they set up
 rust-analyzer with the `rules_rust` discover and flycheck targets. Both run
 with `bazel run` on separate output bases under `.dx/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--with=<parts>`, `--full`.
+Flags: `--apply`, `--rust-target-triple=<triples>`.
 Scopes: optional single directory, created by `--apply` when missing.
 
-Output: text only. Check mode looks for the essentials (`.dx/version`,
-`.gitignore`, `.bazelignore`, `MODULE.bazel.snippet`, `tools/dx`,
-`tools/dx.cmd`) plus the files of every part in `.dx/init.toml` or given with
-`--with` or `--full`. With no record and no flag it checks the essentials only,
-so a tree from an older full `dx init` is not flagged for optional files it
-dropped.
+Output: text only. Check mode looks for every file init writes.
 It also flags a missing or stale Bazel preset layer and a missing preset import. It flags a dx-written launcher whose version differs from `.dx/version`
-and an empty or non-semver `.dx/version`. With the `agents` part it flags
+and an empty or non-semver `.dx/version`. It flags
 missing `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`,
 an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
 (`.codex/hooks.json` and `.gemini/settings.json` only when they exist), and a
-`CLAUDE.md` without the `@AGENTS.md` import. An unreadable or invalid
-`.dx/init.toml` fails with `init_failed`.
+`CLAUDE.md` without the `@AGENTS.md` import.
 When nothing is missing or stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
 `dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/version ("<pin>")`
@@ -127,11 +92,10 @@ to stderr (only the parts that apply), followed by the `dx init --apply` command
 to add. An invalid pin is not fixed by apply: write the module version to
 `.dx/version`, which the message names.
 Apply checks every destination before the first write. A path whose parent is
-a file, such as a `.vscode` file with `--with=vscode`, an unreadable hooks file, or an `AGENTS.md`
-with a begin marker and no end marker under `--with=agents` fails with `init_failed` and writes
+a file, such as a `.vscode` file, an unreadable hooks file, or an `AGENTS.md`
+with a begin marker and no end marker fails with `init_failed` and writes
 nothing. Apply then writes every file and prints afterwards. It prints `wrote <path>` to stdout for each file it creates or refreshes,
-including `wrote .dx/init.toml` when the record changes,
-`wrote AGENTS.md` when the block changes, and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file
+including `wrote AGENTS.md` when the block changes, and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file
 that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to
 stderr. `--quiet` hides the stdout lines. The stderr lines still print. When a
 write fails, apply still lists the files it already wrote, then the
@@ -140,7 +104,7 @@ write fails, apply still lists the files it already wrote, then the
 Output: `--output text|json`. JSON covers the check only; see Init plan below.
 
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
-extra positionals, an unknown part, or an invalid directory, `1` check found drift or apply
+extra positionals, an unknown flag, or an invalid directory, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
 
 ## Init plan
@@ -215,7 +179,7 @@ stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 
 ## Agent commands block
 
-`dx init --apply --with=agents` writes this block between `<!-- dx:begin -->` and
+`dx init --apply` writes this block between `<!-- dx:begin -->` and
 `<!-- dx:end -->` markers in `AGENTS.md`:
 
 ```text
@@ -230,9 +194,7 @@ stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 An existing file gets the block appended. A block that is out of date is
 replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
 A begin marker without an end marker is an error and the file is left as is.
-`dx status` reports the `agents` check as `ok` with `agents part not selected`
-when `.dx/init.toml` does not list `agents` and no block or hooks file exists.
-Otherwise it reports `warn` when the block is missing or
+`dx status` reports the `agents` check as `warn` when the block is missing or
 out of date, `CLAUDE.md` does not import `AGENTS.md`, or a hook is missing from
 `.claude/settings.json`, or from `.codex/hooks.json` or `.gemini/settings.json`
 when they exist.

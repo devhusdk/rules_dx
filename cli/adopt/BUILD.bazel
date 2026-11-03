@@ -15,7 +15,6 @@ dx_rust_crate(
         "src/error.rs",
         "src/git_changes.rs",
         "src/init_dir.rs",
-        "src/init_parts.rs",
         "src/launcher.rs",
         "src/lib.rs",
         "src/load_graph.rs",

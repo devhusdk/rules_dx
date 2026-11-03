@@ -83,8 +83,6 @@ pub(crate) struct Flags {
     pub(crate) force: bool,
     pub(crate) disk: bool,
     pub(crate) bases: bool,
-    pub(crate) with: Vec<String>,
-    pub(crate) full: bool,
     pub(crate) rust_target_triple: Vec<String>,
     pub(crate) explain: bool,
     pub(crate) old_log: Option<String>,
@@ -363,28 +361,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Add optional init parts (comma-separated, repeatable).
-    InitWithFlag, {
-        #[arg(
-            long,
-            value_name = "PARTS",
-            require_equals = true,
-            value_delimiter = ',',
-            value_parser = clap::builder::PossibleValuesParser::new(dx_adopt::INIT_PART_NAMES)
-        )]
-        with: Vec<String>,
-    }
-}
-
-flag_group! {
-    /// Add every optional init part.
-    InitFullFlag, {
-        #[arg(long, conflicts_with = "with", overrides_with = "full")]
-        full: bool,
-    }
-}
-
-flag_group! {
     /// Add extra Rust target triples to the MODULE.bazel.snippet toolchain.
     InitRustTargetTripleFlag, {
         #[arg(long, value_name = "TRIPLES", require_equals = true, value_delimiter = ',')]
@@ -393,10 +369,8 @@ flag_group! {
 }
 
 composite_group! {
-    /// The flags that pick the optional init parts.
-    InitPartsArgs, {
-        with: InitWithFlag,
-        full: InitFullFlag,
+    /// The flags `dx init` takes.
+    InitArgs, {
         rust_target_triple: InitRustTargetTripleFlag,
     }
 }
@@ -923,7 +897,7 @@ command_args! {
     /// The flags `dx env` accepts.
     Env => 14, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
+    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitArgs, };
     /// The flags `dx upgrade` accepts.
     Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.
@@ -1221,21 +1195,10 @@ mod tests {
         for words in [
             vec!["build", "--debug", "--release"],
             vec!["build", "--release", "--debug"],
-            vec!["init", "--full", "--with=vscode"],
         ] {
             assert_eq!(
                 kind_of(&words),
                 clap::error::ErrorKind::ArgumentConflict,
-                "words: {words:?}"
-            );
-        }
-        for words in [
-            vec!["init", "--with=bogus"],
-            vec!["init", "--with=vscode,bogus"],
-        ] {
-            assert_eq!(
-                kind_of(&words),
-                clap::error::ErrorKind::InvalidValue,
                 "words: {words:?}"
             );
         }

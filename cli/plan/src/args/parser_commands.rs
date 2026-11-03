@@ -54,9 +54,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
-    ("--with", &["--with=vscode"], &["init"]),
-    ("--full", &["--full"], &["init"]),
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     (
         "--rust-target-triple",
         &["--rust-target-triple=wasm32-unknown-unknown"],
@@ -1053,25 +1051,10 @@ fn generate_refuses_external_labels_but_takes_main_repo_forms() {
 }
 
 #[test]
-fn init_with_and_full_select_parts() {
-    use dx_adopt::{InitPart, InitParts};
-    let parts = |words: &[&str]| parse(&strings(words)).expect("parses").init_parts;
-    let both = InitParts::NONE
-        .with(InitPart::Vscode)
-        .with(InitPart::Agents);
-    assert_eq!(parts(&["init", "--with=vscode,agents"]), both);
-    assert_eq!(parts(&["init", "--with=vscode", "--with=agents"]), both);
-    assert_eq!(parts(&["init", "--apply", "--full"]), InitParts::ALL);
-    assert_eq!(parts(&["init"]), InitParts::NONE);
-    let bogus = parse(&strings(&["init", "--with=bogus"]))
-        .expect_err("unknown part")
-        .to_string();
-    for name in dx_adopt::INIT_PART_NAMES {
-        assert!(bogus.contains(name), "{bogus}");
-    }
-    let init = super::super::grammar::advertised_flags(Command::Init);
-    for flag in ["with", "full"] {
-        assert!(init.iter().any(|name| name == flag), "{init:?}");
+fn init_rejects_with_and_full() {
+    for name in ["with", "full"] {
+        let flag = format!("--{name}");
+        assert!(parse(&strings(&["init", &flag])).is_err(), "{flag}");
     }
 }
 

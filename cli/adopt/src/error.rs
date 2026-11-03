@@ -38,13 +38,6 @@ pub enum AdoptError {
     InitInvalidModule { module: String, reason: String },
     #[error("init MODULE.bazel snippet: {detail}")]
     InitSnippet { detail: String },
-    #[error(
-        "unknown dx init part: {name} (want one of {})",
-        crate::init_parts::INIT_PART_NAMES.join(", ")
-    )]
-    InitUnknownPart { name: String },
-    #[error("read .dx/init.toml: {detail}")]
-    InitRecord { detail: String },
     #[error("scaffold path escapes the workspace root: {path}")]
     ScaffoldEscapesRoot { path: String },
     #[error("{path} is not a directory")]

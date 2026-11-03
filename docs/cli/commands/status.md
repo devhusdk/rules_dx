@@ -93,9 +93,7 @@ directory cannot be opened.
   `CLAUDE.md` does not import `AGENTS.md`, or
   `.claude/settings.json` lacks a `dx worktree` hook, or `.codex/hooks.json`
   or `.gemini/settings.json` exists and lacks the guard hook.
-  `ok` with `agents part not selected` when `.dx/init.toml` does not list
-  `agents` and none of these files exist.
-  `dx init --apply --with=agents` writes it.
+  `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --to <version> --apply`.

@@ -59,13 +59,13 @@ You get:
 - Pinned toolchains, so nobody installs tools per machine.
 - Lint, format, and typecheck locally and in [CI](docs/github-ci.md).
 - Security and license audits with `dx security` and `dx license`; see [audit and update](docs/cli/commands/audit-update.md).
-- A CI workflow from `dx init --apply --with=github-ci`; see [init](docs/cli/commands/init.md).
+- A CI workflow from `dx init --apply`; see [init](docs/cli/commands/init.md).
 - It replaces hand-picked rule-set versions, a Makefile or shell wrapper around Bazel, and CI config per language.
 
 It costs:
 
 - Bazel and its learning curve: BUILD files and `MODULE.bazel`.
-- The files `dx init` writes: essentials by default, optional parts with `--with`; see [init](docs/cli/commands/init.md).
+- The files `dx init` writes: launcher, editor, devcontainer, CI and agent files; see [init](docs/cli/commands/init.md).
 - Following the pinned rule and tool versions. You move when you run [`dx upgrade`](docs/cli/commands/upgrade.md).
 - Patched upstream overrides that `dx init --apply` writes to `third_party/rules_dx/`; see [rules_dx overrides](docs/cli/commands/init.md#rules_dx-overrides) and [patches/README.md](patches/README.md).
 

@@ -412,8 +412,9 @@ configurations appear once, with a `count`.
   `disk_full` has cause `host`: a Bazel run or query exited 36 and a disk it
   writes to has under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
   `dx worktree prune --apply`.
-  `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
-  lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
+  `status` is the exit code of the failed Bazel run or application. `excerpt` holds the first
+  `ERROR:` line Bazel printed with a few lines after it, then `...`, then the last
+  lines of stderr. Without an `ERROR:` line it holds the last lines. `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`, `run_id`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
   `failed`, `cached`, `no_cases`, and `skipped`. Each counts results (per target,

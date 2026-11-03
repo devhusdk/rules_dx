@@ -121,8 +121,9 @@ pub struct Excerpt {
     pub truncated: bool,
 }
 
-/// Keeps the last nonblank lines of a child's output within `max_lines` and `max_bytes`; `None` when it printed nothing.
+/// Keeps the first `ERROR:` line with a few lines after it and the last lines, within `max_lines` and `max_bytes`; `None` when it printed nothing.
 pub fn diagnostic_excerpt(bytes: &[u8], max_lines: usize, max_bytes: usize) -> Option<Excerpt> {
+    const HEAD_AFTER: usize = 5;
     let text = String::from_utf8_lossy(bytes);
     let lines: Vec<&str> = text
         .lines()
@@ -132,14 +133,43 @@ pub fn diagnostic_excerpt(bytes: &[u8], max_lines: usize, max_bytes: usize) -> O
     if lines.is_empty() || max_lines == 0 {
         return None;
     }
-    let mut start = lines.len().saturating_sub(max_lines);
-    let mut truncated = start > 0;
-    let joined = |from: usize| lines[from..].join("\n");
-    while start + 1 < lines.len() && joined(start).len() > max_bytes {
-        start += 1;
+    let n = lines.len();
+    let plain_start = n.saturating_sub(max_lines);
+    let split = lines
+        .iter()
+        .position(|line| line.trim_start().starts_with("ERROR:"))
+        .and_then(|e| {
+            let head_len = (HEAD_AFTER + 1).min(n - e);
+            let tail_len = max_lines.checked_sub(head_len + 1)?;
+            let tail_start = n - tail_len.min(n);
+            (n > max_lines && e + head_len < tail_start).then_some((e, head_len, tail_start))
+        });
+    let (mut head, mut tail, mut truncated) = match split {
+        Some((e, head_len, tail_start)) => (
+            lines[e..e + head_len].to_vec(),
+            lines[tail_start..].to_vec(),
+            true,
+        ),
+        None => (Vec::new(), lines[plain_start..].to_vec(), plain_start > 0),
+    };
+    let gap = split.is_some();
+    let joined = |head: &[&str], tail: &[&str]| {
+        let mut all: Vec<&str> = head.to_vec();
+        if gap && !tail.is_empty() {
+            all.push("...");
+        }
+        all.extend_from_slice(tail);
+        all.join("\n")
+    };
+    while tail.len() > usize::from(!gap) && joined(&head, &tail).len() > max_bytes {
+        tail.remove(0);
         truncated = true;
     }
-    let mut text = joined(start);
+    while head.len() > 1 && joined(&head, &tail).len() > max_bytes {
+        head.pop();
+        truncated = true;
+    }
+    let mut text = joined(&head, &tail);
     if text.len() > max_bytes {
         text = truncate_line(&text, max_bytes);
         truncated = true;
@@ -155,6 +185,57 @@ pub fn init_diagnostics_with_color(verbose: bool, color: ColorMode) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn excerpt_keeps_the_first_error_and_the_tail() {
+        let mut stderr = String::from("INFO: start\nERROR: boom\n");
+        for i in 0..50 {
+            stderr.push_str(&format!("line {i}\n"));
+        }
+        let got = diagnostic_excerpt(stderr.as_bytes(), 20, 4096).expect("excerpt");
+        let lines: Vec<&str> = got.text.lines().collect();
+        assert_eq!(lines.len(), 20);
+        assert_eq!(lines[0], "ERROR: boom");
+        assert_eq!(lines[5], "line 4");
+        assert_eq!(lines[6], "...");
+        assert_eq!(lines[19], "line 49");
+        assert!(got.truncated);
+    }
+
+    #[test]
+    fn excerpt_without_error_is_the_plain_tail() {
+        let stderr: String = (0..50).map(|i| format!("line {i}\n")).collect();
+        let got = diagnostic_excerpt(stderr.as_bytes(), 20, 4096).expect("excerpt");
+        assert_eq!(got.text.lines().count(), 20);
+        assert!(got.text.starts_with("line 30"));
+        assert!(!got.text.contains("..."));
+        assert!(got.truncated);
+    }
+
+    #[test]
+    fn excerpt_error_near_the_tail_is_the_plain_tail() {
+        let mut stderr: String = (0..30).map(|i| format!("line {i}\n")).collect();
+        stderr.push_str("ERROR: late\nafter\n");
+        let got = diagnostic_excerpt(stderr.as_bytes(), 20, 4096).expect("excerpt");
+        assert_eq!(got.text.lines().count(), 20);
+        assert!(!got.text.contains("..."));
+        assert!(got.text.contains("ERROR: late"));
+    }
+
+    #[test]
+    fn excerpt_byte_cap_keeps_the_error_line() {
+        let mut stderr = String::from("ERROR: boom\n");
+        for i in 0..50 {
+            stderr.push_str(&format!("line number {i}\n"));
+        }
+        let got = diagnostic_excerpt(stderr.as_bytes(), 20, 60).expect("excerpt");
+        assert!(got.text.len() <= 60);
+        assert!(got.text.starts_with("ERROR: boom"));
+        assert!(got.truncated);
+        let tiny = diagnostic_excerpt(stderr.as_bytes(), 20, 5).expect("excerpt");
+        assert!(tiny.text.len() <= 8);
+        assert!(tiny.truncated);
+    }
 
     #[test]
     fn diagnostics_filters_have_expected_spelling() {

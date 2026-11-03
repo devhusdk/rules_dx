@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "examples/c-app/store/store.h"
+#include "cc/tests/fixtures/c-app/store/store.h"
 
 #ifdef __cplusplus
 #error "store_test.c must compile as C"
 #endif
 
-#define STOCK "examples/c-app/store/stock.json"
+#define STOCK "cc/tests/fixtures/c-app/store/stock.json"
 
 #define CHECK(cond)                                                            \
   do {                                                                         \
@@ -48,24 +48,24 @@ int main(void) {
   store_free(&store);
   CHECK(store.count == 0 && store.items == NULL);
 
-  CHECK(store_load("examples/c-app/store/missing.json", &store, err,
+  CHECK(store_load("cc/tests/fixtures/c-app/store/missing.json", &store, err,
                    sizeof(err)) != 0);
   CHECK(strcmp(err, "cannot read stock file") == 0);
   CHECK(store.count == 0);
 
-  CHECK(store_load("examples/c-app/store/not_json.txt", &store, err,
+  CHECK(store_load("cc/tests/fixtures/c-app/store/not_json.txt", &store, err,
                    sizeof(err)) != 0);
   CHECK(strcmp(err, "stock file is not valid JSON") == 0);
 
-  CHECK(store_load("examples/c-app/store/VERSION", &store, err, sizeof(err)) !=
-        0);
+  CHECK(store_load("cc/tests/fixtures/c-app/store/VERSION", &store, err,
+                   sizeof(err)) != 0);
   CHECK(strcmp(err, "stock file has no items array") == 0);
 
   const char *malformed[] = {
-      "examples/c-app/store/malformed/wrong_type.json",
-      "examples/c-app/store/malformed/fractional.json",
-      "examples/c-app/store/malformed/negative.json",
-      "examples/c-app/store/malformed/huge.json",
+      "cc/tests/fixtures/c-app/store/malformed/wrong_type.json",
+      "cc/tests/fixtures/c-app/store/malformed/fractional.json",
+      "cc/tests/fixtures/c-app/store/malformed/negative.json",
+      "cc/tests/fixtures/c-app/store/malformed/huge.json",
   };
   for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++) {
     CHECK(store_load(malformed[i], &store, err, sizeof(err)) != 0);

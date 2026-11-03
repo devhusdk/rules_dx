@@ -294,11 +294,11 @@ fn write_consumer(root: &Path) {
         "exports_files([\n    \"cjson.BUILD.bazel\",\n    \"fmt.BUILD.bazel\",\n])\n",
     );
     copy_source(
-        "examples/c-app/cjson.BUILD.bazel",
+        "cc/tests/fixtures/c-app/cjson.BUILD.bazel",
         &root.join("third_party/cjson.BUILD.bazel"),
     );
     copy_source(
-        "examples/cpp-app/fmt.BUILD.bazel",
+        "cc/tests/fixtures/cpp-app/fmt.BUILD.bazel",
         &root.join("third_party/fmt.BUILD.bazel"),
     );
     copy_package(&rules, root, "c-app");
@@ -385,11 +385,11 @@ fn passed(tested: &Outcome, name: &str) {
 fn every_test_of_both_applications_passes() {
     let case = consumer();
     let targets = [
-        "//examples/c-app/store:store_test",
-        "//examples/c-app/store:linkage_test",
-        "//examples/c-app/cli:cli_test",
-        "//examples/cpp-app/core:menu_test",
-        "//examples/cpp-app/app:report_test",
+        "//cc/tests/fixtures/c-app/store:store_test",
+        "//cc/tests/fixtures/c-app/store:linkage_test",
+        "//cc/tests/fixtures/c-app/cli:cli_test",
+        "//cc/tests/fixtures/cpp-app/core:menu_test",
+        "//cc/tests/fixtures/cpp-app/app:report_test",
     ];
     let tested = bazel(&case, "test", &["--test_output=errors"], &targets);
     assert_eq!(tested.code, Some(0), "{}", tested.text);
@@ -401,22 +401,32 @@ fn every_test_of_both_applications_passes() {
 #[test]
 fn the_c_binary_reads_the_packaged_resource_and_reports_each_exit_code() {
     let case = consumer();
-    let listed = launch(&case, "//examples/c-app/cli:stock", &["list"], &[]);
+    let listed = launch(&case, "//cc/tests/fixtures/c-app/cli:stock", &["list"], &[]);
     assert_eq!(listed.code, Some(0), "{}", listed.text);
     assert_eq!(
         listed.stdout.lines().collect::<Vec<_>>(),
         ["bolt-m6 120 @ 35", "washer-m6 300 @ 8", "nut-m6 0 @ 22"]
     );
-    let total = launch(&case, "//examples/c-app/cli:stock", &["total"], &[]);
+    let total = launch(
+        &case,
+        "//cc/tests/fixtures/c-app/cli:stock",
+        &["total"],
+        &[],
+    );
     assert_eq!(total.stdout, "total 6600\n", "{}", total.text);
-    let unknown = launch(&case, "//examples/c-app/cli:stock", &["get", "rivet"], &[]);
+    let unknown = launch(
+        &case,
+        "//cc/tests/fixtures/c-app/cli:stock",
+        &["get", "rivet"],
+        &[],
+    );
     assert_eq!(unknown.code, Some(4), "{}", unknown.text);
     assert!(unknown.text.contains("stock: no item rivet"));
-    let usage = launch(&case, "//examples/c-app/cli:stock", &["sell"], &[]);
+    let usage = launch(&case, "//cc/tests/fixtures/c-app/cli:stock", &["sell"], &[]);
     assert_eq!(usage.code, Some(2), "{}", usage.text);
     let missing = launch(
         &case,
-        "//examples/c-app/cli:stock",
+        "//cc/tests/fixtures/c-app/cli:stock",
         &["--file", "absent.json", "list"],
         &[],
     );
@@ -427,7 +437,7 @@ fn the_c_binary_reads_the_packaged_resource_and_reports_each_exit_code() {
 #[test]
 fn the_c_binary_rejects_malformed_data_from_the_consumer_tree() {
     let case = consumer();
-    let root = case.join("examples/c-app/store/malformed");
+    let root = case.join("cc/tests/fixtures/c-app/store/malformed");
     for (file, message) in [
         ("negative.json", "stock item is malformed"),
         ("wrong_type.json", "stock item is malformed"),
@@ -435,7 +445,7 @@ fn the_c_binary_rejects_malformed_data_from_the_consumer_tree() {
         let path = root.join(file).to_string_lossy().into_owned();
         let out = launch(
             &case,
-            "//examples/c-app/cli:stock",
+            "//cc/tests/fixtures/c-app/cli:stock",
             &["--file", &path, "list"],
             &[],
         );
@@ -447,7 +457,7 @@ fn the_c_binary_rejects_malformed_data_from_the_consumer_tree() {
 #[test]
 fn the_cpp_binary_uses_templates_fmt_and_the_packaged_menu() {
     let case = consumer();
-    let out = launch(&case, "//examples/cpp-app/app:pantry", &[], &[]);
+    let out = launch(&case, "//cc/tests/fixtures/cpp-app/app:pantry", &[], &[]);
     assert_eq!(out.code, Some(0), "{}", out.text);
     assert_eq!(
         out.stdout.lines().collect::<Vec<_>>(),
@@ -463,10 +473,15 @@ fn the_cpp_binary_uses_templates_fmt_and_the_packaged_menu() {
         ]
     );
     let bad = case
-        .join("examples/cpp-app/core/bad_menu.csv")
+        .join("cc/tests/fixtures/cpp-app/core/bad_menu.csv")
         .to_string_lossy()
         .into_owned();
-    let rejected = launch(&case, "//examples/cpp-app/app:pantry", &[&bad], &[]);
+    let rejected = launch(
+        &case,
+        "//cc/tests/fixtures/cpp-app/app:pantry",
+        &[&bad],
+        &[],
+    );
     assert_eq!(rejected.code, Some(4), "{}", rejected.text);
     assert!(
         rejected.text.contains("line 2: bad price"),
@@ -486,17 +501,17 @@ fn dx_coverage_reports_c_and_cpp_lines() {
             "coverage",
             "--report",
             arg.as_str(),
-            "//examples/c-app/store:store_test",
-            "//examples/c-app/cli:cli_test",
-            "//examples/cpp-app/core:menu_test",
+            "//cc/tests/fixtures/c-app/store:store_test",
+            "//cc/tests/fixtures/c-app/cli:cli_test",
+            "//cc/tests/fixtures/cpp-app/core:menu_test",
         ],
     );
     assert!(covered.status.success(), "{}", covered.combined());
     let lcov = read(&report);
     for source in [
-        "examples/c-app/store/store.c",
-        "examples/c-app/cli/cli.c",
-        "examples/cpp-app/core/menu.cc",
+        "cc/tests/fixtures/c-app/store/store.c",
+        "cc/tests/fixtures/c-app/cli/cli.c",
+        "cc/tests/fixtures/cpp-app/core/menu.cc",
     ] {
         let record = lcov
             .split("end_of_record")
@@ -513,14 +528,14 @@ fn dx_coverage_reports_c_and_cpp_lines() {
 #[test]
 fn generated_headers_carry_the_version_file() {
     let case = consumer();
-    let c_header = build(&case, "//examples/c-app/store:store_build_h");
-    let c_version = read(&case.join("examples/c-app/store/VERSION"));
+    let c_header = build(&case, "//cc/tests/fixtures/c-app/store:store_build_h");
+    let c_version = read(&case.join("cc/tests/fixtures/c-app/store/VERSION"));
     assert_eq!(
         read(&c_header).trim(),
         format!("#define STORE_SCHEMA {}", c_version.trim())
     );
-    let cpp_header = build(&case, "//examples/cpp-app/core:build_config_h");
-    let cpp_version = read(&case.join("examples/cpp-app/core/VERSION"));
+    let cpp_header = build(&case, "//cc/tests/fixtures/cpp-app/core:build_config_h");
+    let cpp_version = read(&case.join("cc/tests/fixtures/cpp-app/core/VERSION"));
     assert_eq!(
         read(&cpp_header).trim(),
         format!(
@@ -557,16 +572,16 @@ fn c_and_cpp_sources_keep_their_own_language_and_flags() {
     let case = consumer();
     let c = compile_argv(
         &case,
-        "//examples/c-app/store:store",
-        "examples/c-app/store/store.c",
+        "//cc/tests/fixtures/c-app/store:store",
+        "cc/tests/fixtures/c-app/store/store.c",
     );
     assert_hermetic_compiler(&c, "/bin/clang \\");
     assert!(c.contains("'-std=c11'"), "{c}");
     assert!(!c.contains("-std=c++"), "{c}");
     let cpp = compile_argv(
         &case,
-        "//examples/cpp-app/core:core",
-        "examples/cpp-app/core/menu.cc",
+        "//cc/tests/fixtures/cpp-app/core:core",
+        "cc/tests/fixtures/cpp-app/core/menu.cc",
     );
     assert_hermetic_compiler(&cpp, "/bin/clang++ \\");
     assert!(cpp.contains("'-std=c++17'"), "{cpp}");
@@ -712,7 +727,7 @@ fn relocated(
 #[test]
 fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
     let case = consumer();
-    let stock = build(&case, "//examples/c-app/cli:stock");
+    let stock = build(&case, "//cc/tests/fixtures/c-app/cli:stock");
     let moved = relocated(&stock, "stock", &["total"], None);
     assert_eq!(moved.code, Some(0), "{}", moved.text);
     assert_eq!(moved.stdout, "total 6600\n");
@@ -723,7 +738,7 @@ fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
         Some(("stock.json", "\"qty\": 120", "\"qty\": 121")),
     );
     assert_eq!(edited.stdout, "total 6635\n", "{}", edited.text);
-    let pantry = build(&case, "//examples/cpp-app/app:pantry");
+    let pantry = build(&case, "//cc/tests/fixtures/cpp-app/app:pantry");
     let moved = relocated(&pantry, "pantry", &[], None);
     assert_eq!(moved.code, Some(0), "{}", moved.text);
     assert!(moved.stdout.contains("total main 3830"), "{}", moved.stdout);
@@ -739,7 +754,7 @@ fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
 #[test]
 fn format_check_passes_formatted_sources_and_flags_unformatted_ones() {
     let case = consumer();
-    let clean = dx(&case, &["format", "//examples/c-app/store:store"]);
+    let clean = dx(&case, &["format", "//cc/tests/fixtures/c-app/store:store"]);
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
     let dirty = dx(&case, &["format", "//negative:lint_probe"]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
@@ -755,7 +770,10 @@ fn format_check_passes_formatted_sources_and_flags_unformatted_ones() {
     );
 }
 
-const APPS: [&str; 2] = ["//examples/c-app/...", "//examples/cpp-app/..."];
+const APPS: [&str; 2] = [
+    "//cc/tests/fixtures/c-app/...",
+    "//cc/tests/fixtures/cpp-app/...",
+];
 
 #[test]
 fn both_applications_build_on_the_nested_server() {
@@ -792,16 +810,26 @@ fn both_applications_build_and_run_with_the_network_denied() {
     args.extend_from_slice(&APPS);
     let built = outcome(case.bazel_with(&args, &denied));
     assert_eq!(built.code, Some(0), "{}", built.text);
-    let total = launch(&case, "//examples/c-app/cli:stock", &["total"], &denied);
+    let total = launch(
+        &case,
+        "//cc/tests/fixtures/c-app/cli:stock",
+        &["total"],
+        &denied,
+    );
     assert_eq!(total.stdout, "total 6600\n", "{}", total.text);
-    let pantry = launch(&case, "//examples/cpp-app/app:pantry", &[], &denied);
+    let pantry = launch(
+        &case,
+        "//cc/tests/fixtures/cpp-app/app:pantry",
+        &[],
+        &denied,
+    );
     assert_eq!(pantry.code, Some(0), "{}", pantry.text);
 }
 
 #[test]
 fn lint_passes_the_applications_and_reports_a_clang_tidy_error() {
     let case = consumer();
-    let clean = dx(&case, &["lint", "//examples/c-app/store:store"]);
+    let clean = dx(&case, &["lint", "//cc/tests/fixtures/c-app/store:store"]);
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
     let dirty = dx(&case, &["lint", "//negative:lint_probe"]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
@@ -887,7 +915,7 @@ fn init_adopts_the_c_and_cpp_applications_without_touching_sources() {
     let listed = case.bazel(&[
         "query",
         "--color=no",
-        "//examples/c-app/cli:stock + //examples/cpp-app/app:pantry",
+        "//cc/tests/fixtures/c-app/cli:stock + //cc/tests/fixtures/cpp-app/app:pantry",
     ]);
     assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
 }
@@ -909,14 +937,14 @@ fn a_renamed_rules_repository_builds_and_runs_both_applications() {
     let built = case.bazel(&[
         "build",
         "--color=no",
-        "//examples/c-app/...",
-        "//examples/cpp-app/...",
+        "//cc/tests/fixtures/c-app/...",
+        "//cc/tests/fixtures/cpp-app/...",
     ]);
     assert_eq!(built.status.code(), Some(0), "{}", built.combined());
     let ran = case.bazel(&[
         "run",
         "--color=no",
-        "//examples/c-app/cli:stock",
+        "//cc/tests/fixtures/c-app/cli:stock",
         "--",
         "total",
     ]);

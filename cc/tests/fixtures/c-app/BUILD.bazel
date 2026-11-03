@@ -8,8 +8,8 @@ filegroup(
     name = "consumer_srcs",
     srcs = [
         "cjson.BUILD.bazel",
-        "//examples/c-app/cli:consumer_srcs",
-        "//examples/c-app/store:consumer_srcs",
+        "//cc/tests/fixtures/c-app/cli:consumer_srcs",
+        "//cc/tests/fixtures/c-app/store:consumer_srcs",
     ],
     visibility = ["//cc/tests/consumer:__pkg__"],
 )

@@ -8,9 +8,9 @@ nested_bazel_test(
     srcs = ["app_consumer_test.rs"],
     data = [
         "app_consumer_test.rs",
+        "//cc/tests/fixtures/c-app:consumer_srcs",
+        "//cc/tests/fixtures/cpp-app:consumer_srcs",
         "//cli/cli:dx",
-        "//examples/c-app:consumer_srcs",
-        "//examples/cpp-app:consumer_srcs",
     ],
     env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
     env_inherit = [

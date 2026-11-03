@@ -8,11 +8,11 @@ A multi-package pure C app. It has a stock CLI, a store library that reads JSON 
 | `cli` | `stock` binary with `list`, `total` and `get NAME` |
 
 ```sh
-bazel build //examples/c-app/...
-bazel test //examples/c-app/...
-bazel run //examples/c-app/cli:stock -- total
-bazel run //examples/c-app/cli:stock -- get bolt-m6
-bazel run //examples/c-app/cli:stock -- --file path/to/stock.json list
+bazel build //cc/tests/fixtures/c-app/...
+bazel test //cc/tests/fixtures/c-app/...
+bazel run //cc/tests/fixtures/c-app/cli:stock -- total
+bazel run //cc/tests/fixtures/c-app/cli:stock -- get bolt-m6
+bazel run //cc/tests/fixtures/c-app/cli:stock -- --file path/to/stock.json list
 ```
 
 Without `--file` or `STOCK_FILE`, `stock` reads the packaged `stock.json` through runfiles, so the binary runs from any directory. Relative `--file` paths resolve against the directory you ran `bazel run` from. Quantities and prices must be whole numbers from `0` to `1000000`.

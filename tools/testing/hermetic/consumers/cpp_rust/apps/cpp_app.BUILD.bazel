@@ -6,7 +6,7 @@ cc_library(
     hdrs = ["report.h"],
     copts = ["-std=c++17"],
     deps = [
-        "//examples/cpp-app/core",
+        "//cc/tests/fixtures/cpp-app/core",
         "@cpp_app_fmt//:fmt",
     ],
 )
@@ -15,8 +15,8 @@ cc_binary(
     name = "pantry",
     srcs = ["main.cc"],
     copts = ["-std=c++17"],
-    data = ["//examples/cpp-app/core:menu_csv"],
-    local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //examples/cpp-app/core:menu_csv)\\"'],
+    data = ["//cc/tests/fixtures/cpp-app/core:menu_csv"],
+    local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/cpp-app/core:menu_csv)\\"'],
     deps = [
         ":report",
         "@rules_cc//cc/runfiles",
@@ -27,7 +27,7 @@ cc_test(
     name = "report_test",
     srcs = ["report_test.cc"],
     copts = ["-std=c++17"],
-    data = ["//examples/cpp-app/core:menu_csv"],
+    data = ["//cc/tests/fixtures/cpp-app/core:menu_csv"],
     deps = [
         ":report",
         "@googletest//:gtest_main",

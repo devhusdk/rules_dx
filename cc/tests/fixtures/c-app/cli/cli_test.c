@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "examples/c-app/cli/cli.h"
+#include "cc/tests/fixtures/c-app/cli/cli.h"
 
 #define CHECK(cond)                                                            \
   do {                                                                         \
@@ -154,13 +154,14 @@ int main(void) {
   CHECK(run(bad_cmd, 2, out, sizeof(out), err, sizeof(err)) == 2);
   CHECK(strstr(err, "usage:") == err);
 
-  char *no_file[] = {"stock", "--file", "examples/c-app/store/absent.json",
-                     "list"};
+  char *no_file[] = {"stock", "--file",
+                     "cc/tests/fixtures/c-app/store/absent.json", "list"};
   CHECK(run(no_file, 4, out, sizeof(out), err, sizeof(err)) == 3);
   CHECK(strcmp(err, "stock: cannot read stock file\n") == 0);
 
   char *bad_file[] = {"stock", "--file",
-                      "examples/c-app/store/malformed/negative.json", "list"};
+                      "cc/tests/fixtures/c-app/store/malformed/negative.json",
+                      "list"};
   CHECK(run(bad_file, 4, out, sizeof(out), err, sizeof(err)) == 3);
   CHECK(strcmp(err, "stock: stock item is malformed\n") == 0);
 

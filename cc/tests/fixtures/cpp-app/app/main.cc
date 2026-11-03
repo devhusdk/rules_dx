@@ -5,8 +5,8 @@
 #include <memory>
 #include <string>
 
-#include "examples/cpp-app/app/report.h"
-#include "examples/cpp-app/core/menu.h"
+#include "cc/tests/fixtures/cpp-app/app/report.h"
+#include "cc/tests/fixtures/cpp-app/core/menu.h"
 #include "rules_cc/cc/runfiles/runfiles.h"
 
 namespace {

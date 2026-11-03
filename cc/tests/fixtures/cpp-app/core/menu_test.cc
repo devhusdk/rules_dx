@@ -1,8 +1,8 @@
-#include "examples/cpp-app/core/menu.h"
+#include "cc/tests/fixtures/cpp-app/core/menu.h"
 
 #include <sstream>
 
-#include "examples/cpp-app/core/group.h"
+#include "cc/tests/fixtures/cpp-app/core/group.h"
 #include "gtest/gtest.h"
 
 namespace pantry {
@@ -39,18 +39,19 @@ TEST(MenuTest, RejectsNonNumericPrice) {
 }
 
 TEST(MenuTest, RejectsMissingFile) {
-  EXPECT_THROW(load_menu("examples/cpp-app/core/absent.csv"), ParseError);
+  EXPECT_THROW(load_menu("cc/tests/fixtures/cpp-app/core/absent.csv"),
+               ParseError);
 }
 
 TEST(MenuTest, GeneratedHeaderCarriesVersion) { EXPECT_EQ(menu_version(), 3); }
 
 TEST(MenuTest, LoadsPackagedResource) {
-  const auto dishes = load_menu("examples/cpp-app/core/menu.csv");
+  const auto dishes = load_menu("cc/tests/fixtures/cpp-app/core/menu.csv");
   EXPECT_EQ(dishes.size(), 5u);
 }
 
 TEST(GroupTest, SumsByCategoryWithTemplates) {
-  const auto dishes = load_menu("examples/cpp-app/core/menu.csv");
+  const auto dishes = load_menu("cc/tests/fixtures/cpp-app/core/menu.csv");
   const auto totals = group_sum(
       dishes, [](const Dish &d) { return d.category; },
       [](const Dish &d) { return d.price_cents; });

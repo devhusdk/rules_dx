@@ -132,8 +132,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude mdx/tests/app_parse_error
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude examples/python-service
-# gazelle:exclude examples/c-app
-# gazelle:exclude examples/cpp-app
+# gazelle:exclude cc/tests/fixtures/c-app
+# gazelle:exclude cc/tests/fixtures/cpp-app
 # gazelle:exclude examples/elixir-app
 # gazelle:exclude examples/erlang-app
 # gazelle:exclude examples/haskell-app

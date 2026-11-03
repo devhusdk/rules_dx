@@ -8,10 +8,10 @@ A multi-package C++17 app. It has a menu report binary, a templated `group_sum`,
 | `app` | `pantry` binary and report formatter |
 
 ```sh
-bazel build //examples/cpp-app/...
-bazel test //examples/cpp-app/...
-bazel run //examples/cpp-app/app:pantry
-bazel run //examples/cpp-app/app:pantry -- path/to/menu.csv
+bazel build //cc/tests/fixtures/cpp-app/...
+bazel test //cc/tests/fixtures/cpp-app/...
+bazel run //cc/tests/fixtures/cpp-app/app:pantry
+bazel run //cc/tests/fixtures/cpp-app/app:pantry -- path/to/menu.csv
 ```
 
 Without a path, `pantry` reads the packaged `menu.csv` through runfiles, so the binary runs from any directory. A relative path resolves against the directory you ran `bazel run` from.

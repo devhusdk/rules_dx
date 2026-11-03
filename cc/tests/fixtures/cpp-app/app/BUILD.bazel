@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
-package(default_visibility = ["//examples/cpp-app:__subpackages__"])
+package(default_visibility = ["//cc/tests/fixtures/cpp-app:__subpackages__"])
 
 exports_files(
     [
@@ -22,7 +22,7 @@ cc_library(
     aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     deps = [
-        "//examples/cpp-app/core",
+        "//cc/tests/fixtures/cpp-app/core",
         "@cpp_app_fmt//:fmt",
     ],
 )
@@ -32,8 +32,8 @@ cc_binary(
     srcs = ["main.cc"],
     aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
-    data = ["//examples/cpp-app/core:menu.csv"],
-    local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //examples/cpp-app/core:menu.csv)\\"'],
+    data = ["//cc/tests/fixtures/cpp-app/core:menu.csv"],
+    local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/cpp-app/core:menu.csv)\\"'],
     deps = [
         ":report",
         "@rules_cc//cc/runfiles",
@@ -45,7 +45,7 @@ cc_test(
     srcs = ["report_test.cc"],
     aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
-    data = ["//examples/cpp-app/core:menu.csv"],
+    data = ["//cc/tests/fixtures/cpp-app/core:menu.csv"],
     deps = [
         ":report",
         "@googletest//:gtest_main",
@@ -70,13 +70,13 @@ rust_test(
     srcs = ["exit_codes_test.rs"],
     data = [
         ":pantry",
-        "//examples/cpp-app/core:bad_menu.csv",
-        "//examples/cpp-app/core:menu.csv",
+        "//cc/tests/fixtures/cpp-app/core:bad_menu.csv",
+        "//cc/tests/fixtures/cpp-app/core:menu.csv",
     ],
     env = {
-        "PANTRY_BAD_MENU": "$(rootpath //examples/cpp-app/core:bad_menu.csv)",
+        "PANTRY_BAD_MENU": "$(rootpath //cc/tests/fixtures/cpp-app/core:bad_menu.csv)",
         "PANTRY_BIN": "$(rootpath :pantry)",
-        "PANTRY_MENU": "$(rootpath //examples/cpp-app/core:menu.csv)",
+        "PANTRY_MENU": "$(rootpath //cc/tests/fixtures/cpp-app/core:menu.csv)",
     },
     deps = ["//tools/testing:dx_testing"],
 )
@@ -108,7 +108,7 @@ filegroup(
     ]) + [
         "BUILD.bazel",
     ],
-    visibility = ["//examples/cpp-app:__pkg__"],
+    visibility = ["//cc/tests/fixtures/cpp-app:__pkg__"],
 )
 
 real_source_target(
@@ -117,7 +117,6 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [
-        "//examples:__pkg__",
         "//tools/ci:__pkg__",
     ],
 )

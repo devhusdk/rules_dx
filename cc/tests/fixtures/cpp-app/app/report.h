@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "examples/cpp-app/core/menu.h"
+#include "cc/tests/fixtures/cpp-app/core/menu.h"
 
 namespace pantry {
 

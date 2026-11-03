@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
-package(default_visibility = ["//examples/c-app:__subpackages__"])
+package(default_visibility = ["//cc/tests/fixtures/c-app:__subpackages__"])
 
 exports_files(
     [
@@ -21,9 +21,9 @@ cc_library(
     hdrs = ["cli.h"],
     aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
-    data = ["//examples/c-app/store:stock.json"],
-    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //examples/c-app/store:stock.json)\\"'],
-    deps = ["//examples/c-app/store"],
+    data = ["//cc/tests/fixtures/c-app/store:stock.json"],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c-app/store:stock.json)\\"'],
+    deps = ["//cc/tests/fixtures/c-app/store"],
 )
 
 cc_binary(
@@ -31,7 +31,7 @@ cc_binary(
     srcs = ["main.c"],
     aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
-    data = ["//examples/c-app/store:stock.json"],
+    data = ["//cc/tests/fixtures/c-app/store:stock.json"],
     deps = [":cli"],
 )
 
@@ -41,10 +41,10 @@ cc_test(
     aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = [
-        "//examples/c-app/store:malformed/negative.json",
-        "//examples/c-app/store:stock.json",
+        "//cc/tests/fixtures/c-app/store:malformed/negative.json",
+        "//cc/tests/fixtures/c-app/store:stock.json",
     ],
-    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //examples/c-app/store:stock.json)\\"'],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c-app/store:stock.json)\\"'],
     deps = [":cli"],
 )
 
@@ -59,13 +59,13 @@ rust_test(
     srcs = ["exit_codes_test.rs"],
     data = [
         ":stock",
-        "//examples/c-app/store:malformed/wrong_type.json",
-        "//examples/c-app/store:stock.json",
+        "//cc/tests/fixtures/c-app/store:malformed/wrong_type.json",
+        "//cc/tests/fixtures/c-app/store:stock.json",
     ],
     env = {
         "STOCK_BIN": "$(rootpath :stock)",
-        "STOCK_JSON": "$(rootpath //examples/c-app/store:stock.json)",
-        "STOCK_WRONG_TYPE": "$(rootpath //examples/c-app/store:malformed/wrong_type.json)",
+        "STOCK_JSON": "$(rootpath //cc/tests/fixtures/c-app/store:stock.json)",
+        "STOCK_WRONG_TYPE": "$(rootpath //cc/tests/fixtures/c-app/store:malformed/wrong_type.json)",
     },
     deps = ["//tools/testing:dx_testing"],
 )
@@ -97,7 +97,7 @@ filegroup(
     ]) + [
         "BUILD.bazel",
     ],
-    visibility = ["//examples/c-app:__pkg__"],
+    visibility = ["//cc/tests/fixtures/c-app:__pkg__"],
 )
 
 real_source_target(
@@ -106,7 +106,6 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [
-        "//examples:__pkg__",
         "//tools/ci:__pkg__",
     ],
 )

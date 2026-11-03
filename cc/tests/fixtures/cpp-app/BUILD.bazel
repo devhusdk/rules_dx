@@ -8,8 +8,8 @@ filegroup(
     name = "consumer_srcs",
     srcs = [
         "fmt.BUILD.bazel",
-        "//examples/cpp-app/app:consumer_srcs",
-        "//examples/cpp-app/core:consumer_srcs",
+        "//cc/tests/fixtures/cpp-app/app:consumer_srcs",
+        "//cc/tests/fixtures/cpp-app/core:consumer_srcs",
     ],
     visibility = ["//cc/tests/consumer:__pkg__"],
 )

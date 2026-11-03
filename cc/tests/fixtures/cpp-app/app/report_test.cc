@@ -1,4 +1,4 @@
-#include "examples/cpp-app/app/report.h"
+#include "cc/tests/fixtures/cpp-app/app/report.h"
 
 #include "gtest/gtest.h"
 
@@ -19,7 +19,7 @@ TEST(ReportTest, FormatsRowsAndTotals) {
 
 TEST(ReportTest, PackagedMenuReport) {
   const auto report =
-      render_report(load_menu("examples/cpp-app/core/menu.csv"));
+      render_report(load_menu("cc/tests/fixtures/cpp-app/core/menu.csv"));
   EXPECT_NE(report.find("tiramisu"), std::string::npos);
   EXPECT_NE(report.find("total dessert 790\n"), std::string::npos);
 }

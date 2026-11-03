@@ -1,9 +1,9 @@
-#include "examples/cpp-app/core/menu.h"
+#include "cc/tests/fixtures/cpp-app/core/menu.h"
 
 #include <fstream>
 #include <sstream>
 
-#include "examples/cpp-app/core/build_config.h"
+#include "cc/tests/fixtures/cpp-app/core/build_config.h"
 
 namespace pantry {
 

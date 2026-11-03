@@ -1,6 +1,6 @@
-#include "examples/cpp-app/app/report.h"
+#include "cc/tests/fixtures/cpp-app/app/report.h"
 
-#include "examples/cpp-app/core/group.h"
+#include "cc/tests/fixtures/cpp-app/core/group.h"
 #include "fmt/format.h"
 
 namespace pantry {

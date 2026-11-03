@@ -1,11 +1,11 @@
-#include "examples/c-app/store/store.h"
+#include "cc/tests/fixtures/c-app/store/store.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "cJSON.h"
-#include "examples/c-app/store/store_build.h"
+#include "cc/tests/fixtures/c-app/store/store_build.h"
 
 static char *read_all(const char *path) {
   FILE *file = fopen(path, "rb");

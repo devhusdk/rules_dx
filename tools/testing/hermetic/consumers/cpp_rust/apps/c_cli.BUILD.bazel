@@ -5,16 +5,16 @@ cc_library(
     srcs = ["cli.c"],
     hdrs = ["cli.h"],
     copts = ["-std=c11"],
-    data = ["//examples/c-app/store:stock_json"],
-    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //examples/c-app/store:stock_json)\\"'],
-    deps = ["//examples/c-app/store"],
+    data = ["//cc/tests/fixtures/c-app/store:stock_json"],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c-app/store:stock_json)\\"'],
+    deps = ["//cc/tests/fixtures/c-app/store"],
 )
 
 cc_binary(
     name = "stock",
     srcs = ["main.c"],
     copts = ["-std=c11"],
-    data = ["//examples/c-app/store:stock_json"],
+    data = ["//cc/tests/fixtures/c-app/store:stock_json"],
     deps = [":cli"],
 )
 
@@ -23,9 +23,9 @@ cc_test(
     srcs = ["cli_test.c"],
     copts = ["-std=c11"],
     data = [
-        "//examples/c-app/store:negative_json",
-        "//examples/c-app/store:stock_json",
+        "//cc/tests/fixtures/c-app/store:negative_json",
+        "//cc/tests/fixtures/c-app/store:stock_json",
     ],
-    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //examples/c-app/store:stock_json)\\"'],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c-app/store:stock_json)\\"'],
     deps = [":cli"],
 )

@@ -1,9 +1,9 @@
-#include "examples/c-app/cli/cli.h"
+#include "cc/tests/fixtures/c-app/cli/cli.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "examples/c-app/store/store.h"
+#include "cc/tests/fixtures/c-app/store/store.h"
 
 #define PATH_MAX_LEN 4096
 

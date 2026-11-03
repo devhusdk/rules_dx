@@ -11,13 +11,6 @@ on:
         description: "Space-separated Bazel targets; each must start with //."
         required: false
         default: "//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_bundle_consumer_test //apple/tests:macos_framework_consumer_test //apple/tests:macos_shared_rust_consumer_test //apple/tests:macos_swift_consumer_test"
-      runner:
-        description: "macos-15 (arm64)."
-        type: choice
-        options:
-          - macos-15
-        required: false
-        default: "macos-15"
 
 permissions:
   contents: read
@@ -32,9 +25,9 @@ env:
 
 jobs:
   apple:
-    name: apple (${{ inputs.runner || 'macos-15' }})
+    name: apple (macos-15)
     timeout-minutes: 120
-    runs-on: ${{ inputs.runner || 'macos-15' }}
+    runs-on: macos-15
     defaults:
       run:
         shell: bash
@@ -45,15 +38,10 @@ jobs:
         env:
           DX_COMMAND: ${{ inputs.command || 'test' }}
           DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_bundle_consumer_test //apple/tests:macos_framework_consumer_test //apple/tests:macos_shared_rust_consumer_test //apple/tests:macos_swift_consumer_test' }}
-          DX_RUNNER: ${{ inputs.runner || 'macos-15' }}
         run: |
           case "$DX_COMMAND" in
             build | test) ;;
             *) echo "apple input rejected: command must be build or test, got $DX_COMMAND" && exit 1 ;;
-          esac
-          case "$DX_RUNNER" in
-            macos-15) ;;
-            *) echo "apple input rejected: runner must be macos-15, got $DX_RUNNER" && exit 1 ;;
           esac
           read -r -a targets <<<"$DX_TARGETS"
           if [ "${#targets[@]}" -eq 0 ]; then
@@ -118,16 +106,14 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: apple-evidence-${{ inputs.runner || 'macos-15' }}
+          name: apple-evidence-macos-15
           path: evidence/
           retention-days: 14
       - name: Write job summary
         if: always()
-        env:
-          DX_RUNNER: ${{ inputs.runner || 'macos-15' }}
         run: |
           {
-            printf '## Apple %s\n' "$DX_RUNNER"
+            printf '## Apple macos-15\n'
             echo ""
             head -n 12 evidence/executor.txt
             echo ""

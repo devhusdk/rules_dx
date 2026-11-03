@@ -32,32 +32,42 @@ codegen_defs_unit_tests(name = "codegen_defs_unit")
 
 dx_codegen_shard(
     name = "codegen_shard_alpha",
+    testonly = True,
     entries = ["gen/alpha.rs|gen|alpha"],
     language = "rust",
+    visibility = ["//visibility:private"],
 )
 
 dx_codegen_shard(
     name = "codegen_shard_beta",
+    testonly = True,
     entries = ["gen/beta.rs|gen|beta"],
     language = "rust",
+    visibility = ["//visibility:private"],
     deps = [":codegen_shard_alpha"],
 )
 
 prost_codegen_shard(
     name = "codegen_prost_fixture",
+    testonly = True,
     entries = ["gen/prost_result.rs|gen|result|result_proto.lib.rs"],
     language = "rust",
     proto_rs = ":result_proto_rs",
+    visibility = ["//visibility:private"],
 )
 
 codegen_plan_subject(
     name = "codegen_plan_chain_subject",
+    testonly = True,
     target = ":codegen_shard_beta",
+    visibility = ["//visibility:private"],
 )
 
 codegen_plan_subject(
     name = "codegen_plan_prost_subject",
+    testonly = True,
     target = ":codegen_prost_fixture",
+    visibility = ["//visibility:private"],
 )
 
 codegen_plan_analysis_tests(name = "codegen_plan_analysis")

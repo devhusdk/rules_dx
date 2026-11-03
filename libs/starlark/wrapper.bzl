@@ -103,7 +103,7 @@ def dx_forwarded_test_kwargs(kwargs):
     return out
 
 def dx_quality_sources(files, specs, label):
-    """Builds QualitySourcesInfo for direct wrapper sources."""
+    """Builds QualitySourcesInfo for direct wrapper sources, skipping generated files."""
     buckets = {}
     order = []
     for spec in specs:
@@ -114,7 +114,7 @@ def dx_quality_sources(files, specs, label):
         matched = [
             f
             for f in spec_files
-            if f.extension in exts and not _has_excluded_suffix(f.basename, excludes)
+            if f.is_source and f.extension in exts and not _has_excluded_suffix(f.basename, excludes)
         ]
         if key not in buckets:
             buckets[key] = []

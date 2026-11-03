@@ -431,3 +431,21 @@ fn discovery_lists_are_not_truncated() {
         "{DISCOVERY:?} must read the cargo manifests from MODULE.bazel"
     );
 }
+
+#[test]
+fn app_token_is_minted_just_before_the_pr_step() {
+    let steps = steps(WORKFLOW, "widen-one");
+    let mint = steps
+        .iter()
+        .position(|step| step["id"] == "bump-app")
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry the bump-app step"));
+    let open = steps
+        .iter()
+        .position(|step| name_of(step).starts_with("Open one PR if green"))
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry the Open one PR step"));
+    assert_eq!(
+        mint + 1,
+        open,
+        "the app token must be minted right before the PR step"
+    );
+}

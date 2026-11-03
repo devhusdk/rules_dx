@@ -1,12 +1,13 @@
 """Unit tests for real-adapter pipeline construction."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//sql/rules:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_rust_typecheck_aspect", "real_typecheck_aspect", "rustc_diagnostics_group")
 
 def _f(path, is_source = True, extension = "rs", repo_name = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))
@@ -1126,3 +1127,60 @@ def real_pipeline_unit_tests(name):
             ),
         ],
     )
+
+def _request_inputs(env):
+    inputs = []
+    for action in analysistest.target_under_test(env).actions:
+        if action.mnemonic.startswith("DxRealQuality"):
+            inputs += [f.basename for f in action.inputs.to_list()]
+    return inputs
+
+def _rmeta_request_impl(ctx):
+    """Checks the rustc request lists the .rmeta.rustc-output file."""
+    env = analysistest.begin(ctx)
+    names = [n for n in _request_inputs(env) if n.endswith(".rustc-output")]
+    asserts.equals(env, 1, len(names), "want one rustc output input: " + str(names))
+    if len(names) == 1:
+        asserts.true(env, names[0].endswith(".rmeta.rustc-output"), "unexpected file: " + names[0])
+    return analysistest.end(env)
+
+def _full_request_impl(ctx):
+    """Checks the rustc request falls back to the rustc_output file."""
+    env = analysistest.begin(ctx)
+    names = [n for n in _request_inputs(env) if n.endswith(".rustc-output")]
+    asserts.equals(env, 1, len(names), "want one rustc output input: " + str(names))
+    if len(names) == 1:
+        asserts.false(env, names[0].endswith(".rmeta.rustc-output"), "unexpected file: " + names[0])
+    return analysistest.end(env)
+
+def _request_settings(pipelined):
+    return {
+        str(Label("@rules_rust//rust/settings:pipelined_compilation")): pipelined,
+        str(Label("@rules_rust//rust/settings:rustc_output_diagnostics")): True,
+    }
+
+_rmeta_request_test = analysistest.make(
+    _rmeta_request_impl,
+    config_settings = _request_settings(True),
+    extra_target_under_test_aspects = [real_typecheck_aspect, real_rust_typecheck_aspect],
+)
+
+_full_request_test = analysistest.make(
+    _full_request_impl,
+    config_settings = _request_settings(False),
+    extra_target_under_test_aspects = [real_typecheck_aspect, real_rust_typecheck_aspect],
+)
+
+def rustc_request_analysis_tests(name):
+    """Instantiates the rustc request input tests as one suite."""
+    _rmeta_request_test(
+        name = name + "_pipelined",
+        size = "small",
+        target_under_test = "//quality/testdata:fixture_upstream_rust",
+    )
+    _full_request_test(
+        name = name + "_unpipelined",
+        size = "small",
+        target_under_test = "//quality/testdata:fixture_upstream_rust",
+    )
+    native.test_suite(name = name, tests = [name + "_pipelined", name + "_unpipelined"])

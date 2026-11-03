@@ -70,6 +70,7 @@ _EXAMPLE_STARLARK = [
     "//examples/cuda-app:corpus_starlark",
     "//examples/cuda-app/app:corpus_starlark",
     "//examples/cuda-app/checks:corpus_starlark",
+    "//examples/cuda-app/gpu:corpus_starlark",
     "//examples/cuda-app/kernels:corpus_starlark",
     "//examples/dart-app:corpus_starlark",
     "//examples/dart-app/cli:corpus_starlark",

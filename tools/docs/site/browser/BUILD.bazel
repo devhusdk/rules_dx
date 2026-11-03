@@ -17,12 +17,15 @@ filegroup(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
-exports_files([
-    "Cargo.toml",
-    "repos.bzl",
-    "src/lib.rs",
-    "src/lib_tests.rs",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "Cargo.toml",
+        "repos.bzl",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 rust_library(
     name = "dx_site_browser",
@@ -37,7 +40,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
         normal = True,
-    ),
+    ) + ["@crates//:serde_json"],
 )
 
 rust_test(
@@ -59,7 +62,10 @@ rust_test(
         package_name = "tools/docs/site/site_browser",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/test_scratch:dx_test_scratch"],
+    ) + [
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:serde_json",
+    ],
 )
 
 rustfmt_test(

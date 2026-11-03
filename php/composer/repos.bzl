@@ -1,5 +1,6 @@
-"""Repository rules and hub for Composer packages fetched from composer.lock."""
+"""Repository rule and hub for Composer packages fetched from composer.lock."""
 
+load("//libs/starlark:repo.bzl", "hub_repo")
 load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "pin_entry_json", "spoke_build")
 
 _PACKAGE_BZL = str(Label("//php/rules:php.bzl"))
@@ -48,24 +49,6 @@ composer_package = repository_rule(
     },
 )
 
-def _hub_impl(rctx):
-    packages = json.decode(rctx.attr.packages)
-    rctx.file("REPO.bazel", "")
-    groups = str(Label("//php/rules:php.bzl"))
-    info = {name: struct(dev = dev, spoke = spoke) for name, (dev, spoke) in packages.items()}
-    rctx.file("BUILD.bazel", hub_root_build(info, groups))
-    for name, (_, spoke) in packages.items():
-        rctx.file(name + "/BUILD.bazel", hub_package_build(name, spoke))
-    return rctx.repo_metadata(reproducible = True)
-
-composer_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Gives every locked package the label @<hub>//<vendor>/<name>.",
-    attrs = {
-        "packages": attr.string(mandatory = True, doc = "JSON object of package name to [dev, spoke]."),
-    },
-)
-
 def declare(hub, lock_text, sidecar_text):
     """Declares the spokes and the hub of one lock; returns the analysis."""
     result = analyze(hub, lock_text, sidecar_text)
@@ -85,8 +68,9 @@ def declare(hub, lock_text, sidecar_text):
             urls = package.urls,
             version = package.version,
         )
-    composer_hub(
-        name = hub,
-        packages = json.encode({name: [package.dev, package.spoke] for name, package in result.packages.items()}),
-    )
+    info = {name: struct(dev = package.dev, spoke = package.spoke) for name, package in result.packages.items()}
+    files = {"BUILD.bazel": hub_root_build(info, _PACKAGE_BZL)}
+    for name, package in result.packages.items():
+        files[name + "/BUILD.bazel"] = hub_package_build(name, package.spoke)
+    hub_repo(name = hub, files = files)
     return result

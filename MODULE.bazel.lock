@@ -445,7 +445,7 @@
     },
     "//tools/docs/site/browser:repos.bzl%firefox": {
       "general": {
-        "bzlTransitiveDigest": "oD0RRpbCewCYEFkuLK+wAzHst3S+Sg29zIxTCnsHyZM=",
+        "bzlTransitiveDigest": "r8RcCoZrm+vCC8MNTwcn9Zwc2cxmrgqft7DF0FkLS/0=",
         "usagesDigest": "atFrdA2bTlHnAvczl4sTe6Iy4wdyB0s2ZIZRUHGfaMc=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -470,8 +470,12 @@
             }
           },
           "dx_firefox": {
-            "repoRuleId": "@@//tools/docs/site/browser:repos.bzl%_firefox_hub_repo",
-            "attributes": {}
+            "repoRuleId": "@@//libs/starlark:repo.bzl%hub_repo",
+            "attributes": {
+              "files": {
+                "BUILD.bazel": "config_setting(\n    name = \"linux_arm64\",\n    constraint_values = [\n        \"@platforms//os:linux\",\n        \"@platforms//cpu:arm64\",\n    ],\n)\nconfig_setting(\n    name = \"linux_x86_64\",\n    constraint_values = [\n        \"@platforms//os:linux\",\n        \"@platforms//cpu:x86_64\",\n    ],\n)\n\nalias(\n    name = \"firefox\",\n    actual = select({\n        \":linux_arm64\": \"@dx_firefox_linux_arm64//:binary\",\n        \":linux_x86_64\": \"@dx_firefox_linux_x86_64//:binary\",\n    }, no_match_error = \"rules_dx: no pinned Firefox 157.0 artifact for this execution platform; want one of linux_arm64, linux_x86_64\"),\n    visibility = [\"//visibility:public\"],\n)\n\nalias(\n    name = \"tree\",\n    actual = select({\n        \":linux_arm64\": \"@dx_firefox_linux_arm64//:tool\",\n        \":linux_x86_64\": \"@dx_firefox_linux_x86_64//:tool\",\n    }, no_match_error = \"rules_dx: no pinned Firefox 157.0 artifact for this execution platform; want one of linux_arm64, linux_x86_64\"),\n    visibility = [\"//visibility:public\"],\n)\n"
+              }
+            }
           }
         }
       }

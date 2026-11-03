@@ -1,5 +1,7 @@
 """Pinned upstream Firefox acquisition for the documentation browser harness."""
 
+load("//libs/starlark:repo.bzl", "hub_repo")
+
 FIREFOX_VERSION = "157.0"
 
 FIREFOX_CDN = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/" + FIREFOX_VERSION
@@ -137,10 +139,6 @@ def _tool_build():
         "",
     ])
 
-def _hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", hub_build())
-    return ctx.repo_metadata(reproducible = True)
-
 _firefox_repo = repository_rule(
     implementation = _firefox_repo_impl,
     attrs = {
@@ -164,11 +162,6 @@ _firefox_repo = repository_rule(
     },
 )
 
-_firefox_hub_repo = repository_rule(
-    implementation = _hub_repo_impl,
-    attrs = {},
-)
-
 def _firefox_impl(module_ctx):
     if len(module_ctx.modules) == 0:
         fail("firefox: the extension is only reachable from a module graph")
@@ -185,7 +178,7 @@ def _firefox_impl(module_ctx):
             sha256 = artifact.sha256,
             url = url_for(artifact),
         )
-    _firefox_hub_repo(name = _HUB_NAME)
+    hub_repo(name = _HUB_NAME, files = {"BUILD.bazel": hub_build()})
 
 firefox = module_extension(
     implementation = _firefox_impl,

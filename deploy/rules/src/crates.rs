@@ -199,6 +199,56 @@ fn crates_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Resu
     Ok(())
 }
 
+/// Runs `cargo package --list` on a staged copy; a missing cargo skips the check.
+fn crates_package_check(
+    cargo: Option<&Path>,
+    mapped: &[(std::path::PathBuf, String)],
+) -> Result<(), String> {
+    let Some(program) = cargo else {
+        println!("crates_deploy: cargo not found on PATH; skipped cargo package --list check");
+        return Ok(());
+    };
+    let staging =
+        tempfile_stage_dir("crates-check-").map_err(|error| format!("crates_deploy: {error}"))?;
+    let checked = crates_stage(mapped, &staging)
+        .map_err(|error| format!("crates_deploy: {error}"))
+        .and_then(|()| cargo_package_list(program, &staging.join("Cargo.toml")));
+    let _ = std::fs::remove_dir_all(&staging);
+    checked
+}
+
+/// Runs `cargo package --list` offline; a failure carries cargo's last stderr lines.
+fn cargo_package_list(program: &Path, manifest: &Path) -> Result<(), String> {
+    let mut cmd = scrubbed_command(
+        program,
+        &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
+        &[],
+    );
+    cmd.args([
+        "package",
+        "--list",
+        "--offline",
+        "--allow-dirty",
+        "--manifest-path",
+    ])
+    .arg(manifest);
+    let output = cmd
+        .output()
+        .map_err(|error| format!("crates_deploy: {error}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let mut message = format!(
+        "crates_deploy: cargo package --list failed with {}",
+        output.status
+    );
+    for line in cargo_failure_lines(&output.stderr, "") {
+        message.push_str("\ncargo: ");
+        message.push_str(&line);
+    }
+    Err(message)
+}
+
 /// Runs the crates deploy tool.
 pub fn crates_main(
     crate_rlocs: &[String],
@@ -284,6 +334,13 @@ pub fn crates_main(
                 return 1;
             }
         }
+    }
+    let checked = crates_package_paths(&files)
+        .map_err(|error| format!("crates_deploy: {error}"))
+        .and_then(|mapped| crates_package_check(which_on_path("cargo").as_deref(), &mapped));
+    if let Err(message) = checked {
+        eprintln!("{message}");
+        return 1;
     }
     match crates_build_vendor(&files, outdir, crate_name, version) {
         Ok(house) => {
@@ -536,6 +593,30 @@ mod tests {
         );
         assert!(message.contains("\ncargo: token [redacted]"), "{message}");
         assert!(!message.contains("s3cret"), "{message}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn package_check_fails_with_cargo_message_and_skips_without_cargo() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let mapped = crates_package_paths(&files).expect("paths");
+        let fake = scratch.path().join("cargo");
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\necho 'error: no license or license-file' >&2\nexit 101\n",
+        )
+        .expect("write fake cargo");
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let message = crates_package_check(Some(&fake), &mapped).expect_err("rejected");
+        assert!(
+            message.contains("cargo: error: no license or license-file"),
+            "{message}"
+        );
+        std::fs::write(&fake, "#!/bin/sh\nexit 0\n").expect("rewrite");
+        assert!(crates_package_check(Some(&fake), &mapped).is_ok());
+        assert!(crates_package_check(None, &mapped).is_ok());
     }
 
     #[test]

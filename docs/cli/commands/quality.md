@@ -38,6 +38,7 @@ With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc
 Clippy reads each dependency's `.rmeta`.
 Rust binary and test compiles still wait for each dependency's full rlib. To turn pipelining off, set
 `--@rules_rust//rust/settings:pipelined_compilation=false` in your `.bazelrc`.
+On Windows, pipelined compilation can fail with `.rmeta is not writeable`. Setting `pipelined_compilation=false` on the command line does not avoid this, and no other safe setting is known yet.
 A bare `bazel build` with the quality aspect also needs `--@rules_rust//rust/settings:rustc_output_diagnostics=true` for the metadata (rmeta) diagnostics group to exist. `dx` sets it for you.
 
 ```text

@@ -281,6 +281,19 @@ pub fn install_panic_events() {
     }));
 }
 
+fn write_panic_hint(err: &mut dyn Write) {
+    let _ = writeln!(err, "dx: {}", dx_process::BUG_REPORT_HINT);
+}
+
+/// Prints where to report a bug after the default panic message.
+pub fn install_panic_hint() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        previous(info);
+        write_panic_hint(&mut std::io::stderr().lock());
+    }));
+}
+
 /// Writes one failure to stderr and, in JSON mode, to stdout; a stop signal turns it into a cancellation.
 pub fn report_failure(
     output: OutputMode,
@@ -319,6 +332,15 @@ pub fn report_failure(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_panic_hint_names_the_bug_template_and_dx_version() {
+        let mut err = Vec::new();
+        super::write_panic_hint(&mut err);
+        let text = String::from_utf8(err).unwrap();
+        assert!(text.contains("issues/new?template=bug_report.md"));
+        assert!(text.contains("dx version"));
+    }
+
     #[test]
     fn cancel_names_the_signal_and_closes_the_json_stream() {
         let (mut out, mut err) = (Vec::new(), Vec::new());

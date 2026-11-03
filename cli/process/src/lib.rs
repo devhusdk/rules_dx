@@ -401,6 +401,9 @@ pub struct ProtectedFlag {
     pub allowed: Vec<String>,
 }
 
+/// Tells the user where to report a dx bug.
+pub const BUG_REPORT_HINT: &str = "this is a dx bug; report it at https://github.com/devhusdk/rules_dx/issues/new?template=bug_report.md with the output of dx version";
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ForwardError {
     #[error("conflicting_option: --{flag} conflicts with required workflow policy")]
@@ -409,11 +412,11 @@ pub enum ForwardError {
     StartupOption { flag: String },
     #[error("invalid_usage: --{flag} targets the test binary; use native bazel")]
     TestBinaryArgs { flag: String },
-    #[error("internal_error: required workflow option --{flag} is missing")]
+    #[error("internal_error: required workflow option --{flag} is missing; {}", BUG_REPORT_HINT)]
     InvalidRequiredOption { flag: String },
-    #[error("internal_error: malformed required setting {option}; expected --name=value")]
+    #[error("internal_error: malformed required setting {option}; expected --name=value; {}", BUG_REPORT_HINT)]
     InvalidSetting { option: String },
-    #[error("internal_error: {command} does not support this plan")]
+    #[error("internal_error: {command} does not support this plan; {}", BUG_REPORT_HINT)]
     UnsupportedCommand { command: String },
 }
 

@@ -157,6 +157,7 @@ fn usage_error(
 
 fn main() {
     install_forwarding();
+    dx_cli::exec::install_panic_hint();
     let code = run();
     std::process::exit(code);
 }

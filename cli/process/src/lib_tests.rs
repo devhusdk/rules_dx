@@ -372,6 +372,7 @@ fn internal_errors_render_without_echoing_values() {
         command: "lint".to_owned(),
     };
     assert!(err.to_string().contains("lint"));
+    assert!(err.to_string().ends_with(BUG_REPORT_HINT));
 }
 
 #[test]

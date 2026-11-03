@@ -33,6 +33,27 @@ php_library(
         tool_flag: "--@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs",
         flag_required: true,
     },
+    Row {
+        tool: "zig_ast_check",
+        family: "zig",
+        lib_build: r#"load("@rules_dx//zig/rules:defs.bzl", "zig_library")
+
+zig_library(
+    name = "math",
+    main = "math.zig",
+)
+"#,
+        source: "math.zig",
+        clean: "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",
+        dirty: "pub fn add(a: i32) i32 {\n    const unused = 1;\n    return a;\n}\n",
+        dirty_report: "lib/math.zig:2:11: error: unused local constant [zig_ast_check/ast_check]",
+        broken: Some((
+            "pub fn add(a: i32, b: i32) i32 {\n    return ;a\n}\n",
+            "lib/math.zig:2:14: error: expected ';' after statement [zig_ast_check/ast_check]",
+        )),
+        tool_flag: "--@rules_dx//config:tool_zig_ast_check=@rules_dx//zig/tools:zig",
+        flag_required: false,
+    },
 ];
 
 const PHPCS_CONFIGURED_BUILD: &str = r#"load("@rules_dx//php/rules:defs.bzl", "php_library")

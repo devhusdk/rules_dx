@@ -1,6 +1,7 @@
 """Identity tests pinning the authoritative toolchain binding."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//modules:versions.bzl", "RUSTFMT_VERSION")
 load(":bindings.bzl", "RUSTFMT_TOOLCHAIN_TYPE", "RUST_TOOLCHAIN_TYPE")
 
 _AT = "@"
@@ -10,8 +11,8 @@ field clippy.owner=""" + _AT + """@rules_rust++rust+rust_linux_x86_64__x86_64-un
 field clippy.path=bazel-out/k8-fastbuild/bin/external/rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools/rust_toolchain/bin/clippy-driver
 field rustc.owner=""" + _AT + """@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rust_toolchain
 field rustc.path=bazel-out/k8-fastbuild/bin/external/rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools/rust_toolchain/bin/rustc
-field rustfmt.owner=""" + _AT + """@rules_rust++rust+rustfmt_1.98.1__x86_64-unknown-linux-gnu_tools//:bin/rustfmt
-field rustfmt.path=external/rules_rust++rust+rustfmt_1.98.1__x86_64-unknown-linux-gnu_tools/bin/rustfmt
+field rustfmt.owner=""" + _AT + """@rules_rust++rust+rustfmt_""" + RUSTFMT_VERSION + """__x86_64-unknown-linux-gnu_tools//:bin/rustfmt
+field rustfmt.path=external/rules_rust++rust+rustfmt_""" + RUSTFMT_VERSION + """__x86_64-unknown-linux-gnu_tools/bin/rustfmt
 aspect_field aspect_seen=True
 aspect_field field_count=6
 aspect_field has_subject=True

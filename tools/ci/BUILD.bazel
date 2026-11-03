@@ -133,6 +133,34 @@ rust_test(
 
 # keep
 rust_library(
+    name = "fill_pins",
+    srcs = ["fill_pins.rs"],
+    crate_name = "fill_pins",
+    deps = ["//cli/adopt:dx_adopt"],
+)
+
+# keep
+rust_binary(
+    name = "fill_pins_bin",
+    srcs = ["fill_pins_main.rs"],
+    deps = [":fill_pins"],
+)
+
+# keep
+rust_test(
+    name = "fill_pins_test",
+    size = "small",
+    srcs = ["fill_pins_test.rs"],
+    deps = [
+        ":fill_pins",
+        "//cli/adopt:dx_adopt",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:tempfile",
+    ],
+)
+
+# keep
+rust_library(
     name = "module_pin",
     srcs = ["module_pin.rs"],
     crate_name = "module_pin",
@@ -551,7 +579,6 @@ rust_test(
         "//examples/lua-app/diagnostics:corpus_starlark",
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
-        "//qt/tests/fixtures/qt-rust/ledger:corpus_starlark",
         "//examples/shared-rust:corpus_starlark",
         "//examples/zig-app/diagnostics:corpus_starlark",
         "//fortran/tests/negative:corpus_starlark",
@@ -573,6 +600,7 @@ rust_test(
         "//python/tests/consumer:corpus_starlark",
         "//qt/rust:corpus_starlark",
         "//qt/tests:corpus_starlark",
+        "//qt/tests/fixtures/qt-rust/ledger:corpus_starlark",
         "//quality:corpus_starlark",
         "//quality/adapter:corpus_starlark",
         "//quality/markdown:corpus_starlark",

@@ -66,7 +66,10 @@ dx_rust_crate(
         "//modules:cuda.bzl",
     ],
     test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},
-    visibility = VIS_CLI + ["//tools/docs/support_matrix:__pkg__"],
+    visibility = VIS_CLI + [
+        "//tools/ci:__pkg__",
+        "//tools/docs/support_matrix:__pkg__",
+    ],
     deps = [
         "notify",
         "notify-debouncer-mini",

@@ -232,6 +232,10 @@ fn warning_events(out: &mut dyn Write, warnings: &[Warning]) -> Result<(), i32> 
     Ok(())
 }
 
+fn quiet_text(invocation: &Invocation) -> bool {
+    invocation.output == OutputMode::Text { quiet: true }
+}
+
 fn add_output(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -256,7 +260,7 @@ fn add_output(
         })
         .unwrap_or(serde_json::Value::Null);
         emit_event(out, &event)?;
-    } else if invocation.path_only {
+    } else if invocation.path_only || quiet_text(invocation) {
         warn_lines(err, &added.warnings);
         if let Some(base) = &added.base {
             let _ = writeln!(err, "dx worktree: started {branch} from {base}");
@@ -325,6 +329,9 @@ fn release_output(
                 if released.removed { "removed" } else { "free" },
             ),
         )?;
+        return Ok(());
+    }
+    if quiet_text(invocation) {
         return Ok(());
     }
     for warning in &released.warnings {
@@ -680,6 +687,9 @@ fn prune_output(
         for event in prune_events(pruned) {
             emit_event(out, &event)?;
         }
+        return Ok(prune_exit(apply, plan));
+    }
+    if quiet_text(invocation) {
         return Ok(prune_exit(apply, plan));
     }
     for base in &plan.kept_bases {
@@ -1690,6 +1700,27 @@ mod tests {
             assert_eq!(lines[0]["mode"], mode, "{text}");
             assert_eq!(lines[1..], prune_events(&full)[..], "{text}");
         }
+    }
+
+    #[test]
+    fn quiet_add_prints_only_the_path() {
+        let (out, err) = render(&["worktree", "add", "x", "-q"]);
+        assert_eq!(out, "/cache/slots/3\n");
+        assert!(err.contains("cannot fetch origin"), "{err}");
+    }
+
+    #[test]
+    fn quiet_release_prints_nothing() {
+        assert_eq!(render_release(&["worktree", "release", "-q"]), "");
+    }
+
+    #[test]
+    fn quiet_prune_prints_nothing_and_keeps_the_exit_code() {
+        let (code, text) = run_prune_output(&["worktree", "prune", "-q"], &pruned());
+        assert_eq!(text, "");
+        assert_eq!(code, 1);
+        let (code, text) = run_prune_output(&["worktree", "prune", "--apply", "-q"], &pruned());
+        assert_eq!((code, text.as_str()), (0, ""));
     }
 
     #[test]

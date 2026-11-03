@@ -101,6 +101,7 @@ def _ruby_doc_shard_impl(ctx):
         tools = toolchain.files,
         outputs = [yard_json, home],
         mnemonic = "DxDocsYard",
+        toolchain = _RUBY_TOOLCHAIN,
         progress_message = "Reading Ruby API docs for %{label}",
         use_default_shell_env = False,
         env = env,
@@ -117,6 +118,7 @@ def _ruby_doc_shard_impl(ctx):
         inputs = [yard_json],
         outputs = [shard],
         mnemonic = "DxDocsRubyExtract",
+        toolchain = None,
         progress_message = "Extracting Ruby API docs for %{label}",
     )
     return [

@@ -326,6 +326,7 @@ def _erlang_nif_impl(ctx):
         command = 'cp -f "$1" "$2"',
         arguments = [library.path, placed.path],
         mnemonic = "ErlangNif",
+        toolchain = None,
         progress_message = "Placing NIF %{output}",
     )
     objects = ctx.actions.declare_file(ctx.label.name + "_runtime_objects_list.txt")
@@ -413,6 +414,7 @@ def _erlang_release_impl(ctx):
         command = "\n".join(lines),
         arguments = [out.path],
         mnemonic = "ErlangRelease",
+        toolchain = None,
         progress_message = "Assembling Erlang release %{label}",
     )
     return [DefaultInfo(files = depset([out]), runfiles = ctx.runfiles([out]))]

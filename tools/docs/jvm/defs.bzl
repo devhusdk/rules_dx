@@ -94,6 +94,7 @@ def _shard_impl(ctx):
         inputs = own + classpath + compiled + [manifest, classpath_file],
         outputs = [api_json],
         mnemonic = ctx.attr._mnemonic,
+        toolchain = None,
         resource_set = dx_quality_heavy_resources,
         progress_message = "Reading " + language + " API docs for %{label}",
         use_default_shell_env = False,
@@ -114,6 +115,7 @@ def _shard_impl(ctx):
         inputs = [api_json, manifest] + dep_shards,
         outputs = [shard],
         mnemonic = "DxDocsJvmConvert",
+        toolchain = None,
         progress_message = "Converting " + language + " API docs for %{label}",
     )
     return [

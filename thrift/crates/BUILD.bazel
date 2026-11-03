@@ -1,0 +1,14 @@
+# gazelle:ignore
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Cargo.lock",
+    "Cargo.toml",
+    "cargo-bazel-lock.json",
+])
+
+filegroup(
+    name = "crate_carrier",
+    srcs = ["src/lib.rs"],
+)

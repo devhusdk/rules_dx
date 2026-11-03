@@ -1,10 +1,11 @@
-"""Thrift C++ and Java code generation from the pinned thrift compiler."""
+"""Thrift C++, Rust and Java code generation from the pinned thrift compiler."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_ATTRS", "find_cpp_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//libs/starlark:stage.bzl", "stage_closure")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ThriftInfo")
@@ -212,3 +213,86 @@ thrift_java_library = rule(
     },
     provides = [JavaInfo],
 )
+
+def _rust_module(path):
+    stem = path.rpartition("/")[2]
+    if not stem.endswith(".thrift") or len(stem) == len(".thrift"):
+        fail("thrift_rust_library: " + path + " is not a .thrift schema")
+    return stem[:-len(".thrift")].replace("-", "_").lower()
+
+def _rust_srcs_impl(ctx):
+    srcs = depset(transitive = [dep[ThriftInfo].transitive_srcs for dep in ctx.attr.deps]).to_list()
+    modules = {}
+    for src in srcs:
+        module = _rust_module(src.short_path)
+        if module in modules.values():
+            fail("thrift_rust_library " + str(ctx.label) + ": two schemas generate module " + module + "; rename one")
+        modules[src.short_path] = module
+    if not modules:
+        fail("thrift_rust_library " + str(ctx.label) + ": deps own no schemas")
+    includes = depset(transitive = [dep[ThriftInfo].transitive_includes for dep in ctx.attr.deps])
+    stage = stage_closure(ctx, "_thrift_rs_stage/" + ctx.label.name, includes.to_list(), "thrift")
+    out_subdir = ctx.label.name + "_thrift_rs"
+    lib = ctx.actions.declare_file(out_subdir + "/lib.rs")
+    ctx.actions.write(lib, "".join(["pub mod " + m + ";\n" for m in sorted(modules.values())]))
+    pkg = ctx.label.package
+    out_dir = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + out_subdir
+    generated = []
+    for src in srcs:
+        out = ctx.actions.declare_file(out_subdir + "/" + modules[src.short_path] + ".rs")
+        generated.append(out)
+        args = ctx.actions.args()
+        args.add("--gen", "rs")
+        args.add("-I", stage.root)
+        args.add("-out", out_dir)
+        args.add(stage.staged[src.short_path])
+        ctx.actions.run(
+            executable = ctx.executable._thrift,
+            toolchain = None,
+            inputs = stage.files,
+            outputs = [out],
+            arguments = [args],
+            mnemonic = "ThriftRust",
+            progress_message = "thrift --gen rs " + src.short_path,
+        )
+    return [
+        DefaultInfo(files = depset([lib] + generated)),
+        dx_quality_sources([], [], str(ctx.label)),
+    ]
+
+_thrift_rust_srcs = rule(
+    implementation = _rust_srcs_impl,
+    doc = "Runs thrift --gen rs over the schemas of the deps and their includes.",
+    attrs = {
+        "deps": attr.label_list(providers = [ThriftInfo], doc = "thrift_library targets to generate Rust for."),
+        "_thrift": attr.label(default = Label("@dx_thrift//:thrift_compiler"), executable = True, cfg = "exec"),
+    },
+)
+
+def thrift_rust_library(name, deps, crate_name = None, **kwargs):
+    """One Rust crate with a module per schema of the deps and everything they include.
+
+    Args:
+      name: Name of the rust_library.
+      deps: thrift_library targets to generate Rust for.
+      crate_name: Crate name dependents import; defaults to name.
+      **kwargs: Passed to the rust_library (visibility, tags, testonly).
+    """
+    generated = name + "_generated"
+    _thrift_rust_srcs(
+        name = generated,
+        deps = deps,
+        tags = kwargs.get("tags"),
+        testonly = kwargs.get("testonly"),
+        visibility = kwargs.get("visibility"),
+    )
+    rust_library(
+        name = name,
+        srcs = [":" + generated],
+        crate_name = (crate_name or name).replace("-", "_"),
+        crate_root = None,
+        edition = "2021",
+        rustc_flags = ["--cap-lints=allow"],
+        deps = [Label("@dx_thrift//:rust_runtime")],
+        **kwargs
+    )

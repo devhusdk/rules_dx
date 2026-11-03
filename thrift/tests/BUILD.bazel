@@ -5,7 +5,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 load("//cc/rules:defs.bzl", "cc_test")
 load("//java/rules:defs.bzl", "java_test")
-load("//thrift/rules:codegen.bzl", "thrift_cc_library", "thrift_java_library")
+load("//thrift/rules:codegen.bzl", "thrift_cc_library", "thrift_java_library", "thrift_rust_library")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -41,6 +41,14 @@ java_test(
     test_class = "JavaRoundtripTest",
     use_testrunner = False,
     deps = [":shapes_java"],
+)
+
+thrift_rust_library(
+    name = "shapes_rs",
+    deps = [
+        "//thrift/tests/api",
+        "//thrift/tests/base",
+    ],
 )
 
 real_source_target(

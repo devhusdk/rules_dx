@@ -2,6 +2,7 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_java//java:java_library.bzl", "java_library")
+load("@rules_rust//rust:defs.bzl", "rust_library")
 
 # Generators register through static constructors in t_generator_registry.h, so every
 # generator source is compiled straight into the binary rather than via a library.
@@ -86,5 +87,24 @@ java_library(
     deps = [
         "@dx_thrift_commons_lang3//jar",
         "@dx_thrift_slf4j//jar",
+    ],
+)
+
+rust_library(
+    name = "rust_runtime",
+    srcs = glob(["lib/rs/src/**/*.rs"]),
+    crate_features = ["server"],
+    crate_name = "thrift",
+    crate_root = "lib/rs/src/lib.rs",
+    edition = "2018",
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@dx_thrift_crates//:byteorder",
+        "@dx_thrift_crates//:log",
+        "@dx_thrift_crates//:ordered-float",
+        "@dx_thrift_crates//:threadpool",
+        "@dx_thrift_crates//:uuid",
+        "@dx_thrift_crates//:varint-rs",
     ],
 )

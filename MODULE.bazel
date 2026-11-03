@@ -1149,6 +1149,20 @@ crate.from_cargo(
 )
 use_repo(crate, "dx_quality_crates")
 
+crate.from_cargo(
+    name = "dx_thrift_crates",
+    cargo_lockfile = "//thrift/crates:Cargo.lock",
+    lockfile = "//thrift/crates:cargo-bazel-lock.json",
+    manifests = ["//thrift/crates:Cargo.toml"],
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+    ],
+)
+use_repo(crate, "dx_thrift_crates")
+
 _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
 
 _consumer_hub_repo(

@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "dx_thrift_crates"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+byteorder = "1.3"
+log = "0.4"
+ordered-float = "3.0"
+threadpool = "1.7"
+uuid = "1"
+varint-rs = "2.2.1"

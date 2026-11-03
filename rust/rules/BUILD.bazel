@@ -12,6 +12,14 @@ config_setting(
 )
 
 config_setting(
+    name = "msvc",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//os:windows",
+    ],
+)
+
+config_setting(
     name = "libstdcxx",
     constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
 )

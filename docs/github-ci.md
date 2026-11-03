@@ -267,7 +267,6 @@ the run: `Config value 'ci' is not defined in any .rc file`.
 common:ci --remote_cache=grpcs://remote.buildbuddy.io
 common:ci --remote_cache_compression
 common:ci --remote_timeout=10m
-common:ci --remote_download_outputs=all
 common:ci-pr --noremote_upload_local_results
 ```
 

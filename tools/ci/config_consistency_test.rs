@@ -913,3 +913,14 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
     }
     assert!(passes > 0, "no workflow passes a Bazel config");
 }
+
+#[test]
+fn ci_config_leaves_remote_downloads_to_dx() {
+    for path in [".bazelrc", "docs/github-ci.md"] {
+        let text = read_runfiles(path);
+        assert!(
+            !text.contains("--remote_download_outputs=all"),
+            "{path} sets --remote_download_outputs=all"
+        );
+    }
+}

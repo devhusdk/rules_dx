@@ -170,6 +170,8 @@ public="$(location @rules_dx//:dx)"
 ok="$$(dirname "$(location sets_ok/MODULE.bazel)")"
 bad="$$(dirname "$(location sets_bad/MODULE.bazel)")"
 nolock="$$(dirname "$(location sets_nolock/MODULE.bazel)")"
+orig="$$(mktemp -d)"
+trap 'rm -rf "$$orig"' EXIT
 for ws in "$$ok" "$$bad" "$$nolock"; do
   echo 'module(name = "consumer_sets", version = "0.0.0")' > "$$ws/MODULE.bazel"
   mkdir -p "$$ws/.dx"
@@ -198,7 +200,7 @@ version = 4
 name = "app"
 version = "0.1.0"
 EOF
-cp "$(location sets_ok/apps/rs/Cargo.lock)" /tmp/consumer_sets_cargo_lock.orig
+cp "$(location sets_ok/apps/rs/Cargo.lock)" "$$orig/consumer_sets_cargo_lock.orig"
 echo 'source "https://rubygems.org"' > "$(location sets_ok/apps/rb/Gemfile)"
 cat > "$(location sets_ok/apps/rb/Gemfile.lock)" <<'EOF'
 GEM
@@ -208,7 +210,7 @@ GEM
 PLATFORMS
   ruby
 EOF
-cp "$(location sets_ok/apps/rb/Gemfile.lock)" /tmp/consumer_sets_gemfile_lock.orig
+cp "$(location sets_ok/apps/rb/Gemfile.lock)" "$$orig/consumer_sets_gemfile_lock.orig"
 echo '{"name": "web", "version": "1.0.0", "private": true}' > "$(location sets_ok/apps/web/package.json)"
 cat > "$(location sets_ok/apps/web/pnpm-lock.yaml)" <<'EOF'
 lockfileVersion: '9.0'
@@ -244,8 +246,8 @@ version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 EOF
 done
-cp "$(location sets_ok/apps/frontend/uv.lock)" /tmp/consumer_sets_frontend_uv_lock.orig
-cp "$(location sets_ok/services/worker/uv.lock)" /tmp/consumer_sets_worker_uv_lock.orig
+cp "$(location sets_ok/apps/frontend/uv.lock)" "$$orig/consumer_sets_frontend_uv_lock.orig"
+cp "$(location sets_ok/services/worker/uv.lock)" "$$orig/consumer_sets_worker_uv_lock.orig"
 gitleaks="$$(type -P true)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
   echo "security passed without a PyPI advisory snapshot" >&2
@@ -288,7 +290,7 @@ if "$$public" update --workspace "$$ok" crates >> "$(location bump_cargo.txt)" 2
   exit 1
 fi
 grep -q 'cannot resolve cargo hub "crates": MODULE.bazel must list "crates" in use_repo' "$(location bump_cargo.txt)"
-cmp /tmp/consumer_sets_cargo_lock.orig "$(location sets_ok/apps/rs/Cargo.lock)"
+cmp "$$orig/consumer_sets_cargo_lock.orig" "$(location sets_ok/apps/rs/Cargo.lock)"
 "$$public" update --workspace "$$ok" gems > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" gems > "$(location security_ruby_json.txt)" 2>/dev/null; then
@@ -306,7 +308,7 @@ if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location bump_pinned.
   exit 1
 fi
 grep -q "update is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location bump_pinned.txt)"
-cmp /tmp/consumer_sets_gemfile_lock.orig "$(location sets_ok/apps/rb/Gemfile.lock)"
+cmp "$$orig/consumer_sets_gemfile_lock.orig" "$(location sets_ok/apps/rb/Gemfile.lock)"
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
 if "$$public" update pypi-frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
@@ -325,8 +327,8 @@ if "$$public" license --output=json --workspace "$$nolock" > "$(location nolock_
 fi
 grep -q "failed to assess pypi-frontend" "$(location nolock_license.txt)"
 grep -q "apps/frontend/uv.lock" "$(location nolock_license.txt)"
-cmp /tmp/consumer_sets_frontend_uv_lock.orig "$(location sets_ok/apps/frontend/uv.lock)"
-cmp /tmp/consumer_sets_worker_uv_lock.orig "$(location sets_ok/services/worker/uv.lock)"
+cmp "$$orig/consumer_sets_frontend_uv_lock.orig" "$(location sets_ok/apps/frontend/uv.lock)"
+cmp "$$orig/consumer_sets_worker_uv_lock.orig" "$(location sets_ok/services/worker/uv.lock)"
 """,
     tools = [
         "@rules_dx//:dx",

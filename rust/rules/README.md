@@ -93,7 +93,7 @@ directly:
 bazel build --platforms=@rules_rust//rust/platform:wasip1 //pkg:tool
 ```
 
-`rust_wasi_test` runs the module under Wasmtime 49.0.2. The guest gets
+`rust_wasi_test` runs the module under Wasmtime 49.0.5. The guest gets
 only the declared `args`, `env` entries, and `preopens`. Ambient
 environment and undeclared files stay denied.
 `args`, `env`, `preopens` guest paths, `expected_stdout`, and

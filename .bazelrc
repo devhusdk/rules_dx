@@ -6,7 +6,7 @@ import %workspace%/tools/bazelrc/resources.bazelrc
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
 test:retry --flaky_test_attempts=3
-test --test_timeout=300,300,900,3600
+test --test_timeout=60,300,900,3600
 test --local_test_jobs=4
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_SLOTS

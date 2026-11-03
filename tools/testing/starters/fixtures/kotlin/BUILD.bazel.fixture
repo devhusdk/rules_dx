@@ -1,0 +1,21 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
+
+kotlin_library(
+    name = "demo-app",
+    srcs = ["Hello.kt"],
+)
+
+kotlin_binary(
+    name = "demo-app_bin",
+    srcs = ["Main.kt"],
+    main_class = "hello.MainKt",
+    deps = [":demo-app"],
+)
+
+kotlin_test(
+    name = "demo-app_test",
+    srcs = ["HelloTest.kt"],
+    main_class = "hello.HelloTestKt",
+    test_class = "hello.HelloTest",
+    deps = [":demo-app"],
+)

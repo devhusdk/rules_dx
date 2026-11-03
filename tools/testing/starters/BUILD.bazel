@@ -78,6 +78,10 @@ starter_consumer_test(
 )
 
 starter_consumer_test(
+    name = "kotlin",
+)
+
+starter_consumer_test(
     name = "lua",
 )
 
@@ -166,6 +170,9 @@ exports_files(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
     tags = ["corpus"],
 )

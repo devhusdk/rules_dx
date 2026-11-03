@@ -93,6 +93,12 @@ filegroup(
 )
 
 filegroup(
+    name = "kotlin",
+    srcs = glob(["kotlin/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "lua",
     srcs = glob(["lua/**"]),
     visibility = ["//visibility:public"],

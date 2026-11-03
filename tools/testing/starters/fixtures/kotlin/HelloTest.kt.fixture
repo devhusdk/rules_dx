@@ -1,0 +1,6 @@
+// Seed Kotlin test; consumer of kotlin_test.
+package hello
+
+fun main() {
+    check(Hello.hello("world") == "hello world")
+}

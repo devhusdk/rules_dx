@@ -1,14 +1,40 @@
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
+load(":defs.bzl", "scala_scalacopts_with_werror")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":wrapper_tests.bzl", "scala_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
-    "wrapper_tests.bzl",
 ])
 
-scala_wrapper_contract_tests(name = "wrapper_contract_tests")
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    file_classes = ["scala", "java"],
+    extra_checks = [
+        expect_equal(
+            "empty gains fatal warnings",
+            scala_scalacopts_with_werror({})["scalacopts"],
+            ["-Xfatal-warnings"],
+        ),
+        expect_equal(
+            "existing flag is kept without duplication",
+            scala_scalacopts_with_werror({"scalacopts": ["-Xfatal-warnings"]})["scalacopts"],
+            ["-Xfatal-warnings"],
+        ),
+        expect_equal(
+            "other flags are kept",
+            scala_scalacopts_with_werror({"scalacopts": ["-deprecation"]})["scalacopts"],
+            ["-deprecation", "-Xfatal-warnings"],
+        ),
+        expect_equal(
+            "other kwargs survive",
+            scala_scalacopts_with_werror({"deps": [":hello_lib"]})["deps"],
+            [":hello_lib"],
+        ),
+    ],
+)
 
 real_source_target(
     name = "corpus_starlark",
@@ -16,7 +42,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "wrapper_tests.bzl",
-    ],
+        ],
     tags = ["corpus"],
 )

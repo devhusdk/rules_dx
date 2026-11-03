@@ -10,6 +10,25 @@ use dx_plan::resolve::expand_codegen_roots;
 use dx_process::ForwardError;
 use std::path::Path;
 
+/// Prints the direnv lines for `.dx/bin`. Runs no Bazel.
+pub(crate) fn execute_env_shell(env: Env<'_>) -> i32 {
+    let Env {
+        workspace,
+        out,
+        err,
+        ..
+    } = env;
+    if !workspace.join(".dx").join("bin").is_dir() {
+        let _ = writeln!(
+            err,
+            "dx env: missing .dx/bin; run `dx env --apply` to regenerate"
+        );
+        return 1;
+    }
+    let _ = writeln!(out, "PATH_add .dx/bin\nwatch_file .dx/bin");
+    0
+}
+
 pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.command.is_managed(),

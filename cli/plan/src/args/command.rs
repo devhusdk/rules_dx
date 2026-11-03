@@ -365,7 +365,7 @@ pub static COMMANDS: [CommandMeta; 24] = [
         name: "env",
         scope_policy: "default-repo|exact-label",
         describe: "collect managed tools and generated source (check by default; --apply writes managed state)",
-        usage: "Usage: dx env [--apply] [<label>] [-- bazel-options ...]",
+        usage: "Usage: dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options ...]",
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/env.md).",
         is_managed: true,
         is_adoption: false,

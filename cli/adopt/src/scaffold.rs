@@ -23,14 +23,9 @@ pub const DEVCONTAINER_JSON: &str = concat!(
 );
 
 pub const ENVRC_CONTENT: &str = concat!(
-    "# Committed direnv entry scaffolded absent-only by `dx init`.\n",
-    "# PATH-tools-only: adds managed `.dx/bin` to PATH, nothing else; never invokes Bazel.\n",
-    "if [ ! -d \".dx/bin\" ]; then\n",
-    "  echo \"dx: missing .dx/bin; run `dx env --apply` to regenerate\" >&2\n",
-    "  return 1\n",
-    "fi\n",
-    "PATH_add .dx/bin\n",
-    "watch_file .dx/bin\n",
+    "# Loads the managed bin through the pinned dx.\n",
+    "dx_env_lines=$(tools/dx env --shell=direnv) || return 1\n",
+    "eval \"$dx_env_lines\"\n",
 );
 
 pub const CONSUMER_RULES_CC_VERSION: &str = dx_versions::RULES_CC_VERSION;
@@ -510,18 +505,57 @@ mod tests {
     }
 
     #[test]
-    fn envrc_scaffold_is_path_only_with_watch_and_regeneration_guard() {
+    fn envrc_scaffold_delegates_to_the_pinned_tools_dx() {
         let files = plan_init_files("demo").expect("init plans");
         let envrc = files
             .iter()
             .find(|f| f.path == ".envrc")
             .expect("envrc scaffold");
         assert_eq!(envrc.content, super::ENVRC_CONTENT);
-        assert!(envrc.content.contains("PATH_add .dx/bin"));
-        assert!(envrc.content.contains("watch_file .dx/bin"));
-        assert!(envrc.content.contains("dx env --apply"));
-        assert!(!envrc.content.contains("dx:env"));
-        assert!(envrc.content.contains("never invokes Bazel"));
+        assert!(envrc.content.contains("tools/dx env --shell=direnv"));
+        assert!(!envrc.content.contains(".dx"));
+    }
+
+    #[cfg(unix)]
+    fn run_envrc(stub_body: &str) -> (std::process::ExitStatus, String) {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-adopt-envrc-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("tools")).expect("tools");
+        std::fs::write(root.join(".envrc"), super::ENVRC_CONTENT).expect("envrc");
+        let stub = root.join("tools/dx");
+        std::fs::write(&stub, format!("#!/bin/sh\n{stub_body}\n")).expect("stub");
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let script = "PATH_add() { PATH=\"$PWD/$1:$PATH\"; export PATH; }\nwatch_file() { :; }\n. ./.envrc\ns=$?\nprintf %s \"$PATH\"\nexit $s";
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(script)
+            .current_dir(root)
+            .env("PATH", "/usr/bin:/bin")
+            .output()
+            .expect("sh runs");
+        scratch.close().expect("cleanup");
+        (
+            output.status,
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+        )
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn envrc_adds_the_managed_bin_to_path() {
+        let (status, path) = run_envrc("echo 'PATH_add .dx/bin'\necho 'watch_file .dx/bin'");
+        assert!(status.success(), "{status}");
+        assert!(path.starts_with('/'), "{path}");
+        assert!(path.ends_with("/.dx/bin:/usr/bin:/bin"), "{path}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn envrc_fails_when_the_pinned_dx_fails() {
+        let (status, path) = run_envrc("echo 'dx env: missing .dx/bin' >&2\nexit 1");
+        assert!(!status.success());
+        assert_eq!(path, "/usr/bin:/bin");
     }
 
     #[test]

@@ -252,6 +252,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Generate => generate::execute_generate(invocation, env),
         Command::Clean => clean::execute_clean(invocation, env),
+        Command::Env if invocation.shell.is_some() => managed::execute_env_shell(env),
         Command::Env => managed::execute_managed(invocation, env),
         Command::Security | Command::License => audit::execute_audit(invocation, env),
         Command::Update if invocation.edits_version() => bump::execute_bump(invocation, env),

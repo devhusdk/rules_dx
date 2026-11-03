@@ -316,6 +316,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         diff,
         path_only,
+        shell,
         report,
         fail_on,
         build_slots,
@@ -630,6 +631,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         install_archive,
         install_dir,
         path_only,
+        shell,
         agent,
         bazel_startup_options,
     })

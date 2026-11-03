@@ -6,7 +6,7 @@ bazel run @rules_dx//:dx -- env --apply
 ```
 
 ```text
-dx env [--apply] [<label>] [-- bazel-options...]
+dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
 ```
 
 `dx env` collects the managed tools for `.dx/bin`, the env values, and the
@@ -21,6 +21,12 @@ not load external repos.
 
 A pattern, a relative label, a path, an empty value or a second label is
 a usage error and exits `2`.
+
+`--shell=direnv` prints the lines the scaffolded `.envrc` evaluates:
+`PATH_add .dx/bin` and `watch_file .dx/bin`. It runs no Bazel, writes
+nothing, and ignores `--apply`, the label and `--output`. If `.dx/bin` is
+missing, it writes a `missing .dx/bin` message to stderr and exits `1`.
+Any other value is a usage error.
 
 It checks the intended selection by default and reports drift without
 writing. Pass `--apply` to select it. A missing selection is drift, not

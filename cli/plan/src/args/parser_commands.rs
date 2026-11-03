@@ -579,6 +579,14 @@ fn version_flags_stay_with_their_commands() {
 }
 
 #[test]
+fn env_shell_flag_takes_direnv_only() {
+    let got = parse(&strings(&["env", "--shell=direnv"])).expect("shell parses");
+    assert_eq!(got.shell.as_deref(), Some("direnv"));
+    assert!(parse(&strings(&["env", "--shell=fish"])).is_err());
+    assert!(parse(&strings(&["lint", "--shell=direnv"])).is_err());
+}
+
+#[test]
 fn check_defaults_to_check_and_applies_only_with_apply() {
     for command in ["lint", "typecheck", "format", "check"] {
         let bare = parse(&strings(&[command])).expect("bare parses");

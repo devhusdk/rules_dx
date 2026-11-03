@@ -57,6 +57,7 @@ pub(crate) struct Flags {
     pub(crate) output: Option<String>,
     pub(crate) diff: bool,
     pub(crate) path_only: bool,
+    pub(crate) shell: Option<String>,
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
     pub(crate) baseline: Option<String>,
@@ -201,6 +202,20 @@ flag_group! {
     DiffFlag, {
         #[arg(long, overrides_with = "diff")]
         diff: bool,
+    }
+}
+
+flag_group! {
+    /// Print shell lines for the managed bin instead of running env.
+    EnvShellFlag, {
+        #[arg(
+            long,
+            value_name = "SHELL",
+            require_equals = true,
+            overrides_with = "shell",
+            value_parser = clap::builder::PossibleValuesParser::new(["direnv"])
+        )]
+        shell: Option<String>,
     }
 }
 
@@ -913,7 +928,7 @@ command_args! {
         floor: FloorArgs,
     };
     /// The flags `dx env` accepts.
-    Env => 14, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
+    Env => 14, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, shell: EnvShellFlag, };
     /// The flags `dx init` accepts.
     Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitArgs, };
     /// The flags `dx upgrade` accepts.

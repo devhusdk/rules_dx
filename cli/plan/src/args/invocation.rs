@@ -292,6 +292,7 @@ pub struct Invocation {
     /// `dx install --dir`, absolute (resolved from the invocation cwd).
     pub install_dir: Option<PathBuf>,
     pub path_only: bool,
+    pub shell: Option<String>,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
 }
@@ -661,6 +662,7 @@ mod tests {
             install_archive: None,
             install_dir: None,
             path_only: false,
+            shell: None,
             agent: false,
             bazel_startup_options: Vec::new(),
         }

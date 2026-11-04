@@ -20,6 +20,34 @@ def valid_sha256(text):
     """Returns whether text is 64 lowercase hex digits."""
     return len(text) == 64 and all([c in _HEX for c in text.elems()])
 
+def plan_root(modules):
+    """Reads the module tags: returns struct(error, source, overrides).
+
+    Args:
+      modules: Structs with name, is_root and tags.asset / tags.from_source.
+
+    Returns:
+      A struct with the first error text (empty when fine), whether dx builds
+      from source, and the root module's asset overrides.
+    """
+    rules_dx_is_root = False
+    from_source = False
+    overrides = {}
+    for mod in modules:
+        if mod.name == "rules_dx" and mod.is_root:
+            rules_dx_is_root = True
+        if not mod.is_root:
+            if mod.tags.asset or mod.tags.from_source:
+                return struct(error = "dx_prebuilt: only the root module may set asset or from_source tags; {} sets them".format(mod.name), source = False, overrides = {})
+            continue
+        if mod.tags.from_source:
+            from_source = True
+        for tag in mod.tags.asset:
+            if not valid_sha256(tag.sha256):
+                return struct(error = "dx_prebuilt.asset(name = \"{}\"): sha256 must be 64 lowercase hex digits".format(tag.name), source = False, overrides = {})
+            overrides[tag.name] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
+    return struct(error = "", source = rules_dx_is_root or from_source, overrides = overrides)
+
 def repo_name(asset):
     """Returns the http_file repo name for a release asset."""
     return "dx_prebuilt_" + "".join([c if c.isalnum() else "_" for c in asset.removeprefix("dx-").elems()])

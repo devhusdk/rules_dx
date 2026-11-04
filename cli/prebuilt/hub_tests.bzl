@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "ASSET_PLATFORMS", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "repo_name", "valid_sha256")
+load(":hub.bzl", "ASSET_PLATFORMS", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_root", "repo_name", "valid_sha256")
 load(":pins.bzl", "DX_VERSION", "SHA256", "URL_TEMPLATE")
 
 _HASH = "0123456789abcdef" * 4
@@ -19,7 +19,18 @@ _ALL_PINNED = {name: _HASH for name in _PINNED}
 def _override(url, os = "", cpu = ""):
     return struct(cpu = cpu, os = os, sha256 = _HASH, url = url)
 
+def _mod(name, is_root, assets = [], from_source = False):
+    return struct(name = name, is_root = is_root, tags = struct(asset = assets, from_source = [struct()] if from_source else []))
+
+def _tag(sha256 = _HASH):
+    return struct(cpu = "", name = "dx-linux-x86_64", os = "", sha256 = sha256, url = "https://mirror/dx")
+
 def _checks():
+    middle = plan_root([_mod("app", True), _mod("middle", False, from_source = True)])
+    badsha = plan_root([_mod("app", True, assets = [_tag("ABC")])])
+    rooted = plan_root([_mod("rules_dx", True)])
+    sourced = plan_root([_mod("app", True, from_source = True)])
+    pinned_root = plan_root([_mod("app", True, assets = [_tag()]), _mod("rules_dx", False)])
     unpinned = plan_assets("1.2.3", {name: "" for name in _PINNED}, URL_TEMPLATE, {})
     pinned = plan_assets("1.2.3", _PINNED, URL_TEMPLATE, {})
     pinned_build = consumer_build(pinned)
@@ -62,6 +73,13 @@ def _checks():
         expect_false("a fully pinned hub never names the source dx", SOURCE_LABEL in all_pinned_build),
         expect_false("the consumer hub loads nothing from rules_rust", "rules_rust" in all_pinned_build),
         expect_contains("the root hub aliases the source dx", alias_build(SOURCE_LABEL), 'actual = "@rules_dx//cli/cli:dx",'),
+        expect_contains("a non-root module cannot set tags", middle.error, "only the root module may set asset or from_source tags; middle sets them"),
+        expect_contains("a bad sha names its asset", badsha.error, 'dx_prebuilt.asset(name = "dx-linux-x86_64"): sha256 must be 64 lowercase hex digits'),
+        expect_true("from_source builds from source", sourced.source),
+        expect_true("rules_dx as root builds from source", rooted.source),
+        expect_false("a consumer root does not build from source", pinned_root.source),
+        expect_equal("a root asset is an override", pinned_root.overrides.keys(), ["dx-linux-x86_64"]),
+        expect_equal("a valid root has no error", pinned_root.error, ""),
     ]
 
 def dx_prebuilt_hub_tests(name):

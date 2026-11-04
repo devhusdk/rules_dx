@@ -13,7 +13,6 @@
 //cli/cli/tests/latency:bazel_latency_test
 //cli/cli/tests/results_consumer:quality_results_consumer_test
 //cli/cli/tests/results_consumer:test_results_consumer_test
-//cli/prebuilt/tests:consumer_test
 //dart/tests/negative:negative_test
 //deploy/release/tests:candidate_consumer_test
 //deploy/tests/runfiles:renamed_consumer_test

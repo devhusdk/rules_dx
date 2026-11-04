@@ -5,7 +5,7 @@ A consumer platform whose release asset has no pinned sha256 falls back to the s
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//libs/starlark:repo.bzl", "hub_repo")
-load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "valid_sha256")
+load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_root")
 load(":pins.bzl", "DX_VERSION", "SHA256", "URL_TEMPLATE")
 
 _asset = tag_class(
@@ -25,26 +25,14 @@ _from_source = tag_class(
 )
 
 def _dx_prebuilt_impl(module_ctx):
-    rules_dx_is_root = False
-    from_source = False
-    overrides = {}
-    for mod in module_ctx.modules:
-        if mod.name == "rules_dx" and mod.is_root:
-            rules_dx_is_root = True
-        if not mod.is_root:
-            if mod.tags.asset or mod.tags.from_source:
-                fail("dx_prebuilt: only the root module may set asset or from_source tags; {} sets them".format(mod.name))
-            continue
-        if mod.tags.from_source:
-            from_source = True
-        for tag in mod.tags.asset:
-            if not valid_sha256(tag.sha256):
-                fail("dx_prebuilt.asset(name = \"{}\"): sha256 must be 64 lowercase hex digits".format(tag.name))
-            overrides[tag.name] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
-    if rules_dx_is_root or from_source:
+    plan = plan_root(module_ctx.modules)
+    if plan.error:
+        fail(plan.error)
+    rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
+    if plan.source:
         hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": alias_build(SOURCE_LABEL)})
     else:
-        assets = plan_assets(DX_VERSION, SHA256, URL_TEMPLATE, overrides)
+        assets = plan_assets(DX_VERSION, SHA256, URL_TEMPLATE, plan.overrides)
         for asset in assets:
             if asset.repo:
                 http_file(

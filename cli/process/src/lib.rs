@@ -412,11 +412,20 @@ pub enum ForwardError {
     StartupOption { flag: String },
     #[error("invalid_usage: --{flag} targets the test binary; use native bazel")]
     TestBinaryArgs { flag: String },
-    #[error("internal_error: required workflow option --{flag} is missing; {}", BUG_REPORT_HINT)]
+    #[error(
+        "internal_error: required workflow option --{flag} is missing; {}",
+        BUG_REPORT_HINT
+    )]
     InvalidRequiredOption { flag: String },
-    #[error("internal_error: malformed required setting {option}; expected --name=value; {}", BUG_REPORT_HINT)]
+    #[error(
+        "internal_error: malformed required setting {option}; expected --name=value; {}",
+        BUG_REPORT_HINT
+    )]
     InvalidSetting { option: String },
-    #[error("internal_error: {command} does not support this plan; {}", BUG_REPORT_HINT)]
+    #[error(
+        "internal_error: {command} does not support this plan; {}",
+        BUG_REPORT_HINT
+    )]
     UnsupportedCommand { command: String },
 }
 

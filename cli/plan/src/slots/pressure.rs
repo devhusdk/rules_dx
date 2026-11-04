@@ -79,7 +79,7 @@ fn macos_level() -> Option<i32> {
 }
 
 /// Judges a macOS pressure level: 1 is normal, 2 is warn, 4 is critical. Other values have no signal.
-#[cfg(any(target_os = "macos", test))]
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn judge_level(level: i32) -> Option<bool> {
     match level {
         1 => Some(false),

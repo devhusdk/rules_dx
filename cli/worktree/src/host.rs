@@ -122,7 +122,7 @@ pub(crate) fn server_from(pid: u32, rss_bytes: u64, args: &str) -> Option<Server
 }
 
 /// Reads Bazel servers from `pid rss-kib args` lines.
-#[cfg(any(unix, test))]
+#[cfg_attr(not(unix), allow(dead_code))]
 pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
     let mut servers = Vec::new();
     for line in text.lines() {

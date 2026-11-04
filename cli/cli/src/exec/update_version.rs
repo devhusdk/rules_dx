@@ -40,7 +40,9 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         Ok(Some(request)) => request,
         Ok(None) => {
             let selector = &invocation.targets[0];
-            let head = selector.split_once(':').map_or(selector.as_str(), |(h, _)| h);
+            let head = selector
+                .split_once(':')
+                .map_or(selector.as_str(), |(h, _)| h);
             if !head.is_empty()
                 && !invocation.targets[1].is_empty()
                 && !dx_update::bump::UpdateSet::builtin_names().contains(&head)
@@ -1459,14 +1461,12 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn frozen_widen_needed_fails_before_any_manifest_write() {
-        for (selector, version, path, before) in [
-            (
-                "dx_crates:demo",
-                "1.2.3",
-                HELLO_CARGO,
-                "[dependencies]\ndemo = \"1\"\n",
-            ),
-        ] {
+        for (selector, version, path, before) in [(
+            "dx_crates:demo",
+            "1.2.3",
+            HELLO_CARGO,
+            "[dependencies]\ndemo = \"1\"\n",
+        )] {
             let harness = Harness::new("bump-frozen-widen");
             seed(&harness, path, before);
             let (code, out, err) = harness.run(&[
@@ -2115,7 +2115,10 @@ dependencies = ["anyio>=4"]
         harness.write_source(HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
         let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "1.2.3", "--apply"]);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("unknown dependency set \"dx_crates\""), "{err}");
+        assert!(
+            err.contains("unknown dependency set \"dx_crates\""),
+            "{err}"
+        );
         assert_eq!(
             read(&harness, HELLO_CARGO),
             "[dependencies]\nanyhow = \"1\"\n"

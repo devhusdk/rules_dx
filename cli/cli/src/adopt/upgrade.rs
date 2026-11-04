@@ -255,7 +255,11 @@ pub(crate) fn execute_upgrade(
     match dx_adopt::refresh_owned_files(workspace) {
         Ok(files) => wrote.extend(files),
         Err(error) => {
-            return landed(out, err, &format!("editor and CI files not refreshed: {error}"))
+            return landed(
+                out,
+                err,
+                &format!("editor and CI files not refreshed: {error}"),
+            )
         }
     }
     match agents::write(workspace, false) {

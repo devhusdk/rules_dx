@@ -40,7 +40,7 @@ pub enum Descendants {
 /// The job members a Detachable stop kills: those on dx's console, except dx itself.
 /// `None` means the attached members cannot be told apart (no member list, or dx has no
 /// console), so a forced stop falls back to ending the whole job, detached server included.
-#[cfg(any(windows, test))]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn attached_targets(own: u32, members: Option<&[u32]>, console: &[u32]) -> Option<Vec<u32>> {
     let members = members?;
     if console.is_empty() {

@@ -741,7 +741,7 @@ fn all_pids() -> Vec<u32> {
 }
 
 /// Parses `ps -o pid=,stat=,command=` lines into `(pid, state, command line)`, skipping junk.
-#[cfg(any(unix, test))]
+#[cfg_attr(not(unix), allow(dead_code))]
 fn parse_ps_lines(text: &str) -> Vec<(u32, char, String)> {
     text.lines()
         .filter_map(|line| {
@@ -760,7 +760,7 @@ fn parse_ps_lines(text: &str) -> Vec<(u32, char, String)> {
 const WINDOWS_PROCESSES: &str = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--output_user_root=*' -or $_.CommandLine -like '*--workspace_directory=*' } | ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }";
 
 /// Parses `pid<TAB>command line` lines, skipping anything else.
-#[cfg(any(windows, test))]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn parse_process_lines(text: &str) -> Vec<(u32, String)> {
     text.lines()
         .filter_map(|line| {

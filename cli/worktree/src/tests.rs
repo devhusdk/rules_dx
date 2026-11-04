@@ -3003,7 +3003,7 @@ mod hooks {
 
     #[test]
     fn dialects_come_from_the_documented_payload_keys() {
-        use hook::Dialect;
+        use crate::hook::Dialect;
         for (agent, dialect) in [
             ("claude", Dialect::Claude),
             ("codex", Dialect::Claude),

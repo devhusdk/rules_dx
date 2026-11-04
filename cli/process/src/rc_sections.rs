@@ -223,7 +223,10 @@ fn rc_files(
 }
 
 /// The files named by `BAZELRC` (comma-separated) and then each `--bazelrc`. `/dev/null` ends a list.
-pub fn explicit_rc_files(env_get: &dyn Fn(&str) -> Option<String>, startup: &[String]) -> Vec<PathBuf> {
+pub fn explicit_rc_files(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    startup: &[String],
+) -> Vec<PathBuf> {
     let env_paths = env_get("BAZELRC")
         .unwrap_or_default()
         .split(',')

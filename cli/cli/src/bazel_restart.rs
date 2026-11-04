@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn classifier_table() {
-        use Evidence::*;
+        use super::Evidence::*;
         assert!(restartable(Some(37), NotStarted));
         assert!(!restartable(Some(37), Started));
         assert!(!restartable(Some(37), Unknown));

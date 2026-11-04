@@ -18,6 +18,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust dx_diff //cli/diff:dx_diff
 # gazelle:resolve rust dx_digest //cli/digest:dx_digest
 # gazelle:resolve rust dx_env //cli/env:dx_env
+# gazelle:resolve rust dx_install_tools //deploy/install:dx_install_tools
 # gazelle:resolve rust dx_ide //cli/ide:dx_ide
 # gazelle:resolve rust dx_env_plan //cli/env_plan:dx_env_plan
 # gazelle:resolve rust dx_execlog //cli/execlog:dx_execlog
@@ -25,6 +26,9 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust dx_gomod //libs/gomod:dx_gomod
 # gazelle:resolve rust dx_archive //libs/archive:dx_archive
 # gazelle:resolve rust dx_module_bazel //libs/module_bazel:dx_module_bazel
+# gazelle:resolve rust dx_merge //cli/merge:dx_merge
+# gazelle:resolve rust dx_testing //tools/testing:dx_testing
+# gazelle:resolve rust dx_tool_resolve //cli/tool_resolve:dx_tool_resolve
 # gazelle:resolve rust dx_lcov //cli/lcov:dx_lcov
 # gazelle:resolve rust dx_output //cli/output:dx_output
 # gazelle:resolve rust dx_path //cli/path:dx_path

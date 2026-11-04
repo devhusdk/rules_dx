@@ -205,6 +205,9 @@ fn bazel_argv_in(
 
 pub const OUTPUT_GROUP: &str = "dx_results";
 
+/// The output group that holds the built docs site trees `dx docs --serve` previews.
+pub const DOCS_SITES_GROUP: &str = "dx_docs_sites";
+
 /// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
 

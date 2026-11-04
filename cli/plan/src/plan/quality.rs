@@ -6,7 +6,7 @@ use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
     registry::{spec, CommandSpec},
-    rules_dx_label, BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
+    rules_dx_label, BuildPlan, DOCS_SITES_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
     SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
@@ -158,7 +158,12 @@ pub fn plan_build_with(
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
     let aspects = joined_labels(select_aspects(&entry, shards));
-    let mut required = shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path);
+    let group = if command == Command::Docs {
+        format!("{OUTPUT_GROUP},{DOCS_SITES_GROUP}")
+    } else {
+        OUTPUT_GROUP.to_owned()
+    };
+    let mut required = shaped_options(&aspects, &group, bazel_options, bep_path);
     if let Some(path) = exec_log {
         required.extend(exec_log_options(path));
     }

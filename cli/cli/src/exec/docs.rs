@@ -1,10 +1,11 @@
 use super::common::*;
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
+use dx_plan::args::Command;
 use dx_plan::args::Invocation;
-use dx_plan::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
+use dx_plan::plan::{bep_path, plan_build_with};
+use dx_plan::resolve::resolve;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
-
-const DOCS_BUILD_TARGET: &str = "//tools/docs/site:user_site";
 
 const DOCS_DEFAULT_PORT: u16 = 8000;
 
@@ -57,58 +58,44 @@ impl RunningPreview for StdRunning {
     }
 }
 
-fn site_tree_expression(labels: &[String]) -> String {
-    if labels.len() == 1 {
-        labels[0].clone()
-    } else {
-        format!("set({})", quote_set(labels))
+/// Reads the built site trees the docs aspect reported, without opening them.
+struct PathOnly;
+
+impl dx_bep::ArtifactReader for PathOnly {
+    fn read_artifact(&self, _path: &Path) -> std::io::Result<Vec<u8>> {
+        Ok(Vec::new())
     }
 }
 
-fn resolve_site_dir(
-    labels: &[String],
-    scope_text: &str,
-    workspace: &Path,
-    query_runner: &dyn QueryRunner,
-    startup_options: &[String],
-) -> Result<PathBuf, String> {
-    let expression = site_tree_expression(labels);
-    let argv = SelectionContext::unconfigured(startup_options)
-        .selection_argv("cquery", &["--output=files".to_owned()], &expression)
-        .map_err(|error| {
-            format!("could not scope the built site query for {scope_text}: {error}")
-        })?;
-    let result = query_runner.run_query(&argv, workspace).map_err(|error| {
-        format!("could not run cquery for the built site ({scope_text}): {error}")
-    })?;
-    if result.code != Some(0) {
-        return Err(format!(
-            "cquery for the built site ({scope_text}) failed: {}",
-            first_line(&result.stderr)
-        ));
-    }
-    let text = std::str::from_utf8(&result.stdout).map_err(|_| {
-        format!("cquery for the built site ({scope_text}) returned non-UTF-8 output")
-    })?;
-    let paths: Vec<&str> = text
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
+fn built_site_dir(bep: &Path, workspace: &Path, scope_text: &str) -> Result<PathBuf, String> {
+    let file = std::fs::File::open(bep)
+        .map_err(|error| format!("failed to read build events for {scope_text}: {error}"))?;
+    let config = dx_bep::CollectorConfig::new(dx_plan::plan::DOCS_SITES_GROUP)
+        .map_err(|error| format!("invalid BEP config: {error}"))?;
+    let account =
+        dx_bep::collect_account(BufReader::new(file), &config, &PathOnly, Some(workspace))
+            .map_err(|error| format!("invalid build events for {scope_text}: {error}"))?;
+    let mut sites: Vec<PathBuf> = account
+        .targets
+        .into_iter()
+        .flat_map(|target| target.artifacts)
+        .map(|artifact| artifact.exec_path)
         .collect();
-    let [path] = paths.as_slice() else {
+    sites.sort();
+    sites.dedup();
+    let [dir] = sites.as_slice() else {
         return Err(format!(
-            "cquery for the built site ({scope_text}) reported {} output files; serve needs exactly one built site tree (pass a single site target)",
-            paths.len()
+            "{scope_text} built {} docs sites; serve needs exactly one (pass a single site target)",
+            sites.len()
         ));
     };
-    let dir = workspace.join(path);
     if !dir.join("index.html").is_file() {
         return Err(format!(
             "the built site for {scope_text} has no index.html entry page at {}",
             dir.display()
         ));
     }
-    Ok(dir)
+    Ok(dir.clone())
 }
 
 pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -120,48 +107,49 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         workspace,
         runner,
         query_runner,
+        temp_dir,
+        pid,
+        nonce,
         out,
         err,
         ..
     } = env;
     let json = invocation.output == OutputMode::Json;
-    let (labels, scope_text) = if invocation.targets.is_empty() {
-        (
-            vec![DOCS_BUILD_TARGET.to_owned()],
-            DOCS_BUILD_TARGET.to_owned(),
-        )
-    } else {
-        match resolve(
-            &invocation.targets,
-            workspace,
-            query_runner,
-            &invocation.bazel_startup_options,
-        ) {
-            Ok(resolved) => {
-                let scope_text = if resolved.targets.is_empty() {
-                    "//...".to_owned()
-                } else {
-                    resolved.targets.join(" ")
-                };
-                (resolved.targets, scope_text)
-            }
-            Err(error) => return resolve_failed(invocation.output, out, err, &error),
-        }
-    };
-    let actions: &[&str] = &["summary", "render"];
-    let summary = format!("Running docs build for {scope_text} (mdBook render)");
-    let bazel_options = invocation.quiet_bazel_options();
-    let argv = match dx_plan::plan::bazel_argv(
-        "build",
-        &bazel_options,
-        &[],
-        &[],
-        &labels,
+    let resolved = match resolve(
+        &invocation.targets,
+        workspace,
+        query_runner,
         &invocation.bazel_startup_options,
     ) {
-        Ok(argv) => argv,
+        Ok(resolved) => resolved,
+        Err(error) => return resolve_failed(invocation.output, out, err, &error),
+    };
+    let scope_text = resolved.targets.join(" ");
+    let labels = resolved.targets.clone();
+    let actions: &[&str] = &["summary", "render"];
+    let bep = bep_path(temp_dir, pid, nonce);
+    let Some(bep_text) = bep.to_str() else {
+        return pre_exec(
+            invocation.output,
+            out,
+            err,
+            &crate::startup::temp_path_not_utf8(),
+        );
+    };
+    let plan = match plan_build_with(
+        Command::Docs,
+        &resolved,
+        &invocation.quiet_bazel_options(),
+        bep_text,
+        &invocation.bazel_startup_options,
+        None,
+        None,
+    ) {
+        Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
+    let argv = plan.argv;
+    let summary = plan.summary;
     if json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
@@ -184,13 +172,15 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         Ok(code) => code,
         Err(exit) => return exit,
     };
+    if bazel_code != 0 || !invocation.serve {
+        let _ = std::fs::remove_file(&bep);
+    }
     if bazel_code != 0 {
         if json {
             if let Err(exit) = emit_built(out, bazel_exit_event(
                 CODE_BAZEL_FAILED,
                 &format!(
-                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit tools/docs/site:user_site, fixture tools/docs/site:demo_site, pinned mdBook 0.4.52)",
-                    "build",
+                    "Bazel docs build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
                 ),
                 bazel_code,
                 "execute",
@@ -217,13 +207,9 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
     let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
     let url = preview_url(host, port);
-    let serve_dir = match resolve_site_dir(
-        &labels,
-        &scope_text,
-        workspace,
-        query_runner,
-        &invocation.bazel_startup_options,
-    ) {
+    let site = built_site_dir(&bep, workspace, &scope_text);
+    let _ = std::fs::remove_file(&bep);
+    let serve_dir = match site {
         Ok(dir) => dir,
         Err(detail) => {
             return operational(invocation, out, err, CODE_SERVE_FAILED, &detail);
@@ -295,26 +281,41 @@ mod tests {
     use super::super::test_support::*;
     use super::{
         execute_docs_with, opener_argv, opener_argv_for, PreviewServer, RunningPreview,
-        CODE_SERVE_FAILED, DOCS_BUILD_TARGET,
+        CODE_SERVE_FAILED,
     };
     use dx_plan::resolve::QueryResult;
     use dx_testing::cli::strings;
 
-    fn script_site_tree(harness: &Harness, rel: &str) {
-        harness.write_source(&format!("{rel}/index.html"), "<!doctype html>\n");
-        harness.query.outputs.borrow_mut().push(QueryResult {
-            code: Some(0),
-            stdout: format!("{rel}\n").into_bytes(),
-            stderr: Vec::new(),
-        });
+    fn site_bep(harness: &Harness, rels: &[&str]) -> Vec<String> {
+        let mut lines = Vec::new();
+        let mut sets = Vec::new();
+        for (index, rel) in rels.iter().enumerate() {
+            let uri = format!("file://{}", harness.workspace.join(rel).display());
+            lines.push(
+                serde_json::json!({
+                    "id": {"namedSet": {"id": index.to_string()}},
+                    "namedSetOfFiles": {"files": [{"uri": uri}]},
+                })
+                .to_string(),
+            );
+            sets.push(serde_json::json!({"id": index.to_string()}));
+        }
+        lines.push(
+            serde_json::json!({
+                "id": {"targetCompleted": {"label": "//site:site"}},
+                "completed": {
+                    "success": true,
+                    "outputGroup": [{"name": "dx_docs_sites", "fileSets": sets}],
+                },
+            })
+            .to_string(),
+        );
+        lines
     }
 
-    fn script_site_query(harness: &Harness, code: Option<i32>, stdout: &str, stderr: &str) {
-        harness.query.outputs.borrow_mut().push(QueryResult {
-            code,
-            stdout: stdout.as_bytes().to_vec(),
-            stderr: stderr.as_bytes().to_vec(),
-        });
+    fn script_site_tree(harness: &mut Harness, rel: &str) {
+        harness.write_source(&format!("{rel}/index.html"), "<!doctype html>\n");
+        harness.raw_bep = Some(site_bep(harness, &[rel]));
     }
 
     #[test]
@@ -350,25 +351,35 @@ mod tests {
         let harness = Harness::new("docs-build");
         let (code, out, _) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}");
-        assert!(out.contains("Running docs build"), "{out}");
-        assert!(out.contains("mdBook render"), "{out}");
+        assert!(out.contains("docs analysis for //..."), "{out}");
     }
 
     #[test]
-    fn docs_default_summary_names_the_target_it_builds() {
-        let cases: Vec<(Vec<&str>, &str)> =
-            vec![(vec!["docs", "--output=text"], DOCS_BUILD_TARGET)];
+    fn docs_scopes_select_targets_through_the_docs_aspect() {
+        let cases: Vec<(Vec<&str>, &str)> = vec![
+            (vec!["docs", "--output=text"], "//..."),
+            (vec!["docs", "//a/...", "--output=text"], "//a/..."),
+            (vec!["docs", "//a:site", "--output=text"], "//a:site"),
+        ];
         for (words, target) in cases {
             let harness = Harness::new("docs-summary-scope");
+            harness.write_source("a/BUILD.bazel", "");
             let (code, out, err) = harness.run(&words);
             assert_eq!(code, 0, "{out}{err}");
+            let argv = &harness.build_argv.borrow()[0];
+            assert!(argv.contains(&target.to_owned()), "{argv:?}");
             assert!(
-                out.contains(target),
-                "summary must name the label it builds: {out}"
+                argv.iter()
+                    .any(|arg| arg.starts_with("--aspects=") && arg.contains("real_docs_aspect")),
+                "{argv:?}"
             );
             assert!(
-                !out.contains("//..."),
-                "must not claim a repository-wide scope: {out}"
+                argv.contains(&"--output_groups=dx_results,dx_docs_sites".to_owned()),
+                "{argv:?}"
+            );
+            assert!(
+                !argv.iter().any(|arg| arg.contains("user_site")),
+                "{argv:?}"
             );
         }
     }
@@ -563,61 +574,25 @@ mod tests {
         assert_eq!(error["cause"], serde_json::json!("bazel"), "{out}");
         assert_eq!(error["status"], serde_json::json!(3), "{out}");
         assert_eq!(error["phase"], serde_json::json!("execute"), "{out}");
-        assert!(out.contains("tools/docs/site:user_site"), "{out}");
-        assert!(out.contains("0.4.52"), "{out}");
-    }
-
-    #[test]
-    fn docs_serve_cquery_failure_is_serve_failed() {
-        for output in ["--output=text", "--output=json"] {
-            let harness = Harness::new("docs-serve-cquery-fail");
-            script_site_query(
-                &harness,
-                Some(7),
-                "",
-                "ERROR: no such target '//tools/docs/site:missing': target not declared\n",
-            );
-            let (code, out, err) = harness.run(&["docs", "--serve", output]);
-            assert_eq!(code, 1, "{out}{err}");
-            assert!(err.contains("serve_failed"), "{err}");
-            assert!(err.contains("//tools/docs/site:user_site"), "{err}");
-            if output == "--output=json" {
-                assert!(out.contains("serve_failed"), "{out}");
-            }
-        }
+        assert!(out.contains("//..."), "{out}");
     }
 
     #[test]
     fn docs_serve_needs_exactly_one_site_tree() {
-        let harness = Harness::new("docs-serve-no-tree");
-        script_site_query(&harness, Some(0), "\n", "");
-        let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("serve_failed"), "{err}");
-        assert!(err.contains("exactly one"), "{err}");
-        let harness = Harness::new("docs-serve-many-trees");
-        script_site_query(
-            &harness,
-            Some(0),
-            "bazel-bin/a/site\nbazel-bin/b/site\n",
-            "",
-        );
-        let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("serve_failed"), "{err}");
-        assert!(err.contains("exactly one"), "{err}");
-        assert!(err.contains("single site target"), "{err}");
+        for rels in [&[][..], &["bazel-bin/a/site", "bazel-bin/b/site"][..]] {
+            let mut harness = Harness::new("docs-serve-site-count");
+            harness.raw_bep = Some(site_bep(&harness, rels));
+            let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
+            assert_eq!(code, 1, "{err}");
+            assert!(err.contains("serve_failed"), "{err}");
+            assert!(err.contains("exactly one"), "{err}");
+        }
     }
 
     #[test]
     fn docs_serve_needs_a_rendered_entry_page() {
-        let harness = Harness::new("docs-serve-no-entry");
-        script_site_query(
-            &harness,
-            Some(0),
-            "bazel-bin/tools/docs/site/user_site\n",
-            "",
-        );
+        let mut harness = Harness::new("docs-serve-no-entry");
+        harness.raw_bep = Some(site_bep(&harness, &["bazel-bin/a/site"]));
         let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("serve_failed"), "{err}");
@@ -669,22 +644,6 @@ mod tests {
         }
     }
 
-    struct Recorder {
-        seen: std::cell::RefCell<Vec<Vec<String>>>,
-    }
-
-    impl dx_process::Runner for Recorder {
-        fn run(
-            &self,
-            argv: &[String],
-            _cwd: &std::path::Path,
-            _env: &[(&str, &str)],
-        ) -> std::io::Result<dx_process::ChildStatus> {
-            self.seen.borrow_mut().push(argv.to_vec());
-            Ok(dx_process::ChildStatus::exited(0))
-        }
-    }
-
     struct Served {
         code: i32,
         out: String,
@@ -693,9 +652,7 @@ mod tests {
     }
 
     fn serve(harness: &Harness, preview: &FakePreview, words: &[&str]) -> Served {
-        let runner = Recorder {
-            seen: Default::default(),
-        };
+        let runner = harness.runner();
         let mut out = Vec::new();
         let mut err = Vec::new();
         let code = execute_docs_with(
@@ -707,14 +664,14 @@ mod tests {
             code,
             out: String::from_utf8(out).expect("stdout"),
             err: String::from_utf8(err).expect("stderr"),
-            argvs: runner.seen.into_inner(),
+            argvs: harness.build_argv.borrow().clone(),
         }
     }
 
     #[test]
     fn docs_serve_previews_after_build() {
-        let harness = Harness::new("docs-serve");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let mut harness = Harness::new("docs-serve");
+        script_site_tree(&mut harness, "bazel-bin/a/site");
         let preview = FakePreview::default();
         let run = serve(&harness, &preview, &["docs", "--serve", "--port=8080"]);
         assert_eq!(run.code, 0, "{}{}", run.out, run.err);
@@ -727,7 +684,7 @@ mod tests {
         assert_eq!(bound.len(), 1, "{bound:?}");
         assert_eq!((bound[0].0.as_str(), bound[0].1), ("127.0.0.1", 8080));
         assert!(
-            bound[0].2.ends_with("bazel-bin/tools/docs/site/user_site"),
+            bound[0].2.ends_with("bazel-bin/a/site"),
             "the preview must serve the tree cquery reported: {bound:?}"
         );
         assert_eq!(run.argvs.len(), 1, "only bazel runs: {:?}", run.argvs);
@@ -735,8 +692,8 @@ mod tests {
 
     #[test]
     fn docs_serve_binds_host_and_opens_browser() {
-        let harness = Harness::new("docs-serve-bind");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let mut harness = Harness::new("docs-serve-bind");
+        script_site_tree(&mut harness, "bazel-bin/a/site");
         let preview = FakePreview::default();
         let run = serve(
             &harness,
@@ -781,8 +738,8 @@ mod tests {
 
     #[test]
     fn docs_serve_bind_failure_is_serve_failed() {
-        let harness = Harness::new("docs-serve-bind-fail");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let mut harness = Harness::new("docs-serve-bind-fail");
+        script_site_tree(&mut harness, "bazel-bin/a/site");
         let preview = FakePreview {
             bind_error: true,
             ..FakePreview::default()
@@ -802,8 +759,8 @@ mod tests {
 
     #[test]
     fn docs_serve_run_failure_is_serve_failed() {
-        let harness = Harness::new("docs-serve-run-fail");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let mut harness = Harness::new("docs-serve-run-fail");
+        script_site_tree(&mut harness, "bazel-bin/a/site");
         let preview = FakePreview {
             run_error: true,
             ..FakePreview::default()
@@ -823,9 +780,9 @@ mod tests {
     }
 
     #[test]
-    fn docs_serve_previews_the_declared_site_tree() {
-        let harness = Harness::new("docs-serve-foreign-tree");
-        script_site_tree(&harness, "bazel-bin/other/site");
+    fn docs_serve_previews_the_built_site_tree() {
+        let mut harness = Harness::new("docs-serve-foreign-tree");
+        script_site_tree(&mut harness, "bazel-bin/other/site");
         let preview = FakePreview::default();
         let run = serve(
             &harness,
@@ -833,17 +790,8 @@ mod tests {
             &["docs", "//other:site", "--serve", "--output=text"],
         );
         assert_eq!(run.code, 0, "{}{}", run.out, run.err);
-        let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 1, "{queries:?}");
-        assert!(
-            queries[0].contains(&"//other:site".to_owned()),
-            "{queries:?}"
-        );
         let bound = preview.bound.borrow();
-        assert!(
-            bound[0].2.ends_with("bazel-bin/other/site"),
-            "an explicit scope must preview its own tree: {bound:?}"
-        );
+        assert!(bound[0].2.ends_with("bazel-bin/other/site"), "{bound:?}");
     }
 
     #[test]

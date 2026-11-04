@@ -12,7 +12,7 @@ with a scope.
 ## No Scope Means The Repository
 
 - `dx generate`: runs Gazelle over the whole repo.
-- `dx docs`: builds `//tools/docs/site:user_site`.
+- `dx docs`: builds the docs sites, shards and API trees under `//...`.
 
 ## Repository-Wide Or One Exact Label
 

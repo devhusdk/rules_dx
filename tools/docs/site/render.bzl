@@ -3,6 +3,13 @@
 _MDBOOK = "//tools/docs/site/mdbook:mdbook"
 _SITE_BUILD = "//tools/docs/site/build:site_build"
 
+DocsSiteInfo = provider(
+    doc = "One rendered documentation site.",
+    fields = {
+        "tree": "The directory the site is rendered into.",
+    },
+)
+
 DocsApiInfo = provider(
     doc = "One site's rendered API reference.",
     fields = {
@@ -158,11 +165,12 @@ def _mdbook_site_impl(ctx):
         mnemonic = "DxMdBookSite",
         progress_message = "Rendering %{label} with pinned mdBook",
     )
-    return [DefaultInfo(files = depset([tree]))]
+    return [DefaultInfo(files = depset([tree])), DocsSiteInfo(tree = tree)]
 
 mdbook_site = rule(
     implementation = _mdbook_site_impl,
     doc = "Renders the documentation site with mdBook.",
+    provides = [DocsSiteInfo],
     attrs = {
         "api": attr.label(doc = "The API reference to add under api/.", providers = [DocsApiInfo]),
         "book_toml": attr.label(

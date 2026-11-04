@@ -46,6 +46,8 @@ load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_ru
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
 _REAL_TOOL_TABLE = {
     "biome": {
@@ -2863,3 +2865,22 @@ real_lint_probe_aspect = _make_real_probe_aspect("lint")
 real_format_probe_aspect = _make_real_probe_aspect("format")
 
 real_typecheck_probe_aspect = _make_real_probe_aspect("typecheck")
+
+def _real_docs_aspect_impl(target, ctx):
+    files = []
+    sites = []
+    if DocsSiteInfo in target:
+        sites.append(target[DocsSiteInfo].tree)
+    if DocsShardInfo in target:
+        files.append(target[DocsShardInfo].shard)
+    if DocsApiInfo in target:
+        files.append(target[DocsApiInfo].tree)
+    return [OutputGroupInfo(
+        dx_results = depset(files + sites),
+        dx_docs_sites = depset(sites),
+    )]
+
+real_docs_aspect = aspect(
+    implementation = _real_docs_aspect_impl,
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results.",
+)

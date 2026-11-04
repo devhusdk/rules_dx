@@ -247,7 +247,7 @@ pub fn spec(command: Command) -> CommandSpec {
         },
         Command::Docs => CommandSpec {
             command,
-            aspects: &[],
+            aspects: &["quality:real_aspects.bzl%real_docs_aspect"],
             probe: None,
             reports: &[],
         },

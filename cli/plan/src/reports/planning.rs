@@ -117,14 +117,35 @@ fn identity_key(resolved: &Path) -> PathBuf {
     } else {
         resolved.to_path_buf()
     };
-    #[cfg(windows)]
-    {
-        PathBuf::from(anchored.to_string_lossy().to_lowercase())
-    }
-    #[cfg(not(windows))]
-    {
+    let (Some(parent), Some(name)) = (anchored.parent(), anchored.file_name()) else {
+        return anchored;
+    };
+    if directory_ignores_case(parent) {
+        parent.join(name.to_string_lossy().to_lowercase())
+    } else {
         anchored
     }
+}
+
+fn directory_ignores_case(dir: &Path) -> bool {
+    probe_case_insensitive(dir).unwrap_or(cfg!(any(windows, target_os = "macos")))
+}
+
+fn probe_case_insensitive(dir: &Path) -> std::io::Result<bool> {
+    let lower = format!(".dx-case-probe-{}-{}", std::process::id(), probe_counter());
+    let probe = dir.join(&lower);
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe)?;
+    let found = dir.join(lower.to_uppercase()).exists();
+    let _ = std::fs::remove_file(&probe);
+    Ok(found)
+}
+
+fn probe_counter() -> u64 {
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 fn stdout_conflict(error: OutputError) -> ReportError {
@@ -729,7 +750,7 @@ mod tests {
     }
 
     #[test]
-    fn planning_treats_case_variants_per_platform() {
+    fn planning_treats_case_variants_by_directory_case_sensitivity() {
         let workspace = workspace();
         let result = plan_reports(
             workspace.path(),
@@ -737,10 +758,12 @@ mod tests {
             &requests(&[("sarif", "out.sarif"), ("sarif", "OUT.sarif")]),
             &text_mode(),
         );
-        if cfg!(windows) {
+        let ignores_case =
+            directory_ignores_case(&std::fs::canonicalize(workspace.path()).unwrap());
+        if ignores_case {
             assert!(
                 matches!(result, Err(ReportError::ConflictingReports { .. })),
-                "case variants collide on Windows"
+                "case variants collide on a case-insensitive directory"
             );
         } else {
             assert!(result.is_ok(), "case variants stay distinct here");

@@ -200,7 +200,6 @@ rust_test(
 # keep
 rust_test(
     name = "candidate_identity_test",
-    size = "medium",
     srcs = ["candidate_test.rs"],
     env_inherit = ["PATH"],
     deps = crate_deps(

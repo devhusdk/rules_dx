@@ -268,7 +268,6 @@ arm64_files(
 
 rust_test(
     name = "appimage_test",
-    size = "medium",
     srcs = ["appimage_test.rs"],
     data = [
         ":dxhello",
@@ -289,7 +288,6 @@ rust_test(
 
 rust_test(
     name = "appimage_arm64_test",
-    size = "medium",
     srcs = ["appimage_arm64_test.rs"],
     data = [
         ":dxhello_arm64",

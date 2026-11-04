@@ -85,7 +85,6 @@ real_source_target(
 
 rust_test(
     name = "context_clang_tidy_test",
-    size = "medium",
     srcs = ["tests/context_clang_tidy.rs"],
     aliases = aliases(
         package_name = "cc/cc_context",

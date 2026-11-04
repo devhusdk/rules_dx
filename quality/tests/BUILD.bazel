@@ -53,7 +53,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "column_units_test",
-    size = "medium",
     srcs = ["column_units_test.rs"],
     data = [
         "//quality/tools/javascript/bin:eslint",

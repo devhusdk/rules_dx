@@ -274,10 +274,30 @@ index 66d079f..19ad674 100644
  def _filter_package_env(flags):
      # Strips out -package-env from the command-line flags.  Consumers of these output
 diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
-index 0fa4fd9..a7086dd 100644
+index 0fa4fd9..eba5803 100644
 --- a/haskell/private/actions/link.bzl
 +++ b/haskell/private/actions/link.bzl
-@@ -138,8 +138,8 @@ def link_binary(
+@@ -90,17 +90,15 @@ def darwin_flags_for_linking_indirect_cc_deps(hs, cc, posix, basename, dynamic):
+     # -p     Don't sort; display in symbol-table order.
+     # -U     Don't display undefined symbols.
+     hs.actions.run_shell(
+-        inputs = cc_dynamic_libs,
++        inputs = depset(cc_dynamic_libs, transitive = [cc.files]),
+         outputs = [linker_flags_file],
+         command = """
+         touch {out}
+         for lib in {solibs}; do
+-            {nm} -Ujpg "$lib" | {head} -1 | {sed} 's/^/-u /' >> {out}
++            {nm} -Ujpg "$lib" | {{ IFS= read -r s && printf -- '-u %s\\n' "$s"; }} >> {out}
+         done
+         """.format(
+             nm = cc.tools.nm,
+-            head = posix.commands["head"],
+-            sed = posix.commands["sed"],
+             solibs = " ".join(["\"" + lib.path + "\"" for lib in cc_dynamic_libs]),
+             out = linker_flags_file.path,
+         ),
+@@ -138,8 +136,8 @@ def link_binary(
          # assume `otool` and `install_name_tool` are available at the same location as `ar`
          ar_bindir = paths.dirname(cc.tools.ar)
  
@@ -288,7 +308,7 @@ index 0fa4fd9..a7086dd 100644
  
      args.add_all(hs.toolchain.ghcopts)
      args.add_all(compiler_flags)
-@@ -356,7 +356,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
+@@ -356,7 +354,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
          )
      else:
          hs.actions.run(
@@ -297,7 +317,7 @@ index 0fa4fd9..a7086dd 100644
              outputs = [static_library],
              mnemonic = "HaskellLinkStaticLibrary",
              executable = cc.tools.ar,
-@@ -391,8 +391,8 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
+@@ -391,8 +389,8 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
          # assume `otool` and `install_name_tool` are available at the same location as `ar`
          ar_bindir = paths.dirname(cc.tools.ar)
  

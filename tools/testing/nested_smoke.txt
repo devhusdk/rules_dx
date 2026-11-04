@@ -31,7 +31,6 @@
 //python/tests/consumer:service_consumer_test
 //quality/tests:quality_check_smoke_test
 //tools/docs/components/tests:consumer_test
-//tools/docs/go/tests:consumer_test
 //tools/docs/jvm:consumer_test
 //tools/testing/hermetic:cpp_rust
 //tools/testing/hermetic:cuda_gpu_nested_test

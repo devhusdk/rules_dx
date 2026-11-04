@@ -68,7 +68,7 @@ def _tsc_js_impl(target, ctx):
         mnemonic = "TscDiagnostics",
         progress_message = "tsc diagnostics (js) %{label}",
         executable = ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc,
-        inputs = depset([tsconfig], transitive = [target[JsInfo].sources]),
+        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources]),
         outputs = [stdout, status],
         arguments = [args],
         env = {

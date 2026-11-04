@@ -1,0 +1,3 @@
+mdx/tests/typecheck/bad.mdx(1,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+mdx/tests/typecheck/bad.mdx(3,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+mdx/tests/typecheck/bad.mdx(7,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.

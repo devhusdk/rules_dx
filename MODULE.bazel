@@ -1220,6 +1220,7 @@ crate.from_cargo(
         "//tools/testing:Cargo.toml",
         "//appimage/packer:Cargo.toml",
         "//qt/rust:Cargo.toml",
+        "//rust/tests/fixtures/native_call:Cargo.toml",
     ],
     supported_platform_triples = [
         "aarch64-apple-darwin",

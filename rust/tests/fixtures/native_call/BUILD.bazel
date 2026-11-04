@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_cc//cc:defs.bzl", _raw_cc_library = "cc_library")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
@@ -6,6 +7,7 @@ load("//cc/rules:defs.bzl", "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load(":build_script_tests.bzl", "build_script_tool_inputs_test")
 
 package(
     default_testonly = True,
@@ -62,6 +64,51 @@ cargo_build_script(
     version = "0.1.0",
 )
 
+cargo_build_script(
+    name = "native_cc_build_script",
+    srcs = ["cc_build.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/native_call",
+        build = True,
+    ),
+    crate_name = "native_cc_build_script",
+    crate_root = "cc_build.rs",
+    data = [
+        "native_cc.c",
+        "native_cc.cc",
+        "native_cc.h",
+    ],
+    edition = "2021",
+    pkg_name = "native_call",
+    use_cc_toolchain = 1,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+    deps = all_crate_deps(
+        package_name = "rust/tests/fixtures/native_call",
+        build = True,
+    ),
+)
+
+rust_library(
+    name = "native_cc",
+    srcs = ["src/native_cc.rs"],
+    crate_name = "native_cc",
+    crate_root = "src/native_cc.rs",
+    edition = "2021",
+    deps = [":native_cc_build_script"],
+)
+
+rust_test(
+    name = "native_cc_test",
+    crate = ":native_cc",
+    deps = [":native_cc_build_script"],
+)
+
+build_script_tool_inputs_test(
+    name = "native_cc_build_script_tool_inputs_test",
+    target_under_test = ":native_cc_build_script",
+)
+
 rust_library(
     name = "native_call",
     srcs = ["src/lib.rs"],
@@ -95,8 +142,18 @@ real_source_target(
     name = "corpus_starlark",
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "build_script_tests.bzl",
+    ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )
 
 rustfmt_test(
@@ -105,5 +162,8 @@ rustfmt_test(
         ":native_call",
         ":native_call_build_script_",
         ":native_call_test",
+        ":native_cc",
+        ":native_cc_build_script_",
+        ":native_cc_test",
     ],
 )

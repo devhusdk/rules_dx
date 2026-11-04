@@ -1,5 +1,5 @@
 {
-  "checksum": "d5ebbe72a2b7ba7ae8567190e255cfc14717fbebafdc236b57aa0bc64e68a7c7",
+  "checksum": "a312c4c78ba09e24f6f286b38e21a38ac28644c5a2b48e2fcfc81c0110ccae06",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -14121,6 +14121,44 @@
       ],
       "version": "0.1.0"
     },
+    "native_call 0.1.0": {
+      "build_script_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.4.5",
+            "target": "cc"
+          }
+        ]
+      },
+      "common_attrs": {
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "native_call",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "native_call",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "native_call",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "0.1.0"
+    },
     "newtype-uuid 1.4.0": {
       "common_attrs": {
         "crate_features": [
@@ -27580,6 +27618,7 @@
     "base64 0.22.1",
     "blake3 1.8.7",
     "cargo-lock 11.1.0",
+    "cc 1.4.5",
     "chrono 0.4.45",
     "clap 4.6.7",
     "clap_complete 4.6.11",
@@ -27713,6 +27752,7 @@
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
+    "native_call 0.1.0": "rust/tests/fixtures/native_call",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",

@@ -619,8 +619,7 @@ fn a_stopped_test_run_claims_no_results() {
             "{context}"
         );
         assert!(!results.exists(), "{context}");
-        let outcome =
-            consumer.run_cancelled(&["test", "//..."], &[("FAKE_BUILD", "sleep")], signo);
+        let outcome = consumer.run_cancelled(&["test", "//..."], &[("FAKE_BUILD", "sleep")], signo);
         let context = outcome.context();
         assert_eq!(outcome.status.signal(), Some(signo), "{context}");
         assert!(!outcome.err.contains("passed"), "{context}");

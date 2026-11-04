@@ -18,9 +18,9 @@ dx_wrapper_contract_tests(
             ["net10.0"],
         ),
         expect_equal(
-            "empty gains warnings as errors",
-            csharp_tfm_with_defaults({})["treat_warnings_as_errors"],
-            True,
+            "empty follows the warnings flag",
+            type(csharp_tfm_with_defaults({})["treat_warnings_as_errors"]),
+            "select",
         ),
         expect_equal(
             "explicit tfm wins",

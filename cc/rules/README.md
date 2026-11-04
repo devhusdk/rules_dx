@@ -30,14 +30,12 @@ cc_test(
 
 `copts`, `defines`, `features`, `includes` and `linkopts` reach the upstream rule exactly as written. A `select()` value stays a `select()` value. The requested language standard is never translated: `-std=c++23` compiles as C++23.
 
-The wrappers add no warning flags.
-
 ## Warnings
 
-Warnings are the toolchain's decision. Repository builds enable the upstream `treat_warnings_as_errors` feature in `.bazelrc`. A consumer selects it on its own toolchain:
+Each wrapper adds the upstream `treat_warnings_as_errors` feature to `features`. Set `treat_warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. To turn it off for the whole repository:
 
 ```sh
-bazel build --features=treat_warnings_as_errors //pkg/...
+common --@rules_dx//config:warnings_as_errors=false
 ```
 
 The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An MSVC-style driver takes `/W4 /WX`. Plain C never receives a C++-only option.

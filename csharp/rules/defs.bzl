@@ -2,7 +2,7 @@
 
 load("@rules_dotnet//dotnet:defs.bzl", _csharp_binary = "csharp_binary", _csharp_library = "csharp_library", _csharp_test = "csharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
 
@@ -80,8 +80,9 @@ _csharp_forward_test = dx_executable_forward_rule(
 )
 
 def csharp_tfm_with_defaults(kwargs):
-    """Returns kwargs defaulting target_frameworks plus warnings-as-errors."""
-    return dx_setdefaults(kwargs, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": True})
+    """Returns kwargs defaulting target_frameworks and treat_warnings_as_errors, which follows //config:warnings_as_errors when unset."""
+    rest, werror = dx_warnings_as_errors(kwargs, True, False)
+    return dx_setdefaults(rest, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": werror})
 
 def csharp_tfm_forward_kwargs(name, kwargs):
     """Returns the forwarder kwargs that fan Roslyn out over every declared target framework."""

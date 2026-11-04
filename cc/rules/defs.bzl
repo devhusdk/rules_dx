@@ -5,7 +5,7 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_append_flags", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [
@@ -105,8 +105,13 @@ _cc_forward_test = dx_executable_forward_rule(
     toolchains = dx_native_coverage_toolchains(),
 )
 
+def _cc_werror(kwargs):
+    rest, flag = dx_warnings_as_errors(kwargs, ["treat_warnings_as_errors"])
+    return dx_append_flags(rest, "features", flag)
+
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_library."""
+    kwargs = _cc_werror(kwargs)
     effective_srcs = srcs if srcs != None else []
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, extra_forward_kwargs = {"hdrs": effective_hdrs}, **kwargs)
@@ -117,6 +122,7 @@ def objc_library(name, visibility = None, **kwargs):
 
 def cc_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary that links Linux binaries with a build-id."""
+    kwargs = _cc_werror(kwargs)
     linkopts = kwargs.pop("linkopts", [])
     build_id = select({
         "@platforms//os:linux": ["-Wl,--build-id=sha1"],
@@ -126,6 +132,7 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test. Under GCC it sets ASAN_OPTIONS=verify_asan_link_order=0, which the caller's env overrides."""
+    kwargs = _cc_werror(kwargs)
     caller_env = kwargs.pop("env", None) or {}
     gcc_env = select({
         Label("//cc/toolchains:gcc_selected"): {"ASAN_OPTIONS": "verify_asan_link_order=0"},

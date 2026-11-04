@@ -63,6 +63,32 @@ impl Resolver {
             }
             return Resolver::new(Runfiles::builder().directory(&tree), tree, true);
         }
+        // A tool run from inside another target's runfiles has none of its own.
+        for ancestor in binary.ancestors().skip(1) {
+            let Some(name) = ancestor.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !name.ends_with(".runfiles") {
+                continue;
+            }
+            let manifest = with_suffix(ancestor, "_manifest");
+            if manifest.is_file() {
+                let text = std::fs::read_to_string(&manifest)?;
+                return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
+            }
+            let manifest = ancestor.join("MANIFEST");
+            if manifest.is_file() {
+                let text = std::fs::read_to_string(&manifest)?;
+                return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
+            }
+            if ancestor.is_dir() {
+                return Resolver::new(
+                    Runfiles::builder().directory(ancestor),
+                    ancestor.to_path_buf(),
+                    true,
+                );
+            }
+        }
         Err(io::Error::new(
             io::ErrorKind::NotFound,
             format!(
@@ -196,6 +222,21 @@ mod tests {
         let resolver = Resolver::for_binary(&binary).expect("resolver");
         assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
         assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
+    }
+
+    #[test]
+    fn a_tool_inside_another_targets_runfiles_reads_that_manifest() {
+        let dir = scratch("enclosing");
+        let tool = write(&dir, "tool.txt", "from the enclosing manifest\n");
+        let binary = write(&dir, "test.runfiles/_main/pkg/bin/tool.exe", "binary\n");
+        let manifest = write(
+            &dir,
+            "test.runfiles_manifest",
+            &format!("_main/pkg/tool.txt {}\n", tool.display()),
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), manifest);
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), tool);
     }
 
     #[test]

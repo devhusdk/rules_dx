@@ -260,13 +260,6 @@ jobs:
           path: ${{ runner.temp }}/dx-reports/build
           if-no-files-found: warn
           retention-days: 14
-      - name: List the failing tests
-        if: ${{ failure() && matrix.check.id == 'test' }}
-        shell: bash
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:junit_summary_bin -- "${RUNNER_TEMP:-/tmp}/dx-reports/test" >> "$GITHUB_STEP_SUMMARY" || true
       - name: Prove dx run works noninteractively in CI
         if: ${{ !cancelled() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         run: |

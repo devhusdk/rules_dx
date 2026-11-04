@@ -117,28 +117,6 @@ rust_test(
 
 # keep
 rust_library(
-    name = "junit_summary",
-    srcs = ["junit_summary.rs"],
-    crate_name = "junit_summary",
-)
-
-# keep
-rust_binary(
-    name = "junit_summary_bin",
-    srcs = ["junit_summary_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":junit_summary"],
-)
-
-# keep
-rust_test(
-    name = "junit_summary_test",
-    srcs = ["junit_summary_test.rs"],
-    deps = [":junit_summary"],
-)
-
-# keep
-rust_library(
     name = "docs_scope",
     srcs = ["docs_scope.rs"],
     crate_name = "docs_scope",
@@ -596,6 +574,7 @@ rust_test(
         "//cli/tool_resolve:corpus_starlark",
         "//csharp/tests/fixtures/roslyn:corpus_starlark",
         "//cuda/tests:corpus_starlark",
+        "//cuda/tests/fixtures/cuda-app/checks:corpus_starlark",
         "//dart/tests/negative:corpus_starlark",
         "//deploy/install:corpus_starlark",
         "//deploy/offline:corpus_starlark",
@@ -611,7 +590,6 @@ rust_test(
         "//env/stubs:corpus_starlark",
         "//erlang/tests/negative:corpus_starlark",
         "//erlang/tests/nif_escript:corpus_starlark",
-        "//cuda/tests/fixtures/cuda-app/checks:corpus_starlark",
         "//examples/dart-app/failures:corpus_starlark",
         "//examples/java-app/cli:corpus_starlark",
         "//examples/java-app/diagnostics:corpus_starlark",
@@ -786,6 +764,7 @@ rust_test(
         "//scala/rules:corpus_starlark",
         "//sql/rules:corpus_starlark",
         "//svelte/rules:corpus_starlark",
+        "//swift/tools:corpus_starlark",
         "//terraform/rules:corpus_starlark",
         "//tools/docs/go:corpus_starlark",
         "//tools/docs/ir:corpus_starlark",
@@ -801,7 +780,6 @@ rust_test(
         "//typescript/rules:corpus_starlark",
         "//vue/rules:corpus_starlark",
         "//wasi/runtime:corpus_starlark",
-        "//swift/tools:corpus_starlark",
         "//zig/rules:corpus_starlark",
         "//zig/tools:corpus_starlark",
     ],
@@ -850,7 +828,7 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//:RELEASING.md",
-        "//.github:workflows/pins.yml",
+        "//.github:workflows/ci.yml",
         "//.github:workflows/release.yml",
         "//cli/adopt:src/launcher.rs",
         "//cli/adopt:src/version.rs",
@@ -952,7 +930,6 @@ rustfmt_test(
         ":docs_deploy_test",
         ":evidence_inputs_test",
         ":gitlab_example_test",
-        ":junit_summary_test",
         ":release_assets_test",
         ":release_cells_runners_test",
         ":reusable_callers_test",

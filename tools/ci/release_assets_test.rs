@@ -465,8 +465,8 @@ fn a_published_release_is_checked_with_dx_install() {
 
 #[test]
 fn pull_requests_that_touch_pins_run_the_attested_check() {
-    let text = read_runfiles(".github/workflows/pins.yml");
-    assert!(text.contains("pull_request:\n    paths:\n      - \"cli/prebuilt/pins.bzl\""));
+    let text = read_runfiles(".github/workflows/ci.yml");
+    assert!(text.contains("^cli/prebuilt/pins.bzl$"));
     assert!(text.contains("//tools/ci:fill_pins_bin -- \"v$version\" --check"));
     assert!(workflow().contains("//tools/ci:fill_pins_bin -- \"v$version\" --check"));
 }

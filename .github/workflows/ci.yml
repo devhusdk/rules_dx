@@ -718,6 +718,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
         with:
@@ -756,13 +757,32 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           tools/testing/nested_smoke_guard.sh "$@"
+      - name: Check for pins changes
+        id: pins-changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^cli/prebuilt/pins.bzl$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check the pins
+        if: steps.pins-changes.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          bazel run //tools/ci:fill_pins_bin -- "v$version" --check
       - name: Write job summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### workflow-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library; nested_smoke.txt lists every nested Bazel test." >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library; nested_smoke.txt lists every nested Bazel test; pins.bzl equals the attested manifest when it changed." >> "$GITHUB_STEP_SUMMARY"
   gate:
     name: gate
     timeout-minutes: 120

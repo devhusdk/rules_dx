@@ -3,6 +3,7 @@ set -euo pipefail
 
 list="tools/testing/nested_smoke.txt"
 query='attr(tags, "resources:nested_bazel", tests(//...)) except attr(name, ".*_upstream$", tests(//...))'
+cap=27
 
 listed="$(grep -v '^#' "$list" | grep -v '^$' | LC_ALL=C sort -u)"
 queried="$(bazel query --noshow_progress --output=label "$@" "$query" | LC_ALL=C sort -u)"
@@ -12,6 +13,11 @@ if [ -z "$queried" ]; then
 fi
 
 status=0
+count="$(printf '%s\n' "$listed" | grep -c . || true)"
+if [ "$count" -gt "$cap" ]; then
+  echo "$list lists $count tests; the cap is $cap" >&2
+  status=1
+fi
 added="$(LC_ALL=C comm -23 <(printf '%s\n' "$queried") <(printf '%s\n' "$listed"))"
 if [ -n "$added" ]; then
   echo "nested Bazel tests missing from $list (test the logic directly instead):" >&2

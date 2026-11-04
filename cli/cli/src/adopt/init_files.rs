@@ -260,7 +260,7 @@ pub(super) fn apply(
             }
         }
     }
-    wire_lock_hubs(root, prefix, applied, notes)?;
+    wire_module(root, prefix, applied, notes)?;
     if has(|kind| *kind == Kind::Preset) {
         let mut preset = Applied::default();
         let mut preset_notes = Vec::new();
@@ -305,8 +305,9 @@ pub(super) fn apply(
     Ok(())
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files, reporting what it could not wire.
-fn wire_lock_hubs(
+/// Adds the `MODULE.bazel` stanzas for the root lock files, then the rules_dx family modules,
+/// reporting what it could not wire.
+fn wire_module(
     root: &Path,
     prefix: &str,
     applied: &mut Applied,
@@ -317,6 +318,16 @@ fn wire_lock_hubs(
     if let Some(edit) = hubs.edit {
         dx_adopt::write_module_edit(root, &edit).map_err(|error| adopt_message(prefix, &error))?;
         applied.wrote.push(format!("{prefix}{}", edit.path));
+    }
+    let deps = dx_adopt::plan_family_deps(root, dx_families::families())
+        .map_err(|error| adopt_message(prefix, &error))?;
+    notes.extend(deps.notes.iter().map(|note| format!("{prefix}{note}")));
+    if let Some(edit) = deps.edit {
+        dx_adopt::write_module_edit(root, &edit).map_err(|error| adopt_message(prefix, &error))?;
+        let entry = format!("{prefix}{}", edit.path);
+        if !applied.wrote.contains(&entry) {
+            applied.wrote.push(entry);
+        }
     }
     Ok(())
 }

@@ -12,6 +12,7 @@ pub mod build_output;
 pub mod defaults;
 pub mod dependency_sets;
 pub mod error;
+pub mod families;
 pub mod git_changes;
 pub mod init_dir;
 pub mod launcher;
@@ -30,6 +31,7 @@ pub mod watch;
 
 pub use defaults::join_quality_baseline;
 pub use error::AdoptError;
+pub use families::{plan_family_deps, FamilyDeps};
 pub use git_changes::{
     dedupe_changes, is_dx_state, nearest_package_pattern, parse_name_status_nul, ChangeKind,
     GitChange, DEFAULT_BRANCH_CANDIDATES,

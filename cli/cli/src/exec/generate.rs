@@ -46,30 +46,60 @@ fn finish_incomplete_generate(
     code
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`; otherwise says what
-/// `--apply` would add. Problems are reported on `err` and never change the exit code.
-fn wire_lock_hubs(workspace: &Path, apply: bool, err: &mut dyn Write) {
-    let hubs = match dx_adopt::plan_lock_hubs(workspace) {
-        Ok(hubs) => hubs,
+/// Adds the `MODULE.bazel` stanzas for the root lock files and the rules_dx family modules
+/// with `--apply`; otherwise says what `--apply` would add. Problems are reported on `err`
+/// and never change the exit code.
+fn wire_module(workspace: &Path, apply: bool, err: &mut dyn Write) {
+    let hubs = dx_adopt::plan_lock_hubs(workspace).map(|hubs| (hubs.notes, hubs.edit));
+    wire(
+        workspace,
+        apply,
+        err,
+        "lock files",
+        "stanzas for the lock files at the root",
+        hubs,
+    );
+    let deps = dx_adopt::plan_family_deps(workspace, dx_families::families())
+        .map(|deps| (deps.notes, deps.edit));
+    wire(
+        workspace,
+        apply,
+        err,
+        "family modules",
+        "the rules_dx family modules it needs",
+        deps,
+    );
+}
+
+fn wire(
+    workspace: &Path,
+    apply: bool,
+    err: &mut dyn Write,
+    what: &str,
+    gain: &str,
+    plan: Result<(Vec<String>, Option<dx_adopt::ModuleEdit>), dx_adopt::AdoptError>,
+) {
+    let (notes, edit) = match plan {
+        Ok(plan) => plan,
         Err(error) => {
-            let _ = writeln!(err, "dx: lock files not wired: {error}");
+            let _ = writeln!(err, "dx: {what} not wired: {error}");
             return;
         }
     };
-    for note in &hubs.notes {
+    for note in &notes {
         let _ = writeln!(err, "dx: {note}");
     }
-    let Some(edit) = hubs.edit else {
+    let Some(edit) = edit else {
         return;
     };
     if !apply {
         let _ = writeln!(
             err,
-            "dx: {} would gain stanzas for the lock files at the root; run dx generate --apply",
+            "dx: {} would gain {gain}; run dx generate --apply",
             edit.path
         );
     } else if let Err(error) = dx_adopt::write_module_edit(workspace, &edit) {
-        let _ = writeln!(err, "dx: lock files not wired: {error}");
+        let _ = writeln!(err, "dx: {what} not wired: {error}");
     } else {
         let _ = writeln!(err, "dx: wrote {}", edit.path);
     }
@@ -131,7 +161,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    wire_lock_hubs(env.workspace, apply, env.err);
+    wire_module(env.workspace, apply, env.err);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
@@ -425,6 +455,20 @@ mod tests {
         assert!(err.contains("run dx generate --apply"), "{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert_eq!(module, "module(name = \"app\")\n");
+    }
+
+    #[test]
+    fn generate_apply_leaves_module_alone_while_no_family_has_a_module() {
+        let mut harness = Harness::new("generate-family-apply");
+        let module =
+            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
+        harness.write_source("MODULE.bazel", module);
+        harness.write_source("app.py", "");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let after = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert_eq!(after, module);
     }
 
     #[test]

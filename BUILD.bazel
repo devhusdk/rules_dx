@@ -24,6 +24,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust dx_fingerprint //cli/fingerprint:dx_fingerprint
 # gazelle:resolve rust dx_gomod //libs/gomod:dx_gomod
 # gazelle:resolve rust dx_archive //libs/archive:dx_archive
+# gazelle:resolve rust dx_families //libs/families:dx_families
 # gazelle:resolve rust dx_module_bazel //libs/module_bazel:dx_module_bazel
 # gazelle:resolve rust dx_merge //cli/merge:dx_merge
 # gazelle:resolve rust dx_testing //tools/testing:dx_testing

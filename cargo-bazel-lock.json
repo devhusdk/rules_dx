@@ -1,5 +1,5 @@
 {
-  "checksum": "424c5370fdce605d132cec97ce4a23c96648e37b9f8ce3a9d855dd2cf356cfbf",
+  "checksum": "f68c3d1e023a4cd4a76c2ee530795aafb95ca50b3bbc2d7c03b57a2edfdf416d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7292,6 +7292,37 @@
         {
           "Library": {
             "crate_name": "dx_env_plan",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_families 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_families",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_families",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_families",
             "crate_root": "src/lib.rs"
           }
         }
@@ -27748,6 +27779,7 @@
     "dx_docs_serve 0.0.0": "cli/dx_docs_serve",
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
+    "dx_families 0.0.0": "libs/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_ide 0.0.0": "cli/dx_ide",

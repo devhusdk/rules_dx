@@ -40,6 +40,7 @@ workspace and defaulting to the current one. `--apply` creates the directory
 when it is missing. A directory that is missing or holds only `.git` is fresh:
 init also writes a `MODULE.bazel` that depends on `rules_dx` and a
 `.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
+`init --apply` also adds the `rules_dx_<family>` dep for each language family found in the tree, once that module is published.
 Nothing language-specific is chosen up front; languages are wired when their
 sources appear.
 

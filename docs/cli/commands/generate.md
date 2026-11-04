@@ -181,6 +181,10 @@ lock file that is gone is reported, not removed. Without `--apply`,
 globs are reported; list them in `manifests` yourself. Lock files below the
 root are not wired yet.
 
+For each language family whose `rules_dx_<family>` module is published, the same
+commands add `bazel_dep(name = "rules_dx_<family>")` when files of that family are
+in the tree. A dep whose files are gone is reported, not removed.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this

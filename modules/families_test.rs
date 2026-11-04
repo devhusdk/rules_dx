@@ -138,7 +138,7 @@ fn families(json: &str) -> BTreeMap<&'static str, Kind> {
         let entry = entry.as_object().expect("family object");
         for key in entry.keys() {
             assert!(
-                KEYS.contains(&key.as_str()),
+                key == "module" || KEYS.contains(&key.as_str()),
                 "family {family:?} has unknown key {key:?}"
             );
         }
@@ -203,6 +203,52 @@ fn extension_problems(kinds: &BTreeMap<&'static str, Kind>) -> Vec<String> {
         }
     }
     problems
+}
+
+/// Problems with the optional `module` field: it names the published `rules_dx_<family>`
+/// module, so it is unique and never set on `core`.
+fn module_problems(json: &str) -> Vec<String> {
+    let value: serde_json::Value = serde_json::from_str(json).expect("families.json");
+    let mut seen = BTreeSet::new();
+    let mut problems = Vec::new();
+    for (family, entry) in value["families"].as_object().expect("families object") {
+        let Some(module) = entry.get("module") else {
+            continue;
+        };
+        let Some(module) = module.as_str() else {
+            problems.push(format!(
+                "family {family:?} has a module that is not a string"
+            ));
+            continue;
+        };
+        if family == "core" {
+            problems.push("core has a module; it ships in rules_dx itself".to_owned());
+        }
+        if !module.starts_with("rules_dx_") {
+            problems.push(format!("module {module:?} does not start with rules_dx_"));
+        }
+        if !seen.insert(module) {
+            problems.push(format!("module {module:?} is used twice"));
+        }
+    }
+    problems
+}
+
+#[test]
+fn modules_are_unique_and_named_rules_dx() {
+    let problems = module_problems(&dx_testing::read_runfiles("modules/families.json"));
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn module_problems_are_reported() {
+    let json = r#"{"families": {
+        "core": {"module": "rules_dx_core"},
+        "go": {"module": "rules_dx_x"},
+        "rust": {"module": "rules_dx_x"},
+        "lua": {"module": "lua"}
+    }}"#;
+    assert_eq!(module_problems(json).len(), 3);
 }
 
 #[test]

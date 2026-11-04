@@ -1591,6 +1591,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_families"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dx_fingerprint"
 version = "0.0.0"
 dependencies = [

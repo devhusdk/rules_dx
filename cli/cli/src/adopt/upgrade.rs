@@ -470,17 +470,9 @@ mod tests {
     #[test]
     fn upgrade_refreshes_only_what_exists_from_the_init_plan() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-plan-", OLD);
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
         let plan = init_files::plan(&root, "refresh", false).expect("plan");
-        let mut applied = dx_adopt::Applied::default();
-        init_files::apply(
-            &root,
-            "",
-            &plan,
-            init_files::Mode::Create,
-            &mut applied,
-            &mut Vec::new(),
-        )
-        .expect("init");
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
         legacy_launcher(&root, OLD);
@@ -501,12 +493,18 @@ mod tests {
         }
         let build = root.join("third_party/rules_dx/BUILD.bazel");
         std::fs::write(&build, "stale\n").expect("stale build");
+        let existed: Vec<&str> = plan
+            .iter()
+            .map(|file| file.path.as_str())
+            .filter(|path| root.join(path).exists())
+            .collect();
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(std::fs::read_to_string(&build).expect("read"), "stale\n");
         let known: Vec<&str> = plan.iter().map(|file| file.path.as_str()).collect();
         for line in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
             assert!(known.contains(&line), "{line} is not in the plan");
+            assert!(existed.contains(&line), "{line} did not exist before");
         }
         assert!(out.contains("wrote tools/dx\n"), "{out}");
         assert!(out.contains("wrote .github/workflows/ci.yml"), "{out}");

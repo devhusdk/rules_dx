@@ -37,6 +37,7 @@ Per-language guides in the repository:
 - [F#](https://github.com/devhusdk/rules_dx/blob/main/fsharp/README.md)
 - [Go](https://github.com/devhusdk/rules_dx/blob/main/go/README.md)
 - [Haskell](https://github.com/devhusdk/rules_dx/blob/main/haskell/README.md)
+- [JavaScript](https://github.com/devhusdk/rules_dx/blob/main/javascript/README.md)
 - [Julia](https://github.com/devhusdk/rules_dx/blob/main/julia/README.md)
 - [Lua](https://github.com/devhusdk/rules_dx/blob/main/lua/README.md)
 - [MSIX](https://github.com/devhusdk/rules_dx/blob/main/msix/README.md)
@@ -48,6 +49,7 @@ Per-language guides in the repository:
 - [Qt](https://github.com/devhusdk/rules_dx/blob/main/qt/README.md)
 - [Ruby](https://github.com/devhusdk/rules_dx/blob/main/ruby/README.md)
 - [Swift](https://github.com/devhusdk/rules_dx/blob/main/swift/README.md)
+- [TypeScript](https://github.com/devhusdk/rules_dx/blob/main/typescript/README.md)
 - [Zig](https://github.com/devhusdk/rules_dx/blob/main/zig/README.md)
 
 ## Commands

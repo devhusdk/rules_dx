@@ -406,8 +406,10 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 requirement to the version, or declares it when missing. A version starts with
 a digit, `v` plus a digit, or is a commit SHA. Checks by default; `--apply`
 writes. Without `--apply`, it exits `0` when the manifest already declares the
-version and exits `1` with `bump drift` when a widen is pending. Sets: `bazel`, `cargo`, `github-actions`,
-`go`, `maven`, `npm`, `nuget`. A package the manifest does not declare yet is
+version and exits `1` with `bump drift` when a widen is pending. The set is a
+[dependency set](#dependency-sets) from `MODULE.bazel`, or one of the built-in
+sets `bazel` and `github-actions`. Any other set name exits `2` and lists the
+valid names. A package the manifest does not declare yet is
 added at that exact version. `github-actions`, `bazel:.bazelversion` and
 `uv` sets cannot add; the run fails without writing.
 
@@ -429,13 +431,7 @@ is written:
 
 Duplicate declarations, a missing or computed version or name, and a
 `MODULE.bazel` that does not parse fail without writing. `maven` widens and
-a plain `dx update` never touch a `bazel_dep` floor or an override. A `cargo` widen rewrites the crate in every manifest of the
-`crate.from_cargo` hub in `MODULE.bazel` whose `cargo_lockfile` is
-`rust/tests/fixtures/hello/Cargo.lock`, if that manifest declares the crate.
-It fails without writing if no manifest declares it, or if any manifest
-declares it ambiguously or in a non-registry form. `go` edits
-`third_party/go/go.mod` and `nuget` edits
-`third_party/dotnet/paket.dependencies`. A `github-actions` version is
+a plain `dx update` never touch a `bazel_dep` floor or an override. A `github-actions` version is
 the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 
@@ -453,8 +449,7 @@ the widen stays, `go.sum` is untouched, and the report names
 `go mod tidy` followed by `dx update <set>`. Each
 refusal that `dx update` makes for the set (missing files, `--offline`,
 `--frozen`, host environment) happens before any write. `ruby` sets fail with
-`update is not supported`. A selector whose set name is not a dependency set
-uses the built-in sets above.
+`update is not supported`.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
 `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
@@ -478,8 +473,8 @@ a `maven.install` coordinate, a `dependencies` entry in `package.json`, or a
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
 Output: `--output text|json`. JSON emits an `add_declared` notice for an insert, a `update_widened` notice for each
 written manifest and an `update_set_success` notice after the lock refresh.
-Exit codes: 0 success, 2 usage or scope errors, 1 a pending widen without
-`--apply` or an operational failure.
+Exit codes: 0 success, 2 usage or scope errors or an unknown set, 1 a pending
+widen without `--apply` or an operational failure.
 
 ```sh
 bazel run @rules_dx//:dx -- update --apply dx_crates:anyhow 1.0.100

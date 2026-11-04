@@ -20,14 +20,14 @@ fn check_mode_reports_pending_add_without_writing() {
     let harness = Harness::new("bump-add-check");
     let before = "[dependencies]\nanyhow = \"1\"\n";
     seed(&harness, CARGO_PATH, before);
-    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200"]);
+    let (code, out, err) = harness.run(&["update", "dx_crates:serde", "1.0.200"]);
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("bump pending: cargo:serde 1.0.200 is not declared in"),
+        err.contains("bump pending: dx_crates:serde 1.0.200 is not declared in"),
         "{err}"
     );
     assert!(
-        err.contains("dx update cargo:serde 1.0.200 --apply"),
+        err.contains("dx update dx_crates:serde 1.0.200 --apply"),
         "{err}"
     );
     assert_eq!(read(&harness, CARGO_PATH), before);
@@ -41,7 +41,7 @@ fn unsupported_selectors_do_not_write() {
     let (code, _, err) =
         harness.run(&["update", "github-actions:actions/checkout", "v4", "--apply"]);
     assert_eq!(code, 1, "{err}");
-    let (code, _, err) = harness.run(&["update", "cargo", "1.2.3", "--apply"]);
+    let (code, _, err) = harness.run(&["update", "bazel", "1.2.3", "--apply"]);
     assert_eq!(code, 2, "{err}");
     assert!(err.contains("selects the set"), "{err}");
     assert_eq!(read(&harness, ".bazelversion"), "9.2.0\n");
@@ -89,7 +89,7 @@ fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
     seed(&harness, CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
     let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&[
         "update",
-        "cargo:serde",
+        "dx_crates:serde",
         "1.0.200",
         "--apply",
         "--output=json",
@@ -124,7 +124,7 @@ fn apply_refuses_a_manifest_linking_outside_the_workspace() {
     let at = harness.workspace.join(CARGO_PATH);
     std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
     std::os::unix::fs::symlink(&outside, &at).expect("link");
-    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "dx_crates:serde", "1.0.200", "--apply"]);
     assert_ne!(code, 0, "{out}{err}");
     assert!(
         format!("{out}{err}").contains("leaves the workspace"),

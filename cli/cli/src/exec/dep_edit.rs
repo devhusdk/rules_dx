@@ -41,6 +41,24 @@ pub(crate) struct ConfiguredTarget {
     pub(crate) repository: Option<String>,
 }
 
+/// The error for a selector whose set is neither declared nor built in.
+pub(crate) fn unknown_set_error(workspace: &std::path::Path, head: &str) -> String {
+    let mut names: Vec<String> = match dx_adopt::dependency_sets::load(workspace) {
+        Ok(Some(registry)) => registry.names().into_iter().map(String::from).collect(),
+        _ => Vec::new(),
+    };
+    names.sort();
+    names.extend(
+        dx_update::bump::UpdateSet::builtin_names()
+            .into_iter()
+            .map(String::from),
+    );
+    format!(
+        "unknown dependency set \"{head}\"; expected {}",
+        names.join(", ")
+    )
+}
+
 /// The single manifest of a dependency set the selector names, if any.
 ///
 /// Bazel sets always qualify; uv, npm, cargo, maven and nuget sets only when `foreign`

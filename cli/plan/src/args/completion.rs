@@ -439,7 +439,7 @@ fn update_set_hints(declared: &[String], current: &str) -> Vec<String> {
     let names: Vec<&str> = declared
         .iter()
         .map(String::as_str)
-        .chain(dx_update::bump::UpdateSet::names())
+        .chain(dx_update::bump::UpdateSet::builtin_names())
         .collect();
     prefixed(&names, current)
 }
@@ -662,7 +662,7 @@ mod tests {
                         .iter()
                         .cloned()
                         .chain(
-                            dx_update::bump::UpdateSet::names()
+                            dx_update::bump::UpdateSet::builtin_names()
                                 .into_iter()
                                 .map(String::from),
                         )

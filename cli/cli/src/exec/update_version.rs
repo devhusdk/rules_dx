@@ -39,6 +39,15 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
     let request = match configured_request(invocation, out, err, workspace) {
         Ok(Some(request)) => request,
         Ok(None) => {
+            let selector = &invocation.targets[0];
+            let head = selector.split_once(':').map_or(selector.as_str(), |(h, _)| h);
+            if !head.is_empty()
+                && !invocation.targets[1].is_empty()
+                && !dx_update::bump::UpdateSet::builtin_names().contains(&head)
+            {
+                let message = dep_edit::unknown_set_error(workspace, head);
+                return pre_exec(invocation.output, out, err, &message);
+            }
             match dx_update::bump::UpdateRequest::parse(
                 &invocation.targets[0],
                 &invocation.targets[1],
@@ -1352,15 +1361,25 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn consumer_registry_leaves_builtin_bump_selectors_alone() {
+    fn undeclared_set_selectors_exit_two_and_list_valid_names() {
         let harness = Harness::new("bump-consumer-builtin");
         harness.write_source("MODULE.bazel", CONSUMER_MODULE);
         let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_ne!(code, 0, "{err}");
+        assert_eq!(code, 2, "{err}");
         assert!(
-            !err.contains("not supported for ecosystem"),
-            "builtin selectors must not hit the configured branch: {err}"
+            err.contains("expected pypi-frontend, bazel, github-actions"),
+            "{err}"
         );
+    }
+
+    #[test]
+    fn unknown_set_without_module_bazel_writes_nothing() {
+        let harness = Harness::new("bump-unknown-no-module");
+        harness.write_source("package.json", "{}\n");
+        let (code, _, err) = harness.run(&["update", "npm:react", "1.0.0", "--apply"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("unknown dependency set \"npm\""), "{err}");
+        assert_eq!(read(&harness, "package.json"), "{}\n");
     }
 
     #[test]
@@ -1402,16 +1421,10 @@ dependencies = ["anyio>=4"]
     fn frozen_widen_needed_fails_before_any_manifest_write() {
         for (selector, version, path, before) in [
             (
-                "cargo:demo",
+                "dx_crates:demo",
                 "1.2.3",
                 HELLO_CARGO,
                 "[dependencies]\ndemo = \"1\"\n",
-            ),
-            (
-                "npm:demo",
-                "1.2.3",
-                "package.json",
-                "{\n  \"dependencies\": {\n    \"demo\": \"1.0.0\"\n  }\n}\n",
             ),
         ] {
             let harness = Harness::new("bump-frozen-widen");
@@ -1461,7 +1474,7 @@ dependencies = ["anyio>=4"]
         let (code, _, err) = harness.run(&["update", "crates", "1.2.3"]);
         assert_eq!(code, 2, "{err}");
         let harness = Harness::new("bump-dryrun-bad-version");
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "nope!!!"]);
+        let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "nope!!!"]);
         assert_eq!(code, 2, "{err}");
     }
 
@@ -1599,8 +1612,8 @@ dependencies = ["anyio>=4"]
             (
                 vec![
                     "update",
-                    "cargo:anyhow",
-                    "1.2.3",
+                    "github-actions:actions/checkout",
+                    GHA_SHA,
                     "--floor",
                     "--reason",
                     "x",
@@ -1879,7 +1892,7 @@ dependencies = ["anyio>=4"]
 
     const GHA_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-    /// One already-current declaration per bump set: selector, version, manifest, text.
+    /// One already-current declaration per set: selector, version, manifest, text.
     fn current_pins() -> Vec<(&'static str, &'static str, &'static str, String)> {
         vec![
             (
@@ -1889,7 +1902,7 @@ dependencies = ["anyio>=4"]
                 "bazel_dep(name = \"rules_cc\", version = \"0.2.22\")\n".to_owned(),
             ),
             (
-                "cargo:anyhow",
+                "dx_crates:anyhow",
                 "1.2.3",
                 HELLO_CARGO,
                 "[dependencies]\nanyhow = \"1.2.3\"\n".to_owned(),
@@ -1899,30 +1912,6 @@ dependencies = ["anyio>=4"]
                 GHA_SHA,
                 ".github/workflows/ci.yml",
                 format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{GHA_SHA} # v5\n"),
-            ),
-            (
-                "go:example.com/demo",
-                "1.3.0",
-                "third_party/go/go.mod",
-                "module example.com/root\nrequire example.com/demo v1.3.0\n".to_owned(),
-            ),
-            (
-                "maven:junit:junit",
-                "4.13.2",
-                "MODULE.bazel",
-                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n".to_owned(),
-            ),
-            (
-                "npm:demo",
-                "1.2.3",
-                "package.json",
-                "{\n  \"dependencies\": {\n    \"demo\": \"1.2.3\"\n  }\n}\n".to_owned(),
-            ),
-            (
-                "nuget:FSharp.Core",
-                "10.1.201",
-                "third_party/dotnet/paket.dependencies",
-                "source https://api.nuget.org/v3/index.json\nnuget FSharp.Core 10.1.201\n".to_owned(),
             ),
         ]
     }
@@ -2066,11 +2055,11 @@ dependencies = ["anyio>=4"]
     fn cargo_check_mode_reports_drift_across_manifests() {
         let harness = Harness::new("bump-cargo-check-manifests");
         seed_cargo(&harness, &CARGO_TREE);
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3"]);
+        let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "1.2.3"]);
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains(
-                "needs widening to 1.2.3 in cli/a/Cargo.toml, rust/tests/fixtures/hello/Cargo.toml"
+                "needs widening to 1.2.3 in rust/tests/fixtures/hello/Cargo.toml, cli/a/Cargo.toml"
             ),
             "{err}"
         );
@@ -2081,22 +2070,12 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn cargo_without_module_bazel_fails_without_writing() {
+    fn cargo_without_a_declared_hub_is_an_unknown_set() {
         let harness = Harness::new("bump-cargo-no-module");
         harness.write_source(HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("cannot read MODULE.bazel"), "{err}");
-        harness.write_source(
-            "MODULE.bazel",
-            "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n",
-        );
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(
-            err.contains("no crate.from_cargo hub has cargo_lockfile"),
-            "{err}"
-        );
+        let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "1.2.3", "--apply"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("unknown dependency set \"dx_crates\""), "{err}");
         assert_eq!(
             read(&harness, HELLO_CARGO),
             "[dependencies]\nanyhow = \"1\"\n"
@@ -2115,7 +2094,7 @@ dependencies = ["anyio>=4"]
             ),
         ];
         seed_cargo(&harness, &tree);
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
+        let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "1.2.3", "--apply"]);
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains("unsupported manifest shape in cli/b/Cargo.toml"),

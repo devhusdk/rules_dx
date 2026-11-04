@@ -20,6 +20,12 @@ impl UpdateSet {
         UpdateSet::NuGet,
     ];
 
+    pub const BUILTIN: [UpdateSet; 2] = [UpdateSet::Bazel, UpdateSet::GithubActions];
+
+    pub fn builtin_names() -> Vec<&'static str> {
+        Self::BUILTIN.iter().map(|set| set.name()).collect()
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             UpdateSet::Bazel => "bazel",
@@ -130,6 +136,11 @@ mod tests {
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
+    }
+
+    #[test]
+    fn builtin_sets_are_bazel_and_github_actions() {
+        assert_eq!(UpdateSet::builtin_names(), vec!["bazel", "github-actions"]);
     }
 
     #[test]

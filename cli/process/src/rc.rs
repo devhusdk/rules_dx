@@ -637,7 +637,7 @@ fn scan(
 }
 
 /// Splits an rc line on whitespace outside quotes, removing the quotes.
-fn tokenize(line: &str) -> Vec<String> {
+pub fn tokenize(line: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
     let mut in_token = false;

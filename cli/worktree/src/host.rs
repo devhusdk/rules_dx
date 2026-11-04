@@ -537,15 +537,19 @@ pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
             continue;
         };
         for line in text.lines() {
-            let mut tokens = line.split_whitespace();
-            match tokens.next() {
+            let tokens = dx_process::rc::tokenize(line);
+            let mut words = tokens.iter().map(String::as_str);
+            match words.next() {
                 Some("startup") => {
-                    for token in tokens {
+                    while let Some(token) = words.next() {
                         if token.starts_with('#') {
                             break;
                         }
-                        if let Some(root) = token.strip_prefix("--output_user_root=") {
-                            let root = workspace.join(root.trim_matches('"'));
+                        let root = match token {
+                            "--output_user_root" => words.next(),
+                            _ => token.strip_prefix("--output_user_root="),
+                        };
+                        if let Some(root) = root.map(|root| workspace.join(root)) {
                             if !roots.contains(&root) {
                                 roots.push(root);
                             }
@@ -553,8 +557,7 @@ pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
                     }
                 }
                 Some("import" | "try-import") => {
-                    let Some(path) = tokens.next() else { continue };
-                    let path = path.trim_matches('"');
+                    let Some(path) = words.next() else { continue };
                     pending.push(match path.strip_prefix("%workspace%") {
                         Some(rest) => workspace.join(rest.trim_start_matches(['/', '\\'])),
                         None => PathBuf::from(path),
@@ -1202,6 +1205,30 @@ mod tests {
             vec![
                 dir.path().join("cache/bazel"),
                 dir.path().join("cache/other")
+            ]
+        );
+    }
+
+    #[test]
+    fn rc_output_roots_keep_quoted_paths_with_spaces() {
+        let dir = tempfile::tempdir().expect("dir");
+        std::fs::write(
+            dir.path().join(".bazelrc"),
+            "startup --output_user_root=\"/tmp/my cache\"\nimport \"%workspace%/my rc\"\n",
+        )
+        .expect("rc");
+        std::fs::write(
+            dir.path().join("my rc"),
+            "startup --output_user_root \"/tmp/other cache\" # note\n",
+        )
+        .expect("extra");
+        let mut roots = rc_output_roots(vec![dir.path().join(".bazelrc")], dir.path());
+        roots.sort();
+        assert_eq!(
+            roots,
+            vec![
+                PathBuf::from("/tmp/my cache"),
+                PathBuf::from("/tmp/other cache")
             ]
         );
     }

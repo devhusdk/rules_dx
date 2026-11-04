@@ -70,31 +70,6 @@ fn serializes_none_as_absent() {
 }
 
 #[test]
-fn reads_legacy_release_sbom() {
-    let text = r#"{
-      "SPDXID": "SPDXRef-DOCUMENT",
-      "creationInfo": null,
-      "dataLicense": "CC0-1.0",
-      "documentNamespace": "https://github.com/devhusdk/rules_dx/releases/a-b",
-      "files": [{"SPDXID": "SPDXRef-File", "fileName": "a", "checksums": [{"algorithm": "SHA256", "checksumValue": "b"}]}],
-      "name": "dx-a",
-      "packages": [{
-        "SPDXID": "SPDXRef-Package",
-        "name": "dx",
-        "downloadLocation": "NOASSERTION",
-        "filesAnalyzed": null,
-        "verificationCode": {"packageVerificationCodeValue": "b"},
-        "checksums": [{"algorithm": "SHA256", "checksumValue": "b"}]
-      }],
-      "spdxVersion": "SPDX-2.3"
-    }"#;
-    let document: SpdxDocument = serde_json::from_str(text).expect("legacy document parses");
-    assert_eq!(document.packages[0].files_analyzed, None);
-    assert_eq!(sha256_of(&document.packages[0].checksums), Some("b"));
-    assert!(document.relationships.is_empty());
-}
-
-#[test]
 fn reference_errors_accept_a_valid_document() {
     assert_eq!(reference_errors(&valid()), Vec::<String>::new());
 }

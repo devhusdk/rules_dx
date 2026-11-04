@@ -675,7 +675,7 @@ mod tests {
     }
 
     #[test]
-    fn layer_flags_keep_the_retired_python_bytes() {
+    fn layer_flags_snapshot() {
         assert_eq!(
             flag_sequence(&render_layer(Layer::Correctness, DEFAULT_REPO)),
             [
@@ -1004,7 +1004,7 @@ mod tests {
     }
 
     #[test]
-    fn error_display_matches_python_messages() {
+    fn error_display_messages() {
         let collision = PresetError::OwnedCollision {
             lines: "build --verbose_failures".to_owned(),
         };

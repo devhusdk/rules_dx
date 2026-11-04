@@ -534,6 +534,7 @@ pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String>
         cosign.to_owned(),
         "sign-blob".to_owned(),
         "--yes".to_owned(),
+        "--new-bundle-format".to_owned(),
         "--bundle".to_owned(),
         bundle.to_owned(),
         asset.to_owned(),
@@ -615,34 +616,99 @@ fn signing_live(
     }
     std::fs::create_dir_all(outdir)
         .map_err(|error| format!("signing: cannot create {}: {error}", outdir.display()))?;
+    let records = signing_sign_assets(identity, issuer, assets, pin, outdir);
+    if let Some(bad) = records
+        .iter()
+        .find(|record| matches!(record.state, OpState::Failed | OpState::Partial))
+    {
+        return Err(bad.detail.clone());
+    }
     let mut out = String::new();
     out.push_str(&format!(
         "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
         pin.version
     ));
-    for asset in assets {
-        let bundle = signing_bundle_for(asset, outdir);
-        let sign_argv = signing_sign_argv(pin.path, asset, &bundle);
-        let sign_out = run_output(&sign_argv)
-            .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
-        if !sign_out.status.success() {
-            return Err(format!(
-                "signing: '{}' failed for {asset}; publishing nothing",
-                sign_argv.join(" ")
-            ));
-        }
-        let verify_argv = signing_verify_argv(pin.path, asset, &bundle, identity, issuer);
-        let verify_out = run_output(&verify_argv)
-            .map_err(|error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")))?;
-        if !verify_out.status.success() {
-            return Err(format!(
-                "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",
-                verify_argv.join(" ")
-            ));
-        }
-        out.push_str(&format!("  signed: {asset} -> {bundle} (verified)\n"));
+    for record in &records {
+        out.push_str(&format!("  signed: {} (verified)\n", record.detail));
     }
     Ok(out)
+}
+
+/// Ledger records for a dry run: nothing is signed, so nothing is authorized.
+pub fn signing_dry_run_records(assets: &[String]) -> Vec<OpRecord> {
+    assets
+        .iter()
+        .map(|asset| {
+            OpRecord::new(
+                "cosign-sign",
+                &basename_of(asset),
+                OpState::NotAuthorized,
+                "dry run; nothing signed",
+            )
+        })
+        .collect()
+}
+
+/// Signs and verifies each asset in order, stopping at the first failure.
+/// A failure after an earlier asset was signed is `Partial`, otherwise `Failed`.
+pub fn signing_sign_assets(
+    identity: &str,
+    issuer: &str,
+    assets: &[String],
+    pin: &CosignPin<'_>,
+    outdir: &Path,
+) -> Vec<OpRecord> {
+    let mut records = Vec::new();
+    for asset in assets {
+        let subject = basename_of(asset);
+        let bundle = signing_bundle_for(asset, outdir);
+        match signing_sign_one(identity, issuer, asset, &bundle, pin) {
+            Ok(()) => records.push(OpRecord::new(
+                "cosign-sign",
+                &subject,
+                OpState::Executed,
+                &format!("{asset} -> {bundle}"),
+            )),
+            Err(detail) => {
+                let state = if records.is_empty() {
+                    OpState::Failed
+                } else {
+                    OpState::Partial
+                };
+                records.push(OpRecord::new("cosign-sign", &subject, state, &detail));
+                break;
+            }
+        }
+    }
+    records
+}
+
+fn signing_sign_one(
+    identity: &str,
+    issuer: &str,
+    asset: &str,
+    bundle: &str,
+    pin: &CosignPin<'_>,
+) -> Result<(), String> {
+    let sign_argv = signing_sign_argv(pin.path, asset, bundle);
+    let sign_out = run_output(&sign_argv)
+        .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
+    if !sign_out.status.success() {
+        return Err(format!(
+            "signing: '{}' failed for {asset}; publishing nothing",
+            sign_argv.join(" ")
+        ));
+    }
+    let verify_argv = signing_verify_argv(pin.path, asset, bundle, identity, issuer);
+    let verify_out = run_output(&verify_argv)
+        .map_err(|error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")))?;
+    if !verify_out.status.success() {
+        return Err(format!(
+            "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",
+            verify_argv.join(" ")
+        ));
+    }
+    Ok(())
 }
 
 pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
@@ -1816,6 +1882,7 @@ mod tests {
                 "/pin/cosign",
                 "sign-blob",
                 "--yes",
+                "--new-bundle-format",
                 "--bundle",
                 "a.bin.bundle",
                 "/tmp/a.bin",
@@ -2511,7 +2578,7 @@ mod tests {
         let bundle = outdir.join("artifact.bin.bundle");
         let ok = scenario(
             "all-ok",
-            &fake_cosign(good, "touch \"$4\"; exit 0", "test -f \"$3\""),
+            &fake_cosign(good, "touch \"$5\"; exit 0", "test -f \"$3\""),
             None,
         )
         .expect("live sign");
@@ -2538,6 +2605,43 @@ mod tests {
         .expect_err("verify spawn fails");
         assert!(err.contains("cannot run '"), "got {err}");
         assert!(err.contains("cosign verify-blob"), "got {err}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn signing_records_track_failure_and_partial() {
+        let scratch = scratch_dir();
+        let first = write_artifact(scratch.path(), "first.bin", b"one\n");
+        let second = write_artifact(scratch.path(), "second.bin", b"two\n");
+        let assets = [
+            first.to_string_lossy().into_owned(),
+            second.to_string_lossy().into_owned(),
+        ];
+        let good = "GitVersion:    v9.8.7";
+        let run = |name: &str, verify: &str| -> Vec<OpRecord> {
+            let script = write_fake_cosign(
+                &scratch.path().join(name),
+                &fake_cosign(good, "touch \"$5\"; exit 0", verify),
+            );
+            let path = script.to_string_lossy().into_owned();
+            let pin = CosignPin {
+                path: &path,
+                version: "v9.8.7",
+                sha256: "",
+            };
+            signing_sign_assets("ID", "ISS", &assets, &pin, &scratch.path().join("out"))
+        };
+        let states = |records: &[OpRecord]| records.iter().map(|r| r.state).collect::<Vec<_>>();
+        assert_eq!(
+            states(&run("ok", "exit 0")),
+            [OpState::Executed, OpState::Executed]
+        );
+        assert_eq!(states(&run("bad-first", "exit 1")), [OpState::Failed]);
+        let partial = run("bad-second", "case \"$8\" in *second*) exit 1;; esac");
+        assert_eq!(states(&partial), [OpState::Executed, OpState::Partial]);
+        let dry = signing_dry_run_records(&assets);
+        assert!(dry.iter().all(|r| r.state == OpState::NotAuthorized));
         scratch.close().expect("cleanup");
     }
 }

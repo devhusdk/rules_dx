@@ -68,7 +68,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             out,
             err,
             CODE_UNREADABLE_BEP,
-            "temporary event path is not UTF-8",
+            &crate::startup::temp_path_not_utf8(),
         );
     };
     let expanded: Option<Vec<String>> = match &scope {

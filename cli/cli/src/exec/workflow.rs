@@ -164,7 +164,7 @@ fn execute_checked(
             out,
             err,
             CODE_UNREADABLE_BEP,
-            "temporary event path is not UTF-8",
+            &crate::startup::temp_path_not_utf8(),
         );
     };
     let bep_arg = Some(bep_text.as_str());

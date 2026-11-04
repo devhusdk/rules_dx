@@ -1,12 +1,23 @@
 use std::io;
 use std::path::Path;
 
-pub fn temp_dir_failure(base: &Path, error: &io::Error) -> String {
-    let var = if cfg!(windows) {
+fn temp_var() -> &'static str {
+    if cfg!(windows) {
         "TMP or TEMP"
     } else {
         "TMPDIR"
-    };
+    }
+}
+
+pub fn temp_path_not_utf8() -> String {
+    format!(
+        "temporary event path is not UTF-8; set {} to a directory with a UTF-8 path",
+        temp_var()
+    )
+}
+
+pub fn temp_dir_failure(base: &Path, error: &io::Error) -> String {
+    let var = temp_var();
     format!(
         "cannot create temporary directory {}: {error}; set {var} to a writable directory",
         base.display()
@@ -20,6 +31,21 @@ pub fn working_dir_failure(error: &io::Error) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn temp_path_not_utf8_names_the_variable() {
+        let var = if cfg!(windows) {
+            "TMP or TEMP"
+        } else {
+            "TMPDIR"
+        };
+        assert_eq!(
+            temp_path_not_utf8(),
+            format!(
+                "temporary event path is not UTF-8; set {var} to a directory with a UTF-8 path"
+            )
+        );
+    }
 
     #[test]
     fn temp_dir_failure_names_directory_and_variable() {

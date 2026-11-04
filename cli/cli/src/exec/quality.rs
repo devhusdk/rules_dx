@@ -321,7 +321,7 @@ fn run_quality_request(
             out,
             err,
             CODE_UNREADABLE_BEP,
-            "temporary event path is not UTF-8",
+            &crate::startup::temp_path_not_utf8(),
         );
     };
     let resolved = match resolve(

@@ -170,7 +170,7 @@ if stale; then
   home=${HOME:-${USERPROFILE:-}}
   sysrc=/etc/bazel.bazelrc
   [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
-  [ -n "$rc" ] || [ -z "$cache" ] || found=$(awk -v root="$root" '
+  [ -n "$rc" ] || [ -z "$cache" ] || found=$(root="$root" awk '
     function trim(t) {
       sub(/^[ \t\r]+/, "", t)
       sub(/[ \t\r]+$/, "", t)
@@ -212,6 +212,7 @@ if stale; then
       return 0
     }
     BEGIN {
+      root = ENVIRON["root"]
       for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print "cache"; exit }
       print (gc ? "gc" : "none")
     }

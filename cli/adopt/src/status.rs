@@ -407,11 +407,7 @@ fn ide_check(root: &Path) -> Option<StatusCheck> {
     ))
 }
 
-pub fn observed_status_checks(
-    root: &Path,
-    pinned: &str,
-    tools: StatusCheck,
-) -> Vec<StatusCheck> {
+pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
     let mut checks = vec![
         toolchain_check(root),
         bazel_check(root, std::env::var_os("PATH")),

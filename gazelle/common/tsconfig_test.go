@@ -56,6 +56,9 @@ func TestLoadTSPaths(t *testing.T) {
 		"esc/tsconfig.json":                         `{"compilerOptions": {"paths": {"out/*": ["../../*", "/abs/*"], "in/*": ["./*"]}}}`,
 		"mix/tsconfig.json":                         `{"extends": "./base.json", "compilerOptions": {"paths": {"@/*": ["./*"]}}}`,
 		"mix/base.json":                             `{"compilerOptions": {"baseUrl": "./root"}}`,
+		"bom/tsconfig.json": "\ufeff" + `{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}`,
+		"bomext/tsconfig.json": `{"extends": "./base.json"}`,
+		"bomext/base.json": "\ufeff" + `{"compilerOptions": {"paths": {"@/*": ["./lib/*"]}}}`,
 		"broken/tsconfig.json":                      `{"compilerOptions": `,
 	})
 	for _, tc := range []struct{ rel, spec, want string }{
@@ -69,6 +72,8 @@ func TestLoadTSPaths(t *testing.T) {
 		{"esc", "out/z", ""},
 		{"esc", "in/../../z", ""},
 		{"mix", "@/m", "mix/root/m,mix/root/@/m"},
+		{"bom", "@/x", "bom/src/x"},
+		{"bomext", "@/x", "bomext/lib/x"},
 	} {
 		if got := candidatesFor(t, root, tc.rel, tc.spec); got != tc.want {
 			t.Errorf("%s %q = %q, want %q", tc.rel, tc.spec, got, tc.want)

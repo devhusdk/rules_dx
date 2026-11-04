@@ -131,6 +131,7 @@ func loadTSConfig(repoRoot, file string, stack map[string]bool) (tsRawOptions, e
 	if err != nil {
 		return tsRawOptions{}, err
 	}
+	data = StripBOM(data)
 	var doc struct {
 		Extends         json.RawMessage `json:"extends"`
 		CompilerOptions struct {

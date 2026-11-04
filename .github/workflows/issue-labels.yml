@@ -21,8 +21,8 @@ jobs:
         run: |
           set -euo pipefail
           cutoff=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)
-          gh issue list --state open --limit 1000 --json number,title,labels,createdAt \
-            --jq '.[] | select(.createdAt < "'"$cutoff"'") | select([.labels[].name | test("^P[0-3]$")] | any | not) | "#\(.number) \(.title)"' \
+          gh issue list --state open --limit 1000 --json number,title,labels,createdAt,isPinned \
+            --jq '.[] | select(.createdAt < "'"$cutoff"'") | select(.isPinned | not) | select([.labels[].name | test("^P[0-3]$")] | any | not) | "#\(.number) \(.title)"' \
             > unlabelled.txt
           count=$(wc -l < unlabelled.txt)
           {

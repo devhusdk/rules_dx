@@ -23,7 +23,7 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 
 Use the bug template. Paste `dx status`.
 
-Each issue gets one priority label:
+Each issue except pinned guides gets one priority label:
 
 - `P0`: agent dev loop (worktrees, slots, fix, check, CI, launcher, JSON).
 - `P1`: bugs in existing features.

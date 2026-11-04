@@ -1,0 +1,27 @@
+# gazelle:ignore
+
+load("//flutter/rules:defs.bzl", "flutter_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+flutter_library(
+    name = "broken",
+    testonly = True,
+    srcs = ["lib/broken.dart"],
+    package_name = "dx_flutter_negative",
+    tags = ["manual"],
+    visibility = ["//:__subpackages__"],
+    deps = ["@dx_flutter_deps//:flutter"],
+)
+
+quality_family(
+    name = "dart_family",
+    family_id = "dart",
+    format = ["dart"],
+    lint = ["dart"],
+    typecheck = ["dart"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":dart_family"],
+)

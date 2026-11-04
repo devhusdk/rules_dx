@@ -10,15 +10,15 @@ load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 FLUTTER_SOURCE_EXTS = [".dart"]
 
-FLUTTER_DEFERRED_SKIP_TAGS = ["no-lint", "no-typecheck"]
+FLUTTER_DEFERRED_SKIP_TAGS = []
 
 FLUTTER_COMPATIBLE_WITH = ["@platforms//os:linux"]
 
 FLUTTER_COVERAGE_COLLECTOR = False
 
 _flutter_library_forward = dx_library_forward_rule(
-    provides = [DartInfo, DefaultInfo, FlutterInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
-    required_providers = [(DartInfo, "DartInfo"), (FlutterInfo, "FlutterInfo")],
+    provides = [DartAnalyzableInfo, DartInfo, DefaultInfo, FlutterInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+    required_providers = [(DartInfo, "DartInfo"), (DartAnalyzableInfo, "DartAnalyzableInfo"), (FlutterInfo, "FlutterInfo")],
     quality_specs = DART_SOURCE_SPECS,
     quality_tools = DART_QUALITY_TOOLS,
     what = "flutter_library",
@@ -41,7 +41,7 @@ _flutter_forward_test = dx_executable_forward_rule(
 )
 
 def flutter_deferred_tags(tags):
-    """Adds the skip tags that keep lint and typecheck off Flutter sources."""
+    """Adds the Flutter skip tags to a tag list."""
     out = list(tags or [])
     for tag in FLUTTER_DEFERRED_SKIP_TAGS:
         if tag not in out:

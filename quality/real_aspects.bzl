@@ -1269,10 +1269,10 @@ _DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
 _DART_OPTIONS_REL = "analysis_options.yaml"
 
 def _dart_info(target, what):
-    if DartInfo in target:
-        return target[DartInfo]
     if DartAnalyzableInfo in target:
         return target[DartAnalyzableInfo].dart_info
+    if DartInfo in target:
+        return target[DartInfo]
     fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
 
 def _dart_context(target, ctx, what, capability, config_packages = []):
@@ -1826,7 +1826,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 continue
             resolve_pairs[ws_path] = f
     if "dart" in stage_tools and capability != "format":
-        dart_files = [f for f in _dart_info(target, what).transitive_srcs.to_list() if f.extension == "dart"]
+        dart_info = _dart_info(target, what)
+        dart_files = [f for f in dart_info.transitive_srcs.to_list() if f.extension == "dart"]
+        dart_files += [f for f in dart_info.transitive_resources.to_list() if f.basename == "_embedder.yaml"]
         for f in dart_files + dart_config_files:
             ws_path = f.short_path
             if ws_path.startswith("../"):

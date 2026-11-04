@@ -11,24 +11,14 @@ dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
         expect_equal(
-            "lint and typecheck stay skipped",
+            "no skip tags",
             FLUTTER_DEFERRED_SKIP_TAGS,
-            [
-                "no-lint",
-                "no-typecheck",
-            ],
+            [],
         ),
         expect_equal(
             "skip tags are appended once",
-            flutter_deferred_tags([
-                "no-lint",
-                "x",
-            ]),
-            [
-                "no-lint",
-                "x",
-                "no-typecheck",
-            ],
+            flutter_deferred_tags(["x"]),
+            ["x"],
         ),
     ],
     file_classes = ["dart"],

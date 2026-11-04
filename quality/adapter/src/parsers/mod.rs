@@ -125,7 +125,7 @@ pub mod zig_fmt;
 
 pub use ansible_lint::parse_ansible_lint;
 pub use avro::{avdl_imports, parse_avro};
-pub use bicep::{parse_bicep_format, parse_bicep_lint};
+pub use bicep::{bicep_syntax_error, parse_bicep_format, parse_bicep_lint};
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;

@@ -3902,7 +3902,13 @@ fn bicep_fake(
                 args[..4],
                 ["lint", "--no-restore", "--diagnostics-format", "sarif"]
             );
-            if text.contains("br:") {
+            if text.contains("= \n") {
+                Ok(ChildOutput {
+                    code: Some(1),
+                    stdout: bicep_sarif(&file, "BCP009", "error", 1, 20).into_bytes(),
+                    stderr: Vec::new(),
+                })
+            } else if text.contains("br:") {
                 Ok(ChildOutput {
                     code: Some(1),
                     stdout: bicep_sarif(&file, "BCP190", "error", 1, 10).into_bytes(),
@@ -4074,6 +4080,27 @@ fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
             .expect("fixed"),
         BICEP_CLEAN
     );
+}
+
+#[test]
+fn bicep_format_fails_on_a_syntax_error_but_not_on_other_lint_errors() {
+    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let err = backend
+        .diagnose(
+            "bicep",
+            "format",
+            &single("infra/a.bicep", "param name string = \n"),
+        )
+        .expect_err("syntax error");
+    assert!(
+        err.to_string()
+            .contains("infra/a.bicep:1:20 does not parse"),
+        "{err}"
+    );
+    assert!(backend
+        .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_REGISTRY))
+        .expect("registry")
+        .is_empty());
 }
 
 #[test]

@@ -2465,8 +2465,8 @@ lowercase hex characters. The fetch fails and prints both digests when the
 restored manifest does not match. Add `@avm_storage//:module` to the `deps` of a
 `bicep_module`.
 
-`bicep format` exits 0 and echoes a file that does not parse, so `format` cannot
-report a syntax error; `lint` does. Typecheck (`bicep build`) stays disabled
+A syntax error fails `format` with the file, line and column named; dx runs
+`bicep lint` to find it because `bicep format` exits 0 on it. Typecheck (`bicep build`) stays disabled
 because `bicep lint` already reports compile errors (BCP diagnostics).
 
 ```python

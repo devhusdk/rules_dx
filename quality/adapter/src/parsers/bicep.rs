@@ -1,6 +1,6 @@
 use super::sarif::parse_sarif;
 use super::{check_output_size, code_name, unformatted_at, FileFinding, ParseError};
-use crate::ColumnEncoding;
+use crate::{ColumnEncoding, ToolSeverity};
 
 const TOOL: &str = "bicep";
 
@@ -51,9 +51,33 @@ pub fn parse_bicep_lint(
     parse_sarif(TOOL, &rewritten, code, files, ColumnEncoding::Utf16)
 }
 
+/// The BCP codes that Bicep's Lexer.cs, BaseParser.cs, Parser.cs and ParamsParser.cs (under
+/// src/Bicep.Core/Parsing) raise at v0.48.1. Re-derive the list on each Bicep bump. It goes
+/// away once `bicep format` itself fails on a file that does not parse.
+const BICEP_SYNTAX_CODES: &[&str] = &[
+    "BCP001", "BCP002", "BCP003", "BCP004", "BCP005", "BCP006", "BCP007", "BCP008", "BCP009",
+    "BCP010", "BCP011", "BCP012", "BCP013", "BCP015", "BCP016", "BCP017", "BCP018", "BCP019",
+    "BCP020", "BCP021", "BCP022", "BCP023", "BCP024", "BCP032", "BCP064", "BCP068", "BCP087",
+    "BCP096", "BCP097", "BCP103", "BCP117", "BCP118", "BCP123", "BCP133", "BCP136", "BCP140",
+    "BCP162", "BCP167", "BCP201", "BCP202", "BCP226", "BCP257", "BCP266", "BCP279", "BCP300",
+    "BCP305", "BCP317", "BCP325", "BCP344", "BCP346", "BCP347", "BCP354", "BCP355", "BCP356",
+    "BCP404", "BCP436",
+];
+
+/// The first error-level lint finding in `file` that is a lexer or parser diagnostic.
+pub fn bicep_syntax_error<'a>(findings: &'a [FileFinding], file: &str) -> Option<&'a FileFinding> {
+    findings.iter().find(|found| {
+        found.file == file
+            && found.finding.severity == ToolSeverity::Error
+            && BICEP_SYNTAX_CODES.contains(&found.finding.rule_id.as_str())
+    })
+}
+
 /// `bicep format --stdout FILE` prints the formatted source and exits 0, also for a file that
-/// does not parse. The first differing line is reported. A nonzero exit, a signal, or empty
-/// output for a non-empty file is an error, never clean.
+/// does not parse (v0.48.1), so the runner finds syntax errors with `bicep lint`. Should Bicep
+/// report them on stderr with a nonzero exit, that is an error here too. The first differing
+/// line is reported. A nonzero exit, a signal, or empty output for a non-empty file is an
+/// error, never clean.
 pub fn parse_bicep_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -62,16 +86,18 @@ pub fn parse_bicep_format(
     file: &str,
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(TOOL, stdout)?;
+    let stderr = String::from_utf8_lossy(stderr);
+    if let Some(line) = stderr.lines().find(|line| line.contains("Error BCP")) {
+        return Err(ParseError::shape(
+            TOOL,
+            format!("file does not parse: {line}"),
+        ));
+    }
     if code != Some(0) {
         return Err(ParseError::shape(
             TOOL,
             format!("unexpected exit {}", code_name(code)),
         ));
-    }
-    // A file that does not parse still exits 0 and echoes the source; the BCP diagnostic is on
-    // stderr. That must not read as already formatted.
-    if String::from_utf8_lossy(stderr).contains("Error BCP") {
-        return Err(ParseError::shape(TOOL, "file does not parse"));
     }
     if stdout.is_empty() && !input.is_empty() {
         return Err(ParseError::shape(TOOL, "empty output for a non-empty file"));
@@ -101,7 +127,6 @@ pub fn parse_bicep_format(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ToolSeverity;
 
     const FILE: &str = "/scratch/a.bicep";
 
@@ -128,6 +153,39 @@ mod tests {
         let src = b"param name string =\n";
         let err = b"/a.bicep(1,20) : Error BCP009: Expected a literal value.\n";
         assert!(parse_bicep_format(src, err, Some(0), src, FILE).is_err());
+    }
+
+    #[test]
+    fn format_syntax_error_with_exit_one_is_an_error() {
+        let src = b"param name string =\n";
+        let err = b"/a.bicep(1,20) : Error BCP009: Expected a literal value.\n";
+        let message = parse_bicep_format(src, err, Some(1), src, FILE)
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("BCP009"), "{message}");
+    }
+
+    #[test]
+    fn syntax_error_is_found_only_for_an_error_level_parser_code_in_the_file() {
+        let found = |rule: &str, level: &str, file: &str| {
+            parse_bicep_lint(
+                &sarif(&result(rule, level, file, 1, 20)),
+                Some(1),
+                &[FILE, "/scratch/b.bicep"],
+            )
+            .unwrap()
+        };
+        let syntax = found("BCP009", "error", FILE);
+        assert_eq!(
+            bicep_syntax_error(&syntax, FILE).unwrap().finding.rule_id,
+            "BCP009"
+        );
+        let semantic = found("BCP033", "error", FILE);
+        assert!(bicep_syntax_error(&semantic, FILE).is_none());
+        let warning = found("BCP009", "", FILE);
+        assert!(bicep_syntax_error(&warning, FILE).is_none());
+        let other = found("BCP009", "error", "/scratch/b.bicep");
+        assert!(bicep_syntax_error(&other, FILE).is_none());
     }
 
     #[test]

@@ -21,6 +21,14 @@ impl RealBackend {
         }
         let scratch = &staged.scratch;
         let mut findings = Vec::new();
+        let mut known: Vec<String> = staged
+            .pairs
+            .iter()
+            .chain(staged.resolve_pairs.iter())
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        known.dedup();
+        let known: Vec<&str> = known.iter().map(String::as_str).collect();
         if capability == "format" {
             for (workspace, absolute) in &staged.pairs {
                 let invocation = commands::bicep_format_check(&tool.binary, absolute);
@@ -32,17 +40,26 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_bicep_format(&out.stdout, &out.stderr, out.code, &input, &file),
                 )?);
+                // `bicep format` exits 0 on a syntax error, so lint finds it.
+                let invocation = commands::bicep_lint_check(&tool.binary, absolute);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let linted = parsed(
+                    tool_id,
+                    parsers::parse_bicep_lint(&out.stdout, out.code, &known),
+                )?;
+                if let Some(error) = parsers::bicep_syntax_error(&linted, &file) {
+                    let start = error.finding.start;
+                    return Err(execution(
+                        tool_id,
+                        format!(
+                            "{workspace}:{}:{} does not parse: {} {}",
+                            start.line, start.column, error.finding.rule_id, error.finding.message
+                        ),
+                    ));
+                }
             }
             return Ok(findings);
         }
-        let mut known: Vec<String> = staged
-            .pairs
-            .iter()
-            .chain(staged.resolve_pairs.iter())
-            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
-            .collect();
-        known.dedup();
-        let known: Vec<&str> = known.iter().map(String::as_str).collect();
         for (workspace, absolute) in &staged.pairs {
             let invocation = commands::bicep_lint_check(&tool.binary, absolute);
             let out = self.run(tool_id, tool, &invocation, scratch)?;

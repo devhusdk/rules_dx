@@ -241,13 +241,25 @@ def dx_native_coverage_attrs():
         "_cc_toolchain": attr.label(default = Label("@rules_cc//cc:current_cc_toolchain")),
     }
 
-def dx_native_test_coverage(ctx, upstream):
-    """Returns coverage providers that collect native LLVM coverage."""
+def dx_native_test_coverage(ctx, upstream, gcov = False):
+    """Returns coverage providers that collect native LLVM or gcov coverage."""
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
-    llvm_cov = dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
-    llvm_profdata = dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
-    metadata = [collector, llvm_cov, llvm_profdata]
+    gcov_tool = None
+    if gcov:
+        gcov_path = cc_toolchain.gcov_executable
+        for f in cc_toolchain.all_files.to_list():
+            if f.path == gcov_path:
+                gcov_tool = f
+        if gcov_tool == None:
+            fail("the gcc toolchain does not ship gcov at " + gcov_path)
+        llvm_cov = None
+        llvm_profdata = None
+        metadata = [collector, gcov_tool]
+    else:
+        llvm_cov = dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
+        llvm_profdata = dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
+        metadata = [collector, llvm_cov, llvm_profdata]
     transitive = []
     if DxDataCoverageInfo in upstream:
         data = upstream[DxDataCoverageInfo]
@@ -262,11 +274,14 @@ def dx_native_test_coverage(ctx, upstream):
     if RunEnvironmentInfo in upstream:
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
-    if DxDataCoverageInfo not in upstream:
-        env["DX_COVERAGE_CLANG_OBJECTS"] = "test_binary"
     env["CC_CODE_COVERAGE_SCRIPT"] = collector.path
-    env["LLVM_COV"] = llvm_cov.path
-    env["LLVM_PROFDATA"] = llvm_profdata.path
+    if gcov:
+        env["GCOV"] = gcov_tool.path
+    else:
+        if DxDataCoverageInfo not in upstream:
+            env["DX_COVERAGE_CLANG_OBJECTS"] = "test_binary"
+        env["LLVM_COV"] = llvm_cov.path
+        env["LLVM_PROFDATA"] = llvm_profdata.path
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),

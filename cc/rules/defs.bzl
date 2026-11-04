@@ -47,6 +47,8 @@ _cc_binary_forward = dx_executable_forward_rule(
 
 _LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format"]
 
+_COMPILER_FLAG = str(Label("//cc/toolchains:compiler"))
+
 def cc_coverage_features(features, collect_code_coverage, compiler = ""):
     """Returns the features a cc_test builds with: LLVM coverage maps only under coverage and an LLVM or unset compiler."""
     if not collect_code_coverage:
@@ -59,13 +61,13 @@ def _cc_coverage_transition_impl(settings, _attr):
     features = cc_coverage_features(
         settings["//command_line_option:features"],
         settings["//command_line_option:collect_code_coverage"],
-        settings["//command_line_option:compiler"] or "",
+        "gcc" if settings[_COMPILER_FLAG] == "gcc" else settings["//command_line_option:compiler"] or "",
     )
     return {"//command_line_option:features": features}
 
 _cc_coverage_transition = transition(
     implementation = _cc_coverage_transition_impl,
-    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage", "//command_line_option:compiler"],
+    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage", "//command_line_option:compiler", _COMPILER_FLAG],
     outputs = ["//command_line_option:features"],
 )
 
@@ -74,7 +76,7 @@ def cc_coverage_unsupported(compiler):
     if not compiler:
         return ""
     identity = cc_compiler_identity(compiler, "")
-    if identity.family == "unknown" or identity.coverage == "llvm":
+    if identity.family == "unknown" or identity.coverage in ("llvm", "gcov"):
         return ""
     return "cc_test coverage needs an LLVM compiler (clang or clang-cl); the toolchain compiler is '%s'. Run without --collect_code_coverage or select an LLVM toolchain." % compiler
 
@@ -83,7 +85,8 @@ def _cc_test_coverage(ctx, upstream):
     reason = cc_coverage_unsupported(toolchain.compiler if toolchain else "")
     if reason:
         fail(reason)
-    return dx_native_test_coverage(ctx, upstream)
+    gcov = bool(toolchain) and cc_compiler_identity(toolchain.compiler, "").coverage == "gcov"
+    return dx_native_test_coverage(ctx, upstream, gcov = gcov)
 
 CC_COVERAGE_TRANSITION = _cc_coverage_transition
 

@@ -28,7 +28,7 @@ def cc_wrapper_contract_tests(name):
             expect_equal("custom compiler gets no llvm maps", cc_coverage_features(["a"], True, "icx"), ["a"]),
             expect_equal("llvm coverage supported", cc_coverage_unsupported("clang"), ""),
             expect_equal("unknown compiler not blocked", cc_coverage_unsupported("icx"), ""),
-            expect_equal("gcc coverage reported", "gcc" in cc_coverage_unsupported("gcc"), True),
+            expect_equal("gcc coverage supported", cc_coverage_unsupported("gcc"), ""),
             expect_equal("msvc coverage reported", "msvc-cl" in cc_coverage_unsupported("msvc-cl"), True),
         ],
     )

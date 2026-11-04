@@ -26,7 +26,7 @@ def _cc_toolchain_identity_subject_impl(ctx):
 cc_toolchain_identity_subject = rule(
     implementation = _cc_toolchain_identity_subject_impl,
     doc = "Analysis subject reporting the selected C/C++ toolchain.",
-    attrs = {"extra_toolchain": attr.string(doc = "Toolchain label to prefer.")},
+    attrs = {"compiler": attr.string(doc = "Compiler flag value to build with.")},
     cfg = toolchain_transition,
     toolchains = cc_toolchain_toolchains(),
 )

@@ -431,6 +431,8 @@ register_toolchains(
     dev_dependency = True,
 )
 
+register_toolchains("//cc/toolchains:gcc_linux_x86_64")
+
 register_toolchains("@llvm//toolchain:all")
 
 gcc = use_extension("//cc/toolchains:repos.bzl", "gcc")

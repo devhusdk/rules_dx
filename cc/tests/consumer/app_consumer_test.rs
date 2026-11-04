@@ -526,6 +526,31 @@ fn dx_coverage_reports_c_and_cpp_lines() {
 }
 
 #[test]
+fn bazel_coverage_reports_c_lines_under_gcc() {
+    let case = consumer();
+    let covered = bazel(
+        &case,
+        "coverage",
+        &[
+            "--@rules_dx//cc/toolchains:compiler=gcc",
+            "--combined_report=lcov",
+        ],
+        &["//cc/tests/fixtures/c-app/store:store_test"],
+    );
+    assert_eq!(covered.code, Some(0), "{}", covered.text);
+    let lcov = read(&case.root().join("bazel-out/_coverage/_coverage_report.dat"));
+    let record = lcov
+        .split("end_of_record")
+        .find(|record| record.contains("SF:cc/tests/fixtures/c-app/store/store.c"))
+        .unwrap_or_else(|| panic!("store.c missing from coverage:\n{lcov}"));
+    let hit = record
+        .lines()
+        .filter_map(|line| line.strip_prefix("LH:"))
+        .any(|count| count.trim().parse::<u32>().is_ok_and(|count| count > 0));
+    assert!(hit, "no store.c line was hit:\n{record}");
+}
+
+#[test]
 fn generated_headers_carry_the_version_file() {
     let case = consumer();
     let c_header = build(&case, "//cc/tests/fixtures/c-app/store:store_build_h");

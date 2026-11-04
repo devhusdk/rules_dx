@@ -1,6 +1,7 @@
 //! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
 mod collect;
+mod gcov;
 
 use std::env;
 use std::fs;
@@ -146,6 +147,49 @@ fn export(ctx: &Context, cov: &Path, objects: &[PathBuf], profile: &Path) -> Str
     collect::rewrite_paths(&report, &ctx.execroot)
 }
 
+// LCOV_EXCL_START - reason: process orchestration over env and the gcc gcov tool, issue: 5889
+fn collect_gcov(ctx: &Context, gcov: &str) -> String {
+    let manifest = env::var("COVERAGE_MANIFEST")
+        .map(|m| read_text(&collect::resolve(&ctx.execroot, &m)))
+        .unwrap_or_default();
+    let notes = gcov::gcno_by_key(&manifest);
+    let mut gcdas = Vec::new();
+    gcov::gcda_files(&ctx.coverage_dir, &mut gcdas);
+    let tool = ctx.tool(gcov);
+    let mut report = gcov::Report::new();
+    for gcda in gcdas {
+        let Some(key) = gcov::object_key(&gcda.to_string_lossy()) else {
+            continue;
+        };
+        let Some(note) = notes.get(&key).and_then(|n| ctx.object(n)) else {
+            debug_log!("No .gcno for {}", gcda.display());
+            continue;
+        };
+        let dir = gcda.parent().unwrap_or(&ctx.coverage_dir);
+        let copied = gcda.with_extension("gcno");
+        fs::copy(&note, &copied)
+            .unwrap_or_else(|e| fail(&format!("cannot copy {}: {e}", note.display())));
+        // The toolchain gcov wrapper drops stdout while COVERAGE_DIR is set.
+        let out = Command::new(&tool)
+            .args(gcov::gcov_args(dir, &gcda))
+            .current_dir(&ctx.execroot)
+            .env_remove("COVERAGE_DIR")
+            .output()
+            .unwrap_or_else(|e| fail(&format!("cannot run {}: {e}", tool.display())));
+        if !out.status.success() {
+            fail(&format!(
+                "gcov failed:\n{}",
+                String::from_utf8_lossy(&out.stderr)
+            ));
+        }
+        gcov::add_gcov_json(&mut report, &String::from_utf8_lossy(&out.stdout))
+            .unwrap_or_else(|e| fail(&e));
+    }
+    gcov::render(&report)
+}
+
+// LCOV_EXCL_STOP
+
 // LCOV_EXCL_START - reason: process orchestration over env and external llvm tools, covered by native_coverage_test, issue: 3460, policy: docs/cli/commands/build-test-coverage.md
 fn main() {
     let coverage_dir = PathBuf::from(required("COVERAGE_DIR"));
@@ -175,6 +219,12 @@ fn main() {
             fs::copy(&reported, &kept)
                 .unwrap_or_else(|e| fail(&format!("cannot keep the test report: {e}")));
         }
+    }
+
+    if let Ok(gcov) = env::var("GCOV") {
+        let report = collect_gcov(&ctx, &gcov);
+        fs::write(&output, report).unwrap_or_else(|e| fail(&format!("cannot write report: {e}")));
+        return;
     }
 
     let mut profraw: Vec<PathBuf> = fs::read_dir(&ctx.coverage_dir)

@@ -26,18 +26,18 @@ The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An 
 
 ## GCC
 
-Select the GCC toolchain in the root `MODULE.bazel`:
+Select the GCC toolchain in `.bazelrc`:
 
-```starlark
-register_toolchains("@rules_dx//cc/toolchains:gcc_linux_x86_64")
+```text
+common --@rules_dx//cc/toolchains:compiler=gcc
 ```
 
 Or per build:
 
 ```sh
-bazel build --extra_toolchains=@rules_dx//cc/toolchains:gcc_linux_x86_64 //pkg/...
+bazel build --@rules_dx//cc/toolchains:compiler=gcc //pkg/...
 ```
 
 It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary.
 
-`cc_test` coverage needs the LLVM toolchain.
+`cc_test` coverage works with both toolchains. GCC coverage uses the gcov that ships with the toolchain.

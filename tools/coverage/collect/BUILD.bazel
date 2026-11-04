@@ -15,19 +15,23 @@ rust_binary(
     name = "collect_native",
     srcs = [
         "src/collect.rs",
+        "src/gcov.rs",
         "src/main.rs",
     ],
     crate_name = "collect_native",
     crate_root = "src/main.rs",
+    deps = ["@crates//:serde_json"],
 )
 
 rust_test(
     name = "collect_test",
     srcs = [
         "src/collect.rs",
+        "src/gcov.rs",
         "src/main.rs",
     ],
     crate_root = "src/main.rs",
+    deps = ["@crates//:serde_json"],
 )
 
 rustfmt_test(

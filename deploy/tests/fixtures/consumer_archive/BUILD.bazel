@@ -1,5 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_library")
 load("//deploy/rules:archive.bzl", "consumer_archive")
+load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//deploy/rules:resources.bzl", "dx_resources")
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
@@ -142,6 +143,99 @@ rust_test(
         "DX_ARCHIVE_CHECKSUM": "$(rootpath :consumer_runtime_release_checksum)",
         "DX_ARCHIVE_MEMBERS": "IDENTITY.txt,NOTICE,consumer_app,consumer_runtime.txt",
         "DX_ARCHIVE_RUNTIME": "consumer_runtime.txt",
+        "DX_ARCHIVE_SUFFIX": "tar.gz",
+    },
+    deps = [
+        "//cli/digest:dx_digest",
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+native_runtime(
+    name = "demo_runtime",
+    srcs = ["libdemo_runtime.so"],
+    notice = "demo_runtime_NOTICE.txt",
+    redistribution = "app_local",
+    source = "fixture",
+    version = "1.2",
+)
+
+native_runtime(
+    name = "demo_os_runtime",
+    redistribution = "os_supplied",
+    source = "operating system",
+    version = "2.17",
+)
+
+native_runtime(
+    name = "demo_build_runtime",
+    srcs = ["libdemo_runtime.so"],
+    redistribution = "build_only",
+    source = "compiler",
+    version = "1.2",
+)
+
+native_runtime(
+    name = "demo_runtime_no_notice",
+    srcs = ["libdemo_runtime.so"],
+    redistribution = "app_local",
+    source = "fixture",
+    tags = ["manual"],
+    version = "1.2",
+)
+
+native_runtime(
+    name = "demo_os_runtime_files",
+    srcs = ["libdemo_runtime.so"],
+    redistribution = "os_supplied",
+    source = "operating system",
+    tags = ["manual"],
+    version = "2.17",
+)
+
+native_runtime(
+    name = "demo_runtime_no_version",
+    srcs = ["libdemo_runtime.so"],
+    notice = "demo_runtime_NOTICE.txt",
+    redistribution = "app_local",
+    source = "fixture",
+    tags = ["manual"],
+    version = "",
+)
+
+consumer_archive(
+    name = "consumer_native_runtime_release",
+    app = ":consumer_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = [
+        ":demo_os_runtime",
+        ":demo_runtime",
+    ],
+)
+
+# keep
+rust_test(
+    name = "consumer_native_runtime_release_verify",
+    srcs = ["zip_verify.rs"],
+    crate_name = "consumer_native_runtime_release_verify",
+    data = [
+        ":consumer_native_runtime_release_archive",
+        ":consumer_native_runtime_release_checksum",
+    ],
+    env = {
+        "DX_ARCHIVE": "$(rootpath :consumer_native_runtime_release_archive)",
+        "DX_ARCHIVE_APP": "consumer_app",
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :consumer_native_runtime_release_checksum)",
+        "DX_ARCHIVE_MEMBERS": "IDENTITY.txt,NOTICE,consumer_app,libdemo_runtime.so,notices/demo_runtime",
+        "DX_ARCHIVE_RUNTIME": "libdemo_runtime.so",
+        "DX_ARCHIVE_RUNTIME_RECORDS": "demo_os_runtime 2.17 os_supplied,demo_runtime 1.2 app_local",
         "DX_ARCHIVE_SUFFIX": "tar.gz",
     },
     deps = [
@@ -328,6 +422,50 @@ consumer_archive(
     tags = ["manual"],
 )
 
+consumer_archive(
+    name = "consumer_build_only_runtime",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = [":demo_build_runtime"],
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_runtime_no_notice",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = [":demo_runtime_no_notice"],
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_os_runtime_files",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = [":demo_os_runtime_files"],
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_runtime_no_version",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = [":demo_runtime_no_version"],
+    tags = ["manual"],
+)
+
 failure_test(
     name = "consumer_bad_arch_fails",
     expected_failure_substring = "unsupported arch",
@@ -382,6 +520,30 @@ failure_test(
     target = ":consumer_two_notices_stage",
 )
 
+failure_test(
+    name = "consumer_build_only_runtime_fails",
+    expected_failure_substring = "is a compiler/SDK build-only input and cannot ship",
+    target = ":consumer_build_only_runtime_stage",
+)
+
+failure_test(
+    name = "consumer_runtime_no_notice_fails",
+    expected_failure_substring = "app_local needs a notice",
+    target = ":consumer_runtime_no_notice_stage",
+)
+
+failure_test(
+    name = "consumer_os_runtime_files_fails",
+    expected_failure_substring = "os_supplied must not ship files",
+    target = ":consumer_os_runtime_files_stage",
+)
+
+failure_test(
+    name = "consumer_runtime_no_version_fails",
+    expected_failure_substring = "version must not be empty",
+    target = ":consumer_runtime_no_version_stage",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
@@ -429,6 +591,7 @@ rustfmt_test(
     targets = [
         ":consumer_app",
         ":consumer_release_zip_verify",
+        ":consumer_native_runtime_release_verify",
         ":consumer_runtime_release_verify",
     ],
 )

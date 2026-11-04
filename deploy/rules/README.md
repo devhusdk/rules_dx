@@ -292,7 +292,32 @@ consumer_archive(
 - `target_compatible_with`: platform constraints for every generated target,
   so an archive for another OS or CPU is skipped instead of built.
 
-`IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
+`IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`,
+then one sorted `runtime: <name> <version> <redistribution>` line per
+`native_runtime` target in `runtime`.
+A `runtime` entry may be a `native_runtime` target, which records where a
+library comes from and whether it may ship:
+
+```starlark
+load("@rules_dx//deploy/rules:native_runtime.bzl", "native_runtime")
+
+native_runtime(
+    name = "vcruntime",
+    srcs = ["vcruntime140.dll"],
+    notice = "vcruntime_NOTICE.txt",
+    redistribution = "app_local",
+    source = "msvc",
+    version = "14.3",
+)
+```
+
+- `redistribution`: required. `app_local` ships `srcs` at the archive root
+  and `notice` as `notices/<name>`. `os_supplied` ships nothing and needs
+  empty `srcs`. `build_only` fails the archive, because compiler and SDK
+  inputs cannot ship.
+- `version` and `source`: required and non-empty.
+- `notice`: required for `app_local`.
+
 Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
 builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
 other member with mode 0644, in both formats.

@@ -54,6 +54,18 @@ fn archive_lists_extracts_and_hashes_in_process() {
         let body = std::fs::read_to_string(dir.join(&runtime)).expect("runtime member");
         assert!(body.contains("dx-consumer-runtime-marker"), "{body}");
     }
+    let identity = std::fs::read_to_string(dir.join("IDENTITY.txt")).expect("IDENTITY");
+    let records: Vec<&str> = identity
+        .lines()
+        .filter_map(|line| line.strip_prefix("runtime: "))
+        .collect();
+    let want_records: Vec<String> = std::env::var("DX_ARCHIVE_RUNTIME_RECORDS")
+        .unwrap_or_default()
+        .split(',')
+        .filter(|record| !record.is_empty())
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(records, want_records);
     let notice = std::fs::read_to_string(dir.join("NOTICE")).expect("NOTICE");
     assert!(notice.contains("consumer-release NOTICE"), "{notice}");
 }

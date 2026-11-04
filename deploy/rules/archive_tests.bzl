@@ -83,6 +83,11 @@ def consumer_archive_unit_tests(name):
                 "name: demo\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.17\n",
             ),
             expect_equal(
+                "consumer_identity_text sorts the runtime lines",
+                consumer_identity_text("demo", "x86_64", "linux", "dynamic", "glibc-2.17", ["zlib 1.3 app_local", "libc 2.17 os_supplied"]),
+                "name: demo\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.17\nruntime: libc 2.17 os_supplied\nruntime: zlib 1.3 app_local\n",
+            ),
+            expect_equal(
                 "consumer_resource_member maps a top-level staged file",
                 consumer_resource_member(
                     "",

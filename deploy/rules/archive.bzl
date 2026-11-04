@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "display_label")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
+load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":resources.bzl", "resource_path_error")
 
 _ARCHIVER = Label("//deploy/rules:archiver")
@@ -169,13 +170,14 @@ def consumer_identity_error(arch, os, linkage, min_runtime, format = "tar.gz"):
                 "': want one of " + ", ".join(CONSUMER_FORMATS))
     return ""
 
-def consumer_identity_text(name, arch, os, linkage, min_runtime):
+def consumer_identity_text(name, arch, os, linkage, min_runtime, runtimes = []):
     """Renders the deterministic IDENTITY.txt body for one consumer archive."""
     return ("name: " + name + "\n" +
             "arch: " + arch + "\n" +
             "os: " + os + "\n" +
             "linkage: " + linkage + "\n" +
-            "min_runtime: " + min_runtime + "\n")
+            "min_runtime: " + min_runtime + "\n" +
+            "".join(["runtime: " + record + "\n" for record in sorted(runtimes)]))
 
 _ConsumerStageInfo = provider(
     doc = "Staged consumer archive members.",
@@ -220,13 +222,30 @@ def _consumer_stage_impl(ctx):
     by_member[exe.basename] = app_out
     reserved = [exe.basename, "LICENSE", "NOTICE", "IDENTITY.txt"]
     runtime = []
+    runtime_records = []
     for target in ctx.attr.runtime:
-        files = target[DefaultInfo].files.to_list()
-        if len(files) == 0:
-            fail("consumer_archive " + str(ctx.label) + ": " +
-                 display_label(target.label) + " provides no files")
+        members = {}
+        if NativeRuntimeInfo in target:
+            info = target[NativeRuntimeInfo]
+            if info.redistribution == "build_only":
+                fail("consumer_archive " + str(ctx.label) + ": " +
+                     display_label(target.label) + " is a compiler/SDK build-only input and cannot ship")
+            runtime_records.append(" ".join([info.name, info.version, info.redistribution]))
+            if info.redistribution == "os_supplied":
+                continue
+            members["notices/" + info.name] = info.notice
+            files = info.files
+        else:
+            files = target[DefaultInfo].files.to_list()
+            if len(files) == 0:
+                fail("consumer_archive " + str(ctx.label) + ": " +
+                     display_label(target.label) + " provides no files")
         for src in files:
-            member = src.basename
+            if src.basename in members:
+                fail("consumer_archive " + str(ctx.label) + ": duplicate member '" +
+                     src.basename + "' from runtime " + display_label(target.label))
+            members[src.basename] = src
+        for member, src in members.items():
             if member in reserved or member in by_member:
                 fail("consumer_archive " + str(ctx.label) + ": duplicate member '" +
                      member + "' from runtime " + display_label(target.label))
@@ -275,6 +294,7 @@ def _consumer_stage_impl(ctx):
             ctx.attr.os,
             ctx.attr.linkage,
             ctx.attr.min_runtime,
+            runtime_records,
         ),
     )
     by_member["IDENTITY.txt"] = identity_out

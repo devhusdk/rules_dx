@@ -18,6 +18,7 @@ load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_unit_tests")
+load(":native_runtime_tests.bzl", "native_runtime_unit_tests")
 load(":npm.bzl", "npm_deploy")
 load(":npm_tests.bzl", "npm_unit_tests")
 load(":nuget.bzl", "nuget_deploy")
@@ -52,6 +53,8 @@ exports_files([
     "github_tests.bzl",
     "maven.bzl",
     "maven_tests.bzl",
+    "native_runtime.bzl",
+    "native_runtime_tests.bzl",
     "npm.bzl",
     "npm_tests.bzl",
     "nuget.bzl",
@@ -611,6 +614,8 @@ archive_deploy(
 archive_unit_tests(name = "archive_unit")
 
 consumer_archive_unit_tests(name = "consumer_archive_unit")
+
+native_runtime_unit_tests(name = "native_runtime_unit")
 
 deploy_analysis_test(
     name = "archive_analysis",
@@ -1310,6 +1315,8 @@ real_source_target(
         "promotion_tests.bzl",
         "pypi.bzl",
         "pypi_tests.bzl",
+        "native_runtime.bzl",
+        "native_runtime_tests.bzl",
         "resources.bzl",
         "resources_tests.bzl",
         "validate.bzl",

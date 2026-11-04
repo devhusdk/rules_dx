@@ -128,6 +128,121 @@ fn every_job_sets_a_timeout() {
     );
 }
 
+/// Keys that a job's `strategy.matrix` defines, including keys set by `include` entries.
+fn matrix_keys(job: &Value) -> Vec<String> {
+    let Some(matrix) = job.pointer("/strategy/matrix").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut keys: Vec<String> = matrix
+        .keys()
+        .filter(|key| key.as_str() != "include" && key.as_str() != "exclude")
+        .cloned()
+        .collect();
+    for entry in matrix
+        .get("include")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        keys.extend(
+            entry
+                .as_object()
+                .into_iter()
+                .flat_map(|map| map.keys().cloned()),
+        );
+    }
+    keys
+}
+
+/// Pushes the name of every `matrix.<name>` read inside a `${{ }}` expression of `value`.
+fn matrix_refs(value: &Value, found: &mut Vec<String>) {
+    match value {
+        Value::String(text) => {
+            for expression in text.split("${{").skip(1) {
+                let expression = expression.split("}}").next().unwrap_or_default();
+                for (at, _) in expression.match_indices("matrix.") {
+                    let before = expression[..at].chars().next_back();
+                    if before.is_some_and(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | '-')) {
+                        continue;
+                    }
+                    let name: String = expression[at + "matrix.".len()..]
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || matches!(c, '_' | '-'))
+                        .collect();
+                    if !name.is_empty() {
+                        found.push(name);
+                    }
+                }
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|item| matrix_refs(item, found)),
+        Value::Object(map) => map.values().for_each(|item| matrix_refs(item, found)),
+        _ => {}
+    }
+}
+
+/// Names every `matrix.<name>` a job reads that its own `strategy.matrix` does not define.
+fn undefined_matrix_refs(name: &str, document: &Value) -> Vec<String> {
+    let Some(jobs) = document.get("jobs").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut missing = Vec::new();
+    for (job_id, job) in jobs {
+        let defined = matrix_keys(job);
+        let mut refs = Vec::new();
+        matrix_refs(job, &mut refs);
+        for key in refs.iter().filter(|key| !defined.contains(key)) {
+            missing.push(format!(
+                "{name}: job {job_id} reads matrix.{key}, which its strategy.matrix does not define"
+            ));
+        }
+    }
+    missing
+}
+
+#[test]
+fn every_matrix_reference_is_defined() {
+    let mut missing = Vec::new();
+    for name in dx_testing::workflow_files() {
+        missing.extend(undefined_matrix_refs(
+            &name,
+            &parse(&name, &read_runfiles(&name)),
+        ));
+    }
+    assert!(
+        missing.is_empty(),
+        "define these matrix keys or fix the references:\n{}",
+        missing.join("\n")
+    );
+}
+
+#[test]
+fn undefined_matrix_references_are_flagged() {
+    let text = r#"
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [linux]
+    steps:
+      - run: echo "${{ matrix.platform }} ${{ matrix.check.id }}"
+  wide:
+    strategy:
+      matrix:
+        include:
+          - name: a
+            runner: x
+    steps:
+      - run: echo "${{ matrix.name }} ${{ matrix.runner }}"
+      - run: echo matrix.missing
+"#;
+    let found = undefined_matrix_refs("t.yml", &parse("t.yml", text));
+    assert_eq!(
+        found,
+        ["t.yml: job build reads matrix.check, which its strategy.matrix does not define"]
+    );
+}
+
 #[test]
 fn missing_timeouts_are_flagged() {
     let text = r#"

@@ -1,7 +1,7 @@
 # Examples
 
 Copy one of these into your own repository. Each has its own `README.md`
-with the commands to run.
+listing its commands with expected output.
 
 - [consumer-ci](consumer-ci/) GitHub Actions caller for the consumer workflow.
 - [docs-ci](docs-ci/) GitHub Actions caller for the docs workflow.

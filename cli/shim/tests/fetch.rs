@@ -80,7 +80,12 @@ fn wrong_sidecar_is_refused_and_leaves_nothing() {
         err.starts_with(&format!("dx: sha256 mismatch for {url}: want '")),
         "{err}"
     );
-    assert!(err.ends_with("refusing to run it"), "{err}");
+    assert!(
+        err.contains(
+            "refusing to run it; retry, and if it repeats a proxy may be rewriting downloads"
+        ),
+        "{err}"
+    );
     assert!(!dest.exists());
     assert!(leftovers(dest.parent().expect("dir")).is_empty());
 }

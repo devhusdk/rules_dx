@@ -217,13 +217,14 @@ mod tests {
             ResolveError::QueryFailed {
                 label: "owners".to_owned(),
                 failure: QueryFailure::Launch {
-                    detail: "bazel: not found".to_owned(),
+                    detail: "bazel: not found; install bazelisk or put bazel on PATH, then run dx status"
+                        .to_owned(),
                 },
             }
         );
         assert_eq!(
             err.to_string(),
-            "query owners failed: could not launch Bazel: bazel: not found"
+            "query owners failed: could not launch Bazel: bazel: not found; install bazelisk or put bazel on PATH, then run dx status"
         );
     }
 

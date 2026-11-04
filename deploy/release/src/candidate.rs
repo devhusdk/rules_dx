@@ -8,7 +8,7 @@ use std::process::{Command, Output, Stdio};
 use crate::{
     bcr_candidate_error, bcr_candidate_version_error, bcr_integrity_of_digest,
     bcr_module_candidate_error, bcr_source_url, bcr_strip_prefix,
-    modules::{module_versions_error, release_modules, ReleaseModule},
+    modules::{module_versions_error, release_modules},
     render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive, GitState,
     BCR_WANT_MODULE, RELEASE_REMOTE, RELEASE_REPOSITORY,
 };

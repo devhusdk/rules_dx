@@ -112,6 +112,23 @@ func TestClassIdentity(t *testing.T) {
 	}
 }
 
+func TestSuffixTestName(t *testing.T) {
+	exts := []string{".ts", ".tsx"}
+	suffixes := []string{".test", ".spec", "_test"}
+	cases := []struct{ in, want string }{
+		{"a.test.ts", "a_test"},
+		{"a.spec.ts", "a_test"},
+		{"a_test.ts", "a_test"},
+		{"_test.ts", "test"},
+		{"my-mod.spec.tsx", "my_mod_test"},
+	}
+	for _, tc := range cases {
+		if got, err := SuffixTestName(tc.in, exts, suffixes); err != nil || got != tc.want {
+			t.Errorf("SuffixTestName(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
+		}
+	}
+}
+
 func TestIsTestSource(t *testing.T) {
 	cases := []struct {
 		name     string

@@ -1000,3 +1000,17 @@ func TestGenerateKeepsNodeRunnerTestWithoutSource(t *testing.T) {
 		}
 	}
 }
+
+func TestTestSuffixCollision(t *testing.T) {
+	var claimants []Claimant
+	for _, src := range []string{"a.test.ts", "a.spec.ts"} {
+		name, err := TargetName(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		claimants = append(claimants, Claimant{Name: name, Source: src, Kind: projectKind})
+	}
+	if err := common.CheckClaims(nil, nil, claimants, nil); err == nil {
+		t.Error("a.test.ts and a.spec.ts both claim a_test, want collision error")
+	}
+}

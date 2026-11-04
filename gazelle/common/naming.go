@@ -137,6 +137,17 @@ func IsTestSource(name string, exts []string, suffixes []string) bool {
 	return false
 }
 
+func SuffixTestName(name string, exts, suffixes []string) (string, error) {
+	stem := Stem(name, exts)
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(stem, suffix) {
+			stem = strings.TrimSuffix(stem, suffix)
+			break
+		}
+	}
+	return Normalize(stem + "_test")
+}
+
 type Claimant struct {
 	Name   string
 	Source string

@@ -154,6 +154,13 @@ For Julia, a `Project.toml` with a `name` and a `src/<name>.jl` gets a
 filtered by `[targets].test`. `data` is never generated beyond `Project.toml`
 on the library, so data you add survives.
 
+JavaScript and TypeScript treat `*.test.*`, `*.spec.*` and `*_test.*` sources
+as tests, matching the default patterns of Jest, Vitest and `node --test`. A
+test source gets a `js_test` or `typescript_test` named after its stem without
+the suffix, plus `_test`, so `a.spec.ts` becomes `a_test`. Imports still use the
+full file name. Declaration files (`.d.ts`) are never tests. Scala sources
+ending in `Test`, `Spec` or `Suite` get a `scala_test` with a snake-case name.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this

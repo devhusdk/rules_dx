@@ -10,7 +10,7 @@ var SupportedExts = []string{".ts", ".tsx", ".mts", ".cts"}
 
 var DeclarationExts = []string{".d.ts", ".d.mts", ".d.cts"}
 
-var TestSourceSuffixes = []string{"_test"}
+var TestSourceSuffixes = []string{".test", ".spec", "_test"}
 
 func IsDeclaration(name string) bool {
 	return common.HasExt(path.Base(name), DeclarationExts)
@@ -27,7 +27,12 @@ func ModuleName(name string) string {
 	return common.Stem(name, SupportedExts)
 }
 
-func TargetName(name string) (string, error) { return common.Normalize(ModuleName(name)) }
+func TargetName(name string) (string, error) {
+	if IsTestFile(name) {
+		return common.SuffixTestName(name, SupportedExts, TestSourceSuffixes)
+	}
+	return common.Normalize(ModuleName(name))
+}
 
 func IsEntryFile(name string) bool {
 	return !IsTestFile(name) && common.IsEntryFile(name, SupportedExts)

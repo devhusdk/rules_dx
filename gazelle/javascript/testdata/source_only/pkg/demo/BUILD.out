@@ -12,6 +12,13 @@ javascript_library(
     deps = [":helper"],
 )
 
+javascript_test(
+    name = "demo_test",
+    srcs = ["demo.test.js"],
+    data = [":demo"],
+    node_modules = "//:node_modules",
+)
+
 javascript_library(
     name = "helper",
     srcs = ["helper.jsx"],

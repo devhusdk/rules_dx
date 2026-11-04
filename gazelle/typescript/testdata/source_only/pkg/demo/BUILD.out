@@ -15,6 +15,13 @@ typescript_project(
     ],
 )
 
+typescript_test(
+    name = "demo_test",
+    srcs = ["demo.spec.ts"],
+    node_modules = "//:node_modules",
+    deps = [":demo"],
+)
+
 typescript_project(
     name = "helper",
     srcs = ["helper.tsx"],

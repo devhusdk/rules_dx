@@ -124,7 +124,7 @@ fn tools_dx_runs_a_binary_the_shim_downloaded() {
 #[test]
 fn shim_runs_a_binary_in_the_tools_dx_layout() {
     let home = tempfile::tempdir().expect("home");
-    let (asset, file) = support::host_asset();
+    let (_, file) = support::host_asset();
     let fake = fake_dx();
     let dir = home.path().join(".cache/dx/bin").join(VERSION);
     std::fs::create_dir_all(&dir).expect("mkdir");

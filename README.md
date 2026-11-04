@@ -21,7 +21,7 @@ Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-a
 
 ## Quickstart
 
-In an empty directory, create three files.
+In an empty directory, create four files.
 
 `MODULE.bazel`:
 
@@ -40,6 +40,14 @@ bazel_dep(name = "rules_dx", version = "<release>")
 ```starlark
 # Empty on purpose: rules_rust crate_universe needs a root package (rules_dx#6144).
 ```
+
+`.bazelrc`:
+
+```text
+common --repo_env=DO_NOT_TRACK=1
+```
+
+This opts out of `aspect_tools_telemetry` before `dx init` writes the preset.
 
 Then:
 

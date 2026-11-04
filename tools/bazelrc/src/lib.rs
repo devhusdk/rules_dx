@@ -438,9 +438,19 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Preset lines a root `.bazelrc` may repeat: the rendered flag lines minus the telemetry opt-out,
+/// which the quickstart asks users to set before `dx init` runs.
+pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
+    let mut lines = rendered_flag_lines(rendered);
+    for (line, _) in TELEMETRY_FLAGS {
+        lines.remove(line);
+    }
+    lines
+}
+
 /// Lists root .bazelrc lines that exactly repeat a generated preset line.
 pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
-    let owned = rendered_flag_lines(rendered);
+    let owned = collision_lines(rendered);
     let joined = root_content.replace("\\\r\n", "").replace("\\\n", "");
     let mut collisions = Vec::new();
     for raw in joined.lines() {
@@ -914,6 +924,13 @@ mod tests {
         assert!(owned_collisions_in_content(clean, &rendered).is_empty());
         let blank = "# only\n\n";
         assert!(owned_collisions_in_content(blank, &rendered).is_empty());
+    }
+
+    #[test]
+    fn telemetry_opt_out_is_not_a_collision() {
+        let rendered = render_all();
+        let root = "common --repo_env=DO_NOT_TRACK=1\n";
+        assert!(owned_collisions_in_content(root, &rendered).is_empty());
     }
 
     #[test]

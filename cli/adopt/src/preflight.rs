@@ -203,7 +203,7 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
 /// line the dx preset layers own. Advisory: `dx init` will not import the layers while the
 /// root file repeats them, so the file and line are named for the user to drop.
 fn bazelrc_conflicts(root: &Path) -> Vec<Finding> {
-    let owned = crate::preset_fragment::rendered_flag_lines(&crate::preset_fragment::render_all(
+    let owned = crate::preset_fragment::collision_lines(&crate::preset_fragment::render_all(
         &dx_module_bazel::rules_dx_repo(root),
     ));
     let mut out = Vec::new();
@@ -858,6 +858,19 @@ mod tests {
         assert_eq!(
             (f[0].file.as_str(), f[0].line, f[0].hard),
             ("extra.bazelrc", 2, false)
+        );
+    }
+
+    #[test]
+    fn telemetry_opt_out_is_not_a_bazelrc_conflict() {
+        let dir = scratch(&[
+            ("MODULE.bazel", "module(name = \"app\")\n"),
+            (".bazelrc", "common --repo_env=DO_NOT_TRACK=1\n"),
+        ]);
+        let plan = preflight(dir.path(), &snippet());
+        assert!(
+            plan.findings.iter().all(|f| f.kind != Kind::BazelrcConflict),
+            "{plan:?}"
         );
     }
 

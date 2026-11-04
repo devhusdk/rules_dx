@@ -1,7 +1,8 @@
 # `dx init`
 
 Empty directory, with Bazel. Create `MODULE.bazel` with
-`bazel_dep(name = "rules_dx", version = "<release>")` and a `.bazelversion`, then:
+`bazel_dep(name = "rules_dx", version = "<release>")` a `.bazelversion`, and a `.bazelrc` with
+`common --repo_env=DO_NOT_TRACK=1`, then:
 
 ```sh
 bazel run @rules_dx//:dx -- init --apply

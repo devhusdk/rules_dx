@@ -485,6 +485,17 @@ mod tests {
     }
 
     #[test]
+    fn telemetry_opt_out_still_gets_imports() {
+        let scratch = dx_test_scratch::scratch("dx-preset-telemetry-");
+        let root = scratch.path();
+        std::fs::write(root.join(".bazelrc"), "common --repo_env=DO_NOT_TRACK=1\n").expect("rc");
+        let (wrote, _) = apply(root);
+        assert!(!wrote.is_empty());
+        let text = std::fs::read_to_string(root.join(".bazelrc")).expect("read");
+        assert!(text.starts_with(dx_preset::IMPORT_COMMENT), "{text:?}");
+    }
+
+    #[test]
     fn collision_and_symlinked_rc_add_no_import() {
         let scratch = dx_test_scratch::scratch("dx-preset-collide-");
         let root = scratch.path();

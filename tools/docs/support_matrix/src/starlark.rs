@@ -609,22 +609,10 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("rust_test", Constraint::AsWritten),
     ("scala_test", Constraint::AsWritten),
     ("sh_test", Constraint::AsWritten),
-    (
-        "starter_consumer_test",
-        Constraint::DefaultIfUnset(
-            "//tools/testing:nested_bazel.bzl",
-            "NESTED_BAZEL_COMPATIBLE_WITH",
-        ),
-    ),
+    ("starter_consumer_test", Constraint::AsWritten),
     ("typescript_test", Constraint::AsWritten),
     ("zig_test", Constraint::AsWritten),
-    (
-        "nested_bazel_test",
-        Constraint::DefaultIfUnset(
-            "//tools/testing:nested_bazel.bzl",
-            "NESTED_BAZEL_COMPATIBLE_WITH",
-        ),
-    ),
+    ("nested_bazel_test", Constraint::AsWritten),
 ];
 
 /// Evaluates a macro's constant: Bazel's computed value first, else the parsed file.
@@ -873,7 +861,7 @@ mod tests {
             ),
             (
                 "//tools/testing:nested_bazel.bzl".to_owned(),
-                "\"\"\"Doc.\"\"\"\n\nTAGS = [\n    \"local\",\n]\n\nNET_TAGS = TAGS + [\"requires-network\"]\n\nNESTED_BAZEL_COMPATIBLE_WITH = []\n\ndef f(x):\n    y = 1\n    return x\n".to_owned(),
+                "\"\"\"Doc.\"\"\"\n\nTAGS = [\n    \"local\",\n]\n\nNET_TAGS = TAGS + [\"requires-network\"]\n\nANY_PLATFORM = []\n\ndef f(x):\n    y = 1\n    return x\n".to_owned(),
             ),
         ]))
     }
@@ -935,7 +923,7 @@ mod tests {
     #[test]
     fn follows_one_load_hop_and_concatenation() {
         let found = facts(
-            "load(\"//tools/testing:nested_bazel.bzl\", \"NET_TAGS\", C = \"NESTED_BAZEL_COMPATIBLE_WITH\")\n\nrust_test(\n    name = \"t\",\n    tags = NET_TAGS + [\"manual\"],\n    target_compatible_with = C,\n)\n",
+            "load(\"//tools/testing:nested_bazel.bzl\", \"NET_TAGS\", C = \"ANY_PLATFORM\")\n\nrust_test(\n    name = \"t\",\n    tags = NET_TAGS + [\"manual\"],\n    target_compatible_with = C,\n)\n",
             "t",
         )
         .expect("facts");
@@ -944,9 +932,15 @@ mod tests {
     }
 
     #[test]
-    fn macro_default_comes_from_its_constant() {
+    fn nested_bazel_test_forwards_constraints_as_written() {
         let found = facts("nested_bazel_test(name = \"t\")\n", "t").expect("facts");
         assert_eq!(on(&found).len(), 5);
+        let found = facts(
+            "nested_bazel_test(name = \"t\", target_compatible_with = [\"@platforms//os:linux\"])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64", "linux_arm64"]);
     }
 
     #[test]

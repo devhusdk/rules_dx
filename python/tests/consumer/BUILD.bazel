@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV")
+load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV")
 
 # keep
 rust_test(
@@ -18,7 +18,6 @@ rust_test(
     } | NESTED_BAZEL_NETWORK_ENV | CONSUMER_MAVEN_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
     tags = NESTED_BAZEL_CI_NETWORK_TAGS,
-    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",

@@ -53,6 +53,3 @@ NESTED_BAZEL_ENV_INHERIT = [
 ]
 
 NESTED_BAZEL_NETWORK_ENV = NESTED_BAZEL_ENV | {"DX_NESTED_BAZEL_NETWORK": "1"}
-
-# Nested Bazel runs everywhere a pinned binary exists; kept as a symbol so callers need not change.
-NESTED_BAZEL_COMPATIBLE_WITH = []

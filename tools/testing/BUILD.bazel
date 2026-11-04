@@ -4,7 +4,7 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -190,7 +190,6 @@ rust_binary(
     testonly = True,
     srcs = ["nested_bazel_probe.rs"],
     edition = "2021",
-    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [":dx_nested"],
 )
 
@@ -243,7 +242,6 @@ rust_test(
     },
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
         ":dx_nested",
         ":dx_testing",

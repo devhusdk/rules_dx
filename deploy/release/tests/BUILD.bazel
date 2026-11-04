@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 package(
     default_testonly = True,
@@ -22,7 +22,6 @@ rust_test(
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
     # The consumer fetches the rust and GCC toolchains and bcr modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
         "//deploy/release:dx_release_tools",
         "//deploy/rules:dx_deploy_tools",

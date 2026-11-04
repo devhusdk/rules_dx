@@ -1,9 +1,9 @@
 """Starter test macros."""
 
 load("//rust/rules:defs.bzl", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "STARTER_CONSUMER_TAGS")
+load("//tools/testing:nested_bazel.bzl", "STARTER_CONSUMER_TAGS")
 
-def starter_consumer_test(name, fixture = None, target_compatible_with = None):
+def starter_consumer_test(name, fixture = None, target_compatible_with = []):
     """Declares a test that checks one starter fixture's generated files against a golden listing."""
     fixture = fixture or name
     files = "//tools/testing/starters/fixtures:" + fixture
@@ -25,7 +25,7 @@ def starter_consumer_test(name, fixture = None, target_compatible_with = None):
         },
         size = "small",
         tags = STARTER_CONSUMER_TAGS,
-        target_compatible_with = target_compatible_with or NESTED_BAZEL_COMPATIBLE_WITH,
+        target_compatible_with = target_compatible_with,
         deps = [
             "//tools/testing/starters:starter_scaffold",
             "//tools/testing:dx_testing",

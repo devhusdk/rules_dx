@@ -7,7 +7,7 @@ load(":repos.bzl", "hub_build", "repo_name")
 def _checks():
     hub = hub_build()
     return [
-        expect_equal("pwsh version", PWSH_VERSION, "7.5.11"),
+        expect_equal("pwsh version", PWSH_VERSION, "7.5.13"),
         expect_equal("pinned platforms", sorted(PWSH_CELLS.keys()), ["linux_arm64", "linux_x64", "osx_arm64", "osx_x64", "win_arm64", "win_x64"]),
         expect_true("pwsh digests are sha256", all([len(c.sha256) == 64 for c in PWSH_CELLS.values()])),
         expect_true("artifacts name the version", all([PWSH_VERSION in c.artifact for c in PWSH_CELLS.values()])),

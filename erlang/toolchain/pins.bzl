@@ -213,7 +213,8 @@ OTP_UNPORTED_CELLS = []
 # An arm64 NIF .dll cannot load into the x64 BEAM that windows_arm64 runs (#6321).
 OTP_NIF_UNPORTED_CELLS = ["windows_arm64"]
 
-OTP_DIALYZER_UNPORTED_CELLS = ["windows_arm64", "windows_x86_64"]
+# Dialyzer is proven on windows_x86_64. windows_arm64 waits on #6321.
+OTP_DIALYZER_UNPORTED_CELLS = ["windows_arm64"]
 
 # The OTP applications the dialyzer base PLT covers. A call into an application missing here
 # is an "Unknown function" warning, so the list holds what Erlang apps commonly use.

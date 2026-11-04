@@ -1,6 +1,6 @@
 """The language list behind docs/support-matrix.md."""
 
-load("//cuda/rules:defs.bzl", "CUDA_TARGET")
+load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
@@ -29,14 +29,6 @@ PLATFORMS = [
 
 SECTIONS = ["languages", "targets", "formats"]
 
-def _constraint(label):
-    if type(label) == "Label" and label.repo_name in ("platforms", "platforms+"):
-        return "@platforms//" + label.package + ":" + label.name
-    return str(label)
-
-def _all_of(labels):
-    return [[_constraint(label) for label in labels]]
-
 def _os_cpu_pairs(platforms):
     return [["@platforms//os:" + os, "@platforms//cpu:" + cpu] for os, cpu in sorted(platforms.values())]
 
@@ -44,7 +36,7 @@ def _cells(pinned, cells):
     return [pinned[cell].exec_compatible_with for cell in cells]
 
 COMPUTED_CONSTRAINTS = {
-    "//cuda/rules:defs.bzl%CUDA_TARGET": _all_of(CUDA_TARGET),
+    "//cuda/rules:defs.bzl%CUDA_TARGET": [CUDA_CELLS[cell].exec_compatible_with for cell in cuda_qualified_cells()],
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
@@ -270,7 +262,6 @@ PLATFORM_NOT_APPLICABLE = {
     },
     "cuda": {
         "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",
-        "windows_arm64": "NVIDIA ships no CUDA toolkit for Windows arm64",
     },
     "dart": {
         "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK",

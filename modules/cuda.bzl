@@ -15,7 +15,7 @@ CUDA_MAX_HOST_CLANG_MAJOR = 22
 
 _REDIST = "https://developer.download.nvidia.com/compute/cuda/redist/"
 
-CUDA_COMPONENTS = {
+_LINUX_X86_64_COMPONENTS = {
     "cccl": struct(
         version = "13.3.4.3.1",
         url = _REDIST + "cccl/linux-x86_64/cccl-linux-x86_64-13.3.4.3.1-archive.tar.xz",
@@ -65,6 +65,78 @@ CUDA_COMPONENTS = {
         strip_prefix = "libnvvm-linux-x86_64-13.4.92-archive",
     ),
 }
+
+_WINDOWS_X86_64_COMPONENTS = {
+    "cccl": struct(
+        version = "13.3.4.3.1",
+        url = _REDIST + "cccl/windows-x86_64/cccl-windows-x86_64-13.3.4.3.1-archive.zip",
+        sha256 = "17d0ca1592c0dfc974a5fc39f470a6b7bae40da239e3e19bd0752017735acbca",
+        strip_prefix = "cccl-windows-x86_64-13.3.4.3.1-archive",
+    ),
+    "crt": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_crt/windows-x86_64/cuda_crt-windows-x86_64-13.4.92-archive.zip",
+        sha256 = "a38e3aa75e259128a1c7fb46e706182e4babca407cd3f3c447d21ab7fb14c7fd",
+        strip_prefix = "cuda_crt-windows-x86_64-13.4.92-archive",
+    ),
+    "cublas": struct(
+        version = "13.8.0.4",
+        url = _REDIST + "libcublas/windows-x86_64/libcublas-windows-x86_64-13.8.0.4-archive.zip",
+        sha256 = "0974318e9861a61cb9091cf7de8d4c2880e9787fe311cb4bcbd08865663c5f43",
+        strip_prefix = "libcublas-windows-x86_64-13.8.0.4-archive",
+    ),
+    "cudart": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-13.4.92-archive.zip",
+        sha256 = "621a70c4778287b1abf8c27c61b841d797fda2aeff01033374dd19624bcfa249",
+        strip_prefix = "cuda_cudart-windows-x86_64-13.4.92-archive",
+    ),
+    "cufft": struct(
+        version = "12.4.0.43",
+        url = _REDIST + "libcufft/windows-x86_64/libcufft-windows-x86_64-12.4.0.43-archive.zip",
+        sha256 = "69d0ad8dc3a1be66f01a748a8206d0ceaafa56939474663fbe790dc3e91d2009",
+        strip_prefix = "libcufft-windows-x86_64-12.4.0.43-archive",
+    ),
+    "curand": struct(
+        version = "10.4.4.72",
+        url = _REDIST + "libcurand/windows-x86_64/libcurand-windows-x86_64-10.4.4.72-archive.zip",
+        sha256 = "5f15b55cb83938b36a1f01aa9fb32715984e8495c2217081387a0c8ca836ff62",
+        strip_prefix = "libcurand-windows-x86_64-10.4.4.72-archive",
+    ),
+    "nvcc": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_nvcc/windows-x86_64/cuda_nvcc-windows-x86_64-13.4.92-archive.zip",
+        sha256 = "23950047aa5405993129a982a99924b4e6d5eb9bc312300030f3afd9b3b49ea4",
+        strip_prefix = "cuda_nvcc-windows-x86_64-13.4.92-archive",
+    ),
+    "nvvm": struct(
+        version = "13.4.92",
+        url = _REDIST + "libnvvm/windows-x86_64/libnvvm-windows-x86_64-13.4.92-archive.zip",
+        sha256 = "64fa39ad6332d6c40a02115d64827272f6befbc86e50568254f44d37d924e10b",
+        strip_prefix = "libnvvm-windows-x86_64-13.4.92-archive",
+    ),
+}
+
+# A cell with a blocker is pinned but not qualified.
+CUDA_CELLS = {
+    "linux_x86_64": struct(
+        blocker = "",
+        redist = CUDA_VERSION,
+        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+        components = _LINUX_X86_64_COMPONENTS,
+    ),
+    "windows_x86_64": struct(
+        blocker = "nvcc_msvc needs the MSVC cl.exe toolchain (#4815) and a Windows run (#4704)",
+        redist = CUDA_VERSION,
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        components = _WINDOWS_X86_64_COMPONENTS,
+    ),
+}
+
+def cuda_qualified_cells():
+    return [cell for cell, pin in CUDA_CELLS.items() if not pin.blocker]
+
+CUDA_COMPONENTS = CUDA_CELLS["linux_x86_64"].components
 
 CUDA_ARCHS = [
     "compute_75",

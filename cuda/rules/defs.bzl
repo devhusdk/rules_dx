@@ -8,15 +8,18 @@ load("//cuda/rules:components.bzl", _cuda_component_library = "cuda_component_li
 load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/toolchain:transition.bzl", "cuda_host_transition")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
-load("//modules:cuda.bzl", "CUDA_VERSION")
+load("//modules:cuda.bzl", "CUDA_CELLS", "CUDA_VERSION", "cuda_qualified_cells")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 
-_CUDA_TARGET_NAMES = [
-    "@platforms//os:linux",
-    "@platforms//cpu:x86_64",
-]
+def _cuda_target_names():
+    cells = cuda_qualified_cells()
+    if len(cells) != 1:
+        fail("CUDA_TARGET supports one qualified cell, got %s; see #5968" % cells)
+    return CUDA_CELLS[cells[0]].exec_compatible_with
+
+_CUDA_TARGET_NAMES = _cuda_target_names()
 
 # Labels, so a consumer without its own platforms dependency can use them.
 CUDA_TARGET = [Label(name) for name in _CUDA_TARGET_NAMES]

@@ -184,8 +184,12 @@ The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 
 ## Platforms
 
-CUDA targets build for Linux x86_64 only. On other platforms they are
-incompatible, so `bazel build //...` skips them.
+Linux x86_64 is qualified. CUDA targets are incompatible on other platforms,
+so `bazel build //...` skips them.
+
+Windows x86_64 archives (CUDA 13.4.2 redist) are pinned in `modules/cuda.bzl`
+but blocked until nvcc has an MSVC host compiler (#4815) and a Windows run
+(#4704). Windows arm64 is blocked on the rules_cuda platform list (#5969).
 
 ## Errors
 

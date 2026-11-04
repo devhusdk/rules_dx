@@ -4,7 +4,8 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
 load(":repos.bzl", "HUB_NAME", "LICENSE", "UNACCEPTED", "hub_build", "layout_links", "missing_error")
-load(":unavailable.bzl", "UNSUPPORTED", "msvc_unavailable")
+load("//cc/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
+load(":unavailable.bzl", "UNSUPPORTED")
 
 def _checks():
     links = layout_links("14.44.35207", "10.0.26100.0")
@@ -46,7 +47,7 @@ def _checks():
         expect_contains("accepted hub names the sdk", accepted_hub, 'sdk_version = "10.0.26100.0"'),
         expect_contains("x64 cell", accepted_hub, 'name = "cc_toolchain_x64_x64",\n    msvc_version = "14.44.35207",\n    sdk_version = "10.0.26100.0",\n    exec_cpu = "x64",\n    target_cpu = "x64",'),
         expect_contains("native arm64 cell", accepted_hub, 'name = "cc_toolchain_arm64_arm64",\n    msvc_version = "14.44.35207",\n    sdk_version = "10.0.26100.0",\n    exec_cpu = "arm64",\n    target_cpu = "arm64",'),
-        expect_contains("missing tools make only their cell unavailable", accepted_hub, 'msvc_unavailable(\n    name = "cc_toolchain_x64_arm64",\n    error = ' + json.encode(missing_error(["a/cl.exe"]))),
+        expect_contains("missing tools make only their cell unavailable", accepted_hub, 'cc_toolchain_unavailable(\n    name = "cc_toolchain_x64_arm64",\n    error = ' + json.encode(missing_error(["a/cl.exe"]))),
         expect_equal("one toolchain per remaining cell", accepted_hub.count("msvc_cc_toolchain(\n"), 2),
         expect_equal("unaccepted hub makes every cell unavailable", hub_build(False, "", "").count("error = " + json.encode(UNACCEPTED)), 3),
         expect_true("unaccepted hub builds no toolchain", "msvc_cc_toolchain(" not in hub_build(False, "", "")),
@@ -69,7 +70,7 @@ _unaccepted_test = analysistest.make(_unaccepted_impl, expect_failure = True)
 
 def msvc_unavailable_tests(name):
     """Declares the test that an unaccepted MSVC layout fails when used."""
-    msvc_unavailable(
+    cc_toolchain_unavailable(
         name = name + "_target",
         error = UNACCEPTED,
         tags = ["manual"],
@@ -88,7 +89,7 @@ _unsupported_test = analysistest.make(_unsupported_impl, expect_failure = True)
 
 def msvc_unsupported_tests(name):
     """Declares the test that the unsupported-platform guard fails when used."""
-    msvc_unavailable(
+    cc_toolchain_unavailable(
         name = name + "_target",
         error = UNSUPPORTED,
         tags = ["manual"],

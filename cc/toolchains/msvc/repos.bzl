@@ -56,14 +56,14 @@ def hub_build(accepted, msvc_version, sdk_version, unavailable = {}):
     """
     text = 'package(default_visibility = ["//visibility:public"])\n\n'
     if accepted:
-        text = 'load("{}", "msvc_cc_toolchain")\nload("{}", "msvc_unavailable")\n\n'.format(str(Label(":toolchain.bzl")), str(Label(":unavailable.bzl"))) + text
+        text = 'load("{}", "msvc_cc_toolchain")\nload("{}", "cc_toolchain_unavailable")\n\n'.format(str(Label(":toolchain.bzl")), str(Label("//cc/toolchains:unavailable.bzl"))) + text
     else:
-        text = 'load("{}", "msvc_unavailable")\n\n'.format(str(Label(":unavailable.bzl"))) + text
+        text = 'load("{}", "cc_toolchain_unavailable")\n\n'.format(str(Label("//cc/toolchains:unavailable.bzl"))) + text
     for host, target in SUPPORTED_CELLS:
         name = cell_name(host, target)
         error = unavailable.get(name) or (None if accepted else UNACCEPTED)
         if error:
-            text += 'msvc_unavailable(\n    name = "{}",\n    error = {},\n)\n\n'.format(name, json.encode(error))
+            text += 'cc_toolchain_unavailable(\n    name = "{}",\n    error = {},\n)\n\n'.format(name, json.encode(error))
         else:
             text += 'msvc_cc_toolchain(\n    name = "{}",\n    msvc_version = "{}",\n    sdk_version = "{}",\n    exec_cpu = "{}",\n    target_cpu = "{}",\n)\n\n'.format(name, msvc_version, sdk_version, host, target)
     return text.rstrip("\n") + "\n"

@@ -1,9 +1,11 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//cc/rules:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":identity_tests.bzl", "cc_toolchain_identity_tests")
 load(":select.bzl", "cc_toolchain_test")
+load(":unavailable.bzl", "GCC_UNSUPPORTED", "cc_toolchain_unavailable")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -105,6 +107,21 @@ toolchain(
     toolchain = "//cc/toolchains/msvc:unsupported",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
+
+cc_toolchain_unavailable(
+    name = "gcc_unsupported_impl",
+    error = GCC_UNSUPPORTED,
+    tags = ["manual"],
+)
+
+toolchain(
+    name = "gcc_unsupported",
+    target_settings = [":gcc_selected"],
+    toolchain = ":gcc_unsupported_impl",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+gcc_unsupported_tests(name = "gcc_unsupported_test")
 
 cc_toolchain_test(
     name = "gcc_hello_test",
@@ -269,6 +286,8 @@ real_source_target(
         "pins.bzl",
         "repos.bzl",
         "select.bzl",
+        "unavailable.bzl",
+        "gcc_unsupported_tests.bzl",
     ],
     tags = ["corpus"],
 )

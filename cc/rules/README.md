@@ -54,7 +54,7 @@ Or per build:
 bazel build --@rules_dx//cc/toolchains:compiler=gcc //pkg/...
 ```
 
-It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary.
+It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary. Other targets fail at analysis instead of falling back to LLVM.
 
 The `dynamic_libstdcxx` feature links the toolchain's `libstdc++.so.6` and `libgcc_s.so.1` instead, ships both in runfiles and sets an `$ORIGIN` rpath, so nothing loads from the host. It covers dynamically linked targets (`cc_test`, `linkstatic = False`); a statically linked `cc_binary` keeps the static runtime.
 

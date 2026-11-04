@@ -123,7 +123,7 @@ def objc_library(name, visibility = None, **kwargs):
 def cc_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary that links Linux binaries with a build-id."""
     kwargs = _cc_werror(kwargs)
-    linkopts = kwargs.pop("linkopts", [])
+    linkopts = kwargs.pop("linkopts", None) or []
     build_id = select({
         "@platforms//os:linux": ["-Wl,--build-id=sha1"],
         "//conditions:default": [],

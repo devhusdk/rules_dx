@@ -23,6 +23,20 @@ cc_binary(
     deps = [":hello_lib"],
 )
 
+cc_binary(
+    name = "hello_linkopts_none",
+    srcs = ["main.cc"],
+    linkopts = None,
+    deps = [":hello_lib"],
+)
+
+cc_binary(
+    name = "hello_linkopts_lm",
+    srcs = ["main.cc"],
+    linkopts = ["-lm"],
+    deps = [":hello_lib"],
+)
+
 cc_test(
     name = "hello_test",
     srcs = ["hello_test.cc"],
@@ -74,6 +88,16 @@ cc_action_tests(
 cc_build_id_test(
     name = "build_id_test",
     target = ":hello_upstream",
+)
+
+cc_build_id_test(
+    name = "build_id_linkopts_none_test",
+    target = ":hello_linkopts_none_upstream",
+)
+
+cc_build_id_test(
+    name = "build_id_linkopts_lm_test",
+    target = ":hello_linkopts_lm_upstream",
 )
 
 dx_hello_output_test(

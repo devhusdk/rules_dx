@@ -89,10 +89,18 @@ pub const OVERRIDES: &[Override] = &[
         module: "aspect_rules_py",
         version: "2.0.0-alpha.10",
         patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "windows_venv.patch",
-            content: include_str!("../../../patches/aspect_rules_py/windows_venv.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "windows_venv.patch",
+                content: include_str!("../../../patches/aspect_rules_py/windows_venv.patch"),
+            },
+            OverridePatch {
+                file: "py_cc_toolchain_platform.patch",
+                content: include_str!(
+                    "../../../patches/aspect_rules_py/py_cc_toolchain_platform.patch"
+                ),
+            },
+        ],
     },
     Override {
         module: "aspect_rules_ts",
@@ -133,6 +141,16 @@ pub const OVERRIDES: &[Override] = &[
             OverridePatch {
                 file: "runtime_libs.patch",
                 content: include_str!("../../../patches/gcc_toolchain/runtime_libs.patch"),
+            },
+            OverridePatch {
+                file: "target_identity_config.patch",
+                content: include_str!(
+                    "../../../patches/gcc_toolchain/target_identity_config.patch"
+                ),
+            },
+            OverridePatch {
+                file: "target_identity_defs.patch",
+                content: include_str!("../../../patches/gcc_toolchain/target_identity_defs.patch"),
             },
         ],
     },

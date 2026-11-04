@@ -132,6 +132,8 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     let launchers = [root.join("tools/dx"), root.join("tools/dx.cmd")];
     let fresh: Vec<String> = launchers.iter().map(|path| read(path)).collect();
     write(&version_file, "0.0.1\n");
+    let module_file = root.join("MODULE.bazel");
+    write(&module_file, &read(&module_file).replace(&built, "0.0.1"));
     for (path, text) in launchers.iter().zip(&fresh) {
         write(path, &text.replace(&built, "0.0.1"));
     }

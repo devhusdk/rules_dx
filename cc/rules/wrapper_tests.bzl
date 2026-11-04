@@ -62,6 +62,33 @@ def cc_coverage_env_tests(name, target):
     _coverage_env_off_test(name = name + "_off", size = "small", tags = ["no-coverage"], target_under_test = target)
     native.test_suite(name = name, tests = [name + "_on", name + "_off"])
 
+def _gcc_asan_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
+    if ctx.attr.expect:
+        asserts.equals(env, ctx.attr.expect, run_env.get("ASAN_OPTIONS"))
+    else:
+        asserts.false(env, "ASAN_OPTIONS" in run_env, "ASAN_OPTIONS set without GCC")
+    return analysistest.end(env)
+
+_gcc_asan_env_gcc_test = analysistest.make(
+    _gcc_asan_env_impl,
+    attrs = {"expect": attr.string()},
+    config_settings = {str(Label("//cc/toolchains:compiler")): "gcc"},
+)
+
+_gcc_asan_env_llvm_test = analysistest.make(
+    _gcc_asan_env_impl,
+    attrs = {"expect": attr.string()},
+    config_settings = {str(Label("//cc/toolchains:compiler")): "llvm"},
+)
+
+def cc_gcc_asan_env_tests(name, target, expect, expect_llvm = "", **kwargs):
+    """Asserts cc_test sets ASAN_OPTIONS to expect under GCC and to expect_llvm (default unset) under LLVM."""
+    _gcc_asan_env_gcc_test(name = name + "_gcc", size = "small", expect = expect, target_under_test = target, **kwargs)
+    _gcc_asan_env_llvm_test(name = name + "_llvm", size = "small", expect = expect_llvm, target_under_test = target, **kwargs)
+    native.test_suite(name = name, tests = [name + "_gcc", name + "_llvm"], **kwargs)
+
 def _objc_library_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)

@@ -1,4 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_test")
+load("//cc/rules:wrapper_tests.bzl", "cc_gcc_asan_env_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -14,10 +15,32 @@ _GCC_ONLY = [
 cc_test(
     name = "asan_test",
     srcs = ["sanitize_test.cc"],
-    # GCC's static libasan still trips the dynamic link order check at startup (#5981).
-    env = {"ASAN_OPTIONS": "verify_asan_link_order=0"},
     local_defines = ["DX_EXPECT_ASAN"],
     tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_test(
+    name = "asan_env_override_test",
+    srcs = ["sanitize_test.cc"],
+    env = {"ASAN_OPTIONS": "detect_leaks=0"},
+    local_defines = ["DX_EXPECT_ASAN"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_gcc_asan_env_tests(
+    name = "asan_default_env_tests",
+    expect = "verify_asan_link_order=0",
+    target = ":asan_test",
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_gcc_asan_env_tests(
+    name = "asan_override_env_tests",
+    expect = "detect_leaks=0",
+    expect_llvm = "detect_leaks=0",
+    target = ":asan_env_override_test",
     target_compatible_with = _GCC_ONLY,
 )
 

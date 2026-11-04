@@ -125,5 +125,10 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
     dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = build_id + linkopts, **kwargs)
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_test."""
-    dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, **kwargs)
+    """Minimal wrapper over cc_test. Under GCC it sets ASAN_OPTIONS=verify_asan_link_order=0, which the caller's env overrides."""
+    caller_env = kwargs.pop("env", None) or {}
+    gcc_env = select({
+        Label("//cc/toolchains:gcc_selected"): {"ASAN_OPTIONS": "verify_asan_link_order=0"},
+        "//conditions:default": {},
+    })
+    dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)

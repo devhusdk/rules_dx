@@ -16,14 +16,10 @@ const (
 	languageName    = "javascript"
 	libraryKind     = "javascript_library"
 	testKind        = "javascript_test"
-	plainTestKind   = "javascript_js_test"
 	binaryKind      = "javascript_binary"
 	rootNodeModules = "//:node_modules"
 	rootPackageJSON = "//:package_json"
 )
-
-// claimAliases lets a handwritten plain-runner test stand in for the generated test of the same name.
-var claimAliases = map[string]string{plainTestKind: testKind}
 
 var javascriptKinds = map[string]rule.KindInfo{
 	libraryKind: libraryKindInfo(),
@@ -156,12 +152,12 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, claimAliases); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
 		rep.Fail(common.InPackage(args.Rel), "javascript: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 
-	plain := common.RuleNamesOfKind(args.File, args.OtherGen, plainTestKind)
+	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "jest")
 	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
 	var result language.GenerateResult
 	for _, p := range plans {
@@ -202,7 +198,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	return common.MergeStale(file, result, javascriptKinds)
+	return common.MergeStaleOwned(file, result, javascriptKinds, func(r *rule.Rule) bool {
+		return r.Kind() != testKind || r.AttrString("runner") == ""
+	})
 }
 
 // rootPackageJSONExists reports whether the repo root has a package.json file.

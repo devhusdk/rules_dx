@@ -7,7 +7,7 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
+load(":node_test.bzl", "node_test_forward_rule", "node_test_runner_rejection", "node_wrap_test")
 
 _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,
@@ -151,13 +151,9 @@ def javascript_binary(name, srcs = None, visibility = None, **kwargs):
 
 _javascript_test = node_test_forward_rule("javascript_*", _JS_EXTS, _DX_JS_SOURCE_SPECS)
 
-def javascript_test_rejection(kwargs):
-    """Returns the rejection for forbidden javascript_test kwargs, or None."""
-    return node_test_reporter_rejection("javascript_test", "javascript_js_test", kwargs)
-
-def javascript_js_test_rejection(kwargs):
-    """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
-    return node_test_plain_rejection("javascript_test", "javascript_js_test", kwargs)
+def javascript_test_rejection(runner, node_modules, entry_point, kwargs):
+    """Returns the rejection for bad javascript_test arguments, or None."""
+    return node_test_runner_rejection("javascript_test", runner, node_modules, entry_point, kwargs)
 
 JAVASCRIPT_WINDOWS_JEST_CONFIG = '{"coverageProvider": "v8"}\n'
 
@@ -165,28 +161,27 @@ def javascript_needs_default_jest_config(kwargs):
     """Returns True when no Jest config was set, so the Windows default applies."""
     return not kwargs.get("config")
 
-def javascript_test(name, srcs, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Minimal wrapper over jest_test."""
-    rejection = javascript_test_rejection(kwargs)
+def javascript_test(name, srcs, runner = "jest", node_modules = None, entry_point = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+    """Minimal wrapper over jest_test, or js_test with runner = "node"."""
+    rejection = javascript_test_rejection(runner, node_modules, entry_point, kwargs)
     if rejection != None:
         fail(rejection)
-    if javascript_needs_default_jest_config(kwargs):
-        config_name = name + "_windows_jest_config"
-        write_file(
-            name = config_name,
-            out = config_name + ".json",
-            content = [JAVASCRIPT_WINDOWS_JEST_CONFIG],
-            tags = ["manual"],
-        )
-        kwargs["config"] = select({
-            "@platforms//os:windows": ":" + config_name + ".json",
-            "//conditions:default": None,
-        })
-    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
-
-def javascript_js_test(name, srcs, entry_point, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Minimal wrapper over js_test."""
-    rejection = javascript_js_test_rejection(kwargs)
-    if rejection != None:
-        fail(rejection)
-    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"entry_point": entry_point}, env_inherit, visibility, kwargs)
+    if runner == "node":
+        upstream = _js_test
+        upstream_kwargs = {"entry_point": entry_point}
+    else:
+        upstream = _jest_test
+        upstream_kwargs = {"node_modules": node_modules}
+        if javascript_needs_default_jest_config(kwargs):
+            config_name = name + "_windows_jest_config"
+            write_file(
+                name = config_name,
+                out = config_name + ".json",
+                content = [JAVASCRIPT_WINDOWS_JEST_CONFIG],
+                tags = ["manual"],
+            )
+            kwargs["config"] = select({
+                "@platforms//os:windows": ":" + config_name + ".json",
+                "//conditions:default": None,
+            })
+    node_wrap_test(name, upstream, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, upstream_kwargs, env_inherit, visibility, kwargs)

@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@demo_npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_test", "javascript_library")
 load("@rules_dx//astro/rules:defs.bzl", "astro_library")
 
 npm_link_all_packages(name = "node_modules")
@@ -21,8 +21,9 @@ astro_library(
     deps = [":helper"],
 )
 
-javascript_js_test(
+javascript_test(
     name = "demo-app_test",
+    runner = "node",
     size = "small",
     srcs = ["hello.test.js"],
     data = [

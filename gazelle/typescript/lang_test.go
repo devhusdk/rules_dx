@@ -565,33 +565,23 @@ func TestImportsNonProjectKind(t *testing.T) {
 func TestCheckClaimsOtherAndMismatch(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.ts", Kind: projectKind}}
 	otherSame := []*rule.Rule{rule.NewRule(projectKind, "demo")}
-	if err := common.CheckClaims(nil, otherSame, claimants, claimAliases); err != nil {
+	if err := common.CheckClaims(nil, otherSame, claimants, nil); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule("filegroup", "demo")}
-	if err := common.CheckClaims(nil, otherWrong, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(nil, otherWrong, claimants, nil); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
-	if err := common.CheckClaims(wrongKind, nil, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(wrongKind, nil, claimants, nil); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	dupes := []Claimant{{Name: "a_b", Source: "a-b.ts", Kind: projectKind}, {Name: "a_b", Source: "a_b.tsx", Kind: projectKind}}
 	existing := rule.EmptyFile("BUILD.bazel", "pkg")
 	existing.Rules = append(existing.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := common.CheckClaims(existing, nil, dupes, claimAliases); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	if err := common.CheckClaims(existing, nil, dupes, nil); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
-	}
-	plainClaimants := []Claimant{{Name: "demo", Source: "demo_test.ts", Kind: testKind}}
-	plainFile := rule.EmptyFile("BUILD.bazel", "pkg")
-	plainFile.Rules = append(plainFile.Rules, rule.NewRule(plainTestKind, "demo"))
-	if err := common.CheckClaims(plainFile, nil, plainClaimants, claimAliases); err != nil {
-		t.Errorf("plain-runner handwritten claims = %v", err)
-	}
-	plainOther := []*rule.Rule{rule.NewRule(plainTestKind, "demo")}
-	if err := common.CheckClaims(nil, plainOther, plainClaimants, claimAliases); err != nil {
-		t.Errorf("plain-runner other claims = %v", err)
 	}
 }
 
@@ -599,7 +589,7 @@ func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/plain_test.ts", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
-	file.Rules = append(file.Rules, rule.NewRule(plainTestKind, "plain_test"))
+	file.Rules = append(file.Rules, nodeRunnerTest("plain_test"))
 	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
@@ -613,7 +603,7 @@ func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
 	}
 	for _, r := range result.Gen {
 		if r.Kind() == testKind && r.Name() == "plain_test" {
-			t.Fatalf("emitted %s(%s) beside hand-written %s", r.Kind(), r.Name(), plainTestKind)
+			t.Fatalf("emitted %s(%s) beside hand-written %s", r.Kind(), r.Name(), testKind)
 		}
 	}
 	if len(result.Gen) != len(result.Imports) {
@@ -982,5 +972,31 @@ func TestResolveAmbiguousIncludingSelfIsSkipped(t *testing.T) {
 	l.Resolve(resolverConfig(t, nil), index, nil, r, refs("one/same"), label.New("", "one", "x"))
 	if len(l.Errors()) != 0 || r.Attr("deps") != nil {
 		t.Errorf("self-including ambiguity: errors = %v, deps = %v, want silent skip", l.Errors(), r.AttrStrings("deps"))
+	}
+}
+
+func nodeRunnerTest(name string) *rule.Rule {
+	r := rule.NewRule(testKind, name)
+	r.SetAttr("runner", "node")
+	return r
+}
+
+func TestGenerateKeepsNodeRunnerTestWithoutSource(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/other_test.ts", "export {};\n")
+	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	file.Rules = append(file.Rules, nodeRunnerTest("gone_test"))
+	l := newLang()
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"other_test.ts"},
+		File:         file,
+	})
+	for _, r := range result.Empty {
+		if r.Name() == "gone_test" {
+			t.Fatalf("empty = %v, want gone_test kept", result.Empty)
+		}
 	}
 }

@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("//dart/rules:defs.bzl", "dart_binary")
-load("//javascript/rules:defs.bzl", "javascript_js_test")
+load("//javascript/rules:defs.bzl", "javascript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -18,7 +18,7 @@ dart_binary(
     target = "wasm",
 )
 
-javascript_js_test(
+javascript_test(
     name = "js_run_test",
     size = "small",
     srcs = ["js_test.mjs"],
@@ -27,9 +27,10 @@ javascript_js_test(
     data = [":hello_js"],
     entry_point = "js_test.mjs",
     package_json = "//:package_json",
+    runner = "node",
 )
 
-javascript_js_test(
+javascript_test(
     name = "wasm_run_test",
     size = "small",
     srcs = ["wasm_test.mjs"],
@@ -38,6 +39,7 @@ javascript_js_test(
     data = [":hello_wasm"],
     entry_point = "wasm_test.mjs",
     package_json = "//:package_json",
+    runner = "node",
 )
 
 real_source_target(

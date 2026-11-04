@@ -1,9 +1,10 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_js_test", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 typescript_project(
     name = "app",
+    testonly = True,
     srcs = ["app.ts"],
     aspect_hints = ["//:biome_config"],
     declaration = True,
@@ -14,6 +15,7 @@ typescript_project(
 
 typescript_test(
     name = "app_test",
+    testonly = True,
     srcs = ["app_test.ts"],
     aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
@@ -26,13 +28,14 @@ typescript_test(
     deps = [":app"],
 )
 
-typescript_js_test(
+typescript_test(
     name = "plain_test",
     srcs = ["plain_test.ts"],
     aspect_hints = ["//:biome_config"],
     declaration = True,
     entry_point = "plain_test.js",
     package_json = "//:package_json",
+    runner = "node",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":app"],
@@ -40,6 +43,7 @@ typescript_js_test(
 
 typescript_project(
     name = "test_setup",
+    testonly = True,
     srcs = ["test_setup.ts"],
     aspect_hints = ["//:biome_config"],
     declaration = True,
@@ -50,6 +54,7 @@ typescript_project(
 
 typescript_project(
     name = "util",
+    testonly = True,
     srcs = ["util.ts"],
     aspect_hints = ["//:biome_config"],
     declaration = True,
@@ -59,6 +64,7 @@ typescript_project(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
@@ -67,12 +73,14 @@ real_source_target(
 
 javascript_library(
     name = "jest_config",
+    testonly = True,
     srcs = ["jest.config.cjs"],
     aspect_hints = ["//:biome_config"],
 )
 
 typescript_project(
     name = "types",
+    testonly = True,
     aspect_hints = ["//:biome_config"],
     declaration = True,
     declaration_srcs = ["types.d.ts"],

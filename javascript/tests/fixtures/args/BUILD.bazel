@@ -1,4 +1,4 @@
-load("//javascript/rules:defs.bzl", "javascript_js_test")
+load("//javascript/rules:defs.bzl", "javascript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -6,7 +6,7 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-javascript_js_test(
+javascript_test(
     name = "args_test",
     srcs = ["args_test.mjs"],
     args = [
@@ -16,6 +16,7 @@ javascript_js_test(
     aspect_hints = ["//:biome_config"],
     data = [":marker.txt"],
     entry_point = "args_test.mjs",
+    runner = "node",
 )
 
 exports_files([

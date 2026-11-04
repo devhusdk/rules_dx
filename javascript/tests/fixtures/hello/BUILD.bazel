@@ -1,4 +1,4 @@
-load("//javascript/rules:defs.bzl", "javascript_binary", "javascript_js_test", "javascript_library", "javascript_test")
+load("//javascript/rules:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -35,16 +35,18 @@ dx_hello_output_test(
     expected = "hello world",
 )
 
-javascript_js_test(
+javascript_test(
     name = "plain_test",
+    runner = "node",
     srcs = ["plain_test.js"],
     aspect_hints = ["//:biome_config"],
     data = [":hello_lib"],
     entry_point = "plain_test.js",
 )
 
-javascript_js_test(
+javascript_test(
     name = "env_forward_test",
+    runner = "node",
     srcs = ["plain_test.js"],
     aspect_hints = ["//:biome_config"],
     entry_point = "plain_test.js",
@@ -52,8 +54,9 @@ javascript_js_test(
     tags = ["manual"],
 )
 
-javascript_js_test(
+javascript_test(
     name = "plain_large_test",
+    runner = "node",
     size = "large",
     srcs = ["plain_test.js"],
     aspect_hints = ["//:biome_config"],

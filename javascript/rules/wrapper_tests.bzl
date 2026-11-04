@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
-load(":defs.bzl", "JAVASCRIPT_WINDOWS_JEST_CONFIG", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_needs_default_jest_config", "javascript_test_rejection")
+load(":defs.bzl", "JAVASCRIPT_WINDOWS_JEST_CONFIG", "javascript_binary_upstream_data", "javascript_needs_default_jest_config", "javascript_test_rejection")
 load(":node_test.bzl", "node_test_env", "node_test_upstream_data")
 
 def javascript_wrapper_contract_tests(name):
@@ -14,63 +14,48 @@ def javascript_wrapper_contract_tests(name):
         include_forwarder_checks = False,
         extra_checks = [
             expect_equal(
-                "disabling standard reporters is rejected",
-                javascript_test_rejection({"auto_configure_reporters": False}) != None,
-                True,
+                "unknown runner is rejected",
+                javascript_test_rejection("vitest", "//:nm", None, {}),
+                "javascript_test runner must be \"jest\" or \"node\", got \"vitest\".",
             ),
             expect_equal(
-                "reporter rejection names the standard logs",
-                javascript_test_rejection({"auto_configure_reporters": False}),
-                "javascript_test always uses jest with the standard " +
-                "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported. " +
-                "Use javascript_js_test for a custom runner.",
+                "jest needs node_modules",
+                javascript_test_rejection("jest", None, None, {}),
+                "javascript_test with runner = \"jest\" needs node_modules.",
             ),
             expect_equal(
-                "empty kwargs are clean",
-                javascript_test_rejection({}),
+                "jest rejects entry_point",
+                javascript_test_rejection("jest", "//:nm", "main.js", {}),
+                "javascript_test with runner = \"jest\" runs jest; set runner = \"node\" to use entry_point.",
+            ),
+            expect_equal(
+                "jest rejects disabled reporters",
+                javascript_test_rejection("jest", "//:nm", None, {"auto_configure_reporters": False}),
+                "javascript_test with runner = \"jest\" keeps the standard reporters; set runner = \"node\" for a custom runner.",
+            ),
+            expect_equal(
+                "node needs entry_point",
+                javascript_test_rejection("node", None, None, {}),
+                "javascript_test with runner = \"node\" needs entry_point.",
+            ),
+            expect_equal(
+                "node rejects node_modules",
+                javascript_test_rejection("node", "//:nm", "main.js", {}),
+                "javascript_test with runner = \"node\" runs plain Node; `node_modules` needs runner = \"jest\".",
+            ),
+            expect_equal(
+                "node rejects the jest config",
+                javascript_test_rejection("node", None, "main.js", {"config": "jest.config.cjs"}),
+                "javascript_test with runner = \"node\" runs plain Node; `config` needs runner = \"jest\".",
+            ),
+            expect_equal(
+                "jest with ordinary kwargs is clean",
+                javascript_test_rejection("jest", "//:nm", None, {"config": "jest.config.cjs", "snapshots": False, "auto_configure_reporters": True}),
                 None,
             ),
             expect_equal(
-                "explicit standard reporters are clean",
-                javascript_test_rejection({"auto_configure_reporters": True}),
-                None,
-            ),
-            expect_equal(
-                "ordinary jest kwargs are clean",
-                javascript_test_rejection({"config": "jest.config.cjs", "snapshots": False}),
-                None,
-            ),
-            expect_equal(
-                "plain runner rejects the managed node_modules label",
-                javascript_js_test_rejection({"node_modules": "//:node_modules"}) != None,
-                True,
-            ),
-            expect_equal(
-                "plain runner rejection names the jest route",
-                javascript_js_test_rejection({"node_modules": "//:node_modules"}),
-                "javascript_js_test runs plain Node via js_test without " +
-                "Jest reporting; `node_modules` is not supported. " +
-                "Use javascript_test for Jest behavior.",
-            ),
-            expect_equal(
-                "plain runner rejects the jest config",
-                javascript_js_test_rejection({"config": "jest.config.cjs"}) != None,
-                True,
-            ),
-            expect_equal(
-                "plain runner rejects disabled jest reporters",
-                javascript_js_test_rejection({"auto_configure_reporters": True}) != None,
-                True,
-            ),
-            expect_equal(
-                "plain runner keeps ordinary node kwargs",
-                javascript_js_test_rejection({"node_options": ["--experimental-vm-modules"], "env": {"DX_PLAIN": "1"}}),
-                None,
-            ),
-            expect_equal(
-                "plain runner with empty kwargs is clean",
-                javascript_js_test_rejection({}),
+                "node with ordinary kwargs is clean",
+                javascript_test_rejection("node", None, "main.js", {"node_options": ["--experimental-vm-modules"], "env": {"DX_PLAIN": "1"}}),
                 None,
             ),
             expect_equal(

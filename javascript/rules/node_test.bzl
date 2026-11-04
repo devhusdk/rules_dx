@@ -4,7 +4,6 @@ load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
-    "node_modules",
     "config",
     "snapshots",
     "run_in_band",
@@ -15,22 +14,25 @@ _JEST_ONLY_KEYS = [
     "quiet_snapshot_updates",
 ]
 
-def node_test_reporter_rejection(jest_rule, plain_rule, kwargs):
-    """Returns the rejection for forbidden Jest test kwargs, or None."""
-    if kwargs.get("auto_configure_reporters", True) == False:
-        return (jest_rule + " always uses jest with the standard " +
-                "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported. " +
-                "Use " + plain_rule + " for a custom runner.")
-    return None
-
-def node_test_plain_rejection(jest_rule, plain_rule, kwargs):
-    """Returns the rejection for forbidden plain Node test kwargs, or None."""
+def node_test_runner_rejection(rule, runner, node_modules, entry_point, kwargs):
+    """Returns the rejection for a bad runner or runner arguments, or None."""
+    if runner not in ("jest", "node"):
+        return rule + ' runner must be "jest" or "node", got "' + str(runner) + '".'
+    if runner == "jest":
+        if node_modules == None:
+            return rule + ' with runner = "jest" needs node_modules.'
+        if entry_point != None:
+            return rule + ' with runner = "jest" runs jest; set runner = "node" to use entry_point.'
+        if kwargs.get("auto_configure_reporters", True) == False:
+            return rule + ' with runner = "jest" keeps the standard reporters; set runner = "node" for a custom runner.'
+        return None
+    if entry_point == None:
+        return rule + ' with runner = "node" needs entry_point.'
+    if node_modules != None:
+        return rule + ' with runner = "node" runs plain Node; `node_modules` needs runner = "jest".'
     for key in _JEST_ONLY_KEYS:
         if key in kwargs:
-            return (plain_rule + " runs plain Node via js_test without " +
-                    "Jest reporting; `" + key + "` is not supported. " +
-                    "Use " + jest_rule + " for Jest behavior.")
+            return rule + ' with runner = "node" runs plain Node; `' + key + '` needs runner = "jest".'
     return None
 
 def node_test_env(env_inherit):

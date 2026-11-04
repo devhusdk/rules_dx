@@ -1,15 +1,17 @@
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library", "javascript_test")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library", "javascript_test")
 load("@rules_dx//vue/rules:defs.bzl", "vue_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 javascript_library(
     name = "format",
+    testonly = True,
     srcs = ["format.js"],
     aspect_hints = ["//:biome_config"],
 )
 
 javascript_library(
     name = "greet",
+    testonly = True,
     srcs = ["greet.js"],
     aspect_hints = ["//:biome_config"],
     deps = [":format"],
@@ -17,6 +19,7 @@ javascript_library(
 
 javascript_test(
     name = "greet_test",
+    testonly = True,
     srcs = ["greet_test.js"],
     aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
@@ -28,21 +31,24 @@ javascript_test(
 
 javascript_library(
     name = "jest_config",
+    testonly = True,
     srcs = ["jest.config.cjs"],
     aspect_hints = ["//:biome_config"],
 )
 
-javascript_js_test(
+javascript_test(
     name = "plain_test",
     srcs = ["plain_test.js"],
     aspect_hints = ["//:biome_config"],
     data = [":greet"],
     entry_point = "plain_test.js",
     package_json = "//:package_json",
+    runner = "node",
 )
 
 javascript_library(
     name = "test_helpers",
+    testonly = True,
     srcs = ["test_helpers.js"],
     aspect_hints = ["//:biome_config"],
     deps = [":format"],
@@ -50,6 +56,7 @@ javascript_library(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
@@ -58,5 +65,6 @@ real_source_target(
 
 vue_library(
     name = "widget",
+    testonly = True,
     srcs = ["widget.vue"],
 )

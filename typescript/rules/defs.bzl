@@ -5,7 +5,7 @@ load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
+load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_runner_rejection", "node_wrap_test")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -281,13 +281,9 @@ def typescript_project(name, srcs = None, declaration_srcs = None, visibility = 
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
-def typescript_test_rejection(kwargs):
-    """Returns the rejection for forbidden typescript_test kwargs, or None."""
-    return node_test_reporter_rejection("typescript_test", "typescript_js_test", kwargs)
-
-def typescript_js_test_rejection(kwargs):
-    """Returns the rejection for forbidden typescript_js_test kwargs, or None."""
-    return node_test_plain_rejection("typescript_test", "typescript_js_test", kwargs)
+def typescript_test_rejection(runner, node_modules, entry_point, kwargs):
+    """Returns the rejection for bad typescript_test arguments, or None."""
+    return node_test_runner_rejection("typescript_test", runner, node_modules, entry_point, kwargs)
 
 def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs):
     """Declares the private test-only ts_project for one TypeScript test."""
@@ -311,30 +307,22 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     )
 
-def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
+def typescript_test(name, srcs, runner = "jest", node_modules = None, entry_point = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+    """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
     decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
     if decl_rejection != None:
         fail(decl_rejection)
-    reporter_rejection = typescript_test_rejection(kwargs)
-    if reporter_rejection != None:
-        fail(reporter_rejection)
+    runner_rejection = typescript_test_rejection(runner, node_modules, entry_point, kwargs)
+    if runner_rejection != None:
+        fail(runner_rejection)
     _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
-    node_wrap_test(name, _jest_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
-
-def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
-    rejection = typescript_srcs_rejection(srcs)
-    if rejection != None:
-        fail(rejection)
-    decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
-    if decl_rejection != None:
-        fail(decl_rejection)
-    reporter_rejection = typescript_js_test_rejection(kwargs)
-    if reporter_rejection != None:
-        fail(reporter_rejection)
-    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
-    node_wrap_test(name, _js_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, {"entry_point": entry_point}, env_inherit, visibility, kwargs)
+    if runner == "node":
+        upstream = _js_test
+        upstream_kwargs = {"entry_point": entry_point}
+    else:
+        upstream = _jest_test
+        upstream_kwargs = {"node_modules": node_modules}
+    node_wrap_test(name, upstream, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, visibility, kwargs)

@@ -1,5 +1,5 @@
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_js_test", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//examples/node-app:__subpackages__"])
@@ -66,7 +66,7 @@ typescript_test(
     deps = [":registry"],
 )
 
-typescript_js_test(
+typescript_test(
     name = "plain_test",
     srcs = ["plain_test.ts"],
     aspect_hints = ["//:biome_config"],
@@ -77,6 +77,7 @@ typescript_js_test(
     declaration = True,
     entry_point = "plain_test.js",
     package_json = "//examples/node-app:package_json",
+    runner = "node",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [

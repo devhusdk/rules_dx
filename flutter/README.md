@@ -7,6 +7,8 @@ Pinned versions:
 
 The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one widget test. It needs no host Flutter, Dart, or Android SDK. It runs on Linux only.
 
+Consumers load the rules from `@rules_dx//flutter/rules:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
+
 ```sh
 tools/dx test //flutter/tests/runtime/...
 ```

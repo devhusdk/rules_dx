@@ -216,7 +216,7 @@ single_version_override(
 )
 
 # floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "rules_kotlin", version = "2.4.10")
+bazel_dep(name = "rules_kotlin", version = "2.4.20")
 single_version_override(
     module_name = "rules_kotlin",
     version = "2.4.21",
@@ -596,18 +596,19 @@ single_version_override(
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
 dart.toolchain(dart_version = "3.13.7")
 
-# floor: equals tested; probe only (#5029)
-bazel_dep(name = "rules_flutter", version = "0.0.8", dev_dependency = True)
+# floor: equals tested; not yet searched (#5702)
+bazel_dep(name = "rules_flutter", version = "0.0.8")
 
-flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
+flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.8")
-flutter.pub(
+use_repo(flutter, "flutter_toolchains", "flutter_web_sdk")
+
+flutter_dev = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
+flutter_dev.pub(
     name = "dx_flutter_deps",
     lock = "//flutter/tests/runtime:pubspec.lock",
 )
-use_repo(flutter, "dx_flutter_deps", "flutter_toolchains", "flutter_web_sdk")
-
-register_toolchains("@flutter_toolchains//:all", dev_dependency = True)
+use_repo(flutter_dev, "dx_flutter_deps")
 
 bazel_dep(name = "tar.bzl", version = "0.10.4")
 bazel_dep(name = "yaml.bzl", version = "0.1.2")

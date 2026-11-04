@@ -79,6 +79,7 @@ ROWS = [
             "//cc/toolchains:gcc_shared_test",
             "//cc/toolchains:gcc_ubsan_test",
         ],
+        "consumer_tests": ["//tools/testing/hermetic:c_fixture_gcc", "//tools/testing/hermetic:cpp_fixture_gcc"],
         "families": [],
         "name": "cc_gcc",
         "section": "compilers",

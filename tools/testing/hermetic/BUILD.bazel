@@ -43,8 +43,8 @@ rust_library(
     edition = "2021",
     target_compatible_with = LINUX,
     deps = all_crate_deps(
-        normal = True,
         package_name = "tools/dx_testing",
+        normal = True,
     ) + [
         "//cli/binfmt:dx_binfmt",
         "//cli/lcov:dx_lcov",
@@ -72,9 +72,9 @@ rust_test(
     tags = ["no-remote-exec"],
     target_compatible_with = LINUX,
     deps = all_crate_deps(
+        package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-        package_name = "tools/dx_testing",
     ),
 )
 
@@ -870,9 +870,49 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "c_fixture_gcc",
+    failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: string: No such file or directory"},
+    files = {
+        "consumers/cc_fixture/gcc.bazelrc": ".bazelrc",
+        "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:c/hello.c.fixture": "hello.c",
+        "//tools/testing/starters/fixtures:c/hello.h.fixture": "hello.h",
+        "//tools/testing/starters/fixtures:c/hello_test.c.fixture": "hello_test.c",
+        "//tools/testing/starters/fixtures:c/main.c.fixture": "main.c",
+        "consumers/cc_fixture/c_only.c": "probe/c_only.c",
+        "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
+    },
+    languages = ["c"],
+    module_fragment = "consumers/cc_fixture/module_fragment.bazel",
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+)
+
+hermetic_qualification(
     name = "cpp_fixture",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {
+        "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:cpp/hello.cc.fixture": "hello.cc",
+        "//tools/testing/starters/fixtures:cpp/hello.h.fixture": "hello.h",
+        "//tools/testing/starters/fixtures:cpp/hello_test.cc.fixture": "hello_test.cc",
+        "//tools/testing/starters/fixtures:cpp/main.cc.fixture": "main.cc",
+        "consumers/cc_fixture/c_in_cxx.cc": "probe/c_in_cxx.cc",
+        "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
+    },
+    languages = ["cpp"],
+    module_fragment = "consumers/cc_fixture/module_fragment.bazel",
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+)
+
+hermetic_qualification(
+    name = "cpp_fixture_gcc",
+    failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:3: error: expected primary-expression before 'int'"},
+    files = {
+        "consumers/cc_fixture/gcc.bazelrc": ".bazelrc",
         "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
         "//tools/testing/starters/fixtures:cpp/hello.cc.fixture": "hello.cc",
         "//tools/testing/starters/fixtures:cpp/hello.h.fixture": "hello.h",
@@ -896,8 +936,10 @@ rustfmt_test(
         ":cuda_gpu_facts_test",
         ":appimage",
         ":c_fixture",
+        ":c_fixture_gcc",
         ":cpp_rust",
         ":cpp_fixture",
+        ":cpp_fixture_gcc",
         ":cuda",
         ":dart",
         ":elixir",
@@ -925,8 +967,10 @@ rust_clippy_test(
         ":adopt_android",
         ":appimage",
         ":c_fixture",
+        ":c_fixture_gcc",
         ":cpp_rust",
         ":cpp_fixture",
+        ":cpp_fixture_gcc",
         ":cuda",
         ":dart",
         ":elixir",

@@ -51,7 +51,6 @@ typescript_test(
 
 typescript_test(
     name = "plain_test",
-    runner = "node",
     srcs = ["plain_test.ts"],
     data = [
         "VERSION",
@@ -60,6 +59,7 @@ typescript_test(
     declaration = True,
     entry_point = "plain_test.js",
     package_json = "//examples/node-app:package_json",
+    runner = "node",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [

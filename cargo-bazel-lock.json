@@ -1,5 +1,5 @@
 {
-  "checksum": "190541a1a016eb2101136d106dde9aba44a8c57169d88cf1a718a0be269cb59c",
+  "checksum": "2a2c5205a77060ae93aa3dbdd41b0582530e7af286ea18fe82ae943dee9214b8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8152,6 +8152,10 @@
     "dx_update 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "mvn_version 0.1.0",
+            "target": "mvn_version"
+          },
           {
             "id": "nodejs-semver 7.0.0",
             "target": "nodejs_semver"

@@ -5,7 +5,10 @@ use dx_output::{
     OutputMode,
 };
 use dx_plan::args::Invocation;
-use dx_update::discover::{bcr, cargo, npm, pypi, Candidate, Fetch, Findings};
+use dx_update::discover::{
+    bcr, cargo, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings,
+};
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -57,12 +60,14 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     }
     let mut found = Findings::default();
     let mut unsupported = Vec::new();
+    let mut ecosystems = BTreeMap::new();
     for target in &resolved {
         let only: &[String] = match &target.request {
             Selection::Full => &[],
             Selection::Packages(names) => names,
         };
         let name = target.set.name.as_str();
+        ecosystems.insert(name.to_owned(), target.set.ecosystem);
         match target.set.ecosystem {
             Ecosystem::Bazel => {
                 for manifest in &target.set.manifests {
@@ -91,6 +96,47 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
                     cargo::outdated(name, &texts, only, cargo::DEFAULT_BASE, fetch),
                 );
             }
+            Ecosystem::Go => {
+                let texts = read_texts(workspace, &target.set.manifests);
+                merge(
+                    &mut found,
+                    go::outdated(name, &texts, only, go::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Nuget => {
+                let texts = read_texts(workspace, &target.set.manifests);
+                merge(
+                    &mut found,
+                    nuget::outdated(name, &texts, only, nuget::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Ruby => {
+                let texts = read_texts(workspace, &target.set.manifests);
+                merge(
+                    &mut found,
+                    ruby::outdated(name, &texts, only, ruby::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Maven => {
+                for manifest in &target.set.manifests {
+                    let parsed = std::fs::read_to_string(workspace.join(manifest))
+                        .map_err(|e| e.to_string())
+                        .and_then(|text| {
+                            dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string())
+                        });
+                    match parsed {
+                        Ok(module) => merge(
+                            &mut found,
+                            maven::outdated(name, &module, only, maven::DEFAULT_BASE, fetch),
+                        ),
+                        Err(reason) => found.errors.push(dx_update::discover::LookupError {
+                            set: name.to_owned(),
+                            package: manifest.clone(),
+                            reason,
+                        }),
+                    }
+                }
+            }
             Ecosystem::Npm => {
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
@@ -114,9 +160,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     found.candidates.dedup();
     let exit = i32::from(!found.errors.is_empty());
     if let Err(code) = if json {
-        emit_json(out, &found, &unsupported, exit)
+        emit_json(out, &found, &unsupported, &ecosystems, exit)
     } else {
-        emit_text(out, &found, &unsupported)
+        emit_text(out, &found, &unsupported, &ecosystems)
     } {
         return code;
     }
@@ -142,17 +188,28 @@ fn merge(into: &mut Findings, from: Findings) {
     into.errors.extend(from.errors);
 }
 
-fn command_for(candidate: &Candidate) -> String {
-    format!(
+fn command_for(candidate: &Candidate, ecosystem: Ecosystem) -> Option<String> {
+    if ecosystem == Ecosystem::Ruby {
+        return None;
+    }
+    Some(format!(
         "dx update {}:{} {}",
         candidate.set, candidate.package, candidate.latest
-    )
+    ))
+}
+
+fn ecosystem_of(ecosystems: &BTreeMap<String, Ecosystem>, candidate: &Candidate) -> Ecosystem {
+    ecosystems
+        .get(&candidate.set)
+        .copied()
+        .unwrap_or(Ecosystem::Bazel)
 }
 
 fn emit_json(
     out: &mut dyn Write,
     found: &Findings,
     unsupported: &[String],
+    ecosystems: &BTreeMap<String, Ecosystem>,
     exit: i32,
 ) -> Result<(), i32> {
     for candidate in &found.candidates {
@@ -165,7 +222,7 @@ fn emit_json(
         emit_built(
             out,
             notice_event(&NoticeEvent {
-                related_command: Some(command_for(candidate)),
+                related_command: command_for(candidate, ecosystem_of(ecosystems, candidate)),
                 scope: Some(vec![scope]),
                 ..NoticeEvent::info(
                     CODE_UPDATE_OUTDATED,
@@ -215,7 +272,12 @@ fn unsupported_notice(set: &str) -> Result<serde_json::Value, dx_output::OutputE
     })
 }
 
-fn emit_text(out: &mut dyn Write, found: &Findings, unsupported: &[String]) -> Result<(), i32> {
+fn emit_text(
+    out: &mut dyn Write,
+    found: &Findings,
+    unsupported: &[String],
+    ecosystems: &BTreeMap<String, Ecosystem>,
+) -> Result<(), i32> {
     for candidate in &found.candidates {
         let published = candidate
             .published
@@ -229,7 +291,8 @@ fn emit_text(out: &mut dyn Write, found: &Findings, unsupported: &[String]) -> R
             candidate.package,
             candidate.current,
             candidate.latest,
-            command_for(candidate)
+            command_for(candidate, ecosystem_of(ecosystems, candidate))
+                .unwrap_or_else(|| "edit Gemfile, then bundle lock".to_owned())
         ))?;
     }
     for set in unsupported {
@@ -330,13 +393,17 @@ mod tests {
             latest: "2.0.0".into(),
             published: None,
         };
-        assert_eq!(command_for(&candidate), "dx update cargo:serde 2.0.0");
+        assert_eq!(
+            command_for(&candidate, Ecosystem::Cargo),
+            Some("dx update cargo:serde 2.0.0".to_owned())
+        );
+        assert_eq!(command_for(&candidate, Ecosystem::Ruby), None);
     }
 
     #[test]
     fn text_output_lists_candidates_or_says_nothing() {
         let mut out = Vec::new();
-        emit_text(&mut out, &Findings::default(), &[]).expect("text");
+        emit_text(&mut out, &Findings::default(), &[], &BTreeMap::new()).expect("text");
         assert_eq!(String::from_utf8_lossy(&out), "nothing is outdated\n");
         let found = Findings {
             candidates: vec![Candidate {
@@ -349,11 +416,11 @@ mod tests {
             errors: Vec::new(),
         };
         let mut out = Vec::new();
-        emit_text(&mut out, &found, &["go".into()]).expect("text");
+        emit_text(&mut out, &found, &["gradle".into()], &BTreeMap::new()).expect("text");
         let text = String::from_utf8_lossy(&out);
         assert!(text.contains(
             "cargo:serde 1 -> 2.0.0 (published 2026-01-01T00:00:00Z): dx update cargo:serde 2.0.0"
         ));
-        assert!(text.contains("go: --outdated does not cover"));
+        assert!(text.contains("gradle: --outdated does not cover"));
     }
 }

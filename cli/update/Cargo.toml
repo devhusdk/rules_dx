@@ -5,6 +5,7 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
+mvn_version = "0.1"
 nodejs-semver = "7"
 pep440_rs = "0.7"
 semver = "1"

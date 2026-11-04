@@ -412,14 +412,25 @@ override. npm specs that start with `workspace:`, `file:`, `link:`, `portal:`,
 are skipped. PyPI requirements that are direct references (`name @ url`) or
 have no version specifier are skipped.
 
-Covered sets are the Bazel module sets (`bazel_dep` against the Bazel Central
-Registry), `cargo` sets (crates.io), `npm` sets (npm registry), and `uv` sets
-(PyPI). npm sets read `dependencies`, `devDependencies`, and
-`optionalDependencies` from `package.json`. uv sets read `project.dependencies`,
-`project.optional-dependencies`, and `dependency-groups` from `pyproject.toml`.
-Other sets print a
-`update_outdated_unsupported` warning and are not checked. A `set:package`
-selector limits the lookup to that package.
+Covered sets:
+
+- Bazel module sets: `bazel_dep` against the Bazel Central Registry.
+- `cargo`: crates.io.
+- `go`: direct `require` lines of go.mod against proxy.golang.org. Indirect
+  and replaced modules are skipped. Major-suffix modules are not crossed.
+- `maven`: literal `maven.install` coordinates against Maven Central. Snapshot,
+  alpha, beta, rc, and milestone versions are ignored. Publish times are not shown.
+- `npm`: npm registry. Reads `dependencies`, `devDependencies`, and
+  `optionalDependencies` from `package.json`.
+- `nuget`: `nuget` lines of paket.dependencies against nuget.org. The newest
+  stable version is listed, also when it is inside the range.
+- `ruby`: versioned `gem` lines of the Gemfile against rubygems.org. The newest
+  version is listed, also when it is inside the range.
+- `uv`: PyPI. Reads `project.dependencies`, `project.optional-dependencies`, and
+  `dependency-groups` from `pyproject.toml`.
+
+Other sets print an `update_outdated_unsupported` warning and are not checked.
+A `set:package` selector limits the lookup to that package.
 
 ```bash
 bazel run @rules_dx//:dx -- update --outdated dx_npm_tools
@@ -431,7 +442,9 @@ applies it. `json` emits `command_started`, one `notice` per package
 (`update_outdated`, with `scope` set to `<set>:<package>` and
 `related_command` set to `dx update <set>:<package> <version>`), one `error`
 (`update_outdated_lookup_failed`) per failed lookup, and `command_finished`.
-Apply a result with `dx update <set>:<package> <version> --apply`. In-range
+Ruby results have no `related_command`; text prints
+`edit Gemfile, then bundle lock`. Apply any other result with
+`dx update <set>:<package> <version> --apply`. In-range
 refreshes stay with `dx update --apply <set>`.
 
 `--outdated` does not combine with `--apply`, `--floor`, `--reason`, or a

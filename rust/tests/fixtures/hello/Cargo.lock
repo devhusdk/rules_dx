@@ -1804,6 +1804,7 @@ dependencies = [
 name = "dx_update"
 version = "0.0.0"
 dependencies = [
+ "mvn_version",
  "nodejs-semver",
  "pep440_rs",
  "saphyr-parser",

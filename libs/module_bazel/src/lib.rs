@@ -131,6 +131,55 @@ pub enum ModuleError {
 /// The marker that starts the comment line naming why a `bazel_dep` has its floor version.
 pub const FLOOR_MARKER: &str = "# floor: ";
 
+/// A literal tag argument.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Arg {
+    Str(String),
+    List(Vec<String>),
+}
+
+/// A tag to add to an extension, such as `from_cargo` with its keyword arguments.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NewTag {
+    pub name: String,
+    pub args: Vec<(String, Arg)>,
+}
+
+impl NewTag {
+    fn check(&self) -> Result<(), ModuleError> {
+        check_safe(&self.name)?;
+        for (key, arg) in &self.args {
+            check_safe(key)?;
+            match arg {
+                Arg::Str(value) => check_safe(value)?,
+                Arg::List(values) => values.iter().try_for_each(|v| check_safe(v))?,
+            }
+        }
+        Ok(())
+    }
+
+    fn render(&self, binding: &str) -> String {
+        let mut out = format!("{binding}.{}(\n", self.name);
+        for (key, arg) in &self.args {
+            match arg {
+                Arg::Str(value) => out.push_str(&format!("    {key} = \"{value}\",\n")),
+                Arg::List(values) if values.len() == 1 => {
+                    out.push_str(&format!("    {key} = [\"{}\"],\n", values[0]));
+                }
+                Arg::List(values) => {
+                    out.push_str(&format!("    {key} = [\n"));
+                    for value in values {
+                        out.push_str(&format!("        \"{value}\",\n"));
+                    }
+                    out.push_str("    ],\n");
+                }
+            }
+        }
+        out.push(')');
+        out
+    }
+}
+
 /// One rules_rust `crate.from_cargo` tag: a crate_universe hub and the manifests it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CargoHub<'a> {
@@ -804,6 +853,72 @@ impl ModuleFile {
         };
         let reparsed = ModuleFile::parse(&out)?;
         if reparsed.bazel_dep_version(name).map(|v| v.value.as_str()) != Ok(version) {
+            return Err(ModuleError::NoInsertPoint {
+                reason: "insert did not round-trip".to_owned(),
+            });
+        }
+        Ok(out)
+    }
+
+    /// The source with a block appended at the end: `binding = use_extension(bzl, ext)` (skipped
+    /// when `binding` is already bound to that extension), the `tags`, and a `use_repo` for the
+    /// `repos` not yet imported through `binding`. Every other byte is kept.
+    pub fn insert_extension_block(
+        &self,
+        binding: &str,
+        bzl: &str,
+        ext: &str,
+        tags: &[NewTag],
+        repos: &[&str],
+    ) -> Result<String, ModuleError> {
+        for value in [binding, bzl, ext].into_iter().chain(repos.iter().copied()) {
+            check_safe(value)?;
+        }
+        for tag in tags {
+            tag.check()?;
+        }
+        let bound = self
+            .extension_bindings(bzl, ext)
+            .iter()
+            .any(|(name, _)| *name == binding);
+        let imported = self.use_repos(binding);
+        let missing: Vec<&str> = repos
+            .iter()
+            .copied()
+            .filter(|repo| !imported.iter().any(|(have, _)| have == repo))
+            .collect();
+        let eol = line_ending(&self.source);
+        let mut text = String::new();
+        if !self.source.is_empty() && !self.source.ends_with('\n') {
+            text.push_str(eol);
+        }
+        if !self.source.trim().is_empty() {
+            text.push_str(eol);
+        }
+        let mut lines = Vec::new();
+        if !bound {
+            lines.push(format!("{binding} = use_extension(\"{bzl}\", \"{ext}\")"));
+        }
+        lines.extend(tags.iter().map(|tag| tag.render(binding)));
+        if !missing.is_empty() {
+            let quoted: Vec<String> = missing.iter().map(|repo| format!("\"{repo}\"")).collect();
+            lines.push(format!("use_repo({binding}, {})", quoted.join(", ")));
+        }
+        for line in lines {
+            for part in line.split('\n') {
+                text.push_str(part);
+                text.push_str(eol);
+            }
+        }
+        let out = splice(&self.source, self.source.len(), &text);
+        let reparsed = ModuleFile::parse(&out)?;
+        let tag_name = |tag: &NewTag| format!("{binding}.{}", tag.name);
+        let count = |file: &ModuleFile, name: &str| file.calls_named(name).count();
+        let round_trips = tags.iter().all(|tag| {
+            let name = tag_name(tag);
+            count(&reparsed, &name) > count(self, &name)
+        });
+        if !round_trips {
             return Err(ModuleError::NoInsertPoint {
                 reason: "insert did not round-trip".to_owned(),
             });

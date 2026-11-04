@@ -12,6 +12,7 @@ use dx_plan::plan::{
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::resolve;
 use std::io::Write;
+use std::path::Path;
 
 fn bazel_failed_message(code: i32) -> String {
     format!("Bazel generate failed with exit {code}; results are incomplete")
@@ -43,6 +44,35 @@ fn finish_incomplete_generate(
         }
     }
     code
+}
+
+/// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`; otherwise says what
+/// `--apply` would add. Problems are reported on `err` and never change the exit code.
+fn wire_lock_hubs(workspace: &Path, apply: bool, err: &mut dyn Write) {
+    let hubs = match dx_adopt::plan_lock_hubs(workspace) {
+        Ok(hubs) => hubs,
+        Err(error) => {
+            let _ = writeln!(err, "dx: lock files not wired: {error}");
+            return;
+        }
+    };
+    for note in &hubs.notes {
+        let _ = writeln!(err, "dx: {note}");
+    }
+    let Some(edit) = hubs.edit else {
+        return;
+    };
+    if !apply {
+        let _ = writeln!(
+            err,
+            "dx: {} would gain stanzas for the lock files at the root; run dx generate --apply",
+            edit.path
+        );
+    } else if let Err(error) = dx_adopt::write_module_edit(workspace, &edit) {
+        let _ = writeln!(err, "dx: lock files not wired: {error}");
+    } else {
+        let _ = writeln!(err, "dx: wrote {}", edit.path);
+    }
 }
 
 pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -101,6 +131,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
+    wire_lock_hubs(env.workspace, apply, env.err);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
@@ -363,6 +394,37 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("\"exit_code\":0"), "{out}");
+    }
+
+    fn lock_workspace(name: &str, mode: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
+        harness.write_source("pnpm-lock.yaml", "");
+        harness.write_source("package.json", "{}");
+        harness.intended = Some(intended_witness(mode, true, "", ""));
+        harness
+    }
+
+    #[test]
+    fn generate_apply_wires_the_root_lock_files() {
+        let harness = lock_workspace("generate-lock-apply", "default");
+        let (code, out, err) = harness.run(&["generate", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert!(
+            module.contains("pnpm_lock = \"//:pnpm-lock.yaml\""),
+            "{module}"
+        );
+    }
+
+    #[test]
+    fn generate_check_only_reports_the_lock_stanzas() {
+        let harness = lock_workspace("generate-lock-check", "check");
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(err.contains("run dx generate --apply"), "{err}");
+        let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        assert_eq!(module, "module(name = \"app\")\n");
     }
 
     #[test]

@@ -260,6 +260,7 @@ pub(super) fn apply(
             }
         }
     }
+    wire_lock_hubs(root, prefix, applied, notes)?;
     if has(|kind| *kind == Kind::Preset) {
         let mut preset = Applied::default();
         let mut preset_notes = Vec::new();
@@ -300,6 +301,22 @@ pub(super) fn apply(
         && claude_md::write(root).map_err(|error| error.to_string())?
     {
         applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
+    }
+    Ok(())
+}
+
+/// Adds the `MODULE.bazel` stanzas for the root lock files, reporting what it could not wire.
+fn wire_lock_hubs(
+    root: &Path,
+    prefix: &str,
+    applied: &mut Applied,
+    notes: &mut Vec<String>,
+) -> Result<(), String> {
+    let hubs = dx_adopt::plan_lock_hubs(root).map_err(|error| adopt_message(prefix, &error))?;
+    notes.extend(hubs.notes.iter().map(|note| format!("{prefix}{note}")));
+    if let Some(edit) = hubs.edit {
+        dx_adopt::write_module_edit(root, &edit).map_err(|error| adopt_message(prefix, &error))?;
+        applied.wrote.push(format!("{prefix}{}", edit.path));
     }
     Ok(())
 }
@@ -545,6 +562,27 @@ mod tests {
         let (code, out, err) = run(&invocation(&["init"]), root);
         assert_eq!(code, 0, "{err}");
         assert!(out.contains("init current"), "{out}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn apply_wires_the_root_lock_files_once() {
+        let scratch = dx_test_scratch::scratch("dx-init-lock-hubs-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), "module(name = \"app\")\n").expect("write");
+        std::fs::write(root.join("pnpm-lock.yaml"), "").expect("write");
+        std::fs::write(root.join("package.json"), "{}").expect("write");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let module = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
+        assert!(
+            module.contains("pnpm_lock = \"//:pnpm-lock.yaml\""),
+            "{module}"
+        );
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let again = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
+        assert_eq!(again, module);
         scratch.close().expect("cleanup");
     }
 

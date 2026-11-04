@@ -161,6 +161,26 @@ the suffix, plus `_test`, so `a.spec.ts` becomes `a_test`. Imports still use the
 full file name. Declaration files (`.d.ts`) are never tests. Scala sources
 ending in `Test`, `Spec` or `Suite` get a `scala_test` with a snake-case name.
 
+## Add a dependency
+
+Add the package with its own tool, then run `dx generate --apply`:
+
+```sh
+cargo add serde
+uv add requests
+pnpm add left-pad
+dx generate --apply
+```
+
+When the root `Cargo.lock`, `uv.lock` or `pnpm-lock.yaml` has its manifest next
+to it and `MODULE.bazel` has no stanza for it, `dx init --apply` and
+`dx generate --apply` add one: a `crates` hub, a `pypi` hub or an `npm` hub, plus
+the `bazel_dep` it needs. A stanza you wrote is left alone. A stanza that names a
+lock file that is gone is reported, not removed. Without `--apply`,
+`dx generate` only says what it would add. Cargo workspace members written as
+globs are reported; list them in `manifests` yourself. Lock files below the
+root are not wired yet.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this

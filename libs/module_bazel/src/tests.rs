@@ -1193,3 +1193,80 @@ fn included_repo_name_must_be_valid() {
     };
     assert_eq!(rules_dx_repo_with(root, &read), "rules_dx");
 }
+
+fn tag(name: &str, key: &str, value: &str) -> NewTag {
+    NewTag {
+        name: name.to_owned(),
+        args: vec![(key.to_owned(), Arg::Str(value.to_owned()))],
+    }
+}
+
+const NPM_BZL: &str = "@aspect_rules_js//npm:extensions.bzl";
+
+#[test]
+fn insert_extension_block_appends_and_keeps_other_bytes() {
+    let before = "bazel_dep(name = \"a\", version = \"1.0\")  # keep\n";
+    let file = ModuleFile::parse(before).expect("parse");
+    let mut t = tag("npm_translate_lock", "name", "npm");
+    t.args.push((
+        "list".to_owned(),
+        Arg::List(vec!["x".to_owned(), "y".to_owned()]),
+    ));
+    let out = file
+        .insert_extension_block("npm", NPM_BZL, "npm", &[t], &["npm"])
+        .expect("insert");
+    assert_eq!(
+        out,
+        format!(
+            "{before}\nnpm = use_extension(\"{NPM_BZL}\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"npm\",\n    list = [\n        \"x\",\n        \"y\",\n    ],\n)\nuse_repo(npm, \"npm\")\n"
+        )
+    );
+}
+
+#[test]
+fn insert_extension_block_reuses_a_binding_and_skips_imported_repos() {
+    let before = format!("npm = use_extension(\"{NPM_BZL}\", \"npm\")\nuse_repo(npm, \"old\")\n");
+    let file = ModuleFile::parse(&before).expect("parse");
+    let out = file
+        .insert_extension_block(
+            "npm",
+            NPM_BZL,
+            "npm",
+            &[tag("npm_translate_lock", "name", "npm")],
+            &["old", "npm"],
+        )
+        .expect("insert");
+    assert_eq!(
+        out,
+        format!(
+            "{before}\nnpm.npm_translate_lock(\n    name = \"npm\",\n)\nuse_repo(npm, \"npm\")\n"
+        )
+    );
+}
+
+#[test]
+fn insert_extension_block_follows_crlf() {
+    let file = ModuleFile::parse("module(name = \"m\")\r\n").expect("parse");
+    let out = file
+        .insert_extension_block("npm", NPM_BZL, "npm", &[tag("t", "name", "n")], &[])
+        .expect("insert");
+    assert!(!out.replace("\r\n", "").contains('\n'), "{out:?}");
+}
+
+#[test]
+fn insert_extension_block_refuses_unsafe_values() {
+    let file = ModuleFile::parse("").expect("parse");
+    for bad in ["a\"b", "a\\b", "a\nb"] {
+        let result =
+            file.insert_extension_block("npm", NPM_BZL, "npm", &[tag("t", "name", bad)], &[]);
+        assert!(
+            matches!(result, Err(ModuleError::UnsafeString { .. })),
+            "{bad:?}"
+        );
+        let result = file.insert_extension_block("npm", NPM_BZL, "npm", &[], &[bad]);
+        assert!(
+            matches!(result, Err(ModuleError::UnsafeString { .. })),
+            "{bad:?}"
+        );
+    }
+}

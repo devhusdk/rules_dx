@@ -128,10 +128,16 @@ rust_clippy_test(
 rust_test(
     name = "consumer_maven_guard_test",
     srcs = ["consumer_maven_guard_test.rs"],
-    data = glob(["*_consumer_test.rs"]) + ["//python/tests/consumer:service_consumer_test.rs"],
+    data = glob(
+        ["*_consumer_test.rs"],
+        allow_empty = True,
+    ) + ["//python/tests/consumer:service_consumer_test.rs"],
     env = {"DX_GUARD_FILES": " ".join([
         "$(rlocationpath {})".format(f)
-        for f in glob(["*_consumer_test.rs"]) + ["//python/tests/consumer:service_consumer_test.rs"]
+        for f in glob(
+            ["*_consumer_test.rs"],
+            allow_empty = True,
+        ) + ["//python/tests/consumer:service_consumer_test.rs"]
     ])},
     deps = ["//tools/testing:dx_testing"],
 )

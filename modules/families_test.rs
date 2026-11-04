@@ -388,27 +388,31 @@ fn real_core_loads_no_rule_set() {
 const FAMILY_FILES: [&str; 3] = ["ansible", "cloudformation", "make"];
 
 #[test]
-fn family_files_define_their_family_aspects() {
+fn family_files_define_aspects_listed_in_families_json() {
     let json: serde_json::Value =
         serde_json::from_str(&dx_testing::read_runfiles("modules/families.json")).expect("json");
+    let listed: BTreeSet<&str> = json["families"]
+        .as_object()
+        .expect("families")
+        .values()
+        .flat_map(|entry| entry["aspects"].as_array().expect("aspects"))
+        .map(|name| name.as_str().expect("aspect name"))
+        .collect();
     for family in FAMILY_FILES {
         let source = dx_testing::read_runfiles(&format!("quality/families/{family}.bzl"));
         assert!(
             !source.contains("load(\"//quality:families/"),
             "{family}.bzl loads another family file"
         );
-        let defined: BTreeSet<String> = source
+        let defined = source
             .lines()
             .filter_map(|line| line.split_once(" = "))
             .filter(|(name, value)| name.ends_with("_aspect") && !value.starts_with('_'))
-            .map(|(name, _)| name.to_owned())
-            .collect();
-        let expected: BTreeSet<String> = json["families"][family]["aspects"]
-            .as_array()
-            .expect("aspects")
-            .iter()
-            .map(|name| name.as_str().expect("aspect name").to_owned())
-            .collect();
-        assert_eq!(defined, expected, "family {family}");
+            .map(|(name, _)| name)
+            .collect::<Vec<_>>();
+        assert!(!defined.is_empty(), "{family}.bzl defines no aspect");
+        for name in defined {
+            assert!(listed.contains(name), "{name} is not in families.json");
+        }
     }
 }

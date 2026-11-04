@@ -85,7 +85,7 @@ pub(super) fn plan(
         Kind::Launcher,
     ));
     entries.extend(
-        dx_adopt::render_overrides()
+        dx_adopt::render_overrides(&dx_adopt::module_deps(root))
             .into_iter()
             .map(|(path, content)| (path, content, Kind::Override)),
     );
@@ -649,7 +649,11 @@ mod tests {
             dx_adopt::LAUNCHER_CMD_REL.to_owned(),
         ];
         paths.push(dx_adopt::preset::GITIGNORE.to_owned());
-        paths.extend(dx_adopt::render_overrides().into_iter().map(|(p, _)| p));
+        paths.extend(
+            dx_adopt::render_overrides(&Default::default())
+                .into_iter()
+                .map(|(p, _)| p),
+        );
         let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         for path in paths {
             assert!(files.iter().any(|file| file.path == path), "{path}");
@@ -681,7 +685,7 @@ mod tests {
         std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
-        let (path, _) = dx_adopt::render_overrides().remove(0);
+        let (path, _) = dx_adopt::render_overrides(&Default::default()).remove(0);
         std::fs::write(root.join(&path), "changed\n").expect("override");
         let stale = drift_of(root).stale.join("\n");
         for want in [

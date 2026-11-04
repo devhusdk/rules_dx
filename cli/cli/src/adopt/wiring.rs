@@ -202,7 +202,7 @@ mod tests {
         assert_eq!(
             out,
             format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
-            overrides = dx_adopt::overrides::render_overrides()
+            overrides = dx_adopt::render_overrides(&Default::default())
                 .iter()
                 .map(|(path, _)| format!("wrote demo/{path}\n"))
                 .collect::<String>()

@@ -477,7 +477,7 @@ mod tests {
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
         legacy_launcher(&root, OLD);
-        let patch = dx_adopt::render_overrides()
+        let patch = dx_adopt::render_overrides(&Default::default())
             .into_iter()
             .map(|(rel, _)| rel)
             .find(|rel| rel.ends_with(".patch"))
@@ -547,7 +547,7 @@ mod tests {
             "AGENTS.md".to_owned(),
             "CLAUDE.md".to_owned(),
             dx_worktree::setup::HOOK_FILES[0].path.to_owned(),
-            dx_adopt::render_overrides().remove(0).0,
+            dx_adopt::render_overrides(&Default::default()).remove(0).0,
             dx_adopt::preset_files(&root)[3].0.clone(),
         ];
         for path in &gone {

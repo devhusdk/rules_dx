@@ -151,7 +151,7 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
         let broken = drift.stale.iter().any(|path| {
             path == dx_adopt::LAUNCHER_SH_REL
                 || path == dx_adopt::LAUNCHER_CMD_REL
-                || dx_adopt::render_overrides()
+                || dx_adopt::render_overrides(&dx_adopt::module_deps(workspace))
                     .iter()
                     .any(|(override_path, _)| override_path == path)
         });
@@ -331,7 +331,7 @@ mod tests {
         for path in dx_adopt::preset_paths() {
             assert!(owned.contains(&path), "{path}");
         }
-        for (path, _) in dx_adopt::render_overrides() {
+        for (path, _) in dx_adopt::render_overrides(&Default::default()) {
             assert!(owned.contains(&path), "{path}");
         }
     }

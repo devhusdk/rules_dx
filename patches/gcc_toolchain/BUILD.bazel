@@ -5,6 +5,7 @@ exports_files([
     "sanitizer_spec.patch",
     "target_identity_config.patch",
     "target_identity_defs.patch",
+    "target_identity_extension.patch",
 ])
 
 real_source_target(

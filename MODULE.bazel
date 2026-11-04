@@ -58,6 +58,7 @@ single_version_override(
         "//patches/gcc_toolchain:runtime_libs.patch",
         "//patches/gcc_toolchain:target_identity_config.patch",
         "//patches/gcc_toolchain:target_identity_defs.patch",
+        "//patches/gcc_toolchain:target_identity_extension.patch",
     ],
     version = "0.13.0",
 )
@@ -459,6 +460,20 @@ register_toolchains("//cc/toolchains:msvc_windows_x86_64")
 register_toolchains("//cc/toolchains:msvc_unsupported")
 
 register_toolchains("@llvm//toolchain:all")
+
+# A consumer-declared GCC distribution by url and sha256, written the way a consumer would.
+# It reuses the pinned archive and is selected only through --extra_toolchains in tests.
+gcc_toolchains = use_extension("@gcc_toolchain//toolchain:module_extensions.bzl", "gcc_toolchains", dev_dependency = True)
+gcc_toolchains.toolchain(
+    name = "custom_gcc_x86_64",
+    gcc_version = "16.2.0",
+    gcc_versions = """{"16.2.0": {"x86_64": {
+        "url": "https://github.com/f0rmiga/gcc-builds/releases/download/10082026/gcc-toolchain-16.2.0-x86_64.tar.xz",
+        "sha256": "54af34c821e59b03ded8f82d3a1104426ec4baaf3b226233e1fd76ad5dcb78cf"}}}""",
+    target_arch = "x86_64",
+    target_libc = "glibc_2.28",
+)
+use_repo(gcc_toolchains, "custom_gcc_x86_64")
 
 gcc = use_extension("//cc/toolchains:repos.bzl", "gcc")
 use_repo(gcc, "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")

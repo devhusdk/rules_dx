@@ -6,20 +6,27 @@ _COMPILER = str(Label("//cc/toolchains:compiler"))
 
 _FEATURES = "//command_line_option:features"
 
+_EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
+
 def _impl(settings, attr):
     features = list(settings[_FEATURES])
     for f in getattr(attr, "extra_features", []):
         if f not in features:
             features.append(f)
+    extra_toolchains = list(getattr(attr, "extra_toolchains", []))
+    for t in settings[_EXTRA_TOOLCHAINS]:
+        if t not in extra_toolchains:
+            extra_toolchains.append(t)
     return {
         _COMPILER: attr.compiler or settings[_COMPILER],
+        _EXTRA_TOOLCHAINS: extra_toolchains,
         _FEATURES: features,
     }
 
 toolchain_transition = transition(
     implementation = _impl,
-    inputs = [_COMPILER, _FEATURES],
-    outputs = [_COMPILER, _FEATURES],
+    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES],
+    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES],
 )
 
 def _test_impl(ctx):
@@ -38,6 +45,7 @@ cc_toolchain_test = rule(
     doc = "Runs a test built with the selected C++ toolchain.",
     attrs = {
         "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
+        "extra_toolchains": attr.string_list(doc = "Toolchain labels to register ahead of the registered ones.", default = []),
         "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as asan.", default = []),
         "test": attr.label(doc = "Test to rebuild.", executable = True, cfg = toolchain_transition, mandatory = True),
     } | dx_lcov_merger_attr(),

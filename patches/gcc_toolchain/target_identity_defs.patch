@@ -20,7 +20,15 @@
  }
  
  # Attributes of the `toolchain` declarations, which live in the hub rather than in the repository
-@@ -997,6 +1003,8 @@
+@@ -674,6 +680,7 @@
+         "extra_target_compatible_with",
+         "extra_target_settings",
+         "supports_param_files",
++        "target_libc",
+     ]
+ }
+ 
+@@ -997,6 +1004,8 @@
      extra_fflags = {extra_fflags},
      extra_ldflags = {extra_ldflags},
      extra_asmflags = {extra_asmflags},

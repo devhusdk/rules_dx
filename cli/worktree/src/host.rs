@@ -384,6 +384,7 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
 }
 
 /// Swapped-out bytes from a `/proc/<pid>/status` text.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn parse_vm_swap(status: &str) -> Option<u64> {
     let line = status
         .lines()

@@ -717,8 +717,14 @@ pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFa
         },
     };
     let mut tags = tags;
+    let smoke = call.args.get("smoke").is_some_and(|tokens| {
+        matches!(tokens.as_slice(), [Token { tok: Tok::Ident(word), .. }] if word == "True")
+    });
     let added: &[&str] = match call.kind.as_str() {
-        "hermetic_qualification" => &["hermetic-consumer", "hermetic-qualification", "manual"],
+        "hermetic_qualification" if smoke => {
+            &["hermetic-consumer", "hermetic-qualification", "manual"]
+        }
+        "hermetic_qualification" => &["hermetic-golden"],
         "starter_consumer_test" => &["manual", "starter-consumer"],
         _ => &[],
     };
@@ -952,6 +958,25 @@ mod tests {
         )
         .expect("facts");
         assert_eq!(on(&found), ["linux_x86_64", "windows_x86_64"]);
+    }
+
+    #[test]
+    fn hermetic_tags_follow_smoke() {
+        let golden = facts(
+            "hermetic_qualification(name = \"t\", target_compatible_with = [])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(golden.tags, ["hermetic-golden"]);
+        let smoke = facts(
+            "hermetic_qualification(name = \"t\", smoke = True, target_compatible_with = [])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(
+            smoke.tags,
+            ["hermetic-consumer", "hermetic-qualification", "manual"]
+        );
     }
 
     #[test]

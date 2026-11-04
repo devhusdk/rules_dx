@@ -445,7 +445,7 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           echo "### starter-consumer (${PLATFORM}, shard ${SHARD}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "The tests tagged starter-consumer: each runs dx init, adds a hello-world fixture and tests it against this checkout." >> "$GITHUB_STEP_SUMMARY"
+          echo "The tests tagged starter-consumer: each runs dx init and checks the generated files against a golden listing." >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$RUNNER_TEMP/starter-ran" ]; then
             echo "#### Ran" >> "$GITHUB_STEP_SUMMARY"
             tr -d '\r' < "$RUNNER_TEMP/starter-ran" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"

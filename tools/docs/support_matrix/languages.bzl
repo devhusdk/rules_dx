@@ -67,9 +67,8 @@ def _hello(lang):
 def _starter_consumers(*starters):
     return ["//tools/testing/starters:" + starter for starter in starters]
 
-# consumer_tests rule: the test must build and test a target of the row's rules in a
-# module other than rules_dx. Hermetic qualifications qualify; they are manual, and CI
-# selects them by the hermetic-consumer tag, which the reader resolves per job.
+# consumer_tests: golden checks of dx init output and hermetic manifests, or tests that
+# build a target in another module. CI selects the hermetic ones by the hermetic-consumer tag.
 ROWS = [
     {"ci_tests": _hello("astro"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": "Astro"},
     {

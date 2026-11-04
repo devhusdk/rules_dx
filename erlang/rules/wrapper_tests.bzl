@@ -1,6 +1,7 @@
 """Wrapper conformance tests for Erlang."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//erlang/toolchain:cells.bzl", "cell_cases")
 load("//libs/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal")
@@ -47,6 +48,7 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("named suites keep their node", ct_run_args(["-sname peer_host"]), ["-sname peer_host"]),
             expect_equal("long names keep their node", ct_run_args(["-name", "a@b"]), ["-name", "a@b"]),
             expect_equal("apps compile on every OTP cell", ERLANG_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
+            expect_equal("other cells are incompatible", [str(c) for c in cell_cases(["linux_amd64"])["//conditions:default"]], [str(Label("@platforms//:incompatible"))]),
             expect_equal("tools run from the real exe path", otp_launch_descriptor("+otp+root", "erl"), "program=+otp+root/bin/erl.exe\n"),
             expect_equal("a native launcher reads the descriptor beside it", native_launch_descriptor_path("bin/dialyzer.exe"), "bin/dialyzer.launch"),
             expect_equal("escripts pass the archive as the path", otp_launch_descriptor("+otp+root", "escript", "_main/x.escript"), "program=+otp+root/bin/escript.exe\npath=_main/x.escript\n"),

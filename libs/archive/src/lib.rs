@@ -113,8 +113,35 @@ pub fn member_name_error(name: &str) -> Option<String> {
                 "archive member name {name:?} must not contain '.' or '..'"
             ));
         }
+        if segment.ends_with(['.', ' ']) {
+            return Some(format!(
+                "archive member name {name:?} must not end a segment with '.' or ' '"
+            ));
+        }
+        if is_device_name(segment) {
+            return Some(format!(
+                "archive member name {name:?} uses a Windows device name"
+            ));
+        }
     }
     None
+}
+
+/// Windows maps these stems to devices, whatever the extension.
+fn is_device_name(segment: &str) -> bool {
+    let stem = segment
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .trim_end_matches(' ')
+        .to_ascii_uppercase();
+    let numbered = stem
+        .strip_prefix("COM")
+        .or_else(|| stem.strip_prefix("LPT"));
+    matches!(
+        stem.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) || matches!(numbered, Some(n) if n.len() == 1 && n.as_bytes()[0].is_ascii_digit())
 }
 
 struct Extraction<'a> {

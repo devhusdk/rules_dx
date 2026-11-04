@@ -130,6 +130,30 @@ fn unsafe_names_are_refused() {
 }
 
 #[test]
+fn windows_reserved_names_are_refused_everywhere() {
+    for name in [
+        "bin/CON.exe",
+        "NUL",
+        "aux.txt",
+        "COM1",
+        "lpt9.log",
+        "CONOUT$",
+        "tool.",
+        "tool ",
+        "a/b.",
+    ] {
+        assert!(member_name_error(name).is_some(), "{name} must be refused");
+    }
+}
+
+#[test]
+fn names_that_only_look_like_reserved_ones_are_accepted() {
+    for name in ["console.exe", "bin/tool", "com10", "tool.v2"] {
+        assert!(member_name_error(name).is_none(), "{name} must be accepted");
+    }
+}
+
+#[test]
 fn duplicates_are_refused_case_insensitively() {
     let dir = scratch();
     let archive = dir.path().join("dup.tar.gz");

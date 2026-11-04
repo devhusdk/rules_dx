@@ -7,8 +7,8 @@ dx_rust_crate(
     name = "dx_archive",
     package_name = "libs/dx_archive",
     srcs = ["src/lib.rs"],
-    test_srcs = ["src/tests.rs"],
     dev_deps = ["tempfile"],
+    test_srcs = ["src/tests.rs"],
     deps = [
         "flate2",
         "tar",

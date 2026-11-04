@@ -102,7 +102,16 @@ pub fn first_run_notice(
 ) -> Option<&'static str> {
     let bazel_backed = matches!(
         invocation.command,
-        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy
+        Command::Build
+            | Command::Test
+            | Command::Coverage
+            | Command::Run
+            | Command::Deploy
+            | Command::Check
+            | Command::Lint
+            | Command::Format
+            | Command::Typecheck
+            | Command::Generate
     );
     if !bazel_backed || !invocation.chatty() || !workspace.join("MODULE.bazel").is_file() {
         return None;
@@ -263,18 +272,23 @@ mod tests {
     fn notice_prints_only_for_chatty_bazel_commands() {
         let host = Host::new();
         let get = host.get();
-        for args in [&["test"][..], &["build", "//..."], &["run", "//app:bin"]] {
+        for args in [
+            &["test"][..],
+            &["build", "//..."],
+            &["run", "//app:bin"],
+            &["lint"],
+            &["check"],
+            &["format"],
+            &["typecheck"],
+            &["generate"],
+        ] {
             assert_eq!(
                 first_run_notice(&invocation(args), &host.workspace, &get),
                 Some(FIRST_RUN_NOTICE),
                 "{args:?}"
             );
         }
-        for args in [
-            &["test", "--quiet"][..],
-            &["test", "--output=json"],
-            &["lint"],
-        ] {
+        for args in [&["test", "--quiet"][..], &["test", "--output=json"]] {
             assert_eq!(
                 first_run_notice(&invocation(args), &host.workspace, &get),
                 None,

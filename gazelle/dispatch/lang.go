@@ -40,6 +40,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/rust"
 	"github.com/devhusdk/rules_dx/gazelle/scala"
 	"github.com/devhusdk/rules_dx/gazelle/svelte"
+	"github.com/devhusdk/rules_dx/gazelle/swift"
 	"github.com/devhusdk/rules_dx/gazelle/typescript"
 	"github.com/devhusdk/rules_dx/gazelle/vue"
 	"github.com/devhusdk/rules_dx/gazelle/zig"
@@ -73,6 +74,7 @@ func composedLanguages() []language.Language {
 		rust.NewLanguage(),
 		scala.NewLanguage(),
 		svelte.NewLanguage(),
+		swift.NewLanguage(),
 		typescript.NewLanguage(),
 		vue.NewLanguage(),
 		zig.NewLanguage(),

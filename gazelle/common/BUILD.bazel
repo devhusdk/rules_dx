@@ -84,6 +84,7 @@ go_library(
         "//gazelle/rust:__pkg__",
         "//gazelle/scala:__pkg__",
         "//gazelle/svelte:__pkg__",
+        "//gazelle/swift:__pkg__",
         "//gazelle/typescript:__pkg__",
         "//gazelle/vue:__pkg__",
         "//gazelle/zig:__pkg__",

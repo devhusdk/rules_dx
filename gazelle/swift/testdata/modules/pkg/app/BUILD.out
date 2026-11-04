@@ -1,0 +1,12 @@
+load("@rules_dx//swift/rules:defs.bzl", "swift_library")
+
+filegroup(
+    name = "assets",
+    srcs = ["main.swift"],
+)
+
+swift_library(
+    name = "app",
+    srcs = ["App.swift"],
+    deps = ["//pkg/greeter"],
+)

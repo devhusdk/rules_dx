@@ -189,6 +189,11 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "ocaml_module", target: "demo", defs: "ocaml/rules:defs.bzl",
 		symbols: []string{"ocaml_module"},
 	},
+	"swift": {
+		files: map[string]string{"Demo.swift": "import Foundation\n"},
+		kind:  "swift_library", target: "demo", defs: "swift/rules:defs.bzl",
+		symbols: []string{"swift_library", "swift_test"},
+	},
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n"},
 		kind:  "typescript_project", target: "demo", defs: "typescript/rules:defs.bzl",

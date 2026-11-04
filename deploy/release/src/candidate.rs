@@ -6,9 +6,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use crate::{
-    bcr_candidate_error, bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url,
-    bcr_strip_prefix, render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive,
-    GitState, BCR_WANT_MODULE, RELEASE_REMOTE, RELEASE_REPOSITORY,
+    bcr_candidate_error, bcr_candidate_version_error, bcr_integrity_of_digest,
+    bcr_module_candidate_error, bcr_source_url, bcr_strip_prefix,
+    modules::{module_versions_error, release_modules, ReleaseModule},
+    render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive, GitState,
+    BCR_WANT_MODULE, RELEASE_REMOTE, RELEASE_REPOSITORY,
 };
 
 /// One release candidate: a SemVer version at one full commit.
@@ -470,7 +472,8 @@ fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), String> {
 
 /// Builds, verifies and describes the release source archive in `out_dir`.
 ///
-/// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar and `source.json`.
+/// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar, `source.json` and one
+/// `<module>.source.json` per family module.
 /// Refuses an `out_dir` that already holds different bytes under those names.
 /// `pins` replaces [`PINS_PATH`] as in [`build_source_archive`].
 pub fn write_release_source(
@@ -516,34 +519,74 @@ fn stage_release_source(
 ) -> Result<StagedOutputs, String> {
     let built = build_source_archive(repo, candidate, staged, pins)?;
     source_archive_error(staged, repo, candidate, pins)?;
-    let integrity =
-        write_bcr_source_for_archive(staged_json, BCR_WANT_MODULE, candidate.version(), staged)
-            .map_err(|error| format!("candidate: cannot write source.json: {error}"))?;
-    if integrity != built.integrity {
-        return Err("candidate: source.json integrity differs from the archive".to_owned());
-    }
-    let json = std::fs::read(staged_json)
-        .map_err(|error| format!("candidate: cannot read source.json: {error}"))?;
-    let json_text = String::from_utf8(json.clone())
-        .map_err(|error| format!("candidate: source.json is not UTF-8: {error}"))?;
-    bcr_candidate_error(
-        &json_text,
-        BCR_WANT_MODULE,
-        candidate.version(),
-        &built.digest,
-    )?;
+    let module_files = commit_module_files(repo, candidate)?;
+    module_versions_error(&module_files, candidate.version())?;
     let archive = std::fs::read(staged)
         .map_err(|error| format!("candidate: cannot read {}: {error}", staged.display()))?;
     let sidecar = format!("{}  {name}\n", built.digest).into_bytes();
-    let outputs = vec![
+    let mut outputs = vec![
         (name.to_owned(), archive),
         (format!("{name}.sha256"), sidecar),
-        ("source.json".to_owned(), json),
     ];
+    for module in release_modules(&module_files)? {
+        let integrity =
+            write_bcr_source_for_archive(staged_json, &module, candidate.version(), staged)
+                .map_err(|error| {
+                    format!("candidate: cannot write {}: {error}", module.source_file())
+                })?;
+        if integrity != built.integrity {
+            return Err(format!(
+                "candidate: {} integrity differs from the archive",
+                module.source_file()
+            ));
+        }
+        let json = std::fs::read(staged_json)
+            .map_err(|error| format!("candidate: cannot read {}: {error}", module.source_file()))?;
+        let json_text = String::from_utf8(json.clone()).map_err(|error| {
+            format!("candidate: {} is not UTF-8: {error}", module.source_file())
+        })?;
+        bcr_module_candidate_error(&json_text, &module, candidate.version(), &built.digest)?;
+        outputs.push((module.source_file(), json));
+    }
     Ok((built, outputs))
 }
 
-fn call_end(text: &str, open: usize) -> Option<usize> {
+/// Reads the commit's root MODULE.bazel and every `families/<f>/MODULE.bazel`.
+fn commit_module_files(
+    repo: &Path,
+    candidate: &Candidate,
+) -> Result<Vec<(String, String)>, String> {
+    let commit = candidate.commit();
+    let listing = git_read(
+        repo,
+        &[
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "-z",
+            "--full-tree",
+            commit,
+            "--",
+            "MODULE.bazel",
+            "families",
+        ],
+    )
+    .map_err(|error| format!("candidate: {error}"))?;
+    let mut files = Vec::new();
+    for path in listing.split('\0').filter(|path| !path.is_empty()) {
+        if path != "MODULE.bazel"
+            && !(path.starts_with("families/") && path.ends_with("/MODULE.bazel"))
+        {
+            continue;
+        }
+        let text = git_read(repo, &["show", &format!("{commit}:{path}")])
+            .map_err(|error| format!("candidate: {error}"))?;
+        files.push((path.to_owned(), text));
+    }
+    Ok(files)
+}
+
+pub(crate) fn call_end(text: &str, open: usize) -> Option<usize> {
     let mut depth = 0usize;
     let mut in_string = false;
     let mut escaped = false;
@@ -572,7 +615,7 @@ fn call_end(text: &str, open: usize) -> Option<usize> {
     None
 }
 
-fn string_fields(body: &str, base: usize) -> Vec<(String, String, usize, usize)> {
+pub(crate) fn string_fields(body: &str, base: usize) -> Vec<(String, String, usize, usize)> {
     let mut fields = Vec::new();
     let bytes = body.as_bytes();
     let mut at = 0;

@@ -18,6 +18,11 @@ filegroup(
     ],
 )
 
+filegroup(
+    name = "family_templates",
+    srcs = glob(["families/*/*"]),
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

@@ -61,3 +61,25 @@ fn presubmit_covers_five_platforms_and_the_dx_commands() {
         assert!(text.contains(want), "presubmit.yml lacks {want}");
     }
 }
+
+#[test]
+fn every_family_template_directory_is_complete() {
+    let dir = dx_testing::resolve_runfiles(".bcr/presubmit.yml").with_file_name("families");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return;
+    };
+    for entry in entries {
+        let family = entry.expect("entry").path();
+        for file in [
+            "metadata.template.json",
+            "source.template.json",
+            "presubmit.yml",
+        ] {
+            assert!(
+                family.join(file).is_file(),
+                "{} lacks {file}",
+                family.display()
+            );
+        }
+    }
+}

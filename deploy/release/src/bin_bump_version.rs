@@ -12,7 +12,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const USAGE: &str = "usage: bazel run //deploy/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version and the starter workflow pin in every file that carries them.\n--workflow-ref defaults to origin/main and must have the affected_on_pr input.";
+const USAGE: &str = "usage: bazel run //deploy/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version and the starter workflow pin in every file that carries them, including each families/*/MODULE.bazel.\n--workflow-ref defaults to origin/main and must have the affected_on_pr input.";
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 struct Edit {
@@ -91,6 +91,36 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
     ]
 }
 
+fn family_targets(root: &Path) -> Result<Vec<(String, Vec<Edit>)>, String> {
+    let dir = root.join("families");
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut files = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e| format!("families: {e}"))? {
+        let family = entry.map_err(|e| format!("families: {e}"))?.file_name();
+        let file = format!("families/{}/MODULE.bazel", family.to_string_lossy());
+        if root.join(&file).is_file() {
+            files.push(file);
+        }
+    }
+    files.sort();
+    Ok(files
+        .into_iter()
+        .map(|file| {
+            let edits = vec![
+                Edit {
+                    marker: "    version = \"",
+                    after: Some("name = \"rules_dx_"),
+                    pin: false,
+                },
+                version("bazel_dep(name = \"rules_dx\", version = \""),
+            ];
+            (file, edits)
+        })
+        .collect())
+}
+
 fn valid_version(text: &str) -> bool {
     let (core, pre) = match text.split_once('-') {
         Some((core, pre)) => (core, Some(pre)),
@@ -151,8 +181,13 @@ fn bump(root: &Path, version: &str, commit: &str) -> Result<usize, String> {
         return Err(format!("`{commit}` is not a 40 character commit"));
     }
     let mut changed = Vec::new();
-    for (file, edits) in targets() {
-        let path = root.join(file);
+    let mut all: Vec<(String, Vec<Edit>)> = targets()
+        .into_iter()
+        .map(|(file, edits)| (file.to_owned(), edits))
+        .collect();
+    all.extend(family_targets(root)?);
+    for (file, edits) in all {
+        let path = root.join(&file);
         let old = fs::read_to_string(&path).map_err(|e| format!("{file}: {e}"))?;
         let mut text = old.clone();
         for edit in &edits {
@@ -303,6 +338,21 @@ mod tests {
         assert!(!docs_ci.contains(OLD));
         assert!(read(dir.path(), "examples/gitlab-ci/.gitlab-ci.yml")
             .contains(&format!("rules_dx/{NEW}/ci/gitlab/dx.gitlab-ci.yml\n")));
+    }
+
+    #[test]
+    fn rewrites_family_modules() {
+        let dir = tempfile::tempdir().unwrap();
+        fixture(dir.path());
+        let family = "module(\n    name = \"rules_dx_go\",\n    version = \"0.0.0\",\n)\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"x\", version = \"9.9.9\")\n";
+        let path = dir.path().join("families/go/MODULE.bazel");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, family).unwrap();
+        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(9));
+        assert_eq!(
+            read(dir.path(), "families/go/MODULE.bazel"),
+            "module(\n    name = \"rules_dx_go\",\n    version = \"1.2.3\",\n)\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"x\", version = \"9.9.9\")\n"
+        );
     }
 
     #[test]

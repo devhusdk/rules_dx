@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::{
-    bcr_candidate_error, notice_verify_files, sbom_verify_files, write_bcr_source_for_archive,
-    PROVENANCE_BUILDER_RELEASE,
+    bcr_candidate_error, modules::ReleaseModule, notice_verify_files, sbom_verify_files,
+    write_bcr_source_for_archive, PROVENANCE_BUILDER_RELEASE,
 };
 
 fn data(name: &str) -> PathBuf {
@@ -235,7 +235,7 @@ fn candidate_source(dir: &Path) -> (PathBuf, String) {
     let digest = dx_digest::sha256_file_hex(&artifact)
         .unwrap_or_else(|error| panic!("hash the archived artifact: {error}"));
     let dst = dir.join("candidate.source.json");
-    write_bcr_source_for_archive(&dst, "rules_dx", CANDIDATE_VERSION, &artifact)
+    write_bcr_source_for_archive(&dst, &ReleaseModule::core(), CANDIDATE_VERSION, &artifact)
         .unwrap_or_else(|error| panic!("write candidate source.json: {error}"));
     (dst, digest)
 }

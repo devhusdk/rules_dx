@@ -15,7 +15,7 @@ const TAG: &str = "v1.2.3-rc1";
 
 const MODULE: &str = r#"module(
     name = "rules_dx",
-    version = "0.0.0",
+    version = "1.2.3-rc1",
     compatibility_level = 1,
 )
 
@@ -846,4 +846,45 @@ fn release_source_rejects_relative_and_conflicting_out_dir() {
     let error = write_release_source(&fixture.repo, &candidate, &out, None).expect_err("conflict");
     assert!(error.contains("different bytes"), "{error}");
     assert!(!out.join(format!("rules_dx-{VERSION}.tar.gz")).exists());
+}
+
+fn commit_family(fixture: &Fixture, dep_version: &str) -> Candidate {
+    write(
+        &fixture.repo.join("families/go/MODULE.bazel"),
+        format!(
+            "module(\n    name = \"rules_dx_go\",\n    version = \"{VERSION}\",\n)\n\nbazel_dep(name = \"rules_dx\", version = \"{dep_version}\")\n"
+        )
+        .as_bytes(),
+    );
+    git(&fixture.repo, &["add", "-A"]);
+    git(&fixture.repo, &["commit", "-q", "-m", "family"]);
+    let head = git(&fixture.repo, &["rev-parse", "HEAD"]);
+    Candidate::new(VERSION, head.trim()).expect("candidate")
+}
+
+#[test]
+fn release_source_writes_one_source_json_per_family() {
+    let fixture = Fixture::new();
+    let candidate = commit_family(&fixture, VERSION);
+    let out = fixture.path("family-source");
+    let built = write_release_source(&fixture.repo, &candidate, &out, None).expect("release");
+    let core = std::fs::read_to_string(out.join("source.json")).expect("core");
+    bcr_candidate_error(&core, "rules_dx", VERSION, &built.digest).expect("core source");
+    let family = std::fs::read_to_string(out.join("rules_dx_go.source.json")).expect("family");
+    let value: serde_json::Value = serde_json::from_str(&family).expect("json");
+    assert_eq!(
+        value["strip_prefix"],
+        format!("rules_dx-{VERSION}/families/go")
+    );
+    assert_eq!(value["url"], candidate.url());
+}
+
+#[test]
+fn release_source_refuses_a_family_dep_at_another_version() {
+    let fixture = Fixture::new();
+    let candidate = commit_family(&fixture, "0.0.1");
+    let out = fixture.path("family-stale");
+    let error = write_release_source(&fixture.repo, &candidate, &out, None).expect_err("stale");
+    assert!(error.ends_with("land the version bump first"), "{error}");
+    assert!(!out.join("source.json").exists());
 }

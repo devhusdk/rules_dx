@@ -16,6 +16,7 @@ pub mod cell;
 mod deploy;
 pub mod inventory;
 pub mod ledger;
+pub mod modules;
 mod provenance;
 mod publish;
 pub mod runtimes;
@@ -288,6 +289,15 @@ pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
     format!("{module}-{version}")
 }
 
+pub fn bcr_module_strip_prefix(module: &modules::ReleaseModule, version: &str) -> String {
+    let prefix = bcr_strip_prefix(BCR_WANT_MODULE, version);
+    if module.is_core() {
+        prefix
+    } else {
+        format!("{prefix}/{}", module.root)
+    }
+}
+
 pub fn render_bcr_source_for_digest(
     module: &str,
     version: &str,
@@ -296,23 +306,33 @@ pub fn render_bcr_source_for_digest(
     if module != BCR_WANT_MODULE {
         return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
     }
+    render_bcr_module_source_for_digest(&modules::ReleaseModule::core(), version, digest)
+}
+
+/// Renders the `source.json` of one module; every module points at the core archive.
+pub fn render_bcr_module_source_for_digest(
+    module: &modules::ReleaseModule,
+    version: &str,
+    digest: &str,
+) -> Result<String, String> {
     bcr_candidate_version_error(version)?;
     let integrity = bcr_integrity_of_digest(digest)?;
     Ok(render_pretty(&serde_json::json!({
         "integrity": integrity,
-        "strip_prefix": bcr_strip_prefix(module, version),
-        "url": bcr_source_url(module, version),
+        "strip_prefix": bcr_module_strip_prefix(module, version),
+        "url": bcr_source_url(BCR_WANT_MODULE, version),
     })))
 }
 
 pub fn write_bcr_source_for_archive(
     dst: &Path,
-    module: &str,
+    module: &modules::ReleaseModule,
     version: &str,
     archive: &Path,
 ) -> io::Result<String> {
     let digest = dx_digest::sha256_file_hex(archive)?;
-    let text = render_bcr_source_for_digest(module, version, &digest).map_err(io::Error::other)?;
+    let text =
+        render_bcr_module_source_for_digest(module, version, &digest).map_err(io::Error::other)?;
     std::fs::write(dst, text.as_bytes())?;
     bcr_integrity_of_digest(&digest).map_err(io::Error::other)
 }
@@ -321,6 +341,36 @@ pub fn bcr_candidate_error(
     source_text: &str,
     module: &str,
     version: &str,
+    digest: &str,
+) -> Result<(), String> {
+    let want_prefix = bcr_strip_prefix(module, version);
+    bcr_source_error(
+        source_text,
+        &want_prefix,
+        &bcr_source_url(module, version),
+        digest,
+    )
+}
+
+pub fn bcr_module_candidate_error(
+    source_text: &str,
+    module: &modules::ReleaseModule,
+    version: &str,
+    digest: &str,
+) -> Result<(), String> {
+    let want_prefix = bcr_module_strip_prefix(module, version);
+    bcr_source_error(
+        source_text,
+        &want_prefix,
+        &bcr_source_url(BCR_WANT_MODULE, version),
+        digest,
+    )
+}
+
+fn bcr_source_error(
+    source_text: &str,
+    want_prefix: &str,
+    want_url: &str,
     digest: &str,
 ) -> Result<(), String> {
     let value: serde_json::Value = serde_json::from_str(source_text).map_err(|error| {
@@ -336,7 +386,6 @@ pub fn bcr_candidate_error(
             "bcr: candidate source.json integrity mismatch: archive sha256 {digest} wants {want_integrity:?}, metadata carries {integrity:?} (refusing to replace immutable version artifacts)"
         ));
     }
-    let want_prefix = bcr_strip_prefix(module, version);
     let prefix = value
         .get("strip_prefix")
         .and_then(|field| field.as_str())
@@ -346,7 +395,6 @@ pub fn bcr_candidate_error(
             "bcr: candidate source.json strip_prefix mismatch: want {want_prefix:?}, got {prefix:?}"
         ));
     }
-    let want_url = bcr_source_url(module, version);
     let url = value
         .get("url")
         .and_then(|field| field.as_str())
@@ -1616,14 +1664,18 @@ mod tests {
         let digest = dx_digest::sha256_file_hex(&src).expect("digest");
         let dst = scratch.path().join("candidate.source.json");
         let integrity =
-            write_bcr_source_for_archive(&dst, "rules_dx", "1.2.3-rc1", &src).expect("write");
+            write_bcr_source_for_archive(&dst, &modules::ReleaseModule::core(), "1.2.3-rc1", &src)
+                .expect("write");
         assert_eq!(
             integrity,
             bcr_integrity_of_digest(&digest).expect("integrity")
         );
         let text = std::fs::read_to_string(&dst).expect("read");
         bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &digest).expect("validates");
-        assert!(write_bcr_source_for_archive(&dst, "rules_dx", "0.0.0", &src).is_err());
+        assert!(
+            write_bcr_source_for_archive(&dst, &modules::ReleaseModule::core(), "0.0.0", &src)
+                .is_err()
+        );
         assert!(write_bcr_source_for_archive(
             &dst,
             "rules_dx",

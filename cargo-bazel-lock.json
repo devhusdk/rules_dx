@@ -1,5 +1,5 @@
 {
-  "checksum": "4349426bff92dbbe972264c697faef982284d0e0e20ab9afeb23a82ddf839762",
+  "checksum": "2aa838154499d243b78c1f3ca8e7fcafa12455b3ea41eee1a1b81126da9ccc5e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7420,28 +7420,10 @@
     },
     "dx_install_tools 0.0.0": {
       "common_attrs": {
-        "deps": [
-          {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          }
-        ],
         "deps_dev": [
-          {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "edition": "2021"

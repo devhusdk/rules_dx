@@ -1625,11 +1625,7 @@ dependencies = [
 name = "dx_install_tools"
 version = "0.0.0"
 dependencies = [
- "flate2",
- "serde_json",
- "tar",
  "tempfile",
- "zip",
 ]
 
 [[package]]

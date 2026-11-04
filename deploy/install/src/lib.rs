@@ -11,9 +11,6 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-pub mod install;
-pub mod trust;
-
 pub const TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
 pub const DEFAULT_ISSUER: &str = "https://token.actions.githubusercontent.com";
 

@@ -437,48 +437,9 @@ fn the_version_gate_names_all_four_version_files_before_building() {
     }
 }
 
-const TRUST: &str = "deploy/install/src/trust.rs";
-
-fn trust_const(name: &str) -> String {
-    let trust = read_runfiles(TRUST);
-    let at = trust
-        .find(&format!("pub const {name}: &str = \""))
-        .unwrap_or_else(|| panic!("{TRUST} lacks {name}"));
-    let rest = &trust[at..];
-    let start = rest.find('"').expect("open quote") + 1;
-    let end = start + rest[start..].find('"').expect("close quote");
-    rest[start..end].to_owned()
-}
-
 #[test]
-fn the_manifest_and_bundle_names_match_the_install_engine() {
+fn the_archives_are_named_per_platform() {
     let text = workflow();
-    let manifest = trust_const("MANIFEST_NAME");
-    let bundle = trust_const("BUNDLE_NAME");
-    assert!(text.contains(&format!("out/{manifest}")));
-    assert!(text.contains(&format!("out/{bundle}")));
-    assert!(text.contains(&format!("files=\"{manifest} {bundle}\"")));
-}
-
-#[test]
-fn the_archives_match_the_install_engine_cells() {
-    let trust = read_runfiles(TRUST);
-    let text = workflow();
-    for asset in ASSETS {
-        let suffix = if asset.contains("windows") {
-            ".zip"
-        } else {
-            ".tar.gz"
-        };
-        assert!(
-            trust.contains(&format!("name: \"{asset}\",")),
-            "{TRUST} lacks {asset}"
-        );
-        assert!(
-            trust.contains(&format!("suffix: \"{suffix}\",")),
-            "{TRUST} lacks {suffix}"
-        );
-    }
     assert!(text.contains("dx-windows-*) archive=\"$asset.zip\""));
     assert!(text.contains("*) archive=\"$asset.tar.gz\""));
 }
@@ -508,9 +469,8 @@ fn the_attestation_is_signed_once_from_the_tag_in_the_upload_job() {
 }
 
 #[test]
-fn the_archives_are_verified_with_the_install_engine_flags() {
+fn the_archives_are_verified_with_the_expected_flags() {
     let text = workflow();
-    let trust = read_runfiles(TRUST);
     for flag in [
         "--bundle",
         "--repo",
@@ -519,10 +479,6 @@ fn the_archives_are_verified_with_the_install_engine_flags() {
         "--source-ref",
         "--deny-self-hosted-runners",
     ] {
-        assert!(
-            trust.contains(&format!("\"{flag}\"")),
-            "{TRUST} lacks {flag}"
-        );
         assert!(text.contains(&format!("{flag}")), "{WORKFLOW} lacks {flag}");
     }
     assert!(text.contains("release.yml@refs/tags/$RELEASE_TAG"));

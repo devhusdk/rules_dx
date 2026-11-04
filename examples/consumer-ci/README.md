@@ -42,6 +42,8 @@ use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
 register_toolchains("@local_config_cc_toolchains//:all")
 ```
 
+See [Use your own C/C++ toolchain](../../docs/own-cc-toolchain.md) for a custom GCC and for precedence.
+
 A consumer that renames the module keeps working. Declare the rename once:
 
 ```python

@@ -42,6 +42,8 @@ The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An 
 
 ## GCC
 
+To use your own compiler instead, see [Use your own C/C++ toolchain](../../docs/own-cc-toolchain.md).
+
 Select the GCC toolchain in `.bazelrc`:
 
 ```text

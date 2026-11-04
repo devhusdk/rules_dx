@@ -110,7 +110,7 @@ elixir_app(
     app_version = "{version}",
     data = glob([".*", "LICENSE*"], allow_empty = True),
     deps = [{deps}],
-    elixirc_opts = [],
+    treat_warnings_as_errors = False,
     srcs = glob(["lib/**/*.ex"], exclude = ["lib/mix/**"]),
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )

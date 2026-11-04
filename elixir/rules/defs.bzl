@@ -8,7 +8,7 @@ load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:defs.bzl", _escript_archive = "escript_archive")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 # False while elixir tests write empty LCOV under `bazel coverage`; the public
@@ -23,7 +23,7 @@ ELIXIR_COMPATIBLE_WITH = otp_compatible_with(ELIXIR_CELLS)
 
 ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]
 
-DEFAULT_ELIXIRC_OPTS = ["--warnings-as-errors"]
+WERROR_ELIXIRC_OPTS = ["--warnings-as-errors"]
 
 escript_archive = _escript_archive
 
@@ -95,10 +95,9 @@ def app_mod_entry(module):
 
 def app_kwargs(kwargs, srcs):
     """Returns the upstream elixir_app kwargs with dx defaults filled in."""
-    upstream = dict(kwargs)
+    upstream, werror = dx_warnings_as_errors(kwargs, WERROR_ELIXIRC_OPTS)
     upstream["srcs"] = srcs
-    if upstream.get("elixirc_opts") == None:
-        upstream["elixirc_opts"] = DEFAULT_ELIXIRC_OPTS
+    upstream["elixirc_opts"] = list(upstream.get("elixirc_opts") or []) + werror
     module = upstream.pop("app_module", None)
     if module != None:
         extra = upstream.get("app_extra_keys")

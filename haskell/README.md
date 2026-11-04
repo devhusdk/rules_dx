@@ -44,8 +44,9 @@ haskell_binary(
 | `haskell_binary` | Executable with a `Main` module, run with `bazel run` |
 | `haskell_test` | Test executable; a non-zero exit fails the test |
 
-- A warning fails the build: `ghcopts` defaults to `["-Wall", "-Werror"]`.
-  Set `ghcopts` to replace the default.
+- A warning fails the build: `-Werror` is added to `ghcopts`, which defaults to
+  `["-Wall"]`. Set `treat_warnings_as_errors = False` on a target, or
+  `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
 - Library `tags` reach the library; the generated upstream target is
   `manual`, so `//...` builds only the library.
 - `//haskell/toolchain:<package>` has the GHC boot packages: `array`,

@@ -6,7 +6,7 @@ load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCov
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 HaskellInfo = _HaskellInfo
@@ -19,7 +19,9 @@ HASKELL_CELLS = qualified_cells()
 
 HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS)
 
-DEFAULT_GHCOPTS = ["-Wall", "-Werror"]
+DEFAULT_GHCOPTS = ["-Wall"]
+
+WERROR_GHCOPTS = ["-Werror"]
 
 GMP = Label("@dx_haskell_toolchains//:gmp")
 
@@ -66,10 +68,10 @@ _haskell_forward_test = dx_executable_forward_rule(
 )
 
 def upstream_kwargs(kwargs):
-    """Returns the rules_haskell kwargs with the dx ghcopts default filled in."""
-    upstream = dict(kwargs)
-    if upstream.get("ghcopts") == None:
-        upstream["ghcopts"] = list(DEFAULT_GHCOPTS)
+    """Returns the rules_haskell kwargs with ghcopts plus the warnings-as-errors flag."""
+    upstream, werror = dx_warnings_as_errors(kwargs, WERROR_GHCOPTS)
+    ghcopts = upstream.get("ghcopts")
+    upstream["ghcopts"] = (list(DEFAULT_GHCOPTS) if ghcopts == None else ghcopts) + werror
     return upstream
 
 def with_gmp(deps, gmp = GMP):

@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "DEFAULT_ELIXIRC_OPTS", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "escript_headers", "helper_first", "nif_priv")
+load(":defs.bzl", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "escript_headers", "helper_first", "nif_priv")
 load(":hex.bzl", "hex_metadata_entry", "hex_tarball_url")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -17,10 +17,11 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("apps own lib sources", ELIXIR_SOURCE_GLOBS, ["lib/**/*.ex"]),
             expect_equal("default apps own the glob", app_sources({}, _glob), ["lib/**/*.ex!"]),
             expect_equal("explicit srcs are the owned files", app_sources({"srcs": ["lib/a.ex"]}, _glob), ["lib/a.ex"]),
-            expect_equal("warnings fail the compile by default", app_kwargs({}, [])["elixirc_opts"], ["--warnings-as-errors"]),
-            expect_equal("default options are the dx defaults", DEFAULT_ELIXIRC_OPTS, ["--warnings-as-errors"]),
-            expect_equal("explicit options win", app_kwargs({"elixirc_opts": []}, [])["elixirc_opts"], []),
-            expect_equal("owned sources reach the compiler", app_kwargs({"app_name": "a"}, ["lib/a.ex"]), {"app_name": "a", "elixirc_opts": ["--warnings-as-errors"], "srcs": ["lib/a.ex"]}),
+            expect_equal("warnings follow the repo flag by default", type(app_kwargs({}, [])["elixirc_opts"]), "select"),
+            expect_equal("warnings can be forced on", app_kwargs({"treat_warnings_as_errors": True}, [])["elixirc_opts"], ["--warnings-as-errors"]),
+            expect_equal("warnings can be forced off", app_kwargs({"treat_warnings_as_errors": False}, [])["elixirc_opts"], []),
+            expect_equal("user options keep the flag", app_kwargs({"elixirc_opts": ["--no-docs"], "treat_warnings_as_errors": True}, [])["elixirc_opts"], ["--no-docs", "--warnings-as-errors"]),
+            expect_equal("owned sources reach the compiler", app_kwargs({"app_name": "a", "treat_warnings_as_errors": False}, ["lib/a.ex"]), {"app_name": "a", "elixirc_opts": [], "srcs": ["lib/a.ex"]}),
             expect_equal("app modules are Elixir modules", app_mod_entry("Stock.Application"), "{mod, {'Elixir.Stock.Application', []}}"),
             expect_equal("app_module becomes the mod entry", app_kwargs({"app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}}"),
             expect_equal("app_module keeps other extra keys", app_kwargs({"app_extra_keys": "{x, 1}", "app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}},\n{x, 1}"),

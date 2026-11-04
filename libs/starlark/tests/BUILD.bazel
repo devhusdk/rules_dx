@@ -21,6 +21,7 @@ load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
+load(":warnings_tests.bzl", "warnings_tests")
 load(":wrapper_forward_fixture.bzl", "wrapper_forward_fixtures", "wrapper_forward_tests")
 load(":wrapper_tests.bzl", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
@@ -98,6 +99,8 @@ packaging_unit_tests(name = "packaging_unit")
 
 matrix_validation_tests(name = "matrix_validation")
 
+warnings_tests(name = "warnings")
+
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
 
 wrapper_optional_forward_tests(name = "wrapper_optional_forward")
@@ -174,6 +177,7 @@ test_suite(
         ":thin_demo_missing_executable_test",
         ":thin_demo_missing_provider_test",
         ":toolchain_unit",
+        ":warnings",
         ":wrapper_forward_contract",
         ":wrapper_forward_contract_forward",
         ":wrapper_forward_contract_golden_pin",
@@ -210,6 +214,7 @@ real_source_target(
         "subject.bzl",
         "thin_compare.bzl",
         "toolchain_tests.bzl",
+        "warnings_tests.bzl",
         "wrapper_forward_fixture.bzl",
         "wrapper_tests.bzl",
     ],

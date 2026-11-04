@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_strip_none", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_strip_none", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -224,6 +224,41 @@ def wrapper_shape_kwargs_tests(name):
                 "strip_none drops only None values",
                 dx_strip_none({"a": None, "b": [], "c": False, "d": "x"}),
                 {"b": [], "c": False, "d": "x"},
+            ),
+            expect_equal(
+                "warnings_as_errors true picks on",
+                dx_warnings_as_errors({"treat_warnings_as_errors": True, "deps": [":a"]}, ["-Werror"], ["-w"]),
+                ({"deps": [":a"]}, ["-Werror"]),
+            ),
+            expect_equal(
+                "warnings_as_errors false picks off",
+                dx_warnings_as_errors({"treat_warnings_as_errors": False}, ["-Werror"], ["-w"]),
+                ({}, ["-w"]),
+            ),
+            expect_equal(
+                "warnings_as_errors unset follows the flag",
+                type(dx_warnings_as_errors({}, ["-Werror"])[1]),
+                "select",
+            ),
+            expect_equal(
+                "warnings_as_errors none follows the flag",
+                type(dx_warnings_as_errors({"treat_warnings_as_errors": None}, ["-Werror"])[1]),
+                "select",
+            ),
+            expect_equal(
+                "warnings_as_errors removes the key when unset",
+                dx_warnings_as_errors({"treat_warnings_as_errors": None}, ["-Werror"])[0],
+                {},
+            ),
+            expect_equal(
+                "append flags with a select sets a missing key",
+                type(dx_append_flags({}, "copts", select({"//conditions:default": ["-b"]}))["copts"]),
+                "select",
+            ),
+            expect_equal(
+                "append flags with a select extends a list",
+                type(dx_append_flags({"copts": ["-a"]}, "copts", select({"//conditions:default": ["-b"]}))["copts"]),
+                "select",
             ),
             expect_equal(
                 "append_flags keeps a trivial select appendable",

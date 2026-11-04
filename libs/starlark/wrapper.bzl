@@ -470,7 +470,9 @@ def dx_append_flags(kwargs, key, flags):
     """Returns a copy of kwargs with flags appended to the list or select() at key."""
     out = dict(kwargs)
     value = out.get(key, None)
-    if value == None:
+    if type(flags) == "select":
+        out[key] = flags if value == None else value + flags
+    elif value == None:
         out[key] = list(flags)
     elif type(value) == "select":
         out[key] = value + flags
@@ -481,6 +483,20 @@ def dx_append_flags(kwargs, key, flags):
                 merged.append(flag)
         out[key] = merged
     return out
+
+def dx_warnings_as_errors(kwargs, on, off = []):
+    """Returns kwargs without treat_warnings_as_errors and the value to use.
+
+    True picks on, False picks off, and unset follows //config:warnings_as_errors.
+    """
+    out = dict(kwargs)
+    setting = out.pop("treat_warnings_as_errors", None)
+    if setting == None:
+        return out, select({
+            Label("//config:warnings_as_errors_on"): on,
+            "//conditions:default": off,
+        })
+    return out, (on if setting else off)
 
 def dx_setdefaults(kwargs, defaults):
     """Returns a copy of kwargs with each absent default key set."""

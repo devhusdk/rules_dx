@@ -341,4 +341,7 @@ Plain `bazel` skips layers that do not exist.
   note to run `git rm --cached -r .dx/bazelrc`; dx never runs it.
 - If the root `.bazelrc` repeats lines the preset owns, or is a symlink, apply
   prints a note and adds no imports.
+- Warnings are errors by default in the rules_dx wrappers. Add
+  `common --@rules_dx//config:warnings_as_errors=false` to the root `.bazelrc` to
+  turn that off repo-wide; a target can override it with `treat_warnings_as_errors`.
 - In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.

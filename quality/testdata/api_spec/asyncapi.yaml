@@ -1,0 +1,11 @@
+asyncapi: 3.0.0
+info:
+  title: Pets
+  version: 1.0.0
+channels:
+  pets:
+    address: pets
+    messages:
+      petAdded:
+        payload:
+          $ref: messages/pet_added.yaml

@@ -113,7 +113,12 @@ def clang_syntax_unit_tests(name):
             expect_equal(
                 "clang-tidy names the MSVC driver as unsupported",
                 clang_tidy_argv("tidy", ["cl.exe", "/c", "a.c"], "a.c", _CL).error,
-                "clang-tidy does not support MSVC-style command lines (driver msvc)",
+                "clang-tidy does not support MSVC-style command lines (driver msvc, flag /c)",
+            ),
+            expect_equal(
+                "clang-tidy names the first MSVC flag for clang-cl",
+                clang_tidy_argv("tidy", ["clang-cl.exe", "-c", "/DX=1", "a.c"], "a.c", _CLANG_CL).error,
+                "clang-tidy does not support MSVC-style command lines (driver msvc, flag /DX=1)",
             ),
             expect_equal(
                 "the source is the argument after /c",

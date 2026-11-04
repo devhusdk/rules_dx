@@ -130,7 +130,12 @@ def clang_tidy_argv(tidy, argv, src, identity, config = ""):
       `error` (non-empty when the command line cannot be projected).
     """
     if identity.driver == "msvc":
-        return struct(argv = [], error = "clang-tidy does not support MSVC-style command lines (driver msvc)")
+        flag = ""
+        for arg in argv[1:]:
+            if arg.startswith("/") and len(arg) > 1:
+                flag = arg
+                break
+        return struct(argv = [], error = "clang-tidy does not support MSVC-style command lines (driver msvc, flag " + (flag or "none") + ")")
     rewritten = clang_syntax_argv(argv, src, identity)
     if rewritten.error != "":
         return rewritten

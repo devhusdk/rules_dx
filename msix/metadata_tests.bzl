@@ -1,7 +1,7 @@
 """MSIX pin, license and identity-rule coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "publisher_cn", "publisher_errors", "version_errors")
+load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "platform_errors", "publisher_cn", "publisher_errors", "version_errors")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load(":repos.bzl", "UNACCEPTED", "hub_build")
 
@@ -34,6 +34,12 @@ def _checks():
         expect_true("large version part", len(version_errors("1.2.3.65536")) == 1),
         expect_true("text version part", len(version_errors("1.2.x.0")) == 1),
         expect_true("empty version part", len(version_errors("1..3.0")) == 1),
+        expect_equal("no platforms", platform_errors([]), []),
+        expect_equal("arm64 platform", platform_errors(["arm64"]), []),
+        expect_equal("x86_64 platform", platform_errors(["x86_64"]), []),
+        expect_true("x86_32 platform", len(platform_errors(["x86_32"])) == 1),
+        expect_true("two platforms", len(platform_errors(["arm64", "x86_64"])) == 1),
+        expect_true("x64 platform", len(platform_errors(["x64"])) == 1),
         expect_equal("good identity", identity_errors("Contoso.App-2"), []),
         expect_true("short identity", len(identity_errors("ab")) == 1),
         expect_true("identity with space", len(identity_errors("Contoso App")) == 1),

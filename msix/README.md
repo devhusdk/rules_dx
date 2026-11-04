@@ -50,6 +50,7 @@ dx_msix(
     identity_name = "Example.App",
     logo = "logo.png",
     notice = ["NOTICE.txt"],
+    platforms = ["arm64"],
     publisher = "CN=Example",
     version = "1.2.3.0",
 )
@@ -62,6 +63,9 @@ msix_sign(
 
 Attributes:
 
+- `platforms`: `arm64` or `x86_64`. Builds the package and its `binary`, `libs` and `data` for
+  that architecture. Empty uses the current target platform. `target_compatible_with` only marks
+  compatibility. Do not set it with `select()`.
 - `binary`: the `.exe`. Its target-configuration bytes are packaged at the package root.
   Every `.dll` in its runfiles, such as its `dynamic_deps`, is packaged next to it.
 - `identity_name`: package identity name, 3 to 50 letters, digits, dots or dashes.
@@ -101,6 +105,8 @@ Every `.exe` and `.dll` must match the package arch, or the build fails with
 bazel build //pkg:app
 bazel build //pkg:app --platforms=@rules_dx//msix/platforms:windows_arm64
 ```
+
+The `platforms` attribute and `--platforms` do the same thing.
 
 The package digest changes between builds. The digests of the packaged files
 do not.

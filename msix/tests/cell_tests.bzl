@@ -75,6 +75,26 @@ def _action_test(platform):
         },
     )
 
+def _arch_impl(ctx):
+    env = analysistest.begin(ctx)
+    _, spec = _spec(env)
+    asserts.equals(env, ctx.attr.arch, spec["arch"])
+    return analysistest.end(env)
+
+def _arch_test(platform):
+    return analysistest.make(
+        _arch_impl,
+        attrs = {"arch": attr.string(mandatory = True)},
+        config_settings = {
+            "//command_line_option:extra_toolchains": [str(Label("//msix/tests:fake_toolchain"))],
+            "//command_line_option:platforms": str(Label(platform)),
+        },
+    )
+
+arch_on_x64_test = _arch_test("//msix/platforms:windows_x86_64")
+
+arch_on_arm64_test = _arch_test("//msix/platforms:windows_arm64")
+
 def _data_paths_impl(ctx):
     env = analysistest.begin(ctx)
     _, spec = _spec(env)

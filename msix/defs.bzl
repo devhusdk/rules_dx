@@ -39,6 +39,14 @@ def compatible_with(constraints):
     """Returns the target constraints of a dx_msix target, always including Windows."""
     return ["@platforms//os:windows"] + [c for c in constraints if c != "@platforms//os:windows"]
 
+PLATFORM_VALUES = {"arm64": "windows_arm64", "x86_64": "windows_x86_64"}
+
+def platform_errors(platforms):
+    """Returns why a platforms value is not empty or one known architecture."""
+    if len(platforms) == 0 or (len(platforms) == 1 and platforms[0] in PLATFORM_VALUES):
+        return []
+    return ["platforms takes one of " + ", ".join(sorted(PLATFORM_VALUES))]
+
 def identity_errors(name):
     """Returns why a package identity name is invalid."""
     if len(name) < 3 or len(name) > 50 or not only_chars(name, _LETTERS + _DIGITS + ".-"):
@@ -99,6 +107,9 @@ def _add(ctx, entries, seen, kind, dest, file):
     return True
 
 def _msix_impl(ctx):
+    errors = platform_errors(ctx.attr.platforms)
+    if errors:
+        fail("dx_msix " + str(ctx.label) + ": " + errors[0])
     cv = platform_common.ConstraintValueInfo
     arch = platform_arch(ctx.target_platform_has_constraint, ctx.attr._windows[cv], [
         ("arm64", ctx.attr._arm64[cv]),
@@ -212,6 +223,17 @@ def _msix_impl(ctx):
         ),
     ]
 
+def _platforms_transition_impl(settings, attr):
+    if platform_errors(attr.platforms) or not attr.platforms:
+        return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
+    return {"//command_line_option:platforms": [str(Label("//msix/platforms:" + PLATFORM_VALUES[attr.platforms[0]]))]}
+
+_platforms_transition = transition(
+    implementation = _platforms_transition_impl,
+    inputs = ["//command_line_option:platforms"],
+    outputs = ["//command_line_option:platforms"],
+)
+
 _dx_msix = rule(
     implementation = _msix_impl,
     doc = "Packages one Windows target binary and its files as an unsigned MSIX.",
@@ -228,6 +250,7 @@ _dx_msix = rule(
         "max_version_tested": attr.string(doc = "Highest Windows version tested.", default = MAX_VERSION_TESTED),
         "min_version": attr.string(doc = "Lowest Windows version supported.", default = MIN_VERSION),
         "notice": attr.label_list(doc = "License and NOTICE files placed under licenses/.", allow_files = True, mandatory = True, allow_empty = False),
+        "platforms": attr.string_list(doc = "One of arm64 or x86_64 to build the package for that architecture. Empty uses the current target platform. Do not set it with select()."),
         "publisher": attr.string(doc = "Publisher distinguished name. Must match the signing certificate subject.", mandatory = True),
         "publisher_display_name": attr.string(doc = "Publisher display name. Defaults to the publisher CN."),
         "version": attr.string(doc = "Four-part package version.", mandatory = True),
@@ -238,6 +261,7 @@ _dx_msix = rule(
         "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
     },
     toolchains = [config_common.toolchain_type(TOOLCHAIN_TYPE, mandatory = False)],
+    cfg = _platforms_transition,
 )
 
 def _windowsonly_chars(target_compatible_with):

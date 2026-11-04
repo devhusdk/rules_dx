@@ -2,7 +2,7 @@ dx - Run Bazel workflows
 
 dx <command> [flags] [scope ...] [-- bazel-options ...]
 
-Scopes: labels, patterns, files, or dirs. No scope means //... for most commands.
+Scopes: labels, patterns, files, or dirs. No scope means --affected for commands that take scopes.
 
 Exit codes: 0 success, 2 usage error, 1 failed check.
 

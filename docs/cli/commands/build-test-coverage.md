@@ -6,8 +6,8 @@ bazel run @rules_dx//:dx -- test //...
 bazel run @rules_dx//:dx -- coverage //...
 ```
 
-No scope means `//...`, except `dx test`, which runs `--affected`. Pass `//...` to test everything. Pass a label, pattern, file, or dir to narrow it.
-Use `--here` for the current dir tree, or `--affected` for the targets your
+No scope means `--affected`. Pass `//...` to run everything. Pass a label, pattern, file, or dir to narrow it.
+Use `--here` for the current dir tree. The affected targets are the ones your
 git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
 resolve to the owning targets. For `dx test` and `dx coverage`, a file runs
 the tests that depend on its owners. A test tagged `manual` runs only when
@@ -481,7 +481,7 @@ event with the same code. A repository that runs `--min-coverage` with an
 untested library therefore fails until that library has tests or a whole-file
 exclusion.
 
-On a whole-repository run (no scope, or `//...`) dx also checks the tracked
+On a whole-repository run (`//...`) dx also checks the tracked
 files. It lists them with `git ls-files`, keeps the covered-language files
 (not `.d.ts` declarations), and drops the `.dx` state directory, anything
 under `.bazelignore`, and files outside any Bazel package. A remaining file

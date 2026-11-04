@@ -3,16 +3,12 @@
 Most `dx` commands take Bazel scopes. This page lists what each command does
 with a scope.
 
-## No Scope Means `//...`
-
-- `dx build`, `dx coverage`, `dx lint`, `dx typecheck`, `dx format`,
-  `dx security`, `dx license`
-
 ## No Scope Means `--affected`
 
-- `dx test`, `dx check`: pass `//...` to run everything. `--here` still
-  selects the current directory tree. Outside Git, or without a default
-  branch, they run `//...` and say so.
+- `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
+  `dx format`, `dx check`, `dx security`, `dx license`: pass `//...` to run
+  everything. `--here` still selects the current directory tree. Outside Git,
+  or without a default branch, they run `//...` and say so.
 
 ## No Scope Means The Repository
 

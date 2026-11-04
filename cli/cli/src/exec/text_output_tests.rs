@@ -41,13 +41,13 @@ fn finished_code(out: &str) -> i64 {
 #[test]
 fn unicode_locations_count_scalar_values_in_text_and_json() {
     let source = "\u{fc}=\u{1f496}x\n";
-    let (code, _, err) = located(source, 7, 8).run(&["lint", "--output=text"]);
+    let (code, _, err) = located(source, 7, 8).run(&["lint", "//...", "--output=text"]);
     assert_eq!(code, 1, "{err}");
     assert!(
         err.contains("src/a.py:1:4: warning: unused [lint-tool/rule]") || err.is_empty(),
         "{err}"
     );
-    let (code, out, _) = located(source, 7, 8).run(&["lint", "--output=json"]);
+    let (code, out, _) = located(source, 7, 8).run(&["lint", "//...", "--output=json"]);
     assert_eq!(code, 1);
     let events = json_events(&out);
     let range = &events_of_kind(&events, "diagnostic")[0]["range"];
@@ -58,14 +58,14 @@ fn unicode_locations_count_scalar_values_in_text_and_json() {
 #[test]
 fn crlf_sources_locate_the_second_line() {
     let source = "a = 1\r\nb = 2\r\n";
-    let (code, out, err) = located(source, 7, 8).run(&["lint", "--output=text"]);
+    let (code, out, err) = located(source, 7, 8).run(&["lint", "//...", "--output=text"]);
     assert_eq!(code, 1, "{err}");
     let text = format!("{out}{err}");
     assert!(
         text.contains("src/a.py:2:1: warning: unused [lint-tool/rule]"),
         "{text}"
     );
-    let (_, json, _) = located(source, 7, 8).run(&["lint", "--output=json"]);
+    let (_, json, _) = located(source, 7, 8).run(&["lint", "//...", "--output=json"]);
     let events = json_events(&json);
     let range = &events_of_kind(&events, "diagnostic")[0]["range"];
     assert_eq!(range["start_line"], serde_json::json!(2));
@@ -84,7 +84,7 @@ fn unlocated_diagnostics_say_so_and_never_invent_a_position() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![diagnostic], vec![]),
     );
-    let (code, out, err) = harness.run(&["lint", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "//...", "--output=text"]);
     assert_eq!(code, 1, "{err}");
     let text = format!("{out}{err}");
     assert!(
@@ -102,17 +102,19 @@ fn managed_changes_print_the_exact_quoted_apply_command() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=text", "--", "--config=ci"]);
+    let (code, _, err) = harness.run(&["lint", "//...", "--output=text", "--", "--config=ci"]);
     assert_eq!(code, 1);
     assert!(
-        err.contains("1 file(s) need changes. Apply them with: dx lint --apply -- --config=ci\n"),
+        err.contains(
+            "1 file(s) need changes. Apply them with: dx lint --apply //... -- --config=ci\n"
+        ),
         "{err}"
     );
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
         b"x = 1\n"
     );
-    let (_, json_out, json_err) = harness.run(&["lint", "--output=json"]);
+    let (_, json_out, json_err) = harness.run(&["lint", "//...", "--output=json"]);
     assert!(!json_err.contains("Apply them"), "{json_err}");
     assert!(json_out.contains("changes_proposed"), "{json_out}");
 }
@@ -131,15 +133,15 @@ fn tool_failure_text_and_json_agree_on_cause_and_status() {
         );
         harness
     };
-    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
-    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    let (text_code, _, err) = build().run(&["lint", "//...", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "//...", "--output=json"]);
     assert_eq!(text_code, json_code);
     assert!(
         err.contains("dx: analysis_failed: lint analysis failed with Bazel exit 1"),
         "{err}"
     );
     assert!(
-        err.contains("next: fix the Bazel error above, then run: dx lint\n"),
+        err.contains("next: fix the Bazel error above, then run: dx lint //...\n"),
         "{err}"
     );
     assert!(!err.contains("--apply"), "{err}");
@@ -171,8 +173,8 @@ fn a_failed_clippy_build_lists_the_rustc_error_in_text_and_json() {
             ..harness
         }
     };
-    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
-    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    let (text_code, _, err) = build().run(&["lint", "//...", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "//...", "--output=json"]);
     assert_eq!(text_code, 1, "{err}");
     assert_eq!(json_code, 1, "{out}");
     assert!(
@@ -200,7 +202,7 @@ fn a_failed_clippy_build_lists_the_rustc_error_in_text_and_json() {
         "{err}"
     );
     assert!(
-        err.contains("next: fix the compile errors above, then run: dx lint\n"),
+        err.contains("next: fix the compile errors above, then run: dx lint //...\n"),
         "{err}"
     );
     assert!(!err.contains("analysis_failed"), "{err}");
@@ -230,8 +232,8 @@ fn disk_full_text_and_json_agree_on_host_cause_and_exit_36() {
         );
         harness
     };
-    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
-    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    let (text_code, _, err) = build().run(&["lint", "//...", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "//...", "--output=json"]);
     assert_eq!(text_code, 36);
     assert_eq!(json_code, 36);
     assert!(
@@ -295,15 +297,15 @@ fn nonconvergence_text_and_json_agree_and_suggest_a_check_rerun() {
         );
         harness
     };
-    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
-    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    let (text_code, _, err) = build().run(&["lint", "//...", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "//...", "--output=json"]);
     assert_eq!(text_code, json_code);
     assert!(
         err.contains("dx: not_converged: //test:corpus did not converge"),
         "{err}"
     );
     assert!(
-        err.contains("next: fix the conflicting tool configuration, then run: dx lint\n"),
+        err.contains("next: fix the conflicting tool configuration, then run: dx lint //...\n"),
         "{err}"
     );
     assert_eq!(
@@ -320,8 +322,8 @@ fn incomplete_collection_text_and_json_agree_on_the_cause() {
         harness.skip_bep = true;
         harness
     };
-    let (text_code, _, err) = build().run(&["lint", "--output=text"]);
-    let (json_code, out, _) = build().run(&["lint", "--output=json"]);
+    let (text_code, _, err) = build().run(&["lint", "//...", "--output=text"]);
+    let (json_code, out, _) = build().run(&["lint", "//...", "--output=json"]);
     assert_eq!(text_code, json_code);
     assert_ne!(text_code, 0);
     let error = first_error(&out);
@@ -354,7 +356,7 @@ fn report_write_failure_text_and_json_agree_and_name_the_next_step() {
 #[test]
 fn presentation_flags_change_neither_findings_nor_exit() {
     let render = |extra: &[&str]| {
-        let mut words = vec!["lint", "--output=text"];
+        let mut words = vec!["lint", "//...", "--output=text"];
         words.extend_from_slice(extra);
         let (code, out, err) = located("x = 1\n", 0, 1).run(&words);
         let finding: Vec<String> = format!("{out}{err}")
@@ -387,7 +389,7 @@ fn suggested_commands_never_name_removed_or_destructive_actions() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
-    let (_, out, err) = harness.run(&["lint", "--output=text"]);
+    let (_, out, err) = harness.run(&["lint", "//...", "--output=text"]);
     let text = format!("{out}{err}");
     for banned in [
         "dry-run",

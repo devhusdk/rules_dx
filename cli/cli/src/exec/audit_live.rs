@@ -284,7 +284,7 @@ pub(super) fn write_all_empty_advisories(harness: &Harness) {
 #[test]
 pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security"], &runner, &|harness| {
+    let (code, out, err) = run_with(&["security", "//..."], &runner, &|harness| {
         write_all_lock_families_with_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -317,7 +317,8 @@ fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32
 #[test]
 pub(super) fn audit_live_affected_handoff_with_no_owned_sets_runs_only_the_secrets_scan() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_affected_handoff("audit-live-affected-none", &["security"], &runner);
+    let (code, out, err) =
+        run_affected_handoff("audit-live-affected-none", &["security", "//..."], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("Running audit security for no dependency sets"),
@@ -333,7 +334,7 @@ pub(super) fn audit_live_affected_handoff_with_no_owned_sets_runs_only_the_secre
     let json_runner = AuditRunner::clean();
     let (json_code, json_out, json_err) = run_affected_handoff(
         "audit-live-affected-none-json",
-        &["security", "--output=json"],
+        &["security", "//...", "--output=json"],
         &json_runner,
     );
     assert_eq!(json_code, 0, "{json_out}{json_err}");
@@ -362,10 +363,13 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     assert!(err.contains("audit security"), "{err}");
     assert!(out.contains("[gitleaks/"), "{out}");
     let json_runner = AuditRunner::with_sarif(Some(1), &sarif);
-    let (json_code, json_out, json_err) =
-        run_with(&["security", "--output=json"], &json_runner, &|harness| {
+    let (json_code, json_out, json_err) = run_with(
+        &["security", "//...", "--output=json"],
+        &json_runner,
+        &|harness| {
             write_all_lock_families_with_advisories(harness);
-        });
+        },
+    );
     assert_eq!(json_code, 1, "{json_out}{json_err}");
     assert!(
         json_events(&json_out)

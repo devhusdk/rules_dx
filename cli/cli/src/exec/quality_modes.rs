@@ -11,7 +11,7 @@ fn check_mode_clean_run_succeeds() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, out, err) = harness.run(&["lint", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "//...", "--output=text"]);
     assert_eq!(code, 0);
     assert!(out.contains("Running lint analysis for"));
     assert_eq!(err, "");
@@ -749,7 +749,7 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, out, err) = harness.run(&["lint", "--output=text", "--", "--jobs=4"]);
+    let (code, out, err) = harness.run(&["lint", "//...", "--output=text", "--", "--jobs=4"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running lint analysis for //..."), "{out}");
     assert_eq!(err, "", "{err}");

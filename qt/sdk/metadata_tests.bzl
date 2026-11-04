@@ -1,6 +1,7 @@
 """Qt SDK pin, request and generated BUILD coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//qt/platforms:libc.bzl", "glibc_at_least")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
@@ -110,6 +111,11 @@ def _pin_checks():
         expect_equal(
             "linux identities follow the runtime",
             [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and IDENTITIES[cell] != struct(arch = CELLS[cell].runtime.arch, os = "linux", min_runtime = "glibc-" + CELLS[cell].runtime.glibc)],
+            [],
+        ),
+        expect_equal(
+            "linux glibc floors are llvm libc constraints",
+            [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and glibc_at_least(CELLS[cell].runtime.glibc)[:1] != [CELLS[cell].runtime.glibc]],
             [],
         ),
         expect_equal("macos cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "macos" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
 use url::Url;
@@ -59,19 +60,41 @@ fn host_spelling(file: &str) -> String {
     dx_path::native(Path::new(file)).replace('/', MAIN_SEPARATOR_STR)
 }
 
-fn match_spelling<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
-    if let Some(hit) = files.iter().find(|file| host_spelling(file) == path) {
-        return Some(*hit);
-    }
-    unique_suffix(files, &suffix_for(path))
+struct FileIndex<'a> {
+    spelled: Vec<(String, &'a str)>,
+    exact: HashMap<String, &'a str>,
 }
 
-fn unique_suffix<'a>(files: &[&'a str], suffix: &str) -> Option<&'a str> {
-    let mut hits = files
-        .iter()
-        .filter(|file| host_spelling(file).ends_with(suffix));
-    let hit = hits.next()?;
-    hits.next().is_none().then_some(*hit)
+impl<'a> FileIndex<'a> {
+    fn new(files: &[&'a str]) -> Self {
+        let spelled: Vec<(String, &'a str)> = files
+            .iter()
+            .map(|file| (host_spelling(file), *file))
+            .collect();
+        let mut exact = HashMap::with_capacity(spelled.len());
+        for (spelling, file) in &spelled {
+            exact.entry(spelling.clone()).or_insert(*file);
+        }
+        Self { spelled, exact }
+    }
+
+    fn exact(&self, spelling: &str) -> Option<&'a str> {
+        self.exact.get(spelling).copied()
+    }
+
+    fn matching(&self, path: &str) -> Option<&'a str> {
+        self.exact(path)
+            .or_else(|| self.unique_suffix(&suffix_for(path)))
+    }
+
+    fn unique_suffix(&self, suffix: &str) -> Option<&'a str> {
+        let mut hits = self
+            .spelled
+            .iter()
+            .filter(|(spelling, _)| spelling.ends_with(suffix));
+        let (_, hit) = hits.next()?;
+        hits.next().is_none().then_some(*hit)
+    }
 }
 
 fn parse_reference(tool: &'static str, base: &Url, text: &str) -> Result<Url, ParseError> {
@@ -139,7 +162,7 @@ pub(super) fn file_url_path(url: &Url) -> Result<String, dx_path::UriError> {
 
 fn resolve_file<'a>(
     tool: &'static str,
-    files: &[&'a str],
+    files: &FileIndex<'a>,
     uri: &str,
     base_id: Option<&str>,
     bases: &std::collections::BTreeMap<String, ArtifactLocation>,
@@ -172,11 +195,11 @@ fn resolve_file<'a>(
     let normalized = normalize_path(&spelled);
     if base_id.is_none() && !uri.starts_with('/') && !uri.starts_with("file:") {
         let relative = normalized.trim_start_matches(MAIN_SEPARATOR);
-        if let Some(hit) = files.iter().find(|file| host_spelling(file) == relative) {
+        if let Some(hit) = files.exact(relative) {
             return Ok(hit);
         }
     }
-    if let Some(hit) = match_spelling(files, &normalized) {
+    if let Some(hit) = files.matching(&normalized) {
         return Ok(hit);
     }
     Err(ParseError::UnknownFile {
@@ -332,7 +355,7 @@ const MAX_RELATED: usize = 32;
 fn related_locations(
     tool: &'static str,
     result: &serde_sarif::sarif::Result,
-    files: &[&str],
+    files: &FileIndex<'_>,
     bases: &std::collections::BTreeMap<String, ArtifactLocation>,
 ) -> Vec<Related> {
     let mut out = Vec::new();
@@ -373,6 +396,8 @@ pub(super) fn sarif_findings(
     files: &[&str],
     absent: ColumnEncoding,
 ) -> Result<Vec<FileFinding>, ParseError> {
+    let index = FileIndex::new(files);
+    let files = &index;
     let mut findings = Vec::new();
     for run in &log.runs {
         check_invocations(tool, run.invocations.as_deref().unwrap_or_default())?;
@@ -564,6 +589,42 @@ mod tests {
             .map(|found| found.finding.rule_id.as_str())
             .collect();
         assert_eq!(rules, vec!["R"]);
+    }
+
+    #[test]
+    fn file_index_resolves_exact_ambiguous_and_unique_suffix() {
+        let files = ["/s/a/X.java", "/s/b/X.java", "/s/b/Y.java"];
+        let index = FileIndex::new(&files);
+        let host = |path: &str| path.replace('/', MAIN_SEPARATOR_STR);
+        assert_eq!(index.matching(&host("/s/a/X.java")), Some("/s/a/X.java"));
+        assert_eq!(index.matching(&host("X.java")), None);
+        assert_eq!(index.matching(&host("b/Y.java")), Some("/s/b/Y.java"));
+        assert_eq!(index.matching(&host("c/Z.java")), None);
+    }
+
+    #[test]
+    fn sarif_resolves_many_files_and_results() {
+        let names: Vec<String> = (0..2000).map(|n| format!("/s/d{n}/F{n}.java")).collect();
+        let files: Vec<&str> = names.iter().map(String::as_str).collect();
+        let results: Vec<String> = (0..2000)
+            .map(|n| {
+                let uri = if n % 2 == 0 {
+                    format!("/s/d{n}/F{n}.java")
+                } else {
+                    format!("d{n}/F{n}.java")
+                };
+                format!(
+                    r#"{{"ruleId":"R{n}","message":{{"text":"m"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"{uri}"}},"region":{{"startLine":1}}}}}}]}}"#
+                )
+            })
+            .collect();
+        let out = log(&results.join(","));
+        let findings =
+            parse_sarif(TOOL, &out, Some(1), &files, ColumnEncoding::Utf16).expect("parsed");
+        assert_eq!(findings.len(), 2000);
+        for (n, found) in findings.iter().enumerate() {
+            assert_eq!(found.file, names[n]);
+        }
     }
 
     fn with_invocation(invocation: &str, results: &str) -> Vec<u8> {

@@ -261,7 +261,9 @@ pub fn local_override_changes(
     let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap_or_default();
     let overrides: Vec<String> = dx_adopt::local_path_overrides(&text)
         .into_iter()
-        .filter(|path| !Path::new(path).is_absolute() && path.split('/').any(|part| part == ".."))
+        .filter(|path| !Path::new(path).is_absolute())
+        .map(|path| path.replace('\\', "/"))
+        .filter(|path| path.split('/').any(|part| part == ".."))
         .collect();
     if overrides.is_empty() {
         return Ok(Vec::new());
@@ -3325,6 +3327,28 @@ mod tests {
         assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
         assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn override_changes_read_backslash_override_paths_like_slash_paths() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-backslash-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"..\\\\lib\")\n",
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"sub/\n".to_vec()),
+            FakeQuery::raw(b"lib/x.rs\0".to_vec()),
+            FakeQuery::raw(b"lib/new.rs\0".to_vec()),
+        ]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base-sha")
+                .expect("override changes");
+        assert_eq!(changes, strings(&["../lib/new.rs", "../lib/x.rs"]));
+        let calls = query.calls();
+        assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
     }
 
     #[test]

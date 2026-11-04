@@ -295,20 +295,10 @@ jobs:
               echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
             fi
           fi
-          bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" "$scope" -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
-          rc=${PIPESTATUS[0]}
+          bazel run "$@" @rules_dx//:dx -- coverage --output=json "${extra[@]}" "$scope" -- "$@" > "$reports/coverage.ndjson"
+          rc=$?
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
-      - name: Save the coverage event
-        if: ${{ always() && needs.validate.outputs.min_coverage != '' && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
-        env:
-          DX_EVENT_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/coverage"
-          mkdir -p "$reports"
-          bazel run "$@" @rules_dx//:dx -- coverage --output=json --min-coverage "$DX_EVENT_MIN_COVERAGE" //... -- "$@" > "$reports/coverage.ndjson" || true
       - name: Upload the coverage reports
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -322,14 +312,14 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
-          grep -E -e '^dx: (changed-line coverage |changed_line_)' "${RUNNER_TEMP}/dx_coverage.log" > "${RUNNER_TEMP}/dx_changed_lines.txt" 2>/dev/null || true
-          if grep -q -e '^dx: changed_line_coverage_' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
-            rc=1
-          elif grep -q -e '^dx: changed-line coverage ' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
-            rc=0
-          else
-            rc="not run"
-          fi
+          events="${RUNNER_TEMP}/dx-reports/coverage/coverage.ndjson"
+          result="$(jq -rR 'fromjson? | select(.event=="changed_line_coverage") | .result' "$events" 2>/dev/null | head -n 1 || true)"
+          jq -rR 'fromjson? | select(.event=="changed_line_coverage") | "changed-line coverage \(.result): \(.covered_lines)/\(.eligible_lines) lines, minimum \(.minimum)%, merge base \(.merge_base)", (.uncovered[]? | "changed_line_uncovered: \(.path):\(.line)")' "$events" > "${RUNNER_TEMP}/dx_changed_lines.txt" 2>/dev/null || true
+          case "$result" in
+            pass | not-applicable) rc=0 ;;
+            "") rc="not run" ;;
+            *) rc=1 ;;
+          esac
           echo "$rc" > "${RUNNER_TEMP}/dx_changed_lines.rc"
           {
             echo "## Changed-line coverage - ${PLATFORM}"
@@ -346,14 +336,18 @@ jobs:
           set -euo pipefail
           cell="coverage ${PLATFORM}"
           dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
-          dx_line="$(grep -E -e '^dx: (coverage .*lines.*meets minimum|coverage_below_minimum)' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
-          sources_lines="$(grep -E -e '^dx: (coverage sources |coverage_sources_incomplete: )' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 200 || true)"
+          events="${RUNNER_TEMP:-/tmp}/dx-reports/coverage/coverage.ndjson"
+          dx_line="$(jq -rR 'fromjson? | select(.event=="error" and .code=="coverage_below_minimum") | .message' "$events" 2>/dev/null | head -n 1 || true)"
+          if [[ -z "$dx_line" ]]; then
+            dx_line="$(jq -rR 'fromjson? | select(.event=="coverage" and .passed==true and .minimum!=null) | "coverage \(.covered_lines)/\(.eligible_lines) lines meets minimum \(.minimum)% in cell \(.cell)"' "$events" 2>/dev/null | head -n 1 || true)"
+          fi
+          sources_lines="$(jq -rR 'fromjson? | select(.code=="coverage_sources" or .code=="coverage_sources_incomplete") | "\(.code): \(.message)"' "$events" 2>/dev/null | head -n 200 || true)"
           if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
             changed_rc="not configured"
           else
             changed_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.rc 2>/dev/null || echo "not run")"
           fi
-          changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | tail -n 1 || true)"
+          changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | head -n 1 || true)"
           status="PASS"
           if [[ "$dx_rc" != "0" ]]; then status="FAIL"; fi
           if [[ "$changed_rc" =~ ^[0-9]+$ && "$changed_rc" != "0" ]]; then status="FAIL"; fi

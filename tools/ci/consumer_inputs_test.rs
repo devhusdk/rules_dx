@@ -248,6 +248,23 @@ fn coverage_step(prefix: &str) -> Value {
 }
 
 #[test]
+fn coverage_runs_once_and_keeps_no_text_log() {
+    let coverage = job(WORKFLOW, MATRIX_JOB);
+    let steps = coverage["steps"].as_array().expect("steps");
+    assert!(
+        !steps
+            .iter()
+            .any(|step| step["name"] == "Save the coverage event"),
+        "{WORKFLOW} must not run coverage a second time"
+    );
+    let text = read_runfiles(WORKFLOW);
+    assert!(
+        !text.contains("dx_coverage.log"),
+        "{WORKFLOW} must not read a text log"
+    );
+}
+
+#[test]
 fn the_coverage_comment_publishes_after_a_failed_gate() {
     let changed = coverage_step("Check changed-line coverage");
     let changed_run = text_at(&changed["run"], "changed-line step run");
@@ -256,8 +273,8 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
         "{WORKFLOW} changed-line step must record its exit code: {changed_run}"
     );
     assert!(
-        changed_run.contains("/dx_coverage.log"),
-        "{WORKFLOW} changed-line step must read the dx coverage log: {changed_run}"
+        changed_run.contains("coverage.ndjson") && changed_run.contains("changed_line_coverage"),
+        "{WORKFLOW} changed-line step must read the coverage events: {changed_run}"
     );
     let changed_if = text_at(&changed["if"], "changed-line step if");
     assert!(
@@ -269,6 +286,8 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     for needle in [
         "extra+=(--min-changed-line-coverage \"$DX_MIN_CHANGED_LINE_COVERAGE\")",
         "echo skipped > \"${RUNNER_TEMP}/dx_changed_lines.rc\"",
+        "coverage --output=json",
+        "> \"$reports/coverage.ndjson\"",
     ] {
         assert!(
             coverage_run.contains(needle),
@@ -284,6 +303,7 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
     let render_run = text_at(&render["run"], "render step run");
     for needle in [
         "dx_changed_lines.rc",
+        "coverage.ndjson",
         "if [[ \"$dx_rc\" != \"0\" ]]; then status=\"FAIL\"; fi",
         "if [[ \"$changed_rc\" =~ ^[0-9]+$ && \"$changed_rc\" != \"0\" ]]; then status=\"FAIL\"; fi",
         "Changed-line gate exit: $changed_rc",

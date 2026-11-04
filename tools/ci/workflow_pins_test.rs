@@ -404,8 +404,8 @@ fn every_reusable_workflow_matches_the_digest_recorded_for_the_starter_pin() {
 
 /// Returns each `//` label in `text` that names no repository, with its 1-based line.
 fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
-    let repo_char = |c: char| c.is_ascii_alphanumeric() || "_.~+-".contains(c);
-    let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,~/:-".contains(c);
+    let repo_char = |c: char| c.is_ascii_alphanumeric() || "_.+-".contains(c);
+    let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,/:-".contains(c);
     let mut found = Vec::new();
     for (index, line) in text.lines().enumerate() {
         for (start, _) in line.match_indices("//") {

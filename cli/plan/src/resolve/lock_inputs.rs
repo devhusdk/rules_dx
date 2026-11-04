@@ -824,7 +824,7 @@ pub(crate) fn pip_seeds<'a>(
                 let top = package.split('/').next().unwrap_or_default();
                 return forms.contains(&pip_name(top)) || forms.contains(top);
             }
-            let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+            let last = repo.rsplit('+').next().unwrap_or(repo);
             last.strip_prefix(&format!("{hub}_")).is_some_and(|rest| {
                 forms
                     .iter()
@@ -945,7 +945,7 @@ pub(crate) fn maven_seeds<'a>(
                 let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
                 return artifacts.contains_key(name);
             }
-            let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+            let last = repo.rsplit('+').next().unwrap_or(repo);
             last.strip_prefix(&format!("{hub}_"))
                 .is_some_and(|rest| artifacts.contains_key(rest))
         })
@@ -1220,7 +1220,7 @@ pub(crate) fn npm_seeds<'a>(
                 return packages_dirs.contains(package);
             }
             prefixes.iter().any(|prefix| {
-                let local = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+                let local = repo.rsplit('+').next().unwrap_or(repo);
                 local.starts_with(prefix.as_str())
             })
         })
@@ -1563,7 +1563,8 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             "@@rules_rust++crate+crates//:serde-1.0.2",
             "@@rules_rust++crate+crates//:serde_json",
             "@@rules_rust++crate+crates__serde-1.0.1//:serde",
-            "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
+            "@@rules_rust~~crate~crates__serde-1.0.3//:serde",
+            "@@rules_rust++crate+crates__serde-1.0.2//:serde",
             "@@rules_rust++crate+my_crates//:serde",
             "@@crates//:serde",
             "@@mycrates+//:serde",
@@ -1594,7 +1595,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 "@@rules_rust++crate+crates//:serde__bin",
                 "@@rules_rust++crate+crates//serde:serde",
                 "@@rules_rust++crate+crates__serde-1.0.1//:serde",
-                "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
+                "@@rules_rust++crate+crates__serde-1.0.2//:serde",
             ]
         );
     }

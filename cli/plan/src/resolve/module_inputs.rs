@@ -160,7 +160,7 @@ pub(crate) fn registry_url_parts(url: &str) -> Option<(&str, &str, &str, &str)> 
 /// The module that owns a `moduleExtensions` or `facts` key, from its `@@<m>+//` repo.
 fn extension_owner(key: &str) -> Option<&str> {
     let repo = key.strip_prefix("@@")?.split_once("//")?.0;
-    let name = repo.strip_suffix('+').or_else(|| repo.strip_suffix('~'))?;
+    let name = repo.strip_suffix('+')?;
     (!name.is_empty()).then_some(name)
 }
 
@@ -456,13 +456,11 @@ pub(crate) fn overrides_that_widen(files: &[ModuleFile]) -> Option<String> {
 }
 
 fn repo_of_module(repo: &str, module: &str) -> bool {
-    [format!("{module}+"), format!("{module}~")]
-        .iter()
-        .any(|prefix| repo.starts_with(prefix.as_str()))
+    repo.starts_with(&format!("{module}+"))
 }
 
 fn root_owned(repo: &str) -> bool {
-    repo.starts_with('+') || repo.starts_with("_main~")
+    repo.starts_with('+')
 }
 
 /// The graph labels in repositories of the modules, and in root-owned repositories.
@@ -572,14 +570,14 @@ mod tests {
             &format!(
                 "\"{R}/bazel_registry.json\": \"a\", \"{R}/modules/leaf/1.1/source.json\": \"c\", \"{R}/modules/dep/2.0/MODULE.bazel\": \"d\""
             ),
-            ", \"moduleExtensions\": {\"@@leaf+//:e.bzl%e\": {\"x\": 2}}, \"selectedYankedVersions\": {\"old@1.0\": \"why\"}, \"facts\": {\"@@tool~//:f.bzl%f\": 1}",
+            ", \"moduleExtensions\": {\"@@leaf+//:e.bzl%e\": {\"x\": 2}}, \"selectedYankedVersions\": {\"old@1.0\": \"why\"}, \"facts\": {\"@@tool+//:f.bzl%f\": 1}",
         );
         let changes = lock_changes(&base, &head).expect("narrows");
         assert_eq!(changes.modules, set(&["dep", "leaf"]));
         assert_eq!(
             changes.owned,
             vec![
-                ("@@tool~//:f.bzl%f".to_owned(), "tool".to_owned()),
+                ("@@tool+//:f.bzl%f".to_owned(), "tool".to_owned()),
                 ("@@leaf+//:e.bzl%e".to_owned(), "leaf".to_owned()),
                 ("old@1.0".to_owned(), "old".to_owned()),
             ]
@@ -598,6 +596,10 @@ mod tests {
             (
                 lock(&format!("\"{R}/bazel_registry.json\": \"a\""), ""),
                 "https://bcr.bazel.build/bazel_registry.json",
+            ),
+            (
+                lock("", ", \"moduleExtensions\": {\"@@tool~//:f.bzl%f\": 1}"),
+                "@@tool~//:f.bzl%f",
             ),
             (
                 lock(&format!("\"{R}/modules/x/1/extra\": \"a\""), ""),
@@ -774,7 +776,6 @@ mod tests {
             "@@foo_bar+//:c",
             "@@foo~//:d",
             "@@+ext+local//:e",
-            "@@_main~ext~old//:f",
             "@@other+//:g",
             "//main:h",
         ];
@@ -782,7 +783,6 @@ mod tests {
             module_seeds(labels.into_iter(), &set(&["foo"])),
             [
                 "@@+ext+local//:e",
-                "@@_main~ext~old//:f",
                 "@@foo++ext+hub//:b",
                 "@@foo+//:a",
                 "@@foo~//:d",

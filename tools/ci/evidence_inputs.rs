@@ -20,7 +20,7 @@ pub struct Validated {
 }
 
 fn name_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || "_.+@=,~/-".contains(c)
+    c.is_ascii_alphanumeric() || "_.+@=,/-".contains(c)
 }
 
 fn is_pattern(text: &str) -> bool {

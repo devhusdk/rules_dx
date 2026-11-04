@@ -240,7 +240,7 @@ fn unrecorded_extensions(modules: &[ModuleFile], lock: &serde_json::Value) -> Ve
                         key_repo == module
                             || key_repo
                                 .strip_prefix(module.as_str())
-                                .is_some_and(|rest| rest.starts_with(['+', '~']))
+                                .is_some_and(|rest| rest.starts_with('+'))
                     }
                 }
             });

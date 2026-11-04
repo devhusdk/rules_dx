@@ -715,7 +715,6 @@ fn module_change(
         .collect();
     for module in &modules {
         loads.insert(format!("{module}+"));
-        loads.insert(format!("{module}~"));
     }
     let path = if changed(ROOT_MODULE) {
         ROOT_MODULE

@@ -31,12 +31,17 @@ fn more_valid_patterns_are_accepted() {
     for scope in [
         "//",
         "//a/b-c_d.e:f+g",
-        "@@repo~1//x:y",
+        "@@repo+1//x:y",
         "@//:z",
         "  //...   //a  ",
     ] {
         assert!(lint_argv(scope, &[]).is_ok(), "{scope}");
     }
+}
+
+#[test]
+fn tilde_repo_names_are_rejected() {
+    assert!(lint_argv("@@repo~1//x:y", &[]).is_err());
 }
 
 #[test]

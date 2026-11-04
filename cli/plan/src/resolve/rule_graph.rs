@@ -324,10 +324,7 @@ impl RuleGraph {
 
 /// Whether canonical repo `repo` is apparent repo `name` or a generated form of it.
 pub(crate) fn apparent_repo_matches(repo: &str, name: &str) -> bool {
-    repo == name
-        || repo.strip_suffix('+') == Some(name)
-        || repo.ends_with(&format!("+{name}"))
-        || repo.ends_with(&format!("~{name}"))
+    repo == name || repo.strip_suffix('+') == Some(name) || repo.ends_with(&format!("+{name}"))
 }
 
 #[cfg(test)]
@@ -506,10 +503,10 @@ mod tests {
 
     #[test]
     fn apparent_repo_matches_name_forms_only() {
-        for repo in ["repo", "repo+", "x+repo", "x~repo", "y++x+repo"] {
+        for repo in ["repo", "repo+", "x+repo", "y++x+repo"] {
             assert!(apparent_repo_matches(repo, "repo"), "{repo}");
         }
-        for repo in ["myrepo+", "repo1", "x+repo+", "repo~x"] {
+        for repo in ["myrepo+", "repo1", "x+repo+", "repo~x", "x~repo"] {
             assert!(!apparent_repo_matches(repo, "repo"), "{repo}");
         }
     }

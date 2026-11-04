@@ -617,6 +617,14 @@ z = use_extension(\"//:local.bzl\", \"local\")\n";
         "@@rules_b+//p:b.bzl%b%isolated": general(serde_json::json!({})),
     });
     assert_eq!(unrecorded_of(module, recorded), vec!["//:local.bzl%local"]);
+    let tilde = serde_json::json!({
+        "@@rules_a~//:ext.bzl%ext": general(serde_json::json!({})),
+        "@@rules_b+//p:b.bzl%b": general(serde_json::json!({})),
+    });
+    assert_eq!(
+        unrecorded_of(module, tilde),
+        vec!["//:local.bzl%local", "@a//:ext.bzl%ext"]
+    );
     assert_eq!(
         unrecorded_of(module, serde_json::json!({})),
         vec![

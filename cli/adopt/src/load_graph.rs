@@ -315,7 +315,7 @@ fn label_repo(label: &str) -> Option<&str> {
 
 /// Whether `name` is the repository `repo`, or one it owns when `repo` is canonical.
 fn repo_matches(name: &str, repo: &str) -> bool {
-    name == repo || ((repo.ends_with('+') || repo.ends_with('~')) && name.starts_with(repo))
+    name == repo || (repo.ends_with('+') && name.starts_with(repo))
 }
 
 fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
@@ -869,6 +869,12 @@ pub fn repo_impact(
 mod tests {
     use super::*;
     use dx_test_scratch::write;
+
+    #[test]
+    fn repo_matches_only_plus_separated_names() {
+        assert!(repo_matches("foo+bar", "foo+"));
+        assert!(!repo_matches("foo~bar", "foo~"));
+    }
 
     fn impact(root: &Path, changed: &[&str], aspects: &[&str]) -> Vec<(String, BzlImpact)> {
         let changed: Vec<String> = changed.iter().map(ToString::to_string).collect();

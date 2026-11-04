@@ -3,7 +3,7 @@
 pub const SCOPE_ENV: &str = "DX_DOCS_SCOPE";
 
 fn is_package_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || "_.+@=,~/-".contains(c)
+    c.is_ascii_alphanumeric() || "_.+@=,/-".contains(c)
 }
 
 fn is_pattern(pattern: &str) -> bool {
@@ -11,7 +11,7 @@ fn is_pattern(pattern: &str) -> bool {
     if let Some(after) = rest.strip_prefix('@') {
         let after = after.strip_prefix('@').unwrap_or(after);
         let end = after
-            .find(|c: char| !(c.is_ascii_alphanumeric() || "_.~+-".contains(c)))
+            .find(|c: char| !(c.is_ascii_alphanumeric() || "_.+-".contains(c)))
             .unwrap_or(after.len());
         rest = &after[end..];
     }

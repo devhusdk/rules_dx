@@ -33,6 +33,11 @@ Scopes: none.
    `rules_dx_version` of an existing `.github/workflows/ci.yml`. It never
    creates either file.
 7. The dx block of an existing `AGENTS.md`. It never creates the file.
+8. The `third_party/rules_dx/` overrides, only when every generated file
+   already exists.
+9. Stale imported preset layers under `.dx/`, without touching `.bazelrc`.
+10. Missing dx entries in existing hooks files, and the `AGENTS.md` import
+    in an existing `CLAUDE.md`. It never creates either file.
 
 Steps 1 and 2 are skipped when `rules_dx` is already at `--to`.
 
@@ -70,8 +75,8 @@ recovery:
 dx: upgrade_failed: pinned <to> but <step> not refreshed: <error>; recovery: rerun `dx upgrade --to <to> --apply` (idempotent)
 ```
 
-After a move, run `dx init` and `dx env --apply` so the generated
-`third_party/rules_dx/` overrides match the new pin.
+After a move, run `dx init` and `dx env --apply` when an override file is
+missing, so the generated `third_party/rules_dx/` overrides match the new pin.
 
 With `--output=json`, dx streams `command_started`, one `status` event named
 `pin` (status `ok`, detail the pin, hint `dx status`), then

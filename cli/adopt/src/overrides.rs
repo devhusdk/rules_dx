@@ -447,9 +447,56 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
     Ok(entries)
 }
 
+/// Rewrites stale override files, only when every generated file already exists.
+///
+/// A partial set is left alone: a new `BUILD.bazel` could point at a patch that is absent.
+pub fn refresh_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let files = render_overrides();
+    for (rel, _) in &files {
+        let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
+        if !dest.is_file() {
+            return Ok(Vec::new());
+        }
+    }
+    let mut wrote = Vec::new();
+    for (rel, content) in files {
+        if write_file(root, &rel, &content)? {
+            wrote.push(rel);
+        }
+    }
+    Ok(wrote)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refresh_rewrites_a_stale_file_only_when_the_set_is_whole() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-refresh-");
+        let root = scratch.path();
+        assert!(refresh_overrides(root).expect("empty").is_empty());
+        for (rel, content) in render_overrides() {
+            let dest = root.join(&rel);
+            std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
+            std::fs::write(dest, content).expect("write");
+        }
+        let files = render_overrides();
+        let (first, second) = (&files[0].0, &files[1].0);
+        std::fs::write(root.join(first), "old\n").expect("stale");
+        assert_eq!(
+            refresh_overrides(root).expect("refresh"),
+            vec![first.clone()]
+        );
+        std::fs::write(root.join(first), "old\n").expect("stale");
+        std::fs::remove_file(root.join(second)).expect("rm");
+        assert!(refresh_overrides(root).expect("partial").is_empty());
+        assert_eq!(
+            std::fs::read_to_string(root.join(first)).expect("read"),
+            "old\n"
+        );
+        assert!(!root.join(second).exists());
+    }
     use dx_module_bazel::Value;
 
     #[test]

@@ -407,6 +407,50 @@ mod tests {
         assert!(!root.join("AGENTS.md").exists());
         assert!(!root.join(".vscode").exists());
         assert!(!root.join(".github").exists());
+        assert!(!root.join("CLAUDE.md").exists());
+        assert!(!root.join("third_party").exists());
+        assert!(!root.join(".dx/bazelrc").exists());
+    }
+
+    #[test]
+    fn upgrade_refreshes_stale_overrides_layers_hooks_and_claude_md() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-kinds-", OLD);
+        let plan = init_files::plan(&root, "refresh", false).expect("plan");
+        let mut applied = dx_adopt::Applied::default();
+        init_files::apply(
+            &root,
+            "",
+            &plan,
+            init_files::Mode::Create,
+            &mut applied,
+            &mut Vec::new(),
+        )
+        .expect("init");
+        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
+        dx_adopt::write_version_pin(&root, OLD).expect("pin");
+        legacy_launcher(&root, OLD);
+        let layer = dx_adopt::preset_files()[2].0.clone();
+        let stale = [
+            ("third_party/rules_dx/BUILD.bazel", "stale\n".to_owned()),
+            (
+                layer.as_str(),
+                format!("{}old\n", dx_adopt::preset_files()[2].1),
+            ),
+            (dx_worktree::setup::HOOK_FILES[0].path, "{}".to_owned()),
+            ("CLAUDE.md", "# Mine\n".to_owned()),
+        ];
+        for (path, text) in &stale {
+            std::fs::write(root.join(path), text).expect("stale");
+        }
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        for (path, text) in &stale {
+            assert_ne!(
+                &std::fs::read_to_string(root.join(path)).expect("read"),
+                text
+            );
+            assert!(out.contains(&format!("wrote {path}\n")), "{path}: {out}");
+        }
     }
 
     #[test]
@@ -450,12 +494,16 @@ mod tests {
             "CLAUDE.md".to_owned(),
             dx_worktree::setup::HOOK_FILES[0].path.to_owned(),
             dx_adopt::render_overrides().remove(0).0,
+            dx_adopt::preset_files()[3].0.clone(),
         ];
         for path in &gone {
             std::fs::remove_file(root.join(path)).expect("remove");
         }
+        let build = root.join("third_party/rules_dx/BUILD.bazel");
+        std::fs::write(&build, "stale\n").expect("stale build");
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(std::fs::read_to_string(&build).expect("read"), "stale\n");
         let known: Vec<&str> = plan.iter().map(|file| file.path.as_str()).collect();
         for line in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
             assert!(known.contains(&line), "{line} is not in the plan");

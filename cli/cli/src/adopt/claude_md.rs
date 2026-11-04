@@ -132,9 +132,28 @@ pub(crate) fn write(workspace: &Path) -> io::Result<bool> {
     Ok(true)
 }
 
+/// Like [`write`], but leaves an absent file absent.
+pub(crate) fn refresh(workspace: &Path) -> io::Result<bool> {
+    if std::fs::symlink_metadata(workspace.join(FILE)).is_err() {
+        return Ok(false);
+    }
+    write(workspace)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refresh_leaves_an_absent_file_and_imports_into_an_existing_one() {
+        let dir = scratch("dx-claude-md-refresh-");
+        assert!(!refresh(dir.path()).expect("absent"));
+        assert!(!dir.path().join(FILE).exists());
+        std::fs::write(dir.path().join(FILE), "# Mine\n").expect("write");
+        assert!(refresh(dir.path()).expect("existing"));
+        let text = std::fs::read_to_string(dir.path().join(FILE)).expect("read");
+        assert!(text.contains(IMPORT), "{text}");
+    }
 
     use dx_test_scratch::scratch;
 

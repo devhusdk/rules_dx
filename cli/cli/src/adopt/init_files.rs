@@ -281,11 +281,31 @@ fn refresh(
             .map_err(|error| format!("editor and CI files not refreshed: {error}"))?;
         record(applied, own.wrote);
     }
+    if has(|kind| *kind == Kind::Override) {
+        let wrote = dx_adopt::refresh_overrides(root)
+            .map_err(|error| format!("overrides not refreshed: {error}"))?;
+        record(applied, wrote);
+    }
+    if has(|kind| *kind == Kind::Preset) {
+        let wrote = dx_adopt::refresh_preset(root)
+            .map_err(|error| format!("preset layers not refreshed: {error}"))?;
+        record(applied, wrote);
+    }
+    if has(|kind| *kind == Kind::Hooks) {
+        let outcome =
+            setup::refresh(root).map_err(|error| format!("hooks not refreshed: {error}"))?;
+        record(applied, outcome.wrote);
+    }
     if has(|kind| *kind == Kind::AgentsBlock)
         && agents::write(root, false)
             .map_err(|error| format!("AGENTS.md not refreshed: {error}"))?
     {
         record(applied, vec![agents::FILE.to_owned()]);
+    }
+    if has(|kind| *kind == Kind::ClaudeImport)
+        && claude_md::refresh(root).map_err(|error| format!("CLAUDE.md not refreshed: {error}"))?
+    {
+        record(applied, vec![claude_md::FILE.to_owned()]);
     }
     Ok(())
 }

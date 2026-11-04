@@ -360,13 +360,27 @@ pub fn write_preset(
 ///
 /// Returns the written paths.
 pub fn sync_preset(root: &Path) -> Result<Vec<String>, AdoptError> {
+    sync_layers(root, true)
+}
+
+/// Rewrites stale imported layers; a missing layer stays missing.
+pub fn refresh_preset(root: &Path) -> Result<Vec<String>, AdoptError> {
+    sync_layers(root, false)
+}
+
+fn sync_layers(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptError> {
     let state = inspect_preset(root)?;
     if !state.applicable {
         return Ok(Vec::new());
     }
     let mut wrote = Vec::new();
     for (layer, import, file) in &state.layers {
-        if *import == ImportState::Active && matches!(file, LayerFile::Missing | LayerFile::Stale) {
+        let wanted = match file {
+            LayerFile::Stale => true,
+            LayerFile::Missing => create_missing,
+            _ => false,
+        };
+        if *import == ImportState::Active && wanted {
             let rel = layer_rel(*layer);
             write(root, &rel, &render_layer(*layer))?;
             wrote.push(rel);
@@ -533,6 +547,22 @@ mod tests {
         let drift = preset_drift(root);
         assert!(drift.other[0].contains("resources.bazelrc"), "{drift:?}");
         assert!(apply(root).0.is_empty());
+    }
+
+    #[test]
+    fn refresh_rewrites_stale_layers_and_never_recreates_one() {
+        let scratch = dx_test_scratch::scratch("dx-preset-refresh-");
+        let root = scratch.path();
+        apply(root);
+        let stale = root.join(layer_rel(Layer::Resources));
+        let gone = root.join(layer_rel(Layer::Correctness));
+        std::fs::write(&stale, format!("{}old\n", dx_preset::HEADER_MARKER)).expect("stale");
+        std::fs::remove_file(&gone).expect("rm");
+        assert_eq!(
+            refresh_preset(root).expect("refresh"),
+            vec![layer_rel(Layer::Resources)]
+        );
+        assert!(!gone.exists());
     }
 
     #[test]

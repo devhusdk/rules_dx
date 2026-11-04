@@ -194,12 +194,17 @@ pub struct Outcome {
 
 /// Writes each absent hooks file and adds missing entries to an existing one in place.
 pub fn apply(workspace: &Path) -> io::Result<Outcome> {
-    sync(workspace, true)
+    sync(workspace, true, true)
+}
+
+/// Merges missing entries into existing hooks files; absent files stay absent.
+pub fn refresh(workspace: &Path) -> io::Result<Outcome> {
+    sync(workspace, true, false)
 }
 
 /// What [`apply`] would do, without writing; fails where it would fail to read.
 pub fn inspect(workspace: &Path) -> io::Result<Outcome> {
-    sync(workspace, false)
+    sync(workspace, false, true)
 }
 
 fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
@@ -222,7 +227,7 @@ fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
     Ok(text)
 }
 
-fn sync(workspace: &Path, write: bool) -> io::Result<Outcome> {
+fn sync(workspace: &Path, write: bool, create: bool) -> io::Result<Outcome> {
     let mut outcome = Outcome {
         wrote: Vec::new(),
         missing: Vec::new(),
@@ -249,7 +254,7 @@ fn sync(workspace: &Path, write: bool) -> io::Result<Outcome> {
             if !missing.is_empty() {
                 outcome.missing.push((file.path, missing));
             }
-        } else {
+        } else if create {
             if write {
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent)?;
@@ -265,6 +270,19 @@ fn sync(workspace: &Path, write: bool) -> io::Result<Outcome> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refresh_creates_nothing_and_merges_into_an_existing_file() {
+        let dir = scratch("dx-worktree-setup-refresh-");
+        let path = HOOK_FILES[0].path;
+        std::fs::create_dir_all(dir.path().join(path).parent().expect("parent")).expect("dir");
+        std::fs::write(dir.path().join(path), "{}").expect("write");
+        let outcome = refresh(dir.path()).expect("refresh");
+        assert_eq!(outcome.wrote, vec![path.to_owned()]);
+        for file in &HOOK_FILES[1..] {
+            assert!(!dir.path().join(file.path).exists(), "{}", file.path);
+        }
+    }
 
     use dx_test_scratch::scratch;
 

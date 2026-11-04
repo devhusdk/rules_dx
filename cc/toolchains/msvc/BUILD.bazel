@@ -1,6 +1,6 @@
 load("//cc/toolchains/msvc:tests.bzl", "msvc_toolchain_tests")
-load(":repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests")
 
 package(default_visibility = ["//cc/toolchains:__subpackages__"])
 
@@ -22,5 +22,6 @@ real_source_target(
         "tests.bzl",
         "toolchain.bzl",
         "unavailable.bzl",
-    ],    tags = ["corpus"],
+    ],
+    tags = ["corpus"],
 )

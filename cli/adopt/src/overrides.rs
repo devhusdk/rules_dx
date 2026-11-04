@@ -129,6 +129,15 @@ pub const OVERRIDES: &[Override] = &[
             content: include_str!("../../../patches/fmt/cstdlib.patch"),
         }],
     },
+    Override {
+        module: "windows_support",
+        version: "0.4.1",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "host_tools.patch",
+            content: include_str!("../../../patches/windows_support/host_tools.patch"),
+        }],
+    },
 ];
 
 /// The consumer-side file name of one patch: `<module>.<file>`.

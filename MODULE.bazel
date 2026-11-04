@@ -72,8 +72,14 @@ single_version_override(
     version = "0.4.0-beta1",
 )
 
-# floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link
+# floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link; patched for host_tools (#4835)
 bazel_dep(name = "windows_support", version = "0.4.1")
+single_version_override(
+    module_name = "windows_support",
+    patch_strip = 1,
+    patches = ["//patches/windows_support:host_tools.patch"],
+    version = "0.4.1",
+)
 
 bazel_dep(name = "toolchains_llvm", version = "1.12.0", dev_dependency = True)
 bazel_dep(name = "googletest", version = "1.18.0", dev_dependency = True)
@@ -1852,8 +1858,14 @@ msix_dev.license(accept = ["windows-sdk-buildtools"])
 windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")
 use_repo(windows_msvc_runtime, "msvc_runtime")
 
+windows_msvc_runtime_dev = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime", dev_dependency = True)
+windows_msvc_runtime_dev.host_tools(hosts = ["x64"])
+
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
+
+windows_sdk_dev = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk", dev_dependency = True)
+windows_sdk_dev.host_tools(hosts = ["x64"])
 
 msvc = use_extension("//cc/toolchains/msvc:repos.bzl", "msvc")
 use_repo(msvc, "dx_msvc")

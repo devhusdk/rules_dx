@@ -27,6 +27,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("gcc_toolchain", "0.13.0"),
     ("llvm", "0.8.25"),
     ("rules_cuda", "0.4.0-beta1"),
+    ("windows_support", "0.4.1"),
     ("rules_python", "1.9.0"),
     ("rules_go", "0.64.2"),
     ("gazelle", "0.54.0"),

@@ -1,7 +1,7 @@
 """cl.exe C++ toolchain over a fixed MSVC and Windows SDK layout."""
 
-load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_cc//cc/private/toolchain:windows_cc_toolchain_config.bzl", "cc_toolchain_config")
+load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load(":layout.bzl", "msvc_layout")
 
 # Qt 6 qcompilerdetection.h requires a conforming __cplusplus and /permissive-.

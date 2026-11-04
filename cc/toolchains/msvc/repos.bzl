@@ -24,6 +24,7 @@ def layout_links(msvc_version, sdk_version):
     return [
         struct(dst = "VC/Tools/MSVC/" + msvc_version, repo = "msvc_runtime", src = "sysroot/Contents/VC/Tools/MSVC/" + msvc_version),
         struct(dst = sdk + "Include/" + sdk_version, repo = "windows_sdk", src = "sysroot/base/c/Include/" + sdk_version),
+        struct(dst = sdk + "bin/" + sdk_version + "/x64", repo = "windows_sdk", src = "sysroot/base/c/bin/" + sdk_version + "/x64"),
         struct(dst = sdk + "Lib/" + sdk_version + "/ucrt/x64", repo = "windows_sdk", src = "sysroot/x64/c/ucrt/x64"),
         struct(dst = sdk + "Lib/" + sdk_version + "/um/x64", repo = "windows_sdk", src = "sysroot/x64/c/um/x64"),
     ]
@@ -56,7 +57,6 @@ def _layout_repo_impl(rctx):
     for link in layout_links(msvc_version, sdk_version):
         rctx.symlink(roots[link.repo].get_child(link.src), link.dst)
     layout = msvc_layout(msvc_version, sdk_version)
-    rctx.file(layout.bin_dirs[1] + "/.keep", "")
     missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml64] if not rctx.path(p).exists]
     if missing:
         fail(missing_error(missing))

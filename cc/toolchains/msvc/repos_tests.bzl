@@ -9,19 +9,21 @@ load(":unavailable.bzl", "msvc_unavailable")
 def _checks():
     links = layout_links("14.44.35207", "10.0.26100.0")
     layout = msvc_layout("14.44.35207", "10.0.26100.0")
-    layout_paths = [layout.cl, layout.link, layout.lib, layout.ml64] + layout.include_dirs + layout.lib_dirs
+    layout_paths = [layout.cl, layout.link, layout.lib, layout.ml64] + layout.include_dirs + layout.lib_dirs + layout.bin_dirs
     sdk = "Windows Kits/10/"
     return [
         expect_equal("hub name", HUB_NAME, "dx_msvc"),
         expect_equal("link destinations", [l.dst for l in links], [
             "VC/Tools/MSVC/14.44.35207",
             sdk + "Include/10.0.26100.0",
+            sdk + "bin/10.0.26100.0/x64",
             sdk + "Lib/10.0.26100.0/ucrt/x64",
             sdk + "Lib/10.0.26100.0/um/x64",
         ]),
         expect_equal("link sources", [(l.repo, l.src) for l in links], [
             ("msvc_runtime", "sysroot/Contents/VC/Tools/MSVC/14.44.35207"),
             ("windows_sdk", "sysroot/base/c/Include/10.0.26100.0"),
+            ("windows_sdk", "sysroot/base/c/bin/10.0.26100.0/x64"),
             ("windows_sdk", "sysroot/x64/c/ucrt/x64"),
             ("windows_sdk", "sysroot/x64/c/um/x64"),
         ]),

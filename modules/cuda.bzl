@@ -1,8 +1,9 @@
 """Pinned CUDA Toolkit components and the archs the pinned nvcc accepts."""
 
-load(":versions.bzl", _CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
+load(":versions.bzl", _CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 
 CUDA_VERSION = _CUDA_VERSION
+CUDA_REDIST_VERSION = _CUDA_REDIST_VERSION
 RULES_CUDA_VERSION = _RULES_CUDA_VERSION
 TOOLCHAINS_LLVM_VERSION = _TOOLCHAINS_LLVM_VERSION
 CUDA_HOST_LLVM_VERSION = _CUDA_HOST_LLVM_VERSION
@@ -14,6 +15,10 @@ CUDA_HOST_LLVM_VERSION = _CUDA_HOST_LLVM_VERSION
 CUDA_MAX_HOST_CLANG_MAJOR = 22
 
 _REDIST = "https://developer.download.nvidia.com/compute/cuda/redist/"
+
+# The manifest rules_cuda's cuda.redist_json reads; every pin below must appear in it.
+CUDA_REDIST_URL = _REDIST + "redistrib_" + CUDA_REDIST_VERSION + ".json"
+CUDA_REDIST_SHA256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a"
 
 _LINUX_X86_64_COMPONENTS = {
     "cccl": struct(
@@ -171,18 +176,21 @@ _LINUX_ARM64_COMPONENTS = {
 # A cell with a blocker is pinned but not qualified.
 CUDA_CELLS = {
     "linux_x86_64": struct(
+        rules_cuda_platform = "linux-x86_64",
         blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         components = _LINUX_X86_64_COMPONENTS,
     ),
     "windows_x86_64": struct(
+        rules_cuda_platform = "windows-x86_64",
         blocker = "nvcc_msvc needs the MSVC cl.exe toolchain (#4815) and a Windows run (#4704)",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         components = _WINDOWS_X86_64_COMPONENTS,
     ),
     "linux_arm64": struct(
+        rules_cuda_platform = "linux-sbsa",
         blocker = "needs per-platform rules_cuda wiring (#5975) and an arm64 run (#3315)",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],

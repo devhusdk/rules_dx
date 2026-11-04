@@ -1392,6 +1392,15 @@ use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm6
 nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
 
+_http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+_http_file(
+    name = "cuda_redistrib_json",
+    dev_dependency = True,
+    sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
+    urls = ["https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.2.json"],
+)
+
 _http_archive(
     name = "dx_statix_src",
     build_file = "//quality/tools/rust:statix.BUILD.bazel",

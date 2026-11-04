@@ -3,7 +3,7 @@
 load("//capnproto:pins.bzl", "CAPNP_JAVA_SHA256", "CAPNP_JAVA_STRIP_PREFIX", "CAPNP_JAVA_URL", "CAPNP_RUST_SHA256", "CAPNP_RUST_STRIP_PREFIX", "CAPNP_RUST_URL", "CAPNP_SHA256", "CAPNP_STRIP_PREFIX", "CAPNP_URL")
 load("//flatbuffers:pins.bzl", "BITFLAGS_SHA256", "BITFLAGS_STRIP_PREFIX", "BITFLAGS_URL", "FLATBUFFERS_JAVA_STRIP_PREFIX", "FLATBUFFERS_RUST_STRIP_PREFIX", "FLATBUFFERS_SHA256", "FLATBUFFERS_STRIP_PREFIX", "FLATBUFFERS_URL")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
+load(":cuda.bzl", _CUDA_CELLS = "CUDA_CELLS", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_REDIST_SHA256 = "CUDA_REDIST_SHA256", _CUDA_REDIST_URL = "CUDA_REDIST_URL", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
 load(":java-scala-kotlin.bzl", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _MOD_SCALA_VERSION = "SCALA_VERSION")
 load(":js.bzl", _MOD_TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _NPM_DEV_HUBS = "NPM_DEV_HUBS", _NPM_HUBS = "NPM_HUBS", _NPM_LOCKS = "NPM_LOCKS")
@@ -36,6 +36,17 @@ def versions_contract_tests(name):
             "version = \"" + pin.version + "\"",
         ])
         for pin in _CUDA_COMPONENTS.values()
+    ]
+    redist_prefix = "https://developer.download.nvidia.com/compute/cuda/redist/"
+    cuda_manifest_blocks = [
+        "            \"relative_path\": \"" + pin.url.removeprefix(redist_prefix) + "\",\n            \"sha256\": \"" + pin.sha256 + "\","
+        for cell in _CUDA_CELLS.values()
+        for pin in cell.components.values()
+    ]
+    cuda_pin_urls_match_platform = [
+        ("/" + cell.rules_cuda_platform + "/") in pin.url
+        for cell in _CUDA_CELLS.values()
+        for pin in cell.components.values()
     ]
     gem_pins = [_GEM_CHECKSUMS[gem] for gem in _GEM_CHECKSUMS]
     portable_ruby_pins = [_PORTABLE_RUBY_CHECKSUMS[name] for name in _PORTABLE_RUBY_CHECKSUMS]
@@ -94,10 +105,16 @@ def versions_contract_tests(name):
             expect_equal("cuda host llvm module follows canonical", _MOD_CUDA_HOST_LLVM_VERSION, _CUDA_HOST_LLVM_VERSION),
             expect_equal("cuda host llvm major is accepted by the pinned nvcc", int(_CUDA_HOST_LLVM_VERSION.split(".")[0]) <= _CUDA_MAX_HOST_CLANG_MAJOR, True),
             expect_equal("cuda host sysroot checksums are sha256", [len(s.sha256) for s in _CUDA_HOST_SYSROOT.values()], [64] * len(_CUDA_HOST_SYSROOT)),
+            expect_equal("cuda redist version extends the toolkit version", _CUDA_REDIST_VERSION.startswith(_CUDA_VERSION + "."), True),
+            expect_equal("cuda pin urls sit under their cell platform", cuda_pin_urls_match_platform, [True] * len(cuda_pin_urls_match_platform)),
+            expect_equal("cuda redist sha is sha256", len(_CUDA_REDIST_SHA256), 64),
             expect_equal("toolchains_llvm module follows canonical", _MOD_TOOLCHAINS_LLVM_VERSION, _TOOLCHAINS_LLVM_VERSION),
         ],
         file_blocks = {
-            "//:MODULE.bazel": [manifests_block] + source_archive_pins + cuda_sysroot_blocks,
+            "@cuda_redistrib_json//file": cuda_manifest_blocks,
+            "//:MODULE.bazel": [manifests_block] + source_archive_pins + cuda_sysroot_blocks + [
+                "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
+            ],
             "//:cuda/README.md": cuda_sysroot_blocks,
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_sysroot_blocks,
             "//tools/testing/starters/fixtures:cuda/MODULE.bazel.fixture": cuda_sysroot_blocks,

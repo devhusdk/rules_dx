@@ -154,3 +154,20 @@ fn the_network_job_selects_opted_in_consumers() {
         "{CI} job network must restore the repository cache"
     );
 }
+
+#[test]
+fn the_gate_job_raises_the_bazel_heap_before_its_first_bazel_call() {
+    let all = scripts(CI, "gate");
+    let heap = all
+        .find("MaxRAMPercentage=50")
+        .unwrap_or_else(|| panic!("{CI} job gate must raise the Bazel heap: {all}"));
+    assert!(
+        all[heap..].contains(">> user.bazelrc"),
+        "{CI} job gate must write the heap flag to user.bazelrc"
+    );
+    let first_bazel = all.find("bazel ").expect("gate calls bazel");
+    assert!(
+        heap < first_bazel,
+        "{CI} job gate must raise the heap before it calls bazel: {all}"
+    );
+}

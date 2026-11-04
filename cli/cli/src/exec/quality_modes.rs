@@ -817,6 +817,8 @@ fn a_bazel_host_failure_ends_the_phase_as_host() {
     disk_full.free_disk_bytes = Some(1 << 20);
     let mut crashed = Harness::new("phase-kind-server-crashed");
     crashed.bazel_code = 37;
+    let mut out_of_memory = Harness::new("phase-kind-out-of-memory");
+    out_of_memory.bazel_code = 33;
     let mut launch_failed = Harness::new("phase-kind-launch-failed");
     launch_failed.io_error = true;
     let mut signalled = Harness::new("phase-kind-signalled");
@@ -824,6 +826,7 @@ fn a_bazel_host_failure_ends_the_phase_as_host() {
     for (mut harness, code) in [
         (disk_full, 36),
         (crashed, 1),
+        (out_of_memory, 1),
         (launch_failed, 1),
         (signalled, 1),
     ] {

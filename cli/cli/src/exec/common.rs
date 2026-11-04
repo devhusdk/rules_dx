@@ -16,7 +16,7 @@ use std::path::Path;
 pub(crate) use super::failure::{
     emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
     CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
-    CODE_SERVER_CRASHED, CODE_TESTS_FAILED,
+    CODE_SERVER_CRASHED, CODE_SERVER_OUT_OF_MEMORY, CODE_TESTS_FAILED,
 };
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
@@ -157,7 +157,9 @@ pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Resu
 
 /// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
 pub(crate) fn bazel_failure_code(bazel_code: i32) -> &'static str {
-    if bazel_code == crate::bazel_restart::RESTART_EXIT {
+    if bazel_code == BAZEL_OUT_OF_MEMORY {
+        CODE_SERVER_OUT_OF_MEMORY
+    } else if bazel_code == crate::bazel_restart::RESTART_EXIT {
         CODE_SERVER_CRASHED
     } else {
         CODE_BAZEL_FAILED
@@ -278,12 +280,19 @@ pub(crate) const BAZEL_USAGE: i32 = 2;
 pub(crate) const BAZEL_TESTS_FAILED: i32 = 3;
 pub(crate) const BAZEL_NO_TESTS: i32 = 4;
 pub(crate) const BAZEL_INTERRUPTED: i32 = 8;
+pub(crate) const BAZEL_OUT_OF_MEMORY: i32 = 33;
+
+/// Reports whether Bazel's server ran out of memory or died; a fresh server will not help later phases.
+pub(crate) fn server_died(code: i32) -> bool {
+    code == BAZEL_OUT_OF_MEMORY || code == crate::bazel_restart::RESTART_EXIT
+}
 
 impl PhaseKind {
     /// Classifies a Bazel exit code; `findings` is the phase's own verdict that the code means findings.
     pub(crate) fn from_bazel_exit(code: i32, findings: bool) -> PhaseKind {
         match code {
             0 => PhaseKind::Clean,
+            _ if server_died(code) => PhaseKind::Host,
             _ if findings => PhaseKind::Findings,
             BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
             BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
@@ -1036,7 +1045,9 @@ mod tests {
             (3, true, PhaseKind::Findings),
             (4, false, PhaseKind::Selection),
             (8, false, PhaseKind::Cancelled),
+            (33, false, PhaseKind::Host),
             (36, false, PhaseKind::Tool),
+            (37, false, PhaseKind::Host),
         ];
         for (code, findings, kind) in table {
             assert_eq!(PhaseKind::from_bazel_exit(code, findings), kind, "{code}");

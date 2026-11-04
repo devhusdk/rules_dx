@@ -106,6 +106,9 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
         "disk_full" => {
             "next: free disk space (try `dx worktree prune --apply`) and run the command again."
         }
+        "server_out_of_memory" => {
+            "next: the Bazel server ran out of memory; raise its heap (`startup --host_jvm_args=-XX:MaxRAMPercentage=<n>`) or narrow the scope."
+        }
         "server_crashed" => "next: the Bazel server crashed; run the command again.",
         "invalid_bep" | "unreadable_bep" | "collection_failed" | "invalid_result" => {
             "next: results are incomplete; run the command again."

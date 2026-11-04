@@ -3243,6 +3243,30 @@ mod tests {
     }
 
     #[test]
+    fn check_skips_the_later_phases_after_bazel_runs_out_of_memory() {
+        let harness = umbrella_clean("umbrella-out-of-memory");
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 2,
+            to: None,
+            code: 33,
+            launches: Cell::new(0),
+        };
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors[0]["code"], serde_json::json!("server_out_of_memory"));
+        assert_eq!(errors[0]["cause"], serde_json::json!("host"));
+        let skipped = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == serde_json::json!("umbrella_phase_skipped"))
+            .count();
+        assert!(skipped > 0, "{out}");
+    }
+
+    #[test]
     fn check_reports_a_full_disk_once_and_skips_the_later_phases() {
         let mut harness = umbrella_clean("umbrella-disk-full");
         harness.free_disk_bytes = Some(1 << 20);
@@ -3706,6 +3730,7 @@ mod tests {
             (8, false, false, PhaseKind::Cancelled),
             (36, false, false, PhaseKind::Tool),
             (36, false, true, PhaseKind::Host),
+            (33, false, false, PhaseKind::Host),
             (141, true, false, PhaseKind::Tool),
             (1, false, true, PhaseKind::Host),
             (1, true, true, PhaseKind::Host),

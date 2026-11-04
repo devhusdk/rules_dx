@@ -352,6 +352,7 @@ returned.
 | `report_failed` | `report` | 1 |
 | `disk_full` | `host` | Bazel |
 | `server_crashed` | `host` | Bazel |
+| `server_out_of_memory` | `host` | Bazel |
 | `bazel_signalled` | `unknown` | Bazel |
 | `cancelled` | `operational` | 128 plus the signal number |
 | `internal_error` | `operational` | 101 |

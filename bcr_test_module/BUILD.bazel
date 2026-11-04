@@ -1,6 +1,28 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 sh_test(
     name = "hello_test",
     srcs = ["hello_test.sh"],
+)
+
+filegroup(
+    name = "files",
+    testonly = True,
+    srcs = [
+        "BUILD.bazel",
+        "MODULE.bazel",
+        "hello_test.sh",
+    ],
+    visibility = ["//deploy/release/tests:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "MODULE.bazel",
+    ],
+    tags = ["corpus"],
 )

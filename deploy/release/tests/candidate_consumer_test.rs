@@ -290,11 +290,7 @@ fn assert_gcc_consumer(case: &Case) {
         action_env.as_str(),
     ];
     let with = |head: &[&'static str], target: &'static str| -> Vec<&str> {
-        head.iter()
-            .copied()
-            .chain(flags)
-            .chain([target])
-            .collect()
+        head.iter().copied().chain(flags).chain([target]).collect()
     };
     let root = case.bazel(&["info", "execution_root"]);
     ok(&root, "info execution_root");
@@ -318,8 +314,16 @@ fn assert_gcc_consumer(case: &Case) {
             .env("PATH", &shim)
             .output()
             .unwrap_or_else(|error| panic!("run {binary:?}: {error}"));
-        assert!(output.status.success(), "{binary:?} exited {:?}", output.status);
-        assert_eq!(String::from_utf8_lossy(&output.stdout), expected, "{binary:?}");
+        assert!(
+            output.status.success(),
+            "{binary:?} exited {:?}",
+            output.status
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            expected,
+            "{binary:?}"
+        );
     }
 }
 

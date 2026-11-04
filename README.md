@@ -21,7 +21,7 @@ Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-a
 
 ## Quickstart
 
-In an empty directory, create two files.
+In an empty directory, create three files.
 
 `MODULE.bazel`:
 
@@ -35,6 +35,12 @@ bazel_dep(name = "rules_dx", version = "<release>")
 9.2.0
 ```
 
+`BUILD.bazel`:
+
+```starlark
+# Empty on purpose: rules_rust crate_universe needs a root package (rules_dx#6144).
+```
+
 Then:
 
 ```sh
@@ -43,7 +49,7 @@ bazel run @rules_dx//:dx -- test //...
 ```
 
 With the global shim (coming; needs [#1655](https://github.com/devhusdk/rules_dx/issues/1655)),
-you can skip both files:
+you can skip these files:
 
 ```sh
 DX_VERSION=<release> dx init --apply

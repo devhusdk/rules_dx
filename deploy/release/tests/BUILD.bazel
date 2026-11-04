@@ -30,6 +30,38 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "quickstart_consumer_test",
+    srcs = ["quickstart_consumer_test.rs"],
+    data = [
+        "//:README.md",
+        "//.bcr:presubmit.yml",
+        "//:module_srcs",
+        "//bcr_test_module:files",
+        "//modules:consumer_graph.json",
+    ] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = NESTED_BAZEL_ENV_INHERIT,
+    # The consumer fetches the rust and GCC toolchains and bcr modules.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+        "//tools/testing/floor:dx_floor",
+    ],
+)
+
+rustfmt_test(
+    name = "quickstart_consumer_fmt_test",
+    targets = [":quickstart_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "quickstart_consumer_clippy_test",
+    targets = [":quickstart_consumer_test"],
+)
+
 rustfmt_test(
     name = "candidate_consumer_fmt_test",
     targets = [":candidate_consumer_test"],

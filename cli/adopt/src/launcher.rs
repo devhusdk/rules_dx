@@ -433,7 +433,7 @@ if not defined DX_TAG (
   goto bazel
 )
 set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
-call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART"
+call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -ProxyUseDefaultCredentials -Uri $env:DX_URL -OutFile $env:DX_PART"
 if errorlevel 1 (
   call :clean
   echo dx: download failed: %DX_URL% 1>&2
@@ -698,6 +698,16 @@ mod tests {
             .find(|line| line.ends_with("dx.cmd\" %*"))
             .expect("hand-off line");
         assert_eq!(line, "\"%DX_HERE%\\tools\\dx.cmd\" %*");
+    }
+
+    #[test]
+    fn cmd_download_answers_proxy_auth_with_default_credentials() {
+        let script = cmd();
+        let line = script
+            .lines()
+            .find(|line| line.contains("Invoke-WebRequest"))
+            .expect("download line");
+        assert!(line.contains("-ProxyUseDefaultCredentials"), "{line}");
     }
 
     #[test]

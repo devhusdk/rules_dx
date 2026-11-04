@@ -52,6 +52,8 @@ wget reads `ca_certificate` from `~/.wgetrc`.
 
 `tools/dx.cmd` downloads with PowerShell `Invoke-WebRequest`. It uses the Windows proxy settings and the Windows certificate store. Install the company CA there.
 
+When the proxy asks for authentication (NTLM or Kerberos), the download answers with the logged-in user's Windows credentials. Basic-auth proxies still need `HTTPS_PROXY` or a different route.
+
 ## The dx shim
 
 The shim reads `HTTPS_PROXY` and `NO_PROXY` and checks certificates with the OS trust store. Install the company CA in the OS store. No extra setting is needed.

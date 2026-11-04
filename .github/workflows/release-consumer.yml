@@ -1,0 +1,84 @@
+name: release-consumer
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published release tag to check, for example v1.2.3."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  consumer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dx-linux-x86_64
+            runner: ubuntu-latest
+          - name: dx-linux-arm64
+            runner: ubuntu-24.04-arm
+          - name: dx-macos-arm64
+            runner: macos-15
+          - name: dx-windows-x86_64
+            runner: windows-latest
+          - name: dx-windows-arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      MSYS2_ARG_CONV_EXCL: "//"
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      CELL: ${{ matrix.name }}
+    steps:
+      - name: Write the quickstart consumer from the published source.json
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir "$RUNNER_TEMP/consumer"
+          cd "$RUNNER_TEMP/consumer"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern source.json
+          echo "9.2.0" > .bazelversion
+          echo "# Empty on purpose." > BUILD.bazel
+          echo "common --repo_env=DO_NOT_TRACK=1" > .bazelrc
+          {
+            echo "bazel_dep(name = \"rules_dx\", version = \"$version\")"
+            echo 'archive_override('
+            echo '    module_name = "rules_dx",'
+            echo "    urls = [\"$(jq -r .url source.json)\"],"
+            echo "    integrity = \"$(jq -r .integrity source.json)\","
+            echo "    strip_prefix = \"$(jq -r .strip_prefix source.json)\","
+            echo ')'
+          } > MODULE.bazel
+      - name: Run the prebuilt dx and check its version
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/consumer"
+          version="${TAG#v}"
+          printed="$(bazel run @rules_dx//:dx -- --version)"
+          echo "$printed"
+          case "$printed" in
+            *"$version"*) ;;
+            *) echo "dx printed '$printed', want $version" >&2; exit 1 ;;
+          esac
+          repo="dx_prebuilt_$(echo "${CELL#dx-}" | tr -c 'A-Za-z0-9\n' '_')"
+          files="$(bazel cquery --output=files @rules_dx//:dx)"
+          echo "$files"
+          case "$files" in
+            *"$repo"*) ;;
+            *) echo "@rules_dx//:dx is not the $repo download" >&2; exit 1 ;;
+          esac
+          {
+            echo "### $CELL"
+            echo "- version: $printed"
+            echo "- dx: $files"
+          } >> "$GITHUB_STEP_SUMMARY"

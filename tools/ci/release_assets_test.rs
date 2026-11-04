@@ -1,6 +1,7 @@
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/release.yml";
+const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const LAUNCHER: &str = "cli/adopt/src/launcher.rs";
 const ASSETS: [&str; 5] = [
     "dx-linux-x86_64",
@@ -599,4 +600,13 @@ fn the_release_and_ci_workflows_need_no_python() {
             "{path} uses python3"
         );
     }
+}
+
+#[test]
+fn publishing_runs_the_consumer_against_the_prebuilt_download() {
+    let text = read_runfiles(CONSUMER);
+    assert!(text.contains("types: [published]"));
+    assert!(text.contains("permissions:\n  contents: read\n"));
+    assert!(text.contains("@rules_dx//:dx -- --version"));
+    assert!(text.contains("dx_prebuilt_"));
 }

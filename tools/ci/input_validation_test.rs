@@ -8,6 +8,7 @@ use serde_json::Value;
 const FIXTURE_DIR: &str = "tools/ci/input_validation_fixtures";
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 const RELEASE_WORKFLOW: &str = ".github/workflows/release-cells.yml";
+const CONSUMER_WORKFLOW: &str = ".github/workflows/release-consumer.yml";
 const EVIDENCE_WORKFLOW: &str = ".github/workflows/evidence.yml";
 const ACTIONLINT_CONFIG: &str = ".github/actionlint.yaml";
 const DOCS: &str = "docs/github-ci.md";
@@ -303,7 +304,7 @@ fn actionlint_labels(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn platform_drift(ci: &str, release: &str, actionlint: &str) -> Vec<String> {
+fn platform_drift(ci: &str, release: &str, consumer: &str, actionlint: &str) -> Vec<String> {
     let table = table();
     let names: Vec<String> = table.iter().map(|(name, _)| name.clone()).collect();
     let mut want: Vec<String> = table.iter().map(|(_, runner)| runner.clone()).collect();
@@ -322,6 +323,9 @@ fn platform_drift(ci: &str, release: &str, actionlint: &str) -> Vec<String> {
     if runners_of(release) != want {
         problems.push(format!("{RELEASE_WORKFLOW} runners drifted"));
     }
+    if runners_of(consumer) != want {
+        problems.push(format!("{CONSUMER_WORKFLOW} runners drifted"));
+    }
     let labels = actionlint_labels(actionlint);
     if !want.iter().all(|runner| labels.contains(runner)) {
         problems.push(format!("{ACTIONLINT_CONFIG} labels miss a runner"));
@@ -329,48 +333,53 @@ fn platform_drift(ci: &str, release: &str, actionlint: &str) -> Vec<String> {
     problems
 }
 
-fn copies() -> (String, String, String) {
+fn copies() -> (String, String, String, String) {
     (
         read_runfiles(CI_WORKFLOW),
         read_runfiles(RELEASE_WORKFLOW),
+        read_runfiles(CONSUMER_WORKFLOW),
         read_runfiles(ACTIONLINT_CONFIG),
     )
 }
 
 #[test]
 fn platform_copies_match_the_table() {
-    let (ci, release, actionlint) = copies();
+    let (ci, release, consumer, actionlint) = copies();
     assert_eq!(
-        platform_drift(&ci, &release, &actionlint),
+        platform_drift(&ci, &release, &consumer, &actionlint),
         Vec::<String>::new()
     );
 }
 
 #[test]
 fn platform_parity_catches_a_drifted_copy() {
-    let (ci, release, actionlint) = copies();
+    let (ci, release, consumer, actionlint) = copies();
     let dropped = ci.replace(
         "- platform: windows_arm64\n            runner: windows-11-arm\n",
         "",
     );
-    assert!(platform_drift(&dropped, &release, &actionlint)
+    assert!(platform_drift(&dropped, &release, &consumer, &actionlint)
         .iter()
         .any(|problem| problem.contains(CI_WORKFLOW)));
     let swapped = ci.replace("runner: macos-15", "runner: macos-14");
-    assert!(platform_drift(&swapped, &release, &actionlint)
+    assert!(platform_drift(&swapped, &release, &consumer, &actionlint)
         .iter()
         .any(|problem| problem.contains("preflight")));
     let dogfood = ci.replace("\"windows_x86_64\", ", "");
-    assert!(platform_drift(&dogfood, &release, &actionlint)
+    assert!(platform_drift(&dogfood, &release, &consumer, &actionlint)
         .iter()
         .any(|problem| problem.contains("dogfood")));
-    let release = release.replace("macos-15", "macos-14");
-    assert!(platform_drift(&ci, &release, &actionlint)
+    let drifted = release.replace("macos-15", "macos-14");
+    assert!(platform_drift(&ci, &drifted, &consumer, &actionlint)
         .iter()
         .any(|problem| problem.contains(RELEASE_WORKFLOW)));
+    let drifted = consumer.replace("macos-15", "macos-14");
+    assert!(platform_drift(&ci, &release, &drifted, &actionlint)
+        .iter()
+        .any(|problem| problem.contains(CONSUMER_WORKFLOW)));
     let actionlint = actionlint.replace("windows-11-arm", "x");
     assert!(
-        platform_drift(&ci, &read_runfiles(RELEASE_WORKFLOW), &actionlint)
+        platform_drift(&ci, &release, &consumer, &actionlint)
             .iter()
             .any(|problem| problem.contains(ACTIONLINT_CONFIG))
     );

@@ -11,6 +11,7 @@
 - `ghcr.yml`: prebuilt devcontainer images.
 - `release-cells.yml`: reusable, read-only. Builds, independently rebuilds and qualifies one archive per `//deploy/release:release_matrix` cell on its native runner (a consumer Bazel build included), then verifies all records. Artifacts: `release-cell-<name>` per cell and the combined `release-cells`; outputs: `version`, `sha`, `workflow_ref`. It fails when any cell is rejected, and a rejected cell never stops the others.
 - `release.yml`: calls `release-cells.yml` for the five platform archives, builds the `rules_dx-<version>.tar.gz` source archive (after `release_driver` checks the tag against the candidate commit), then attests the manifest and uploads them through `release_driver` with the raw binaries, `.sha256` files, a `dx-sha256sums.txt` manifest, and `source.json` to the release. The `dry_run` dispatch input builds and qualifies everything and uploads nothing. No asset is ever replaced once uploaded: a rerun skips identical assets and fails on a different one.
+- `release-consumer.yml`: runs when a release is published, or by dispatch with a `tag`. On the five release platforms it builds the quickstart consumer against the published source archive and checks that `@rules_dx//:dx` is the prebuilt download and prints the released version. Wait for it to be green before submitting to the BCR.
 
 ## Main health
 

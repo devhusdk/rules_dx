@@ -47,6 +47,8 @@ The workflow builds every cell, writes `dx-sha256sums.txt`, fills the sha256 val
 
 Check the draft on GitHub, then publish it. The assets job has already unpacked the Linux archive and run `dx --version` as a final check.
 
+Publishing starts `release-consumer.yml`. It builds the quickstart consumer against the published source archive on all five platforms and checks that `@rules_dx//:dx` is the prebuilt download and prints the released version. Do not submit to the BCR (step 6) until it is green. To rerun it, dispatch it with the tag.
+
 ## 6. Submit to the Bazel Central Registry
 
 Check the entry first:

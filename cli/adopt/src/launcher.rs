@@ -342,9 +342,9 @@ tmp="$dir/.dx-$os-$arch.$$"
 trap 'rm -f "$tmp"' EXIT
 fetch() {
   if command -v curl > /dev/null 2>&1; then
-    curl -fsSL -o "$2" "$1" || fail "download failed: $1"
+    curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 -o "$2" "$1" || fail "download failed: $1"
   elif command -v wget > /dev/null 2>&1; then
-    wget -q -O "$2" "$1" || fail "download failed: $1"
+    wget -q --timeout=30 --tries=3 -O "$2" "$1" || fail "download failed: $1"
   else
     fail "needs curl or wget to download $1"
   fi
@@ -1461,6 +1461,50 @@ mod tests {
                 "{err}"
             );
             assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+        }
+
+        #[test]
+        fn curl_download_has_connect_and_stall_limits() {
+            let fx = Fixture::new("dx-launcher-curl-limits-", false, None);
+            let args = fx.base.join("curl-args");
+            fx.stub(
+                "curl",
+                &format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\nexit 6\n",
+                    args.display()
+                ),
+            );
+            let (code, _, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1));
+            assert!(err.contains("download failed"), "{err}");
+            let args = std::fs::read_to_string(&args).expect("curl args");
+            let joined = args.lines().collect::<Vec<_>>().join(" ");
+            assert!(
+                joined
+                    .contains("--connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3"),
+                "{joined}"
+            );
+            assert!(!joined.contains("--max-time"), "{joined}");
+        }
+
+        #[test]
+        fn wget_download_has_timeout_and_tries_without_curl() {
+            let fx = Fixture::new("dx-launcher-wget-limits-", false, None);
+            std::fs::remove_file(fx.base.join("stub/curl")).expect("drop curl");
+            let args = fx.base.join("wget-args");
+            fx.stub(
+                "wget",
+                &format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\nexit 8\n",
+                    args.display()
+                ),
+            );
+            let (code, _, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1));
+            assert!(err.contains("download failed"), "{err}");
+            let args = std::fs::read_to_string(&args).expect("wget args");
+            let joined = args.lines().collect::<Vec<_>>().join(" ");
+            assert!(joined.contains("--timeout=30 --tries=3"), "{joined}");
         }
 
         const UNAME_ROSETTA: &str =

@@ -16,10 +16,10 @@ def _cell(arch, os_name, cpu, sha256, flavor = "common", ext = "tar.gz", interpr
     )
 
 PHP_CELLS = {
-    "linux_amd64": _cell("linux-x86_64", "linux", "x86_64", "a626899b3177acd97e4e16ce60200935f31c51c9fcbd118d7719f9cbb3781ab6"),
-    "linux_arm64": _cell("linux-aarch64", "linux", "aarch64", "b66621bfbd39146d9532707163fcc6f5bd537f36284508faa62e8d03d812496e"),
-    "macos_arm64": _cell("macos-aarch64", "macos", "aarch64", "9aa0431f040199a69f99e37378ee0134e81589cb901ca8a942127115463120f8"),
-    "windows_x86_64": _cell("win", "windows", "x86_64", "2f33a4fcdf13c462e106696dbf8ee35ed660d85464068ccfabfc8bb557410d76", flavor = "spc-max", ext = "zip", interpreter = "php.exe"),
+    "linux_amd64": _cell("linux-x86_64", "linux", "x86_64", "3e73114b61328dd7ba86a2ebe2050855dffa207d9d8b35ca76d763a6fc5e1807"),
+    "linux_arm64": _cell("linux-aarch64", "linux", "aarch64", "19f38cbeb05156d6e1a7401800f0394f78204ddf1f873a87b595c7cb1d308f64"),
+    "macos_arm64": _cell("macos-aarch64", "macos", "aarch64", "3d07ac95616814ed1a97ab47b4ccf089fdd522bf2fc500e00f59fef5749c44df"),
+    "windows_x86_64": _cell("win", "windows", "x86_64", "722b336feb6187b0e42c4e499a4731c877aa6a6f555fb886aeeceb30cf84f326", flavor = "spc-max", ext = "zip", interpreter = "php.exe"),
 }
 
 COMPOSER = struct(

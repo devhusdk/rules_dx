@@ -869,7 +869,9 @@ mod tests {
         ]);
         let plan = preflight(dir.path(), &snippet());
         assert!(
-            plan.findings.iter().all(|f| f.kind != Kind::BazelrcConflict),
+            plan.findings
+                .iter()
+                .all(|f| f.kind != Kind::BazelrcConflict),
             "{plan:?}"
         );
     }

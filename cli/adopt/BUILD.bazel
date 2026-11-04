@@ -40,7 +40,6 @@ dx_rust_crate(
         "//patches/aspect_rules_py:py_cc_toolchain_platform.patch",
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
         "//patches/avro-cpp:iterator.patch",
-        "//patches/fmt:cstdlib.patch",
         "//patches/gcc_toolchain:runtime_libs.patch",
         "//patches/gcc_toolchain:sanitizer_spec.patch",
         "//patches/gcc_toolchain:target_identity_config.patch",

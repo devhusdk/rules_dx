@@ -33,8 +33,8 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `aspect_rules_py` | 2.0.0-alpha.10 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir (aspect-build/rules_ts#1001) |
 | `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |
-| `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes with libc++ |
-| `fmt` | 11.1.4 | `cstdlib.patch` | Missing `<cstdlib>` include with libc++ |
+| `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes with libc++; `Exception.hh` includes `fmt/format.h` for fmt 12 |
+| `fmt` | 12.2.0.bcr.1 | none | Raises avro-cpp's fmt to a release with the libc++ include fix |
 | `gcc_toolchain` | 0.13.0 | `sanitizer_spec.patch` | Ships `libsanitizer.spec` so GCC `-fsanitize=` links in the sandbox |
 | `gcc_toolchain` | 0.13.0 | `target_identity_config.patch` | `cc_toolchain_config` takes `target_libc` and `target_system_name` and reports them instead of `local` |
 | `gcc_toolchain` | 0.13.0 | `target_identity_defs.patch` | Repository rule passes `target_libc` and `<arch>-linux-gnu` into the generated toolchain |

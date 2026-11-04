@@ -156,12 +156,9 @@ pub const OVERRIDES: &[Override] = &[
     },
     Override {
         module: "fmt",
-        version: "11.1.4",
-        patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "cstdlib.patch",
-            content: include_str!("../../../patches/fmt/cstdlib.patch"),
-        }],
+        version: "12.2.0.bcr.1",
+        patch_strip: 0,
+        patches: &[],
     },
     Override {
         module: "rules_cuda",
@@ -215,6 +212,13 @@ fn render_module() -> String {
                     .collect::<String>()
             ),
         };
+        if labels.is_empty() {
+            out.push_str(&format!(
+                "\nsingle_version_override(\n    module_name = \"{}\",\n    version = \"{}\",\n)\n",
+                row.module, row.version,
+            ));
+            continue;
+        }
         out.push_str(&format!(
             "\nsingle_version_override(\n    module_name = \"{}\",\n    patch_strip = {},\n    patches = {patches},\n    version = \"{}\",\n)\n",
             row.module, row.patch_strip, row.version,
@@ -556,6 +560,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_row_without_patches_renders_no_patch_attributes() {
+        let module = render_module();
+        assert!(module.contains(
+            "single_version_override(\n    module_name = \"fmt\",\n    version = \"12.2.0.bcr.1\",\n)"
+        ));
+    }
+
+    #[test]
     fn refresh_rewrites_a_stale_file_only_when_the_set_is_whole() {
         let scratch = dx_test_scratch::scratch("dx-overrides-refresh-");
         let root = scratch.path();
@@ -621,19 +633,22 @@ mod tests {
         let mut seen = Vec::new();
         for call in module.calls_named("single_version_override") {
             let patches = call.str_list("patches");
-            if !patches.iter().any(|label| label.starts_with("//patches/")) {
+            let name = call.str("module_name").expect("literal module_name");
+            let in_table = OVERRIDES.iter().any(|row| row.module == name);
+            if !in_table && !patches.iter().any(|label| label.starts_with("//patches/")) {
                 continue;
             }
-            let name = call.str("module_name").expect("literal module_name");
             let row = OVERRIDES
                 .iter()
                 .find(|row| row.module == name)
                 .unwrap_or_else(|| panic!("MODULE.bazel overrides {name}; add it to OVERRIDES"));
             assert_eq!(call.str("version"), Some(row.version), "{name} version");
-            assert!(
-                text[call.span.clone()].contains(&format!("patch_strip = {}", row.patch_strip)),
-                "{name} patch_strip"
-            );
+            if !row.patches.is_empty() {
+                assert!(
+                    text[call.span.clone()].contains(&format!("patch_strip = {}", row.patch_strip)),
+                    "{name} patch_strip"
+                );
+            }
             let expected: Vec<String> = row
                 .patches
                 .iter()
@@ -651,7 +666,7 @@ mod tests {
         for row in OVERRIDES {
             assert!(
                 seen.iter().any(|name| name == row.module),
-                "OVERRIDES row {} has no //patches/ override in MODULE.bazel",
+                "OVERRIDES row {} has no override in MODULE.bazel",
                 row.module
             );
         }

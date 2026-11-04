@@ -77,7 +77,7 @@
   "boost.variant2": "1.87.0",
   "boost.winapi": "1.87.0",
   "bzip2": "1.0.8.bcr.3",
-  "fmt": "11.1.4",
+  "fmt": "12.2.0.bcr.1",
   "gawk": "5.3.2.bcr.7",
   "gazelle": "0.54.0",
   "gcc_toolchain": "0.13.0",

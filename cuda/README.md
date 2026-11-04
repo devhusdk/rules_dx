@@ -17,7 +17,7 @@ when `@@rules_dx+//cuda/toolchain:host_compiler_enabled` is set. If
 support.
 
 ```python
-bazel_dep(name = "rules_cuda", version = "0.3.0")
+bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
 bazel_dep(name = "toolchains_llvm", version = "1.12.0")
 
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")

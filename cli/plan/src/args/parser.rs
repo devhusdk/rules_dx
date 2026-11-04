@@ -157,7 +157,7 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
 pub fn is_discovery_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Init | Command::Completion | Command::Worktree | Command::Install
+        Command::Init | Command::Completion | Command::Worktree
     )
 }
 
@@ -346,9 +346,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         explain,
         old_log,
         new_log,
-        install_tag,
-        install_archive: install_archive_os,
-        install_dir: install_dir_os,
         baseline,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
@@ -523,18 +520,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(extra_positional(command, scope));
         }
     }
-    if command == Command::Install {
-        if let Some(scope) = targets.first() {
-            return Err(extra_positional(command, scope));
-        }
-        if install_tag.is_none() || install_archive_os.is_none() {
-            return Err(ArgsError::MissingValue {
-                option: "--tag <tag> --archive <path>".to_owned(),
-            });
-        }
-    }
-    let install_archive = install_archive_os.map(std::path::PathBuf::from);
-    let install_dir = install_dir_os.map(std::path::PathBuf::from);
     if command == Command::Upgrade {
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
@@ -643,9 +628,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         exec_log: None,
         old_log,
         new_log,
-        install_tag,
-        install_archive,
-        install_dir,
         path_only,
         shell,
         agent,
@@ -950,7 +932,7 @@ mod startup_tests {
 
     #[test]
     fn discovery_runs_without_a_module_only_for_init_and_completion() {
-        for command in [Command::Init, Command::Completion, Command::Install] {
+        for command in [Command::Init, Command::Completion] {
             assert!(is_discovery_exempt(command), "{command:?} is exempt");
         }
         for command in [

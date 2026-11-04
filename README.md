@@ -15,7 +15,7 @@ A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
 [Global Shim](docs/cli/commands/README.md#global-shim).
 
 Once releases ship, run `dx` without Bazel: download a release archive with `gh`
-and install it with [`dx install`](docs/cli/commands/install.md).
+and unpack `dx` onto your `PATH`.
 
 Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-and-ca.md).
 

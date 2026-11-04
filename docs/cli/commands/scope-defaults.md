@@ -40,7 +40,7 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## No Scopes
 
-- `dx clean`, `dx status`, `dx upgrade`, `dx worktree`, `dx explain`, `dx install`
+- `dx clean`, `dx status`, `dx upgrade`, `dx worktree`, `dx explain`
 
 ## Scope Shapes
 

@@ -62,7 +62,6 @@ mod tests {
         Command::Completion,
         Command::Worktree,
         Command::Explain,
-        Command::Install,
     ];
 
     const WARN: &[Command] = &[Command::Check, Command::Security, Command::License];

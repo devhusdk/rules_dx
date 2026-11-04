@@ -53,7 +53,7 @@ This writes the sha256 values from the attested manifest into `cli/prebuilt/pins
 
 ## 6. Publish
 
-Check the draft on GitHub, then publish it. The upload job has already installed the Linux archive with `dx install` as a final check.
+Check the draft on GitHub, then publish it. The upload job has already unpacked the Linux archive and run `dx --version` as a final check.
 
 ## 7. Submit to the Bazel Central Registry
 

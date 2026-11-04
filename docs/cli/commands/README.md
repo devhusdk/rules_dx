@@ -1,6 +1,6 @@
 # Command Reference
 
-Every `dx` command except [`dx install`](install.md) runs through Bazel. Put `dx` flags after the command,
+Every `dx` command runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
 checkout `//:dx` is the same target.
 
@@ -21,7 +21,6 @@ bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 - [`dx docs`](docs.md)
 - [`dx explain`](explain.md)
 - [`dx init`](init.md)
-- [`dx install`](install.md)
 - [`dx status`](status.md)
 - [`dx completion`](completion.md)
 - [`dx upgrade`](upgrade.md)
@@ -366,7 +365,7 @@ These codes have cause `operational` and exit `1` unless noted: `diff_failed`,
 `advisory_refresh_failed`, `update_failed`, `update_widen_failed`,
 `offline_required`, `frozen_locked`, `init_failed`, `upgrade_failed`,
 `status_pin_mismatch`, `status_check_failed`, `explain_log`,
-`explain_log_unwritable`, `serve_failed`, `install-refused`.
+`explain_log_unwritable`, `serve_failed`.
 
 ### Agent sessions
 

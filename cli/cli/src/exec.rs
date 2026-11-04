@@ -22,7 +22,6 @@ mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
 pub(crate) mod ide_refresh;
-mod install;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -88,7 +87,7 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
 fn slot_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Worktree | Command::Completion | Command::Explain | Command::Install
+        Command::Worktree | Command::Completion | Command::Explain
     )
 }
 
@@ -273,7 +272,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Explain => explain::execute_explain(invocation, env),
-        Command::Install => install::execute_install(invocation, env),
     }
 }
 
@@ -336,9 +334,8 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 11] = [
+    const NO_BAZEL_BUILD: [Command; 10] = [
         Command::Init,
-        Command::Install,
         Command::Security,
         Command::License,
         Command::Clean,
@@ -672,12 +669,7 @@ mod tests {
         drop(held);
         drop(nested);
         dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10)).expect("free");
-        for command in [
-            Command::Worktree,
-            Command::Completion,
-            Command::Explain,
-            Command::Install,
-        ] {
+        for command in [Command::Worktree, Command::Completion, Command::Explain] {
             assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
         }
         assert!(hold_slot(Command::Test, scratch.path(), Duration::ZERO).is_none());
@@ -705,12 +697,7 @@ mod tests {
         let scratch = leased_slot(Some("s1"), true);
         let slot = scratch.path().join("pool").join("1");
         assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
-        for command in [
-            Command::Worktree,
-            Command::Completion,
-            Command::Explain,
-            Command::Install,
-        ] {
+        for command in [Command::Worktree, Command::Completion, Command::Explain] {
             assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
         }
         assert!(lease_refusal_for(Command::Build, scratch.path(), &who(Some("s2"))).is_none());

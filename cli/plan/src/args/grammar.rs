@@ -89,9 +89,6 @@ pub(crate) struct Flags {
     pub(crate) explain: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
-    pub(crate) install_tag: Option<String>,
-    pub(crate) install_archive: Option<OsString>,
-    pub(crate) install_dir: Option<OsString>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -348,39 +345,6 @@ flag_group! {
     ApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
-    }
-}
-
-flag_group! {
-    /// Release tag the archive must belong to (for example from gh release view).
-    InstallTagFlag, {
-        #[arg(long = "tag", value_name = "TAG", overrides_with = "install_tag", value_parser = non_empty)]
-        install_tag: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Downloaded dx release archive (.tar.gz or .zip) to install.
-    InstallArchiveFlag, {
-        #[arg(long = "archive", value_name = "PATH", overrides_with = "install_archive")]
-        install_archive: Option<OsString>,
-    }
-}
-
-flag_group! {
-    /// Install root (default: the per-user dx data directory).
-    InstallDirFlag, {
-        #[arg(long = "dir", value_name = "dir", overrides_with = "install_dir")]
-        install_dir: Option<OsString>,
-    }
-}
-
-composite_group! {
-    /// The inputs dx install verifies and installs.
-    InstallArgs, {
-        install_tag: InstallTagFlag,
-        install_archive: InstallArchiveFlag,
-        install_dir: InstallDirFlag,
     }
 }
 
@@ -910,8 +874,6 @@ command_args! {
     };
     /// The flags `dx explain` accepts.
     Explain => 22, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
-    /// The flags `dx install` accepts.
-    Install => 23, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]

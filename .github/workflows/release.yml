@@ -380,7 +380,7 @@ jobs:
           gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
           (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)
           tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx
-          verify/dx install --tag "$RELEASE_TAG" --archive verify/dx-linux-x86_64.tar.gz --output json
+          verify/dx --version
 
   pins:
     needs: upload

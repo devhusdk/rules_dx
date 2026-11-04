@@ -194,7 +194,6 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Upgrade
         | Command::Worktree
         | Command::Explain
-        | Command::Install
         | Command::Status
         | Command::Watch
         | Command::Completion => CommandSpec {

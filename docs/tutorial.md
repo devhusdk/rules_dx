@@ -1,7 +1,6 @@
 # Tutorial
 
 Go from an empty directory to a passing `dx test`. The steps are for Linux.
-For other hosts, see [`dx install`](cli/commands/install.md).
 
 ## Install
 
@@ -13,10 +12,11 @@ Install Bazelisk, then install `dx` from a release. Pick the tag with `gh releas
 curl -fsSL -o bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
 chmod +x bazel
 gh release download v1.2.3 --pattern 'dx-*' --dir dx-release
-dx install --tag v1.2.3 --archive dx-release/dx-linux-x86_64.tar.gz --apply
+mkdir -p ~/.local/bin
+tar -xzf dx-release/dx-linux-x86_64.tar.gz -C ~/.local/bin dx
 ```
 
-Put `bazel` on your `PATH` and open a new shell.
+Put `bazel` and `~/.local/bin` on your `PATH` and open a new shell.
 
 ## Start a workspace
 

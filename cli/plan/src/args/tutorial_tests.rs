@@ -2,8 +2,8 @@ use super::parse;
 use dx_testing::cli::strings;
 
 const TUTORIAL: &str = include_str!("../../../../docs/tutorial.md");
-const PROGRAMS: [&str; 9] = [
-    "curl", "gh", "chmod", "mkdir", "cd", "cp", "git", "bazel", "echo",
+const PROGRAMS: [&str; 10] = [
+    "curl", "gh", "chmod", "mkdir", "cd", "cp", "git", "bazel", "echo", "tar",
 ];
 
 #[test]

@@ -23,7 +23,6 @@ pub enum Command {
     Docs,
     Worktree,
     Explain,
-    Install,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +88,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 24] = [
+pub static COMMANDS: [CommandMeta; 23] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -435,21 +434,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
-    CommandMeta {
-        command: Command::Install,
-        name: "install",
-        scope_policy: "reject",
-        describe: "verify and install a downloaded dx release archive (check by default; --apply writes)",
-        usage: "Usage: dx install --tag <tag> --archive <path> [--dir <dir>] [--apply]",
-        scopes: "Scopes: none (install takes --tag and --archive, not scopes).",
-        is_managed: false,
-        is_adoption: false,
-        default_release: false,
-        skew: SkewKind::Proceed,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-    },
 ];
 
 impl Command {
@@ -572,9 +556,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 14] = [
+    pub(crate) const APPLY_COMMANDS: [Command; 13] = [
         Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Env, Init, Upgrade, Watch,
-        Worktree, Install,
+        Worktree,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
@@ -711,7 +695,6 @@ mod tests {
             Command::Docs,
             Command::Worktree,
             Command::Explain,
-            Command::Install,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -801,7 +784,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain",
             "pipe_list order must match declaration order"
         );
     }

@@ -129,7 +129,7 @@ example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
 `1.3.0`, so `dx build` stops with
 `version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
-- Runs anyway: `status`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
+- Runs anyway: `status`, `upgrade`, `completion`, `worktree`, `explain`.
 - Warns and runs: `check`, `security`, `license`.
 - Stops with exit code `1`: every other command.
 

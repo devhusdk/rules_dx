@@ -68,6 +68,7 @@ WRAPPER_OWNERS = {
     "shell": "other",
     "sql": "//sql/rules:defs.bzl",
     "starlark": "other",
+    "swift": "//swift/rules:defs.bzl",
     "svelte": "//svelte/rules:defs.bzl",
     "terraform": "//terraform/rules:defs.bzl",
     "text": "other",

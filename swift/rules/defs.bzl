@@ -11,7 +11,7 @@ load("//swift/platforms:transition.bzl", "swift_linux_platform", "swift_linux_tr
 
 _PLATFORM_ATTR = {"swift_platform": attr.string(doc = "Swift platform to build for.")}
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
-_SPECS = []
+_SPECS = [("swift", "swift")]
 
 _swift_library_forward = dx_library_forward_rule(
     provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo],
@@ -56,12 +56,12 @@ def _forward():
 
 def swift_library(name, srcs = None, visibility = None, **kwargs):
     """Wraps swift_library and builds it for the Swift Linux platform."""
-    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = [], extra_forward_kwargs = _forward(), **kwargs)
+    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = srcs or [], extra_forward_kwargs = _forward(), **kwargs)
 
 def swift_binary(name, srcs = None, visibility = None, **kwargs):
     """Wraps swift_binary and builds it for the Swift Linux platform."""
-    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = [], extra_forward_kwargs = _forward(), **kwargs)
+    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = srcs or [], extra_forward_kwargs = _forward(), **kwargs)
 
 def swift_test(name, srcs = None, visibility = None, **kwargs):
     """Wraps swift_test and builds it for the Swift Linux platform."""
-    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = [], extra_forward_kwargs = _forward(), **kwargs)
+    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = srcs or [], extra_forward_kwargs = _forward(), **kwargs)

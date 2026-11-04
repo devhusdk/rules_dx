@@ -92,6 +92,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "go_module",
     "julia",
     "zig",
+    "swift",
     "nix",
     "kubernetes",
     "helm",

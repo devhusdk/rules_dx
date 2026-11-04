@@ -235,6 +235,7 @@ REAL_CLASS_TO_FAMILY = {
     "xml": "xml",
     "yaml": "yaml",
     "zig": "zig",
+    "swift": "swift",
 }
 
 # Capabilities a family can never have: no static type system (or no

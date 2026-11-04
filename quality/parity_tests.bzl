@@ -5,9 +5,9 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
 PARITY_SCHEMA_VERSION = 1
 
-# No class is deferred today: OCaml gained its formatter (topiary), and its missing linter is
-# tracked by #4621 in the support matrix. A class cannot be both adapter-backed and deferred.
-PARITY_DEFERRED = {}
+PARITY_DEFERRED = {
+    "swift": ("ADR-swift", "no Swift format, lint or typecheck adapter is pinned"),
+}
 
 def _adapter_backed_classes():
     backed = {}

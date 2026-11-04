@@ -1,7 +1,7 @@
 """Application packaging selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "aab_check_errors", "aab_sign_errors", "abi_transition_settings", "apk_manifest_errors", "apk_set_errors", "bundle_signing_errors", "release_sign_errors", "rust_android_apk_errors")
+load(":defs.bzl", "aab_check_errors", "abi_transition_settings", "apk_manifest_errors", "apk_set_errors", "bundle_signing_errors", "release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -105,27 +105,27 @@ def _packaging_checks():
     checks.append(expect_equal(
         "unknown scheme sign errors",
         release_sign_errors(["v9"], 0),
-        ["android_apk_release_sign: scheme 'v9' is unknown: want v1, v2, v3, v4"],
+        ["android_sign: scheme 'v9' is unknown: want v1, v2, v3, v4"],
     ))
     checks.append(expect_equal(
         "empty scheme sign errors",
         release_sign_errors([], 0),
-        ["android_apk_release_sign: schemes must name at least one signature scheme"],
+        ["android_sign: schemes must name at least one signature scheme"],
     ))
     checks.append(expect_equal(
         "duplicate scheme sign errors",
         release_sign_errors(["v2", "v2"], 0),
-        ["android_apk_release_sign: schemes holds duplicates"],
+        ["android_sign: schemes holds duplicates"],
     ))
     checks.append(expect_equal(
         "v4 alone sign errors",
         release_sign_errors(["v4"], 0),
-        ["android_apk_release_sign: scheme v4 needs v2 or v3"],
+        ["android_sign: scheme v4 needs v2 or v3"],
     ))
     checks.append(expect_equal(
         "v1 and v4 sign errors",
         release_sign_errors(["v1", "v4"], 0),
-        ["android_apk_release_sign: scheme v4 needs v2 or v3"],
+        ["android_sign: scheme v4 needs v2 or v3"],
     ))
     checks.append(expect_equal("v2 and v4 sign errors", release_sign_errors(["v2", "v4"], 0), []))
     checks.append(expect_equal("v3 and v4 sign errors", release_sign_errors(["v3", "v4"], 0), []))
@@ -133,14 +133,14 @@ def _packaging_checks():
         "unknown scheme with v4 sign errors",
         release_sign_errors(["v9", "v4"], 0),
         [
-            "android_apk_release_sign: scheme 'v9' is unknown: want v1, v2, v3, v4",
-            "android_apk_release_sign: scheme v4 needs v2 or v3",
+            "android_sign: scheme 'v9' is unknown: want v1, v2, v3, v4",
+            "android_sign: scheme v4 needs v2 or v3",
         ],
     ))
     checks.append(expect_equal(
         "low min sdk sign errors",
         release_sign_errors(["v2"], 21),
-        ["android_apk_release_sign: min_sdk 21 is below 31"],
+        ["android_sign: min_sdk 21 is below 31"],
     ))
     checks.append(expect_equal("clean aab check", aab_check_errors(["arm64-v8a", "x86_64"], ["string/app_name"]), []))
     checks.append(expect_equal(
@@ -162,12 +162,6 @@ def _packaging_checks():
         "duplicate abi aab check",
         aab_check_errors(["x86_64", "x86_64"], []),
         ["rust_android_apk: abis holds duplicates"],
-    ))
-    checks.append(expect_equal("one aab sign", aab_sign_errors("//:app", 1), []))
-    checks.append(expect_equal(
-        "no aab sign",
-        aab_sign_errors("//:app", 0),
-        ["android_aab_release_sign: '//:app' built 0 aab files, want exactly one"],
     ))
     checks.append(expect_equal("no lineage bundle", bundle_signing_errors({"manifest_values": {}}), []))
     checks.append(expect_equal("none lineage bundle", bundle_signing_errors({"debug_signing_lineage_file": None}), []))

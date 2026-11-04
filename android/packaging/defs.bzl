@@ -576,28 +576,33 @@ def android_adb_log(name, serial = "", visibility = None):
     )
 
 KNOWN_SCHEMES = ["v1", "v2", "v3", "v4"]
+DEFAULT_SCHEMES = ["v1", "v2", "v3"]
 
 def release_sign_errors(schemes, min_sdk):
     """Returns one error string per rejected release signing selection."""
     errors = []
     if len(schemes) == 0:
-        errors.append("android_apk_release_sign: schemes must name at least one signature scheme")
+        errors.append("android_sign: schemes must name at least one signature scheme")
     for scheme in schemes:
         if scheme not in KNOWN_SCHEMES:
-            errors.append("android_apk_release_sign: scheme '" + scheme + "' is unknown: want " + ", ".join(KNOWN_SCHEMES))
+            errors.append("android_sign: scheme '" + scheme + "' is unknown: want " + ", ".join(KNOWN_SCHEMES))
     if len(schemes) != len(dict([(scheme, True) for scheme in schemes])):
-        errors.append("android_apk_release_sign: schemes holds duplicates")
+        errors.append("android_sign: schemes holds duplicates")
     if "v4" in schemes and "v2" not in schemes and "v3" not in schemes:
-        errors.append("android_apk_release_sign: scheme v4 needs v2 or v3")
+        errors.append("android_sign: scheme v4 needs v2 or v3")
     if min_sdk != 0 and min_sdk < api_floor():
-        errors.append("android_apk_release_sign: min_sdk " + str(min_sdk) + " is below " + str(api_floor()))
+        errors.append("android_sign: min_sdk " + str(min_sdk) + " is below " + str(api_floor()))
     return errors
 
 def _sign_selection_impl(ctx):
-    failures = release_sign_errors(ctx.attr.schemes, ctx.attr.min_sdk)
-    apks = [file for file in ctx.attr.apk[DefaultInfo].files.to_list() if file.extension == "apk"]
-    if len(apks) != 1:
-        failures.append("android_apk_release_sign: '" + str(ctx.attr.apk.label) + "' built " + str(len(apks)) + " apk files, want exactly one")
+    files = [file for file in ctx.attr.package[DefaultInfo].files.to_list() if file.extension in ["apk", "aab"]]
+    if len(files) != 1:
+        fail("android_sign: '" + str(ctx.attr.package.label) + "' built " + str(len(files)) + " .apk/.aab files, want exactly one; point package at one APK or App Bundle")
+    if files[0].extension == "aab":
+        if len(ctx.attr.schemes) > 0 or ctx.attr.min_sdk != 0:
+            fail("android_sign: schemes and min_sdk apply to APKs only")
+        return []
+    failures = release_sign_errors(ctx.attr.schemes or DEFAULT_SCHEMES, ctx.attr.min_sdk)
     if len(failures) > 0:
         fail("; ".join(failures))
     return []
@@ -606,18 +611,17 @@ _sign_selection = rule(
     implementation = _sign_selection_impl,
     doc = "Fails analysis when a release signing declaration is invalid.",
     attrs = {
-        "apk": attr.label(
-            doc = "APK file the release signing launcher signs.",
-            allow_files = True,
-            mandatory = True,
-        ),
         "min_sdk": attr.int(
             doc = "Minimum SDK level the signature covers, zero leaves it unset.",
             default = 0,
         ),
+        "package": attr.label(
+            doc = "APK or App Bundle the release signing launcher signs.",
+            allow_files = True,
+            mandatory = True,
+        ),
         "schemes": attr.string_list(
             doc = "Signature schemes to apply, such as v1, v2, and v3.",
-            mandatory = True,
         ),
     },
 )
@@ -631,30 +635,31 @@ def _rel(path):
 
 def _sign_launcher_impl(ctx):
     env = {}
-    runfiles = [ctx.runfiles(files = [ctx.file.input, ctx.file.script])]
-    if ctx.attr.kind == "apk":
-        java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+    is_apk = ctx.file.input.extension == "apk"
+    script = ctx.file._apk_script if is_apk else ctx.file._aab_script
+    runfiles = [ctx.runfiles(files = [ctx.file.input, script])]
+    java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+    if is_apk:
         env["DX_SIGN_APK"] = ctx.file.input.short_path
         env["DX_SIGN_JAVA"] = _rel(java.java_executable_runfiles_path)
-        env["DX_SIGN_ZIPALIGN"] = ctx.file.zipalign.short_path
+        env["DX_SIGN_ZIPALIGN"] = ctx.file._zipalign.short_path
         env["DX_SIGN_BUILD_TOOLS"] = BUILD_TOOLS
-        env["DX_SIGN_APKSIGNER_JAR"] = ctx.file.apksigner_jar.short_path
+        env["DX_SIGN_APKSIGNER_JAR"] = ctx.file._apksigner_jar.short_path
         env["DX_SIGN_MIN_SDK"] = str(ctx.attr.min_sdk) if ctx.attr.min_sdk != 0 else ""
         env["DX_SIGN_SCHEMES"] = ",".join(ctx.attr.schemes)
-        runfiles.append(ctx.runfiles(files = [ctx.file.zipalign, ctx.file.apksigner_jar]))
+        runfiles.append(ctx.runfiles(files = [ctx.file._zipalign, ctx.file._apksigner_jar]))
     else:
-        java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
         env["DX_SIGN_AAB"] = ctx.file.input.short_path
-        env["DX_SIGN_BUNDLETOOL"] = ctx.executable.bundletool.short_path
+        env["DX_SIGN_BUNDLETOOL"] = ctx.executable._bundletool.short_path
         env["DX_SIGN_JAVABASE"] = _rel(java.java_home_runfiles_path)
-        runfiles.append(ctx.attr.bundletool[DefaultInfo].default_runfiles)
-        runfiles.append(ctx.runfiles(files = [ctx.executable.bundletool]))
+        runfiles.append(ctx.attr._bundletool[DefaultInfo].default_runfiles)
+        runfiles.append(ctx.runfiles(files = [ctx.executable._bundletool]))
     runfiles.append(ctx.runfiles(transitive_files = ctx.attr._java_runtime[DefaultInfo].files))
     out = ctx.actions.declare_file(ctx.label.name)
     lines = ["#!/bin/sh"]
     for key, value in sorted(env.items()):
         lines.append("export {0}=\"${{{0}-{1}}}\"".format(key, value))
-    lines.append("exec \"$PWD/{}\" \"$@\"".format(ctx.file.script.short_path))
+    lines.append("exec \"$PWD/{}\" \"$@\"".format(script.short_path))
     ctx.actions.write(out, "\n".join(lines) + "\n", is_executable = True)
     return [DefaultInfo(executable = out, runfiles = ctx.runfiles().merge_all(runfiles))]
 
@@ -663,79 +668,35 @@ _sign_launcher = rule(
     doc = "Signing launcher whose tools (zipalign, apksigner, bundletool, JDK) are built for the execution platform.",
     executable = True,
     attrs = {
-        "apksigner_jar": attr.label(cfg = "exec", allow_single_file = True),
-        "bundletool": attr.label(cfg = "exec", executable = True),
         "input": attr.label(allow_single_file = True, mandatory = True),
-        "kind": attr.string(mandatory = True, values = ["apk", "aab"]),
         "min_sdk": attr.int(default = 0),
         "schemes": attr.string_list(),
-        "script": attr.label(allow_single_file = True, mandatory = True),
         "selection": attr.label(),
-        "zipalign": attr.label(cfg = "exec", allow_single_file = True),
+        "_aab_script": attr.label(default = Label("//android/packaging:sign_aab.sh"), allow_single_file = True),
+        "_apk_script": attr.label(default = Label("//android/packaging:sign_apk.sh"), allow_single_file = True),
+        "_apksigner_jar": attr.label(default = _APKSIGNER_JAR, cfg = "exec", allow_single_file = True),
+        "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "exec", executable = True),
         "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
+        "_zipalign": attr.label(default = _ZIPALIGN, cfg = "exec", allow_single_file = True),
     },
 )
 
-def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 0, visibility = None):
-    """Declares an explicit release signing launcher; builds never sign or read keys."""
+def android_sign(name, package, schemes = None, min_sdk = 0, visibility = None):
+    """Declares an explicit release signing launcher for an APK or App Bundle; builds never sign or read keys."""
     _sign_selection(
         name = name + "_selection",
-        apk = apk,
+        package = package,
         min_sdk = min_sdk,
-        schemes = schemes,
+        schemes = schemes or [],
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
     _sign_launcher(
         name = name,
-        kind = "apk",
-        input = apk,
-        script = Label("//android/packaging:sign_apk.sh"),
+        input = package,
         selection = ":" + name + "_selection",
         min_sdk = min_sdk,
-        schemes = schemes,
-        zipalign = _ZIPALIGN,
-        apksigner_jar = _APKSIGNER_JAR,
-        tags = ["manual"],
-        visibility = visibility,
-    )
-
-def aab_sign_errors(label, aab_count):
-    """Returns one error string per rejected App Bundle signing selection."""
-    if aab_count != 1:
-        return ["android_aab_release_sign: '" + label + "' built " + str(aab_count) + " aab files, want exactly one"]
-    return []
-
-def _aab_sign_selection_impl(ctx):
-    aabs = [file for file in ctx.attr.aab[DefaultInfo].files.to_list() if file.extension == "aab"]
-    failures = aab_sign_errors(str(ctx.attr.aab.label), len(aabs))
-    if len(failures) > 0:
-        fail("; ".join(failures))
-    return []
-
-_aab_sign_selection = rule(
-    implementation = _aab_sign_selection_impl,
-    doc = "Fails analysis unless the signing input builds exactly one App Bundle.",
-    attrs = {
-        "aab": attr.label(allow_files = True, mandatory = True, doc = "Target that builds the unsigned App Bundle."),
-    },
-)
-
-def android_aab_release_sign(name, aab, visibility = None):
-    """Declares an explicit App Bundle upload signing launcher; builds never sign or read keys."""
-    _aab_sign_selection(
-        name = name + "_selection",
-        aab = aab,
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
-    _sign_launcher(
-        name = name,
-        kind = "aab",
-        input = aab,
-        script = Label("//android/packaging:sign_aab.sh"),
-        selection = ":" + name + "_selection",
-        bundletool = _BUNDLETOOL,
+        schemes = schemes or DEFAULT_SCHEMES,
         tags = ["manual"],
         visibility = visibility,
     )

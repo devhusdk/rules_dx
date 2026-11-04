@@ -161,9 +161,9 @@ analysis.
 explicit launcher that runs only when you ask:
 
 ```python
-load("@rules_dx//android/packaging:defs.bzl", "android_apk_check", "android_apk_release_sign")
+load("@rules_dx//android/packaging:defs.bzl", "android_apk_check", "android_sign")
 
-android_apk_release_sign(name = "sign", apk = ":app_apk_unsigned_file")
+android_sign(name = "sign", package = ":app_apk_unsigned_file")
 android_apk_check(name = "sign_check", apk = ":app_apk_unsigned_file")
 ```
 
@@ -307,9 +307,9 @@ starts it; `device_run.sh` checks its logcat.
 Sign a bundle with your upload key through an explicit launcher:
 
 ```python
-load("@rules_dx//android/packaging:defs.bzl", "android_aab_release_sign")
+load("@rules_dx//android/packaging:defs.bzl", "android_sign")
 
-android_aab_release_sign(name = "sign_aab", aab = ":app_apk_aab_file")
+android_sign(name = "sign_aab", package = ":app_apk_aab_file")
 ```
 
 Pass the key through the environment of the run:

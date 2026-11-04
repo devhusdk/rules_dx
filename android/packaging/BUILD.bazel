@@ -2,7 +2,7 @@ load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_java//java:java_import.bzl", "java_import")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "android_apk_set", "rust_android_apk")
+load(":defs.bzl", "android_aab_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_sign", "rust_android_apk")
 load(":metadata_tests.bzl", "android_packaging_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -179,9 +179,9 @@ failure_test(
     target = ":no_serial_log_selection",
 )
 
-android_apk_release_sign(
+android_sign(
     name = "bad_scheme_sign",
-    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
+    package = "//android/tests/fixtures/rust_apk:dummy.apk",
     schemes = ["v9"],
 )
 
@@ -191,22 +191,10 @@ failure_test(
     target = ":bad_scheme_sign_selection",
 )
 
-android_apk_release_sign(
-    name = "no_scheme_sign",
-    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
-    schemes = [],
-)
-
-failure_test(
-    name = "no_scheme_sign_test",
-    expected_failure_substring = "schemes must name at least one signature scheme",
-    target = ":no_scheme_sign_selection",
-)
-
-android_apk_release_sign(
+android_sign(
     name = "low_sdk_sign",
-    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
     min_sdk = 21,
+    package = "//android/tests/fixtures/rust_apk:dummy.apk",
 )
 
 failure_test(
@@ -215,9 +203,9 @@ failure_test(
     target = ":low_sdk_sign_selection",
 )
 
-android_apk_release_sign(
+android_sign(
     name = "v4_only_sign",
-    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
+    package = "//android/tests/fixtures/rust_apk:dummy.apk",
     schemes = ["v4"],
 )
 
@@ -253,15 +241,27 @@ failure_test(
     target = ":bad_resource_aab_check_selection",
 )
 
-android_aab_release_sign(
-    name = "apk_as_aab_sign",
-    aab = "//android/tests/fixtures/rust_apk:dummy.apk",
+android_sign(
+    name = "json_sign",
+    package = "//android/tests/fixtures/rust_apk:device_x86_64.json",
 )
 
 failure_test(
-    name = "apk_as_aab_sign_test",
-    expected_failure_substring = "built 0 aab files, want exactly one",
-    target = ":apk_as_aab_sign_selection",
+    name = "json_sign_test",
+    expected_failure_substring = "built 0 .apk/.aab files, want exactly one",
+    target = ":json_sign_selection",
+)
+
+android_sign(
+    name = "aab_scheme_sign",
+    package = "//android/tests/fixtures/rust_apk:test_bundle.aab",
+    schemes = ["v2"],
+)
+
+failure_test(
+    name = "aab_scheme_sign_test",
+    expected_failure_substring = "schemes and min_sdk apply to APKs only",
+    target = ":aab_scheme_sign_selection",
 )
 
 android_adb_install(

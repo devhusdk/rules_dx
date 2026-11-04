@@ -21,7 +21,7 @@ cuda_gpu_test(
     min_compute_capability = "8.0",
     min_driver = "13.0",
     tags = ["manual"],
-    deps = ["//examples/cuda-app/kernels"],
+    deps = ["//cuda/tests/fixtures/cuda-app/kernels"],
 )
 
 filegroup(

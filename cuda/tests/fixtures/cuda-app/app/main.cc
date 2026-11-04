@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "examples/cuda-app/kernels/kernels.h"
+#include "cuda/tests/fixtures/cuda-app/kernels/kernels.h"
 
 namespace {
 

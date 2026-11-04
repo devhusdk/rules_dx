@@ -58,16 +58,16 @@ fn gpu_test_runs_on_the_device_through_a_nested_consumer() {
         );
     }
     // The example BUILD loads in-repo helpers, so the consumer gets its own kernels package.
-    case.write("examples/cuda-app/kernels/BUILD.bazel", KERNELS_BUILD);
+    case.write("cuda/tests/fixtures/cuda-app/kernels/BUILD.bazel", KERNELS_BUILD);
     // Likewise drop the in-repo corpus load from the gpu package.
-    let gpu = dx_testing::read_text(&case.root().join("examples/cuda-app/gpu/BUILD.bazel"));
+    let gpu = dx_testing::read_text(&case.root().join("cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel"));
     case.write(
-        "examples/cuda-app/gpu/BUILD.bazel",
+        "cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel",
         &consumer_gpu_build(&gpu),
     );
     let run = case.plain(
         "test",
-        "//examples/cuda-app/gpu:gpu_test",
+        "//cuda/tests/fixtures/cuda-app/gpu:gpu_test",
         &["--test_output=all", "--nocache_test_results"],
     );
     let log = run.combined();

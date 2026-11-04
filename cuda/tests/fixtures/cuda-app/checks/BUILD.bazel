@@ -8,12 +8,12 @@ rust_test(
     name = "device_code_test",
     srcs = ["device_code_test.rs"],
     data = [
-        "//examples/cuda-app/app:cuda_app",
-        "//examples/cuda-app/kernels",
+        "//cuda/tests/fixtures/cuda-app/app:cuda_app",
+        "//cuda/tests/fixtures/cuda-app/kernels",
     ],
     env = {
-        "DX_CUDA_ARCHIVES": "$(rootpaths //examples/cuda-app/kernels)",
-        "DX_CUDA_BINARY": "$(rootpath //examples/cuda-app/app:cuda_app)",
+        "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/cuda-app/kernels)",
+        "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cuda-app/app:cuda_app)",
     },
     target_compatible_with = CUDA_TARGET,
     deps = ["//tools/testing:dx_testing"],
@@ -24,15 +24,15 @@ rust_test(
     srcs = ["//tools/testing:clang_format_test.rs"],
     data = [
         "//:.clang-format",
-        "//examples/cuda-app/app:format_srcs",
-        "//examples/cuda-app/gpu:format_srcs",
-        "//examples/cuda-app/kernels:format_srcs",
+        "//cuda/tests/fixtures/cuda-app/app:format_srcs",
+        "//cuda/tests/fixtures/cuda-app/gpu:format_srcs",
+        "//cuda/tests/fixtures/cuda-app/kernels:format_srcs",
         "@llvm//tools:clang-format",
     ],
     env = {
         "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
         "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
-        "DX_FORMAT_SRCS": "$(rootpaths //examples/cuda-app/app:format_srcs) $(rootpaths //examples/cuda-app/gpu:format_srcs) $(rootpaths //examples/cuda-app/kernels:format_srcs)",
+        "DX_FORMAT_SRCS": "$(rootpaths //cuda/tests/fixtures/cuda-app/app:format_srcs) $(rootpaths //cuda/tests/fixtures/cuda-app/gpu:format_srcs) $(rootpaths //cuda/tests/fixtures/cuda-app/kernels:format_srcs)",
     },
     deps = ["//tools/testing:dx_testing"],
 )

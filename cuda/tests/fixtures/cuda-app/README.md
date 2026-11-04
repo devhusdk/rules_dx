@@ -10,9 +10,9 @@ A multi-package CUDA app. A `cuda_library` holds three kernels behind a C ABI he
 | `checks` | Device code and format checks |
 
 ```sh
-bazel build //examples/cuda-app/...
-bazel test //examples/cuda-app/...
-bazel run //examples/cuda-app/app:cuda_app
+bazel build //cuda/tests/fixtures/cuda-app/...
+bazel test //cuda/tests/fixtures/cuda-app/...
+bazel run //cuda/tests/fixtures/cuda-app/app:cuda_app
 ```
 
 `cuda_app` adds two vectors, runs the stencil over the sums and reduces both arrays. It prints one line:
@@ -27,4 +27,4 @@ The kernels build for `compute_80:compute_80,sm_80` and `sm_90`. That is PTX and
 
 nvcc and its host compiler come from the pinned CUDA redistributables and LLVM toolchain declared in `MODULE.bazel`, so the build needs no CUDA install and no GPU. The targets build on Linux x86_64 only. Other platforms skip them as incompatible.
 
-`gpu_test` is tagged `manual`, so `//...` skips it. It fails on a host without a GPU. On a GPU host run it with `bazel test //examples/cuda-app/gpu:gpu_test`, or through a nested consumer with `bazel test //tools/testing/hermetic:cuda_gpu_nested_test`. The kernels carry PTX for compute capability 8.0, so newer GPUs such as an RTX 50 series card JIT them.
+`gpu_test` is tagged `manual`, so `//...` skips it. It fails on a host without a GPU. On a GPU host run it with `bazel test //cuda/tests/fixtures/cuda-app/gpu:gpu_test`, or through a nested consumer with `bazel test //tools/testing/hermetic:cuda_gpu_nested_test`. The kernels carry PTX for compute capability 8.0, so newer GPUs such as an RTX 50 series card JIT them.

@@ -1,7 +1,7 @@
 #include <vector>
 
 #include "cuda/testing/gpu_test.h"
-#include "examples/cuda-app/kernels/kernels.h"
+#include "cuda/tests/fixtures/cuda-app/kernels/kernels.h"
 
 namespace {
 

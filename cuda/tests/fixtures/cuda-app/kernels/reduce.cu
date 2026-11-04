@@ -1,5 +1,5 @@
-#include "examples/cuda-app/kernels/common.cuh"
-#include "examples/cuda-app/kernels/kernels.h"
+#include "cuda/tests/fixtures/cuda-app/kernels/common.cuh"
+#include "cuda/tests/fixtures/cuda-app/kernels/kernels.h"
 
 __global__ void dx_reduce_kernel(int n, const int *x, unsigned long long *sum) {
   __shared__ long long partial[kDxBlock];

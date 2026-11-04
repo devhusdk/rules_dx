@@ -153,7 +153,7 @@ const PACKAGES: [&str; 126] = [
     "cc/tests/fixtures/cpp-app/app",
     "cc/tests/fixtures/cpp-app/core",
     "cc/tests/fixtures/cpp-app/diagnostics",
-    "examples/cuda-app/checks",
+    "cuda/tests/fixtures/cuda-app/checks",
     "examples/java-app/cli",
     "examples/java-app/diagnostics",
     "julia/tests/fixtures/julia-app/diagnostics",

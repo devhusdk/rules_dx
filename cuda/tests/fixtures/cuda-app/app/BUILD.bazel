@@ -17,7 +17,7 @@ cc_binary(
     name = "cuda_app",
     srcs = ["main.cc"],
     target_compatible_with = CUDA_TARGET,
-    deps = ["//examples/cuda-app/kernels"],
+    deps = ["//cuda/tests/fixtures/cuda-app/kernels"],
 )
 
 sh_test(

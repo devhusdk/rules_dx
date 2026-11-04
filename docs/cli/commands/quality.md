@@ -1213,8 +1213,8 @@ findings: `import`, `unresolved-type`, `missing-type`, `incompatible-type`,
 `uncreatable-type`, `unresolved-alias`, `non-list-property`,
 `enums-are-not-types`, `inheritance-cycle`, `alias-cycle`,
 `missing-enum-entry` and `bad-signal-handler-parameters`. `dx lint` reports
-everything else, including ids dx does not know. These ids no longer show up
-in `dx lint`. Syntax errors and files `qmllint` cannot open appear in both.
+everything else, including ids dx does not know. Syntax errors and files
+`qmllint` cannot open appear in both.
 
 ### Java lint
 

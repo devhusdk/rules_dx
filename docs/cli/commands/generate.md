@@ -226,8 +226,8 @@ label.
 For `java`, `kotlin` and `scala`, a `resolve` mapping names the fully qualified
 import or the import's own package, and a `dx_ignore_import` names the fully
 qualified import. A wildcard import such as `kotlinx.coroutines.*` resolves
-through its package. A bare class name such as `ImmutableList` no longer
-matches, so a stale bare-name entry fails the run.
+through its package. A bare class name such as `ImmutableList` does not
+match, so a stale bare-name entry fails the run.
 
 ```starlark
 # gazelle:resolve kotlin kotlinx.coroutines @maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core
@@ -250,7 +250,7 @@ For `csharp`, a `using` resolves by the full namespace that a local
 A `using static` or alias directive may name a type, so when its target
 matches no library it also tries the parent namespace. A `resolve` mapping
 or a `dx_ignore_import` names the full namespace, such as `Newtonsoft.Json`.
-A bare last segment such as `Json` no longer matches, so a stale bare-name
+A bare last segment such as `Json` does not match, so a stale bare-name
 entry fails the run. A namespace that more than one local library declares
 fails as ambiguous.
 

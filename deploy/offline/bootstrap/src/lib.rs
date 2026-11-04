@@ -40,17 +40,14 @@ pub enum Command {
 
 /// Parses argv, or returns the plain refusal text of a bad argument.
 pub fn parse_args(args: &[String]) -> Result<Command, String> {
-    let home = std::env::var("HOME")
-        .ok()
-        .filter(|h| !h.is_empty())
-        .unwrap_or_else(|| "/tmp".to_string());
     let mut options = Options {
         bundle: None,
-        install_dir: format!("{home}/.local/bin"),
+        install_dir: String::new(),
         workspace: std::env::current_dir()
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_else(|_| ".".to_string()),
     };
+    let mut install_dir = None;
     let mut index = 0;
     while index < args.len() {
         let flag = args[index].as_str();
@@ -59,14 +56,33 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
         }
         match flag {
             "--bundle" => options.bundle = args.get(index + 1).cloned(),
-            "--install-dir" => options.install_dir = args[index + 1].clone(),
+            "--install-dir" => install_dir = Some(args[index + 1].clone()),
             "--workspace" => options.workspace = args[index + 1].clone(),
             "-h" | "--help" => return Ok(Command::Help),
             _ => return Err(format!("unknown argument '{flag}'")),
         }
         index += 2;
     }
+    let home = std::env::var("HOME").ok();
+    let profile = std::env::var("USERPROFILE").ok();
+    options.install_dir = install_dir
+        .or_else(|| default_install_dir(home.as_deref(), profile.as_deref()))
+        .ok_or_else(|| "neither HOME nor USERPROFILE is set; pass --install-dir DIR".to_string())?;
     Ok(Command::Bootstrap(options))
+}
+
+/// Returns `bin` under `HOME`, else under `USERPROFILE` on native Windows.
+pub fn default_install_dir(home: Option<&str>, profile: Option<&str>) -> Option<String> {
+    let base = home
+        .filter(|h| !h.is_empty())
+        .or(profile.filter(|p| !p.is_empty()))?;
+    Some(
+        PathBuf::from(base)
+            .join(".local")
+            .join("bin")
+            .to_string_lossy()
+            .into_owned(),
+    )
 }
 
 /// Returns the launcher file name this host needs from the bundle.

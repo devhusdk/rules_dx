@@ -61,7 +61,8 @@ bootstrap_offline --bundle DIR [--install-dir DIR] [--workspace DIR]
 
 - `--bundle DIR`: the bundle tree. Required.
 - `--install-dir DIR`: where `bazel` (`bazel.exe` on Windows) is installed.
-  Defaults to `$HOME/.local/bin`.
+  Defaults to `$HOME/.local/bin`, or `%USERPROFILE%\.local\bin` when `HOME` is
+  unset. Fails when neither is set, so pass `--install-dir` then.
 - `--workspace DIR`: the workspace that receives `.dx/advisory`. Defaults to
   the current directory.
 - `-h`, `--help`: print the usage line on stdout and exit 0.

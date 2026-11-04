@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use super::{
-    host_launcher, is_plain_date, manifest_entry, parse_args, pinned, recorded_field, run,
-    today_utc, usage, Command, Options, ADVISORY_SETS,
+    default_install_dir, host_launcher, is_plain_date, manifest_entry, parse_args, pinned,
+    recorded_field, run, today_utc, usage, Command, Options, ADVISORY_SETS,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -334,6 +334,31 @@ fn flags_parse_into_bootstrap_options() {
             workspace: "w".to_string(),
         }))
     );
+}
+
+#[test]
+fn the_default_install_dir_is_under_home_then_userprofile() {
+    let bin = |base: &str| {
+        PathBuf::from(base)
+            .join(".local")
+            .join("bin")
+            .to_string_lossy()
+            .into_owned()
+    };
+    assert_eq!(
+        default_install_dir(Some("/home/a"), Some("/users/b")),
+        Some(bin("/home/a"))
+    );
+    assert_eq!(
+        default_install_dir(None, Some("/users/b")),
+        Some(bin("/users/b"))
+    );
+    assert_eq!(
+        default_install_dir(Some(""), Some("/users/b")),
+        Some(bin("/users/b"))
+    );
+    assert_eq!(default_install_dir(None, None), None);
+    assert_eq!(default_install_dir(Some(""), Some("")), None);
 }
 
 #[test]

@@ -179,6 +179,7 @@ rust_test(
 )
 
 # keep
+# size: medium, rust-analyzer startup, measured 121s linux_x86_64 2026-11-04
 rust_test(
     name = "headless_lsp_rust_analyzer_test",
     size = "medium",

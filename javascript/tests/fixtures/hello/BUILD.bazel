@@ -54,6 +54,7 @@ javascript_test(
     tags = ["manual"],
 )
 
+# size: large, manual fixture that checks size forwarding, never run
 javascript_test(
     name = "plain_large_test",
     runner = "node",

@@ -218,6 +218,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 nested_bazel_test(
     name = "nested_seed_lock_test",
     size = "large",
@@ -230,6 +231,7 @@ nested_bazel_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "nested_bazel_leak_test",
     size = "large",
@@ -267,6 +269,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "nested_bazel_pinned_test",
     size = "large",

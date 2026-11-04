@@ -551,6 +551,7 @@ sign_env_test(
     target_under_test = "//msix/tests/fixtures/msix-app/app:app_sign",
 )
 
+# size: medium, timed out at 300s on windows, see #6357
 pwsh_test(
     name = "install_test",
     size = "medium",

@@ -85,6 +85,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "linux_consumer_test",
     size = "large",
@@ -117,6 +118,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "macos_consumer_test",
     size = "large",
@@ -144,6 +146,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "macos_app_consumer_test",
     size = "large",
@@ -173,6 +176,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "macos_swift_consumer_test",
     size = "large",
@@ -202,6 +206,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "macos_framework_consumer_test",
     size = "large",
@@ -236,6 +241,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "macos_bundle_consumer_test",
     size = "large",
@@ -264,6 +270,7 @@ rust_test(
 )
 
 # keep
+# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "macos_shared_rust_consumer_test",
     size = "large",

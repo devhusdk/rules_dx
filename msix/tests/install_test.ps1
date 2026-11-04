@@ -5,6 +5,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $runfiles = [Runfiles]::Create()
+$case = $env:DX_INSTALL_CASE
 $failures = [System.Collections.Generic.List[string]]::new()
 $windowsPowerShell = Join-Path ([Environment]::GetFolderPath("System")) "WindowsPowerShell\v1.0\powershell.exe"
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
@@ -88,26 +89,27 @@ if ($null -eq $developerMode -or $developerMode.AllowDevelopmentWithoutDevLicens
     [Environment]::Exit(1)
 }
 
-Test-Install "x64" $env:DX_MSIX_X64 {
+if ($case -eq "x64") { Test-Install "x64" $env:DX_MSIX_X64 {
     param($Identity, $Run)
     Assert-Equal 0 $Run.Exit "x64 exit ($($Run.Stderr))"
     $expected = "resource=hello from the packaged resource`nlibrary=greeting from greet.dll`npackage=$($Identity.package_full_name)`nprobe=off"
     Assert-Equal $expected ($Run.Output.Trim() -replace "`r", "") "x64 output"
-}
+} }
 
-Test-Install "probe" $env:DX_MSIX_PROBE {
+if ($case -eq "probe") { Test-Install "probe" $env:DX_MSIX_PROBE {
     param($Identity, $Run)
     Assert-Equal 0 $Run.Exit "probe exit ($($Run.Stderr))"
     Assert-That ($Run.Output.Contains("package=$($Identity.package_full_name)")) "probe output: $($Run.Output)"
     Assert-That ($Run.Output.Contains("probe=on")) "probe output: $($Run.Output)"
-}
+} }
 
-Test-Install "noresource" $env:DX_MSIX_NORESOURCE {
+if ($case -eq "noresource") { Test-Install "noresource" $env:DX_MSIX_NORESOURCE {
     param($Identity, $Run)
     Assert-Equal 3 $Run.Exit "missing resource exit"
     Assert-That ($Run.Stderr.Contains("dxmsix: missing resource")) "missing resource stderr: $($Run.Stderr)"
-}
+} }
 
+if ($case -eq "untrusted") {
 $identity = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_X64 ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
 $rsa = [System.Security.Cryptography.RSA]::Create(2048)
 $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
@@ -131,6 +133,7 @@ try {
     Assert-Equal "0" $left.Trim() "untrusted package is installed"
 } finally {
     Remove-TestPackage $identity.name
+}
 }
 
 if ($failures.Count -gt 0) {

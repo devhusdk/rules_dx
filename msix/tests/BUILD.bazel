@@ -552,31 +552,51 @@ sign_env_test(
 )
 
 # size: medium, timed out at 300s on windows, see #6357
-pwsh_test(
+[
+    pwsh_test(
+        name = "install_" + case + "_test",
+        size = "medium",
+        srcs = ["install_test.ps1"],
+        data = [
+            ":app_noresource",
+            ":app_probe",
+            "//msix/tests/fixtures/msix-app/app",
+            "//msix/tests/fixtures/msix-app/app:app_sign",
+            "//msix:signtool",
+        ],
+        env = {
+            "DX_INSTALL_CASE": case,
+            "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
+            "DX_MSIX_PACKAGE": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
+            "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
+            "DX_MSIX_SIGN": "_main/msix/tests/fixtures/msix-app/app/app_sign.bat",
+            "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
+            "DX_MSIX_X64": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
+        },
+        tags = [
+            "exclusive",
+            "manual",
+        ],
+        target_compatible_with = _WINDOWS,
+        deps = ["@rules_powershell//powershell/runfiles"],
+    )
+    for case in [
+        "noresource",
+        "probe",
+        "untrusted",
+        "x64",
+    ]
+]
+
+test_suite(
     name = "install_test",
-    size = "medium",
-    srcs = ["install_test.ps1"],
-    data = [
-        ":app_noresource",
-        ":app_probe",
-        "//msix/tests/fixtures/msix-app/app",
-        "//msix/tests/fixtures/msix-app/app:app_sign",
-        "//msix:signtool",
+    tags = ["manual"],
+    tests = [
+        ":install_noresource_test",
+        ":install_probe_test",
+        ":install_untrusted_test",
+        ":install_x64_test",
     ],
-    env = {
-        "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
-        "DX_MSIX_PACKAGE": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
-        "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
-        "DX_MSIX_SIGN": "_main/msix/tests/fixtures/msix-app/app/app_sign.bat",
-        "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
-        "DX_MSIX_X64": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
-    },
-    tags = [
-        "exclusive",
-        "manual",
-    ],
-    target_compatible_with = _WINDOWS,
-    deps = ["@rules_powershell//powershell/runfiles"],
 )
 
 real_source_target(

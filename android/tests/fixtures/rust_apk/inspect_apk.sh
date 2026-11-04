@@ -11,9 +11,9 @@ version_code="$8"
 version_name="$9"
 extra_permission="${10:-}"
 aapt="${DX_AAPT:-}"
-sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+sdk="${ANDROID_HOME:-}"
 if [ -z "$aapt" ] && [ -z "$sdk" ]; then
-    echo "inspect_apk: ANDROID_HOME or ANDROID_SDK_ROOT names the installed SDK" >&2
+    echo "inspect_apk: ANDROID_HOME names the installed SDK" >&2
     exit 2
 fi
 build_tools=""

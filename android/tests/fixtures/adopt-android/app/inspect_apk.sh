@@ -10,11 +10,7 @@ label="$7"
 asset="$8"
 activity="$9"
 symbol="${10}"
-sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-if [ -z "$sdk" ]; then
-    echo "inspect_apk: ANDROID_HOME or ANDROID_SDK_ROOT names the installed SDK" >&2
-    exit 2
-fi
+sdk="${ANDROID_HOME:?inspect_apk: ANDROID_HOME names the installed SDK}"
 build_tools="$(ls -d "$sdk"/build-tools/* | sort -V | tail -n 1)"
 badging="$("$build_tools/aapt" dump badging "$apk")"
 for want in "package: name='$app_id'" "sdkVersion:'$min_sdk'" "application-label:'$label'" "launchable-activity: name='$activity'" "uses-permission: name='android.permission.VIBRATE'"; do

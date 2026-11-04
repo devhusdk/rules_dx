@@ -92,7 +92,7 @@ _android_ndk_toolchain_repo(
 )
 ```
 
-Point it at an SDK with `local_path` or the `ANDROID_SDK_ROOT` and
+Point it at an SDK with `local_path` or the `ANDROID_HOME` and
 `ANDROID_NDK_REVISION` environment names, then register
 `@android_ndk_toolchain//:ndk_cc_toolchain_device` and
 `@android_ndk_toolchain//:ndk_cc_toolchain_emulator`. Without an SDK the
@@ -366,7 +366,7 @@ patch and its `single_version_override` are gone (remove them from your
 Build one APK for both tuples on a qualified host:
 
 ```sh
-export ANDROID_HOME="$HOME/Android/Sdk" ANDROID_SDK_ROOT="$HOME/Android/Sdk" ANDROID_NDK_REVISION="27.2.12479018"
+export ANDROID_HOME="$HOME/Android/Sdk" ANDROID_NDK_REVISION="27.2.12479018"
 bazel build //android/tests/fixtures/rust_apk:app_apk_file \
     --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
 ```

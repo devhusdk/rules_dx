@@ -14,7 +14,6 @@ with platform android-34, build-tools 35.0.0 and an NDK:
 
 ```sh
 export ANDROID_HOME=$HOME/Android/Sdk
-export ANDROID_SDK_ROOT=$ANDROID_HOME
 export ANDROID_NDK_REVISION=<installed ndk version>
 bazel build --config=android :demo-app_apk_file
 bazel test --config=android :demo-app_check_test

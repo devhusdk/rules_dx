@@ -145,7 +145,7 @@ def _clang_version(ctx, prebuilt):
 def _android_ndk_toolchain_repo_impl(ctx):
     local_path = ctx.attr.local_path
     if local_path == "":
-        local_path = ctx.os.environ.get("ANDROID_SDK_ROOT", "")
+        local_path = ctx.os.environ.get("ANDROID_HOME", "")
     revision = ctx.attr.ndk_revision
     if revision == "":
         revision = ctx.os.environ.get("ANDROID_NDK_REVISION", "")
@@ -203,7 +203,7 @@ def _android_ndk_toolchain_repo_impl(ctx):
 
 android_ndk_toolchain_repo = repository_rule(
     implementation = _android_ndk_toolchain_repo_impl,
-    environ = ["ANDROID_NDK_REVISION", "ANDROID_SDK_ROOT"],
+    environ = ["ANDROID_NDK_REVISION", "ANDROID_HOME"],
     attrs = {
         "api_level": attr.int(
             doc = "Android API level used when a target does not set one, or zero for the floor.",
@@ -214,7 +214,7 @@ android_ndk_toolchain_repo = repository_rule(
             default = "shared",
         ),
         "local_path": attr.string(
-            doc = "Installed Android SDK root, falling back to the ANDROID_SDK_ROOT environment variable.",
+            doc = "Installed Android SDK root, falling back to the ANDROID_HOME environment variable.",
             default = "",
         ),
         "ndk_revision": attr.string(

@@ -144,7 +144,6 @@ jobs:
             "emulator" \
             "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI" > /dev/null
           {
-            echo "ANDROID_SDK_ROOT=$ANDROID_HOME"
             echo "ANDROID_NDK_REVISION=$DX_ANDROID_NDK"
             echo "SDKMANAGER=$sdkmanager"
             echo "EMULATOR=$ANDROID_HOME/emulator/emulator"

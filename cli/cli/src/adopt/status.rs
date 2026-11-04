@@ -127,8 +127,8 @@ fn capability_line(capability: &CapabilityEvent) -> String {
     )
 }
 
-fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
-    let drift = super::wiring::agents_drift(workspace);
+fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
+    let drift = super::init_files::drift(workspace);
     let mut parts: Vec<String> = Vec::new();
     if !drift.missing.is_empty() {
         parts.push(format!("missing {}", drift.missing.join(", ")));
@@ -138,18 +138,15 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     }
     parts.extend(drift.other);
     let (status, detail) = if parts.is_empty() {
-        (
-            "ok",
-            format!("{} has the current dx block", super::agents::FILE),
-        )
+        ("ok", "every file dx init writes is current".to_owned())
     } else {
         ("warn", parts.join("; "))
     };
     dx_adopt::StatusCheck {
-        name: "agents".to_owned(),
+        name: "init".to_owned(),
         status: status.to_owned(),
         detail,
-        hint: "dx init --apply writes the block, hooks and CLAUDE.md import".to_owned(),
+        hint: "dx init --apply writes the missing and stale files".to_owned(),
     }
 }
 
@@ -230,7 +227,7 @@ pub(crate) fn execute_status(
         Vec::new()
     };
     let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
-    checks.push(agents_check(workspace));
+    checks.push(init_check(workspace));
     if let Some(check) = lease_check(workspace) {
         checks.push(check);
     }
@@ -369,48 +366,53 @@ mod tests {
     fn status_flags_a_missing_or_stale_agents_block_and_accepts_a_current_one() {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-agents-");
         let root = scratch.path();
-        let check = agents_check(root);
+        let check = init_check(root);
         assert_eq!(
             (check.name.as_str(), check.status.as_str()),
-            ("agents", "warn")
+            ("init", "warn")
         );
         assert!(check.detail.contains("AGENTS.md"), "{}", check.detail);
+        let (code, _out, err) = crate::adopt::test_support::run(
+            &crate::adopt::test_support::invocation(&["init", "--apply"]),
+            root,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(init_check(root).status, "ok");
         std::fs::write(
             root.join("AGENTS.md"),
             "# Mine\n<!-- dx:begin -->\n- old\n<!-- dx:end -->\n",
         )
         .expect("stale");
-        let check = agents_check(root);
+        let check = init_check(root);
         assert_eq!(check.status, "warn");
         assert!(check.detail.contains("stale AGENTS.md"), "{}", check.detail);
         std::fs::write(root.join("AGENTS.md"), super::super::agents::block()).expect("current");
-        let check = agents_check(root);
-        assert_eq!(check.status, "warn");
+        std::fs::remove_file(root.join(".claude/settings.json")).expect("rm");
+        let check = init_check(root);
         assert!(
             check.detail.contains("missing .claude/settings.json"),
             "{}",
             check.detail
         );
-        std::fs::create_dir_all(root.join(".claude")).expect("dir");
         std::fs::write(
             root.join(".claude/settings.json"),
             dx_worktree::setup::settings_text(&dx_worktree::setup::CLAUDE),
         )
         .expect("settings");
-        let check = agents_check(root);
-        assert_eq!(check.status, "warn");
+        std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
+        let check = init_check(root);
         assert!(check.detail.contains("CLAUDE.md"), "{}", check.detail);
         std::fs::write(root.join("CLAUDE.md"), "@AGENTS.md\n").expect("claude");
-        assert_eq!(agents_check(root).status, "ok");
+        assert_eq!(init_check(root).status, "ok");
         #[cfg(unix)]
         {
             std::fs::remove_file(root.join("CLAUDE.md")).expect("rm");
             std::os::unix::fs::symlink("AGENTS.md", root.join("CLAUDE.md")).expect("link");
-            assert_eq!(agents_check(root).status, "ok");
+            assert_eq!(init_check(root).status, "ok");
         }
         std::fs::create_dir_all(root.join(".codex")).expect("dir");
         std::fs::write(root.join(".codex/hooks.json"), "{}\n").expect("codex");
-        let check = agents_check(root);
+        let check = init_check(root);
         assert_eq!(check.status, "warn");
         assert!(
             check
@@ -425,7 +427,7 @@ mod tests {
             dx_worktree::setup::settings_text(&dx_worktree::setup::CODEX),
         )
         .expect("codex");
-        assert_eq!(agents_check(root).status, "ok");
+        assert_eq!(init_check(root).status, "ok");
     }
 
     #[test]

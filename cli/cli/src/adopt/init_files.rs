@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use dx_adopt::scaffold::ScaffoldFile;
 use dx_worktree::setup;
 
@@ -43,9 +45,72 @@ pub(super) fn owned(planned: &[ScaffoldFile]) -> Vec<InitFile> {
     files
 }
 
+/// What a workspace lacks against what init writes.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(super) struct Drift {
+    pub(super) missing: Vec<String>,
+    pub(super) stale: Vec<String>,
+    pub(super) other: Vec<String>,
+}
+
+/// Every owned file that is missing, stale or unreadable under `root`, without writing.
+pub(super) fn drift(root: &Path) -> Drift {
+    let mut drift = Drift::default();
+    for rel in [dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL] {
+        if !root.join(rel).exists() {
+            drift.missing.push(rel.to_owned());
+        }
+    }
+    drift.stale.extend(dx_adopt::stale_launchers(root));
+    let preset = dx_adopt::preset_drift(root);
+    drift.missing.extend(preset.missing);
+    drift.stale.extend(preset.stale);
+    drift.other.extend(preset.other);
+    for (path, content) in dx_adopt::render_overrides() {
+        match std::fs::read(root.join(&path)) {
+            Ok(bytes) if bytes == content.as_bytes() => {}
+            Ok(_) => drift.stale.push(path),
+            Err(_) => drift.missing.push(path),
+        }
+    }
+    if std::fs::read_to_string(root.join(".bazelignore"))
+        .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
+    {
+        drift.stale.push(".bazelignore".to_owned());
+    }
+    for (path, missing) in setup::workspace_missing(root) {
+        if root.join(path).exists() {
+            drift
+                .stale
+                .push(format!("{path} (lacks hooks: {})", missing.join("; ")));
+        } else {
+            drift.missing.push(path.to_owned());
+        }
+    }
+    match agents::planned(root, true) {
+        Ok(None) => {}
+        Ok(Some(_)) if root.join(agents::FILE).exists() => {
+            drift.stale.push(agents::FILE.to_owned());
+        }
+        Ok(Some(_)) => drift.missing.push(agents::FILE.to_owned()),
+        Err(error) => drift.other.push(format!("{}: {error}", agents::FILE)),
+    }
+    match claude_md::state(root) {
+        Ok(claude_md::State::Imported | claude_md::State::Linked) => {}
+        Ok(claude_md::State::Missing) => {
+            drift
+                .stale
+                .push(format!("{} (lacks @{})", claude_md::FILE, agents::FILE));
+        }
+        Ok(claude_md::State::Absent) => drift.missing.push(claude_md::FILE.to_owned()),
+        Err(error) => drift.other.push(format!("{}: {error}", claude_md::FILE)),
+    }
+    drift
+}
+
 #[cfg(test)]
 mod tests {
-    use super::owned;
+    use super::{drift, owned};
     use crate::adopt::test_support::{invocation, run};
 
     #[test]
@@ -109,8 +174,39 @@ mod tests {
     fn drift_in_an_empty_dir_is_owned() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
         let files = owned(&[]);
-        for path in crate::adopt::wiring::drift(scratch.path()).missing {
+        for path in drift(scratch.path()).missing {
             assert!(files.iter().any(|file| file.path == path), "{path}");
+        }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn drift_names_each_owned_gap() {
+        let scratch = dx_test_scratch::scratch("dx-init-owned-gaps-");
+        let root = scratch.path();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(drift(root), super::Drift::default());
+        std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("ignore");
+        std::fs::write(
+            root.join("tools/dx"),
+            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+        )
+        .expect("dx");
+        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
+        std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
+        std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
+        let (path, _) = dx_adopt::render_overrides().remove(0);
+        std::fs::write(root.join(&path), "changed\n").expect("override");
+        let stale = drift(root).stale.join("\n");
+        for want in [
+            ".bazelignore",
+            "tools/dx",
+            "AGENTS.md",
+            "lacks @AGENTS.md",
+            path.as_str(),
+        ] {
+            assert!(stale.contains(want), "{want}: {stale}");
         }
         scratch.close().expect("cleanup");
     }

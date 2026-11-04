@@ -184,19 +184,14 @@ fn check_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let wiring = super::wiring::drift(workspace);
+    let wiring = super::init_files::drift(workspace);
     let missing: Vec<String> = super::init_files::owned(&files)
         .into_iter()
         .filter(|file| file.essential && !workspace.join(&file.path).exists())
         .map(|file| file.path)
         .collect();
     let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
-    let mut stale = wiring.stale;
-    if std::fs::read_to_string(workspace.join(".bazelignore"))
-        .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
-    {
-        stale.push(".bazelignore".to_owned());
-    }
+    let stale = wiring.stale;
     let stale: Vec<String> = prefixed(&target.prefix, stale).collect();
     let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
     let invalid_pin = dx_adopt::read_version_pin(workspace)

@@ -12,7 +12,7 @@ bazel run @rules_dx//:dx -- --version
 dx status
 ```
 
-Reports toolchain, Bazel, module, overrides, init_plan, host, exec_tools, tools, pin, and agents
+Reports toolchain, Bazel, module, overrides, init_plan, host, exec_tools, tools, pin, and init
 health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
 downloads, installs, repairs, and runs nothing.
@@ -33,7 +33,7 @@ toolchain: ok (available: rust 1.99.1 via rules_rust 0.75.0 declared in MODULE.b
 Inside a `dx worktree` slot it adds a `lease` check that names the holder and branch.
 
 The checks are `toolchain`, `bazel`, `module`, `overrides`, `init_plan`, `host`, `exec_tools`,
-`tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
+`tools`, `pin`, and `init`. With a dx launcher there is also `launcher`.
 Inside a worktree slot there is also `lease`.
 The `share` check appears only while build slots are held.
 The `slots` check appears only when a `slot-N.lock` file under the dx slots
@@ -89,11 +89,9 @@ directory cannot be opened.
   `tools/dx pins dx <v>, .dx/version is <pin>` and hint
   `bazel run @rules_dx//:dx -- init --apply`. It fails `dx status` with
   `status_check_failed`.
-- `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one, or
-  `CLAUDE.md` does not import `AGENTS.md`, or
-  `.claude/settings.json` lacks a `dx worktree` hook, or `.codex/hooks.json`
-  or `.gemini/settings.json` exists and lacks the guard hook.
-  `dx init --apply` writes it.
+- `init`: `warn` when a file `dx init` writes is missing or out of date: the
+  launcher, preset, overrides, `.bazelignore`, `AGENTS.md` block, `CLAUDE.md`
+  import, or agent hooks. `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --to <version> --apply`.

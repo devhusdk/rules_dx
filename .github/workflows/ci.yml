@@ -123,17 +123,10 @@ jobs:
           bazel test --noshow_progress --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
       - name: Validate devcontainer definition shape
         run: |
-          python3 --version
-          python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
-          python3 - <<'EOF'
-          import json
-          with open(".devcontainer/devcontainer.json") as handle:
-              definition = json.load(handle)
-          post_create = definition["postCreateCommand"]
-          assert "bazel run @rules_dx//:dx -- env --apply" in post_create, post_create
-          assert "bazel build //..." not in post_create, post_create
-          print("devcontainer definition valid:", post_create)
-          EOF
+          post_create="$(jq -er '.postCreateCommand' .devcontainer/devcontainer.json)"
+          grep -Fq -- 'bazel run @rules_dx//:dx -- env --apply' <<<"$post_create"
+          if grep -Fq 'bazel build //...' <<<"$post_create"; then echo "devcontainer: postCreateCommand runs bazel build //..." >&2; exit 1; fi
+          echo "devcontainer definition valid: $post_create"
       - name: Write job summary
         if: always()
         env:
@@ -826,24 +819,8 @@ jobs:
           bazel run "$@" @rules_dx//:dx -- check --affected --output=json | tee "${RUNNER_TEMP:-/tmp}/gate.json"
       - name: Verify the base dx compared against
         run: |
-          python3 - "${RUNNER_TEMP:-/tmp}/gate.json" <<'DX_GATE_VERIFY'
-          import json
-          import os
-          import sys
-
-          want = os.environ["GATE_BASE"]
-          seen = []
-          for line in open(sys.argv[1], encoding="utf-8"):
-              try:
-                  value = json.loads(line)
-              except ValueError:
-                  continue
-              affected = value.get("affected") if isinstance(value, dict) else None
-              if isinstance(affected, dict) and "base" in affected:
-                  seen.append(affected["base"])
-          if want not in seen:
-              sys.exit(f"gate: dx compared against {seen}, expected {want}")
-          DX_GATE_VERIFY
+          seen="$(jq -Rr 'fromjson? | objects | .affected? | objects | .base? // empty | strings' "${RUNNER_TEMP:-/tmp}/gate.json")"
+          grep -Fxq -- "$GATE_BASE" <<<"$seen" || { echo "gate: dx compared against [$seen], expected $GATE_BASE" >&2; exit 1; }
       - name: Summary
         if: ${{ always() }}
         run: echo "gate base ${GATE_BASE:-unset}" >> "$GITHUB_STEP_SUMMARY"

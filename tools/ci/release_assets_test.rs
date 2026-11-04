@@ -181,6 +181,8 @@ fn the_checksum_manifest_is_built_checked_and_uploaded() {
         "(cd out && sha256sum -c dx-sha256sums.txt)",
         "--pattern 'dx-*' --dir verify",
         "sha256sum -c dx-sha256sums.txt)",
+        "unzip -p \"out/$archive\" dx.exe",
+        "tar -xzOf \"out/$archive\" dx",
     ] {
         assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
     }
@@ -469,4 +471,14 @@ fn pull_requests_that_touch_pins_run_the_attested_check() {
     assert!(text.contains("^cli/prebuilt/pins.bzl$"));
     assert!(text.contains("//tools/ci:fill_pins_bin -- \"v$version\" --check"));
     assert!(workflow().contains("//tools/ci:fill_pins_bin -- \"v$version\" --check"));
+}
+
+#[test]
+fn the_release_and_ci_workflows_need_no_python() {
+    for path in [WORKFLOW, ".github/workflows/ci.yml"] {
+        assert!(
+            !read_runfiles(path).contains("python3"),
+            "{path} uses python3"
+        );
+    }
 }

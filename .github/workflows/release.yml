@@ -271,17 +271,7 @@ jobs:
             for file in "$archive" "$archive.sha256" "$archive.spdx.json"; do
               test -s "out/$file"
             done
-            python3 -I - "out/$archive" "out/$asset" <<'PY'
-          import sys, tarfile, zipfile
-          archive, raw = sys.argv[1:3]
-          if archive.endswith(".zip"):
-              with zipfile.ZipFile(archive) as z:
-                  data = z.read("dx.exe")
-          else:
-              with tarfile.open(archive) as t:
-                  data = t.extractfile("dx").read()
-          open(raw, "wb").write(data)
-          PY
+            case "$archive" in *.zip) unzip -p "out/$archive" dx.exe ;; *) tar -xzOf "out/$archive" dx ;; esac > "out/$asset"
             hash="$(sha256sum "out/$asset" | cut -d' ' -f1)"
             printf '%s  %s\n' "$hash" "$asset" > "out/$asset.sha256"
             printf '%s  %s\n' "$(sha256sum "out/$archive.spdx.json" | cut -d' ' -f1)" "$archive.spdx.json" >> sums.tmp

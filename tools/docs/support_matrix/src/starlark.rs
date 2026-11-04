@@ -549,7 +549,7 @@ enum Constraint {
 /// guards the upstream target outside its runtime transition, and the cc, go, haskell,
 /// kotlin, typescript and elixir wrappers forward the attribute as written.
 const KNOWN_KINDS: &[(&str, Constraint)] = &[
-    ("android_apk_check", Constraint::AsWritten),
+    ("android_check", Constraint::AsWritten),
     ("cc_test", Constraint::AsWritten),
     ("csharp_test", Constraint::AsWritten),
     (
@@ -1068,7 +1068,7 @@ mod tests {
     #[test]
     fn reads_the_analysis_and_apk_check_kinds() {
         for kind in [
-            "android_apk_check",
+            "android_check",
             "failure_test",
             "owns_cmake_class_test",
             "owns_dockerfile_class_test",

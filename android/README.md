@@ -161,10 +161,10 @@ analysis.
 explicit launcher that runs only when you ask:
 
 ```python
-load("@rules_dx//android/packaging:defs.bzl", "android_apk_check", "android_sign")
+load("@rules_dx//android/packaging:defs.bzl", "android_check", "android_sign")
 
 android_sign(name = "sign", package = ":app_apk_unsigned_file")
-android_apk_check(name = "sign_check", apk = ":app_apk_unsigned_file")
+android_check(name = "sign_check", package = ":app_apk_unsigned_file")
 ```
 
 `bazel test :sign_check` validates the package without signing: it must
@@ -215,14 +215,14 @@ There are no key-rotation (signing lineage) bundles yet. If you pass
 `debug_signing_lineage_file`, the APK still builds, but `:<name>_aab_file`
 fails analysis until upstream `rules_android` fixes it (#3739).
 
-Check a bundle with a test:
+Check an App Bundle with a test:
 
 ```python
-load("@rules_dx//android/packaging:defs.bzl", "android_aab_check")
+load("@rules_dx//android/packaging:defs.bzl", "android_check")
 
-android_aab_check(
+android_check(
     name = "aab_check",
-    aab = ":app_apk_aab_file",
+    package = ":app_apk_aab_file",
     platforms = ["arm64-v8a", "x86_64"],
     resources = ["string/app_name"],
 )
@@ -230,17 +230,19 @@ android_aab_check(
 
 | Attribute | Default | Meaning |
 | --- | --- | --- |
-| `aab` | required | The `.aab` to check. |
-| `platforms` | `[]` | ABIs that must ship a `base/lib/<abi>/*.so`. |
-| `resources` | `[]` | `type/name` resources the bundle must resolve. |
+| `package` | required | The `.apk` or `.aab` to check. |
+| `platforms` | `[]` | ABIs that must ship a `base/lib/<abi>/*.so`. App Bundles only. |
+| `resources` | `[]` | `type/name` resources the bundle must resolve. App Bundles only. |
 | `size`, `tags`, `visibility` | `"small"`, none, none | Passed to the test. |
 
-The test runs `bundletool validate`, reads the base module manifest,
-checks each ABI entry, and resolves each resource with
-`bundletool dump resources`. It exits 0 for a valid bundle, 1 when the
-bundle is rejected, and 2 for a missing bundle, a missing bundletool or
-bad arguments. Unknown ABIs and resources that are not `type/name` fail
-at analysis.
+For a bundle, the test runs `bundletool validate`, reads the base module
+manifest, checks each ABI entry, and resolves each resource with
+`bundletool dump resources`. For an APK, it checks that the package is
+readable, has a manifest, and carries no signature. It exits 0 for a good
+package, 1 when the package is rejected, and 2 for a missing package, a
+missing bundletool, bad arguments, or an APK given `--abi` or
+`--resource`. Unknown ABIs, resources that are not `type/name`, and
+`platforms` or `resources` on an APK fail at analysis.
 
 The check runs the pinned bundletool 1.15.5 as
 `//android/packaging:bundletool` on the rules_java JDK. The jar is

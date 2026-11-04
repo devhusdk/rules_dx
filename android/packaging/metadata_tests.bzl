@@ -146,22 +146,22 @@ def _packaging_checks():
     checks.append(expect_equal(
         "unknown abi aab check",
         aab_check_errors(["mips"], []),
-        ["rust_android_apk: abi 'mips' is unknown: want arm64-v8a, x86_64"],
+        ["android_check: abi 'mips' is unknown: want arm64-v8a, x86_64"],
     ))
     checks.append(expect_equal(
         "malformed resource aab check",
         aab_check_errors([], ["app_name", "string/", "/app_name", "a/b/c"]),
         [
-            "android_aab_check: resource 'app_name' must be type/name",
-            "android_aab_check: resource 'string/' must be type/name",
-            "android_aab_check: resource '/app_name' must be type/name",
-            "android_aab_check: resource 'a/b/c' must be type/name",
+            "android_check: resource 'app_name' must be type/name",
+            "android_check: resource 'string/' must be type/name",
+            "android_check: resource '/app_name' must be type/name",
+            "android_check: resource 'a/b/c' must be type/name",
         ],
     ))
     checks.append(expect_equal(
         "duplicate abi aab check",
         aab_check_errors(["x86_64", "x86_64"], []),
-        ["rust_android_apk: platforms holds duplicates"],
+        ["android_check: platforms holds duplicates"],
     ))
     checks.append(expect_equal("no lineage bundle", bundle_signing_errors({"manifest_values": {}}), []))
     checks.append(expect_equal("none lineage bundle", bundle_signing_errors({"debug_signing_lineage_file": None}), []))

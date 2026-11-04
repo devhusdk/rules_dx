@@ -11,4 +11,4 @@ out="$("$check" "$bundletool" "$aab" "$@" 2>&1)"
 code="$?"
 set -e
 [ "$code" = "1" ] || { echo "check exited $code, want 1: $out"; exit 1; }
-echo "$out" | grep -q "^dx-android-check-aab: .*$pattern" || { echo "check misses '$pattern': $out"; exit 1; }
+echo "$out" | grep -q "^dx-android-check: .*$pattern" || { echo "check misses '$pattern': $out"; exit 1; }

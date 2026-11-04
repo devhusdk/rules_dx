@@ -3,7 +3,7 @@
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android/packaging:defs.bzl", "android_aab_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_set", "android_sign", "rust_android_apk")
+load("//android/packaging:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_sign", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
@@ -98,9 +98,9 @@ genrule(
     ],
 )
 
-android_aab_check(
+android_check(
     name = "check_test_bundle_test",
-    aab = ":test_bundle.aab",
+    package = ":test_bundle.aab",
     platforms = ["x86_64"],
 )
 
@@ -193,14 +193,14 @@ android_sign(
     package = ":app_apk_unsigned_file",
 )
 
-android_apk_check(
+android_check(
     name = "check_unsigned_test",
-    apk = ":unsigned.apk",
+    package = ":unsigned.apk",
 )
 
-android_apk_check(
+android_check(
     name = "check_app_unsigned_test",
-    apk = ":app_apk_unsigned_file",
+    package = ":app_apk_unsigned_file",
     tags = ["manual"],
 )
 
@@ -208,7 +208,8 @@ sh_test(
     name = "check_rejects_test",
     srcs = ["check_rejects.sh"],
     args = [
-        "$(rootpath //android/packaging:check_apk.sh)",
+        "$(rootpath //android/packaging:check_package.sh)",
+        "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :unsigned.apk)",
         "$(rootpath :dummy.apk)",
         "$(rootpath :signed_fixture.apk)",
@@ -219,7 +220,8 @@ sh_test(
         ":signed_fixture.apk",
         ":unsigned.apk",
         ":v2_only_fixture.apk",
-        "//android/packaging:check_apk.sh",
+        "//android/packaging:bundletool",
+        "//android/packaging:check_package.sh",
     ],
 )
 
@@ -228,7 +230,7 @@ sh_test(
     size = "small",
     srcs = ["check_aab_rejects.sh"],
     args = [
-        "$(rootpath //android/packaging:check_aab.sh)",
+        "$(rootpath //android/packaging:check_package.sh)",
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :dummy.apk)",
         "$(rootpath :unsigned.apk)",
@@ -237,13 +239,13 @@ sh_test(
         ":dummy.apk",
         ":unsigned.apk",
         "//android/packaging:bundletool",
-        "//android/packaging:check_aab.sh",
+        "//android/packaging:check_package.sh",
     ],
 )
 
-android_aab_check(
+android_check(
     name = "check_app_aab_test",
-    aab = ":app_apk_aab_file",
+    package = ":app_apk_aab_file",
     platforms = [
         "arm64-v8a",
         "x86_64",
@@ -261,9 +263,9 @@ starlark_platforms(
     tags = ["manual"],
 )
 
-android_aab_check(
+android_check(
     name = "check_app_aab_starlark_flag_test",
-    aab = ":app_apk_aab_file_x86_64_flag",
+    package = ":app_apk_aab_file_x86_64_flag",
     platforms = [
         "arm64-v8a",
         "x86_64",
@@ -275,7 +277,7 @@ sh_test(
     name = "check_aab_missing_abi_test",
     srcs = ["check_aab_rejects_one.sh"],
     args = [
-        "$(rootpath //android/packaging:check_aab.sh)",
+        "$(rootpath //android/packaging:check_package.sh)",
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "packages no base/lib/arm64-v8a/",
@@ -285,7 +287,7 @@ sh_test(
     data = [
         ":custom_apk_aab_file",
         "//android/packaging:bundletool",
-        "//android/packaging:check_aab.sh",
+        "//android/packaging:check_package.sh",
     ],
     tags = ["manual"],
 )
@@ -294,7 +296,7 @@ sh_test(
     name = "check_aab_missing_resource_test",
     srcs = ["check_aab_rejects_one.sh"],
     args = [
-        "$(rootpath //android/packaging:check_aab.sh)",
+        "$(rootpath //android/packaging:check_package.sh)",
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "does not resolve resource string/missing",
@@ -304,7 +306,7 @@ sh_test(
     data = [
         ":custom_apk_aab_file",
         "//android/packaging:bundletool",
-        "//android/packaging:check_aab.sh",
+        "//android/packaging:check_package.sh",
     ],
     tags = ["manual"],
 )

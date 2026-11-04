@@ -701,61 +701,56 @@ def android_sign(name, package, schemes = None, min_sdk = 0, visibility = None):
         visibility = visibility,
     )
 
-def android_apk_check(name, apk, size = "small", tags = None, visibility = None):
-    """Declares a nonmutating test that the package is an unsigned APK ready to sign."""
-    sh_test(
-        name = name,
-        srcs = [Label("//android/packaging:check_apk.sh")],
-        args = ["$(rootpath " + apk + ")"],
-        data = [apk],
-        size = size,
-        tags = tags,
-        visibility = visibility,
-    )
-
 def aab_check_errors(abis, resources):
     """Returns one error string per rejected App Bundle check selection."""
-    errors = list(abi_errors(abis))
+    errors = ["android_check: " + e.removeprefix("rust_android_apk: ") for e in abi_errors(abis)]
     for resource in resources:
         parts = resource.split("/")
         if len(parts) != 2 or parts[0] == "" or parts[1] == "":
-            errors.append("android_aab_check: resource '" + resource + "' must be type/name")
+            errors.append("android_check: resource '" + resource + "' must be type/name")
     return errors
 
-def _aab_check_selection_impl(ctx):
+def _check_selection_impl(ctx):
+    files = [file for file in ctx.attr.package[DefaultInfo].files.to_list() if file.extension in ["apk", "aab"]]
+    if len(files) != 1:
+        fail("android_check: '" + str(ctx.attr.package.label) + "' built " + str(len(files)) + " .apk/.aab files, want exactly one; point package at one APK or App Bundle")
     failures = aab_check_errors(ctx.attr.abis, ctx.attr.resources)
+    if files[0].extension == "apk" and (len(ctx.attr.abis) > 0 or len(ctx.attr.resources) > 0):
+        failures.append("android_check: platforms and resources apply to App Bundles only")
     if len(failures) > 0:
         fail("; ".join(failures))
     return []
 
-_aab_check_selection = rule(
-    implementation = _aab_check_selection_impl,
-    doc = "Fails analysis when an App Bundle check names an unknown ABI or a malformed resource.",
+_check_selection = rule(
+    implementation = _check_selection_impl,
+    doc = "Fails analysis when a package check names a bad package, ABI or resource.",
     attrs = {
+        "package": attr.label(allow_files = True, mandatory = True, doc = "The APK or App Bundle to check."),
         "abis": attr.string_list(default = [], doc = "ABIs the bundle must package."),
         "resources": attr.string_list(default = [], doc = "type/name resources the bundle must resolve."),
     },
 )
 
-def android_aab_check(name, aab, platforms = [], resources = [], size = "small", tags = None, visibility = None):
-    """Declares a test that bundletool accepts the App Bundle with the given ABIs and resources."""
-    _aab_check_selection(
+def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, visibility = None):
+    """Declares a test that the package is an unsigned APK or a valid App Bundle."""
+    _check_selection(
         name = name + "_selection",
+        package = package,
         abis = platforms,
         resources = resources,
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + aab + ")"]
+    args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + package + ")"]
     for abi in platforms:
         args.extend(["--abi", abi])
     for resource in resources:
         args.extend(["--resource", resource])
     sh_test(
         name = name,
-        srcs = [Label("//android/packaging:check_aab.sh")],
+        srcs = [Label("//android/packaging:check_package.sh")],
         args = args,
-        data = [aab, _BUNDLETOOL, ":" + name + "_selection"],
+        data = [package, _BUNDLETOOL, ":" + name + "_selection"],
         size = size,
         tags = tags,
         visibility = visibility,

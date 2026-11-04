@@ -1,5 +1,5 @@
 {
-  "checksum": "f68c3d1e023a4cd4a76c2ee530795aafb95ca50b3bbc2d7c03b57a2edfdf416d",
+  "checksum": "4349426bff92dbbe972264c697faef982284d0e0e20ab9afeb23a82ddf839762",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -10463,6 +10463,12 @@
       "package_url": "https://github.com/baz-scm/gomod-parser",
       "repository": {
         "Http": {
+          "patch_args": [
+            "-p1"
+          ],
+          "patches": [
+            "@@//patches/gomod-parser:glued_comment.patch"
+          ],
           "sha256": "a3ceaf76d012a676dced39fab3888a41dfcaeea3e07ae8926e37dc4f0874b985",
           "url": "https://static.crates.io/crates/gomod-parser/0.5.3/download"
         }

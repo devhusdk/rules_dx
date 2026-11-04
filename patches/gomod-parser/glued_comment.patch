@@ -1,0 +1,11 @@
+--- a/src/parser.rs
++++ b/src/parser.rs
+@@ -182,7 +182,7 @@
+     let (module_path, _, version) = (
+         take_till(1.., AsChar::is_space),
+         space1,
+-        take_till(1.., WHITESPACES),
++        take_till(1.., |c: char| WHITESPACES.contains(&c) || c == '/'),
+     )
+         .parse_next(input)?;
+ 

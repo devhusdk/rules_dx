@@ -79,8 +79,7 @@ impl GoModFile {
 
 /// Reads a `go.mod`, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
-    let padded = pad_glued_comments(text);
-    let parsed = GoMod::from_str(&padded).map_err(|detail| format!("invalid go.mod: {detail}"))?;
+    let parsed = GoMod::from_str(text).map_err(|detail| format!("invalid go.mod: {detail}"))?;
     let mut markers = requirement_markers(text);
     let require = parsed
         .require
@@ -529,23 +528,6 @@ fn require_entries(text: &str) -> Vec<(Token, Token)> {
     found
 }
 
-/// Inserts a space where a require version runs straight into `//`, which
-/// `gomod-parser` would otherwise read as part of the version.
-// Framing only: shim owned by #4008; delete it once gomod-parser handles glued comments.
-fn pad_glued_comments(text: &str) -> String {
-    let mut out = String::with_capacity(text.len() + 8);
-    let mut copied = 0;
-    for (_, version) in require_entries(text) {
-        if text.get(version.end..version.end + 2) == Some("//") {
-            out.push_str(&text[copied..version.end]);
-            out.push(' ');
-            copied = version.end;
-        }
-    }
-    out.push_str(&text[copied..]);
-    out
-}
-
 fn locate_require_version(text: &str, module: &str) -> Option<VersionSpan> {
     let mut found = None;
     for (name, version) in require_entries(text) {
@@ -591,7 +573,7 @@ fn replacement(entry: ModuleReplacement) -> GoReplacement {
 }
 
 /// Pairs every `require` line with the comment that line carries.
-// Framing only: `gomod-parser` is the reader of record for the require list; see #4008.
+// Framing only: `gomod-parser` does not expose comment text, so markers are read here.
 fn requirement_markers(text: &str) -> BTreeMap<String, VecDeque<String>> {
     let mut markers: BTreeMap<String, VecDeque<String>> = BTreeMap::new();
     let mut block: Option<&str> = None;

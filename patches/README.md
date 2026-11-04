@@ -55,3 +55,10 @@ No action. `rules_dx` applies these patches in its own repository rules.
 `MODULE.bazel` patches ring 0.17.14's `build.rs` so it accepts clang-cl on
 `aarch64-pc-windows-msvc` instead of looking for plain `clang` (#6337). It is
 applied to rules_dx's own `dx_crates` and is not exported to consumers.
+
+## gomod-parser (crate annotation)
+
+`MODULE.bazel` patches gomod-parser 0.5.3 so a require version followed
+directly by `//` parses (#4008, baz-scm/gomod-parser#52). It is applied to
+rules_dx's own `dx_crates` and needs nothing from consumers. Remove it once a
+gomod-parser release after 0.6.0 carries the fix.

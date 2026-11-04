@@ -1132,6 +1132,15 @@ crate.annotation(
     repositories = ["dx_crates"],
     version = "0.17.14",
 )
+# gomod-parser 0.5.3 reads `v1.2.3// indirect` as one version (#4008,
+# baz-scm/gomod-parser#52). Drop once a release after 0.6.0 carries the fix.
+crate.annotation(
+    crate = "gomod-parser",
+    patch_args = ["-p1"],
+    patches = ["//patches/gomod-parser:glued_comment.patch"],
+    repositories = ["dx_crates"],
+    version = "0.5.3",
+)
 crate.annotation(
     additive_build_file_content = """filegroup(
     name = "cxx_qt_runtime_files",

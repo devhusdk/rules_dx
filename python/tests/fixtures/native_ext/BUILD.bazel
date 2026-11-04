@@ -1,0 +1,48 @@
+load("@rules_python//python/cc:py_extension.bzl", "py_extension")
+load("//python/rules:defs.bzl", "python_py_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+py_extension(
+    name = "dxnative",
+    srcs = ["dxnative.cc"],
+    imports = ["."],
+)
+
+python_py_test(
+    name = "native_ext_test",
+    srcs = ["native_ext_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    env = select({
+        "@rules_cc//cc/compiler:clang": {"DX_EXPECTED_COMPILER": "clang"},
+        "@rules_cc//cc/compiler:gcc": {"DX_EXPECTED_COMPILER": "gcc"},
+        "@rules_cc//cc/compiler:msvc-cl": {"DX_EXPECTED_COMPILER": "msvc"},
+        "@rules_cc//cc/compiler:clang-cl": {"DX_EXPECTED_COMPILER": "clang-cl"},
+    }),
+    imports = ["."],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [":dxnative"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_cpp",
+    testonly = True,
+    aspect_hints = ["//:clang_format_config"],
+    cpp_srcs = ["dxnative.cc"],
+    tags = ["corpus"],
+)

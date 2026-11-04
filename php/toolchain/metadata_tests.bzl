@@ -1,8 +1,9 @@
 """PHP toolchain pin and acquisition tests."""
 
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
-load("//php/rules:php.bzl", "LAUNCHER_ATTRS", "lit", "rf", "runfiles_path", "write_launcher")
+load("//php/rules:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load(":php.bzl", "TOOLCHAIN_TYPE")
 load(":pins.bzl", "COMPOSER", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION", "STATIC_PHP")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
@@ -71,7 +72,7 @@ _php_version_test = rule(
     implementation = _php_version_test_impl,
     doc = "Checks that the resolved PHP reports the pinned version and has the extensions Composer and PHPUnit need.",
     test = True,
-    attrs = LAUNCHER_ATTRS | {
+    attrs = NATIVE_LAUNCHER_ATTRS | {
         "_script": attr.label(default = Label("//php/toolchain:version_check.php"), allow_single_file = True),
     },
     toolchains = [TOOLCHAIN_TYPE],

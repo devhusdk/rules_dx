@@ -1,5 +1,6 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//php/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
 
@@ -167,24 +168,14 @@ def launcher_descriptor(php, ini, tokens):
     lines.extend([_descriptor_line(token) for token in tokens])
     return "\n".join(lines) + "\n"
 
-LAUNCHER_ATTRS = {
-    "_exec_launcher": attr.label(default = Label("//libs/launcher:exec_launcher"), executable = True, cfg = "target", doc = "The native launcher used on Windows."),
-    "_windows_os": attr.label(default = Label("@platforms//os:windows")),
-}
-
 def write_launcher(ctx, php, ini, tokens):
     """Writes the launcher of a php program: a bash script, or the native launcher with a descriptor on Windows.
 
     Returns the executable and the runfiles the launcher needs beside the php files.
     """
     key = runfiles_path(ctx.workspace_name, php.interpreter)
-    if ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo]):
-        launcher = ctx.actions.declare_file(ctx.label.name + ".exe")
-        descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
-        ctx.actions.write(descriptor, launcher_descriptor(key, ini, tokens))
-        ctx.actions.symlink(output = launcher, target_file = ctx.executable._exec_launcher, is_executable = True)
-        files = [launcher, descriptor]
-        runfiles = ctx.runfiles(files = files).merge(ctx.attr._exec_launcher[DefaultInfo].default_runfiles)
+    if target_is_windows(ctx):
+        launcher, _, runfiles = write_native_launcher(ctx, launcher_descriptor(key, ini, tokens))
     else:
         launcher = ctx.actions.declare_file(ctx.label.name)
         ctx.actions.write(launcher, launcher_script(key, ini, tokens), is_executable = True)
@@ -282,7 +273,7 @@ _COMMON_ATTRS = {
     "_tool": attr.label(default = _TOOL, allow_single_file = True, cfg = "exec", doc = "The build-time helper script."),
 }
 
-_RUN_ATTRS = _COMMON_ATTRS | LAUNCHER_ATTRS | {
+_RUN_ATTRS = _COMMON_ATTRS | NATIVE_LAUNCHER_ATTRS | {
     "env": attr.string_dict(doc = "Environment for `bazel run` and `bazel test`; values expand $(location) of data."),
     "env_inherit": attr.string_list(doc = "Environment variable names inherited from the caller."),
     "ini": attr.string_dict(doc = "php.ini settings passed as -d flags; PHP otherwise runs with -n and no php.ini."),

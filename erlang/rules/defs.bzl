@@ -116,7 +116,7 @@ def otp_tool_binary_impl(ctx):
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
     otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
     if target_is_windows(ctx):
-        launcher, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool))
+        launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool))
         return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles))]
     launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(launcher, otp_launcher_text(
@@ -162,7 +162,7 @@ def _escript_binary_impl(ctx):
     otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
     archive_key = runfiles_path(ctx.workspace_name, archive.short_path)
     if target_is_windows(ctx):
-        launcher, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, "escript", archive_key))
+        launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, "escript", archive_key))
     else:
         launcher = ctx.actions.declare_file(ctx.label.name)
         ctx.actions.write(launcher, otp_launcher_text(

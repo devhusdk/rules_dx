@@ -1,6 +1,7 @@
 """The phpstan_tool rule: the pinned PHPStan phar on the pinned PHP, as one executable."""
 
-load("//php/rules:php.bzl", "LAUNCHER_ATTRS", "rf", "runfiles_path", "write_launcher")
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
+load("//php/rules:php.bzl", "rf", "runfiles_path", "write_launcher")
 load("//php/toolchain:php.bzl", "TOOLCHAIN_TYPE")
 
 PHPSTAN_INI = {
@@ -21,7 +22,7 @@ phpstan_tool = rule(
     implementation = _phpstan_tool_impl,
     doc = "Runs the pinned PHPStan phar on the pinned PHP; `dx check` sets it with --@rules_dx//config:tool_phpstan.",
     executable = True,
-    attrs = LAUNCHER_ATTRS | {
+    attrs = NATIVE_LAUNCHER_ATTRS | {
         "_phpstan": attr.label(default = Label("@dx_phpstan//:phpstan.phar"), allow_single_file = True, doc = "The pinned PHPStan phar."),
     },
     toolchains = [TOOLCHAIN_TYPE],

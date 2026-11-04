@@ -11,10 +11,10 @@ A multi-package Dart app. It has an `inventory` CLI, a ledger package that parse
 | `failures` | Manual targets that fail on purpose |
 
 ```sh
-bazel build //examples/dart-app/...
-bazel test //examples/dart-app/...
-bazel run //examples/dart-app/cli:inventory
-bazel run //examples/dart-app/cli:inventory -- get cable
+bazel build //dart/tests/fixtures/dart-app/...
+bazel test //dart/tests/fixtures/dart-app/...
+bazel run //dart/tests/fixtures/dart-app/cli:inventory
+bazel run //dart/tests/fixtures/dart-app/cli:inventory -- get cable
 ```
 
 `inventory` prints each item, the total in cents and the schema version. `get NAME` prints one item.

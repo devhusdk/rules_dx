@@ -579,7 +579,7 @@ rust_test(
         "//env/stubs:corpus_starlark",
         "//erlang/tests/negative:corpus_starlark",
         "//erlang/tests/nif_escript:corpus_starlark",
-        "//examples/dart-app/failures:corpus_starlark",
+        "//dart/tests/fixtures/dart-app/failures:corpus_starlark",
         "//examples/java-app/cli:corpus_starlark",
         "//examples/java-app/diagnostics:corpus_starlark",
         "//examples/kotlin-app/cli:corpus_starlark",

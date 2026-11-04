@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
 
-package(default_visibility = ["//examples/dart-app:__subpackages__"])
+package(default_visibility = ["//dart/tests/fixtures/dart-app:__subpackages__"])
 
 exports_files(
     glob([
@@ -17,9 +17,9 @@ genrule(
     name = "schema_g_dart",
     srcs = ["schema.json"],
     outs = ["lib/schema.g.dart"],
-    cmd = "$(location //examples/dart-app/gen:gen_schema) $< $@",
+    cmd = "$(location //dart/tests/fixtures/dart-app/gen:gen_schema) $< $@",
     target_compatible_with = dart_compatible_with([]),
-    tools = ["//examples/dart-app/gen:gen_schema"],
+    tools = ["//dart/tests/fixtures/dart-app/gen:gen_schema"],
 )
 
 dart_library(
@@ -29,7 +29,7 @@ dart_library(
         "lib/model.dart",
         ":schema_g_dart",
     ],
-    aspect_hints = ["//examples/dart-app:dart_config"],
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
     visibility = _PUBLIC,
 )
 

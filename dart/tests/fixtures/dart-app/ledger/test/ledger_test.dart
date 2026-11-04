@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 
 void main() {
   test('reads the data file through runfiles', () {
-    final path = Runfiles.create().rlocation('_main/examples/dart-app/ledger/data/items.csv');
+    final path = Runfiles.create().rlocation('_main/dart/tests/fixtures/dart-app/ledger/data/items.csv');
     final items = loadItems(path);
     expect(items.map((item) => item.name), ['adapter', 'battery', 'cable']);
     expect(totalCents(items), 12 * 450 + 3 * 1299 + 40 * 199);

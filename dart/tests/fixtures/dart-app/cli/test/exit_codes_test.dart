@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 
 ProcessResult runInventory(List<String> arguments) {
   final suffix = Platform.isWindows ? '.exe' : '';
-  final bin = Runfiles.create().rlocation('_main/examples/dart-app/cli/inventory$suffix');
+  final bin = Runfiles.create().rlocation('_main/dart/tests/fixtures/dart-app/cli/inventory$suffix');
   return Process.runSync(bin, arguments);
 }
 

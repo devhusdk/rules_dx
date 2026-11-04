@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
 
-package(default_visibility = ["//examples/dart-app:__subpackages__"])
+package(default_visibility = ["//dart/tests/fixtures/dart-app:__subpackages__"])
 
 exports_files(
     glob([
@@ -18,19 +18,19 @@ dart_library(
     name = "inventory_cli",
     package_name = "inventory_cli",
     srcs = ["lib/inventory_cli.dart"],
-    aspect_hints = ["//examples/dart-app:dart_config"],
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
     visibility = _PUBLIC,
     deps = [
-        "//examples/dart-app/ledger",
-        "//examples/dart-app/model",
+        "//dart/tests/fixtures/dart-app/ledger",
+        "//dart/tests/fixtures/dart-app/model",
         "@dx_dart_deps//:args",
     ],
 )
 
 dart_binary(
     name = "inventory",
-    aspect_hints = ["//examples/dart-app:dart_config"],
-    data = ["//examples/dart-app/ledger:items"],
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
+    data = ["//dart/tests/fixtures/dart-app/ledger:items"],
     main = "bin/inventory.dart",
     deps = [
         ":inventory_cli",
@@ -40,7 +40,7 @@ dart_binary(
 
 dart_test(
     name = "exit_codes_test",
-    aspect_hints = ["//examples/dart-app:dart_config"],
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
     data = [":inventory"],
     main = "test/exit_codes_test.dart",
     deps = [

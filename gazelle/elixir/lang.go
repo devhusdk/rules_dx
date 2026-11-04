@@ -75,27 +75,28 @@ func (l *elixirLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []res
 	return l.SingleLang.Imports(c, r, f)
 }
 
+// WalkDir does not follow a symlinked root, so walk its target.
 func listSources(root, dir string, keep func(string) bool) ([]string, error) {
-	base := filepath.Join(root, dir)
-	if _, err := os.Stat(base); err != nil {
+	target, err := filepath.EvalSymlinks(filepath.Join(root, dir))
+	if err != nil {
 		return nil, nil
 	}
 	var out []string
-	err := filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(target, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && p != base {
+		if d.IsDir() && p != target {
 			if _, err := os.Stat(filepath.Join(p, MixFile)); err == nil {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		rel, err := filepath.Rel(root, p)
+		sub, err := filepath.Rel(target, p)
 		if err != nil {
 			return err
 		}
-		rel = filepath.ToSlash(rel)
+		rel := filepath.ToSlash(filepath.Join(dir, sub))
 		if !d.IsDir() && keep(rel) {
 			out = append(out, rel)
 		}

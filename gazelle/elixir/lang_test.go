@@ -172,6 +172,39 @@ ex_unit_test(name = "b_test", srcs = ["test/b_test.exs", "test/support/x.ex"])
 	}
 }
 
+func TestGenerateFollowsSymlinkedLibAndTest(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, filepath.Join(root, "shared"), map[string]string{
+		"lib/app.ex":           "defmodule App do\nend\n",
+		"test/app_test.exs":    "defmodule AppTest do\n  use ExUnit.Case\nend\n",
+		"test/test_helper.exs": "ExUnit.start()\n",
+	})
+	dir := filepath.Join(root, "packages", "web")
+	regular := writeTree(t, dir, map[string]string{"mix.exs": "defmodule Web.MixProject do\n  def project, do: [app: :web]\nend\n"})
+	for _, name := range []string{"lib", "test"} {
+		if err := os.Symlink(filepath.Join("..", "..", "shared", name), filepath.Join(dir, name)); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+	}
+	file := buildFile(t, `elixir_app(name = "web", app_name = "web")
+`)
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          dir,
+		Rel:          "packages/web",
+		File:         file,
+		RegularFiles: regular,
+	})
+	if lang.(*elixirLang).Failed() {
+		t.Fatal(errorsText(lang))
+	}
+	want := "elixir_app:web:lib/app.ex,ex_unit_test:web_test:test/app_test.exs+test/test_helper.exs"
+	if got := summary(result); got != want || len(result.Empty) != 0 {
+		t.Fatalf("rules = %s (empty %d), want %s", got, len(result.Empty), want)
+	}
+}
+
 func TestGenerateFailsOnUnnamedApp(t *testing.T) {
 	file := buildFile(t, "elixir_app(app_name = \"app\")\n")
 	lang := NewLanguage()

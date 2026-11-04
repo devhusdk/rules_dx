@@ -41,39 +41,22 @@ Every consumer-facing (non-dev) `bazel_dep` in the root `MODULE.bazel` has its
 versions in `modules/versions.bzl`:
 
 - `<DEP>_VERSION` when the floor and the tested version are the same.
-- `FLOOR_<DEP>` and `TESTED_<DEP>` when they differ. The floor goes in the
-  `bazel_dep`, the tested version in the root-only `single_version_override`
-  directly below it. Consumers never see the tested version.
+- `FLOOR_<DEP>` and `TESTED_<DEP>` when they differ.
 
-A `# floor: <reason>` comment directly above each `bazel_dep` says why the floor
-is what it is. Tools parse that marker, so keep it as written. Use
-`dx update bazel:<dep> <version>` to move the tested version, and
-`dx update bazel:<dep> <version> --floor --reason "<why>"` to move the floor.
-`//modules:consumer_deps_test` checks that the two files agree.
+The floor equals the tested version for every consumer dep (#6016): only the
+tested versions are supported. `//modules:consumer_deps_test` fails when they differ.
+
+A `# floor: equals tested` comment directly above each `bazel_dep` marks this.
+Tools parse that marker, so keep it as written. To bump a dep, set the `bazel_dep`
+and the `single_version_override` to the same version:
+`dx update bazel:<dep> <version>` and
+`dx update bazel:<dep> <version> --floor --reason "equals tested"`.
 
 ### Where floors are checked
 
 rules_dx is a non-root module in every consumer, so its root-only
 `single_version_override`s do not apply there and a consumer resolves the floors.
 `//modules:consumer_deps_test` keeps the hermetic consumer `module_fragment.bazel`
-files from pinning a consumer dep above its floor, which would hide a lowered floor.
-
-### Trying a lower floor
-
-Set `DX_CONSUMER_OVERRIDES=<module>=<version>,...` to resolve candidate versions
-instead. The harness writes each one as a root `single_version_override` and rewrites
-the consumer's own `bazel_dep` of that module. The procedure for a floor search is: list the module's versions in
-the BCR, step down one release at a time, check that the `.bzl` files rules_dx
-loads from it still find the symbols they need, and keep the lowest version that
-passes the consumer suites. Record why in the `# floor:`
-comment with `dx update ... --floor --reason`. Skip dev-only and patched deps.
-
-To run the hermetic consumer suites at candidate versions, add
-`--test_env=DX_CONSUMER_OVERRIDES=<module>=<version>` to a `hermetic-consumer`
-test (the harness rewrites each consumer `MODULE.bazel` the same way).
-
-A tested-only bump leaves the floor at the previous tested version, and its
-comment says so. Do not lower a floor without a floor search; the searches
-themselves are still follow-ups to #3747.
+files from pinning a consumer dep above its floor.
 
 `.dx/launcher` is a copy (about 50 MB) of the last built dx, kept for worktree hooks and failed rebuilds. `tools/dx worktree add`, `release` and `hook` run the last built dx without rebuilding, so they never wait on Bazel. Any other `tools/dx` command (or `bazel build //:dx`) picks up dx source changes. You can delete it any time and `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots. Both launchers run dx from this copy, so a running dx never locks bazel-bin; `dx.exe.old.*` files may remain while an old dx is still running.

@@ -19,14 +19,14 @@ single_version_override(
     version = "0.75.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust_wasm_bindgen",
     version = "0.75.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_cc", version = "0.2.27")
 single_version_override(
     module_name = "rules_cc",
@@ -65,7 +65,7 @@ single_version_override(
     version = "0.13.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "llvm", version = "0.8.25")
 single_version_override(
     module_name = "llvm",
@@ -118,7 +118,7 @@ single_version_override(
     version = "0.54.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_shell", version = "0.8.0")
 single_version_override(
     module_name = "rules_shell",
@@ -195,21 +195,21 @@ go_sdk.download(
     version = "1.26.10",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "platforms", version = "1.1.0")
 single_version_override(
     module_name = "platforms",
     version = "1.1.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 single_version_override(
     module_name = "bazel_skylib",
     version = "1.9.2",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_proto", version = "7.1.0")
 single_version_override(
     module_name = "rules_proto",
@@ -225,14 +225,14 @@ single_version_override(
     version = "36.2",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_rust_prost", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust_prost",
     version = "0.75.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_java", version = "9.9.0")
 single_version_override(
     module_name = "rules_java",
@@ -577,7 +577,7 @@ ruby_dev.bundle_fetch(
 )
 use_repo(ruby_dev, "bundle")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_zig", version = "0.17.0")
 single_version_override(
     module_name = "rules_zig",
@@ -587,14 +587,14 @@ single_version_override(
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.2.2")
 single_version_override(
     module_name = "rules_swift",
     version = "4.2.2",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "bazel_linux_packages", version = "0.4.1")
 single_version_override(
     module_name = "bazel_linux_packages",
@@ -656,7 +656,7 @@ use_repo(swift, "dx_swift_linux_aarch64", "dx_swift_linux_x86_64")
 
 register_toolchains("//swift/toolchain:all")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_dart", version = "0.8.1")
 single_version_override(
     module_name = "rules_dart",
@@ -666,7 +666,7 @@ single_version_override(
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
 dart.toolchain(dart_version = "3.13.7")
 
-# floor: equals tested; not yet searched (#5702)
+# floor: equals tested
 bazel_dep(name = "rules_flutter", version = "0.0.8")
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
@@ -768,7 +768,7 @@ julia_pkg_dev.from_manifest(
 )
 use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_perl", version = "1.5.0")
 single_version_override(
     module_name = "rules_perl",
@@ -908,7 +908,7 @@ use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
 
 register_toolchains("@dx_fortran_toolchains//:all")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")
 single_version_override(
     module_name = "lua",
@@ -956,7 +956,7 @@ single_version_override(
     version = "2.0.0-alpha.10",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "aspect_rules_js", version = "3.5.2")
 single_version_override(
     module_name = "aspect_rules_js",
@@ -985,7 +985,7 @@ single_version_override(
     version = "0.26.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested
 bazel_dep(name = "rules_nodejs", version = "6.7.7", dev_dependency = True)
 single_version_override(
     module_name = "rules_nodejs",

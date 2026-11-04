@@ -84,7 +84,10 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             problems.push(format!("{name:?} floor {floor} is above tested {tested}"));
         }
         match module.floor_comment(name) {
-            Ok(Some(_)) => {}
+            Ok(Some(reason)) if reason.starts_with("equals tested") => {}
+            Ok(Some(_)) => problems.push(format!(
+                "bazel_dep {name:?} floor comment must start with \"equals tested\""
+            )),
             Ok(None) => problems.push(format!(
                 "bazel_dep {name:?} has no `# floor: <reason>` comment directly above it"
             )),
@@ -299,7 +302,7 @@ fn a_matching_fixture_passes() {
 fn disagreeing_fixtures_fail() {
     let demo = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
     let rust = |floor: &str, tested: &str| {
-        format!("# floor: a\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: a\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n")
+        format!("# floor: equals tested\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: equals tested\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n")
     };
     for (source, table, needle) in [
         (good("1.1.0", "1.2.0"), demo.clone(), "but its floor is"),
@@ -322,6 +325,11 @@ fn disagreeing_fixtures_fail() {
             good("1.2.0", "1.2.0").replace("# floor: equals tested\n", ""),
             demo.clone(),
             "has no `# floor: <reason>` comment",
+        ),
+        (
+            good("1.2.0", "1.2.0").replace("equals tested", "not yet searched"),
+            demo.clone(),
+            "floor comment must start with \"equals tested\"",
         ),
         (
             good("1.1.0", "1.2.0"),

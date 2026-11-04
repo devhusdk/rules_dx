@@ -45,7 +45,7 @@ def _msvc_syntax_argv(argv, src, identity):
             skip = False
             continue
         if arg.startswith("@"):
-            return struct(argv = [], error = "params files are not supported (found " + arg + ")")
+            return struct(argv = [], error = "response files in copts are not supported (found " + arg + ")")
         if arg in ["/c", "-c"]:
             compiles += 1
             out.append(identity.syntax_only)
@@ -87,7 +87,7 @@ def clang_syntax_argv(argv, src, identity):
             skip = False
             continue
         if arg.startswith("@"):
-            return struct(argv = [], error = "params files are not supported (found " + arg + ")")
+            return struct(argv = [], error = "response files in copts are not supported (found " + arg + ")")
         if arg == "-c":
             compiles += 1
             out.append("-fsyntax-only")

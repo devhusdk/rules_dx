@@ -71,9 +71,9 @@ def clang_syntax_unit_tests(name):
                 ["-x", "c++-header", "-fsyntax-only"],
             ),
             expect_equal(
-                "params files are rejected",
-                _rewrite([_CLANG, "@a.params", "-c", "a.c"]).error != "",
-                True,
+                "copts response files are rejected",
+                _rewrite([_CLANG, "@a.params", "-c", "a.c"]).error,
+                "response files in copts are not supported (found @a.params)",
             ),
             expect_equal(
                 "cl.exe replays with /Zs, drops output flags and reports columns",
@@ -106,9 +106,9 @@ def clang_syntax_unit_tests(name):
                 True,
             ),
             expect_equal(
-                "MSVC params files are rejected",
-                _rewrite(["cl.exe", "@a.rsp", "/c", "a.c"], "a.c", _CL).error != "",
-                True,
+                "MSVC copts response files are rejected",
+                _rewrite(["cl.exe", "@a.rsp", "/c", "a.c"], "a.c", _CL).error,
+                "response files in copts are not supported (found @a.rsp)",
             ),
             expect_equal(
                 "clang-tidy names the MSVC driver as unsupported",

@@ -3,9 +3,55 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestBuildSnapshotDanglingLink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating symlinks needs privileges on Windows")
+	}
+	dir := t.TempDir()
+	build := filepath.Join(dir, "BUILD.bazel")
+	const target = "missing/BUILD.bazel"
+	if err := os.Symlink(target, build); err != nil {
+		t.Fatal(err)
+	}
+	var s BuildSnapshot
+	if err := s.Record(build); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.Readlink(build); err != nil || got != target {
+		t.Fatalf("intact link = %q, %v; want %q", got, err, target)
+	}
+
+	if err := os.Remove(build); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.Readlink(build); err != nil || got != target {
+		t.Fatalf("removed link = %q, %v; want %q", got, err, target)
+	}
+
+	if err := os.Remove(build); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("other/BUILD.bazel", build); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.Readlink(build); err != nil || got != target {
+		t.Fatalf("repointed link = %q, %v; want %q", got, err, target)
+	}
+}
 
 func TestBuildSnapshotRestore(t *testing.T) {
 	dir := t.TempDir()

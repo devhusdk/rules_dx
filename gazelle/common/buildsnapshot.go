@@ -20,6 +20,8 @@ type snapshotEntry struct {
 	data   []byte
 	exists bool
 	mode   os.FileMode
+	link   bool
+	target string
 }
 
 // Reset forgets all recorded files.
@@ -42,6 +44,10 @@ func (s *BuildSnapshot) Record(path string) error {
 	}
 	info, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) || (err == nil && info.IsDir()) {
+		if target, lerr := os.Readlink(path); lerr == nil {
+			s.files[path] = snapshotEntry{link: true, target: target}
+			return nil
+		}
 		s.files[path] = snapshotEntry{}
 		return nil
 	}
@@ -81,6 +87,12 @@ func (s *BuildSnapshot) Restore() error {
 	var errs []error
 	for _, p := range paths {
 		e := s.files[p]
+		if e.link {
+			if err := restoreLink(p, e.target); err != nil {
+				errs = append(errs, fmt.Errorf("restore %s: %w", p, err))
+			}
+			continue
+		}
 		if !e.exists {
 			if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
 				errs = append(errs, fmt.Errorf("restore %s: %w", p, err))
@@ -95,4 +107,16 @@ func (s *BuildSnapshot) Restore() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// restoreLink keeps a link that still points at target and otherwise replaces
+// whatever is at path with a link to target.
+func restoreLink(path, target string) error {
+	if cur, err := os.Readlink(path); err == nil && cur == target {
+		return nil
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return os.Symlink(target, path)
 }

@@ -51,10 +51,7 @@ fn write_staged(root: &Path, tools: &[(&str, &str, &[&str])]) -> (PathBuf, PathB
             "{{\"bin_name\":\"{bin_name}\",\"owner\":\"{owner}\",\"aliases\":[{alias_list}],\"host_names\":[{host_list}]}}"
         ));
     }
-    let text = format!(
-        "{{\"schema_version\":{STAGED_METADATA_SCHEMA_VERSION},\"tools\":[{}]}}",
-        entries.join(",")
-    );
+    let text = format!("{{\"tools\":[{}]}}", entries.join(","));
     let metadata_path = root.join("staged.metadata.json");
     fs::write(&metadata_path, &text).expect("write metadata");
     (staged_bin, metadata_path, text)
@@ -123,22 +120,8 @@ fn marker_rejects_garbage() {
 }
 
 #[test]
-fn marker_rejects_schema() {
-    let bytes = EnvMarker {
-        schema_version: 999,
-        identity: vec![0u8; IDENTITY_LEN],
-    }
-    .encode_to_vec();
-    assert_eq!(
-        decode_marker(&bytes),
-        Err(Error::UnsupportedMarkerSchema { found: 999 })
-    );
-}
-
-#[test]
 fn marker_rejects_short_identity() {
     let bytes = EnvMarker {
-        schema_version: MARKER_SCHEMA_VERSION,
         identity: vec![7u8; 4],
     }
     .encode_to_vec();
@@ -176,42 +159,32 @@ fn parse_staged_rejects_syntax_and_shape() {
         Err(Error::Staged { .. })
     ));
     assert!(matches!(
-        parse_staged(r#"{"schema_version":1}"#, false),
+        parse_staged(r#"{}"#, false),
         Err(Error::Staged { .. })
     ));
 }
 
 #[test]
-fn parse_staged_rejects_schema() {
-    assert_eq!(
-        parse_staged(r#"{"schema_version":2,"tools":[]}"#, false),
-        Err(Error::UnsupportedStagedSchema { found: 2 })
-    );
-}
-
-#[test]
 fn parse_staged_rejects_empty_set() {
     assert!(matches!(
-        parse_staged(r#"{"schema_version":1,"tools":[]}"#, false),
+        parse_staged(r#"{"tools":[]}"#, false),
         Err(Error::InvalidTool { .. })
     ));
 }
 
 #[test]
 fn parse_staged_rejects_bad_records() {
-    let empty_bin =
-        r#"{"schema_version":1,"tools":[{"bin_name":"","owner":"o","host_names":["a"]}]}"#;
+    let empty_bin = r#"{"tools":[{"bin_name":"","owner":"o","host_names":["a"]}]}"#;
     assert!(matches!(
         parse_staged(empty_bin, false),
         Err(Error::InvalidTool { .. })
     ));
-    let empty_owner =
-        r#"{"schema_version":1,"tools":[{"bin_name":"a","owner":"","host_names":["a"]}]}"#;
+    let empty_owner = r#"{"tools":[{"bin_name":"a","owner":"","host_names":["a"]}]}"#;
     assert!(matches!(
         parse_staged(empty_owner, false),
         Err(Error::InvalidTool { .. })
     ));
-    let no_hosts = r#"{"schema_version":1,"tools":[{"bin_name":"a","owner":"o","host_names":[]}]}"#;
+    let no_hosts = r#"{"tools":[{"bin_name":"a","owner":"o","host_names":[]}]}"#;
     assert!(matches!(
         parse_staged(no_hosts, false),
         Err(Error::InvalidTool { .. })
@@ -222,7 +195,6 @@ fn parse_staged_rejects_bad_records() {
 fn host_name_table() {
     for valid in ["a", "doctor-2", "x.y", "my_tool"] {
         let text = serde_json::json!({
-            "schema_version": 1,
             "tools": [{"bin_name": valid, "owner": "o", "host_names": [valid]}],
         })
         .to_string();
@@ -249,7 +221,6 @@ fn host_name_table() {
         ".Rules_Dx_Managed",
     ] {
         let text = serde_json::json!({
-            "schema_version": 1,
             "tools": [{"bin_name": invalid, "owner": "o", "host_names": [invalid]}],
         })
         .to_string();
@@ -261,7 +232,7 @@ fn host_name_table() {
 }
 
 fn tools_json(tools: serde_json::Value) -> String {
-    serde_json::json!({"schema_version": 1, "tools": tools}).to_string()
+    serde_json::json!({"tools": tools}).to_string()
 }
 
 #[test]
@@ -338,7 +309,6 @@ fn error_display_names_every_variant() {
         Error::Staged {
             reason: "r".to_string(),
         },
-        Error::UnsupportedStagedSchema { found: 2 },
         Error::InvalidTool {
             reason: "r".to_string(),
         },
@@ -346,7 +316,6 @@ fn error_display_names_every_variant() {
             path: dir.clone(),
             detail: "d".to_string(),
         },
-        Error::UnsupportedMarkerSchema { found: 3 },
         Error::MarkerInvalid {
             reason: "r".to_string(),
         },
@@ -369,14 +338,10 @@ fn error_display_names_every_variant() {
         assert!(!format!("{error}").is_empty());
     }
     assert!(matches!(
-        &errors[4],
+        &errors[3],
         Error::Unmanaged { detail, .. } if detail == "d"
     ));
-    assert!(matches!(
-        &errors[5],
-        Error::UnsupportedMarkerSchema { found } if *found == 3
-    ));
-    assert!(matches!(&errors[7], Error::Busy { path, .. } if path == &dir));
+    assert!(matches!(&errors[5], Error::Busy { path, .. } if path == &dir));
 }
 
 #[test]
@@ -774,27 +739,6 @@ fn marker_named_host_leaves_its_target_intact() {
         Error::Install { reason } if reason.contains(&format!("cannot stage host name '{MARKER_FILE_NAME}'"))
     ));
     assert_eq!(fs::read(&target).expect("target survived"), script);
-    let _ = fs::remove_dir_all(&root);
-}
-
-#[test]
-fn newer_marker_refuses_with_upgrade_guidance() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-newer-marker-");
-    let root = scratch.path().to_path_buf();
-    let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
-    let opts = options(&root, staged_bin, metadata);
-    let bin = root.join("ws").join(".dx").join("bin");
-    fs::create_dir_all(&bin).expect("bin dir");
-    let bytes = EnvMarker {
-        schema_version: 999,
-        identity: vec![0u8; IDENTITY_LEN],
-    }
-    .encode_to_vec();
-    fs::write(bin.join(MARKER_FILE_NAME), bytes).expect("newer marker");
-    assert_eq!(
-        refresh(&opts, &probe_symlink),
-        Err(Error::UnsupportedMarkerSchema { found: 999 })
-    );
     let _ = fs::remove_dir_all(&root);
 }
 

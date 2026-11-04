@@ -6,8 +6,7 @@
 // that wrote it, so replacement can tell managed state from foreign state
 // and no-op when the candidate set is already installed.
 //
-// The installer refuses markers whose schema version it does not understand; changing
-// the identity algorithm is a schema-version bump, never silent drift.
+// A marker that does not decode is treated as unmanaged state.
 
 syntax = "proto3";
 
@@ -27,18 +26,16 @@ message ToolEntry {
 
 // Canonical installed-set description. The identity digest is BLAKE3-256
 // over the deterministic encoding of this message. There is no digest
-// algorithm enum; changing the algorithm is a schema-version bump.
+// algorithm enum.
 message EnvIdentity {
-  uint32 schema_version = 1;
   repeated ToolEntry tools = 2;
-  reserved 3 to 7;
+  reserved 1, 3 to 7;
 }
 
 // Proof of provenance stored as `.rules_dx_managed` inside the installed
 // `.dx/bin` directory, so it swaps atomically with the tree it describes.
 message EnvMarker {
-  uint32 schema_version = 1;
   // Exactly 32 bytes: BLAKE3-256 over the canonical `EnvIdentity`.
   bytes identity = 2;
-  reserved 3 to 7;
+  reserved 1, 3 to 7;
 }

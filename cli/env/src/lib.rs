@@ -19,8 +19,6 @@ use serde::Deserialize;
 
 pub const DX_DIR_NAME: &str = ".dx";
 pub const MARKER_FILE_NAME: &str = ".rules_dx_managed";
-pub const MARKER_SCHEMA_VERSION: u32 = 1;
-pub const STAGED_METADATA_SCHEMA_VERSION: u32 = 1;
 pub const BIN_DIR_NAME: &str = "bin";
 pub const STAGE_DIR_NAME: &str = "bin.next";
 pub const PREV_DIR_NAME: &str = "bin.prev";
@@ -36,7 +34,6 @@ pub struct ToolPlan {
 
 #[derive(Deserialize)]
 struct StagedMetadata {
-    schema_version: u32,
     tools: Vec<StagedTool>,
 }
 
@@ -55,18 +52,10 @@ pub enum Error {
     WorkspaceRoot { path: PathBuf },
     #[error("staged tree is unusable: {reason}")]
     Staged { reason: String },
-    #[error(
-        "staged metadata schema {found} is unsupported (installer handles {STAGED_METADATA_SCHEMA_VERSION}); regenerate the tree"
-    )]
-    UnsupportedStagedSchema { found: u32 },
     #[error("staged tool is invalid: {reason}")]
     InvalidTool { reason: String },
     #[error("refusing to touch unmanaged {path}: {detail}", path = path.display())]
     Unmanaged { path: PathBuf, detail: String },
-    #[error(
-        "installed marker schema {found} is unsupported (installer handles {MARKER_SCHEMA_VERSION}); upgrade dx instead of deleting state"
-    )]
-    UnsupportedMarkerSchema { found: u32 },
     #[error("installed marker is invalid: {reason}")]
     MarkerInvalid { reason: String },
     #[error("{}", dx_atomic_fs::commit::busy_message(path, holder.as_deref()))]
@@ -115,7 +104,6 @@ pub fn canonical_identity_bytes(tools: &[ToolPlan]) -> Vec<u8> {
             .then_with(|| a.owner.cmp(&b.owner))
     });
     let identity = EnvIdentity {
-        schema_version: MARKER_SCHEMA_VERSION,
         tools: sorted
             .iter()
             .map(|tool| ToolEntry {
@@ -138,7 +126,6 @@ pub fn identity_hex(tools: &[ToolPlan]) -> String {
 
 pub fn encode_marker(identity: &[u8; 32]) -> Vec<u8> {
     EnvMarker {
-        schema_version: MARKER_SCHEMA_VERSION,
         identity: identity.to_vec(),
     }
     .encode_to_vec()
@@ -148,11 +135,6 @@ pub fn decode_marker(bytes: &[u8]) -> Result<[u8; 32], Error> {
     let marker = EnvMarker::decode(bytes).map_err(|e| Error::MarkerInvalid {
         reason: format!("not a valid marker: {e}"),
     })?;
-    if marker.schema_version != MARKER_SCHEMA_VERSION {
-        return Err(Error::UnsupportedMarkerSchema {
-            found: marker.schema_version,
-        });
-    }
     if marker.identity.len() != IDENTITY_LEN {
         return Err(Error::MarkerInvalid {
             reason: format!(
@@ -170,11 +152,6 @@ pub fn parse_staged(text: &str, windows: bool) -> Result<Vec<ToolPlan>, Error> {
     let metadata: StagedMetadata = serde_json::from_str(text).map_err(|e| Error::Staged {
         reason: format!("metadata is not valid JSON: {e}"),
     })?;
-    if metadata.schema_version != STAGED_METADATA_SCHEMA_VERSION {
-        return Err(Error::UnsupportedStagedSchema {
-            found: metadata.schema_version,
-        });
-    }
     if metadata.tools.is_empty() {
         return Err(Error::InvalidTool {
             reason: "metadata carries no tools".to_string(),
@@ -416,9 +393,6 @@ fn read_current_identity(bin_dir: &Path) -> Result<Option<[u8; 32]>, Error> {
     })?;
     match decode_marker(&bytes) {
         Ok(identity) => Ok(Some(identity)),
-        Err(Error::UnsupportedMarkerSchema { found }) => {
-            Err(Error::UnsupportedMarkerSchema { found })
-        }
         Err(other) => Err(Error::Unmanaged {
             path: bin_dir.to_path_buf(),
             detail: format!("provenance marker is not ours: {other}"),

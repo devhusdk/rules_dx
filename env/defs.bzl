@@ -39,8 +39,6 @@ _EXECUTABLE_SUFFIXES = (".bat", ".cmd", ".com", ".exe")
 
 _RESERVED_HOST_NAMES = (".rules_dx_managed",)
 
-ENV_METADATA_SCHEMA_VERSION = 1
-
 def env_host_filename(name, is_windows):
     """Maps one logical tool name to its host-native filename."""
     if is_windows:
@@ -101,7 +99,6 @@ def env_tree_metadata(records, is_windows):
             "owner": record.owner,
         })
     return json.encode({
-        "schema_version": ENV_METADATA_SCHEMA_VERSION,
         "tools": tools,
     })
 

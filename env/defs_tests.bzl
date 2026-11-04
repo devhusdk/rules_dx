@@ -166,7 +166,6 @@ def env_defs_unit_tests(name):
                     False,
                 )),
                 {
-                    "schema_version": 1,
                     "tools": [
                         {
                             "aliases": ["a"],

@@ -136,9 +136,8 @@ fn download(
     let mut file = part.file.as_ref().expect("open part file");
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 64 * 1024];
-    let failed = |e: &dyn std::fmt::Display| {
-        ShimError::failure(download_failed_message(request.url, e))
-    };
+    let failed =
+        |e: &dyn std::fmt::Display| ShimError::failure(download_failed_message(request.url, e));
     loop {
         let n = reader.read(&mut buf).map_err(|e| failed(&e))?;
         if n == 0 {
@@ -238,7 +237,9 @@ mod tests {
     fn http_status_points_at_proxy_docs() {
         assert_eq!(
             http_status_message(503, "https://h/dx"),
-            format!("download failed (HTTP 503): https://h/dx; check network and proxy settings, {DOC}")
+            format!(
+                "download failed (HTTP 503): https://h/dx; check network and proxy settings, {DOC}"
+            )
         );
     }
 
@@ -246,7 +247,9 @@ mod tests {
     fn transport_failure_points_at_proxy_docs() {
         assert_eq!(
             download_failed_message("https://h/dx", &"reset"),
-            format!("download failed: https://h/dx: reset; check network and proxy settings, {DOC}")
+            format!(
+                "download failed: https://h/dx: reset; check network and proxy settings, {DOC}"
+            )
         );
     }
 

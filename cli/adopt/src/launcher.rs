@@ -206,8 +206,10 @@ fn pins_error(detail: String) -> AdoptError {
 const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
 DX_PINS=.dx/version
+args="$*"
 fail() {
   echo "dx: $1" >&2
+  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
   exit 1
 }
 via_bazel() {
@@ -455,6 +457,7 @@ move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
 if exist "%BIN%" goto run
 echo dx: could not install %BIN% 1>&2
+echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
 exit /b 1
 :run
 "%BIN%" %*
@@ -462,6 +465,7 @@ exit /b %errorlevel%
 :mismatch
 call :clean
 echo dx: sha256 mismatch for %DX_URL%: want '%WANT%', got '%GOT%'; refusing to run it 1>&2
+echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
 exit /b 1
 :clean
 del /q "%DX_PART%" 2>nul
@@ -1556,9 +1560,7 @@ mod tests {
                     args.display()
                 ),
             );
-            let (code, _, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1));
-            assert!(err.contains("download failed"), "{err}");
+            fx.assert_via_bazel(&["version"]);
             let args = std::fs::read_to_string(&args).expect("curl args");
             let joined = args.lines().collect::<Vec<_>>().join(" ");
             assert!(
@@ -1581,9 +1583,7 @@ mod tests {
                     args.display()
                 ),
             );
-            let (code, _, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1));
-            assert!(err.contains("download failed"), "{err}");
+            fx.assert_via_bazel(&["version"]);
             let args = std::fs::read_to_string(&args).expect("wget args");
             let joined = args.lines().collect::<Vec<_>>().join(" ");
             assert!(joined.contains("--timeout=30 --tries=3"), "{joined}");

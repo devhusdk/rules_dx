@@ -8,7 +8,7 @@ use dx_plan::args::{Command, Invocation};
 pub const FIRST_RUN_NOTICE: &str = "dx: first run in this workspace; Bazel will fetch toolchains and dependencies and this can take several minutes";
 
 /// Startup flags that move the output base; an rc that sets one makes the answer unknown.
-const ROOT_FLAGS: [&str; 2] = ["output_user_root", "output_base"];
+const ROOT_FLAGS: [&str; 2] = ["--output_user_root", "--output_base"];
 
 /// The rc files Bazel reads that can move the output root: the workspace `.bazelrc` and what
 /// it imports, the user's `~/.bazelrc` and the system rc.
@@ -43,6 +43,22 @@ fn rc_imports(text: &str, workspace: &Path) -> Vec<PathBuf> {
     paths
 }
 
+/// Whether a `startup` line of the rc text sets an output root flag, ignoring comments.
+fn startup_moves_root(text: &str) -> bool {
+    text.lines().any(|line| {
+        let line = line.split('#').next().unwrap_or("");
+        let mut tokens = line.split_whitespace();
+        let Some(command) = tokens.next() else {
+            return false;
+        };
+        (command == "startup" || command.starts_with("startup:"))
+            && tokens.any(|token| {
+                let name = token.split('=').next().unwrap_or(token);
+                ROOT_FLAGS.contains(&name)
+            })
+    })
+}
+
 /// Whether any rc file Bazel reads for `workspace` names an output root flag.
 fn rc_moves_output_root(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> bool {
     let mut pending = rc_files(workspace, env_get);
@@ -55,7 +71,7 @@ fn rc_moves_output_root(workspace: &Path, env_get: &dyn Fn(&str) -> Option<Strin
         let Ok(text) = std::fs::read_to_string(&file) else {
             continue;
         };
-        if ROOT_FLAGS.iter().any(|flag| text.contains(flag)) {
+        if startup_moves_root(&text) {
             return true;
         }
         pending.extend(rc_imports(&text, workspace));
@@ -233,6 +249,29 @@ mod tests {
         )
         .expect("home rc");
         assert_eq!(host.first_run(&[]), None);
+    }
+
+    #[test]
+    fn rc_mentions_that_do_not_set_the_flag_are_ignored() {
+        let host = Host::new();
+        let rc = host.workspace.join(".bazelrc");
+        for text in [
+            "# do not pass --output_base here\n",
+            "startup --foo # --output_base=x\n",
+            "build --output_base=/x\n",
+            "build --action_env=output_base_x\n",
+        ] {
+            std::fs::write(&rc, text).expect("rc");
+            assert_eq!(host.first_run(&[]), Some(true), "{text}");
+        }
+        for text in [
+            "startup --output_user_root=/x\n",
+            "startup:ci --output_base /x\n",
+            "startup --output_base=/x # big disk\n",
+        ] {
+            std::fs::write(&rc, text).expect("rc");
+            assert_eq!(host.first_run(&[]), None, "{text}");
+        }
     }
 
     #[test]

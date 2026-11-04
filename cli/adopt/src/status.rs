@@ -553,7 +553,7 @@ mod tests {
     fn pin_check_hints_the_write_for_an_empty_pin() {
         let check = pin_check("");
         assert_eq!(check.status, "error");
-        assert_eq!(check.hint, format!("write {MODULE_VERSION} to .dx/version"));
+        assert_eq!(check.hint, "dx init --apply");
     }
 
     #[test]

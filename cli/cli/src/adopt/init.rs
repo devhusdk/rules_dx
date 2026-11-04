@@ -228,7 +228,7 @@ fn check_init(
         }
         return 0;
     }
-    let rewrite = dx_adopt::pin_rewrite_hint(dx_adopt::MODULE_VERSION);
+    let rewrite = dx_adopt::pin_rewrite_hint();
     let mut clauses: Vec<String> = [("missing", missing), ("stale", stale)]
         .into_iter()
         .filter(|(_, paths)| !paths.is_empty())
@@ -393,13 +393,7 @@ mod tests {
                 err.contains("init drift: ") && err.contains("invalid .dx/version"),
                 "{err}"
             );
-            assert!(
-                err.contains(&format!(
-                    "write {} to .dx/version",
-                    dx_adopt::MODULE_VERSION
-                )),
-                "{err}"
-            );
+            assert!(err.contains("dx init --apply"), "{err}");
             dx_adopt::write_version_pin(&root, dx_adopt::DX_VERSION).expect("fix");
             let (code, out, _err) = run(&invocation(&["init"]), &root);
             assert_eq!(code, 0, "{out}");

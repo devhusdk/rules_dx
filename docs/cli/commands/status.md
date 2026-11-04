@@ -72,7 +72,7 @@ directory cannot be opened.
   probed.
 - `pin`: compares `.dx/version` with the rules_dx module version this `dx`
   was built from. An empty or invalid (non-semver) pin hints
-  `write <module version> to .dx/version`.
+  `dx init --apply`.
 - `init`: names each file `dx init` writes that is missing or out of date: the
   launcher, preset, overrides, `.bazelignore`, `AGENTS.md` block, `CLAUDE.md`
   import, or agent hooks. `warn`, or `error` when a launcher or override file
@@ -122,11 +122,11 @@ it runs.
 
 ## Version Skew
 
-Every command compares the pin in `.dx/version` with the rules_dx module
-version built into `dx` before it runs. A mismatch is version skew. For
-example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
-`1.3.0`, so `dx build` stops with
-`version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
+Every command compares the rules_dx version in `MODULE.bazel` with the version
+built into `dx` before it runs. A mismatch is version skew. Without a rules_dx
+`bazel_dep`, the version in `.dx/version` is used. For example, `MODULE.bazel`
+says `1.2.0` and the binary is `1.3.0`, so `dx build` stops with
+`version skew: binary 1.3.0 MODULE.bazel rules_dx 1.2.0`.
 
 - Runs anyway: `status`, `upgrade`, `completion`, `worktree`, `explain`.
 - Warns and runs: `check`, `security`, `license`.
@@ -138,9 +138,9 @@ An empty pin fails the `pin` check in `dx status`.
 A missing file makes `dx status` exit `1` with
 `status_pin_mismatch`.
 
-A stop prints `dx: version skew: binary <version> pin <pin> module <version>; fix: <hint>`
+A stop prints `dx: version skew: binary <version> MODULE.bazel rules_dx <version>; fix: <hint>`
 on stderr. The hint is `dx upgrade --to <module version> --apply`
-when the pin is semver, otherwise `write <module version> to .dx/version`. Under `--output=json` it adds a `version_skew`
+when the pin is semver, otherwise `dx init --apply`. Under `--output=json` it adds a `version_skew`
 error event, then `command_finished` with `exit_code` `1` and
 `results_complete` `false`.
 

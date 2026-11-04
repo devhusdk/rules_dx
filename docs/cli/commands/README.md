@@ -33,7 +33,7 @@ Scope rules live in [Scope Defaults](scope-defaults.md).
 Airgapped hosts install from a vendored bundle: see
 [Offline Bundle](offline-bundle.md).
 
-A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
+A `MODULE.bazel` rules_dx version that disagrees with the rules_dx version `dx` was built
 from stops most commands. See [Version Skew](status.md#version-skew).
 
 ## Build Slots

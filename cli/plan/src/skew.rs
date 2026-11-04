@@ -31,15 +31,16 @@ fn governing_command(invocation: &Invocation) -> Command {
 
 pub fn diagnostic(pin: &str) -> String {
     format!(
-        "version skew: binary {} pin {pin} module {}; fix: {}",
+        "version skew: binary {} MODULE.bazel rules_dx {pin}; fix: {}",
         dx_adopt::DX_VERSION,
-        dx_adopt::MODULE_VERSION,
         dx_adopt::pin_fix_hint(pin, dx_adopt::MODULE_VERSION),
     )
 }
 
 pub fn read_pin(workspace: &std::path::Path) -> String {
-    dx_adopt::read_version_pin(workspace).unwrap_or_default()
+    dx_adopt::module_rules_dx_version(workspace)
+        .or_else(|| dx_adopt::read_version_pin(workspace).ok())
+        .unwrap_or_default()
 }
 
 pub fn is_skewed(pin: &str) -> bool {
@@ -83,6 +84,23 @@ mod tests {
         Command::Watch,
         Command::Docs,
     ];
+
+    #[test]
+    fn the_pin_comes_from_module_bazel_then_the_pin_file() {
+        let scratch = dx_test_scratch::scratch("dx-skew-pin-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "1.0.0\n").expect("pin");
+        assert_eq!(read_pin(root), "1.0.0");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"2.0.0\")\n",
+        )
+        .expect("module");
+        assert_eq!(read_pin(root), "2.0.0");
+        std::fs::write(root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("module");
+        assert_eq!(read_pin(root), "1.0.0");
+    }
 
     fn stub(command: Command, wrapped: Option<&str>) -> Invocation {
         let mut invocation = crate::args::parse(&["status"]).expect("status");

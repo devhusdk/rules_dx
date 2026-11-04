@@ -124,7 +124,7 @@ match the running dx.
 
 | Path | Owner | What `dx init --apply` updates |
 | --- | --- | --- |
-| `.dx/version` | dx | Written when missing. Line 1 is the version, then one sha256 line per release binary. `dx upgrade --apply` rewrites it. |
+| `.dx/version` | dx | Generated. Line 1 is the version, then one sha256 line per release binary. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
 | `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. |
 | `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
@@ -298,7 +298,8 @@ with the template's first three lines (`#!/bin/sh`, `set -eu`,
 or the older `VERSION=` form. Any other launcher is yours and is never
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
 When `.dx/version` is not semver, `dx init --apply` fails with `init_failed`
-before writing any file. `dx upgrade --apply` refreshes existing launchers the same way.
+before writing any file. It also fails when `MODULE.bazel` pins a different
+`rules_dx` than the running `dx`. `dx upgrade --apply` refreshes existing launchers the same way.
 
 ## Git hooks
 

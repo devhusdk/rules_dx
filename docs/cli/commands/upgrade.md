@@ -10,7 +10,8 @@ dx upgrade [--apply] --to <version>
 ```
 
 Moves `rules_dx` and the pin in `.dx/version` to `--to`. It reads the current
-pin from `.dx/version`. `--to` may be newer or older than the pin, so the same
+version from the `rules_dx` `bazel_dep` in `MODULE.bazel`. `--to` may be newer
+or older than that version, so the same
 command upgrades and rolls back. Checks by default; `--apply` makes the move.
 `dx upgrade` runs even when the pin and `MODULE.bazel` disagree, so it is the
 fix that version skew names.
@@ -26,7 +27,8 @@ Scopes: none.
 3. When `--to` is not the version of this `dx`, the `--to` binary takes over
    with `bazel run @rules_dx//:dx -- upgrade --to <to> --apply` and writes
    the rest. This `dx` stops there and returns its exit code.
-4. `.dx/version` with `--to` and its sha256 lines.
+4. `.dx/version` with `--to` and its sha256 lines. It is written on every
+   run, so a missing or stale file is regenerated.
 5. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
    differs from the current text. It never creates a launcher.
 6. The dx-owned keys of an existing `.vscode/settings.json` and the pin and
@@ -42,8 +44,8 @@ Scopes: none.
 
 Steps 1 and 2 are skipped when `rules_dx` is already at `--to`.
 
-It refuses with `upgrade_failed` and writes nothing when `.dx/version` is
-missing or empty (run `dx init --apply`), when `MODULE.bazel` has no single
+It refuses with `upgrade_failed` and writes nothing when
+`MODULE.bazel` has no single
 `bazel_dep(name = "rules_dx", ...)` with a literal version, or when a launcher
 could not be refreshed. If the lockfile refresh fails, `MODULE.bazel` and
 `MODULE.bazel.lock` are put back as they were and nothing else is written. If

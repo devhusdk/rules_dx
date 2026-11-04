@@ -176,13 +176,8 @@ pub(crate) fn execute_upgrade(
             &format!("upgrade refused: {message} (nothing was written)"),
         )
     };
-    let pin = match dx_adopt::read_version_pin(workspace) {
-        Ok(pin) if !pin.is_empty() => pin,
-        Ok(_) => return refuse(out, err, ".dx/version is empty; run `dx init --apply`"),
-        Err(_) if !workspace.join(".dx/version").is_file() => {
-            return refuse(out, err, "no .dx/version; run `dx init --apply`")
-        }
-        Err(error) => return refuse(out, err, &error.to_string()),
+    let Some(pin) = dx_adopt::module_rules_dx_version(workspace) else {
+        return refuse(out, err, "no rules_dx bazel_dep; run `dx init --apply`");
     };
     let rerun = dx_adopt::version_pin_matches_module(&pin, to);
     let is_json = invocation.output == OutputMode::Json;
@@ -251,10 +246,8 @@ pub(crate) fn execute_upgrade(
     if !dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
         return hand_off(invocation, workspace, runner, to, &wrote, out, err);
     }
-    if !rerun {
-        if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
-            return refuse(out, err, &error.to_string());
-        }
+    if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
+        return refuse(out, err, &error.to_string());
     }
     let mut applied = dx_adopt::Applied::default();
     if let Err(what) = init_files::apply(
@@ -343,6 +336,10 @@ mod tests {
         std::fs::write(root.join("tools/dx"), text).expect("legacy launcher");
     }
 
+    fn set_module_version(root: &Path, version: &str) {
+        std::fs::write(root.join("MODULE.bazel"), dep(version)).expect("module");
+    }
+
     fn read_pin(root: &Path) -> String {
         dx_adopt::read_version_pin(root).expect("pin")
     }
@@ -374,6 +371,7 @@ mod tests {
     #[test]
     fn the_skew_hint_upgrades_the_pin_and_refreshes_existing_files() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-hint-", OLD);
+        set_module_version(&root, OLD);
         assert!(is_skewed(&read_pin(&root)));
         std::fs::write(root.join("AGENTS.md"), STALE_AGENTS).expect("agents");
         legacy_launcher(&root, OLD);
@@ -387,7 +385,7 @@ mod tests {
         assert_eq!(
             out,
             format!(
-                "pinned {} (upgrade from {OLD})\nwrote tools/dx\nwrote AGENTS.md\n",
+                "pinned {} (upgrade from {OLD})\nwrote MODULE.bazel\nwrote MODULE.bazel.lock\nwrote tools/dx\nwrote AGENTS.md\n",
                 module()
             )
         );
@@ -581,6 +579,7 @@ mod tests {
     #[test]
     fn check_mode_writes_nothing_and_reports_pending_or_current() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-check-", OLD);
+        set_module_version(&root, OLD);
         std::fs::write(root.join("AGENTS.md"), STALE_AGENTS).expect("agents");
         let before = snapshot(&root);
         let (code, _out, err) = run(&upgrade(&[]), &root);
@@ -598,6 +597,7 @@ mod tests {
     #[test]
     fn upgrade_moves_a_newer_pin_back() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-down-", "9.9.9");
+        set_module_version(&root, "9.9.9");
         dx_adopt::write_launcher_files(&root, &mut dx_adopt::Applied::default())
             .expect("launchers");
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
@@ -792,6 +792,33 @@ mod tests {
         let (code, out, err) = run(&apply, &root);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(out, format!("pinned {} (upgrade current)\n", module()));
+    }
+
+    #[test]
+    fn apply_writes_a_missing_or_stale_pin_file() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-regen-", module());
+        std::fs::remove_file(root.join(".dx/version")).expect("remove");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let expected = format!(
+            "{}\n{}",
+            module(),
+            dx_adopt::release_pins(module()).expect("pins").to_lines()
+        );
+        let pin_file = root.join(".dx/version");
+        assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
+        std::fs::write(&pin_file, "0.0.1\n").expect("stale");
+        assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);
+        assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
+    }
+
+    #[test]
+    fn a_workspace_without_a_rules_dx_dep_is_refused() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-nodep-", module());
+        std::fs::write(root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("module");
+        let (code, _out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("no rules_dx bazel_dep"), "{err}");
     }
 
     #[test]

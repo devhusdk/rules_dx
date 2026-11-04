@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{AdoptError, DX_VERSION};
+use super::{release_pins, AdoptError, DX_VERSION};
 
 /// How a scaffold file is treated when it already exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -8,6 +8,8 @@ pub enum FileKind {
     WriteOnce,
     VscodeKeys,
     CiPin,
+    /// Rewritten whenever it differs from the planned content.
+    Generated,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -206,9 +208,10 @@ pub fn render_editor_settings() -> String {
 const NESTED_SETTINGS: [&str; 2] = ["files.watcherExclude", "search.exclude"];
 
 /// The existing text with only the dx-owned values brought up to date.
-fn merge_owned(kind: FileKind, existing: &str) -> Result<String, dx_merge::Error> {
+fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String, dx_merge::Error> {
     match kind {
         FileKind::WriteOnce => Ok(existing.to_owned()),
+        FileKind::Generated => Ok(generated.to_owned()),
         FileKind::VscodeKeys => {
             let value = editor_settings_value();
             let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
@@ -270,8 +273,8 @@ fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldF
     let files = vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
-            content: format!("{DX_VERSION}\n"),
-            kind: FileKind::WriteOnce,
+            content: format!("{DX_VERSION}\n{}", release_pins(DX_VERSION)?.to_lines()),
+            kind: FileKind::Generated,
         },
         ScaffoldFile {
             path: ".devcontainer/devcontainer.json".to_owned(),
@@ -423,7 +426,7 @@ pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, String
     let Ok(existing) = std::fs::read_to_string(root.join(&file.path)) else {
         return Ok(false);
     };
-    match merge_owned(file.kind, &existing) {
+    match merge_owned(file.kind, &existing, &file.content) {
         Ok(merged) => Ok(merged != existing),
         Err(error) => Err(format!("{}: {error}", file.path)),
     }
@@ -476,7 +479,7 @@ fn merge_existing(
         path: dest.display().to_string(),
         detail: e.to_string(),
     })?;
-    match merge_owned(file.kind, &existing) {
+    match merge_owned(file.kind, &existing, &file.content) {
         Ok(merged) if merged == existing => {}
         Ok(merged) => {
             write_file(dest, &merged)?;
@@ -722,13 +725,31 @@ mod tests {
         let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
         assert!(first.iter().any(|p| p == ".dx/version"));
         assert!(root.join(".dx/version").exists());
-        std::fs::write(root.join(".dx/version"), "custom\n").expect("custom");
+        std::fs::write(root.join(".envrc"), "custom\n").expect("custom");
         let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
-        assert!(second.iter().any(|p| p == "refused:.dx/version"));
+        assert!(second.iter().any(|p| p == "refused:.envrc"));
         assert_eq!(
-            std::fs::read_to_string(root.join(".dx/version")).expect("read"),
+            std::fs::read_to_string(root.join(".envrc")).expect("read"),
             "custom\n"
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn the_version_pin_is_generated_and_rewritten_when_stale() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-pin-");
+        let root = scratch.path().to_path_buf();
+        let pin = root.join(".dx/version");
+        entries(|a| apply_init(&root, "demo", a)).expect("init");
+        let expected = format!(
+            "{DX_VERSION}\n{}",
+            crate::release_pins(DX_VERSION).expect("pins").to_lines()
+        );
+        assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);
+        std::fs::write(&pin, "0.0.1\n").expect("stale");
+        let again = entries(|a| apply_init(&root, "demo", a)).expect("init again");
+        assert!(again.iter().any(|p| p == ".dx/version"));
+        assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);
         scratch.close().expect("cleanup");
     }
 

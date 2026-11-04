@@ -106,6 +106,19 @@ pub(super) fn plan(root: &Path, module: &str, fresh: bool) -> Result<Vec<InitFil
     Ok(files)
 }
 
+/// Refuses when `MODULE.bazel` asks for another rules_dx than this dx binary.
+fn check_module_version(root: &Path) -> Result<(), String> {
+    match dx_adopt::module_rules_dx_version(root) {
+        Some(pinned) if !dx_adopt::version_pin_matches_module(&pinned, dx_adopt::MODULE_VERSION) => {
+            Err(format!(
+                "MODULE.bazel pins rules_dx {pinned}, dx is {}; run `bazel run @rules_dx//:dx -- init --apply`",
+                dx_adopt::MODULE_VERSION
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
 fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
     match dx_adopt::read_version_pin(root) {
         Ok(pin) if !pin.is_empty() && !dx_adopt::pin_is_valid(&pin) => Err(adopt_message(
@@ -164,6 +177,7 @@ pub(super) fn apply(
     applied: &mut Applied,
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
+    check_module_version(root)?;
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     if mode == Mode::Refresh {
         return refresh(root, prefix, files, applied);
@@ -405,6 +419,21 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
 mod tests {
     use super::plan;
     use crate::adopt::test_support::{drift_of, invocation, run};
+
+    #[test]
+    fn init_refuses_when_module_bazel_is_ahead_of_the_binary() {
+        let scratch = dx_test_scratch::scratch("dx-init-ahead-");
+        let root = scratch.path();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\n",
+        )
+        .expect("module");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("MODULE.bazel pins rules_dx 9.9.9"), "{err}");
+        assert!(!root.join(".dx/version").exists());
+    }
 
     #[test]
     fn everything_init_writes_is_owned_and_present() {

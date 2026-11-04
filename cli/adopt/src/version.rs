@@ -11,8 +11,8 @@ pub fn pin_is_valid(pin: &str) -> bool {
     !pin.is_empty() && semver::Version::parse(pin).is_ok()
 }
 
-pub fn pin_rewrite_hint(version: &str) -> String {
-    format!("write {version} to .dx/version")
+pub fn pin_rewrite_hint() -> String {
+    "dx init --apply".to_owned()
 }
 
 pub fn version_move_hint(from: &str, to: &str) -> String {
@@ -25,7 +25,7 @@ pub fn version_move_hint(from: &str, to: &str) -> String {
 
 pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
     if !pin_is_valid(pinned) {
-        pin_rewrite_hint(module_version)
+        pin_rewrite_hint()
     } else if version_pin_matches_module(pinned, module_version) {
         "dx status".to_owned()
     } else {
@@ -189,6 +189,14 @@ pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptErro
     };
     parse_module_dependency(&text, &read_include)
         .map_err(|detail| AdoptError::LoadModuleFile { detail })
+}
+
+/// The rules_dx version `MODULE.bazel` asks for; `None` without a usable version.
+pub fn module_rules_dx_version(root: &Path) -> Option<String> {
+    let dependency = read_module_dependency(root).ok()?;
+    let resolved = dependency.resolved_version().filter(|v| pin_is_valid(v));
+    let declared = dependency.declared.as_deref().filter(|v| pin_is_valid(v));
+    resolved.or(declared).map(str::to_owned)
 }
 
 pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
@@ -391,7 +399,7 @@ mod tests {
             "dx upgrade --to 1.2.3 --apply"
         );
         for bad in ["", "v1", "1.2", "garbage"] {
-            assert_eq!(pin_fix_hint(bad, "1.2.3"), "write 1.2.3 to .dx/version");
+            assert_eq!(pin_fix_hint(bad, "1.2.3"), "dx init --apply");
         }
     }
 

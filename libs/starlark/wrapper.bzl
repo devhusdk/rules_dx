@@ -474,6 +474,12 @@ def dx_setdefaults(kwargs, defaults):
         out.setdefault(key, value)
     return out
 
+def dx_language_kwargs(kwargs, skip_tags = [], compatible_with = []):
+    """Returns kwargs with skip tags appended once and the platform guard appended."""
+    out = dx_append_flags(kwargs, "tags", skip_tags)
+    out["target_compatible_with"] = (kwargs.get("target_compatible_with") or []) + compatible_with
+    return out
+
 def dx_wrap_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one library shape."""
     out = {}

@@ -2,7 +2,7 @@
 
 load("@rules_julia//julia:defs.bzl", _julia_binary = "julia_binary", _julia_library = "julia_library", _julia_test = "julia_test")
 load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 JuliaInfo = _JuliaInfo
@@ -63,21 +63,14 @@ def julia_quality_srcs(main, srcs):
     owned = [main] if main != None else []
     return owned + [s for s in (srcs or []) if s != main]
 
-def julia_compatible_with(target_compatible_with):
-    """Appends the Julia platform guard to the caller's constraints."""
-    return (target_compatible_with or []) + JULIA_COMPATIBLE_WITH
-
-def _julia_kwargs(kwargs):
-    return dict(kwargs, target_compatible_with = julia_compatible_with(kwargs.get("target_compatible_with")))
-
 def julia_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over julia_library."""
-    kwargs = _julia_kwargs(kwargs)
+    kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     dx_wrap(name, _julia_library, _julia_library_forward, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, package_name = name), **kwargs)
 
 def julia_binary(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_binary."""
-    kwargs = _julia_kwargs(kwargs)
+    kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     upstream = dict(kwargs, package_name = name)
     if main != None:
         upstream["main"] = main
@@ -85,7 +78,7 @@ def julia_binary(name, srcs = None, main = None, visibility = None, **kwargs):
 
 def julia_test(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_test."""
-    kwargs = _julia_kwargs(kwargs)
+    kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     upstream = dict(kwargs, package_name = name)
     if main != None:
         upstream["main"] = main

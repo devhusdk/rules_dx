@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "FLUTTER_DEFERRED_SKIP_TAGS", "flutter_deferred_tags")
+load(":defs.bzl", "FLUTTER_DEFERRED_SKIP_TAGS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,11 +14,6 @@ dx_wrapper_contract_tests(
             "no skip tags",
             FLUTTER_DEFERRED_SKIP_TAGS,
             [],
-        ),
-        expect_equal(
-            "skip tags are appended once",
-            flutter_deferred_tags(["x"]),
-            ["x"],
         ),
     ],
     file_classes = ["dart"],

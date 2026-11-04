@@ -2,7 +2,7 @@
 
 load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_codegen = "dart_codegen", _dart_js_binary = "dart_js_binary", _dart_library = "dart_library", _dart_package_metadata = "dart_package_metadata", _dart_test = "dart_test", _dart_wasm_binary = "dart_wasm_binary")
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartCompileInfo", "DartInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 DART_SOURCE_SPECS = [("dart", "dart")]
@@ -72,24 +72,9 @@ def dart_compatible_with(target_compatible_with):
     """Appends the rules_dart platform guard to the caller's constraints."""
     return (target_compatible_with or []) + DART_COMPATIBLE_WITH
 
-def dart_deferred_tags(tags):
-    """Adds the skip tags that keep the deferred dart class out of quality aspects."""
-    out = list(tags or [])
-    for tag in DART_DEFERRED_SKIP_TAGS:
-        if tag not in out:
-            out.append(tag)
-    return out
-
-def _dart_kwargs(kwargs):
-    return dict(
-        kwargs,
-        tags = dart_deferred_tags(kwargs.get("tags")),
-        target_compatible_with = dart_compatible_with(kwargs.get("target_compatible_with")),
-    )
-
 def dart_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_library."""
-    kwargs = _dart_kwargs(kwargs)
+    kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     root_name = dart_root_package_name(native.package_name(), name, kwargs)
     if root_name != None:
         kwargs["package_name"] = root_name
@@ -97,20 +82,20 @@ def dart_library(name, srcs = None, visibility = None, **kwargs):
 
 def dart_binary(name, main, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_binary."""
-    kwargs = _dart_kwargs(kwargs)
+    kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, _dart_binary, _dart_binary_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
 
 DART_COVERAGE_COLLECTOR = False
 
 def dart_test(name, main, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_test."""
-    kwargs = _dart_kwargs(kwargs)
+    kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), coverage_collector = DART_COVERAGE_COLLECTOR, **kwargs)
 
 def dart_js_binary(name, **kwargs):
     """Thin wrapper over dart_js_binary."""
-    _dart_js_binary(name = name, **_dart_kwargs(kwargs))
+    _dart_js_binary(name = name, **dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH))
 
 def dart_wasm_binary(name, **kwargs):
     """Thin wrapper over dart_wasm_binary."""
-    _dart_wasm_binary(name = name, **_dart_kwargs(kwargs))
+    _dart_wasm_binary(name = name, **dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH))

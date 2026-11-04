@@ -99,19 +99,6 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Prove dx init scaffold matches checked-in definition
         run: |
           # shellcheck disable=SC2086
@@ -166,19 +153,6 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -234,21 +208,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -256,7 +218,7 @@ jobs:
           fi
       - name: Run the opted-in requires-network consumer tests
         env:
-          REPO_CACHE_PATH: ${{ steps.repo-cache.outputs.path }}
+          REPO_CACHE_PATH: ${{ steps.setup.outputs.repository-cache-root }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
@@ -311,21 +273,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
         run: |
@@ -334,7 +284,7 @@ jobs:
           fi
       - name: Run this shard of the starter consumer tests
         env:
-          REPO_CACHE_PATH: ${{ steps.repo-cache.outputs.path }}
+          REPO_CACHE_PATH: ${{ steps.setup.outputs.repository-cache-root }}
           SHARD: ${{ matrix.shard }}
           SHARDS: "4"
           NO_STARTER_ISSUE: ${{ matrix.no-starter-issue }}
@@ -478,25 +428,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Build the bootstrap closure
         id: bootstrap-build
         run: |
@@ -563,10 +497,10 @@ jobs:
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
       - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.setup.outputs.repository-cache-hit != 'true' && steps.setup.outputs.repository-cache-root != '' }}
         shell: bash
         env:
-          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          DX_REPO_CACHE: ${{ steps.setup.outputs.repository-cache-path }}
         run: |
           # Bazel touches an entry on each hit, so entries older than the stamp went unused.
           stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
@@ -585,11 +519,11 @@ jobs:
           size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
           echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.setup.outputs.repository-cache-hit != 'true' && steps.setup.outputs.repository-cache-root != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
+          path: ${{ steps.setup.outputs.repository-cache-path }}
+          key: ${{ steps.setup.outputs.repository-cache-key }}
   repo-cache-prune:
     name: repo-cache-prune (keep newest repository cache per platform)
     needs: [preflight]
@@ -626,19 +560,6 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Validate workflow semantics with the pinned actionlint
         run: |
           # shellcheck disable=SC2086

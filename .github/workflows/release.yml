@@ -56,19 +56,6 @@ jobs:
           ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Check the committed versions equal the tag
         run: |
           set -euo pipefail
@@ -151,19 +138,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         # A missing artifact shows up as a rejected cell in the report instead of stopping here.
         continue-on-error: true

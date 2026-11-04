@@ -1,10 +1,23 @@
 name: setup-bazel
-description: Install the pinned Bazelisk with bazel-contrib/setup-bazel.
+description: Install the pinned Bazelisk with bazel-contrib/setup-bazel and restore the shared Bazel repository cache.
 inputs:
   cache-save:
     description: Save the Bazelisk cache.
     required: false
     default: "false"
+outputs:
+  repository-cache-root:
+    description: The Bazel repository cache directory.
+    value: ${{ steps.repo-cache.outputs.path }}
+  repository-cache-path:
+    description: The content_addressable directory the cache saves.
+    value: ${{ steps.repo-cache.outputs.path }}/content_addressable
+  repository-cache-key:
+    description: The key the cache saves under.
+    value: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
+  repository-cache-hit:
+    description: Whether the restore hit the exact key.
+    value: ${{ steps.repo-cache-restore.outputs.cache-hit }}
 runs:
   using: composite
   steps:
@@ -20,3 +33,20 @@ runs:
         bazelisk-version: ${{ steps.pin.outputs.version }}
         bazelisk-cache: true
         cache-save: ${{ inputs.cache-save }}
+    - name: Locate the Bazel repository cache
+      id: repo-cache
+      shell: bash
+      run: |
+        path="$(bazel info repository_cache)"
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+    - name: Restore the Bazel repository cache
+      id: repo-cache-restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+        key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+        restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+    - name: Stamp the restored Bazel repository cache
+      if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+      shell: bash
+      run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"

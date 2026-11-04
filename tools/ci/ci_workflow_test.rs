@@ -142,7 +142,7 @@ fn the_network_job_selects_opted_in_consumers() {
         "attr(tags, network-consumer, //...)",
         "test -n \"$targets\"",
         "--test_timeout=",
-        "info repository_cache",
+        "DX_NESTED_BAZEL_REPOSITORY_CACHE=",
     ] {
         assert!(
             all.contains(needle),
@@ -152,8 +152,8 @@ fn the_network_job_selects_opted_in_consumers() {
     assert!(
         steps(CI, "network").iter().any(|step| step["uses"]
             .as_str()
-            .is_some_and(|uses| uses.starts_with("actions/cache/restore"))),
-        "{CI} job network must restore the repository cache"
+            .is_some_and(|uses| uses == "./.github/actions/setup-bazel")),
+        "{CI} job network must use the local setup-bazel action, which restores the repository cache"
     );
 }
 

@@ -21,4 +21,5 @@ cc_library(
     name = "other",
     testonly = True,
     hdrs = ["shared.h"],
+    visibility = ["//visibility:public"],
 )

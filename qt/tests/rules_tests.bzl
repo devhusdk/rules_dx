@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -20,6 +20,13 @@ def _unit_checks():
         expect_equal("consumer identity linux_arm64", qt_consumer_identity("linux_arm64"), struct(arch = "aarch64", os = "linux", min_runtime = "glibc-2.39")),
         expect_equal("consumer identity linux_x86_64", qt_consumer_identity("linux_x86_64"), struct(arch = "x86_64", os = "linux", min_runtime = "glibc-2.34")),
         expect_equal("consumer identity macos_arm64", qt_consumer_identity("macos_arm64"), struct(arch = "aarch64", os = "macos", min_runtime = "macos-13.0")),
+        expect_equal("library stem linux", qt_library_stem("libQt6Gui.so.6"), "Qt6Gui"),
+        expect_equal("library stem linux plugin", qt_library_stem("libqoffscreen.so"), "qoffscreen"),
+        expect_equal("library stem macos plugin", qt_library_stem("libqoffscreen.dylib"), "qoffscreen"),
+        expect_equal("library stem framework", qt_library_stem("QtGui"), "QtGui"),
+        expect_equal("library stem windows", qt_library_stem("Qt6Gui.dll"), "Qt6Gui"),
+        expect_equal("library stem windows plugin", qt_library_stem("qoffscreen.dll"), "qoffscreen"),
+        expect_equal("library stem skips other files", qt_library_stem("qt.conf"), None),
         expect_equal("module path", qt_module_path("Org.Example.Tally"), "Org/Example/Tally"),
         expect_equal("framework path", qt_framework_path("../dx_qt/lib/QtCore.framework/Versions/A/QtCore"), "QtCore.framework/Versions/A/QtCore"),
         expect_equal("framework path skips plain libraries", qt_framework_path("_solib_k8/libQt6Core.so.6"), None),

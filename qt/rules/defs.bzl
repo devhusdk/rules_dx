@@ -450,19 +450,33 @@ _qt_library_forward = rule(
 
 _FRAMEWORK = ".framework/Versions/A/"
 
+def qt_library_stem(basename):
+    """Returns the library name without lib prefix and shared-library suffix, or None."""
+    name = basename[3:] if basename.startswith("lib") else basename
+    for suffix in [".dylib", ".dll", ".so"]:
+        if name.endswith(suffix):
+            return name[:-len(suffix)]
+    head, sep, version = name.rpartition(".so.")
+    if sep and version.isdigit():
+        return head
+    return name if "." not in name else None
+
 def _links_gui(upstream):
     for f in upstream[DefaultInfo].default_runfiles.files.to_list():
-        if f.basename == "libQt6Gui.so.6" and "_solib_" in f.short_path:
+        stem = qt_library_stem(f.basename)
+        if stem == "Qt6Gui" and f.basename.endswith(".dll"):
             return True
-        if f.basename == "QtGui" and _FRAMEWORK in f.short_path:
+        if stem == "Qt6Gui" and f.basename.endswith(".so.6") and "_solib_" in f.short_path:
+            return True
+        if stem == "QtGui" and _FRAMEWORK in f.short_path:
             return True
     return False
 
-def _directory(files, prefix):
+def _directory(files, stem):
     for f in files:
-        if f.basename.startswith(prefix):
+        if qt_library_stem(f.basename) == stem:
             return f.short_path.rpartition("/")[0]
-    fail("no " + prefix + " in " + str([f.short_path for f in files]))
+    fail("no " + stem + " in " + str([f.short_path for f in files]))
 
 def _plugin_path(files):
     roots = {}
@@ -482,7 +496,7 @@ def _run_environment(ctx, gui):
     if gui:
         if len([f for f in ctx.files.fonts if f.basename == "fonts.conf"]) > 0:
             environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
-        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "libqoffscreen.")
+        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "qoffscreen")
         if ctx.attr._headless:
             environment["QT_QPA_PLATFORM"] = "offscreen"
             environment["QT_QUICK_BACKEND"] = "software"
@@ -581,7 +595,14 @@ qt_frameworks = rule(
 def _bundle_runpath():
     return select({
         "@platforms//os:macos": [],
+        "@platforms//os:windows": [],
         "//conditions:default": [QT_BUNDLE_RUNPATH],
+    })
+
+def _pic_copts():
+    return select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["-fPIC"],
     })
 
 def _include_copts(name):
@@ -589,7 +610,7 @@ def _include_copts(name):
     package = native.package_name()
     parts = (["external", repository] if repository != "" else []) + ([package] if package != "" else [])
     directory = "/".join(parts) if len(parts) > 0 else "."
-    return ["-fPIC", "-I" + directory, "-I$(BINDIR)/" + directory, "-I$(BINDIR)/" + directory + "/" + _GENERATED + "/" + name]
+    return _pic_copts() + ["-I" + directory, "-I$(BINDIR)/" + directory, "-I$(BINDIR)/" + directory + "/" + _GENERATED + "/" + name]
 
 def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, target_compatible_with):
     uses_qml = uri != None
@@ -937,7 +958,7 @@ def qt_rust_runtime(name, core, **kwargs):
         name = name,
         srcs = [":" + name + "_srcs"],
         hdrs = [":" + name + "_hdrs"],
-        copts = ["-fPIC"],
+        copts = _pic_copts(),
         includes = [name + "_files"],
         deps = [core],
         alwayslink = True,

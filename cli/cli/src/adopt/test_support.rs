@@ -155,6 +155,13 @@ impl Write for Truncated {
     }
 }
 
+/// The drift of `root` against the files init plans for it.
+pub(crate) fn drift_of(root: &Path) -> super::init_files::Drift {
+    let files =
+        super::init_files::plan(root, "refresh", dx_adopt::is_fresh_dir(root)).expect("plan");
+    super::init_files::drift(root, &files)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

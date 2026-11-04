@@ -156,15 +156,9 @@ fn check_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let wiring = super::init_files::drift(workspace);
-    let missing: Vec<String> = files
-        .iter()
-        .filter(|file| file.essential && !workspace.join(&file.path).exists())
-        .map(|file| file.path.clone())
-        .collect();
-    let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
-    let stale = wiring.stale;
-    let stale: Vec<String> = prefixed(&target.prefix, stale).collect();
+    let wiring = super::init_files::drift(workspace, &files);
+    let missing: Vec<String> = prefixed(&target.prefix, wiring.missing).collect();
+    let stale: Vec<String> = prefixed(&target.prefix, wiring.stale).collect();
     let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()

@@ -415,24 +415,18 @@ pub fn refresh_scaffold(
     apply_files(root, files, applied, false)
 }
 
-/// Owned files whose dx-owned values are out of date, and files that cannot be parsed.
-pub fn stale_owned_files(root: &Path) -> (Vec<String>, Vec<String>) {
-    let mut stale = Vec::new();
-    let mut other = Vec::new();
-    let Ok(files) = plan_init_files_full("refresh", DEFAULT_BRANCH_FALLBACK) else {
-        return (stale, other);
-    };
-    for file in files.iter().filter(|f| f.kind != FileKind::WriteOnce) {
-        let Ok(existing) = std::fs::read_to_string(root.join(&file.path)) else {
-            continue;
-        };
-        match merge_owned(file.kind, &existing) {
-            Ok(merged) if merged == existing => {}
-            Ok(_) => stale.push(file.path.clone()),
-            Err(error) => other.push(format!("{}: {error}", file.path)),
-        }
+/// Whether an existing owned file lacks dx-owned values; `Err` when it cannot be read or parsed.
+pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, String> {
+    if file.kind == FileKind::WriteOnce {
+        return Ok(false);
     }
-    (stale, other)
+    let Ok(existing) = std::fs::read_to_string(root.join(&file.path)) else {
+        return Ok(false);
+    };
+    match merge_owned(file.kind, &existing) {
+        Ok(merged) => Ok(merged != existing),
+        Err(error) => Err(format!("{}: {error}", file.path)),
+    }
 }
 
 fn apply_files(

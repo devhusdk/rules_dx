@@ -128,7 +128,14 @@ fn capability_line(capability: &CapabilityEvent) -> String {
 }
 
 fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
-    let drift = super::init_files::drift(workspace);
+    let drift =
+        match super::init_files::plan(workspace, "refresh", dx_adopt::is_fresh_dir(workspace)) {
+            Ok(files) => super::init_files::drift(workspace, &files),
+            Err(error) => super::init_files::Drift {
+                other: vec![error.to_string()],
+                ..Default::default()
+            },
+        };
     let mut parts: Vec<String> = Vec::new();
     if !drift.missing.is_empty() {
         parts.push(format!("missing {}", drift.missing.join(", ")));
@@ -397,7 +404,7 @@ mod tests {
             (check.name.as_str(), check.status.as_str()),
             ("init", "warn")
         );
-        assert!(check.detail.contains("AGENTS.md"), "{}", check.detail);
+        assert!(check.detail.contains("tools/dx"), "{}", check.detail);
         let (code, _out, err) = crate::adopt::test_support::run(
             &crate::adopt::test_support::invocation(&["init", "--apply"]),
             root,
@@ -414,12 +421,7 @@ mod tests {
         assert!(check.detail.contains("stale AGENTS.md"), "{}", check.detail);
         std::fs::write(root.join("AGENTS.md"), super::super::agents::block()).expect("current");
         std::fs::remove_file(root.join(".claude/settings.json")).expect("rm");
-        let check = init_check(root);
-        assert!(
-            check.detail.contains("missing .claude/settings.json"),
-            "{}",
-            check.detail
-        );
+        assert_eq!(init_check(root).status, "ok");
         std::fs::write(
             root.join(".claude/settings.json"),
             dx_worktree::setup::settings_text(&dx_worktree::setup::CLAUDE),

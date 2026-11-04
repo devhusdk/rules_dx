@@ -54,8 +54,8 @@ pub use preset::{
     write_preset, PresetDrift, PresetState,
 };
 pub use scaffold::{
-    bazelignore_covers_dx, plan_init_files, plan_init_files_at, preflight_destinations,
-    refresh_scaffold, render_consumer_caller, render_consumer_module_setup, stale_owned_files,
+    bazelignore_covers_dx, owned_file_drift, plan_init_files, plan_init_files_at,
+    preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,
     Applied, FileKind,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};

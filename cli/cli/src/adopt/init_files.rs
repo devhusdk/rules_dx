@@ -88,10 +88,13 @@ pub(super) fn plan(root: &Path, module: &str, fresh: bool) -> Result<Vec<InitFil
         format!("@{}\n", agents::FILE),
         Kind::ClaudeImport,
     ));
+    let overrides_included = std::fs::read_to_string(root.join("MODULE.bazel"))
+        .is_ok_and(|text| text.contains(dx_adopt::OVERRIDES_INCLUDE));
     let mut files: Vec<InitFile> = Vec::new();
     for (path, content, kind) in entries {
         if files.iter().all(|file| file.path != path) {
-            let essential = ESSENTIAL.contains(&path.as_str());
+            let essential = ESSENTIAL.contains(&path.as_str())
+                || (kind == Kind::Override && overrides_included);
             files.push(InitFile {
                 path,
                 content,
@@ -295,66 +298,76 @@ pub(super) struct Drift {
     pub(super) other: Vec<String>,
 }
 
-/// Every owned file that is missing, stale or unreadable under `root`, without writing.
-pub(super) fn drift(root: &Path) -> Drift {
+/// Every planned file that is missing (essential only), stale or unreadable under `root`, without writing.
+pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
     let mut drift = Drift::default();
-    for rel in [dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL] {
-        if !root.join(rel).exists() {
-            drift.missing.push(rel.to_owned());
-        }
-    }
-    drift.stale.extend(dx_adopt::stale_launchers(root));
-    let (stale, other) = dx_adopt::stale_owned_files(root);
-    drift.stale.extend(stale);
-    drift.other.extend(other);
+    let stale_launchers = dx_adopt::stale_launchers(root);
     let preset = dx_adopt::preset_drift(root);
-    drift.missing.extend(preset.missing);
-    drift.stale.extend(preset.stale);
+    let hooks = setup::workspace_missing(root);
     drift.other.extend(preset.other);
-    for (path, content) in dx_adopt::render_overrides() {
-        match std::fs::read(root.join(&path)) {
-            Ok(bytes) if bytes == content.as_bytes() => {}
-            Ok(_) => drift.stale.push(path),
-            Err(_) => drift.missing.push(path),
+    for file in files {
+        let path = file.path.as_str();
+        if !root.join(path).exists() {
+            if file.essential {
+                drift.missing.push(file.path.clone());
+            }
+            continue;
         }
-    }
-    if std::fs::read_to_string(root.join(".bazelignore"))
-        .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
-    {
-        drift.stale.push(".bazelignore".to_owned());
-    }
-    for (path, missing) in setup::workspace_missing(root) {
-        if root.join(path).exists() {
-            drift
-                .stale
-                .push(format!("{path} (lacks hooks: {})", missing.join("; ")));
-        } else {
-            drift.missing.push(path.to_owned());
-        }
-    }
-    match agents::planned(root, true) {
-        Ok(None) => {}
-        Ok(Some(_)) if root.join(agents::FILE).exists() => {
-            drift.stale.push(agents::FILE.to_owned());
-        }
-        Ok(Some(_)) => drift.missing.push(agents::FILE.to_owned()),
-        Err(error) => drift.other.push(format!("{}: {error}", agents::FILE)),
-    }
-    match claude_md::state(root) {
-        Ok(claude_md::State::Imported | claude_md::State::Linked) => {}
-        Ok(claude_md::State::Missing) => {
-            drift
-                .stale
-                .push(format!("{} (lacks @{})", claude_md::FILE, agents::FILE));
-        }
-        Ok(claude_md::State::Absent) => drift.missing.push(claude_md::FILE.to_owned()),
-        Err(error) => drift.other.push(format!("{}: {error}", claude_md::FILE)),
-    }
-    let planned = plan(root, "refresh", dx_adopt::is_fresh_dir(root)).unwrap_or_default();
-    for file in planned {
-        if file.essential && !root.join(&file.path).exists() && !drift.missing.contains(&file.path)
-        {
-            drift.missing.push(file.path);
+        match file.kind {
+            Kind::Scaffold(kind) => {
+                let owned = ScaffoldFile {
+                    path: file.path.clone(),
+                    content: file.content.clone(),
+                    kind,
+                };
+                match dx_adopt::owned_file_drift(root, &owned) {
+                    Ok(false) => {}
+                    Ok(true) => drift.stale.push(file.path.clone()),
+                    Err(error) => drift.other.push(error),
+                }
+                if path == ".bazelignore"
+                    && std::fs::read_to_string(root.join(path))
+                        .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
+                {
+                    drift.stale.push(file.path.clone());
+                }
+            }
+            Kind::Launcher => {
+                if stale_launchers.iter().any(|stale| stale == path) {
+                    drift.stale.push(file.path.clone());
+                }
+            }
+            Kind::Override => {
+                if std::fs::read(root.join(path))
+                    .is_ok_and(|bytes| bytes != file.content.as_bytes())
+                {
+                    drift.stale.push(file.path.clone());
+                }
+            }
+            Kind::Preset => {
+                if preset.stale.iter().any(|stale| stale == path) {
+                    drift.stale.push(file.path.clone());
+                }
+            }
+            Kind::Hooks => {
+                if let Some((_, lacks)) = hooks.iter().find(|(hook, _)| *hook == path) {
+                    drift
+                        .stale
+                        .push(format!("{path} (lacks hooks: {})", lacks.join("; ")));
+                }
+            }
+            Kind::AgentsBlock => match agents::planned(root, true) {
+                Ok(None) => {}
+                Ok(Some(_)) => drift.stale.push(file.path.clone()),
+                Err(error) => drift.other.push(format!("{path}: {error}")),
+            },
+            Kind::ClaudeImport => match claude_md::state(root) {
+                Ok(claude_md::State::Imported | claude_md::State::Linked) => {}
+                Ok(claude_md::State::Missing | claude_md::State::Absent) => drift
+                    .stale
+                    .push(format!("{path} (lacks @{})", agents::FILE)),
+                Err(error) => drift.other.push(format!("{path}: {error}")),
+            },
         }
     }
     drift
@@ -362,8 +375,8 @@ pub(super) fn drift(root: &Path) -> Drift {
 
 #[cfg(test)]
 mod tests {
-    use super::{drift, plan};
-    use crate::adopt::test_support::{invocation, run};
+    use super::plan;
+    use crate::adopt::test_support::{drift_of, invocation, run};
 
     #[test]
     fn everything_init_writes_is_owned_and_present() {
@@ -429,7 +442,7 @@ mod tests {
         wrote.sort();
         owned_paths.sort();
         assert_eq!(wrote, owned_paths);
-        assert_eq!(drift(root), super::Drift::default());
+        assert_eq!(drift_of(root), super::Drift::default());
         let (code, out, err) = run(&invocation(&["init"]), root);
         assert_eq!(code, 0, "{err}");
         assert!(out.contains("init current"), "{out}");
@@ -460,8 +473,32 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
         let root = scratch.path();
         let files = plan(root, "my_project", true).expect("plan");
-        for path in drift(root).missing {
+        for path in drift_of(root).missing {
             assert!(files.iter().any(|file| file.path == path), "{path}");
+        }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_removed_planned_file_is_missing_only_when_essential() {
+        let scratch = dx_test_scratch::scratch("dx-init-planned-removed-");
+        let root = scratch.path();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let files = plan(root, "my_project", true).expect("plan");
+        for file in &files {
+            let full = root.join(&file.path);
+            let Ok(kept) = std::fs::read(&full) else {
+                continue;
+            };
+            std::fs::remove_file(&full).expect("remove");
+            let missing = super::drift(root, &files).missing.contains(&file.path);
+            assert_eq!(missing, file.essential, "{}", file.path);
+            if file.path != "MODULE.bazel" {
+                let (code, _out, _err) = run(&invocation(&["init"]), root);
+                assert_eq!(code == 0, !file.essential, "{}", file.path);
+            }
+            std::fs::write(&full, kept).expect("restore");
         }
         scratch.close().expect("cleanup");
     }
@@ -476,7 +513,7 @@ mod tests {
             dx_adopt::LAUNCHER_SH_REL.to_owned(),
             dx_adopt::LAUNCHER_CMD_REL.to_owned(),
         ];
-        paths.extend([dx_adopt::preset::BAZELRC, dx_adopt::preset::GITIGNORE].map(str::to_owned));
+        paths.push(dx_adopt::preset::GITIGNORE.to_owned());
         paths.extend(dx_adopt::render_overrides().into_iter().map(|(p, _)| p));
         let files = plan(root, "my_project", true).expect("plan");
         for path in paths {
@@ -484,7 +521,7 @@ mod tests {
             let full = root.join(&path);
             let kept = std::fs::read(&full).expect("read");
             std::fs::remove_file(&full).expect("remove");
-            assert!(drift(root).missing.contains(&path), "{path}");
+            assert!(drift_of(root).missing.contains(&path), "{path}");
             std::fs::write(&full, kept).expect("restore");
         }
         scratch.close().expect("cleanup");
@@ -496,7 +533,7 @@ mod tests {
         let root = scratch.path();
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
-        assert_eq!(drift(root), super::Drift::default());
+        assert_eq!(drift_of(root), super::Drift::default());
         std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("ignore");
         std::fs::write(
             root.join("tools/dx"),
@@ -508,7 +545,7 @@ mod tests {
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
         let (path, _) = dx_adopt::render_overrides().remove(0);
         std::fs::write(root.join(&path), "changed\n").expect("override");
-        let stale = drift(root).stale.join("\n");
+        let stale = drift_of(root).stale.join("\n");
         for want in [
             ".bazelignore",
             "tools/dx",
@@ -531,12 +568,12 @@ mod tests {
         let text = std::fs::read_to_string(&path).expect("read");
         let (key, _) = text.split_once(':').expect("key");
         std::fs::write(&path, format!("{key}: 1,\n\"x\": 1}}\n")).expect("write");
-        assert!(drift(root)
+        assert!(drift_of(root)
             .stale
             .contains(&".vscode/settings.json".to_owned()));
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
-        assert_eq!(drift(root), super::Drift::default());
+        assert_eq!(drift_of(root), super::Drift::default());
         scratch.close().expect("cleanup");
     }
 }

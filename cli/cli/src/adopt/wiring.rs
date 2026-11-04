@@ -163,13 +163,17 @@ mod tests {
     fn drift_names_the_missing_import_and_apply_clears_it() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-preset-");
         let root = scratch.path();
-        let drift = crate::adopt::init_files::drift(root);
-        assert!(drift.missing.contains(&".bazelrc".to_owned()), "{drift:?}");
+        let drift = crate::adopt::test_support::drift_of(root);
+        assert!(drift.missing.contains(&"tools/dx".to_owned()), "{drift:?}");
         assert_eq!(full_init(root).0, 0);
-        assert!(crate::adopt::init_files::drift(root).missing.is_empty());
+        assert!(crate::adopt::test_support::drift_of(root)
+            .missing
+            .is_empty());
         let layer = root.join(".dx/bazelrc/resources.bazelrc");
         std::fs::remove_file(&layer).expect("rm");
-        assert!(crate::adopt::init_files::drift(root).missing.is_empty());
+        assert!(crate::adopt::test_support::drift_of(root)
+            .missing
+            .is_empty());
         assert_eq!(init(root).0, 0);
         assert!(layer.exists());
     }
@@ -274,24 +278,23 @@ mod tests {
     fn drift_names_each_wiring_gap() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-drift-");
         let root = scratch.path();
-        let fresh = crate::adopt::init_files::drift(root);
-        for path in [
-            "tools/dx",
-            ".claude/settings.json",
-            "AGENTS.md",
-            "CLAUDE.md",
-        ] {
-            assert!(fresh.missing.iter().any(|m| m == path), "{path}: {fresh:?}");
+        let fresh = crate::adopt::test_support::drift_of(root);
+        assert!(fresh.missing.contains(&"tools/dx".to_owned()), "{fresh:?}");
+        for path in [".claude/settings.json", "AGENTS.md", "CLAUDE.md"] {
+            assert!(
+                !fresh.missing.iter().any(|m| m == path),
+                "{path}: {fresh:?}"
+            );
         }
         assert_eq!(full_init(root).0, 0);
         assert_eq!(
-            crate::adopt::init_files::drift(root),
+            crate::adopt::test_support::drift_of(root),
             crate::adopt::init_files::Drift::default()
         );
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("settings");
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
-        let drift = crate::adopt::init_files::drift(root);
+        let drift = crate::adopt::test_support::drift_of(root);
         assert_eq!(drift.stale.len(), 3, "{drift:?}");
         assert!(drift.stale.contains(&"AGENTS.md".to_owned()), "{drift:?}");
         assert!(
@@ -308,7 +311,7 @@ mod tests {
             "{drift:?}"
         );
         std::fs::write(root.join("AGENTS.md"), "<!-- dx:begin -->\n").expect("orphan");
-        assert!(crate::adopt::init_files::drift(root)
+        assert!(crate::adopt::test_support::drift_of(root)
             .other
             .iter()
             .any(|o| o.starts_with("AGENTS.md: ")));

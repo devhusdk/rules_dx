@@ -471,6 +471,8 @@ fn repo_cache_prune_job_has_only_actions_write_and_no_bazel() {
     let job = &ci["jobs"]["repo-cache-prune"];
     assert_eq!(job["needs"], serde_json::json!(["preflight"]));
     assert_eq!(job["permissions"], serde_json::json!({"actions": "write"}));
+    let condition = job["if"].as_str().expect("if");
+    assert!(condition.contains("'schedule'") && !condition.contains("'push'"));
     let steps = job["steps"].as_array().expect("steps");
     assert!(
         steps_using(steps, LOCAL_ACTION).is_empty()

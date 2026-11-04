@@ -335,21 +335,15 @@ fn every_matrix_cell_records_its_runner_image() {
     }
 }
 
-/// Pull requests keep `ci-ci-<number>`; main pushes share `ci-ci-main`; only PRs cancel.
+/// One run per ref, and nothing is cancelled.
 #[test]
-fn main_pushes_share_one_group_and_only_prs_cancel() {
+fn one_run_per_ref_and_none_cancel() {
     let ci = document(CI_WORKFLOW);
-    let group = ci["concurrency"]["group"].as_str().unwrap();
-    assert!(
-        group.starts_with("ci-${{ github.workflow }}-${{ github.event.pull_request.number || (")
-    );
-    assert!(group.contains("github.ref == 'refs/heads/main' && 'main'"));
-    assert!(group.ends_with("|| github.sha }}"));
-    assert!("main".parse::<u64>().is_err());
     assert_eq!(
-        ci["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' }}"),
+        ci["concurrency"]["group"],
+        json!("ci-${{ github.workflow }}-${{ github.ref }}"),
     );
+    assert_eq!(ci["concurrency"]["cancel-in-progress"], json!(false));
 }
 
 #[test]

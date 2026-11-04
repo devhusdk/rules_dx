@@ -18,9 +18,9 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
-  # Main pushes share one group; PRs, schedule, dispatch and merge_group get their own.
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main') || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # One run per ref: a new dispatch or scheduled run on main replaces only the queued one. merge_group refs are unique.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   dogfood:
@@ -640,7 +640,7 @@ jobs:
   repo-cache-prune:
     name: repo-cache-prune (keep newest repository cache per platform)
     needs: [preflight]
-    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

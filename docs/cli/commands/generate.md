@@ -108,6 +108,28 @@ differs from `custom_package` (or `app_id` when `custom_package` is unset), or
 when its `minSdkVersion` differs from a non-zero `api_level`. Generated
 manifests, labels from other packages and `select` values are skipped.
 
+## Dart and Flutter
+
+A directory with a `pubspec.yaml` gets a `dart_library` named after the
+package. It holds every `lib/**/*.dart` file and sets `package_name`. Each
+`bin/*.dart` gets a `dart_binary`, and each `test/**/*_test.dart` gets a
+`dart_test`. Files in `bin/` subdirectories and `test/` files that don't end in
+`_test.dart` are shared sources of every binary or test.
+
+A test is named by its path under `test/`, with `.dart` removed and `/`
+replaced by `_`. `test/ui/app_test.dart` becomes `ui_app_test`.
+
+- A `package:` import must name a dependency in `pubspec.yaml`, or a
+  `dev_dependencies` entry for a test. Other packages fail generation.
+- `dart:` imports need no dependency. Relative imports must stay inside the
+  package and must exist, or name an output of a `genrule` in the same BUILD
+  file.
+- A `BUILD` file below `lib/`, `bin/` or `test/` fails generation.
+
+When `pubspec.yaml` depends on the `flutter` SDK, the library becomes a
+`flutter_library` and each test becomes a `flutter_test`. Both load from
+`@rules_dx//flutter/rules:defs.bzl`. `bin/` is not generated.
+
 ## Test targets
 
 For Java and Kotlin, each `*Test.java` or `*Test.kt` source gets its own
@@ -139,9 +161,9 @@ directory and below. `dx generate` fails when no literal reference matches it,
 when the language is unknown, or when the value is malformed. A scoped run
 checks only directives in packages inside the scope.
 
-Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`,
-`javascript`, `julia`, `kotlin`, `lua`, `mdx`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`,
-`scala`, `svelte`, `typescript`, `vue`, `zig`.
+Accepted languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`,
+`haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `perl`, `php`, `powershell`,
+`python`, `ruby`, `rust`, `scala`, `svelte`, `typescript`, `vue`, `zig`.
 
 `# gazelle:dx_cuda_archs <spec> <spec>...` sets the `archs` of a generated
 `cuda_library`. It applies to this directory and below, and a deeper directive

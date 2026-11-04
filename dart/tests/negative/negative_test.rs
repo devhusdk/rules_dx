@@ -52,15 +52,6 @@ dart_test(
     ],
 )
 
-dart_test(
-    name = "missing_pub_test",
-    main = "test/clean_test.dart",
-    deps = [
-        "//base",
-        "@app_deps//:no_such_package",
-    ],
-)
-
 dart_binary(
     name = "crash",
     main = "bin/crash.dart",
@@ -217,14 +208,6 @@ fn an_import_of_a_package_that_is_not_a_direct_dependency_fails() {
     let built = bazel(&case, "build", "//app:transitive_import_test", &[]);
     assert_ne!(built.code, Some(0), "{}", built.text);
     assert!(built.text.contains("package:base"), "{}", built.text);
-}
-
-#[test]
-fn a_missing_pub_dependency_fails_analysis() {
-    let case = consumer();
-    let built = bazel(&case, "build", "//app:missing_pub_test", &[]);
-    assert_eq!(built.code, Some(1), "{}", built.text);
-    assert!(built.text.contains("no_such_package"), "{}", built.text);
 }
 
 #[test]

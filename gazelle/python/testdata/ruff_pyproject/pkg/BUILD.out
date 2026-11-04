@@ -1,0 +1,19 @@
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+
+python_library(
+    name = "lib",
+    srcs = ["lib.py"],
+    aspect_hints = [
+        "//:user_hint",
+        "//:ruff_config",
+    ],
+    imports = ["."],
+)
+
+python_test(
+    name = "lib_test",
+    srcs = ["lib_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+    deps = [":lib"],
+)

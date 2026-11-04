@@ -155,6 +155,9 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "python_library", target: "demo", defs: "python/rules:defs.bzl",
 		symbols: []string{"python_library", "python_test", "python_binary"},
 		inert:   []string{"notes.txt", "orphan.pyi"},
+		extraLoads: map[string][]string{
+			"@rules_dx//quality:native_config.bzl": {"ruff_config"},
+		},
 	},
 	"ruby": {
 		files: map[string]string{"demo.rb": "module Demo\nend\n"},

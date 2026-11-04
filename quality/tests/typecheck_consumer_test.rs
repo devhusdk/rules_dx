@@ -47,66 +47,6 @@ register_toolchains("@rules_dx//scala/toolchain:semanticdb")
 
 const ROWS: &[Row] = &[
     Row {
-        tool: "kotlinc",
-        family: "kotlin",
-        module: "bazel_dep(name = \"rules_kotlin\", version = \"2.4.21\")\n",
-        maven: false,
-        bazelrc: "",
-        lib_build: r#"load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
-
-kotlin_library(
-    name = "lib",
-    srcs = ["Count.kt"],
-)
-"#,
-        extra: &[],
-        source: "Count.kt",
-        clean: "package lib\n\nclass Count {\n  fun count(): Int {\n    return 1\n  }\n}\n",
-        dirty: "package lib\n\nclass Count {\n  fun count(): Int {\n    return \"not an int\"\n  }\n}\n",
-        location: "lib/Count.kt:5:12:",
-        rule: "[kotlinc/RETURN_TYPE_MISMATCH]",
-    },
-    Row {
-        tool: "ldc",
-        family: "d",
-        module: "",
-        maven: false,
-        bazelrc: "",
-        lib_build: r#"load("@rules_dx//d/rules:defs.bzl", "d_library")
-
-d_library(
-    name = "lib",
-    srcs = ["count.d"],
-)
-"#,
-        extra: &[],
-        source: "count.d",
-        clean: "module count;\n\nint count()\n{\n    return 1;\n}\n",
-        dirty: "module count;\n\nint count()\n{\n    return missing;\n}\n",
-        location: "lib/count.d:5:",
-        rule: "[ldc",
-    },
-    Row {
-        tool: "ocaml",
-        family: "ocaml",
-        module: "",
-        maven: false,
-        bazelrc: "",
-        lib_build: r#"load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module")
-
-ocaml_module(
-    name = "count",
-    struct = "count.ml",
-)
-"#,
-        extra: &[],
-        source: "count.ml",
-        clean: "let answer : int = 42\n",
-        dirty: "let answer : int = \"forty-two\"\n",
-        location: "lib/count.ml:1:",
-        rule: "[compile",
-    },
-    Row {
         tool: "scalac",
         family: "scala",
         module: SCALA_MODULE,

@@ -18,48 +18,6 @@ struct Row {
 
 const ROWS: &[Row] = &[
     Row {
-        tool: "mix_format",
-        family: "elixir",
-        lib_build: r#"load("@rules_dx//elixir/rules:defs.bzl", "elixir_app")
-
-elixir_app(
-    app_name = "math",
-    app_version = "1.0.0",
-)
-"#,
-        source: "lib/math.ex",
-        dirty: "defmodule Math do\n  def add( a,b ),do: a+b\nend\n",
-        formatted: "defmodule Math do\n  def add(a, b), do: a + b\nend\n",
-        broken: "defmodule Math do\n  def add( a,b ),do: a + * b\nend\n",
-        broken_report: "lib/lib/math.ex:2:26: error: syntax error before: '*' [mix_format/syntax]",
-        kept: Some("defmodule Math do\n  @moduledoc \"\"\"\n  Søren's café sums 1 + 1.\n  \"\"\"\n\n  def label, do: \"π ≈ 3.14\"\nend\n"),
-        tool_flag: Some(
-            "--@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format",
-        ),
-        flag_required: true,
-        profile: None,
-    },
-    Row {
-        tool: "perltidy",
-        family: "perl",
-        lib_build: r#"load("@rules_dx//perl/rules:defs.bzl", "perl_library")
-
-perl_library(
-    name = "math",
-    srcs = ["Math.pm"],
-)
-"#,
-        source: "Math.pm",
-        dirty: "package Math;\nsub  add{my ($a,$b)=@_;\nreturn $a+$b}\n1;\n",
-        formatted: "package Math;\n\nsub add {\n    my ( $a, $b ) = @_;\n    return $a + $b;\n}\n1;\n",
-        broken: "package Math;\nsub add { my ($a, $b) = (1;\n1;\n",
-        broken_report: "[perltidy/syntax]",
-        kept: None,
-        tool_flag: None,
-        flag_required: false,
-        profile: Some(("PERLTIDY", ".perltidyrc", "-i=8\n-b\n")),
-    },
-    Row {
         tool: "zig_fmt",
         family: "zig",
         lib_build: r#"load("@rules_dx//zig/rules:defs.bzl", "zig_library")

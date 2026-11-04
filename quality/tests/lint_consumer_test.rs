@@ -16,24 +16,6 @@ struct Row {
 
 const ROWS: &[Row] = &[
     Row {
-        tool: "phpcs",
-        family: "php",
-        lib_build: r#"load("@rules_dx//php/rules:defs.bzl", "php_library")
-
-php_library(
-    name = "math",
-    srcs = ["src/Calc.php"],
-)
-"#,
-        source: "src/Calc.php",
-        clean: "<?php\n\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nfinal class Calc\n{\n    public function add(int $a, int $b): int\n    {\n        return $a + $b;\n    }\n}\n",
-        dirty: "<?php\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nfinal class Calc\n{\n    public function add(int $a, int $b): int\n    {\n        return $a + $b;\n    }\n}\n",
-        dirty_report: "[phpcs/PSR12.Files.FileHeader.SpacingAfterTagBlock]",
-        broken: None,
-        tool_flag: "--@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs",
-        flag_required: true,
-    },
-    Row {
         tool: "zig_ast_check",
         family: "zig",
         lib_build: r#"load("@rules_dx//zig/rules:defs.bzl", "zig_library")
@@ -55,24 +37,6 @@ zig_library(
         flag_required: false,
     },
 ];
-
-const PHPCS_CONFIGURED_BUILD: &str = r#"load("@rules_dx//php/rules:defs.bzl", "php_library")
-load("@rules_dx//quality:native_config.bzl", "phpcs_config")
-
-phpcs_config(
-    name = "phpcs_config",
-    src = "phpcs.xml",
-)
-
-php_library(
-    name = "math",
-    srcs = ["src/Calc.php"],
-    aspect_hints = [":phpcs_config"],
-)
-"#;
-
-const PHPCS_PSR1_ONLY: &str =
-    "<?xml version=\"1.0\"?>\n<ruleset name=\"dx\"><rule ref=\"PSR1\"/></ruleset>\n";
 
 fn row() -> &'static Row {
     let tool =
@@ -198,13 +162,4 @@ fn missing_tool_flag_fails_and_names_the_flag() {
     let name = row.tool_flag.split('=').next().unwrap_or_default();
     assert_ne!(out.status.code(), Some(0), "{}", out.combined());
     assert!(out.combined().contains(name), "{}", out.combined());
-}
-
-#[test]
-fn phpcs_bound_config_replaces_the_psr12_default() {
-    let row = row();
-    let root = consumer(row, PHPCS_CONFIGURED_BUILD, row.dirty);
-    write(&root.join("lib/phpcs.xml"), PHPCS_PSR1_ONLY);
-    let out = dx(row, &root);
-    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
 }

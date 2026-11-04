@@ -203,8 +203,7 @@ a package with no entry is `UNKNOWN`.
 
 An entry may also set `text = "<workspace-relative path>"` to a vendored license
 file. It implies `text_present`, must be a `/`-separated path with no leading
-`/`, `\`, or empty, `.`, or `..` components, and feeds the `notice` report. Older
-`dx` binaries reject a `licenses.toml` that uses `text`.
+`/`, `\`, or empty, `.`, or `..` components, and feeds the `notice` report.
 
 Each `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`,
 and `expires`, and covers a finding only when `package`, `set`, and `license`

@@ -279,8 +279,7 @@ fails below it.
 Network commands take `--offline` and `--frozen`. `--offline` means no network:
 use pinned cached snapshots or fail. `--frozen` means no manifest or lock
 resolution changes and may fetch already pinned content. Combine them for both
-policies. Older dx versions spelled offline as `--frozen`: pass `--offline` for
-that behavior.
+policies.
 
 `--apply`, `--debug`, `--release`, `--here`, and `--affected` are
 documented on the command pages that take them. `--here` limits a command to the

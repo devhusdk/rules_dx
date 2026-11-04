@@ -1,6 +1,7 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
+load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//python/rules:defs.bzl", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -53,6 +54,16 @@ python_test(
         ":dxlinked",
         ":dxnative",
     ],
+)
+
+cc_toolchain_test(
+    name = "native_ext_gcc_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_ext_test",
 )
 
 real_source_target(

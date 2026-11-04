@@ -32,7 +32,11 @@ class NativeExtTest(unittest.TestCase):
             self.assertNotIn(b"execroot", f.read())
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copy(src, tmp)
-            code = "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'"
+            code = (
+                "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'; "
+                "maps = open('/proc/self/maps').read(); "
+                "assert 'libstdc++.so' not in maps and 'libc++.so' not in maps"
+            )
             result = subprocess.run(
                 [sys.executable, "-I", "-c", code],
                 env={},

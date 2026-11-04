@@ -12,7 +12,7 @@ use runfiles::{Runfiles, RunfilesBuilder};
 pub fn manifest_beside(binary: &Path) -> Option<PathBuf> {
     names_beside(binary)
         .into_iter()
-        .map(|name| PathBuf::from(format!("{}.runfiles_manifest", dx_path_display(&name))))
+        .map(|name| with_suffix(&name, ".runfiles_manifest"))
         .find(|candidate| candidate.is_file())
 }
 
@@ -29,8 +29,7 @@ fn names_beside(binary: &Path) -> Vec<PathBuf> {
 
 /// Names the runfiles manifest for one binary, preferring the one on disk.
 pub fn manifest_for(binary: &Path) -> PathBuf {
-    let named = format!("{}.runfiles_manifest", dx_path_display(binary));
-    manifest_beside(binary).unwrap_or_else(|| PathBuf::from(named))
+    manifest_beside(binary).unwrap_or_else(|| with_suffix(binary, ".runfiles_manifest"))
 }
 
 /// The runfiles of one binary, read with the upstream runfiles library.
@@ -130,10 +129,9 @@ impl Resolver {
 }
 
 fn tree_beside(binary: &Path) -> Option<PathBuf> {
-    let dir = binary.parent()?;
     names_beside(binary)
         .into_iter()
-        .map(|name| dir.join(format!("{}.runfiles", dx_path_display(&name))))
+        .map(|name| with_suffix(&name, ".runfiles"))
         .find(|candidate| candidate.is_dir())
 }
 
@@ -148,8 +146,11 @@ fn populated(tree: &Path) -> bool {
     })
 }
 
-fn dx_path_display(path: &Path) -> String {
-    super::spell(path, super::Spelling::Native)
+/// Appends a suffix to a path without going through UTF-8.
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    PathBuf::from(name)
 }
 
 #[cfg(test)]
@@ -550,6 +551,22 @@ mod tests {
             error.to_string().contains("RepoMappingInvalidFormat"),
             "error text: {error}"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_sibling_tree_and_manifest_are_found_under_a_non_utf8_path() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let dir = scratch("non-utf8");
+        let parent = dir.join(OsStr::from_bytes(b"d\xff"));
+        std::fs::create_dir_all(parent.join("bin.runfiles")).expect("tree");
+        let binary = write(&parent, "bin", "binary\n");
+        let manifest = write(&parent, "bin.runfiles_manifest", "");
+        assert_eq!(tree_beside(&binary), Some(parent.join("bin.runfiles")));
+        assert_eq!(manifest_beside(&binary), Some(manifest.clone()));
+        assert_eq!(manifest_for(&binary), manifest);
     }
 
     fn found(resolver: &Resolver, key: &str) -> PathBuf {

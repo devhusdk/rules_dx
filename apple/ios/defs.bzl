@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", "rust_static_library")
-load("//apple/bundle:defs.bzl", "archives", "check_cell", "display", "resolved_xcode")
+load("//apple/bundle:defs.bzl", "archives", "check_cell", "display", "platform_errors", "resolved_xcode")
 load(
     "//apple/provisioning:defs.bzl",
     _XCODE_LINEAGE = "XCODE_LINEAGE",
@@ -63,6 +63,17 @@ CELL_SETTINGS = [
 def environments():
     """Returns the supported iOS library environment names."""
     return sorted(_ENVIRONMENTS.keys())
+
+def ios_platforms():
+    """Returns the supported iOS platform names, such as device/arm64."""
+    return sorted(_PLATFORMS.keys())
+
+def split_platform(platforms):
+    """Returns the environment and arch of a one-entry platforms list, or empty strings."""
+    if len(platforms) != 1 or platforms[0] not in _PLATFORMS:
+        return ("", "")
+    parts = platforms[0].split("/")
+    return (parts[0], parts[1])
 
 def arches(environment):
     """Returns the supported architectures for one environment."""
@@ -250,6 +261,9 @@ def config_errors(config):
     return errors
 
 def _ios_lib_selection_impl(ctx):
+    selected = platform_errors("apple_ios_lib", list(ctx.attr.platforms), ios_platforms())
+    if len(selected) > 0:
+        fail("; ".join(selected))
     failures = config_errors(struct(
         arch = ctx.attr.arch,
         deployment = ctx.attr.deployment,
@@ -287,6 +301,10 @@ _ios_lib_selection = rule(
         ),
         "frameworks": attr.string_list(
             doc = "Apple frameworks the Rust iOS library links against.",
+            mandatory = True,
+        ),
+        "platforms": attr.string_list(
+            doc = "The one environment/arch platform the library is built for.",
             mandatory = True,
         ),
         "rustc_flags": attr.string_list(
@@ -486,8 +504,7 @@ def apple_ios_lib(
         crate_name = None,
         edition = None,
         hdrs = [],
-        environment = "",
-        arch = "",
+        platforms = [],
         triple = "",
         sdk = "",
         deployment = "",
@@ -499,9 +516,11 @@ def apple_ios_lib(
         testonly = False,
         visibility = None):
     """Builds one Rust static library for one iOS device or simulator cell and checks its Mach-O."""
+    environment, arch = split_platform(platforms)
     _ios_lib_selection(
         name = name + "_selection",
         arch = arch,
+        platforms = platforms,
         crate_features = crate_features,
         deployment = deployment,
         environment = environment,

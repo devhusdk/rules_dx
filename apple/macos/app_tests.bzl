@@ -1,6 +1,6 @@
 """macOS application selection coverage."""
 
-load("//apple/bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors")
+load("//apple/bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors", "platform_errors")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":app.bzl", "default_macos_app", "macos_app_errors", "owner_relative_path", "plugin_errors")
 
@@ -83,6 +83,11 @@ def _app_checks():
         "x86_64 fails",
         macos_app_errors(_app(arch = "x86_64")),
         ["apple_macos_app: arch 'x86_64' is outside macos: want arm64"],
+    ))
+    checks.append(expect_equal(
+        "two platforms fail",
+        platform_errors("apple_macos_app", ["arm64", "x86_64"], ["arm64"]),
+        ["apple_macos_app: platforms takes one of arm64"],
     ))
     checks.append(expect_equal(
         "provisioning profile fails",

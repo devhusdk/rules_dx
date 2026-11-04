@@ -18,6 +18,7 @@ load(
     "display",
     "flat_resources",
     "label_text",
+    "platform_errors",
     "resolved_xcode",
 )
 load(
@@ -126,6 +127,9 @@ def macos_app_errors(config):
     return errors
 
 def _macos_selection_impl(ctx):
+    selected = platform_errors("apple_macos_app", list(ctx.attr.platforms), _ARCHES)
+    if len(selected) > 0:
+        fail("; ".join(selected))
     failures = macos_app_errors(struct(
         arch = ctx.attr.arch,
         bundle_id = ctx.attr.bundle_id,
@@ -154,6 +158,7 @@ _macos_selection = rule(
         "entitlements": attr.string(doc = "Entitlements label text, which building rejects.", mandatory = True),
         "framework_imports": attr.string_list(doc = "Label texts of embedded frameworks.", mandatory = True),
         "library": attr.string(doc = "Label text of the Rust library the app links.", mandatory = True),
+        "platforms": attr.string_list(doc = "The one architecture the app is built for.", mandatory = True),
         "plugins": attr.string_list(doc = "Label texts of plugins placed under PlugIns.", mandatory = True),
         "provisioning_profile": attr.string(doc = "Provisioning profile label text, which building rejects.", mandatory = True),
         "resources": attr.string_list(doc = "Label texts of resource files bundled into the app.", mandatory = True),
@@ -395,7 +400,7 @@ def apple_macos_app(
         bundle_id = "",
         version = "",
         deployment = "",
-        arch = "arm64",
+        platforms = ["arm64"],
         xcode_version = "",
         entitlements = None,
         provisioning_profile = None,
@@ -403,9 +408,11 @@ def apple_macos_app(
         testonly = False,
         visibility = None):
     """Builds one upstream macOS application over a Rust library, checked and ad hoc signed."""
+    arch = platforms[0] if len(platforms) == 1 else ""
     _macos_selection(
         name = name + "_selection",
         arch = arch,
+        platforms = platforms,
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = label_text(entitlements),

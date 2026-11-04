@@ -1,5 +1,6 @@
 """Rust iOS library pin and selection coverage."""
 
+load("//apple/bundle:defs.bzl", "platform_errors")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(
     ":defs.bzl",
@@ -17,9 +18,11 @@ load(
     "environments",
     "framework_errors",
     "framework_linkopts",
+    "ios_platforms",
     "platform_for",
     "sdk_errors",
     "sdk_for",
+    "split_platform",
     "triple_errors",
     "triple_for",
     "xcode_errors",
@@ -91,6 +94,19 @@ def _ios_checks():
     checks.append(expect_equal("simulator x86_64 triple", triple_for("simulator", "x86_64"), "x86_64-apple-ios"))
     checks.append(expect_equal("device x86_64 triple is empty", triple_for("device", "x86_64"), ""))
     checks.append(expect_equal("unknown environment triple is empty", triple_for("watch", "arm64"), ""))
+    checks.append(expect_equal("device platform splits", split_platform(["device/arm64"]), ("device", "arm64")))
+    checks.append(expect_equal("simulator x86_64 platform splits", split_platform(["simulator/x86_64"]), ("simulator", "x86_64")))
+    checks.append(expect_equal("empty platforms split to nothing", split_platform([]), ("", "")))
+    checks.append(expect_equal("two platforms split to nothing", split_platform(["device/arm64", "simulator/arm64"]), ("", "")))
+    checks.append(expect_equal("unknown platform splits to nothing", split_platform(["watch/arm64"]), ("", "")))
+    checks.append(expect_equal("one platform is clean", platform_errors("apple_ios_lib", ["device/arm64"], ios_platforms()), []))
+    checks.append(expect_equal(
+        "empty platforms fail",
+        platform_errors("apple_ios_lib", [], ios_platforms()),
+        ["apple_ios_lib: platforms takes one of device/arm64, simulator/arm64, simulator/x86_64"],
+    ))
+    checks.append(expect_equal("two platforms fail", len(platform_errors("apple_ios_lib", ["device/arm64", "simulator/arm64"], ios_platforms())), 1))
+    checks.append(expect_equal("unknown platform fails", len(platform_errors("apple_ios_lib", ["watch/arm64"], ios_platforms())), 1))
     checks.append(expect_equal(
         "missing environment fails",
         environment_errors(""),

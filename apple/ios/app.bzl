@@ -21,6 +21,7 @@ load(
     "flat_resources",
     "framework_binaries",
     "label_text",
+    "platform_errors",
     "resolved_xcode",
 )
 load("//apple/provisioning:defs.bzl", "version_below")
@@ -42,7 +43,9 @@ load(
     "deployment_errors",
     "environment_errors",
     "environments",
+    "ios_platforms",
     "sdk_for",
+    "split_platform",
     "xcode_errors",
 )
 
@@ -189,6 +192,9 @@ def test_errors(device_type, os_version, deployment):
     return errors
 
 def _app_selection_impl(ctx):
+    selected = platform_errors("apple_ios_app", list(ctx.attr.platforms), ios_platforms())
+    if len(selected) > 0:
+        fail("; ".join(selected))
     failures = app_errors(struct(
         arch = ctx.attr.arch,
         bundle_id = ctx.attr.bundle_id,
@@ -227,6 +233,10 @@ _app_selection = rule(
         ),
         "entry": attr.string(
             doc = "Label text of the Swift @main module, or empty.",
+            mandatory = True,
+        ),
+        "platforms": attr.string_list(
+            doc = "The one environment/arch platform the app is built for.",
             mandatory = True,
         ),
         "environment": attr.string(
@@ -486,8 +496,7 @@ def apple_ios_app(
         srcs = [],
         hdrs = [],
         deps = [],
-        environment = "",
-        arch = "arm64",
+        platforms = [],
         bundle_id = "",
         version = "",
         deployment = "",
@@ -505,9 +514,11 @@ def apple_ios_app(
     entry takes any CcInfo or SwiftInfo target holding the @main module, such as a rules_swift swift_library, instead of srcs.
     """
     composed = library != None or len(frameworks) > 0 or entry != None
+    environment, arch = split_platform(platforms)
     _app_selection(
         name = name + "_selection" if composed else name,
         arch = arch,
+        platforms = platforms,
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = label_text(entitlements),
@@ -718,36 +729,36 @@ def apple_ios_app_test(
 def slice_errors(slices):
     """Returns one error string per rejected framework slice selection."""
     if len(slices) == 0:
-        return ["apple_framework: framework needs at least one 'environment/arch' slice"]
+        return ["apple_framework: framework needs at least one 'environment/arch' platform"]
     errors = []
     seen = {}
     has_device = False
     has_simulator = False
     for slice in slices:
         if slice in seen:
-            errors.append("apple_framework: duplicate slice '" + slice + "'")
+            errors.append("apple_framework: duplicate platform '" + slice + "'")
             continue
         seen[slice] = True
         parts = slice.split("/")
         if len(parts) != 2 or parts[0] == "" or parts[1] == "":
-            errors.append("apple_framework: slice '" + slice + "' is not 'environment/arch'")
+            errors.append("apple_framework: platform '" + slice + "' is not 'environment/arch'")
             continue
         environment = parts[0]
         arch = parts[1]
         if environment not in environments():
-            errors.append("apple_framework: unknown environment '" + environment + "' in slice '" + slice + "': want " + ", ".join(environments()))
+            errors.append("apple_framework: unknown environment '" + environment + "' in platform '" + slice + "': want " + ", ".join(environments()))
             continue
         if arch not in arches(environment):
-            errors.append("apple_framework: arch '" + arch + "' is outside " + environment + " in slice '" + slice + "': want " + ", ".join(arches(environment)))
+            errors.append("apple_framework: arch '" + arch + "' is outside " + environment + " in platform '" + slice + "': want " + ", ".join(arches(environment)))
             continue
         if environment == "device":
             has_device = True
         else:
             has_simulator = True
     if not has_device:
-        errors.append("apple_framework: framework needs the device/arm64 slice")
+        errors.append("apple_framework: framework needs the device/arm64 platform")
     if not has_simulator:
-        errors.append("apple_framework: framework needs at least one simulator slice")
+        errors.append("apple_framework: framework needs at least one simulator platform")
     return errors
 
 def framework_resource_errors(resources):
@@ -983,7 +994,7 @@ def apple_ios_xcframework(
         version = "",
         deployment = "",
         xcode_version = "",
-        slices = [],
+        platforms = [],
         resources = [],
         infoplists = [],
         tags = [],
@@ -999,7 +1010,7 @@ def apple_ios_xcframework(
         hdrs = [label_text(header) for header in hdrs],
         library = label_text(library),
         resources = [label_text(resource) for resource in resources],
-        slices = slices,
+        slices = platforms,
         version = version,
         xcode_version = xcode_version,
         tags = ["manual"] if library != None else tags,
@@ -1011,7 +1022,7 @@ def apple_ios_xcframework(
     _framework_cell(
         name = name + "_library",
         library = library,
-        slices = slices,
+        slices = platforms,
         xcode_version = xcode_version,
         tags = ["manual"],
         testonly = testonly,
@@ -1041,7 +1052,7 @@ def apple_ios_xcframework(
         bundle_name = module,
         data = resources,
         infoplists = infoplists,
-        ios = _slice_dict(slices),
+        ios = _slice_dict(platforms),
         minimum_os_versions = {"ios": deployment},
         public_hdrs = hdrs,
         version = ":" + name + "_version",
@@ -1059,7 +1070,7 @@ def apple_ios_xcframework(
         hdrs = hdrs,
         resources = resources,
         selection = ":" + name + "_selection",
-        slices = slices,
+        slices = platforms,
         version = version,
         xcframework = ":" + name + "_bundle",
         xcode_version = xcode_version,

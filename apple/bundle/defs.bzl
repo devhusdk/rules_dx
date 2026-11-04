@@ -15,6 +15,12 @@ _GROUPED_RESOURCES = (".alticon", ".atlas", ".bundle", ".icon", ".lproj", ".mlpa
 
 _SIGNING_CERTIFICATE = str(Label("@rules_apple//apple/build_settings:signing_certificate_name"))
 
+def platform_errors(kind, platforms, allowed):
+    """Returns one error string unless platforms holds exactly one allowed value."""
+    if len(platforms) != 1 or platforms[0] not in allowed:
+        return [kind + ": platforms takes one of " + ", ".join(allowed)]
+    return []
+
 def bundle_id_errors(kind, bundle_id):
     """Returns one error string when the bundle identifier leaves reverse-DNS."""
     if bundle_id == "":

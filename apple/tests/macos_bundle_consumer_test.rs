@@ -270,7 +270,7 @@ apple_macos_app(
 apple_macos_app(
     name = "wrong_arch",
     srcs = ["main.c"],
-    arch = "x86_64",
+    platforms = ["x86_64"],
     bundle_id = "com.example.bad",
     deployment = "14.0",
     version = "1.0",
@@ -556,7 +556,7 @@ fn missing_parts_and_wrong_arch_fail_clearly() {
     );
     for needle in [
         "carries x86_64, want arm64",
-        "arch 'x86_64' is outside macos: want arm64",
+        "platforms takes one of arm64",
         "loads @rpath/libextra.dylib, which is missing from the bundle",
         "loads host runtime",
         "missing.txt",

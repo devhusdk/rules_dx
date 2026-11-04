@@ -91,10 +91,9 @@ apple_ios_app(
         "PocketAppDelegate.m",
         "main.m",
     ],
-    arch = "arm64",
+    platforms = ["simulator/arm64"],
     bundle_id = "com.example.pocket",
     deployment = "17.0",
-    environment = "simulator",
     library = ":pocket_rust",
     resources = [
         "board.txt",
@@ -127,7 +126,7 @@ apple_ios_xcframework(
         "board.txt",
         "notes.txt",
     ],
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/arm64",
     ],
@@ -138,7 +137,7 @@ apple_ios_xcframework(
 apple_macos_app(
     name = "pocket_mac_app",
     srcs = ["mac_main.m"],
-    arch = "arm64",
+    platforms = ["arm64"],
     bundle_id = "com.example.pocketmac",
     deployment = "14.0",
     library = ":pocket_rust",
@@ -168,10 +167,9 @@ apple_ios_app(
         "PocketAppDelegate.m",
         "main.m",
     ],
-    arch = "arm64",
+    platforms = ["device/arm64"],
     bundle_id = "com.example.pocket",
     deployment = "17.0",
-    environment = "device",
     library = ":pocket_rust",
     resources = [
         "board.txt",
@@ -605,10 +603,9 @@ apple_ios_app(
         "DeskAppDelegate.m",
         "main.m",
     ],
-    arch = "arm64",
+    platforms = ["simulator/arm64"],
     bundle_id = "com.example.desk",
     deployment = "17.0",
-    environment = "simulator",
     frameworks = [":pocket_tasks"],
     version = "1.2",
     xcode_version = "XCODE",

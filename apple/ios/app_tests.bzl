@@ -212,48 +212,48 @@ def _app_checks():
     checks.append(expect_equal(
         "no slices fail",
         slice_errors([]),
-        ["apple_framework: framework needs at least one 'environment/arch' slice"],
+        ["apple_framework: framework needs at least one 'environment/arch' platform"],
     ))
     checks.append(expect_equal(
         "flat slice fails",
         slice_errors(["simulator"]),
         [
-            "apple_framework: slice 'simulator' is not 'environment/arch'",
-            "apple_framework: framework needs the device/arm64 slice",
-            "apple_framework: framework needs at least one simulator slice",
+            "apple_framework: platform 'simulator' is not 'environment/arch'",
+            "apple_framework: framework needs the device/arm64 platform",
+            "apple_framework: framework needs at least one simulator platform",
         ],
     ))
     checks.append(expect_equal(
         "unknown slice environment fails",
         slice_errors(["watch/arm64"]),
         [
-            "apple_framework: unknown environment 'watch' in slice 'watch/arm64': want device, simulator",
-            "apple_framework: framework needs the device/arm64 slice",
-            "apple_framework: framework needs at least one simulator slice",
+            "apple_framework: unknown environment 'watch' in platform 'watch/arm64': want device, simulator",
+            "apple_framework: framework needs the device/arm64 platform",
+            "apple_framework: framework needs at least one simulator platform",
         ],
     ))
     checks.append(expect_equal(
         "device simulator arch fails",
         slice_errors(["device/x86_64", "simulator/arm64"]),
         [
-            "apple_framework: arch 'x86_64' is outside device in slice 'device/x86_64': want arm64",
-            "apple_framework: framework needs the device/arm64 slice",
+            "apple_framework: arch 'x86_64' is outside device in platform 'device/x86_64': want arm64",
+            "apple_framework: framework needs the device/arm64 platform",
         ],
     ))
     checks.append(expect_equal(
         "duplicate slices fail",
         slice_errors(["device/arm64", "simulator/arm64", "simulator/arm64"]),
-        ["apple_framework: duplicate slice 'simulator/arm64'"],
+        ["apple_framework: duplicate platform 'simulator/arm64'"],
     ))
     checks.append(expect_equal(
         "device-only slices fail",
         slice_errors(["device/arm64"]),
-        ["apple_framework: framework needs at least one simulator slice"],
+        ["apple_framework: framework needs at least one simulator platform"],
     ))
     checks.append(expect_equal(
         "simulator-only slices fail",
         slice_errors(["simulator/arm64", "simulator/x86_64"]),
-        ["apple_framework: framework needs the device/arm64 slice"],
+        ["apple_framework: framework needs the device/arm64 platform"],
     ))
     checks.append(expect_equal(
         "device plus simulator slices are clean",
@@ -321,12 +321,12 @@ def _app_checks():
     checks.append(expect_contains(
         "duplicate framework slice fails",
         framework_errors(_framework(slices = ["device/arm64", "simulator/arm64", "device/arm64"])),
-        "apple_framework: duplicate slice 'device/arm64'",
+        "apple_framework: duplicate platform 'device/arm64'",
     ))
     checks.append(expect_contains(
         "wrong framework slice fails",
         framework_errors(_framework(slices = ["device/arm64", "simulator/armv7"])),
-        "apple_framework: arch 'armv7' is outside simulator in slice 'simulator/armv7': want arm64, x86_64",
+        "apple_framework: arch 'armv7' is outside simulator in platform 'simulator/armv7': want arm64, x86_64",
     ))
     checks.append(expect_equal("declared simulator test is clean", test_errors("iPhone 16", "18.5", "17.0"), []))
     checks.append(expect_equal(

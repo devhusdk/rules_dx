@@ -81,8 +81,7 @@ apple_ios_lib(
     name = "share",
     srcs = ["share.rs"],
     hdrs = ["share_api.h"],
-    environment = "simulator",
-    arch = "arm64",
+    platforms = ["simulator/arm64"],
     deployment = "17.0",
     xcode_version = "16.4",
     frameworks = ["Foundation"],
@@ -158,8 +157,7 @@ apple_ios_app(
     name = "ledger_app",
     srcs = ["main.m", "LedgerAppDelegate.m"],
     hdrs = ["LedgerAppDelegate.h"],
-    environment = "simulator",
-    arch = "arm64",
+    platforms = ["simulator/arm64"],
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
@@ -268,7 +266,7 @@ apple_ios_app(
     name = "ledger_app",
     entry = ":ledger_main",
     library = ":ledger_rust",
-    environment = "simulator",
+    platforms = ["simulator/arm64"],
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
@@ -293,7 +291,7 @@ non-Apple hosts the app targets are incompatible and skip.
 
 ### Device apps
 
-Set `environment = "device"` and `provisioning_profile` to a
+Set `platforms = ["device/arm64"]` and `provisioning_profile` to a
 `.mobileprovision` file:
 
 ```python
@@ -302,7 +300,7 @@ apple_ios_app(
     srcs = ["main.m"],
     bundle_id = "com.example.ledger",
     deployment = "17.0",
-    environment = "device",
+    platforms = ["device/arm64"],
     library = ":ledger_rust",
     provisioning_profile = "ledger_dev.mobileprovision",
     version = "1.0",
@@ -432,7 +430,7 @@ apple_ios_xcframework(
     hdrs = ["share_api.h"],
     library = ":share_rust",
     resources = ["rates.txt"],
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/arm64",
         "simulator/x86_64",
@@ -465,14 +463,14 @@ The build writes `bazel-bin/<package>/<name>.xcframework.zip` with
 library identifier, platform, minimum OS, and install name. The archive
 appears only after every check passes.
 
-Each slice is a cell: `device/arm64`, `simulator/arm64`, or
+Each platform is a cell: `device/arm64`, `simulator/arm64`, or
 `simulator/x86_64`. The framework needs `device/arm64` and at least one
-simulator slice.
+simulator platform.
 
 The build fails when:
 
-- a slice is unknown, malformed, or listed twice, or `device/arm64` or
-  every simulator slice is missing;
+- a platform is unknown, malformed, or listed twice, or `device/arm64` or
+  every simulator platform is missing;
 - `hdrs`, `deployment`, `bundle_id`, `version`, or `library` is missing
   or malformed, or a resource path is empty or absolute;
 - a public header has the umbrella header's name in any case, such as
@@ -506,8 +504,7 @@ apple_dynamic_xcframework_import(
 apple_ios_app(
     name = "till_app",
     srcs = ["main.m"],
-    environment = "simulator",
-    arch = "arm64",
+    platforms = ["simulator/arm64"],
     bundle_id = "com.example.till",
     version = "2.0",
     deployment = "17.0",
@@ -544,7 +541,7 @@ rust_static_library(
 apple_macos_app(
     name = "ledger",
     srcs = ["main.m"],
-    arch = "arm64",
+    platforms = ["arm64"],
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "14.0",
@@ -616,7 +613,7 @@ Building signs ad hoc only, whatever `--macos_signing_cert_name` says.
 
 Failures read:
 
-- `apple_macos_app: arch 'x86_64' is outside macos: want arm64`
+- `apple_macos_app: platforms takes one of arm64`
 - `apple_macos_app: deployment '13.0' is below 14.0`
 - `apple_macos_app: plugin '//app:empty' places nothing under PlugIns`
 - `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`

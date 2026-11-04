@@ -68,7 +68,7 @@ apple_ios_xcframework(
     hdrs = ["share_api.h"],
     library = ":share_rust",
     resources = ["rates.txt"],
-    slices = SLICES,
+    platforms = SLICES,
     version = "1.4",
     xcode_version = "XCODE",
 )
@@ -81,7 +81,7 @@ apple_ios_xcframework(
     hdrs = ["share_api.h"],
     library = ":share_rust",
     resources = ["rates.txt"],
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/arm64",
     ],
@@ -97,7 +97,7 @@ apple_ios_xcframework(
     hdrs = ["share_api.h"],
     library = ":share_rust",
     resources = ["rates.txt"],
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/x86_64",
     ],
@@ -189,7 +189,7 @@ apple_ios_xcframework(
     deployment = "17.0",
     hdrs = ["marker.h"],
     library = ":device_lib",
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/arm64",
     ],
@@ -203,7 +203,7 @@ apple_ios_xcframework(
     deployment = "17.0",
     hdrs = ["marker.h"],
     library = ":newer_lib",
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/arm64",
     ],
@@ -217,7 +217,7 @@ apple_ios_xcframework(
     deployment = "17.0",
     hdrs = ["marker.h"],
     library = ":device_lib",
-    slices = [
+    platforms = [
         "device/arm64",
         "simulator/arm64",
         "simulator/arm64",
@@ -251,10 +251,9 @@ apple_ios_app(
         "TillAppDelegate.m",
         "main.m",
     ],
-    arch = "arm64",
+    platforms = ["simulator/arm64"],
     bundle_id = "com.example.till",
     deployment = "17.0",
-    environment = "simulator",
     frameworks = [":share"],
     version = "2.0",
     xcode_version = "XCODE",
@@ -401,7 +400,7 @@ apple_ios_app(
     srcs = ["main.m"],
     bundle_id = "com.example.broken",
     deployment = "17.0",
-    environment = "simulator",
+    platforms = ["simulator/arm64"],
     frameworks = [":share"],
     version = "1.0",
 )
@@ -917,7 +916,7 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
     let duplicate = bazel(&producer, "build", &["//bad:duplicate_slices"], &[]);
     fails_with(
         &duplicate,
-        "apple_framework: duplicate slice 'simulator/arm64'",
+        "apple_framework: duplicate platform 'simulator/arm64'",
     );
 
     passes(&bazel(

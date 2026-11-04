@@ -233,6 +233,7 @@ rust_test(
 
 rust_android_apk(
     name = "consumer_apk",
+    testonly = True,
     app_id = "org.example.consumer.tasks",
     platforms = ["x86_64"],
     api_level = 33,

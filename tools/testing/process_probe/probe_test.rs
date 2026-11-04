@@ -47,6 +47,8 @@ fn help_names_every_flag_and_exits_zero() {
         "--descendant-gate",
         "--raise-signal",
         "--count-sigint",
+        "--ctrl-c-console",
+        "--ignore-console-ctrl",
         "--help",
     ] {
         assert!(
@@ -377,6 +379,27 @@ fn a_usage_error_documents_the_grammar() {
         "{}",
         run.stderr
     );
+}
+
+#[test]
+fn the_console_ctrl_flags_parse_and_fail_off_windows() {
+    let bad = run(&["--ctrl-c-console=abc"]);
+    assert_eq!(bad.status.code(), Some(64));
+    assert!(bad.stderr.contains("needs a number"), "{}", bad.stderr);
+    let switch = run(&["--ignore-console-ctrl=1"]);
+    assert_eq!(switch.status.code(), Some(64));
+    assert!(
+        switch.stderr.contains("takes no value"),
+        "{}",
+        switch.stderr
+    );
+    if cfg!(not(windows)) {
+        for flag in ["--ctrl-c-console=1", "--ignore-console-ctrl"] {
+            let run = run(&[flag]);
+            assert_eq!(run.status.code(), Some(64), "{flag}");
+            assert!(run.stderr.contains("need windows"), "{}", run.stderr);
+        }
+    }
 }
 
 #[cfg(unix)]

@@ -18,6 +18,10 @@ fn dx_binary() -> PathBuf {
 
 impl Watch {
     fn start() -> Self {
+        Self::start_with(None)
+    }
+
+    fn start_with(tree: Option<&str>) -> Self {
         let scratch = dx_test_scratch::scratch("dx-watch-relaunch-");
         let base = scratch.path().to_path_buf();
         let workspace = base.join("ws");
@@ -56,8 +60,19 @@ impl Watch {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(fs::File::create(base.join("stderr")).expect("stderr file"));
+        if let Some(app_args) = tree {
+            command
+                .env("PROCESS_PROBE_APP_ARGS", app_args)
+                .env("PROCESS_PROBE_APP_DESCENDANT", "1");
+        }
         if let Some(root) = std::env::var_os("SystemRoot") {
             command.env("SystemRoot", root);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(CREATE_NO_WINDOW);
         }
         let child = command.spawn().expect("dx starts");
         Watch {
@@ -142,4 +157,47 @@ fn watch_run_builds_then_runs_the_app_again_after_each_change() {
         dx_testing::assert_alive_lock_released(&watch.state.join(format!("alive-{old}")));
     }
     assert!(dx_testing::alive_lock_held(&watch.state.join("alive-6")));
+}
+
+#[cfg(windows)]
+fn ctrl_c_stops_the_watch(app_args: &str) {
+    let mut watch = Watch::start_with(Some(app_args));
+    let child_lock = watch.state.join("child-2");
+    watch.until("the first app", |state| {
+        state.join("alive-2").exists() && state.join("child-2").exists()
+    });
+    let sent = Command::new(dx_testing::process_probe())
+        .arg(format!("--ctrl-c-console={}", watch.child.id()))
+        .status()
+        .expect("helper runs");
+    assert!(sent.success(), "the Ctrl-C helper failed: {sent:?}");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(status) = watch.child.try_wait().expect("wait for dx") {
+            break status;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "dx did not stop\n{}",
+            watch.stderr()
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    assert_eq!(status.code(), Some(130), "{}", watch.stderr());
+    assert!(watch.stderr().contains("stopped"), "{}", watch.stderr());
+    dx_testing::assert_alive_lock_released(&watch.state.join("alive-2"));
+    dx_testing::assert_alive_lock_released(&child_lock);
+    assert!(!watch.state.join("start-3").exists(), "dx relaunched");
+}
+
+#[cfg(windows)]
+#[test]
+fn ctrl_c_stops_the_watch_and_the_app_tree() {
+    ctrl_c_stops_the_watch("");
+}
+
+#[cfg(windows)]
+#[test]
+fn ctrl_c_stops_an_app_that_ignores_it() {
+    ctrl_c_stops_the_watch("--ignore-console-ctrl");
 }

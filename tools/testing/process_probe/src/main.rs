@@ -51,6 +51,8 @@ Usage: process_probe [options]
   --descendant-gate=PATH        end the descendant's sleep early once PATH exists
   --raise-signal=N              die by signal N (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
+  --ctrl-c-console=PID          send Ctrl-C to the console of process PID, then exit (windows only)
+  --ignore-console-ctrl         ignore console Ctrl-C in this probe and its descendant (windows only)
   --require-foreground          exit 3 unless this probe's group holds the terminal (unix only)
   --help                        write this text and exit 0
 
@@ -71,6 +73,12 @@ const SHIM_STDOUT: &str = "PROCESS_PROBE_SHIM_STDOUT";
 const SHIM_EXIT: &str = "PROCESS_PROBE_SHIM_EXIT";
 /// The directory a fake bazel run records its launches and app locks into.
 const BAZEL_DIR: &str = "PROCESS_PROBE_BAZEL_DIR";
+
+/// Extra flags a fake bazel run gives its app, split on whitespace.
+const APP_ARGS: &str = "PROCESS_PROBE_APP_ARGS";
+
+/// When set, the fake bazel app starts a descendant holding child-N.
+const APP_DESCENDANT: &str = "PROCESS_PROBE_APP_DESCENDANT";
 
 /// A malformed invocation.
 const EXIT_USAGE: i32 = 64;
@@ -115,6 +123,8 @@ struct Plan {
     raise_signal: Option<i32>,
     count_sigint: Option<String>,
     require_foreground: bool,
+    ctrl_c_console: Option<u32>,
+    ignore_console_ctrl: bool,
 }
 
 fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
@@ -146,6 +156,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-gate",
     "--raise-signal",
     "--count-sigint",
+    "--ctrl-c-console",
 ];
 
 /// The flags that stand alone.
@@ -158,6 +169,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--detached-descendant",
     "--descendant-own-group",
     "--require-foreground",
+    "--ignore-console-ctrl",
 ];
 
 fn parse(args: &[String]) -> Result<Plan, String> {
@@ -174,6 +186,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 "--print-cwd" => plan.print_cwd = true,
                 "--print-exe" => plan.print_exe = true,
                 "--require-foreground" => plan.require_foreground = true,
+                "--ignore-console-ctrl" => plan.ignore_console_ctrl = true,
                 "--detached-descendant" => {
                     plan.detached_descendant = true;
                     plan.spawn_descendant = true;
@@ -276,6 +289,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 }
                 plan.descendant_gate = Some(value.to_owned());
             }
+            "--ctrl-c-console" => plan.ctrl_c_console = Some(count(value, flag)?),
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
             "--count-sigint" => {
                 if value.is_empty() {
@@ -354,6 +368,9 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     }
     if let Some(gate) = &plan.descendant_gate {
         args.push(format!("--gate={gate}"));
+    }
+    if plan.ignore_console_ctrl {
+        args.push("--ignore-console-ctrl".to_owned());
     }
     if let Some(lock) = &plan.nested_server_lock {
         // The descendant is a client that starts a detached server one
@@ -464,6 +481,47 @@ fn own_group(command: &mut Command) {
 
 #[cfg(not(any(unix, windows)))]
 fn own_group(_command: &mut Command) {}
+
+#[cfg(windows)]
+mod console {
+    use std::ffi::c_void;
+
+    const CTRL_C_EVENT: u32 = 0;
+
+    unsafe extern "system" {
+        fn FreeConsole() -> i32;
+        fn AttachConsole(pid: u32) -> i32;
+        fn SetConsoleCtrlHandler(handler: *const c_void, add: i32) -> i32;
+        fn GenerateConsoleCtrlEvent(event: u32, group: u32) -> i32;
+    }
+
+    extern "system" fn handled(_event: u32) -> i32 {
+        1
+    }
+
+    pub fn ignore_ctrl() -> Result<(), String> {
+        if unsafe { SetConsoleCtrlHandler(handled as *const c_void, 1) } == 0 {
+            return Err("cannot install the console handler".to_owned());
+        }
+        Ok(())
+    }
+
+    pub fn send_ctrl_c(pid: u32) -> Result<(), String> {
+        unsafe {
+            FreeConsole();
+            if AttachConsole(pid) == 0 {
+                return Err(format!("cannot attach to the console of {pid}"));
+            }
+            if SetConsoleCtrlHandler(std::ptr::null(), 1) == 0 {
+                return Err("cannot ignore Ctrl-C in the helper".to_owned());
+            }
+            if GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0) == 0 {
+                return Err(format!("cannot send Ctrl-C to the console of {pid}"));
+            }
+        }
+        Ok(())
+    }
+}
 
 #[cfg(unix)]
 static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
@@ -602,8 +660,23 @@ fn fake_bazel_launch(dir: &std::path::Path, app: bool, args: &str) -> Result<i32
     }
     let exe = env::current_exe().map_err(|err| format!("cannot name the probe: {err}"))?;
     let lock = dir.join(format!("alive-{n}"));
-    let mut child = Command::new(exe)
+    let extra = env_value_or_empty(APP_ARGS);
+    let mut command = Command::new(exe);
+    command
         .env_remove(BAZEL_DIR)
+        .env_remove(APP_ARGS)
+        .env_remove(APP_DESCENDANT)
+        .args(extra.split_whitespace());
+    if !env_value_or_empty(APP_DESCENDANT).is_empty() {
+        command
+            .arg("--detached-descendant")
+            .arg("--descendant-sleep-ms=120000")
+            .arg(format!(
+                "--descendant-alive-lock={}",
+                dir.join(format!("child-{n}")).display()
+            ));
+    }
+    let mut child = command
         .arg("--sleep-ms=120000")
         .arg(format!("--gate={}", dir.join("stop").display()))
         .arg(format!("--alive-lock={}", lock.display()))
@@ -639,6 +712,24 @@ fn main() {
             std::process::exit(EXIT_USAGE);
         }
     };
+    #[cfg(windows)]
+    {
+        if let Some(pid) = plan.ctrl_c_console {
+            match console::send_ctrl_c(pid) {
+                Ok(()) => std::process::exit(0),
+                Err(message) => fail(EXIT_OUTPUT, &message),
+            }
+        }
+        if plan.ignore_console_ctrl {
+            if let Err(message) = console::ignore_ctrl() {
+                fail(EXIT_OUTPUT, &message);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    if plan.ctrl_c_console.is_some() || plan.ignore_console_ctrl {
+        fail(EXIT_USAGE, "the console Ctrl-C flags need windows");
+    }
     for name in &plan.forbidden {
         if env::var_os(name).is_some() {
             fail(EXIT_ENV_SET, &format!("{name} is set"));

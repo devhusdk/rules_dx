@@ -1555,6 +1555,7 @@ mod tests {
     }
 }
 
+// SIGTERM/SIGHUP and the group-signal probes have no Windows counterpart; the Windows Ctrl-C probe lives in watch_relaunch_tests.rs.
 #[cfg(test)]
 #[cfg(unix)]
 #[path = "watch_probe_tests.rs"]

@@ -295,7 +295,7 @@ mod tests {
             plan_reports(
                 workspace.path(),
                 Command::Lint,
-                &requests(&[("sarif", "-"), ("sarif", "second.sarif".into())]),
+                &requests(&[("sarif", "-"), ("sarif", "second.sarif")]),
                 &text_mode(),
             ),
             Ok(vec![

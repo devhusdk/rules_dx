@@ -1154,6 +1154,7 @@ dependencies = ["anyio>=4"]
     struct GoRunner {
         code: Option<i32>,
         writes: Vec<(&'static str, String)>,
+        #[allow(clippy::type_complexity)]
         launches: std::cell::RefCell<Vec<(Vec<String>, std::path::PathBuf, Vec<(String, String)>)>>,
         scratch: std::cell::RefCell<Option<std::path::PathBuf>>,
     }
@@ -1244,6 +1245,7 @@ dependencies = ["anyio>=4"]
         assert_eq!(launches.len(), 1, "{launches:?}");
         let (argv, cwd, env) = &launches[0];
         let at = argv.iter().position(|arg| arg == "-C").expect("-C");
+        #[allow(clippy::disallowed_methods)]
         let mut head = dx_process::startup_argv(&[]);
         head.extend(
             ["run", "--config=dx_dev", "@rules_go//go", "--", "-C"]
@@ -1448,12 +1450,13 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn frozen_widen_needed_fails_before_any_manifest_write() {
-        for (selector, version, path, before) in [(
-            "dx_crates:demo",
-            "1.2.3",
-            HELLO_CARGO,
-            "[dependencies]\ndemo = \"1\"\n",
-        )] {
+        {
+            let (selector, version, path, before) = (
+                "dx_crates:demo",
+                "1.2.3",
+                HELLO_CARGO,
+                "[dependencies]\ndemo = \"1\"\n",
+            );
             let harness = Harness::new("update-frozen-widen");
             seed(&harness, path, before);
             let (code, out, err) = harness.run(&[
@@ -1562,10 +1565,11 @@ dependencies = ["anyio>=4"]
         let (code, out, err) = harness.run(&["update", "bazel:rules_cc", "0.2.22", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(read(), after, "second run is a no-op");
-        for (selector, reason) in [(
-            "bazel:rules_rust",
-            "bazel_dep \"rules_rust\" at line 10 has a computed version",
-        )] {
+        {
+            let (selector, reason) = (
+                "bazel:rules_rust",
+                "bazel_dep \"rules_rust\" at line 10 has a computed version",
+            );
             let (code, _, err) = harness.run(&["update", selector, "1.0.0", "--apply"]);
             assert_eq!(code, 1, "{err}");
             assert!(err.contains(reason), "{err}");
@@ -1837,7 +1841,7 @@ dependencies = ["anyio>=4"]
         );
         for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
             let widened = std::fs::read_to_string(
-                harness.workspace.join(&format!(".github/workflows/{name}")),
+                harness.workspace.join(format!(".github/workflows/{name}")),
             )
             .expect("workflow");
             assert!(
@@ -1875,7 +1879,7 @@ dependencies = ["anyio>=4"]
             assert!(err.contains(".github/workflows"), "{name}: {err}");
             for (file, lines) in &workflows {
                 let text = std::fs::read_to_string(
-                    harness.workspace.join(&format!(".github/workflows/{file}")),
+                    harness.workspace.join(format!(".github/workflows/{file}")),
                 )
                 .expect("workflow");
                 assert_eq!(&text, &lines.concat(), "{name} must widen nothing");

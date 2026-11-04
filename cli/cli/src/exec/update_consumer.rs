@@ -2117,6 +2117,7 @@ source = { registry = "https://pypi.org/simple" }
         let launches = runner.launches.borrow();
         assert_eq!(launches.len(), 1);
         let argv = &launches[0].argv;
+        #[allow(clippy::disallowed_methods)]
         let mut head = dx_process::startup_argv(&[]);
         head.extend(strings_of(&[
             "run",
@@ -2348,6 +2349,7 @@ source = { registry = "https://pypi.org/simple" }
         let launches = runner.launches.borrow();
         assert_eq!(launches.len(), 1);
         let argv = &launches[0].argv;
+        #[allow(clippy::disallowed_methods)]
         let mut head = dx_process::startup_argv(&[]);
         head.extend(strings_of(&[
             "run",
@@ -2422,11 +2424,12 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_go_changed_go_mod_fails_and_writes_nothing() {
-        for (name, files, want) in [(
-            "mod",
-            vec![("go.sum", "new\n"), ("go.mod", "module changed\n")],
-            "go changed go.mod",
-        )] {
+        {
+            let (name, files, want) = (
+                "mod",
+                vec![("go.sum", "new\n"), ("go.mod", "module changed\n")],
+                "go changed go.mod",
+            );
             let harness = go_harness(&format!("go-{name}"));
             let before = go_bytes(&harness);
             let runner = ScriptRunner::new(&[]);

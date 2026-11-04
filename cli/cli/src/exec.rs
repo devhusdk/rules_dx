@@ -462,7 +462,8 @@ mod tests {
 
     #[test]
     fn deferred_families_fail_closed_without_launch() {
-        for argv in [vec!["security"]] {
+        {
+            let argv = vec!["security"];
             let name = format!("exec-deferred-{}", argv[0]);
             let harness = Harness::new(&name);
             harness.write_source(

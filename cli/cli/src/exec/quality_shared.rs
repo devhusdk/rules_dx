@@ -139,7 +139,7 @@ fn differing_original_digests_conflict_in_check_mode() {
     let two = result_for(
         &harness,
         &original,
-        &digest(b"other\n").to_vec(),
+        digest(b"other\n").as_ref(),
         b"y = 1\n",
         edit(b"y"),
     );

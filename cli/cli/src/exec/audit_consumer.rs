@@ -169,12 +169,9 @@ source = { registry = "https://pypi.org/simple" }
             registry_package("django", "3.2.5"),
             registry_package("sqlparse", "0.4.4")
         );
-        let combined = format!(
-            "{}",
-            DJANGO_ADVISORY.trim_end_matches(']').to_owned()
-                + ","
-                + SQLPARSE_ADVISORY.trim_start_matches('[')
-        );
+        let combined = DJANGO_ADVISORY.trim_end_matches(']').to_owned()
+            + ","
+            + SQLPARSE_ADVISORY.trim_start_matches('[');
         let (code, out, err) = audited("patched", &lock_with(&packages), Some(&combined), &[]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("audit_security_clean"), "{out}");

@@ -230,9 +230,8 @@ fn a_flag_turns_an_inherited_boolean_off() {
             let env = owned_env(&[(env_name, value)]);
             let got = parse_with(&strings(&["lint"]), &env)
                 .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
-            assert_eq!(
+            assert!(
                 [got.quiet, got.verbose][index],
-                true,
                 "{env_name}={value} turns the default on"
             );
         }

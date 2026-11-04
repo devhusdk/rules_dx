@@ -73,17 +73,17 @@ fn min_changed_line_coverage_parses_for_coverage_only() {
 #[test]
 fn min_coverage_rejects_bad_values_and_other_commands() {
     assert_usage(
-        &["coverage", "--min-coverage=eighty"],
+        ["coverage", "--min-coverage=eighty"],
         parse(&strings(&["coverage", "--min-coverage=eighty"])).unwrap_err(),
         &["min-coverage"],
     );
     assert_usage(
-        &["coverage", "--min-coverage=101"],
+        ["coverage", "--min-coverage=101"],
         parse(&strings(&["coverage", "--min-coverage=101"])).unwrap_err(),
         &["min-coverage"],
     );
     assert_usage(
-        &["coverage", "--min-coverage"],
+        ["coverage", "--min-coverage"],
         parse(&strings(&["coverage", "--min-coverage"])).unwrap_err(),
         &["min-coverage"],
     );
@@ -142,7 +142,7 @@ fn verify_and_rerun_are_rejected_with_direct_command_tips() {
 fn every_removed_command_is_a_usage_error_with_its_tip() {
     for (name, tip) in crate::args::tokenizer::REMOVED_COMMANDS {
         assert_usage(
-            &[name],
+            [name],
             parse(&strings(&[name])).unwrap_err(),
             &["unsupported command", tip],
         );
@@ -410,7 +410,7 @@ fn bazel_options_forward_verbatim_after_separator() {
 fn missing_command_fails() {
     assert_eq!(parse(&strings(&[])), Err(ArgsError::MissingCommand));
     assert_usage(
-        &["--quiet"],
+        ["--quiet"],
         parse(&strings(&["--quiet"])).unwrap_err(),
         &["--quiet"],
     );
@@ -420,7 +420,7 @@ fn missing_command_fails() {
 fn unknown_command_fails() {
     let words = ["lintt"];
     assert_usage(
-        &words,
+        words,
         parse(&strings(&words)).unwrap_err(),
         &["lintt", "similar"],
     );
@@ -445,7 +445,7 @@ fn setup_is_rejected_with_env_tip() {
 fn old_tests_command_is_rejected_with_bazel_query_tip() {
     let words = ["tests", "//..."];
     assert_usage(
-        &words,
+        words,
         parse(&strings(&words)).unwrap_err(),
         &["unsupported command 'tests'", "bazel query 'tests("],
     );
@@ -530,12 +530,12 @@ fn unknown_options_fail() {
 #[test]
 fn missing_values_fail() {
     assert_usage(
-        &["lint", "--output"],
+        ["lint", "--output"],
         parse(&strings(&["lint", "--output"])).unwrap_err(),
         &["--output"],
     );
     assert_usage(
-        &["lint", "--workspace", "--quiet", "format"],
+        ["lint", "--workspace", "--quiet", "format"],
         parse(&strings(&["lint", "--workspace", "--quiet", "format"])).unwrap_err(),
         &["--workspace"],
     );
@@ -563,7 +563,7 @@ fn bad_values_fail() {
     );
     for bad in ["sarif", "=out.sarif", "sarif="] {
         let words = ["lint", &format!("--report={bad}")];
-        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["report"]);
+        assert_usage(words, parse(&strings(&words)).unwrap_err(), &["report"]);
     }
 }
 
@@ -575,7 +575,8 @@ fn inline_flag_values_and_empty_workspace_fail() {
             option: "--workspace".to_owned(),
         })
     );
-    for words in [vec!["lint", "--quiet=x"]] {
+    {
+        let words = vec!["lint", "--quiet=x"];
         let flag = words[1].split('=').next().expect("a flag");
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[flag]);
     }
@@ -587,7 +588,7 @@ fn clean_parses_prune_unobserved() {
     assert_eq!(got.command, Command::Clean);
     assert!(!got.prune_unobserved);
     assert_usage(
-        &["clean", "--bazel"],
+        ["clean", "--bazel"],
         parse(&strings(&["clean", "--bazel"])).unwrap_err(),
         &["unsupported option '--bazel'", "bazel clean"],
     );
@@ -640,7 +641,7 @@ fn clean_rejects_scopes_and_quality_options() {
         })
     );
     assert_usage(
-        &["clean", "--bazel=yes"],
+        ["clean", "--bazel=yes"],
         parse(&strings(&["clean", "--bazel=yes"])).unwrap_err(),
         &["--bazel"],
     );
@@ -805,7 +806,7 @@ fn startup_options_accept_a_separate_dashed_token() {
     }
     let words = ["build", "--bazel-startup-option"];
     assert_usage(
-        &words,
+        words,
         parse(&strings(&words)).unwrap_err(),
         &["--bazel-startup-option"],
     );

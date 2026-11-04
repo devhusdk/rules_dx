@@ -310,6 +310,7 @@ fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
     let mut probe = Probe::start("dx-watch-probe-idle-", &["watch", "build", "//..."], &[]);
     probe.idle(1);
     let workspace = probe.workspace.clone();
+    #[allow(clippy::type_complexity)]
     let steps: [(&str, Box<dyn Fn()>); 4] = [
         (
             "edit",

@@ -16,6 +16,7 @@ pub(super) fn hermetic_gitleaks() -> String {
 
 pub(super) struct AuditRunner {
     pub(super) calls: Rc<RefCell<Vec<Vec<String>>>>,
+    #[allow(clippy::type_complexity)]
     pub(super) envs: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(super) code: Option<i32>,
     pub(super) sarif: Option<String>,

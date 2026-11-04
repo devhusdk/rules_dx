@@ -2615,6 +2615,7 @@ mod tests {
 
     #[derive(Default)]
     struct EnvRecorder {
+        #[allow(clippy::type_complexity)]
         seen: RefCell<Vec<(&'static str, Vec<(String, String)>)>>,
     }
 

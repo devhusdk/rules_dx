@@ -193,7 +193,7 @@ mod tests {
                 continue;
             }
             let words = [command.name(), "--debug", "--release"];
-            assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--debug"]);
+            assert_usage(words, parse(&strings(&words)).unwrap_err(), &["--debug"]);
         }
         for words in [
             vec!["coverage", "--debug"],

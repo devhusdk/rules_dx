@@ -1591,6 +1591,7 @@ mod tests {
         verify_intended: Option<Vec<u8>>,
         verify_from: usize,
         launches: Cell<usize>,
+        #[allow(clippy::type_complexity)]
         seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     }
 
@@ -1743,12 +1744,7 @@ mod tests {
             document["$schema"],
             serde_json::json!("https://json.schemastore.org/sarif-2.1.0.json")
         );
-        document["runs"]
-            .as_array()
-            .expect("runs")
-            .iter()
-            .cloned()
-            .collect()
+        document["runs"].as_array().expect("runs").to_vec()
     }
 
     #[test]
@@ -1804,7 +1800,8 @@ mod tests {
 
     #[test]
     fn check_and_fix_json_report_build_output_before_finishing() {
-        for command in ["check"] {
+        {
+            let command = "check";
             let harness = dirty_build_output(&format!("umbrella-{command}-json-build-output"));
             let (code, out, err) = harness.run(&[command, "--output=json"]);
             assert_eq!(code, 1, "{out}{err}");

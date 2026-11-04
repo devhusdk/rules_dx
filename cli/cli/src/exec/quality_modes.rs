@@ -46,7 +46,8 @@ fn default_reports_findings_without_writing() {
         let (default_code, default_out, _) = default.run(&[command, "--output=text"]);
         assert_eq!(default_code, 1, "{command}");
         assert!(!default_out.contains("Applied"), "{command}");
-        for harness in [&default] {
+        {
+            let harness = &default;
             assert_eq!(
                 std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
                 b"x = 1\n",

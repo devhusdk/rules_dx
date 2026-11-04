@@ -24,12 +24,12 @@ fn strict_unknown_options_fail_with_whole_token() {
 #[test]
 fn strict_missing_values_fail_with_bare_flag() {
     assert_usage(
-        &["lint", "--output"],
+        ["lint", "--output"],
         parse(&strings(&["lint", "--output"])).unwrap_err(),
         &["--output"],
     );
     assert_usage(
-        &["lint", "--workspace", "--quiet", "format"],
+        ["lint", "--workspace", "--quiet", "format"],
         parse(&strings(&["lint", "--workspace", "--quiet", "format"])).unwrap_err(),
         &["--workspace"],
     );
@@ -40,27 +40,27 @@ fn strict_missing_values_fail_with_bare_flag() {
         })
     );
     assert_usage(
-        &["coverage", "--min-coverage"],
+        ["coverage", "--min-coverage"],
         parse(&strings(&["coverage", "--min-coverage"])).unwrap_err(),
         &["--min-coverage"],
     );
     assert_usage(
-        &["docs", "--port"],
+        ["docs", "--port"],
         parse(&strings(&["docs", "--port"])).unwrap_err(),
         &["--port"],
     );
     assert_usage(
-        &["docs", "--host"],
+        ["docs", "--host"],
         parse(&strings(&["docs", "--host"])).unwrap_err(),
         &["--host"],
     );
     assert_usage(
-        &["lint", "--color"],
+        ["lint", "--color"],
         parse(&strings(&["lint", "--color"])).unwrap_err(),
         &["--color"],
     );
     assert_usage(
-        &["upgrade", "--to", "--apply"],
+        ["upgrade", "--to", "--apply"],
         parse(&strings(&["upgrade", "--to", "--apply"])).unwrap_err(),
         &["--to"],
     );
@@ -69,17 +69,17 @@ fn strict_missing_values_fail_with_bare_flag() {
 #[test]
 fn strict_hyphen_values_are_never_consumed_as_option_values() {
     assert_usage(
-        &["lint", "--output", "--quiet"],
+        ["lint", "--output", "--quiet"],
         parse(&strings(&["lint", "--output", "--quiet"])).unwrap_err(),
         &["--output"],
     );
     assert_usage(
-        &["lint", "--workspace", "--quiet"],
+        ["lint", "--workspace", "--quiet"],
         parse(&strings(&["lint", "--workspace", "--quiet"])).unwrap_err(),
         &["--workspace"],
     );
     assert_usage(
-        &["build", "--output", "--quiet"],
+        ["build", "--output", "--quiet"],
         parse(&strings(&["build", "--output", "--quiet"])).unwrap_err(),
         &["--output"],
     );
@@ -101,7 +101,7 @@ fn strict_bad_values_fail_with_contract_shapes() {
     );
     for bad in ["sarif", "=out.sarif", "sarif="] {
         let words = ["lint", &format!("--report={bad}")];
-        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["report"]);
+        assert_usage(words, parse(&strings(&words)).unwrap_err(), &["report"]);
     }
     for words in [
         vec!["coverage", "--min-coverage=eighty"],
@@ -120,7 +120,7 @@ fn strict_bad_values_fail_with_contract_shapes() {
         })
     );
     assert_usage(
-        &["docs", "--serve", "--port=0"],
+        ["docs", "--serve", "--port=0"],
         parse(&strings(&["docs", "--serve", "--port=0"])).unwrap_err(),
         &["--port"],
     );

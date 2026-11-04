@@ -485,6 +485,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn run_under_gate(
         name: &str,
         words: &[&str],

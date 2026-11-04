@@ -567,6 +567,7 @@ fn unwritable_report_destination_fails_with_cause() {
     std::fs::set_permissions(&locked, permissions).expect("readonly");
     let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=locked/out.sarif"]);
     let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
+    #[allow(clippy::permissions_set_readonly_false)]
     permissions.set_readonly(false);
     std::fs::set_permissions(&locked, permissions).expect("writable");
     assert_eq!(code, 1, "{err}");
@@ -595,6 +596,7 @@ fn failed_report_write_keeps_stale_report_bytes() {
     let (code, _, err) =
         harness.run(&["lint", "--output=text", "--report=sarif=reports/out.sarif"]);
     let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
+    #[allow(clippy::permissions_set_readonly_false)]
     permissions.set_readonly(false);
     std::fs::set_permissions(&reports, permissions).expect("writable");
     assert_eq!(code, 1, "{err}");

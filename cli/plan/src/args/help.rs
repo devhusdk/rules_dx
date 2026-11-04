@@ -523,7 +523,7 @@ mod tests {
             assert_eq!(verb, flag, "help {command} must match --help");
         }
         assert_usage(
-            &["help", "bogus"],
+            ["help", "bogus"],
             parse(&strings(&["help", "bogus"])).unwrap_err(),
             &["bogus"],
         );
@@ -558,7 +558,8 @@ mod tests {
                 .find(|line| line.starts_with("Output: "))
                 .unwrap_or_else(|| panic!("dx {} help has no Output line", command.name()));
             let mut modes = vec!["text"];
-            for mode in ["json"] {
+            {
+                let mode = "json";
                 if accepts_output(command, mode) {
                     modes.push(mode);
                 }

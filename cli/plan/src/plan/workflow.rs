@@ -508,7 +508,7 @@ mod tests {
                 &[],
             )
             .expect("coverage has no profile pin to conflict with");
-            assert!(plan.argv.iter().any(|arg| arg == &options[0]), "{plan:?}");
+            assert!(plan.argv.iter().any(|arg| arg == options[0]), "{plan:?}");
         }
     }
 

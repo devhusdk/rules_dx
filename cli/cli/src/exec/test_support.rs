@@ -84,6 +84,7 @@ pub(crate) struct Harness {
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) patch: Option<Vec<u8>>,
+    #[allow(clippy::type_complexity)]
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     /// The working directory of each launch `FakeRunner` records in `build_argv`.
     pub(crate) seen_cwd: Rc<RefCell<Vec<std::path::PathBuf>>>,
@@ -686,6 +687,7 @@ pub(crate) struct ProbeRun {
 struct ArgvProbe {
     codes: Vec<Option<i32>>,
     seen: Rc<RefCell<Vec<Vec<String>>>>,
+    #[allow(clippy::type_complexity)]
     seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     free_disk_bytes: Option<u64>,
     probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
@@ -734,6 +736,7 @@ pub(crate) struct FakeRunner {
     pub(crate) skip_bep: bool,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) patch: Option<Vec<u8>>,
+    #[allow(clippy::type_complexity)]
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     /// The working directory of each launch `FakeRunner` records in `build_argv`.
     pub(crate) seen_cwd: Rc<RefCell<Vec<std::path::PathBuf>>>,
@@ -1012,6 +1015,7 @@ pub(crate) fn test_result_identity_line(
 }
 
 /// A BEP `testResult` line carrying the status, cache, and timing facts dx reports.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn test_result_full_line(
     label: &str,
     run: u32,

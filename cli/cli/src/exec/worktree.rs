@@ -1585,6 +1585,7 @@ mod tests {
             ]
         );
         assert_eq!(events[11]["entries"], 2);
+        #[allow(clippy::type_complexity)]
         let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 12] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
             ("/cache/slots/4", Some(4), None, None, Some("busy")),

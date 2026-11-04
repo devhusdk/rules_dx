@@ -592,10 +592,10 @@ mod tests {
         let workspace = workspace.path();
         let codegen_plan = dx_codegen::collect_plan(&[]).expect("empty codegen plan");
         let (staged, _lease) =
-            stage_codegen_side(&workspace, &workspace, &codegen_plan).expect("stage");
+            stage_codegen_side(workspace, workspace, &codegen_plan).expect("stage");
         assert_eq!(staged, empty_generated_id());
         let env_plan = dx_env_plan::collect_plan(&[]).expect("empty env plan");
-        let (staged, _held) = stage_env_side(&workspace, &env_plan).expect("stage");
+        let (staged, _held) = stage_env_side(workspace, &env_plan).expect("stage");
         assert_eq!(staged, empty_env_id());
         let values = std::fs::read_to_string(
             workspace

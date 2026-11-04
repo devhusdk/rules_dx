@@ -1167,6 +1167,7 @@ mod tests {
         code: Option<i32>,
         signal: Option<i32>,
         spawn_error: bool,
+        #[allow(clippy::type_complexity)]
         seen: Rc<RefCell<(Vec<String>, Vec<(String, String)>)>>,
         free: Option<u64>,
         probed: RefCell<Vec<PathBuf>>,
@@ -1719,11 +1720,11 @@ mod tests {
 
     impl Write for FailingWriter {
         fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
-            Err(io::Error::new(io::ErrorKind::Other, "boom"))
+            Err(io::Error::other("boom"))
         }
 
         fn flush(&mut self) -> io::Result<()> {
-            Err(io::Error::new(io::ErrorKind::Other, "boom"))
+            Err(io::Error::other("boom"))
         }
     }
 
@@ -1732,7 +1733,7 @@ mod tests {
         assert_eq!(dx_process::broken_pipe_code(), 128 + 13);
         let broken = io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe");
         assert_eq!(stdout_io_code(&broken), 128 + 13);
-        let other = io::Error::new(io::ErrorKind::Other, "boom");
+        let other = io::Error::other("boom");
         assert_eq!(stdout_io_code(&other), operational_code());
         let broken_out = dx_output::OutputError::from(io::Error::from(io::ErrorKind::BrokenPipe));
         assert!(broken_out.is_broken_pipe());
@@ -1963,6 +1964,7 @@ mod tests {
         std::fs::set_permissions(&locked, permissions).expect("readonly");
         let result = write_report_file(dir.path(), "locked/out.sarif", "{}\n");
         let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
+        #[allow(clippy::permissions_set_readonly_false)]
         permissions.set_readonly(false);
         std::fs::set_permissions(&locked, permissions).expect("writable");
         let err = result.expect_err("unwritable");

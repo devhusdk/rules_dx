@@ -105,7 +105,7 @@ mod tests {
 
     fn with_skew(kind: SkewKind) -> Vec<Command> {
         let mut found: Vec<Command> = Command::value_variants()
-            .into_iter()
+            .iter()
             .copied()
             .filter(|command| command.meta().skew == kind)
             .collect();

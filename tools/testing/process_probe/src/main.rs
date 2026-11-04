@@ -471,11 +471,11 @@ static SIGINT_LOG: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::
 #[cfg(unix)]
 extern "C" fn count_sigint(_signo: i32) {
     unsafe extern "C" {
-        fn write(fd: i32, buf: *const u8, count: usize) -> isize;
+        fn write(fd: i32, buf: *const std::ffi::c_void, count: usize) -> isize;
     }
     let fd = SIGINT_LOG.load(std::sync::atomic::Ordering::SeqCst);
     unsafe {
-        write(fd, b"I".as_ptr(), 1);
+        write(fd, b"I".as_ptr().cast(), 1);
     }
 }
 

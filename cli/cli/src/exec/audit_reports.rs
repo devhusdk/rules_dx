@@ -116,7 +116,7 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
             ],
             &AuditRunner::clean(),
             &|harness| {
-                write_demo_license(&harness, license);
+                write_demo_license(harness, license);
             },
         );
         if rule.is_empty() {
@@ -146,7 +146,7 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
             ],
             &AuditRunner::clean(),
             &|harness| {
-                write_demo_license(&harness, license);
+                write_demo_license(harness, license);
                 harness.write_source("licenses.toml", policy);
             },
         );
@@ -166,7 +166,7 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
             ],
             &AuditRunner::clean(),
             &|harness| {
-                write_demo_license(&harness, license);
+                write_demo_license(harness, license);
                 harness.write_source("licenses.toml", policy);
             },
         );
@@ -191,7 +191,7 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
                 &["license", scope, "--report=sarif=-"],
                 &AuditRunner::clean(),
                 &|harness| {
-                    write_demo_license(&harness, license);
+                    write_demo_license(harness, license);
                     harness.write_source("licenses.toml", policy);
                 },
             );
@@ -469,7 +469,8 @@ fn secrets_scan_keeps_the_plain_config_when_git_gives_nothing() {
 
 #[test]
 fn committed_gitleaks_config_produces_a_trust_warning() {
-    for config in [".gitleaks.toml"] {
+    {
+        let config = ".gitleaks.toml";
         let runner = AuditRunner::with_sarif(
             Some(0),
             r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#,
@@ -600,7 +601,8 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
         "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = []\n[[inventory]]\npackage = \"pnpmonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = false\n[[inventory]]\npackage = \"yarnonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"3.0.0\"\ntext_present = false\n",
     );
     write_advisory(&harness, "npm", &advisories);
-    for (command, report, driver) in [("security", "vuln.sarif", "vuln")] {
+    {
+        let (command, report, driver) = ("security", "vuln.sarif", "vuln");
         let invocation = parse(&[
             command.to_owned(),
             "//:demo".to_owned(),
@@ -1142,7 +1144,8 @@ fn audit_errors_stay_typed_with_stable_display() {
 #[test]
 fn audit_sarif_write_failures_are_fail_closed() {
     use dx_plan::args::parse;
-    for (format, path) in [("sarif", "missing-dir/out.sarif")] {
+    {
+        let (format, path) = ("sarif", "missing-dir/out.sarif");
         let runner = AuditRunner::clean();
         let harness = Harness::new(&format!("audit-report-fail-{format}"));
         write_hubs(&harness);

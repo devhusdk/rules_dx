@@ -291,6 +291,7 @@ impl Consumer {
     }
 }
 
+#[allow(clippy::type_complexity)]
 const JSON_MODES: [(&[&str], &[(&str, &str)]); 4] = [
     (&["--output=json"], &[]),
     (&["--output=json", "-q"], &[]),

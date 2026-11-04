@@ -147,6 +147,7 @@ fn include_edits_needs_json_output() {
     }
 }
 
+#[allow(clippy::type_complexity)]
 const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
     (
         "--affected",
@@ -195,6 +196,7 @@ fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
     }
 }
 
+#[allow(clippy::type_complexity)]
 const OUTPUT_MODES: [(&str, &str, fn(Command) -> bool); 2] = [
     ("--output=json", "json", Command::supports_json),
     ("--diff", "diff", Command::supports_diff),
@@ -668,7 +670,7 @@ fn color_parses_globally_with_bad_values_rejected() {
         })
     );
     assert_usage(
-        &["lint", "--color"],
+        ["lint", "--color"],
         parse(&strings(&["lint", "--color"])).unwrap_err(),
         &["--color"],
     );
@@ -915,7 +917,7 @@ fn offline_and_frozen_are_independent_policies_on_audit_and_update() {
         );
     }
     assert_usage(
-        &["security", "--offline=yes"],
+        ["security", "--offline=yes"],
         parse(&strings(&["security", "--offline=yes"])).unwrap_err(),
         &["--offline"],
     );

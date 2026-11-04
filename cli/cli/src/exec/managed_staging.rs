@@ -89,10 +89,10 @@ mod tests {
         let workspace = workspace.path();
         let hex = "ab".repeat(32);
         let (first, _lease) =
-            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &hex).expect("create");
+            ensure_generation_dir(workspace, GENERATED_DIR_NAME, &hex).expect("create");
         assert!(first.is_dir());
         let (second, _held) =
-            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &hex).expect("reuse");
+            ensure_generation_dir(workspace, GENERATED_DIR_NAME, &hex).expect("reuse");
         assert_eq!(first, second);
         let other = "0".repeat(64);
         std::fs::write(
@@ -101,7 +101,7 @@ mod tests {
         )
         .expect("foreign file");
         let (code, message) =
-            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &other).expect_err("refuse");
+            ensure_generation_dir(workspace, GENERATED_DIR_NAME, &other).expect_err("refuse");
         assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
         assert!(
             message.contains("not a managed generation directory"),
@@ -121,9 +121,8 @@ mod tests {
         let workspace = workspace.path();
         std::fs::create_dir_all(workspace.join(".dx")).expect("dx dir");
         std::fs::write(workspace.join(".dx").join(GENERATED_DIR_NAME), "file").expect("blocker");
-        let (code, message) =
-            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &"1".repeat(64))
-                .expect_err("create fails");
+        let (code, message) = ensure_generation_dir(workspace, GENERATED_DIR_NAME, &"1".repeat(64))
+            .expect_err("create fails");
         assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
         assert!(message.contains("cannot create"), "{message}");
     }

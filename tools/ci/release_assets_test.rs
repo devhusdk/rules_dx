@@ -308,7 +308,9 @@ fn unmatched_downloads(release: &str, cells: &str) -> Vec<String> {
 fn the_upload_job_downloads_the_source_artifact() {
     let text = workflow();
     let upload = upload_job(&text);
-    let end = upload.find("Collect and check").expect("collect step");
+    let end = upload
+        .find("Check the release inputs")
+        .expect("collect step");
     assert!(upload[..end].contains("name: source\n"));
     assert!(upload[..end].contains("path: out\n"));
 }
@@ -560,7 +562,27 @@ fn pull_requests_that_touch_pins_run_the_attested_check() {
     let text = read_runfiles(".github/workflows/ci.yml");
     assert!(text.contains("^cli/prebuilt/pins.bzl$"));
     assert!(text.contains("//tools/ci:fill_pins_bin -- \"v$version\" --check"));
-    assert!(workflow().contains("//tools/ci:fill_pins_bin -- \"v$version\" --check"));
+}
+
+#[test]
+fn the_source_job_fills_the_pins_into_the_archive_and_the_pins_job_checks_them() {
+    let text = workflow();
+    let source = text.find("\n  source:\n").expect("source job");
+    let upload = text.find("\n  upload:\n").expect("upload job");
+    let source_job = &text[source..upload];
+    assert!(source_job.contains("needs: cells"));
+    let fill = source_job
+        .find("fill_pins_bin -- \"$RELEASE_TAG\" --manifest")
+        .expect("fill_pins_bin --manifest");
+    let archive = source_job
+        .find("source_archive -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"$SOURCE_DIR\" --pins")
+        .expect("source_archive --pins");
+    assert!(fill < archive);
+    assert!(source_job.contains("cp cli/prebuilt/pins.bzl \"$pins\""));
+    assert!(!source_job.contains("contents: write"));
+    let pins = &text[text.find("\n  pins:\n").expect("pins job")..];
+    assert!(pins.contains("--check --filled --pins"));
+    assert!(pins.contains("cli/prebuilt/pins.bzl"));
 }
 
 #[test]

@@ -5,6 +5,7 @@ Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 
 - [Tutorial](tutorial.md): from an empty directory to a passing `dx test`.
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md): move from upstream rules one package at a time.
+- [Adopting rules_dx without Bazel experience](adopting-without-bazel.md): use `dx` in a Cargo, Python or JavaScript repo.
 
 ## Guides
 

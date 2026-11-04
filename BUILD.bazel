@@ -350,6 +350,7 @@ real_source_target(
     markdown_siblings = [
         "//docs:README.md",
         "//docs:adopting-existing-bazel.md",
+        "//docs:adopting-without-bazel.md",
         "//docs:cli/commands/README.md",
         "//docs:github-ci.md",
         "//docs:support-matrix.md",

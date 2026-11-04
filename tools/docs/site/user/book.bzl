@@ -25,6 +25,11 @@ USER_BOOK = [
         "docs/adopting-existing-bazel.md",
         "//docs:adopting-existing-bazel.md",
     ),
+    mdbook_page(
+        "Adopting rules_dx Without Bazel Experience",
+        "docs/adopting-without-bazel.md",
+        "//docs:adopting-without-bazel.md",
+    ),
     mdbook_page("Tutorial", "docs/tutorial.md", "//docs:tutorial.md"),
     mdbook_page("Proxy And CA Certificates", "docs/proxy-and-ca.md", "//docs:proxy-and-ca.md"),
     mdbook_page("Use A Remote Cache", "docs/remote-cache.md", "//docs:remote-cache.md"),

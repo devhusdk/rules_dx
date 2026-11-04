@@ -54,7 +54,9 @@ stopped
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops the watch. No new iteration starts after the
 signal. A running command gets the signal and is awaited first. Removing the
-workspace directory stops the watch with `watch_failed`.
+workspace directory stops the watch with `watch_failed`. On Windows, Ctrl-C and
+Ctrl-Break act as `SIGINT` (exit 130); `SIGTERM` and `SIGHUP` have no Windows
+counterpart.
 
 Watch runs until stopped and has no success exit.
 Exit codes: `2` usage error, `not watchable`, or `CI=true`; `1` operational

@@ -1448,3 +1448,12 @@ fn a_stop_probe_ends_a_prepared_command_before_its_deadline() {
     assert_eq!(outcome, ChildOutcome::TimedOut);
     assert!(started.elapsed() < Duration::from_secs(5));
 }
+
+#[test]
+fn console_ctrl_c_and_break_act_as_sigint() {
+    assert_eq!(console_stop_signal(0), Some(2));
+    assert_eq!(console_stop_signal(1), Some(2));
+    for other in [2, 5, 6] {
+        assert_eq!(console_stop_signal(other), None);
+    }
+}

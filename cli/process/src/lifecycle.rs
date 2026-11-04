@@ -422,6 +422,14 @@ static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
 /// The stop signals dx forwards to a streamed child: SIGINT, SIGTERM and SIGHUP.
 pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
 
+/// Maps a Windows console control event to the signal it acts as: Ctrl-C and Ctrl-Break are SIGINT.
+pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
+    match ctrl_type {
+        0 | 1 => Some(2),
+        _ => None,
+    }
+}
+
 /// Records a stop signal and forwards it once to the running child's group; safe inside a signal handler.
 pub fn forward_stop(signo: i32) {
     crate::record_interrupt(signo);
@@ -919,6 +927,24 @@ mod backend {
 
         type Handle = *mut c_void;
 
+        unsafe extern "system" fn console_stop(ctrl_type: u32) -> i32 {
+            match super::super::console_stop_signal(ctrl_type) {
+                Some(signo) => {
+                    crate::record_interrupt(signo);
+                    1
+                }
+                None => 0,
+            }
+        }
+
+        /// Makes Ctrl-C and Ctrl-Break record a stop like SIGINT. Every process on the console gets the event itself, so nothing is forwarded.
+        pub fn install_console_stop() {
+            // SAFETY: registers a static function that only records the stop.
+            unsafe {
+                SetConsoleCtrlHandler(Some(console_stop), 1);
+            }
+        }
+
         const KILL_ON_JOB_CLOSE: u32 = 0x2000;
         const JOB_OBJECT_LIMIT_BREAKAWAY_OK: u32 = 0x800;
         const CREATE_SUSPENDED: u32 = 0x4;
@@ -967,6 +993,10 @@ mod backend {
         }
 
         unsafe extern "system" {
+            fn SetConsoleCtrlHandler(
+                handler: Option<unsafe extern "system" fn(u32) -> i32>,
+                add: i32,
+            ) -> i32;
             fn CreateJobObjectW(attributes: *const c_void, name: *const u16) -> Handle;
             fn SetInformationJobObject(
                 handle: Handle,
@@ -1378,8 +1408,8 @@ mod backend {
     };
     #[cfg(windows)]
     pub use windows::{
-        spawn_owned, spawn_streamed, terminate_forced, terminate_graceful, termination_signal,
-        OwnedChild,
+        install_console_stop, spawn_owned, spawn_streamed, terminate_forced, terminate_graceful,
+        termination_signal, OwnedChild,
     };
 
     #[cfg(not(any(unix, windows)))]

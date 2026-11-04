@@ -43,7 +43,12 @@ fn install_forwarding() {
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn install_forwarding() {
+    lifecycle::install_console_stop();
+}
+
+#[cfg(not(any(unix, windows)))]
 fn install_forwarding() {}
 
 #[cfg(unix)]

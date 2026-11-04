@@ -929,6 +929,16 @@ rust_test(
 
 # keep
 rust_test(
+    name = "preset_settings_test",
+    srcs = ["preset_settings_test.rs"],
+    size = "small",
+    deps = [
+        "//cli/plan:dx_plan",
+        "//tools/bazelrc:dx_preset",
+    ],
+)
+
+rust_test(
     name = "preset_parity_test",
     srcs = ["preset_parity_test.rs"],
     data = [
@@ -968,5 +978,6 @@ rustfmt_test(
     name = "quality_linux_fmt_test",
     targets = [
         ":preset_parity_test",
+        ":preset_settings_test",
     ],
 )

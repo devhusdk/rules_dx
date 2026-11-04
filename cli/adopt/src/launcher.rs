@@ -488,7 +488,7 @@ fn static_launcher(rel: &str) -> String {
 /// `None` when the file is absent or custom; dx-owned files are `Current` or `Stale`.
 pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
-    let text = std::fs::read_to_string(dest).ok()?;
+    let text = std::fs::read_to_string(&dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
     let (first, second, marker) = match rel {
         LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/version"),
@@ -502,11 +502,21 @@ pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     if third != marker {
         return None;
     }
-    if text == static_launcher(rel) {
-        Some(LauncherState::Current)
-    } else {
-        Some(LauncherState::Stale)
+    if text != static_launcher(rel) || (rel == LAUNCHER_SH_REL && !is_executable(&dest)) {
+        return Some(LauncherState::Stale);
     }
+    Some(LauncherState::Current)
+}
+
+#[cfg(unix)]
+fn is_executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path).is_ok_and(|meta| meta.permissions().mode() & 0o111 == 0o111)
+}
+
+#[cfg(not(unix))]
+fn is_executable(_: &Path) -> bool {
+    true
 }
 
 pub fn stale_launchers(root: &Path) -> Vec<String> {
@@ -654,9 +664,8 @@ mod tests {
     #[test]
     fn launcher_state_reads_line_three() {
         let dir = dx_test_scratch::scratch("dx-launcher-line3-");
-        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh()).expect("sh");
-        std::fs::write(dir.path().join(LAUNCHER_CMD_REL), cmd()).expect("cmd");
+        write_launcher(dir.path(), LAUNCHER_SH_REL, &sh(), true).expect("sh");
+        write_launcher(dir.path(), LAUNCHER_CMD_REL, &cmd(), false).expect("cmd");
         for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
             assert_eq!(
                 launcher_state(dir.path(), rel),
@@ -919,6 +928,26 @@ mod tests {
                 .mode();
             assert_eq!(mode & 0o777, 0o755);
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_launcher_without_exec_bits_is_stale_and_restored() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = dx_test_scratch::scratch("dx-launcher-mode-");
+        write_launcher(dir.path(), LAUNCHER_SH_REL, &sh(), true).expect("sh");
+        write_launcher(dir.path(), LAUNCHER_CMD_REL, &cmd(), false).expect("cmd");
+        let sh_path = dir.path().join(LAUNCHER_SH_REL);
+        std::fs::set_permissions(&sh_path, std::fs::Permissions::from_mode(0o644)).expect("chmod");
+        assert_eq!(stale_launchers(dir.path()), vec!["tools/dx"]);
+        let wrote = refresh_launcher_files(dir.path()).expect("refresh");
+        assert_eq!(wrote, vec!["tools/dx"]);
+        let mode = std::fs::metadata(&sh_path)
+            .expect("meta")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o755);
+        assert!(stale_launchers(dir.path()).is_empty());
     }
 
     #[test]

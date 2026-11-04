@@ -198,7 +198,7 @@ CELLS = {
 # Apps do not build for them until those land.
 OTP_UNPORTED_CELLS = []
 
-OTP_NIF_UNPORTED_CELLS = ["windows_x86_64"]
+OTP_NIF_UNPORTED_CELLS = []
 
 OTP_DIALYZER_UNPORTED_CELLS = ["windows_x86_64"]
 

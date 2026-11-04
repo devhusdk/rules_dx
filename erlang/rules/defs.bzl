@@ -318,9 +318,9 @@ def _app(upstream_macro, name, testonly, visibility, kwargs):
         **forward_kwargs
     )
 
-def nif_priv_path(name):
+def nif_priv_path(name, windows = False):
     """Returns the package-relative path one NIF library is placed at."""
-    return "priv/" + name + ".so"
+    return "priv/" + name + (".dll" if windows else ".so")
 
 def nif_linkopt_cases(version_script):
     """Returns the select cases for the link options a NIF shared library needs.
@@ -333,15 +333,18 @@ def nif_linkopt_cases(version_script):
     return {
         str(Label("@platforms//os:linux")): ["-Wl,--version-script=$(execpath " + version_script + ")"],
         str(Label("@platforms//os:macos")): ["-Wl,-undefined,dynamic_lookup", "-Wl,-exported_symbol,_nif_init"],
+        # ERL_NIF_INIT already exports nif_init and linkshared already passes /DLL.
+        str(Label("@platforms//os:windows")): [],
         "//conditions:default": [],
     }
 
 def _erlang_nif_impl(ctx):
-    libraries = ctx.attr.lib[0][DefaultInfo].files.to_list()
+    wanted = "lib" + ctx.label.name + ".so"
+    libraries = [f for f in ctx.attr.lib[0][DefaultInfo].files.to_list() if f.basename == wanted]
     if len(libraries) != 1:
-        fail(str(ctx.label) + ": lib must build exactly one shared library")
+        fail(str(ctx.label) + ": lib must build exactly one " + wanted)
     library = libraries[0]
-    placed = ctx.actions.declare_file(nif_priv_path(ctx.label.name))
+    placed = ctx.actions.declare_file(nif_priv_path(ctx.label.name, target_is_windows(ctx)))
     ctx.actions.run_shell(
         inputs = [library],
         outputs = [placed],
@@ -361,17 +364,20 @@ def _erlang_nif_impl(ctx):
 
 _erlang_nif = rule(
     implementation = _erlang_nif_impl,
-    doc = "Places one shared library at <package>/priv/<name>.so for an erlang_app to load.",
-    attrs = {"lib": attr.label(
-        mandatory = True,
-        cfg = CC_COVERAGE_TRANSITION,
-        doc = "The shared library built from the NIF sources.",
-    )},
+    doc = "Places one shared library at <package>/priv/<name>.so (.dll on Windows) for an erlang_app to load.",
+    attrs = {
+        "lib": attr.label(
+            mandatory = True,
+            cfg = CC_COVERAGE_TRANSITION,
+            doc = "The shared library built from the NIF sources.",
+        ),
+        "_windows_os": attr.label(default = Label("@platforms//os:windows")),
+    },
     provides = [DefaultInfo, ErlangNifInfo, InstrumentedFilesInfo],
 )
 
 def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, tags = None, target_compatible_with = None):
-    """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so.
+    """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so (.dll on Windows).
 
     Declare the NIF in the package of the erlang_app that loads it and pass it through `nifs`.
     """
@@ -393,7 +399,10 @@ def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, 
         deps = [":" + name + "_c"],
         linkshared = True,
         linkopts = select(nif_linkopt_cases(str(Label("//erlang/rules:nif_exports.lds")))),
-        additional_linker_inputs = [Label("//erlang/rules:nif_exports.lds")],
+        additional_linker_inputs = select({
+            Label("@platforms//os:windows"): [],
+            "//conditions:default": [Label("//erlang/rules:nif_exports.lds")],
+        }),
         tags = tags,
         target_compatible_with = compatible,
     )

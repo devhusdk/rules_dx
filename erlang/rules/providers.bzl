@@ -25,7 +25,7 @@ DialyzerToolInfo = provider(
 ErlangNifInfo = provider(
     doc = "The native libraries an erlang_app loads from its priv directory.",
     fields = {
-        "libraries": "depset of .so files placed at <package>/priv/<name>.so.",
+        "libraries": "depset of .so (.dll on Windows) files placed at <package>/priv/<name>.so.",
         "objects_lists": "depset of runtime_objects_list.txt files naming the libraries for native coverage.",
     },
 )

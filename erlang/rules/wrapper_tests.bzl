@@ -36,6 +36,8 @@ def erlang_wrapper_contract_tests(name):
                 ["src/**/*.erl", "src/**/*.hrl", "include/**/*.hrl"],
             ),
             expect_equal("nifs land in the app priv directory", nif_priv_path("kv_checksum_nif"), "priv/kv_checksum_nif.so"),
+            expect_equal("windows nifs are dlls", nif_priv_path("kv_checksum_nif", True), "priv/kv_checksum_nif.dll"),
+            expect_equal("windows nifs add no link options", nif_linkopt_cases("//x:s")[str(Label("@platforms//os:windows"))], []),
             expect_equal("macos nifs resolve erts symbols at load", nif_linkopt_cases("//x:s")[str(Label("@platforms//os:macos"))], ["-Wl,-undefined,dynamic_lookup", "-Wl,-exported_symbol,_nif_init"]),
             expect_equal("linux nifs export only nif_init", nif_linkopt_cases("//x:s")[str(Label("@platforms//os:linux"))], ["-Wl,--version-script=$(execpath //x:s)"]),
             expect_equal("other nifs add no link options", nif_linkopt_cases("//x:s")["//conditions:default"], []),

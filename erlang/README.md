@@ -47,7 +47,7 @@ escript_archive(
 | `ct_suite` | Common Test suite from `test/<name>.erl` with `test/<name>_data/` |
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 | `erlang_release` | Release tree with `lib/<app>/ebin` and `lib/<app>/priv`, NIF libraries included |
-| `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, placed at `priv/<name>.so` |
+| `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, placed at `priv/<name>.so` (`.dll` on Windows) |
 
 ```python
 erlang_nif(
@@ -72,7 +72,7 @@ app with `erlang_app`; this refusal is final. An `erlang_release` carries the NI
 app's libraries in `lib/<app>/priv`. Each NIF links its own
 static libc++ on Linux and uses the SDK's libc++ on macOS. Only `nif_init` is
 exported (version script on Linux, `-exported_symbol` on macOS), so the runtime
-never binds to beam's libstdc++. C++ exceptions must not cross the NIF
+never binds to beam's libstdc++. On Windows `ERL_NIF_INIT` exports `nif_init`. C++ exceptions must not cross the NIF
 boundary, and NIFs cannot rely on exporting other symbols. Under `bazel coverage` the C
 lines join the Erlang lines in the report.
 
@@ -134,7 +134,7 @@ The `wx` application, sources and docs are dropped on every cell.
 | `linux_arm64` | Qualified | |
 | `macos_arm64` | Qualified | |
 | `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Qualified | Tools and escripts run through the native launcher. NIFs are pending in #5963 and dialyzer in #6008. |
+| `windows_x86_64` | Qualified | Tools and escripts run through the native launcher. Dialyzer is pending in #6008. |
 | `windows_arm64` | Not qualified | No upstream OTP build. |
 
 Elixir targets still run only on `linux_x86_64`. On other platforms

@@ -1,0 +1,94 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test")
+load("//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
+
+_PUB = [
+    "@dx_flutter_app_deps//:collection",
+    "@dx_flutter_app_deps//:flutter",
+    "@dx_flutter_app_deps//:flutter_localizations",
+    "@dx_flutter_app_deps//:intl",
+]
+
+run_binary(
+    name = "tips_g_dart",
+    srcs = ["tips.txt"],
+    outs = ["lib/src/tips.g.dart"],
+    args = [
+        "$(location tips.txt)",
+        "$(location lib/src/tips.g.dart)",
+    ],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    tool = "//flutter/tests/fixtures/flutter-app/gen:gen_tips",
+)
+
+flutter_gen_l10n(
+    name = "l10n",
+    arbs = [
+        "lib/l10n/app_da.arb",
+        "lib/l10n/app_en.arb",
+    ],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+)
+
+flutter_library(
+    name = "app",
+    package_name = "flutter_app",
+    srcs = glob(["lib/**/*.dart"]) + [
+        ":l10n",
+        ":tips_g_dart",
+    ],
+    font_files = {"//flutter/tests/fixtures/flutter-app:assets/fonts/DxSquare.ttf": "assets/fonts/DxSquare.ttf"},
+    fonts_json = json.encode([{
+        "family": "DxSquare",
+        "fonts": [{"asset": "assets/fonts/DxSquare.ttf"}],
+    }]),
+    pkg_assets = {"//flutter/tests/fixtures/flutter-app:assets/items.json": "assets/items.json"},
+    visibility = ["//visibility:public"],
+    deps = _PUB,
+)
+
+flutter_application(
+    name = "native",
+    package_name = "flutter_app",
+    main = "lib/main.dart",
+    deps = [":app"] + _PUB,
+)
+
+flutter_application(
+    name = "web",
+    package_name = "flutter_app",
+    main = "lib/main.dart",
+    target = "web",
+    deps = [":app"] + _PUB,
+)
+
+build_test(
+    name = "web_build_test",
+    size = "small",
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    targets = [":web"],
+)
+
+flutter_test(
+    name = "app_test",
+    package_name = "flutter_app",
+    main = "test/app_test.dart",
+    deps = [
+        ":app",
+        "@dx_flutter_app_deps//:flutter",
+        "@dx_flutter_app_deps//:flutter_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

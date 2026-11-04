@@ -33,6 +33,7 @@ real_source_target(
         "//dart/tests/fixtures/dart-app:README.md",
         "//elixir/tests/fixtures/elixir-app:README.md",
         "//erlang/tests/fixtures/erlang-app:README.md",
+        "//flutter/tests/fixtures/flutter-app:README.md",
         "//haskell/tests/fixtures/haskell-app:README.md",
         "//java/tests/fixtures/java-app:README.md",
         "//julia/tests/fixtures/julia-app:README.md",

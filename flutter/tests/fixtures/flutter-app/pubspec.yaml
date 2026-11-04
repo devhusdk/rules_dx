@@ -1,0 +1,29 @@
+name: flutter_app
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  collection: ^1.19.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/items.json
+  fonts:
+    - family: DxSquare
+      fonts:
+        - asset: assets/fonts/DxSquare.ttf

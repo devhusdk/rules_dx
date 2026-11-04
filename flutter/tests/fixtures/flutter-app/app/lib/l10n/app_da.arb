@@ -1,0 +1,6 @@
+{
+  "@@locale": "da",
+  "title": "Deltæller",
+  "addItem": "Tilføj del",
+  "count": "{count, plural, =0{Ingen dele} =1{En del} other{{count} dele}}"
+}

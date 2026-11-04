@@ -975,8 +975,8 @@ run instead of passing it. Neither tool fixes, so `--apply` changes nothing.
 Facts do not cross packages yet, so analyzers that depend on them see each
 package alone. Use `--@rules_dx//config:tool_govet=<target>` or
 `--@rules_dx//config:tool_errcheck=<target>` to replace a driver; it must take
-`-out FILE CONFIG` and write the dx unit JSON report. `staticcheck` still runs
-the standalone binary.
+`-out FILE CONFIG` and write the dx unit JSON report. `staticcheck` uses the
+same unit driver as `govet` and `errcheck`.
 
 ### Java typechecking
 

@@ -9,6 +9,7 @@ def _policy_transition_impl(_settings, attr):
     """Selects the workspace policy named by the policy attr."""
     return {
         "//config:tool_dialyzer": str(attr.tool_dialyzer),
+        "//config:tool_govet": str(attr.tool_govet),
         "//config:workspace": attr.policy,
         "@rules_rust//rust/settings:clippy_output_diagnostics": True,
         "@rules_rust//rust/settings:extra_rustc_flags": [],
@@ -20,6 +21,7 @@ _policy_transition = transition(
     inputs = [],
     outputs = [
         "//config:tool_dialyzer",
+        "//config:tool_govet",
         "//config:workspace",
         "@rules_rust//rust/settings:clippy_output_diagnostics",
         "@rules_rust//rust/settings:extra_rustc_flags",
@@ -36,11 +38,12 @@ _results = rule(
     attrs = {
         "policy": attr.string(mandatory = True),
         "tool_dialyzer": attr.label(default = "//erlang/tools:dialyzer"),
+        "tool_govet": attr.label(default = "//go/tools/analysis/cmd/dx_govet"),
         "subject": attr.label(mandatory = True, cfg = _policy_transition),
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, typecheck_subject = False, target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, typecheck_subject = False, target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
@@ -48,6 +51,7 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
         name = name + "_results",
         policy = str(native.package_relative_label(policy)),
         tool_dialyzer = tool_dialyzer or "//erlang/tools:dialyzer",
+        tool_govet = tool_govet or "//go/tools/analysis/cmd/dx_govet",
         subject = name + "_subject",
         tags = ["manual"],
         testonly = True,

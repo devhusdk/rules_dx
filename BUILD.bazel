@@ -96,6 +96,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/depcheck/testdata
 # gazelle:exclude go/tools/analysis
 # gazelle:exclude go/tests/fixtures/cgo
+# gazelle:exclude go/tests/fixtures/golint
 # gazelle:exclude go/tests/fixtures/testonly_binary
 # gazelle:exclude java/tests/fixtures/testonly_binary
 # gazelle:exclude cc/tests/fixtures/hello

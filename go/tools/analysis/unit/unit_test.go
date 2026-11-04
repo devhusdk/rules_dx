@@ -153,6 +153,16 @@ func TestChildFailureBecomesError(t *testing.T) {
 	}
 }
 
+func TestMissingImportIsError(t *testing.T) {
+	dir := t.TempDir()
+	src := write(t, dir, "a.go", "package p\n\nimport _ \"example.com/missing\"\n")
+	got, _ := runUnit(t, unit.Config{GoFiles: []string{src}})
+	var fail struct{ Error string }
+	if err := json.Unmarshal(got["example.com/p"]["badfunc"], &fail); err != nil || fail.Error == "" {
+		t.Fatalf("want error entry, got %s (%v)", got["example.com/p"]["badfunc"], err)
+	}
+}
+
 func TestNoFilesIsEmptyReport(t *testing.T) {
 	dir := t.TempDir()
 	vetx := filepath.Join(dir, "vetx")

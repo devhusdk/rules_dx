@@ -13,6 +13,10 @@ _GO_TYPECHECK_POLICY = "//quality/testdata/go_owned:typecheck_policy"
 
 _GO_STATICCHECK_POLICY = "//quality/testdata/go_owned:staticcheck_policy"
 
+_GO_LINT_ALL_POLICY = "//quality/testdata/go_owned:lint_all_policy"
+
+_GO_GOVET_POLICY = "//quality/testdata/go_owned:govet_policy"
+
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
 _CC_POLICY = "//quality/testdata/clang_syntax:cc_syntax_policy"
@@ -64,8 +68,8 @@ def _nvcc_case(name, contains, absent):
         "windows_x86_64": True,
     }
 
-def _go_case(tool, capability, kind, target, contains, absent, policy = _GO_POLICY):
-    return {
+def _go_case(tool, capability, kind, target, contains, absent, policy = _GO_POLICY, **extra):
+    return extra | {
         "name": "real_result_" + tool + "_" + kind,
         "target": target,
         "policy": policy,
@@ -115,6 +119,9 @@ REAL_RESULT_CASES = [
     _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], [], _GO_TYPECHECK_POLICY),
     _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"], _GO_STATICCHECK_POLICY),
     _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "Sprintf"], [], _GO_STATICCHECK_POLICY),
+    _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"], _GO_LINT_ALL_POLICY),
+    _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "Unmarshal", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["tagged_off.go", "gen.go"], _GO_LINT_ALL_POLICY),
+    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], _GO_GOVET_POLICY, tool_govet = "//go/tools/analysis/cmd/dx_errcheck"),
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
@@ -250,6 +257,7 @@ def real_result_cases():
             contains = case["contains"],
             absent = case["absent"],
             tool_dialyzer = case.get("tool_dialyzer"),
+            tool_govet = case.get("tool_govet"),
             typecheck_subject = case.get("typecheck_subject", False),
             target_compatible_with = case.get("target_compatible_with"),
             linux_arm64 = case.get("linux_arm64", False),

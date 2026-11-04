@@ -1,0 +1,58 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//go/rules:defs.bzl", "go_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+write_file(
+    name = "gen",
+    out = "gen.go",
+    content = [
+        "package golint",
+        "",
+        "import \"fmt\"",
+        "",
+        "var format = \"hello\"",
+        "",
+        "func Generated() {",
+        "\tfmt.Printf(format)",
+        "}",
+        "",
+    ],
+)
+
+go_library(
+    name = "base",
+    srcs = ["base/base.go"],
+    importpath = "rules_dx/go/tests/fixtures/golint/base",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "app",
+    srcs = [
+        "app.go",
+        "gen.go",
+        "tagged_off.go",
+        "tagged_on.go",
+    ],
+    importpath = "rules_dx/go/tests/fixtures/golint/app",
+    tags = ["manual"],
+    deps = [
+        ":base",
+        "@com_github_pelletier_go_toml_v2//:go-toml",
+    ],
+)
+
+go_library(
+    name = "clean",
+    srcs = ["clean.go"],
+    importpath = "rules_dx/go/tests/fixtures/golint/clean",
+    tags = ["manual"],
+    deps = [
+        ":base",
+        "@com_github_pelletier_go_toml_v2//:go-toml",
+    ],
+)

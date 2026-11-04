@@ -41,6 +41,9 @@ Options:
   -h, --help
           Print help
 
+Examples:
+  dx clean
+  dx clean --apply
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures.
 Output: --output text|json; --report has no standard format for this command.

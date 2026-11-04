@@ -205,9 +205,96 @@ pub(crate) fn output_line(command: Command) -> String {
     )
 }
 
+/// Example invocations shown in each command's long help, without the leading `dx`.
+const EXAMPLES: &[(Command, &[&str])] = &[
+    (
+        Command::Security,
+        &["security", "security --offline --fail-on warning"],
+    ),
+    (Command::License, &["license", "license --affected"]),
+    (
+        Command::Lint,
+        &["lint --affected", "lint --apply //pkg/..."],
+    ),
+    (
+        Command::Typecheck,
+        &["typecheck --affected", "typecheck //pkg/..."],
+    ),
+    (
+        Command::Format,
+        &["format --apply", "format --affected --diff"],
+    ),
+    (
+        Command::Generate,
+        &["generate", "generate --apply //pkg/..."],
+    ),
+    (
+        Command::Build,
+        &[
+            "build //...",
+            "build --release //app -- --local_resources=cpu=4",
+        ],
+    ),
+    (
+        Command::Test,
+        &["test --affected", "test //pkg/... --explain"],
+    ),
+    (
+        Command::Coverage,
+        &[
+            "coverage //pkg/...",
+            "coverage --min-coverage 80 --report lcov=lcov.info",
+        ],
+    ),
+    (
+        Command::Run,
+        &["run //app", "run --release //app -- --port 8080"],
+    ),
+    (
+        Command::Deploy,
+        &["deploy //app:push", "deploy --apply //app:push"],
+    ),
+    (Command::Check, &["check --affected", "check --apply"]),
+    (Command::Clean, &["clean", "clean --apply"]),
+    (Command::Update, &["update --outdated", "update --apply"]),
+    (Command::Env, &["env", "env --apply --shell=direnv"]),
+    (Command::Init, &["init", "init --apply"]),
+    (
+        Command::Upgrade,
+        &["upgrade --to 0.2.0", "upgrade --apply --to 0.2.0"],
+    ),
+    (Command::Status, &["status", "status --output json"]),
+    (
+        Command::Watch,
+        &["watch test //pkg/...", "watch lint --affected"],
+    ),
+    (Command::Completion, &["completion bash", "completion zsh"]),
+    (Command::Docs, &["docs", "docs --serve --open"]),
+    (
+        Command::Worktree,
+        &["worktree add my-branch", "worktree list --disk"],
+    ),
+    (
+        Command::Explain,
+        &["explain", "explain --old=old.log --new=new.log"],
+    ),
+];
+
+fn examples_text(command: Command) -> String {
+    let mut out = String::from("Examples:\n");
+    for (owner, lines) in EXAMPLES {
+        if *owner == command {
+            for line in *lines {
+                out.push_str(&format!("  dx {line}\n"));
+            }
+        }
+    }
+    out
+}
+
 /// The prose clap appends to each command's long help.
 pub(crate) fn after_long_help(command: Command) -> String {
-    let mut out = String::new();
+    let mut out = examples_text(command);
     out.push_str(command.scopes_text());
     out.push('\n');
     out.push_str(exit_codes(command));
@@ -251,6 +338,27 @@ mod tests {
     fn help_scan_skips_short_cluster_value_words() {
         assert!(super::help_verb_error_in(&["-qo", "json", "help"]).is_some());
         assert!(super::help_verb_error_in(&["-qo", "json", "lint"]).is_none());
+    }
+
+    #[test]
+    fn every_command_has_two_examples_that_parse() {
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            let lines: Vec<&&str> = super::EXAMPLES
+                .iter()
+                .filter(|(owner, _)| owner == command)
+                .flat_map(|(_, lines)| lines.iter())
+                .collect();
+            assert!(lines.len() >= 2, "{} needs two examples", command.name());
+            for line in lines {
+                let words: Vec<String> = line.split_whitespace().map(str::to_owned).collect();
+                let outcome = parse(&words);
+                assert!(
+                    !matches!(outcome, Err(ArgsError::Usage { .. })),
+                    "stale example `dx {line}`: {outcome:?}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -2483,10 +2483,10 @@ def _is_unbuilt(record):
         sorted(unsupported.keys()) == sorted(SUPPORT_PLATFORMS)
     )
 
-def support_unpinned_tools(capability):
+def support_unpinned_tools(capability, records = None):
     """Maps each tool of one capability with no pinned build anywhere to its unsupported platforms."""
     unpinned = {}
-    for record in SUPPORT_RECORDS:
+    for record in (SUPPORT_RECORDS if records == None else records):
         if record["capability"] == capability and len(record["platforms"]) == 0 and _is_unbuilt(record):
             unpinned[record["tool"]] = sorted(record["unsupported"].keys())
     return unpinned

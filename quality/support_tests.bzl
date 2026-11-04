@@ -474,28 +474,33 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "an unbuilt known record may have no platforms",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "check_only", "platforms": [], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
                 "",
             ),
             expect_equal(
                 "empty platforms need every platform unsupported",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": {"linux_x86_64": "no build"}}),
-                "support: tool 'chktex' needs a non-empty platform list",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "check_only", "platforms": [], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"linux_x86_64": "no build"}}),
+                "support: tool 'keep_sorted' needs a non-empty platform list",
             ),
             expect_equal(
                 "empty platforms are rejected for a supported record",
-                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "supported", "tool": "chktex", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
-                "support: tool 'chktex' needs a non-empty platform list",
+                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "check_only", "platforms": [], "state": "supported", "tool": "keep_sorted", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
+                "support: tool 'keep_sorted' needs a non-empty platform list",
             ),
             expect_equal(
                 "empty platforms are rejected for a qualified record",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "chktex", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
-                "support: tool 'chktex' needs a non-empty platform list",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "keep_sorted", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
+                "support: tool 'keep_sorted' needs a non-empty platform list",
             ),
             expect_equal(
                 "only tools with no build anywhere are unpinned",
                 [support_unpinned_tools("lint"), support_unpinned_tools("format")],
                 [{}, {}],
+            ),
+            expect_equal(
+                "an unbuilt record maps to its unsupported platforms",
+                support_unpinned_tools("lint", [{"artifact": "missing", "capability": "lint", "platforms": [], "state": "known", "tool": "keep_sorted", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}]),
+                {"keep_sorted": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]},
             ),
             expect_equal(
                 "valid unsupported platform is accepted",

@@ -116,9 +116,10 @@ pub fn automerge(limit: Option<Level>, plan: &GroupPlan) -> bool {
     let Some(limit) = limit else {
         return false;
     };
-    plan.items
-        .iter()
-        .all(|item| level(&item.candidate.current, &item.candidate.latest) <= limit)
+    plan.items.iter().all(|item| {
+        !item.candidate.prerelease
+            && level(&item.candidate.current, &item.candidate.latest) <= limit
+    })
 }
 
 #[cfg(test)]
@@ -134,6 +135,7 @@ mod tests {
             current: current.into(),
             latest: latest.into(),
             published: published.map(str::to_owned),
+            prerelease: false,
         }
     }
 
@@ -203,5 +205,17 @@ mod tests {
         assert!(!automerge(None, &plans[0]));
         assert_eq!(Level::limit("all"), Some(Level::Major));
         assert_eq!(Level::limit("none"), None);
+    }
+
+    #[test]
+    fn a_prerelease_is_never_automerged() {
+        let mut pre = candidate("a", "1.0.0", "1.0.1", None);
+        pre.prerelease = true;
+        let items = vec![Item {
+            candidate: pre,
+            registry: Registry::Crates,
+        }];
+        let plans = plan(&items, Group::All);
+        assert!(!automerge(Some(Level::Major), &plans[0]));
     }
 }

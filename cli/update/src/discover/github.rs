@@ -156,6 +156,7 @@ fn judge(
             current,
             latest: release.tag.clone(),
             published: release.published.clone(),
+            prerelease: false,
         });
     }
 }

@@ -13,6 +13,7 @@ pub fn outdated(
     set: &str,
     module: &ModuleFile,
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -43,15 +44,17 @@ pub fn outdated(
             parts[0].replace('.', "/"),
             parts[1]
         );
-        match fetch.get(&url).and_then(|body| newest(&body)) {
+        match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
             Ok(latest) => {
                 if ComparableVersion::new(&latest) > ComparableVersion::new(current) {
+                    let prerelease = !is_release(&latest);
                     found.candidates.push(Candidate {
                         set: set.to_owned(),
                         package,
                         current: current.to_owned(),
                         latest,
                         published: None,
+                        prerelease,
                     });
                 }
             }
@@ -74,7 +77,7 @@ fn is_release(version: &str) -> bool {
     })
 }
 
-fn newest(body: &str) -> Result<String, String> {
+fn newest(body: &str, prereleases: bool) -> Result<String, String> {
     let versions = body
         .split_once("<versions>")
         .and_then(|(_, rest)| rest.split_once("</versions>"))
@@ -84,7 +87,7 @@ fn newest(body: &str) -> Result<String, String> {
         .split("<version>")
         .skip(1)
         .filter_map(|chunk| chunk.split_once("</version>").map(|(v, _)| v.trim()))
-        .filter(|version| !version.is_empty() && is_release(version))
+        .filter(|version| !version.is_empty() && (prereleases || is_release(version)))
         .max_by_key(|version| ComparableVersion::new(version))
         .map(str::to_owned)
         .ok_or_else(|| "no release version".to_owned())
@@ -128,7 +131,16 @@ mod tests {
 
     fn run(only: &[String]) -> Findings {
         let module = ModuleFile::parse(MODULE).expect("parse");
-        outdated("maven", &module, only, DEFAULT_BASE, &repo)
+        outdated("maven", &module, only, false, DEFAULT_BASE, &repo)
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let module = ModuleFile::parse(MODULE).expect("parse");
+        let only = ["junit:junit".to_owned()];
+        let found = outdated("maven", &module, &only, true, DEFAULT_BASE, &repo);
+        assert_eq!(found.candidates[0].latest, "5.0.0-rc1");
+        assert!(found.candidates[0].prerelease);
     }
 
     #[test]
@@ -142,6 +154,7 @@ mod tests {
                 current: "4.12".into(),
                 latest: "4.13.2".into(),
                 published: None,
+                prerelease: false,
             })
         );
         let lang = found
@@ -188,6 +201,7 @@ mod tests {
             "maven",
             &module,
             &["org.apache.commons:commons-lang3".to_owned()],
+            false,
             "https://m",
             &|url: &str| {
                 seen.borrow_mut().push(url.to_owned());

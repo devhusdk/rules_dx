@@ -120,7 +120,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         unsupported,
         ecosystems,
         ..
-    } = collect(workspace, &resolved, &builtins, fetch);
+    } = collect(workspace, &resolved, &builtins, false, fetch);
     let exit = i32::from(!found.errors.is_empty());
     if let Err(code) = if json {
         emit_json(out, &found, &unsupported, &ecosystems, exit)
@@ -152,6 +152,7 @@ pub(super) fn collect(
     workspace: &Path,
     resolved: &[dependency_sets::ResolvedTarget],
     builtins: &Builtins,
+    prereleases: bool,
     fetch: &dyn Fetch,
 ) -> Collected {
     let mut found = Findings::default();
@@ -178,7 +179,14 @@ pub(super) fn collect(
                     match parsed {
                         Ok(module) => merge(
                             &mut found,
-                            bcr::outdated(name, &module, only, bcr::DEFAULT_BASE, fetch),
+                            bcr::outdated(
+                                name,
+                                &module,
+                                only,
+                                prereleases,
+                                bcr::DEFAULT_BASE,
+                                fetch,
+                            ),
                         ),
                         Err(reason) => found.errors.push(dx_update::discover::LookupError {
                             set: name.to_owned(),
@@ -193,28 +201,28 @@ pub(super) fn collect(
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    cargo::outdated(name, &texts, only, cargo::DEFAULT_BASE, fetch),
+                    cargo::outdated(name, &texts, only, prereleases, cargo::DEFAULT_BASE, fetch),
                 );
             }
             Ecosystem::Go => {
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    go::outdated(name, &texts, only, go::DEFAULT_BASE, fetch),
+                    go::outdated(name, &texts, only, prereleases, go::DEFAULT_BASE, fetch),
                 );
             }
             Ecosystem::Nuget => {
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    nuget::outdated(name, &texts, only, nuget::DEFAULT_BASE, fetch),
+                    nuget::outdated(name, &texts, only, prereleases, nuget::DEFAULT_BASE, fetch),
                 );
             }
             Ecosystem::Ruby => {
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    ruby::outdated(name, &texts, only, ruby::DEFAULT_BASE, fetch),
+                    ruby::outdated(name, &texts, only, prereleases, ruby::DEFAULT_BASE, fetch),
                 );
             }
             Ecosystem::Maven => {
@@ -227,7 +235,14 @@ pub(super) fn collect(
                     match parsed {
                         Ok(module) => merge(
                             &mut found,
-                            maven::outdated(name, &module, only, maven::DEFAULT_BASE, fetch),
+                            maven::outdated(
+                                name,
+                                &module,
+                                only,
+                                prereleases,
+                                maven::DEFAULT_BASE,
+                                fetch,
+                            ),
                         ),
                         Err(reason) => found.errors.push(dx_update::discover::LookupError {
                             set: name.to_owned(),
@@ -242,7 +257,7 @@ pub(super) fn collect(
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    npm::outdated(name, &texts, only, npm::DEFAULT_BASE, fetch),
+                    npm::outdated(name, &texts, only, prereleases, npm::DEFAULT_BASE, fetch),
                 );
             }
             Ecosystem::Uv => {
@@ -250,7 +265,7 @@ pub(super) fn collect(
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    pypi::outdated(name, &texts, only, pypi::DEFAULT_BASE, fetch),
+                    pypi::outdated(name, &texts, only, prereleases, pypi::DEFAULT_BASE, fetch),
                 );
             }
             _ => unsupported.push(name.to_owned()),
@@ -536,6 +551,7 @@ mod tests {
             current: "1".into(),
             latest: "2.0.0".into(),
             published: None,
+            prerelease: false,
         };
         assert_eq!(
             command_for(&candidate, Ecosystem::Cargo),
@@ -556,6 +572,7 @@ mod tests {
                 current: "1".into(),
                 latest: "2.0.0".into(),
                 published: Some("2026-01-01T00:00:00Z".into()),
+                prerelease: false,
             }],
             errors: Vec::new(),
             unknown: Vec::new(),

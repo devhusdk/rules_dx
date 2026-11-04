@@ -10,6 +10,7 @@ pub fn outdated(
     set: &str,
     go_mods: &[String],
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -41,7 +42,7 @@ pub fn outdated(
             let escaped = escape(module);
             let latest = match fetch
                 .get(&format!("{base}/{escaped}/@v/list"))
-                .and_then(|body| newest(&body, current.contains("+incompatible")))
+                .and_then(|body| newest(&body, current.contains("+incompatible"), prereleases))
             {
                 Ok(latest) => latest,
                 Err(reason) => {
@@ -63,6 +64,7 @@ pub fn outdated(
                 current: current.to_owned(),
                 latest: latest.1,
                 published,
+                prerelease: !latest.0.pre.is_empty(),
             });
         }
     }
@@ -82,14 +84,20 @@ fn escape(module: &str) -> String {
     out
 }
 
-fn newest(body: &str, incompatible_ok: bool) -> Result<(Version, String), String> {
+fn newest(
+    body: &str,
+    incompatible_ok: bool,
+    prereleases: bool,
+) -> Result<(Version, String), String> {
     let mut best: Option<(Version, String)> = None;
     for line in body.lines().map(str::trim).filter(|line| !line.is_empty()) {
         let text = line.trim_start_matches('v');
         let Ok(version) = Version::parse(text) else {
             continue;
         };
-        if !version.pre.is_empty() || (text.ends_with("+incompatible") && !incompatible_ok) {
+        if (!prereleases && !version.pre.is_empty())
+            || (text.ends_with("+incompatible") && !incompatible_ok)
+        {
             continue;
         }
         if best.as_ref().is_none_or(|(b, _)| version > *b) {
@@ -120,7 +128,28 @@ mod tests {
     }
 
     fn run(only: &[String]) -> Findings {
-        outdated("go", &[GO_MOD.to_owned()], only, DEFAULT_BASE, &proxy)
+        outdated(
+            "go",
+            &[GO_MOD.to_owned()],
+            only,
+            false,
+            DEFAULT_BASE,
+            &proxy,
+        )
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let found = outdated(
+            "go",
+            &[GO_MOD.to_owned()],
+            &["github.com/fresh/lib".to_owned()],
+            true,
+            DEFAULT_BASE,
+            &proxy,
+        );
+        assert_eq!(found.candidates[0].latest, "1.3.0-beta");
+        assert!(found.candidates[0].prerelease);
     }
 
     #[test]
@@ -137,6 +166,7 @@ mod tests {
                 current: "1.0.0".into(),
                 latest: "1.1.0".into(),
                 published: Some("2026-02-03T00:00:00Z".into()),
+                prerelease: false,
             })
         );
     }
@@ -182,6 +212,7 @@ mod tests {
             "go",
             &[GO_MOD.to_owned()],
             &["github.com/old/inc".to_owned()],
+            false,
             DEFAULT_BASE,
             &proxy,
         );

@@ -1,6 +1,6 @@
 //! Lists NuGet packages whose newest stable version on nuget.org is newer than the paket.dependencies requirement.
 
-use super::{numeric_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{numeric_cmp, release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
 use crate::edit::request::plans::paket_tokens;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -12,6 +12,7 @@ pub fn outdated(
     set: &str,
     files: &[String],
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -32,7 +33,7 @@ pub fn outdated(
             continue;
         }
         let url = format!("{base}/{}/index.json", id.to_ascii_lowercase());
-        let latest = match fetch.get(&url).and_then(|body| newest_stable(&body)) {
+        let latest = match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
             Ok(latest) => latest,
             Err(reason) => {
                 found.errors.push(LookupError {
@@ -44,13 +45,14 @@ pub fn outdated(
             }
         };
         for current in versions {
-            if numeric_cmp(&latest, &current) == Ordering::Greater {
+            if release_cmp(&latest, &current) == Ordering::Greater {
                 found.candidates.push(Candidate {
                     set: set.to_owned(),
                     package: id.clone(),
                     current,
                     latest: latest.clone(),
                     published: None,
+                    prerelease: latest.contains('-'),
                 });
             }
         }
@@ -81,15 +83,17 @@ fn declaration(line: &str) -> Option<(String, String)> {
     best.map(|current| ((*id).to_owned(), current.to_owned()))
 }
 
-fn newest_stable(body: &str) -> Result<String, String> {
+fn newest(body: &str, prereleases: bool) -> Result<String, String> {
     let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
     json["versions"]
         .as_array()
         .into_iter()
         .flatten()
         .filter_map(|v| v.as_str())
-        .filter(|v| !v.contains('-') && v.starts_with(|c: char| c.is_ascii_digit()))
-        .max_by(|a, b| numeric_cmp(a, b))
+        .filter(|v| {
+            (prereleases || !v.contains('-')) && v.starts_with(|c: char| c.is_ascii_digit())
+        })
+        .max_by(|a, b| release_cmp(a, b))
         .map(str::to_owned)
         .ok_or_else(|| "no stable version".to_owned())
 }
@@ -115,7 +119,29 @@ mod tests {
     }
 
     fn run(only: &[String]) -> Findings {
-        outdated("nuget", &[PAKET.to_owned()], only, DEFAULT_BASE, &feed)
+        outdated(
+            "nuget",
+            &[PAKET.to_owned()],
+            only,
+            false,
+            DEFAULT_BASE,
+            &feed,
+        )
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let only = ["Fresh".to_owned()];
+        let found = outdated(
+            "nuget",
+            &[PAKET.to_owned()],
+            &only,
+            true,
+            DEFAULT_BASE,
+            &feed,
+        );
+        assert_eq!(found.candidates[0].latest, "2.1.0-rc.1");
+        assert!(found.candidates[0].prerelease);
     }
 
     #[test]
@@ -129,6 +155,7 @@ mod tests {
                 current: "12.0".into(),
                 latest: "13.0.3".into(),
                 published: None,
+                prerelease: false,
             }]
         );
     }
@@ -153,6 +180,7 @@ mod tests {
             "nuget",
             &[PAKET.to_owned()],
             &["Gone".to_owned()],
+            false,
             "https://n",
             &|url: &str| {
                 seen.borrow_mut().push(url.to_owned());

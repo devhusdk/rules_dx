@@ -479,8 +479,8 @@ bazel run @rules_dx//:dx -- update --outdated github-actions bazel:.bazelversion
 
 ```text
 dx update --pr [--group=package|set|all] [--labels=<a,b>] [--automerge=none|patch|minor|all]
-  [--min-age=<days>] [--ignore=<set:package>] [--allow-major] [--max-prs=<n>]
-  [--output text|json] [selector ...]
+  [--min-age=<days>] [--ignore=<set:package>] [--allow-major] [--prereleases]
+  [--max-prs=<n>] [--output text|json] [selector ...]
 ```
 
 Opens or refreshes one pull request per group of outdated packages. It needs
@@ -507,6 +507,7 @@ Policy flags:
 | `--min-age=<days>` | `3` | Skips versions published fewer days ago. `0` turns it off. A version with no publish date is kept, and the body says `age unknown`. |
 | `--ignore=<set:package>` | none | Skips one package. Repeat the flag for more. |
 | `--allow-major` | off | Includes major updates. |
+| `--prereleases` | off | Offers prerelease versions. They are never auto-merged. |
 | `--max-prs=<n>` | `5` | Stops opening new pull requests when `n` `dx-update/` pull requests are open. Open ones still refresh. |
 
 A zero-major version counts a minor bump as major. Auto-merge runs
@@ -533,7 +534,8 @@ For each group, `dx update --pr` does this:
 6. Edits the open pull request for the branch, or creates one.
 7. Turns auto-merge on or off by `--automerge`.
 
-The body lists each package as `old -> new` with its registry link, then the
+The body lists each package as `old -> new` with its registry link, marks
+prerelease versions with `prerelease`, then the
 lock files changed with added and removed line counts.
 
 After the groups, `dx update --pr` closes open `dx-update/` pull requests on the

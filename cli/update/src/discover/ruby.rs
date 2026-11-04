@@ -1,6 +1,6 @@
 //! Lists gems whose newest release on rubygems.org is newer than the version in the Gemfile.
 
-use super::{numeric_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{numeric_cmp, release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -11,6 +11,7 @@ pub fn outdated(
     set: &str,
     gemfiles: &[String],
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -31,25 +32,27 @@ pub fn outdated(
             continue;
         }
         let url = format!("{base}/api/v1/versions/{name}.json");
-        let (latest, published) = match fetch.get(&url).and_then(|body| newest(&body)) {
-            Ok(latest) => latest,
-            Err(reason) => {
-                found.errors.push(LookupError {
-                    set: set.to_owned(),
-                    package: name,
-                    reason,
-                });
-                continue;
-            }
-        };
+        let (latest, published, prerelease) =
+            match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
+                Ok(latest) => latest,
+                Err(reason) => {
+                    found.errors.push(LookupError {
+                        set: set.to_owned(),
+                        package: name,
+                        reason,
+                    });
+                    continue;
+                }
+            };
         for current in versions {
-            if numeric_cmp(&latest, &current) == Ordering::Greater {
+            if release_cmp(&latest, &current) == Ordering::Greater {
                 found.candidates.push(Candidate {
                     set: set.to_owned(),
                     package: name.clone(),
                     current,
                     latest: latest.clone(),
                     published: published.clone(),
+                    prerelease,
                 });
             }
         }
@@ -82,20 +85,24 @@ fn unquote(text: &str) -> Option<&str> {
     inner.split_once(quote).map(|(inside, _)| inside)
 }
 
-fn newest(body: &str) -> Result<(String, Option<String>), String> {
+fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), String> {
     let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
     json.as_array()
         .into_iter()
         .flatten()
-        .filter(|entry| !entry["prerelease"].as_bool().unwrap_or(false))
         .filter_map(|entry| {
             let number = entry["number"].as_str()?;
+            let prerelease = entry["prerelease"].as_bool().unwrap_or(false);
+            if prerelease && !prereleases {
+                return None;
+            }
             Some((
                 number.to_owned(),
                 entry["created_at"].as_str().map(str::to_owned),
+                prerelease,
             ))
         })
-        .max_by(|a, b| numeric_cmp(&a.0, &b.0))
+        .max_by(|a, b| release_cmp(&a.0, &b.0))
         .ok_or_else(|| "no stable version".to_owned())
 }
 
@@ -119,7 +126,29 @@ mod tests {
     }
 
     fn run(only: &[String]) -> Findings {
-        outdated("ruby", &[GEMFILE.to_owned()], only, DEFAULT_BASE, &api)
+        outdated(
+            "ruby",
+            &[GEMFILE.to_owned()],
+            only,
+            false,
+            DEFAULT_BASE,
+            &api,
+        )
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let only = ["rails".to_owned()];
+        let found = outdated(
+            "ruby",
+            &[GEMFILE.to_owned()],
+            &only,
+            true,
+            DEFAULT_BASE,
+            &api,
+        );
+        assert_eq!(found.candidates[0].latest, "8.0.0.rc1");
+        assert!(found.candidates[0].prerelease);
     }
 
     #[test]
@@ -133,6 +162,7 @@ mod tests {
                 current: "7.0.4".into(),
                 latest: "7.2.1".into(),
                 published: Some("2026-02-01T00:00:00Z".into()),
+                prerelease: false,
             }]
         );
     }

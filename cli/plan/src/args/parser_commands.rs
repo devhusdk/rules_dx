@@ -1150,6 +1150,7 @@ fn update_pr_takes_group_and_labels() {
         "--ignore=cargo:serde",
         "--ignore=npm:left-pad",
         "--allow-major",
+        "--prereleases",
         "--max-prs=2",
     ]))
     .expect("policy");
@@ -1157,6 +1158,7 @@ fn update_pr_takes_group_and_labels() {
     assert_eq!(got.min_age, Some(0));
     assert_eq!(got.ignore, ["cargo:serde", "npm:left-pad"]);
     assert!(got.allow_major);
+    assert!(got.prereleases);
     assert_eq!(got.max_prs, Some(2));
     assert!(!parse(&strings(&["update"])).expect("bare").pr);
     for words in [
@@ -1172,6 +1174,7 @@ fn update_pr_takes_group_and_labels() {
         vec!["update", "--min-age=1"],
         vec!["update", "--ignore=cargo:serde"],
         vec!["update", "--allow-major"],
+        vec!["update", "--prereleases"],
         vec!["update", "--max-prs=2"],
         vec!["update", "--pr", "--automerge=some"],
         vec!["update", "--pr", "--ignore=serde"],

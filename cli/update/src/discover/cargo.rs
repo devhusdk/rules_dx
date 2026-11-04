@@ -14,6 +14,7 @@ pub fn outdated(
     set: &str,
     manifests: &[String],
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -36,7 +37,7 @@ pub fn outdated(
         };
         let release = match fetch
             .get(&format!("{base}/{}", index_path(&name)))
-            .and_then(|body| newest_stable(&body))
+            .and_then(|body| newest(&body, prereleases))
         {
             Ok(release) => release,
             Err(reason) => {
@@ -58,6 +59,7 @@ pub fn outdated(
                     current,
                     latest: release.version.to_string(),
                     published: release.published.clone(),
+                    prerelease: !release.version.pre.is_empty(),
                 });
             }
         }
@@ -127,7 +129,7 @@ struct Release {
     published: Option<String>,
 }
 
-fn newest_stable(body: &str) -> Result<Release, String> {
+fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
     let mut best: Option<Release> = None;
     for line in body.lines().filter(|line| !line.trim().is_empty()) {
         let entry: serde_json::Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
@@ -137,7 +139,7 @@ fn newest_stable(body: &str) -> Result<Release, String> {
         let Some(version) = entry["vers"].as_str().and_then(|v| Version::parse(v).ok()) else {
             continue;
         };
-        if !version.pre.is_empty() {
+        if !prereleases && !version.pre.is_empty() {
             continue;
         }
         if best.as_ref().is_none_or(|b| version > b.version) {
@@ -185,14 +187,27 @@ wsdep = "1.0"
         Ok(body.to_owned())
     }
 
-    fn run(only: &[String]) -> Findings {
+    fn run_with(only: &[String], prereleases: bool) -> Findings {
         outdated(
             "cargo",
             &[MANIFEST.to_owned()],
             only,
+            prereleases,
             DEFAULT_BASE,
             &|url: &str| index(url.strip_prefix("https://index.crates.io/").unwrap_or(url)),
         )
+    }
+
+    fn run(only: &[String]) -> Findings {
+        run_with(only, false)
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let found = run_with(&["old".to_owned()], true);
+        assert_eq!(found.candidates[0].latest, "0.6.0-rc.1");
+        assert!(found.candidates[0].prerelease);
+        assert!(!run(&["old".to_owned()]).candidates[0].prerelease);
     }
 
     #[test]
@@ -220,6 +235,7 @@ wsdep = "1.0"
                 current: "0.3".into(),
                 latest: "0.4.0".into(),
                 published: Some("2026-01-02T00:00:00Z".into()),
+                prerelease: false,
             })
         );
         assert!(found.candidates.iter().any(|c| c.package == "wsdep"));

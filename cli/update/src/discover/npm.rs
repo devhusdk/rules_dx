@@ -24,6 +24,7 @@ pub fn outdated(
     set: &str,
     manifests: &[String],
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -62,7 +63,7 @@ pub fn outdated(
         };
         let release = match fetch
             .get(&format!("{base}/{name}"))
-            .and_then(|body| latest(&body))
+            .and_then(|body| latest(&body, prereleases))
         {
             Ok(release) => release,
             Err(reason) => {
@@ -85,6 +86,7 @@ pub fn outdated(
                     current,
                     latest: version.to_string(),
                     published: published.clone(),
+                    prerelease: version.is_prerelease(),
                 });
             }
         }
@@ -101,8 +103,20 @@ fn skipped(spec: &str) -> bool {
 
 type Latest = Option<(Version, Option<String>)>;
 
-fn latest(body: &str) -> Result<Latest, String> {
+fn latest(body: &str, prereleases: bool) -> Result<Latest, String> {
     let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+    if prereleases {
+        let newest = doc["versions"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(key, _)| Some((Version::parse(key).ok()?, key)))
+            .max_by(|a, b| a.0.cmp(&b.0));
+        if let Some((version, key)) = newest {
+            let published = doc["time"][key.as_str()].as_str().map(str::to_owned);
+            return Ok(Some((version, published)));
+        }
+    }
     let tag = doc["dist-tags"]["latest"]
         .as_str()
         .ok_or_else(|| "no latest tag".to_owned())?;
@@ -137,7 +151,7 @@ mod tests {
 
     fn doc(latest: &str, time: &str) -> Result<String, String> {
         Ok(format!(
-            r#"{{"dist-tags":{{"latest":"{latest}"}},"time":{{"{latest}":"{time}"}}}}"#
+            r#"{{"dist-tags":{{"latest":"{latest}"}},"versions":{{"{latest}":{{}}}},"time":{{"{latest}":"{time}"}}}}"#
         ))
     }
 
@@ -154,10 +168,15 @@ mod tests {
     }
 
     fn run(only: &[String]) -> Findings {
+        run_with(only, false)
+    }
+
+    fn run_with(only: &[String], prereleases: bool) -> Findings {
         outdated(
             "npm",
             &[MANIFEST.to_owned()],
             only,
+            prereleases,
             DEFAULT_BASE,
             &|url: &str| {
                 registry(
@@ -192,6 +211,7 @@ mod tests {
             current: "^1.0.0".into(),
             latest: "2.0.0".into(),
             published: Some("2026-01-02T00:00:00.000Z".into()),
+            prerelease: false,
         }));
     }
 
@@ -210,6 +230,17 @@ mod tests {
         for skipped in ["local", "file", "repo", "tarball", "alias"] {
             assert!(!all.contains(&skipped), "{skipped}");
         }
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let found = run_with(&["pre".to_owned()], true);
+        assert_eq!(found.candidates[0].latest, "2.0.0-beta.1");
+        assert!(found.candidates[0].prerelease);
+        assert_eq!(
+            found.candidates[0].published.as_deref(),
+            Some("2026-01-06T00:00:00.000Z")
+        );
     }
 
     #[test]

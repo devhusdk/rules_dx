@@ -30,6 +30,7 @@ pub struct Candidate {
     pub current: String,
     pub latest: String,
     pub published: Option<String>,
+    pub prerelease: bool,
 }
 
 /// One package that could not be looked up.
@@ -96,9 +97,31 @@ pub(crate) fn numeric_cmp(a: &str, b: &str) -> std::cmp::Ordering {
         .unwrap_or(std::cmp::Ordering::Equal)
 }
 
+/// Compares versions where a suffix such as `-rc.1` or `.rc1` sorts below the bare release.
+pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let split = |text: &'_ str| -> (String, String) {
+        let end = text
+            .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+            .unwrap_or(text.len());
+        let (core, suffix) = text.split_at(end);
+        (
+            core.trim_end_matches('.').to_owned(),
+            suffix.trim_start_matches(['.', '-']).to_owned(),
+        )
+    };
+    let (core_a, suffix_a) = split(a);
+    let (core_b, suffix_b) = split(b);
+    numeric_cmp(&core_a, &core_b).then_with(|| match (suffix_a.is_empty(), suffix_b.is_empty()) {
+        (true, true) => std::cmp::Ordering::Equal,
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        (false, false) => numeric_cmp(&suffix_a, &suffix_b).then_with(|| suffix_a.cmp(&suffix_b)),
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::numeric_cmp;
+    use super::{numeric_cmp, release_cmp};
     use std::cmp::Ordering;
 
     #[test]
@@ -106,5 +129,13 @@ mod tests {
         assert_eq!(numeric_cmp("1.0", "1.0.0"), Ordering::Equal);
         assert_eq!(numeric_cmp("1.10", "1.9"), Ordering::Greater);
         assert_eq!(numeric_cmp("1.2", "1.2.1"), Ordering::Less);
+    }
+
+    #[test]
+    fn release_cmp_puts_suffixed_versions_below_the_release() {
+        assert_eq!(release_cmp("2.1.0", "2.1.0-rc.1"), Ordering::Greater);
+        assert_eq!(release_cmp("2.1.0-rc.2", "2.1.0-rc.1"), Ordering::Greater);
+        assert_eq!(release_cmp("8.0.0", "8.0.0.rc1"), Ordering::Greater);
+        assert_eq!(release_cmp("1.10", "1.9"), Ordering::Greater);
     }
 }

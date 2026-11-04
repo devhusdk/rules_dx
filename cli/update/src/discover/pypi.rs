@@ -14,6 +14,7 @@ pub fn outdated(
     set: &str,
     manifests: &[String],
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -56,7 +57,7 @@ pub fn outdated(
         };
         let release = match fetch
             .get(&format!("{base}/{name}/json"))
-            .and_then(|body| newest_stable(&body))
+            .and_then(|body| newest(&body, prereleases))
         {
             Ok(release) => release,
             Err(reason) => {
@@ -78,6 +79,7 @@ pub fn outdated(
                     current,
                     latest: release.0.to_string(),
                     published: release.1.clone(),
+                    prerelease: release.0.any_prerelease(),
                 });
             }
         }
@@ -111,7 +113,7 @@ fn split(requirement: &str) -> Option<(String, String)> {
     Some((normalize(name), spec.to_owned()))
 }
 
-fn newest_stable(body: &str) -> Result<(Version, Option<String>), String> {
+fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), String> {
     let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
     let releases = doc["releases"]
         .as_object()
@@ -121,7 +123,7 @@ fn newest_stable(body: &str) -> Result<(Version, Option<String>), String> {
         let Ok(version) = Version::from_str(key) else {
             continue;
         };
-        if version.any_prerelease() {
+        if !prereleases && version.any_prerelease() {
             continue;
         }
         let live: Vec<_> = files
@@ -195,11 +197,12 @@ test = ["grouped<3", { include-group = "dev" }]
         Ok(format!(r#"{{"releases":{{{releases}}}}}"#))
     }
 
-    fn run(only: &[String]) -> Findings {
+    fn run_with(only: &[String], prereleases: bool) -> Findings {
         outdated(
             "pypi",
             &[MANIFEST.to_owned()],
             only,
+            prereleases,
             DEFAULT_BASE,
             &|url: &str| {
                 let name = url
@@ -209,6 +212,18 @@ test = ["grouped<3", { include-group = "dev" }]
                 registry(name)
             },
         )
+    }
+
+    fn run(only: &[String]) -> Findings {
+        run_with(only, false)
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let found = run_with(&["pre".to_owned()], true);
+        assert_eq!(found.candidates[0].latest, "2.0rc1");
+        assert!(found.candidates[0].prerelease);
+        assert!(run(&["pre".to_owned()]).candidates.is_empty());
     }
 
     fn names(found: &Findings) -> Vec<&str> {
@@ -236,6 +251,7 @@ test = ["grouped<3", { include-group = "dev" }]
             current: ">=1,<2".into(),
             latest: "2.0".into(),
             published: Some("2026-01-02T00:00:00Z".into()),
+            prerelease: false,
         }));
         assert!(names(&found).contains(&"grouped"));
     }

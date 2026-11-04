@@ -13,6 +13,7 @@ pub fn outdated(
     set: &str,
     module: &ModuleFile,
     only: &[String],
+    prereleases: bool,
     base: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
@@ -41,15 +42,17 @@ pub fn outdated(
             }
         };
         let url = format!("{base}/modules/{name}/metadata.json");
-        match fetch.get(&url).and_then(|body| newest_stable(&body)) {
+        match fetch.get(&url).and_then(|body| newest(&body, prereleases)) {
             Ok(latest) => {
                 if compare_module_versions(&current, &latest) == Ordering::Less {
+                    let prerelease = latest.contains('-');
                     found.candidates.push(Candidate {
                         set: set.to_owned(),
                         package: name.to_owned(),
                         current,
                         latest,
                         published: None,
+                        prerelease,
                     });
                 }
             }
@@ -67,7 +70,7 @@ fn is_skipped(module: &ModuleFile, name: &str) -> bool {
     })
 }
 
-fn newest_stable(body: &str) -> Result<String, String> {
+fn newest(body: &str, prereleases: bool) -> Result<String, String> {
     let metadata: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
     let versions = metadata["versions"]
         .as_array()
@@ -76,7 +79,7 @@ fn newest_stable(body: &str) -> Result<String, String> {
     versions
         .iter()
         .filter_map(|v| v.as_str())
-        .filter(|v| !v.contains('-') && yanked.get(*v).is_none())
+        .filter(|v| (prereleases || !v.contains('-')) && yanked.get(*v).is_none())
         .max_by(|a, b| compare_module_versions(a, b))
         .map(str::to_owned)
         .ok_or_else(|| "no stable version".to_owned())
@@ -93,9 +96,28 @@ mod tests {
     }
 
     fn run(text: &str, body: &'static str) -> Findings {
-        outdated("bazel", &module(text), &[], DEFAULT_BASE, &|_: &str| {
-            Ok(body.to_owned())
-        })
+        outdated(
+            "bazel",
+            &module(text),
+            &[],
+            false,
+            DEFAULT_BASE,
+            &|_: &str| Ok(body.to_owned()),
+        )
+    }
+
+    #[test]
+    fn prereleases_on_lists_the_newest_prerelease() {
+        let found = outdated(
+            "bazel",
+            &module("bazel_dep(name = \"rules_x\", version = \"1.0.0\")\n"),
+            &[],
+            true,
+            DEFAULT_BASE,
+            &|_: &str| Ok(METADATA.to_owned()),
+        );
+        assert_eq!(found.candidates[0].latest, "2.0.0-rc1");
+        assert!(found.candidates[0].prerelease);
     }
 
     #[test]
@@ -112,6 +134,7 @@ mod tests {
                 current: "1.0.0".into(),
                 latest: "1.2.0".into(),
                 published: None,
+                prerelease: false,
             }]
         );
         assert!(found.errors.is_empty());
@@ -145,6 +168,7 @@ mod tests {
             "bazel",
             &module("bazel_dep(name = \"rules_x\", version = \"1.0.0\")\n"),
             &[],
+            false,
             DEFAULT_BASE,
             &|_: &str| Err("HTTP 404".to_owned()),
         );
@@ -159,6 +183,7 @@ mod tests {
             "bazel",
             &module("bazel_dep(name = \"rules_x\", version = \"1.0.0\")\n"),
             &["other".to_owned()],
+            false,
             DEFAULT_BASE,
             &|_: &str| Err("must not fetch".to_owned()),
         );

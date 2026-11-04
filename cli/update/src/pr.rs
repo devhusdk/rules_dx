@@ -137,9 +137,10 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
         } else {
             ""
         };
+        let pre = if c.prerelease { ", prerelease" } else { "" };
         let _ = writeln!(
             text,
-            "- {}:{} {} -> {} ({}{age})",
+            "- {}:{} {} -> {} ({}{age}{pre})",
             c.set,
             c.package,
             c.current,
@@ -222,6 +223,7 @@ mod tests {
                 current: "1.0.0".into(),
                 latest: latest.into(),
                 published: None,
+                prerelease: false,
             },
             registry,
         }
@@ -279,6 +281,14 @@ mod tests {
         ));
         assert!(text.contains("| Cargo.lock | 4 | 2 |"));
         assert!(!body(&got[0], &[]).contains("Lock file"));
+    }
+
+    #[test]
+    fn body_marks_prereleases() {
+        let mut one = items()[..1].to_vec();
+        one[0].candidate.prerelease = true;
+        let got = plan(&one, Group::Set);
+        assert!(body(&got[0], &[]).contains(", age unknown, prerelease)"));
     }
 
     #[test]

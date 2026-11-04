@@ -88,7 +88,13 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     }
     let Collected {
         found, registries, ..
-    } = collect(workspace, &resolved, &Builtins::default(), fetch);
+    } = collect(
+        workspace,
+        &resolved,
+        &Builtins::default(),
+        invocation.prereleases,
+        fetch,
+    );
     let min_age = invocation.min_age.unwrap_or(DEFAULT_MIN_AGE);
     let cutoff = (min_age > 0)
         .then(|| {
@@ -658,6 +664,7 @@ mod tests {
                     current: "1.0.0".into(),
                     latest: "2.0.0".into(),
                     published: None,
+                    prerelease: false,
                 },
                 registry: Registry::Crates,
             }],
@@ -767,6 +774,26 @@ mod tests {
         .expect("publish");
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr merge https://example.com/pr/9 --auto --squash"));
+    }
+
+    #[test]
+    fn a_prerelease_group_is_not_merged() {
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        let mut plans = plans_to("1.0.1");
+        plans[0].items[0].candidate.prerelease = true;
+        publish(
+            &fx.work,
+            &fx.tools,
+            &plans,
+            &scope(),
+            &[],
+            &rules(),
+            &mut step,
+        )
+        .expect("publish");
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr merge"));
     }
 
     #[test]
@@ -941,6 +968,7 @@ mod tests {
                 current: "1.0.0".into(),
                 latest: "2.0.0".into(),
                 published: None,
+                prerelease: false,
             },
             registry: Registry::Crates,
         };

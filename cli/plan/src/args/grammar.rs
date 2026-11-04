@@ -94,6 +94,7 @@ pub(crate) struct Flags {
     pub(crate) min_age: Option<u32>,
     pub(crate) ignore: Vec<String>,
     pub(crate) allow_major: bool,
+    pub(crate) prereleases: bool,
     pub(crate) max_prs: Option<u16>,
     pub(crate) floor: bool,
     pub(crate) reason: Option<String>,
@@ -549,6 +550,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// Offer prerelease versions; they are never auto-merged (needs --pr).
+    PrereleasesFlag, {
+        #[arg(long, overrides_with = "prereleases")]
+        prereleases: bool,
+    }
+}
+
+flag_group! {
     /// Open at most this many dx-update pull requests (needs --pr; default 5).
     MaxPrsFlag, {
         #[arg(
@@ -949,6 +958,7 @@ command_args! {
         min_age: MinAgeFlag,
         ignore: IgnoreFlag,
         allow_major: AllowMajorFlag,
+        prereleases: PrereleasesFlag,
         max_prs: MaxPrsFlag,
         floor: FloorArgs,
     };

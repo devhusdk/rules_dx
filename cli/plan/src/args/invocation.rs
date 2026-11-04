@@ -282,6 +282,8 @@ pub struct Invocation {
     pub ignore: Vec<String>,
     /// `dx update --allow-major`: include major updates.
     pub allow_major: bool,
+    /// `dx update --prereleases`: offer prerelease versions.
+    pub prereleases: bool,
     /// `dx update --max-prs`: open dx-update pull requests allowed; 5 when absent.
     pub max_prs: Option<u16>,
     /// `dx update --floor`: edit the bazel_dep floor instead of the tested override.
@@ -667,6 +669,7 @@ mod tests {
             min_age: None,
             ignore: Vec::new(),
             allow_major: false,
+            prereleases: false,
             max_prs: None,
             floor: false,
             reason: None,

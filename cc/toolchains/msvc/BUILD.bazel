@@ -1,0 +1,18 @@
+load("//cc/toolchains/msvc:tests.bzl", "msvc_toolchain_tests")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//cc/toolchains:__subpackages__"])
+
+msvc_toolchain_tests(name = "msvc")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "layout.bzl",
+        "subject.bzl",
+        "tests.bzl",
+        "toolchain.bzl",
+    ],    tags = ["corpus"],
+)

@@ -134,6 +134,8 @@ test_suite(
         ":identity",
         ":identity_contract",
         ":identity_gcc",
+        "//cc/toolchains/msvc:msvc_layout",
+        "//cc/toolchains/msvc:msvc_toolchain",
     ],
 )
 

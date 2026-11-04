@@ -1,0 +1,10 @@
+load("//cc/toolchains/msvc:toolchain.bzl", "msvc_cc_toolchain")
+
+package(default_visibility = ["//cc/toolchains:__subpackages__"])
+
+msvc_cc_toolchain(
+    name = "toolchain",
+    msvc_version = "14.44.35207",
+    sdk_version = "10.0.26100.0",
+    tmp = "C:\\Temp",
+)

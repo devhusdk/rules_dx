@@ -98,7 +98,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | CMake | `cmakelint` | `gersemi` | n/a |
 | Dockerfile | `hadolint` | `prettier` | n/a |
 | Make | `checkmake` | `mbake` | n/a |
-| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: No Qt SDK cell is pinned for Windows arm64) | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: No Qt SDK cell is pinned for Windows arm64) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: No Qt SDK cell is pinned for Windows arm64) |
+| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) |
 | Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows) | `prettier` | n/a |
 | API specs | `redocly` | `prettier` | n/a |
 | AsciiDoc | `vale` | no | n/a |

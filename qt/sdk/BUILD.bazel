@@ -21,6 +21,7 @@ exports_files([
     "repos.bzl",
     "tool.bzl",
     "unsupported.bzl",
+    "windows_arm64.bzl",
     "windows_x86_64.bzl",
 ])
 
@@ -54,6 +55,7 @@ real_source_target(
         "repos.bzl",
         "tool.bzl",
         "unsupported.bzl",
+    "windows_arm64.bzl",
     "windows_x86_64.bzl",
     ],
     tags = ["corpus"],

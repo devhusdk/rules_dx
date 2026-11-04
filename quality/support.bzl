@@ -2245,7 +2245,7 @@ QML_QMLLINT_LINT_SUPPORT = {
     "tool": "qmllint",
     "transport": "batched",
     "unsupported": {
-        "windows_arm64": "No Qt SDK cell is pinned for Windows arm64",
+        "windows_arm64": "The Qt Windows arm64 cell has a blocker",
         "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
     },
 }
@@ -2263,7 +2263,7 @@ QML_QMLLINT_TYPECHECK_SUPPORT = {
     "tool": "qmllint",
     "transport": "batched",
     "unsupported": {
-        "windows_arm64": "No Qt SDK cell is pinned for Windows arm64",
+        "windows_arm64": "The Qt Windows arm64 cell has a blocker",
         "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
     },
 }
@@ -2281,7 +2281,7 @@ QML_QMLFORMAT_FORMAT_SUPPORT = {
     "tool": "qmlformat",
     "transport": "single",
     "unsupported": {
-        "windows_arm64": "No Qt SDK cell is pinned for Windows arm64",
+        "windows_arm64": "The Qt Windows arm64 cell has a blocker",
         "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
     },
 }

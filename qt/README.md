@@ -46,7 +46,7 @@ qt_sdk.cell(
 - `name`: lowercase letters, digits and `_`. The cell is fetched into
   `@dx_qt_<name>`, and `@dx_qt//:core` and the other targets route to it.
   A pinned cell of the same name (`linux_x86_64`, `linux_arm64`,
-  `macos_arm64`, `windows_x86_64`) is replaced.
+  `macos_arm64`, `windows_arm64`, `windows_x86_64`) is replaced.
 - `constraints`: the platform constraints the cell serves. They must differ
   from every other cell's.
 - `layout`: the file layout of the archives. Only `linux` (the default).
@@ -394,6 +394,7 @@ newer on x86_64, 2.39 or newer on arm64.
 | `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `macos_arm64` | Not qualified |
+| `windows_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |
 
 Other platforms fail analysis and list the qualified cells. Fetching needs a

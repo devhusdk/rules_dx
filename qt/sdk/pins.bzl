@@ -7,6 +7,7 @@ load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
 load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL")
 load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(":macos_arm64.bzl", MACOS_ARM64 = "CELL")
+load(":windows_arm64.bzl", WINDOWS_ARM64 = "CELL")
 load(":windows_x86_64.bzl", WINDOWS_X86_64 = "CELL")
 
 QT_VERSION = "6.11.3"
@@ -53,6 +54,7 @@ CELLS = {
     "linux_arm64": LINUX_ARM64,
     "linux_x86_64": LINUX_X86_64,
     "macos_arm64": MACOS_ARM64,
+    "windows_arm64": WINDOWS_ARM64,
     "windows_x86_64": WINDOWS_X86_64,
 }
 

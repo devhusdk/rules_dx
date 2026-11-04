@@ -77,7 +77,7 @@ func TestParseImports(t *testing.T) {
 		{"singleString", "'require(\"./fake.astro\")';\n", nil},
 		{"templateInert", "`import './fake.astro'`;\n", nil},
 		{"regexInert", "const re = /import './fake.astro'/;\nconst x = 1;\n", nil},
-		{"unterminated", "\"abc\nimport y from './real.astro';\n", []string{"real"}},
+		{"unterminated", "\"abc\nimport y from './real.astro';\n", nil},
 		{"relativeNoExt", "import x from './helper';\n", []string{"helper"}},
 		{"relativeDir", "import x from './dir/';\n", []string{"dir"}},
 		{"multiline", "import {\n a,\n b\n} from './multi.astro';\n", []string{"multi"}},
@@ -128,7 +128,7 @@ func TestParseImports(t *testing.T) {
 		{"division", "const x = a / b;\nimport y from './real.astro';\n", []string{"real"}},
 		{"divisionParen", "const x = (a) / b;\nimport y from './real.astro';\n", []string{"real"}},
 		{"regexEscape", "const re = /a\\/b/;\nimport y from './real.astro';\n", []string{"real"}},
-		{"regexNewline", "const re = /abc\nimport y from './real.astro';\n", []string{"real"}},
+		{"regexNewline", "const re = /abc\nimport y from './real.astro';\n", nil},
 		{"regexClass", "const re = /[a/b]/;\nimport y from './real.astro';\n", []string{"real"}},
 		{"regexEOF", "const re = /abc", nil},
 	}

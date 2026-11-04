@@ -27,7 +27,6 @@ go_library(
         "classlang.go",
         "doc.go",
         "dotnetplatform.go",
-        "embeddedscan.go",
         "erlangnif.go",
         "errors.go",
         "external.go",
@@ -90,6 +89,10 @@ go_library(
         "//gazelle/zig:__pkg__",
     ],
     deps = [
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/tsx",
+        "@com_github_odvcencio_gotreesitter//grammars/typescript",
         "@com_github_pmezard_go_difflib//difflib",
         "@com_github_tailscale_hujson//:hujson",
         "@gazelle//config",

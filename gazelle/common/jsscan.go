@@ -1,60 +1,128 @@
 package common
 
 import (
+	"bytes"
 	"path"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/tsx"
+	"github.com/odvcencio/gotreesitter/grammars/typescript"
 )
 
+var (
+	tsxGrammar = sync.OnceValue(func() *ts.Language { return tsx.Language() })
+	tsGrammar  = sync.OnceValue(func() *ts.Language { return typescript.Language() })
+)
+
+// Scan calls add with each module spec src imports, exports from or requires.
 func Scan(src []byte, add func(string)) {
-	n := len(src)
-	i := 0
-	for i < n {
-		c := src[i]
-		if np, ok := skipComment(src, i); ok {
-			i = np
-			continue
+	src = bytes.TrimPrefix(src, []byte("\xef\xbb\xbf"))
+	tree := treesitter.Parse(tsxGrammar(), src)
+	defer tree.Release()
+	lang := tsxGrammar()
+	if tree.HasError {
+		alt := treesitter.Parse(tsGrammar(), src)
+		defer alt.Release()
+		if !alt.HasError {
+			tree, lang = alt, tsGrammar()
 		}
-		if c == '\'' || c == '"' {
-			i = skipQuoted(src, i)
-			continue
-		}
-		if c == '`' {
-			i = skipTemplate(src, i)
-			continue
-		}
-		if c == '/' && isRegexStart(src, i) {
-			i = skipRegex(src, i)
-			continue
-		}
-		if isIdentStart(c) {
-			j := i + 1
-			for j < n && isIdentChar(src[j]) {
-				j++
-			}
-			word := string(src[i:j])
-			switch word {
-			case "import":
-				i = parseImport(src, j, add)
-				continue
-			case "export":
-				i = parseExport(src, j, add)
-				continue
-			case "require":
-				if isPrecededByDot(src, i) {
-					i = j
-					continue
-				}
-				i = parseRequire(src, j, add)
-				continue
-			}
-			i = j
-			continue
-		}
-		i++
 	}
+	if tree.Root == nil {
+		return
+	}
+	emit := func(n *treesitter.Node) {
+		if spec, _, ok := parseQuoted(src, int(n.StartByte())); ok {
+			add(spec)
+		}
+	}
+	treesitter.Walk(tree.Root, func(n *treesitter.Node) bool {
+		switch n.Type(lang) {
+		case "import_statement", "export_statement":
+			if s := n.ChildByFieldName("source", lang); s != nil {
+				if !n.HasError() && s.Type(lang) == "string" {
+					emit(s)
+				}
+			} else if n.Type(lang) == "export_statement" {
+				if s := exportRepair(n, src, lang); s != nil {
+					emit(s)
+				}
+			}
+		case "import_require_clause":
+			if s := n.ChildByFieldName("source", lang); s != nil && !n.HasError() && s.Type(lang) == "string" {
+				emit(s)
+			}
+		case "call_expression":
+			if s := callSpec(n, src, lang); s != nil {
+				emit(s)
+			}
+		}
+		return true
+	})
 }
+
+func callSpec(n *treesitter.Node, src []byte, lang *ts.Language) *treesitter.Node {
+	fn := n.ChildByFieldName("function", lang)
+	args := n.ChildByFieldName("arguments", lang)
+	if fn == nil || args == nil || args.HasError() || args.NamedChildCount() != 1 {
+		return nil
+	}
+	if t := fn.Type(lang); t != "import" && (t != "identifier" || treesitter.Text(fn, src) != "require") {
+		return nil
+	}
+	if a := args.NamedChild(0); a.Type(lang) == "string" {
+		return a
+	}
+	return nil
+}
+
+// exportRepair finds the spec of two valid forms the grammars split apart:
+// export import x = require("a") and an export clause whose from sits on the
+// next line.
+func exportRepair(n *treesitter.Node, src []byte, lang *ts.Language) *treesitter.Node {
+	count := n.NamedChildCount()
+	if count == 0 {
+		return nil
+	}
+	last := n.NamedChild(count - 1)
+	next := n.NextSibling()
+	if next == nil || next.Type(lang) != "expression_statement" {
+		return nil
+	}
+	switch last.Type(lang) {
+	case "import_alias":
+		if last.NamedChildCount() != 2 || treesitter.Text(last.NamedChild(1), src) != "require" {
+			return nil
+		}
+		if next.NamedChildCount() != 1 || next.NamedChild(0).Type(lang) != "parenthesized_expression" {
+			return nil
+		}
+		p := next.NamedChild(0)
+		if p.NamedChildCount() != 1 || p.NamedChild(0).Type(lang) != "string" {
+			return nil
+		}
+		return p.NamedChild(0)
+	case "export_clause":
+		if next.NamedChildCount() != 1 {
+			return nil
+		}
+		id := next.NamedChild(0)
+		if id.Type(lang) != "identifier" || treesitter.Text(id, src) != "from" || next.EndByte() != id.EndByte() {
+			return nil
+		}
+		str := next.NextSibling()
+		if str == nil || str.Type(lang) != "expression_statement" || str.NamedChildCount() != 1 || str.NamedChild(0).Type(lang) != "string" {
+			return nil
+		}
+		return str.NamedChild(0)
+	}
+	return nil
+}
+
 
 type ImportRef struct {
 	Spec string
@@ -213,183 +281,6 @@ func RefRoots(refs []ImportRef) []string {
 	return out
 }
 
-func parseImport(src []byte, pos int, add func(string)) int {
-	n := len(src)
-	p := skipTrivia(src, pos)
-	if p < n && src[p] == '.' {
-		return p + 1
-	}
-	if p < n && src[p] == '(' {
-		p++
-		p = skipTrivia(src, p)
-		if p < n && (src[p] == '\'' || src[p] == '"') {
-			if spec, next, ok := parseQuoted(src, p); ok {
-				q := skipTrivia(src, next)
-				if q < n && src[q] == ')' {
-					add(spec)
-					return q + 1
-				}
-				return next
-			}
-			return p + 1
-		}
-		return p
-	}
-	if np, ok := parseImportEquals(src, p, add); ok {
-		return np
-	}
-	if hasWordAt(src, p, "type") {
-		p = skipTrivia(src, p+4)
-		if np, ok := parseImportEquals(src, p, add); ok {
-			return np
-		}
-	}
-	if p < n && (src[p] == '\'' || src[p] == '"') {
-		if spec, next, ok := parseQuoted(src, p); ok {
-			add(spec)
-			return next
-		}
-		return p + 1
-	}
-	for p < n {
-		if np, ok := skipComment(src, p); ok {
-			p = np
-			continue
-		}
-		if src[p] == '\'' || src[p] == '"' {
-			p = skipQuoted(src, p)
-			continue
-		}
-		if src[p] == '`' {
-			p = skipTemplate(src, p)
-			continue
-		}
-		if src[p] == ';' {
-			return p + 1
-		}
-		if src[p] == '\n' {
-			p++
-			continue
-		}
-		if isIdentStart(src[p]) {
-			j := p + 1
-			for j < n && isIdentChar(src[j]) {
-				j++
-			}
-			if string(src[p:j]) == "from" {
-				q := skipTrivia(src, j)
-				if q < n && (src[q] == '\'' || src[q] == '"') {
-					if spec, next, ok := parseQuoted(src, q); ok {
-						add(spec)
-						return next
-					}
-					return q + 1
-				}
-				return j
-			}
-			p = j
-			continue
-		}
-		p++
-	}
-	return p
-}
-
-func parseExport(src []byte, pos int, add func(string)) int {
-	n := len(src)
-	p := skipTrivia(src, pos)
-	if hasWordAt(src, p, "type") {
-		p = skipTrivia(src, p+4)
-	}
-	if hasWordAt(src, p, "import") {
-		return parseImport(src, p+6, add)
-	}
-	depth := 0
-	for p < n {
-		if np, ok := skipComment(src, p); ok {
-			p = np
-			continue
-		}
-		if src[p] == '\'' || src[p] == '"' {
-			p = skipQuoted(src, p)
-			continue
-		}
-		if src[p] == '`' {
-			p = skipTemplate(src, p)
-			continue
-		}
-		if src[p] == '{' {
-			depth++
-			p++
-			continue
-		}
-		if src[p] == '}' {
-			if depth > 0 {
-				depth--
-			}
-			p++
-			continue
-		}
-		if src[p] == ';' || src[p] == '\n' {
-			if src[p] == ';' {
-				return p + 1
-			}
-			if depth > 0 {
-				p++
-				continue
-			}
-			q := skipTrivia(src, p)
-			if hasWordAt(src, q, "from") {
-				p = q
-				continue
-			}
-			return q
-		}
-		if isIdentStart(src[p]) {
-			j := p + 1
-			for j < n && isIdentChar(src[j]) {
-				j++
-			}
-			if string(src[p:j]) == "from" {
-				q := skipTrivia(src, j)
-				if q < n && (src[q] == '\'' || src[q] == '"') {
-					if spec, next, ok := parseQuoted(src, q); ok {
-						add(spec)
-						return next
-					}
-					return q + 1
-				}
-				return j
-			}
-			p = j
-			continue
-		}
-		p++
-	}
-	return p
-}
-
-func parseRequire(src []byte, pos int, add func(string)) int {
-	n := len(src)
-	p := skipTrivia(src, pos)
-	if p >= n || src[p] != '(' {
-		return pos
-	}
-	p++
-	p = skipTrivia(src, p)
-	if p < n && (src[p] == '\'' || src[p] == '"') {
-		if spec, next, ok := parseQuoted(src, p); ok {
-			q := skipTrivia(src, next)
-			if q < n && src[q] == ')' {
-				add(spec)
-				return q + 1
-			}
-			return next
-		}
-		return p + 1
-	}
-	return p
-}
 
 // skipComment reports whether a comment starts at p and returns the index just
 // past it. A line comment stops at the newline; an unclosed block comment runs
@@ -419,25 +310,6 @@ func skipComment(src []byte, p int) (int, bool) {
 	return p, false
 }
 
-func parseImportEquals(src []byte, p int, add func(string)) (int, bool) {
-	n := len(src)
-	if p >= n || !isIdentStart(src[p]) {
-		return p, false
-	}
-	j := p + 1
-	for j < n && isIdentChar(src[j]) {
-		j++
-	}
-	q := skipTrivia(src, j)
-	if q >= n || src[q] != '=' || (q+1 < n && src[q+1] == '=') {
-		return p, false
-	}
-	r := skipTrivia(src, q+1)
-	if hasWordAt(src, r, "require") {
-		return parseRequire(src, r+7, add), true
-	}
-	return r, true
-}
 
 func skipTrivia(src []byte, pos int) int {
 	n := len(src)
@@ -591,24 +463,6 @@ func skipRegex(src []byte, pos int) int {
 	return n
 }
 
-func hasWordAt(src []byte, pos int, word string) bool {
-	if pos+len(word) > len(src) {
-		return false
-	}
-	if string(src[pos:pos+len(word)]) != word {
-		return false
-	}
-	after := pos + len(word)
-	return after >= len(src) || !isIdentChar(src[after])
-}
-
-func isPrecededByDot(src []byte, pos int) bool {
-	j := pos - 1
-	for j >= 0 && (src[j] == ' ' || src[j] == '\t' || src[j] == '\r' || src[j] == '\n') {
-		j--
-	}
-	return j >= 0 && src[j] == '.'
-}
 
 func isIdentStart(c byte) bool {
 	return c == '_' || c == '$' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
@@ -616,4 +470,76 @@ func isIdentStart(c byte) bool {
 
 func isIdentChar(c byte) bool {
 	return isIdentStart(c) || (c >= '0' && c <= '9')
+}
+
+// IncompleteJS is framing-only (it finds where an MDX ESM block ends; ScanEmbedded reads imports).
+// It reports whether src ends inside an open bracket, template
+// literal, or block comment, so later lines could still complete it.
+func IncompleteJS(src []byte) bool {
+	n := len(src)
+	var stack []byte
+	i := 0
+	for i < n {
+		c := src[i]
+		if len(stack) > 0 && stack[len(stack)-1] == '`' {
+			switch {
+			case c == '\\':
+				i += 2
+			case c == '`':
+				stack = stack[:len(stack)-1]
+				i++
+			case c == '$' && i+1 < n && src[i+1] == '{':
+				stack = append(stack, '}')
+				i += 2
+			default:
+				i++
+			}
+			continue
+		}
+		switch {
+		case c == '/' && i+1 < n && src[i+1] == '/':
+			for i < n && src[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < n && src[i+1] == '*':
+			end := bytes.Index(src[i+2:], []byte("*/"))
+			if end < 0 {
+				return true
+			}
+			i += end + 4
+		case c == '\'' || c == '"':
+			i = skipQuoted(src, i)
+		case c == '/' && isRegexStart(src, i):
+			i = skipRegex(src, i)
+		case c == '`':
+			stack = append(stack, '`')
+			i++
+		case c == '(':
+			stack = append(stack, ')')
+			i++
+		case c == '[':
+			stack = append(stack, ']')
+			i++
+		case c == '{':
+			stack = append(stack, '}')
+			i++
+		case len(stack) > 0 && c == stack[len(stack)-1]:
+			stack = stack[:len(stack)-1]
+			i++
+		default:
+			i++
+		}
+	}
+	return len(stack) > 0
+}
+
+// ScanEmbedded calls add with each module spec an embedded script imports.
+func ScanEmbedded(src []byte, add func(string)) { Scan(src, add) }
+
+func isPrecededByDot(src []byte, pos int) bool {
+	j := pos - 1
+	for j >= 0 && (src[j] == ' ' || src[j] == '\t' || src[j] == '\r' || src[j] == '\n') {
+		j--
+	}
+	return j >= 0 && src[j] == '.'
 }

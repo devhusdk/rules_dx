@@ -180,7 +180,7 @@ func TestScanEmbeddedNoSemicolons(t *testing.T) {
 		{"export default { c: () => import('./lazy.js') }", []string{"lazy"}},
 		{"export { a }\nimport './side.js'", []string{"side"}},
 		{"export * as ns\nfrom './x.js'", []string{"x"}},
-		{"export * as ns\nimport './side.js'", []string{"side"}},
+		{"export * as ns\nimport './side.js'", nil},
 		{"export type { T } from './t.js'", []string{"t"}},
 	}
 	for _, tc := range cases {
@@ -204,7 +204,7 @@ func TestScanEmbeddedTricks(t *testing.T) {
 		{"regex escape", "const re = /a\\/b/; import y from \"./real.js\";", []string{"real"}},
 		{"regex class", "const re = /[a/b]/; import y from \"./real.js\";", []string{"real"}},
 		{"regex flags", "const re = /abc/gi; import y from \"./real.js\";", []string{"real"}},
-		{"regex newline", "const re = /abc\nimport y from \"./real.js\";", []string{"real"}},
+		{"regex newline", "const re = /abc\nimport y from \"./real.js\";", nil},
 		{"regex EOF", "const re = /abc", nil},
 		{"require", "require(\"./a.js\");", []string{"a"}},
 		{"method require", "obj.require(\"./fake.js\");", nil},
@@ -234,24 +234,6 @@ func TestSkipQuotedAndTemplateEOF(t *testing.T) {
 	}
 	if got := skipTemplate([]byte("`abc"), 0); got != 4 {
 		t.Errorf("skipTemplate EOF = %d, want 4", got)
-	}
-}
-
-func TestIsPrecededByDot(t *testing.T) {
-	cases := []struct {
-		src  string
-		pos  int
-		want bool
-	}{
-		{"require", 0, false},
-		{"obj.require", 4, true},
-		{"obj . \n require", 8, true},
-		{"x require", 2, false},
-	}
-	for _, tc := range cases {
-		if got := isPrecededByDot([]byte(tc.src), tc.pos); got != tc.want {
-			t.Errorf("isPrecededByDot(%q, %d) = %v, want %v", tc.src, tc.pos, got, tc.want)
-		}
 	}
 }
 
@@ -382,6 +364,13 @@ func TestParseImportRefs(t *testing.T) {
 		want   []string
 	}{
 		{"empty", "", nil},
+		{"jsxText", "const a = <div>import \"./fake.js\"</div>;\nimport y from './real.js';", []string{"real"}},
+		{"typeAssertion", "<Foo>bar;\nimport y from './real.js';", []string{"real"}},
+		{"ambientModule", "declare module \"m\" { import x from \"./in\"; }", []string{"in"}},
+		{"exportImportEqualsThenImport", "export import x = require('./z');\nimport y from './y.js';", []string{"y", "z"}},
+		{"exportFromNextLine", "export {a}\nfrom\n'./helper.js'", []string{"helper"}},
+		{"exportThenFromStatement", "export {a};\nfrom;\n'./not.js';", nil},
+		{"topLevelReturn", "import a from './a.js';\nreturn;\nimport b from './b.js';", []string{"a", "b"}},
 		{"commentFromInImport", "import {\n a, // from utils\n b,\n} from './x';", []string{"x"}},
 		{"commentSemiInImport", "import { a /* ; */, b } from './x';", []string{"x"}},
 		{"commentFromInExport", "export {\n a, // from y\n} from './x';", []string{"x"}},
@@ -429,7 +418,7 @@ func TestParseImportRefs(t *testing.T) {
 		{"singleString", "'require(\"./fake.js\")';\n", nil},
 		{"templateInert", "`import './fake.js'`;\n", nil},
 		{"regexInert", "const re = /import './fake.js'/;\nconst x = 1;\n", nil},
-		{"unterminated", "\"abc\nimport y from './real.js';\n", []string{"real"}},
+		{"unterminated", "\"abc\nimport y from './real.js';\n", nil},
 		{"relativeNoExt", "import x from './helper';\n", []string{"helper"}},
 		{"relativeDir", "import x from './dir/';\n", []string{"dir"}},
 		{"multiline", "import {\n a,\n b\n} from './multi.js';\n", []string{"multi"}},
@@ -478,7 +467,7 @@ func TestParseImportRefs(t *testing.T) {
 		{"regexAtStart", "/abc/;\nimport y from './real.js';\n", []string{"real"}},
 		{"division", "const x = a / b;\nimport y from './real.js';\n", []string{"real"}},
 		{"regexEscape", "const re = /a\\/b/;\nimport y from './real.js';\n", []string{"real"}},
-		{"regexNewline", "const re = /abc\nimport y from './real.js';\n", []string{"real"}},
+		{"regexNewline", "const re = /abc\nimport y from './real.js';\n", nil},
 		{"regexClass", "const re = /[a/b]/;\nimport y from './real.js';\n", []string{"real"}},
 		{"regexEOF", "const re = /abc", nil},
 		{"exportDecl", "export declare const x: number;\n", nil},

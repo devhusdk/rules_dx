@@ -1,0 +1,7 @@
+.bazelrc
+BUILD.bazel
+README.md
+bin/hello.php
+src/Hello/Greeter.php
+test/GreeterTest.php
+bazel_dep rules_dx

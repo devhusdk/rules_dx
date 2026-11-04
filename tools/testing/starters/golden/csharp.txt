@@ -1,0 +1,6 @@
+BUILD.bazel
+Hello.cs
+HelloTest.cs
+Program.cs
+README.md
+bazel_dep rules_dx

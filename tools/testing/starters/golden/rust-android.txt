@@ -1,0 +1,10 @@
+.bazelrc
+BUILD.bazel
+Cargo.toml
+MODULE.bazel
+README.md
+activity.c
+res/values/strings.xml
+src/lib.rs
+bazel_dep rules_dx
+bazel_dep rules_rust

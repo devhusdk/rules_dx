@@ -1,0 +1,7 @@
+.bazelrc
+BUILD.bazel
+README.md
+bin/hello.pl
+lib/Hello.pm
+t/hello.t
+bazel_dep rules_dx

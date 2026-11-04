@@ -1,0 +1,7 @@
+.bazelrc
+BUILD.bazel
+README.md
+hello.f90
+hello_test.f90
+main.f90
+bazel_dep rules_dx

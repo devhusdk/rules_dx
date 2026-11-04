@@ -1,0 +1,6 @@
+.bazelrc
+BUILD.bazel
+README.md
+hello.d
+main.d
+bazel_dep rules_dx

@@ -79,6 +79,13 @@ def node_test_upstream_data(upstream_data, package_json, label_key):
     data.append(package_json)
     return data
 
+def node_test_upstream_kwargs(kwargs):
+    """Returns the kwargs for the upstream test, without those it sets itself."""
+    upstream_kwargs = dx_test_upstream_kwargs(kwargs)
+    upstream_kwargs.pop("aspect_hints", None)
+    upstream_kwargs.pop("testonly", None)
+    return upstream_kwargs
+
 def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, package_json, upstream_attrs, env_inherit, visibility, kwargs):
     """Declares the manual upstream Node test and its forwarder."""
     effective_env = node_test_env(env_inherit)
@@ -91,8 +98,7 @@ def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, packa
     if label_error != None:
         fail(label_error)
     data = node_test_upstream_data(upstream_data, package_json, native.package_relative_label)
-    upstream_kwargs = dx_test_upstream_kwargs(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
+    upstream_kwargs = node_test_upstream_kwargs(kwargs)
     upstream_rule(
         name = name + "_upstream",
         data = data,

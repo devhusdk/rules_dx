@@ -5,7 +5,7 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load(":defs.bzl", "JAVASCRIPT_WINDOWS_JEST_CONFIG", "javascript_binary_upstream_data", "javascript_needs_default_jest_config", "javascript_test_rejection")
-load(":node_test.bzl", "node_test_env", "node_test_upstream_data")
+load(":node_test.bzl", "node_test_env", "node_test_upstream_data", "node_test_upstream_kwargs")
 
 def javascript_wrapper_contract_tests(name):
     """Instantiates JavaScript wrapper contract tests."""
@@ -57,6 +57,21 @@ def javascript_wrapper_contract_tests(name):
                 "node with ordinary kwargs is clean",
                 javascript_test_rejection("node", None, "main.js", {"node_options": ["--experimental-vm-modules"], "env": {"DX_PLAIN": "1"}}),
                 None,
+            ),
+            expect_equal(
+                "upstream kwargs drop testonly",
+                "testonly" in node_test_upstream_kwargs({"testonly": True, "size": "medium"}),
+                False,
+            ),
+            expect_equal(
+                "upstream kwargs keep size",
+                node_test_upstream_kwargs({"testonly": True, "size": "medium"})["size"],
+                "medium",
+            ),
+            expect_equal(
+                "upstream kwargs drop aspect_hints",
+                "aspect_hints" in node_test_upstream_kwargs({"aspect_hints": ["x"]}),
+                False,
             ),
             expect_equal(
                 "jest without a config gets the Windows default",

@@ -4,8 +4,7 @@
 //! compared, so transitive raises are not seen; a note says so.
 //!
 //! The "after" versions come from `modules/consumer_graph.json`: every module a fresh dx
-//! consumer resolves to, transitive ones included, checked against real Bazel resolution
-//! by `//modules:floor_graph_test`. Bazel selects the highest version any module requires
+//! consumer resolves to, transitive ones included. Bazel selects the highest version any module requires
 //! (minimal version selection), so the user's graph plus dx resolves to at least the higher
 //! of the user's version and the table's. Combining the two graphs is an approximation: a
 //! raise can be under-reported, never invented.

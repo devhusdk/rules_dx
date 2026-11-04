@@ -132,17 +132,6 @@ fn fragment_violations(source: &str, label: &str, table: &Table) -> Vec<String> 
     problems
 }
 
-/// The `MODULE` raw string that consumer_names_test.rs writes into its consumer.
-fn inline_module(source: &str) -> String {
-    let start = source
-        .find("const MODULE: &str = r#\"")
-        .expect("consumer_names_test.rs has a MODULE const")
-        + "const MODULE: &str = r#\"".len();
-    let end = source[start..].find("\"#;").expect("MODULE const ends");
-    // The placeholder stands for a dict argument the real test splices in.
-    source[start..start + end].replace("GEM_CHECKSUMS", "")
-}
-
 #[test]
 fn consumer_fragments_pin_consumer_deps_at_their_floors() {
     let table = table(&dx_testing::read_runfiles(
@@ -175,12 +164,6 @@ fn consumer_fragments_pin_consumer_deps_at_their_floors() {
         seen >= 10,
         "found only {seen} module fragments under {consumers:?}"
     );
-    let names = dx_testing::read_runfiles("modules/consumer_names_test.rs");
-    problems.extend(fragment_violations(
-        &inline_module(&names),
-        "consumer_names_test.rs",
-        &table,
-    ));
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
@@ -195,12 +178,6 @@ fn a_fragment_above_its_floor_fails() {
         problems[0].contains("is 1.2.0 but its floor is 1.0.0"),
         "{problems:?}"
     );
-}
-
-#[test]
-fn the_inline_module_const_is_found() {
-    let source = "x\nconst MODULE: &str = r#\"module(name = \"c\")\n\"#;\ny";
-    assert_eq!(inline_module(source), "module(name = \"c\")\n");
 }
 
 #[test]

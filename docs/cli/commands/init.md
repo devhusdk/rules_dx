@@ -178,9 +178,7 @@ and writes nothing. Sections:
   does not import the layers while the root file repeats them, so drop the line.
 
 The "after" versions include transitive ones. `modules/consumer_graph.json` lists every module
-a fresh dx consumer resolves to; `//modules:floor_graph_test` re-resolves that graph with
-`bazel mod graph` in CI and fails when the file drifts, printing the new content (set
-`DX_WRITE_CONSUMER_GRAPH=<path>` to write it). Bazel picks the highest version any module
+a fresh dx consumer resolves to. Bazel picks the highest version any module
 requires (<https://bazel.build/external/module#version-selection>), so your graph plus dx
 resolves to at least the higher of your version and the file's. This is an approximation of a
 real resolution: a raise can be under-reported, never invented. dx does not run Bazel on a copy

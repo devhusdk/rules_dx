@@ -55,31 +55,17 @@ is what it is. Tools parse that marker, so keep it as written. Use
 
 rules_dx is a non-root module in every consumer, so its root-only
 `single_version_override`s do not apply there and a consumer resolves the floors.
-Three checks cover that:
-
-- `//modules:floor_graph_test` runs `dx init` in a scratch consumer and asserts
-  through `bazel mod graph` that every table dep resolves at its floor. When one
-  resolves higher, the failure names the module that requested that version.
-  It runs on every PR in the `network` job of `ci`. Patched deps are skipped,
-  because the `dx init` include pins them.
-- `//modules:consumer_deps_test` also keeps the hermetic consumer
-  `module_fragment.bazel` files and the inline module of `consumer_names_test.rs`
-  from pinning a consumer dep above its floor, which would hide a lowered floor.
+`//modules:consumer_deps_test` keeps the hermetic consumer `module_fragment.bazel`
+files from pinning a consumer dep above its floor, which would hide a lowered floor.
 
 ### Trying a lower floor
 
 Set `DX_CONSUMER_OVERRIDES=<module>=<version>,...` to resolve candidate versions
-instead. Each one becomes the expected version, is written as a root
-`single_version_override`, and rewrites the consumer's own `bazel_dep` of that
-module. Locally:
-
-    bazel test //modules:floor_graph_test --test_tag_filters= \
-      --test_env=DX_CONSUMER_OVERRIDES=rules_shell=0.6.1
-
-Patched modules cannot be overridden. The procedure for a floor search is: list the module's versions in
+instead. The harness writes each one as a root `single_version_override` and rewrites
+the consumer's own `bazel_dep` of that module. The procedure for a floor search is: list the module's versions in
 the BCR, step down one release at a time, check that the `.bzl` files rules_dx
 loads from it still find the symbols they need, and keep the lowest version that
-passes the graph check and the consumer suites. Record why in the `# floor:`
+passes the consumer suites. Record why in the `# floor:`
 comment with `dx update ... --floor --reason`. Skip dev-only and patched deps.
 
 To run the hermetic consumer suites at candidate versions, add

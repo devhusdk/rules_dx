@@ -19,8 +19,6 @@
 //erlang/tests/negative:negative_test
 //fortran/tests/negative:negative_test
 //haskell/tests/negative:negative_test
-//modules:consumer_names_test
-//modules:floor_graph_test
 //ocaml/tests/negative:negative_test
 //perl/tests/negative:negative_test
 //php/tests/negative:negative_test

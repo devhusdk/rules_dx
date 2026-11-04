@@ -786,3 +786,20 @@ func TestImportsIndexesDottedModules(t *testing.T) {
 		t.Errorf("imports = %v", got)
 	}
 }
+
+func TestGenerateNonASCIIModules(t *testing.T) {
+	names := []string{"данные.py", "utils.py", "数据_util.py", "工具_util.py"}
+	files := map[string]string{}
+	for _, n := range names {
+		files["pkg/demo/"+n] = "x = 1\n"
+	}
+	result := generateFixture(t, files, names)
+	var got []string
+	for _, r := range result.Gen {
+		got = append(got, r.Name())
+	}
+	want := []string{"utils", "данные", "工具_util", "数据_util"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("targets = %v, want %v", got, want)
+	}
+}

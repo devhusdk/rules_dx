@@ -22,9 +22,26 @@ pub fn start_time(pid: u32) -> Option<String> {
 /// The start time of `pid` as an opaque string, or `None` when it cannot be read.
 #[cfg(all(unix, not(target_os = "linux")))]
 pub fn start_time(pid: u32) -> Option<String> {
-    let text = crate::probe("ps", ["-o", "lstart=", "-p", &pid.to_string()])?;
+    let output = start_time_command(pid).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
     let text = text.split_whitespace().collect::<Vec<_>>().join("_");
     (!text.is_empty()).then_some(text)
+}
+
+/// The `ps` call behind `start_time`; the C locale keeps its text the same for every caller.
+#[cfg(all(unix, not(target_os = "linux")))]
+fn start_time_command(pid: u32) -> std::process::Command {
+    let mut command = std::process::Command::new("ps");
+    command
+        .args(["-o", "lstart=", "-p", &pid.to_string()])
+        .env("LC_ALL", "C")
+        .env("LANG", "C")
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    command
 }
 
 /// The id of the current boot, or `None` when the OS does not give one.

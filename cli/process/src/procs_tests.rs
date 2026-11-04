@@ -81,3 +81,12 @@ fn this_process_has_a_stable_start_time() {
     assert!(first.is_some());
     assert_eq!(first, start_time(std::process::id()));
 }
+
+#[cfg(all(unix, not(target_os = "linux")))]
+#[test]
+fn start_time_runs_ps_in_the_c_locale() {
+    let command = start_time_command(std::process::id());
+    assert!(command
+        .get_envs()
+        .any(|(key, value)| key == "LC_ALL" && value == Some(std::ffi::OsStr::new("C"))));
+}

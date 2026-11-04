@@ -337,6 +337,14 @@ fn verdict_table() {
     assert_eq!(verdict(&ok, &now), Verdict::Stop);
 }
 
+#[test]
+fn a_lease_written_in_one_locale_still_stops_its_group() {
+    let start = "Di 4 Nov 10:00:00 2026";
+    let mut now = observed();
+    now.leader = Leader::Present(start.to_owned());
+    assert_eq!(verdict(&recorded(start), &now), Verdict::Stop);
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn verdict_drops_a_dash_namespace_on_linux() {

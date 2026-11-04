@@ -454,6 +454,9 @@ register_toolchains(
     dev_dependency = True,
 )
 
+# Gated on the Haskell-only flag, so it must come before the general C toolchains.
+register_toolchains("@dx_haskell_toolchains//cc:all")
+
 register_toolchains("//cc/toolchains:gcc_linux_x86_64")
 
 register_toolchains("@llvm//toolchain:all")

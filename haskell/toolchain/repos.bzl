@@ -17,6 +17,8 @@ HUB_NAME = "dx_haskell_toolchains"
 
 TOOLCHAINS_PACKAGE = "toolchains"
 
+CC_PACKAGE = "cc"
+
 CLOSURE_DIR = "dx_closure"
 
 LIBDIR = "lib"
@@ -55,6 +57,11 @@ filegroup(
 
 filegroup(
     name = "licenses",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+filegroup(
+    name = "cc-compiler-mingw64",
     target_compatible_with = ["@platforms//:incompatible"],
 )
 """
@@ -236,7 +243,7 @@ _ROOT_BUILD = """exports_files(["LICENSE"])
 
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
+{cc_loads}load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -272,6 +279,36 @@ filegroup(
     name = "licenses",
     srcs = glob(["{closure}/licenses/*"]),
 )
+{cc}"""
+
+# The bundled mingw clang as a C toolchain. Only the hub's gated toolchain()
+# entries select it. Loads sit at the top of the generated file.
+_MINGW_CC_LOADS = """load("@rules_cc//cc:cc_toolchain.bzl", "cc_toolchain")
+load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
+"""
+
+_MINGW_CC_BUILD = """
+filegroup(
+    name = "mingw",
+    srcs = glob(["mingw/**"]),
+)
+
+cc_toolchain(
+    name = "cc-compiler-mingw64",
+    all_files = ":mingw",
+    ar_files = ":mingw",
+    as_files = ":mingw",
+    compiler_files = ":mingw",
+    dwp_files = ":mingw",
+    linker_files = ":mingw",
+    objcopy_files = ":mingw",
+    strip_files = ":mingw",
+    supports_param_files = 0,
+    toolchain_config = ":ghc_windows_mingw64_config",
+    toolchain_identifier = "ghc_windows_mingw64",
+)
+
+cc_toolchain_config(name = "ghc_windows_mingw64_config", is_clang = True)
 """
 
 _GMP_IMPORT = """cc_import(
@@ -291,6 +328,16 @@ _TOOLCHAIN = """toolchain(
     target_compatible_with = {constraints},
     toolchain = "@{repo}//:toolchain-impl",
     toolchain_type = "{toolchain_type}",
+)
+"""
+
+_CC_TOOLCHAIN = """toolchain(
+    name = "{cell}",
+    exec_compatible_with = {constraints},
+    target_compatible_with = {constraints},
+    target_settings = ["{enabled}"],
+    toolchain = "@{repo}//:cc-compiler-mingw64",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 """
 
@@ -426,9 +473,14 @@ def _ghc_repo_impl(rctx):
     result = json.decode(_execute(rctx, [python, "-E", "-s", "-B", script, rctx.name, LIBDIR]).stdout)
     if "#SYMLINK:" in result["file_content"]:
         fail("GHC package database points outside the bindist")
+    mingw_cc = getattr(cell, "mingw_cc", False)
+    if mingw_cc and not rctx.path("mingw/bin/clang.exe").exists:
+        fail("Windows bindist ships no mingw/bin/clang.exe")
     rctx.file(VERSION_FILE, GHC_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _GHC_BUILD.format(
+        cc = _MINGW_CC_BUILD if mingw_cc else "",
+        cc_loads = _MINGW_CC_LOADS if mingw_cc else "",
         closure = CLOSURE_DIR,
         gmp = (_GMP_IMPORT if cell.runtime else _GMP_EMPTY).format(closure = CLOSURE_DIR),
         libdir = LIBDIR,
@@ -449,21 +501,28 @@ _ghc_repo = repository_rule(
     },
 )
 
-def hub_files():
-    """Returns the hub files: the toolchains package and the root runtime closure aliases."""
+def hub_files(cells = CELLS):
+    """Returns the hub files: the toolchains, cc toolchains and the root runtime closure aliases.
+
+    Args:
+        cells: The cell table, so tests can unblock a cell.
+
+    Returns:
+        A dict from hub file path to its content.
+    """
     toolchains = []
     content = []
     arms = []
-    for cell in qualified_cells():
+    for cell in qualified_cells(cells):
         toolchains.append(_TOOLCHAIN.format(
             cell = cell,
-            constraints = repr(CELLS[cell].exec_compatible_with),
+            constraints = repr(cells[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
             toolchain_type = str(Label("//haskell/toolchain/type:toolchain")),
         ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
             cell,
-            repr(CELLS[cell].exec_compatible_with),
+            repr(cells[cell].exec_compatible_with),
         ))
         arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, cell_repository_name(cell)))
     for name in ["gmp", "licenses"]:
@@ -471,9 +530,20 @@ def hub_files():
     for name in COMMON_LIBRARIES:
         content.append("haskell_toolchain_library(name = \"{}\")\n".format(name))
     for name in os_libraries():
-        compatible = [cell for cell in qualified_cells() if name in CELLS[cell].os_libraries]
+        compatible = [cell for cell in qualified_cells(cells) if name in cells[cell].os_libraries]
         content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
+    cc_toolchains = [
+        _CC_TOOLCHAIN.format(
+            cell = cell,
+            constraints = repr(cells[cell].exec_compatible_with),
+            repo = cell_repository_name(cell),
+            enabled = str(Label("//haskell/toolchain:ghc_mingw_enabled")),
+        )
+        for cell in qualified_cells(cells)
+        if getattr(cells[cell], "mingw_cc", False)
+    ]
     return {
+        CC_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(cc_toolchains),
         "BUILD.bazel": "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content),
         TOOLCHAINS_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains),
     }

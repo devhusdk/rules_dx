@@ -30,6 +30,11 @@ library-dirs: ${pkgroot}/../lib/{triple}-ghc-9.10.3/ghc-bignum-1.3-0000
 dynamic-library-dirs: ${pkgroot}/../lib/{triple}-ghc-9.10.3
 extra-libraries: gmp"""
 
+def _unblocked_windows():
+    cells = dict(CELLS)
+    cells["windows_x86_64"] = struct(**dict([(key, getattr(CELLS["windows_x86_64"], key)) for key in dir(CELLS["windows_x86_64"]) if key != "blocker"] + [("blocker", "")]))
+    return cells
+
 def _version_at_least(version, floor):
     return [int(part) for part in version.split(".")] >= [int(part) for part in floor.split(".")]
 
@@ -76,6 +81,9 @@ def _checks():
         expect_true("windows host runs the windows cell", cell_matches_host("windows_x86_64", "windows server 2022", "amd64")),
         expect_false("linux never runs the windows cell", cell_matches_host("windows_x86_64", "linux", "amd64")),
         expect_false("blocked windows cell gets no hub target", "windows_x86_64" in hub_files()["toolchains/BUILD.bazel"]),
+        expect_false("blocked windows cell gets no cc toolchain", "toolchain(" in hub_files()["cc/BUILD.bazel"]),
+        expect_contains("unblocked windows cell gets a gated cc toolchain", hub_files(_unblocked_windows())["cc/BUILD.bazel"], "target_settings = [\"@@//haskell/toolchain:ghc_mingw_enabled\"]"),
+        expect_equal("unblocked windows cell is the only cc toolchain", hub_files(_unblocked_windows())["cc/BUILD.bazel"].count("toolchain("), 1),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),

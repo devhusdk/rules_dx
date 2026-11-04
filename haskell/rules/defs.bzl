@@ -3,6 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:defs.bzl", _haskell_binary = "haskell_binary", _haskell_library = "haskell_library", _haskell_test = "haskell_test")
 load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCoverageInfo", _HaskellInfo = "HaskellInfo", _HaskellLibraryInfo = "HaskellLibraryInfo")
+load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
@@ -35,6 +36,7 @@ _haskell_library_forward = dx_library_forward_rule(
     upstream_providers = [[_HaskellInfo, _HaskellLibraryInfo]],
     quiet_providers = [_HaskellCoverageInfo],
     runtime = "besteffort",
+    upstream_cfg = ghc_mingw_transition,
 )
 
 _haskell_forward_binary = dx_executable_forward_rule(
@@ -47,6 +49,7 @@ _haskell_forward_binary = dx_executable_forward_rule(
     upstream_providers = None,
     quiet_providers = [_HaskellInfo],
     runtime = "besteffort",
+    upstream_cfg = ghc_mingw_transition,
 )
 
 _haskell_forward_test = dx_executable_forward_rule(
@@ -59,6 +62,7 @@ _haskell_forward_test = dx_executable_forward_rule(
     upstream_providers = None,
     quiet_providers = [_HaskellInfo],
     runtime = "besteffort",
+    upstream_cfg = ghc_mingw_transition,
 )
 
 def upstream_kwargs(kwargs):

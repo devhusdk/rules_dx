@@ -102,7 +102,7 @@ CELLS = {
         gmp_license = _GMP_LICENSE,
     ),
     "windows_x86_64": struct(
-        blocker = "mingw toolchain and Windows runtime not qualified yet (#5956, #5957)",
+        blocker = "Windows runtime DLLs and native test run not qualified yet (#5957)",
         exe_suffix = ".exe",
         os_libraries = ["Win32"],
         ghc_libdir_triple = "x86_64-windows",
@@ -117,6 +117,7 @@ CELLS = {
         runtime = [],
         # GMP is linked statically into the Windows bindist.
         gmp_license = _GMP_LICENSE,
+        mingw_cc = True,
     ),
 }
 

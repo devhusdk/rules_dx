@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//libs/starlark:cells.bzl", "cell_settings")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "haskell_metadata_tests")
@@ -9,6 +10,7 @@ exports_files([
     "metadata_tests.bzl",
     "pins.bzl",
     "repos.bzl",
+    "transition.bzl",
 ])
 
 cell_settings(
@@ -17,6 +19,16 @@ cell_settings(
 )
 
 haskell_metadata_tests(name = "metadata")
+
+bool_flag(
+    name = "ghc_mingw",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "ghc_mingw_enabled",
+    flag_values = {":ghc_mingw": "True"},
+)
 
 # Consumers cannot see @dx_haskell_toolchains, so they depend on this alias.
 alias(
@@ -62,6 +74,7 @@ real_source_target(
         "metadata_tests.bzl",
         "pins.bzl",
         "repos.bzl",
+        "transition.bzl",
     ],
     tags = ["corpus"],
 )

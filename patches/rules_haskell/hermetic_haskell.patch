@@ -347,6 +347,59 @@ index f98b9e5..49db94d 100644
      ],
      doc = """Extend LibraryToLink of C dependencies for GHC compatibility
  
+diff --git a/haskell/private/cc_wrapper.bzl b/haskell/private/cc_wrapper.bzl
+index 0d3ea2f..0d338db 100644
+--- a/haskell/private/cc_wrapper.bzl
++++ b/haskell/private/cc_wrapper.bzl
+@@ -3,7 +3,6 @@ load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+ load("@rules_cc//cc:defs.bzl", "cc_common")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+ load("@rules_python//python:defs.bzl", "py_binary")
+-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+ 
+ # Note [On configuring the cc_wrapper]
+ # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+@@ -103,15 +102,6 @@ def cc_wrapper(name, **kwargs):
+             "//conditions:default": "linux",
+         }),
+     )
+-    _cc_wrapper(
+-        name = name + ".sh",
+-        template = "@rules_haskell//haskell:private/cc_wrapper_windows.sh.tpl",
+-        platform = select({
+-            "@rules_haskell//haskell/platforms:darwin": "darwin",
+-            "@rules_haskell//haskell/platforms:mingw32": "windows",
+-            "//conditions:default": "linux",
+-        }),
+-    )
+     py_binary(
+         name = name + "-python",
+         srcs = [name + ".py"],
+@@ -123,23 +113,8 @@ def cc_wrapper(name, **kwargs):
+         **kwargs
+     )
+ 
+-    # This is a workaround for py_binary being too slow on Windows.
+-    # See https://github.com/bazelbuild/bazel/issues/8981
+-    # In principle the python cc_wrapper would be sufficient for all platforms,
+-    # however, execution is too slow on Windows to be practical.
+-    sh_binary(
+-        name = name + "-bash",
+-        srcs = [name + ".sh"],
+-        deps = [
+-            "@bazel_tools//tools/bash/runfiles",
+-        ],
+-        **kwargs
+-    )
+     native.alias(
+         name = name,
+-        actual = select({
+-            "@rules_haskell//haskell/platforms:mingw32": name + "-bash",
+-            "//conditions:default": name + "-python",
+-        }),
++        actual = name + "-python",
+         **kwargs
+     )
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
 index be9fceb..860e665 100644
 --- a/haskell/private/cc_wrapper.py.tpl

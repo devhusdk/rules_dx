@@ -1,0 +1,43 @@
+load("//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
+
+rust_test(
+    name = "browser_test",
+    srcs = ["browser_test.rs"],
+    data = [
+        "//flutter/tests/fixtures/flutter-app/app:web_canvaskit",
+        "//tools/docs/site/browser:firefox",
+        "//tools/docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_BUNDLE": "$(rootpaths //flutter/tests/fixtures/flutter-app/app:web_canvaskit)",
+        "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+        "no-remote-exec",
+    ],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    deps = [
+        "//tools/docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "browser_fmt_test",
+    targets = [":browser_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

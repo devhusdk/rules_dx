@@ -21,6 +21,7 @@ class PartsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(fontFamily: 'DxSquare', package: 'flutter_app'),
       locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,

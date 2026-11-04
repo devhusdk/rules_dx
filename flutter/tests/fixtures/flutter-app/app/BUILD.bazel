@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
-load("@rules_dx//flutter/rules:defs.bzl", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test", "flutter_web_bundle")
 load("//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -64,6 +65,45 @@ flutter_application(
     main = "lib/main.dart",
     target = "web",
     deps = [":app"] + _PUB,
+)
+
+write_file(
+    name = "web_bootstrap",
+    out = "web_bootstrap/flutter_bootstrap.js",
+    content = [
+        "{{flutter_build_config}}",
+        "{",
+        '  let script = document.createElement("script");',
+        '  script.src = "flutter.js";',
+        '  script.addEventListener("load", function() {',
+        '    _flutter.loader.load({config: {fontFallbackBaseUrl: "/fonts/"}});',
+        "  });",
+        "  document.head.appendChild(script);",
+        "}",
+        "",
+    ],
+)
+
+# Firefox cannot run the default dart2wasm and skwasm output, so this bundle
+# uses dart2js and canvaskit served from the bundle itself. The bootstrap
+# sends fallback font requests to the same server instead of gstatic.
+flutter_web_bundle(
+    name = "web_canvaskit",
+    package_name = "flutter_app",
+    bootstrap_js = ":web_bootstrap",
+    compiler = "dart2js",
+    main = "lib/main.dart",
+    pwa = False,
+    renderer = "canvaskit",
+    use_local_canvaskit = True,
+    visibility = ["//flutter/tests/fixtures/flutter-app/web:__pkg__"],
+    deps = [
+        ":app",
+        "@dx_flutter_app_deps//:collection",
+        "@dx_flutter_app_deps//:flutter",
+        "@dx_flutter_app_deps//:flutter_localizations",
+        "@dx_flutter_app_deps//:intl",
+    ],
 )
 
 build_test(

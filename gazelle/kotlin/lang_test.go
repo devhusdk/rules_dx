@@ -155,7 +155,7 @@ func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.kt", "Main.kt"}
 	got := refuseFixture(t, map[string]string{
 		"pkg/demo/Demo.kt": "package demo\n\nclass Demo\n",
-		"pkg/demo/Main.kt": "package demo\n\nobject Main {\n  fun main() {}\n}\n",
+		"pkg/demo/Main.kt": "package demo\n\nobject Main {\n  @JvmStatic fun main(args: Array<String>) {}\n}\n",
 	}, regular)
 	wantRefusal(t, got, "kotlin: pkg/demo: Main.kt defines main;")
 }

@@ -212,7 +212,8 @@ func errSeparatePackage(first, second string) error {
 	return &separatePackageError{first: first, second: second}
 }
 
-// DefinesMain reports whether content declares a def main, an @main def, or an
+// DefinesMain reports whether content has an @main def, a top-level
+// def main(args: Array[String]) or one in a top-level object, or a top-level
 // object extending App.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
@@ -222,34 +223,87 @@ func DefinesMain(content []byte) bool {
 		if found {
 			return false
 		}
-		switch tree.Type(n) {
-		case "function_definition", "function_declaration":
-			for _, c := range n.Children() {
-				switch tree.Type(c) {
-				case "identifier":
-					if tree.Text(c) == "main" {
-						found = true
-					}
-				case "annotation":
-					if t := child(tree, c, "type_identifier"); t != nil && tree.Text(t) == "main" {
-						found = true
-					}
-				}
-			}
-		case "extends_clause":
-			for _, c := range n.Children() {
-				if k := tree.Type(c); k == "type_identifier" || k == "stable_type_identifier" {
-					switch named(tree, c) {
-					case "App", "scala.App", "_root_.scala.App":
-						found = true
-					}
-					break
+		if tree.Type(n) == "function_definition" {
+			if a := child(tree, n, "annotation"); a != nil {
+				if t := child(tree, a, "type_identifier"); t != nil && tree.Text(t) == "main" {
+					found = true
 				}
 			}
 		}
 		return !found
 	})
-	return found
+	if found {
+		return true
+	}
+	for _, n := range topLevel(tree, tree.Root) {
+		switch tree.Type(n) {
+		case "function_definition", "function_declaration":
+			if isMainDef(tree, n) {
+				return true
+			}
+		case "object_definition":
+			if extendsApp(tree, n) {
+				return true
+			}
+			if body := child(tree, n, "template_body"); body != nil {
+				for _, m := range body.Children() {
+					if tree.Type(m) == "function_definition" && isMainDef(tree, m) {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+// topLevel returns the compilation unit members, including those inside braced package clauses.
+func topLevel(tree *treesitter.Tree, root *treesitter.Node) []*treesitter.Node {
+	var out []*treesitter.Node
+	for _, n := range root.Children() {
+		out = append(out, n)
+		if tree.Type(n) == "package_clause" {
+			if body := child(tree, n, "template_body"); body != nil {
+				out = append(out, body.Children()...)
+			}
+		}
+	}
+	return out
+}
+
+func isMainDef(tree *treesitter.Tree, fn *treesitter.Node) bool {
+	id := child(tree, fn, "identifier")
+	params := child(tree, fn, "parameters")
+	if id == nil || params == nil || tree.Text(id) != "main" {
+		return false
+	}
+	var ps []*treesitter.Node
+	for _, c := range params.Children() {
+		if tree.Type(c) == "parameter" {
+			ps = append(ps, c)
+		}
+	}
+	if len(ps) != 1 {
+		return false
+	}
+	_, typ, ok := strings.Cut(tree.Text(ps[0]), ":")
+	return ok && strings.Join(strings.Fields(typ), "") == "Array[String]"
+}
+
+func extendsApp(tree *treesitter.Tree, obj *treesitter.Node) bool {
+	ext := child(tree, obj, "extends_clause")
+	if ext == nil {
+		return false
+	}
+	for _, c := range ext.Children() {
+		if k := tree.Type(c); k == "type_identifier" || k == "stable_type_identifier" {
+			switch named(tree, c) {
+			case "App", "scala.App", "_root_.scala.App":
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func normalizeImport(dotted string, onDemand bool) string {

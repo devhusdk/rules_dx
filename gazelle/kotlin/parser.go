@@ -130,27 +130,70 @@ func startsWithPackage(tree *treesitter.Tree, n *treesitter.Node) bool {
 	return tree.Text(n) == "package"
 }
 
-// DefinesMain reports whether content declares a function named main at any depth.
+// DefinesMain reports whether content has a top-level fun main, or a
+// @JvmStatic main inside an object or companion object.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
-	found := false
-	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
-		if found {
+	var visit func(n *treesitter.Node, top, inObject bool) bool
+	visit = func(n *treesitter.Node, top, inObject bool) bool {
+		switch tree.Type(n) {
+		case "ERROR":
 			return false
+		case "function_declaration":
+			if isMain(tree, n) && (top || inObject && hasJvmStatic(tree, n)) {
+				return true
+			}
+		case "object_declaration", "companion_object":
+			inObject = true
 		}
-		if tree.Type(n) != "function_declaration" {
-			return true
-		}
+		childTop := tree.Type(n) == "source_file"
 		for _, c := range n.Children() {
-			if tree.Type(c) == "simple_identifier" {
-				found = tree.Text(c) == "main"
-				break
+			if visit(c, childTop, inObject) {
+				return true
 			}
 		}
-		return !found
-	})
-	return found
+		return false
+	}
+	return visit(tree.Root, false, false)
+}
+
+// isMain reports whether fn is named main and is not an extension function.
+func isMain(tree *treesitter.Tree, fn *treesitter.Node) bool {
+	name := false
+	for _, c := range fn.Children() {
+		switch tree.Type(c) {
+		case "receiver_type":
+			return false
+		case "simple_identifier":
+			name = name || tree.Text(c) == "main"
+		}
+	}
+	return name
+}
+
+func hasJvmStatic(tree *treesitter.Tree, fn *treesitter.Node) bool {
+	for _, c := range fn.Children() {
+		if tree.Type(c) != "modifiers" {
+			continue
+		}
+		for _, a := range c.Children() {
+			if tree.Type(a) != "annotation" {
+				continue
+			}
+			last := ""
+			tree.Walk(a, func(n *treesitter.Node) bool {
+				if tree.Type(n) == "type_identifier" {
+					last = tree.Text(n)
+				}
+				return true
+			})
+			if last == "JvmStatic" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func normalizeImport(dotted string, onDemand bool) string {

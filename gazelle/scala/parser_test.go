@@ -104,8 +104,8 @@ func TestParsePackage(t *testing.T) {
 }
 
 func TestDefinesMain(t *testing.T) {
-	if !DefinesMain([]byte("package demo\n\ndef main() {}\n")) {
-		t.Error("DefinesMain missed a main function")
+	if DefinesMain([]byte("package demo\n\ndef main() {}\n")) {
+		t.Error("DefinesMain matched a main without args")
 	}
 	if !DefinesMain([]byte("package demo\n\ndef main(args: Array[String]) {}\n")) {
 		t.Error("DefinesMain missed a main function with args")
@@ -119,7 +119,7 @@ func TestDefinesMain(t *testing.T) {
 }
 
 func TestDefinesMainScala3(t *testing.T) {
-	for _, src := range []string{"@main def run() = ()", "@main\ndef run() = ()", "object App extends App { }", "object M extends scala.App", "object M extends _root_.scala.App"} {
+	for _, src := range []string{"@main def run() = ()", "@main\ndef run() = ()", "object App extends App { }", "object M extends scala.App", "object M extends _root_.scala.App", "object O extends Foo with App", "object O { def main(args: Array[String]) = () }", "package a {\n  object O { def main(args: Array[String]) = () }\n}"} {
 		if !DefinesMain([]byte(src)) {
 			t.Errorf("DefinesMain(%q) = false, want true", src)
 		}
@@ -220,5 +220,18 @@ func TestParseImportsTreeSitterShapes(t *testing.T) {
 				t.Errorf("ParseImports = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDefinesMainScalaNotEntry(t *testing.T) {
+	for _, src := range []string{
+		"class C extends App",
+		"object O { class Q { def main(args: Array[String]) = () } }",
+		"trait T { def main(args: Array[String]): Unit }",
+		"object O { def main(args: Array[Int]) = () }",
+	} {
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
 	}
 }

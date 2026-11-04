@@ -10,8 +10,6 @@ import (
 	"github.com/odvcencio/gotreesitter/grammars/cpp"
 )
 
-var mainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])main\s*\(`)
-
 // SystemInclude is one angle-bracket include and whether it sits under an __ANDROID conditional.
 type SystemInclude struct {
 	Path    string
@@ -22,6 +20,7 @@ type lexed struct {
 	code    []byte
 	quoted  []string
 	systems []SystemInclude
+	main    bool
 }
 
 // lexSource masks comments, literals and #include directives and returns the quoted include basenames.
@@ -53,10 +52,12 @@ func lex(content []byte) lexed {
 	}
 	set := make(map[string]struct{})
 	var systems []SystemInclude
+	hasMain := false
 	if tree.Root != nil {
-		var visit func(n *treesitter.Node, guarded bool)
-		visit = func(n *treesitter.Node, guarded bool) {
-			switch tree.Type(n) {
+		var visit func(n *treesitter.Node, guarded, top bool)
+		visit = func(n *treesitter.Node, guarded, top bool) {
+			typ := tree.Type(n)
+			switch typ {
 			case "comment", "string_literal", "raw_string_literal", "char_literal":
 				mask(n)
 				return
@@ -66,22 +67,53 @@ func lex(content []byte) lexed {
 					collectInclude(tree, n, guarded, set, &systems)
 					return
 				}
+			case "function_definition":
+				if top && definesMain(tree, n) {
+					hasMain = true
+				}
 			case "preproc_if", "preproc_ifdef", "preproc_elif", "preproc_elifdef":
 				first, _, _ := strings.Cut(tree.Text(n), "\n")
 				guarded = guarded || strings.Contains(first, "__ANDROID")
 			}
+			childTop := top && topLevelContainers[typ]
 			for _, c := range n.Children() {
-				visit(c, guarded)
+				visit(c, guarded, childTop)
 			}
 		}
-		visit(tree.Root, false)
+		visit(tree.Root, false, true)
 	}
 	includes := make([]string, 0, len(set))
 	for name := range set {
 		includes = append(includes, name)
 	}
 	sort.Strings(includes)
-	return lexed{code: code, quoted: includes, systems: systems}
+	return lexed{code: code, quoted: includes, systems: systems, main: hasMain}
+}
+
+var topLevelContainers = map[string]bool{
+	"translation_unit":      true,
+	"linkage_specification": true,
+	"declaration_list":      true,
+	"preproc_if":            true,
+	"preproc_ifdef":         true,
+	"preproc_else":          true,
+	"preproc_elif":          true,
+	"preproc_elifdef":       true,
+}
+
+// definesMain reports whether a function_definition is named with a plain identifier main.
+func definesMain(tree *treesitter.Tree, fn *treesitter.Node) bool {
+	for _, c := range fn.Children() {
+		if tree.Type(c) != "function_declarator" {
+			continue
+		}
+		for _, d := range c.Children() {
+			if tree.Type(d) == "identifier" {
+				return tree.Text(d) == "main"
+			}
+		}
+	}
+	return false
 }
 
 func collectInclude(tree *treesitter.Tree, n *treesitter.Node, guarded bool, set map[string]struct{}, systems *[]SystemInclude) {
@@ -127,8 +159,7 @@ func ParseQuotedIncludes(content []byte) []string {
 }
 
 func DefinesMain(content []byte) bool {
-	code, _ := lexSource(content)
-	return mainRe.Match(code)
+	return lex(content).main
 }
 
 func atLineStart(b []byte, pos int) bool {

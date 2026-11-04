@@ -2,6 +2,7 @@ package cc
 
 import (
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -99,8 +100,10 @@ func legacyLex(content []byte) lexed {
 		includes = append(includes, name)
 	}
 	sort.Strings(includes)
-	return lexed{code: code, quoted: includes, systems: systems}
+	return lexed{code: code, quoted: includes, systems: systems, main: legacyMainRe.Match(code)}
 }
+
+var legacyMainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_.:>])main\s*\([^()]*\)\s*\{`)
 
 // trackConditional updates the conditional stack for the directive after a '#'.
 func trackConditional(b []byte, pos int, frames []bool) []bool {

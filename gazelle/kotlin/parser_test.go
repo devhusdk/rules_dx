@@ -131,3 +131,23 @@ func TestDefinesMainNested(t *testing.T) {
 		t.Error("DefinesMain missed a nested main")
 	}
 }
+
+func TestDefinesMainKotlinEntry(t *testing.T) {
+	for _, src := range []string{
+		"object O {\n  @JvmStatic fun main(args: Array<String>) {}\n}\n",
+		"object O {\n  @kotlin.jvm.JvmStatic fun main(args: Array<String>) {}\n}\n",
+	} {
+		if !DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = false, want true", src)
+		}
+	}
+	for _, src := range []string{
+		"class C {\n  fun main() {}\n}\n",
+		"object O {\n  fun main() {}\n}\n",
+		"fun Foo.main() {}\n",
+	} {
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
+	}
+}

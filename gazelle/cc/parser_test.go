@@ -82,11 +82,25 @@ func TestDefinesMain(t *testing.T) {
 	if !DefinesMain([]byte("#include <iostream>\nint main() { return 0; }\n")) {
 		t.Error("DefinesMain missed a main definition")
 	}
+	for _, content := range []string{
+		"extern \"C\" int main() {}\n",
+		"extern \"C\" { int main() {} }\n",
+		"#ifdef X\nint main() {}\n#endif\n",
+	} {
+		if !DefinesMain([]byte(content)) {
+			t.Errorf("DefinesMain(%q) = false, want true", content)
+		}
+	}
 	if !DefinesMain([]byte("int\nmain (int argc, char** argv) { return 0; }\n")) {
 		t.Error("DefinesMain missed a split-line main")
 	}
 	for _, content := range []string{
 		"int domain() { return 0; }\n",
+		"int f() { obj.main(1); return 0; }\n",
+		"void g() { Runner::main(2); }\n",
+		"int Runner::main() { return 0; }\n",
+		"namespace a { int main() { return 0; } }\n",
+		"struct S { int main() { return 0; } };\n",
 		"// int main() {}\n",
 		"/* int main() {} */\n",
 		"const char* s = \"int main() {}\";\n",

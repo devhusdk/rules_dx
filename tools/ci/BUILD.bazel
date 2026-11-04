@@ -591,7 +591,6 @@ rust_test(
         "//cli/cli/tests/results_consumer:corpus_starlark",
         "//cli/cli/tests/startup_consistency:corpus_starlark",
         "//cli/cli/tests/uv_sets:corpus_starlark",
-        "//cli/cli/tests/worktree_cache:corpus_starlark",
         "//cli/entrypoint:corpus_starlark",
         "//cli/env:corpus_starlark",
         "//cli/shim:corpus_starlark",

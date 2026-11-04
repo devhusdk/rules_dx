@@ -128,7 +128,6 @@ const PACKAGES: [&str; 127] = [
     "cli/cli/tests/results_consumer",
     "cli/cli/tests/startup_consistency",
     "cli/cli/tests/uv_sets",
-    "cli/cli/tests/worktree_cache",
     "cli/entrypoint",
     "cli/env",
     "cli/shim",

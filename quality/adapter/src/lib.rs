@@ -119,25 +119,69 @@ pub enum PlaceError {
     InvertedRange,
 }
 
+/// Text with its line index built once, for placing many positions.
+pub struct PlacementText<'a> {
+    text: &'a str,
+    index: Option<LineIndex>,
+}
+
+impl<'a> PlacementText<'a> {
+    pub fn new(text: &'a str) -> Self {
+        let index = (text.len() < u32::MAX as usize).then(|| LineIndex::new(text));
+        PlacementText { text, index }
+    }
+
+    pub fn line_col_to_byte(
+        &self,
+        line: u64,
+        column: u64,
+        encoding: ColumnEncoding,
+    ) -> Option<u64> {
+        if line == 0 || column == 0 {
+            return None;
+        }
+        let Some(index) = &self.index else {
+            return legacy_line_col_to_byte(self.text, line, column, encoding);
+        };
+        let (start, end) = self.line_range(index, line)?;
+        let line_text = self.text.get(start..end)?;
+        let body = line_text.strip_suffix('\n').unwrap_or(line_text);
+        Some((start + column_to_offset(body, column - 1, encoding)?) as u64)
+    }
+
+    pub fn line_end_to_byte(&self, line: u64) -> Option<u64> {
+        let Some(index) = &self.index else {
+            return legacy_line_end_to_byte(self.text, line);
+        };
+        if line == 1 && self.text.is_empty() {
+            return Some(0);
+        }
+        let (start, end) = self.line_range(index, line)?;
+        if start == self.text.len() {
+            return None;
+        }
+        let body = self.text.get(start..end)?;
+        let body = body.strip_suffix('\n').unwrap_or(body);
+        let body = body.strip_suffix('\r').unwrap_or(body);
+        Some((start + body.len()) as u64)
+    }
+
+    fn line_range(&self, index: &LineIndex, line: u64) -> Option<(usize, usize)> {
+        let range = index.line(u32::try_from(line.checked_sub(1)?).ok()?)?;
+        Some((
+            u32::from(range.start()) as usize,
+            u32::from(range.end()) as usize,
+        ))
+    }
+}
+
 pub fn line_col_to_byte(
     text: &str,
     line: u64,
     column: u64,
     encoding: ColumnEncoding,
 ) -> Option<u64> {
-    if line == 0 || column == 0 {
-        return None;
-    }
-    if text.len() >= u32::MAX as usize {
-        return legacy_line_col_to_byte(text, line, column, encoding);
-    }
-    let line_index = u32::try_from(line - 1).ok()?;
-    let range = LineIndex::new(text).line(line_index)?;
-    let start = u32::from(range.start()) as usize;
-    let end = u32::from(range.end()) as usize;
-    let line_text = text.get(start..end)?;
-    let body = line_text.strip_suffix('\n').unwrap_or(line_text);
-    Some((start + column_to_offset(body, column - 1, encoding)?) as u64)
+    PlacementText::new(text).line_col_to_byte(line, column, encoding)
 }
 
 /// Column units occupied after `ch`, given `seen` units before it.
@@ -176,6 +220,10 @@ fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<
 }
 
 pub fn line_end_to_byte(text: &str, line: u64) -> Option<u64> {
+    PlacementText::new(text).line_end_to_byte(line)
+}
+
+fn legacy_line_end_to_byte(text: &str, line: u64) -> Option<u64> {
     let index = usize::try_from(line.checked_sub(1)?).ok()?;
     let mut offset = 0usize;
     for (number, content) in text.split_inclusive('\n').enumerate() {
@@ -207,31 +255,27 @@ fn legacy_line_col_to_byte(
 }
 
 pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagnostic, PlaceError> {
-    place_finding_with(finding, path, text, |_| None)
+    place_finding_with(finding, path, &PlacementText::new(text), |_| None)
 }
 
 pub fn place_finding_with<'t>(
     finding: &Finding,
     path: &str,
-    text: &str,
-    lookup: impl Fn(&str) -> Option<(String, &'t str)>,
+    text: &PlacementText<'_>,
+    lookup: impl Fn(&str) -> Option<(String, &'t PlacementText<'t>)>,
 ) -> Result<Diagnostic, PlaceError> {
-    let start = line_col_to_byte(
-        text,
-        finding.start.line,
-        finding.start.column,
-        finding.encoding,
-    )
-    .ok_or(PlaceError::UnmappablePosition {
-        line: finding.start.line,
-        column: finding.start.column,
-    })?;
+    let start = text
+        .line_col_to_byte(finding.start.line, finding.start.column, finding.encoding)
+        .ok_or(PlaceError::UnmappablePosition {
+            line: finding.start.line,
+            column: finding.start.column,
+        })?;
     let end = match finding.end {
         Some(position) => {
             let byte = if position.column == LINE_END {
-                line_end_to_byte(text, position.line)
+                text.line_end_to_byte(position.line)
             } else {
-                line_col_to_byte(text, position.line, position.column, finding.encoding)
+                text.line_col_to_byte(position.line, position.column, finding.encoding)
             };
             byte.ok_or(PlaceError::UnmappablePosition {
                 line: position.line,
@@ -265,7 +309,7 @@ pub fn place_finding_with<'t>(
 fn place_related<'t>(
     item: &Related,
     encoding: ColumnEncoding,
-    lookup: &impl Fn(&str) -> Option<(String, &'t str)>,
+    lookup: &impl Fn(&str) -> Option<(String, &'t PlacementText<'t>)>,
 ) -> proto::Related {
     let mut placed = proto::Related {
         role: item.role.clone(),
@@ -282,10 +326,10 @@ fn place_related<'t>(
     let Some((path, text)) = lookup(&location.file) else {
         return placed;
     };
-    let start = line_col_to_byte(text, location.start.line, location.start.column, encoding);
+    let start = text.line_col_to_byte(location.start.line, location.start.column, encoding);
     let end = match location.end {
-        Some(position) if position.column == LINE_END => line_end_to_byte(text, position.line),
-        Some(position) => line_col_to_byte(text, position.line, position.column, encoding),
+        Some(position) if position.column == LINE_END => text.line_end_to_byte(position.line),
+        Some(position) => text.line_col_to_byte(position.line, position.column, encoding),
         None => start,
     };
     if let (Some(start), Some(end)) = (start, end) {
@@ -612,8 +656,10 @@ mod tests {
             end: None,
         });
         finding.related = vec![on_other, external, off_end, Related::new("help", "bare")];
-        let placed = place_finding_with(&finding, "a.rs", CAFE, |file| {
-            (file == "/s/b.rs").then(|| ("src/b.rs".to_owned(), other))
+        let cafe = PlacementText::new(CAFE);
+        let other = PlacementText::new(other);
+        let placed = place_finding_with(&finding, "a.rs", &cafe, |file| {
+            (file == "/s/b.rs").then(|| ("src/b.rs".to_owned(), &other))
         })
         .expect("placed");
         assert_eq!(placed.related.len(), 4);
@@ -661,6 +707,44 @@ mod tests {
                     "{encoding:?} {text:?}"
                 );
                 assert_eq!(line_col_to_byte(&text, line, end + 1, encoding), None);
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_text_places_many_findings_like_a_line_walk() {
+        let text: String = (0..50_000)
+            .map(|n| format!("line {n} caf\u{e9}\r\n"))
+            .collect();
+        let starts: Vec<usize> = std::iter::once(0)
+            .chain(text.match_indices('\n').map(|(at, _)| at + 1))
+            .collect();
+        let placement = PlacementText::new(&text);
+        for n in 0..10_000usize {
+            let line = n * 5 + 1;
+            let start = starts[line - 1];
+            assert_eq!(
+                placement.line_col_to_byte(line as u64, 8, ColumnEncoding::Scalars),
+                Some(start as u64 + 7)
+            );
+            assert_eq!(
+                placement.line_end_to_byte(line as u64),
+                Some(starts[line] as u64 - 2)
+            );
+        }
+        assert_eq!(placement.line_end_to_byte(50_001), None);
+    }
+
+    #[test]
+    fn indexed_line_end_handles_crlf_and_edges() {
+        for text in ["", "a\r\nb\r\n", "ab\ncd", "ab\n", "\r\n\r\n", "x\r"] {
+            let placement = PlacementText::new(text);
+            for line in 0..5 {
+                assert_eq!(
+                    placement.line_end_to_byte(line),
+                    legacy_line_end_to_byte(text, line),
+                    "{text:?} line {line}"
+                );
             }
         }
     }

@@ -233,10 +233,7 @@ mod tests {
         let line = "app/doc.mdx(3,5): error TS2345: Argument of type 'string' is not assignable.\n";
         let found = parse_tsc(line.as_bytes(), Some(2), &["app/doc.mdx"]).expect("parsed");
         assert_eq!(found[0].file, "app/doc.mdx");
-        assert_eq!(
-            found[0].finding.start,
-            TextPosition { line: 3, column: 5 }
-        );
+        assert_eq!(found[0].finding.start, TextPosition { line: 3, column: 5 });
     }
 
     #[test]

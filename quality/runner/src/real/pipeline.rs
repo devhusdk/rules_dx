@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ffi::OsStr;
 
-use quality_adapter::place_finding_with;
+use quality_adapter::{place_finding_with, PlacementText};
 use quality_result::proto::Diagnostic;
 
 use crate::{
@@ -49,25 +49,36 @@ impl RealBackend {
             sibling_pairs: _,
             resolve_pairs: _,
         } = staged;
+        let mut by_absolute: HashMap<&OsStr, &str> = HashMap::new();
+        let mut by_workspace: HashMap<&str, &str> = HashMap::new();
+        let mut texts: HashMap<&str, PlacementText<'_>> = HashMap::new();
+        for (workspace, absolute) in &pairs {
+            by_absolute.insert(absolute.as_os_str(), workspace);
+            by_workspace.insert(workspace, workspace);
+            if let Some(text) = files.get(workspace) {
+                texts.insert(workspace, PlacementText::new(text));
+            }
+        }
         let mut diagnostics = Vec::with_capacity(collected.len());
         for found in &collected {
-            let workspace = pairs
-                .iter()
-                .find(|(_, absolute)| absolute.as_os_str() == OsStr::new(&found.file))
-                .map(|pair| pair.0.clone())
+            let workspace = by_absolute
+                .get(OsStr::new(&found.file))
+                .map(|name| (*name).to_owned())
                 .ok_or_else(|| RunnerError::UnplaceableFinding {
                     tool_id: tool_id.to_owned(),
                     detail: format!("finding names unstaged file: {}", found.file),
                 })?;
-            let text = files.get(&workspace).ok_or(RunnerError::MissingFile {
-                path: workspace.clone(),
-            })?;
+            let text = texts
+                .get(workspace.as_str())
+                .ok_or(RunnerError::MissingFile {
+                    path: workspace.clone(),
+                })?;
             diagnostics.push(
                 place_finding_with(&found.finding, &workspace, text, |file| {
-                    let (name, _) = pairs.iter().find(|(workspace, absolute)| {
-                        workspace == file || absolute.as_os_str() == OsStr::new(file)
-                    })?;
-                    Some((name.clone(), files.get(name)?.as_str()))
+                    let name = by_workspace
+                        .get(file)
+                        .or_else(|| by_absolute.get(OsStr::new(file)))?;
+                    Some(((*name).to_owned(), texts.get(name)?))
                 })
                 .map_err(|err| RunnerError::UnplaceableFinding {
                     tool_id: tool_id.to_owned(),

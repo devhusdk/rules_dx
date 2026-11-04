@@ -104,7 +104,6 @@ pub struct Cell {
     pub machine: String,
     pub format: String,
     pub exe: String,
-    #[serde(default)]
     pub runtime: Vec<String>,
 }
 

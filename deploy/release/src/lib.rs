@@ -481,7 +481,7 @@ pub fn render_signing_dry_run(
         "  cosign: {cosign_version} (pinned and sha256-checked per deploy/release/cosign_pins.bzl)\n"
     ));
     out.push_str(&format!(
-        "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3; 0.1/0.2 only if declared)\n"
+        "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)\n"
     ));
     for asset in assets {
         let base = basename_of(asset);

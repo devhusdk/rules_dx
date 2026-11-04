@@ -590,13 +590,6 @@ fn pages_main_with(
             "this deploy target takes no arguments; the site, project and branch are pinned at analysis time",
         );
     }
-    if vars("CLOUDFLARE_PAGES_DRY_RUN").is_some() {
-        return pages_fail(
-            err,
-            name,
-            "CLOUDFLARE_PAGES_DRY_RUN is not supported; a run without CLOUDFLARE_PAGES_LIVE=1 uploads nothing",
-        );
-    }
     let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
     let profile = text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned());
     let var = |key: &str| text(key).unwrap_or_default();
@@ -1140,22 +1133,6 @@ exit 7
         );
         assert_eq!(code, 1);
         assert!(err.contains("takes no arguments"), "{err}");
-    }
-
-    #[test]
-    fn main_refuses_the_dry_run_variable() {
-        let tools = tempfile::TempDir::new().expect("tools");
-        let (code, _, err) = run_main(
-            &["prog"],
-            &[("CLOUDFLARE_PAGES_DRY_RUN", "1")],
-            tools.path(),
-            tools.path(),
-        );
-        assert_eq!(code, 1);
-        assert!(
-            err.contains("CLOUDFLARE_PAGES_DRY_RUN is not supported"),
-            "{err}"
-        );
     }
 
     fn run_gated(vars: &[(&str, &str)], files: &[(&str, &str)]) -> (i32, String, String, bool) {

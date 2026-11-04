@@ -73,7 +73,7 @@ def signing_unit_tests(name):
             expect_equal(
                 "signing bundle media rejects an undeclared version",
                 signing_bundle_media_error("application/vnd.dev.sigstore.bundle.v0.2+json"),
-                "signing: invalid bundle media type 'application/vnd.dev.sigstore.bundle.v0.2+json': want 'application/vnd.dev.sigstore.bundle.v0.3+json' (Sigstore bundle v0.3; 0.1/0.2 only if declared)",
+                "signing: invalid bundle media type 'application/vnd.dev.sigstore.bundle.v0.2+json': want 'application/vnd.dev.sigstore.bundle.v0.3+json' (Sigstore bundle v0.3)",
             ),
             expect_equal(
                 "signing bundle names derive per instance",

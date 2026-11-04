@@ -256,24 +256,11 @@ fn cloudflare_case() {
     for removed in [
         run_deploy(&prog, "DX_CLOUDFLARE_CONFIG", &["--dry-run"], &env)
             .expect("removed flag must execute"),
-        run_deploy(
-            &prog,
-            "DX_CLOUDFLARE_CONFIG",
-            &[],
-            &[
-                ("CLOUDFLARE_PAGES_DRY_RUN", "1"),
-                ("CLOUDFLARE_API_TOKEN", token),
-            ],
-        )
-        .expect("removed env must execute"),
     ] {
         assert!(!removed.status.success(), "{}", removed.combined());
         assert!(removed.stdout.is_empty(), "{}", removed.combined());
         assert!(
-            removed.stderr.contains("takes no arguments")
-                || removed
-                    .stderr
-                    .contains("CLOUDFLARE_PAGES_DRY_RUN is not supported"),
+            removed.stderr.contains("takes no arguments"),
             "{}",
             removed.stderr
         );

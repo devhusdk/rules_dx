@@ -224,7 +224,7 @@ cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, profile: r
 
 Exit codes: `0` published or checked, `1` any failure or refusal. A
 Wrangler failure exits with Wrangler's own code and prints its redacted
-output. Arguments, `--dry-run` and `CLOUDFLARE_PAGES_DRY_RUN` are refused.
+output. Arguments and `--dry-run` are refused.
 If `CLOUDFLARE_ACCOUNT_ID` is set, it must equal `account_id`.
 
 # archive_deploy

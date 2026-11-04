@@ -23,7 +23,7 @@ def signing_bundle_media_error(media_type):
     """Validates the expected Sigstore bundle media type."""
     if media_type != SIGNING_BUNDLE_MEDIA_TYPE:
         return ("signing: invalid bundle media type '" + str(media_type) +
-                "': want '" + SIGNING_BUNDLE_MEDIA_TYPE + "' (Sigstore bundle v0.3; 0.1/0.2 only if declared)")
+                "': want '" + SIGNING_BUNDLE_MEDIA_TYPE + "' (Sigstore bundle v0.3)")
     return ""
 
 def signing_identity_error(identity, issuer):

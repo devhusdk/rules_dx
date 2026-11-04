@@ -690,11 +690,6 @@ fn parse_matrix_reads_cells_and_rejects_bad_ones() {
         parse_matrix(&matrix_json(&[cell.clone()])),
         Ok(vec![cell.clone()])
     );
-    let bare = r#"{"schema":"release-matrix/v1","cells":[{"name":"a","os":"linux","arch":"x86_64","machine":"x86_64","format":"zip","exe":"dx"}]}"#;
-    assert_eq!(
-        parse_matrix(bare).expect("bare")[0].runtime,
-        Vec::<String>::new()
-    );
     let error = |cells: Vec<Cell>| parse_matrix(&matrix_json(&cells)).expect_err("bad");
     let with = |edit: fn(&mut Cell)| {
         let mut bad = cell.clone();

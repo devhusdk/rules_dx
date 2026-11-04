@@ -83,6 +83,17 @@ python_test(
     deps = [":hello_lib"],
 )
 
+python_test(
+    name = "venv_rerun_test",
+    srcs = ["venv_rerun_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "hello",
+    imports = ["."],
+    main = "venv_rerun_test.py",
+    runner = "plain",
+    deps = [":hello_lib"],
+)
+
 exports_files([
     "pyproject.toml",
     "uv.lock",

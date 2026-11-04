@@ -75,41 +75,92 @@ pub fn is_directory_touch(event: &notify::Event) -> bool {
         && event.paths.iter().all(|path| path.is_dir())
 }
 
-/// The platform watcher with read-only access events dropped.
-pub struct ChangeWatcher(notify::RecommendedWatcher);
+/// Poll interval for roots whose filesystem does not report changes.
+const WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
+
+/// Filesystems where inotify misses writes made by another host or the Windows side.
+const POLLED_FILESYSTEMS: &[&str] = &["9p", "drvfs", "fuse.drvfs", "nfs", "nfs4", "cifs", "smb3"];
+
+/// Whether the mount holding `root` is one of the polled filesystems.
+pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
+    mountinfo
+        .lines()
+        .filter_map(|line| {
+            let (before, after) = line.split_once(" - ")?;
+            let mount_point = Path::new(before.split(' ').nth(4)?);
+            let fs_type = after.split(' ').next()?;
+            root.starts_with(mount_point)
+                .then_some((mount_point.as_os_str().len(), fs_type))
+        })
+        .max_by_key(|(depth, _)| *depth)
+        .is_some_and(|(_, fs_type)| POLLED_FILESYSTEMS.contains(&fs_type))
+}
+
+/// Whether the session should poll instead of using the platform watcher.
+fn should_poll(root: &Path) -> bool {
+    if std::env::var_os("DX_WATCH_POLL").is_some_and(|value| value == "1") {
+        return true;
+    }
+    if !cfg!(target_os = "linux") {
+        return false;
+    }
+    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    std::fs::read_to_string("/proc/self/mountinfo")
+        .is_ok_and(|mountinfo| mountinfo_needs_polling(&mountinfo, &root))
+}
+
+enum Backend {
+    Native(notify::RecommendedWatcher),
+    Poll(notify::PollWatcher),
+}
+
+/// The platform watcher, or a poller when the config asks for `WATCH_POLL_INTERVAL`,
+/// with read-only access events dropped.
+pub struct ChangeWatcher(Backend);
 
 impl notify::Watcher for ChangeWatcher {
     fn new<F: notify::EventHandler>(
         mut handler: F,
         config: notify::Config,
     ) -> notify::Result<Self> {
-        notify::RecommendedWatcher::new(
-            move |event: notify::Result<notify::Event>| {
-                let relevant = match &event {
-                    Ok(event) => {
-                        is_change(&event.kind) && !(cfg!(windows) && is_directory_touch(event))
-                    }
-                    Err(_) => true,
-                };
-                if relevant {
-                    handler.handle_event(event);
+        let filtered = move |event: notify::Result<notify::Event>| {
+            let relevant = match &event {
+                Ok(event) => {
+                    is_change(&event.kind) && !(cfg!(windows) && is_directory_touch(event))
                 }
-            },
-            config,
-        )
-        .map(ChangeWatcher)
+                Err(_) => true,
+            };
+            if relevant {
+                handler.handle_event(event);
+            }
+        };
+        if config.poll_interval() == Some(WATCH_POLL_INTERVAL) {
+            notify::PollWatcher::new(filtered, config).map(|w| ChangeWatcher(Backend::Poll(w)))
+        } else {
+            notify::RecommendedWatcher::new(filtered, config)
+                .map(|w| ChangeWatcher(Backend::Native(w)))
+        }
     }
 
     fn watch(&mut self, path: &Path, mode: notify::RecursiveMode) -> notify::Result<()> {
-        self.0.watch(path, mode)
+        match &mut self.0 {
+            Backend::Native(w) => w.watch(path, mode),
+            Backend::Poll(w) => w.watch(path, mode),
+        }
     }
 
     fn unwatch(&mut self, path: &Path) -> notify::Result<()> {
-        self.0.unwatch(path)
+        match &mut self.0 {
+            Backend::Native(w) => w.unwatch(path),
+            Backend::Poll(w) => w.unwatch(path),
+        }
     }
 
     fn configure(&mut self, option: notify::Config) -> notify::Result<bool> {
-        self.0.configure(option)
+        match &mut self.0 {
+            Backend::Native(w) => w.configure(option),
+            Backend::Poll(w) => w.configure(option),
+        }
     }
 
     fn kind() -> notify::WatcherKind {
@@ -140,10 +191,23 @@ pub struct WatchSession {
 
 impl WatchSession {
     pub fn start(watch_root: &Path, reports: &[PathBuf]) -> Result<Self, AdoptError> {
+        Self::start_with(watch_root, reports, should_poll(watch_root))
+    }
+
+    fn start_with(watch_root: &Path, reports: &[PathBuf], poll: bool) -> Result<Self, AdoptError> {
         use notify::RecursiveMode;
         let (tx, events) = std::sync::mpsc::channel();
-        let config = notify_debouncer_mini::Config::default()
+        let mut config = notify_debouncer_mini::Config::default()
             .with_timeout(Duration::from_millis(WATCH_DEBOUNCE_MS));
+        if poll {
+            eprintln!(
+                "watching by polling every {}s because this filesystem does not report changes",
+                WATCH_POLL_INTERVAL.as_secs()
+            );
+            config = config.with_notify_config(
+                notify::Config::default().with_poll_interval(WATCH_POLL_INTERVAL),
+            );
+        }
         let mut debouncer = notify_debouncer_mini::new_debouncer_opt::<_, ChangeWatcher>(
             config, tx,
         )
@@ -439,6 +503,35 @@ mod tests {
             ],
         );
         assert_eq!(trigger, vec![PathBuf::from("/private/var/ws/src/a.rs")]);
+    }
+
+    #[test]
+    fn mountinfo_picks_polled_filesystems() {
+        let mountinfo = "\
+20 1 8:1 / / rw - ext4 /dev/sda1 rw
+31 20 0:27 / /mnt/c rw,noatime - 9p C:\\134 rw,aname=drvfs
+32 20 0:28 / /mnt/nfs rw - nfs4 srv:/x rw
+33 31 0:29 / /mnt/c/native rw - ext4 /dev/sdb rw
+";
+        let needs = |path: &str| mountinfo_needs_polling(mountinfo, Path::new(path));
+        assert!(needs("/mnt/c/Users/me/ws"));
+        assert!(needs("/mnt/nfs/ws"));
+        assert!(!needs("/home/me/ws"));
+        assert!(!needs("/mnt/c/native/ws"));
+        assert!(!needs("/mnt/cc/ws"));
+    }
+
+    #[test]
+    fn polling_session_observes_an_edit() {
+        let scratch = dx_test_scratch::scratch("dx-watch-poll-");
+        let root = scratch.path().to_path_buf();
+        let session = WatchSession::start_with(&root, &[], true).expect("session starts");
+        std::fs::write(root.join("polled.txt"), "edit").expect("write");
+        let trigger = session.wait(Duration::from_secs(10)).expect("wait");
+        assert!(
+            trigger.iter().any(|path| path.ends_with("polled.txt")),
+            "polling must see the edit: {trigger:?}"
+        );
     }
 
     #[test]

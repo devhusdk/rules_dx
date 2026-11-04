@@ -1,0 +1,59 @@
+load("@rules_cc//cc:defs.bzl", "cc_shared_library")
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_GCC_ONLY = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+cc_library(
+    name = "greet_api",
+    hdrs = ["greet.h"],
+    includes = ["."],
+)
+
+cc_library(
+    name = "greet",
+    srcs = ["greet.cc"],
+    copts = ["-fPIC"],
+    deps = [":greet_api"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_shared_library(
+    name = "greet_shared",
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+    deps = [":greet"],
+)
+
+cc_test(
+    name = "shared_test",
+    srcs = ["shared_test.cc"],
+    dynamic_deps = [":greet_shared"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+    deps = [":greet_api"],
+)
+
+cc_test(
+    name = "c_test",
+    srcs = ["c_test.c"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

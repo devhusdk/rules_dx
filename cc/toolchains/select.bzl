@@ -25,9 +25,16 @@ toolchain_transition = transition(
 
 def _test_impl(ctx):
     src = ctx.attr.test[0]
-    exe = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = exe, target_file = src[DefaultInfo].files_to_run.executable, is_executable = True)
-    runfiles = ctx.runfiles(files = [exe]).merge(src[DefaultInfo].default_runfiles)
+    inner = src[DefaultInfo].files_to_run.executable
+    path = inner.short_path
+    path = path[3:] if path.startswith("../") else ctx.workspace_name + "/" + path
+    exe = ctx.actions.declare_file(ctx.label.name + ".sh")
+    ctx.actions.write(
+        output = exe,
+        content = "#!/bin/bash\nexec \"${RUNFILES_DIR:-$0.runfiles}/%s\" \"$@\"\n" % path,
+        is_executable = True,
+    )
+    runfiles = ctx.runfiles(files = [inner]).merge(src[DefaultInfo].default_runfiles)
     providers = [DefaultInfo(executable = exe, runfiles = runfiles)]
     if RunEnvironmentInfo in src:
         providers.append(src[RunEnvironmentInfo])

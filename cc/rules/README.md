@@ -23,3 +23,21 @@ bazel build --features=treat_warnings_as_errors //pkg/...
 ```
 
 The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An MSVC-style driver takes `/W4 /WX`. Plain C never receives a C++-only option.
+
+## GCC
+
+Select the GCC toolchain in the root `MODULE.bazel`:
+
+```starlark
+register_toolchains("@rules_dx//cc/toolchains:gcc_linux_x86_64")
+```
+
+Or per build:
+
+```sh
+bazel build --extra_toolchains=@rules_dx//cc/toolchains:gcc_linux_x86_64 //pkg/...
+```
+
+It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary.
+
+`cc_test` coverage needs the LLVM toolchain.

@@ -10,6 +10,7 @@ def _gcc_impl(_mctx):
         gcc_version = GCC_VERSION,
         gcc_versions = json.encode({GCC_VERSION: {"x86_64": GCC_LINUX_X86_64}}),
         enable_fortran = False,
+        extra_ldflags = ["-static-libgcc", "-l:libstdc++.a", "-lm"],
     )
     return _mctx.extension_metadata(reproducible = True)
 

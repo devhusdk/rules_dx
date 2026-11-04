@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "GHC_VERSION", "GLIBC_FLOOR", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256", "qualified_cells")
-load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "ghc_library_dir", "ghc_settings", "hub_files")
+load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -37,6 +37,7 @@ def _cell_checks(name):
     cell = CELLS[name]
     triple = cell.ghc_libdir_triple
     has_runtime = len(cell.runtime) > 0
+    windows = name.startswith("windows_")
     conf = closure_library_dirs(_CONF.replace("{triple}", triple), CLOSURE_DIR)
     arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
     return [
@@ -50,6 +51,11 @@ def _cell_checks(name):
         expect_equal(name + " debs come from its own architecture", [package.deb for package in cell.runtime if not package.deb.endswith("_" + cell.deb_arch + ".deb")], []),
         expect_equal(name + " library dir names the version", ghc_library_dir(name), "lib/" + triple + "-ghc-9.10.3"),
         expect_equal(name + " python is a repo label", cell.python.startswith("@python_3_12_"), True),
+        expect_equal(name + " python label ends in its interpreter", cell.python.endswith("//:python.exe" if windows else "//:bin/python3"), True),
+        expect_equal(name + " executable suffix", cell.exe_suffix, ".exe" if windows else ""),
+        expect_equal(name + " os libraries", list(cell.os_libraries), ["Win32"] if windows else ["unix"]),
+        expect_true(name + " ships the common libraries", "base" in toolchain_libraries(name)),
+        expect_true(name + " without a runtime closure ships the gmp license", has_runtime or cell.gmp_license.sha256 != ""),
         expect_contains(name + " gmp resolves in the closure", conf, "library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/" + triple + "-ghc-9.10.3/ghc-bignum-1.3-0000"),
         expect_contains(name + " shared gmp resolves in the closure", conf, "dynamic-library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/" + triple + "-ghc-9.10.3"),
         expect_contains(name + " gmp stays an extra library", conf, "extra-libraries: gmp"),
@@ -57,6 +63,7 @@ def _cell_checks(name):
 
 def _checks():
     settings = ghc_settings(_SETTINGS)
+    windows_settings = ghc_settings(_SETTINGS.replace("$topdir/../bin/unlit", "$tooldir/mingw/bin/unlit.exe"))
     checks = [
         expect_equal("ghc version", GHC_VERSION, "9.10.3"),
         expect_equal("rules_haskell commit", RULES_HASKELL_COMMIT, "826018312ea91c80ff66fde1e1e39f76c42c07b8"),
@@ -83,7 +90,16 @@ def _checks():
         expect_true("arm64 host runs the arm64 cell", cell_matches_host("linux_arm64", "linux", "arm64")),
         expect_false("arm64 host never runs the amd64 cell", cell_matches_host("linux_amd64", "linux", "aarch64")),
         expect_false("other systems run no linux cell", cell_matches_host("linux_amd64", "mac os x", "x86_64")),
-        expect_false("settings name no host path", "\"/" in settings),
+        expect_false("settings name no host path", host_path(settings)),
+        expect_false("windows settings keep bundled mingw paths", host_path(windows_settings)),
+        expect_contains("windows settings keep bundled mingw paths unchanged", windows_settings, "$tooldir/mingw/bin/unlit.exe"),
+        expect_true("a drive path is a host path", host_path("(\"ar command\", \"C:\\\\tools\\\\ar.exe\")")),
+        expect_true("an absolute path is a host path", host_path("(\"ar command\", \"/usr/bin/ar\")")),
+        expect_false("a tooldir path is not a host path", host_path("(\"ar command\", \"$tooldir/ar\")")),
+        expect_equal("nested import libraries are dropped", dropped_import_libs(["mingw/lib/libz.dll.a", "mingw/lib/libz.a", "mingw/x/y/libc++.dll.a"]), ["mingw/lib/libz.dll.a", "mingw/x/y/libc++.dll.a"]),
+        expect_equal("os libraries", os_libraries(), ["Win32", "unix"]),
+        expect_contains("Win32 is incompatible on qualified cells", hub_files()["BUILD.bazel"], "name = \"Win32\",\n    target_compatible_with = select({\n        \"//conditions:default\": [\"@@platforms//:incompatible\"]"),
+        expect_equal("unix has an arm per qualified cell", hub_files()["BUILD.bazel"].count("_platform\": [],"), 3),
         expect_contains("the C compiler comes from the cc toolchain", settings, "(\"C compiler command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("merge objects comes from the cc toolchain", settings, "(\"Merge objects command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("otool comes from the cc toolchain", settings, "(\"otool command\", \"" + NO_HOST_TOOL + "\")"),

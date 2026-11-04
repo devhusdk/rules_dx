@@ -12,12 +12,20 @@ GLIBC_FLOOR = "2.28"
 
 RUNTIME_MIRROR = "https://snapshot.debian.org/archive"
 
+_GMP_LICENSE = struct(
+    name = "gmp",
+    sha256 = "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+    url = "https://www.gnu.org/licenses/lgpl-3.0.txt",
+)
+
 CELLS = {
     "linux_amd64": struct(
         blocker = "",
+        exe_suffix = "",
+        os_libraries = ["unix"],
         ghc_libdir_triple = "x86_64-linux",
         host = struct(os = ["linux"], arch = ["amd64", "x86_64"]),
-        python = "@python_3_12_x86_64_unknown_linux_gnu",
+        python = "@python_3_12_x86_64_unknown_linux_gnu//:bin/python3",
         deb_arch = "amd64",
         locale = "C.UTF-8",
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
@@ -45,9 +53,11 @@ CELLS = {
     ),
     "linux_arm64": struct(
         blocker = "",
+        exe_suffix = "",
+        os_libraries = ["unix"],
         ghc_libdir_triple = "aarch64-linux",
         host = struct(os = ["linux"], arch = ["aarch64", "arm64"]),
-        python = "@python_3_12_aarch64_unknown_linux_gnu",
+        python = "@python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
         deb_arch = "arm64",
         locale = "C.UTF-8",
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
@@ -75,9 +85,11 @@ CELLS = {
     ),
     "macos_arm64": struct(
         blocker = "",
+        exe_suffix = "",
+        os_libraries = ["unix"],
         ghc_libdir_triple = "aarch64-osx",
         host = struct(os = ["mac"], arch = ["aarch64", "arm64"]),
-        python = "@python_3_12_aarch64_apple_darwin",
+        python = "@python_3_12_aarch64_apple_darwin//:bin/python3",
         deb_arch = "",
         locale = "en_US.UTF-8",
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
@@ -87,17 +99,15 @@ CELLS = {
         # GMP is linked into the Darwin bindist, so there is no runtime closure.
         runtime = [],
         # Ships the GMP LGPL text, which has no deb copyright file to come from.
-        gmp_license = struct(
-            name = "gmp",
-            sha256 = "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
-            url = "https://www.gnu.org/licenses/lgpl-3.0.txt",
-        ),
+        gmp_license = _GMP_LICENSE,
     ),
     "windows_x86_64": struct(
         blocker = "mingw toolchain and Windows runtime not qualified yet (#5956, #5957)",
+        exe_suffix = ".exe",
+        os_libraries = ["Win32"],
         ghc_libdir_triple = "x86_64-windows",
         host = struct(os = ["windows"], arch = ["amd64", "x86_64"]),
-        python = "@python_3_12_x86_64_pc_windows_msvc",
+        python = "@python_3_12_x86_64_pc_windows_msvc//:python.exe",
         deb_arch = "",
         locale = "C.UTF-8",
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
@@ -105,6 +115,8 @@ CELLS = {
         ghc_strip_prefix = "ghc-" + GHC_VERSION + "-x86_64-unknown-mingw32",
         ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-x86_64-unknown-mingw32.tar.xz",
         runtime = [],
+        # GMP is linked statically into the Windows bindist.
+        gmp_license = _GMP_LICENSE,
     ),
 }
 

@@ -63,7 +63,7 @@ GMP_PACKAGE = "ghc-bignum"
 
 _CELL_PREFIX = "dx_ghc_"
 
-TOOLCHAIN_LIBRARIES = [
+COMMON_LIBRARIES = [
     "array",
     "base",
     "binary",
@@ -83,8 +83,36 @@ TOOLCHAIN_LIBRARIES = [
     "text",
     "time",
     "transformers",
-    "unix",
 ]
+
+def os_libraries():
+    """Returns the sorted libraries that only some cells ship."""
+    return sorted({library: True for cell in CELLS.values() for library in cell.os_libraries}.keys())
+
+def toolchain_libraries(cell):
+    """Returns the sorted libraries one cell's bindist ships."""
+    return sorted(COMMON_LIBRARIES + list(CELLS[cell].os_libraries))
+
+WINDOWS_DROPPED_IMPORT_LIBS = [
+    "libstdc++.dll.a",
+    "libpthread.dll.a",
+    "libwinpthread.dll.a",
+    "libz.dll.a",
+    "libc++.dll.a",
+]
+
+def dropped_import_libs(paths):
+    """Returns the paths whose file name is a dropped Windows import library."""
+    return [path for path in paths if path.rsplit("/", 1)[-1] in WINDOWS_DROPPED_IMPORT_LIBS]
+
+def host_path(settings):
+    """Returns whether settings text quotes an absolute host path."""
+    if "\"/" in settings:
+        return True
+    for drive in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".elems():
+        if "\"" + drive + ":" in settings:
+            return True
+    return False
 
 DROPPED_PATHS = [
     "BUILD.bazel",
@@ -274,6 +302,14 @@ _HUB_ALIAS = """alias(
 )
 """
 
+_OS_LIBRARY = """haskell_toolchain_library(
+    name = "{name}",
+    target_compatible_with = select({{
+{arms}        "//conditions:default": ["{incompatible}"],
+    }}),
+)
+"""
+
 def cell_repository_name(cell):
     """Returns the repository name one qualified cell is acquired into."""
     return _CELL_PREFIX + cell
@@ -296,7 +332,7 @@ def ghc_settings(source):
     if missing:
         fail("GHC settings no longer carry " + ", ".join(missing))
     settings = "\n".join(lines)
-    if "\"/" in settings:
+    if host_path(settings):
         fail("GHC settings still name a host path:\n" + settings)
     return settings
 
@@ -327,6 +363,26 @@ def _gmp_registration(rctx):
         fail("GHC ships no single {} registration".format(GMP_PACKAGE))
     conf = confs[0]
     rctx.file(conf, closure_library_dirs(rctx.read(conf), CLOSURE_DIR), executable = False)
+
+def _drop_import_libs(rctx):
+    root = rctx.path("mingw")
+    if not root.exists:
+        fail("Windows bindist ships no mingw directory")
+    pending = [root]
+    found = []
+    for _ in range(100000):
+        if not pending:
+            break
+        directory = pending.pop()
+        for entry in directory.readdir():
+            if entry.is_dir:
+                pending.append(entry)
+            else:
+                found.append(str(entry))
+    if pending:
+        fail("mingw directory tree is deeper than expected")
+    for path in dropped_import_libs(found):
+        rctx.delete(path)
 
 def _ghc_repo_impl(rctx):
     cell = CELLS[rctx.attr.cell]
@@ -359,8 +415,10 @@ def _ghc_repo_impl(rctx):
             output = CLOSURE_DIR + "/licenses/" + gmp_license.name,
             sha256 = gmp_license.sha256,
         )
-    _execute(rctx, ["bin/ghc-pkg", "recache", "--global"])
-    version = _execute(rctx, ["bin/ghc", "--numeric-version"]).stdout.strip()
+    if cell.exe_suffix == ".exe":
+        _drop_import_libs(rctx)
+    _execute(rctx, ["bin/ghc-pkg" + cell.exe_suffix, "recache", "--global"])
+    version = _execute(rctx, ["bin/ghc" + cell.exe_suffix, "--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:
         fail("GHC bindist reports {}, not {}".format(version, GHC_VERSION))
     python = rctx.path(rctx.attr.python)
@@ -410,8 +468,11 @@ def hub_files():
         arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, cell_repository_name(cell)))
     for name in ["gmp", "licenses"]:
         content.append(_HUB_ALIAS.format(name = name, arms = "\n".join(arms).replace("{name}", name)))
-    for name in TOOLCHAIN_LIBRARIES:
+    for name in COMMON_LIBRARIES:
         content.append("haskell_toolchain_library(name = \"{}\")\n".format(name))
+    for name in os_libraries():
+        compatible = [cell for cell in qualified_cells() if name in CELLS[cell].os_libraries]
+        content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
     return {
         "BUILD.bazel": "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content),
         TOOLCHAINS_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains),
@@ -430,11 +491,11 @@ def _haskell_impl(mctx):
         strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,
         urls = [RULES_HASKELL_URL],
     )
-    for cell in qualified_cells():
+    for cell in sorted(CELLS):
         _ghc_repo(
             name = cell_repository_name(cell),
             cell = cell,
-            python = Label(CELLS[cell].python + "//:bin/python3"),
+            python = Label(CELLS[cell].python),
         )
     hub_repo(name = HUB_NAME, files = hub_files())
     return mctx.extension_metadata(reproducible = True)

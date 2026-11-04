@@ -893,7 +893,7 @@ composer.lock(
 use_repo(composer, php_fixture_vendor = "php_composer_fixture")
 
 haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
-use_repo(haskell, "dx_haskell_toolchains", "rules_haskell")
+use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "rules_haskell")
 
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
@@ -1002,6 +1002,7 @@ use_repo(
     python_interpreters,
     "python_3_12_aarch64_apple_darwin",
     "python_3_12_aarch64_unknown_linux_gnu",
+    "python_3_12_x86_64_pc_windows_msvc",
     "python_3_12_x86_64_unknown_linux_gnu",
     "python_interpreters",
 )

@@ -50,6 +50,7 @@ alias(
         "time",
         "transformers",
         "unix",
+        "Win32",
     ]
 ]
 

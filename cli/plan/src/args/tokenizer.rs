@@ -46,12 +46,6 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
             }
         }
         clap::error::ErrorKind::UnknownArgument => {
-            if let Some(text) = removed_clean_flag(args, error) {
-                return ArgsError::Usage { text };
-            }
-            if let Some(text) = removed_receipt_flag(error) {
-                return ArgsError::Usage { text };
-            }
             unsupported_option(args, error).unwrap_or_else(|| ArgsError::Usage {
                 text: without_usage(&error.render().to_string()),
             })
@@ -61,12 +55,6 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
                 text: without_usage(&error.render().to_string()),
             })
         }
-        clap::error::ErrorKind::InvalidSubcommand => match removed_command(error) {
-            Some(text) => ArgsError::Usage { text },
-            None => ArgsError::Usage {
-                text: without_usage(&error.render().to_string()),
-            },
-        },
         _ => ArgsError::Usage {
             text: without_usage(&error.render().to_string()),
         },
@@ -110,84 +98,6 @@ fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
         });
     }
     Some(ArgsError::BadOutput { value })
-}
-
-/// Removed command names and the tip each error carries.
-pub(crate) const REMOVED_COMMANDS: &[(&str, &str)] = &[
-    ("capabilities", "run `dx status --verbose` for capability and readiness facts"),
-    ("setup", "run `dx env` instead (it takes --apply)"),
-    ("verify", "run `dx check`, `dx build`, `dx test` and `dx coverage` directly, in the order you need"),
-    ("owners", "run `bazel query 'rdeps(//..., <label>, 1)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes"),
-    ("deps", "run `bazel query 'deps(<label>)'`, or `bazel cquery 'deps(<label>)' --platforms=<platform>` for the configured graph; wrap the expression in single quotes"),
-    ("why", "run `bazel query 'somepath(<from>, <to>)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes"),
-    ("tests", "run `bazel query 'tests(<scope>)'` to list test targets, or `dx test` to run them; wrap the expression in single quotes"),
-    ("list-tests", "run `bazel query 'tests(<scope>)'` to list test targets, or `dx test` to run them; wrap the expression in single quotes"),
-    ("rerun", "run `dx test <target>` for the targets you want to run again"),
-    ("doctor", "run `dx status` for diagnostics"),
-    ("new", "run `dx init <dir>` to start a workspace; languages are wired when their sources appear"),
-];
-
-/// Command names dx never takes, and the tip each error carries.
-pub(crate) const RESERVED_COMMANDS: &[(&str, &str)] = &[(
-    "shim",
-    "`dx shim ...` is handled by the global dx shim on PATH, not by the dx binary",
-)];
-
-fn removed_command(error: &clap::Error) -> Option<String> {
-    let word = match error.get(clap::error::ContextKind::InvalidSubcommand) {
-        Some(clap::error::ContextValue::String(word)) => word.as_str(),
-        _ => return None,
-    };
-    if let Some((_, tip)) = RESERVED_COMMANDS.iter().find(|(name, _)| *name == word) {
-        return Some(format!("error: reserved command '{word}'\n\n  tip: {tip}"));
-    }
-    let (_, tip) = REMOVED_COMMANDS.iter().find(|(name, _)| *name == word)?;
-    Some(format!(
-        "error: unsupported command '{word}'\n\n  tip: {tip}"
-    ))
-}
-
-fn removed_receipt_flag(error: &clap::Error) -> Option<String> {
-    let flag = match error.get(clap::error::ContextKind::InvalidArg) {
-        Some(clap::error::ContextValue::String(token)) => reported_flag(token)?,
-        _ => return None,
-    };
-    let tip = match flag.as_str() {
-        "--run-output" => {
-            "use `--report junit=<path>` or `--report lcov=<path>` for test and coverage reports"
-        }
-        "--cwd" => "use `--here` to select the current directory tree",
-        "--strict-evidence" => {
-            "incomplete test and coverage evidence now always fails; drop the flag"
-        }
-        _ => return None,
-    };
-    Some(format!(
-        "error: unsupported option '{flag}'\n\n  tip: {tip}"
-    ))
-}
-
-fn removed_clean_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<String> {
-    use clap::error::{ContextKind, ContextValue};
-    let flag = match error.get(ContextKind::InvalidArg) {
-        Some(ContextValue::String(token)) => reported_flag(token)?,
-        _ => return None,
-    };
-    if flag != "--bazel" {
-        return None;
-    }
-    let is_clean = args
-        .iter()
-        .filter_map(|word| word.as_ref().to_str())
-        .find(|word| Command::parse(word).is_some())
-        == Some("clean");
-    if !is_clean {
-        return None;
-    }
-    Some(
-        "error: unsupported option '--bazel' for dx clean\n\n  tip: dx clean only prunes managed state; run `bazel clean` to clean Bazel outputs"
-            .to_owned(),
-    )
 }
 
 /// The flag name the parser reports, with visible aliases spelled canonically.

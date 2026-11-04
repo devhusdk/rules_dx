@@ -818,22 +818,6 @@ mod tests {
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
     }
 
-    #[test]
-    fn capabilities_command_is_rejected_with_status_guidance() {
-        let err = dx_plan::args::parse(&dx_testing::cli::strings(&["capabilities"]))
-            .expect_err("removed command");
-        match err {
-            dx_plan::args::ArgsError::Usage { text } => {
-                assert!(
-                    text.contains("unsupported command 'capabilities'"),
-                    "{text}"
-                );
-                assert!(text.contains("dx status --verbose"), "{text}");
-            }
-            other => panic!("{other:?}"),
-        }
-    }
-
     struct BrokenPipeWriter;
 
     impl io::Write for BrokenPipeWriter {

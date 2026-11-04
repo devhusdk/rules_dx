@@ -322,51 +322,6 @@ fn init_and_completion_run_without_a_workspace() {
 }
 
 #[test]
-fn removed_new_exits_2_and_points_at_init() {
-    let scratch = dx_test_scratch::scratch("dx-new-removed-");
-    let root = scratch.path();
-    for words in [
-        vec!["new"],
-        vec!["new", "rust", "demo"],
-        vec!["new", "--apply", "c", "demo"],
-    ] {
-        let (code, out, err) = run_dx(root, &words, &[]);
-        assert_eq!(code, Some(2), "{words:?}: {err}");
-        assert!(out.is_empty(), "{words:?}: {out}");
-        assert!(
-            err.contains("unsupported command 'new'"),
-            "{words:?}: {err}"
-        );
-        assert!(err.contains("dx init <dir>"), "{words:?}: {err}");
-        assert!(!root.join("demo").exists(), "{words:?} wrote demo");
-    }
-    scratch.close().expect("cleanup");
-}
-
-#[test]
-fn removed_dry_run_is_rejected_from_every_source() {
-    let scratch = sample_workspace("dx-removed-dry-run-");
-    let root = scratch.path();
-    for words in [
-        vec!["lint", "--dry-run"],
-        vec!["lint", "--dry-run=true"],
-        vec!["lint", "--dry-run=false"],
-        vec!["check", "--dry-run", "--apply"],
-    ] {
-        let (code, out, err) = run_dx(root, &words, &[]);
-        assert_eq!(code, Some(2), "{words:?}: {err}");
-        assert!(out.is_empty(), "{words:?}: {out}");
-        assert!(err.contains("--dry-run"), "{words:?}: {err}");
-    }
-    for value in ["true", "false", "1"] {
-        let (code, _, err) = run_dx(root, &["lint"], &[("DX_DRY_RUN", value)]);
-        assert_eq!(code, Some(2), "DX_DRY_RUN={value}: {err}");
-        assert!(err.contains("DX_DRY_RUN was removed"), "{err}");
-    }
-    scratch.close().expect("cleanup");
-}
-
-#[test]
 fn log_level_flag_exits_two_before_running() {
     let scratch = sample_workspace("dx-log-level-flag-");
     let root = scratch.path();

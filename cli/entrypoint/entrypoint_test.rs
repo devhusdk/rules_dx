@@ -310,12 +310,8 @@ fn consumer_init_creates_a_new_directory() {
 fn consumer_new_is_removed_and_points_at_init() {
     let removed = read("DX_NEW_REMOVED");
     assert!(
-        removed.contains("unsupported command 'new'"),
-        "dx new is a removed command: {removed}"
-    );
-    assert!(
-        removed.contains("dx init"),
-        "the error names dx init: {removed}"
+        removed.contains("unrecognized subcommand 'new'"),
+        "dx new is not a command: {removed}"
     );
     assert!(removed.contains("exit=2"), "usage errors exit 2: {removed}");
     assert!(

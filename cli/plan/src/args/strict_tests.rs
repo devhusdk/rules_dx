@@ -407,23 +407,3 @@ fn strict_non_utf8_argv_fails_as_invalid_scope() {
     ];
     assert_eq!(parse(&argv), Err(ArgsError::InvalidScope { scope: lossy }));
 }
-
-#[test]
-fn removed_inspection_commands_point_to_native_bazel() {
-    for (word, needle) in [
-        ("owners", "rdeps("),
-        ("deps", "deps("),
-        ("why", "somepath("),
-    ] {
-        match parse(&strings(&[word, "//a:one"])) {
-            Err(ArgsError::Usage { text }) => {
-                assert!(text.contains("unsupported command"), "{text}");
-                assert!(text.contains("bazel query"), "{text}");
-                assert!(text.contains("bazel cquery"), "{text}");
-                assert!(text.contains(needle), "{text}");
-                assert!(!text.contains("dx bazel"), "{text}");
-            }
-            other => panic!("{word}: want usage error, got {other:?}"),
-        }
-    }
-}

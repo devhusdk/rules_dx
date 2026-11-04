@@ -103,65 +103,6 @@ fn min_coverage_rejects_bad_values_and_other_commands() {
     );
 }
 
-#[test]
-fn receipt_flags_are_rejected_with_report_tips() {
-    for (words, tip) in [
-        (vec!["test", "--strict-evidence"], "always fails"),
-        (vec!["coverage", "--strict-evidence"], "always fails"),
-        (vec!["build", "--strict-evidence"], "always fails"),
-        (vec!["test", "--run-output=out"], "--report junit="),
-        (vec!["test", "--run-output", "out"], "--report junit="),
-        (vec!["coverage", "--run-output=out"], "--report lcov="),
-        (vec!["lint", "--cwd"], "use `--here`"),
-    ] {
-        assert_usage(
-            &words,
-            parse(&strings(&words)).unwrap_err(),
-            &["unsupported option", tip],
-        );
-    }
-}
-
-#[test]
-fn verify_and_rerun_are_rejected_with_direct_command_tips() {
-    for (words, tip) in [
-        (vec!["verify"], "dx check"),
-        (vec!["verify", "pre-pr"], "dx test"),
-        (vec!["rerun"], "dx test <target>"),
-        (vec!["rerun", "receipt.json"], "dx test <target>"),
-    ] {
-        assert_usage(
-            &words,
-            parse(&strings(&words)).unwrap_err(),
-            &["unsupported command", tip],
-        );
-    }
-}
-
-#[test]
-fn every_removed_command_is_a_usage_error_with_its_tip() {
-    for (name, tip) in crate::args::tokenizer::REMOVED_COMMANDS {
-        assert_usage(
-            [name],
-            parse(&strings(&[name])).unwrap_err(),
-            &["unsupported command", tip],
-        );
-    }
-}
-
-#[test]
-fn reserved_commands_are_usage_errors_with_their_tip() {
-    for (name, tip) in crate::args::tokenizer::RESERVED_COMMANDS {
-        for words in [vec![*name], vec![*name, "version"], vec![*name, "where"]] {
-            assert_usage(
-                &words,
-                parse(&strings(&words)).unwrap_err(),
-                &["reserved command", tip],
-            );
-        }
-    }
-}
-
 /// The words one command needs before `--apply`, mirroring the required slots.
 fn plain_words(command: Command) -> Vec<String> {
     let mut words = vec![command.name().to_owned()];
@@ -427,31 +368,6 @@ fn unknown_command_fails() {
 }
 
 #[test]
-fn setup_is_rejected_with_env_tip() {
-    for words in [
-        vec!["setup"],
-        vec!["setup", "--apply"],
-        vec!["setup", "//a:one"],
-    ] {
-        assert_usage(
-            &words,
-            parse(&strings(&words)).unwrap_err(),
-            &["unsupported command 'setup'", "dx env"],
-        );
-    }
-}
-
-#[test]
-fn old_tests_command_is_rejected_with_bazel_query_tip() {
-    let words = ["tests", "//..."];
-    assert_usage(
-        words,
-        parse(&strings(&words)).unwrap_err(),
-        &["unsupported command 'tests'", "bazel query 'tests("],
-    );
-}
-
-#[test]
 fn explicit_label_scope_parses_in_order() {
     let got = parse(&strings(&["lint", "//a:one", "@repo//b/...", "//c/..."])).expect("parse");
     assert_eq!(
@@ -587,11 +503,6 @@ fn clean_parses_prune_unobserved() {
     let got = parse(&strings(&["clean"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
     assert!(!got.prune_unobserved);
-    assert_usage(
-        ["clean", "--bazel"],
-        parse(&strings(&["clean", "--bazel"])).unwrap_err(),
-        &["unsupported option '--bazel'", "bazel clean"],
-    );
     let got = parse(&strings(&["clean", "--prune-unobserved"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
     assert!(got.prune_unobserved);

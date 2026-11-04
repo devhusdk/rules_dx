@@ -498,7 +498,7 @@ mod tests {
         ] {
             let (code, out, err) = harness.run(words);
             assert_eq!(code, 2, "{out}{err}");
-            assert!(err.contains("bazel clean"), "{err}");
+            assert!(err.contains("--bazel"), "{err}");
         }
         assert!(
             harness.seen_env.borrow().is_empty(),

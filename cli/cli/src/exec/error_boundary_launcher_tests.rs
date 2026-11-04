@@ -356,13 +356,6 @@ fn input_and_default_failures_end_in_one_error_before_any_bazel_call() {
             assert_eq!(outcome.kinds(), ["error", "command_finished"]);
         }
     }
-    let outcome = consumer.run(
-        &["build"],
-        &[("DX_OUTPUT", "json"), ("DX_DRY_RUN", "1")],
-        true,
-    );
-    assert_terminal_failure(&outcome, "invalid_defaults", "defaults", 2);
-    assert!(outcome.bazel.is_empty(), "{}", outcome.context());
 }
 
 #[test]

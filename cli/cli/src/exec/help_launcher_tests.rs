@@ -124,12 +124,8 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
     ] {
         let text = rendered(&argv);
         assert!(
-            text.contains(&format!("unsupported command '{name}'")),
-            "dx {argv:?} must name the removed command:\n{text}"
-        );
-        assert!(
-            text.contains("bazel query 'tests("),
-            "dx {argv:?} must carry the bazel query tip:\n{text}"
+            text.contains(&format!("unrecognized subcommand '{name}'")),
+            "dx {argv:?} must reject the old command name:\n{text}"
         );
     }
 }

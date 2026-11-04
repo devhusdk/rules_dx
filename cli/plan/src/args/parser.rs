@@ -300,7 +300,6 @@ fn parse_inner<S: AsRef<OsStr>>(
     if let Some(error) = super::help::help_verb_error_in(args) {
         return Err(error);
     }
-    dx_adopt::defaults::reject_removed_env(env_get).map_err(bad_default)?;
     let tokenized = tokenize(args)?;
     if tokenized.command == Command::Watch {
         if let Some(wrapped) = wrapped_invocation(args, &tokenized, env_get) {

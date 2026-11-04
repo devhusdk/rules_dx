@@ -380,8 +380,7 @@ if "$$public" new --apply cpp bad --workspace "$$foreign" > "$(location new_remo
 else
   echo "exit=$$?" >> "$(location new_removed.txt)"
 fi
-grep -q "unsupported command 'new'" "$(location new_removed.txt)"
-grep -q "dx init" "$(location new_removed.txt)"
+grep -q "unrecognized subcommand 'new'" "$(location new_removed.txt)"
 test ! -e "$$foreign/bad"
 "$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_dir_apply.txt)"

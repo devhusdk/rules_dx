@@ -317,21 +317,6 @@ fn upgrade_needs_a_to_version() {
 }
 
 #[test]
-fn removed_new_points_at_init() {
-    for words in [
-        &["new"][..],
-        &["new", "rust", "demo"],
-        &["new", "--apply", "go"],
-    ] {
-        let Err(ArgsError::Usage { text }) = parse(&strings(words)) else {
-            panic!("{words:?} must be a usage error");
-        };
-        assert!(text.contains("unsupported command 'new'"), "{text}");
-        assert!(text.contains("dx init"), "{text}");
-    }
-}
-
-#[test]
 fn upgrade_needs_to_with_no_scopes() {
     let got = parse(&strings(&["upgrade", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);

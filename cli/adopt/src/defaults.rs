@@ -102,16 +102,6 @@ pub fn parse_bool(value: &str) -> Option<bool> {
     }
 }
 
-/// Refuse the removed `DX_DRY_RUN` environment default whatever its value.
-pub fn reject_removed_env(get: &dyn Fn(&str) -> Option<String>) -> Result<(), super::AdoptError> {
-    if env_string(get, "DX_DRY_RUN").is_some() {
-        return Err(super::AdoptError::InvalidDefaults {
-            detail: "DX_DRY_RUN was removed; unset it".to_owned(),
-        });
-    }
-    Ok(())
-}
-
 pub fn env_string(get: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<String> {
     get(name).filter(|value| !value.is_empty())
 }

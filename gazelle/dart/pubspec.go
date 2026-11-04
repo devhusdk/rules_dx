@@ -13,6 +13,7 @@ type Pubspec struct {
 	DevDeps      map[string]bool
 	Workspace    []string
 	Resolution   string
+	Flutter      bool
 	hasWorkspace bool
 }
 
@@ -101,6 +102,24 @@ func splitKey(text string) (key, value string, ok bool) {
 	return unquote(text[:i]), strings.TrimSpace(text[i+1:]), true
 }
 
+// isFlutterSDK reports whether the flutter dependency is taken from the SDK.
+func isFlutterSDK(children []yamlLine) bool {
+	for i, c := range children {
+		if name, _, ok := splitKey(c.text); !ok || name != "flutter" || i+1 >= len(children) {
+			continue
+		}
+		for _, d := range children[i+1:] {
+			if d.indent <= c.indent {
+				break
+			}
+			if key, value, ok := splitKey(d.text); ok && key == "sdk" && value == "flutter" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ParsePubspec reads the fields of a pubspec.yaml that generation needs.
 func ParsePubspec(content []byte) (*Pubspec, error) {
 	lines, err := yamlLines(content)
@@ -149,6 +168,9 @@ func ParsePubspec(content []byte) (*Pubspec, error) {
 					return nil, fmt.Errorf("line %d: expected a package name in %s", c.num, key)
 				}
 				target[name] = true
+			}
+			if key == "dependencies" && isFlutterSDK(children) {
+				p.Flutter = true
 			}
 		case "workspace":
 			p.hasWorkspace = true

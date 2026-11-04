@@ -17,6 +17,10 @@ const (
 	BinaryKind = "dart_binary"
 	// TestKind is the rule kind generated per test/**/*_test.dart.
 	TestKind = "dart_test"
+	// FlutterLibraryKind is the library kind for a package that uses the Flutter SDK.
+	FlutterLibraryKind = "flutter_library"
+	// FlutterTestKind is the test kind for a package that uses the Flutter SDK.
+	FlutterTestKind = "flutter_test"
 )
 
 func entryKind() rule.KindInfo {
@@ -29,17 +33,24 @@ func entryKind() rule.KindInfo {
 	}
 }
 
-// The kinds leave data, defines, aspect_hints and tags unmergeable so they stay
-// user-owned.
-var dartKinds = map[string]rule.KindInfo{
-	LibraryKind: {
+func libraryKind() rule.KindInfo {
+	return rule.KindInfo{
 		MatchAttrs:     []string{"package_name"},
 		NonEmptyAttrs:  map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{"deps": true, "package_name": true, "srcs": true},
 		ResolveAttrs:   map[string]bool{"deps": true},
-	},
+	}
+}
+
+// The kinds leave data, defines, aspect_hints and tags unmergeable so they stay
+// user-owned.
+var dartKinds = map[string]rule.KindInfo{
+	LibraryKind: libraryKind(),
 	BinaryKind: entryKind(),
 	TestKind:   entryKind(),
+
+	FlutterLibraryKind: libraryKind(),
+	FlutterTestKind:    entryKind(),
 }
 
 type dartLang struct {
@@ -52,7 +63,8 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		Kinds:          dartKinds,
-		ExtraKinds:     []string{BinaryKind, TestKind},
+		ExtraKinds:     []string{BinaryKind, TestKind, FlutterLibraryKind, FlutterTestKind},
+		KindDefs:       map[string]string{FlutterLibraryKind: "flutter/rules:defs.bzl", FlutterTestKind: "flutter/rules:defs.bzl"},
 		DefsPackage:    "dart/rules:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: func(name string) bool { return common.HasExt(name, []string{".dart"}) },
@@ -64,7 +76,7 @@ func NewLanguage() language.Language {
 
 // Imports indexes a library under its pub package name.
 func (l *dartLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
-	if r.Kind() != LibraryKind {
+	if r.Kind() != LibraryKind && r.Kind() != FlutterLibraryKind {
 		return nil
 	}
 	name := r.AttrString("package_name")

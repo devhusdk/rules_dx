@@ -91,6 +91,27 @@ func TestGeneratePubLayout(t *testing.T) {
 	}
 }
 
+func TestGenerateFlutter(t *testing.T) {
+	result, errs := generate(t, map[string]string{
+		"pubspec.yaml":         "name: app\ndependencies:\n  flutter:\n    sdk: flutter\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n",
+		"lib/app.dart":         "import 'package:flutter/widgets.dart';\n",
+		"bin/tool.dart":        "",
+		"test/app_test.dart":   "import 'package:flutter_test/flutter_test.dart';\n",
+		"test/other_test.dart": "",
+	}, "")
+	if len(errs) > 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	want := []string{
+		"flutter_library app main= srcs=lib/app.dart",
+		"flutter_test app_test main=test/app_test.dart srcs=",
+		"flutter_test other_test main=test/other_test.dart srcs=",
+	}
+	if got := summary(result); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("got\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
 func TestGenerateNoPubspec(t *testing.T) {
 	result, errs := generate(t, map[string]string{"lib/a.dart": ""}, "")
 	if len(result.Gen) != 0 || len(errs) != 0 {

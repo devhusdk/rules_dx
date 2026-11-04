@@ -57,7 +57,8 @@ var conformanceRows = map[string]conformanceRow{
 			"lib/demo.dart": "int answer() => 42;\n",
 		},
 		kind: "dart_library", target: "demo", defs: "dart/rules:defs.bzl",
-		symbols: []string{"dart_library", "dart_binary", "dart_test"},
+		symbols:    []string{"dart_library", "dart_binary", "dart_test"},
+		extraLoads: map[string][]string{"@rules_dx//flutter/rules:defs.bzl": {"flutter_library", "flutter_test"}},
 	},
 	"elixir": {
 		files: map[string]string{

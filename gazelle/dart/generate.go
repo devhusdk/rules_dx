@@ -221,10 +221,15 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		return pkgs, generated
 	}
 
+	libKind, testKind := LibraryKind, TestKind
+	if spec.Flutter {
+		libKind, testKind = FlutterLibraryKind, FlutterTestKind
+		bin = nil
+	}
 	var entries []*entry
 	if len(lib) > 0 {
 		pkgs, gen := scan(lib, true, false)
-		entries = append(entries, &entry{kind: LibraryKind, name: spec.Name, srcs: mergeSorted(lib, gen), imports: pkgs})
+		entries = append(entries, &entry{kind: libKind, name: spec.Name, srcs: mergeSorted(lib, gen), imports: pkgs})
 	}
 	var binSrcs, testSrcs []string
 	for _, f := range bin {
@@ -256,7 +261,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		name := strings.ReplaceAll(strings.TrimSuffix(strings.TrimPrefix(f, "test/"), ".dart"), "/", "_")
 		files := append([]string{f}, testSrcs...)
 		pkgs, gen := scan(files, false, true)
-		entries = append(entries, &entry{kind: TestKind, name: name, main: f, srcs: mergeSorted(testSrcs, gen), imports: pkgs})
+		entries = append(entries, &entry{kind: testKind, name: name, main: f, srcs: mergeSorted(testSrcs, gen), imports: pkgs})
 	}
 	if rep.Failed() {
 		return language.GenerateResult{}
@@ -272,7 +277,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	result := language.GenerateResult{}
 	for _, e := range entries {
 		r := rule.NewRule(e.kind, e.name)
-		if e.kind == LibraryKind {
+		if e.kind == libKind {
 			r.SetAttr("package_name", spec.Name)
 		} else {
 			r.SetAttr("main", e.main)

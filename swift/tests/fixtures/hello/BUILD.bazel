@@ -1,0 +1,58 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
+load("@rules_swift//swift:swift_binary.bzl", "swift_binary")
+load("@rules_swift//swift:swift_library.bzl", "swift_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_LINUX_X86_64 = [
+    "@platforms//cpu:x86_64",
+    "@platforms//os:linux",
+]
+
+swift_library(
+    name = "greet",
+    srcs = ["greet.swift"],
+    features = [
+        "swift.static_stdlib",
+        "-static_link_cpp_runtimes",
+    ],
+    module_name = "Greet",
+)
+
+swift_binary(
+    name = "hello",
+    srcs = ["main.swift"],
+    tags = ["manual"],
+    features = [
+        "swift.static_stdlib",
+        "-static_link_cpp_runtimes",
+    ],
+    deps = [":greet"],
+)
+
+platform_transition_binary(
+    name = "hello_linux_x86_64",
+    binary = ":hello",
+    target_compatible_with = _LINUX_X86_64,
+    target_platform = "//swift/platforms:linux_x86_64",
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello_linux_x86_64",
+    expected = "Hello, swift!",
+    target_compatible_with = _LINUX_X86_64,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

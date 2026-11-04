@@ -81,6 +81,9 @@ RUBY_VERSION = "3.4.12"
 RULES_ZIG_VERSION = "0.17.0"
 ZIG_VERSION = "0.16.0"
 
+RULES_SWIFT_VERSION = "4.2.2"
+SWIFT_VERSION = "6.4.1"
+
 RULES_JULIA_VERSION = "0.8.0"
 RULES_DART_VERSION = "0.8.1"
 DART_SDK_VERSION = "3.13.7"
@@ -112,6 +115,8 @@ CONSUMER_BAZEL_DEPS = {
     "bazel_lib": struct(floor = BAZEL_LIB_VERSION, tested = BAZEL_LIB_VERSION),
     "rules_jvm_external": struct(floor = FLOOR_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),
+    "rules_swift": struct(floor = RULES_SWIFT_VERSION, tested = RULES_SWIFT_VERSION),
+    "bazel_linux_packages": struct(floor = "0.4.1", tested = "0.4.1"),
     "rules_julia": struct(floor = RULES_JULIA_VERSION, tested = RULES_JULIA_VERSION),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),

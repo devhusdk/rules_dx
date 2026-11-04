@@ -199,6 +199,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude ruby/tests/fixtures/hello
 # gazelle:exclude ruby/tests/fixtures/rspec
 # gazelle:exclude zig/tests/fixtures/hello
+# gazelle:exclude swift/tests/fixtures/hello
 # gazelle:exclude julia/tests/fixtures/hello
 # gazelle:exclude lua/tests
 # gazelle:exclude d/tests/fixtures/hello
@@ -263,6 +264,7 @@ exports_files([
     "php/README.md",
     "powershell/README.md",
     "julia/README.md",
+    "swift/README.md",
     "zig/README.md",
     "cargo-bazel-lock.json",
     "package.json",
@@ -368,6 +370,7 @@ real_source_target(
         "powershell/README.md",
         "//ruby:README.md",
         "julia/README.md",
+        "swift/README.md",
         "zig/README.md",
         "cuda/README.md",
         "CLAUDE.md",

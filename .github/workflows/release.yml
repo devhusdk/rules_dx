@@ -158,43 +158,44 @@ jobs:
           CELLS_SHA: ${{ needs.cells.outputs.sha }}
           WORKFLOW_REF: ${{ needs.cells.outputs.workflow_ref }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          failed=""
+          run() { name=$1; shift; "$@" || { echo "::error::$name failed"; failed="$failed $name"; }; }
           stage="$RUNNER_TEMP/publish-dry-run"
           rm -rf "$stage"
           mkdir -p "$stage"
           cells="$RUNNER_TEMP/release-cells"
           mkdir -p "$cells"
           # The refusal proof only needs some dx file; a missing cell archive is reported by the check below.
-          if ! tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx; then
-            cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx"
-          fi
-          matrix="$(bazel cquery --output=files //deploy/release:release_matrix)"
-          bazel build //deploy/release:release_matrix --noshow_progress
-          bazel build //deploy/release:release_artifacts --noshow_progress
-          bazel cquery --output=files //deploy/release:release_artifacts > "$stage/release-artifacts.txt"
-          spdx="$(bazel cquery --output=files //deploy/release:sbom_demo_spdx)"
-          prov="$(bazel cquery --output=files //deploy/release:sbom_demo_provenance)"
-          notice="$(bazel cquery --output=files //deploy/release:notice_demo_notice)"
-          cp "$spdx" "$stage/sbom_demo.spdx.json"
-          cp "$prov" "$stage/sbom_demo.provenance.json"
-          cp "$notice" "$stage/notice_demo.NOTICE"
-          demo_archive="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/rules:release_demo_archive)"
-          notice_manifest="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_inventory.txt)"
-          notice_a="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_a.txt)"
-          notice_b="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_b.txt)"
-          bazel run //cli/cli:github_draft > "$stage/draft-dry-run.log" 2>&1
-          bazel test //deploy/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
-          RELEASE_SIGN_DRY_RUN=1 bazel run //deploy/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
-          BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
-          bazel run //deploy/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
-          {
-            echo "install verifier refusal proof (no network, publishes nothing):"
-            bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
-            if bazel run //deploy/install:dx_verify -- --binary "$stage/dx" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
-              echo "expected checksum-only refusal failed" >&2
-              exit 1
-            fi
+          fetch_dx() {
+            tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx || cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx"
           }
+          run fetch_dx fetch_dx
+          matrix="$(bazel cquery --output=files //deploy/release:release_matrix)" || failed="$failed matrix"
+          run build_release_matrix bazel build //deploy/release:release_matrix --noshow_progress
+          run build_release_artifacts bazel build //deploy/release:release_artifacts --noshow_progress
+          bazel cquery --output=files //deploy/release:release_artifacts > "$stage/release-artifacts.txt" || failed="$failed release_artifacts_list"
+          spdx="$(bazel cquery --output=files //deploy/release:sbom_demo_spdx)" || failed="$failed spdx"
+          prov="$(bazel cquery --output=files //deploy/release:sbom_demo_provenance)" || failed="$failed provenance"
+          notice="$(bazel cquery --output=files //deploy/release:notice_demo_notice)" || failed="$failed notice"
+          run copy_spdx cp "$spdx" "$stage/sbom_demo.spdx.json"
+          run copy_provenance cp "$prov" "$stage/sbom_demo.provenance.json"
+          run copy_notice cp "$notice" "$stage/notice_demo.NOTICE"
+          demo_archive="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/rules:release_demo_archive)" || failed="$failed demo_archive"
+          notice_manifest="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_inventory.txt)" || failed="$failed notice_manifest"
+          notice_a="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_a.txt)" || failed="$failed notice_a"
+          notice_b="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_b.txt)" || failed="$failed notice_b"
+          run draft_dry_run bazel run //cli/cli:github_draft > "$stage/draft-dry-run.log" 2>&1
+          run release_tests bazel test //deploy/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
+          RELEASE_SIGN_DRY_RUN=1 run signing_demo bazel run //deploy/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
+          BCR_DRY_RUN=1 run bcr_demo bazel run //deploy/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
+          run release_driver bazel run //deploy/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
+          echo "install verifier refusal proof (no network, publishes nothing):"
+          run verify_help bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
+          if bazel run //deploy/install:dx_verify -- --binary "$stage/dx" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
+            echo "::error::expected checksum-only refusal failed"
+            failed="$failed verify_refusal"
+          fi
           status=0
           bazel run //deploy/release:publish_dry_run_check -- \
             --matrix "$GITHUB_WORKSPACE/$matrix" \
@@ -235,8 +236,10 @@ jobs:
             echo "- BCR shape: \`rules_dx\` at \`0.0.0\` via \`//deploy/release:bcr_demo\` checked, not submitted"
             echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
             echo "- full report: \`dry-run-report.json\` in the job logs"
+            echo "- failed steps: \`${failed:-none}\`"
           } >> "$GITHUB_STEP_SUMMARY"
-          exit "$status"
+          [ -z "$failed" ] && exit "$status"
+          exit 1
       - name: Prove checkout left clean
         run: test -z "$(git status --porcelain)"
 
@@ -256,6 +259,10 @@ jobs:
           pattern: release-cell-*
           path: out
           merge-multiple: true
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: source
+          path: out
       - name: Collect and check the checksum manifest
         env:
           CELLS_VERSION: ${{ needs.cells.outputs.version }}

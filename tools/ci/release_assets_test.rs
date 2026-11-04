@@ -251,6 +251,96 @@ fn the_source_archive_is_uploaded_without_clobber() {
     assert!(text.contains("sha256sum -c \"$src.sha256\""));
 }
 
+const CELLS_WORKFLOW: &str = ".github/workflows/release-cells.yml";
+
+fn upload_job(text: &str) -> &str {
+    let start = text.find("\n  upload:\n").expect("upload job");
+    &text[start..]
+}
+
+/// The `name:` or `pattern:` values that follow each `uses: actions/<action>@` line.
+fn artifact_names(text: &str, action: &str, keys: [&str; 2]) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut in_step = false;
+    for line in text.lines() {
+        let new_step = line.trim_start().starts_with("- ");
+        let line = line.trim().trim_start_matches("- ");
+        if line.starts_with("uses:") {
+            in_step = line.contains(action);
+        } else if new_step {
+            in_step = false;
+        } else if in_step {
+            for key in keys {
+                if let Some(value) = line.strip_prefix(key).and_then(|v| v.strip_prefix(": ")) {
+                    names.push(value.trim().replace("${{ matrix.name }}", "*"));
+                }
+            }
+        }
+    }
+    names
+}
+
+/// Names match when equal, or when a `*` leaves one a prefix of the other.
+fn names_match(download: &str, upload: &str) -> bool {
+    if !download.contains('*') && !upload.contains('*') {
+        return download == upload;
+    }
+    let (d, u) = (download.trim_end_matches('*'), upload.trim_end_matches('*'));
+    d.starts_with(u) || u.starts_with(d)
+}
+
+fn unmatched_downloads(release: &str, cells: &str) -> Vec<String> {
+    let uploads: Vec<String> = [release, cells]
+        .iter()
+        .flat_map(|text| artifact_names(text, "upload-artifact@", ["name", "name"]))
+        .collect();
+    artifact_names(
+        upload_job(release),
+        "download-artifact@",
+        ["name", "pattern"],
+    )
+    .into_iter()
+    .filter(|download| !uploads.iter().any(|up| names_match(download, up)))
+    .collect()
+}
+
+#[test]
+fn the_upload_job_downloads_the_source_artifact() {
+    let text = workflow();
+    let upload = upload_job(&text);
+    let end = upload.find("Collect and check").expect("collect step");
+    assert!(upload[..end].contains("name: source\n"));
+    assert!(upload[..end].contains("path: out\n"));
+}
+
+#[test]
+fn every_upload_download_matches_an_uploaded_artifact() {
+    let (release, cells) = (workflow(), read_runfiles(CELLS_WORKFLOW));
+    assert_eq!(unmatched_downloads(&release, &cells), Vec::<String>::new());
+    let broken = release.replacen(
+        "          name: source\n          path: out\n",
+        "          name: missing\n          path: out\n",
+        1,
+    );
+    assert_eq!(
+        unmatched_downloads(&broken, &cells),
+        vec!["missing".to_owned()]
+    );
+}
+
+#[test]
+fn the_dry_run_report_runs_every_check_before_failing() {
+    let text = workflow();
+    let start = text.find("Emit dry-run report").expect("dry-run step");
+    let end = start
+        + text[start..]
+            .find("Prove checkout left clean")
+            .expect("next step");
+    let step = &text[start..end];
+    assert!(!step.contains("set -euo pipefail"));
+    assert!(step.contains("failed steps"));
+}
+
 const PINS: &str = "cli/prebuilt/pins.bzl";
 
 fn pins_version(pins: &str) -> String {

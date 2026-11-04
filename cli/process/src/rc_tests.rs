@@ -65,10 +65,26 @@ fn cache_and_gc() -> Vec<String> {
 }
 
 #[test]
-fn ci_keeps_bazel_hermetic() {
+fn ci_reads_user_rc_but_adds_no_cache() {
     let policy = Machine::local().env("CI", "true").policy();
-    assert_eq!(policy, RcPolicy::hermetic());
-    assert_eq!(policy.startup_opts(), &["--nohome_rc", "--nosystem_rc"]);
+    assert!(policy.read_user_rc);
+    assert!(policy.startup_opts().is_empty());
+    assert_eq!(policy.disk_cache, None);
+    assert_eq!(policy.bazel_disk_cache, None);
+    assert!(!policy.disk_cache_gc);
+    assert_eq!(policy.gc_idle_delay_secs, None);
+}
+
+#[test]
+fn ci_reads_the_setup_bazel_rc_without_adding_a_cache_flag() {
+    let policy = Machine::local()
+        .env("CI", "true")
+        .file(
+            "/home/u/.bazelrc",
+            "startup --output_base=/h/.bazel\nbuild --disk_cache=/c\n",
+        )
+        .policy();
+    assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/c")));
     assert!(policy.verb_options("build", None, &[]).is_empty());
 }
 
@@ -646,14 +662,18 @@ fn the_gc_pair_follows_only_build_verbs_and_never_hermetic_runs() {
     for verb in ["query", "cquery", "info", "shutdown"] {
         assert!(policy.verb_options(verb, None, &[]).is_empty(), "{verb}");
     }
-    for env in [("CI", "true"), ("BAZEL_TEST", "1")] {
-        let policy = Machine::local()
-            .env(env.0, env.1)
-            .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
-            .policy();
-        assert_eq!(policy, RcPolicy::hermetic(), "{env:?}");
-        assert!(policy.verb_options("build", None, &[]).is_empty());
-    }
+    let policy = Machine::local()
+        .env("BAZEL_TEST", "1")
+        .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
+        .policy();
+    assert_eq!(policy, RcPolicy::hermetic());
+    assert!(policy.verb_options("build", None, &[]).is_empty());
+    let ci = Machine::local()
+        .env("CI", "true")
+        .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
+        .policy();
+    assert_ne!(ci, RcPolicy::hermetic());
+    assert!(ci.verb_options("build", None, &[]).is_empty());
 }
 
 #[test]

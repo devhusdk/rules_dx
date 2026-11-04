@@ -155,7 +155,7 @@ if stale; then
   guard_temps
   : >"$state/built.$$"
   rc="--nohome_rc --nosystem_rc"
-  [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
+  [ -n "${BAZEL_TEST:-}" ] || rc=
   dc=
   gc=
   found=
@@ -210,7 +210,7 @@ if stale; then
       print (gc ? "gc" : "none")
     }
   ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2>/dev/null) || found=
-  if [ -z "$rc" ] && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
+  if [ -z "$rc" ] && [ "${CI:-}" != true ] && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
     dc="--disk_cache=$cache/dx/disk-cache"
     [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
     # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.

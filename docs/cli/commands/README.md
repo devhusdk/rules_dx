@@ -4,8 +4,9 @@ Every `dx` command runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
 checkout `//:dx` is the same target.
 
-Locally, Bazel reads `~/.bazelrc` and the system rc for every `dx` call. Under
-`CI=true` and inside Bazel tests, `dx` passes `--nohome_rc --nosystem_rc`.
+Bazel reads `~/.bazelrc` and the system rc for every `dx` call, locally and in
+CI. Inside Bazel tests, `dx` passes `--nohome_rc --nosystem_rc`. Under
+`CI=true`, `dx` adds no disk cache, so setup-bazel owns caching.
 
 ```sh
 bazel run @rules_dx//:dx -- build //...

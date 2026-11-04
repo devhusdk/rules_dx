@@ -230,7 +230,7 @@ fn step_condition(step: &serde_json::Value) -> &str {
 
 #[test]
 fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
-    let info = "bazel --nohome_rc --nosystem_rc info repository_cache";
+    let info = "bazel info repository_cache";
     let prefix = "dx-repo-${{ runner.os }}-${{ runner.arch }}-";
     let key = repo_cache_key(prefix);
     let validate = validate_platforms(&workflows());

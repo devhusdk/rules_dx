@@ -205,9 +205,10 @@ impl RcPolicy {
         read_file: &dyn Fn(&Path) -> Option<String>,
     ) -> RcPolicy {
         let in_bazel_test = env_get("BAZEL_TEST").is_some_and(|value| !value.is_empty());
-        if is_ci_value(env_get("CI").as_deref()) || in_bazel_test {
+        if in_bazel_test {
             return RcPolicy::hermetic();
         }
+        let ci = is_ci_value(env_get("CI").as_deref());
         let roots = rc_roots(env_get, workspace);
         let lines = sections::load_rc(env_get, workspace, read_file, true, &[]);
         // Any rc line naming a disk cache flag, in any section, means dx adds no cache.
@@ -219,6 +220,8 @@ impl RcPolicy {
                     None,
                     value.map(|value| expand_path(value, env_get, workspace)),
                 )
+            } else if ci {
+                (None, None)
             } else {
                 let default = user_cache_dir(env_get).map(|cache| default_disk_cache(&cache));
                 (
@@ -230,11 +233,12 @@ impl RcPolicy {
             };
         let disk_cache_gc =
             disk_cache.is_some() && !rc_sets_disk_cache_gc(&roots, workspace, read_file);
-        let gc_idle_delay_secs = if rc_sets_flag(&roots, workspace, read_file, GC_IDLE_DELAY_FLAG) {
-            None
-        } else {
-            rc_min_max_idle_secs(&roots, workspace, read_file).and_then(gc_idle_delay_for)
-        };
+        let gc_idle_delay_secs =
+            if ci || rc_sets_flag(&roots, workspace, read_file, GC_IDLE_DELAY_FLAG) {
+                None
+            } else {
+                rc_min_max_idle_secs(&roots, workspace, read_file).and_then(gc_idle_delay_for)
+            };
         RcPolicy {
             read_user_rc: true,
             disk_cache,

@@ -33,7 +33,7 @@ fn a_non_string_value_names_what_was_read() {
 fn scripts_join_the_run_lines_of_one_job() {
     let all = scripts(CONSUMER, "validate");
     assert!(
-        all.contains("bazel --nohome_rc --nosystem_rc info repository_cache"),
+        all.contains("bazel info repository_cache"),
         "{CONSUMER} job validate scripts must include its repository cache lookup: {all}"
     );
 }

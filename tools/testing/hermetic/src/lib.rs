@@ -189,6 +189,9 @@ pub const REQUIRED_PROBES: &[&str] = &[
     "cache_miss",
 ];
 
+/// Probes that run dx itself inside the isolation, once the manifest names coverage patterns.
+pub const DX_PROBES: &[&str] = &["dx_generate_check", "dx_coverage"];
+
 const BUILD_FLAGS: &[&str] = &[
     "--noshow_progress",
     "--color=no",
@@ -679,6 +682,58 @@ impl Session {
     }
 
     // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
+    /// Writes a `bazel` that runs the resolved bazelisk, so dx finds it on its PATH.
+    fn bazel_bin(&self, output_root: &Path) -> Result<PathBuf, String> {
+        let dir = self.root.join("bin").join("path");
+        std::fs::create_dir_all(&dir)
+            .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
+        let script = format!(
+            "#!/bin/sh\nexec {} --nosystem_rc --output_user_root={} \"$@\"\n",
+            shell_quote(&self.bazelisk.to_string_lossy()),
+            shell_quote(&output_root.to_string_lossy())
+        );
+        let bazel = dir.join("bazel");
+        write(&bazel, &script)?;
+        executable(&bazel)?;
+        Ok(dir)
+    }
+
+    /// Runs the dx binary on the manifest coverage patterns with `bazel` on its PATH.
+    pub fn run_dx(
+        &mut self,
+        name: &str,
+        command: &str,
+        home: &Path,
+        output_root: &Path,
+        repos: &Path,
+    ) -> Result<Outcome, String> {
+        let bin = self.bazel_bin(output_root)?;
+        let mut args = vec![command.to_owned()];
+        args.extend(self.manifest.coverage.iter().cloned());
+        args.extend([
+            "--".to_owned(),
+            format!("--repository_cache={}", repos.display()),
+            "--repository_disable_download".to_owned(),
+        ]);
+        args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        let mut argv = vec![
+            "/usr/bin/env".to_owned(),
+            "-i".to_owned(),
+            format!("HOME={}", home.display()),
+            format!("PATH={}:{ACTION_PATH}", bin.display()),
+            format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
+            "/bin/sh".to_owned(),
+            "-c".to_owned(),
+            "cd \"$0\" && \"$@\"; rc=$?; bazel --max_idle_secs=60 shutdown >/dev/null 2>&1; exit $rc"
+                .to_owned(),
+            self.workspace.to_string_lossy().into_owned(),
+            self.manifest.dx.to_string_lossy().into_owned(),
+        ];
+        argv.extend(args);
+        let recorded = argv[9..].to_vec();
+        self.execute(name, Net::Denied, home, &argv, recorded, &Expect::Pass)
+    }
+
     /// Runs one probe, logs it and records its verdict.
     pub fn run(&mut self, probe: Probe) -> Result<Outcome, String> {
         let argv = self.bazel_argv(&probe);
@@ -913,6 +968,9 @@ fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
     if !manifest.coverage.is_empty() {
         required.push(("fetch_coverage".to_owned(), "pass", "", Net::Allowed));
         required.push(("coverage".to_owned(), "pass", "", Net::Denied));
+        for name in DX_PROBES {
+            required.push(((*name).to_owned(), "pass", "", Net::Denied));
+        }
     }
     for (label, marker) in &manifest.failures {
         required.push((failure_probe_name(label), "fail", marker, Net::Denied));
@@ -1476,6 +1534,8 @@ fn run_all(
                 .collect::<Vec<_>>(),
         });
         check_coverage(&sources, &session.manifest)?;
+        session.run_dx("dx_generate_check", "generate", &clean_home, &warm, &repos)?;
+        session.run_dx("dx_coverage", "coverage", &clean_home, &warm, &repos)?;
     }
     for (label, marker) in failures {
         session.run(Probe {

@@ -1183,6 +1183,9 @@ fn probe_evidence(manifest: &Manifest) -> Value {
     let probes = evidence["probes"].as_array_mut().unwrap();
     probes.push(probe_record("fetch_coverage", "pass", "", "allowed", &[]));
     probes.push(probe_record("coverage", "pass", "", "denied", &[]));
+    for name in DX_PROBES {
+        probes.push(probe_record(name, "pass", "", "denied", &[]));
+    }
     for (label, marker) in &manifest.failures {
         probes.push(probe_record(
             &failure_probe_name(label),
@@ -1254,7 +1257,12 @@ fn verify_requires_every_failure_probe() {
 fn verify_requires_coverage_probes_and_owned_sources() {
     let manifest = probe_manifest();
     let evidence = probe_evidence(&manifest);
-    for name in ["coverage", "fetch_coverage"] {
+    for name in [
+        "coverage",
+        "fetch_coverage",
+        "dx_generate_check",
+        "dx_coverage",
+    ] {
         let err =
             verify_evidence(&without_probe(&evidence, name), "abc123", &manifest).unwrap_err();
         assert!(
@@ -1263,7 +1271,7 @@ fn verify_requires_coverage_probes_and_owned_sources() {
         );
     }
     let mut online = evidence.clone();
-    probe_mut(&mut online, "coverage")["network"] = json!("allowed");
+    probe_mut(&mut online, "dx_coverage")["network"] = json!("allowed");
     let err = verify_evidence(&online, "abc123", &manifest).unwrap_err();
     assert!(err.contains("ran with network"), "{err}");
     let mut jar = evidence.clone();

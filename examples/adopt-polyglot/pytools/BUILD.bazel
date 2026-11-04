@@ -2,20 +2,21 @@ load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 python_library(
-    name = "shapes",
-    srcs = ["shapes.py"],
+    name = "rectangles",
+    srcs = ["rectangles.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_test(
-    name = "shapes_test",
-    srcs = ["shapes_test.py"],
+    name = "rectangles_test",
+    srcs = ["rectangles_test.py"],
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [
-        ":shapes",
+        ":rectangles",
         "@pypi//coverage",  # keep
         "@pypi//pytest",  # keep
     ],

@@ -1,6 +1,6 @@
 """Tests for the polyglot geometry helpers."""
 
-from shapes import area
+from rectangles import area
 
 
 def test_area():

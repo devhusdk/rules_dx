@@ -9,6 +9,7 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
+    visibility = ["//visibility:public"],
 )
 
 typescript_project(
@@ -18,6 +19,7 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
+    visibility = ["//visibility:public"],
     deps = [":sums"],
 )
 
@@ -46,4 +48,5 @@ javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
     aspect_hints = ["//:biome_config"],
+    visibility = ["//visibility:public"],
 )

@@ -124,7 +124,11 @@ pub fn detect_default_branch(root: &Path) -> String {
         Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
     };
     let from_origin = git(&["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
-        .and_then(|name| name.strip_prefix("origin/").map(str::to_owned));
+        .and_then(|name| name.strip_prefix("origin/").map(str::to_owned))
+        .filter(|name| {
+            let remote_ref = format!("refs/remotes/origin/{name}");
+            git(&["rev-parse", "--verify", "--quiet", &remote_ref]).is_some()
+        });
     pick_default_branch(from_origin, git(&["config", "init.defaultBranch"]))
 }
 
@@ -919,6 +923,33 @@ mod tests {
             super::detect_default_branch(std::path::Path::new("/nonexistent-dx-dir")),
             "main"
         );
+    }
+
+    #[test]
+    fn ignores_origin_head_pointing_at_missing_branch() {
+        let dir = std::env::temp_dir().join(format!("dx-adopt-stale-head-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(args)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        };
+        if git(&["init", "-q"])
+            && git(&["config", "init.defaultBranch", "trunk"])
+            && git(&[
+                "symbolic-ref",
+                "refs/remotes/origin/HEAD",
+                "refs/remotes/origin/master",
+            ])
+        {
+            assert_eq!(super::detect_default_branch(&dir), "trunk");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

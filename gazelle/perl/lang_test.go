@@ -151,3 +151,38 @@ func TestResolveReportsCPANImportWithHint(t *testing.T) {
 		t.Errorf("errors = %v, want one unresolved Text::CSV with a resolve hint", errs)
 	}
 }
+
+func TestGenerateReportsUnreadableDirectories(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads every directory")
+	}
+	for _, dir := range []string{"lib/Foo", "t"} {
+		l := NewLanguage().(*perlLang)
+		l.Before(context.Background())
+		root := t.TempDir()
+		writeFixture(t, root, map[string]string{
+			"lib/Foo/Bar.pm": "1;\n",
+			"t/a.t":          "1;\n",
+		})
+		blocked := filepath.Join(root, filepath.FromSlash(dir))
+		if err := os.Chmod(blocked, 0); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(blocked, 0o755) })
+		result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root})
+		if len(result.Gen) != 0 || !l.Failed() {
+			t.Errorf("%s: gen = %d failed = %v, want a failure and no rules", dir, len(result.Gen), l.Failed())
+		}
+	}
+}
+
+func TestGenerateMissingTestDirectoryIsClean(t *testing.T) {
+	l := NewLanguage().(*perlLang)
+	l.Before(context.Background())
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{"lib/Foo.pm": "1;\n"})
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root})
+	if len(result.Gen) != 1 || l.Failed() {
+		t.Errorf("gen = %d failed = %v, want one rule", len(result.Gen), l.Failed())
+	}
+}

@@ -2,6 +2,8 @@ package perl
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -89,8 +91,16 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if ownedByAncestor(args) {
 		return language.GenerateResult{}
 	}
-	srcs := moduleSources(args, excludes)
-	tests := testSources(args, excludes)
+	srcs, err := moduleSources(args, excludes)
+	if err != nil {
+		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
+		return language.GenerateResult{}
+	}
+	tests, err := testSources(args, excludes)
+	if err != nil {
+		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
+		return language.GenerateResult{}
+	}
 	if len(srcs) == 0 && len(tests) == 0 {
 		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
@@ -178,7 +188,7 @@ func importsOf(args language.GenerateArgs, files []string, rep common.Reporter) 
 // moduleSources lists the package-relative .pm files the library owns: the
 // directory's own modules plus every module under lib that no nested package
 // or exclude claims.
-func moduleSources(args language.GenerateArgs, excludes []string) []string {
+func moduleSources(args language.GenerateArgs, excludes []string) ([]string, error) {
 	var srcs []string
 	for _, name := range args.RegularFiles {
 		if isSupported(name) {
@@ -186,39 +196,50 @@ func moduleSources(args language.GenerateArgs, excludes []string) []string {
 		}
 	}
 	if !claimed(args, excludes, libDir) {
-		walkLib(args, excludes, libDir, &srcs)
+		if err := walkLib(args, excludes, libDir, &srcs); err != nil {
+			return nil, err
+		}
 	}
 	sort.Strings(srcs)
-	return srcs
+	return srcs, nil
 }
 
-func walkLib(args language.GenerateArgs, excludes []string, rel string, out *[]string) {
+func walkLib(args language.GenerateArgs, excludes []string, rel string, out *[]string) error {
 	dir := filepath.Join(args.Dir, filepath.FromSlash(rel))
 	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
 	if err != nil {
-		return
+		return err
 	}
 	for _, e := range entries {
 		sub := path.Join(rel, e.Name())
 		switch {
 		case e.IsDir():
 			if !hiddenDir(e.Name()) && !claimed(args, excludes, sub) {
-				walkLib(args, excludes, sub, out)
+				if err := walkLib(args, excludes, sub, out); err != nil {
+					return err
+				}
 			}
 		case isSupported(e.Name()) && !excluded(args, excludes, sub):
 			*out = append(*out, sub)
 		}
 	}
+	return nil
 }
 
 // testSources lists the t/*.t files directly under the package.
-func testSources(args language.GenerateArgs, excludes []string) []string {
+func testSources(args language.GenerateArgs, excludes []string) ([]string, error) {
 	if claimed(args, excludes, testDir) {
-		return nil
+		return nil, nil
 	}
 	entries, err := os.ReadDir(filepath.Join(args.Dir, testDir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var tests []string
 	for _, e := range entries {
@@ -227,7 +248,7 @@ func testSources(args language.GenerateArgs, excludes []string) []string {
 		}
 	}
 	sort.Strings(tests)
-	return tests
+	return tests, nil
 }
 
 func hiddenDir(name string) bool { return strings.HasPrefix(name, ".") }

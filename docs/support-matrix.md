@@ -18,7 +18,6 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C and C++ | none |
 | C# | none |
 | CUDA | `linux_arm64`, `windows_x86_64`: not tested yet; `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: NVIDIA ships no CUDA toolkit for Windows arm64 |
-| D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
 | Elixir | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Erlang | `windows_x86_64`, `windows_arm64`: not tested yet |
@@ -69,7 +68,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) |
 | C# | `roslyn` | `csharpier` | `csc` |
 | CUDA | `clang_tidy` | `clang_format` | `nvcc_syntax` |
-| D | `dscanner` (not on `windows_x86_64`: The LDC Windows cell is pinned but unproven; `windows_arm64`: The LDC Windows cell is pinned but unproven) | `dfmt` (not on `windows_x86_64`: The LDC Windows cell is pinned but unproven; `windows_arm64`: The LDC Windows cell is pinned but unproven) | `ldc` |
+| D | `dscanner` (not on `windows_x86_64`: No quality matrix case runs dscanner on Windows yet (#1787); `windows_arm64`: No quality matrix case runs dscanner on Windows yet (#1787)) | `dfmt` (not on `windows_x86_64`: No quality matrix case runs dfmt on Windows yet (#1787); `windows_arm64`: No quality matrix case runs dfmt on Windows yet (#1787)) | `ldc` |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) |
 | Elixir | `credo` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `mix_format` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) |
 | Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) |

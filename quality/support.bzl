@@ -2105,8 +2105,8 @@ D_DFMT_FORMAT_SUPPORT = {
     "tool": "dfmt",
     "transport": "batched",
     "unsupported": {
-        "windows_arm64": "The LDC Windows cell is pinned but unproven",
-        "windows_x86_64": "The LDC Windows cell is pinned but unproven",
+        "windows_arm64": "No quality matrix case runs dfmt on Windows yet (#1787)",
+        "windows_x86_64": "No quality matrix case runs dfmt on Windows yet (#1787)",
     },
 }
 
@@ -2123,8 +2123,8 @@ D_DSCANNER_LINT_SUPPORT = {
     "tool": "dscanner",
     "transport": "batched",
     "unsupported": {
-        "windows_arm64": "The LDC Windows cell is pinned but unproven",
-        "windows_x86_64": "The LDC Windows cell is pinned but unproven",
+        "windows_arm64": "No quality matrix case runs dscanner on Windows yet (#1787)",
+        "windows_x86_64": "No quality matrix case runs dscanner on Windows yet (#1787)",
     },
 }
 

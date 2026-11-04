@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@rules_dx//flutter/rules:defs.bzl", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test")
 load("//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
+load("//flutter/tests/fixtures/flutter-app:profile.bzl", "profile_app")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
@@ -71,6 +72,28 @@ build_test(
     size = "small",
     target_compatible_with = FLUTTER_COMPATIBLE_WITH,
     targets = [":web"],
+)
+
+profile_app(
+    name = "web_profile",
+    app = ":web",
+    tags = ["manual"],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+)
+
+build_test(
+    name = "web_profile_build_test",
+    size = "small",
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    targets = [":web_profile"],
+)
+
+flutter_test(
+    name = "defines_test",
+    package_name = "flutter_app",
+    defines = ["PARTS_MODE=nondefault"],
+    main = "test/defines_test.dart",
+    deps = ["@dx_flutter_app_deps//:flutter_test"],
 )
 
 flutter_test(

@@ -1,0 +1,39 @@
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_application")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
+
+# Each target fails on purpose. They are manual so //... never builds them.
+
+flutter_application(
+    name = "type_error",
+    package_name = "flutter_app_failures",
+    main = "lib/type_error.dart",
+    tags = ["manual"],
+    deps = ["@dx_flutter_app_deps//:flutter"],
+)
+
+flutter_application(
+    name = "undeclared_dep",
+    package_name = "flutter_app_failures",
+    main = "lib/undeclared_dep.dart",
+    tags = ["manual"],
+    deps = ["@dx_flutter_app_deps//:flutter"],
+)
+
+flutter_application(
+    name = "missing_asset",
+    package_name = "flutter_app_failures",
+    assets = ["assets/missing.json"],
+    main = "lib/missing_asset.dart",
+    tags = ["manual"],
+    deps = ["@dx_flutter_app_deps//:flutter"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -162,7 +162,7 @@ def _descriptor_line(token):
 
 def launcher_descriptor(php, ini, tokens):
     """Returns the descriptor text the native launcher reads: the same program and arguments as launcher_script."""
-    lines = ["version=1", "program=" + php, "arg=-n"]
+    lines = ["program=" + php, "arg=-n"]
     for flag in ini_flags(ini):
         lines.append("arg=" + flag)
     lines.extend([_descriptor_line(token) for token in tokens])

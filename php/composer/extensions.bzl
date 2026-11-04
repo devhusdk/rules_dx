@@ -6,7 +6,7 @@ _lock = tag_class(
     doc = "One composer.lock and its digest sidecar.",
     attrs = {
         "dev": attr.bool(doc = "Set when the extension is used with dev_dependency = True; the hub is then a dev dependency of the root module."),
-        "digests": attr.label(mandatory = True, allow_single_file = [".json"], doc = "composer.digests.json: {\"version\": 1, \"packages\": {\"vendor/name\": {\"reference\", \"sha256\", \"urls\"?}}}."),
+        "digests": attr.label(mandatory = True, allow_single_file = [".json"], doc = "composer.digests.json: {\"packages\": {\"vendor/name\": {\"reference\", \"sha256\", \"urls\"?}}}."),
         "lock": attr.label(mandatory = True, allow_single_file = [".lock"], doc = "The composer.lock Composer wrote."),
         "name": attr.string(mandatory = True, doc = "The hub repository name."),
     },

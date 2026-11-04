@@ -2,7 +2,7 @@ use crate::launch::*;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-const GOOD: &str = "version=1\nprogram=_main/bin/php\narg=-n\narg=-d\narg=memory_limit=64M\npath=_main/x.phar\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n";
+const GOOD: &str = "program=_main/bin/php\narg=-n\narg=-d\narg=memory_limit=64M\npath=_main/x.phar\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n";
 
 #[test]
 fn parses_a_good_descriptor() {
@@ -25,21 +25,19 @@ fn parses_a_good_descriptor() {
 #[test]
 fn rejects_bad_descriptors() {
     let cases = [
-        "program=x\n",
-        "version=2\nprogram=x\n",
-        "version=1\nversion=1\nprogram=x\n",
-        "version=1\n",
-        "version=1\nprogram=x\nprogram=y\n",
-        "version=1\nprogram=\n",
-        "version=1\nprogram=x\nbogus=1\n",
-        "version=1\nprogram=x\npath=\n",
-        "version=1\nprogram=x\nprefixed=a b\n",
-        "version=1\nprogram=x\nprefixed=a\t\n",
-        "version=1\nprogram=x\nprefixed=a\tb\tc\n",
-        "version=1\nprogram=x\nenv_flag=\tVAR\n",
-        "version=1\nprogram=x\nenv_flag=--f\n",
-        "version=1\nprogram=x\nunset=\n",
-        "version=1\nprogram=x\nunset=A=B\n",
+        "version=1\nprogram=x\n",
+        "",
+        "program=x\nprogram=y\n",
+        "program=\n",
+        "program=x\nbogus=1\n",
+        "program=x\npath=\n",
+        "program=x\nprefixed=a b\n",
+        "program=x\nprefixed=a\t\n",
+        "program=x\nprefixed=a\tb\tc\n",
+        "program=x\nenv_flag=\tVAR\n",
+        "program=x\nenv_flag=--f\n",
+        "program=x\nunset=\n",
+        "program=x\nunset=A=B\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");
@@ -48,7 +46,7 @@ fn rejects_bad_descriptors() {
 
 #[test]
 fn keeps_literal_arguments_with_spaces_and_equals() {
-    let parsed = parse("version=1\nprogram=x\narg=-d a=b c='d'\n").unwrap();
+    let parsed = parse("program=x\narg=-d a=b c='d'\n").unwrap();
     assert_eq!(parsed.items, [Item::Arg("-d a=b c='d'".to_owned())]);
 }
 
@@ -182,18 +180,14 @@ fn runs_the_program_and_passes_the_exit_code() {
     let script = main.join("prog");
     std::fs::write(&script, "#!/bin/sh\nexit $(( $# + 4 ))\n").unwrap();
     std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-    std::fs::write(
-        dir.join("app.launch"),
-        "version=1\nprogram=_main/prog\narg=one\n",
-    )
-    .unwrap();
+    std::fs::write(dir.join("app.launch"), "program=_main/prog\narg=one\n").unwrap();
     let code = run(&dir.join("app.exe"), &["two".to_owned()]).unwrap();
     assert_eq!(code, 6);
 }
 
 #[test]
 fn parses_unset_lines_apart_from_items() {
-    let parsed = parse("version=1\nprogram=x\nunset=QT_PLUGIN_PATH\n").unwrap();
+    let parsed = parse("program=x\nunset=QT_PLUGIN_PATH\n").unwrap();
     assert_eq!(parsed.unset, ["QT_PLUGIN_PATH"]);
     assert!(parsed.items.is_empty());
 }
@@ -233,7 +227,7 @@ fn run_scrubs_unset_variables() {
     std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
     std::fs::write(
         dir.join("app.launch"),
-        "version=1\nprogram=_main/prog\nunset=EXEC_LAUNCHER_UNSET_PROBE\n",
+        "program=_main/prog\nunset=EXEC_LAUNCHER_UNSET_PROBE\n",
     )
     .unwrap();
     // Only this test uses this name, so setting it cannot disturb the others.

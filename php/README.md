@@ -105,7 +105,6 @@ the PSR-4, PSR-0, classmap and `files` autoload. A class whose package is not in
 
 ```json
 {
-  "version": 1,
   "packages": {
     "psr/log": {
       "reference": "<dist reference of composer.lock>",

@@ -32,16 +32,10 @@ fn bad(message: impl std::fmt::Display) -> io::Error {
 
 /// Parses the line-based descriptor, rejecting anything unexpected.
 pub fn parse(text: &str) -> io::Result<Descriptor> {
-    let mut version = false;
     let mut opa: Option<String> = None;
     let mut files: Vec<(String, String)> = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
-        if let Some(value) = line.strip_prefix("version=") {
-            if value != "1" || version {
-                return Err(bad(format!("unsupported descriptor line: {line}")));
-            }
-            version = true;
-        } else if let Some(value) = line.strip_prefix("opa=") {
+        if let Some(value) = line.strip_prefix("opa=") {
             if value.is_empty() || opa.is_some() {
                 return Err(bad("descriptor needs exactly one opa line"));
             }
@@ -61,9 +55,6 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         } else {
             return Err(bad(format!("unknown descriptor line: {line}")));
         }
-    }
-    if !version {
-        return Err(bad("descriptor has no version line"));
     }
     let opa = opa.ok_or_else(|| bad("descriptor needs exactly one opa line"))?;
     if files.is_empty() {

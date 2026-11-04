@@ -1,7 +1,7 @@
 //! Reads a launch descriptor, resolves its runfiles and runs the program it names.
 //!
 //! The descriptor sits beside the executable as `<stem>.launch`, one entry per line:
-//! `version=1`, `program=<key>`, `arg=<literal>`, `path=<key>`,
+//! `program=<key>`, `arg=<literal>`, `path=<key>`,
 //! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>` and `unset=<VAR>`. The
 //! user's arguments follow the listed ones; `unset` names variables removed from
 //! the child's environment.
@@ -60,17 +60,11 @@ fn pair(line: &str, value: &str) -> io::Result<(String, String)> {
 
 /// Parses the line-based descriptor, rejecting anything unexpected.
 pub fn parse(text: &str) -> io::Result<Descriptor> {
-    let mut version = false;
     let mut program: Option<String> = None;
     let mut items = Vec::new();
     let mut unset = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
-        if let Some(value) = line.strip_prefix("version=") {
-            if value != "1" || version {
-                return Err(bad(format!("unsupported descriptor line: {line}")));
-            }
-            version = true;
-        } else if let Some(value) = line.strip_prefix("program=") {
+        if let Some(value) = line.strip_prefix("program=") {
             if value.is_empty() || program.is_some() {
                 return Err(bad("descriptor needs exactly one program line"));
             }
@@ -99,9 +93,6 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         } else {
             return Err(bad(format!("unknown descriptor line: {line}")));
         }
-    }
-    if !version {
-        return Err(bad("descriptor has no version line"));
     }
     let program = program.ok_or_else(|| bad("descriptor needs exactly one program line"))?;
     Ok(Descriptor {

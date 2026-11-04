@@ -57,10 +57,8 @@ def ansible_lock_error(parsed):
     if type(parsed) != "dict":
         return "lock must be a JSON object"
     for key in parsed:
-        if key not in ["version", "collections"]:
+        if key not in ["collections"]:
             return "lock has unknown key %r" % key
-    if parsed.get("version") != 1:
-        return "unsupported lock version %r: want 1" % parsed.get("version")
     entries = parsed.get("collections")
     if type(entries) != "list":
         return "lock collections must be a list"

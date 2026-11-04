@@ -105,7 +105,7 @@ def runfiles_path(workspace_name, short_path):
 
 def otp_launch_descriptor(root, tool, archive_key = None):
     """Returns the native launcher descriptor that runs `bin/<tool>.exe` of the OTP tree at `root`."""
-    lines = ["version=1", "program=" + root + "/bin/" + tool + ".exe"]
+    lines = ["program=" + root + "/bin/" + tool + ".exe"]
     if archive_key:
         lines.append("path=" + archive_key)
     return "\n".join(lines) + "\n"

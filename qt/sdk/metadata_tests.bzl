@@ -319,7 +319,7 @@ def _seam_checks():
         expect_equal(
             "qt_tool descriptor scrubs host Qt paths",
             qt_tool_descriptor("dx_qt_x/bin/moc.exe"),
-            "version=1\nprogram=dx_qt_x/bin/moc.exe\nunset=QML2_IMPORT_PATH\nunset=QML_IMPORT_PATH\nunset=QT_CONF_PATH\nunset=QT_PLUGIN_PATH\nunset=QT_QPA_PLATFORM_PLUGIN_PATH\n",
+            "program=dx_qt_x/bin/moc.exe\nunset=QML2_IMPORT_PATH\nunset=QML_IMPORT_PATH\nunset=QT_CONF_PATH\nunset=QT_PLUGIN_PATH\nunset=QT_QPA_PLATFORM_PLUGIN_PATH\n",
         ),
         expect_equal("linux host", [host_key("linux", "amd64"), host_key("linux", "aarch64")], ["linux_x86_64", "linux_arm64"]),
         expect_equal("macos host", [host_key("Mac OS X", "x86_64"), host_key("mac os x", "aarch64")], ["macos_x86_64", "macos_arm64"]),

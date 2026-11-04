@@ -692,8 +692,6 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
 
 def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
     """Instantiates one private upstream library target plus its public forwarder."""
-    if "executable" in kwargs:
-        fail("dx_wrap: executable is gone; use dx_wrap_binary for " + name)
     upstream_rule(
         name = name + "_upstream",
         **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)

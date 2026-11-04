@@ -1,5 +1,4 @@
 {
-  "version": 1,
   "packages": {
     "psr/http-factory": {
       "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a",

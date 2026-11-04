@@ -85,7 +85,7 @@ _collections = tag_class(
     doc = "One hub of locked Ansible collections.",
     attrs = {
         "lock": attr.label(
-            doc = "JSON lock: {version: 1, collections: [{name, version, sha256, urls | path}]}, sorted by name.",
+            doc = "JSON lock: {collections: [{name, version, sha256, urls | path}]}, sorted by name.",
             allow_single_file = [".json"],
             mandatory = True,
         ),

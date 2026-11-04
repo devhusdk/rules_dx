@@ -64,7 +64,7 @@ def _rego_test_impl(ctx):
             fail("rego_test: {} and {} both stage as {}".format(staged[dest].path, f.path, dest))
         staged[dest] = f
     opa = ctx.file._opa
-    lines = ["version=1", "opa=" + _runfiles_key(ctx, opa)]
+    lines = ["opa=" + _runfiles_key(ctx, opa)]
     for dest in sorted(staged.keys()):
         lines.append("file=" + _runfiles_key(ctx, staged[dest]) + "\t" + dest)
     manifest = ctx.actions.declare_file(ctx.label.name + "_rego_test.manifest")

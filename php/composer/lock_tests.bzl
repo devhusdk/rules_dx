@@ -21,7 +21,7 @@ def _lock(packages, dev = None):
     return json.encode({"packages": packages, "packages-dev": dev or []})
 
 def _sidecar(names, reference = "r1"):
-    return json.encode({"version": 1, "packages": {name: {"reference": reference, "sha256": _SHA} for name in names}})
+    return json.encode({"packages": {name: {"reference": reference, "sha256": _SHA} for name in names}})
 
 def _checks():
     ok = analyze("hub", _lock([
@@ -37,7 +37,7 @@ def _checks():
     missing = analyze("hub", _lock([_entry("a/a")]), "")
     collision = analyze("hub", _lock([_entry("a/b__c"), _entry("a__b/c")]), "")
     orphan = analyze("hub", _lock([_entry("a/a")]), _sidecar(["a/a", "z/z"]))
-    bad_sidecar = analyze("hub", _lock([]), "{\"packages\": {}}")
+    bad_sidecar = analyze("hub", _lock([]), "{\"version\": 1}")
     return [
         expect_equal("a good lock has no errors", ok.errors, []),
         expect_equal("require edges resolve, replace included, platform skipped", ok.packages["a/a"].deps, ["b/b", "c/c"]),
@@ -53,7 +53,7 @@ def _checks():
         expect_contains("a missing digest is reported", missing.packages["a/a"].unpinned, "no entry"),
         expect_contains("sanitised name collisions fail", collision.errors[0], "both map to"),
         expect_contains("pins for absent packages fail", orphan.errors[0], "z/z"),
-        expect_contains("the sidecar is versioned", bad_sidecar.errors[0], "\"version\": 1"),
+        expect_contains("the sidecar shape is named", bad_sidecar.errors[0], "{\"packages\": {...}}"),
         expect_equal("spoke names", spoke_name("hub", "psr/http-message"), "hub__psr__http-message"),
         expect_true("platform requirements", is_platform("ext-json") and is_platform("php") and is_platform("lib-curl") and is_platform("composer-runtime-api") and not is_platform("psr/log")),
         expect_equal("mirror placeholders", expand_mirror("https://m/%package%/%version%/%reference%.%type%", "a/b", "1.0", "abc", "zip"), "https://m/a/b/1.0/abc.zip"),

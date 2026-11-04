@@ -3,8 +3,6 @@
 Nothing here runs Composer or PHP. Gazelle and a future pin tool can reuse the same facts.
 """
 
-SIDECAR_VERSION = 1
-
 _ARCHIVE_TYPES = ["zip", "tar"]
 
 _PLATFORM_PREFIXES = ("ext-", "lib-", "composer-")
@@ -57,8 +55,8 @@ def parse_sidecar(text):
     if not text.strip():
         return {}, []
     data = json.decode(text)
-    if type(data) != "dict" or data.get("version") != SIDECAR_VERSION or type(data.get("packages")) != "dict":
-        return {}, ["composer.digests.json must be {\"version\": 1, \"packages\": {...}}"]
+    if type(data) != "dict" or type(data.get("packages")) != "dict":
+        return {}, ["composer.digests.json must be {\"packages\": {...}}"]
     return data["packages"], []
 
 def manifest_entry(entry):

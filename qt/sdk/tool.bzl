@@ -13,7 +13,7 @@ QT_TOOL_UNSET = [
 
 def qt_tool_descriptor(key):
     """Returns the launch descriptor text for a tool key."""
-    return "version=1\nprogram=" + key + "\n" + "".join(["unset=" + name + "\n" for name in QT_TOOL_UNSET])
+    return "program=" + key + "\n" + "".join(["unset=" + name + "\n" for name in QT_TOOL_UNSET])
 
 def _qt_tool_impl(ctx):
     program = ctx.file.program

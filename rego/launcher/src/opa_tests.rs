@@ -1,7 +1,8 @@
 use crate::opa::*;
 use std::path::{Path, PathBuf};
 
-const GOOD: &str = "version=1\nopa=_main/opa\nfile=_main/a.rego\tpolicy/a.rego\nfile=_main/d.json\tpolicy/d.json\n";
+const GOOD: &str =
+    "opa=_main/opa\nfile=_main/a.rego\tpolicy/a.rego\nfile=_main/d.json\tpolicy/d.json\n";
 
 #[test]
 fn parses_a_good_descriptor() {
@@ -14,19 +15,18 @@ fn parses_a_good_descriptor() {
 #[test]
 fn rejects_bad_descriptors() {
     let cases = [
-        "opa=x\nfile=a\tb\n",
-        "version=2\nopa=x\nfile=a\tb\n",
-        "version=1\nfile=a\tb\n",
-        "version=1\nopa=x\nopa=y\nfile=a\tb\n",
-        "version=1\nopa=x\n",
-        "version=1\nopa=x\nbogus=1\nfile=a\tb\n",
-        "version=1\nopa=x\nfile=a b\n",
-        "version=1\nopa=x\nfile=a\tb\nfile=c\tb\n",
-        "version=1\nopa=x\nfile=a\t/abs\n",
-        "version=1\nopa=x\nfile=a\t../up\n",
-        "version=1\nopa=x\nfile=a\tp//q\n",
-        "version=1\nopa=x\nfile=a\tC:/q\n",
-        "version=1\nopa=x\nfile=\tb\n",
+        "version=1\nopa=x\nfile=a\tb\n",
+        "file=a\tb\n",
+        "opa=x\nopa=y\nfile=a\tb\n",
+        "opa=x\n",
+        "opa=x\nbogus=1\nfile=a\tb\n",
+        "opa=x\nfile=a b\n",
+        "opa=x\nfile=a\tb\nfile=c\tb\n",
+        "opa=x\nfile=a\t/abs\n",
+        "opa=x\nfile=a\t../up\n",
+        "opa=x\nfile=a\tp//q\n",
+        "opa=x\nfile=a\tC:/q\n",
+        "opa=x\nfile=\tb\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");

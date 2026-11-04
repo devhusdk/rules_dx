@@ -233,7 +233,7 @@ dx_wrapper_contract_tests(
                 },
                 _BINARY,
             ),
-            "version=1\nprogram=php+/php\narg=-n\narg=-d\narg=a=b c\narg=-d\narg=z=1\narg=-d\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\npath=_main/t.php/app/main.php\n",
+            "program=php+/php\narg=-n\narg=-d\narg=a=b c\narg=-d\narg=z=1\narg=-d\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\npath=_main/t.php/app/main.php\n",
         ),
         expect_contains(
             "the descriptor keeps the junit variable",

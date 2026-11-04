@@ -11,7 +11,7 @@ def _entry(name, **kwargs):
     return base
 
 def _lock(*entries):
-    return {"version": 1, "collections": list(entries)}
+    return {"collections": list(entries)}
 
 def _manifest(namespace, name, version, deps = {}):
     return {"collection_info": {"namespace": namespace, "name": name, "version": version, "dependencies": deps}}
@@ -23,8 +23,7 @@ def lock_unit_tests(name):
     checks = [
         expect_equal("valid", ansible_lock_error(_lock(a, b)), None),
         expect_equal("valid path", ansible_lock_error(_lock({"name": "a.one", "version": "1", "sha256": _SHA, "path": "x.tar.gz"})), None),
-        expect_equal("unknown version", ansible_lock_error({"version": 2, "collections": []}), "unsupported lock version 2: want 1"),
-        expect_equal("unknown key", ansible_lock_error({"version": 1, "collections": [], "x": 1}), "lock has unknown key \"x\""),
+        expect_equal("unknown key", ansible_lock_error({"collections": [], "x": 1}), "lock has unknown key \"x\""),
         expect_equal("unknown entry key", ansible_lock_error(_lock(_entry("a.one", extra = 1))), "collections[0] has unknown key \"extra\""),
         expect_equal("bad name", "namespace.collection" in ansible_lock_error(_lock(_entry("A.one"))), True),
         expect_equal("no dot", "namespace.collection" in ansible_lock_error(_lock(_entry("aone"))), True),

@@ -232,7 +232,7 @@ fn pins(sha256: &str, reference: &str) -> impl Fn(&str) -> String {
     let reference = reference.to_string();
     move |_| {
         format!(
-            r#"{{"version": 1, "packages": {{"v/a": {{"reference": "{reference}", "sha256": "{sha256}"}}}}}}"#
+            r#"{{"packages": {{"v/a": {{"reference": "{reference}", "sha256": "{sha256}"}}}}}}"#
         )
     }
 }
@@ -255,7 +255,7 @@ fn a_tampered_package_digest_fails_the_fetch() {
 #[test]
 fn a_missing_package_digest_fails_and_prints_the_entry_to_commit() {
     let case = composer_case("library", "", &|_| {
-        r#"{"version": 1, "packages": {}}"#.to_string()
+        r#"{"packages": {}}"#.to_string()
     });
     composer_build_fails_with(
         &case,

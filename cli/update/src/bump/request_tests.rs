@@ -1286,65 +1286,6 @@ fn configured_bazel_set_rejects_bare_bazelversion_and_bad_names() {
     ));
 }
 
-fn cargo_module(hubs: &str) -> String {
-    format!(
-        "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n{hubs}"
-    )
-}
-
-#[test]
-fn cargo_manifests_select_the_hub_of_the_cargo_lock() {
-    let module = cargo_module(
-        "crate.from_cargo(name = \"other\", cargo_lockfile = \"//other:Cargo.lock\", manifests = [\"//other:Cargo.toml\"])\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\",\n    manifests = [\"//cli/zeta:Cargo.toml\", \"//cli/bump:Cargo.toml\", \"//cli/zeta:Cargo.toml\"],\n)\n",
-    );
-    assert_eq!(
-        crate::bump::cargo_manifests(&module),
-        Ok(vec![
-            "cli/bump/Cargo.toml".to_owned(),
-            "cli/zeta/Cargo.toml".to_owned()
-        ])
-    );
-}
-
-#[test]
-fn cargo_manifests_fail_closed_on_unclear_hubs() {
-    let lock = "cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\"";
-    for (hubs, reason) in [
-        (
-            "crate.from_cargo(name = \"h\", cargo_lockfile = \"//x:Cargo.lock\", manifests = [\"//x:Cargo.toml\"])\n".to_owned(),
-            "no crate.from_cargo hub",
-        ),
-        (
-            format!("crate.from_cargo(name = \"a\", {lock}, manifests = [\"//a:Cargo.toml\"])\ncrate.from_cargo(name = \"b\", {lock}, manifests = [\"//b:Cargo.toml\"])\n"),
-            "2 crate.from_cargo hubs",
-        ),
-        (
-            format!("crate.from_cargo(name = \"h\", {lock}, manifests = [])\n"),
-            "lists no manifests",
-        ),
-        (
-            format!("crate.from_cargo(name = \"h\", {lock}, manifests = [\"@x//a:Cargo.toml\"])\n"),
-            "not a //package:file label",
-        ),
-        (
-            format!("crate.from_cargo(name = \"h\", {lock}, manifests = [\"//a:Foo.toml\"])\n"),
-            "is not a Cargo.toml",
-        ),
-        (
-            format!("crate.from_cargo(name = \"h\", {lock}, manifests = MANIFESTS)\n"),
-            "needs literal name",
-        ),
-    ] {
-        match crate::bump::cargo_manifests(&cargo_module(&hubs)) {
-            Err(BumpError::UnsupportedManifest { manifest, reason: got }) => {
-                assert_eq!(manifest, "MODULE.bazel");
-                assert!(got.contains(reason), "{got} for {hubs}");
-            }
-            other => panic!("{hubs}: {other:?}"),
-        }
-    }
-}
-
 #[test]
 fn cargo_errors_name_the_manifest_planned() {
     let cargo = UpdateRequest::parse_grammar("cargo:anyhow", "1.2.3").expect("cargo");

@@ -649,7 +649,6 @@ pub(crate) mod plans;
 #[path = "request_pyproject.rs"]
 mod pyproject;
 
-pub use cargo::cargo_manifests;
 use cargo::*;
 use plans::*;
 use pyproject::plan_pyproject_toml;

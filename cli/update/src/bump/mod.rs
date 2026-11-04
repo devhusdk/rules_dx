@@ -6,7 +6,7 @@ pub mod version;
 
 pub use add::{AddError, AddRequest};
 pub use request::{
-    cargo_manifests, BumpError, BumpPlanOutcome, ConfiguredKind, ConfiguredSet, DepTarget,
+    BumpError, BumpPlanOutcome, ConfiguredKind, ConfiguredSet, DepTarget,
     DepVersion, UpdateRequest,
 };
 pub use sets::UpdateSet;

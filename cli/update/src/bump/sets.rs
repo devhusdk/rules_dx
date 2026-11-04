@@ -59,64 +59,13 @@ impl UpdateSet {
         Self::names().join("|")
     }
 
-    pub fn manifests(self) -> &'static [&'static str] {
-        match self {
-            UpdateSet::Bazel => &[".bazelversion", "MODULE.bazel"],
-            UpdateSet::Cargo => &["rust/tests/fixtures/hello/Cargo.toml"],
-            UpdateSet::GithubActions => &[super::gha::WORKFLOW_DIR],
-            UpdateSet::Go => &["third_party/go/go.mod"],
-            UpdateSet::Maven => &["MODULE.bazel"],
-            UpdateSet::Npm => &["package.json"],
-            UpdateSet::NuGet => &["third_party/dotnet/paket.dependencies"],
-        }
-    }
-
     /// Whether a bump edits every manifest of the set that declares the package.
     pub fn spans_manifests(self) -> bool {
         matches!(self, UpdateSet::Cargo | UpdateSet::GithubActions)
     }
 
-    pub fn locks(self) -> &'static [&'static str] {
-        match self {
-            UpdateSet::Bazel => &[],
-            UpdateSet::Cargo => &[
-                "rust/tests/fixtures/hello/Cargo.lock",
-                "cargo-bazel-lock.json",
-            ],
-            UpdateSet::GithubActions => &[],
-            UpdateSet::Go => &["third_party/go/go.mod", "third_party/go/go.sum"],
-            UpdateSet::Maven => &["third_party/jvm/maven_install.json"],
-            UpdateSet::Npm => &["pnpm-lock.yaml"],
-            UpdateSet::NuGet => &["third_party/dotnet/paket.lock", "third_party/dotnet/deps"],
-        }
-    }
-
     pub fn needs_update_refresh(self) -> bool {
-        !self.locks().is_empty()
-    }
-
-    pub fn updater(self) -> &'static str {
-        match self {
-            UpdateSet::Bazel => {
-                "file-only (edit .bazelversion or MODULE.bazel pin, then preset flag-diff review)"
-            }
-            UpdateSet::Cargo => {
-                "crate_universe repin (CARGO_BAZEL_REPIN=1 bazel build //rust/tests/fixtures/hello:hello)"
-            }
-            UpdateSet::GithubActions => {
-                "file-only (edit workflow SHA-plus-tag pin via upstream GitHub releases client)"
-            }
-            UpdateSet::Go => {
-                "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx update` plus the pinned SDK tidy)"
-            }
-            UpdateSet::Maven => "rules_jvm_external pin (REPIN=1 bazel run @maven//:pin)",
-            UpdateSet::Npm => {
-                "Bazel-pinned pnpm lockfile-only update (bazel run @pnpm//:pnpm -- --dir <workspace> update --lockfile-only)"
-            }
-            UpdateSet::NuGet => {
-                "paket2bazel regeneration (bazel run @rules_dx//dotnet:paket2bazel -- ...)"
-            }
-        }
+        !matches!(self, UpdateSet::Bazel | UpdateSet::GithubActions)
     }
 }
 
@@ -187,18 +136,6 @@ mod tests {
     }
 
     #[test]
-    fn no_set_owns_a_dx_lockfile() {
-        for set in UpdateSet::ALL {
-            for path in set.manifests().iter().chain(set.locks().iter()) {
-                assert!(
-                    !path.contains("dx.lock") && !path.contains(".dx-lock"),
-                    "{set:?} must not own a dx lockfile: {path}"
-                );
-            }
-        }
-    }
-
-    #[test]
     fn resolver_sets_need_refresh_while_file_only_do_not() {
         assert!(!UpdateSet::Bazel.needs_update_refresh());
         assert!(!UpdateSet::GithubActions.needs_update_refresh());
@@ -207,25 +144,10 @@ mod tests {
         assert!(UpdateSet::Go.needs_update_refresh());
         assert!(UpdateSet::Maven.needs_update_refresh());
         assert!(UpdateSet::NuGet.needs_update_refresh());
-        assert!(UpdateSet::Bazel.locks().is_empty());
-        assert!(UpdateSet::GithubActions.locks().is_empty());
-        assert!(!UpdateSet::Cargo.locks().is_empty());
-        assert!(!UpdateSet::Maven.locks().is_empty());
-        assert!(!UpdateSet::NuGet.locks().is_empty());
     }
 
     #[test]
-    fn manifests_cover_the_v1_manager_set() {
-        assert!(UpdateSet::Bazel.manifests().contains(&".bazelversion"));
-        assert!(UpdateSet::Bazel.manifests().contains(&"MODULE.bazel"));
-        assert_eq!(
-            UpdateSet::Cargo.manifests(),
-            &["rust/tests/fixtures/hello/Cargo.toml"]
-        );
-        assert_eq!(UpdateSet::Npm.manifests(), &["package.json"]);
-        assert_eq!(UpdateSet::GithubActions.manifests(), &[".github/workflows"]);
-        assert!(UpdateSet::GithubActions.spans_manifests());
-        assert!(UpdateSet::Cargo.spans_manifests());
+    fn only_cargo_and_github_actions_span_manifests() {
         for set in UpdateSet::ALL {
             assert_eq!(
                 set.spans_manifests(),
@@ -233,16 +155,5 @@ mod tests {
                 "{set:?} spans manifests"
             );
         }
-        assert_eq!(UpdateSet::Maven.manifests(), &["MODULE.bazel"]);
-        assert_eq!(
-            UpdateSet::NuGet.manifests(),
-            &["third_party/dotnet/paket.dependencies"]
-        );
-        assert!(UpdateSet::Maven
-            .locks()
-            .contains(&"third_party/jvm/maven_install.json"));
-        assert!(UpdateSet::NuGet
-            .locks()
-            .contains(&"third_party/dotnet/paket.lock"));
     }
 }

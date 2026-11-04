@@ -1,7 +1,7 @@
 # gazelle:ignore
 # gazelle:exclude src
 
-load("@rules_dx//android/packaging:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "rust_android_apk")
 load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -10,15 +10,14 @@ package(default_visibility = ["//:__subpackages__"])
 
 java_library(
     name = "report",
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     srcs = ["src/main/java/org/example/adoptandroid/Report.java"],
+    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
 )
 
 java_test(
     name = "report_test",
-    size = "small",
-    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     srcs = ["src/test/java/org/example/adoptandroid/ReportTest.java"],
+    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
     main_class = "org.example.adoptandroid.ReportTest",
     use_testrunner = False,
     deps = [":report"],

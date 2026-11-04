@@ -79,4 +79,5 @@ _php_version_test = rule(
 
 def php_version_test(name, **kwargs):
     """Declares the resolved-PHP version test on the qualified cell."""
+    kwargs.setdefault("size", "small")
     _php_version_test(name = name, target_compatible_with = PHP_COMPATIBLE_WITH, **kwargs)

@@ -20,7 +20,6 @@ dart_binary(
 
 javascript_test(
     name = "js_run_test",
-    size = "small",
     srcs = ["js_test.mjs"],
     args = ["$(rootpath :hello_js)"],
     aspect_hints = ["//:biome_config"],
@@ -32,7 +31,6 @@ javascript_test(
 
 javascript_test(
     name = "wasm_run_test",
-    size = "small",
     srcs = ["wasm_test.mjs"],
     args = ["$(rootpaths :hello_wasm)"],
     aspect_hints = ["//:biome_config"],

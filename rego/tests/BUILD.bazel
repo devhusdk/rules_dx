@@ -164,7 +164,6 @@ rego_library(
 
 dx_direct_sources_test(
     name = "generated_src_skipped_test",
-    size = "small",
     expected = {"rego": ["app.rego"]},
     target_under_test = ":mixed_srcs",
 )

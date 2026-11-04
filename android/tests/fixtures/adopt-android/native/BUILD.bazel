@@ -31,7 +31,6 @@ cc_library(
 
 cc_test(
     name = "summary_test",
-    size = "small",
     srcs = ["summary_test.cc"],
     deps = [":summary"],
 )

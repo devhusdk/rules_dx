@@ -33,7 +33,6 @@ cuda_binary(
 
 cuda_test(
     name = "test",
-    size = "small",
     srcs = [
         "add.cu",
         "main.cc",
@@ -45,7 +44,6 @@ cuda_test(
 
 cuda_test(
     name = "rdc_test",
-    size = "small",
     srcs = [
         "add.cu",
         "rdc_main.cc",

@@ -21,6 +21,7 @@ _direct_sources_test = analysistest.make(
 
 def dx_direct_sources_test(name, target_under_test, expected, **kwargs):
     """Asserts a wrapper's direct quality sources by file class."""
+    kwargs.setdefault("size", "small")
     _direct_sources_test(
         name = name,
         target_under_test = target_under_test,

@@ -1,4 +1,4 @@
-load("//d/toolchain:pins.bzl", "LDC_CELLS", "LDC_UNPROVEN_CELLS")
+load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -54,9 +54,9 @@ dx_wrapper_contract_tests(
             [],
         ),
         expect_equal(
-            "D targets build on every proven LDC cell",
+            "D targets build on every pinned LDC cell",
             D_CELLS,
-            sorted([cell for cell in LDC_CELLS.keys() if cell not in LDC_UNPROVEN_CELLS]),
+            sorted(LDC_CELLS.keys()),
         ),
     ],
     file_classes = ["d"],

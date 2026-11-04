@@ -38,10 +38,10 @@ d_test(
 - `imports`, `string_srcs`, `string_imports`, `versions`, `dopts` and
   `linkopts` pass through to `rules_d`. Files in `string_srcs` are read with
   `import("file")` and are not D sources.
-- `D_COMPATIBLE_WITH` skips D targets on hosts without a proven LDC: linux x86_64,
-  linux arm64, macOS arm64 and Windows. An `evidence.yml` run proves the Windows cells (#4711).
-  They constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime is
-  MSVC-ABI.
+- `D_COMPATIBLE_WITH` covers every pinned LDC cell: linux x86_64, linux arm64, macOS arm64,
+  Windows x86_64 and Windows arm64. windows_arm64 runs the x64 LDC under emulation. Both Windows
+  cells constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime
+  is MSVC-ABI.
 
 ## Formatting
 

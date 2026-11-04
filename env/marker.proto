@@ -1,4 +1,4 @@
-// Managed environment marker schema (WP2 freeze).
+// Managed environment marker schema.
 //
 // Binary contract between the staged `environment_tree` outputs and the
 // `//dx:env` bootstrap installer. The marker is the installed tree's proof
@@ -6,8 +6,7 @@
 // that wrote it, so replacement can tell managed state from foreign state
 // and no-op when the candidate set is already installed.
 //
-// Field numbers below are frozen compatibility surface. The installer
-// refuses markers whose schema version it does not understand; changing
+// The installer refuses markers whose schema version it does not understand; changing
 // the identity algorithm is a schema-version bump, never silent drift.
 
 syntax = "proto3";

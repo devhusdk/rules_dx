@@ -656,9 +656,6 @@ Quality config:
 
 Every other file stays private.
 A private file is not a dependency.
-Patch releases keep every supported label and flag.
-Minor releases add without breaking old uses.
-A breaking change needs a new major version and a migration.
 Readers tolerate added fields and fail on a new major schema.
 The Bazel version in `.bazelversion` is the tested baseline.
 Bazel 9.2.0 or later is required.

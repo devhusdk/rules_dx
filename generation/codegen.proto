@@ -7,7 +7,6 @@ package rules_dx.codegen;
 // Each contributing configured target emits one shard carrying its direct
 // projection records; collectors merge shards transitively and the CLI
 // parses the shards reported through the `dx_codegen_plans` output group.
-// Field numbers are the compatibility surface: never reuse a number.
 message DxCodegenShard {
   // Contributing target label in observation rendering.
   string producer = 1;

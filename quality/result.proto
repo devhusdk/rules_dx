@@ -1,14 +1,12 @@
-// Quality Result Protocol schema (freeze for).
+// Quality Result Protocol schema.
 //
 // Internal binary contract between quality pipeline actions, Bazel
 // evaluators, and the `dx` CLI. Distinct from the public NDJSON output
 // protocol.
 //
-// Field and enum numbers below are frozen compatibility surface. Unknown
-// major versions are rejected; newer minors are accepted when decoding
-// succeeds and all semantics required by the operation are understood.
-// Reserved ranges hold room for compatible minor additions; only the
-// schema-major bump may reuse them incompatibly.
+// Unknown major versions are rejected; newer minors are accepted when
+// decoding succeeds and all semantics required by the operation are
+// understood.
 
 syntax = "proto3";
 

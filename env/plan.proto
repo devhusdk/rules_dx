@@ -7,7 +7,7 @@ package rules_dx.env;
 // Each contributing configured target emits one shard carrying its direct
 // environment identity records; collectors merge shards transitively and
 // the CLI parses the shards reported through the `dx_env_plans` output
-// group. Field numbers are the compatibility surface: never reuse a number.
+// group.
 message DxEnvShard {
   // Contributing target label in observation rendering.
   string producer = 1;

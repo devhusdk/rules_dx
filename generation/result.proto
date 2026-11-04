@@ -1,8 +1,8 @@
 // Generation Result Protocol schema.
 //
 // Private binary contract between the canonical Gazelle workflow and `dx`.
-// Field and enum numbers are the v1 compatibility surface. Unknown major
-// versions are rejected; newer minor versions are accepted when understood.
+// Unknown major versions are rejected; newer minor versions are accepted
+// when understood.
 
 syntax = "proto3";
 

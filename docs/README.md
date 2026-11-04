@@ -51,7 +51,7 @@ Per-language guides in the repository:
 ## Commands
 
 - [Command reference](cli/commands/README.md): behavior of each `dx` command.
-- [Supported surface](cli/commands/README.md#supported-surface): labels and `.bzl` files covered by the compatibility promise.
+- [Supported surface](cli/commands/README.md#supported-surface): labels and `.bzl` files.
 - [Scope defaults](cli/commands/scope-defaults.md): labels, files, dirs, and `--here`.
 - [Build, test, coverage](cli/commands/build-test-coverage.md): build, test, run, deploy, coverage.
 - [Quality](cli/commands/quality.md): lint, typecheck, format.

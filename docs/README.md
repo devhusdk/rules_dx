@@ -4,6 +4,7 @@ Start here to use `dx`. `dx` runs through Bazel. Install Bazel via
 Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 
 - [Tutorial](tutorial.md): from an empty directory to a passing `dx test`.
+- [Bazel for dx users](bazel-for-dx-users.md): sandbox, runfiles, caching, logs, visibility.
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md): move from upstream rules one package at a time.
 - [Adopting rules_dx without Bazel experience](adopting-without-bazel.md): use `dx` in a Cargo, Python or JavaScript repo.
 

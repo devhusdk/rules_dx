@@ -34,6 +34,7 @@ real_source_target(
         "README.md",
         "adopting-existing-bazel.md",
         "adopting-without-bazel.md",
+        "bazel-for-dx-users.md",
         "cli/commands/README.md",
         "cli/commands/audit-update.md",
         "cli/commands/build-test-coverage.md",

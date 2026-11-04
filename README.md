@@ -84,6 +84,7 @@ and C toolchains. Only the root module's tags count.
 [patches/README.md](patches/README.md).
 
 Next: [tutorial](docs/tutorial.md), [docs index](docs/README.md),
+[Bazel for dx users](docs/bazel-for-dx-users.md),
 [adopting rules_dx in an existing Bazel repo](docs/adopting-existing-bazel.md),
 [adopting rules_dx without Bazel experience](docs/adopting-without-bazel.md),
 [command reference](docs/cli/commands/README.md),

@@ -153,6 +153,7 @@ Run the same checks on every pull request. See [GitHub CI](github-ci.md).
 
 ## Next
 
+- [Bazel for dx users](bazel-for-dx-users.md)
 - [Command reference](cli/commands/README.md)
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md)
 - [Examples](../examples/README.md)

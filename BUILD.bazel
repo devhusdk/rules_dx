@@ -351,6 +351,7 @@ real_source_target(
         "//docs:README.md",
         "//docs:adopting-existing-bazel.md",
         "//docs:adopting-without-bazel.md",
+        "//docs:bazel-for-dx-users.md",
         "//docs:cli/commands/README.md",
         "//docs:github-ci.md",
         "//docs:support-matrix.md",

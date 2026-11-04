@@ -1,6 +1,6 @@
 //! Checks the files a starter fixture adds to `dx init` output against a golden listing.
 
-use dx_nested as nested;
+use starter_scaffold as scaffold;
 
 #[test]
 fn starter_matches_its_golden() {
@@ -9,9 +9,9 @@ fn starter_matches_its_golden() {
     let files = std::env::var("DX_FIXTURE_FILES").unwrap_or_default();
     let scratch = std::env::temp_dir().join(format!("starter_template_{}", std::process::id()));
     std::fs::create_dir_all(&scratch).unwrap_or_else(|error| panic!("mkdir {scratch:?}: {error}"));
-    let root = nested::scaffold_fixture(&scratch, &fixture, "demo-app");
+    let root = scaffold::scaffold_fixture(&scratch, &fixture, "demo-app");
 
-    let prefix = format!("{}/{fixture}/", nested::FIXTURES_DIR);
+    let prefix = format!("{}/{fixture}/", scaffold::FIXTURES_DIR);
     let mut paths: Vec<&str> = files
         .split_whitespace()
         .filter_map(|file| file.strip_prefix(&prefix)?.strip_suffix(".fixture"))

@@ -5,6 +5,11 @@ use std::path::Path;
 
 use dx_nested as nested;
 
+fn append(path: &Path, text: &str) {
+    let head = std::fs::read_to_string(path).unwrap_or_default();
+    std::fs::write(path, format!("{head}{text}")).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+}
+
 fn bazel_ok(root: &Path, args: &[&str]) -> String {
     let mut argv = vec![args[0], "--color=no", "--curses=no"];
     argv.extend_from_slice(&args[1..]);
@@ -50,7 +55,11 @@ fn assert_llvm_compiles(root: &Path, ext: &str, compiler: &str) {
 #[test]
 fn starter_builds_and_tests_as_a_consumer() {
     let case = nested::case("starter_c");
-    let root = nested::scaffold_consumer(case.root(), "c", "demo-app");
+    let root = starter_scaffold::scaffold_fixture(case.root(), "c", "demo-app");
+    let rules = dx_testing::rules_dx_source();
+    append(&root.join("MODULE.bazel"), &nested::compose::rules_dx_override(&rules));
+    nested::seed_rules_dx_lock(&root, &rules);
+    append(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     let run = nested::bazel_in(&root, &["test", "--color=no", "--curses=no", "//..."]);
     let text = format!("{}\n{}", run.stdout, run.stderr);
     assert_eq!(run.status.code(), Some(0), "{text}");

@@ -27,7 +27,7 @@ def starter_consumer_test(name, fixture = None, target_compatible_with = None):
         tags = STARTER_CONSUMER_TAGS,
         target_compatible_with = target_compatible_with or NESTED_BAZEL_COMPATIBLE_WITH,
         deps = [
-            "//tools/testing:dx_nested",
+            "//tools/testing/starters:starter_scaffold",
             "//tools/testing:dx_testing",
         ],
     )

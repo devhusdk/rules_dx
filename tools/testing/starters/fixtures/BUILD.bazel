@@ -1,6 +1,6 @@
 # Hello-world projects for the consumer tests, one directory per language.
 # Every file ends in .fixture so Bazel, Gazelle and the linters leave it alone;
-# dx_nested::scaffold_fixture strips the suffix after `dx init --apply`; the hermetic
+# starter_scaffold::scaffold_fixture strips the suffix after `dx init --apply`; the hermetic
 # qualifications map single files to their workspace paths.
 
 exports_files(

@@ -1281,8 +1281,12 @@ fn server_in(servers: &[Server], path: &Path) -> bool {
     })
 }
 
-/// Stops the Bazel server of path and reports whether one still runs.
-fn stop_server(host: &dyn Host, path: &Path) -> bool {
+/// Stops the Bazel server of path and reports whether one may still run.
+/// Without a process list the shutdown is best effort and a failure counts as still running.
+pub(crate) fn stop_server(host: &dyn Host, path: &Path) -> bool {
+    if !host.servers_known() {
+        return !host.bazel_shutdown(path);
+    }
     if !server_in(&host.servers(), path) {
         return false;
     }

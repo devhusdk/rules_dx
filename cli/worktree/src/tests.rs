@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use super::host::{same_path, DiskSpace, Host, Server};
@@ -34,6 +34,8 @@ struct FakeHost {
     stop_after: Mutex<Option<(usize, i32)>>,
     stop_after_shutdowns: Mutex<Option<(usize, i32)>>,
     stubborn: Mutex<BTreeSet<u32>>,
+    ps_missing: AtomicBool,
+    shutdown_fails: AtomicBool,
     stuck: Mutex<BTreeSet<PathBuf>>,
     nested: Mutex<Option<PathBuf>>,
     idle: Mutex<BTreeMap<u32, Option<bool>>>,
@@ -60,6 +62,8 @@ impl FakeHost {
             stop_after: Mutex::new(None),
             stop_after_shutdowns: Mutex::new(None),
             stubborn: Mutex::new(BTreeSet::new()),
+            ps_missing: AtomicBool::new(false),
+            shutdown_fails: AtomicBool::new(false),
             stuck: Mutex::new(BTreeSet::new()),
             nested: Mutex::new(None),
             idle: Mutex::new(BTreeMap::new()),
@@ -186,6 +190,10 @@ impl Host for FakeHost {
         first
     }
 
+    fn servers_known(&self) -> bool {
+        !self.ps_missing.load(Ordering::SeqCst)
+    }
+
     fn servers(&self) -> Vec<Server> {
         self.servers.lock().expect("servers").clone()
     }
@@ -199,7 +207,7 @@ impl Host for FakeHost {
         self.roots.lock().expect("roots").clone()
     }
 
-    fn bazel_shutdown(&self, workspace: &Path) {
+    fn bazel_shutdown(&self, workspace: &Path) -> bool {
         self.shutdowns
             .lock()
             .expect("shutdowns")
@@ -212,6 +220,7 @@ impl Host for FakeHost {
                     .as_deref()
                     .is_some_and(|dir| same_path(dir, workspace))
         });
+        !self.shutdown_fails.load(Ordering::SeqCst)
     }
 
     fn server_idle(&self, server: &Server) -> Option<bool> {
@@ -5569,4 +5578,15 @@ fn missing_output_root_is_not_read_as_a_low_ancestor_disk() {
         },
     ]);
     assert_eq!(ops::low_disk(&host, &fixture.cache), None);
+}
+
+#[test]
+fn without_a_process_list_stop_server_still_shuts_down_and_reports_failure() {
+    let host = FakeHost::new();
+    host.ps_missing.store(true, Ordering::SeqCst);
+    let path = PathBuf::from("/work/slot");
+    assert!(!ops::stop_server(&host, &path));
+    assert_eq!(host.shutdown_paths(), vec![path.clone()]);
+    host.shutdown_fails.store(true, Ordering::SeqCst);
+    assert!(ops::stop_server(&host, &path));
 }

@@ -36,11 +36,13 @@ pub trait Host {
     fn boot_id(&self) -> Option<String>;
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
+    /// Whether `servers` can see the process list; false when `ps` is absent or fails.
+    fn servers_known(&self) -> bool;
     /// The output roots that need no server scan: the defaults and the custom roots the rc files name.
     fn config_output_roots(&self) -> Vec<PathBuf>;
     fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf>;
-    /// Runs `bazel shutdown` in workspace; callers decide whether a server runs there.
-    fn bazel_shutdown(&self, workspace: &Path);
+    /// Runs `bazel shutdown` in workspace and reports whether it ran and succeeded.
+    fn bazel_shutdown(&self, workspace: &Path) -> bool;
     /// Whether no Bazel client holds the server's output-base lock; `None` when unknown.
     fn server_idle(&self, server: &Server) -> Option<bool>;
     /// When the server last ran a command, in epoch seconds; `None` when unknown.
@@ -481,8 +483,13 @@ const EXIT_WAIT: Duration = Duration::from_secs(5);
 pub struct SystemHost;
 
 #[cfg(unix)]
-fn list_servers() -> String {
-    dx_process::probe("ps", ["-eo", "pid=,rss=,args="]).unwrap_or_default()
+fn list_servers() -> Option<String> {
+    list_servers_with("ps")
+}
+
+#[cfg(unix)]
+fn list_servers_with(ps: &str) -> Option<String> {
+    dx_process::probe(ps, ["-eo", "pid=,rss=,args="])
 }
 
 fn home(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
@@ -602,7 +609,7 @@ impl Host for SystemHost {
     fn servers(&self) -> Vec<Server> {
         #[cfg(unix)]
         {
-            parse_servers(&list_servers())
+            parse_servers(&list_servers().unwrap_or_default())
         }
         #[cfg(windows)]
         {
@@ -610,6 +617,17 @@ impl Host for SystemHost {
                 .into_iter()
                 .filter_map(|info| server_from(info.pid, info.rss_bytes, &info.command_line))
                 .collect()
+        }
+    }
+
+    fn servers_known(&self) -> bool {
+        #[cfg(unix)]
+        {
+            list_servers().is_some()
+        }
+        #[cfg(windows)]
+        {
+            true
         }
     }
 
@@ -641,12 +659,15 @@ impl Host for SystemHost {
         roots
     }
 
-    fn bazel_shutdown(&self, workspace: &Path) {
+    fn bazel_shutdown(&self, workspace: &Path) -> bool {
         let Some(bazel) = find_bazel() else {
-            return;
+            return false;
         };
         let spec = shutdown_spec(&bazel, dx_process::current().startup_opts(), workspace);
-        let _ = run_within_until(&spec, CleanupBudget::STANDARD, &dx_process::interrupted);
+        run_within_until(&spec, CleanupBudget::STANDARD, &dx_process::interrupted)
+            .is_ok_and(|outcome| {
+                matches!(outcome, ChildOutcome::Finished { exit, .. } if exit.code() == Some(0))
+            })
     }
 
     fn server_idle(&self, server: &Server) -> Option<bool> {
@@ -1144,6 +1165,13 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[cfg(unix)]
+    #[test]
+    fn a_missing_ps_is_unknown_not_empty() {
+        let listed = list_servers_with("dx-no-such-ps");
+        assert_eq!(listed, None);
+    }
+
     #[test]
     fn rc_output_roots_read_startup_lines_and_imports() {
         let dir = tempfile::tempdir().expect("dir");

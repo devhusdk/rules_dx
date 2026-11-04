@@ -1,7 +1,6 @@
 package dart
 
 import (
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,36 +23,61 @@ func hasBuildFile(dir string) bool {
 }
 
 // dartFiles lists the .dart files under root (relative to dir, slash
-// separated). A BUILD file below root is an error: one pub package is one
-// Bazel package.
+// separated). Symlinked files and directories are followed, so a lib that
+// links to shared code is still a library. A BUILD file below root is an
+// error: one pub package is one Bazel package.
 func dartFiles(dir, root string) ([]string, error) {
 	var out []string
-	base := filepath.Join(dir, root)
-	if _, err := os.Stat(base); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, root)); err != nil {
 		return nil, nil
 	}
-	err := filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+	err := walkDart(dir, root, map[string]bool{}, &out)
+	sort.Strings(out)
+	return out, err
+}
+
+// walkDart lists the .dart files under rel, a slash separated path below dir.
+// active holds the real paths of the directories on the current walk, so a
+// symlink back to one of them ends the walk instead of looping.
+func walkDart(dir, rel string, active map[string]bool, out *[]string) error {
+	p := filepath.Join(dir, filepath.FromSlash(rel))
+	target, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return err
+	}
+	if active[target] {
+		return nil
+	}
+	active[target] = true
+	defer delete(active, target)
+	entries, err := os.ReadDir(p)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		name := e.Name()
+		child := rel + "/" + name
+		info, err := os.Stat(filepath.Join(p, name))
 		if err != nil {
 			return err
 		}
-		rel, _ := filepath.Rel(dir, p)
-		rel = filepath.ToSlash(rel)
-		if d.IsDir() {
-			if p != base && strings.HasPrefix(d.Name(), ".") {
-				return fs.SkipDir
+		if info.IsDir() {
+			if strings.HasPrefix(name, ".") {
+				continue
 			}
-			if p != base && hasBuildFile(p) {
-				return &nestedBuildError{rel: rel}
+			if hasBuildFile(filepath.Join(p, name)) {
+				return &nestedBuildError{rel: child}
 			}
-			return nil
+			if err := walkDart(dir, child, active, out); err != nil {
+				return err
+			}
+			continue
 		}
-		if strings.HasSuffix(d.Name(), ".dart") {
-			out = append(out, rel)
+		if strings.HasSuffix(name, ".dart") {
+			*out = append(*out, child)
 		}
-		return nil
-	})
-	sort.Strings(out)
-	return out, err
+	}
+	return nil
 }
 
 type nestedBuildError struct{ rel string }

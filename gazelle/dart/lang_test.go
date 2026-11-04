@@ -184,3 +184,64 @@ func TestStaleSweep(t *testing.T) {
 		t.Errorf("empty = %v, want old", result.Empty)
 	}
 }
+
+// linkTree writes files and symlinks (name -> target, relative to the link's
+// directory) under a new directory and returns it.
+func linkTree(t *testing.T, files []string, links map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, f := range files {
+		path := filepath.Join(dir, filepath.FromSlash(f))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, target := range links {
+		path := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.FromSlash(target), path); err != nil {
+			t.Skipf("symlinks not supported: %v", err)
+		}
+	}
+	return dir
+}
+
+func TestDartFilesFollowsSymlinks(t *testing.T) {
+	for name, tc := range map[string]struct {
+		files []string
+		links map[string]string
+		want  []string
+	}{
+		"symlinked lib": {
+			files: []string{"shared/lib/a.dart", "shared/lib/src/b.dart", "shared/lib/src/notes.txt"},
+			links: map[string]string{"pkg/lib": "../shared/lib"},
+			want:  []string{"lib/a.dart", "lib/src/b.dart"},
+		},
+		"symlinked subdir and file in lib": {
+			files: []string{"pkg/lib/a.dart", "shared/src/b.dart", "shared/y.dart"},
+			links: map[string]string{"pkg/lib/src": "../../shared/src", "pkg/lib/y.dart": "../../shared/y.dart"},
+			want:  []string{"lib/a.dart", "lib/src/b.dart", "lib/y.dart"},
+		},
+		"symlink cycle": {
+			files: []string{"pkg/lib/a.dart"},
+			links: map[string]string{"pkg/lib/loop": ".."},
+			want:  []string{"lib/a.dart"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := linkTree(t, tc.files, tc.links)
+			got, err := dartFiles(filepath.Join(root, "pkg"), "lib")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+				t.Errorf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

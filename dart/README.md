@@ -96,7 +96,7 @@ turned into a rule: bind `dart_config` by hand through `aspect_hints`.
 
 ## Examples
 
-- `examples/adopt-dart` adopts a pub workspace with `dx generate`.
+- `dart/tests/fixtures/adopt-dart` adopts a pub workspace with `dx generate`.
 - `examples/dart-app` is a multi-package app with a generated source file, runfiles data and failure targets.
 
 ## Pub dependencies

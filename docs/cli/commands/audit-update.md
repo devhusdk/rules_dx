@@ -46,11 +46,11 @@ lockfile.
 //cli/..., //tools/docs/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
 //examples/adopt-rust/...                                                             cargo
 //csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
-//examples/adopt-csharp/..., //fsharp/tests/fixtures/adopt-fsharp/...                              nuget
+//csharp/tests/fixtures/adopt-csharp/..., //fsharp/tests/fixtures/adopt-fsharp/...                              nuget
 //go/..., //third_party/go/...                                                         go
 //examples/adopt-go/...                                                               go
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
-//examples/adopt-java/..., //kotlin/tests/fixtures/adopt-kotlin/..., //scala/tests/fixtures/adopt-scala/...    maven
+//java/tests/fixtures/adopt-java/..., //kotlin/tests/fixtures/adopt-kotlin/..., //scala/tests/fixtures/adopt-scala/...    maven
 //javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
 //quality/tools/javascript/...                                                        npm-tools
 //examples/adopt-js-ts/...                                                            npm-adopt

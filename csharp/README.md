@@ -102,7 +102,7 @@ namespace by its full name with a directive:
 # gazelle:resolve csharp Newtonsoft.Json @paket.main//newtonsoft.json
 ```
 
-The command reference covers `dx generate`. The `examples/adopt-csharp` tree shows a full run.
+The command reference covers `dx generate`. The `csharp/tests/fixtures/adopt-csharp` tree shows a full run.
 
 ## Platforms
 

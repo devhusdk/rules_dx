@@ -352,7 +352,7 @@ pushd "%DX_HERE%" 2>nul && (for /f "delims=" %%G in ('git rev-parse --git-common
 pushd "%DX_ME%" 2>nul && (for /f "delims=" %%G in ('git rev-parse --git-common-dir 2^>nul') do if not defined DX_GB set "DX_GB=%%~fG") & popd
 if not defined DX_GA goto dxdone
 if /i not "%DX_GA%"=="%DX_GB%" goto dxdone
-call "%DX_HERE%\tools\dx.cmd" %*
+"%DX_HERE%\tools\dx.cmd" %*
 exit /b %errorlevel%
 :dxdone
 if not exist "%~dp0..\%DX_PINS%" (
@@ -642,6 +642,16 @@ mod tests {
                 assert!(!script.contains(gone), "{gone}");
             }
         }
+    }
+
+    #[test]
+    fn cmd_hand_off_does_not_expand_arguments_twice() {
+        let script = cmd();
+        let line = script
+            .lines()
+            .find(|line| line.ends_with("dx.cmd\" %*"))
+            .expect("hand-off line");
+        assert_eq!(line, "\"%DX_HERE%\\tools\\dx.cmd\" %*");
     }
 
     #[test]

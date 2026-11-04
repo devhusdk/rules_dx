@@ -167,10 +167,9 @@ jobs:
           cells="$RUNNER_TEMP/release-cells"
           mkdir -p "$cells"
           # The refusal proof only needs some dx file; a missing cell archive is reported by the check below.
-          fetch_dx() {
-            tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx || cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx"
-          }
-          run fetch_dx fetch_dx
+          tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx \
+            || cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx" \
+            || { echo "::error::fetch_dx failed"; failed="$failed fetch_dx"; }
           matrix="$(bazel cquery --output=files //deploy/release:release_matrix)" || failed="$failed matrix"
           run build_release_matrix bazel build //deploy/release:release_matrix --noshow_progress
           run build_release_artifacts bazel build //deploy/release:release_artifacts --noshow_progress
@@ -352,11 +351,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          files="$(cat files.list)"
+          read -ra files < files.list
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
           mkdir -p existing
-          for file in $files "$src" "$src.sha256" source.json; do
+          for file in "${files[@]}" "$src" "$src.sha256" source.json; do
             if printf '%s\n' "$existing_names" | grep -Fxq "$file"; then
               gh release download "$RELEASE_TAG" --pattern "$file" --dir existing
               if ! cmp -s "existing/$file" "out/$file"; then
@@ -367,7 +366,7 @@ jobs:
               gh release upload "$RELEASE_TAG" "out/$file"
             fi
           done
-          allowed="$(printf '%s\n' $files "$src" "$src.sha256" source.json)"
+          allowed="$(printf '%s\n' "${files[@]}" "$src" "$src.sha256" source.json)"
           extra="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fvx -f <(printf '%s\n' "$allowed") || true)"
           if [ -n "$extra" ]; then
             echo "Release $RELEASE_TAG holds assets outside the manifest: $extra. Delete them by hand." >&2

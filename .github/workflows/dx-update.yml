@@ -1,0 +1,44 @@
+name: dx-update
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dx-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      HAS_APP: ${{ secrets.DX_UPDATE_APP_ID != '' && secrets.DX_UPDATE_APP_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app
+        if: env.HAS_APP == 'true'
+        with:
+          app-id: ${{ secrets.DX_UPDATE_APP_ID }}
+          private-key: ${{ secrets.DX_UPDATE_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-cache: true
+      - name: Open update PRs
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          tools/dx update --pr --group=set --automerge=patch --min-age=3 --max-prs=5

@@ -53,6 +53,8 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
+const DX_UPDATE_WORKFLOW: &str = include_str!("../../../.github/workflows/dx-update.yml");
+
 pub fn render_consumer_module_setup() -> String {
     format!("bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n")
 }
@@ -308,6 +310,11 @@ fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldF
             kind: FileKind::CiPin,
         },
         ScaffoldFile {
+            path: ".github/workflows/dx-update.yml".to_owned(),
+            content: DX_UPDATE_WORKFLOW.to_owned(),
+            kind: FileKind::WriteOnce,
+        },
+        ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
@@ -547,12 +554,36 @@ mod tests {
             ".vscode/settings.json",
             ".vscode/extensions.json",
             ".github/workflows/ci.yml",
+            ".github/workflows/dx-update.yml",
             "MODULE.bazel.snippet",
         ];
         want.sort_unstable();
         let mut got: Vec<&str> = paths.iter().map(String::as_str).collect();
         got.sort_unstable();
         assert_eq!(got, want);
+    }
+
+    #[test]
+    fn dx_update_workflow_is_generic() {
+        let files = plan_init_files("demo").expect("init plans");
+        let file = files
+            .iter()
+            .find(|f| f.path == ".github/workflows/dx-update.yml")
+            .expect("dx-update scaffold");
+        for want in [
+            "cron: \"0 4 * * 1\"",
+            "workflow_dispatch",
+            "contents: write",
+            "pull-requests: write",
+            "tools/dx update --pr",
+            "DX_UPDATE_APP_ID",
+            "DX_UPDATE_APP_PRIVATE_KEY",
+        ] {
+            assert!(file.content.contains(want), "missing {want}");
+        }
+        for banned in ["./.github/actions", "BUILDBUDDY"] {
+            assert!(!file.content.contains(banned), "found {banned}");
+        }
     }
 
     #[test]

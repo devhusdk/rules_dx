@@ -32,11 +32,6 @@ filegroup(
     ],
 )
 
-filegroup(
-    name = "bump_auth_fixtures",
-    srcs = glob(["bump_auth_fixtures/**"]),
-)
-
 # keep
 rust_test(
     name = "aggregate_scripts_test",
@@ -438,12 +433,9 @@ rust_test(
 
 # keep
 rust_test(
-    name = "bump_auth_test",
-    srcs = ["bump_auth_test.rs"],
-    data = [
-        ":bump_auth_fixtures",
-        "//.github:workflows/update.yml",
-    ],
+    name = "dx_update_workflow_test",
+    srcs = ["dx_update_workflow_test.rs"],
+    data = ["//.github:workflows/dx-update.yml"],
     deps = [
         ":ci_workflow",
         "//tools/testing:dx_testing",
@@ -919,7 +911,7 @@ rustfmt_test(
         ":aggregate_scripts_test",
         ":artifact_writes_test",
         ":bcr_outdated_test",
-        ":bump_auth_test",
+        ":dx_update_workflow_test",
         ":ci_workflow",
         ":ci_workflow_test",
         ":config_consistency_test",

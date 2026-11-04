@@ -136,6 +136,7 @@ match the running dx.
 | `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow and `rules_dx_version` are updated. A file without `rules_dx_version` is left untouched. |
+| `.github/workflows/dx-update.yml` | you | Written when missing. Never rewritten. |
 | `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
 | `CLAUDE.md` | you | Created when missing. `@AGENTS.md` is added when the import is missing. |
 | `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing. When it exists, the missing hooks and `permissions.allow` entries are added in place. |

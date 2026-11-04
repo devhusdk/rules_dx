@@ -222,6 +222,29 @@ and validates the whole `site` tree, deploys it, fetches `index.html` and
 one, all before the clean-checkout proof. Enable Pages with source GitHub
 Actions before the first publishing run.
 
+## Dependency Updates
+
+`dx init` writes `.github/workflows/dx-update.yml`. It runs
+`tools/dx update --pr --group=set --automerge=patch --min-age=3 --max-prs=5`
+every Monday at 04:00 UTC and on `workflow_dispatch`. Edit the `cron` line to
+change the schedule. Edit the flags on the last line to change what it opens.
+
+It works with the default token. PRs opened with the default token start no CI
+runs, so they cannot merge on required checks.
+
+To get CI on update PRs, create a GitHub App and set two secrets:
+
+- `DX_UPDATE_APP_ID`
+- `DX_UPDATE_APP_PRIVATE_KEY`
+
+Give the app read and write on Contents, Pull requests and Workflows. The
+workflow uses the app token when both secrets exist.
+
+Turn on these repository settings:
+
+- Allow auto-merge.
+- Allow GitHub Actions to create and approve pull requests.
+
 ## Repository Settings
 
 Set these once in the repository. Each caller already grants its job

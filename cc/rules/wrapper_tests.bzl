@@ -89,6 +89,22 @@ def cc_gcc_asan_env_tests(name, target, expect, expect_llvm = "", **kwargs):
     _gcc_asan_env_llvm_test(name = name + "_llvm", size = "small", expect = expect_llvm, target_under_test = target, **kwargs)
     native.test_suite(name = name, tests = [name + "_gcc", name + "_llvm"], **kwargs)
 
+def _external_toolchain_asan_test(toolchain):
+    return analysistest.make(
+        _gcc_asan_env_impl,
+        attrs = {"expect": attr.string()},
+        config_settings = {"//command_line_option:extra_toolchains": [toolchain]},
+    )
+
+_asan_env_external_gcc_test = _external_toolchain_asan_test(str(Label("//cc/toolchains/external:gcc_toolchain")))
+_asan_env_external_icx_test = _external_toolchain_asan_test(str(Label("//cc/toolchains/external:icx_toolchain")))
+
+def cc_external_asan_env_tests(name, target, **kwargs):
+    """Asserts cc_test sets ASAN_OPTIONS under an external GCC toolchain and not under another external compiler."""
+    _asan_env_external_gcc_test(name = name + "_gcc", size = "small", expect = "verify_asan_link_order=0", target_under_test = target, **kwargs)
+    _asan_env_external_icx_test(name = name + "_icx", size = "small", target_under_test = target, **kwargs)
+    native.test_suite(name = name, tests = [name + "_gcc", name + "_icx"], **kwargs)
+
 def _gcov_env_impl(ctx):
     env = analysistest.begin(ctx)
     run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment

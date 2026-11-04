@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use sha2::{Digest, Sha256};
 
@@ -66,6 +66,7 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
             ShimError::failure(format!("bad pinned sha256 for {}: '{hash}'", request.url))
         })?,
     };
+    sweep_stale_parts(dir, request.asset);
     let part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
     let got = download(&agent, request, &part)?;
     if got != want {
@@ -175,6 +176,113 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+const STALE_PART_AGE: Duration = Duration::from_secs(60 * 60);
+
+// A killed run leaves its part file behind. Parts younger than an hour may
+// belong to a download that is still running, so only older ones go.
+fn sweep_stale_parts(dir: &Path, asset: &str) {
+    let prefix = format!(".{asset}.");
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !(name.starts_with(&prefix) && name.ends_with(".part")) {
+            continue;
+        }
+        let age = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| SystemTime::now().duration_since(t).ok());
+        if age.is_some_and(|age| age > STALE_PART_AGE) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
+#[cfg(unix)]
+mod interrupt {
+    use std::ffi::{c_char, c_int, CString};
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::Path;
+    use std::sync::atomic::{AtomicPtr, Ordering};
+    use std::sync::Once;
+
+    const SIGINT: c_int = 2;
+    const SIGTERM: c_int = 15;
+
+    extern "C" {
+        fn signal(signum: c_int, handler: usize) -> usize;
+        fn unlink(path: *const c_char) -> c_int;
+        fn _exit(code: c_int) -> !;
+    }
+
+    static PATH: AtomicPtr<c_char> = AtomicPtr::new(std::ptr::null_mut());
+
+    extern "C" fn on_signal(signum: c_int) {
+        let path = PATH.load(Ordering::SeqCst);
+        if !path.is_null() {
+            unsafe { unlink(path) };
+        }
+        unsafe { _exit(128 + signum) }
+    }
+
+    pub fn watch(path: &Path) {
+        static INSTALL: Once = Once::new();
+        let Ok(path) = CString::new(path.as_os_str().as_bytes()) else {
+            return;
+        };
+        PATH.store(path.into_raw(), Ordering::SeqCst);
+        INSTALL.call_once(|| unsafe {
+            signal(SIGINT, on_signal as *const () as usize);
+            signal(SIGTERM, on_signal as *const () as usize);
+        });
+    }
+
+    pub fn clear() {
+        PATH.store(std::ptr::null_mut(), Ordering::SeqCst);
+    }
+}
+
+#[cfg(windows)]
+mod interrupt {
+    use std::path::{Path, PathBuf};
+    use std::sync::{Mutex, Once};
+
+    static PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+    unsafe extern "system" fn on_ctrl(ctrl_type: u32) -> i32 {
+        if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
+            let _ = std::fs::remove_file(path);
+        }
+        std::process::exit(128 + if ctrl_type == 0 { 2 } else { 15 })
+    }
+
+    pub fn watch(path: &Path) {
+        static INSTALL: Once = Once::new();
+        if let Ok(mut current) = PATH.lock() {
+            *current = Some(path.to_path_buf());
+        }
+        INSTALL.call_once(|| unsafe {
+            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(on_ctrl), 1);
+        });
+    }
+
+    pub fn clear() {
+        if let Ok(mut current) = PATH.lock() {
+            *current = None;
+        }
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
+mod interrupt {
+    pub fn watch(_: &std::path::Path) {}
+    pub fn clear() {}
+}
+
 struct PartFile {
     path: PathBuf,
     file: Option<std::fs::File>,
@@ -196,6 +304,7 @@ impl PartFile {
             .write(true)
             .create_new(true)
             .open(&path)?;
+        interrupt::watch(&path);
         Ok(Self {
             path,
             file: Some(file),
@@ -204,6 +313,7 @@ impl PartFile {
 
     fn persist(mut self, dest: &Path) -> std::io::Result<()> {
         drop(self.file.take());
+        interrupt::clear();
         match std::fs::rename(&self.path, dest) {
             Ok(()) => Ok(()),
             Err(_) if dest.is_file() => Ok(()),
@@ -215,6 +325,7 @@ impl PartFile {
 impl Drop for PartFile {
     fn drop(&mut self) {
         drop(self.file.take());
+        interrupt::clear();
         let _ = std::fs::remove_file(&self.path);
     }
 }

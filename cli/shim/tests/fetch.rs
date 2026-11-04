@@ -251,3 +251,31 @@ fn read_only_cache_names_the_path() {
         "{err}"
     );
 }
+
+#[test]
+fn old_part_files_are_swept_and_fresh_ones_kept() {
+    let server = Server::start();
+    server.release(VERSION, ASSET, b"binary", b"binary");
+    let cache = tempfile::tempdir().expect("tempdir");
+    let dest = dest(&cache);
+    let dir = dest.parent().expect("dir");
+    std::fs::create_dir_all(dir).expect("mkdir");
+    let old = dir.join(format!(".{ASSET}.1.2-3.part"));
+    let fresh = dir.join(format!(".{ASSET}.4.5-6.part"));
+    let other = dir.join(".dx-other.1.2-3.part");
+    for path in [&old, &fresh, &other] {
+        std::fs::write(path, b"partial").expect("write");
+    }
+    let two_hours_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600);
+    for path in [&old, &other] {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .and_then(|f| f.set_modified(two_hours_ago))
+            .expect("age");
+    }
+    install(&server.url(VERSION, ASSET), &dest, &ChecksumSource::Sidecar).expect("installs");
+    assert!(!old.exists());
+    assert!(fresh.exists());
+    assert!(other.exists());
+}

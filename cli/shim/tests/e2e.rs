@@ -4,7 +4,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-use support::Server;
+use support::{Reply, Server};
 
 const VERSION: &str = "1.2.3";
 
@@ -336,4 +336,40 @@ fn unknown_shim_commands_are_usage_errors() {
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         assert_eq!(stderr(&output), want);
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn sigterm_mid_download_leaves_no_part_file() {
+    let fixture = Fixture::new();
+    let (asset, _) = support::host_asset();
+    fixture
+        .server
+        .route(&format!("/v{VERSION}/{asset}"), Reply::Stall);
+    let mut child = fixture
+        .command(fixture.workspace.path(), &["--version"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn shim");
+    let dir = fixture.cache.path().join("bin").join(VERSION);
+    let has_part = || {
+        std::fs::read_dir(&dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|e| e.file_name().to_string_lossy().ends_with(".part"))
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while !has_part() {
+        assert!(std::time::Instant::now() < deadline, "no download started");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    Command::new("kill")
+        .args(["-TERM", &child.id().to_string()])
+        .status()
+        .expect("kill");
+    let status = child.wait().expect("wait");
+    assert_eq!(status.code(), Some(143));
+    assert!(!has_part());
 }

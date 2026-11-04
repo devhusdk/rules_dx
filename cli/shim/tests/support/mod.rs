@@ -13,6 +13,7 @@ pub enum Reply {
     Ok(Vec<u8>),
     Truncated(Vec<u8>, usize),
     Status(u16),
+    Stall,
 }
 
 pub struct Server {
@@ -88,6 +89,11 @@ fn serve(stream: TcpStream, routes: &Mutex<HashMap<String, Reply>>) {
         Reply::Ok(body) => respond(&mut out, 200, &body, body.len()),
         Reply::Truncated(body, claimed) => respond(&mut out, 200, &body, claimed),
         Reply::Status(code) => respond(&mut out, code, b"", 0),
+        Reply::Stall => {
+            let _ = respond_partial(&mut out);
+            std::thread::sleep(std::time::Duration::from_secs(60));
+            Ok(())
+        }
     };
 }
 
@@ -97,6 +103,15 @@ fn respond(out: &mut TcpStream, code: u16, body: &[u8], length: usize) -> std::i
         "HTTP/1.1 {code} X\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n"
     )?;
     out.write_all(body)?;
+    out.flush()
+}
+
+fn respond_partial(out: &mut TcpStream) -> std::io::Result<()> {
+    write!(
+        out,
+        "HTTP/1.1 200 X\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n"
+    )?;
+    out.write_all(&[0u8; 1024])?;
     out.flush()
 }
 

@@ -13,8 +13,14 @@ winget install --id Git.Git -e
 
 ## PowerShell
 
-`tools\dx.cmd` calls PowerShell to rebuild `dx`. Windows PowerShell 5.1 ships
-with Windows. Check it is on `PATH`:
+`tools\dx.cmd` uses PowerShell to download the pinned `dx` release binary from
+GitHub and checks its sha256 against `.dx/version`. It caches the binary in
+`%USERPROFILE%\.cache\dx`. If the download fails, it prints the Bazel command to
+run instead and exits with an error. PowerShell needs network access to
+`github.com`. For proxy and custom CA setup, see
+[Corporate proxy and custom CA](../../proxy-and-ca.md).
+
+Windows PowerShell 5.1 ships with Windows. Check it is on `PATH`:
 
 ```powershell
 powershell -NoProfile -Command '$PSVersionTable.PSVersion'

@@ -372,25 +372,25 @@ def _forced(ctx, cc_info):
 def _framework_cell_impl(ctx):
     got = target_cell(ctx)
     if got == "":
-        fail("apple_ios_framework: framework slices build for no iOS platform here; build the framework target so rules_apple selects each slice")
+        fail("apple_ios_xcframework: framework slices build for no iOS platform here; build the framework target so rules_apple selects each slice")
     if got not in ctx.attr.slices:
-        fail("apple_ios_framework: this build targets {}, outside the framework slices {}".format(got, ", ".join(ctx.attr.slices)))
+        fail("apple_ios_xcframework: this build targets {}, outside the framework slices {}".format(got, ", ".join(ctx.attr.slices)))
     library = ctx.attr.library
     if AppleIosLibInfo in library and library[AppleIosLibInfo].cell != got:
-        fail("apple_ios_framework: library {} declares {} but this slice builds {}".format(
+        fail("apple_ios_xcframework: library {} declares {} but this slice builds {}".format(
             display(library.label),
             library[AppleIosLibInfo].cell,
             got,
         ))
-    xcode_config, xcode = resolved_xcode(ctx, "apple_ios_framework", "framework")
+    xcode_config, xcode = resolved_xcode(ctx, "apple_ios_xcframework", "framework")
     cc_info = ctx.attr.library[CcInfo]
     found = archives(cc_info)
     if len(found) == 0:
-        fail("apple_ios_framework: library {} links no static archive; pass a Rust static library".format(display(ctx.attr.library.label)))
+        fail("apple_ios_xcframework: library {} links no static archive; pass a Rust static library".format(display(ctx.attr.library.label)))
     environment = got.split("/")[0]
     report = check_cell(
         ctx,
-        "apple_ios_framework",
+        "apple_ios_xcframework",
         got,
         sdk_for(environment),
         MACH_O_PLATFORMS[environment],
@@ -865,11 +865,11 @@ _framework_selection = rule(
 def _xcframework_check_impl(ctx):
     archives = [file for file in ctx.attr.xcframework[DefaultInfo].files.to_list() if file.basename.endswith(".xcframework.zip")]
     if len(archives) != 1:
-        fail("apple_ios_framework: {} built {} .xcframework.zip outputs, want exactly one".format(
+        fail("apple_ios_xcframework: {} built {} .xcframework.zip outputs, want exactly one".format(
             display(ctx.attr.xcframework.label),
             len(archives),
         ))
-    xcode_config, xcode = resolved_xcode(ctx, "apple_ios_framework", "framework")
+    xcode_config, xcode = resolved_xcode(ctx, "apple_ios_xcframework", "framework")
     report = ctx.actions.declare_file(ctx.label.name + "_xcframework.txt")
     out = ctx.actions.declare_file(ctx.label.name + ".xcframework.zip")
     args = ctx.actions.args()
@@ -973,7 +973,7 @@ def _slice_dict(slices):
             ios[parts[0]] = ios.get(parts[0], []) + [parts[1]]
     return ios
 
-def apple_ios_framework(
+def apple_ios_xcframework(
         name,
         library = None,
         hdrs = [],

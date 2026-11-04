@@ -51,7 +51,7 @@ const SLICES: &str = r#"[
         "simulator/x86_64",
     ]"#;
 
-const SHARE_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_framework")
+const SHARE_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_xcframework")
 load("@rules_rust//rust:defs.bzl", "rust_static_library")
 
 rust_static_library(
@@ -60,7 +60,7 @@ rust_static_library(
     edition = "2021",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "share",
     bundle_id = "com.example.share",
     bundle_name = "Share",
@@ -73,7 +73,7 @@ apple_ios_framework(
     xcode_version = "XCODE",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "newer",
     bundle_id = "com.example.share",
     bundle_name = "Share",
@@ -89,7 +89,7 @@ apple_ios_framework(
     xcode_version = "XCODE",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "partial",
     bundle_id = "com.example.share",
     bundle_name = "Share",
@@ -153,7 +153,7 @@ const char *share_platform(void);
 
 const RATES: &str = "tea 450\nbread 325\njam 600\n";
 
-const BAD_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_framework")
+const BAD_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_xcframework")
 load("@rules_cc//cc:defs.bzl", "cc_import")
 
 config_setting(
@@ -182,7 +182,7 @@ cc_import(
     }),
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "device_slice",
     bundle_id = "com.example.share",
     bundle_name = "Share",
@@ -196,7 +196,7 @@ apple_ios_framework(
     version = "1.0",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "newer_archive",
     bundle_id = "com.example.share",
     bundle_name = "Share",
@@ -210,7 +210,7 @@ apple_ios_framework(
     version = "1.0",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "duplicate_slices",
     bundle_id = "com.example.share",
     bundle_name = "Share",
@@ -899,7 +899,7 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
     let device = bazel(&producer, "build", &["//bad:device_slice"], &[]);
     fails_with(
         &device,
-        "apple_ios_framework: library archive libdevice.a is built for iphoneos, want iphonesimulator for simulator/arm64",
+        "apple_ios_xcframework: library archive libdevice.a is built for iphoneos, want iphonesimulator for simulator/arm64",
     );
     assert!(!producer
         .join("bazel-bin/bad/device_slice.xcframework.zip")
@@ -953,12 +953,12 @@ fn malformed_and_incompatible_frameworks_fail_explicitly() {
         (
             "resource",
             "Share.xcframework/ios-arm64-simulator/Share.framework/rates.txt",
-            "apple_ios_framework: library ios-arm64-simulator misses resource Share.framework/rates.txt\n",
+            "apple_ios_xcframework: library ios-arm64-simulator misses resource Share.framework/rates.txt\n",
         ),
         (
             "modulemap",
             "Share.xcframework/ios-arm64/Share.framework/Modules/module.modulemap",
-            "apple_ios_framework: library ios-arm64 has no Share.framework/Modules/module.modulemap\n",
+            "apple_ios_xcframework: library ios-arm64 has no Share.framework/Modules/module.modulemap\n",
         ),
     ] {
         let ran = check_tampered(&newer_zip, case, Some(entry), &xcode_line);

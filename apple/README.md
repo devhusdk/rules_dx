@@ -137,7 +137,7 @@ that cell. Linux hosts skip it. The build fails when:
 - the app or framework builds another cell than the library declares.
 
 One `apple_ios_lib` serves one cell, so pass a single-slice
-`apple_ios_framework` or an app in that cell.
+`apple_ios_xcframework` or an app in that cell.
 
 ## Simulator apps
 
@@ -414,7 +414,7 @@ bundle is an upstream `apple_xcframework`; each slice is built for its own
 platform, never merged by architecture name.
 
 ```python
-load("@rules_dx//apple/ios:app.bzl", "apple_ios_framework")
+load("@rules_dx//apple/ios:app.bzl", "apple_ios_xcframework")
 load("@rules_rust//rust:defs.bzl", "rust_static_library")
 
 rust_static_library(
@@ -422,7 +422,7 @@ rust_static_library(
     srcs = ["share.rs"],
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "share",
     bundle_id = "com.example.share",
     bundle_name = "Share",

@@ -3,7 +3,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//apple/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
+load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_xcframework")
 load(":app_tests.bzl", "apple_ios_app_tests")
 load(":defs.bzl", "apple_ios_lib", "ios_lib", "ios_lib_cell")
 load(":device.bzl", "apple_ios_export")
@@ -625,7 +625,7 @@ adhoc_signing_test(
     target_under_test = ":signing_probe_device",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "no_slices",
     bundle_id = "com.example.share",
     tags = ["manual"],
@@ -638,7 +638,7 @@ failure_test(
     target = ":no_slices",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "flat_slice",
     bundle_id = "com.example.share",
     slices = ["simulator"],
@@ -652,7 +652,7 @@ failure_test(
     target = ":flat_slice",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "watch_slice",
     bundle_id = "com.example.share",
     slices = ["watch/arm64"],
@@ -666,7 +666,7 @@ failure_test(
     target = ":watch_slice",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "device_x86_slice",
     bundle_id = "com.example.share",
     slices = ["device/x86_64"],
@@ -680,7 +680,7 @@ failure_test(
     target = ":device_x86_slice",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "simulator_only",
     bundle_id = "com.example.share",
     slices = ["simulator/arm64"],
@@ -694,7 +694,7 @@ failure_test(
     target = ":simulator_only",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "device_only",
     bundle_id = "com.example.share",
     slices = ["device/arm64"],
@@ -708,7 +708,7 @@ failure_test(
     target = ":device_only",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "absolute_resource",
     bundle_id = "com.example.share",
     resources = ["/abs/Assets.xcassets"],
@@ -726,7 +726,7 @@ failure_test(
     target = ":absolute_resource",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "no_headers",
     bundle_id = "com.example.share",
     deployment = "17.0",
@@ -745,7 +745,7 @@ failure_test(
     target = ":no_headers_selection",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "no_framework_deployment",
     hdrs = ["share_api.h"],
     bundle_id = "com.example.share",
@@ -764,7 +764,7 @@ failure_test(
     target = ":no_framework_deployment_selection",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "duplicate_slice",
     hdrs = ["share_api.h"],
     bundle_id = "com.example.share",
@@ -785,7 +785,7 @@ failure_test(
     target = ":duplicate_slice_selection",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "no_framework_library",
     hdrs = ["share_api.h"],
     bundle_id = "com.example.share",
@@ -804,7 +804,7 @@ failure_test(
     target = ":no_framework_library",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "share_framework",
     hdrs = ["share_api.h"],
     bundle_id = "com.example.share",
@@ -824,25 +824,25 @@ apple_ios_framework(
 cell_failure_test(
     name = "share_framework_without_archive_test",
     config = "simulator",
-    expected_failure_substring = "apple_ios_framework: library //apple/ios:share_stub links no static archive",
+    expected_failure_substring = "apple_ios_xcframework: library //apple/ios:share_stub links no static archive",
     target = ":share_framework_library",
 )
 
 cell_failure_test(
     name = "share_framework_on_host_test",
     config = "host",
-    expected_failure_substring = "apple_ios_framework: framework slices build for no iOS platform here",
+    expected_failure_substring = "apple_ios_xcframework: framework slices build for no iOS platform here",
     target = ":share_framework_library",
 )
 
 cell_failure_test(
     name = "share_framework_outside_slices_test",
     config = "simulator",
-    expected_failure_substring = "apple_ios_framework: this build targets simulator/arm64, outside the framework slices device/arm64",
+    expected_failure_substring = "apple_ios_xcframework: this build targets simulator/arm64, outside the framework slices device/arm64",
     target = ":device_framework_library",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "device_framework",
     hdrs = ["share_api.h"],
     bundle_id = "com.example.share",
@@ -909,7 +909,7 @@ cell_failure_test(
     target = ":device_lib_app_library",
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "device_lib_framework",
     hdrs = ["share_api.h"],
     bundle_id = "com.example.share",

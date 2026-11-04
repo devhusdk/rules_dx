@@ -17,7 +17,7 @@ work="$report.unpacked"
 
 fail() {
     rm -rf "$work" "$report.tmp"
-    echo "apple_ios_framework: $*" >&2
+    echo "apple_ios_xcframework: $*" >&2
     exit 1
 }
 

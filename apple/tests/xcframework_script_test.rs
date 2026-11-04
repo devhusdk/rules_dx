@@ -193,7 +193,7 @@ impl Case {
     fn rejects(&self, slices: &str, envs: &[(&str, &str)], want: &str) {
         let ran = self.check(slices, envs);
         assert_eq!(ran.status.code(), Some(1), "{}", ran.combined());
-        assert_eq!(ran.stderr, format!("apple_ios_framework: {want}\n"));
+        assert_eq!(ran.stderr, format!("apple_ios_xcframework: {want}\n"));
         assert!(
             !self.report().exists(),
             "{want}: a rejected XCFramework leaves no report"

@@ -48,7 +48,7 @@ const POCKET_ID: &str = "com.example.pocket";
 
 const FRAMEWORK_ID: &str = "com.example.pockettasks";
 
-const POCKET_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
+const POCKET_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_xcframework")
 load("@dx//apple/ios:simulator.bzl", "apple_simulator_boot", "apple_simulator_launch")
 load("@dx//apple/macos:app.bzl", "apple_macos_app")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
@@ -116,7 +116,7 @@ apple_ios_app_test(
     deps = [":pocket_headers"],
 )
 
-apple_ios_framework(
+apple_ios_xcframework(
     name = "pocket_framework",
     bundle_id = "com.example.pockettasks",
     bundle_name = "PocketTasks",

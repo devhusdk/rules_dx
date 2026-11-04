@@ -6,56 +6,9 @@ load("//tools/visibility:visibility.bzl", "VIS_QUALITY", "VIS_QUALITY_CLI")
 package(default_visibility = VIS_QUALITY)
 
 rust_library(
-    name = "api_spec_preflight",
-    srcs = ["src/api_spec_preflight.rs"],
-    aliases = aliases(
-        package_name = "quality/quality_adapter",
-        normal = True,
-    ),
-    crate_name = "api_spec_preflight",
-    crate_root = "src/api_spec_preflight.rs",
-    edition = "2021",
-    visibility = VIS_QUALITY + ["//api_spec/codegen:__pkg__"],
-    deps = all_crate_deps(
-        package_name = "quality/quality_adapter",
-        normal = True,
-    ),
-)
-
-rust_test(
-    name = "api_spec_preflight_test",
-    srcs = ["src/api_spec_preflight.rs"],
-    aliases = aliases(
-        package_name = "quality/quality_adapter",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "api_spec_preflight",
-    crate_root = "src/api_spec_preflight.rs",
-    edition = "2021",
-    deps = all_crate_deps(
-        package_name = "quality/quality_adapter",
-        normal = True,
-        normal_dev = True,
-    ),
-)
-
-rustfmt_test(
-    name = "api_spec_preflight_fmt_test",
-    targets = [
-        ":api_spec_preflight_test",
-        ":api_spec_preflight",
-    ],
-)
-
-rust_clippy_test(
-    name = "api_spec_preflight_clippy_test",
-    targets = [":api_spec_preflight"],
-)
-
-rust_library(
     name = "quality_adapter",
     srcs = [
+        "src/api_spec_preflight.rs",
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/exec.rs",
@@ -64,6 +17,7 @@ rust_library(
         "src/launch.rs",
         "src/lib.rs",
         "src/parsers/ansible_lint.rs",
+        "src/parsers/avro.rs",
         "src/parsers/bicep.rs",
         "src/parsers/biome.rs",
         "src/parsers/buf.rs",
@@ -127,9 +81,9 @@ rust_library(
         "src/parsers/mix_format.rs",
         "src/parsers/mod.rs",
         "src/parsers/modfmt.rs",
+        "src/parsers/msvc_syntax.rs",
         "src/parsers/nixfmt.rs",
         "src/parsers/notebook_outputs.rs",
-        "src/parsers/msvc_syntax.rs",
         "src/parsers/nvcc_syntax.rs",
         "src/parsers/ocaml_compile.rs",
         "src/parsers/opa.rs",
@@ -175,7 +129,6 @@ rust_library(
         "src/parsers/terraform_validate.rs",
         "src/parsers/tflint.rs",
         "src/parsers/thrift.rs",
-        "src/parsers/avro.rs",
         "src/parsers/topiary.rs",
         "src/parsers/tsc.rs",
         "src/parsers/ty.rs",
@@ -199,11 +152,11 @@ rust_library(
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = VIS_QUALITY + ["//api_spec/codegen:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_adapter",
         normal = True,
     ) + [
-        ":api_spec_preflight",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
@@ -217,6 +170,7 @@ rust_library(
 rust_test(
     name = "quality_adapter_test",
     srcs = [
+        "src/api_spec_preflight.rs",
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
@@ -227,6 +181,7 @@ rust_test(
         "src/launch_tests.rs",
         "src/lib.rs",
         "src/parsers/ansible_lint.rs",
+        "src/parsers/avro.rs",
         "src/parsers/bicep.rs",
         "src/parsers/biome.rs",
         "src/parsers/buf.rs",
@@ -290,9 +245,9 @@ rust_test(
         "src/parsers/mix_format.rs",
         "src/parsers/mod.rs",
         "src/parsers/modfmt.rs",
+        "src/parsers/msvc_syntax.rs",
         "src/parsers/nixfmt.rs",
         "src/parsers/notebook_outputs.rs",
-        "src/parsers/msvc_syntax.rs",
         "src/parsers/nvcc_syntax.rs",
         "src/parsers/ocaml_compile.rs",
         "src/parsers/opa.rs",
@@ -338,7 +293,6 @@ rust_test(
         "src/parsers/terraform_validate.rs",
         "src/parsers/tflint.rs",
         "src/parsers/thrift.rs",
-        "src/parsers/avro.rs",
         "src/parsers/topiary.rs",
         "src/parsers/tsc.rs",
         "src/parsers/ty.rs",
@@ -379,7 +333,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        ":api_spec_preflight",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
         "//cli/process:dx_process",

@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::process::ExitCode;
 
-use api_spec_preflight::{check_root, openapi_root_problem};
+use quality_adapter::api_spec_preflight::{check_root, openapi_root_problem};
 
 /// The parsed command line.
 struct Args {

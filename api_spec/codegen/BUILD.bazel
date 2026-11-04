@@ -9,7 +9,7 @@ rust_binary(
     crate_name = "openapi_codegen_preflight",
     crate_root = "preflight_main.rs",
     edition = "2021",
-    deps = ["//quality/adapter:api_spec_preflight"],
+    deps = ["//quality/adapter:quality_adapter"],
 )
 
 rust_test(
@@ -18,7 +18,7 @@ rust_test(
     crate_name = "openapi_codegen_preflight",
     crate_root = "preflight_main.rs",
     edition = "2021",
-    deps = ["//quality/adapter:api_spec_preflight"],
+    deps = ["//quality/adapter:quality_adapter"],
 )
 
 rustfmt_test(

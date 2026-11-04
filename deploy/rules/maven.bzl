@@ -12,8 +12,6 @@ _VALID_VERSION_CHARS = VERSION_CHARS
 
 MAVEN_DEFAULT_REPOSITORY_URL = "https://central.sonatype.com/api/v1/publisher/"
 
-_RETIRED_HOSTS = ["oss.sonatype.org", "s01.oss.sonatype.org"]
-
 _SUPPORTED_HOSTS = ["central.sonatype.com"]
 
 _PUBLISHER_PATH = "/api/v1/publisher/"
@@ -73,10 +71,6 @@ def maven_repository_error(repository_url):
         return ("maven_deploy: invalid repository_url '" + repository_url +
                 "': want an https URL so uploads never go over plaintext")
     host = repository_url[len("https://"):].split("/")[0].lower()
-    if host in _RETIRED_HOSTS:
-        return ("maven_deploy: invalid repository_url '" + repository_url +
-                "': " + host + " is retired OSSRH infrastructure (use '" +
-                MAVEN_DEFAULT_REPOSITORY_URL + "')")
     raw_host = repository_url[len("https://"):].split("/")[0]
     path = repository_url[len("https://") + len(raw_host):]
     if host not in _SUPPORTED_HOSTS or path != _PUBLISHER_PATH:

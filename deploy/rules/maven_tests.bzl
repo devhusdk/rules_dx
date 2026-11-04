@@ -111,8 +111,7 @@ def maven_unit_tests(name):
                 "maven_repository_error rejects the retired OSSRH host",
                 maven_repository_error("https://oss.sonatype.org/service/local/staging/deploy/maven2/"),
                 "maven_deploy: invalid repository_url 'https://oss.sonatype.org/service/local/staging/deploy/maven2/': " +
-                "oss.sonatype.org is retired OSSRH infrastructure (use '" +
-                MAVEN_DEFAULT_REPOSITORY_URL + "')",
+                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
             ),
             expect_equal(
                 "maven_repository_error accepts a mixed-case Publisher host",

@@ -87,7 +87,6 @@ Refusals, all exit 1:
 - `MAVEN_GPG_PASSPHRASE` set without `MAVEN_GPG_KEY`.
 - A `MAVEN_GPG_KEY` that is not an armored secret key, or a
   `MAVEN_GPG_PASSPHRASE` that does not unlock it.
-- A `repository_url` on `oss.sonatype.org` or `s01.oss.sonatype.org`.
 - Any other `repository_url` than the Publisher API.
 - Credentials the Portal rejects (HTTP 401 or 403).
 - A pom that is missing Central fields or does not match the coordinates.

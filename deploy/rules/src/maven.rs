@@ -493,15 +493,6 @@ pub const MAVEN_SUPPORTED_HOSTS: [&str; 1] = ["central.sonatype.com"];
 
 const MAVEN_PUBLISHER_PATH: &str = "/api/v1/publisher/";
 
-/// Returns the retired OSSRH host named by a repository URL.
-pub fn maven_retired_host(repository_url: &str) -> Option<&'static str> {
-    let rest = repository_url.strip_prefix("https://")?;
-    let host = rest.split('/').next().unwrap_or("");
-    ["oss.sonatype.org", "s01.oss.sonatype.org"]
-        .into_iter()
-        .find(|retired| host.eq_ignore_ascii_case(retired))
-}
-
 /// Returns why one repository URL is not the Central Portal Publisher API, or None.
 pub fn maven_repository_url_error(repository_url: &str) -> Option<String> {
     let Some(rest) = repository_url.strip_prefix("https://") else {
@@ -509,11 +500,6 @@ pub fn maven_repository_url_error(repository_url: &str) -> Option<String> {
             "maven_deploy: invalid repository_url '{repository_url}': want an https URL so uploads never go over plaintext"
         ));
     };
-    if let Some(host) = maven_retired_host(repository_url) {
-        return Some(format!(
-            "maven_deploy: invalid repository_url '{repository_url}': {host} is retired OSSRH infrastructure (use '{MAVEN_DEFAULT_REPOSITORY_URL}')"
-        ));
-    }
     let host = rest.split('/').next().unwrap_or("");
     let supported = MAVEN_SUPPORTED_HOSTS
         .iter()
@@ -1219,19 +1205,13 @@ pub(crate) mod tests {
     fn maven_gate_rejects_retired_host_at_runtime() {
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        for (url, host) in [
-            (
-                "https://oss.sonatype.org/service/local/staging/deploy/maven2/",
-                "oss.sonatype.org",
-            ),
-            (
-                "https://S01.oss.sonatype.org/content/",
-                "s01.oss.sonatype.org",
-            ),
+        for url in [
+            "https://oss.sonatype.org/service/local/staging/deploy/maven2/",
+            "https://S01.oss.sonatype.org/content/",
         ] {
             assert_eq!(
                 gate_error(&vars, "1.0.0", url),
-                Some(format!("maven_deploy: invalid repository_url '{url}': {host} is retired OSSRH infrastructure (use '{MAVEN_DEFAULT_REPOSITORY_URL}')"))
+                Some(format!("maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"))
             );
         }
         assert_eq!(
@@ -1553,20 +1533,6 @@ pub(crate) mod tests {
         assert!(house
             .join("com/example/maven_demo/maven-metadata.xml")
             .is_file());
-    }
-
-    #[test]
-    fn maven_retired_ossrh_hosts_are_rejected() {
-        assert_eq!(
-            maven_retired_host("https://oss.sonatype.org/service/local/staging/deploy/maven2/"),
-            Some("oss.sonatype.org")
-        );
-        assert_eq!(
-            maven_retired_host("https://s01.oss.sonatype.org/service/local/"),
-            Some("s01.oss.sonatype.org")
-        );
-        assert_eq!(maven_retired_host(MAVEN_DEFAULT_REPOSITORY_URL), None);
-        assert_eq!(maven_retired_host("https://repo.example.com/maven2/"), None);
     }
 
     #[test]

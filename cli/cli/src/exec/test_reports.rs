@@ -3,6 +3,7 @@ use super::common::*;
 use super::coverage_candidate::{candidate, tracked_orphans, Candidate, Unavailable};
 use super::failure::CODE_NO_TESTS;
 use super::failure_reports::write_failure_reports;
+use super::skipped_targets::skipped_notice;
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
@@ -1384,6 +1385,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         Ok(counts) => counts,
         Err(exit) => return kept_child(err, bazel_code, exit),
     };
+    if let Err(exit) = skipped_notice(invocation.output, out, err, events.skipped.len()) {
+        return kept_child(err, bazel_code, exit);
+    }
     let mut reports_ok = failure_reports_ok;
     let mut sink = ReportSink {
         out: &mut *out,
@@ -5457,6 +5461,32 @@ mod tests {
         let finished = event(&events, "command_finished");
         assert_eq!(finished["tests"]["skipped"], serde_json::json!(1), "{out}");
         assert_eq!(finished["tests"]["failed"], serde_json::json!(0), "{out}");
+    }
+
+    #[test]
+    fn skipped_targets_print_a_summary_line_and_keep_the_exit_code() {
+        let harness = Harness::new("test-skipped-notice");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let lines = vec![
+            serde_json::json!({
+                "id": {"targetConfigured": {"label": "//a:skip"}},
+                "configured": {"targetKind": "sh_test rule", "testSize": "SMALL"},
+            })
+            .to_string(),
+            serde_json::json!({
+                "id": {"targetCompleted": {"label": "//a:skip", "configuration": {"id": "cfg1"}}},
+                "aborted": {"reason": "SKIPPED"},
+            })
+            .to_string(),
+            test_result_line("//a:t", &[(String::from("test.xml"), uri)]),
+        ];
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(err.matches("dx: skipped 1 target ").count(), 1, "{err}");
     }
 
     #[test]

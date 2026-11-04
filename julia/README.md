@@ -71,8 +71,3 @@ are reported at their line. See `docs/cli/commands/quality.md`.
 | macos_arm64 | yes |
 | windows_x86_64 | yes |
 | windows_arm64 | no Julia build exists |
-
-## Remote execution
-
-Julia package precompiles fail under remote execution for packages with
-non-stdlib dependencies. Build the formatter locally with `--remote_executor=`.

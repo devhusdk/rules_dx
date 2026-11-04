@@ -12,7 +12,6 @@ julia_library(
     name = "Archive",
     srcs = ["src/Archive.jl"],
     data = ["Project.toml"],
-    precompile = False,
     deps = ["@julia_app_deps//:Bzip2_jll"],
 )
 

@@ -94,10 +94,16 @@ pub const OVERRIDES: &[Override] = &[
         version: "0.8.0",
         patch_strip: 1,
         archive: None,
-        patches: &[OverridePatch {
-            file: "package_name.patch",
-            content: include_str!("../../../patches/rules_julia/package_name.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "package_name.patch",
+                content: include_str!("../../../patches/rules_julia/package_name.patch"),
+            },
+            OverridePatch {
+                file: "portable_cpu_target.patch",
+                content: include_str!("../../../patches/rules_julia/portable_cpu_target.patch"),
+            },
+        ],
     },
     Override {
         module: "protobuf",

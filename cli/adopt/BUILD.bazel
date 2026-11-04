@@ -48,6 +48,7 @@ dx_rust_crate(
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_cuda:redist_cccl_key.patch",
         "//patches/rules_julia:package_name.patch",
+        "//patches/rules_julia:portable_cpu_target.patch",
         "//patches/rules_rust:clippy_metadata_inputs.patch",
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:crate_universe_root_lookup.patch",

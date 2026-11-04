@@ -51,7 +51,6 @@ rust_test(
         ":jet",
     ],
     env = {"JULIA_JET": "$(rootpath :jet)"},
-    tags = ["no-remote"],
     target_compatible_with = JULIA_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )

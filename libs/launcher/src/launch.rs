@@ -2,8 +2,9 @@
 //!
 //! The descriptor sits beside the executable as `<stem>.launch`, one entry per line:
 //! `version=1`, `program=<key>`, `arg=<literal>`, `path=<key>`,
-//! `prefixed=<prefix>\t<key>` and `env_flag=<flag>\t<VAR>`. The user's arguments
-//! follow the listed ones.
+//! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>` and `unset=<VAR>`. The
+//! user's arguments follow the listed ones; `unset` names variables removed from
+//! the child's environment.
 
 use std::ffi::OsString;
 use std::io;
@@ -32,6 +33,8 @@ pub struct Descriptor {
     pub program: String,
     /// The arguments before the user's.
     pub items: Vec<Item>,
+    /// Environment variables removed before the program starts.
+    pub unset: Vec<String>,
 }
 
 /// The runfiles source a child process is told about.
@@ -60,6 +63,7 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut version = false;
     let mut program: Option<String> = None;
     let mut items = Vec::new();
+    let mut unset = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         if let Some(value) = line.strip_prefix("version=") {
             if value != "1" || version {
@@ -87,6 +91,11 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
                 return Err(bad(format!("env_flag line has an empty flag: {line}")));
             }
             items.push(Item::EnvFlag(flag, var));
+        } else if let Some(value) = line.strip_prefix("unset=") {
+            if value.is_empty() || value.contains('=') || value.contains('\t') {
+                return Err(bad(format!("unset line has a bad name: {line}")));
+            }
+            unset.push(value.to_owned());
         } else {
             return Err(bad(format!("unknown descriptor line: {line}")));
         }
@@ -95,7 +104,11 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         return Err(bad("descriptor has no version line"));
     }
     let program = program.ok_or_else(|| bad("descriptor needs exactly one program line"))?;
-    Ok(Descriptor { program, items })
+    Ok(Descriptor {
+        program,
+        items,
+        unset,
+    })
 }
 
 /// Names the descriptors that can sit beside one executable, best first.
@@ -212,6 +225,22 @@ pub fn runfiles_env(resolver: &Resolver) -> (&'static str, PathBuf) {
     }
 }
 
+/// Builds the child process: unset variables are removed, then the runfiles entry is set.
+pub fn command(
+    plan: &Plan,
+    unset: &[String],
+    runfiles: (&str, PathBuf),
+    user_args: &[String],
+) -> Command {
+    let mut command = Command::new(&plan.program);
+    command.args(&plan.args).args(user_args);
+    for name in unset {
+        command.env_remove(name);
+    }
+    command.env(runfiles.0, runfiles.1);
+    command
+}
+
 /// Runs the program named by the descriptor beside `exe` and returns its exit code.
 pub fn run(exe: &Path, user_args: &[String]) -> io::Result<i32> {
     let resolver = resolver_for(exe)?;
@@ -220,11 +249,7 @@ pub fn run(exe: &Path, user_args: &[String]) -> io::Result<i32> {
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
     let descriptor = parse(&text)?;
     let plan = plan(&resolver, &descriptor, &|name| std::env::var(name).ok())?;
-    let (name, value) = runfiles_env(&resolver);
-    let status = Command::new(&plan.program)
-        .args(&plan.args)
-        .args(user_args)
-        .env(name, value)
+    let status = command(&plan, &descriptor.unset, runfiles_env(&resolver), user_args)
         .status()
         .map_err(|error| {
             io::Error::new(

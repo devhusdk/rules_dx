@@ -57,6 +57,7 @@ int dx_qt_launch(int argc, char **argv, const char *repository,
 
 int dx_qt_launch(int argc, char **argv, const char *repository,
                  const char *tool) {
+  /* The non-DYLD entries are mirrored by QT_TOOL_UNSET in tool.bzl. */
   static const char *const host_routes[] = {
       "DYLD_FALLBACK_FRAMEWORK_PATH",
       "DYLD_FALLBACK_LIBRARY_PATH",

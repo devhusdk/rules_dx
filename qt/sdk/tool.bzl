@@ -1,11 +1,24 @@
 """Launches one tool of a Qt cell through the shared native launcher."""
 
+# Mirrors the non-DYLD entries of host_routes in launcher.c.
+QT_TOOL_UNSET = [
+    "QML2_IMPORT_PATH",
+    "QML_IMPORT_PATH",
+    "QT_CONF_PATH",
+    "QT_PLUGIN_PATH",
+    "QT_QPA_PLATFORM_PLUGIN_PATH",
+]
+
+def qt_tool_descriptor(key):
+    """Returns the launch descriptor text for a tool key."""
+    return "version=1\nprogram=" + key + "\n" + "".join(["unset=" + name + "\n" for name in QT_TOOL_UNSET])
+
 def _qt_tool_impl(ctx):
     program = ctx.file.program
     key = program.short_path[3:] if program.short_path.startswith("../") else ctx.workspace_name + "/" + program.short_path
     launcher = ctx.actions.declare_file(ctx.label.name + ".exe")
     descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
-    ctx.actions.write(descriptor, "version=1\nprogram=" + key + "\n")
+    ctx.actions.write(descriptor, qt_tool_descriptor(key))
     ctx.actions.symlink(output = launcher, target_file = ctx.executable._exec_launcher, is_executable = True)
     runfiles = ctx.runfiles(files = [launcher, descriptor, program]).merge(ctx.attr._exec_launcher[DefaultInfo].default_runfiles)
     for target in ctx.attr.data:

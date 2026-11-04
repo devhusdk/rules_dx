@@ -38,6 +38,8 @@ fn rejects_bad_descriptors() {
         "version=1\nprogram=x\nprefixed=a\tb\tc\n",
         "version=1\nprogram=x\nenv_flag=\tVAR\n",
         "version=1\nprogram=x\nenv_flag=--f\n",
+        "version=1\nprogram=x\nunset=\n",
+        "version=1\nprogram=x\nunset=A=B\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");
@@ -187,4 +189,55 @@ fn runs_the_program_and_passes_the_exit_code() {
     .unwrap();
     let code = run(&dir.join("app.exe"), &["two".to_owned()]).unwrap();
     assert_eq!(code, 6);
+}
+
+#[test]
+fn parses_unset_lines_apart_from_items() {
+    let parsed = parse("version=1\nprogram=x\nunset=QT_PLUGIN_PATH\n").unwrap();
+    assert_eq!(parsed.unset, ["QT_PLUGIN_PATH"]);
+    assert!(parsed.items.is_empty());
+}
+
+#[test]
+fn command_removes_unset_names_and_sets_runfiles() {
+    let plan = Plan {
+        program: PathBuf::from("prog"),
+        args: Vec::new(),
+    };
+    let unset = ["QT_PLUGIN_PATH".to_owned()];
+    let built = command(&plan, &unset, ("RUNFILES_DIR", PathBuf::from("/r")), &[]);
+    let envs: Vec<_> = built.get_envs().collect();
+    assert!(envs.contains(&(
+        std::ffi::OsStr::new("QT_PLUGIN_PATH"),
+        None::<&std::ffi::OsStr>
+    )));
+    assert!(envs.contains(&(
+        std::ffi::OsStr::new("RUNFILES_DIR"),
+        Some(std::ffi::OsStr::new("/r"))
+    )));
+}
+
+#[cfg(unix)]
+#[test]
+fn run_scrubs_unset_variables() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = scratch("unset");
+    let main = dir.join("app.runfiles/_main");
+    std::fs::create_dir_all(&main).unwrap();
+    let script = main.join("prog");
+    std::fs::write(
+        &script,
+        "#!/bin/sh\nexit ${EXEC_LAUNCHER_UNSET_PROBE:+9}0\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(
+        dir.join("app.launch"),
+        "version=1\nprogram=_main/prog\nunset=EXEC_LAUNCHER_UNSET_PROBE\n",
+    )
+    .unwrap();
+    // Only this test uses this name, so setting it cannot disturb the others.
+    unsafe { std::env::set_var("EXEC_LAUNCHER_UNSET_PROBE", "1") };
+    let code = run(&dir.join("app.exe"), &[]).unwrap();
+    assert_eq!(code, 0);
 }

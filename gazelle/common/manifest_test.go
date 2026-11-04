@@ -485,6 +485,49 @@ func TestWitnessEditsAnExistingBuildFile(t *testing.T) {
 	}
 }
 
+func TestWitnessKeepsCRLFFiles(t *testing.T) {
+	for _, prefix := range recorderPrefixes {
+		t.Run(prefix, func(t *testing.T) {
+			rec := manifestRecorder(t, prefix)
+			steady := stableContent(t, rec, "/repo/steady/BUILD.bazel", "steady", "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\n\ndot_library(\n    name = \"demo\",\n)\n")
+			crlfSteady := strings.ReplaceAll(steady, "\n", "\r\n")
+			f := mustLoadData(t, "/repo/steady/BUILD.bazel", "steady", crlfSteady)
+			rec.Record(
+				language.GenerateArgs{Rel: "steady", Dir: "/repo/steady", File: f, Config: manifestConfig()},
+				language.GenerateResult{},
+			)
+			if got, changed, err := rec.Witness(rec.Visited[0]); err != nil || changed {
+				t.Fatalf("Witness on a CRLF file without changes changed = %v, err = %v, file = %+v", changed, err, got)
+			}
+
+			old := "load(\"@rules_dx//dot/rules:defs.bzl\", \"dot_library\")\r\n\r\ndot_library(\r\n    name = \"demo\",\r\n)\r\n"
+			f = mustLoadData(t, "/repo/pkg/BUILD.bazel", "pkg", old)
+			rule.NewRule(dotKind, "extra").Insert(f)
+			rec.Record(
+				language.GenerateArgs{Rel: "pkg", Dir: "/repo/pkg", File: f, Config: manifestConfig()},
+				language.GenerateResult{},
+			)
+			file, changed, err := rec.Witness(rec.Visited[1])
+			if err != nil || !changed {
+				t.Fatalf("Witness changed = %v, err = %v", changed, err)
+			}
+			if string(file.OriginalContent) != old {
+				t.Fatalf("OriginalContent = %q, want the raw CRLF bytes", file.OriginalContent)
+			}
+			for _, edit := range file.Edits {
+				if n := bytes.Count(edit.Replacement, []byte("\n")); n != bytes.Count(edit.Replacement, []byte("\r\n")) {
+					t.Fatalf("edit %q has bare LF line endings", edit.Replacement)
+				}
+			}
+			checkEditsValid(t, []byte(old), file.Edits)
+			want := strings.ReplaceAll(string(f.Format()), "\n", "\r\n")
+			if got := string(applyEdits(t, []byte(old), file.Edits)); got != want {
+				t.Fatalf("edits apply to %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestWitnessFixLoadsConverges(t *testing.T) {
 	f := mustLoadData(t, "/repo/pkg/BUILD.bazel", "pkg", "dot_library(\n    name = \"demo\",\n)\n")
 	loads := manifestLoads()(func(string) string { return "" })

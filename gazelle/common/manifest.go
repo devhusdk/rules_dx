@@ -348,7 +348,7 @@ func (r *ManifestRecorder) Witness(rec PackageRecord) (IntendedFile, bool, error
 		return file, false, err
 	}
 	merger.FixLoads(rec.File, loads)
-	intended := rec.File.Format()
+	intended := matchLineEndings(original, rec.File.Format())
 	if bytes.Equal(original, intended) {
 		return file, false, nil
 	}
@@ -430,6 +430,14 @@ func (r *ManifestRecorder) replacementKind(kindMap map[string]config.MappedKind,
 		}
 		kind = replacement.KindName
 	}
+}
+
+func matchLineEndings(original, intended []byte) []byte {
+	if !bytes.Contains(original, []byte("\r\n")) {
+		return intended
+	}
+	lf := bytes.ReplaceAll(intended, []byte("\r\n"), []byte("\n"))
+	return bytes.ReplaceAll(lf, []byte("\n"), []byte("\r\n"))
 }
 
 func nonNilBytes(b []byte) []byte {

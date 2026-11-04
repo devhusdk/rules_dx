@@ -50,3 +50,31 @@ cc_toolchain_test = rule(
     } | dx_lcov_merger_attr(),
     test = True,
 )
+
+_PLATFORMS = "//command_line_option:platforms"
+
+def _files_transition_impl(_settings, attr):
+    return {
+        _COMPILER: attr.compiler,
+        _PLATFORMS: attr.platforms,
+    }
+
+_files_transition = transition(
+    implementation = _files_transition_impl,
+    inputs = [],
+    outputs = [_COMPILER, _PLATFORMS],
+)
+
+def _files_impl(ctx):
+    files = depset(transitive = [src[DefaultInfo].files for src in ctx.attr.srcs])
+    return [DefaultInfo(files = files, runfiles = ctx.runfiles(transitive_files = files))]
+
+cc_toolchain_files = rule(
+    implementation = _files_impl,
+    doc = "Exposes the outputs of targets built with the selected compiler for the given platforms.",
+    attrs = {
+        "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
+        "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),
+        "srcs": attr.label_list(doc = "Targets to build.", cfg = _files_transition),
+    },
+)

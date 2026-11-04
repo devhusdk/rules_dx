@@ -471,11 +471,21 @@ mod tests {
         assert!(report.get("would_publish").is_none());
         assert!(report.get("not_attempted").is_none());
         let operations = report["operations"].as_array().expect("operations array");
-        let names: Vec<_> = operations.iter().map(|op| op["operation"].clone()).collect();
+        let names: Vec<_> = operations
+            .iter()
+            .map(|op| op["operation"].clone())
+            .collect();
         assert_eq!(
             names,
-            ["bcr", "docs", "image", "publish", "release-upload", "signing"]
-                .map(serde_json::Value::from)
+            [
+                "bcr",
+                "docs",
+                "image",
+                "publish",
+                "release-upload",
+                "signing"
+            ]
+            .map(serde_json::Value::from)
         );
         assert!(operations
             .iter()

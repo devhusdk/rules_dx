@@ -301,9 +301,8 @@ mod tests {
         assert!(docs_ci.contains(&format!("reusable-docs.yml@{NEW}\n")));
         assert!(docs_ci.contains("docs_scope: \"//...\""));
         assert!(!docs_ci.contains(OLD));
-        assert!(read(dir.path(), "examples/gitlab-ci/.gitlab-ci.yml").contains(&format!(
-            "rules_dx/{NEW}/ci/gitlab/dx.gitlab-ci.yml\n"
-        )));
+        assert!(read(dir.path(), "examples/gitlab-ci/.gitlab-ci.yml")
+            .contains(&format!("rules_dx/{NEW}/ci/gitlab/dx.gitlab-ci.yml\n")));
     }
 
     #[test]

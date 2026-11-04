@@ -13,6 +13,10 @@ name = "release_tool"
 path = "src/bin_release_tool.rs"
 
 [[bin]]
+name = "release_deploy_tool"
+path = "src/bin_release_deploy_tool.rs"
+
+[[bin]]
 name = "publish_dry_run_check"
 path = "src/bin_publish_dry_run_check.rs"
 

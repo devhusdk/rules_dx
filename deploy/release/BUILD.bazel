@@ -161,9 +161,9 @@ rust_test(
         "DX_SBOM_SPDX": "$(rootpath :sbom_demo_spdx)",
     },
     deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-        package_name = "deploy/dx_release_tools",
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
@@ -177,8 +177,8 @@ rust_test(
     srcs = ["bcr_templates_test.rs"],
     data = ["//.bcr:templates"],
     deps = all_crate_deps(
-        normal = True,
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [
         ":dx_release_tools",
         "//tools/testing:dx_testing",
@@ -191,9 +191,9 @@ rust_test(
     srcs = ["candidate_test.rs"],
     env_inherit = ["PATH"],
     deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-        package_name = "deploy/dx_release_tools",
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
@@ -644,4 +644,21 @@ rustfmt_test(
     targets = [
         ":release_artifacts_verify",
     ],
+)
+
+rust_binary(
+    name = "release_deploy_tool",
+    srcs = ["src/bin_release_deploy_tool.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_deploy_tool",
+    crate_root = "src/bin_release_deploy_tool.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
 )

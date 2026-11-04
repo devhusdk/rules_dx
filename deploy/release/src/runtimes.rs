@@ -115,7 +115,10 @@ pub fn render_records(records: &[RuntimeRecord]) -> String {
 pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, String> {
     let doc: Doc = serde_json::from_str(text).map_err(|error| format!("runtimes: {error}"))?;
     if doc.schema != SCHEMA {
-        return Err(format!("runtimes: schema {:?}, want {SCHEMA:?}", doc.schema));
+        return Err(format!(
+            "runtimes: schema {:?}, want {SCHEMA:?}",
+            doc.schema
+        ));
     }
     Ok(doc.runtimes)
 }

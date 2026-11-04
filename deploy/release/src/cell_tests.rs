@@ -33,8 +33,29 @@ fn elf(machine: u16, needed: &[&str]) -> Vec<u8> {
         dynamic.extend_from_slice(&1u64.to_le_bytes());
         dynamic.extend_from_slice(&offset.to_le_bytes());
     }
+    for (tag, value) in [(5u64, strings_at as u64), (10, strings.len() as u64)] {
+        dynamic.extend_from_slice(&tag.to_le_bytes());
+        dynamic.extend_from_slice(&value.to_le_bytes());
+    }
     dynamic.extend_from_slice(&[0u8; 16]);
     put(&mut image, dynamic_at, &dynamic);
+    let file_end = (dynamic_at + dynamic.len()) as u64;
+    put(&mut image, 32, &64u64.to_le_bytes());
+    put(&mut image, 56, &2u16.to_le_bytes());
+    for (index, (kind, at, size)) in [
+        (1u32, 0u64, file_end),
+        (2, dynamic_at as u64, dynamic.len() as u64),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let base = 64 + index * 56;
+        put(&mut image, base, &kind.to_le_bytes());
+        put(&mut image, base + 8, &at.to_le_bytes());
+        put(&mut image, base + 16, &at.to_le_bytes());
+        put(&mut image, base + 32, &size.to_le_bytes());
+        put(&mut image, base + 40, &size.to_le_bytes());
+    }
     let headers_at = (dynamic_at + dynamic.len()).div_ceil(8) * 8;
     let sections = [
         (0u32, 0usize, 0usize, 0u32, 0u64),
@@ -267,6 +288,7 @@ fn members_of(cell: &Cell, exe: Vec<u8>) -> Members {
     for name in &cell.runtime {
         members.push((name.clone(), b"runtime\n".to_vec(), 0o644));
     }
+    members.push(("LICENSE".to_owned(), b"license\n".to_vec(), 0o644));
     members
 }
 
@@ -374,14 +396,14 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
         assert_eq!(record.binary.sha256, dx_digest::sha256_hex(&exe));
         assert_eq!(record.binary.bytes, exe.len() as u64);
         assert_eq!(record.archive.name, cell.archive_name());
-        assert_eq!(record.members.len(), 3 + cell.runtime.len());
+        assert_eq!(record.members.len(), 4 + cell.runtime.len());
         let exe_name = cell.exe.clone();
         assert_eq!(
             *runner.calls.borrow(),
             vec![
                 format!("{exe_name} help in {INSTALL_DIR}"),
-                format!("{exe_name} version in {INSTALL_DIR}"),
-                format!("{exe_name} version in {MOVED_DIR}"),
+                format!("{exe_name} --version in {INSTALL_DIR}"),
+                format!("{exe_name} --version in {MOVED_DIR}"),
                 format!(
                     "{exe_name} init --apply --workspace {} in consumer",
                     fixture.inputs.work.join(CONSUMER_DIR).display()

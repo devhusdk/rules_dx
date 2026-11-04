@@ -492,8 +492,14 @@ mod tests {
         );
         let text_files = vec![texts.join("cargo/alpha-1.0.0/LICENSE")];
         let notice = dir.path().join("NOTICE");
-        crate::write_notice(&manifest, &notice, "//demo:root", &text_files, Some(&records))
-            .expect("notice");
+        crate::write_notice(
+            &manifest,
+            &notice,
+            "//demo:root",
+            &text_files,
+            Some(&records),
+        )
+        .expect("notice");
         let words = std::fs::read_to_string(&notice).expect("notice text");
         assert!(words.ends_with(
             "=== native runtimes ===\nlibc 2.31 (os_supplied)\n=== vc 14 (app_local) [runtime] ===\nRuntime words.\n"

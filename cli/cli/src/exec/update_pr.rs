@@ -709,6 +709,16 @@ mod tests {
         }
     }
 
+    fn editing_version(work: PathBuf) -> impl FnMut(&[String]) -> Result<(), String> {
+        move |words: &[String]| {
+            if words.len() == 4 && words[3] == "--apply" {
+                std::fs::write(work.join("Cargo.lock"), format!("a\n{}\n", words[2]))
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        }
+    }
+
     #[test]
     fn creates_a_pull_request_with_labels() {
         let fx = fixture("[]");
@@ -958,6 +968,109 @@ mod tests {
         assert_eq!(second[0].result, Ok("unchanged #7".into()));
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert_eq!(argv.matches("pr edit").count(), 1);
+    }
+
+    #[test]
+    fn a_moved_base_rewrites_the_branch() {
+        let fx = fixture("[{\"number\":7,\"headRefName\":\"dx-update/cargo\"}]");
+        let mut step = editing(fx.work.clone(), None);
+        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), String>| {
+            publish(&fx.work, &fx.tools, &plans(), &scope(), &[], &rules(), step).expect("publish")
+        };
+        publish_once(&mut step);
+        sh(&fx.work, &["commit", "-q", "--allow-empty", "-m", "moved"]);
+        sh(&fx.work, &["push", "-q", "origin", "main"]);
+        let second = publish_once(&mut step);
+        assert_eq!(second[0].result, Ok("updated #7".into()));
+        let main = sh(&fx.work, &["rev-parse", "main"]);
+        let parent = sh(&fx.origin, &["rev-parse", "dx-update/cargo^"]);
+        assert_eq!(parent.trim(), main.trim());
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert_eq!(argv.matches("pr edit").count(), 2);
+    }
+
+    #[test]
+    fn a_newer_version_rewrites_the_branch() {
+        let fx = fixture("[{\"number\":7,\"headRefName\":\"dx-update/cargo\"}]");
+        let mut step = editing_version(fx.work.clone());
+        let first = publish(
+            &fx.work,
+            &fx.tools,
+            &plans_to("2.0.0"),
+            &scope(),
+            &[],
+            &rules(),
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(first[0].result, Ok("updated #7".into()));
+        let second = publish(
+            &fx.work,
+            &fx.tools,
+            &plans_to("2.1.0"),
+            &scope(),
+            &[],
+            &rules(),
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(second[0].result, Ok("updated #7".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("cargo:serde 1.0.0 -> 2.1.0"));
+        assert_eq!(argv.matches("pr edit").count(), 2);
+    }
+
+    #[test]
+    fn run_with_dir_registries_closes_stale_when_current() {
+        let fx = fixture("[{\"number\":5,\"headRefName\":\"dx-update/crates\"}]");
+        let harness = super::super::test_support::Harness::new("update-pr-run");
+        let root = &harness.workspace;
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//:Cargo.lock\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
+        )
+        .expect("module");
+        std::fs::write(root.join("Cargo.toml"), "[dependencies]\nserde = \"1\"\n")
+            .expect("manifest");
+        std::fs::write(root.join("Cargo.lock"), "a\n").expect("lock");
+        let registry = harness.temp.join("registry");
+        let index = registry.join("index.crates.io/se/rd");
+        std::fs::create_dir_all(&index).expect("mkdir");
+        std::fs::write(
+            index.join("serde"),
+            "{\"vers\":\"1.0.0\",\"yanked\":false}\n",
+        )
+        .expect("index");
+        sh(root, &["init", "-q", "-b", "main"]);
+        sh(root, &["config", "user.email", "t@example.com"]);
+        sh(root, &["config", "user.name", "t"]);
+        sh(root, &["add", "-A"]);
+        sh(root, &["commit", "-q", "-m", "init"]);
+        let origin = harness.temp.join("origin.git");
+        sh(
+            &harness.temp,
+            &["init", "-q", "--bare", "-b", "main", "origin.git"],
+        );
+        sh(
+            root,
+            &["remote", "add", "origin", origin.to_str().expect("utf8")],
+        );
+        sh(root, &["push", "-q", "origin", "main"]);
+        let words = ["update".to_owned(), "--pr".to_owned()];
+        let inv = dx_plan::args::parse(&words).expect("parse");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = run(
+            &inv,
+            harness.env(&runner, &mut out, &mut err),
+            &super::super::update_outdated::DirFetch(registry),
+            &fx.tools,
+        );
+        let out = String::from_utf8_lossy(&out);
+        assert_eq!(code, 0, "{out}{}", String::from_utf8_lossy(&err));
+        assert!(out.contains("closed #5"), "{out}");
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("pr close 5"));
     }
 
     fn two_plans() -> Vec<GroupPlan> {

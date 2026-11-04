@@ -530,7 +530,8 @@ For each group, `dx update --pr` does this:
 3. Runs `dx check --affected` and `dx test --affected`.
 4. Commits. If the branch on `origin` already has the same files on the same
    base commit and a pull request is open, prints `unchanged #<n>` and stops.
-5. Pushes with `--force-with-lease`.
+5. Pushes with `--force-with-lease`. If the base moved or a newer version
+   appeared, the branch is rebuilt from the base and pushed again.
 6. Edits the open pull request for the branch, or creates one.
 7. Turns auto-merge on or off by `--automerge`.
 

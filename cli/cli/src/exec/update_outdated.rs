@@ -457,7 +457,7 @@ fn emit_text(
     Ok(())
 }
 
-struct DirFetch(PathBuf);
+pub(super) struct DirFetch(pub(super) PathBuf);
 
 impl Fetch for DirFetch {
     fn get(&self, url: &str) -> Result<String, String> {

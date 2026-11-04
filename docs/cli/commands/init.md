@@ -76,7 +76,8 @@ The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/` and
-`/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
+`/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
+warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
 to stderr if it does not list `.dx`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they set up

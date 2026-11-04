@@ -26,6 +26,8 @@ pub const IGNORE_LINES: [&str; 10] = [
     "/build/",
     "/.dx/ide/",
     "/.dx/bazelrc/",
+    // rules_rust 0.75.0 discover writes last_warnings.log here (WARNINGS_LOG_REL in
+    // tools/rust_analyzer/lib.rs); keep while dx wires the rules_rust discover binary.
     "/.vscode/.rules_rust_analyzer/",
 ];
 
@@ -636,6 +638,7 @@ mod tests {
         for line in [
             "/.dx/ide/",
             "/.dx/bazelrc/",
+            // See the comment on IGNORE_LINES.
             "/.vscode/.rules_rust_analyzer/",
         ] {
             assert!(IGNORE_LINES.contains(&line), "{line}");

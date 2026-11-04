@@ -50,6 +50,7 @@ real_source_target(
         "//qt/tests/fixtures/qt-tasks:README.md",
         "//examples/shared-rust:README.md",
         "//examples/svelte-app:README.md",
+        "//examples/swift-app:README.md",
         "//zig/tests/fixtures/zig-app:README.md",
     ],
     markdown_srcs = [

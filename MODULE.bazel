@@ -1472,6 +1472,15 @@ _http_archive(
     urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
 )
 
+_http_archive(
+    name = "swift_app_argument_parser",
+    build_file = "//examples/swift-app:argument_parser.BUILD.bazel",
+    dev_dependency = True,
+    sha256 = "62bb12fb84d07d7f9ebbbbae205d32f941bcfecdcebdd09889f6e7f7f96f04ac",
+    strip_prefix = "swift-argument-parser-1.8.2",
+    urls = ["https://github.com/apple/swift-argument-parser/archive/refs/tags/1.8.2.tar.gz"],
+)
+
 _shared_consumer_repo = use_repo_rule("//examples/shared-rust:repos.bzl", "shared_consumer_repo")
 
 _shared_consumer_repo(

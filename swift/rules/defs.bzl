@@ -3,11 +3,14 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_swift//swift:providers.bzl", "SwiftInfo")
 load("@rules_swift//swift:swift_binary.bzl", _swift_binary = "swift_binary")
+load("@rules_swift//swift:swift_interop_hint.bzl", _swift_interop_hint = "swift_interop_hint")
 load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
 load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platform", "swift_linux_transition")
+
+swift_interop_hint = _swift_interop_hint
 
 _PLATFORM_ATTR = {"swift_platform": attr.string(doc = "Swift platform to build for.")}
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]

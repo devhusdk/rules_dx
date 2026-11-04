@@ -8,3 +8,4 @@ listing its commands with expected output.
 - [gitlab-ci](gitlab-ci/) GitLab CI starter pipeline, without the GitHub workflow features listed in its README.
 - [adopt-polyglot](adopt-polyglot/) a Python, Rust, JS/TS and C++ tree adopted with `dx generate`.
 - [d-app](d-app/) a D program with a pinned DUB package, generated BUILD files and compiler diagnostics tests.
+- [swift-app](swift-app/) a Swift command line on Linux with a pinned package, a C module and tests.

@@ -1,0 +1,25 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//swift/rules:defs.bzl", "swift_interop_hint")
+
+package(default_visibility = ["//examples/swift-app:__subpackages__"])
+
+swift_interop_hint(
+    name = "cdigest_hint",
+    module_name = "CDigest",
+)
+
+cc_library(
+    name = "cdigest",
+    srcs = ["digest.c"],
+    hdrs = ["digest.h"],
+    aspect_hints = [":cdigest_hint"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

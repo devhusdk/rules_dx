@@ -1,0 +1,9 @@
+name: demo_app
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ^3.13.0
+
+dev_dependencies:
+  test: ^1.26.0

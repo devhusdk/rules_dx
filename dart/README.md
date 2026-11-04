@@ -99,6 +99,14 @@ turned into a rule: bind `dart_config` by hand through `aspect_hints`.
 - `dart/tests/fixtures/adopt-dart` adopts a pub workspace with `dx generate`.
 - `examples/dart-app` is a multi-package app with a generated source file, runfiles data and failure targets.
 
+## Start a project
+
+```sh
+dx init demo-app
+```
+
+Then add `rules_dart` and a `pub` hub to `MODULE.bazel`, add a `pubspec.lock`, and declare `dart_library`, `dart_binary` and `dart_test` targets.
+
 ## Pub dependencies
 
 Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package

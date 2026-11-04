@@ -1,0 +1,8 @@
+import 'package:demo_app/hello.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('greets by name', () {
+    expect(greet('world'), 'hello world');
+  });
+}

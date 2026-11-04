@@ -45,6 +45,12 @@ filegroup(
 )
 
 filegroup(
+    name = "dart",
+    srcs = glob(["dart/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "elixir",
     srcs = glob(["elixir/**"]),
     visibility = ["//visibility:public"],

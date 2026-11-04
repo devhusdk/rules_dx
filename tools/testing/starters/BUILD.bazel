@@ -1,5 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
@@ -38,6 +39,11 @@ starter_consumer_test(
 starter_consumer_test(
     name = "d",
     target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+starter_consumer_test(
+    name = "dart",
+    target_compatible_with = DART_COMPATIBLE_WITH,
 )
 
 starter_consumer_test(

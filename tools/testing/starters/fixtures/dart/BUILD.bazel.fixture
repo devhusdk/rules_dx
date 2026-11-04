@@ -1,0 +1,25 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+
+dart_library(
+    name = "demo-app",
+    srcs = ["lib/hello.dart"],
+    package_name = "demo_app",
+)
+
+dart_binary(
+    name = "demo-app_bin",
+    srcs = ["lib/hello.dart"],
+    main = "bin/main.dart",
+    package_name = "demo_app",
+)
+
+dart_test(
+    name = "demo-app_test",
+    size = "small",
+    package_name = "demo_app",
+    main = "test/hello_test.dart",
+    deps = [
+        ":demo-app",
+        "@demo_pub_deps//:test",
+    ],
+)

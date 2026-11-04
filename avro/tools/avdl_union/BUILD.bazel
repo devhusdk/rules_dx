@@ -1,0 +1,19 @@
+load("//java/rules:defs.bzl", "java_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//avro:__subpackages__"])
+
+java_binary(
+    name = "avdl_union",
+    srcs = ["AvdlUnion.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "dx.avro.tools.AvdlUnion",
+    deps = ["//quality/tools/jvm:avro_tools_import"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

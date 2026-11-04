@@ -24,7 +24,6 @@ def _cc_library_impl(ctx):
     out_root = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + "_avro_cc/" + ctx.label.name
     schemas = depset(transitive = [dep[AvroInfo].transitive_srcs for dep in ctx.attr.deps]).to_list()
     headers = []
-    trees = []
     for schema in schemas:
         stem = schema.short_path.rsplit(".", 1)[0]
         if schema.extension == "avsc":
@@ -39,24 +38,31 @@ def _cc_library_impl(ctx):
                 progress_message = "avrogencpp " + schema.short_path,
             )
         else:
-            tree = ctx.actions.declare_directory("_avro_cc/%s/%s_idl" % (ctx.label.name, stem))
-            trees.append(tree)
-            ns = ["-n", ctx.attr.namespace] if ctx.attr.namespace else []
-            ctx.actions.run_shell(
-                tools = [ctx.executable._avrogencpp, ctx.executable._avro_tools],
+            union = ctx.actions.declare_file("_avro_cc/%s/%s.avsc" % (ctx.label.name, stem))
+            header = ctx.actions.declare_file("_avro_cc/%s/%s.hh" % (ctx.label.name, stem))
+            headers.append(header)
+            ctx.actions.run(
+                executable = ctx.executable._avdl_union,
                 inputs = [schema],
-                outputs = [tree],
-                command = 'tmp=$(mktemp -d) && "$1" idl2schemata "$2" "$tmp" && for f in "$tmp"/*.avsc; do "$3" -i "$f" -o "$4/$(basename "${f%.avsc}").hh" "${@:5}"; done',
-                arguments = [ctx.executable._avro_tools.path, schema.path, ctx.executable._avrogencpp.path, tree.path] + ns,
-                mnemonic = "AvroIdlCpp",
-                progress_message = "avro-tools idl2schemata " + schema.short_path,
+                outputs = [union],
+                arguments = [schema.path, union.path],
+                mnemonic = "AvroIdlUnion",
+                progress_message = "avdl union " + schema.short_path,
             )
-    generated = headers + trees
+            ctx.actions.run(
+                executable = ctx.executable._avrogencpp,
+                inputs = [union],
+                outputs = [header],
+                arguments = [_gen_args(ctx, union.path, header.path)],
+                mnemonic = "AvroCpp",
+                progress_message = "avrogencpp " + schema.short_path,
+            )
+    generated = headers
     runtime = ctx.attr._runtime[CcInfo]
     compilation_context = cc_common.create_compilation_context(
         headers = depset(generated),
-        includes = depset([out_root] + [t.path for t in trees]),
-        quote_includes = depset([out_root] + [t.path for t in trees]),
+        includes = depset([out_root]),
+        quote_includes = depset([out_root]),
     )
     cc_info = cc_common.merge_cc_infos(cc_infos = [runtime, CcInfo(compilation_context = compilation_context)])
     return [
@@ -72,7 +78,7 @@ avro_cc_library = rule(
     attrs = {
         "deps": attr.label_list(providers = [AvroInfo], doc = "avro_library targets to generate C++ for."),
         "namespace": attr.string(doc = "C++ namespace passed to avrogencpp."),
-        "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
+        "_avdl_union": attr.label(default = Label("//avro/tools/avdl_union"), executable = True, cfg = "exec"),
         "_avrogencpp": attr.label(default = Label("@avro-cpp//:avrogencpp"), executable = True, cfg = "exec"),
         "_runtime": attr.label(default = Label("@avro-cpp//:avro_cpp"), providers = [CcInfo]),
     },

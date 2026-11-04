@@ -3,8 +3,8 @@
 #include <iostream>
 #include <memory>
 
-#include "Segment.hh"
 #include "avro/tests/point.hh"
+#include "avro/tests/shape.hh"
 #include <avro/Decoder.hh>
 #include <avro/Encoder.hh>
 #include <avro/Stream.hh>

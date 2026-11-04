@@ -77,6 +77,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/dotnet/fsharp
 # gazelle:exclude tools/docs/jvm/record
 # gazelle:exclude quality/tools/jvm/javac_check
+# gazelle:exclude avro/tools/avdl_union
 # gazelle:exclude quality/tools/jvm/kotlinc_check
 # gazelle:exclude quality/tools/jvm/scalac_check
 # gazelle:exclude quality/tools/javascript/bin/eslint.mjs

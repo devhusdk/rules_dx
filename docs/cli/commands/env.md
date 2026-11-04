@@ -237,12 +237,13 @@ Thrift codegen is built for Linux x86_64 only.
 The avro/cpp pair comes from `avro_cc_library(name, deps, namespace)` in
 `@rules_dx//avro/rules:codegen.bzl`. It runs `avrogencpp` once per `.avsc` in the
 `avro_library` closure and links the `avro-cpp` runtime. For an `.avdl`, it first
-runs the pinned avro-tools `idl2schemata`. `namespace` is the C++ namespace of the
+writes all of its types as one union schema with a small Java helper on the pinned
+avro-tools jar, then runs `avrogencpp` on it. `namespace` is the C++ namespace of the
 generated types. `avrogencpp` cannot resolve a reference to a type in another
 `.avsc` file, so keep each type in one file or use an `.avdl`. Bind
 `avro_codegen_shard` with `language = "cpp"` to the library; each entry's
-`EXEC_PATH` is the header of one `.avsc`. Headers made from `.avdl` files are built
-but not listed in the shard. Avro Rust codegen is not offered.
+`EXEC_PATH` is the header of one schema file. An `.avdl` gives one header
+`<stem>.hh` that holds all its types, so include `<pkg>/<stem>.hh`. Avro Rust codegen is not offered.
 
 The avro/java pair comes from `avro_java_library(name, deps)` in
 `@rules_dx//avro/rules:codegen.bzl`. It runs the pinned `avro-tools` on the

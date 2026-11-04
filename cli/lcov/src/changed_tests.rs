@@ -191,6 +191,34 @@ fn changed_file_missing_from_report_is_incomplete() {
 }
 
 #[test]
+fn case_differing_git_path_matches_report() {
+    let manifest = "v1 cell linux_x86_64\nprod source pkg/Foo.c\n";
+    let report = [lcov("pkg/Foo.c", &[(1, 0), (2, 1)])];
+    let got = gate(manifest, &report, &added(&[("pkg/foo.c", &[1, 2])]), &[]);
+    assert_eq!((got.covered_lines, got.eligible_lines), (1, 2));
+}
+
+#[test]
+fn case_differing_absent_file_is_uninstrumented() {
+    let manifest = "v1 cell linux_x86_64\nprod source pkg/Foo.c\n";
+    let got = gate(
+        manifest,
+        &[],
+        &added(&[("pkg/foo.c", &[1])]),
+        &[("pkg/Foo.c", "x\n")],
+    );
+    assert_eq!(got.uninstrumented, vec!["pkg/Foo.c".to_string()]);
+}
+
+#[test]
+fn ambiguous_case_keeps_exact_matching() {
+    let manifest = "v1 cell linux_x86_64\nprod source pkg/Foo.c\n";
+    let report = [lcov("pkg/Foo.c", &[(1, 0)]), lcov("pkg/FOO.c", &[(1, 1)])];
+    let got = gate(manifest, &report, &added(&[("pkg/foo.c", &[1])]), &[]);
+    assert_eq!((got.covered_lines, got.eligible_lines), (0, 1));
+}
+
+#[test]
 fn test_support_and_unowned_files_are_skipped() {
     let manifest = "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n";
     let report = [

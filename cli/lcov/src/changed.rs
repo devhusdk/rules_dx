@@ -182,6 +182,21 @@ pub fn all_lines(text: &str) -> BTreeSet<u32> {
     (1..=text.lines().count() as u32).collect()
 }
 
+/// Finds `key` exactly, or by lowercase when exactly one entry matches that way.
+///
+/// Git spells a path as the index does, while the build may spell it by the on-disk case.
+fn find_key<'a, V>(map: &'a BTreeMap<String, V>, key: &str) -> Option<&'a V> {
+    if let Some(value) = map.get(key) {
+        return Some(value);
+    }
+    let lower = key.to_lowercase();
+    let mut matches = map.iter().filter(|(k, _)| k.to_lowercase() == lower);
+    match (matches.next(), matches.next()) {
+        (Some((_, value)), None) => Some(value),
+        _ => None,
+    }
+}
+
 /// Accounts the added lines of every eligible owned source against the merged LCOV report.
 ///
 /// Support, test, unsupported, excluded and unowned files are skipped, ignore markers still apply,
@@ -207,7 +222,7 @@ pub fn changed_account(
             continue;
         }
         let key = source_key(path);
-        let (Some(lines), Some(hits)) = (changed.get(&key), report.get(&key)) else {
+        let (Some(lines), Some(hits)) = (find_key(&changed, &key), find_key(&report, &key)) else {
             continue;
         };
         let ignores = load_source(path)
@@ -231,7 +246,7 @@ pub fn changed_account(
             }));
     }
     for path in &account.absent {
-        if changed.contains_key(&source_key(path)) {
+        if find_key(&changed, &source_key(path)).is_some() {
             result.uninstrumented.push(path.clone());
         }
     }

@@ -492,10 +492,6 @@ fn write_file(dest: &Path, content: &str) -> Result<(), AdoptError> {
     })
 }
 
-pub fn apply_init(root: &Path, module_name: &str, applied: &mut Applied) -> Result<(), AdoptError> {
-    apply_scaffold(root, &plan_init_files_at(root, module_name)?, applied)
-}
-
 /// Test view of a run: written paths, then `refused:` paths.
 #[cfg(test)]
 pub(crate) fn entries(
@@ -516,12 +512,24 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_init, editor_settings_value, entries, plan_init_files, render_consumer_caller,
+        editor_settings_value, entries, plan_init_files, render_consumer_caller,
         render_consumer_caller_for, render_editor_settings, CONSUMER_WORKFLOW_OWNER,
         CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
         DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
+
+    pub(super) fn apply_init(
+        root: &std::path::Path,
+        module_name: &str,
+        applied: &mut super::Applied,
+    ) -> Result<(), super::AdoptError> {
+        super::apply_scaffold(
+            root,
+            &super::plan_init_files_at(root, module_name)?,
+            applied,
+        )
+    }
 
     #[test]
     fn init_plans_every_file() {
@@ -1159,7 +1167,10 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         assert!(text.contains("// mine"), "{text}");
         assert!(text.contains("\"editor.tabSize\": 2"), "{text}");
         assert!(text.contains("\"**/mine\": true"), "{text}");
-        assert!(text.contains("\"go.toolsManagement.checkForUpdates\": \"off\""), "{text}");
+        assert!(
+            text.contains("\"go.toolsManagement.checkForUpdates\": \"off\""),
+            "{text}"
+        );
         assert!(text.contains("clangd.path"), "{text}");
         assert!(!root.join(".github").exists());
         scratch.close().expect("cleanup");
@@ -1170,15 +1181,32 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-twice-");
         let root = scratch.path();
         let first = entries(|a| apply_init(root, "demo", a)).expect("first");
-        assert!(first.contains(&".vscode/settings.json".to_owned()), "{first:?}");
+        assert!(
+            first.contains(&".vscode/settings.json".to_owned()),
+            "{first:?}"
+        );
         let before = std::fs::read(root.join(".vscode/settings.json")).expect("read");
         let ci = std::fs::read(root.join(".github/workflows/ci.yml")).expect("read");
         let second = entries(|a| apply_init(root, "demo", a)).expect("second");
-        assert!(second.iter().all(|e| e.starts_with("refused:")), "{second:?}");
-        assert!(!second.contains(&"refused:.vscode/settings.json".to_owned()), "{second:?}");
-        assert_eq!(std::fs::read(root.join(".vscode/settings.json")).expect("read"), before);
-        assert_eq!(std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"), ci);
-        assert!(super::refresh_owned_files(root).expect("refresh").is_empty());
+        assert!(
+            second.iter().all(|e| e.starts_with("refused:")),
+            "{second:?}"
+        );
+        assert!(
+            !second.contains(&"refused:.vscode/settings.json".to_owned()),
+            "{second:?}"
+        );
+        assert_eq!(
+            std::fs::read(root.join(".vscode/settings.json")).expect("read"),
+            before
+        );
+        assert_eq!(
+            std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"),
+            ci
+        );
+        assert!(super::refresh_owned_files(root)
+            .expect("refresh")
+            .is_empty());
         scratch.close().expect("cleanup");
     }
 
@@ -1207,7 +1235,10 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let mine = "name: ci\njobs: {}\n";
         std::fs::write(root.join(".github/workflows/ci.yml"), mine).expect("write");
         let ran = entries(|a| apply_init(root, "demo", a)).expect("init");
-        assert!(ran.contains(&"refused:.github/workflows/ci.yml".to_owned()), "{ran:?}");
+        assert!(
+            ran.contains(&"refused:.github/workflows/ci.yml".to_owned()),
+            "{ran:?}"
+        );
         assert_eq!(
             std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read"),
             mine
@@ -1217,7 +1248,8 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
 
     #[cfg(unix)]
     mod symlinks {
-        use crate::scaffold::{apply_init, entries as applied, scaffold_dest_within_root};
+        use crate::scaffold::tests::apply_init;
+        use crate::scaffold::{entries as applied, scaffold_dest_within_root};
         use std::os::unix::fs::symlink;
 
         fn entries(dir: &std::path::Path) -> Vec<String> {

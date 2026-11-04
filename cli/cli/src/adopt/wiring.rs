@@ -1,114 +1,10 @@
 use std::io::Write;
-use std::path::Path;
 
 use crate::exec::common::check_stdout_write;
 use dx_adopt::Applied;
 use dx_plan::args::Invocation;
-use dx_worktree::setup;
 
-use super::init_files::InitFile;
-use super::{agents, claude_md, operational, summaries_suppressed};
-
-fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
-    match dx_adopt::read_version_pin(root) {
-        Ok(pin) if !pin.is_empty() && !dx_adopt::pin_is_valid(&pin) => Err(adopt_message(
-            prefix,
-            &dx_adopt::AdoptError::InvalidVersionPin { version: pin },
-        )),
-        _ => Ok(()),
-    }
-}
-
-fn adopt_message(prefix: &str, error: &dx_adopt::AdoptError) -> String {
-    match error {
-        dx_adopt::AdoptError::NotADirectory { path } => {
-            format!("{prefix}{path} is not a directory")
-        }
-        _ => error.to_string(),
-    }
-}
-
-/// Fails before any write when a file [`apply`] writes under `root` cannot be read or written.
-///
-/// `owned` lists every file init manages.
-pub(super) fn preflight(root: &Path, prefix: &str, owned: &[InitFile]) -> Result<(), String> {
-    if root.exists() && !root.is_dir() {
-        return Err(format!(
-            "{} is not a directory",
-            prefix.trim_end_matches('/')
-        ));
-    }
-    let destinations: Vec<&str> = owned.iter().map(|file| file.path.as_str()).collect();
-    dx_adopt::preflight_destinations(root, &destinations)
-        .map_err(|error| adopt_message(prefix, &error))?;
-    check_pin(root, prefix)?;
-    dx_adopt::plan_launcher_files(root, true).map_err(|error| adopt_message(prefix, &error))?;
-    dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
-    dx_adopt::preflight_preset(root).map_err(|error| adopt_message(prefix, &error))?;
-    let io = |error: std::io::Error| error.to_string();
-    setup::inspect(root).map_err(io)?;
-    agents::planned(root, true).map_err(io)?;
-    claude_md::state(root).map_err(io)?;
-    Ok(())
-}
-
-/// Writes the launcher, overrides, agent hooks, allowlist, AGENTS.md block and CLAUDE.md import under `root`.
-///
-/// Records each path with `prefix` in `applied` as it lands and each advisory in `notes`; prints nothing.
-pub(super) fn apply(
-    root: &Path,
-    prefix: &str,
-    applied: &mut Applied,
-    notes: &mut Vec<String>,
-) -> Result<(), String> {
-    check_pin(root, prefix)?;
-    let mut launchers = Applied::default();
-    let written = dx_adopt::write_launcher_files(root, &mut launchers);
-    let prefixed = |paths: Vec<String>| paths.into_iter().map(|path| format!("{prefix}{path}"));
-    applied.wrote.extend(prefixed(launchers.wrote));
-    applied.refused.extend(prefixed(launchers.refused));
-    written.map_err(|error| adopt_message(prefix, &error))?;
-    for entry in dx_adopt::apply_overrides(root).map_err(|error| adopt_message(prefix, &error))? {
-        match entry.strip_prefix("refused:") {
-            Some(refused) => notes.push(format!("{prefix}{refused}")),
-            None => applied.wrote.push(format!("{prefix}{entry}")),
-        }
-    }
-    let mut preset = Applied::default();
-    let mut preset_notes = Vec::new();
-    let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes);
-    applied.wrote.extend(prefixed(preset.wrote));
-    notes.extend(
-        preset_notes
-            .into_iter()
-            .map(|note| format!("{prefix}{note}")),
-    );
-    written.map_err(|error| adopt_message(prefix, &error))?;
-    let outcome = setup::apply(root).map_err(|error| error.to_string())?;
-    applied
-        .wrote
-        .extend(outcome.wrote.iter().map(|path| format!("{prefix}{path}")));
-    for (path, missing) in &outcome.missing {
-        notes.push(format!(
-            "{prefix}{path} exists; add these hooks: {}",
-            missing.join("; ")
-        ));
-    }
-    if !outcome.missing_allow.is_empty() {
-        notes.push(format!(
-            "{prefix}{} exists; add these permissions.allow entries: {}",
-            setup::SETTINGS,
-            outcome.missing_allow.join("; ")
-        ));
-    }
-    if agents::write(root, true).map_err(|error| error.to_string())? {
-        applied.wrote.push(format!("{prefix}{}", agents::FILE));
-    }
-    if claude_md::write(root).map_err(|error| error.to_string())? {
-        applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
-    }
-    Ok(())
-}
+use super::{operational, summaries_suppressed};
 
 /// Prints one apply run after every write: notes and refusals, written paths, then any failure.
 ///
@@ -146,6 +42,12 @@ pub(super) fn report(
 
 #[cfg(test)]
 mod tests {
+    use crate::adopt::init_files::{self, InitFile, Kind};
+
+    fn plan(root: &std::path::Path) -> Vec<InitFile> {
+        init_files::plan(root, "my_project", true).expect("plan")
+    }
+
     use std::path::Path;
 
     use dx_adopt::Applied;
@@ -156,7 +58,9 @@ mod tests {
     fn applied(root: &Path, prefix: &str, code: &str, words: &[&str]) -> (i32, String, String) {
         let inv = invocation(words);
         let (mut applied, mut notes) = (Applied::default(), Vec::new());
-        let result = super::apply(root, prefix, &mut applied, &mut notes);
+        let mut files = plan(root);
+        files.retain(|file| !matches!(file.kind, Kind::Scaffold(_)));
+        let result = init_files::apply(root, prefix, &files, &mut applied, &mut notes);
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let exit = super::report(&inv, &applied, &notes, result, code, &mut out, &mut err);
         (
@@ -220,7 +124,7 @@ mod tests {
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "1\"; x\n").expect("pin");
-        assert!(super::preflight(root, "", &crate::adopt::init_files::owned(&[])).is_err());
+        assert!(init_files::preflight(root, "", &plan(root)).is_err());
         let (code, _out, err) = init(root);
         assert_eq!(code, 1);
         assert!(err.contains("init_failed"));
@@ -233,7 +137,7 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("tools"), "file").expect("blocker");
         assert_eq!(
-            super::preflight(root, "demo/", &crate::adopt::init_files::owned(&[])),
+            init_files::preflight(root, "demo/", &plan(root)),
             Err("demo/tools is not a directory".to_owned())
         );
         let (code, _out, err) = init(root);
@@ -242,7 +146,7 @@ mod tests {
         let file = scratch.path().join("file");
         std::fs::write(&file, "x").expect("file");
         assert_eq!(
-            super::preflight(&file, "file/", &crate::adopt::init_files::owned(&[])),
+            init_files::preflight(&file, "file/", &plan(&file)),
             Err("file is not a directory".to_owned())
         );
         assert!(!root.join(".claude").exists());
@@ -295,7 +199,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-code-");
         let root = scratch.path();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
-        assert!(super::preflight(root, "demo/", &crate::adopt::init_files::owned(&[])).is_err());
+        assert!(init_files::preflight(root, "demo/", &plan(root)).is_err());
         let words = ["init", "--apply", "demo"];
         let (code, _out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 1);

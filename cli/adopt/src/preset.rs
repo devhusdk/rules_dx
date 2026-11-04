@@ -186,6 +186,24 @@ pub fn preset_paths() -> Vec<String> {
     paths
 }
 
+/// Every file the preset owns with the content a fresh workspace gets.
+pub fn preset_files() -> Vec<(String, String)> {
+    let imports: Vec<String> = Layer::ALL
+        .iter()
+        .map(|layer| dx_preset::import_line(CONSUMER_DIR, *layer))
+        .collect();
+    let mut files = vec![
+        (BAZELRC.to_owned(), format!("{}\n", imports.join("\n"))),
+        (GITIGNORE.to_owned(), format!("{LAYERS_IGNORE}\n")),
+    ];
+    files.extend(
+        Layer::ALL
+            .iter()
+            .map(|layer| (layer_rel(*layer), render_layer(*layer))),
+    );
+    files
+}
+
 fn read_text(path: &Path, rel: &str) -> Result<Option<String>, AdoptError> {
     match std::fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),
@@ -399,6 +417,18 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn preset_files_match_preset_paths() {
+        let files: Vec<String> = super::preset_files()
+            .into_iter()
+            .map(|(path, _)| path)
+            .collect();
+        assert_eq!(files, super::preset_paths());
+        assert!(super::preset_files()
+            .iter()
+            .all(|(_, content)| !content.is_empty()));
+    }
+
     use super::*;
 
     fn apply(root: &Path) -> (Vec<String>, Vec<String>) {

@@ -45,16 +45,16 @@ pub use launcher::{
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
 pub use module_pin::{plan_rules_dx_version, write_module_edit, ModuleEdit};
 pub use overrides::{
-    apply_overrides, check_overrides, check_overrides_in, preflight_overrides, render_overrides, OverridesState,
-    OVERRIDES_INCLUDE,
+    apply_overrides, check_overrides, check_overrides_in, preflight_overrides, render_overrides,
+    OverridesState, OVERRIDES_INCLUDE,
 };
 pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{
-    inspect_preset, preflight_preset, preset_drift, preset_paths, sync_preset, write_preset,
-    PresetDrift, PresetState,
+    inspect_preset, preflight_preset, preset_drift, preset_files, preset_paths, sync_preset,
+    write_preset, PresetDrift, PresetState,
 };
 pub use scaffold::{
-    apply_init, bazelignore_covers_dx, plan_init_files, plan_init_files_at, preflight_destinations,
+    bazelignore_covers_dx, plan_init_files, plan_init_files_at, preflight_destinations,
     refresh_owned_files, render_consumer_caller, render_consumer_module_setup, stale_owned_files,
     Applied, FileKind,
 };

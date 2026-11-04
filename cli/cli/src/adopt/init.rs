@@ -75,14 +75,9 @@ impl Target {
         })
     }
 
-    /// The files this run plans, relative to `root`: the init files, plus a
-    /// `MODULE.bazel` and `.bazelversion` when the directory is fresh.
-    fn plan(&self) -> Result<Vec<dx_adopt::scaffold::ScaffoldFile>, dx_adopt::AdoptError> {
-        let mut files = dx_adopt::plan_init_files_at(&self.root, &self.module)?;
-        if self.fresh {
-            files.extend(dx_adopt::plan_fresh_files(&self.module));
-        }
-        Ok(files)
+    /// The files this run plans, relative to `root`.
+    fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
+        super::init_files::plan(&self.root, &self.module, self.fresh)
     }
 
     /// The command that fixes drift in this directory.
@@ -125,42 +120,12 @@ pub(crate) fn execute_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let owned = super::init_files::owned(&planned);
-    if let Err(message) = super::wiring::preflight(root, &target.prefix, &owned) {
+    if let Err(message) = super::init_files::preflight(root, &target.prefix, &planned) {
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
-    let mut own = dx_adopt::Applied::default();
+    let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
-    let written = (if target.fresh {
-        dx_adopt::scaffold::apply_scaffold(
-            root,
-            &dx_adopt::plan_fresh_files(&target.module),
-            &mut own,
-        )
-    } else {
-        Ok(())
-    })
-    .and_then(|()| dx_adopt::apply_init(root, &target.module, &mut own));
-    if own.refused.iter().any(|path| path == ".bazelignore")
-        && !std::fs::read_to_string(root.join(".bazelignore"))
-            .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
-    {
-        notes.push(format!(
-            "{}.bazelignore lacks .dx; add it so Bazel skips the IDE output base",
-            target.prefix
-        ));
-    }
-    let mut applied = dx_adopt::Applied {
-        wrote: prefixed(&target.prefix, own.wrote).collect(),
-        refused: prefixed(&target.prefix, own.refused).collect(),
-    };
-    let result = match written {
-        Ok(()) => super::wiring::apply(root, &target.prefix, &mut applied, &mut notes),
-        Err(error @ dx_adopt::AdoptError::InitInvalidModule { .. }) => {
-            return invalid_module_code(invocation, out, err, &error);
-        }
-        Err(error) => Err(error.to_string()),
-    };
+    let result = super::init_files::apply(root, &target.prefix, &planned, &mut applied, &mut notes);
     super::wiring::report(
         invocation,
         &applied,
@@ -185,10 +150,10 @@ fn check_init(
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
     let wiring = super::init_files::drift(workspace);
-    let missing: Vec<String> = super::init_files::owned(&files)
-        .into_iter()
+    let missing: Vec<String> = files
+        .iter()
         .filter(|file| file.essential && !workspace.join(&file.path).exists())
-        .map(|file| file.path)
+        .map(|file| file.path.clone())
         .collect();
     let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
     let stale = wiring.stale;

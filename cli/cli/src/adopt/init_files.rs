@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use dx_adopt::scaffold::ScaffoldFile;
+use dx_adopt::{AdoptError, Applied, FileKind};
 use dx_worktree::setup;
 
 use super::{agents, claude_md};
@@ -15,34 +16,221 @@ const ESSENTIAL: [&str; 7] = [
     "tools/dx.cmd",
 ];
 
+/// How init writes one planned file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Kind {
+    Scaffold(FileKind),
+    Launcher,
+    Override,
+    Preset,
+    Hooks,
+    AgentsBlock,
+    ClaudeImport,
+}
+
 /// One file init manages.
 pub(super) struct InitFile {
     pub(super) path: String,
+    pub(super) content: String,
+    pub(super) kind: Kind,
     pub(super) essential: bool,
 }
 
-/// Every file init manages, once each, starting with the planned scaffold files.
-pub(super) fn owned(planned: &[ScaffoldFile]) -> Vec<InitFile> {
-    let mut paths: Vec<String> = planned.iter().map(|file| file.path.clone()).collect();
-    paths.push(dx_adopt::LAUNCHER_SH_REL.to_owned());
-    paths.push(dx_adopt::LAUNCHER_CMD_REL.to_owned());
-    paths.extend(
+/// Every file init manages, once each: scaffold files, launchers, overrides, preset, hooks, AGENTS.md, CLAUDE.md.
+pub(super) fn plan(root: &Path, module: &str, fresh: bool) -> Result<Vec<InitFile>, AdoptError> {
+    let mut scaffold = if fresh {
+        dx_adopt::plan_fresh_files(module)
+    } else {
+        Vec::new()
+    };
+    scaffold.extend(dx_adopt::plan_init_files_at(root, module)?);
+    let mut entries: Vec<(String, String, Kind)> = scaffold
+        .into_iter()
+        .map(|file| (file.path, file.content, Kind::Scaffold(file.kind)))
+        .collect();
+    entries.push((
+        dx_adopt::LAUNCHER_SH_REL.to_owned(),
+        dx_adopt::render_launcher_sh(),
+        Kind::Launcher,
+    ));
+    entries.push((
+        dx_adopt::LAUNCHER_CMD_REL.to_owned(),
+        dx_adopt::render_launcher_cmd(),
+        Kind::Launcher,
+    ));
+    entries.extend(
         dx_adopt::render_overrides()
             .into_iter()
-            .map(|(path, _)| path),
+            .map(|(path, content)| (path, content, Kind::Override)),
     );
-    paths.extend(dx_adopt::preset_paths());
-    paths.extend(setup::HOOK_FILES.iter().map(|file| file.path.to_owned()));
-    paths.push(agents::FILE.to_owned());
-    paths.push(claude_md::FILE.to_owned());
+    entries.extend(
+        dx_adopt::preset_files()
+            .into_iter()
+            .map(|(path, content)| (path, content, Kind::Preset)),
+    );
+    entries.extend(setup::HOOK_FILES.iter().map(|file| {
+        (
+            file.path.to_owned(),
+            setup::settings_text(file),
+            Kind::Hooks,
+        )
+    }));
+    entries.push((agents::FILE.to_owned(), agents::block(), Kind::AgentsBlock));
+    entries.push((
+        claude_md::FILE.to_owned(),
+        format!("@{}\n", agents::FILE),
+        Kind::ClaudeImport,
+    ));
     let mut files: Vec<InitFile> = Vec::new();
-    for path in paths {
+    for (path, content, kind) in entries {
         if files.iter().all(|file| file.path != path) {
             let essential = ESSENTIAL.contains(&path.as_str());
-            files.push(InitFile { path, essential });
+            files.push(InitFile {
+                path,
+                content,
+                kind,
+                essential,
+            });
         }
     }
-    files
+    Ok(files)
+}
+
+fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
+    match dx_adopt::read_version_pin(root) {
+        Ok(pin) if !pin.is_empty() && !dx_adopt::pin_is_valid(&pin) => Err(adopt_message(
+            prefix,
+            &AdoptError::InvalidVersionPin { version: pin },
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn adopt_message(prefix: &str, error: &AdoptError) -> String {
+    match error {
+        AdoptError::NotADirectory { path } => format!("{prefix}{path} is not a directory"),
+        _ => error.to_string(),
+    }
+}
+
+/// Fails before any write when a planned file cannot be read or written under `root`.
+pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result<(), String> {
+    if root.exists() && !root.is_dir() {
+        return Err(format!(
+            "{} is not a directory",
+            prefix.trim_end_matches('/')
+        ));
+    }
+    let destinations: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
+    dx_adopt::preflight_destinations(root, &destinations)
+        .map_err(|error| adopt_message(prefix, &error))?;
+    check_pin(root, prefix)?;
+    dx_adopt::plan_launcher_files(root, true).map_err(|error| adopt_message(prefix, &error))?;
+    dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
+    dx_adopt::preflight_preset(root).map_err(|error| adopt_message(prefix, &error))?;
+    let io = |error: std::io::Error| error.to_string();
+    setup::inspect(root).map_err(io)?;
+    agents::planned(root, true).map_err(io)?;
+    claude_md::state(root).map_err(io)?;
+    Ok(())
+}
+
+/// Writes the planned files under `root`, scaffold files first, then launchers, overrides, preset, hooks, AGENTS.md and CLAUDE.md.
+///
+/// Records each path with `prefix` in `applied` as it lands and each advisory in `notes`; prints nothing.
+pub(super) fn apply(
+    root: &Path,
+    prefix: &str,
+    files: &[InitFile],
+    applied: &mut Applied,
+    notes: &mut Vec<String>,
+) -> Result<(), String> {
+    let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
+    let prefixed = |paths: Vec<String>| paths.into_iter().map(|path| format!("{prefix}{path}"));
+    let scaffold: Vec<ScaffoldFile> = files
+        .iter()
+        .filter_map(|file| match file.kind {
+            Kind::Scaffold(kind) => Some(ScaffoldFile {
+                path: file.path.clone(),
+                content: file.content.clone(),
+                kind,
+            }),
+            _ => None,
+        })
+        .collect();
+    let mut own = Applied::default();
+    let written = dx_adopt::scaffold::apply_scaffold(root, &scaffold, &mut own);
+    if own.refused.iter().any(|path| path == ".bazelignore")
+        && !std::fs::read_to_string(root.join(".bazelignore"))
+            .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
+    {
+        notes.push(format!(
+            "{prefix}.bazelignore lacks .dx; add it so Bazel skips the IDE output base"
+        ));
+    }
+    applied.wrote.extend(prefixed(own.wrote));
+    applied.refused.extend(prefixed(own.refused));
+    written.map_err(|error| error.to_string())?;
+    check_pin(root, prefix)?;
+    if has(|kind| *kind == Kind::Launcher) {
+        let mut launchers = Applied::default();
+        let written = dx_adopt::write_launcher_files(root, &mut launchers);
+        applied.wrote.extend(prefixed(launchers.wrote));
+        applied.refused.extend(prefixed(launchers.refused));
+        written.map_err(|error| adopt_message(prefix, &error))?;
+    }
+    if has(|kind| *kind == Kind::Override) {
+        for entry in
+            dx_adopt::apply_overrides(root).map_err(|error| adopt_message(prefix, &error))?
+        {
+            match entry.strip_prefix("refused:") {
+                Some(refused) => notes.push(format!("{prefix}{refused}")),
+                None => applied.wrote.push(format!("{prefix}{entry}")),
+            }
+        }
+    }
+    if has(|kind| *kind == Kind::Preset) {
+        let mut preset = Applied::default();
+        let mut preset_notes = Vec::new();
+        let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes);
+        applied.wrote.extend(prefixed(preset.wrote));
+        notes.extend(
+            preset_notes
+                .into_iter()
+                .map(|note| format!("{prefix}{note}")),
+        );
+        written.map_err(|error| adopt_message(prefix, &error))?;
+    }
+    if has(|kind| *kind == Kind::Hooks) {
+        let outcome = setup::apply(root).map_err(|error| error.to_string())?;
+        applied
+            .wrote
+            .extend(outcome.wrote.iter().map(|path| format!("{prefix}{path}")));
+        for (path, missing) in &outcome.missing {
+            notes.push(format!(
+                "{prefix}{path} exists; add these hooks: {}",
+                missing.join("; ")
+            ));
+        }
+        if !outcome.missing_allow.is_empty() {
+            notes.push(format!(
+                "{prefix}{} exists; add these permissions.allow entries: {}",
+                setup::SETTINGS,
+                outcome.missing_allow.join("; ")
+            ));
+        }
+    }
+    if has(|kind| *kind == Kind::AgentsBlock)
+        && agents::write(root, true).map_err(|error| error.to_string())?
+    {
+        applied.wrote.push(format!("{prefix}{}", agents::FILE));
+    }
+    if has(|kind| *kind == Kind::ClaudeImport)
+        && claude_md::write(root).map_err(|error| error.to_string())?
+    {
+        applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
+    }
+    Ok(())
 }
 
 /// What a workspace lacks against what init writes.
@@ -108,11 +296,8 @@ pub(super) fn drift(root: &Path) -> Drift {
         Ok(claude_md::State::Absent) => drift.missing.push(claude_md::FILE.to_owned()),
         Err(error) => drift.other.push(format!("{}: {error}", claude_md::FILE)),
     }
-    let mut planned = dx_adopt::plan_init_files("refresh").unwrap_or_default();
-    if dx_adopt::is_fresh_dir(root) {
-        planned.extend(dx_adopt::plan_fresh_files("refresh"));
-    }
-    for file in owned(&planned) {
+    let planned = plan(root, "refresh", dx_adopt::is_fresh_dir(root)).unwrap_or_default();
+    for file in planned {
         if file.essential && !root.join(&file.path).exists() && !drift.missing.contains(&file.path)
         {
             drift.missing.push(file.path);
@@ -123,16 +308,14 @@ pub(super) fn drift(root: &Path) -> Drift {
 
 #[cfg(test)]
 mod tests {
-    use super::{drift, owned};
+    use super::{drift, plan};
     use crate::adopt::test_support::{invocation, run};
 
     #[test]
     fn everything_init_writes_is_owned_and_present() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-");
         let root = scratch.path();
-        let mut planned = dx_adopt::plan_init_files_at(root, "my_project").expect("plan");
-        planned.extend(dx_adopt::plan_fresh_files("my_project"));
-        let files = owned(&planned);
+        let files = plan(root, "my_project", true).expect("plan");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
         for path in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
@@ -148,8 +331,17 @@ mod tests {
     }
 
     #[test]
+    fn every_planned_file_has_content() {
+        let scratch = dx_test_scratch::scratch("dx-init-owned-content-");
+        for file in plan(scratch.path(), "my_project", true).expect("plan") {
+            assert!(!file.content.is_empty(), "{}", file.path);
+        }
+    }
+
+    #[test]
     fn each_path_is_listed_once() {
-        let files = owned(&[]);
+        let scratch = dx_test_scratch::scratch("dx-init-owned-once-");
+        let files = plan(scratch.path(), "my_project", true).expect("plan");
         let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
         paths.sort_unstable();
         let count = paths.len();
@@ -168,10 +360,11 @@ mod tests {
     fn apply_writes_the_owned_list_and_check_and_status_accept_it() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-equal-");
         let root = scratch.path();
-        let mut planned = dx_adopt::plan_init_files_at(root, "my_project").expect("plan");
-        planned.extend(dx_adopt::plan_fresh_files("my_project"));
-        let mut owned_paths: Vec<String> =
-            owned(&planned).into_iter().map(|file| file.path).collect();
+        let mut owned_paths: Vec<String> = plan(root, "my_project", true)
+            .expect("plan")
+            .into_iter()
+            .map(|file| file.path)
+            .collect();
         let (code, out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
         let mut wrote: Vec<String> = out
@@ -194,7 +387,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-owned-cuda-");
         let root = scratch.path();
         std::fs::write(root.join("a.cu"), "").expect("write");
-        let planned = dx_adopt::plan_init_files_at(root, "my_project").expect("plan");
+        let planned = plan(root, "my_project", true).expect("plan");
         let planned_snippet = planned
             .iter()
             .find(|file| file.path == "MODULE.bazel.snippet")
@@ -212,9 +405,7 @@ mod tests {
     fn drift_in_an_empty_dir_is_owned() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
         let root = scratch.path();
-        let mut planned = dx_adopt::plan_init_files_at(root, "my_project").expect("plan");
-        planned.extend(dx_adopt::plan_fresh_files("my_project"));
-        let files = owned(&planned);
+        let files = plan(root, "my_project", true).expect("plan");
         for path in drift(root).missing {
             assert!(files.iter().any(|file| file.path == path), "{path}");
         }
@@ -233,7 +424,7 @@ mod tests {
         ];
         paths.extend([dx_adopt::preset::BAZELRC, dx_adopt::preset::GITIGNORE].map(str::to_owned));
         paths.extend(dx_adopt::render_overrides().into_iter().map(|(p, _)| p));
-        let files = owned(&[]);
+        let files = plan(root, "my_project", true).expect("plan");
         for path in paths {
             assert!(files.iter().any(|file| file.path == path), "{path}");
             let full = root.join(&path);

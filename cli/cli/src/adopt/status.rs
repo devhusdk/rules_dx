@@ -306,7 +306,9 @@ mod tests {
 
     #[test]
     fn owned_list_covers_launcher_preset_and_override_paths() {
-        let owned: Vec<String> = crate::adopt::init_files::owned(&[])
+        let scratch = dx_test_scratch::scratch("dx-status-owned-");
+        let owned: Vec<String> = crate::adopt::init_files::plan(scratch.path(), "my_project", true)
+            .expect("plan")
             .into_iter()
             .map(|file| file.path)
             .collect();

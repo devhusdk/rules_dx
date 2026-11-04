@@ -221,6 +221,7 @@ jobs:
           set -o pipefail
           bazel test --noshow_progress //android/tests/fixtures/adopt-android/app:check_apk_test //android/tests/fixtures/adopt-android/app:inspect_apk_test //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test 2>&1 | tail -n 20
       - name: Wait for the emulator to boot
+        id: boot
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
           timeout 600 adb -s emulator-5554 wait-for-device
@@ -237,6 +238,16 @@ jobs:
           adb -s emulator-5554 shell settings put global animator_duration_scale 0
           adb -s emulator-5554 shell input keyevent KEYCODE_WAKEUP
           adb -s emulator-5554 shell wm dismiss-keyguard
+          {
+            lsb_release -d
+            uname -m
+            "$EMULATOR" -version | head -n 1
+            adb version
+            "$SDKMANAGER" --list_installed
+            for prop in ro.build.version.sdk ro.product.cpu.abi ro.product.cpu.abilist; do
+              echo "$prop=$(adb -s emulator-5554 shell getprop "$prop" | tr -d '\r')"
+            done
+          } > "$RUNNER_TEMP/evidence/android-versions.txt" 2>&1
       - name: Run the device scenario
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: sh android/tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
@@ -286,7 +297,7 @@ jobs:
           echo "rust-android-starter $code" >> "$evidence/exit-codes.txt"
           exit "$code"
       - name: Run shared-rust on the emulator
-        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        if: ${{ !cancelled() && inputs.android && matrix.platform == 'linux_x86_64' && steps.boot.outcome == 'success' }}
         run: |
           set -o pipefail
           cd "$GITHUB_WORKSPACE"
@@ -338,5 +349,10 @@ jobs:
             printf "Commit \`%s\`, displays \`%s\`.\n" "$GITHUB_SHA" "$DX_DISPLAYS"
             if [ -f evidence.log ]; then
               tail -n 20 evidence.log
+            fi
+            if [ -f "$RUNNER_TEMP/evidence/android-versions.txt" ]; then
+              printf '\n```\n'
+              cat "$RUNNER_TEMP/evidence/android-versions.txt"
+              printf '```\n'
             fi
           } >> "$GITHUB_STEP_SUMMARY"

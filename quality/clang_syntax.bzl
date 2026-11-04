@@ -115,6 +115,36 @@ def clang_syntax_argv(argv, src, identity):
 def _config_flag(config):
     return ["--config-file=" + config] if config else []
 
+_MSVC_TIDY_UNSUPPORTED = {
+    "Yc": "precompiled headers",
+    "Yu": "precompiled headers",
+    "clr": "C++/CLI",
+    "ZW": "C++/CX",
+}
+
+def _msvc_tidy_argv(tidy, argv, src, identity, config):
+    rewritten = clang_syntax_argv(argv, src, identity)
+    if rewritten.error != "":
+        return rewritten
+    for arg in argv[1:]:
+        if len(arg) > 1 and arg[0] in "/-":
+            for prefix, capability in _MSVC_TIDY_UNSUPPORTED.items():
+                if arg[1:].startswith(prefix):
+                    return struct(argv = [], error = "clang-tidy does not support %s (flag %s)" % (capability, arg))
+    flags = []
+    dropped_src = False
+    for arg in rewritten.argv[1:-1]:
+        if arg == identity.syntax_only:
+            continue
+        if arg == src and not dropped_src:
+            dropped_src = True
+            continue
+        flags.append(arg)
+    extra = ["--extra-arg-before=--driver-mode=cl"]
+    if identity.target:
+        extra.append("--extra-arg-before=--target=" + identity.target)
+    return struct(argv = [tidy] + _config_flag(config) + extra + [src, "--"] + flags, error = "")
+
 def clang_tidy_argv(tidy, argv, src, identity, config = ""):
     """Projects a compile command line into a clang-tidy command line.
 
@@ -130,12 +160,7 @@ def clang_tidy_argv(tidy, argv, src, identity, config = ""):
       `error` (non-empty when the command line cannot be projected).
     """
     if identity.driver == "msvc":
-        flag = ""
-        for arg in argv[1:]:
-            if arg.startswith("/") and len(arg) > 1:
-                flag = arg
-                break
-        return struct(argv = [], error = "clang-tidy does not support MSVC-style command lines (driver msvc, flag " + (flag or "none") + ")")
+        return _msvc_tidy_argv(tidy, argv, src, identity, config)
     rewritten = clang_syntax_argv(argv, src, identity)
     if rewritten.error != "":
         return rewritten
@@ -166,11 +191,11 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
     Returns:
       A struct with `argv` and `error` (non-empty when the command line cannot be projected).
     """
-    if len(argv) == 0 or argv[0].rpartition("/")[2] != "nvcc":
+    if len(argv) == 0 or argv[0].replace("\\", "/").rpartition("/")[2] not in ["nvcc", "nvcc.exe"]:
         return struct(argv = [], error = "only nvcc compile commands can be projected into clang-tidy")
     if src == "" or src not in argv:
         return struct(argv = [], error = "the source " + src + " is not on the compile command line")
-    root = argv[0].rpartition("/")[0].rpartition("/")[0]
+    root = argv[0].replace("\\", "/").rpartition("/")[0].rpartition("/")[0]
     flags = ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version"]
     if root != "":
         flags.append("--cuda-path=" + root)
@@ -186,6 +211,8 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
         elif arg in ["-Xcompiler", "--compiler-options"] and i < len(argv):
             # Host compiler flags: only the ones clang shares survive.
             for part in argv[i].split(","):
+                if part.startswith("/"):
+                    return struct(argv = [], error = "clang-tidy does not support nvcc with an MSVC host compiler (flag %s)" % part)
                 if part.startswith(("-I", "-D", "-U", "-isystem", "-std=", "-iquote")):
                     flags.append(part)
             i += 1
@@ -193,9 +220,23 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
             i += 1
         elif arg.startswith(("-I", "-D", "-U", "-isystem", "-iquote")) or arg.startswith(("-std=", "--std=")):
             flags.append(arg.replace("--std=", "-std=", 1))
-        elif arg in ["-o", "-MF", "-MT", "-arch", "-code", "-gencode", "-ccbin", "--output-file", "--compiler-bindir"] and i < len(argv):
+        elif arg in ["-ccbin", "--compiler-bindir"] and i < len(argv):
+            host = argv[i].replace("\\", "/").rpartition("/")[2].lower()
+            if host in ["cl", "cl.exe", "clang-cl", "clang-cl.exe"]:
+                return struct(argv = [], error = "clang-tidy does not support nvcc with an MSVC host compiler (flag %s %s)" % (arg, argv[i]))
+            i += 1
+        elif arg in ["-o", "-MF", "-MT", "-arch", "-code", "-gencode", "--output-file"] and i < len(argv):
             i += 1
     return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
+
+def _failing_tidy(ctx, log, src, error):
+    ctx.actions.run_shell(
+        mnemonic = "ClangTidy",
+        progress_message = "clang-tidy %{label}: " + src,
+        command = 'echo "$2" > "$1"; echo "$2" >&2; exit 1',
+        arguments = [log.path, error],
+        outputs = [log],
+    )
 
 def _first(value):
     return value[0] if type(value) == "list" else value
@@ -273,9 +314,11 @@ def _clang_syntax_impl(target, ctx):
                 continue
             src = nvcc_syntax_source(list(argv))
             tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src, tidy_config)
-            if tidy_argv.error != "":
-                fail("clang_tidy: " + str(target.label) + ": " + tidy_argv.error)
             tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s_%d.log" % (target.label.name, i))
+            if tidy_argv.error != "":
+                _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
+                tidy_diagnostics.append(tidy_log)
+                continue
             ctx.actions.run_shell(
                 mnemonic = "ClangTidy",
                 progress_message = "clang-tidy %{label}: " + src,
@@ -318,13 +361,7 @@ def _clang_syntax_impl(target, ctx):
             resource_set = dx_quality_heavy_resources,
         )
         if tidy_argv.error != "":
-            ctx.actions.run_shell(
-                mnemonic = "ClangTidy",
-                progress_message = "clang-tidy %{label}: " + src,
-                command = 'echo "$2" > "$1"; echo "$2" >&2; exit 1',
-                arguments = [tidy_log.path, tidy_argv.error],
-                outputs = [tidy_log],
-            )
+            _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
         else:
             ctx.actions.run_shell(
                 mnemonic = "ClangTidy",

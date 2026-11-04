@@ -52,6 +52,7 @@ def cc_compiler_identity(compiler, target):
         abi = abi,
         coverage = _COVERAGE.get(family, ""),
         syntax_only = _SYNTAX_ONLY.get(driver, ""),
+        target = target,
     )
 
 def cc_toolchain_identity(ctx):

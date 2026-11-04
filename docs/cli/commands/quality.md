@@ -428,6 +428,8 @@ until one is bound. Tag the target `no-lint` or `no-format` to skip it.
 | `perlcritic` | no | none | `.perlcriticrc`, `$PERLCRITIC` | none |
 | OCaml formatting | no | none | `.ocamlformat` | none |
 
+On MSVC toolchains `clang-tidy` runs in clang-cl mode (`--driver-mode=cl`). It names the flags it cannot model instead of dropping them: `/Yc` and `/Yu` (precompiled headers), `/clr`, `/ZW`, and nvcc with an MSVC host compiler.
+
 ## Tool overrides
 
 The three commands run every wired tool from its managed executable. Pass

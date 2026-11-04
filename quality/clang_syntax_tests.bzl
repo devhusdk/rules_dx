@@ -111,14 +111,34 @@ def clang_syntax_unit_tests(name):
                 "response files in copts are not supported (found @a.rsp)",
             ),
             expect_equal(
-                "clang-tidy names the MSVC driver as unsupported",
-                clang_tidy_argv("tidy", ["cl.exe", "/c", "a.c"], "a.c", _CL).error,
-                "clang-tidy does not support MSVC-style command lines (driver msvc, flag /c)",
+                "clang-tidy projects cl.exe into clang-cl mode",
+                clang_tidy_argv("tidy", ["cl.exe", "/nologo", "/DX=1", "/c", "a.c", "/Foa.obj", "/Fdv.pdb", "/showIncludes", "/sourceDependencies", "a.json", "/I", "inc"], "a.c", _CL).argv,
+                ["tidy", "--extra-arg-before=--driver-mode=cl", "--extra-arg-before=--target=x86_64-pc-windows-msvc", "a.c", "--", "/nologo", "/DX=1", "/I", "inc"],
             ),
             expect_equal(
-                "clang-tidy names the first MSVC flag for clang-cl",
-                clang_tidy_argv("tidy", ["clang-cl.exe", "-c", "/DX=1", "a.c"], "a.c", _CLANG_CL).error,
-                "clang-tidy does not support MSVC-style command lines (driver msvc, flag /DX=1)",
+                "clang-tidy projects clang-cl and keeps its flags in order",
+                clang_tidy_argv("tidy", ["clang-cl.exe", "-c", "a.c", "/Foa.obj", "/std:c++17", "-m64"], "a.c", _CLANG_CL, "q/.clang-tidy").argv,
+                ["tidy", "--config-file=q/.clang-tidy", "--extra-arg-before=--driver-mode=cl", "--extra-arg-before=--target=x86_64-pc-windows-msvc", "a.c", "--", "/std:c++17", "-m64"],
+            ),
+            expect_equal(
+                "clang-tidy names precompiled headers for MSVC",
+                clang_tidy_argv("tidy", ["cl.exe", "/Yuh.h", "/c", "a.c"], "a.c", _CL).error,
+                "clang-tidy does not support precompiled headers (flag /Yuh.h)",
+            ),
+            expect_equal(
+                "clang-tidy names a CUDA MSVC host compiler flag",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-Xcompiler", "/MD", "-c", "a.cu"], "a.cu").error,
+                "clang-tidy does not support nvcc with an MSVC host compiler (flag /MD)",
+            ),
+            expect_equal(
+                "clang-tidy names a CUDA cl.exe host compiler",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-ccbin", "C:\\vs\\cl.exe", "-c", "a.cu"], "a.cu").error,
+                "clang-tidy does not support nvcc with an MSVC host compiler (flag -ccbin C:\\vs\\cl.exe)",
+            ),
+            expect_equal(
+                "clang-tidy accepts nvcc.exe with backslash paths",
+                cuda_tidy_argv("tidy", ["C:\\cuda\\bin\\nvcc.exe", "-c", "a.cu"], "a.cu").argv[-1],
+                "--cuda-path=C:/cuda",
             ),
             expect_equal(
                 "the source is the argument after /c",

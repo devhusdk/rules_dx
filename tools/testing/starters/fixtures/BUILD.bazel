@@ -183,6 +183,12 @@ filegroup(
 )
 
 filegroup(
+    name = "swift",
+    srcs = glob(["swift/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "typescript",
     srcs = glob(["typescript/**"]),
     visibility = ["//visibility:public"],

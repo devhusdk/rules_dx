@@ -149,6 +149,11 @@ starter_consumer_test(
 )
 
 starter_consumer_test(
+    name = "swift",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+starter_consumer_test(
     name = "typescript",
 )
 

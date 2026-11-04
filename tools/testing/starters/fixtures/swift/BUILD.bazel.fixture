@@ -1,0 +1,21 @@
+load("@rules_dx//swift/rules:defs.bzl", "swift_binary", "swift_library", "swift_test")
+
+swift_library(
+    name = "demo-app",
+    srcs = ["Greet.swift"],
+    module_name = "Greet",
+)
+
+swift_binary(
+    name = "demo-app_bin",
+    srcs = ["main.swift"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":demo-app"],
+)
+
+swift_test(
+    name = "demo-app_test",
+    srcs = ["GreetTests.swift"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":demo-app"],
+)

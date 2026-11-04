@@ -572,4 +572,23 @@ mod tests {
         }
         assert_eq!(ignore_with_layers(None), None);
     }
+
+    fn git(root: &Path, sandbox: &Path, args: &[&str]) {
+        let mut cmd = std::process::Command::new("git");
+        cmd.arg("-C").arg(root).args(args);
+        dx_test_scratch::isolate_git(&mut cmd, sandbox);
+        assert!(cmd.status().expect("git").success(), "{args:?}");
+    }
+
+    #[test]
+    fn tracked_layers_get_the_git_rm_note() {
+        let scratch = dx_test_scratch::scratch("dx-preset-tracked-");
+        let root = scratch.path().join("repo");
+        std::fs::create_dir_all(&root).expect("dir");
+        git(&root, scratch.path(), &["init", "-q"]);
+        apply(&root);
+        git(&root, scratch.path(), &["add", "-f", CONSUMER_DIR]);
+        assert!(preset_drift(&root).other.contains(&tracked_note()));
+        assert!(apply(&root).1.contains(&tracked_note()));
+    }
 }

@@ -126,10 +126,40 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
         "{}",
         check.stderr
     );
+    let kept = || {
+        let mut files = BTreeMap::new();
+        tree(&root.join(".dx/bazelrc"), &root, &mut files);
+        for rel in [".bazelrc", ".gitignore"] {
+            files.insert(
+                PathBuf::from(rel),
+                std::fs::read(root.join(rel)).expect(rel),
+            );
+        }
+        files
+    };
+    let before = kept();
+    assert!(before.len() >= 5, "{:?}", before.keys());
     let apply = dx(&root, &home, &["upgrade", "--to", &built, "--apply"]);
     assert_eq!(apply.code, 0, "{}", apply.stderr);
     assert_eq!(read(&version_file).trim(), built);
+    assert_eq!(before, kept());
     for (path, text) in launchers.iter().zip(&fresh) {
         assert_eq!(&read(path), text);
     }
+}
+
+#[test]
+fn fresh_clone_gets_layers_on_first_command() {
+    let (_guard, root, home) = setup("adopt-fresh-clone");
+    init(&root, &home);
+    let layers = root.join(".dx/bazelrc");
+    let mut before = BTreeMap::new();
+    tree(&layers, &root, &mut before);
+    assert!(!before.is_empty());
+    std::fs::remove_dir_all(&layers).expect("remove layers");
+    let out = dx(&root, &home, &["completion", "bash"]);
+    assert_eq!(out.code, 0, "{}", out.stderr);
+    let mut after = BTreeMap::new();
+    tree(&layers, &root, &mut after);
+    assert_eq!(before, after);
 }

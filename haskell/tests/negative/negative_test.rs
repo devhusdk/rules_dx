@@ -49,10 +49,29 @@ fn farm(source: &Path, target: &Path, relative: &Path, text: &str) {
                 farm(&entry.path(), &target.join(&name), &rest, text);
             }
         } else {
-            std::os::unix::fs::symlink(entry.path(), target.join(&name))
-                .unwrap_or_else(|error| panic!("symlink {name:?}: {error}"));
+            link(&entry.path(), &target.join(&name));
         }
     }
+}
+
+#[cfg(unix)]
+fn link(from: &Path, to: &Path) {
+    std::os::unix::fs::symlink(from, to)
+        .unwrap_or_else(|error| panic!("symlink {}: {error}", to.display()));
+}
+
+#[cfg(windows)]
+fn link(from: &Path, to: &Path) {
+    let made = if from.is_dir() {
+        std::os::windows::fs::symlink_dir(from, to)
+    } else {
+        std::os::windows::fs::symlink_file(from, to)
+    };
+    made.unwrap_or_else(|error| panic!("symlink {}: {error}", to.display()));
+}
+
+fn starlark_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
 }
 
 fn library(root: &Path, name: &str, module: &str, deps: &str, ghcopts: &str, source: &str) {
@@ -80,7 +99,7 @@ fn consumer_of(rules: &Path) -> Case {
         &root.join("MODULE.bazel"),
         &format!(
             "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n",
-            rules.display()
+            starlark_path(rules)
         ),
     );
     dx_testing::write_text(&root.join(".bazelrc"), &dx_testing::preset_rc(&source));
@@ -126,7 +145,7 @@ fn tampered(old: &str, new: &str) -> Case {
         &case.root().join("MODULE.bazel"),
         &dx_testing::read_text(&case.root().join("MODULE.bazel")).replace(
             "path = \"rules_dx\"",
-            &format!("path = \"{}\"", rules.display()),
+            &format!("path = \"{}\"", starlark_path(&rules)),
         ),
     );
     dx_testing::write_text(&case.root().join(".bazelignore"), "rules_dx\n");
@@ -211,6 +230,7 @@ fn failing_tool_fails_with_its_diagnostic() {
     );
 }
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[test]
 fn tampered_ghc_sha_fails_the_fetch() {
     let pinned = "90f4e3082e1f43b984579f16b6349bd406dfdf88bda85733d7ccd54cb6a8eda8";
@@ -223,6 +243,20 @@ fn tampered_ghc_sha_fails_the_fetch() {
     );
 }
 
+#[cfg(all(windows, target_arch = "x86_64"))]
+#[test]
+fn tampered_windows_ghc_sha_fails_the_fetch() {
+    let pinned = "ad17bdbee5f195d50024da1447f458071d9d8a34f90d76907c873abaf95d893f";
+    let zeros = "0".repeat(64);
+    let case = tampered(pinned, &zeros);
+    fails_with(
+        &case,
+        "//clean",
+        &[&format!("Checksum was {pinned} but wanted {zeros}")],
+    );
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[test]
 fn missing_closure_lib_fails_the_fetch() {
     let case = tampered(

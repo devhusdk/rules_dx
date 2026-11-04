@@ -44,10 +44,6 @@ pub const OVERRIDES: &[Override] = &[
         patch_strip: 1,
         patches: &[
             OverridePatch {
-                file: "lld_link.patch",
-                content: include_str!("../../../patches/rules_rust/lld_link.patch"),
-            },
-            OverridePatch {
                 file: "msvc_stdlib_linkflags.patch",
                 content: include_str!("../../../patches/rules_rust/msvc_stdlib_linkflags.patch"),
             },
@@ -626,7 +622,7 @@ mod tests {
             "\nsingle_version_override(\n    module_name = \"aspect_rules_ts\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx:aspect_rules_ts.typecheck_root_dir.patch\"],\n    version = \"3.10.1\",\n)\n"
         ));
         assert!(rendered.contains(
-            "    patches = [\n        \"//third_party/rules_dx:rules_rust.lld_link.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_stdlib_linkflags.patch\",\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n    ],\n"
+            "    patches = [\n        \"//third_party/rules_dx:rules_rust.msvc_stdlib_linkflags.patch\",\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n    ],\n"
         ));
         let module = ModuleFile::parse(&rendered).expect("parses");
         assert_eq!(
@@ -670,13 +666,13 @@ mod tests {
         let scratch = consumer(&dep_module());
         let root = scratch.path();
         apply_overrides(root).expect("applies");
-        let patch = root.join(OVERRIDES_DIR).join("rules_rust.lld_link.patch");
+        let patch = root.join(OVERRIDES_DIR).join("rules_rust.msvc_stdlib_linkflags.patch");
         let mut bytes = std::fs::read(&patch).expect("patch");
         bytes[0] ^= 1;
         std::fs::write(&patch, bytes).expect("corrupt");
         match check_overrides(root) {
             OverridesState::Error(detail) => {
-                assert!(detail.contains("rules_rust.lld_link.patch"), "{detail}")
+                assert!(detail.contains("rules_rust.msvc_stdlib_linkflags.patch"), "{detail}")
             }
             other => panic!("{other:?}"),
         }

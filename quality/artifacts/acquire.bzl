@@ -25,6 +25,10 @@ ACQUIRE_ATTRS = {
         doc = "Expected sha256 of the extracted executable file.",
         mandatory = True,
     ),
+    "runtime_files": attr.string(
+        default = "[]",
+        doc = "JSON list of extra files written next to the executable.",
+    ),
     "sha256": attr.string(
         doc = "Expected sha256 of the downloaded archive or executable.",
         mandatory = True,
@@ -50,7 +54,8 @@ def acquire_tool(ctx):
         _download_executable(ctx)
     else:
         _verify_executable(ctx, kind)
-    ctx.file("BUILD.bazel", _tool_build(ctx))
+    runtime = _runtime(ctx)
+    ctx.file("BUILD.bazel", _tool_build(ctx, runtime))
 
 def _download_executable(ctx):
     """Fetches the executable itself as one verified, executable file."""
@@ -84,6 +89,37 @@ def _verify_executable(ctx, kind):
         canonical_id = "dx-tool-executable:" + ctx.attr.url + ":" + ctx.attr.executable_sha256,
     )
 
+def _runtime(ctx):
+    """Writes the runtime files and returns their paths."""
+    paths = []
+    staged = {}
+    for entry in json.decode(ctx.attr.runtime_files):
+        path = entry["path"]
+        if "content" in entry:
+            ctx.file(path, entry["content"])
+        else:
+            if entry["format"] not in ARCHIVE_TYPES or entry["format"] in ("none", "gzip"):
+                fail("standalone tool repo: unsupported runtime archive format '" +
+                     entry["format"] + "' for '" + path + "'")
+            if entry["url"] not in staged:
+                staging = "dx_runtime_%d" % len(staged)
+                ctx.download_and_extract(
+                    url = entry["url"],
+                    output = staging,
+                    sha256 = entry["sha256"],
+                    type = ARCHIVE_TYPES[entry["format"]],
+                    canonical_id = "dx-tool-runtime:" + entry["url"],
+                )
+                staged[entry["url"]] = staging
+            ctx.download(
+                url = _file_url(ctx, staged[entry["url"]] + "/" + entry["member"]),
+                output = path,
+                sha256 = entry["member_sha256"],
+                canonical_id = "dx-tool-runtime-file:" + entry["url"] + ":" + entry["member_sha256"],
+            )
+        paths.append(path)
+    return paths
+
 def _extracted(ctx, kind):
     """Returns the repository path one extraction wrote the executable to."""
     candidates = [_STAGING + "/" + ctx.attr.executable]
@@ -104,12 +140,13 @@ def _file_url(ctx, path):
     text = str(ctx.path(path)).replace("\\", "/")
     return "file://" + text if text.startswith("/") else "file:///" + text
 
-def _tool_build(ctx):
+def _tool_build(ctx, runtime):
     """Returns the BUILD file exposing one acquired tool."""
     return "\n".join([
         "filegroup(",
         '    name = "tool",',
         "    srcs = [%r]," % ctx.attr.executable,
+        "    data = %r," % runtime,
         '    visibility = ["//visibility:public"],',
         ")",
         "",

@@ -1395,6 +1395,9 @@ def _real_tool_launch(target, ctx, stage_tools, delegated, has_rust_toolchain, w
             binaries[tool] = files[0]
         elif kind == "file":
             binaries[tool] = getattr(ctx.file, "_" + tool)
+            runtime = getattr(ctx.attr, "_" + tool)[DefaultInfo].default_runfiles.files.to_list()
+            if runtime:
+                extra[tool] = runtime
         elif kind == "executable":
             tool_target = getattr(ctx.attr, "_" + tool)
             binaries[tool] = getattr(ctx.executable, "_" + tool)

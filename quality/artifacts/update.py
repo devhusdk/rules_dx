@@ -4,6 +4,7 @@
 import gzip
 import hashlib
 import json
+import lzma
 import os
 import pathlib
 import re
@@ -23,6 +24,44 @@ SCHEMA_VERSION = 1
 FETCH_RETRIES = 3
 FETCH_TIMEOUT = 300
 FETCH_BACKOFF_SECONDS = 2
+
+TLNET = "https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2025/tlnet-final"
+TLPDB_URL = TLNET + "/tlpkg/texlive.tlpdb.xz"
+TEXMF_CNF = "TEXMFMAIN = $SELFAUTOPARENT/texmf-dist\n"
+
+
+def _tl_archive(package, member):
+    return {
+        "path": member,
+        "asset": package + ".tar.xz",
+        "url": "%s/archive/%s.tar.xz" % (TLNET, package),
+        "tlpdb": package,
+        "kind": "tar.xz",
+        "member": member,
+    }
+
+
+def _chktex_platform(os_name, cpu, package, directory, windows=False):
+    executable = "bin/%s/chktex%s" % (directory, ".exe" if windows else "")
+    runtime = [
+        _tl_archive("chktex", "texmf-dist/chktex/chktexrc"),
+        {"path": "texmf-dist/web2c/texmf.cnf", "content": TEXMF_CNF},
+    ]
+    if windows:
+        for dll in ("kpathsealibw64.dll", "msvcr100.dll"):
+            runtime.append(_tl_archive("kpathsea.windows", "bin/windows/" + dll))
+    return {
+        "os": os_name,
+        "cpu": cpu,
+        "asset": package + ".tar.xz",
+        "url": "%s/archive/%s.tar.xz" % (TLNET, package),
+        "tlpdb": package,
+        "kind": "tar.xz",
+        "links": "skip",
+        "executable": executable,
+        "runtime": runtime,
+    }
+
 
 TOOLS: dict[str, dict[str, Any]] = {
     "buildifier": {
@@ -1086,6 +1125,34 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "chktex": {
+        "upstream_version": "2025",
+        "release_page": "https://tug.org/texlive/",
+        "licenses": [
+            {
+                "name": "GPL-2.0-or-later",
+                "source": "https://www.nongnu.org/chktex/",
+            },
+            {
+                "name": "LGPL-2.1-or-later",
+                "source": "https://tug.org/texlive/LICENSE.TL",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": _chktex_platform(
+                "linux", "x86_64", "chktex.x86_64-linux", "x86_64-linux"
+            ),
+            "linux_arm64": _chktex_platform(
+                "linux", "arm64", "chktex.aarch64-linux", "aarch64-linux"
+            ),
+            "macos_arm64": _chktex_platform(
+                "macos", "arm64", "chktex.universal-darwin", "universal-darwin"
+            ),
+            "windows_x86_64": _chktex_platform(
+                "windows", "x86_64", "chktex.windows", "windows", windows=True
+            ),
+        },
+    },
     "buf": {
         "upstream_version": "1.72.0",
         "release_page": "https://github.com/bufbuild/buf/releases/tag/v1.72.0",
@@ -2091,7 +2158,7 @@ def _stream_executable(asset, workdir, executable, source):
 TAR_COMPRESSIONS = {"tar.gz": "gz", "tar.xz": "xz"}
 
 
-def _tar_members(asset, asset_path, workdir, executable, kind="tar.gz"):
+def _tar_members(asset, asset_path, workdir, executable, kind="tar.gz", links="error"):
     members = []
     seen = set()
     exe_member = None
@@ -2100,7 +2167,9 @@ def _tar_members(asset, asset_path, workdir, executable, kind="tar.gz"):
         for member in infos:
             _check_member_name(asset, member.name)
             if member.issym() or member.islnk():
-                sys.exit("update: %s member %r: link" % (asset, member.name))
+                if links != "skip":
+                    sys.exit("update: %s member %r: link" % (asset, member.name))
+                continue
             if member.isdev() or member.isfifo():
                 sys.exit("update: %s member %r: device or fifo" % (asset, member.name))
             if not member.isdir():
@@ -2264,7 +2333,8 @@ def _starlark(value, indent=4):
     if isinstance(value, int):
         return str(value)
     if isinstance(value, str):
-        return '"%s"' % value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return '"%s"' % escaped.replace("\n", "\\n")
     if isinstance(value, list):
         if not value:
             return "[]"
@@ -2314,14 +2384,101 @@ def _pypi_digest_error(metadata, spec, digest):
     return "update: %s is not published for this version on PyPI" % wanted
 
 
+_TLPDB_CHECKSUMS: dict[str, str] = {}
+
+
+def _tlpdb_checksum(package, workdir):
+    """Returns the sha512 TeX Live publishes for one package archive."""
+    if not _TLPDB_CHECKSUMS:
+        path = os.path.join(workdir, "texlive.tlpdb.xz")
+        _download(TLPDB_URL, path)
+        with lzma.open(path, "rt", encoding="utf-8") as handle:
+            text = handle.read()
+        for block in text.split("\n\n"):
+            name = checksum = None
+            for line in block.splitlines():
+                if line.startswith("name "):
+                    name = line[5:].strip()
+                elif line.startswith("containerchecksum "):
+                    checksum = line[len("containerchecksum ") :].strip()
+            if name and checksum:
+                _TLPDB_CHECKSUMS[name] = checksum
+    return _TLPDB_CHECKSUMS.get(package)
+
+
+def _check_tlpdb(asset, package, path, workdir):
+    digest = hashlib.sha512()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    expected = _tlpdb_checksum(package, workdir)
+    if expected != digest.hexdigest():
+        sys.exit(
+            "update: %s sha512 %s does not match texlive.tlpdb %s"
+            % (asset, digest.hexdigest(), expected)
+        )
+
+
+def _runtime_files(spec, workdir):
+    """Returns the extra files one tool needs next to its executable."""
+    files = []
+    for entry in spec.get("runtime", []):
+        if "content" in entry:
+            files.append(
+                {
+                    "path": entry["path"],
+                    "content": entry["content"],
+                    "sha256": hashlib.sha256(entry["content"].encode()).hexdigest(),
+                }
+            )
+            continue
+        archive_path = os.path.join(workdir, "runtime-" + entry["asset"])
+        if not os.path.exists(archive_path):
+            _download(entry["url"], archive_path)
+        _check_tlpdb(entry["asset"], entry["tlpdb"], archive_path, workdir)
+        member_digest = None
+        with tarfile.open(archive_path, "r:xz") as archive_file:
+            for member in archive_file.getmembers():
+                _check_member_name(entry["asset"], member.name)
+                if member.name != entry["member"]:
+                    continue
+                if not member.isfile():
+                    sys.exit(
+                        "update: %s member %r: not a regular file"
+                        % (entry["asset"], member.name)
+                    )
+                source = archive_file.extractfile(member)
+                assert source is not None
+                member_digest = hashlib.sha256(source.read()).hexdigest()
+        if member_digest is None:
+            sys.exit(
+                "update: %s member %r: missing" % (entry["asset"], entry["member"])
+            )
+        files.append(
+            {
+                "path": entry["path"],
+                "url": entry["url"],
+                "sha256": _sha256(archive_path),
+                "format": entry["kind"],
+                "member": entry["member"],
+                "member_sha256": member_digest,
+            }
+        )
+    return files
+
+
 def _collect(tool, platform_key, spec, workdir):
     asset_path = os.path.join(workdir, spec["asset"])
     _download(spec["url"], asset_path)
     size = os.path.getsize(asset_path)
     digest = _sha256(asset_path)
+    if "tlpdb" in spec:
+        _check_tlpdb(spec["asset"], spec["tlpdb"], asset_path, workdir)
     checksum_source = (
         "maintainer-established byte identity (upstream publishes no asset digests)"
     )
+    if "tlpdb" in spec:
+        checksum_source = "texlive.tlpdb containerchecksum (sha512)"
     if "checksums_url" in spec:
         checksums_path = os.path.join(workdir, "checksums.txt")
         _download(spec["checksums_url"], checksums_path)
@@ -2372,7 +2529,12 @@ def _collect(tool, platform_key, spec, workdir):
         }
     elif kind in TAR_COMPRESSIONS:
         members, exe_path, exe_digest = _tar_members(
-            spec["asset"], asset_path, workdir, spec["executable"], kind
+            spec["asset"],
+            asset_path,
+            workdir,
+            spec["executable"],
+            kind,
+            spec.get("links", "error"),
         )
         archive = {"format": kind, "members": members}
     elif kind == "zip":
@@ -2411,7 +2573,7 @@ def _collect(tool, platform_key, spec, workdir):
         "interpreter": interpreter,
         "needed_shared_libraries": needed,
         "abi_floor": abi_floor,
-        "runtime_files": [],
+        "runtime_files": _runtime_files(spec, workdir),
         "licenses": TOOLS[tool]["licenses"],
     }
 

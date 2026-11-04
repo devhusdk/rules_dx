@@ -301,3 +301,79 @@ def test_collect_rejects_digest_not_in_published_checksums(tmp_path, monkeypatch
     }
     with pytest.raises(SystemExit, match="does not match published"):
         update._collect("demo", "linux_x86_64", spec, str(tmp_path))
+
+
+def test_tar_skips_links_when_asked(dirs):
+    work, _ = dirs
+    asset = work / "a.tar.xz"
+
+    def build(tar):
+        add_file(tar, "bin/tool")
+        add_special(tar, "bin/chkweb", tarfile.SYMTYPE, "../../x")
+
+    make_tar(asset, build, "tar.xz")
+    members, _, _ = update._tar_members(
+        "a.tar.xz", str(asset), str(work), "bin/tool", "tar.xz", "skip"
+    )
+    assert [m["name"] for m in members] == ["bin/tool"]
+
+
+def test_runtime_files_pin_archive_members_and_literals(tmp_path, monkeypatch):
+    asset = tmp_path / "runtime-rc.tar.xz"
+    make_tar(asset, lambda tar: add_file(tar, "etc/rc", b"rules"), "tar.xz")
+    monkeypatch.setattr(update, "_check_tlpdb", lambda *args: None)
+    spec = {
+        "runtime": [
+            {
+                "path": "etc/rc",
+                "asset": "rc.tar.xz",
+                "url": "https://example.com/rc.tar.xz",
+                "tlpdb": "rc",
+                "kind": "tar.xz",
+                "member": "etc/rc",
+            },
+            {"path": "etc/cnf", "content": "a = b\n"},
+        ]
+    }
+    files = update._runtime_files(spec, str(tmp_path))
+    assert files[0]["member_sha256"] == hashlib.sha256(b"rules").hexdigest()
+    assert files[0]["sha256"] == hashlib.sha256(asset.read_bytes()).hexdigest()
+    assert files[1] == {
+        "path": "etc/cnf",
+        "content": "a = b\n",
+        "sha256": hashlib.sha256(b"a = b\n").hexdigest(),
+    }
+
+
+def test_runtime_files_reject_missing_member(tmp_path, monkeypatch):
+    make_tar(tmp_path / "runtime-rc.tar.xz", lambda tar: add_file(tar, "x"), "tar.xz")
+    monkeypatch.setattr(update, "_check_tlpdb", lambda *args: None)
+    spec = {
+        "runtime": [
+            {
+                "path": "p",
+                "asset": "rc.tar.xz",
+                "url": "u",
+                "tlpdb": "rc",
+                "kind": "tar.xz",
+                "member": "etc/rc",
+            }
+        ]
+    }
+    with pytest.raises(SystemExit, match="missing"):
+        update._runtime_files(spec, str(tmp_path))
+
+
+def test_check_tlpdb_rejects_a_different_sha512(tmp_path, monkeypatch):
+    path = tmp_path / "a.tar.xz"
+    path.write_bytes(b"asset")
+    monkeypatch.setattr(update, "_tlpdb_checksum", lambda package, workdir: "0" * 128)
+    with pytest.raises(SystemExit, match="does not match texlive.tlpdb"):
+        update._check_tlpdb("a.tar.xz", "pkg", str(path), str(tmp_path))
+    good = hashlib.sha512(b"asset").hexdigest()
+    monkeypatch.setattr(update, "_tlpdb_checksum", lambda package, workdir: good)
+    update._check_tlpdb("a.tar.xz", "pkg", str(path), str(tmp_path))
+
+
+def test_starlark_escapes_newlines():
+    assert update._starlark("a\nb") == '"a\\nb"'

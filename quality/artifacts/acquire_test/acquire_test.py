@@ -2,6 +2,7 @@
 
 import gzip
 import hashlib
+import json
 import pathlib
 import tarfile
 import zipfile
@@ -19,6 +20,7 @@ SUCCESS_REPOS = [
     "dx_acquire_gzip_unnamed",
     "dx_acquire_tar",
     "dx_acquire_tar_xz",
+    "dx_acquire_runtime",
     "dx_acquire_zip",
 ]
 
@@ -84,7 +86,9 @@ def test_acquisition_names_no_host_utility():
 
 def test_fixture_covers_every_supported_archive_kind():
     kinds = {attrs["archive_format"] for _, attrs in declarations()}
-    assert kinds == {"none", "gzip", "tar.gz", "tar.xz", "zip"}, f"fixture covers {sorted(kinds)}"
+    assert kinds == {"none", "gzip", "tar.gz", "tar.xz", "zip"}, (
+        f"fixture covers {sorted(kinds)}"
+    )
 
 
 def test_fixture_names_the_success_and_reject_repos():
@@ -144,3 +148,22 @@ def test_reject_fixtures_fail_their_declared_digests():
     asset = fixture_path(attrs["url"])
     with tarfile.open(asset, "r:gz") as archive:
         assert attrs["executable"] not in archive.getnames()
+
+
+def test_runtime_fixture_matches_its_declared_digests():
+    text = (workspace_root() / ACQUIRE_TEST / FIXTURE_MODULE).read_text(
+        encoding="utf-8"
+    )
+    line = next(
+        x for x in text.splitlines() if x.strip().startswith("runtime_files = '")
+    )
+    entries = json.loads(line.strip()[len("runtime_files = '") : -len("',")])
+    assert [x["path"] for x in entries] == ["share/taplo-copy", "share/root.cnf"]
+    archive, literal = entries
+    asset = fixture_path(archive["url"])
+    assert sha256_of(asset) == archive["sha256"]
+    with tarfile.open(asset, "r:xz") as tar:
+        member = tar.extractfile(archive["member"])
+        assert member is not None
+        assert hashlib.sha256(member.read()).hexdigest() == archive["member_sha256"]
+    assert hashlib.sha256(literal["content"].encode()).hexdigest() == literal["sha256"]

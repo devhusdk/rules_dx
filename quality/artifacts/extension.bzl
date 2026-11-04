@@ -11,6 +11,7 @@ load("//quality/artifacts:buf.bzl", _buf = "ARTIFACTS")
 load("//quality/artifacts:buildifier.bzl", _buildifier = "ARTIFACTS")
 load("//quality/artifacts:checkmake.bzl", _checkmake = "ARTIFACTS")
 load("//quality/artifacts:checkstyle.bzl", _checkstyle = "SOURCE")
+load("//quality/artifacts:chktex.bzl", _chktex = "ARTIFACTS")
 load("//quality/artifacts:cppcheck.bzl", _cppcheck = "SOURCE")
 load("//quality/artifacts:cue.bzl", _cue = "ARTIFACTS")
 load("//quality/artifacts:ffmt.bzl", _ffmt = "ARTIFACTS")
@@ -64,6 +65,7 @@ _ARTIFACTS = [
         _buf,
         _buildifier,
         _checkmake,
+        _chktex,
         _cue,
         _ffmt,
         _fortitude,
@@ -185,6 +187,7 @@ def _dx_tools_impl(ctx):
             archive_format = artifact["archive"]["format"],
             executable = artifact["executable"],
             executable_sha256 = artifact["executable_sha256"],
+            runtime_files = json.encode(artifact["runtime_files"]),
         )
         platform = artifact_platform_key(artifact)
         by_tool.setdefault(artifact["tool"], {})[platform] = name

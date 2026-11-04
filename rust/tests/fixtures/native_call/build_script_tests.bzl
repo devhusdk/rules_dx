@@ -17,7 +17,7 @@ def _tool_inputs_test_impl(ctx):
     asserts.equals(env, 1, len(actions))
     action = actions[0]
     inputs = {f.path: True for f in action.inputs.to_list()}
-    for name in ["CC", "CXX", "AR"]:
+    for name in ["CC", "CXX", "AR", "HOST_CC", "HOST_CXX", "HOST_AR", "TARGET_CC", "TARGET_CXX", "TARGET_AR"]:
         value = _relative(action.env.get(name, ""))
         asserts.true(env, value != "", "{} is not set".format(name))
         asserts.false(env, value.startswith("/"), "{} is absolute: {}".format(name, value))
@@ -81,3 +81,8 @@ def build_script_compiler_tests(name, target):
         )
         tests.append(test)
     native.test_suite(name = name, tests = tests)
+
+cross_build_script_tool_inputs_test = analysistest.make(
+    _tool_inputs_test_impl,
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))},
+)

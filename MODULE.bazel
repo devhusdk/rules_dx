@@ -14,6 +14,7 @@ single_version_override(
         "//patches/rules_rust:clippy_metadata_inputs.patch",
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:crate_universe_root_lookup.patch",
+        "//patches/rules_rust:exec_cc_toolchain_env.patch",
     ],
     version = "0.75.0",
 )
@@ -1073,6 +1074,7 @@ rust.toolchain(
     edition = "2021",
     extra_target_triples = [
         "aarch64-linux-android",
+        "aarch64-unknown-linux-gnu",
         "wasm32-unknown-unknown",
         "wasm32-wasip1",
         "x86_64-linux-android",

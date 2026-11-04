@@ -49,6 +49,9 @@ single_version_override(
 # xmllint comes from the BCR source build; the overlay carries its own cc_binary (#4618)
 bazel_dep(name = "libxml2", version = "2.15.3")
 
+# floor: equals tested
+bazel_dep(name = "gcc_toolchain", version = "0.13.0")
+
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "llvm", version = "0.8.25")
 single_version_override(
@@ -429,6 +432,9 @@ register_toolchains(
 )
 
 register_toolchains("@llvm//toolchain:all")
+
+gcc = use_extension("//cc/toolchains:repos.bzl", "gcc")
+use_repo(gcc, "dx_gcc_linux_x86_64")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
 use_repo(

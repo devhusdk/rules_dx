@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(":bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchain_toolchains")
+load(":select.bzl", "toolchain_transition")
 
 def _cc_toolchain_identity_subject_impl(ctx):
     info = cc_toolchain_info(ctx)
@@ -25,5 +26,7 @@ def _cc_toolchain_identity_subject_impl(ctx):
 cc_toolchain_identity_subject = rule(
     implementation = _cc_toolchain_identity_subject_impl,
     doc = "Analysis subject reporting the selected C/C++ toolchain.",
+    attrs = {"extra_toolchain": attr.string(doc = "Toolchain label to prefer.")},
+    cfg = toolchain_transition,
     toolchains = cc_toolchain_toolchains(),
 )

@@ -19,6 +19,22 @@ aspect_field has_subject=True
 aspect_field subject_label=//cc/toolchains:identity_under_test
 aspect_field transitive_count=0"""
 
+EXPECTED_GCC_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test_gcc
+field cc.abi=itanium
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/include/c++/16.2.0 | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/include/c++/16.2.0/backward | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/include/c++/16.2.0/x86_64-linux | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/lib/gcc/x86_64-linux/16.2.0/include | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/lib/gcc/x86_64-linux/16.2.0/include-fixed | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/sysroot/usr/include
+field cc.compiler=gcc
+field cc.coverage=gcov
+field cc.driver=gnu
+field cc.family=gcc
+field cc.syntax_only=-fsyntax-only
+field cc.sysroot=None
+field cc.target=local
+aspect_field aspect_seen=True
+aspect_field field_count=9
+aspect_field has_subject=True
+aspect_field subject_label=//cc/toolchains:identity_under_test_gcc
+aspect_field transitive_count=0"""
+
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
 def cc_toolchain_identity_tests(name):
@@ -94,5 +110,12 @@ def cc_toolchain_identity_tests(name):
         mode = "analysis",
         subjects = [":identity_under_test"],
         expected_observations = EXPECTED_IDENTITY_OBSERVATIONS,
+        target_compatible_with = _LINUX_X86_64,
+    )
+    starlark_test(
+        name = name + "_gcc",
+        mode = "analysis",
+        subjects = [":identity_under_test_gcc"],
+        expected_observations = EXPECTED_GCC_IDENTITY_OBSERVATIONS,
         target_compatible_with = _LINUX_X86_64,
     )

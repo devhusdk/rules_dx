@@ -117,6 +117,7 @@ dx_rust_crate(
         "base64",
         "clap",
         "clap_complete",
+        "clap_lex",
         "clap_mangen",
         "libc",
         "line-index",

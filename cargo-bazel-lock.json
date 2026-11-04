@@ -1,5 +1,5 @@
 {
-  "checksum": "2a2c5205a77060ae93aa3dbdd41b0582530e7af286ea18fe82ae943dee9214b8",
+  "checksum": "b52599def2e4f25369847eafe267e9f1f3bcea227410845574641ee3afb57a05",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7637,6 +7637,10 @@
           {
             "id": "clap_complete 4.6.11",
             "target": "clap_complete"
+          },
+          {
+            "id": "clap_lex 1.1.1",
+            "target": "clap_lex"
           },
           {
             "id": "clap_mangen 0.2.33",
@@ -27623,6 +27627,7 @@
     "chrono 0.4.45",
     "clap 4.6.7",
     "clap_complete 4.6.11",
+    "clap_lex 1.1.1",
     "clap_mangen 0.2.33",
     "console 0.16.6",
     "crc32fast 1.5.2",

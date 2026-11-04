@@ -10,7 +10,7 @@ use dx_process::lifecycle::{
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
 use super::command::{Command, FirstSlot, COMMANDS};
-use super::grammar::consumes_next;
+use super::grammar::option_at;
 use super::ArgsError;
 
 pub const COMPLETION_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
@@ -136,7 +136,7 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
         }
         if word.starts_with('-') {
             let next = words.get(index).map(|next| next.to_string_lossy());
-            if consumes_next(&word, next.as_deref()) {
+            if option_at(&word, next.as_deref()).is_some_and(|option| option.used_next) {
                 index += 1;
             }
             continue;

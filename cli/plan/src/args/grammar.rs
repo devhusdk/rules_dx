@@ -1101,52 +1101,103 @@ fn collect_shorts(command: &clap::Command, letters: &mut Vec<char>) {
     }
 }
 
-/// Whether a short letter is a value option.
-fn short_takes_value(letter: char) -> bool {
-    letter != '-' && value_options().contains(&format!("-{letter}"))
+/// One option word: its name, inline value, and whether it took the next word.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct OptionWord {
+    pub(crate) name: String,
+    pub(crate) value: Option<String>,
+    pub(crate) used_next: bool,
 }
 
-/// Splits a short cluster into its value letter, value, and whether it used the next word.
-pub(crate) fn short_cluster(
-    word: &str,
-    next: Option<&str>,
-) -> Option<(char, Option<String>, bool)> {
-    let letters = word
-        .strip_prefix('-')
-        .filter(|rest| !rest.starts_with('-'))?;
-    let mut walk = letters.char_indices().peekable();
-    while let Some((at, letter)) = walk.next() {
-        if short_takes_value(letter) {
-            let rest = &letters[at + letter.len_utf8()..];
-            if let Some(value) = rest.strip_prefix('=') {
-                return Some((letter, Some(value.to_owned()), false));
+/// Reads `word` as an option the way clap does; `next` is the word after it.
+pub(crate) fn option_at(word: &str, next: Option<&str>) -> Option<OptionWord> {
+    let raw = clap_lex::RawArgs::new([word]);
+    let arg = raw.next(&mut raw.cursor())?;
+    let (name, value) = if let Some((long, inline)) = arg.to_long() {
+        let long = long.ok()?;
+        let inline = inline.map(|text| text.to_string_lossy().into_owned());
+        (format!("--{long}"), inline)
+    } else {
+        let mut cluster = arg.to_short()?;
+        let mut found = None;
+        while let Some(letter) = cluster.next_flag() {
+            let letter = letter.ok()?;
+            if !short_flags().contains(&letter) {
+                return None;
             }
-            if !rest.is_empty() {
-                return Some((letter, Some(rest.to_owned()), false));
+            let name = format!("-{letter}");
+            if value_options().contains(&name) {
+                let rest = cluster.next_value_os().map(|rest| rest.to_string_lossy());
+                let rest = rest.map(|rest| rest.strip_prefix('=').unwrap_or(&rest).to_owned());
+                found = Some((name, rest));
+                break;
             }
-            return Some(match next {
-                Some(next) if !next.is_empty() && !next.starts_with('-') => {
-                    (letter, Some(next.to_owned()), true)
-                }
-                _ => (letter, None, false),
-            });
         }
-        if !short_flags().contains(&letter) || walk.peek().is_some_and(|(_, next)| *next == '=') {
-            return None;
-        }
-    }
-    None
+        found?
+    };
+    let used_next = value.is_none()
+        && value_options().contains(&name)
+        && next.is_some_and(|next| next_is_value(&name, next));
+    let value = match (value, used_next) {
+        (None, true) => next.map(str::to_owned),
+        (value, _) => value,
+    };
+    Some(OptionWord {
+        name,
+        value,
+        used_next,
+    })
 }
 
-/// Whether `word` is a value option whose value is the separate word `next`.
-pub(crate) fn consumes_next(word: &str, next: Option<&str>) -> bool {
-    if word.contains('=') {
+/// Whether `next` can be the separate value of the option `name`.
+fn next_is_value(name: &str, next: &str) -> bool {
+    if next.is_empty() {
         return false;
     }
-    if word.starts_with("--") {
-        return value_options().contains(word);
+    if !next.starts_with('-') {
+        return true;
     }
-    short_cluster(word, next).is_some_and(|(_, _, used_next)| used_next)
+    let (hyphen, negative) = hyphen_value_options();
+    hyphen.contains(name)
+        || (negative.contains(name) && {
+            let raw = clap_lex::RawArgs::new([next]);
+            raw.next(&mut raw.cursor())
+                .is_some_and(|arg| arg.is_negative_number())
+        })
+}
+
+/// The value options that accept hyphen values, and those that accept negative numbers.
+fn hyphen_value_options() -> &'static (BTreeSet<String>, BTreeSet<String>) {
+    static OPTIONS: std::sync::OnceLock<(BTreeSet<String>, BTreeSet<String>)> =
+        std::sync::OnceLock::new();
+    OPTIONS.get_or_init(|| {
+        let mut command = <Cli as clap::CommandFactory>::command();
+        command.build();
+        let mut sets = (BTreeSet::new(), BTreeSet::new());
+        collect_hyphen_options(&command, &mut sets);
+        sets
+    })
+}
+
+/// Adds the hyphen-accepting value options of one command and its subcommands.
+fn collect_hyphen_options(
+    command: &clap::Command,
+    sets: &mut (BTreeSet<String>, BTreeSet<String>),
+) {
+    for arg in command.get_arguments().filter(|arg| takes_next_word(arg)) {
+        let mut names = Vec::new();
+        names.extend(arg.get_short().map(|short| format!("-{short}")));
+        names.extend(arg.get_long().map(|long| format!("--{long}")));
+        if arg.is_allow_hyphen_values_set() {
+            sets.0.extend(names.iter().cloned());
+        }
+        if arg.is_allow_negative_numbers_set() {
+            sets.1.extend(names);
+        }
+    }
+    for sub in command.get_subcommands() {
+        collect_hyphen_options(sub, sets);
+    }
 }
 
 /// The long names the grammar gives the flags that belong to some commands only.
@@ -1411,32 +1462,83 @@ mod tests {
 
     #[test]
     fn short_cluster_mirrors_clap() {
-        let some = |value: &str, used: bool| Some(('o', Some(value.to_owned()), used));
-        assert_eq!(short_cluster("-qojson", None), some("json", false));
-        assert_eq!(short_cluster("-vo", Some("json")), some("json", true));
-        assert_eq!(short_cluster("-qvojson", None), some("json", false));
-        assert_eq!(short_cluster("-qo=json", None), some("json", false));
-        assert_eq!(short_cluster("-o=", None), some("", false));
-        assert_eq!(short_cluster("-o", Some("text")), some("text", true));
-        assert_eq!(short_cluster("-qo", None), Some(('o', None, false)));
+        let word = |name: &str, value: Option<&str>, used_next: bool| {
+            Some(OptionWord {
+                name: name.to_owned(),
+                value: value.map(str::to_owned),
+                used_next,
+            })
+        };
+        assert_eq!(option_at("-qojson", None), word("-o", Some("json"), false));
         assert_eq!(
-            short_cluster("-qo", Some("--quiet")),
-            Some(('o', None, false))
+            option_at("-vo", Some("json")),
+            word("-o", Some("json"), true)
         );
-        assert_eq!(short_cluster("-qo", Some("")), Some(('o', None, false)));
-        assert!(consumes_next("--output", Some("json")));
-        assert!(!consumes_next("--output=json", Some("json")));
-        assert!(consumes_next("-o", Some("json")));
-        assert!(consumes_next("-qo", Some("json")));
-        assert!(!consumes_next("-qo", Some("--quiet")));
-        assert!(!consumes_next("-q", Some("json")));
-        assert!(!consumes_next("--apply", Some("json")));
-        assert_eq!(short_cluster("-q=false", None), None);
-        assert_eq!(short_cluster("-json", None), None);
-        assert_eq!(short_cluster("-qv", Some("json")), None);
-        assert_eq!(short_cluster("--output=json", None), None);
-        assert_eq!(short_cluster("-", Some("json")), None);
-        assert_eq!(short_cluster("lint", None), None);
+        assert_eq!(option_at("-qvojson", None), word("-o", Some("json"), false));
+        assert_eq!(option_at("-qo=json", None), word("-o", Some("json"), false));
+        assert_eq!(option_at("-o=", None), word("-o", Some(""), false));
+        assert_eq!(
+            option_at("-o", Some("text")),
+            word("-o", Some("text"), true)
+        );
+        assert_eq!(option_at("-qo", None), word("-o", None, false));
+        assert_eq!(option_at("-qo", Some("--quiet")), word("-o", None, false));
+        assert_eq!(option_at("-qo", Some("")), word("-o", None, false));
+        assert_eq!(
+            option_at("--output", Some("json")),
+            word("--output", Some("json"), true)
+        );
+        assert_eq!(
+            option_at("--output=json", Some("json")),
+            word("--output", Some("json"), false)
+        );
+        assert_eq!(
+            option_at("--output", Some("--quiet")),
+            word("--output", None, false)
+        );
+        assert_eq!(
+            option_at("--bazel-option", Some("--config=ci")),
+            word("--bazel-option", Some("--config=ci"), true)
+        );
+        assert_eq!(
+            option_at("--apply", Some("json")),
+            word("--apply", None, false)
+        );
+        assert_eq!(option_at("-q", Some("json")), None);
+        assert_eq!(option_at("-q=false", None), None);
+        assert_eq!(option_at("-json", None), None);
+        assert_eq!(option_at("-qv", Some("json")), None);
+        assert_eq!(option_at("-", Some("json")), None);
+        assert_eq!(option_at("--", Some("json")), None);
+        assert_eq!(option_at("lint", None), None);
+    }
+
+    #[test]
+    fn early_output_flag_matches_clap() {
+        for words in [
+            "-qojson",
+            "-vo json",
+            "-qo=json",
+            "--output json",
+            "--output=json",
+            "-o",
+            "--bazel-option --config=ci",
+            "-q=false",
+        ] {
+            let verb = if words.contains("bazel-option") {
+                "run"
+            } else {
+                "lint"
+            };
+            let mut args = vec!["dx", verb];
+            args.extend(words.split(' '));
+            let early = crate::args::parser::early_output_flag(&args[1..]);
+            let expected = match Cli::try_parse_from(&args) {
+                Ok(cli) => cli.verb.expect("verb").into_parts().1.output,
+                Err(_) => None,
+            };
+            assert_eq!(early, expected, "words: {words}");
+        }
     }
 
     #[test]

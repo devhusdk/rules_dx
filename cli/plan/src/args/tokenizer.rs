@@ -154,7 +154,7 @@ fn name_of(word: &str) -> &str {
 fn spelled(words: &[String], index: usize) -> String {
     let word = &words[index];
     let next = words.get(index + 1).map(String::as_str);
-    if !super::grammar::consumes_next(word, next) {
+    if !super::grammar::option_at(word, next).is_some_and(|option| option.used_next) {
         return word.clone();
     }
     match next {

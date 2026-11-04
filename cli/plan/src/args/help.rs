@@ -1,33 +1,14 @@
 use std::ffi::OsStr;
 
 use super::command::Command;
-use super::grammar::{consumes_next, Cli};
+use super::grammar::{option_at, Cli};
 use super::ArgsError;
-
-fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {
-    match args.get(index + 1) {
-        Some(next) => {
-            let raw = next.as_ref();
-            let is_flag =
-                raw == OsStr::new("--") || raw.to_str().is_some_and(|text| text.starts_with("--"));
-            if is_flag {
-                index + 1
-            } else {
-                index + 2
-            }
-        }
-        None => index + 1,
-    }
-}
 
 /// Index of the word after the flag `arg` at `index`, skipping its separate value word.
 fn skip_flag<S: AsRef<OsStr>>(args: &[S], index: usize, arg: &str) -> usize {
     let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
-    if consumes_next(arg, next) {
-        skip_value_payload(args, index)
-    } else {
-        index + 1
-    }
+    let used_next = option_at(arg, next).is_some_and(|option| option.used_next);
+    index + 1 + usize::from(used_next)
 }
 
 pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {

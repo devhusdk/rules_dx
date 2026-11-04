@@ -60,44 +60,18 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let mut seen: Option<String> = None;
     let mut index = 0;
     while index < words.len() {
-        let word = words[index];
         let next = words.get(index + 1).copied();
-        if let Some((value, consumed_next)) = output_spelling(word, next) {
-            if value.is_some() {
-                seen = value;
+        if let Some(option) = super::grammar::option_at(words[index], next) {
+            if matches!(option.name.as_str(), "--output" | "-o") && option.value.is_some() {
+                seen = option.value;
             }
-            if consumed_next {
+            if option.used_next {
                 index += 1;
             }
-        } else if let Some((letter, value, consumed_next)) =
-            super::grammar::short_cluster(word, next)
-        {
-            if letter == 'o' && value.is_some() {
-                seen = value;
-            }
-            if consumed_next {
-                index += 1;
-            }
-        } else if !word.contains('=') && super::grammar::value_options().contains(word) {
-            index += 1;
         }
         index += 1;
     }
     seen
-}
-
-/// Matches one `--output` spelling and whether it took the next word.
-fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bool)> {
-    if word == "--output" {
-        return Some(match next {
-            Some(next) if !next.is_empty() && !next.starts_with('-') => {
-                (Some(next.to_owned()), true)
-            }
-            _ => (None, false),
-        });
-    }
-    let value = word.strip_prefix("--output=")?;
-    Some((Some(value.to_owned()), false))
 }
 
 /// Whether a default output value applies to the command.
@@ -791,9 +765,9 @@ mod startup_tests {
             "a bare flag keeps the earlier value"
         );
         assert_eq!(
-            early_output_flag(&strings(&["lint", "--to", "-ojson"])),
+            early_output_flag(&strings(&["lint", "--to", "-1", "-o"])),
             None,
-            "a value slot swallows a short spelling"
+            "a value slot swallows a negative number"
         );
         for cluster in [
             &["lint", "-qojson"][..],
@@ -813,7 +787,6 @@ mod startup_tests {
             &["lint", "-q=false"],
             &["lint", "-json"],
             &["lint", "-qv"],
-            &["lint", "--to", "-qojson"],
             &["lint", "--", "-qojson"],
         ] {
             assert_eq!(early_output_flag(&strings(words)), None, "{words:?}");

@@ -11,6 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
+clap_lex = "1"
 clap_complete = { version = "4", features = ["unstable-dynamic"] }
 # Renders the man page from the clap grammar for the `dx_man` binary.
 clap_mangen = "0.2"

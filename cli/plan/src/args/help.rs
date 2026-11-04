@@ -439,22 +439,19 @@ mod tests {
                 .and_then(|arg| arg.get_help())
                 .map(ToString::to_string)
         };
-        assert_eq!(
-            apply_help(Command::Check).as_deref(),
-            Some("Write fixes to source files")
-        );
-        assert_eq!(
-            apply_help(Command::Clean).as_deref(),
-            Some("Prune unselected managed state")
-        );
-        assert_eq!(
-            apply_help(Command::Lint).as_deref(),
-            Some("Write fixes to source files")
-        );
-        assert_eq!(
-            apply_help(Command::Deploy).as_deref(),
-            Some("Authorize the managed mutation or effect")
-        );
+        for command in [
+            Command::Check,
+            Command::Clean,
+            Command::Lint,
+            Command::Deploy,
+            Command::Init,
+            Command::Upgrade,
+        ] {
+            assert_eq!(
+                apply_help(command).as_deref(),
+                Some("Apply the changes instead of only showing them")
+            );
+        }
         let check_help = match parse(&strings(&["check", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("check --help: want Help, got {other:?}"),

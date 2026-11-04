@@ -33,7 +33,7 @@ Options:
           [possible values: text, json]
 
       --apply
-          Prune unselected managed state
+          Apply the changes instead of only showing them
 
       --prune-unobserved
           Prune generations process observation cannot see

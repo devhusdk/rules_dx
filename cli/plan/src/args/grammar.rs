@@ -343,72 +343,8 @@ flag_group! {
 }
 
 flag_group! {
-    /// Authorize the managed mutation or effect.
+    /// Apply the changes instead of only showing them.
     ApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Write fixes to source files.
-    FixApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Write updated BUILD declarations.
-    GenerateApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Prune unselected managed state.
-    CleanApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Write dependency updates, or widen or add the named package.
-    UpdateApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Write the managed development environment state.
-    EnvApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Scaffold the new files.
-    ScaffoldApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Move the pin and refresh existing files.
-    UpgradeApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Write the install instead of only checking it.
-    InstallApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
     }
@@ -825,7 +761,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
-        apply: FixApplyFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         baseline: BaselineFlag,
         report: ReportFlag,
@@ -837,7 +773,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
-        apply: FixApplyFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         baseline: BaselineFlag,
         report: ReportFlag,
@@ -849,7 +785,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
-        apply: FixApplyFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         baseline: BaselineFlag,
         here: HereFlag,
@@ -859,7 +795,7 @@ command_args! {
     Generate => 5, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
-        apply: GenerateApplyFlag,
+        apply: ApplyFlag,
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
@@ -903,7 +839,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
-        apply: FixApplyFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         baseline: BaselineFlag,
         explain: ExplainFlag,
@@ -912,21 +848,21 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 12, NoScopeTail, { output: OutputFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 12, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 13, NoPassthroughTail, {
         output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
-        apply: UpdateApplyFlag,
+        apply: ApplyFlag,
         floor: FloorArgs,
     };
     /// The flags `dx env` accepts.
-    Env => 14, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, shell: EnvShellFlag, };
+    Env => 14, BazelTail, { output: OutputFlag, apply: ApplyFlag, shell: EnvShellFlag, };
     /// The flags `dx init` accepts.
-    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, };
+    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
+    Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.
     Status => 17, NoScopeTail, {
         output: OutputFlag,
@@ -965,7 +901,7 @@ command_args! {
     /// The flags `dx explain` accepts.
     Explain => 22, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 23, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 23, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]

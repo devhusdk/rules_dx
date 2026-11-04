@@ -46,7 +46,7 @@ Options:
           Include full edits in JSON change records (needs --output json)
 
       --apply
-          Write fixes to source files
+          Apply the changes instead of only showing them
 
       --fail-on <FAIL_ON>
           Fail on this severity

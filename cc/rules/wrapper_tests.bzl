@@ -89,6 +89,37 @@ def cc_gcc_asan_env_tests(name, target, expect, expect_llvm = "", **kwargs):
     _gcc_asan_env_llvm_test(name = name + "_llvm", size = "small", expect = expect_llvm, target_under_test = target, **kwargs)
     native.test_suite(name = name, tests = [name + "_gcc", name + "_llvm"], **kwargs)
 
+def _gcov_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
+    script = run_env.get("CC_CODE_COVERAGE_SCRIPT", "")
+    gcov = run_env.get("GCOV", "")
+    asserts.true(env, script.endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
+    asserts.true(env, gcov.endswith("gcov"), "GCOV=" + gcov)
+    for key in ["LLVM_COV", "LLVM_PROFDATA"]:
+        asserts.false(env, key in run_env, key + " set under gcc")
+    return analysistest.end(env)
+
+_coverage_env_gcc_test = analysistest.make(
+    _gcov_env_impl,
+    config_settings = {
+        "//command_line_option:collect_code_coverage": True,
+        str(Label("//cc/toolchains:compiler")): "gcc",
+    },
+)
+
+def cc_gcov_coverage_env_test(name, target):
+    """Asserts a cc_test under the GCC toolchain gets GCOV and no LLVM coverage tools."""
+    _coverage_env_gcc_test(
+        name = name,
+        size = "small",
+        target_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:x86_64",
+        ],
+        target_under_test = target,
+    )
+
 def _objc_library_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)

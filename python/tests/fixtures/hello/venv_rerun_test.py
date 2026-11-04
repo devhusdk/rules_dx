@@ -5,15 +5,11 @@ import sys
 import tempfile
 import unittest
 
-CHILD = """
-import json, sys
-import hello
-print(json.dumps({
-    "prefix": sys.prefix,
-    "executable": sys.executable,
-    "greeting": hello.greet("x"),
-}))
-"""
+CHILD = (
+    "import json, sys, hello; "
+    "print(json.dumps({'prefix': sys.prefix, 'executable': sys.executable, "
+    "'greeting': hello.greet('x')}))"
+)
 
 
 def norm(path):

@@ -2,8 +2,40 @@ package python
 
 import (
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 )
+
+func absoluteRoots(imports []Import) []string {
+	set := make(map[string]bool)
+	for _, imp := range imports {
+		if imp.Level == 0 {
+			root, _, _ := strings.Cut(imp.Module, ".")
+			set[root] = true
+		}
+	}
+	var out []string
+	for root := range set {
+		out = append(out, root)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func TestParseImportsKeepsNamesAndLevels(t *testing.T) {
+	got := ParseImports([]byte("import a.b\nfrom . import x\nfrom ..p.q import (y as z, w)\nfrom .m import *\nfrom r.s import t\n"))
+	want := []Import{
+		{Level: 1, Names: []string{"x"}},
+		{Level: 2, Module: "p.q", Names: []string{"w", "y"}},
+		{Level: 1, Module: "m"},
+		{Module: "a.b"},
+		{Module: "r.s", Names: []string{"t"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %+v, want %+v", got, want)
+	}
+}
 
 func TestParseImports(t *testing.T) {
 	cases := []struct {
@@ -101,7 +133,7 @@ func TestParseImports(t *testing.T) {
 		{"pluginsWithImports", "import os\nimport a\npytest_plugins = [\"a.x\", \"b\"]\n", []string{"a", "b", "os"}},
 	}
 	for _, tc := range cases {
-		if got := ParseImports([]byte(tc.source)); !reflect.DeepEqual(got, tc.want) {
+		if got := absoluteRoots(ParseImports([]byte(tc.source))); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}

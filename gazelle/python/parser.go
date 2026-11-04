@@ -1,6 +1,7 @@
 package python
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -12,24 +13,33 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return python.Language() })
 
-// ParseImports returns the sorted, deduplicated top-level module names
-// imported by content, including import_module("x") calls and module-level
-// pytest_plugins entries. Relative imports
-// are skipped.
-func ParseImports(content []byte) []string {
+// Import is one import statement. Level is the number of leading dots of a
+// relative import. Module is the dotted module, empty for "from . import x".
+// Names are the names a from-import takes from Module.
+type Import struct {
+	Level  int
+	Module string
+	Names  []string
+}
+
+// ParseImports returns the sorted, deduplicated imports of content, including
+// import_module("x") calls and module-level pytest_plugins entries. Relative
+// dynamic imports and relative pytest_plugins entries are skipped.
+func ParseImports(content []byte) []Import {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
-	set := make(map[string]struct{})
-	add := func(root string) {
-		root = strings.TrimSpace(root)
-		if idx := strings.IndexByte(root, '.'); idx >= 0 {
-			root = strings.TrimSpace(root[:idx])
-		}
-		if root == "" {
+	set := make(map[string]Import)
+	addImport := func(imp Import) {
+		imp.Module = strings.TrimSpace(imp.Module)
+		if imp.Module == "" && imp.Level == 0 {
 			return
 		}
-		set[root] = struct{}{}
+		sort.Strings(imp.Names)
+		imp.Names = slices.Compact(imp.Names)
+		key := strings.Repeat(".", imp.Level) + imp.Module + " " + strings.Join(imp.Names, ",")
+		set[key] = imp
 	}
+	add := func(module string) { addImport(Import{Module: module}) }
 	if tree.Root != nil {
 		var visit func(n *ts.Node) bool
 		visit = func(n *ts.Node) bool {
@@ -47,8 +57,8 @@ func ParseImports(content []byte) []string {
 				}
 				return false
 			case "import_from_statement":
-				if mod := n.ChildByFieldName("module_name", grammar()); mod != nil && tree.Type(mod) == "dotted_name" {
-					add(tree.Dotted(mod))
+				if imp, ok := fromImport(tree, n); ok {
+					addImport(imp)
 				}
 				return false
 			case "if_statement":
@@ -68,15 +78,51 @@ func ParseImports(content []byte) []string {
 		tree.Walk(tree.Root, visit)
 		addPytestPlugins(tree, add)
 	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
 	}
-	sort.Strings(out)
-	if len(out) == 0 {
-		return nil
+	sort.Strings(keys)
+	var out []Import
+	for _, key := range keys {
+		out = append(out, set[key])
 	}
 	return out
+}
+
+func fromImport(tree *treesitter.Tree, n *ts.Node) (Import, bool) {
+	mod := n.ChildByFieldName("module_name", grammar())
+	if mod == nil {
+		return Import{}, false
+	}
+	var imp Import
+	switch tree.Type(mod) {
+	case "dotted_name":
+		imp.Module = tree.Dotted(mod)
+	case "relative_import":
+		text := tree.Dotted(mod)
+		module := strings.TrimLeft(text, ".")
+		imp.Level = len(text) - len(module)
+		imp.Module = module
+	default:
+		return Import{}, false
+	}
+	afterImport := false
+	for _, c := range n.Children() {
+		switch tree.Type(c) {
+		case "import":
+			afterImport = true
+		case "dotted_name":
+			if afterImport {
+				imp.Names = append(imp.Names, tree.Dotted(c))
+			}
+		case "aliased_import":
+			if name := c.ChildByFieldName("name", grammar()); name != nil && afterImport {
+				imp.Names = append(imp.Names, tree.Dotted(name))
+			}
+		}
+	}
+	return imp, true
 }
 
 func addDynamic(tree *treesitter.Tree, call *ts.Node, add func(string)) {

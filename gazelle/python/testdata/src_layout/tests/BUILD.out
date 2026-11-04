@@ -1,0 +1,21 @@
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+
+python_library(
+    name = "conftest",
+    testonly = True,
+    srcs = ["conftest.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = ["//src/click"],
+)
+
+python_test(
+    name = "test_basic",
+    testonly = True,
+    srcs = ["test_basic.py"],
+    imports = ["."],
+    deps = [
+        ":conftest",
+        "//src/click",
+    ],
+)

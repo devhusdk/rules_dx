@@ -27,6 +27,7 @@ go_library(
         "@com_github_pelletier_go_toml_v2//:go-toml",
         "@gazelle//config",
         "@gazelle//language",
+        "@gazelle//resolve",
         "@gazelle//v2/rule",
     ],
 )
@@ -72,6 +73,7 @@ real_source_target(
         "testdata/pytest_plugins/README.md",
         "testdata/ruff_pyproject/README.md",
         "testdata/source_only/README.md",
+        "testdata/src_layout/README.md",
     ],
     tags = ["corpus"],
 )

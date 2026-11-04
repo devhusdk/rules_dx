@@ -17,9 +17,17 @@ import (
 
 func importNames(t *testing.T, raw any) []string {
 	t.Helper()
-	names, ok := common.UnwrapImportSet(raw)
+	refs, ok := common.UnwrapRefImportSet(raw)
 	if !ok {
-		t.Fatalf("import set = %#v, want common.ImportSet", raw)
+		names, ok := common.UnwrapImportSet(raw)
+		if !ok {
+			t.Fatalf("import set = %#v, want common.RefImportSet", raw)
+		}
+		return names
+	}
+	var names []string
+	for _, ref := range refs {
+		names = append(names, ref.Spec)
 	}
 	return names
 }
@@ -92,7 +100,7 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Errorf("test imports = %+v, want [helper] (stub_only_dep ignored)", testImports)
 	}
 	libImports := importNames(t, result.Imports[0])
-	if strings.Join(libImports, ",") != "helper" {
+	if strings.Join(libImports, ",") != "helper,helper.suffix" {
 		t.Errorf("library imports = %+v", libImports)
 	}
 	helperImports := importNames(t, result.Imports[1])
@@ -261,7 +269,7 @@ func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {
 	return cfg
 }
 
-func resolverIndex(lang *common.SingleLang, entries ...struct {
+func resolverIndex(lang resolve.Resolver, entries ...struct {
 	pkg  string
 	name string
 }) *resolve.RuleIndex {
@@ -274,6 +282,7 @@ func resolverIndex(lang *common.SingleLang, entries ...struct {
 	for _, entry := range entries {
 		r := rule.NewRule(libraryKind, entry.name)
 		r.SetAttr("srcs", []string{entry.name + ".py"})
+		r.SetAttr("imports", []string{"."})
 		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(entry.pkg, "BUILD.bazel"), entry.pkg))
 	}
 	index.Finish()
@@ -641,7 +650,7 @@ func TestResolveMappingIgnoreConflict(t *testing.T) {
 	}
 }
 
-func generatePlain(t *testing.T, file *rule.File, other []*rule.Rule, regular []string) (*common.SingleLang, language.GenerateResult) {
+func generatePlain(t *testing.T, file *rule.File, other []*rule.Rule, regular []string) (*pythonLang, language.GenerateResult) {
 	t.Helper()
 	root := t.TempDir()
 	for _, name := range regular {
@@ -720,5 +729,60 @@ func TestGenerateKeepsPlainTestWithoutSource(t *testing.T) {
 	_, result := generatePlain(t, file, nil, []string{"other_test.py"})
 	if len(result.Empty) != 0 {
 		t.Fatalf("empty = %v, want none", result.Empty)
+	}
+}
+
+func TestGeneratePackageLibrary(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/__init__.py":        "",
+		"pkg/demo/__init__.py":   "from .core import run\n",
+		"pkg/demo/core.py":       "from . import util\nfrom ..other import thing\nimport os\n",
+		"pkg/demo/util.py":       "",
+		"pkg/demo/test_core.py":  "import pkg.demo.core\n",
+	}, []string{"__init__.py", "core.py", "util.py", "test_core.py"})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	}
+	lib := result.Gen[0]
+	if lib.Name() != "demo" || strings.Join(lib.AttrStrings("srcs"), ",") != "__init__.py,core.py,util.py" {
+		t.Errorf("library = %s srcs %v", lib.Name(), lib.AttrStrings("srcs"))
+	}
+	if got := strings.Join(lib.AttrStrings("imports"), ","); got != "../.." {
+		t.Errorf("imports = %q, want ../..", got)
+	}
+	want := "pkg.demo.core.run,pkg.demo.util,pkg.other.thing"
+	if got := strings.Join(importNames(t, result.Imports[0]), ","); got != want {
+		t.Errorf("library refs = %q, want %q", got, want)
+	}
+	if got := strings.Join(importNames(t, result.Imports[1]), ","); got != "pkg.demo.core" {
+		t.Errorf("test refs = %q", got)
+	}
+}
+
+func TestGenerateRelativeImportOutsidePackageFails(t *testing.T) {
+	lang := newLang()
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/a.py", "from . import b\n")
+	lang.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"a.py"},
+	})
+	if len(lang.Errors()) != 1 || !strings.Contains(lang.Errors()[0], "beyond the top-level package") {
+		t.Errorf("errors = %v", lang.Errors())
+	}
+}
+
+func TestImportsIndexesDottedModules(t *testing.T) {
+	lib := rule.NewRule(libraryKind, "click")
+	lib.SetAttr("srcs", []string{"__init__.py", "core.py", "conftest.py", "test_x.py"})
+	lib.SetAttr("imports", []string{".."})
+	var got []string
+	for _, spec := range newLang().Imports(&config.Config{}, lib, rule.EmptyFile("src/click/BUILD.bazel", "src/click")) {
+		got = append(got, spec.Imp)
+	}
+	if strings.Join(got, ",") != "click,click.core" {
+		t.Errorf("imports = %v", got)
 	}
 }

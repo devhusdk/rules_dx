@@ -1,6 +1,7 @@
 package python
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -9,7 +10,9 @@ import (
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
@@ -18,7 +21,6 @@ const (
 	libraryKind  = "python_library"
 	testKind     = "python_test"
 	binaryKind   = "python_binary"
-	importsAttr  = "."
 )
 
 var pythonKinds = map[string]rule.KindInfo{
@@ -62,10 +64,12 @@ func binaryKindInfo() rule.KindInfo {
 	}
 }
 
+type pythonLang struct{ *common.SingleLang }
+
 func NewLanguage() language.Language { return newLang() }
 
-func newLang() *common.SingleLang {
-	return common.NewSingleLang(common.SingleLangSpec{
+func newLang() *pythonLang {
+	return &pythonLang{common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    libraryKind,
 		ExtraKinds:     []string{testKind, binaryKind, ruffKind},
@@ -74,13 +78,142 @@ func newLang() *common.SingleLang {
 		Kinds:          pythonKinds,
 		DefsPackage:    "python/rules:defs.bzl",
 		ImportAttr:     "srcs",
-		Identity:       ModuleName,
 		IsImportSource: func(name string) bool { return strings.HasSuffix(name, ".py") },
 		IsStdLib:       IsStdLib,
+		Find:           findModule,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		External:       "python",
 		Generate:       generateRules,
-	})
+	})}
+}
+
+// Imports indexes each library source under its dotted module name, relative
+// to the first entry of the library's imports.
+func (l *pythonLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+	if r.Kind() != libraryKind {
+		return nil
+	}
+	pkg := ""
+	if f != nil {
+		pkg = f.Pkg
+	}
+	root := ""
+	if imports := r.AttrStrings("imports"); len(imports) > 0 {
+		root = path.Join(pkg, imports[0])
+		if root == "." {
+			root = ""
+		}
+	}
+	var specs []resolve.ImportSpec
+	for _, src := range r.AttrStrings("srcs") {
+		if !strings.HasSuffix(src, ".py") || IsTestFile(src) || IsConftest(src) {
+			continue
+		}
+		p := path.Join(pkg, src)
+		if root != "" {
+			var ok bool
+			if p, ok = strings.CutPrefix(p, root+"/"); !ok {
+				continue
+			}
+		}
+		module := strings.ReplaceAll(strings.TrimSuffix(p, ".py"), "/", ".")
+		if module == "__init__" {
+			continue
+		}
+		module = strings.TrimSuffix(module, ".__init__")
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: module})
+	}
+	return specs
+}
+
+// findModule looks the longest dotted prefix of ref up, overrides first.
+func findModule(c *config.Config, ix *resolve.RuleIndex, ref common.ImportRef) common.JSLookup {
+	name := ref.Spec
+	if name == "" {
+		name = ref.Root
+	}
+	for {
+		imp := resolve.ImportSpec{Lang: languageName, Imp: name}
+		if override, ok := resolve.FindRuleWithOverride(c, imp, languageName); ok {
+			return common.JSLookup{Override: override, HasOverride: true, Matched: name}
+		}
+		if matches := ix.FindRulesByImportWithConfig(c, imp, languageName); len(matches) > 0 {
+			return common.JSLookup{Matches: matches, Matched: name}
+		}
+		i := strings.LastIndexByte(name, '.')
+		if i < 0 {
+			return common.JSLookup{Matched: ref.Root}
+		}
+		name = name[:i]
+	}
+}
+
+// packageDepth counts the directories from rel upward that hold an
+// __init__.py, never leaving the repository.
+func packageDepth(root, rel string) int {
+	depth := 0
+	for dir := rel; dir != "" && dir != "."; dir = path.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(dir), "__init__.py")); err != nil {
+			break
+		}
+		depth++
+	}
+	return depth
+}
+
+func lastParts(rel string, n int) string {
+	parts := strings.Split(rel, "/")
+	return strings.Join(parts[len(parts)-n:], "/")
+}
+
+func importsFor(depth int) []string {
+	if depth == 0 {
+		return []string{"."}
+	}
+	return []string{strings.TrimSuffix(strings.Repeat("../", depth), "/")}
+}
+
+// importRefs turns the imports of one module in package pkg (dotted) into
+// refs. Relative imports become absolute dotted names.
+func importRefs(imps []Import, pkg string) ([]common.ImportRef, error) {
+	var refs []common.ImportRef
+	for _, imp := range imps {
+		module := imp.Module
+		if imp.Level > 0 {
+			parts := []string{}
+			if pkg != "" {
+				parts = strings.Split(pkg, ".")
+			}
+			if imp.Level > len(parts) {
+				return nil, fmt.Errorf("relative import %q goes beyond the top-level package", strings.Repeat(".", imp.Level)+imp.Module)
+			}
+			parts = parts[:len(parts)-imp.Level+1]
+			if imp.Module != "" {
+				parts = append(parts, imp.Module)
+			}
+			module = strings.Join(parts, ".")
+		}
+		specs := []string{module}
+		if len(imp.Names) > 0 {
+			specs = specs[:0]
+			for _, name := range imp.Names {
+				specs = append(specs, module+"."+name)
+			}
+		}
+		root, _, _ := strings.Cut(module, ".")
+		if imp.Level == 0 && IsStdLib(root) {
+			continue
+		}
+		for _, spec := range specs {
+			refs = append(refs, common.ImportRef{Spec: spec, Root: root, Relative: imp.Level > 0})
+		}
+	}
+	return refs, nil
+}
+
+func mergeRefs(refs []common.ImportRef) []common.ImportRef {
+	sort.Slice(refs, func(i, j int) bool { return refs[i].Spec < refs[j].Spec })
+	return slices.CompactFunc(refs, func(a, b common.ImportRef) bool { return a == b })
 }
 
 func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
@@ -105,19 +238,55 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		return mergeStale(args.File, result)
 	}
 
+	depth := packageDepth(args.Config.RepoRoot, args.Rel)
+	pkgDotted := ""
+	if depth > 0 {
+		pkgDotted = strings.ReplaceAll(lastParts(args.Rel, depth), "/", ".")
+	}
+	inPackage := func(src string) bool { return depth > 0 && !IsTestFile(src) && !IsConftest(src) }
+
 	type plan struct {
-		name    string
-		src     string
-		stub    string
-		test    bool
-		entry   bool
-		imports []string
+		name  string
+		srcs  []string
+		main  string
+		test  bool
+		entry bool
+		refs  []common.ImportRef
 	}
 	var plans []plan
+	pkgIdx := -1
 	for _, src := range sources {
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			rep.Fail(common.InPackage(args.Rel), "python: %s: read %s: %v", args.Rel, src, err)
+			continue
+		}
+		refs, err := importRefs(ParseImports(content), pkgDotted)
+		if err != nil {
+			rep.Fail(common.InPackage(args.Rel), "python: %s: %s: %v", args.Rel, src, err)
+			continue
+		}
+		srcs := []string{src}
+		if stub := strings.TrimSuffix(src, ".py") + ".pyi"; stubs[stub] {
+			srcs = append(srcs, stub)
+		}
+		entry := !IsTestFile(src) && IsEntryFile(src)
+		if inPackage(src) {
+			if pkgIdx < 0 {
+				name, err := common.Normalize(path.Base(args.Rel))
+				if err != nil {
+					rep.Fail(common.InPackage(args.Rel), "python: %s: %v", args.Rel, err)
+					continue
+				}
+				plans = append(plans, plan{name: name})
+				pkgIdx = len(plans) - 1
+			}
+			pkg := &plans[pkgIdx]
+			pkg.srcs = append(pkg.srcs, srcs...)
+			pkg.refs = append(pkg.refs, refs...)
+			if entry {
+				pkg.entry, pkg.main = true, src
+			}
 			continue
 		}
 		name, err := TargetName(src)
@@ -125,21 +294,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			rep.Fail(common.InPackage(args.Rel), "python: %s: %v", args.Rel, err)
 			continue
 		}
-		p := plan{name: name, src: src, test: IsTestFile(src)}
-		p.entry = !p.test && IsEntryFile(src)
-		if stub := strings.TrimSuffix(src, ".py") + ".pyi"; stubs[stub] {
-			p.stub = stub
-		}
-		seen := make(map[string]bool)
-		for _, root := range ParseImports(content) {
-			if IsStdLib(root) || seen[root] {
-				continue
-			}
-			seen[root] = true
-			p.imports = append(p.imports, root)
-		}
-		sort.Strings(p.imports)
-		plans = append(plans, p)
+		plans = append(plans, plan{name: name, srcs: srcs, main: src, test: IsTestFile(src), entry: entry, refs: refs})
 	}
 	if rep.Failed() {
 		return language.GenerateResult{}
@@ -151,9 +306,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		if p.test {
 			kind = testKind
 		}
-		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: kind})
+		claimants = append(claimants, Claimant{Name: p.name, Source: p.srcs[0], Kind: kind})
 		if p.entry {
-			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
+			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.main, Kind: binaryKind})
 		}
 	}
 	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
@@ -163,6 +318,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 
 	conftestDeps := conftestLabels(args.Config.RepoRoot, args.Rel, sources)
 	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "pytest")
+	imports := importsFor(depth)
 	for _, p := range plans {
 		kind := libraryKind
 		if p.test {
@@ -172,24 +328,20 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			kind = testKind
 		}
 		r := rule.NewRule(kind, p.name)
-		srcs := []string{p.src}
-		if p.stub != "" {
-			srcs = append(srcs, p.stub)
-		}
-		r.SetAttr("srcs", srcs)
-		r.SetAttr("imports", []string{importsAttr})
+		r.SetAttr("srcs", p.srcs)
+		r.SetAttr("imports", imports)
 		if p.test && len(conftestDeps) > 0 {
 			r.SetAttr("deps", conftestDeps)
 		}
-		if IsConftest(p.src) {
+		if IsConftest(p.main) {
 			r.SetAttr("testonly", true)
 		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, common.WrapImportSet(append([]string(nil), p.imports...)))
+		result.Imports = append(result.Imports, common.WrapRefImportSet(mergeRefs(p.refs)))
 		if p.entry {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
-			bin.SetAttr("main", p.src)
-			bin.SetAttr("imports", []string{importsAttr})
+			bin.SetAttr("main", p.main)
+			bin.SetAttr("imports", imports)
 			bin.SetAttr("deps", []string{":" + p.name})
 			result.Gen = append(result.Gen, bin)
 			result.Imports = append(result.Imports, common.WrapImportSet(nil))

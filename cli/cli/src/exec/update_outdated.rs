@@ -29,7 +29,13 @@ pub(super) struct Builtins {
     bazelversion: bool,
 }
 
-fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
+impl Builtins {
+    pub(super) fn selects_all_actions(&self) -> bool {
+        self.actions.as_ref().is_some_and(Vec::is_empty)
+    }
+}
+
+pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
     let mut builtins = Builtins::default();
     let mut rest = Vec::new();
     if targets.is_empty() {
@@ -205,6 +211,7 @@ pub(super) fn collect(
                 );
             }
             Ecosystem::Go => {
+                registries.insert(name.to_owned(), Registry::Go);
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
@@ -212,6 +219,7 @@ pub(super) fn collect(
                 );
             }
             Ecosystem::Nuget => {
+                registries.insert(name.to_owned(), Registry::Nuget);
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
@@ -219,6 +227,7 @@ pub(super) fn collect(
                 );
             }
             Ecosystem::Ruby => {
+                registries.insert(name.to_owned(), Registry::Rubygems);
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
@@ -226,6 +235,7 @@ pub(super) fn collect(
                 );
             }
             Ecosystem::Maven => {
+                registries.insert(name.to_owned(), Registry::Maven);
                 for manifest in &target.set.manifests {
                     let parsed = std::fs::read_to_string(workspace.join(manifest))
                         .map_err(|e| e.to_string())
@@ -281,6 +291,20 @@ pub(super) fn collect(
         registries,
         ecosystems,
     }
+}
+
+/// The registry page for a candidate, including the built-in items.
+pub(super) fn registry_for(
+    registries: &BTreeMap<String, Registry>,
+    candidate: &Candidate,
+) -> Option<Registry> {
+    if candidate.set == dx_update::discover::github::ACTIONS_SET {
+        return Some(Registry::GitHub);
+    }
+    if candidate.set == "bazel" && candidate.package == ".bazelversion" {
+        return Some(Registry::BazelReleases);
+    }
+    registries.get(&candidate.set).copied()
 }
 
 fn read_texts(workspace: &Path, manifests: &[String]) -> Vec<String> {
@@ -512,6 +536,33 @@ impl Fetch for HttpFetch {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registry_for_picks_builtins_before_the_set_map() {
+        let cand = |set: &str, package: &str| Candidate {
+            set: set.into(),
+            package: package.into(),
+            current: "1".into(),
+            latest: "2".into(),
+            published: None,
+            prerelease: false,
+        };
+        let mut map = BTreeMap::new();
+        map.insert("bazel".to_owned(), Registry::Bcr);
+        assert_eq!(
+            registry_for(&map, &cand("github-actions", "actions/checkout")),
+            Some(Registry::GitHub)
+        );
+        assert_eq!(
+            registry_for(&map, &cand("bazel", ".bazelversion")),
+            Some(Registry::BazelReleases)
+        );
+        assert_eq!(
+            registry_for(&map, &cand("bazel", "rules_go")),
+            Some(Registry::Bcr)
+        );
+        assert_eq!(registry_for(&map, &cand("other", "x")), None);
+    }
 
     #[test]
     fn dir_fetch_maps_urls_to_mirrored_files() {

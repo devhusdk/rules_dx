@@ -526,7 +526,8 @@ change. With `--group=all`, the whole group is skipped.
 For each group, `dx update --pr` does this:
 
 1. Resets the branch to the base commit.
-2. Widens each package, then runs `dx update --apply <set>`.
+2. Widens each package, then runs `dx update --apply <set>`. GitHub Actions
+   pins and `.bazelversion` are only widened.
 3. Runs `dx check --affected` and `dx test --affected`.
 4. Commits. If the branch on `origin` already has the same files on the same
    base commit and a pull request is open, prints `unchanged #<n>` and stops.
@@ -534,6 +535,11 @@ For each group, `dx update --pr` does this:
    appeared, the branch is rebuilt from the base and pushed again.
 6. Edits the open pull request for the branch, or creates one.
 7. Turns auto-merge on or off by `--automerge`.
+
+`--pr` covers the same sets as `--outdated`, including GitHub Actions pins
+(branch `dx-update/github-actions`) and `.bazelversion`. A package in a `ruby`
+set, or in a set with no registry link, is printed as `skipped <set>:<package>
+...: <reason>` and gets no pull request.
 
 The body lists each package as `old -> new` with its registry link, marks
 prerelease versions with `prerelease`, then the

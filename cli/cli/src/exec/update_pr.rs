@@ -1,5 +1,6 @@
 use super::common::*;
-use super::update_outdated::{collect, registry_fetch, Builtins, Collected};
+use super::update_outdated::{collect, registry_fetch, registry_for, split_builtin, Collected};
+use dx_adopt::dependency_sets::Ecosystem;
 use dx_adopt::dependency_sets::{self, Selection};
 use dx_output::{
     command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
@@ -71,14 +72,20 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         proc_root,
         edit_commit_json,
     } = env;
-    let registry = match dependency_sets::load(workspace) {
-        Ok(Some(registry)) => registry,
-        Ok(None) => return pre_exec(invocation.output, out, err, "no dependency sets"),
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let resolved = match dependency_sets::resolve(&registry, &invocation.targets) {
-        Ok(resolved) => resolved,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    let (builtins, selectors) = split_builtin(&invocation.targets);
+    let only_builtins = !invocation.targets.is_empty() && selectors.is_empty();
+    let resolved = if only_builtins {
+        Vec::new()
+    } else {
+        match dependency_sets::load(workspace) {
+            Ok(Some(registry)) => match dependency_sets::resolve(&registry, &selectors) {
+                Ok(resolved) => resolved,
+                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+            },
+            Ok(None) if selectors.is_empty() => Vec::new(),
+            Ok(None) => return pre_exec(invocation.output, out, err, "no dependency sets"),
+            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        }
     };
     let json = invocation.output == OutputMode::Json;
     if json {
@@ -87,11 +94,14 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         }
     }
     let Collected {
-        found, registries, ..
+        found,
+        registries,
+        ecosystems,
+        ..
     } = collect(
         workspace,
         &resolved,
-        &Builtins::default(),
+        &builtins,
         invocation.prereleases,
         fetch,
     );
@@ -135,15 +145,43 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         automerge: Level::limit(invocation.automerge.as_deref().unwrap_or("patch")),
         max_prs: invocation.max_prs.map_or(DEFAULT_MAX_PRS, usize::from),
     };
-    let items: Vec<Item> = kept
-        .iter()
-        .filter_map(|candidate| {
-            registries.get(&candidate.set).map(|registry| Item {
-                candidate: candidate.clone(),
-                registry: *registry,
-            })
-        })
-        .collect();
+    let mut items: Vec<Item> = Vec::new();
+    for candidate in &kept {
+        let registry = if ecosystems.get(&candidate.set) == Some(&Ecosystem::Ruby) {
+            Err("ruby sets have no versioned update")
+        } else {
+            registry_for(&registries, candidate).ok_or("no registry")
+        };
+        let registry = match registry {
+            Ok(registry) => registry,
+            Err(reason) => {
+                let c = candidate;
+                let line = format!(
+                    "skipped {}:{} {} -> {}: {}",
+                    c.set, c.package, c.current, c.latest, reason
+                );
+                let written = if json {
+                    emit_built(
+                        out,
+                        notice_event(&NoticeEvent {
+                            scope: Some(vec![format!("{}:{}", c.set, c.package)]),
+                            ..NoticeEvent::info(CODE_UPDATE_PR_SKIPPED, line)
+                        }),
+                    )
+                } else {
+                    check_stdout_write(writeln!(out, "{line}"))
+                };
+                if let Err(exit) = written {
+                    return exit;
+                }
+                continue;
+            }
+        };
+        items.push(Item {
+            candidate: candidate.clone(),
+            registry,
+        });
+    }
     let group = invocation
         .group
         .as_deref()
@@ -170,6 +208,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
                 }
             }
         }
+    }
+    if builtins.selects_all_actions() {
+        full_sets.push(dx_update::discover::github::ACTIONS_SET.to_owned());
     }
     let scope = Scope::new(group, invocation.targets.is_empty(), full_sets, picked);
     let mut step = |words: &[String]| -> Result<(), String> {
@@ -480,7 +521,10 @@ fn publish_one(
             c.latest.clone(),
             "--apply".to_owned(),
         ])?;
-        if !sets.contains(&c.set.as_str()) {
+        let builtin = c.set == dx_update::discover::github::ACTIONS_SET
+            || (c.set == dx_update::discover::github::BAZELVERSION_SET
+                && c.package == dx_update::discover::github::BAZELVERSION_PACKAGE);
+        if !builtin && !sets.contains(&c.set.as_str()) {
             sets.push(&c.set);
         }
     }
@@ -702,7 +746,7 @@ mod tests {
             if fail == Some(words[0].as_str()) {
                 return Err(format!("{} failed", words[0]));
             }
-            if words.contains(&"--apply".to_owned()) && words.len() == 3 {
+            if words.contains(&"--apply".to_owned()) && words.len() >= 3 {
                 std::fs::write(work.join("Cargo.lock"), "a\nb\n").map_err(|e| e.to_string())?;
             }
             Ok(())
@@ -1071,6 +1115,129 @@ mod tests {
         assert!(out.contains("closed #5"), "{out}");
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr close 5"));
+    }
+
+    /// Runs `dx update --pr` in a git workspace made of `files`, with `mirror` as the registry.
+    fn run_pr_with(files: &[(&str, &str)], mirror: &[(&str, &str)]) -> (i32, String, String) {
+        let (code, out, err, argv) = run_pr_full(files, mirror);
+        (code, format!("{out}{err}"), argv)
+    }
+
+    fn run_pr_full(
+        files: &[(&str, &str)],
+        mirror: &[(&str, &str)],
+    ) -> (i32, String, String, String) {
+        let fx = fixture("[]");
+        let harness = super::super::test_support::Harness::new("update-pr-all");
+        let root = &harness.workspace;
+        for (name, text) in files {
+            let path = root.join(name);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            std::fs::write(path, text).expect("write");
+        }
+        let registry = harness.temp.join("registry");
+        for (name, text) in mirror {
+            let path = registry.join(name);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            std::fs::write(path, text).expect("write");
+        }
+        sh(root, &["init", "-q", "-b", "main"]);
+        sh(root, &["config", "user.email", "t@example.com"]);
+        sh(root, &["config", "user.name", "t"]);
+        sh(root, &["add", "-A"]);
+        sh(root, &["commit", "-q", "-m", "init"]);
+        let origin = harness.temp.join("origin.git");
+        sh(
+            &harness.temp,
+            &["init", "-q", "--bare", "-b", "main", "origin.git"],
+        );
+        sh(
+            root,
+            &["remote", "add", "origin", origin.to_str().expect("utf8")],
+        );
+        sh(root, &["push", "-q", "origin", "main"]);
+        let words = ["update".to_owned(), "--pr".to_owned()];
+        let inv = dx_plan::args::parse(&words).expect("parse");
+        let runner = harness.runner();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = run(
+            &inv,
+            harness.env(&runner, &mut out, &mut err),
+            &super::super::update_outdated::DirFetch(registry),
+            &fx.tools,
+        );
+        let out = String::from_utf8_lossy(&out).into_owned();
+        let err = String::from_utf8_lossy(&err).into_owned();
+        let argv = std::fs::read_to_string(&fx.argv).unwrap_or_default();
+        (code, out, err, argv)
+    }
+
+    #[test]
+    fn run_covers_workflow_pins_and_bazelversion() {
+        let release = "{\"tag_name\":\"v4.1.0\"}";
+        let (_, out, argv) = run_pr_with(
+            &[
+                (
+                    ".github/workflows/ci.yml",
+                    "jobs:\n  a:\n    steps:\n      - uses: o/r@v4.0.0\n",
+                ),
+                (".bazelversion", "7.0.0\n"),
+            ],
+            &[
+                ("api.github.com/repos/o/r/releases/latest", release),
+                (
+                    "api.github.com/repos/bazelbuild/bazel/releases/latest",
+                    "{\"tag_name\":\"7.1.0\"}",
+                ),
+            ],
+        );
+        let seen = format!("{out}{argv}");
+        assert!(seen.contains("dx-update/github-actions"), "{seen}");
+        assert!(seen.contains("dx-update/bazel"), "{seen}");
+        assert!(!seen.contains("no dependency sets"), "{seen}");
+    }
+
+    #[test]
+    fn run_groups_go_sets() {
+        let (code, out, argv) = run_pr_with(
+            &[
+                (
+                    "MODULE.bazel",
+                    "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:go.mod\")\n",
+                ),
+                ("go.mod", "module m\n\ngo 1.22\n\nrequire example.com/x v1.0.0\n"),
+            ],
+            &[("proxy.golang.org/example.com/x/@v/list", "v1.0.0\nv1.1.0\n")],
+        );
+        let _ = code;
+        assert!(
+            format!("{out}{argv}").contains("dx-update/go"),
+            "{out}{argv}"
+        );
+    }
+
+    #[test]
+    fn run_skips_ruby_sets() {
+        let (code, out, argv) = run_pr_with(
+            &[
+                (
+                    "MODULE.bazel",
+                    "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
+                ),
+                ("Gemfile", "gem 'rake', '1.0'\n"),
+                ("Gemfile.lock", "a\n"),
+            ],
+            &[(
+                "rubygems.org/api/v1/versions/rake.json",
+                "[{\"number\":\"1.5\",\"prerelease\":false}]",
+            )],
+        );
+        assert_eq!(code, 0, "{out}");
+        assert!(
+            out.contains("skipped bundle:rake 1.0 -> 1.5: ruby sets have no versioned update"),
+            "{out}"
+        );
+        assert!(!argv.contains("pr create"), "{argv}");
     }
 
     fn two_plans() -> Vec<GroupPlan> {

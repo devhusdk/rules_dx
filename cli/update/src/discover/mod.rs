@@ -61,6 +61,12 @@ pub enum Registry {
     Crates,
     Npm,
     Pypi,
+    Go,
+    Maven,
+    Nuget,
+    Rubygems,
+    GitHub,
+    BazelReleases,
 }
 
 impl Registry {
@@ -71,6 +77,17 @@ impl Registry {
             Registry::Crates => format!("https://crates.io/crates/{package}"),
             Registry::Npm => format!("https://www.npmjs.com/package/{package}"),
             Registry::Pypi => format!("https://pypi.org/project/{package}"),
+            Registry::Go => format!("https://pkg.go.dev/{package}"),
+            Registry::Maven => match package.split_once(':') {
+                Some((group, artifact)) => {
+                    format!("https://central.sonatype.com/artifact/{group}/{artifact}")
+                }
+                None => format!("https://central.sonatype.com/artifact/{package}"),
+            },
+            Registry::Nuget => format!("https://www.nuget.org/packages/{package}"),
+            Registry::Rubygems => format!("https://rubygems.org/gems/{package}"),
+            Registry::GitHub => format!("https://github.com/{package}/releases"),
+            Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),
         }
     }
 }
@@ -121,8 +138,37 @@ pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 
 #[cfg(test)]
 mod tests {
-    use super::{numeric_cmp, release_cmp};
+    use super::{numeric_cmp, release_cmp, Registry};
     use std::cmp::Ordering;
+
+    #[test]
+    fn registry_urls_for_every_ecosystem() {
+        let url = |r: Registry, p: &str| r.url(p);
+        assert_eq!(
+            url(Registry::Go, "golang.org/x/text"),
+            "https://pkg.go.dev/golang.org/x/text"
+        );
+        assert_eq!(
+            url(Registry::Maven, "com.google.guava:guava"),
+            "https://central.sonatype.com/artifact/com.google.guava/guava"
+        );
+        assert_eq!(
+            url(Registry::Nuget, "Newtonsoft.Json"),
+            "https://www.nuget.org/packages/Newtonsoft.Json"
+        );
+        assert_eq!(
+            url(Registry::Rubygems, "rake"),
+            "https://rubygems.org/gems/rake"
+        );
+        assert_eq!(
+            url(Registry::GitHub, "actions/checkout"),
+            "https://github.com/actions/checkout/releases"
+        );
+        assert_eq!(
+            url(Registry::BazelReleases, ".bazelversion"),
+            "https://github.com/bazelbuild/bazel/releases"
+        );
+    }
 
     #[test]
     fn numeric_cmp_pads_missing_segments_with_zero() {

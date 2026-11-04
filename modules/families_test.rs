@@ -134,7 +134,7 @@ fn families(json: &str) -> BTreeMap<&'static str, Kind> {
         let entry = entry.as_object().expect("family object");
         for key in entry.keys() {
             assert!(
-                key == "module" || KEYS.contains(&key.as_str()),
+                key == "module" || key == "path" || KEYS.contains(&key.as_str()),
                 "family {family:?} has unknown key {key:?}"
             );
         }
@@ -230,6 +230,51 @@ fn module_problems(json: &str) -> Vec<String> {
     problems
 }
 
+/// Family name to the checkout directory holding its own `MODULE.bazel`; families without a `path` are in the root module.
+fn family_paths(json: &str) -> BTreeMap<String, String> {
+    let value: serde_json::Value = serde_json::from_str(json).expect("families.json");
+    value["families"]
+        .as_object()
+        .expect("families object")
+        .iter()
+        .filter_map(|(family, entry)| {
+            Some((family.clone(), entry.get("path")?.as_str()?.to_owned()))
+        })
+        .collect()
+}
+
+/// `kinds` without the entries of moved families, except aspects and file extensions, which are not module items.
+fn root_kinds(
+    kinds: &BTreeMap<&'static str, Kind>,
+    paths: &BTreeMap<String, String>,
+) -> BTreeMap<&'static str, Kind> {
+    let mut kinds = kinds.clone();
+    for (key, kind) in &mut kinds {
+        if *key != "aspects" && *key != "file_extensions" {
+            kind.retain(|family, _| !paths.contains_key(family));
+        }
+    }
+    kinds
+}
+
+/// Problems of one moved family: its listed items against what its own module and dirs hold.
+fn moved_problems(
+    family: &str,
+    kinds: &BTreeMap<&'static str, Kind>,
+    actual: &BTreeMap<&'static str, BTreeSet<String>>,
+) -> Vec<String> {
+    let mut problems = Vec::new();
+    for (key, items) in actual {
+        let own: Kind = kinds[key]
+            .iter()
+            .filter(|(name, _)| name.as_str() == family)
+            .map(|(name, items)| (name.clone(), items.clone()))
+            .collect();
+        problems.extend(violations(key, &own, items));
+    }
+    problems
+}
+
 #[test]
 fn modules_are_unique_and_named_rules_dx() {
     let problems = module_problems(&dx_testing::read_runfiles("modules/families.json"));
@@ -260,9 +305,20 @@ fn every_item_is_in_exactly_one_family() {
         "aspects",
         aspect_names(&dx_testing::read_runfiles("quality/real_aspects.bzl")),
     );
+    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
     let mut problems = extension_problems(&kinds);
     for (key, items) in &actual {
-        problems.extend(violations(key, &kinds[key], items));
+        problems.extend(violations(key, &root_kinds(&kinds, &paths)[key], items));
+    }
+    for (family, path) in &paths {
+        let dir = root.join(path);
+        let text = std::fs::read_to_string(dir.join("MODULE.bazel"))
+            .unwrap_or_else(|error| panic!("{path}/MODULE.bazel: {error}"));
+        let module = ModuleFile::parse(&text).expect("family MODULE.bazel");
+        let mut own = module_items(&module);
+        own.insert("dirs", root_dirs(&dir));
+        own.insert("gazelle", gazelle_languages(&module));
+        problems.extend(moved_problems(family, &kinds, &own));
     }
     assert!(
         problems.is_empty(),
@@ -361,6 +417,25 @@ mod tests {
             .unwrap()
             .insert("rust".into(), set(&["t"]));
         assert_eq!(weightless_families(&kinds), vec!["go".to_owned()]);
+    }
+
+    #[test]
+    fn moved_family_agrees_with_its_own_module() {
+        let kinds = BTreeMap::from([("bazel_deps", kind(&[("android", &["rules_android"])]))]);
+        let actual = BTreeMap::from([("bazel_deps", set(&["rules_android"]))]);
+        assert!(moved_problems("android", &kinds, &actual).is_empty());
+    }
+
+    #[test]
+    fn moved_family_item_left_in_root_fails() {
+        let kinds = BTreeMap::from([("bazel_deps", kind(&[("android", &["rules_android"])]))]);
+        let paths = BTreeMap::from([("android".to_owned(), "families/android".to_owned())]);
+        let root = root_kinds(&kinds, &paths);
+        let actual = set(&["rules_android"]);
+        assert_eq!(
+            violations("bazel_deps", &root["bazel_deps"], &actual).len(),
+            1
+        );
     }
 
     #[test]

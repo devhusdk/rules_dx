@@ -3,12 +3,41 @@ load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "python_main", "python_main_rejection", "python_test_rejection")
 load(":runtime_tests.bzl", "python_runtime_unit_tests")
+load(":sdist_cargo_vendor.bzl", "parse_cargo_lock", "parse_uv_lock_sdist")
+
+_UV_LOCK = """[[package]]
+name = "other"
+version = "2"
+
+[[package]]
+name = "demo"
+version = "1.0"
+sdist = { url = "https://files.example/demo-1.0.tar.gz", hash = "sha256:abc123", size = 10 }
+"""
+
+_CARGO_LOCK_OK = """[[package]]
+name = "demo"
+version = "1.0.0"
+
+[[package]]
+name = "libc"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff00"
+"""
+
+_CARGO_LOCK_GIT = """[[package]]
+name = "dep"
+version = "1.0.0"
+source = "git+https://example.com/dep"
+"""
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
     "runtime_tests.bzl",
+    "sdist_cargo_vendor.bzl",
     "windows_launcher_tests.bzl",
 ])
 
@@ -168,6 +197,33 @@ dx_wrapper_contract_tests(
             python_main_rejection("tool", None),
             None,
         ),
+        expect_equal(
+            "uv.lock sdist url and hash are read",
+            parse_uv_lock_sdist(_UV_LOCK, "demo"),
+            {
+                "sha256": "abc123",
+                "url": "https://files.example/demo-1.0.tar.gz",
+            },
+        ),
+        expect_equal(
+            "missing uv.lock package is None",
+            parse_uv_lock_sdist(_UV_LOCK, "absent"),
+            None,
+        ),
+        expect_equal(
+            "registry crates are listed and workspace members skipped",
+            parse_cargo_lock(_CARGO_LOCK_OK),
+            [[
+                "libc",
+                "0.2.1",
+                "ff00",
+            ]],
+        ),
+        expect_equal(
+            "git crates are rejected by name",
+            parse_cargo_lock(_CARGO_LOCK_GIT),
+            "crate dep has unsupported source git+https://example.com/dep; only crates.io is vendored.",
+        ),
     ],
     include_forwarder_checks = False,
     wrappers = {
@@ -186,6 +242,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "runtime_tests.bzl",
+        "sdist_cargo_vendor.bzl",
         "windows_launcher_tests.bzl",
     ],
     tags = ["corpus"],

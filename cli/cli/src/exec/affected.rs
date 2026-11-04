@@ -1174,4 +1174,52 @@ mod tests {
         assert!(lines[0].contains("\"affected\":{\"base\":\"b\"}"));
         assert_eq!(lines[1], "{\"event\":\"x\"}");
     }
+
+    fn nested_repo(module: &str) -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        git(root, &["init", "--quiet", "--initial-branch=main"]);
+        write(root, "sub/MODULE.bazel", module);
+        write(root, "sub/a/BUILD.bazel", "");
+        write(root, "sub/a/a.txt", "a\n");
+        write(root, "frontend/x.ts", "x\n");
+        write(root, "lib/MODULE.bazel", "module(name = \"lib\")\n");
+        write(root, "lib/l.txt", "l\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "base"]);
+        git(root, &["checkout", "--quiet", "-b", "topic"]);
+        let workspace = root.join("sub");
+        (dir, workspace)
+    }
+
+    const OVERRIDE: &str = "module(name = \"x\")\nbazel_dep(name = \"lib\", version = \"0\")\nlocal_path_override(module_name = \"lib\", path = \"../lib\")\n";
+
+    #[test]
+    fn workspace_below_the_git_root_maps_changes_without_widening() {
+        let (dir, workspace) = nested_repo("module(name = \"x\")\n");
+        write(dir.path(), "sub/a/a.txt", "changed\n");
+        let graph = graph();
+        let (plan, _) = run(&workspace, Command::Build, &[&graph]);
+        assert_eq!(plan.changed_files, ["a/a.txt"]);
+        assert!(plan.widened.is_empty());
+    }
+
+    #[test]
+    fn changes_outside_a_nested_workspace_select_nothing() {
+        let (dir, workspace) = nested_repo("module(name = \"x\")\n");
+        write(dir.path(), "frontend/x.ts", "changed\n");
+        write(dir.path(), "frontend/new.ts", "new\n");
+        let (plan, runner) = run(&workspace, Command::Test, &[]);
+        assert!(plan.empty());
+        assert!(runner.expressions.borrow().is_empty());
+    }
+
+    #[test]
+    fn local_path_override_change_outside_the_workspace_widens() {
+        let (dir, workspace) = nested_repo(OVERRIDE);
+        write(dir.path(), "lib/l.txt", "changed\n");
+        let (plan, _) = run(&workspace, Command::Test, &[]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(plan.widened[0].reason, "local_path_override ../lib/l.txt");
+    }
 }

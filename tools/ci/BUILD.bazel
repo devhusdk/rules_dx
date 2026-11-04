@@ -553,7 +553,6 @@ rust_test(
         "//cc/tests/fixtures/cpp-app/diagnostics:corpus_starlark",
         "//cli/advisory_prep:corpus_starlark",
         "//cli/cli:corpus_starlark",
-        "//cli/cli/tests/affected:corpus_starlark",
         "//cli/cli/tests/agents:corpus_starlark",
         "//cli/cli/tests/cli_argv_e2e:corpus_starlark",
         "//cli/cli/tests/results_consumer:corpus_starlark",

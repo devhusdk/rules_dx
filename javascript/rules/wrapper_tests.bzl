@@ -4,8 +4,13 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
-load(":defs.bzl", "JAVASCRIPT_WINDOWS_JEST_CONFIG", "javascript_binary_upstream_data", "javascript_needs_default_jest_config", "javascript_test_rejection")
-load(":node_test.bzl", "node_test_env", "node_test_upstream_data", "node_test_upstream_kwargs")
+load(":defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
+load(":node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_upstream_kwargs")
+
+def _jest_kwargs_after_attrs():
+    kwargs = {"fixed_args": ["--ci"], "size": "small"}
+    node_jest_upstream_attrs("//:nm", kwargs)
+    return kwargs
 
 def javascript_wrapper_contract_tests(name):
     """Instantiates JavaScript wrapper contract tests."""
@@ -74,19 +79,14 @@ def javascript_wrapper_contract_tests(name):
                 False,
             ),
             expect_equal(
-                "jest without a config gets the Windows default",
-                javascript_needs_default_jest_config({}),
-                True,
+                "the Windows jest default selects the v8 coverage provider",
+                NODE_JEST_WINDOWS_ARGS,
+                ["--coverageProvider=v8"],
             ),
             expect_equal(
-                "a user-set jest config wins",
-                javascript_needs_default_jest_config({"config": "jest.config.cjs"}),
-                False,
-            ),
-            expect_equal(
-                "the Windows default config sets v8",
-                JAVASCRIPT_WINDOWS_JEST_CONFIG,
-                '{"coverageProvider": "v8"}\n',
+                "jest attrs take fixed_args out of kwargs",
+                _jest_kwargs_after_attrs(),
+                {"size": "small"},
             ),
             expect_equal(
                 "unset package_json adds no manifest",

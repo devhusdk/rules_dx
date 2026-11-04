@@ -14,6 +14,19 @@ _JEST_ONLY_KEYS = [
     "quiet_snapshot_updates",
 ]
 
+NODE_JEST_WINDOWS_ARGS = ["--coverageProvider=v8"]
+
+def node_jest_upstream_attrs(node_modules, kwargs):
+    """Returns the jest_test attributes dx sets; pops fixed_args from kwargs."""
+    user_args = list(kwargs.pop("fixed_args", None) or [])
+    return {
+        "node_modules": node_modules,
+        "fixed_args": user_args + select({
+            "@platforms//os:windows": NODE_JEST_WINDOWS_ARGS,
+            "//conditions:default": [],
+        }),
+    }
+
 def node_test_runner_rejection(rule, runner, node_modules, entry_point, kwargs):
     """Returns the rejection for a bad runner or runner arguments, or None."""
     if runner not in ("jest", "node"):

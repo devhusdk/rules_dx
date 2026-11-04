@@ -5,7 +5,7 @@ load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_runner_rejection", "node_wrap_test")
+load("//javascript/rules:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_wrap_test")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -324,5 +324,5 @@ def typescript_test(name, srcs, runner = "jest", node_modules = None, entry_poin
         upstream_kwargs = {"entry_point": entry_point}
     else:
         upstream = _jest_test
-        upstream_kwargs = {"node_modules": node_modules}
+        upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
     node_wrap_test(name, upstream, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, visibility, kwargs)

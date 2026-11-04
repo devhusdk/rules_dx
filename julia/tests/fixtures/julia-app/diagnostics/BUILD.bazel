@@ -61,7 +61,6 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [
-        "//examples:__pkg__",
         "//tools/ci:__pkg__",
     ],
 )

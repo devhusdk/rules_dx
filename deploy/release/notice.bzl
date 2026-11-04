@@ -19,8 +19,11 @@ def notice_manifest_error(manifest):
         return "notice_bundle: invalid manifest 'None': want the audited inventory manifest label"
     return ""
 
-def notice_bundle(name, root, inventory, texts, target_compatible_with = None):
-    """Bundles one aggregated NOTICE; texts are matched by manifest path suffix."""
+def notice_bundle(name, root, inventory, texts, runtimes = None, target_compatible_with = None):
+    """Bundles one aggregated NOTICE; texts are matched by manifest path suffix.
+
+    `runtimes` is a shipped_inventory `_runtimes` target; its runtimes are appended by name.
+    """
     root_err = notice_root_error(root)
     if root_err != "":
         fail(root_err + " (in " + native.package_name() + ":" + name + ")")
@@ -34,11 +37,12 @@ def notice_bundle(name, root, inventory, texts, target_compatible_with = None):
 
     native.genrule(
         name = name + "_notice",
-        srcs = [inventory] + texts,
+        srcs = [inventory] + texts + ([runtimes] if runtimes else []),
         outs = [notice],
         target_compatible_with = target_compatible_with,
         tools = ["//deploy/release:release_tool"],
         cmd = "$(location //deploy/release:release_tool) notice $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
+              ("--runtimes=$(location " + runtimes + ") " if runtimes else "") +
               " ".join(["$(locations " + text + ")" for text in texts]),
     )
 

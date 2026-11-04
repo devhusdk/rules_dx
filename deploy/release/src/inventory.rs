@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use crate::runtimes::{self, ShippedRuntime};
+
 pub const SCHEMA: &str = "shipped-inventory/v1";
 
 /// The manifest set every shipped crate belongs to.
@@ -33,6 +35,8 @@ pub struct ShippedCrate {
 struct ShippedDoc {
     schema: String,
     crates: Vec<ShippedCrate>,
+    #[serde(default)]
+    runtimes: Vec<ShippedRuntime>,
 }
 
 /// Parses the aspect's shipped-inventory/v1 document, sorted by crate and version.
@@ -56,6 +60,13 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
         }
     }
     Ok(crates)
+}
+
+/// Parses the native runtimes of the shipped-inventory/v1 document.
+pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, String> {
+    let doc: ShippedDoc =
+        serde_json::from_str(text).map_err(|error| format!("inventory: {error}"))?;
+    Ok(doc.runtimes)
 }
 
 /// The manifest text path of one crate: `cargo/<crate>-<version>/LICENSE`.
@@ -258,15 +269,23 @@ pub fn render_manifest(joined: &[JoinedCrate]) -> String {
 }
 
 /// Runs the join and writes the manifest plus `<texts>/cargo/<crate>-<version>/LICENSE`.
+/// With `runtimes_out`, also writes the native runtime records with file hashes.
 pub fn write_inventory(
     shipped: &Path,
     lock: &Path,
     licenses: &Path,
     manifest: &Path,
     texts: &Path,
+    runtimes_out: Option<&Path>,
 ) -> std::io::Result<()> {
-    let crates =
-        parse_shipped(&std::fs::read_to_string(shipped)?).map_err(std::io::Error::other)?;
+    let shipped_text = std::fs::read_to_string(shipped)?;
+    let crates = parse_shipped(&shipped_text).map_err(std::io::Error::other)?;
+    if let Some(out) = runtimes_out {
+        let shipped_runtimes =
+            parse_shipped_runtimes(&shipped_text).map_err(std::io::Error::other)?;
+        let records = runtimes::build(&shipped_runtimes).map_err(std::io::Error::other)?;
+        std::fs::write(out, runtimes::render_records(&records).as_bytes())?;
+    }
     let joined = join(
         &crates,
         &std::fs::read_to_string(lock)?,
@@ -411,7 +430,7 @@ mod tests {
         let licenses = text(dir.path(), "licenses.toml", "\n");
         let manifest = dir.path().join("manifest.txt");
         let texts = dir.path().join("out");
-        write_inventory(&shipped_json, &lock, &licenses, &manifest, &texts).expect("writes");
+        write_inventory(&shipped_json, &lock, &licenses, &manifest, &texts, None).expect("writes");
         let text_files = vec![
             texts.join("cargo/alpha-1.0.0/LICENSE"),
             texts.join("cargo/beta-2.0.0/LICENSE"),
@@ -421,12 +440,64 @@ mod tests {
             "--- LICENSE ---\nalpha words\n"
         );
         let notice = dir.path().join("NOTICE");
-        crate::write_notice(&manifest, &notice, "//demo:root", &text_files).expect("notice");
+        crate::write_notice(&manifest, &notice, "//demo:root", &text_files, None).expect("notice");
         let words = std::fs::read_to_string(&notice).expect("notice text");
         assert!(words.contains(
             "=== alpha 1.0.0 (MIT OR Apache-2.0) [cargo] ===\n--- LICENSE ---\nalpha words\n"
         ));
         assert!(words.contains("=== beta 2.0.0 (MIT) [cargo] ===\n--- LICENSE ---\nbeta words\n"));
+        crate::notice_verify_files(&notice, &manifest, &text_files).expect("verifies");
+    }
+
+    #[test]
+    fn runtimes_reach_the_records_and_the_verified_notice() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let lib = text(dir.path(), "vc/vcruntime.dll", "runtime bytes");
+        let notice_file = text(dir.path(), "vc/NOTICE", "Runtime words.\n");
+        let doc = serde_json::json!({
+            "schema": SCHEMA,
+            "crates": [{
+                "crate": "alpha",
+                "version": "1.0.0",
+                "label": "@a//:alpha",
+                "texts": [text(dir.path(), "a/LICENSE", "alpha words")],
+            }],
+            "runtimes": [
+                {"name": "vc", "version": "14", "redistribution": "app_local",
+                 "source": "msvc", "files": [lib], "notice": notice_file},
+                {"name": "libc", "version": "2.31", "redistribution": "os_supplied",
+                 "source": "host"},
+            ],
+        });
+        let shipped_json = text(dir.path(), "shipped.json", &doc.to_string());
+        let lock = text(dir.path(), "lock.json", LOCK);
+        let licenses = text(dir.path(), "licenses.toml", "\n");
+        let manifest = dir.path().join("manifest.txt");
+        let texts = dir.path().join("out");
+        let records = dir.path().join("runtimes.json");
+        write_inventory(
+            &shipped_json,
+            &lock,
+            &licenses,
+            &manifest,
+            &texts,
+            Some(&records),
+        )
+        .expect("writes");
+        let read = runtimes::read_records(&records).expect("records");
+        assert_eq!(read[0].name, "libc");
+        assert_eq!(
+            read[1].files[0].sha256,
+            dx_digest::sha256_hex(b"runtime bytes")
+        );
+        let text_files = vec![texts.join("cargo/alpha-1.0.0/LICENSE")];
+        let notice = dir.path().join("NOTICE");
+        crate::write_notice(&manifest, &notice, "//demo:root", &text_files, Some(&records))
+            .expect("notice");
+        let words = std::fs::read_to_string(&notice).expect("notice text");
+        assert!(words.ends_with(
+            "=== native runtimes ===\nlibc 2.31 (os_supplied)\n=== vc 14 (app_local) [runtime] ===\nRuntime words.\n"
+        ));
         crate::notice_verify_files(&notice, &manifest, &text_files).expect("verifies");
     }
 
@@ -539,15 +610,15 @@ expires = "2099-01-01"
         let dir = tempfile::tempdir().expect("tempdir");
         let missing = dir.path().join("missing.json");
         let out = dir.path().join("m.txt");
-        assert!(write_inventory(&missing, &missing, &missing, &out, dir.path()).is_err());
+        assert!(write_inventory(&missing, &missing, &missing, &out, dir.path(), None).is_err());
         let bad = text(dir.path(), "bad.json", "{}");
-        assert!(write_inventory(&bad, &bad, &bad, &out, dir.path()).is_err());
+        assert!(write_inventory(&bad, &bad, &bad, &out, dir.path(), None).is_err());
         let shipped_json = text(
             dir.path(),
             "s.json",
             r#"{"schema":"shipped-inventory/v1","crates":[{"crate":"zeta","version":"1","label":"@z//:zeta"}]}"#,
         );
         let lock = text(dir.path(), "lock.json", LOCK);
-        assert!(write_inventory(&shipped_json, &lock, &lock, &out, dir.path()).is_err());
+        assert!(write_inventory(&shipped_json, &lock, &lock, &out, dir.path(), None).is_err());
     }
 }

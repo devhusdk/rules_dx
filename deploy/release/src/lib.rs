@@ -18,6 +18,7 @@ pub mod inventory;
 pub mod ledger;
 mod provenance;
 mod publish;
+pub mod runtimes;
 mod spdx;
 mod tool;
 
@@ -902,6 +903,7 @@ pub fn notice_entry_body<'a>(
 /// Shared NOTICE verifier for the release and install sides. Errors carry no
 /// prefix; callers add their own.
 pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<usize, String> {
+    let notice_text = runtimes::strip_section(notice_text);
     if entries.is_empty() {
         return Err("notice manifest lists no packages; refusing empty NOTICE".to_owned());
     }
@@ -1090,10 +1092,15 @@ pub fn write_notice(
     dst: &Path,
     root: &str,
     text_files: &[std::path::PathBuf],
+    runtimes: Option<&Path>,
 ) -> io::Result<()> {
     let manifest_text = std::fs::read_to_string(manifest)?;
     let joined = join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
-    std::fs::write(dst, render_notice(root, &joined).as_bytes())?;
+    let mut notice = render_notice(root, &joined);
+    if let Some(path) = runtimes {
+        notice.push_str(&runtimes::render_section(&runtimes::read_records(path)?));
+    }
+    std::fs::write(dst, notice.as_bytes())?;
     Ok(())
 }
 
@@ -1995,9 +2002,9 @@ mod tests {
         let scratch = scratch_dir();
         let (manifest, texts) = notice_fixture(scratch.path());
         let first = scratch.path().join("first.NOTICE");
-        write_notice(&manifest, &first, "//demo:root", &texts).expect("first");
+        write_notice(&manifest, &first, "//demo:root", &texts, None).expect("first");
         let second = scratch.path().join("second.NOTICE");
-        write_notice(&manifest, &second, "//demo:root", &texts).expect("second");
+        write_notice(&manifest, &second, "//demo:root", &texts, None).expect("second");
         assert_eq!(
             std::fs::read(&first).expect("read first"),
             std::fs::read(&second).expect("read second")
@@ -2012,11 +2019,11 @@ mod tests {
         let manifest = scratch.path().join("inventory.txt");
         std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
         let out = scratch.path().join("out.NOTICE");
-        let err = write_notice(&manifest, &out, "//demo:root", &[]).expect_err("missing");
+        let err = write_notice(&manifest, &out, "//demo:root", &[], None).expect_err("missing");
         assert!(err.to_string().contains("missing-notice-text"));
         let (good_manifest, texts) = notice_fixture(scratch.path());
         let notice = scratch.path().join("good.NOTICE");
-        write_notice(&good_manifest, &notice, "//demo:root", &texts).expect("good");
+        write_notice(&good_manifest, &notice, "//demo:root", &texts, None).expect("good");
         std::fs::write(&notice, "tampered bytes\n").expect("tamper");
         let err = notice_verify_files(&notice, &good_manifest, &texts).expect_err("tampered");
         assert!(err.to_string().contains("NOTICE"));
@@ -2319,7 +2326,7 @@ mod tests {
         std::fs::write(&words, drift_words).expect("words");
         let texts = [words];
         let notice = scratch.path().join("out.NOTICE");
-        write_notice(&manifest, &notice, "//demo:root", &texts).expect("write");
+        write_notice(&manifest, &notice, "//demo:root", &texts, None).expect("write");
         notice_verify_files(&notice, &manifest, &texts).expect("verify");
         let text = std::fs::read_to_string(&notice).expect("read notice");
         let drifted = text.replace("Second line of the words.", "Other second line.");
@@ -2385,7 +2392,7 @@ mod tests {
         let (manifest, texts) = notice_fixture(scratch.path());
         std::fs::write(&texts[0], "Edited words.\n").expect("drift");
         let out = scratch.path().join("out.NOTICE");
-        let err = write_notice(&manifest, &out, "//demo:root", &texts).expect_err("drift");
+        let err = write_notice(&manifest, &out, "//demo:root", &texts, None).expect_err("drift");
         let err = err.to_string();
         assert!(err.contains("notice-text-digest"), "got {err}");
         assert!(err.contains("demo-lib-a@1.0.0 (MIT)"), "got {err}");

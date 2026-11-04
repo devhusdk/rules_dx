@@ -1,6 +1,7 @@
 """Lists the third-party crates one Rust binary ships, with their license texts."""
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
+load("//deploy/rules:native_runtime.bzl", "NativeRuntimeInfo")
 
 ShippedCratesInfo = provider(
     doc = "Third-party crates reachable through runtime deps.",
@@ -112,8 +113,35 @@ def _shipped_inventory_impl(ctx):
         records.append(record)
         inputs.extend(c.texts)
         texts.append(ctx.actions.declare_file(inventory_text_path(ctx.label.name, c.crate, c.version)))
+    document = {"crates": records, "schema": INVENTORY_SCHEMA}
+    runtime_records = []
+    runtime_inputs = []
+    for target in ctx.attr.runtimes:
+        info = target[NativeRuntimeInfo]
+        if info.redistribution == "build_only":
+            fail("shipped_inventory " + str(ctx.label) + ": runtime " + info.name + " is build_only and cannot ship")
+        if info.redistribution == "app_local" and info.notice == None:
+            fail("shipped_inventory " + str(ctx.label) + ": app_local runtime " + info.name + " has no notice")
+        runtime_records.append({
+            "files": [f.path for f in info.files],
+            "name": info.name,
+            "notice": info.notice.path if info.notice else None,
+            "redistribution": info.redistribution,
+            "source": info.source,
+            "version": info.version,
+        })
+        runtime_inputs.extend(info.files)
+        if info.notice:
+            runtime_inputs.append(info.notice)
+    outputs_extra = []
+    arguments_extra = []
+    if runtime_records:
+        document["runtimes"] = runtime_records
+        runtimes_json = ctx.actions.declare_file(ctx.label.name + ".runtimes.json")
+        outputs_extra.append(runtimes_json)
+        arguments_extra.append(runtimes_json.path)
     shipped = ctx.actions.declare_file(ctx.label.name + ".shipped.json")
-    ctx.actions.write(shipped, json.encode({"crates": records, "schema": INVENTORY_SCHEMA}) + "\n")
+    ctx.actions.write(shipped, json.encode(document) + "\n")
     manifest = ctx.actions.declare_file(ctx.label.name + ".txt")
     package = ctx.label.package + "/" if ctx.label.package else ""
     texts_dir = ctx.bin_dir.path + "/" + package + ctx.label.name + "_texts"
@@ -126,15 +154,15 @@ def _shipped_inventory_impl(ctx):
             ctx.file._licenses.path,
             manifest.path,
             texts_dir,
-        ],
-        inputs = inputs + [shipped],
-        outputs = [manifest] + texts,
+        ] + arguments_extra,
+        inputs = inputs + runtime_inputs + [shipped],
+        outputs = [manifest] + texts + outputs_extra,
         mnemonic = "DxShippedInventory",
         progress_message = "Dx shipped inventory %{label}",
     )
     return [
         DefaultInfo(files = depset([manifest])),
-        OutputGroupInfo(texts = depset(texts)),
+        OutputGroupInfo(texts = depset(texts), runtimes = depset(outputs_extra)),
     ]
 
 _shipped_inventory = rule(
@@ -142,6 +170,10 @@ _shipped_inventory = rule(
     doc = "Writes the NOTICE manifest and per-crate texts for one Rust binary.",
     attrs = {
         "app": attr.label(mandatory = True, aspects = [shipped_crates_aspect]),
+        "runtimes": attr.label_list(
+            doc = "native_runtime targets the archive ships next to the app.",
+            providers = [NativeRuntimeInfo],
+        ),
         "_licenses": attr.label(default = Label("//:licenses.toml"), allow_single_file = True),
         "_lock": attr.label(default = Label("//:cargo-bazel-lock.json"), allow_single_file = True),
         "_tool": attr.label(
@@ -152,9 +184,19 @@ _shipped_inventory = rule(
     },
 )
 
-def shipped_inventory(name, app, **kwargs):
-    """Declares `name` (the NOTICE manifest) and `name_texts` (the per-crate texts) for one Rust binary."""
-    _shipped_inventory(name = name, app = app, **kwargs)
+def shipped_inventory(name, app, runtimes = [], **kwargs):
+    """Declares `name` (the NOTICE manifest) and `name_texts` (the per-crate texts) for one Rust binary.
+
+    With `runtimes`, also declares `name_runtimes`: the runtime records with file hashes.
+    """
+    _shipped_inventory(name = name, app = app, runtimes = runtimes, **kwargs)
+    if runtimes:
+        native.filegroup(
+            name = name + "_runtimes",
+            srcs = [":" + name],
+            output_group = "runtimes",
+            **kwargs
+        )
     native.filegroup(
         name = name + "_texts",
         srcs = [":" + name],

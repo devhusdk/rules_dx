@@ -60,14 +60,14 @@ const KINDS: &[KindSpec] = &[
     KindSpec {
         kind: Kind::Notice,
         name: "notice",
-        usage: "<manifest> <out> <root> <text> [<text> ...]",
+        usage: "<manifest> <out> <root> [--runtimes=<runtimes.json>] <text> [<text> ...]",
         arity: Arity::AtLeast(4),
     },
     KindSpec {
         kind: Kind::Inventory,
         name: "inventory",
-        usage: "<shipped.json> <cargo-bazel-lock.json> <licenses.toml> <manifest> <texts_dir>",
-        arity: Arity::Exactly(5),
+        usage: "<shipped.json> <cargo-bazel-lock.json> <licenses.toml> <manifest> <texts_dir> [<runtimes.json>]",
+        arity: Arity::Between(5, 6),
     },
 ];
 
@@ -95,6 +95,7 @@ enum Invocation {
         dst: PathBuf,
         root: String,
         texts: Vec<PathBuf>,
+        runtimes: Option<PathBuf>,
     },
     Inventory {
         shipped: PathBuf,
@@ -102,6 +103,7 @@ enum Invocation {
         licenses: PathBuf,
         dst: PathBuf,
         texts: PathBuf,
+        runtimes: Option<PathBuf>,
     },
 }
 
@@ -162,18 +164,24 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             module: args[1].clone(),
             version: args[2].clone(),
         },
-        Kind::Notice => Invocation::Notice {
-            manifest: PathBuf::from(&args[0]),
-            dst: PathBuf::from(&args[1]),
-            root: args[2].clone(),
-            texts: args[3..].iter().map(PathBuf::from).collect(),
-        },
+        Kind::Notice => {
+            let runtimes = args[3].strip_prefix("--runtimes=").map(PathBuf::from);
+            let texts_from = if runtimes.is_some() { 4 } else { 3 };
+            Invocation::Notice {
+                manifest: PathBuf::from(&args[0]),
+                dst: PathBuf::from(&args[1]),
+                root: args[2].clone(),
+                texts: args[texts_from..].iter().map(PathBuf::from).collect(),
+                runtimes,
+            }
+        }
         Kind::Inventory => Invocation::Inventory {
             shipped: PathBuf::from(&args[0]),
             lock: PathBuf::from(&args[1]),
             licenses: PathBuf::from(&args[2]),
             dst: PathBuf::from(&args[3]),
             texts: PathBuf::from(&args[4]),
+            runtimes: args.get(5).map(PathBuf::from),
         },
     })
 }
@@ -223,14 +231,23 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             dst,
             root,
             texts,
-        } => crate::write_notice(manifest, dst, root, texts),
+            runtimes,
+        } => crate::write_notice(manifest, dst, root, texts, runtimes.as_deref()),
         Invocation::Inventory {
             shipped,
             lock,
             licenses,
             dst,
             texts,
-        } => crate::inventory::write_inventory(shipped, lock, licenses, dst, texts),
+            runtimes,
+        } => crate::inventory::write_inventory(
+            shipped,
+            lock,
+            licenses,
+            dst,
+            texts,
+            runtimes.as_deref(),
+        ),
     }
 }
 
@@ -271,7 +288,7 @@ mod tests {
             ("provenance", 3, false),
             ("bcr-source", 3, false),
             ("notice", 4, true),
-            ("inventory", 5, false),
+            ("inventory", 5, true),
         ] {
             assert!(parse(&argv_for(name, exact)).is_ok(), "{name} exact");
             assert_eq!(
@@ -374,6 +391,7 @@ mod tests {
                 dst: PathBuf::from("out"),
                 root: "//demo:root".to_owned(),
                 texts: vec![PathBuf::from("a.txt")],
+                runtimes: None,
             })
         );
         let Ok(Invocation::Notice { texts, .. }) = parse(&argv_of(&[
@@ -408,6 +426,7 @@ mod tests {
                 licenses: PathBuf::from("licenses.toml"),
                 dst: PathBuf::from("manifest.txt"),
                 texts: PathBuf::from("texts"),
+                runtimes: None,
             })
         );
     }

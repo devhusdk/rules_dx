@@ -25,8 +25,6 @@ import urllib.request
 import zipfile
 from typing import Any
 
-SCHEMA_VERSION = 1
-
 FETCH_RETRIES = 3
 FETCH_TIMEOUT = 300
 FETCH_BACKOFF_SECONDS = 2
@@ -2647,7 +2645,6 @@ def _collect(tool, platform_key, spec, workdir):
     else:
         linkage, interpreter, needed, abi_floor = _native_bounds(tool, spec)
     return {
-        "schema_version": SCHEMA_VERSION,
         "tool": tool,
         "upstream_version": TOOLS[tool]["upstream_version"],
         "delivery_class": "standalone",

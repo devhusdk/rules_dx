@@ -27,7 +27,6 @@ ARTIFACTS = {
         "needed_shared_libraries": [],
         "os": "linux",
         "runtime_files": [],
-        "schema_version": 1,
         "sha256": "aa029247ab89c897e2f3948463967553f902f86e86e3402fa28cb29c4a44f745",
         "size": 4503184,
         "tool": "nixfmt",

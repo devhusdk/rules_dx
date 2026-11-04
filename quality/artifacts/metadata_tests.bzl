@@ -19,7 +19,6 @@ FROZEN_SCHEMA_KEYS = [
     "needed_shared_libraries",
     "os",
     "runtime_files",
-    "schema_version",
     "sha256",
     "size",
     "tool",
@@ -42,7 +41,6 @@ def _artifact_checks(artifact):
     size = artifact.get("size", 0)
     return [
         expect_equal(label + " schema keys", sorted(artifact.keys()), FROZEN_SCHEMA_KEYS),
-        expect_equal(label + " schema version", artifact.get("schema_version"), 1),
         expect_equal(label + " delivery class", artifact.get("delivery_class"), "standalone"),
         expect_true(label + " sha256 is hex", _is_sha256(artifact.get("sha256"))),
         expect_true(label + " executable sha256 is hex", _is_sha256(artifact.get("executable_sha256"))),

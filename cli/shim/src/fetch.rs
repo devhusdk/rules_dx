@@ -10,6 +10,22 @@ use crate::protocol::ShimError;
 pub const MAX_BINARY_BYTES: u64 = 512 * 1024 * 1024;
 pub const MAX_SIDECAR_BYTES: u64 = 4 * 1024;
 
+const NEXT_STEP: &str = "; check network and proxy settings, see https://github.com/devhusdk/rules_dx/blob/main/docs/proxy-and-ca.md";
+
+fn mismatch_message(url: &str, want: &str, got: &str) -> String {
+    format!(
+        "sha256 mismatch for {url}: want '{want}', got {got}; refusing to run it; retry, and if it repeats a proxy may be rewriting downloads{NEXT_STEP}"
+    )
+}
+
+fn http_status_message(code: u16, url: &str) -> String {
+    format!("download failed (HTTP {code}): {url}{NEXT_STEP}")
+}
+
+fn download_failed_message(url: &str, error: &dyn std::fmt::Display) -> String {
+    format!("download failed: {url}: {error}{NEXT_STEP}")
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChecksumSource {
     Sidecar,
@@ -53,9 +69,10 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     let part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
     let got = download(&agent, request, &part)?;
     if got != want {
-        return Err(ShimError::failure(format!(
-            "sha256 mismatch for {}: want '{want}', got {got}; refusing to run it",
-            request.url
+        return Err(ShimError::failure(mismatch_message(
+            request.url,
+            &want,
+            &got,
         )));
     }
     #[cfg(unix)]
@@ -102,10 +119,10 @@ fn get(agent: &ureq::Agent, request: &Request<'_>, url: &str) -> Result<ureq::Bo
             "dx {} has no release asset {} (HTTP 404): {url}",
             request.version, request.asset
         ))),
-        Err(ureq::Error::StatusCode(code)) => Err(ShimError::failure(format!(
-            "download failed (HTTP {code}): {url}"
-        ))),
-        Err(e) => Err(ShimError::failure(format!("download failed: {url}: {e}"))),
+        Err(ureq::Error::StatusCode(code)) => {
+            Err(ShimError::failure(http_status_message(code, url)))
+        }
+        Err(e) => Err(ShimError::failure(download_failed_message(url, &e))),
     }
 }
 
@@ -120,7 +137,7 @@ fn download(
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 64 * 1024];
     let failed = |e: &dyn std::fmt::Display| {
-        ShimError::failure(format!("download failed: {}: {e}", request.url))
+        ShimError::failure(download_failed_message(request.url, e))
     };
     loop {
         let n = reader.read(&mut buf).map_err(|e| failed(&e))?;
@@ -145,7 +162,7 @@ fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimErr
         .limit(MAX_SIDECAR_BYTES)
         .reader()
         .read_to_string(&mut text)
-        .map_err(|e| ShimError::failure(format!("download failed: {url}: {e}")))?;
+        .map_err(|e| ShimError::failure(download_failed_message(&url, &e)))?;
     let first = text.split_whitespace().next().unwrap_or("");
     parse_hash(first).ok_or_else(|| ShimError::failure(format!("{url} holds no sha256")))
 }
@@ -205,7 +222,33 @@ impl Drop for PartFile {
 
 #[cfg(test)]
 mod tests {
-    use super::tls_config;
+    use super::{download_failed_message, http_status_message, mismatch_message, tls_config};
+
+    const DOC: &str = "see https://github.com/devhusdk/rules_dx/blob/main/docs/proxy-and-ca.md";
+
+    #[test]
+    fn mismatch_points_at_retry_and_proxies() {
+        assert_eq!(
+            mismatch_message("https://h/dx", "aa", "bb"),
+            format!("sha256 mismatch for https://h/dx: want 'aa', got bb; refusing to run it; retry, and if it repeats a proxy may be rewriting downloads; check network and proxy settings, {DOC}")
+        );
+    }
+
+    #[test]
+    fn http_status_points_at_proxy_docs() {
+        assert_eq!(
+            http_status_message(503, "https://h/dx"),
+            format!("download failed (HTTP 503): https://h/dx; check network and proxy settings, {DOC}")
+        );
+    }
+
+    #[test]
+    fn transport_failure_points_at_proxy_docs() {
+        assert_eq!(
+            download_failed_message("https://h/dx", &"reset"),
+            format!("download failed: https://h/dx: reset; check network and proxy settings, {DOC}")
+        );
+    }
 
     #[test]
     fn tls_uses_the_os_trust_store() {

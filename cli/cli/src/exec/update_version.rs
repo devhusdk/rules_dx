@@ -705,6 +705,46 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
+    fn consumer_cargo_set_missing_requirement_is_added_to_the_first_manifest_and_repins() {
+        let harness = Harness::new("bump-consumer-cargo-missing");
+        seed_cargo_set(&harness);
+        let (code, out, err) = harness.run(&["update", "crates:anyhow", "2.0.0", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("added crates:anyhow at 2.0.0 to rs/a/Cargo.toml"),
+            "{out}"
+        );
+        assert!(read(&harness, "rs/a/Cargo.toml").contains("anyhow = \"2.0.0\""));
+        assert_unchanged(&harness, &[("rs/b/Cargo.toml", CARGO_B)]);
+        assert_eq!(harness.build_argv.borrow().len(), 1);
+    }
+
+    #[test]
+    fn consumer_cargo_set_widens_only_the_manifests_that_declare_the_crate() {
+        let harness = Harness::new("bump-consumer-cargo-partial");
+        seed_cargo_set(&harness);
+        harness.write_source("rs/c/Cargo.toml", CARGO_B);
+        harness.write_source(
+            "MODULE.bazel",
+            &CARGO_SET_MODULE.replace(
+                "[\"//rs/a:Cargo.toml\"]",
+                "[\"//rs/a:Cargo.toml\", \"//rs/c:Cargo.toml\"]",
+            ),
+        );
+        let (code, out, err) = harness.run(&["update", "crates:serde", "2.0.0", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read(&harness, "rs/a/Cargo.toml"),
+            CARGO_A.replace("\"1\"", "\"2.0.0\"")
+        );
+        assert_unchanged(
+            &harness,
+            &[("rs/b/Cargo.toml", CARGO_B), ("rs/c/Cargo.toml", CARGO_B)],
+        );
+        assert_eq!(harness.build_argv.borrow().len(), 1);
+    }
+
+    #[test]
     fn consumer_cargo_set_refusals_write_nothing_and_launch_nothing() {
         let harness = Harness::new("bump-consumer-cargo-refuse");
         seed_cargo_set(&harness);

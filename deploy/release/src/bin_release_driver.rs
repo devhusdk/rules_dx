@@ -18,7 +18,16 @@ use dx_release_tools::ledger::{sync_assets, ReleaseBackend};
 use dx_release_tools::{ledger_exit, render_ledger, GitState, OpRecord, OpState};
 
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
-const RELEASE_API: &str = "repos/devhusdk/rules_dx/releases/tags";
+const DEFAULT_REPO: &str = "devhusdk/rules_dx";
+
+/// Releases API path for the repo the release job runs in, so forks work.
+fn release_api(repo: Option<String>) -> String {
+    let repo = repo.filter(|r| !r.is_empty());
+    format!(
+        "repos/{}/releases/tags",
+        repo.as_deref().unwrap_or(DEFAULT_REPO)
+    )
+}
 
 fn resolve_assets(argv: &[String]) -> &[String] {
     argv.get(3..).unwrap_or(&[])
@@ -27,6 +36,7 @@ fn resolve_assets(argv: &[String]) -> &[String] {
 struct GhBackend {
     program: String,
     token: Option<String>,
+    api: String,
 }
 
 impl GhBackend {
@@ -52,7 +62,7 @@ fn scrub(text: &str, secret: Option<&str>) -> String {
 
 impl ReleaseBackend for GhBackend {
     fn view(&self, tag: &str) -> Result<String, String> {
-        self.call(&["api", &format!("{RELEASE_API}/{tag}")])
+        self.call(&["api", &format!("{}/{tag}", self.api)])
     }
 
     fn upload(&self, tag: &str, path: &str) -> Result<String, String> {
@@ -175,6 +185,12 @@ fn run(argv: &[String]) -> i32 {
             let backend = GhBackend {
                 program: "gh".to_owned(),
                 token: std::env::var("GH_TOKEN").ok(),
+                api: release_api(
+                    std::env::var("GH_REPO")
+                        .ok()
+                        .filter(|r| !r.is_empty())
+                        .or_else(|| std::env::var("GITHUB_REPOSITORY").ok()),
+                ),
             };
             let (text, code) = ledger_with(&backend, &tag, assets, approve == "1");
             print!("{text}");
@@ -192,6 +208,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_api_defaults_and_follows_the_fork() {
+        let default = "repos/devhusdk/rules_dx/releases/tags";
+        assert_eq!(release_api(None), default);
+        assert_eq!(release_api(Some(String::new())), default);
+        assert_eq!(
+            release_api(Some("me/rules_dx-forktest".to_owned())),
+            "repos/me/rules_dx-forktest/releases/tags"
+        );
+    }
 
     const SHA: &str = "a948904f2f0f479b8f8197694b30184b0d2ed1c1";
     const OTHER: &str = "b948904f2f0f479b8f8197694b30184b0d2ed1c1";
@@ -389,6 +416,7 @@ mod tests {
         let backend = GhBackend {
             program: fake_gh(&dir.join("bin"), "echo \"token s3cret-token\" >&2; exit 1"),
             token: Some("s3cret-token".to_owned()),
+            api: release_api(None),
         };
         let (text, code) = ledger_with(
             &backend,
@@ -416,6 +444,7 @@ mod tests {
         let backend = GhBackend {
             program: fake_gh(&dir.join("bin"), &format!("echo '{json}'")),
             token: None,
+            api: release_api(None),
         };
         let (text, code) = ledger_with(
             &backend,
@@ -435,6 +464,7 @@ mod tests {
             &GhBackend {
                 program: "gh".to_owned(),
                 token: None,
+                api: release_api(None),
             },
             "v1",
             &["/nonexistent/a.bin".to_owned()],

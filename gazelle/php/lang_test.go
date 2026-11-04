@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -142,6 +143,54 @@ func TestGenerateRejectsDuplicateTestNames(t *testing.T) {
 	lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg"})
 	if !lang.Failed() {
 		t.Error("duplicate test names were accepted")
+	}
+}
+
+func TestGenerateReportsUnreadableSourceTrees(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("directory permissions are not enforced here")
+	}
+	for _, c := range []struct{ file, locked string }{
+		{"src/Models/A.php", "src/Models"},
+		{"tests/Unit/XTest.php", "tests/Unit"},
+		{"test/Unit/XTest.php", "test/Unit"},
+	} {
+		t.Run(c.locked, func(t *testing.T) {
+			root := t.TempDir()
+			writeFixture(t, root, map[string]string{"pkg/" + c.file: "<?php\n"})
+			dir := filepath.Join(root, "pkg", filepath.FromSlash(c.locked))
+			if err := os.Chmod(dir, 0); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+
+			lang := NewLanguage().(*phpLang)
+			result := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg"})
+			if !lang.Failed() {
+				t.Fatal("unreadable directory was dropped without an error")
+			}
+			if msg := strings.Join(lang.Errors(), "\n"); !strings.Contains(msg, "pkg") || !strings.Contains(msg, c.locked) {
+				t.Errorf("error %q does not name the package and %s", msg, c.locked)
+			}
+			if len(result.Gen) != 0 {
+				t.Errorf("generated %d rules for a failed walk, want none", len(result.Gen))
+			}
+		})
+	}
+}
+
+func TestGenerateAllowsMissingSourceTrees(t *testing.T) {
+	lang := NewLanguage().(*phpLang)
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{
+		"pkg/tests/DemoTest.php": "<?php\nclass DemoTest {}\n",
+	})
+	result := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg"})
+	if lang.Failed() {
+		t.Fatalf("missing src was reported: %v", lang.Errors())
+	}
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != TestKind {
+		t.Errorf("generated %v, want one php_test", result.Gen)
 	}
 }
 

@@ -2,6 +2,7 @@ package php
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -111,8 +112,16 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		return language.GenerateResult{}
 	}
 	autoload := autoloadFiles(args)
-	srcs := librarySources(args, excludes, autoload)
-	tests := testSources(args, excludes)
+	srcs, err := librarySources(args, excludes, autoload)
+	if err != nil {
+		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
+		return language.GenerateResult{}
+	}
+	tests, err := testSources(args, excludes)
+	if err != nil {
+		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
+		return language.GenerateResult{}
+	}
 	if len(srcs) == 0 && len(tests) == 0 {
 		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
@@ -226,7 +235,7 @@ func importsOf(args language.GenerateArgs, files []string, isTest bool, rep comm
 // librarySources lists the package-relative .php files the library owns: the
 // directory's own sources plus every source under src that no nested package
 // or exclude claims. Tests and autoload_files are left out.
-func librarySources(args language.GenerateArgs, excludes []string, autoload map[string][]string) []string {
+func librarySources(args language.GenerateArgs, excludes []string, autoload map[string][]string) ([]string, error) {
 	skip := make(map[string]bool)
 	for _, files := range autoload {
 		for _, f := range files {
@@ -240,15 +249,18 @@ func librarySources(args language.GenerateArgs, excludes []string, autoload map[
 		}
 	}
 	if !claimed(args, excludes, srcDir) {
-		walk(args, excludes, srcDir, func(name string) bool { return !isTestSource(path.Base(name)) && !skip[name] }, &srcs)
+		keep := func(name string) bool { return !isTestSource(path.Base(name)) && !skip[name] }
+		if err := walkTree(args, excludes, srcDir, keep, &srcs); err != nil {
+			return nil, err
+		}
 	}
 	sort.Strings(srcs)
-	return srcs
+	return srcs, nil
 }
 
 // testSources lists the *Test.php files under the package's tests and test
 // directories, and any in the package directory itself.
-func testSources(args language.GenerateArgs, excludes []string) []string {
+func testSources(args language.GenerateArgs, excludes []string) ([]string, error) {
 	var tests []string
 	for _, name := range args.RegularFiles {
 		if isSupported(name) && isTestSource(name) && !excluded(args, excludes, name) {
@@ -257,30 +269,45 @@ func testSources(args language.GenerateArgs, excludes []string) []string {
 	}
 	for _, dir := range testDirs {
 		if !claimed(args, excludes, dir) {
-			walk(args, excludes, dir, func(name string) bool { return isTestSource(path.Base(name)) }, &tests)
+			keep := func(name string) bool { return isTestSource(path.Base(name)) }
+			if err := walkTree(args, excludes, dir, keep, &tests); err != nil {
+				return nil, err
+			}
 		}
 	}
 	sort.Strings(tests)
-	return tests
+	return tests, nil
 }
 
-func walk(args language.GenerateArgs, excludes []string, rel string, keep func(name string) bool, out *[]string) {
+// walkTree walks one of the package's top-level source trees. A missing src,
+// tests or test directory is normal; any other read failure is returned.
+func walkTree(args language.GenerateArgs, excludes []string, rel string, keep func(name string) bool, out *[]string) error {
+	if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(rel))); os.IsNotExist(err) {
+		return nil
+	}
+	return walk(args, excludes, rel, keep, out)
+}
+
+func walk(args language.GenerateArgs, excludes []string, rel string, keep func(name string) bool, out *[]string) error {
 	dir := filepath.Join(args.Dir, filepath.FromSlash(rel))
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return
+		return fmt.Errorf("read %s: %w", rel, err)
 	}
 	for _, e := range entries {
 		sub := path.Join(rel, e.Name())
 		switch {
 		case e.IsDir():
 			if !hiddenDir(e.Name()) && !claimed(args, excludes, sub) {
-				walk(args, excludes, sub, keep, out)
+				if err := walk(args, excludes, sub, keep, out); err != nil {
+					return err
+				}
 			}
 		case isSupported(e.Name()) && keep(sub) && !excluded(args, excludes, sub):
 			*out = append(*out, sub)
 		}
 	}
+	return nil
 }
 
 func hiddenDir(name string) bool { return strings.HasPrefix(name, ".") }

@@ -122,7 +122,6 @@ const PACKAGES: [&str; 123] = [
     "cli/advisory_prep",
     "cli/cli",
     "cli/cli/tests/agents",
-    "cli/cli/tests/results_consumer",
     "cli/cli/tests/startup_consistency",
     "cli/cli/tests/uv_sets",
     "cli/entrypoint",

@@ -143,7 +143,7 @@ _javascript_web_app = rule(
             allow_files = True,
         ),
         "bindgen": attr.label(
-            doc = "rust_wasm_bindgen target providing the Wasm and JS glue.",
+            doc = "rust_binary(wasm = \"browser\") target providing the Wasm and JS glue.",
             mandatory = True,
         ),
         "html": attr.label(

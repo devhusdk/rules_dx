@@ -8,7 +8,6 @@ load(
     "@rules_dx//rust/rules:defs.bzl",
     "rust_binary",
     "rust_wasi_test",
-    "rust_wasm_bindgen",
 )
 
 rust_binary(
@@ -16,10 +15,10 @@ rust_binary(
     srcs = ["main.rs"],
 )
 
-rust_wasm_bindgen(
+rust_binary(
     name = "tool_web",
-    target = "web",
-    wasm_file = ":tool_upstream",
+    srcs = ["main.rs"],
+    wasm = "browser",
 )
 
 rust_binary(
@@ -70,18 +69,20 @@ List only the triples you build.
 
 ## Browser
 
-`rust_wasm_bindgen` builds the binary for `wasm32-unknown-unknown` and
-emits the JavaScript bindings. Guard browser-only code with
+`rust_binary(wasm = "browser")` builds the binary for `wasm32-unknown-unknown`
+and emits the JavaScript bindings: `<name>.js`, `<name>_bg.wasm`, and the
+declarations. Guard browser-only code with
 `#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]`.
 
-`rust_wasm_bindgen_test` runs the `#[wasm_bindgen_test]` cases of a
-`rust_wasm_bindgen` bundle in a browser that Bazel fetches. It runs on
-linux x86_64 with Firefox, where the host needs GTK 3, and only runs
-locally. Other platforms skip it as incompatible. On linux x86_64 the
-wrapper overrides `@rules_rust_wasm_bindgen//settings:test_browser`. Wasm
-builds and browser tests run without coverage instrumentation, so
-`bazel coverage` runs them but reports no Wasm coverage. Only these wrappers
-guarantee that until upstream rules_rust does.
+`rust_test(crate = ":tool_web", wasm = "browser")` runs the
+`#[wasm_bindgen_test]` cases of that binary in a browser that Bazel fetches.
+It runs on linux x86_64 with Firefox, where the host needs GTK 3, and only
+runs locally. Other platforms skip it as incompatible. Wasm builds and
+browser tests run without coverage instrumentation, so `bazel coverage` runs
+them but reports no Wasm coverage.
+
+For `nodejs` output, bindgen flags, or a custom toolchain, load
+`rust_wasm_bindgen` from `@rules_rust_wasm_bindgen//:defs.bzl`.
 
 ## WASI
 

@@ -1,7 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasi_test", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rust_wasm_bindgen_toolchain", "rustfmt_test")
-load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_browser_cell_tests")
-load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasi_test", "rustfmt_test")
+load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_browser_binary_tests", "dx_browser_cell_tests")
+load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_toolchain")
 load("//javascript/rules:defs.bzl", "javascript_library", "javascript_test", "javascript_wasm_bindgen_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//typescript/rules:defs.bzl", "typescript_project")
@@ -65,14 +65,24 @@ raw_wasm_proxy(
 
 rust_wasm_bindgen(
     name = "wasm_hello_bundler",
-    wasm_file = ":wasm_hello_bin_upstream",
+    wasm_file = ":wasm_hello_web_wasm_input",
 )
 
-rust_wasm_bindgen(
+# keep
+rust_binary(
     name = "wasm_hello_web",
-    target = "web",
+    srcs = ["src/main.rs"],
+    crate_name = "wasm_hello_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
     visibility = ["//visibility:public"],
-    wasm_file = ":wasm_hello_bin_upstream",
+    wasm = "browser",
+    deps = [":wasm_hello_lib"],
+)
+
+dx_browser_binary_tests(
+    name = "wasm_hello_web_outputs_test",
+    target = ":wasm_hello_web",
 )
 
 rust_wasm_bindgen(
@@ -83,14 +93,14 @@ rust_wasm_bindgen(
     ],
     target = "web",
     visibility = ["//visibility:public"],
-    wasm_file = ":wasm_hello_bin_upstream",
+    wasm_file = ":wasm_hello_web_wasm_input",
 )
 
 rust_wasm_bindgen(
     name = "wasm_hello_nodejs",
     target = "nodejs",
     visibility = ["//visibility:public"],
-    wasm_file = ":wasm_hello_bin_upstream",
+    wasm_file = ":wasm_hello_web_wasm_input",
 )
 
 # keep
@@ -147,10 +157,11 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-rust_wasm_bindgen_test(
+rust_test(
     name = "wasm_hello_browser_test",
+    crate = ":wasm_hello_web",
     tags = ["manual"],
-    wasm = ":wasm_hello_web",
+    wasm = "browser",
 )
 
 dx_browser_cell_tests(
@@ -187,27 +198,11 @@ failure_test(
     target = ":wasm_hello_partial_toolchain",
 )
 
-filegroup(
-    name = "wasm_hello_empty_files",
-    tags = ["manual"],
-)
-
-rust_wasm_bindgen(
-    name = "wasm_hello_missing_bindgen",
-    tags = ["manual"],
-    wasm_file = ":wasm_hello_empty_files",
-)
-
-failure_test(
-    name = "wasm_hello_missing_output_test",
-    expected_failure_substring = "mandatory providers",
-    target = ":wasm_hello_missing_bindgen",
-)
-
-rust_wasm_bindgen_test(
+rust_test(
     name = "wasm_hello_raw_browser_test",
+    crate = ":wasm_hello_bin",
     tags = ["manual"],
-    wasm = ":wasm_hello_bin_upstream",
+    wasm = "browser",
 )
 
 failure_test(
@@ -295,34 +290,8 @@ rust_binary(
     crate_root = "src/stale_main.rs",
     edition = "2021",
     tags = ["manual"],
+    wasm = "browser",
     deps = [":wasm_stale_lib"],
-)
-
-rust_wasm_bindgen(
-    name = "wasm_stale_bindgen",
-    tags = ["manual"],
-    wasm_file = ":wasm_stale_bin_upstream",
-)
-
-upstream_rust_library(
-    name = "wasm_hello_rlib_subject",
-    srcs = ["src/lib.rs"],
-    crate_name = "wasm_hello_rlib",
-    edition = "2021",
-    tags = ["manual"],
-    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
-)
-
-rust_wasm_bindgen(
-    name = "wasm_hello_rlib_bindgen",
-    tags = ["manual"],
-    wasm_file = ":wasm_hello_rlib_subject",
-)
-
-failure_test(
-    name = "wasm_hello_rlib_test",
-    expected_failure_substring = "No attribute 'crate' in attr",
-    target = ":wasm_hello_rlib_bindgen",
 )
 
 # keep
@@ -389,7 +358,6 @@ rustfmt_test(
     name = "wasm_bindgen_fmt_test",
     targets = [
         ":wasm_hello_bundle_test",
-        ":wasm_hello_rlib_subject",
         ":wasm_stale_bin",
         ":wasm_stale_lib",
     ],

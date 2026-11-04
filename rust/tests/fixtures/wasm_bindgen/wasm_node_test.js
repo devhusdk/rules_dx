@@ -6,10 +6,10 @@ import {
 	add_via_snippet,
 	greet,
 	initSync,
-} from "./wasm_hello_web/wasm_hello_web.js";
+} from "./wasm_hello_web_bindgen/wasm_hello_web.js";
 
 const bytes = readFileSync(
-	new URL("./wasm_hello_web/wasm_hello_web_bg.wasm", import.meta.url),
+	new URL("./wasm_hello_web_bindgen/wasm_hello_web_bg.wasm", import.meta.url),
 );
 initSync({ module: bytes });
 

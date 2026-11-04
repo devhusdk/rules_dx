@@ -73,7 +73,7 @@ def javascript_library(name, srcs, visibility = None, **kwargs):
     _javascript_wrap_library(name, srcs, visibility = visibility, **kwargs)
 
 def _javascript_wasm_bindgen_library_impl(ctx):
-    """Adapts one rust_wasm_bindgen target to JsInfo without rerunning bindgen."""
+    """Adapts one browser rust_binary to JsInfo without rerunning bindgen."""
     bindgen = ctx.attr.bindgen
     if _RustWasmBindgenInfo not in bindgen:
         fail("javascript_wasm_bindgen_library requires bindgen to provide RustWasmBindgenInfo")
@@ -119,11 +119,11 @@ def _javascript_wasm_bindgen_library_impl(ctx):
 
 _javascript_wasm_bindgen_library = rule(
     implementation = _javascript_wasm_bindgen_library_impl,
-    doc = "Adapts one rust_wasm_bindgen target to JsInfo.",
+    doc = "Adapts one browser rust_binary to JsInfo.",
     provides = [_JsInfo, DefaultInfo, _RustWasmBindgenInfo],
     attrs = {
         "bindgen": attr.label(
-            doc = "rust_wasm_bindgen target whose output is adapted.",
+            doc = "rust_binary(wasm = \"browser\") target whose output is adapted.",
             mandatory = True,
             allow_files = True,
         ),
@@ -135,7 +135,7 @@ _javascript_wasm_bindgen_library = rule(
 )
 
 def javascript_wasm_bindgen_library(name, bindgen, deps = None, visibility = None, **kwargs):
-    """Adapts one rust_wasm_bindgen target to JsInfo without rerunning bindgen."""
+    """Adapts one browser rust_binary to JsInfo without rerunning bindgen."""
     _javascript_wasm_bindgen_library(
         name = name,
         bindgen = bindgen,

@@ -2,9 +2,9 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
-load("@rules_rust_wasm_bindgen//:defs.bzl", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test", _rust_wasm_bindgen_toolchain = "rust_wasm_bindgen_toolchain")
+load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -28,6 +28,8 @@ _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _COVERAGE = "//command_line_option:collect_code_coverage"
 
 _WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
+
+_WASM32_PLATFORM = Label("@rules_rust//rust/platform:wasm32")
 
 _PLATFORMS = "//command_line_option:platforms"
 
@@ -192,8 +194,11 @@ def rust_binary(
         wasm = None,
         **kwargs):
     """Minimal wrapper over rust_binary."""
-    if wasm not in (None, "wasi"):
-        fail("rust_binary: wasm must be \"wasi\", got " + repr(wasm))
+    if wasm not in (None, "wasi", "browser"):
+        fail("rust_binary: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
+    if wasm == "browser":
+        _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs)
+        return
     dx_wrap_binary(
         name,
         _rust_binary,
@@ -203,6 +208,32 @@ def rust_binary(
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward() | {"wasm": wasm or ""},
         **kwargs
+    )
+
+def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
+    """Builds the binary for the browser and bundles it with wasm-bindgen."""
+    upstream = name + "_upstream"
+    wasm_input = name + "_wasm_input"
+    bindgen = name + "_bindgen"
+    _rust_binary(
+        name = upstream,
+        **dx_wrap_upstream_kwargs(_libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True), srcs)
+    )
+    private = {
+        "tags": ["manual"],
+        "testonly": kwargs.get("testonly"),
+        "target_compatible_with": kwargs.get("target_compatible_with"),
+        "visibility": ["//visibility:private"],
+    }
+    _rust_wasm_input(name = wasm_input, wasm_file = upstream, **private)
+    _rust_wasm_bindgen(name = bindgen, wasm_file = wasm_input, target = "web", out_name = name, **private)
+    _rust_browser_forward(
+        name = name,
+        srcs = srcs,
+        upstream = bindgen,
+        wasm_file = wasm_input,
+        visibility = visibility,
+        **dx_wrap_forward_kwargs(kwargs)
     )
 
 def rust_test(
@@ -216,10 +247,15 @@ def rust_test(
         runtime = None,
         **kwargs):
     """Minimal wrapper over rust_test."""
-    if wasm not in (None, "wasi"):
-        fail("rust_test: wasm must be \"wasi\", got " + repr(wasm))
-    if wasm == None and (preopens != None or runtime != None):
+    if wasm not in (None, "wasi", "browser"):
+        fail("rust_test: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
+    if wasm != "wasi" and (preopens != None or runtime != None):
         fail("rust_test: preopens and runtime need wasm = \"wasi\"")
+    if wasm == "browser":
+        if crate == None or srcs != None:
+            fail("rust_test: wasm = \"browser\" needs crate set to a rust_binary(wasm = \"browser\")")
+        _rust_browser_test(name, crate, visibility = visibility, **kwargs)
+        return
     if wasm == "wasi":
         _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs)
         return
@@ -336,8 +372,9 @@ def _rust_wasm_input_impl(ctx):
         files = target[DefaultInfo].files,
         runfiles = target[DefaultInfo].default_runfiles,
     )]
-    if _rust_common.crate_info in target:
-        providers.append(target[_rust_common.crate_info])
+    for provider in (_rust_common.crate_info, _rust_common.dep_info):
+        if provider in target:
+            providers.append(target[provider])
     return providers
 
 _rust_wasm_input = rule(
@@ -352,22 +389,40 @@ _rust_wasm_input = rule(
     },
 )
 
-def rust_wasm_bindgen(name, wasm_file, **kwargs):
-    """Thin wrapper over upstream rust_wasm_bindgen."""
-    wasm_input = name + "_wasm_input"
-    _rust_wasm_input(
-        name = wasm_input,
-        wasm_file = wasm_file,
-        tags = ["manual"],
-        testonly = kwargs.get("testonly"),
-        target_compatible_with = kwargs.get("target_compatible_with"),
-        visibility = ["//visibility:private"],
-    )
-    _rust_wasm_bindgen(
-        name = name,
-        wasm_file = wasm_input,
-        **kwargs
-    )
+def _wasm32_transition_impl(_settings, _attr):
+    """Targets wasm32 without coverage on one dependency edge."""
+    return {_PLATFORMS: [str(_WASM32_PLATFORM)], _COVERAGE: False}
+
+_wasm32_transition = transition(
+    implementation = _wasm32_transition_impl,
+    inputs = [],
+    outputs = [_PLATFORMS, _COVERAGE],
+)
+
+def _rust_browser_forward_impl(ctx):
+    """Forwards the bindgen bundle with the crate the browser test reads."""
+    upstream = ctx.attr.upstream
+    crate = ctx.attr.wasm_file[0]
+    providers = [
+        upstream[DefaultInfo],
+        upstream[RustWasmBindgenInfo],
+        crate[_rust_common.crate_info],
+        crate[_rust_common.dep_info],
+        dx_quality_sources(ctx.files.srcs, _DX_RUST_SOURCE_SPECS, str(ctx.label)),
+    ]
+    if OutputGroupInfo in upstream:
+        providers.append(upstream[OutputGroupInfo])
+    return providers
+
+_rust_browser_forward = rule(
+    implementation = _rust_browser_forward_impl,
+    doc = "Forwards one wasm-bindgen bundle of a rust_binary.",
+    attrs = {
+        "srcs": attr.label_list(doc = "The binary sources.", allow_files = _DX_RUST_SOURCE_EXTS),
+        "upstream": attr.label(doc = "The wasm-bindgen bundle.", mandatory = True, providers = [RustWasmBindgenInfo]),
+        "wasm_file": attr.label(doc = "The Wasm binary.", mandatory = True, cfg = _wasm32_transition),
+    },
+)
 
 _NO_REMOTE_EXEC = "no-remote-exec"
 
@@ -416,8 +471,8 @@ _rust_wasm_bindgen_browser_test = rule(
 
 _FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "flaky", "args")
 
-def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
-    """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser."""
+def _rust_browser_test(name, wasm, **kwargs):
+    """Runs the bundle under a managed, platform-qualified browser."""
     forward = dx_forwarded_test_kwargs(kwargs)
     forward.setdefault("size", "large")
     upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}
@@ -440,13 +495,6 @@ def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
         ),
         visibility = kwargs.get("visibility"),
         **forward
-    )
-
-def rust_wasm_bindgen_toolchain(name, **kwargs):
-    """Thin wrapper over upstream rust_wasm_bindgen_toolchain."""
-    _rust_wasm_bindgen_toolchain(
-        name = name,
-        **kwargs
     )
 
 _WASMTIME = Label("//wasi/runtime:wasmtime")

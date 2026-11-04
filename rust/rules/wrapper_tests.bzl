@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_rust//rust:defs.bzl", "rust_common")
+load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
@@ -403,4 +404,23 @@ def dx_browser_cell_tests(name, target):
             "@platforms//cpu:x86_64",
             "@platforms//os:linux",
         ],
+    )
+
+def _browser_binary_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.true(env, RustWasmBindgenInfo in target, "RustWasmBindgenInfo is missing")
+    names = [file.basename for file in target[DefaultInfo].files.to_list()]
+    asserts.true(env, target.label.name + ".js" in names, "{}.js is not an output".format(target.label.name))
+    asserts.true(env, target.label.name + "_bg.wasm" in names, "{}_bg.wasm is not an output".format(target.label.name))
+    return analysistest.end(env)
+
+_browser_binary_test = analysistest.make(_browser_binary_impl)
+
+def dx_browser_binary_tests(name, target):
+    """Asserts a wasm = "browser" rust_binary provides the bindgen bundle."""
+    _browser_binary_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
     )

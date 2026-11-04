@@ -17,7 +17,7 @@ bazel test //examples/shared-rust/... @shared_consumer//...
 | `tasks_model` | Task and board parsing, title and asset checks. |
 | `tasks_core` | Board commands, summaries, and asset digests through the pinned `adler2` 2.0.1 crate. |
 | `tasks` | Native and WASI CLI: `tasks [--asset=PATH]... BOARD [COMMAND]...`. |
-| `shared_tasks` | `wasm-bindgen` interface (`WebBoard`, `asset_report`, `core_version`, `build_profile`). |
+| `shared_tasks` | Browser `rust_binary(wasm = "browser")` with the `wasm-bindgen` interface (`WebBoard`, `asset_report`, `core_version`, `build_profile`). |
 | `tasks_ffi`, `tasks_interface` | C interface (`ffi/tasks.h`) over the same core. |
 | `tasks_activity`, `tasks_apk` | Android NativeActivity and APK. |
 | `assets/board.txt`, `assets/notes.txt` | Resources every output loads. |

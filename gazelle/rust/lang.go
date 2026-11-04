@@ -49,18 +49,6 @@ func isLibraryKind(kind string) bool {
 	return false
 }
 
-func shouldSetVisibility(args language.GenerateArgs) bool {
-	if args.File != nil && args.File.HasDefaultVisibility() {
-		return false
-	}
-	for _, r := range args.OtherGen {
-		if r.Kind() == "package" && r.Attr("default_visibility") != nil {
-			return false
-		}
-	}
-	return true
-}
-
 func init() {
 	for kind, info := range nativeConfigKinds() {
 		rustKinds[kind] = info
@@ -316,7 +304,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	}
 
 	var result language.GenerateResult
-	publicLibs := shouldSetVisibility(args)
+	publicLibs := common.ShouldSetVisibility(args)
 	if shape.LibTarget != "" {
 		tree := trees[roots.LibRoot]
 		split := hasTestOnly(tree)

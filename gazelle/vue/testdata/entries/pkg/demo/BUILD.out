@@ -9,16 +9,19 @@ filegroup(
 vue_library(
     name = "helper",
     srcs = ["helper.vue"],
+    visibility = ["//visibility:public"],
 )
 
 vue_library(
     name = "helper_test",
     srcs = ["helper_test.vue"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 
 vue_library(
     name = "main",
     srcs = ["main.vue"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )

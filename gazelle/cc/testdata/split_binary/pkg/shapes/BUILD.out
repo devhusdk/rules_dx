@@ -6,4 +6,5 @@ cc_library(
     name = "shapes",
     srcs = ["shapes.cc"],
     hdrs = ["shapes.h"],
+    visibility = ["//visibility:public"],
 )

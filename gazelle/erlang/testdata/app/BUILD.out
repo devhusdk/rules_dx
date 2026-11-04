@@ -13,4 +13,5 @@ erlang_app(
     app_name = "demo",
     app_version = "1.0.0",
     extra_apps = ["crypto"],
+    visibility = ["//visibility:public"],
 )

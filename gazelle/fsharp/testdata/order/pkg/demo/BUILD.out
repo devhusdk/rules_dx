@@ -14,4 +14,5 @@ fsharp_library(
         "B.fs",
         "A.fs",
     ],
+    visibility = ["//visibility:public"],
 )

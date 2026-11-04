@@ -212,7 +212,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 	}
 	var result language.GenerateResult
 	owners := make(map[string]sourceOwner)
-	publicLibs := shouldSetVisibility(args)
+	publicLibs := common.ShouldSetVisibility(args)
 	for _, target := range manifest.targets {
 		root := path.Join(args.Rel, target.path)
 		if !existsSet[root] {

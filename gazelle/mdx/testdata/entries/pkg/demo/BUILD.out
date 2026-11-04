@@ -9,16 +9,19 @@ filegroup(
 mdx_library(
     name = "helper",
     srcs = ["helper.mdx"],
+    visibility = ["//visibility:public"],
 )
 
 mdx_library(
     name = "helper_test",
     srcs = ["helper_test.mdx"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 
 mdx_library(
     name = "main",
     srcs = ["main.mdx"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )

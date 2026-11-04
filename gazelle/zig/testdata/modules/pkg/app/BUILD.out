@@ -9,5 +9,6 @@ filegroup(
 zig_library(
     name = "app",
     main = "root.zig",
+    visibility = ["//visibility:public"],
     deps = ["//pkg/greet"],
 )

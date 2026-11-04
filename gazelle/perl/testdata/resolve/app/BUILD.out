@@ -5,6 +5,7 @@ load("@rules_dx//perl/rules:defs.bzl", "perl_library", "perl_test")
 perl_library(
     name = "app",
     srcs = ["lib/App/Main.pm"],
+    visibility = ["//visibility:public"],
     deps = [
         "//widgets",
         "//widgets/lib/Acme/Plugin",

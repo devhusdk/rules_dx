@@ -7,6 +7,7 @@ go_library(
     name = "pkg",
     srcs = ["pkg.go"],
     importpath = "example.test/demo/pkg",
+    visibility = ["//visibility:public"],
 )
 
 go_test(

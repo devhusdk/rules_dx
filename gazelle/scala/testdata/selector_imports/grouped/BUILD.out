@@ -6,4 +6,5 @@ scala_library(
         "Gadget.scala",
         "Widget.scala",
     ],
+    visibility = ["//visibility:public"],
 )

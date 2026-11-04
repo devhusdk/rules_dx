@@ -10,6 +10,7 @@ elixir_app(
     app_module = "App.Application",
     app_name = "app",
     app_version = "0.2.0",
+    visibility = ["//visibility:public"],
     deps = [
         "//apps/shared",
         "@jason//:erlang_app",

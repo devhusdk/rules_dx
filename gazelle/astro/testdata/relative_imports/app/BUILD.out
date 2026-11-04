@@ -5,6 +5,7 @@ load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
 astro_library(
     name = "main",
     srcs = ["main.astro"],
+    visibility = ["//visibility:public"],
     deps = [
         ":store",
         ":util",
@@ -16,9 +17,11 @@ astro_library(
 javascript_library(
     name = "util",
     srcs = ["util.js"],
+    visibility = ["//visibility:public"],
 )
 
 typescript_project(
     name = "store",
     srcs = ["store.ts"],
+    visibility = ["//visibility:public"],
 )

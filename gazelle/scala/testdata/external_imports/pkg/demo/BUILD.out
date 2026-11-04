@@ -6,6 +6,7 @@ load("@rules_dx//scala/rules:defs.bzl", "scala_library")
 scala_library(
     name = "demo",
     srcs = ["Demo.scala"],
+    visibility = ["//visibility:public"],
     deps = [
         "//third_party:cats_effect",
         "//third_party:scala_xml",

@@ -12,6 +12,7 @@ ruby_library(
         "demo.rb",
         "helper.rb",
     ],
+    visibility = ["//visibility:public"],
 )
 
 ruby_test(

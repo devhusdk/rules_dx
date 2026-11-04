@@ -8,5 +8,6 @@ filegroup(
 swift_library(
     name = "app",
     srcs = ["App.swift"],
+    visibility = ["//visibility:public"],
     deps = ["//pkg/greeter"],
 )

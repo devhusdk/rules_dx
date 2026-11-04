@@ -3,11 +3,13 @@ load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
 mdx_library(
     name = "first",
     srcs = ["first.mdx"],
+    visibility = ["//visibility:public"],
 )
 
 mdx_library(
     name = "guide",
     srcs = ["guide.mdx"],
+    visibility = ["//visibility:public"],
     deps = [
         ":first",
         ":second",
@@ -18,9 +20,11 @@ mdx_library(
 mdx_library(
     name = "second",
     srcs = ["second.mdx"],
+    visibility = ["//visibility:public"],
 )
 
 mdx_library(
     name = "third",
     srcs = ["third.mdx"],
+    visibility = ["//visibility:public"],
 )

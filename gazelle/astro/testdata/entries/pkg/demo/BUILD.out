@@ -9,16 +9,19 @@ filegroup(
 astro_library(
     name = "helper",
     srcs = ["helper.astro"],
+    visibility = ["//visibility:public"],
 )
 
 astro_library(
     name = "helper_test",
     srcs = ["helper_test.astro"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 
 astro_library(
     name = "main",
     srcs = ["main.astro"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )

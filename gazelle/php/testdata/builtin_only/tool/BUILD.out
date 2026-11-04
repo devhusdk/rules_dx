@@ -3,4 +3,5 @@ load("@rules_dx//php/rules:defs.bzl", "php_library")
 php_library(
     name = "tool",
     srcs = ["Tool.php"],
+    visibility = ["//visibility:public"],
 )

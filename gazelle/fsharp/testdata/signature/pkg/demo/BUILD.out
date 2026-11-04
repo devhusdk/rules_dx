@@ -8,4 +8,5 @@ fsharp_library(
         "Greeting.fs",
         "Banner.fs",
     ],
+    visibility = ["//visibility:public"],
 )

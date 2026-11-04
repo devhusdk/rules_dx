@@ -12,6 +12,7 @@ csharp_library(
         "Demo.cs",
         "Helper.cs",
     ],
+    visibility = ["//visibility:public"],
 )
 
 csharp_test(

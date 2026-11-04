@@ -3,4 +3,5 @@ load("@rules_dx//scala/rules:defs.bzl", "scala_library")
 scala_library(
     name = "givens",
     srcs = ["Givens.scala"],
+    visibility = ["//visibility:public"],
 )

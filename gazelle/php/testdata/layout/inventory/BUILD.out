@@ -7,6 +7,7 @@ php_library(
         "src/Item.php",
         "src/Ledger.php",
     ],
+    visibility = ["//visibility:public"],
     deps = ["//inventory/src/Plugin"],
 )
 

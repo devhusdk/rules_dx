@@ -4,6 +4,7 @@ julia_library(
     name = "App",
     srcs = ["src/App.jl"],
     data = ["Project.toml"],
+    visibility = ["//visibility:public"],
     deps = [
         "//pkg/Stats",
         "@julia_deps//:Example",

@@ -13,4 +13,5 @@ erlang_app(
     app_name = "fast",
     app_version = "0.1.0",
     nifs = [":fast_nif"],
+    visibility = ["//visibility:public"],
 )

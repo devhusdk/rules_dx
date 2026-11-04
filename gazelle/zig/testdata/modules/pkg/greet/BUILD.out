@@ -8,6 +8,7 @@ zig_library(
         "greeting.txt",
     ],
     main = "greet.zig",
+    visibility = ["//visibility:public"],
 )
 
 zig_test(

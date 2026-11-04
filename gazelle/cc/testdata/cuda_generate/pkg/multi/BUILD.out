@@ -9,4 +9,5 @@ cuda_library(
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
+    visibility = ["//visibility:public"],
 )

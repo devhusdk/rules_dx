@@ -18,6 +18,7 @@ typescript_test(
 typescript_project(
     name = "helper",
     srcs = ["helper.ts"],
+    visibility = ["//visibility:public"],
 )
 
 typescript_test(
@@ -31,6 +32,7 @@ typescript_test(
 typescript_project(
     name = "main",
     srcs = ["main.ts"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 

@@ -7,6 +7,7 @@ dart_library(
         "lib/greet.dart",
         "lib/src/util.dart",
     ],
+    visibility = ["//visibility:public"],
     deps = ["@pub_deps//:collection"],
 )
 

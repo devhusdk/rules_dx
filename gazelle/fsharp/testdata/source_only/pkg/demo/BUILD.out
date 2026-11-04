@@ -13,6 +13,7 @@ fsharp_library(
         "Helper.fs",
         "Demo.fs",
     ],
+    visibility = ["//visibility:public"],
 )
 
 fsharp_test(

@@ -13,12 +13,14 @@ python_library(
     name = "capture",
     srcs = ["capture.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_library(
     name = "conftest",
     srcs = ["conftest.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":database_fixtures"],
 )
 
@@ -26,12 +28,14 @@ python_library(
     name = "database_fixtures",
     srcs = ["database_fixtures.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_library(
     name = "http_fixtures",
     srcs = ["http_fixtures.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_test(

@@ -13,6 +13,7 @@ go_library(
         "main.go",
     ],
     importpath = "example.com/entries/pkg/demo",
+    visibility = ["//visibility:public"],
 )
 
 go_test(

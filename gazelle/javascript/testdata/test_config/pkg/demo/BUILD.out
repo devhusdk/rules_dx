@@ -3,6 +3,7 @@ load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
 javascript_library(
     name = "jest_config",
     srcs = ["jest.config.js"],
+    visibility = ["//visibility:public"],
     deps = [
         ":setup",
         ":teardown",
@@ -12,9 +13,11 @@ javascript_library(
 javascript_library(
     name = "setup",
     srcs = ["setup.js"],
+    visibility = ["//visibility:public"],
 )
 
 javascript_library(
     name = "teardown",
     srcs = ["teardown.js"],
+    visibility = ["//visibility:public"],
 )

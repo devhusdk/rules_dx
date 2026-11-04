@@ -23,4 +23,5 @@ filegroup(
 vue_library(
     name = "helper",
     srcs = ["helper.vue"],
+    visibility = ["//visibility:public"],
 )

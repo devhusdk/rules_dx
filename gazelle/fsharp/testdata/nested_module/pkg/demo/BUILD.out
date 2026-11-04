@@ -7,4 +7,5 @@ fsharp_library(
         "Tools.fs",
         "App.fs",
     ],
+    visibility = ["//visibility:public"],
 )

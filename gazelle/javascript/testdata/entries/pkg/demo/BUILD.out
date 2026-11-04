@@ -17,6 +17,7 @@ javascript_test(
 javascript_library(
     name = "helper",
     srcs = ["helper.js"],
+    visibility = ["//visibility:public"],
 )
 
 javascript_test(
@@ -30,6 +31,7 @@ javascript_test(
 javascript_library(
     name = "main",
     srcs = ["main.js"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 

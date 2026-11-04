@@ -235,7 +235,29 @@ func (*SingleLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *SingleLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	l.generated.Add(args.Rel)
-	return l.spec.Generate(args, l.spec.Kinds, l)
+	result := l.spec.Generate(args, l.spec.Kinds, l)
+	if ShouldSetVisibility(args) {
+		for _, r := range result.Gen {
+			if (r.Kind() == l.spec.LibraryKind || slices.Contains(l.spec.IndexKinds, r.Kind())) && r.Attr("visibility") == nil {
+				r.SetAttr("visibility", []string{"//visibility:public"})
+			}
+		}
+	}
+	return result
+}
+
+// ShouldSetVisibility reports whether generated libraries get public
+// visibility, which they do unless the package sets default_visibility.
+func ShouldSetVisibility(args language.GenerateArgs) bool {
+	if args.File != nil && args.File.HasDefaultVisibility() {
+		return false
+	}
+	for _, r := range args.OtherGen {
+		if r.Kind() == "package" && r.Attr("default_visibility") != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (l *SingleLang) Fail(pkg PackageRef, format string, args ...interface{}) {

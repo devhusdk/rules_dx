@@ -8,5 +8,6 @@ cc_library(
         "-llog",
     ],
     target_compatible_with = ["@platforms//os:android"],
+    visibility = ["//visibility:public"],
     alwayslink = True,
 )

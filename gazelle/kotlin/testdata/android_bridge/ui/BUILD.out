@@ -5,5 +5,6 @@ kotlin_android_library(
     srcs = ["Screen.kt"],
     custom_package = "com.example.ui",
     tags = ["manual"],
+    visibility = ["//visibility:public"],
     deps = ["//util"],
 )

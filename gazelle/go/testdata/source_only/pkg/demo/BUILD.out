@@ -12,6 +12,7 @@ go_library(
         "demo.go",
         "helper.go",
     ],
+    visibility = ["//visibility:public"],
 )
 
 go_test(

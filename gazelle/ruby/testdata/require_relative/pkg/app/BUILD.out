@@ -6,5 +6,6 @@ ruby_library(
         "app.rb",
         "helper.rb",
     ],
+    visibility = ["//visibility:public"],
     deps = ["//pkg/lib"],
 )

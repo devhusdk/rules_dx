@@ -5,4 +5,5 @@ elixir_app(
     srcs = ["lib/shared.ex"],
     app_name = "shared",
     app_version = "0.1.0",
+    visibility = ["//visibility:public"],
 )

@@ -13,5 +13,6 @@ cuda_library(
 cc_library(
     name = "hostinc",
     srcs = ["app.cc"],
+    visibility = ["//visibility:public"],
     deps = [":kernel"],
 )

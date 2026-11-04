@@ -3,4 +3,5 @@ load("@rules_dx//perl/rules:defs.bzl", "perl_library")
 perl_library(
     name = "widgets",
     srcs = ["lib/Acme/Widget.pm"],
+    visibility = ["//visibility:public"],
 )

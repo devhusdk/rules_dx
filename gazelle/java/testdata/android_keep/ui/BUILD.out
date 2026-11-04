@@ -5,4 +5,5 @@ java_android_library(
     srcs = ["Screen.java"],
     custom_package = "com.example.custom",
     tags = ["local"],
+    visibility = ["//visibility:public"],
 )

@@ -6,6 +6,7 @@ lua_library(
         "init.lua",
         "parse.lua",
     ],
+    visibility = ["//visibility:public"],
 )
 
 lua_test(

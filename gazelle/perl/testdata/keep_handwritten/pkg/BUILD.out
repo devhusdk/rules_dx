@@ -9,4 +9,5 @@ perl_binary(
 perl_library(
     name = "pkg",
     srcs = ["lib/Keep.pm"],
+    visibility = ["//visibility:public"],
 )

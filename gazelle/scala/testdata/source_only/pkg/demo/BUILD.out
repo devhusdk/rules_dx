@@ -12,6 +12,7 @@ scala_library(
         "Demo.scala",
         "Helper.scala",
     ],
+    visibility = ["//visibility:public"],
 )
 
 scala_test(

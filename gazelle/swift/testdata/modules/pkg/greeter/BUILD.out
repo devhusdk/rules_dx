@@ -3,6 +3,7 @@ load("@rules_dx//swift/rules:defs.bzl", "swift_library", "swift_test")
 swift_library(
     name = "greeter",
     srcs = ["Greeter.swift"],
+    visibility = ["//visibility:public"],
 )
 
 swift_test(

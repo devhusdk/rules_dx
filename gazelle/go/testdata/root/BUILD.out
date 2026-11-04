@@ -4,6 +4,7 @@ go_library(
     name = "root",
     srcs = ["root.go"],
     importpath = "example.com/root/v2",
+    visibility = ["//visibility:public"],
 )
 
 go_test(

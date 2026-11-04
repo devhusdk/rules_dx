@@ -7,6 +7,7 @@ perl_library(
         "lib/Inventory/Item.pm",
         "lib/Inventory/Ledger.pm",
     ],
+    visibility = ["//visibility:public"],
 )
 
 perl_test(

@@ -4,4 +4,5 @@ go_library(
     name = "lib",
     srcs = ["a.go"],
     importpath = "example.test/demo/a/lib",
+    visibility = ["//visibility:public"],
 )

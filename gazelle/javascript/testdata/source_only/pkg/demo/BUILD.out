@@ -9,6 +9,7 @@ filegroup(
 javascript_library(
     name = "demo",
     srcs = ["demo.js"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 
@@ -22,6 +23,7 @@ javascript_test(
 javascript_library(
     name = "helper",
     srcs = ["helper.jsx"],
+    visibility = ["//visibility:public"],
 )
 
 javascript_test(

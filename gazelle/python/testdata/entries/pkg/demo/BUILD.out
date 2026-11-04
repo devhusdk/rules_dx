@@ -10,6 +10,7 @@ python_library(
     name = "helper",
     srcs = ["helper.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_test(
@@ -23,6 +24,7 @@ python_library(
     name = "main",
     srcs = ["main.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 

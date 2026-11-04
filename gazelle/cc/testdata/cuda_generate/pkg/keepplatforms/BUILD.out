@@ -7,4 +7,5 @@ cuda_library(
         "b.cu",
     ],
     platforms = ["sm_120"],
+    visibility = ["//visibility:public"],
 )

@@ -4,4 +4,5 @@ julia_library(
     name = "Outer",
     srcs = ["src/Outer.jl"],
     data = ["Project.toml"],
+    visibility = ["//visibility:public"],
 )

@@ -4,4 +4,5 @@ zig_library(
     name = "demo",
     srcs = ["util.zig"],
     main = "demo.zig",
+    visibility = ["//visibility:public"],
 )

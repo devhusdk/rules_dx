@@ -4,6 +4,7 @@ python_library(
     name = "conftest",
     srcs = ["conftest.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":deep_fixtures"],
 )
 
@@ -11,6 +12,7 @@ python_library(
     name = "deep_fixtures",
     srcs = ["deep_fixtures.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_test(

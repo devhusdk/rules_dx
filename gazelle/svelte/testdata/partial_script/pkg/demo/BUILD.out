@@ -3,10 +3,12 @@ load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
 svelte_library(
     name = "demo",
     srcs = ["demo.svelte"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 
 svelte_library(
     name = "helper",
     srcs = ["helper.svelte"],
+    visibility = ["//visibility:public"],
 )

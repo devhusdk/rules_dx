@@ -23,4 +23,5 @@ filegroup(
 mdx_library(
     name = "helper",
     srcs = ["helper.mdx"],
+    visibility = ["//visibility:public"],
 )

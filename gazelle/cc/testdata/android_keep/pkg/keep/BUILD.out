@@ -12,5 +12,6 @@ cc_library(
         "@platforms//os:android": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
+    visibility = ["//visibility:public"],
     alwayslink = False,
 )

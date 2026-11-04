@@ -9,16 +9,19 @@ filegroup(
 svelte_library(
     name = "helper",
     srcs = ["helper.svelte"],
+    visibility = ["//visibility:public"],
 )
 
 svelte_library(
     name = "helper_test",
     srcs = ["helper_test.svelte"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )
 
 svelte_library(
     name = "main",
     srcs = ["main.svelte"],
+    visibility = ["//visibility:public"],
     deps = [":helper"],
 )

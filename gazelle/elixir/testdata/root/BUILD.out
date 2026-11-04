@@ -5,6 +5,7 @@ elixir_app(
     srcs = ["lib/hello.ex"],
     app_name = "hello",
     app_version = "0.1.0",
+    visibility = ["//visibility:public"],
 )
 
 ex_unit_test(

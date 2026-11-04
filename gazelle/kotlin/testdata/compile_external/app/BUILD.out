@@ -6,6 +6,7 @@ load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
 kotlin_library(
     name = "app",
     srcs = ["App.kt"],
+    visibility = ["//visibility:public"],
     deps = [
         "//util",
         "@com_github_jetbrains_kotlin//:kotlin-reflect",

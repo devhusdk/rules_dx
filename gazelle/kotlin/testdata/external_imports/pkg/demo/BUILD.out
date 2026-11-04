@@ -6,6 +6,7 @@ load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
 kotlin_library(
     name = "demo",
     srcs = ["Demo.kt"],
+    visibility = ["//visibility:public"],
     deps = [
         "//third_party:coroutines",
         "//third_party:kotlin_test",

@@ -4,5 +4,6 @@ dart_library(
     name = "a",
     package_name = "a",
     srcs = ["lib/a.dart"],
+    visibility = ["//visibility:public"],
     deps = ["@pub_deps//:collection"],
 )

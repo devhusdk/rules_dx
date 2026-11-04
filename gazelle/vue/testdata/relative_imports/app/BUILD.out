@@ -5,16 +5,19 @@ load("@rules_dx//vue/rules:defs.bzl", "vue_library")
 javascript_library(
     name = "util",
     srcs = ["util.js"],
+    visibility = ["//visibility:public"],
 )
 
 typescript_project(
     name = "store",
     srcs = ["store.ts"],
+    visibility = ["//visibility:public"],
 )
 
 vue_library(
     name = "main",
     srcs = ["main.vue"],
+    visibility = ["//visibility:public"],
     deps = [
         ":store",
         ":util",

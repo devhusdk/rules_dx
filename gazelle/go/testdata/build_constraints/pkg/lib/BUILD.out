@@ -6,6 +6,7 @@ go_library(
         "lib.go",
         "lib_linux.go",
     ],
+    visibility = ["//visibility:public"],
 )
 
 go_test(

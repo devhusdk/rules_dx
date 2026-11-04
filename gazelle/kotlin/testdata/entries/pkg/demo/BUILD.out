@@ -12,6 +12,7 @@ kotlin_library(
         "Helper.kt",
         "Main.kt",
     ],
+    visibility = ["//visibility:public"],
 )
 
 kotlin_test(

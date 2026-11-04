@@ -6,6 +6,7 @@ elixir_app(
     app_env = "[{level, 1}]",
     app_name = "legacy",
     app_version = "9.9.9",
+    visibility = ["//visibility:public"],
 )
 
 ex_unit_test(

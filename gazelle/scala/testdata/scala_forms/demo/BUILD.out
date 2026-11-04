@@ -6,6 +6,7 @@ scala_library(
         "Block.scala",
         "Chained.scala",
     ],
+    visibility = ["//visibility:public"],
     deps = ["//widget"],
 )
 

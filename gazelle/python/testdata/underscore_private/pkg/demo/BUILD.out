@@ -4,11 +4,13 @@ python_library(
     name = "_utils",
     srcs = ["_utils.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_library(
     name = "utils",
     srcs = ["utils.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":_utils"],
 )

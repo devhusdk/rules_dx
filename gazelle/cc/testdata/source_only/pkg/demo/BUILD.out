@@ -13,6 +13,7 @@ cc_library(
         "helper.cc",
     ],
     hdrs = ["helper.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_test(

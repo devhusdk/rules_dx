@@ -7,4 +7,5 @@ julia_library(
         "src/helpers/mean.jl",
     ],
     data = ["Project.toml"],
+    visibility = ["//visibility:public"],
 )

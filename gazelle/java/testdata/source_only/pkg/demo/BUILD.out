@@ -12,6 +12,7 @@ java_library(
         "Demo.java",
         "Helper.java",
     ],
+    visibility = ["//visibility:public"],
 )
 
 java_test(

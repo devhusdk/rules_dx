@@ -3,6 +3,7 @@ load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 cc_library(
     name = "app",
     srcs = ["app.cc"],
+    visibility = ["//visibility:public"],
     deps = [
         "//a",
         "//b",

@@ -5,6 +5,7 @@ cc_library(
     name = "newgpu",
     srcs = ["host.cc"],
     hdrs = ["host.h"],
+    visibility = ["//visibility:public"],
     deps = [":newgpu_cuda"],
 )
 
@@ -13,4 +14,5 @@ cuda_library(
     srcs = ["kernel.cu"],
     hdrs = ["kernel.cuh"],
     platforms = ["sm_89"],
+    visibility = ["//visibility:public"],
 )

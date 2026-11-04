@@ -10,4 +10,5 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
+    visibility = ["//visibility:public"],
 )

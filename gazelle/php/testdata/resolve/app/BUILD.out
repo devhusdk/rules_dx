@@ -8,6 +8,7 @@ php_library(
         "src/Helper.php",
         "src/Main.php",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         "//widgets",
         "@vendor//monolog/monolog",

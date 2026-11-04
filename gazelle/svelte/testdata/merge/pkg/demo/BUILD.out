@@ -23,4 +23,5 @@ filegroup(
 svelte_library(
     name = "helper",
     srcs = ["helper.svelte"],
+    visibility = ["//visibility:public"],
 )

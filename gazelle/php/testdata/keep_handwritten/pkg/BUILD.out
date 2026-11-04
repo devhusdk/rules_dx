@@ -4,6 +4,7 @@ php_library(
     name = "pkg",
     srcs = ["src/Keep.php"],
     autoload_files = ["src/functions.php"],
+    visibility = ["//visibility:public"],
 )
 
 php_binary(

@@ -23,4 +23,5 @@ filegroup(
 astro_library(
     name = "helper",
     srcs = ["helper.astro"],
+    visibility = ["//visibility:public"],
 )

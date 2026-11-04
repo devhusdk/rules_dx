@@ -5,4 +5,5 @@ kotlin_android_library(
     srcs = ["Screen.kt"],
     custom_package = "com.example.custom",
     tags = ["local"],
+    visibility = ["//visibility:public"],
 )

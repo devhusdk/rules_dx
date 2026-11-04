@@ -6,6 +6,7 @@ load("@rules_dx//scala/rules:defs.bzl", "scala_library")
 scala_library(
     name = "app",
     srcs = ["App.scala"],
+    visibility = ["//visibility:public"],
     deps = [
         "//util",
         "@maven//:org_scala_lang_modules_scala_xml_2_13",

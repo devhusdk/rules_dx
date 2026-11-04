@@ -6,5 +6,6 @@ erlang_app(
     name = "erlang_app",
     srcs = ["src/u.erl"],
     app_name = "u",
+    visibility = ["//visibility:public"],
     deps = ["@erlang_app_thoas//:erlang_app"],
 )

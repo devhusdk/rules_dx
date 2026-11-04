@@ -27,4 +27,5 @@ pwsh_library(
         "Greet.psd1",
         "Greet.psm1",
     ],
+    visibility = ["//visibility:public"],
 )

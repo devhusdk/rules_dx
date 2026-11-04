@@ -4,5 +4,6 @@ cc_library(
     name = "a",
     srcs = ["a.cc"],
     hdrs = ["config.h"],
+    visibility = ["//visibility:public"],
     deps = ["//b"],
 )

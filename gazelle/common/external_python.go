@@ -14,6 +14,11 @@ func pythonNormalize(name string) string {
 	return strings.ToLower(pyNameRun.ReplaceAllString(name, "-"))
 }
 
+// pythonHubName is the target name of a distribution in a rules_python pip hub.
+func pythonHubName(name string) string {
+	return strings.ToLower(pyNameRun.ReplaceAllString(name, "_"))
+}
+
 // pythonManifest holds the registry distributions a uv.lock pins.
 type pythonManifest struct {
 	names map[string]bool
@@ -60,5 +65,6 @@ func (m *pythonManifest) Lookup(repo, name string) ([]label.Label, string) {
 	if !m.names[dist] {
 		return nil, ""
 	}
-	return []label.Label{{Repo: repo, Pkg: dist, Name: dist}}, ""
+	hub := pythonHubName(top)
+	return []label.Label{{Repo: repo, Pkg: hub, Name: hub}}, ""
 }

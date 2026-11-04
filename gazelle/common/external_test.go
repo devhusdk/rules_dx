@@ -284,6 +284,11 @@ version = "1.0"
 source = { registry = "https://pypi.org/simple" }
 
 [[package]]
+name = "zope.interface"
+version = "7.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
 name = "app"
 version = "0.1.0"
 source = { virtual = "." }
@@ -291,7 +296,7 @@ source = { virtual = "." }
 	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
 		t.Fatal(errs)
 	}
-	for imp, want := range map[string]string{"my_pkg": "@pypi//my-pkg", "my_pkg.sub": "@pypi//my-pkg", "app": "", "other": ""} {
+	for imp, want := range map[string]string{"my_pkg": "@pypi//my_pkg", "my_pkg.sub": "@pypi//my_pkg", "zope_interface": "@pypi//zope_interface", "app": "", "other": ""} {
 		got, _ := ExternalLabels(cfg, "python", imp)
 		if labelStrings(got) != want {
 			t.Errorf("%s: got %v, want %q", imp, got, want)

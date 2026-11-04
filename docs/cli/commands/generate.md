@@ -275,8 +275,11 @@ An import resolves in this order:
   enclosing classes, then its own package. A package that more than one
   artifact ships fails as ambiguous; add a `resolve` mapping for it.
 - `rust`: crates resolve through `Cargo.toml`.
-- `python`: an import whose top-level module matches the normalized name of a
-  package in `uv.lock` resolves to `@pypi//<name>`. Name a lockfile with
+- `python`: an import whose top-level module matches the name of a package in
+  `uv.lock` resolves to `@pypi//<hub name>`. The hub name is the distribution
+  name in lowercase, with each run of `-`, `_` or `.` replaced by `_`. So
+  `typing-extensions` becomes `@pypi//typing_extensions` and `zope.interface`
+  becomes `@pypi//zope_interface`. Name a lockfile with
   `# gazelle:dx_external python <path> [<repo>]`. A package whose import name
   differs from its distribution name needs a `resolve` mapping.
 - `javascript`, `typescript`: an import of a package that the root
@@ -294,3 +297,29 @@ An import resolves in this order:
 # gazelle:resolve ruby rspec @bundle
 # gazelle:resolve csharp Newtonsoft.Json @paket.main//newtonsoft.json
 ```
+
+## Python hub
+
+The `@pypi` hub is a `rules_python` pip hub. Export the lockfile to a
+requirements file, then parse it in `MODULE.bazel`:
+
+```sh
+uv export --format requirements.txt --no-hashes --no-emit-project > requirements_lock.txt
+```
+
+```starlark
+bazel_dep(name = "rules_python", version = "2.4.6")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.12")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.12",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "pypi")
+```
+
+`python_version` in `pip.parse` must match the toolchain version.

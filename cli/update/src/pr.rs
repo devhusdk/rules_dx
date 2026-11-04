@@ -25,6 +25,51 @@ impl Group {
     }
 }
 
+/// Which `dx-update/` branches one run owns.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Scope {
+    group: Group,
+    everything: bool,
+    sets: Vec<String>,
+    packages: Vec<(String, String)>,
+}
+
+impl Scope {
+    /// Builds a scope from whole sets, single packages, and whether no selector was given.
+    pub fn new(
+        group: Group,
+        everything: bool,
+        sets: Vec<String>,
+        packages: Vec<(String, String)>,
+    ) -> Scope {
+        Scope {
+            group,
+            everything,
+            sets,
+            packages,
+        }
+    }
+
+    /// Tells whether this run may close the pull request on `branch`.
+    pub fn covers(&self, branch: &str) -> bool {
+        match self.group {
+            Group::All => self.everything && branch == "dx-update/all",
+            Group::Set => self
+                .sets
+                .iter()
+                .any(|set| branch == format!("dx-update/{}", slug(set))),
+            Group::Package => {
+                self.sets
+                    .iter()
+                    .any(|set| branch.starts_with(&format!("dx-update/{}--", slug(set))))
+                    || self.packages.iter().any(|(set, package)| {
+                        branch == format!("dx-update/{}--{}", slug(set), slug(package))
+                    })
+            }
+        }
+    }
+}
+
 /// One outdated package and where it is published.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Item {
@@ -132,6 +177,42 @@ pub fn lock_numstat(text: &str) -> Vec<(String, u64, u64)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sets(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| (*name).to_owned()).collect()
+    }
+
+    #[test]
+    fn set_scope_covers_full_sets_only() {
+        let scope = Scope::new(Group::Set, false, sets(&["cargo"]), Vec::new());
+        assert!(scope.covers("dx-update/cargo"));
+        assert!(!scope.covers("dx-update/npm"));
+        assert!(!scope.covers("dx-update/cargo--serde"));
+        assert!(!scope.covers("dx-update/all"));
+    }
+
+    #[test]
+    fn package_scope_covers_the_set_prefix_and_selected_packages() {
+        let scope = Scope::new(
+            Group::Package,
+            false,
+            sets(&["cargo"]),
+            vec![("npm".into(), "left pad".into())],
+        );
+        assert!(scope.covers("dx-update/cargo--serde"));
+        assert!(scope.covers("dx-update/npm--left-pad"));
+        assert!(!scope.covers("dx-update/npm--other"));
+        assert!(!scope.covers("dx-update/cargo"));
+    }
+
+    #[test]
+    fn all_scope_needs_no_selectors() {
+        let all = Scope::new(Group::All, true, sets(&["cargo"]), Vec::new());
+        assert!(all.covers("dx-update/all"));
+        assert!(!all.covers("dx-update/cargo"));
+        let picked = Scope::new(Group::All, false, sets(&["cargo"]), Vec::new());
+        assert!(!picked.covers("dx-update/all"));
+    }
 
     fn item(set: &str, package: &str, latest: &str, registry: Registry) -> Item {
         Item {

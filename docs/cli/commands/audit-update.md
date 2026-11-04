@@ -524,20 +524,30 @@ For each group, `dx update --pr` does this:
 1. Resets the branch to the base commit.
 2. Widens each package, then runs `dx update --apply <set>`.
 3. Runs `dx check --affected` and `dx test --affected`.
-4. Commits, then pushes with `--force-with-lease`.
-5. Edits the open pull request for the branch, or creates one.
-6. Turns auto-merge on or off by `--automerge`.
+4. Commits. If the branch on `origin` already has the same files on the same
+   base commit and a pull request is open, prints `unchanged #<n>` and stops.
+5. Pushes with `--force-with-lease`.
+6. Edits the open pull request for the branch, or creates one.
+7. Turns auto-merge on or off by `--automerge`.
 
 The body lists each package as `old -> new` with its registry link, then the
 lock files changed with added and removed line counts.
+
+After the groups, `dx update --pr` closes open `dx-update/` pull requests on the
+base branch that this run covers but no longer has updates for. It deletes the
+branch and comments `dx update: no updates left for this group.`. It prints
+`closed #<n>`. Pull requests from forks are left alone. The run covers the
+branches of the sets and packages you select, or every branch when you select
+none. With `--group=all` it covers `dx-update/all` only when you select nothing.
+This also runs when nothing is outdated.
 
 A group that fails any step is reset and not pushed. It is reported as failed
 and the next group runs. The base branch is checked out again at the end.
 
 `--pr` does not combine with `--outdated`, `--apply`, `--floor`, `--reason`,
 `--offline`, or a version. The policy flags, `--group`, and `--labels` need `--pr`.
-Exit codes: 0 when every group is published or nothing is outdated, 1 when a
-group or lookup fails, 2 for usage errors.
+Exit codes: 0 when every group is published, unchanged or closed, or nothing is
+outdated, 1 when a group, close or lookup fails, 2 for usage errors.
 
 ```sh
 bazel run @rules_dx//:dx -- update --pr

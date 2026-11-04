@@ -34,7 +34,6 @@ dart_library(
 
 dart_test(
     name = "ledger_test",
-    size = "small",
     aspect_hints = ["//examples/dart-app:dart_config"],
     data = ["data/items.csv"],
     main = "test/ledger_test.dart",

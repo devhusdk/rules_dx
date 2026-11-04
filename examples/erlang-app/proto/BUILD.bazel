@@ -59,7 +59,6 @@ erlang_bytecode(
 
 eunit(
     name = "eunit",
-    size = "small",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,

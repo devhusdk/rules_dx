@@ -25,7 +25,6 @@ perl_library(
 
 perl_test(
     name = "report_test",
-    size = "small",
     srcs = ["t/report.t"],
     deps = [
         ":report",

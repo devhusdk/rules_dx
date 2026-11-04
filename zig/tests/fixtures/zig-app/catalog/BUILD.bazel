@@ -35,7 +35,6 @@ zig_library(
 
 zig_test(
     name = "catalog_test",
-    size = "small",
     main = "catalog_test.zig",
     deps = [":catalog"],
 )

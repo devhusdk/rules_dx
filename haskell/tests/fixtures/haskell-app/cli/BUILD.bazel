@@ -58,7 +58,6 @@ haskell_binary(
 
 haskell_test(
     name = "cli_test",
-    size = "small",
     srcs = ["test/CliTest.hs"],
     args = select({
         ":limit_144": ["144"],

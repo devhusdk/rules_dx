@@ -19,7 +19,6 @@ qt_cc_binary(
 
 qt_cc_test(
     name = "browser_test",
-    size = "small",
     srcs = ["browser_test.cc"],
     moc_hdrs = ["browser_test.h"],
     modules = [
@@ -47,7 +46,6 @@ qt_cc_binary(
 
 qt_cc_test(
     name = "board_quick_test",
-    size = "small",
     srcs = ["board_quick_test.cc"],
     data = ["tst_board.qml"],
     moc_hdrs = ["board_quick_test.h"],

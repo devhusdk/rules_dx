@@ -31,7 +31,6 @@ zig_library(
 
 zig_test(
     name = "digest_test",
-    size = "small",
     main = "digest_test.zig",
     deps = [":digest"],
 )

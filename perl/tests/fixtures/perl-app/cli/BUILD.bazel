@@ -39,7 +39,6 @@ perl_binary(
 
 perl_test(
     name = "launcher_test",
-    size = "small",
     srcs = ["t/launcher.t"],
     data = [":stockctl"],
     env = select({

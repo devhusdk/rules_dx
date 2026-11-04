@@ -14,7 +14,6 @@ qt_cc_binary(
 
 qt_cc_test(
     name = "ledger_test",
-    size = "small",
     srcs = ["ledger_test.cc"],
     moc_hdrs = ["ledger_test.h"],
     modules = [

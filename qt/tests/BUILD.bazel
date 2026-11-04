@@ -179,7 +179,6 @@ qt_cc_library(
 
 qt_cc_test(
     name = "gui_test",
-    size = "small",
     modules = [
         "quick",
         "test",
@@ -388,7 +387,6 @@ exports_files(
 
 qt_cc_test(
     name = "plugin_path_test",
-    size = "small",
     srcs = ["fixtures/plugin_path.cc"],
     plugins = ["imageformats"],
     target_compatible_with = QT_HOST_COMPATIBLE_WITH,

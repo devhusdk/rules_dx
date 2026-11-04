@@ -42,7 +42,6 @@ escript_archive(
 
 ct_suite(
     name = "kvctl_SUITE",
-    size = "small",
     app_name = "kvctl",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
     test_env = {"KVCTL": "$(location :kvctl)"},

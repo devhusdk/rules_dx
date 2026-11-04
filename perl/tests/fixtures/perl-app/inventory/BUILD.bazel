@@ -22,14 +22,12 @@ perl_library(
 
 perl_test(
     name = "item_test",
-    size = "small",
     srcs = ["t/item.t"],
     deps = [":inventory"],
 )
 
 perl_test(
     name = "ledger_test",
-    size = "small",
     srcs = ["t/ledger.t"],
     deps = [":inventory"],
 )

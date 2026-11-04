@@ -26,7 +26,6 @@ zig_library(
 
 zig_test(
     name = "report_test",
-    size = "small",
     main = "report_test.zig",
     deps = [
         ":report",

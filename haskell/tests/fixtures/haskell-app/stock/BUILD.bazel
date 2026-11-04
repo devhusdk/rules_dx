@@ -41,14 +41,13 @@ haskell_library(
     visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"],
     deps = [
         ":checksum",
-        "@haskell_app_split//:split",
         "@dx_haskell_toolchains//:base",
+        "@haskell_app_split//:split",
     ],
 )
 
 haskell_test(
     name = "stock_test",
-    size = "small",
     srcs = ["test/StockTest.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [

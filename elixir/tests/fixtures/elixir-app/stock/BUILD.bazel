@@ -24,7 +24,6 @@ elixir_app(
 
 ex_unit_test(
     name = "ledger_test",
-    size = "small",
     srcs = [
         "test/ledger_test.exs",
         "test/test_helper.exs",

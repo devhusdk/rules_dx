@@ -45,7 +45,6 @@ erlang_bytecode(
 
 eunit(
     name = "eunit",
-    size = "small",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
@@ -54,7 +53,6 @@ eunit(
 
 ct_suite(
     name = "diagnostics_SUITE",
-    size = "small",
     app_name = "dx_runtime_probe",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
     test_env = {"DX_OTP_VERSION": OTP_VERSION},

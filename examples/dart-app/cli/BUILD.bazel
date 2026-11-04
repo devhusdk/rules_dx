@@ -40,7 +40,6 @@ dart_binary(
 
 dart_test(
     name = "exit_codes_test",
-    size = "small",
     aspect_hints = ["//examples/dart-app:dart_config"],
     data = [":inventory"],
     main = "test/exit_codes_test.dart",

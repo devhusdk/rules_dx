@@ -64,6 +64,10 @@ fn package_of(label: &str) -> &str {
     label.split_once(':').map_or(label, |(package, _)| package)
 }
 
+fn is_pattern(scope: &str) -> bool {
+    scope.ends_with("/...") || scope.ends_with(":all") || scope.ends_with(":*")
+}
+
 fn matches_scope(scope: &str, label: &str) -> bool {
     if let Some(root) = scope.strip_suffix("/...") {
         let package = package_of(label);
@@ -300,12 +304,22 @@ impl RuleGraph {
     fn reach<'a>(&'a self, scopes: &'a [String]) -> HashSet<&'a str> {
         let mut seen: HashSet<&str> = HashSet::new();
         let mut pending: Vec<&str> = Vec::new();
+        let patterns: Vec<&str> = scopes
+            .iter()
+            .map(String::as_str)
+            .filter(|scope| is_pattern(scope))
+            .collect();
         for scope in scopes {
             if self.users.contains_key(scope.as_str()) {
                 pending.push(scope);
             }
+            if let Some((rule, _)) = self.inputs.get_key_value(scope.as_str()) {
+                pending.push(rule);
+            }
+        }
+        if !patterns.is_empty() {
             for rule in self.inputs.keys() {
-                if matches_scope(scope, rule) {
+                if patterns.iter().any(|scope| matches_scope(scope, rule)) {
                     pending.push(rule);
                 }
             }
@@ -441,6 +455,28 @@ mod tests {
         assert!(graph
             .reached_of_kind(&[], |kind| kind == "rust_binary")
             .is_empty());
+    }
+
+    #[test]
+    fn reach_finds_plain_label_seeds_and_expands_patterns() {
+        let graph = graph(&[
+            rule("//a:lib", &[], &[]),
+            rule("//a:t", &["//a:lib"], &[]),
+            rule("//a/sub:x", &[], &[]),
+            rule("//b:leaf", &[], &[]),
+            rule("//c:t", &["//a:t"], &[]),
+        ]);
+        assert_eq!(
+            graph.reach(&strings(&["//b:leaf"])),
+            HashSet::from(["//b:leaf"])
+        );
+        let users_of_lib = HashSet::from(["//a:lib", "//a:t", "//c:t"]);
+        assert_eq!(graph.reach(&strings(&["//a:lib"])), users_of_lib);
+        assert_eq!(graph.reach(&strings(&["//a:all"])), users_of_lib);
+        assert_eq!(
+            graph.reach(&strings(&["//a/..."])),
+            HashSet::from(["//a:lib", "//a:t", "//a/sub:x", "//c:t"])
+        );
     }
 
     #[test]

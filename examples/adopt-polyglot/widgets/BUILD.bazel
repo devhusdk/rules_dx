@@ -5,14 +5,12 @@ javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
     aspect_hints = ["//:biome_config"],
-    visibility = ["//visibility:public"],
 )
 
 javascript_library(
     name = "widgets",
     srcs = ["widgets.js"],
     aspect_hints = ["//:biome_config"],
-    visibility = ["//visibility:public"],
 )
 
 javascript_test(

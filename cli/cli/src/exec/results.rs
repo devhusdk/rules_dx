@@ -229,6 +229,7 @@ pub(crate) fn collect_results_in(
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
     let mut unstable = Vec::new();
     let mut complete = true;
+    let mut seen = BTreeSet::new();
     let mut problems = Vec::new();
     if let Some(problem) = &account.problem {
         problems.push(format!("build events cut off at {problem}"));
@@ -253,6 +254,9 @@ pub(crate) fn collect_results_in(
         let mut staged = Staged::default();
         let mut staged_ok = true;
         for artifact in &target.artifacts {
+            if !seen.insert(artifact.exec_path.clone()) {
+                continue;
+            }
             let Some(part) = stage_artifact(&artifact.bytes) else {
                 staged_ok = false;
                 break;
@@ -670,6 +674,40 @@ mod tests {
             collected.problems
         );
         assert!(!collected.tools.is_empty(), "{:?}", collected.tools);
+    }
+
+    #[test]
+    fn an_artifact_reported_by_two_targets_is_read_once() {
+        let harness = Harness::new("producers-shared-artifact");
+        harness.write_source("src/a.py", "x = 1\n");
+        let artifact = harness.temp.join("shared.pb");
+        let bytes = harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]);
+        std::fs::write(&artifact, bytes).expect("artifact");
+        let report = |label: &str| {
+            serde_json::json!({
+                "id": completion_id(label),
+                "completed": {
+                    "success": true,
+                    "outputGroup": [{"name": "dx_results", "fileSets": [{"id": "0"}]}],
+                },
+            })
+            .to_string()
+        };
+        let lines = vec![
+            serde_json::json!({
+                "id": {"namedSet": {"id": "0"}},
+                "namedSetOfFiles": {"files": [{"uri": format!("file://{}", artifact.display())}]},
+            })
+            .to_string(),
+            report("//a:x"),
+            report("//a:x_test"),
+            LAST_EVENT.to_owned(),
+        ];
+        let once = collect(&harness, &lines[..3]);
+        let twice = collect(&harness, &lines);
+        assert_eq!(once.initial.len(), twice.initial.len());
+        assert!(!twice.initial.is_empty());
+        assert!(twice.ran.iter().all(|(_, label)| label == "//a:x"));
     }
 
     #[test]

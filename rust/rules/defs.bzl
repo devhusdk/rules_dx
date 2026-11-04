@@ -159,7 +159,12 @@ _rust_forward_test = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | dx_native_coverage_attrs(),
+    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | dx_native_coverage_attrs() | {
+        "crate": attr.label(
+            doc = "The crate under test, so format checks reach its files.",
+            providers = [[_rust_common.crate_info]],
+        ),
+    },
     upstream_cfg = _cpp_runtime_transition,
     upstream_aspects = [dx_data_coverage_aspect],
     coverage_providers = dx_native_test_coverage,
@@ -283,7 +288,10 @@ def rust_test(
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
     upstream_kwargs["crate_name"] = _crate_name(name, kwargs.get("crate_name"))
-    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = _libstdcxx_forward(), **kwargs)
+    forward_kwargs = _libstdcxx_forward()
+    if crate != None:
+        forward_kwargs["crate"] = crate
+    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
 
 def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs):
     """Builds the test crate for WASI preview 1 and runs it under Wasmtime."""

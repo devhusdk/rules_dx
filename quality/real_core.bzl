@@ -524,17 +524,33 @@ def real_tool_table_error(cfg):
             return "real aspects: table tool '" + tool + "' has a capability no shard runs"
     return ""
 
+def _workspace_crate(ctx):
+    """Returns the in-workspace crate a test rule points at, or None."""
+    crate = getattr(ctx.rule.attr, "crate", None)
+    if type(crate) != "Target" or crate.label.repo_name != "" or OutputGroupInfo not in crate:
+        return None
+    return crate
+
 def real_make_aspect(cfg, shard_name):
     """Builds one shard aspect from the shard table."""
     shard = cfg.shards[shard_name]
 
+    follows_crate = shard["capability"] == "format"
+
     def _impl(target, ctx):
-        return _real_pipeline_action(cfg, target, ctx, shard["capability"], shard["tools"], shard["suffix"], shard["has_toolchain"], shard_name)
+        found = _real_pipeline_action(cfg, target, ctx, shard["capability"], shard["tools"], shard["suffix"], shard["has_toolchain"], shard_name)
+        if not follows_crate:
+            return found
+        crate = _workspace_crate(ctx)
+        if crate == None or "dx_results" not in crate[OutputGroupInfo]:
+            return found
+        own = found[0]["dx_results"] if len(found) > 0 else depset()
+        return [OutputGroupInfo(dx_results = depset(transitive = [own, crate[OutputGroupInfo]["dx_results"]]))]
 
     return aspect(
         implementation = _impl,
         doc = shard["doc"],
-        attr_aspects = ["aspect_hints"],
+        attr_aspects = ["aspect_hints", "crate"] if follows_crate else ["aspect_hints"],
         attrs = shard["attrs"],
         toolchains = shard.get("toolchains", []),
         requires = shard.get("requires", []),
@@ -582,9 +598,13 @@ def real_make_probe_aspect(cfg, capability):
     def _impl(target, ctx):
         what = "real_aspect (" + str(target.label) + ")"
         (resolved, _direct_files, _path_to_file) = real_resolved_stages(cfg, target, ctx, capability, what)
-        if len(resolved) == 0:
-            return []
-        shards = _probe_shards(cfg, resolved, capability)
+        crate_shards = []
+        if capability == "format":
+            crate = getattr(ctx.rule.attr, "crate", None)
+            if type(crate) == "Target" and crate.label.repo_name == "" and RealShardProbeInfo in crate:
+                crate_shards = list(crate[RealShardProbeInfo].shards)
+        shards = _probe_shards(cfg, resolved, capability) if len(resolved) > 0 else []
+        shards = sorted({name: True for name in shards + crate_shards}.keys())
         if len(shards) == 0:
             return []
         out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ".json")
@@ -596,7 +616,7 @@ def real_make_probe_aspect(cfg, capability):
 
     return aspect(
         implementation = _impl,
-        attr_aspects = ["aspect_hints"],
+        attr_aspects = ["aspect_hints", "crate"] if capability == "format" else ["aspect_hints"],
         attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
         doc = "Writes the " + capability + " shard names each target needs to the dx_shards output group.",
     )

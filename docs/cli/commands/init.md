@@ -141,7 +141,7 @@ match the running dx.
 | `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
 | `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing. When they exist, the guard hook is added if it is missing. |
 
-Check reports a missing or stale path as drift. Deleting `.codex/hooks.json`
+Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin or `rules_dx_version` in `.github/workflows/ci.yml`, is stale. Deleting `.codex/hooks.json`
 or `.gemini/settings.json` stops check from reporting it, but `dx init --apply`
 writes it again. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).

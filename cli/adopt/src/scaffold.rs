@@ -406,6 +406,26 @@ pub fn refresh_owned_files(root: &Path) -> Result<Vec<String>, AdoptError> {
     Ok(applied.wrote)
 }
 
+/// Owned files whose dx-owned values are out of date, and files that cannot be parsed.
+pub fn stale_owned_files(root: &Path) -> (Vec<String>, Vec<String>) {
+    let mut stale = Vec::new();
+    let mut other = Vec::new();
+    let Ok(files) = plan_init_files_full("refresh", DEFAULT_BRANCH_FALLBACK) else {
+        return (stale, other);
+    };
+    for file in files.iter().filter(|f| f.kind != FileKind::WriteOnce) {
+        let Ok(existing) = std::fs::read_to_string(root.join(&file.path)) else {
+            continue;
+        };
+        match merge_owned(file.kind, &existing) {
+            Ok(merged) if merged == existing => {}
+            Ok(_) => stale.push(file.path.clone()),
+            Err(error) => other.push(format!("{}: {error}", file.path)),
+        }
+    }
+    (stale, other)
+}
+
 fn apply_files(
     root: &Path,
     files: &[ScaffoldFile],

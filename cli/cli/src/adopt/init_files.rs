@@ -62,6 +62,9 @@ pub(super) fn drift(root: &Path) -> Drift {
         }
     }
     drift.stale.extend(dx_adopt::stale_launchers(root));
+    let (stale, other) = dx_adopt::stale_owned_files(root);
+    drift.stale.extend(stale);
+    drift.other.extend(other);
     let preset = dx_adopt::preset_drift(root);
     drift.missing.extend(preset.missing);
     drift.stale.extend(preset.stale);
@@ -208,6 +211,25 @@ mod tests {
         ] {
             assert!(stale.contains(want), "{want}: {stale}");
         }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn old_dx_keys_in_vscode_settings_are_stale() {
+        let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-");
+        let root = scratch.path();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let path = root.join(".vscode/settings.json");
+        let text = std::fs::read_to_string(&path).expect("read");
+        let (key, _) = text.split_once(':').expect("key");
+        std::fs::write(&path, format!("{key}: 1,\n\"x\": 1}}\n")).expect("write");
+        assert!(drift(root)
+            .stale
+            .contains(&".vscode/settings.json".to_owned()));
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(drift(root), super::Drift::default());
         scratch.close().expect("cleanup");
     }
 }

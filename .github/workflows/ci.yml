@@ -609,7 +609,7 @@ jobs:
           echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library; nested_smoke.txt lists every nested Bazel test; pins.bzl equals the attested manifest when it changed." >> "$GITHUB_STEP_SUMMARY"
   gate:
     name: gate
-    timeout-minutes: 120
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

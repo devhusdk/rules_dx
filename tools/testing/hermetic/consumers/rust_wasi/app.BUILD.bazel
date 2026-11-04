@@ -1,4 +1,4 @@
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rust_wasi_module", "rust_wasi_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rust_wasi_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 _PUBLIC = ["//visibility:public"]
@@ -68,10 +68,15 @@ rust_wasi_test(
     tags = ["block-network"],
 )
 
-rust_wasi_module(
+# keep
+rust_binary(
     name = "tasks_wasi",
-    binary = ":tasks",
+    srcs = ["cli/main.rs"],
+    crate_name = "shared_tasks_cli",
+    crate_root = "cli/main.rs",
     visibility = _PUBLIC,
+    wasm = "wasi",
+    deps = [":tasks_core"],
 )
 
 rust_wasi_test(

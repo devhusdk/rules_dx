@@ -25,6 +25,12 @@ _MSVC = Label("//rust/rules:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 
+_COVERAGE = "//command_line_option:collect_code_coverage"
+
+_WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
+
+_PLATFORMS = "//command_line_option:platforms"
+
 def _cpp_runtime_transition_impl(settings, attr):
     """Turns off static C++ runtime linking on libstdc++ platforms."""
     features = settings["//command_line_option:features"]
@@ -36,6 +42,22 @@ _cpp_runtime_transition = transition(
     implementation = _cpp_runtime_transition_impl,
     inputs = ["//command_line_option:features"],
     outputs = ["//command_line_option:features"],
+)
+
+def _rust_binary_transition_impl(settings, attr):
+    """Turns off static C++ runtime linking, and targets WASI when asked."""
+    out = _cpp_runtime_transition_impl(settings, attr)
+    out[_PLATFORMS] = settings[_PLATFORMS]
+    out[_COVERAGE] = settings[_COVERAGE]
+    if attr.wasm == "wasi":
+        out[_PLATFORMS] = [str(_WASIP1_PLATFORM)]
+        out[_COVERAGE] = False
+    return out
+
+_rust_binary_transition = transition(
+    implementation = _rust_binary_transition_impl,
+    inputs = ["//command_line_option:features", _PLATFORMS, _COVERAGE],
+    outputs = ["//command_line_option:features", _PLATFORMS, _COVERAGE],
 )
 
 _LIBSTDCXX_ATTRS = {
@@ -120,8 +142,8 @@ _rust_forward_binary = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = _LIBSTDCXX_ATTRS,
-    upstream_cfg = _cpp_runtime_transition,
+    extra_attrs = _LIBSTDCXX_ATTRS | {"wasm": attr.string(doc = "Wasm target, or empty.")},
+    upstream_cfg = _rust_binary_transition,
 )
 
 _rust_forward_test = dx_executable_forward_rule(
@@ -167,8 +189,11 @@ def rust_binary(
         crate_name = None,
         edition = RUST_EDITION,
         visibility = None,
+        wasm = None,
         **kwargs):
     """Minimal wrapper over rust_binary."""
+    if wasm not in (None, "wasi"):
+        fail("rust_binary: wasm must be \"wasi\", got " + repr(wasm))
     dx_wrap_binary(
         name,
         _rust_binary,
@@ -176,7 +201,7 @@ def rust_binary(
         srcs,
         visibility = visibility,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
-        extra_forward_kwargs = _libstdcxx_forward(),
+        extra_forward_kwargs = _libstdcxx_forward() | {"wasm": wasm or ""},
         **kwargs
     )
 
@@ -268,8 +293,6 @@ def rust_clippy_test(name, targets, size = "small", **kwargs):
         size = size,
         **kwargs
     )
-
-_COVERAGE = "//command_line_option:collect_code_coverage"
 
 def _no_coverage_transition_impl(_settings, _attr):
     """Turns off coverage instrumentation on one dependency edge."""
@@ -401,8 +424,6 @@ def rust_wasm_bindgen_toolchain(name, **kwargs):
         **kwargs
     )
 
-_WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
-
 _WASMTIME = Label("//wasi/runtime:wasmtime")
 
 _WASI_DRIVER = Label("//wasi/testing:wasi_run_test.rs")
@@ -428,7 +449,7 @@ def _rust_wasi_module_impl(ctx):
              " .wasm files for wasm32-wasip1, want exactly one")
     return [DefaultInfo(files = depset(modules), runfiles = ctx.runfiles(files = modules))]
 
-rust_wasi_module = rule(
+_rust_wasi_module = rule(
     implementation = _rust_wasi_module_impl,
     doc = "Builds one rust_binary as a WASI preview 1 module.",
     attrs = {
@@ -462,7 +483,7 @@ def rust_wasi_test(
         **kwargs):
     """Runs one rust_binary as a WASI module with only the declared capabilities."""
     module = name + "_wasm"
-    rust_wasi_module(
+    _rust_wasi_module(
         name = module,
         binary = binary,
         testonly = True,

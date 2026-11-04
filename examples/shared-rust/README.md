@@ -61,7 +61,7 @@ bazel test //examples/shared-rust:wasi_test \
   //examples/shared-rust:wasi_capability_test
 ```
 
-`tasks_wasi` is `tasks` built for `wasm32-wasip1` and run under
+`tasks_wasi` is `tasks` as a `wasm = "wasi"` binary for `wasm32-wasip1` and run under
 Wasmtime 49.0.5. `wasi_error_test` expects exit 1 for a rejected
 command. `wasi_capability_test` expects exit 2 and
 `err:unreadable: /board/board.txt` when the board is not preopened.

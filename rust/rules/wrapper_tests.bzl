@@ -356,6 +356,23 @@ _browser_cell_test = analysistest.make(
     },
 )
 
+def _wasi_binary_impl(ctx):
+    env = analysistest.begin(ctx)
+    files = analysistest.target_under_test(env)[DefaultInfo].files.to_list()
+    asserts.equals(env, 1, len(files))
+    asserts.true(env, files[0].path.endswith(".wasm"), "{} is not a .wasm file".format(files[0].path))
+    return analysistest.end(env)
+
+_wasi_binary_test = analysistest.make(_wasi_binary_impl)
+
+def dx_wasi_binary_tests(name, target):
+    """Asserts a wasm = "wasi" rust_binary outputs one .wasm file."""
+    _wasi_binary_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+    )
+
 def dx_browser_cell_tests(name, target):
     """Asserts a browser test runs the qualified cell's browser over the command line flag."""
     _browser_cell_test(

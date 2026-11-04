@@ -7,7 +7,6 @@ browser, and WASI outputs. The target platform picks the output.
 load(
     "@rules_dx//rust/rules:defs.bzl",
     "rust_binary",
-    "rust_wasi_module",
     "rust_wasi_test",
     "rust_wasm_bindgen",
 )
@@ -23,9 +22,10 @@ rust_wasm_bindgen(
     wasm_file = ":tool_upstream",
 )
 
-rust_wasi_module(
+rust_binary(
     name = "tool_wasi",
-    binary = ":tool",
+    srcs = ["main.rs"],
+    wasm = "wasi",
 )
 
 rust_wasi_test(
@@ -85,9 +85,9 @@ guarantee that until upstream rules_rust does.
 
 ## WASI
 
-`rust_wasi_module` builds the binary for `wasm32-wasip1` and exposes the
-`.wasm` file. Building it fetches no runtime. The same module also builds
-directly:
+`rust_binary(wasm = "wasi")` builds for `wasm32-wasip1` and outputs one
+`.wasm` file, without coverage. Building it fetches no runtime. A plain
+`rust_binary` also builds for WASI with:
 
 ```sh
 bazel build --platforms=@rules_rust//rust/platform:wasip1 //pkg:tool

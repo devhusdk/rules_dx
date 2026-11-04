@@ -1,6 +1,6 @@
-load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_test", "rust_wasi_module", "rust_wasi_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_test", "rust_wasi_test", "rustfmt_test")
+load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_wasi_binary_tests")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":acquisition.bzl", "consumer_wasi_acquisition_tests")
@@ -65,9 +65,20 @@ rust_binary(
     deps = [":consumer_wasi_lib"],
 )
 
-rust_wasi_module(
+# keep
+rust_binary(
     name = "consumer_wasi_module",
-    binary = ":consumer_wasi",
+    srcs = ["src/main.rs"],
+    crate_name = "consumer_wasi_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    wasm = "wasi",
+    deps = [":consumer_wasi_lib"],
+)
+
+dx_wasi_binary_tests(
+    name = "consumer_wasi_module_test",
+    target = ":consumer_wasi_module",
 )
 
 rustfmt_test(
@@ -235,18 +246,6 @@ rust_wasi_test(
         "probe=no-access",
     ] + _TOOLCHAIN_LINES),
     runtime = ":injecting_runtime",
-)
-
-rust_wasi_module(
-    name = "library_module",
-    binary = ":consumer_wasi_lib",
-    tags = ["manual"],
-)
-
-failure_test(
-    name = "library_module_test",
-    expected_failure_substring = "built 0 .wasm files for wasm32-wasip1, want exactly one",
-    target = ":library_module",
 )
 
 real_source_target(

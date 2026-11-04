@@ -303,8 +303,9 @@ func valeStylesData(repoRoot, dir, rel string, tool nativeTool) ([]string, []err
 	if err != nil {
 		return nil, nil
 	}
+	text := strings.TrimPrefix(string(content), "\uFEFF")
 	styles := "styles"
-	for _, line := range strings.Split(string(content), "\n") {
+	for _, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, ";") || strings.HasPrefix(trimmed, "[") {
 			continue

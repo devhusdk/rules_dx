@@ -586,6 +586,21 @@ func TestNativeValeStylesInvalidPaths(t *testing.T) {
 	}
 }
 
+func TestNativeValeStylesBOM(t *testing.T) {
+	root := t.TempDir()
+	vale, _ := nativeToolByID("vale")
+	dir := filepath.Join(root, "site")
+	writeFixture(t, dir, ".vale.ini", "\uFEFFStylesPath = vale/styles\n")
+	writeFixture(t, dir, "vale/styles/org/Rules.yml", "extends: existence\n")
+	data, errs := valeStylesData(root, dir, "site", vale)
+	if len(errs) != 0 {
+		t.Fatalf("errs = %v, want none", errs)
+	}
+	if got := strings.Join(data, ","); got != "vale/styles/org/Rules.yml" {
+		t.Errorf("BOM vale data = %q, want styles closure", got)
+	}
+}
+
 func TestNativeCargoHints(t *testing.T) {
 	_, result := runNativeGenerate(t, "app", map[string]string{
 		"app/Cargo.toml":   "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",

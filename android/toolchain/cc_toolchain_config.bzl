@@ -25,7 +25,8 @@ def _ndk_cc_toolchain_config_impl(ctx):
         tool_path(name = "objdump", path = prebuilt + "/bin/llvm-objdump"),
         tool_path(name = "strip", path = prebuilt + "/bin/llvm-strip"),
     ]
-    compile_flags = ["--target=" + target]
+    resource_dir = ctx.attr.clang_resource_dir.removesuffix("/include")
+    compile_flags = ["--target=" + target, "-resource-dir=" + resource_dir]
     link_flags = ["--target=" + target]
     if ctx.attr.cxx_runtime == "shared":
         link_flags.extend(["-stdlib=libc++", "-lc++_shared"])

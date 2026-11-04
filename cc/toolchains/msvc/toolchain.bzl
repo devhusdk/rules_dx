@@ -4,11 +4,15 @@ load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_cc//cc/private/toolchain:windows_cc_toolchain_config.bzl", "cc_toolchain_config")
 load(":layout.bzl", "msvc_layout")
 
+# Qt 6 qcompilerdetection.h requires a conforming __cplusplus and /permissive-.
+MSVC_CXX_CONFORMANCE_FLAGS = ["/Zc:__cplusplus", "/permissive-"]
+
 def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "", target_cpu = "x64", **kwargs):
     """Declare a cc_toolchain that runs cl.exe from the layout in this package.
 
     The layout root is the package directory: VC and Windows Kits sit next to
-    the BUILD file. Only the x64 target is supported.
+    the BUILD file. Only the x64 target is supported. C++ actions, not C
+    actions, get MSVC_CXX_CONFORMANCE_FLAGS.
 
     Args:
         name: Name of the cc_toolchain.
@@ -56,6 +60,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "", target_cpu = "x
         },
         archiver_flags = ["/MACHINE:X64"],
         default_link_flags = ["/MACHINE:X64"],
+        cxx_flags = MSVC_CXX_CONFORMANCE_FLAGS,
         dbg_mode_debug_flag = "/DEBUG",
         fastbuild_mode_debug_flag = "/DEBUG",
         supports_parse_showincludes = True,

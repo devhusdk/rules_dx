@@ -20,20 +20,20 @@ def _features(ctx, cc_toolchain, requested):
         requested_features = requested,
     )
 
-def _compile_flags(ctx, cc_toolchain, requested):
+def _compile_flags(ctx, cc_toolchain, requested, action_name = ACTION_NAMES.cpp_compile, keep = ["/MD", "/MDd", "/MT", "/MTd"]):
     config = _features(ctx, cc_toolchain, requested)
     variables = cc_common.create_compile_variables(
         feature_configuration = config,
         cc_toolchain = cc_toolchain,
-        source_file = "a.cc",
+        source_file = "a.c" if action_name == ACTION_NAMES.c_compile else "a.cc",
         output_file = "a.obj",
     )
     flags = cc_common.get_memory_inefficient_command_line(
         feature_configuration = config,
-        action_name = ACTION_NAMES.cpp_compile,
+        action_name = action_name,
         variables = variables,
     )
-    return [f for f in flags if f in ["/MD", "/MDd", "/MT", "/MTd"]]
+    return [f for f in flags if f in keep]
 
 def _env(config, action, variables):
     return cc_common.get_environment_variables(
@@ -70,6 +70,9 @@ def _msvc_toolchain_subject_impl(ctx):
     fields["flags.default"] = " ".join(_compile_flags(ctx, cc_toolchain, []))
     fields["flags.dbg"] = " ".join(_compile_flags(ctx, cc_toolchain, ["dbg"]))
     fields["flags.static_link_msvcrt"] = " ".join(_compile_flags(ctx, cc_toolchain, ["static_link_msvcrt"]))
+    conformance = ["/Zc:__cplusplus", "/permissive-"]
+    fields["flags.cpp_conformance"] = " ".join(_compile_flags(ctx, cc_toolchain, [], ACTION_NAMES.cpp_compile, conformance)) or "none"
+    fields["flags.c_conformance"] = " ".join(_compile_flags(ctx, cc_toolchain, [], ACTION_NAMES.c_compile, conformance)) or "none"
     dll_line = cc_common.get_memory_inefficient_command_line(
         feature_configuration = config,
         action_name = ACTION_NAMES.cpp_link_dynamic_library,

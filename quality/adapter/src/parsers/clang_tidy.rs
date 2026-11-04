@@ -1,8 +1,18 @@
-use super::{
-    finding, lines, located, missing, numbered, require_findings, FileFinding, ParseError,
-};
-use crate::ToolSeverity;
+use super::clang_syntax::{diagnostic, include_entry, split_rule};
+use super::{finding, lines, missing, require_findings, FileFinding, ParseError};
 use crate::{ColumnEncoding, TextPosition};
+
+fn is_count_trailer(line: &str) -> bool {
+    let line = line.trim_end();
+    let Some(counts) = line.strip_suffix(" generated.") else {
+        return false;
+    };
+    let mut words = counts.split_whitespace();
+    let numbered = |word: Option<&str>| word.is_some_and(|w| w.parse::<u64>().is_ok());
+    let kind =
+        |word: Option<&str>| matches!(word, Some("warning" | "warnings" | "error" | "errors"));
+    numbered(words.next()) && kind(words.next())
+}
 
 pub fn parse_clang_tidy(
     stderr: &[u8],
@@ -11,49 +21,61 @@ pub fn parse_clang_tidy(
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "clang_tidy";
     let mut findings = Vec::new();
+    let mut seen = false;
+    let mut failed = false;
     for line in lines(TOOL, stderr)? {
-        let (file, rest) = located(TOOL, line, files)?;
-        let rest = rest.trim_start_matches(':').trim_start();
-        let mut parts = rest.splitn(4, ':');
-        let line_no = numbered(TOOL, "line", line, parts.next())?;
-        let column = numbered(TOOL, "column", line, parts.next())?;
-        let severity_word = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "severity", line))?
-            .trim();
-        let severity = match severity_word {
-            "warning" => ToolSeverity::Warning,
-            "error" => ToolSeverity::Error,
-            _ => return Err(missing(TOOL, "severity", line)),
-        };
-        let message = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "message", line))?
-            .trim();
-        if message.is_empty() {
-            return Err(missing(TOOL, "message", line));
+        if include_entry(line).is_some() {
+            continue;
         }
-        let (message, rule_id) = match message.rfind(" [") {
-            Some(start) if message.ends_with(']') => (
-                message[..start].trim_end().to_owned(),
-                message[start + 2..message.len() - 1].to_owned(),
-            ),
-            _ => (message.to_owned(), String::new()),
-        };
-        if message.is_empty() {
-            return Err(missing(TOOL, "message", line));
+        if let Some((path, line_no, column, severity, message)) = diagnostic(line) {
+            seen = true;
+            let Some(severity) = severity else {
+                continue;
+            };
+            let path = path.strip_prefix("./").unwrap_or(path);
+            let Some(file) = files.iter().copied().find(|f| *f == path) else {
+                return Err(ParseError::UnknownFile {
+                    tool: TOOL,
+                    path: path.to_owned(),
+                });
+            };
+            let (message, rule_id) = split_rule(message.trim());
+            if message.is_empty() {
+                return Err(missing(TOOL, "message", line));
+            }
+            findings.push(finding(
+                TOOL,
+                file,
+                rule_id,
+                message,
+                severity,
+                TextPosition {
+                    line: line_no,
+                    column,
+                },
+                ColumnEncoding::Scalars,
+            ));
+            continue;
         }
-        findings.push(finding(
+        if line.starts_with("Error while processing ") || line.starts_with("Found compiler error") {
+            failed = true;
+            continue;
+        }
+        if is_count_trailer(line)
+            || line.starts_with("Suppressed ")
+            || line.starts_with("Use -header-filter=")
+            || line.starts_with("Use -system-headers")
+            || seen
+        {
+            continue;
+        }
+        return Err(missing(TOOL, "location", line));
+    }
+    if failed && findings.is_empty() {
+        return Err(missing(
             TOOL,
-            file,
-            rule_id,
-            message,
-            severity,
-            TextPosition {
-                line: line_no,
-                column,
-            },
-            ColumnEncoding::Scalars,
+            "location",
+            "clang-tidy failed to process the file",
         ));
     }
     require_findings(TOOL, &findings, code)?;
@@ -100,5 +122,30 @@ mod tests {
         assert_eq!(findings[0].file, file);
         assert_eq!(findings[0].finding.start.line, 3);
         assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn clang_tidy_skips_snippets_notes_and_trailers() {
+        let log = format!(
+            "1 warning generated.\n{DIRTY}    return 1;\n  ^~~~\ncc/tests/fixtures/clang_tidy/Sample.c:3:3: note: previous return\nSuppressed 3 warnings (3 in non-user code).\nUse -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.\n"
+        );
+        let findings = parse_clang_tidy(
+            log.as_bytes(),
+            Some(0),
+            &["cc/tests/fixtures/clang_tidy/Sample.c"],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn clang_tidy_fails_closed_on_unknown_files_and_crashes() {
+        let files = ["x.c"];
+        assert!(matches!(
+            parse_clang_tidy(DIRTY.as_bytes(), Some(0), &files),
+            Err(ParseError::UnknownFile { .. })
+        ));
+        assert!(parse_clang_tidy(b"Error while processing x.c.\n", Some(0), &files).is_err());
+        assert!(parse_clang_tidy(b"nope\n1 warning generated.\n", Some(0), &files).is_err());
     }
 }

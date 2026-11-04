@@ -102,7 +102,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         (
             "clang_tidy",
-            "src/a.scala:1:1: warning: finding [demo-check]\n",
+            "1 warning generated.\nsrc/a.scala:1:1: warning: finding [demo-check]\n  x\n  ^\nSuppressed 1 warnings (1 in non-user code).\n",
         ),
         (
             "cppcheck",

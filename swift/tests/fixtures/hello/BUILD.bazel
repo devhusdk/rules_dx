@@ -9,10 +9,7 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-_LINUX_X86_64 = [
-    "@platforms//cpu:x86_64",
-    "@platforms//os:linux",
-]
+_LINUX = ["@platforms//os:linux"]
 
 swift_library(
     name = "greet",
@@ -23,21 +20,21 @@ swift_library(
 swift_binary(
     name = "hello",
     srcs = ["main.swift"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [":greet"],
 )
 
 swift_test(
     name = "xctest",
     srcs = ["greet_xctest.swift"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [":greet"],
 )
 
 swift_test(
     name = "testing",
     srcs = ["greet_testing.swift"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [":greet"],
 )
 
@@ -48,7 +45,7 @@ swift_library_provider_test(
 
 swift_binary_provider_test(
     name = "hello_providers_test",
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     target_under_test = ":hello",
 )
 
@@ -63,14 +60,14 @@ sh_test(
         ":hello",
         "@llvm//tools:llvm-readelf",
     ],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
     expected = "Hello, swift!",
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 real_source_target(

@@ -140,7 +140,14 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     let (status, detail) = if parts.is_empty() {
         ("ok", "every file dx init writes is current".to_owned())
     } else {
-        ("warn", parts.join("; "))
+        let broken = drift.stale.iter().any(|path| {
+            path == dx_adopt::LAUNCHER_SH_REL
+                || path == dx_adopt::LAUNCHER_CMD_REL
+                || dx_adopt::render_overrides()
+                    .iter()
+                    .any(|(override_path, _)| override_path == path)
+        });
+        (if broken { "error" } else { "warn" }, parts.join("; "))
     };
     dx_adopt::StatusCheck {
         name: "init".to_owned(),
@@ -226,11 +233,7 @@ pub(crate) fn execute_status(
     } else {
         Vec::new()
     };
-    let owned: Vec<String> = super::init_files::owned(&[])
-        .into_iter()
-        .map(|file| file.path)
-        .collect();
-    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools, &owned);
+    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
     checks.push(init_check(workspace));
     if let Some(check) = lease_check(workspace) {
         checks.push(check);
@@ -476,7 +479,7 @@ mod tests {
             .expect("launchers");
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0, "{out}");
-        assert!(out.contains("launcher: ok"), "{out}");
+        assert!(!out.contains("init: error"), "{out}");
         std::fs::write(
             root.join("tools/dx"),
             "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
@@ -485,11 +488,11 @@ mod tests {
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1, "{out}");
         assert!(
-            out.contains("launcher: error (tools/dx differ from the current launcher"),
+            out.contains("init: error (") && out.contains("stale tools/dx"),
             "{out}"
         );
         assert!(err.contains("status_check_failed"), "{err}");
-        assert!(err.contains("failed checks: launcher"), "{err}");
+        assert!(err.contains("failed checks: init"), "{err}");
     }
 
     #[test]

@@ -2,7 +2,6 @@ use std::path::Path;
 
 use dx_module_bazel::ModuleFile;
 
-use crate::overrides::{OverridesState, OVERRIDES_INCLUDE};
 use crate::AdoptError;
 
 use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
@@ -202,78 +201,6 @@ fn module_check(root: &Path) -> StatusCheck {
     }
 }
 
-/// Whether the generated `third_party/rules_dx/` overrides match this dx (#3736).
-fn overrides_check(root: &Path, owned: &[String]) -> StatusCheck {
-    let hint = "tools/dx init --apply";
-    match crate::overrides::check_overrides_in(root, Some(owned)) {
-        OverridesState::Ok => check(
-            "overrides",
-            "ok",
-            format!("available: {OVERRIDES_INCLUDE} matches dx {MODULE_VERSION}"),
-            hint,
-        ),
-        OverridesState::NotApplicable(detail) => {
-            check("overrides", "ok", format!("not applicable: {detail}"), hint)
-        }
-        OverridesState::Warn(detail) => {
-            check("overrides", "warn", format!("unknown: {detail}"), hint)
-        }
-        OverridesState::Error(detail) => {
-            check("overrides", "error", format!("unavailable: {detail}"), hint)
-        }
-    }
-}
-
-/// Whether the Bazel preset layers under `.dx/bazelrc` are present, current and imported (#3733).
-fn preset_check(root: &Path, owned: &[String]) -> StatusCheck {
-    use crate::preset::{layer_rel, LayerFile};
-    use crate::preset_fragment::ImportState;
-    let hint = "tools/dx init --apply";
-    let state = match crate::preset::inspect_preset(root) {
-        Ok(state) => state,
-        Err(error) => return check("preset", "warn", format!("unknown: {error}"), hint),
-    };
-    if !state.applicable {
-        return check(
-            "preset",
-            "ok",
-            "not applicable: the workspace keeps the preset in tools/bazelrc".to_owned(),
-            hint,
-        );
-    }
-    let mut problems = Vec::new();
-    let mut fine = Vec::new();
-    for (layer, import, file) in &state.layers {
-        let rel = layer_rel(*layer);
-        if !owned.contains(&rel) {
-            continue;
-        }
-        match (import, file) {
-            (ImportState::CommentedOut, _) => fine.push(format!("{rel} opted out")),
-            (ImportState::Absent, _) => problems.push(format!("{rel} is not imported")),
-            (_, LayerFile::Missing) => problems.push(format!("{rel} is missing")),
-            (_, LayerFile::Stale) => problems.push(format!("{rel} is stale")),
-            (_, LayerFile::Custom) => fine.push(format!("{rel} is customized")),
-            (_, LayerFile::Symlink | LayerFile::Current) => fine.push(format!("{rel} current")),
-        }
-    }
-    if problems.is_empty() {
-        check(
-            "preset",
-            "ok",
-            format!("available: {}", fine.join("; ")),
-            hint,
-        )
-    } else {
-        check(
-            "preset",
-            "warn",
-            format!("unknown: {}", problems.join("; ")),
-            hint,
-        )
-    }
-}
-
 fn toolchain_check(root: &Path) -> StatusCheck {
     let hint = "bazel build //...";
     let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
@@ -424,38 +351,6 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
     }
 }
 
-fn launcher_check(root: &Path, pinned: &str, owned: &[String]) -> Option<StatusCheck> {
-    let found: Vec<&str> = owned
-        .iter()
-        .map(String::as_str)
-        .filter(|rel| super::launcher_state(root, rel).is_some())
-        .collect();
-    if found.is_empty() {
-        return None;
-    }
-    let stale: Vec<&str> = found
-        .iter()
-        .copied()
-        .filter(|rel| super::launcher_state(root, rel) == Some(super::LauncherState::Stale))
-        .collect();
-    let hint = "bazel run @rules_dx//:dx -- init --apply";
-    Some(if stale.is_empty() {
-        check(
-            "launcher",
-            "ok",
-            format!("{} read dx {pinned} from .dx/version", found.join(", ")),
-            hint,
-        )
-    } else {
-        check(
-            "launcher",
-            "error",
-            format!("{} differ from the current launcher", stale.join(", ")),
-            hint,
-        )
-    })
-}
-
 /// What `dx init` would conflict with, from the declared files only; never runs Bazel.
 fn init_plan_check(root: &Path) -> StatusCheck {
     let hint = "tools/dx init";
@@ -516,21 +411,17 @@ pub fn observed_status_checks(
     root: &Path,
     pinned: &str,
     tools: StatusCheck,
-    owned: &[String],
 ) -> Vec<StatusCheck> {
     let mut checks = vec![
         toolchain_check(root),
         bazel_check(root, std::env::var_os("PATH")),
         module_check(root),
-        overrides_check(root, owned),
         init_plan_check(root),
         host_check(std::env::consts::OS, std::env::consts::ARCH),
         exec_tools_check(root),
-        preset_check(root, owned),
         tools,
         pin_check(pinned),
     ];
-    checks.extend(launcher_check(root, pinned, owned));
     checks.extend(ide_check(root));
     checks
 }
@@ -540,42 +431,6 @@ mod tests {
     use super::super::{StatusCheck, MODULE_VERSION};
 
     use super::{init_plan_check, pin_check, render_status_text, toolchain_check};
-
-    fn owned() -> Vec<String> {
-        let mut paths = vec![
-            crate::LAUNCHER_SH_REL.to_owned(),
-            crate::LAUNCHER_CMD_REL.to_owned(),
-        ];
-        paths.extend(crate::render_overrides().into_iter().map(|(path, _)| path));
-        paths.extend(crate::preset_paths());
-        paths
-    }
-
-    #[test]
-    fn checks_inspect_only_the_owned_paths() {
-        let dir = std::env::temp_dir().join(format!("dx-status-owned-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("dir");
-        super::super::write_launcher_files(&dir, &mut crate::scaffold::Applied::default())
-            .expect("launchers");
-        let names = |owned: &[String]| -> Vec<String> {
-            super::observed_status_checks(&dir, MODULE_VERSION, tools_check(), owned)
-                .into_iter()
-                .map(|check| check.name)
-                .collect()
-        };
-        assert!(names(&owned()).contains(&"launcher".to_owned()));
-        assert!(!names(&[]).contains(&"launcher".to_owned()));
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    fn tools_check() -> StatusCheck {
-        StatusCheck {
-            name: "tools".to_owned(),
-            status: "warn".to_owned(),
-            detail: "unknown: pinned tools (//quality/artifacts) resolve at build time".to_owned(),
-            hint: "bazel build //...".to_owned(),
-        }
-    }
 
     #[test]
     fn ide_check_reads_state_json() {
@@ -828,72 +683,6 @@ mod tests {
     }
 
     #[test]
-    fn overrides_check_maps_every_state() {
-        use crate::overrides::{apply_overrides, OVERRIDES_DIR};
-        let dir = scratch("overrides-states");
-        std::fs::write(
-            dir.join("MODULE.bazel"),
-            format!("module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
-        )
-        .expect("module");
-        let missing = super::overrides_check(&dir, &owned());
-        assert_eq!(missing.status, "warn", "{}", missing.detail);
-        assert_eq!(missing.hint, "tools/dx init --apply");
-        apply_overrides(&dir).expect("applies");
-        let ok = super::overrides_check(&dir, &owned());
-        assert_eq!(ok.status, "ok", "{}", ok.detail);
-        let patch = dir.join(OVERRIDES_DIR).join("rules_rust.lld_link.patch");
-        let mut bytes = std::fs::read(&patch).expect("patch");
-        bytes[0] ^= 1;
-        std::fs::write(&patch, bytes).expect("corrupt");
-        let stale = super::overrides_check(&dir, &owned());
-        assert_eq!(stale.status, "error");
-        assert!(
-            stale.detail.contains("rules_rust.lld_link.patch"),
-            "{}",
-            stale.detail
-        );
-        std::fs::remove_dir_all(&dir).ok();
-
-        let own = scratch("overrides-rules-dx");
-        std::fs::write(own.join("MODULE.bazel"), "module(name = \"rules_dx\")\n").expect("module");
-        let na = super::overrides_check(&own, &owned());
-        assert_eq!(na.status, "ok");
-        assert!(na.detail.starts_with("not applicable: "), "{}", na.detail);
-        std::fs::remove_dir_all(&own).ok();
-    }
-
-    #[test]
-    fn preset_check_follows_the_layers_and_imports() {
-        let dir = scratch("preset-check");
-        let na = super::preset_check(&dir, &owned());
-        assert_eq!(na.status, "warn", "{}", na.detail);
-        let (mut applied, mut notes) = (crate::Applied::default(), Vec::new());
-        crate::write_preset(&dir, &mut applied, &mut notes).expect("write");
-        let ok = super::preset_check(&dir, &owned());
-        assert_eq!(
-            (ok.status.as_str(), ok.detail.starts_with("available:")),
-            ("ok", true)
-        );
-        let rc = std::fs::read_to_string(dir.join(".bazelrc")).expect("rc");
-        let line = crate::preset_fragment::import_line(
-            crate::preset_fragment::CONSUMER_DIR,
-            crate::preset_fragment::Layer::Resources,
-        );
-        std::fs::write(dir.join(".bazelrc"), rc.replace(&format!("{line}\n"), "")).expect("rc");
-        let warn = super::preset_check(&dir, &owned());
-        assert_eq!(warn.status, "warn");
-        assert!(warn.detail.contains("resources.bazelrc"), "{}", warn.detail);
-        std::fs::write(
-            dir.join(".bazelrc"),
-            rc.replace(&line, &format!("# {line}")),
-        )
-        .expect("rc");
-        assert_eq!(super::preset_check(&dir, &owned()).status, "ok");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
     fn observed_checks_take_the_observed_tools_check() {
         let dir = std::env::temp_dir().join(format!("dx-status-observed-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("dir");
@@ -903,7 +692,7 @@ mod tests {
             detail: "unavailable: observed".to_owned(),
             hint: "dx env --apply".to_owned(),
         };
-        let checks = super::observed_status_checks(&dir, MODULE_VERSION, tools.clone(), &owned());
+        let checks = super::observed_status_checks(&dir, MODULE_VERSION, tools.clone());
         let names: Vec<&str> = checks.iter().map(|check| check.name.as_str()).collect();
         assert_eq!(
             names,
@@ -911,16 +700,14 @@ mod tests {
                 "toolchain",
                 "bazel",
                 "module",
-                "overrides",
                 "init_plan",
                 "host",
                 "exec_tools",
-                "preset",
                 "tools",
                 "pin"
             ]
         );
-        assert_eq!(checks[8], tools);
+        assert_eq!(checks[6], tools);
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -963,37 +750,6 @@ mod tests {
             assert_eq!(super::exec_tools_check(&dir).status, "warn", "{dir_rel}");
         }
         std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn observed_launcher_check_fails_when_stale() {
-        let scratch = dx_test_scratch::scratch("dx-status-launcher-");
-        let dir = scratch.path();
-        let tools = tools_check();
-        let last = |pin: &str| {
-            super::observed_status_checks(dir, pin, tools.clone(), &owned())
-                .pop()
-                .expect("checks")
-        };
-        assert_eq!(last("1.2.3").name, "pin");
-        super::super::write_launcher_files(dir, &mut crate::scaffold::Applied::default())
-            .expect("launchers");
-        let ok = last("1.2.3");
-        assert_eq!((ok.name.as_str(), ok.status.as_str()), ("launcher", "ok"));
-        assert_eq!(
-            ok.detail,
-            "tools/dx, tools/dx.cmd read dx 1.2.3 from .dx/version"
-        );
-        std::fs::write(dir.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
-        std::fs::write(
-            dir.join("tools/dx"),
-            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
-        )
-        .expect("stale");
-        let stale = last("1.2.3");
-        assert_eq!(stale.status, "error");
-        assert_eq!(stale.detail, "tools/dx differ from the current launcher");
-        assert_eq!(stale.hint, "bazel run @rules_dx//:dx -- init --apply");
     }
 
     #[test]

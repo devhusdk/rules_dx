@@ -12,7 +12,7 @@ bazel run @rules_dx//:dx -- --version
 dx status
 ```
 
-Reports toolchain, Bazel, module, overrides, init_plan, host, exec_tools, tools, pin, and init
+Reports toolchain, Bazel, module, init_plan, host, exec_tools, tools, pin, and init
 health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
 downloads, installs, repairs, and runs nothing.
@@ -32,8 +32,8 @@ toolchain: ok (available: rust 1.99.1 via rules_rust 0.75.0 declared in MODULE.b
 
 Inside a `dx worktree` slot it adds a `lease` check that names the holder and branch.
 
-The checks are `toolchain`, `bazel`, `module`, `overrides`, `init_plan`, `host`, `exec_tools`,
-`tools`, `pin`, and `init`. With a dx launcher there is also `launcher`.
+The checks are `toolchain`, `bazel`, `module`, `init_plan`, `host`, `exec_tools`,
+`tools`, `pin`, and `init`.
 Inside a worktree slot there is also `lease`.
 The `share` check appears only while build slots are held.
 The `slots` check appears only when a `slot-N.lock` file under the dx slots
@@ -60,21 +60,11 @@ directory cannot be opened.
 - `init_plan`: runs the read-only `dx init` plan against `MODULE.bazel` without Bazel.
   `ok` with `none:` when no hard conflicts exist, `ok` with `not applicable:` without a
   `MODULE.bazel` or in the rules_dx workspace, `warn` naming the hard conflicts otherwise.
-- `overrides`: compares the dx-generated `third_party/rules_dx/` files and the
-  `include("//third_party/rules_dx:rules_dx.MODULE.bazel")` line with this `dx`.
-  `ok` when they match, or `not applicable` in rules_dx itself or without a
-  `rules_dx` `bazel_dep`. `warn` when the include is missing, `MODULE.bazel`
-  overrides one of those modules itself, or the `rules_dx` pin differs from
-  `dx`. `error` when a generated file is missing or changed, or when the include
-  and a consumer-owned override clash. The hint is `tools/dx init --apply`.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
   linux_arm64, macos_arm64, windows_x86_64, or windows_arm64. The target platform never
   selects tools. This is not native qualification.
 - `exec_tools`: reads `.bazelrc` and the preset files it imports. `warn` when
   `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.
-- `preset`: reads `.bazelrc` and `.dx/bazelrc`. `warn` naming each layer file that
-  is missing, stale or not imported (dx rewrites the layers before its next command); a commented-out import is an opt-out and `ok`.
-  `not applicable` in rules_dx itself. The hint is `tools/dx init --apply`.
 - `tools`: reads the managed tools `dx env --apply` selected under
   `.dx/setups/current`. `warn` when none is selected. `error` when the
   selection is foreign, its environment or `values.json` is missing or
@@ -84,18 +74,15 @@ directory cannot be opened.
 - `pin`: compares `.dx/version` with the rules_dx module version this `dx`
   was built from. An empty or invalid (non-semver) pin hints
   `write <module version> to .dx/version`.
-- `launcher`: shown only when `tools/dx` or `tools/dx.cmd` is a dx launcher
-  (see `dx init`). `error` when that version differs from `.dx/version`, with detail
-  `tools/dx pins dx <v>, .dx/version is <pin>` and hint
-  `bazel run @rules_dx//:dx -- init --apply`. It fails `dx status` with
-  `status_check_failed`.
-- `init`: `warn` when a file `dx init` writes is missing or out of date: the
+- `init`: names each file `dx init` writes that is missing or out of date: the
   launcher, preset, overrides, `.bazelignore`, `AGENTS.md` block, `CLAUDE.md`
-  import, or agent hooks. `dx init --apply` writes it.
+  import, or agent hooks. `warn`, or `error` when a launcher or override file
+  is out of date; `error` fails `dx status` with `status_check_failed`.
+  `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --to <version> --apply`.
-The `toolchain`, `bazel`, `module`, `overrides`, `init_plan`, `host`, `exec_tools`, `preset`, and `tools` detail text starts with
+The `toolchain`, `bazel`, `module`, `init_plan`, `host`, `exec_tools`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
 

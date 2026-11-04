@@ -17,6 +17,7 @@ def _cc_toolchain_identity_subject_impl(ctx):
             "cc.coverage": identity.coverage,
             "cc.driver": identity.driver,
             "cc.family": identity.family,
+            "cc.libc": cc_info.libc,
             "cc.sysroot": str(cc_info.sysroot),
             "cc.syntax_only": identity.syntax_only,
             "cc.target": cc_info.target_gnu_system_name,

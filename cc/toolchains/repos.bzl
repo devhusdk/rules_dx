@@ -1,7 +1,7 @@
 """Module extension that provisions the pinned GCC toolchain."""
 
 load("@gcc_toolchain//toolchain:defs.bzl", "gcc_declare_toolchain")
-load(":pins.bzl", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
+load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 # The sanitizer flags do nothing unless -fsanitize is on.
 _LDFLAGS = ["-static-libasan", "-static-libubsan", "-lm"]
@@ -16,6 +16,7 @@ def _gcc_impl(_mctx):
         gcc_version = GCC_VERSION,
         gcc_versions = json.encode({GCC_VERSION: {"x86_64": GCC_LINUX_X86_64}}),
         enable_fortran = False,
+        target_libc = GCC_GLIBC,
         extra_ldflags = _LDFLAGS,
         extra_enabled_features = [str(Label("//cc/toolchains/gcc_features:dx_static_cxx_runtime"))],
         extra_known_features = [
@@ -31,6 +32,7 @@ def _gcc_impl(_mctx):
         gcc_version = GCC_VERSION,
         gcc_versions = json.encode({GCC_VERSION: {"aarch64": GCC_LINUX_X86_64_TO_AARCH64}}),
         enable_fortran = False,
+        target_libc = GCC_GLIBC,
         extra_ldflags = _CROSS_LDFLAGS,
     )
     return _mctx.extension_metadata(reproducible = True)

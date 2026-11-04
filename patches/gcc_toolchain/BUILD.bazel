@@ -3,6 +3,8 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "runtime_libs.patch",
     "sanitizer_spec.patch",
+    "target_identity_config.patch",
+    "target_identity_defs.patch",
 ])
 
 real_source_target(

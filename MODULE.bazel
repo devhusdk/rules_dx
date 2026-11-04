@@ -58,6 +58,8 @@ single_version_override(
     patches = [
         "//patches/gcc_toolchain:sanitizer_spec.patch",
         "//patches/gcc_toolchain:runtime_libs.patch",
+        "//patches/gcc_toolchain:target_identity_config.patch",
+        "//patches/gcc_toolchain:target_identity_defs.patch",
     ],
     version = "0.13.0",
 )

@@ -27,11 +27,6 @@ const ROOT_BUILD: &str = "exports_files([\"tampered.lock.json\"])\n";
 
 const BUILD: &str = r#"load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library", "perl_test")
 
-filegroup(
-    name = "not_perl",
-    srcs = ["data.txt"],
-)
-
 perl_library(
     name = "clean",
     srcs = ["lib/Clean.pm"],
@@ -45,12 +40,6 @@ perl_library(
 perl_library(
     name = "base",
     srcs = ["lib/Base.pm"],
-)
-
-perl_library(
-    name = "wrong_dep",
-    srcs = ["lib/Clean.pm"],
-    deps = [":not_perl"],
 )
 
 perl_test(
@@ -131,7 +120,6 @@ fn consumer() -> Case {
     case.write("BUILD.bazel", ROOT_BUILD);
     case.write("tampered.lock.json", TAMPERED_LOCK);
     case.write("app/BUILD.bazel", BUILD);
-    case.write("app/data.txt", "data\n");
     case.write("app/lib/Clean.pm", CLEAN);
     case.write("app/lib/Broken.pm", BROKEN);
     case.write("app/lib/Base.pm", BASE);
@@ -256,20 +244,6 @@ fn an_undeclared_dependency_is_not_on_the_include_path() {
         &case,
         "//app:undeclared_dep_test",
         &["Can't locate Base.pm in @INC"],
-    );
-}
-
-#[test]
-fn a_dependency_without_perl_info_fails_analysis() {
-    let case = consumer();
-    let built = bazel(&case, "build", "//app:wrong_dep", &[]);
-    assert_eq!(built.code, Some(1), "{}", built.text);
-    assert!(
-        built
-            .text
-            .contains("does not have mandatory providers: 'PerlInfo'"),
-        "{}",
-        built.text
     );
 }
 

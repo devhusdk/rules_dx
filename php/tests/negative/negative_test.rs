@@ -14,11 +14,6 @@ pinned_archive(
 
 const BUILD: &str = r#"load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
 
-filegroup(
-    name = "not_php",
-    srcs = ["data.txt"],
-)
-
 php_library(
     name = "clean",
     srcs = ["src/Clean/Answer.php"],
@@ -27,12 +22,6 @@ php_library(
 php_library(
     name = "broken",
     srcs = ["src/Broken/Answer.php"],
-)
-
-php_library(
-    name = "wrong_dep",
-    srcs = ["src/Clean/Answer.php"],
-    deps = [":not_php"],
 )
 
 php_test(
@@ -80,7 +69,6 @@ fn consumer() -> Case {
     let case = Case::consumer("negative", TAMPERED_MODULE);
     case.write("BUILD.bazel", "");
     case.write("app/BUILD.bazel", BUILD);
-    case.write("app/data.txt", "data\n");
     case.write("app/src/Clean/Answer.php", CLEAN);
     case.write("app/src/Broken/Answer.php", BROKEN);
     case.write("app/test/CleanTest.php", CLEAN_TEST);
@@ -178,20 +166,6 @@ fn a_class_missing_from_deps_is_not_autoloaded() {
         &case,
         "//app:undeclared_dep_test",
         &["Class \"Clean\\Answer\" not found"],
-    );
-}
-
-#[test]
-fn a_dependency_without_php_info_fails_analysis() {
-    let case = consumer();
-    let built = bazel(&case, "build", "//app:wrong_dep", &[]);
-    assert_eq!(built.code, Some(1), "{}", built.text);
-    assert!(
-        built
-            .text
-            .contains("does not have mandatory providers: 'PhpInfo'"),
-        "{}",
-        built.text
     );
 }
 

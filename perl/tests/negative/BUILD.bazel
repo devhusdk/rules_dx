@@ -1,3 +1,5 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//perl/rules:defs.bzl", "perl_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
@@ -42,4 +44,23 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
+)
+
+filegroup(
+    name = "not_perl",
+    srcs = ["Clean.pm"],
+)
+
+perl_library(
+    name = "wrong_dep",
+    testonly = True,
+    srcs = ["Clean.pm"],
+    tags = ["manual"],
+    deps = [":not_perl"],  # keep
+)
+
+failure_test(
+    name = "dependency_without_perl_info_fails_test",
+    expected_failure_substring = "does not have mandatory providers: 'PerlInfo'",
+    target = ":wrong_dep",
 )

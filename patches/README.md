@@ -33,7 +33,6 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `rules_julia` | 0.8.0 | `package_name.patch` | Julia `package_name` attribute for the wrapper targets |
 | `aspect_rules_py` | 2.0.0-alpha.10 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir (aspect-build/rules_ts#1001) |
-| `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |
 | `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes (`<iterator>`, `<memory>`, `<vector>`) with libc++, added to the headers that use them; `Exception.hh` includes `fmt/format.h` for fmt 12 |
 | `fmt` | 12.2.0.bcr.1 | none | Raises avro-cpp's fmt to a release with the libc++ include fix |
 | `gcc_toolchain` | 0.13.0 | `sanitizer_spec.patch` | Ships `libsanitizer.spec` so GCC `-fsanitize=` links in the sandbox |

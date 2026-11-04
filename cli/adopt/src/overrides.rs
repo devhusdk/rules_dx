@@ -123,15 +123,6 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
-        module: "aspect_rules_jest",
-        version: "0.26.0",
-        patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "windows_v8_coverage.patch",
-            content: include_str!("../../../patches/aspect_rules_jest/windows_v8_coverage.patch"),
-        }],
-    },
-    Override {
         module: "avro-cpp",
         version: "1.12.0.bcr.1",
         patch_strip: 1,

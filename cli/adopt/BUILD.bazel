@@ -35,7 +35,6 @@ dx_rust_crate(
         "//.github:workflows/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//modules:consumer_graph.json",
-        "//patches/aspect_rules_jest:windows_v8_coverage.patch",
         "//patches/aspect_rules_py:windows_venv.patch",
         "//patches/aspect_rules_py:py_cc_toolchain_platform.patch",
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",

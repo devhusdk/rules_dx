@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Regenerate checked-in artifact metadata."""
+"""Regenerate checked-in artifact metadata.
+
+Host tools: `file` on PATH. ELF and PE headers are parsed in Python, so no
+readelf or objdump is needed (macOS maintainers can run this).
+"""
 
 import gzip
 import hashlib

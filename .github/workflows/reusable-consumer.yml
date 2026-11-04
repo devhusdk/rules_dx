@@ -331,10 +331,12 @@ jobs:
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
         env:
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
+          DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           cell="coverage ${PLATFORM}"
+          if [[ -n "$DX_INVOCATION_ID" ]]; then cell="$cell $DX_INVOCATION_ID"; fi
           dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
           events="${RUNNER_TEMP:-/tmp}/dx-reports/coverage/coverage.ndjson"
           dx_line="$(jq -rR 'fromjson? | select(.event=="error" and .code=="coverage_below_minimum") | .message' "$events" 2>/dev/null | head -n 1 || true)"
@@ -374,6 +376,7 @@ jobs:
       - name: Publish PR summary comment (dedup marker, fork-safe)
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') && github.event_name == 'pull_request' }}
         env:
+          DX_INVOCATION_ID: ${{ inputs.invocation_id }}
           GH_TOKEN: ${{ github.token }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           PLATFORM: ${{ matrix.platform }}
@@ -390,7 +393,9 @@ jobs:
             echo "Fork PR detected: step-summary only, no PR comment." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          marker="dx-coverage-summary: coverage ${PLATFORM}"
+          cell="coverage ${PLATFORM}"
+          if [[ -n "$DX_INVOCATION_ID" ]]; then cell="$cell $DX_INVOCATION_ID"; fi
+          marker="<!-- dx-coverage-summary: $cell -->"
           pr="${PR_NUMBER}"
           existing="$(gh api --paginate "repos/$base_repo/issues/$pr/comments?per_page=100" --jq ".[] | select(.body | contains(\"$marker\")) | .id" | tail -n 1 || true)"
           if [[ -n "$existing" ]]; then

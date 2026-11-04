@@ -468,6 +468,7 @@ rust_test(
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
         ":ci_workflow",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

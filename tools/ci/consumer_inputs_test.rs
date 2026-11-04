@@ -500,3 +500,116 @@ fn coverage_scope_falls_back_when_a_threshold_is_set() {
     assert!(run.contains("scope=//..."), "coverage scope: {run}");
     assert!(run.contains("\"$scope\""), "coverage scope: {run}");
 }
+
+#[cfg(unix)]
+const CASES: [(&str, &str); 4] = [
+    ("", "<!-- dx-coverage-summary: coverage linux_x86_64 -->"),
+    ("b", "<!-- dx-coverage-summary: coverage linux_x86_64 b -->"),
+    (
+        "bb",
+        "<!-- dx-coverage-summary: coverage linux_x86_64 bb -->",
+    ),
+    ("c", "<!-- dx-coverage-summary: coverage linux_x86_64 c -->"),
+];
+
+#[cfg(unix)]
+fn coverage_env(
+    root: &std::path::Path,
+    runner: &std::path::Path,
+    invocation: &str,
+) -> Vec<(&'static str, String)> {
+    vec![
+        ("RUNNER_TEMP", runner.display().to_string()),
+        (
+            "GITHUB_STEP_SUMMARY",
+            root.join("summary.md").display().to_string(),
+        ),
+        ("GITHUB_SHA", "abc123".to_owned()),
+        ("GITHUB_SERVER_URL", "https://github.example".to_owned()),
+        ("GITHUB_REPOSITORY", "devhusdk/rules_dx".to_owned()),
+        ("GITHUB_RUN_ID", "1".to_owned()),
+        ("DX_MIN_CHANGED_LINE_COVERAGE", String::new()),
+        ("DX_INVOCATION_ID", invocation.to_owned()),
+        ("PLATFORM", "linux_x86_64".to_owned()),
+    ]
+}
+
+#[cfg(unix)]
+fn run_render(runner: &std::path::Path, script: &str, env: &[(&str, String)]) {
+    let mut command = std::process::Command::new("bash");
+    command
+        .args(["-e", "-c", script])
+        .current_dir(runner)
+        .env_clear()
+        .env("PATH", std::env::var("PATH").unwrap_or_default());
+    for (key, value) in env {
+        command.env(key, value);
+    }
+    let done = command.output().expect("run bash");
+    assert!(
+        done.status.success(),
+        "render step failed: {}",
+        String::from_utf8_lossy(&done.stderr)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn each_invocation_has_its_own_coverage_marker() {
+    let render = text_at(
+        &coverage_step("Render first-party coverage summary")["run"],
+        "render step run",
+    );
+    let publish = coverage_step("Publish PR summary comment");
+    let publish_run = text_at(&publish["run"], "publish step run");
+    assert_eq!(
+        publish["env"]["DX_INVOCATION_ID"],
+        json!("${{ inputs.invocation_id }}")
+    );
+    assert_eq!(
+        coverage_step("Render first-party coverage summary")["env"]["DX_INVOCATION_ID"],
+        json!("${{ inputs.invocation_id }}")
+    );
+    assert!(
+        publish_run.contains(
+            r#"if [[ -n "$DX_INVOCATION_ID" ]]; then cell="$cell $DX_INVOCATION_ID"; fi"#
+        ),
+        "{WORKFLOW} publish step must add the invocation id to the cell: {publish_run}"
+    );
+    assert!(
+        publish_run.contains(r#"marker="<!-- dx-coverage-summary: $cell -->""#),
+        "{WORKFLOW} publish step must look up the whole marker line: {publish_run}"
+    );
+    assert!(
+        publish_run.contains(r#"contains(\"$marker\")"#),
+        "{WORKFLOW} publish step must match the marker as a substring: {publish_run}"
+    );
+
+    let scratch = dx_test_scratch::scratch("coverage-marker");
+    let root = scratch.path();
+    let mut bodies = Vec::new();
+    for (index, &(invocation, marker)) in CASES.iter().enumerate() {
+        let runner = root.join(format!("runner-{index}"));
+        std::fs::create_dir_all(&runner).expect("create runner dir");
+        run_render(&runner, &render, &coverage_env(root, &runner, invocation));
+        let body = std::fs::read_to_string(runner.join("coverage_comment.md"))
+            .expect("render writes the comment");
+        assert_eq!(
+            body.lines().next(),
+            Some(marker),
+            "marker for {invocation:?}"
+        );
+        bodies.push(body);
+    }
+    // The publish step finds a comment by substring match on its marker, so each
+    // marker must appear in its own comment and in no other invocation's comment.
+    for (index, &(invocation, marker)) in CASES.iter().enumerate() {
+        for (other, body) in bodies.iter().enumerate() {
+            assert_eq!(
+                body.contains(marker),
+                other == index,
+                "{invocation:?} marker found in comment {other}"
+            );
+        }
+    }
+}

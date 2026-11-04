@@ -402,14 +402,11 @@ fn plan_widens(
         }
     }
     if planned.is_empty() {
-        let manifest = if let Some(name) = request.configured_name() {
-            if request.set == dx_update::edit::UpdateSet::Cargo {
+        let manifest = match request.configured_name() {
+            Some(name) if request.set == dx_update::edit::UpdateSet::Cargo => {
                 format!("any manifest of set {name}")
-            } else {
-                request.target_manifest().to_owned()
             }
-        } else {
-            request.target_manifest().to_owned()
+            _ => request.target_manifest().to_owned(),
         };
         return Err(WidenFailure::Missing(format!(
             "failed to widen {}: {}",

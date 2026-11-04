@@ -1144,7 +1144,8 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plu
     for plugin in plugins:
         if plugin not in RUNTIME_PLUGINS:
             fail("qt_bundle: plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
-    kwargs["target_compatible_with"] = kwargs.pop("target_compatible_with", []) + QT_BUNDLE_COMPATIBLE_WITH
+    compatible = kwargs.pop("target_compatible_with", None)
+    kwargs["target_compatible_with"] = (compatible or []) + QT_BUNDLE_COMPATIBLE_WITH
     _qt_bundle(
         name = name,
         binary = binary,

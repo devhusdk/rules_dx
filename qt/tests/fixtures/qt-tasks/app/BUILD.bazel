@@ -71,6 +71,20 @@ qt_bundle(
     target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
+qt_bundle(
+    name = "runtime_unset",
+    binary = ":tasks",
+    licenses = [
+        "licenses/fmt/LICENSE",
+        "licenses/llvm/LICENSE.TXT",
+    ],
+    qml_modules = [
+        "QML",
+        "QtQml",
+    ],
+    target_compatible_with = None,
+)
+
 consumer_archive(
     name = "tasks_release",
     app = ":tasks",

@@ -359,8 +359,9 @@ _frameworks_test = analysistest.make(_frameworks_test_impl, attrs = {
 
 def _bundle_test_impl(ctx):
     env = analysistest.begin(ctx)
-    prefix = "qt/tests/fixtures/qt-tasks/app/runtime/"
-    members = [f.short_path[len(prefix):] for f in analysistest.target_under_test(env)[DefaultInfo].files.to_list()]
+    target = analysistest.target_under_test(env)
+    prefix = "qt/tests/fixtures/qt-tasks/app/" + target.label.name + "/"
+    members = [f.short_path[len(prefix):] for f in target[DefaultInfo].files.to_list()]
     for want in ["lib/libQt6Core.so.6", "lib/libQt6Qml.so.6", "lib/libicuuc.so.73", "lib/libstdc++.so.6", "qml/QML/qmldir", "qml/QtQml/qmldir", "qml/QtQml/libqmlplugin.so", "licenses/qt/LGPL-3.0-only.txt"]:
         asserts.true(env, want in members, "missing " + want)
     asserts.false(env, "lib/libQt6Core.so" in members, "unversioned library staged")
@@ -449,6 +450,11 @@ def qt_rules_tests(name):
         target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
         target_compatible_with = _LINUX,
     )
+    _bundle_test(
+        name = name + "_bundle_unset",
+        target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime_unset",
+        target_compatible_with = _LINUX,
+    )
     _rust_module_test(
         name = name + "_rust_module",
         target_under_test = "//qt/tests/fixtures/qt-rust/model",
@@ -478,5 +484,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset"] + sorted(failures.keys())],
     )

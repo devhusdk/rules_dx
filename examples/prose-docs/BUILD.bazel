@@ -47,12 +47,10 @@ quality_family(
 
 quality_family(
     name = "latex_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "latex",
     format = ["latexindent"],
+    lint = ["chktex"],
 )
 
 workspace_policy(

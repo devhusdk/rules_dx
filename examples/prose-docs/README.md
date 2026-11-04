@@ -1,6 +1,6 @@
 # prose-docs
 
-Documents in four families, linted and formatted by `dx`: reStructuredText and AsciiDoc through Vale, Typst through typstyle, LaTeX through latexindent.
+Documents in four families, linted and formatted by `dx`: reStructuredText and AsciiDoc through Vale, Typst through typstyle, LaTeX through latexindent and chktex.
 
 | Package | Contents |
 | --- | --- |

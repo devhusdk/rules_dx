@@ -20,6 +20,9 @@ func TestNormalize(t *testing.T) {
 		{"__init__", "__init__"},
 		{"a-", "a"},
 		{"type_", "type_"},
+		{"данные", "данные"},
+		{"数据-util", "数据_util"},
+		{"数据_util", "数据_util"},
 	}
 	for _, tc := range cases {
 		if got, err := Normalize(tc.in); err != nil || got != tc.want {

@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
@@ -13,17 +14,13 @@ func Normalize(base string) (string, error) {
 	var b strings.Builder
 	b.Grow(len(base))
 	pending := false
-	for i := 0; i < len(base); i++ {
-		c := base[i]
-		if c <= 0x7F && (c == '_' ||
-			(c >= 'a' && c <= 'z') ||
-			(c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9')) {
+	for _, c := range base {
+		if c == '_' || unicode.IsLetter(c) || unicode.IsDigit(c) {
 			if pending && b.Len() > 0 {
 				b.WriteByte('_')
 			}
 			pending = false
-			b.WriteByte(c)
+			b.WriteRune(c)
 			continue
 		}
 		pending = true

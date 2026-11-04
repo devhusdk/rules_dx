@@ -874,11 +874,11 @@ func TestAndroidSelectSkipped(t *testing.T) {
 }
 
 func TestAndroidAbisNeverChecked(t *testing.T) {
-	build := apkBuild("    abis = [\"mips\"],\n    app_id = \"org.example.adoptandroid\",\n    manifest = \"AndroidManifest.xml\",\n")
+	build := apkBuild("    platforms = [\"mips\"],\n    app_id = \"org.example.adoptandroid\",\n    manifest = \"AndroidManifest.xml\",\n")
 	l, f := androidCheck(t, build, map[string]string{"AndroidManifest.xml": androidTestManifest})
 	wantAndroidErrors(t, l)
-	if got := strings.Join(f.Rules[0].AttrStrings("abis"), ","); got != "mips" {
-		t.Errorf("abis = %q, want mips unchanged", got)
+	if got := strings.Join(f.Rules[0].AttrStrings("platforms"), ","); got != "mips" {
+		t.Errorf("platforms = %q, want mips unchanged", got)
 	}
 }
 

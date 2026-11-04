@@ -31,7 +31,7 @@ def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
     errors.extend(app_id_errors(app_id))
     errors.extend(abi_errors(abis))
     if len(abis) == 0:
-        errors.append("rust_android_apk: abis must name at least one ABI")
+        errors.append("rust_android_apk: platforms must name at least one ABI")
     if api_level != 0 and api_level < api_floor():
         errors.append("rust_android_apk: api_level " + str(api_level) + " is below " + str(api_floor()))
     if version_code <= 0:
@@ -197,7 +197,7 @@ def rust_android_apk(
         name,
         app_id,
         deps,
-        abis = ["arm64-v8a", "x86_64"],
+        platforms = ["arm64-v8a", "x86_64"],
         activity = "android.app.NativeActivity",
         api_level = 0,
         assets = [],
@@ -217,7 +217,7 @@ def rust_android_apk(
     effective_api = api_level if api_level != 0 else api_floor()
     _apk_validation(
         name = name + "_validation",
-        abis = abis,
+        abis = platforms,
         api_level = api_level,
         apk_name = name,
         app_id = app_id,
@@ -252,8 +252,8 @@ def rust_android_apk(
         tags = ["manual"],
         visibility = visibility,
     )
-    plain = not _has_select([abis, app_id, api_level, version_code])
-    invalid = plain and len(rust_android_apk_errors(name, app_id, abis, api_level, version_code)) > 0
+    plain = not _has_select([platforms, app_id, api_level, version_code])
+    invalid = plain and len(rust_android_apk_errors(name, app_id, platforms, api_level, version_code)) > 0
     bundle_errors = bundle_signing_errors(kwargs)
     if len(bundle_errors) > 0:
         _analysis_failure(
@@ -279,7 +279,7 @@ def rust_android_apk(
         )
         _aab_file(
             name = name + "_aab_file",
-            abis = abis,
+            abis = platforms,
             src = None if invalid else ":" + name + "_bundle",
             validation = ":" + name + "_validation",
             tags = ["manual"],
@@ -300,7 +300,7 @@ def rust_android_apk(
     )
     _rust_android_apk(
         name = name,
-        abis = abis,
+        abis = platforms,
         binary = None if invalid else inner,
         testonly = testonly,
         validation = ":" + name + "_validation",
@@ -737,17 +737,17 @@ _aab_check_selection = rule(
     },
 )
 
-def android_aab_check(name, aab, abis = [], resources = [], size = "small", tags = None, visibility = None):
+def android_aab_check(name, aab, platforms = [], resources = [], size = "small", tags = None, visibility = None):
     """Declares a test that bundletool accepts the App Bundle with the given ABIs and resources."""
     _aab_check_selection(
         name = name + "_selection",
-        abis = abis,
+        abis = platforms,
         resources = resources,
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
     args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + aab + ")"]
-    for abi in abis:
+    for abi in platforms:
         args.extend(["--abi", abi])
     for resource in resources:
         args.extend(["--resource", resource])

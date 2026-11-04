@@ -57,7 +57,7 @@ rust_android_apk(
 rust_android_apk(
     name = "arm_apk",
     testonly = True,
-    abis = ["arm64-v8a"],
+    platforms = ["arm64-v8a"],
     app_id = "com.example.dxrustapk",
     assets = glob(["assets/**"]),
     assets_dir = "assets",
@@ -101,7 +101,7 @@ genrule(
 android_aab_check(
     name = "check_test_bundle_test",
     aab = ":test_bundle.aab",
-    abis = ["x86_64"],
+    platforms = ["x86_64"],
 )
 
 android_apk_set(
@@ -143,7 +143,7 @@ android_adb_log(
 rust_android_apk(
     name = "custom_apk",
     testonly = True,
-    abis = ["x86_64"],
+    platforms = ["x86_64"],
     api_level = 33,
     app_id = "org.example.custom.dxrustapk",
     assets = glob(["assets/**"]),
@@ -244,7 +244,7 @@ sh_test(
 android_aab_check(
     name = "check_app_aab_test",
     aab = ":app_apk_aab_file",
-    abis = [
+    platforms = [
         "arm64-v8a",
         "x86_64",
     ],
@@ -264,7 +264,7 @@ starlark_platforms(
 android_aab_check(
     name = "check_app_aab_starlark_flag_test",
     aab = ":app_apk_aab_file_x86_64_flag",
-    abis = [
+    platforms = [
         "arm64-v8a",
         "x86_64",
     ],

@@ -45,7 +45,7 @@ cc_library(
 
 rust_android_apk(
     name = "consumer_android_apk",
-    abis = [
+    platforms = [
         "arm64-v8a",
         "x86_64",
     ],

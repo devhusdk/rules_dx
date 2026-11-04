@@ -42,7 +42,7 @@ cc_library(
 
 rust_android_apk(
     name = "demo-app_apk",
-    abis = [
+    platforms = [
         "arm64-v8a",
         "x86_64",
     ],

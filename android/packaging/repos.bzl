@@ -37,7 +37,7 @@ def abi_errors(abis):
         if abi not in KNOWN_ABIS:
             errors.append("rust_android_apk: abi '" + abi + "' is unknown: want " + ", ".join(KNOWN_ABIS))
     if len(abis) != len(dict([(abi, True) for abi in abis])):
-        errors.append("rust_android_apk: abis holds duplicates")
+        errors.append("rust_android_apk: platforms holds duplicates")
     return errors
 
 def app_id_errors(app_id):

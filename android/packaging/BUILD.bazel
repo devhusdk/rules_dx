@@ -47,8 +47,8 @@ failure_test(
 
 rust_android_apk(
     name = "bad_abi",
-    abis = ["mips"],
     app_id = "com.example.app",
+    platforms = ["mips"],
     deps = [],
 )
 
@@ -92,30 +92,30 @@ failure_test(
 
 rust_android_apk(
     name = "bad_abis",
-    abis = [],
     app_id = "com.example.app",
+    platforms = [],
     deps = [],
 )
 
 rust_android_apk(
     name = "bad_dup_abis",
-    abis = [
+    app_id = "com.example.app",
+    platforms = [
         "x86_64",
         "x86_64",
     ],
-    app_id = "com.example.app",
     deps = [],
 )
 
 failure_test(
     name = "bad_dup_abis_test",
-    expected_failure_substring = "abis holds duplicates",
+    expected_failure_substring = "platforms holds duplicates",
     target = ":bad_dup_abis",
 )
 
 failure_test(
     name = "bad_abis_test",
-    expected_failure_substring = "abis must name at least one ABI",
+    expected_failure_substring = "platforms must name at least one ABI",
     target = ":bad_abis",
 )
 
@@ -218,7 +218,7 @@ failure_test(
 android_aab_check(
     name = "bad_abi_aab_check",
     aab = "//android/tests/fixtures/rust_apk:dummy.apk",
-    abis = ["mips"],
+    platforms = ["mips"],
     tags = ["manual"],
 )
 

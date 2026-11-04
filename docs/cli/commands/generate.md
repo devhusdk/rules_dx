@@ -98,7 +98,7 @@ directories that import the Android SDK:
   alone.
 - Resources, the `R` class and manifests are never derived.
 
-Generation never writes `app_id`, permissions, `api_level`, `abis`, signing or
+Generation never writes `app_id`, permissions, `api_level`, `platforms`, signing or
 app topology. The packaging rules validate ABIs.
 
 For a `rust_android_apk` with a custom `manifest` file in the same package,

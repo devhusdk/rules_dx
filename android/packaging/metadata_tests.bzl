@@ -46,7 +46,7 @@ def _packaging_checks():
     checks.append(expect_equal(
         "duplicate abi errors",
         abi_errors(["arm64-v8a", "arm64-v8a"]),
-        ["rust_android_apk: abis holds duplicates"],
+        ["rust_android_apk: platforms holds duplicates"],
     ))
     checks.append(expect_equal("valid app id errors", app_id_errors("com.example.app"), []))
     checks.append(expect_equal(
@@ -161,7 +161,7 @@ def _packaging_checks():
     checks.append(expect_equal(
         "duplicate abi aab check",
         aab_check_errors(["x86_64", "x86_64"], []),
-        ["rust_android_apk: abis holds duplicates"],
+        ["rust_android_apk: platforms holds duplicates"],
     ))
     checks.append(expect_equal("no lineage bundle", bundle_signing_errors({"manifest_values": {}}), []))
     checks.append(expect_equal("none lineage bundle", bundle_signing_errors({"debug_signing_lineage_file": None}), []))

@@ -59,7 +59,7 @@ impl UpdateSet {
         Self::names().join("|")
     }
 
-    /// Whether a bump edits every manifest of the set that declares the package.
+    /// Whether an update edits every manifest of the set that declares the package.
     pub fn spans_manifests(self) -> bool {
         matches!(self, UpdateSet::Cargo | UpdateSet::GithubActions)
     }

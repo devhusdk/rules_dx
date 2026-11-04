@@ -1414,7 +1414,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
-    fn one_version_bump_changes_only_that_crate() {
+    fn one_version_update_changes_only_that_crate() {
         let base = lock(&[("serde", "1.0.1", &[]), ("itoa", "1.0.0", &[])]);
         let head = lock(&[("serde", "1.0.2", &[]), ("itoa", "1.0.0", &[])]);
         assert_eq!(
@@ -1426,7 +1426,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
-    fn a_bumped_dependency_selects_every_crate_that_reaches_it() {
+    fn a_updated_dependency_selects_every_crate_that_reaches_it() {
         let base = lock(&[
             ("mio", "1.0.0", &[]),
             ("tokio", "1.40.0", &["mio"]),
@@ -1508,7 +1508,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
-    fn bazel_lock_direct_dep_bump_narrows() {
+    fn bazel_lock_direct_dep_update_narrows() {
         let base = bazel_lock_with("1.0.1", &["serde 1.0.1"], None);
         let head = bazel_lock_with("1.0.2", &["serde 1.0.2"], None);
         let change = change(&base, &head).expect("narrowed");

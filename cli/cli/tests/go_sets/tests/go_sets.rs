@@ -154,7 +154,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
         report(&run)
     );
 
-    // A real bump: an older require with stale sums is widened and go.sum is refreshed.
+    // A real update: an older require with stale sums is widened and go.sum is refreshed.
     write(
         &root.join("third_party/go/go.mod"),
         &GO_MOD.replace("v0.7.0", "v0.6.0"),

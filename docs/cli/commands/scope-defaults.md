@@ -96,7 +96,7 @@ exit `2`).
   `*.MODULE.bazel` file, any `MODULE.bazel` or `MODULE.bazel.lock` below the
   workspace root, or any `.bazelrc*` file, at any depth, widens the scope to
   `//...`. So does any edit to the root `MODULE.bazel` or `MODULE.bazel.lock`
-  other than the `bazel_dep` version bump below. So does a file the root `.bazelrc` reaches
+  other than the `bazel_dep` version update below. So does a file the root `.bazelrc` reaches
   through `import` or `try-import %workspace%/...`, including nested imports.
   Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
@@ -150,7 +150,7 @@ exit `2`).
   keeps the narrow selection. It widens to `//...` with one of these reasons:
   `workspace input MODULE.bazel` (another edit, no base commit, or a file
   added or missing), `workspace input MODULE.bazel.lock` (the lock is
-  missing or does not list the bumped version, for example when it was not
+  missing or does not list the updated version, for example when it was not
   updated),
   `cannot read MODULE.bazel.lock: <detail>`,
   `MODULE.bazel.lock changed <key>` (a lock entry outside the changed
@@ -211,7 +211,7 @@ exit `2`).
   `repos`, the changed crates:
   `{"scope": "rdeps(//..., @crates//:serde)", "reason": "changed crates in Cargo.lock", "repos": ["@crates//:serde"]}`.
   With more than five crates the scope reads `rdeps(//..., <n> repos)`.
-  A `bazel_dep` bump adds one entry with the changed modules:
+  A `bazel_dep` update adds one entry with the changed modules:
   `{"scope": "rdeps(//..., @leaf, @user)", "reason": "changed modules in MODULE.bazel", "repos": ["@leaf", "@user"]}`.
   `tests` is added only for `dx check --affected`. It lists the tests the
   last phase runs: `//...` when widened, empty when no test is affected. dx

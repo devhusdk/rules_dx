@@ -1,13 +1,13 @@
 //! Widening one PEP 508 requirement in a `pyproject.toml`.
 
-use super::BumpError;
-use crate::bump::version::WidenVersion;
+use super::EditError;
+use crate::edit::version::WidenVersion;
 use toml_edit::{Array, DocumentMut, Item, Value};
 
 const MANIFEST: &str = "pyproject.toml";
 
-fn unsupported(reason: impl Into<String>) -> BumpError {
-    BumpError::UnsupportedManifest {
+fn unsupported(reason: impl Into<String>) -> EditError {
+    EditError::UnsupportedManifest {
         manifest: MANIFEST.to_owned(),
         reason: reason.into(),
     }
@@ -36,7 +36,7 @@ fn widen_requirement(
     requirement: &str,
     package: &str,
     version: &str,
-) -> Result<Option<String>, BumpError> {
+) -> Result<Option<String>, EditError> {
     let trimmed = requirement.trim_start();
     let name_end = trimmed
         .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
@@ -79,7 +79,7 @@ fn scan_array(
     package: &str,
     version: &str,
     hits: &mut Vec<String>,
-) -> Result<Vec<(usize, String)>, BumpError> {
+) -> Result<Vec<(usize, String)>, EditError> {
     let mut found = Vec::new();
     for (index, value) in array.iter().enumerate() {
         if let Some(text) = value.as_str() {
@@ -99,7 +99,7 @@ pub(crate) fn plan_pyproject_toml(
     content: &str,
     package: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let WidenVersion::Semver(version) = version else {
         return Err(unsupported("expected exact semver"));
     };
@@ -144,7 +144,7 @@ pub(crate) fn plan_pyproject_toml(
         }
     }
     match hits.len() {
-        0 => Err(BumpError::NotFound {
+        0 => Err(EditError::NotFound {
             manifest: MANIFEST.to_owned(),
             package: package.to_owned(),
         }),
@@ -170,7 +170,7 @@ pub(crate) fn plan_pyproject_toml(
             }
             Ok(doc.to_string())
         }
-        count => Err(BumpError::Ambiguous {
+        count => Err(EditError::Ambiguous {
             manifest: MANIFEST.to_owned(),
             package: package.to_owned(),
             count,
@@ -182,7 +182,7 @@ pub(crate) fn plan_pyproject_toml(
 mod tests {
     use super::*;
 
-    fn widen(content: &str, package: &str, version: &str) -> Result<String, BumpError> {
+    fn widen(content: &str, package: &str, version: &str) -> Result<String, EditError> {
         let version = WidenVersion::Semver(version.parse().expect("semver"));
         plan_pyproject_toml(content, package, &version)
     }
@@ -228,12 +228,12 @@ lint = ["ruff>=0.1"]
     fn missing_and_ambiguous_requirements_fail() {
         assert!(matches!(
             widen(PYPROJECT, "absent", "1.0.0"),
-            Err(BumpError::NotFound { .. })
+            Err(EditError::NotFound { .. })
         ));
         let twice = "[project]\ndependencies = [\"a>=1\"]\n[dependency-groups]\ng = [\"a>=2\"]\n";
         assert!(matches!(
             widen(twice, "a", "3.0.0"),
-            Err(BumpError::Ambiguous { count: 2, .. })
+            Err(EditError::Ambiguous { count: 2, .. })
         ));
     }
 
@@ -242,7 +242,7 @@ lint = ["ruff>=0.1"]
         let text = "[project]\ndependencies = [\"a @ https://example.com/a.whl\"]\n";
         assert!(matches!(
             widen(text, "a", "1.0.0"),
-            Err(BumpError::UnsupportedManifest { .. })
+            Err(EditError::UnsupportedManifest { .. })
         ));
     }
 }

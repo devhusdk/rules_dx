@@ -587,7 +587,7 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
         audit_today,
         actions,
         proc_root,
-        bump_commit_json,
+        edit_commit_json,
     } = env;
     let (code, complete, host) = super::workflow::execute_workflow_phase(
         test,
@@ -604,7 +604,7 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
             audit_today,
             actions,
             proc_root,
-            bump_commit_json,
+            edit_commit_json,
         },
     );
     PhaseRun {
@@ -634,7 +634,7 @@ struct VerifyContext<'a> {
     audit_today: Option<&'a str>,
     actions: &'a ActionTally,
     proc_root: &'a Path,
-    bump_commit_json: Option<&'a str>,
+    edit_commit_json: Option<&'a str>,
 }
 
 /// Re-runs umbrella phases read-only through `through` after `check --apply` touched them.
@@ -684,7 +684,7 @@ fn verify_fix(
                 audit_today: context.audit_today,
                 actions: context.actions,
                 proc_root: context.proc_root,
-                bump_commit_json: context.bump_commit_json,
+                edit_commit_json: context.edit_commit_json,
             };
             if *phase == Command::Generate {
                 execute_generate_request(&request.verify_generate_request(), phase_env)
@@ -848,7 +848,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         audit_today,
         actions,
         proc_root,
-        bump_commit_json,
+        edit_commit_json,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_umbrella(
@@ -866,7 +866,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
             audit_today,
             actions,
             proc_root,
-            bump_commit_json,
+            edit_commit_json,
         },
     );
     latched.exit_code(code)
@@ -886,7 +886,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         audit_today,
         actions,
         proc_root,
-        bump_commit_json,
+        edit_commit_json,
     } = env;
     let fix_apply = request.applies();
     // One rule-graph load serves every phase until a phase may have rewritten BUILD files.
@@ -1032,7 +1032,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 audit_today,
                 actions,
                 proc_root,
-                bump_commit_json,
+                edit_commit_json,
             };
             if phase == Command::Generate {
                 let mut generate = request.phase_generate_request(phase_reports);
@@ -1235,7 +1235,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             audit_today,
             actions,
             proc_root,
-            bump_commit_json,
+            edit_commit_json,
         };
         let verification = verify_fix(request, &context, through, &failed_phases);
         reports_ok &= verification.readable;

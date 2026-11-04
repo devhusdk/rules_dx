@@ -6,8 +6,7 @@ pub mod version;
 
 pub use add::{AddError, AddRequest};
 pub use request::{
-    BumpError, BumpPlanOutcome, ConfiguredKind, ConfiguredSet, DepTarget,
-    DepVersion, UpdateRequest,
+    ConfiguredKind, ConfiguredSet, DepTarget, DepVersion, EditError, EditPlanOutcome, UpdateRequest,
 };
 pub use sets::UpdateSet;
 pub use version::{compare, is_stable, VersionError, WidenVersion};

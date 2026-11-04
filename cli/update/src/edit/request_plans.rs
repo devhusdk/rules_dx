@@ -3,11 +3,11 @@ use super::*;
 pub(super) fn plan_bazelversion(
     content: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: ".bazelversion".to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
@@ -15,7 +15,7 @@ pub(super) fn plan_bazelversion(
     };
     let trimmed = content.trim();
     if trimmed.is_empty() || trimmed.contains('\n') {
-        return Err(BumpError::UnsupportedManifest {
+        return Err(EditError::UnsupportedManifest {
             manifest: ".bazelversion".to_owned(),
             reason: "expected one single-line version".to_owned(),
         });
@@ -30,22 +30,22 @@ pub(super) fn plan_bazelversion(
 
 /// Widens one MODULE.bazel dep: the tested override by default, or the floor.
 ///
-/// A tested bump edits the `single_version_override` version when one has a literal
+/// A tested update edits the `single_version_override` version when one has a literal
 /// version, else the `bazel_dep`; it refuses to drop below the `bazel_dep` floor. A floor
-/// bump edits the `bazel_dep` and its `# floor: ` comment; it refuses to rise above the
+/// update edits the `bazel_dep` and its `# floor: ` comment; it refuses to rise above the
 /// override's tested version.
 pub(super) fn plan_module_bazel(
     content: &str,
     package: &str,
     version: &WidenVersion,
     target: &DepVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     use dx_module_bazel::ModuleError;
     use std::cmp::Ordering;
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: "MODULE.bazel".to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
@@ -67,7 +67,7 @@ pub(super) fn plan_module_bazel(
     match (target, tested) {
         (DepVersion::Tested, Some(_)) => {
             if dx_module_bazel::compare_module_versions(&new, &floor) == Ordering::Less {
-                return Err(BumpError::TestedBelowFloor {
+                return Err(EditError::TestedBelowFloor {
                     package: package.to_owned(),
                     tested: new,
                     floor,
@@ -83,7 +83,7 @@ pub(super) fn plan_module_bazel(
         (DepVersion::Floor { reason }, tested) => {
             if let Some(tested) = tested {
                 if dx_module_bazel::compare_module_versions(&new, &tested) == Ordering::Greater {
-                    return Err(BumpError::FloorAboveTested {
+                    return Err(EditError::FloorAboveTested {
                         package: package.to_owned(),
                         floor: new,
                         tested,
@@ -100,18 +100,18 @@ pub(super) fn plan_module_bazel(
     }
 }
 
-fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> BumpError + '_ {
+fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> EditError + '_ {
     move |error| match error {
-        dx_module_bazel::ModuleError::NotFound { .. } => BumpError::NotFound {
+        dx_module_bazel::ModuleError::NotFound { .. } => EditError::NotFound {
             manifest: "MODULE.bazel".to_owned(),
             package: package.to_owned(),
         },
-        dx_module_bazel::ModuleError::Ambiguous { count, .. } => BumpError::Ambiguous {
+        dx_module_bazel::ModuleError::Ambiguous { count, .. } => EditError::Ambiguous {
             manifest: "MODULE.bazel".to_owned(),
             package: package.to_owned(),
             count,
         },
-        other => BumpError::UnsupportedManifest {
+        other => EditError::UnsupportedManifest {
             manifest: "MODULE.bazel".to_owned(),
             reason: other.to_string(),
         },
@@ -122,17 +122,17 @@ pub(super) fn plan_package_json(
     content: &str,
     package: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: "package.json".to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
     };
-    let unsupported = |reason: String| BumpError::UnsupportedManifest {
+    let unsupported = |reason: String| EditError::UnsupportedManifest {
         manifest: "package.json".to_owned(),
         reason,
     };
@@ -172,7 +172,7 @@ pub(super) fn plan_package_json(
         }
     }
     match spans.len() {
-        0 => Err(BumpError::NotFound {
+        0 => Err(EditError::NotFound {
             manifest: "package.json".to_owned(),
             package: package.to_owned(),
         }),
@@ -190,7 +190,7 @@ pub(super) fn plan_package_json(
                 &content[end..]
             ))
         }
-        count => Err(BumpError::Ambiguous {
+        count => Err(EditError::Ambiguous {
             manifest: "package.json".to_owned(),
             package: package.to_owned(),
             count,
@@ -211,8 +211,8 @@ pub(crate) struct JsonScan<'a> {
 }
 
 impl JsonScan<'_> {
-    fn bad() -> BumpError {
-        BumpError::UnsupportedManifest {
+    fn bad() -> EditError {
+        EditError::UnsupportedManifest {
             manifest: "package.json".to_owned(),
             reason: "manifest is not valid JSON".to_owned(),
         }
@@ -224,7 +224,7 @@ impl JsonScan<'_> {
         }
     }
 
-    pub(crate) fn string_end(&mut self) -> Result<usize, BumpError> {
+    pub(crate) fn string_end(&mut self) -> Result<usize, EditError> {
         let bytes = self.text.as_bytes();
         let mut i = self.at + 1;
         while i < bytes.len() {
@@ -240,7 +240,7 @@ impl JsonScan<'_> {
         Err(Self::bad())
     }
 
-    pub(crate) fn skip_value(&mut self) -> Result<(), BumpError> {
+    pub(crate) fn skip_value(&mut self) -> Result<(), EditError> {
         self.skip_ws();
         match self.text[self.at..].chars().next() {
             Some('"') => self.string_end().map(|_| ()),
@@ -283,7 +283,7 @@ impl JsonScan<'_> {
         }
     }
 
-    pub(crate) fn members(&mut self) -> Result<Vec<(String, usize)>, BumpError> {
+    pub(crate) fn members(&mut self) -> Result<Vec<(String, usize)>, EditError> {
         self.skip_ws();
         if !self.text[self.at..].starts_with('{') {
             return Err(Self::bad());
@@ -321,11 +321,11 @@ pub(super) fn plan_go_mod(
     content: &str,
     package: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => format!("v{version}"),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
@@ -333,17 +333,17 @@ pub(super) fn plan_go_mod(
     };
     let manifest = manifest.to_owned();
     dx_gomod::set_require_version(content, package, &new).map_err(|error| match error {
-        dx_gomod::GoEditError::NotFound => BumpError::NotFound {
+        dx_gomod::GoEditError::NotFound => EditError::NotFound {
             manifest,
             package: package.to_owned(),
         },
-        dx_gomod::GoEditError::Ambiguous(count) => BumpError::Ambiguous {
+        dx_gomod::GoEditError::Ambiguous(count) => EditError::Ambiguous {
             manifest,
             package: package.to_owned(),
             count,
         },
         dx_gomod::GoEditError::Invalid(reason) => {
-            BumpError::UnsupportedManifest { manifest, reason }
+            EditError::UnsupportedManifest { manifest, reason }
         }
     })
 }
@@ -354,11 +354,11 @@ pub(super) fn plan_maven_module_bazel(
     package: &str,
     version: &WidenVersion,
     install: Option<&str>,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
@@ -378,7 +378,7 @@ pub(super) fn plan_maven_module_bazel(
             continue;
         }
         if !(3..=5).contains(&parts.len()) || parts.iter().any(|part| part.trim().is_empty()) {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: format!("malformed Maven coordinate {:?}", literal.value),
             });
@@ -386,7 +386,7 @@ pub(super) fn plan_maven_module_bazel(
         selected.push((literal, parts));
     }
     match selected.as_slice() {
-        [] => Err(BumpError::NotFound {
+        [] => Err(EditError::NotFound {
             manifest: manifest.to_owned(),
             package: package.to_owned(),
         }),
@@ -398,7 +398,7 @@ pub(super) fn plan_maven_module_bazel(
                 .replace(literal, &next)
                 .map_err(module_error(package))
         }
-        many => Err(BumpError::Ambiguous {
+        many => Err(EditError::Ambiguous {
             manifest: manifest.to_owned(),
             package: package.to_owned(),
             count: many.len(),
@@ -411,12 +411,12 @@ pub(super) fn plan_paket_dependencies(
     content: &str,
     package: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let manifest_path = manifest;
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: manifest_path.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
@@ -432,21 +432,21 @@ pub(super) fn plan_paket_dependencies(
     }
     let (at, line) = match targets.as_slice() {
         [] => {
-            return Err(BumpError::NotFound {
+            return Err(EditError::NotFound {
                 manifest: manifest_path.to_owned(),
                 package: package.to_owned(),
             });
         }
         [one] => *one,
         many => {
-            return Err(BumpError::Ambiguous {
+            return Err(EditError::Ambiguous {
                 manifest: manifest_path.to_owned(),
                 package: package.to_owned(),
                 count: many.len(),
             });
         }
     };
-    let unsupported = |reason: String| BumpError::UnsupportedManifest {
+    let unsupported = |reason: String| EditError::UnsupportedManifest {
         manifest: manifest_path.to_owned(),
         reason: format!("{package:?}: {reason}"),
     };
@@ -593,26 +593,26 @@ pub(super) fn plan_github_workflow(
     content: &str,
     package: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     match version {
-        WidenVersion::GitTag(tag) => Err(BumpError::NeedsSha {
+        WidenVersion::GitTag(tag) => Err(EditError::NeedsSha {
             package: package.to_owned(),
             tag: tag.clone(),
         }),
         WidenVersion::GitCommit(sha) => {
-            let unsupported = |reason: String| BumpError::UnsupportedManifest {
+            let unsupported = |reason: String| EditError::UnsupportedManifest {
                 manifest: WORKFLOW_DIR.to_owned(),
                 reason,
             };
-            let parsed = crate::bump::gha::parse_workflow_pins(content)
+            let parsed = crate::edit::gha::parse_workflow_pins(content)
                 .map_err(|error| unsupported(error.to_string()))?;
             let targets_package =
-                |kind, value: &str| crate::bump::gha::pin_targets_package(kind, value, package);
+                |kind, value: &str| crate::edit::gha::pin_targets_package(kind, value, package);
             if parsed.indirect
                 && parsed
                     .loose
                     .iter()
-                    .any(|value| targets_package(crate::bump::gha::UsesKind::Step, value))
+                    .any(|value| targets_package(crate::edit::gha::UsesKind::Step, value))
             {
                 return Err(unsupported(format!(
                     "{package:?} sits in a workflow with aliases or merge keys"
@@ -626,18 +626,18 @@ pub(super) fn plan_github_workflow(
                 .map(|(index, _)| index)
                 .collect();
             match matched.as_slice() {
-                [] => Err(BumpError::NotFound {
+                [] => Err(EditError::NotFound {
                     manifest: WORKFLOW_DIR.to_owned(),
                     package: package.to_owned(),
                 }),
                 [index] => {
                     let pin = &parsed.pins[*index];
                     let no_pin = || unsupported(format!("{package:?} has no replaceable @SHA pin"));
-                    let out = crate::bump::gha::replace_pin_reference(content, pin, sha)
+                    let out = crate::edit::gha::replace_pin_reference(content, pin, sha)
                         .ok_or_else(no_pin)?;
-                    let reparsed = crate::bump::gha::parse_workflow_pins(&out)
+                    let reparsed = crate::edit::gha::parse_workflow_pins(&out)
                         .map_err(|error| unsupported(error.to_string()))?;
-                    let (action, _) = crate::bump::gha::split_pin(&pin.value).ok_or_else(no_pin)?;
+                    let (action, _) = crate::edit::gha::split_pin(&pin.value).ok_or_else(no_pin)?;
                     let expected = format!("{action}@{sha}");
                     let kept = reparsed.pins.len() == parsed.pins.len()
                         && reparsed.pins.iter().zip(&parsed.pins).enumerate().all(
@@ -654,14 +654,14 @@ pub(super) fn plan_github_workflow(
                     }
                     Ok(out)
                 }
-                many => Err(BumpError::Ambiguous {
+                many => Err(EditError::Ambiguous {
                     manifest: WORKFLOW_DIR.to_owned(),
                     package: package.to_owned(),
                     count: many.len(),
                 }),
             }
         }
-        WidenVersion::Semver(_) => Err(BumpError::UnsupportedManifest {
+        WidenVersion::Semver(_) => Err(EditError::UnsupportedManifest {
             manifest: WORKFLOW_DIR.to_owned(),
             reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
         }),
@@ -690,8 +690,8 @@ pub(super) fn is_target_shape(text: &str) -> bool {
 const BAZEL_CHARSET: &str = "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)";
 const GITHUB_ACTIONS_CHARSET: &str = "github-actions owner/repo use [A-Za-z0-9_.-] only";
 
-pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), BumpError> {
-    let invalid = |reason: &'static str| BumpError::InvalidPackage {
+pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), EditError> {
+    let invalid = |reason: &'static str| EditError::InvalidPackage {
         set: set.name(),
         package: package.to_owned(),
         reason,

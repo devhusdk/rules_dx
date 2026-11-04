@@ -406,7 +406,7 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 requirement to the version, or declares it when missing. A version starts with
 a digit, `v` plus a digit, or is a commit SHA. Checks by default; `--apply`
 writes. Without `--apply`, it exits `0` when the manifest already declares the
-version and exits `1` with `bump drift` when a widen is pending. The set is a
+version and exits `1` with `update drift` when a widen is pending. The set is a
 [dependency set](#dependency-sets) from `MODULE.bazel`, or one of the built-in
 sets `bazel` and `github-actions`. Any other set name exits `2` and lists the
 valid names. A package the manifest does not declare yet is
@@ -467,7 +467,7 @@ A missing package is inserted in the same manifest and shape the widen edits:
 a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line,
 a `maven.install` coordinate, a `dependencies` entry in `package.json`, or a
 `nuget` line in `paket.dependencies`. It then refreshes like a widen. Without
-`--apply`, it exits `1` with `bump pending`.
+`--apply`, it exits `1` with `update pending`.
 
 `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.

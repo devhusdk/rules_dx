@@ -5,11 +5,11 @@ pub(super) fn plan_cargo_toml(
     content: &str,
     package: &str,
     version: &WidenVersion,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
-            return Err(BumpError::UnsupportedManifest {
+            return Err(EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
@@ -18,7 +18,7 @@ pub(super) fn plan_cargo_toml(
     let mut doc =
         content
             .parse::<toml_edit::DocumentMut>()
-            .map_err(|_| BumpError::UnsupportedManifest {
+            .map_err(|_| EditError::UnsupportedManifest {
                 manifest: manifest.to_owned(),
                 reason: "manifest is not valid TOML".to_owned(),
             })?;
@@ -34,7 +34,7 @@ pub(super) fn plan_cargo_toml(
         match cargo_dep_shape(item) {
             CargoDepShape::Registry => matches.push(path.clone()),
             CargoDepShape::GitOrPath => {
-                return Err(BumpError::UnsupportedManifest {
+                return Err(EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),
                     reason: format!(
                         "{package:?} is git/path-shaped; v1 widens registry versions only"
@@ -42,7 +42,7 @@ pub(super) fn plan_cargo_toml(
                 });
             }
             CargoDepShape::Workspace => {
-                return Err(BumpError::UnsupportedManifest {
+                return Err(EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),
                     reason: format!(
                         "{package:?} inherits workspace version; v1 widens registry versions only"
@@ -50,7 +50,7 @@ pub(super) fn plan_cargo_toml(
                 });
             }
             CargoDepShape::NoVersion => {
-                return Err(BumpError::UnsupportedManifest {
+                return Err(EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
                 });
@@ -58,26 +58,26 @@ pub(super) fn plan_cargo_toml(
         }
     }
     match matches.len() {
-        0 => Err(BumpError::NotFound {
+        0 => Err(EditError::NotFound {
             manifest: manifest.to_owned(),
             package: package.to_owned(),
         }),
         1 => {
             let table = cargo_table_at_mut(&mut doc, &matches[0]).ok_or_else(|| {
-                BumpError::UnsupportedManifest {
+                EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
                 }
             })?;
             cargo_set_version(table, package, &new).ok_or_else(|| {
-                BumpError::UnsupportedManifest {
+                EditError::UnsupportedManifest {
                     manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
                 }
             })?;
             Ok(doc.to_string())
         }
-        count => Err(BumpError::Ambiguous {
+        count => Err(EditError::Ambiguous {
             manifest: manifest.to_owned(),
             package: package.to_owned(),
             count,

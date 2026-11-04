@@ -136,9 +136,9 @@ _SETS_BUILD_BAZEL = '''genrule(
     name = "consumer_sets_probe",
     outs = [
         "bad_kind.txt",
-        "bump_cargo.txt",
-        "bump_pinned.txt",
-        "bump_unsupported.txt",
+        "edit_cargo.txt",
+        "edit_pinned.txt",
+        "edit_unsupported.txt",
         "license_json.txt",
         "nolock_license.txt",
         "security_cargo_json.txt",
@@ -279,17 +279,17 @@ if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
   echo "security reported a configured cargo set as uncovered" >&2
   exit 1
 fi
-if "$$public" update crates:serde 2.0.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
-  echo "bump unexpectedly widened a configured cargo set" >&2
+if "$$public" update crates:serde 2.0.0 --workspace "$$ok" > "$(location edit_cargo.txt)" 2>&1; then
+  echo "update unexpectedly widened a configured cargo set" >&2
   exit 1
 fi
-grep -q 'bump pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml' "$(location bump_cargo.txt)"
+grep -q 'update pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml' "$(location edit_cargo.txt)"
 # The crate_universe hub is not in use_repo: dx refuses to run it.
-if "$$public" update --workspace "$$ok" crates >> "$(location bump_cargo.txt)" 2>&1; then
+if "$$public" update --workspace "$$ok" crates >> "$(location edit_cargo.txt)" 2>&1; then
   echo "update checked a cargo set without its crate_universe hub" >&2
   exit 1
 fi
-grep -q 'cannot resolve cargo hub "crates": MODULE.bazel must list "crates" in use_repo' "$(location bump_cargo.txt)"
+grep -q 'cannot resolve cargo hub "crates": MODULE.bazel must list "crates" in use_repo' "$(location edit_cargo.txt)"
 cmp "$$orig/consumer_sets_cargo_lock.orig" "$(location sets_ok/apps/rs/Cargo.lock)"
 "$$public" update --workspace "$$ok" gems > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"
@@ -303,19 +303,19 @@ if grep -q "no advisory coverage" "$(location security_ruby_json.txt)"; then
   echo "security reported a configured ruby set as uncovered" >&2
   exit 1
 fi
-if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location bump_pinned.txt)" 2>&1; then
-  echo "bump unexpectedly widened a configured ruby set" >&2
+if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location edit_pinned.txt)" 2>&1; then
+  echo "update unexpectedly widened a configured ruby set" >&2
   exit 1
 fi
-grep -q "update is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location bump_pinned.txt)"
+grep -q "update is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location edit_pinned.txt)"
 cmp "$$orig/consumer_sets_gemfile_lock.orig" "$(location sets_ok/apps/rb/Gemfile.lock)"
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
-if "$$public" update pypi-frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
-  echo "bump accepted a bare configured uv set" >&2
+if "$$public" update pypi-frontend 4.1.0 --workspace "$$ok" > "$(location edit_unsupported.txt)" 2>&1; then
+  echo "update accepted a bare configured uv set" >&2
   exit 1
 fi
-grep -q "bump needs one package, not a whole set" "$(location bump_unsupported.txt)"
+grep -q "update needs one package, not a whole set" "$(location edit_unsupported.txt)"
 if "$$public" update --workspace "$$bad" > "$(location bad_kind.txt)" 2>&1; then
   echo "update accepted a computed hub" >&2
   exit 1

@@ -22,7 +22,7 @@ pub(super) struct Io<'a> {
 pub(super) fn add_missing(
     invocation: &Invocation,
     io: Io<'_>,
-    bump: &dx_update::bump::UpdateRequest,
+    update: &dx_update::edit::UpdateRequest,
     missing: &str,
 ) -> i32 {
     let Io {
@@ -32,14 +32,14 @@ pub(super) fn add_missing(
         out,
         err,
     } = io;
-    let unsupported = bump.set == dx_update::bump::UpdateSet::GithubActions
-        || bump
+    let unsupported = update.set == dx_update::edit::UpdateSet::GithubActions
+        || update
             .configured_kind()
-            .is_some_and(|kind| kind == dx_update::bump::ConfiguredKind::Uv);
+            .is_some_and(|kind| kind == dx_update::edit::ConfiguredKind::Uv);
     if unsupported {
         return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, missing);
     }
-    let request = dx_update::bump::AddRequest::from_bump(bump);
+    let request = dx_update::edit::AddRequest::from_request(update);
     let applies = invocation.applies();
     let verbose = invocation.chatty();
     if applies {
@@ -64,7 +64,7 @@ pub(super) fn add_missing(
     };
     if !applies {
         let message = format!(
-            "bump pending: {} {} is not declared in {manifest} (run `dx update {} {} --apply`)",
+            "update pending: {} {} is not declared in {manifest} (run `dx update {} {} --apply`)",
             request.selector,
             request.version.display(),
             request.selector,
@@ -99,7 +99,7 @@ pub(super) fn add_missing(
 }
 
 fn plan_insert(
-    request: &dx_update::bump::AddRequest,
+    request: &dx_update::edit::AddRequest,
     workspace: &std::path::Path,
     manifest: &str,
 ) -> Result<String, String> {
@@ -122,7 +122,7 @@ fn plan_insert(
         )
     })?;
     request.plan_insert(&text).map_err(|error| match error {
-        declared @ dx_update::bump::AddError::Declared { .. } => declared.to_string(),
+        declared @ dx_update::edit::AddError::Declared { .. } => declared.to_string(),
         other => format!("failed to add {}: {other}", request.selector),
     })
 }

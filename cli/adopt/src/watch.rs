@@ -324,7 +324,6 @@ mod tests {
         for not_watchable in [
             "audit",
             "bazel",
-            "bump",
             "clean",
             "completion",
             "coverage",

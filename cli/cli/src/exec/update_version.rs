@@ -6,17 +6,20 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_plan::reports::plan_reports;
-pub use dx_update::bump::gha::COMMIT_JSON_ENV;
+pub use dx_update::edit::gha::COMMIT_JSON_ENV;
 
 pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i32 {
-    debug_assert!(invocation.edits_version(), "bump dispatch guards commands");
+    debug_assert!(
+        invocation.edits_version(),
+        "update dispatch guards commands"
+    );
     let Env {
         workspace,
         runner,
         query_runner,
         out,
         err,
-        bump_commit_json,
+        edit_commit_json,
         ..
     } = env;
     match plan_reports(
@@ -33,7 +36,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
             invocation.output,
             out,
             err,
-            "bump needs exactly <selector> <version>",
+            "update needs exactly <selector> <version>",
         );
     }
     let request = match configured_request(invocation, out, err, workspace) {
@@ -45,12 +48,12 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
                 .map_or(selector.as_str(), |(h, _)| h);
             if !head.is_empty()
                 && !invocation.targets[1].is_empty()
-                && !dx_update::bump::UpdateSet::builtin_names().contains(&head)
+                && !dx_update::edit::UpdateSet::builtin_names().contains(&head)
             {
                 let message = dep_edit::unknown_set_error(workspace, head);
                 return pre_exec(invocation.output, out, err, &message);
             }
-            match dx_update::bump::UpdateRequest::parse(
+            match dx_update::edit::UpdateRequest::parse(
                 &invocation.targets[0],
                 &invocation.targets[1],
             ) {
@@ -60,7 +63,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         }
         Err(exit) => return exit,
     };
-    let request = match dx_update::bump::DepVersion::from_flags(
+    let request = match dx_update::edit::DepVersion::from_flags(
         invocation.floor,
         invocation.reason.as_deref(),
     )
@@ -69,7 +72,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         Ok(request) => request,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    let request = match resolve_gha_tag_request(&request, bump_commit_json) {
+    let request = match resolve_gha_tag_request(&request, edit_commit_json) {
         Ok(request) => request,
         Err(message) => {
             return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
@@ -81,7 +84,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
     );
     let verbose = invocation.chatty();
     if !invocation.applies() {
-        return check_bump(
+        return check_edit(
             invocation,
             update_version_add::Io {
                 workspace,
@@ -127,7 +130,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
     }
     let target = request.target();
     if let Err(exit) = dep_edit::preflight(
-        &BUMP_VERB,
+        &EDIT_VERB,
         invocation,
         out,
         err,
@@ -148,7 +151,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         .collect::<Vec<_>>()
         .join(", ");
     let edit = dep_edit::DepEdit {
-        verb: &BUMP_VERB,
+        verb: &EDIT_VERB,
         target: &target,
         selector: &request.selector,
         edited: format!(
@@ -168,7 +171,7 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
     dep_edit::write_and_refresh(&edit, invocation, io, &changed, verbose)
 }
 
-const BUMP_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
+const EDIT_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
     command: "update",
     noun: "widen",
     notice_code: CODE_UPDATE_WIDENED,
@@ -181,13 +184,13 @@ fn configured_request(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
-) -> Result<Option<dx_update::bump::UpdateRequest>, i32> {
+) -> Result<Option<dx_update::edit::UpdateRequest>, i32> {
     let Some(configured) =
-        dep_edit::configured_set(&BUMP_VERB, invocation, out, err, workspace, true)?
+        dep_edit::configured_set(&EDIT_VERB, invocation, out, err, workspace, true)?
     else {
         return Ok(None);
     };
-    dx_update::bump::UpdateRequest::parse_configured_set(
+    dx_update::edit::UpdateRequest::parse_configured_set(
         configured.kind,
         &configured.name,
         &configured.manifests,
@@ -199,10 +202,10 @@ fn configured_request(
     .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
 }
 
-fn check_bump(
+fn check_edit(
     invocation: &Invocation,
     io: update_version_add::Io<'_>,
-    request: &dx_update::bump::UpdateRequest,
+    request: &dx_update::edit::UpdateRequest,
     verbose: bool,
 ) -> i32 {
     let update_version_add::Io {
@@ -256,7 +259,7 @@ fn check_bump(
             return emit_update_no_change(invocation, out, request, &planned, verbose);
         }
         let message = format!(
-            "bump {} to {} current in {manifest}",
+            "update {} to {} current in {manifest}",
             request.selector,
             request.version.display()
         );
@@ -292,7 +295,7 @@ fn check_bump(
         return 0;
     }
     let message = format!(
-        "bump drift: {} needs widening to {} in {} (run `dx update {} {} --apply`)",
+        "update drift: {} needs widening to {} in {} (run `dx update {} {} --apply`)",
         request.selector,
         request.version.display(),
         drifted.join(", "),
@@ -303,28 +306,28 @@ fn check_bump(
 }
 
 fn widen_targets(
-    request: &dx_update::bump::UpdateRequest,
+    request: &dx_update::edit::UpdateRequest,
     workspace: &std::path::Path,
 ) -> Result<Vec<String>, String> {
     if let Some(manifests) = request.configured_manifests() {
         return Ok(manifests.to_vec());
     }
-    if request.set != dx_update::bump::UpdateSet::GithubActions {
+    if request.set != dx_update::edit::UpdateSet::GithubActions {
         return Ok(vec![request.target_manifest().to_owned()]);
     }
-    let dir = workspace.join(dx_update::bump::gha::WORKFLOW_DIR);
+    let dir = workspace.join(dx_update::edit::gha::WORKFLOW_DIR);
     let entries = std::fs::read_dir(&dir).map_err(|_| {
         format!(
             "failed to widen {}: cannot list {}",
             request.selector,
-            dx_update::bump::gha::WORKFLOW_DIR
+            dx_update::edit::gha::WORKFLOW_DIR
         )
     })?;
     let mut manifests: Vec<String> = entries
         .filter_map(|entry| {
             let name = entry.ok()?.file_name().to_string_lossy().into_owned();
-            dx_update::bump::gha::workflow_file(&name)
-                .then(|| format!("{}/{name}", dx_update::bump::gha::WORKFLOW_DIR))
+            dx_update::edit::gha::workflow_file(&name)
+                .then(|| format!("{}/{name}", dx_update::edit::gha::WORKFLOW_DIR))
         })
         .collect();
     manifests.sort();
@@ -345,7 +348,7 @@ impl From<String> for WidenFailure {
 }
 
 fn plan_widens(
-    request: &dx_update::bump::UpdateRequest,
+    request: &dx_update::edit::UpdateRequest,
     workspace: &std::path::Path,
 ) -> Result<Vec<(String, String, bool)>, WidenFailure> {
     let mut planned = Vec::new();
@@ -374,14 +377,14 @@ fn plan_widens(
             )
         })?;
         match request.plan_edit_outcome(&manifest, &text) {
-            Ok(dx_update::bump::BumpPlanOutcome::Changed(widened)) => {
+            Ok(dx_update::edit::EditPlanOutcome::Changed(widened)) => {
                 planned.push((manifest, widened, true));
             }
-            Ok(dx_update::bump::BumpPlanOutcome::Unchanged) => {
+            Ok(dx_update::edit::EditPlanOutcome::Unchanged) => {
                 planned.push((manifest, text, false));
             }
-            Err(dx_update::bump::BumpError::NotFound { .. }) if request.set.spans_manifests() => {}
-            Err(error @ dx_update::bump::BumpError::NotFound { .. }) => {
+            Err(dx_update::edit::EditError::NotFound { .. }) if request.set.spans_manifests() => {}
+            Err(error @ dx_update::edit::EditError::NotFound { .. }) => {
                 return Err(WidenFailure::Missing(format!(
                     "failed to widen {}: {error}",
                     request.selector
@@ -400,7 +403,7 @@ fn plan_widens(
     }
     if planned.is_empty() {
         let manifest = if let Some(name) = request.configured_name() {
-            if request.set == dx_update::bump::UpdateSet::Cargo {
+            if request.set == dx_update::edit::UpdateSet::Cargo {
                 format!("any manifest of set {name}")
             } else {
                 request.target_manifest().to_owned()
@@ -411,7 +414,7 @@ fn plan_widens(
         return Err(WidenFailure::Missing(format!(
             "failed to widen {}: {}",
             request.selector,
-            dx_update::bump::BumpError::NotFound {
+            dx_update::edit::EditError::NotFound {
                 manifest,
                 package: request.package.clone(),
             }
@@ -421,11 +424,11 @@ fn plan_widens(
 }
 
 fn resolve_gha_tag_request(
-    request: &dx_update::bump::UpdateRequest,
+    request: &dx_update::edit::UpdateRequest,
     commit_json: Option<&str>,
-) -> Result<dx_update::bump::UpdateRequest, String> {
-    let is_gha_tag = matches!(&request.version, dx_update::bump::WidenVersion::GitTag(_))
-        && request.set == dx_update::bump::UpdateSet::GithubActions;
+) -> Result<dx_update::edit::UpdateRequest, String> {
+    let is_gha_tag = matches!(&request.version, dx_update::edit::WidenVersion::GitTag(_))
+        && request.set == dx_update::edit::UpdateSet::GithubActions;
     if !is_gha_tag {
         return Ok(request.clone());
     }
@@ -438,16 +441,16 @@ fn resolve_gha_tag_request(
             request.selector
         )
     })?;
-    let sha = dx_update::bump::gha::resolve_sha_from_commit_response(&text)
+    let sha = dx_update::edit::gha::resolve_sha_from_commit_response(&text)
         .map_err(|error| format!("failed to widen {}: {error}", request.selector))?;
-    dx_update::bump::UpdateRequest::parse(&request.selector, &sha)
+    dx_update::edit::UpdateRequest::parse(&request.selector, &sha)
         .map_err(|error| format!("failed to widen {}: {error}", request.selector))
 }
 
 fn emit_update_no_change(
     invocation: &Invocation,
     out: &mut dyn std::io::Write,
-    request: &dx_update::bump::UpdateRequest,
+    request: &dx_update::edit::UpdateRequest,
     planned: &[(String, String, bool)],
     verbose: bool,
 ) -> i32 {
@@ -547,13 +550,13 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_configured_uv_set_needs_a_package_and_widens_pyproject() {
-        let harness = Harness::new("bump-consumer");
+        let harness = Harness::new("update-consumer");
         harness.write_source("MODULE.bazel", CONSUMER_MODULE);
         harness.write_source("apps/frontend/pyproject.toml", CONSUMER_PYPROJECT);
         let (code, _, err) = harness.run(&["update", "pypi-frontend", "4.1.0", "--apply"]);
         assert_ne!(code, 0, "{err}");
         assert!(
-            err.contains("bump needs one package, not a whole set"),
+            err.contains("update needs one package, not a whole set"),
             "{err}"
         );
         assert_eq!(
@@ -582,8 +585,8 @@ dependencies = ["anyio>=4"]
     const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     #[test]
-    fn consumer_pinned_set_refuses_bump_without_mutation() {
-        let harness = Harness::new("bump-consumer-pinned");
+    fn consumer_pinned_set_refuses_update_without_mutation() {
+        let harness = Harness::new("update-consumer-pinned");
         harness.write_source("MODULE.bazel", PINNED_MODULE);
         let files = [
             (
@@ -641,7 +644,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_widens_its_manifest_only_and_repins_the_workspace() {
-        let harness = Harness::new("bump-consumer-cargo");
+        let harness = Harness::new("update-consumer-cargo");
         seed_cargo_set(&harness);
         let (code, out, err) = harness.run(&["update", "crates:serde", "2.0.0", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
@@ -671,7 +674,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_over_two_directories_widens_every_declaring_manifest_and_repins_once() {
-        let harness = Harness::new("bump-consumer-cargo-multi");
+        let harness = Harness::new("update-consumer-cargo-multi");
         seed_cargo_set(&harness);
         harness.write_source("rs/c/Cargo.toml", CARGO_A);
         harness.write_source(
@@ -692,7 +695,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_missing_requirement_is_added_to_the_first_manifest_and_repins() {
-        let harness = Harness::new("bump-consumer-cargo-missing");
+        let harness = Harness::new("update-consumer-cargo-missing");
         seed_cargo_set(&harness);
         let (code, out, err) = harness.run(&["update", "crates:anyhow", "2.0.0", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
@@ -707,7 +710,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_widens_only_the_manifests_that_declare_the_crate() {
-        let harness = Harness::new("bump-consumer-cargo-partial");
+        let harness = Harness::new("update-consumer-cargo-partial");
         seed_cargo_set(&harness);
         harness.write_source("rs/c/Cargo.toml", CARGO_B);
         harness.write_source(
@@ -732,7 +735,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_refusals_write_nothing_and_launch_nothing() {
-        let harness = Harness::new("bump-consumer-cargo-refuse");
+        let harness = Harness::new("update-consumer-cargo-refuse");
         seed_cargo_set(&harness);
         let files = [
             ("rs/a/Cargo.toml", CARGO_A),
@@ -775,7 +778,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_offline_json_fails_before_widening() {
-        let harness = Harness::new("bump-consumer-cargo-offline-json");
+        let harness = Harness::new("update-consumer-cargo-offline-json");
         seed_cargo_set(&harness);
         let (code, out, err) = harness.run(&[
             "update",
@@ -798,7 +801,7 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn file_only_bumps_work_offline_with_json_reports() {
+    fn file_only_updates_work_offline_with_json_reports() {
         for (selector, version, path, before, after) in [
             (
                 "bazel:.bazelversion",
@@ -815,7 +818,7 @@ dependencies = ["anyio>=4"]
                 "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
             ),
         ] {
-            let harness = Harness::new("bump-file-offline");
+            let harness = Harness::new("update-file-offline");
             harness.write_source(path, before);
             let (code, out, err) = harness.run(&[
                 "update",
@@ -840,12 +843,12 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_refresh_failure_keeps_the_widen_and_check_reports_drift() {
-        let mut harness = Harness::new("bump-consumer-cargo-fail");
+        let mut harness = Harness::new("update-consumer-cargo-fail");
         harness.bazel_code = 3;
         seed_cargo_set(&harness);
         let (code, _, err) = harness.run(&["update", "crates:serde", "2.0.0"]);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("bump drift"), "{err}");
+        assert!(err.contains("update drift"), "{err}");
         assert_unchanged(&harness, &[("rs/a/Cargo.toml", CARGO_A)]);
         assert!(harness.build_argv.borrow().is_empty());
         let (code, _, err) = harness.run(&["update", "crates:serde", "2.0.0", "--apply"]);
@@ -856,7 +859,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_launch_failure_keeps_the_widen() {
-        let mut harness = Harness::new("bump-consumer-cargo-launch-fail");
+        let mut harness = Harness::new("update-consumer-cargo-launch-fail");
         harness.io_error = true;
         seed_cargo_set(&harness);
         let (code, _, err) = harness.run(&["update", "crates:serde", "2.0.0", "--apply"]);
@@ -869,7 +872,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_signalled_refresh_keeps_the_widen() {
-        let mut harness = Harness::new("bump-consumer-cargo-signalled");
+        let mut harness = Harness::new("update-consumer-cargo-signalled");
         harness.signalled = true;
         seed_cargo_set(&harness);
         let (code, out, err) = harness.run(&[
@@ -887,7 +890,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_json_reports_widen_then_refresh() {
-        let harness = Harness::new("bump-consumer-cargo-json");
+        let harness = Harness::new("update-consumer-cargo-json");
         seed_cargo_set(&harness);
         let (code, out, err) = harness.run(&[
             "update",
@@ -910,7 +913,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_cargo_set_json_refresh_failure_reports_widen_then_error() {
-        let mut harness = Harness::new("bump-consumer-cargo-json-fail");
+        let mut harness = Harness::new("update-consumer-cargo-json-fail");
         harness.bazel_code = 2;
         seed_cargo_set(&harness);
         let (code, out, err) = harness.run(&[
@@ -936,7 +939,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_maven_set_edits_only_its_own_install_and_repins() {
-        let harness = Harness::new("bump-consumer-maven");
+        let harness = Harness::new("update-consumer-maven");
         seed_maven_set(&harness);
         let (code, out, err) = harness.run(&["update", "maven:junit:junit", "4.13.3", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
@@ -960,7 +963,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_maven_set_refusals_write_nothing_and_launch_nothing() {
-        let harness = Harness::new("bump-consumer-maven-refuse");
+        let harness = Harness::new("update-consumer-maven-refuse");
         seed_maven_set(&harness);
         let files = [
             ("MODULE.bazel", MAVEN_MODULE),
@@ -988,7 +991,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_maven_set_refresh_failure_keeps_the_widen() {
-        let mut harness = Harness::new("bump-consumer-maven-fail");
+        let mut harness = Harness::new("update-consumer-maven-fail");
         harness.bazel_code = 3;
         seed_maven_set(&harness);
         let (code, _, err) = harness.run(&["update", "maven:junit:junit", "4.13.3", "--apply"]);
@@ -1000,7 +1003,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_maven_set_json_reports_widen_then_refresh() {
-        let harness = Harness::new("bump-consumer-maven-json");
+        let harness = Harness::new("update-consumer-maven-json");
         seed_maven_set(&harness);
         let (code, out, err) = harness.run(&[
             "update",
@@ -1033,7 +1036,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_npm_set_widens_one_package_and_chains_a_selective_refresh() {
-        let harness = Harness::new("bump-consumer-npm");
+        let harness = Harness::new("update-consumer-npm");
         seed_npm_set(&harness, NPM_PACKAGE);
         let (code, out, err) = harness.run(&["update", "web:left-pad", "1.3.0", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
@@ -1059,7 +1062,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_npm_set_minified_manifest_changes_only_the_dependency() {
-        let harness = Harness::new("bump-consumer-npm-minified");
+        let harness = Harness::new("update-consumer-npm-minified");
         let minified =
             "{\"name\":\"app\",\"dependencies\":{\"left-pad\":\"1.0.0\",\"zod\":\"3.0.0\"}}";
         seed_npm_set(&harness, minified);
@@ -1073,7 +1076,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_npm_set_refresh_failure_keeps_the_widen() {
-        let mut harness = Harness::new("bump-consumer-npm-fail");
+        let mut harness = Harness::new("update-consumer-npm-fail");
         harness.bazel_code = 3;
         seed_npm_set(&harness, NPM_PACKAGE);
         let (code, _, err) = harness.run(&["update", "web:left-pad", "1.3.0", "--apply"]);
@@ -1088,7 +1091,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_nuget_set_edits_paket_dependencies_only_and_names_the_follow_up() {
-        let harness = Harness::new("bump-consumer-nuget");
+        let harness = Harness::new("update-consumer-nuget");
         harness.write_source(
             "MODULE.bazel",
             "paket = use_extension(\"//dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n",
@@ -1210,7 +1213,7 @@ dependencies = ["anyio>=4"]
         harness.execute_with(&invocation, runner)
     }
 
-    const GO_BUMP: [&str; 5] = [
+    const GO_UPDATE: [&str; 5] = [
         "update",
         "go:github.com/google/go-cmp",
         "v0.7.0",
@@ -1220,7 +1223,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_go_set_widens_require_and_refreshes_go_sum_in_a_scratch_dir() {
-        let harness = go_harness("bump-consumer-go");
+        let harness = go_harness("update-consumer-go");
         let runner = GoRunner::new(
             Some(0),
             &[
@@ -1228,7 +1231,7 @@ dependencies = ["anyio>=4"]
                 ("go.mod", &GO_MOD.replace("v0.6.0", "v0.7.0")),
             ],
         );
-        let (code, out, err) = run_go(&harness, &runner, &GO_BUMP);
+        let (code, out, err) = run_go(&harness, &runner, &GO_UPDATE);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("refreshed go via `dx update go`"), "{out}");
         assert_eq!(
@@ -1269,7 +1272,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_go_set_json_reports_the_refresh() {
-        let harness = go_harness("bump-consumer-go-json");
+        let harness = go_harness("update-consumer-go-json");
         let runner = GoRunner::new(
             Some(0),
             &[
@@ -1305,7 +1308,7 @@ dependencies = ["anyio>=4"]
             ("frozen", "--frozen", "frozen_locked"),
             ("offline", "--offline", "offline_required"),
         ] {
-            let harness = go_harness(&format!("bump-consumer-go-refuse-{name}"));
+            let harness = go_harness(&format!("update-consumer-go-refuse-{name}"));
             let runner = GoRunner::new(Some(0), &[("go.sum", "new sums\n")]);
             let words = [
                 "update",
@@ -1338,9 +1341,9 @@ dependencies = ["anyio>=4"]
                 "go changed go.mod",
             ),
         ] {
-            let harness = go_harness(&format!("bump-consumer-go-fail-{name}"));
+            let harness = go_harness(&format!("update-consumer-go-fail-{name}"));
             let runner = GoRunner::new(code, &writes);
-            let (status, out, err) = run_go(&harness, &runner, &GO_BUMP);
+            let (status, out, err) = run_go(&harness, &runner, &GO_UPDATE);
             assert_eq!(status, 1, "{name}: {out}{err}");
             assert!(err.contains(want), "{name}: {err}");
             assert!(
@@ -1364,7 +1367,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn consumer_go_set_json_reports_a_failed_refresh() {
-        let harness = go_harness("bump-consumer-go-json-fail");
+        let harness = go_harness("update-consumer-go-json-fail");
         let runner = GoRunner::new(Some(1), &[]);
         let (code, out, _) = run_go(
             &harness,
@@ -1388,7 +1391,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn undeclared_set_selectors_exit_two_and_list_valid_names() {
-        let harness = Harness::new("bump-consumer-builtin");
+        let harness = Harness::new("update-consumer-builtin");
         harness.write_source("MODULE.bazel", CONSUMER_MODULE);
         let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
         assert_eq!(code, 2, "{err}");
@@ -1400,7 +1403,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn unknown_set_without_module_bazel_writes_nothing() {
-        let harness = Harness::new("bump-unknown-no-module");
+        let harness = Harness::new("update-unknown-no-module");
         harness.write_source("package.json", "{}\n");
         let (code, _, err) = harness.run(&["update", "npm:react", "1.0.0", "--apply"]);
         assert_eq!(code, 2, "{err}");
@@ -1412,7 +1415,7 @@ dependencies = ["anyio>=4"]
     fn unreadable_and_non_utf8_manifests_fail_without_refresh() {
         for json in [false, true] {
             for invalid_utf8 in [false, true] {
-                let harness = Harness::new("bump-unreadable");
+                let harness = Harness::new("update-unreadable");
                 if invalid_utf8 {
                     std::fs::write(harness.workspace.join(".bazelversion"), [0xff])
                         .expect("invalid bytes");
@@ -1451,7 +1454,7 @@ dependencies = ["anyio>=4"]
             HELLO_CARGO,
             "[dependencies]\ndemo = \"1\"\n",
         )] {
-            let harness = Harness::new("bump-frozen-widen");
+            let harness = Harness::new("update-frozen-widen");
             seed(&harness, path, before);
             let (code, out, err) = harness.run(&[
                 "update",
@@ -1494,17 +1497,17 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn dry_run_rejects_bad_selector_and_version() {
-        let harness = Harness::new("bump-dryrun-bad-selector");
+        let harness = Harness::new("update-dryrun-bad-selector");
         let (code, _, err) = harness.run(&["update", "crates", "1.2.3"]);
         assert_eq!(code, 2, "{err}");
-        let harness = Harness::new("bump-dryrun-bad-version");
+        let harness = Harness::new("update-dryrun-bad-version");
         let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "nope!!!"]);
         assert_eq!(code, 2, "{err}");
     }
 
     #[test]
-    fn go_bump_leaves_a_malformed_go_mod_unchanged() {
-        let harness = Harness::new("bump-go-malformed");
+    fn go_update_leaves_a_malformed_go_mod_unchanged() {
+        let harness = Harness::new("update-go-malformed");
         let before = "module example.com/root\nrequire (\n\texample.com/demo v1.2.0 // v1.0.0\n";
         harness.write_source("third_party/go/go.mod", before);
         let (code, out, err) = harness.run(&[
@@ -1523,7 +1526,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn live_bazel_file_only_has_no_refresh_launch() {
-        let harness = Harness::new("bump-live-bazel-fileonly");
+        let harness = Harness::new("update-live-bazel-fileonly");
         harness.write_source(".bazelversion", "9.2.0\n");
         let (code, out, err) = harness.run(&["update", "bazel:.bazelversion", "9.3.0", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
@@ -1542,7 +1545,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn live_bazel_module_edits_one_literal_version_atomically() {
-        let harness = Harness::new("bump-live-bazel-module");
+        let harness = Harness::new("update-live-bazel-module");
         let before = "module(name = 'demo')\n\n# bazel_dep(name = \"rules_cc\", version = \"0.0.1\")\nNOTE = \"bazel_dep(name = 'rules_cc', version = '0.0.2')\"\nbazel_dep(\n    version = '0.2.21',  # ) \" (\n    name = 'rules_cc',\n    repo_name = \"cc\",\n)\nbazel_dep(name = \"rules_rust\", version = V)\n";
         let after = before.replace("'0.2.21'", "'0.2.22'");
         harness.write_source("MODULE.bazel", before);
@@ -1550,7 +1553,7 @@ dependencies = ["anyio>=4"]
             || std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         let (code, _, err) = harness.run(&["update", "bazel:rules_cc", "0.2.22"]);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("bump drift"), "{err}");
+        assert!(err.contains("update drift"), "{err}");
         assert_eq!(read(), before, "check must not write");
         let (code, out, err) = harness.run(&["update", "bazel:rules_cc", "0.2.22", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
@@ -1581,8 +1584,8 @@ dependencies = ["anyio>=4"]
     const SPLIT_MODULE: &str = "# floor: equals tested\nbazel_dep(name = \"rules_cc\", version = \"0.2.21\")\nsingle_version_override(\n    module_name = \"rules_cc\",\n    version = \"0.2.21\",\n)\n";
 
     #[test]
-    fn live_bazel_bump_targets_the_tested_override_or_the_floor() {
-        let harness = Harness::new("bump-live-bazel-floor");
+    fn live_bazel_update_targets_the_tested_override_or_the_floor() {
+        let harness = Harness::new("update-live-bazel-floor");
         harness.write_source("MODULE.bazel", SPLIT_MODULE);
         let read =
             || std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
@@ -1613,7 +1616,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn floor_flags_and_order_refusals_are_usage_errors_that_write_nothing() {
-        let harness = Harness::new("bump-floor-refusals");
+        let harness = Harness::new("update-floor-refusals");
         harness.write_source("MODULE.bazel", SPLIT_MODULE);
         let read =
             || std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
@@ -1670,7 +1673,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn live_github_tag_resolution_matrix() {
-        let harness = Harness::new("bump-live-gha-tag");
+        let harness = Harness::new("update-live-gha-tag");
         harness.write_source(
             ".github/workflows/ci.yml",
             "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
@@ -1683,7 +1686,7 @@ dependencies = ["anyio>=4"]
 
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let commit_json = format!("{{\"sha\": \"{sha}\", \"commit\": {{\"message\": \"v5\"}}}}");
-        let mut harness = Harness::new("bump-live-gha-resolved");
+        let mut harness = Harness::new("update-live-gha-resolved");
         harness.write_source(
             ".github/workflows/ci.yml",
             "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
@@ -1697,7 +1700,7 @@ dependencies = ["anyio>=4"]
             "jobs:\n  b:\n    steps:\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
         harness.write_source("commit.json", &commit_json);
-        harness.bump_commit_json =
+        harness.edit_commit_json =
             Some(harness.workspace.join("commit.json").display().to_string());
         let (code, out, err) = harness.run(&[
             "update",
@@ -1733,13 +1736,13 @@ dependencies = ["anyio>=4"]
         );
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
 
-        let mut harness = Harness::new("bump-live-gha-nochange");
+        let mut harness = Harness::new("update-live-gha-nochange");
         harness.write_source(
             ".github/workflows/ci.yml",
             &format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{sha} # v5\n"),
         );
         harness.write_source("commit.json", &commit_json);
-        harness.bump_commit_json =
+        harness.edit_commit_json =
             Some(harness.workspace.join("commit.json").display().to_string());
         let (code, out, err) = harness.run(&[
             "update",
@@ -1777,7 +1780,7 @@ dependencies = ["anyio>=4"]
             ("missing-sha", Some("{\"commit\": {}}")),
             ("invalid-sha", Some("{\"sha\": \"v5\"}")),
         ] {
-            let mut harness = Harness::new(&format!("bump-live-gha-fail-{name}"));
+            let mut harness = Harness::new(&format!("update-live-gha-fail-{name}"));
             harness.write_source(
                 ".github/workflows/ci.yml",
                 "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
@@ -1785,11 +1788,11 @@ dependencies = ["anyio>=4"]
             match body {
                 Some(body) => {
                     harness.write_source("commit.json", body);
-                    harness.bump_commit_json =
+                    harness.edit_commit_json =
                         Some(harness.workspace.join("commit.json").display().to_string());
                 }
                 None => {
-                    harness.bump_commit_json =
+                    harness.edit_commit_json =
                         Some(harness.workspace.join("absent.json").display().to_string());
                 }
             }
@@ -1808,7 +1811,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn live_github_actions_widens_every_workflow_that_pins_the_action() {
-        let harness = Harness::new("bump-live-gha-every");
+        let harness = Harness::new("update-live-gha-every");
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
             harness.write_source(
@@ -1860,7 +1863,7 @@ dependencies = ["anyio>=4"]
             ("no-workflows", vec![("README.md", vec!["not a workflow\n"])], "no declared requirement"),
         ];
         for (name, workflows, expected) in cases {
-            let harness = Harness::new(&format!("bump-live-gha-{name}"));
+            let harness = Harness::new(&format!("update-live-gha-{name}"));
             for (file, lines) in &workflows {
                 harness.write_source(&format!(".github/workflows/{file}"), &lines.concat());
             }
@@ -1878,7 +1881,7 @@ dependencies = ["anyio>=4"]
                 assert_eq!(&text, &lines.concat(), "{name} must widen nothing");
             }
         }
-        let missing = Harness::new("bump-live-gha-missing-dir");
+        let missing = Harness::new("update-live-gha-missing-dir");
         missing.write_source(".bazelversion", "9.2.0\n");
         let (code, _, err) =
             missing.run(&["update", "github-actions:actions/checkout", sha, "--apply"]);
@@ -1888,7 +1891,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn live_json_emits_planned_or_widened_and_finished() {
-        let harness = Harness::new("bump-live-json");
+        let harness = Harness::new("update-live-json");
         harness.write_source(".bazelversion", "9.2.0\n");
         let (code, out, err) = harness.run(&[
             "update",
@@ -1943,7 +1946,7 @@ dependencies = ["anyio>=4"]
     #[test]
     fn unchanged_version_reports_no_change_for_every_set() {
         for (selector, version, path, text) in current_pins() {
-            let harness = Harness::new("bump-no-change-every-set");
+            let harness = Harness::new("update-no-change-every-set");
             seed(&harness, path, &text);
             let (code, out, err) = harness.run(&["update", selector, version, "--apply"]);
             assert_eq!(code, 0, "{selector}: {out}{err}");
@@ -1974,7 +1977,7 @@ dependencies = ["anyio>=4"]
     #[test]
     fn unchanged_version_check_reports_no_change_like_apply() {
         for (selector, version, path, text) in current_pins() {
-            let harness = Harness::new("bump-no-change-check");
+            let harness = Harness::new("update-no-change-check");
             seed(&harness, path, &text);
             let (code, out, err) = harness.run(&["update", selector, version]);
             assert_eq!(code, 0, "{selector}: {out}{err}");
@@ -2000,7 +2003,7 @@ dependencies = ["anyio>=4"]
     fn unchanged_version_under_frozen_and_offline_exits_zero() {
         for flag in ["--frozen", "--offline"] {
             for (selector, version, path, text) in current_pins() {
-                let harness = Harness::new("bump-no-change-gated");
+                let harness = Harness::new("update-no-change-gated");
                 seed(&harness, path, &text);
                 let (code, out, err) = harness.run(&[
                     "update",
@@ -2028,7 +2031,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn github_actions_writes_only_changed_workflows() {
-        let harness = Harness::new("bump-gha-only-changed");
+        let harness = Harness::new("update-gha-only-changed");
         let pinned =
             format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{GHA_SHA} # v5\n");
         harness.write_source(
@@ -2077,7 +2080,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn cargo_check_mode_reports_drift_across_manifests() {
-        let harness = Harness::new("bump-cargo-check-manifests");
+        let harness = Harness::new("update-cargo-check-manifests");
         seed_cargo(&harness, &CARGO_TREE);
         let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "1.2.3"]);
         assert_eq!(code, 1, "{err}");
@@ -2095,7 +2098,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn cargo_without_a_declared_hub_is_an_unknown_set() {
-        let harness = Harness::new("bump-cargo-no-module");
+        let harness = Harness::new("update-cargo-no-module");
         harness.write_source(HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
         let (code, _, err) = harness.run(&["update", "dx_crates:anyhow", "1.2.3", "--apply"]);
         assert_eq!(code, 2, "{err}");
@@ -2112,7 +2115,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn cargo_path_dependency_in_one_manifest_fails_closed_writing_nothing() {
-        let harness = Harness::new("bump-cargo-path-dep");
+        let harness = Harness::new("update-cargo-path-dep");
         let tree = [
             CARGO_TREE[0],
             (
@@ -2135,7 +2138,7 @@ dependencies = ["anyio>=4"]
 
     #[test]
     fn default_check_json_reports_drift_without_writing() {
-        let harness = Harness::new("bump-default-json");
+        let harness = Harness::new("update-default-json");
         harness.write_source(".bazelversion", "9.2.0\n");
         let (code, out, err) =
             harness.run(&["update", "bazel:.bazelversion", "9.3.0", "--output=json"]);

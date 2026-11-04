@@ -69,7 +69,7 @@ mod tests {
     const CI: &str = "jobs:\r\n  dx:\r\n    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@aaaa # pin\r\n    with:\r\n      rules_dx_version: \"1.0.0\"\r\n      other: 'x'\r\n";
 
     #[test]
-    fn a_pin_bump_changes_exactly_two_lines() {
+    fn a_pin_update_changes_exactly_two_lines() {
         let step = set_uses_ref(
             CI,
             "devhusdk/rules_dx/.github/workflows/reusable-consumer.yml",

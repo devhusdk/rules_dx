@@ -23,7 +23,7 @@ pub(crate) struct EditVerb {
 /// One planned manifest edit and how to report it.
 pub(crate) struct DepEdit<'a> {
     pub(crate) verb: &'a EditVerb,
-    pub(crate) target: &'a dx_update::bump::DepTarget,
+    pub(crate) target: &'a dx_update::edit::DepTarget,
     pub(crate) selector: &'a str,
     /// The edit itself, e.g. "widened cargo:anyhow to 1.2.3 in Cargo.toml".
     pub(crate) edited: String,
@@ -36,7 +36,7 @@ pub(crate) struct ConfiguredTarget {
     pub(crate) name: String,
     /// Every manifest of the set; a bazel, uv, npm, maven or nuget set has exactly one.
     pub(crate) manifests: Vec<String>,
-    pub(crate) kind: dx_update::bump::ConfiguredKind,
+    pub(crate) kind: dx_update::edit::ConfiguredKind,
     /// The hub repository a maven set names.
     pub(crate) repository: Option<String>,
 }
@@ -49,7 +49,7 @@ pub(crate) fn unknown_set_error(workspace: &std::path::Path, head: &str) -> Stri
     };
     names.sort();
     names.extend(
-        dx_update::bump::UpdateSet::builtin_names()
+        dx_update::edit::UpdateSet::builtin_names()
             .into_iter()
             .map(String::from),
     );
@@ -85,30 +85,30 @@ pub(crate) fn configured_set(
         return Ok(None);
     };
     let kind = match set.ecosystem {
-        dx_adopt::dependency_sets::Ecosystem::Bazel => Some(dx_update::bump::ConfiguredKind::Bazel),
+        dx_adopt::dependency_sets::Ecosystem::Bazel => Some(dx_update::edit::ConfiguredKind::Bazel),
         dx_adopt::dependency_sets::Ecosystem::Uv if foreign => {
-            Some(dx_update::bump::ConfiguredKind::Uv)
+            Some(dx_update::edit::ConfiguredKind::Uv)
         }
         dx_adopt::dependency_sets::Ecosystem::Npm if foreign => {
-            Some(dx_update::bump::ConfiguredKind::Npm)
+            Some(dx_update::edit::ConfiguredKind::Npm)
         }
         dx_adopt::dependency_sets::Ecosystem::Cargo if foreign => {
-            Some(dx_update::bump::ConfiguredKind::Cargo)
+            Some(dx_update::edit::ConfiguredKind::Cargo)
         }
         dx_adopt::dependency_sets::Ecosystem::Maven if foreign => {
-            Some(dx_update::bump::ConfiguredKind::Maven)
+            Some(dx_update::edit::ConfiguredKind::Maven)
         }
         dx_adopt::dependency_sets::Ecosystem::Nuget if foreign => {
-            Some(dx_update::bump::ConfiguredKind::Nuget)
+            Some(dx_update::edit::ConfiguredKind::Nuget)
         }
         dx_adopt::dependency_sets::Ecosystem::Go if foreign => {
-            Some(dx_update::bump::ConfiguredKind::Go)
+            Some(dx_update::edit::ConfiguredKind::Go)
         }
         _ => None,
     };
     match (set.ecosystem, kind) {
         (_, Some(kind)) => {
-            let arity_ok = if kind == dx_update::bump::ConfiguredKind::Cargo {
+            let arity_ok = if kind == dx_update::edit::ConfiguredKind::Cargo {
                 !set.manifests.is_empty()
             } else {
                 set.manifests.len() == 1
@@ -123,14 +123,14 @@ pub(crate) fn configured_set(
                         "{} needs {} in set {}",
                         verb.command,
                         match kind {
-                            dx_update::bump::ConfiguredKind::Bazel => "exactly one MODULE.bazel",
-                            dx_update::bump::ConfiguredKind::Npm => "exactly one package.json",
-                            dx_update::bump::ConfiguredKind::Uv => "exactly one pyproject.toml",
-                            dx_update::bump::ConfiguredKind::Cargo => "at least one Cargo.toml",
-                            dx_update::bump::ConfiguredKind::Maven => "exactly one MODULE.bazel",
-                            dx_update::bump::ConfiguredKind::Nuget =>
+                            dx_update::edit::ConfiguredKind::Bazel => "exactly one MODULE.bazel",
+                            dx_update::edit::ConfiguredKind::Npm => "exactly one package.json",
+                            dx_update::edit::ConfiguredKind::Uv => "exactly one pyproject.toml",
+                            dx_update::edit::ConfiguredKind::Cargo => "at least one Cargo.toml",
+                            dx_update::edit::ConfiguredKind::Maven => "exactly one MODULE.bazel",
+                            dx_update::edit::ConfiguredKind::Nuget =>
                                 "exactly one paket.dependencies",
-                            dx_update::bump::ConfiguredKind::Go => "exactly one go.mod",
+                            dx_update::edit::ConfiguredKind::Go => "exactly one go.mod",
                         },
                         set.name
                     ),
@@ -177,7 +177,7 @@ pub(crate) fn preflight(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
-    target: &dx_update::bump::DepTarget,
+    target: &dx_update::edit::DepTarget,
     selector: &str,
 ) -> Result<(), i32> {
     if invocation.frozen {
@@ -235,9 +235,9 @@ pub(crate) fn preflight(
     if target.is_configured_bazel()
         || matches!(&target.configured, Some(set) if matches!(
             set.kind,
-            dx_update::bump::ConfiguredKind::Cargo
-                | dx_update::bump::ConfiguredKind::Maven
-                | dx_update::bump::ConfiguredKind::Go
+            dx_update::edit::ConfiguredKind::Cargo
+                | dx_update::edit::ConfiguredKind::Maven
+                | dx_update::edit::ConfiguredKind::Go
         ))
     {
         // A foreign lock layout or a vanished set would only fail after the write.
@@ -265,14 +265,14 @@ pub(crate) fn preflight(
 /// unsupported lock layout and host environment that redirects resolution.
 fn hub_gate_refusal(
     workspace: &std::path::Path,
-    target: &dx_update::bump::DepTarget,
+    target: &dx_update::edit::DepTarget,
 ) -> Option<String> {
     let configured = target.configured.as_ref()?;
     if !matches!(
         configured.kind,
-        dx_update::bump::ConfiguredKind::Cargo
-            | dx_update::bump::ConfiguredKind::Maven
-            | dx_update::bump::ConfiguredKind::Go
+        dx_update::edit::ConfiguredKind::Cargo
+            | dx_update::edit::ConfiguredKind::Maven
+            | dx_update::edit::ConfiguredKind::Go
     ) {
         return None;
     }
@@ -462,7 +462,7 @@ pub(crate) fn write_and_refresh(
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Noop) => {
             finish(Ok(()), refreshed(verb.noop_note))
         }
-        // Only a go set plans a staged run here; nuget bumps never plan a refresh.
+        // Only a go set plans a staged run here; nuget updates never plan a refresh.
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Staged(run)) => {
             let result = refresh_staged(
                 &run,
@@ -691,7 +691,7 @@ fn backend_failed(
 fn refresh_plan(
     workspace: &std::path::Path,
     invocation: &Invocation,
-    target: &dx_update::bump::DepTarget,
+    target: &dx_update::edit::DepTarget,
     tools: Option<(&dyn dx_process::Runner, &dyn dx_plan::resolve::QueryRunner)>,
 ) -> Option<(
     String,
@@ -713,7 +713,7 @@ fn refresh_plan(
         return Some((name.clone(), Err(gone())));
     };
     let (request, closure) = match configured.kind {
-        dx_update::bump::ConfiguredKind::Bazel => {
+        dx_update::edit::ConfiguredKind::Bazel => {
             let plan = dx_update::backend::plan_configured_bazel_lock(
                 &set,
                 invocation.offline,
@@ -722,21 +722,21 @@ fn refresh_plan(
             );
             return Some((name, plan.map(RefreshPlan::InDir)));
         }
-        dx_update::bump::ConfiguredKind::Npm => (
+        dx_update::edit::ConfiguredKind::Npm => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),
         // A hub repin re-resolves the whole lock; it only touches changed requirements.
         // go sums cover the whole module graph, so a go refresh is always a full one.
-        dx_update::bump::ConfiguredKind::Cargo
-        | dx_update::bump::ConfiguredKind::Maven
-        | dx_update::bump::ConfiguredKind::Go => (
+        dx_update::edit::ConfiguredKind::Cargo
+        | dx_update::edit::ConfiguredKind::Maven
+        | dx_update::edit::ConfiguredKind::Go => (
             dx_adopt::dependency_sets::Selection::Full,
             dx_update::backend::UvClosure::default(),
         ),
-        // Nothing re-resolves paket.lock, so a nuget bump never plans a refresh.
-        dx_update::bump::ConfiguredKind::Nuget => return None,
-        dx_update::bump::ConfiguredKind::Uv => (
+        // Nothing re-resolves paket.lock, so a nuget update never plans a refresh.
+        dx_update::edit::ConfiguredKind::Nuget => return None,
+        dx_update::edit::ConfiguredKind::Uv => (
             dx_adopt::dependency_sets::Selection::Full,
             match tools {
                 Some((runner, query_runner)) if !invocation.offline && !invocation.frozen => {
@@ -804,16 +804,16 @@ mod tests {
         .expect("parse")
     }
 
-    fn target() -> dx_update::bump::DepTarget {
-        dx_update::bump::DepTarget {
-            set: dx_update::bump::UpdateSet::Cargo,
+    fn target() -> dx_update::edit::DepTarget {
+        dx_update::edit::DepTarget {
+            set: dx_update::edit::UpdateSet::Cargo,
             package: "anyhow".to_owned(),
             manifest: None,
             configured: None,
         }
     }
 
-    fn edit(target: &dx_update::bump::DepTarget) -> DepEdit<'_> {
+    fn edit(target: &dx_update::edit::DepTarget) -> DepEdit<'_> {
         DepEdit {
             verb: &VERB,
             target,

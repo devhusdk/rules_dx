@@ -297,7 +297,7 @@ fn update_with_a_selector_and_a_version_edits_that_package() {
         assert_eq!(got.command, Command::Update);
         assert_eq!(got.edits_version(), edits, "{words:?}");
     }
-    assert!(parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).is_err());
+    assert!(parse(&strings(&["upgrade", "cargo:anyhow", "1.2.3"])).is_err());
 }
 
 #[test]
@@ -872,14 +872,14 @@ fn offline_and_frozen_are_independent_policies_on_audit_and_update() {
         assert!(!bare.offline, "command: {command}");
         assert!(!bare.frozen, "command: {command}");
     }
-    let bump = parse(&strings(&["update", "cargo:anyhow", "1.2.3", "--offline"]))
+    let update = parse(&strings(&["update", "cargo:anyhow", "1.2.3", "--offline"]))
         .expect("version offline");
-    assert!(bump.offline);
-    assert!(!bump.frozen);
-    let bump_frozen =
+    assert!(update.offline);
+    assert!(!update.frozen);
+    let update_frozen =
         parse(&strings(&["update", "cargo:anyhow", "1.2.3", "--frozen"])).expect("version frozen");
-    assert!(bump_frozen.frozen);
-    assert!(!bump_frozen.offline);
+    assert!(update_frozen.frozen);
+    assert!(!update_frozen.offline);
     for words in [
         vec!["lint", "--offline"],
         vec!["build", "//a:one", "--offline"],

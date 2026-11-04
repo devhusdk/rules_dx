@@ -92,8 +92,8 @@ pub(crate) struct Harness {
     pub(crate) actions: ActionTally,
     /// Process table root `dx clean` observes; point at a missing dir to make observation unknown.
     pub(crate) proc_root: std::path::PathBuf,
-    /// Commit JSON path injected for bump GitHub tag resolution.
-    pub(crate) bump_commit_json: Option<String>,
+    /// Commit JSON path injected for update GitHub tag resolution.
+    pub(crate) edit_commit_json: Option<String>,
     /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
     pub(crate) probe_shards: Option<Vec<String>>,
     /// An exit code the fake shard probe returns instead of answering.
@@ -274,7 +274,7 @@ impl Harness {
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
             actions: ActionTally::default(),
             proc_root: std::path::PathBuf::from("/proc"),
-            bump_commit_json: None,
+            edit_commit_json: None,
             probe_shards: None,
             probe_code: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
@@ -610,7 +610,7 @@ impl Harness {
             audit_today: self.audit_today.as_deref(),
             actions: &self.actions,
             proc_root: &self.proc_root,
-            bump_commit_json: self.bump_commit_json.as_deref(),
+            edit_commit_json: self.edit_commit_json.as_deref(),
         }
     }
 

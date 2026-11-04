@@ -1314,7 +1314,7 @@ mod tests {
     }
 
     #[test]
-    fn configured_bazel_selective_points_at_bump() {
+    fn configured_bazel_selective_points_at_update() {
         let set = ResolvedSet {
             name: "bazel-modules".to_owned(),
             ecosystem: Ecosystem::Bazel,

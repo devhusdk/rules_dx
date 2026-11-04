@@ -1,8 +1,10 @@
 use super::*;
-use crate::bump::request::{BumpPlanOutcome, ConfiguredKind};
+use crate::edit::request::{ConfiguredKind, EditPlanOutcome};
 
 fn request(selector: &str, version: &str) -> AddRequest {
-    AddRequest::from_bump(&UpdateRequest::parse_grammar(selector, version).expect("bump request"))
+    AddRequest::from_request(
+        &UpdateRequest::parse_grammar(selector, version).expect("update request"),
+    )
 }
 
 fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError> {
@@ -10,18 +12,18 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
 }
 
 /// A widen reads what an add wrote: the same version is current, a higher one widens.
-fn assert_bump_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
-    let same = UpdateRequest::parse_grammar(selector, version).expect("bump request");
+fn assert_edit_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
+    let same = UpdateRequest::parse_grammar(selector, version).expect("update request");
     assert_eq!(
         same.plan_edit_outcome(same.target_manifest(), written),
-        Ok(BumpPlanOutcome::Unchanged),
+        Ok(EditPlanOutcome::Unchanged),
         "{selector} at {version}"
     );
-    let next = UpdateRequest::parse_grammar(selector, higher).expect("bump request");
+    let next = UpdateRequest::parse_grammar(selector, higher).expect("update request");
     assert!(
         matches!(
             next.plan_edit_outcome(next.target_manifest(), written),
-            Ok(BumpPlanOutcome::Changed(_))
+            Ok(EditPlanOutcome::Changed(_))
         ),
         "{selector} to {higher}"
     );
@@ -52,7 +54,7 @@ fn bazel_inserts_after_the_last_dep() {
         after,
         "module(name = \"m\")\n\nbazel_dep(name = \"a\", version = \"1.0.0\")\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n\nuse_repo(x, \"y\")\n"
     );
-    assert_bump_round_trip("bazel:demo", "1.2.3", "2.0.0", &after);
+    assert_edit_round_trip("bazel:demo", "1.2.3", "2.0.0", &after);
     assert_declared("bazel:a", before, "MODULE.bazel");
     assert_declared(
         "bazel:a",
@@ -67,7 +69,7 @@ fn bazel_inserts_after_the_last_dep() {
 
 #[test]
 fn configured_bazel_sets_insert_into_their_manifest() {
-    let request = AddRequest::from_bump(
+    let request = AddRequest::from_request(
         &UpdateRequest::parse_configured("tools", "tools/MODULE.bazel", "tools:demo", "1.2.3")
             .expect("request"),
     );
@@ -107,7 +109,7 @@ fn maven_appends_to_the_default_install() {
             "{MAVEN_HEAD}maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"com.example:demo:1.2.3\",\n    ],\n)\n"
         )
     );
-    assert_bump_round_trip("maven:com.example:demo", "1.2.3", "2.0.0", &after);
+    assert_edit_round_trip("maven:com.example:demo", "1.2.3", "2.0.0", &after);
     assert_declared("maven:junit:junit", &before, "MODULE.bazel");
     assert!(matches!(
         add(
@@ -127,7 +129,7 @@ fn cargo_inserts_into_dependencies_and_keeps_sorted_tables_sorted() {
         after,
         "[package]\nname = \"hello\"\n\n[dependencies]\nanyhow = \"1\"\ndemo = \"1.2.3\"\nzeta = \"1\" # pinned\n\n[lib]\nname = \"hello\"\n"
     );
-    assert_bump_round_trip("cargo:demo", "1.2.3", "2.0.0", &after);
+    assert_edit_round_trip("cargo:demo", "1.2.3", "2.0.0", &after);
     let unsorted = "[dependencies]\nzeta = \"1\"\nanyhow = \"1\"\n";
     assert_eq!(
         add("cargo:demo", "1.2.3", unsorted).as_deref(),
@@ -138,7 +140,7 @@ fn cargo_inserts_into_dependencies_and_keeps_sorted_tables_sorted() {
         missing,
         "[package]\nname = \"hello\"\n\n[dependencies]\ndemo = \"1.2.3\"\n"
     );
-    assert_bump_round_trip("cargo:demo", "1.2.3", "2.0.0", &missing);
+    assert_edit_round_trip("cargo:demo", "1.2.3", "2.0.0", &missing);
     assert_declared(
         "cargo:anyhow",
         before,
@@ -172,7 +174,7 @@ fn npm_inserts_into_dependencies_keeping_indentation() {
         after,
         "{\n  \"name\": \"x\",\n  \"dependencies\": {\n    \"a\": \"1.0.0\",\n    \"demo\": \"1.2.3\"\n  },\n  \"devDependencies\": {\n    \"b\": \"1.0.0\"\n  }\n}\n"
     );
-    assert_bump_round_trip("npm:demo", "1.2.3", "2.0.0", &after);
+    assert_edit_round_trip("npm:demo", "1.2.3", "2.0.0", &after);
     assert_declared("npm:b", before, "package.json");
 
     let missing = "{\r\n    \"name\": \"x\",\r\n    \"devDependencies\": {\r\n        \"b\": \"1.0.0\"\r\n    }\r\n}\r\n";
@@ -181,7 +183,7 @@ fn npm_inserts_into_dependencies_keeping_indentation() {
         created,
         "{\r\n    \"name\": \"x\",\r\n    \"dependencies\": {\r\n        \"@scope/demo\": \"1.2.3\"\r\n    },\r\n    \"devDependencies\": {\r\n        \"b\": \"1.0.0\"\r\n    }\r\n}\r\n"
     );
-    assert_bump_round_trip("npm:@scope/demo", "1.2.3", "2.0.0", &created);
+    assert_edit_round_trip("npm:@scope/demo", "1.2.3", "2.0.0", &created);
 
     let last = add("npm:demo", "1.2.3", "{\n  \"name\": \"x\"\n}\n").expect("insert");
     assert_eq!(
@@ -229,7 +231,7 @@ fn go_inserts_a_direct_require() {
         after,
         "module example.com/root\n\ngo 1.24\n\nrequire (\n\texample.com/a v1.0.0\n\texample.com/demo v1.2.3\n\texample.com/z v1.0.0\n)\n"
     );
-    assert_bump_round_trip("go:example.com/demo", "1.2.3", "2.0.0", &after);
+    assert_edit_round_trip("go:example.com/demo", "1.2.3", "2.0.0", &after);
     assert_declared("go:example.com/a", before, "third_party/go/go.mod");
     assert!(matches!(
         add("go:example.com/demo", "1.2.3", "module x\nrequire (\n"),
@@ -245,7 +247,7 @@ fn nuget_inserts_after_the_last_main_group_line() {
         after,
         "source https://api.nuget.org/v3/index.json\nframework: net10.0\n\nnuget FSharp.Core 10.1.201\nnuget xunit.v3 4.0.0\nnuget Demo.Lib 1.2.3\n\ngroup lint\nsource https://api.nuget.org/v3/index.json\n\nnuget Other 1.0.0\n"
     );
-    assert_bump_round_trip("nuget:Demo.Lib", "1.2.3", "2.0.0", &after);
+    assert_edit_round_trip("nuget:Demo.Lib", "1.2.3", "2.0.0", &after);
     assert_declared(
         "nuget:fsharp.core",
         before,
@@ -280,7 +282,7 @@ fn configured(
     kind: ConfiguredKind,
     repository: Option<&str>,
     selector: &str,
-) -> Result<AddRequest, BumpError> {
+) -> Result<AddRequest, EditError> {
     UpdateRequest::parse_configured_set(
         kind,
         "tools",
@@ -289,7 +291,7 @@ fn configured(
         selector,
         "1.2.3",
     )
-    .map(|bump| AddRequest::from_bump(&bump))
+    .map(|update| AddRequest::from_request(&update))
 }
 
 #[test]

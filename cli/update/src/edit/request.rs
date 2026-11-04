@@ -12,11 +12,11 @@ pub struct UpdateRequest {
     manifest: Option<String>,
     /// The configured npm, uv or bazel set this request edits, if any.
     configured: Option<ConfiguredSet>,
-    /// Which of a MODULE.bazel dep's two versions a bazel bump edits.
+    /// Which of a MODULE.bazel dep's two versions a bazel update edits.
     pub dep_version: DepVersion,
 }
 
-/// The ecosystem of a dependency set a bump edits.
+/// The ecosystem of a dependency set an update edits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfiguredKind {
     Npm,
@@ -47,18 +47,18 @@ impl ConfiguredKind {
     }
 }
 
-/// A dependency set a bump edits: its name, ecosystem, manifests and hub repository.
+/// A dependency set an update edits: its name, ecosystem, manifests and hub repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredSet {
     pub name: String,
     pub kind: ConfiguredKind,
-    /// Every manifest of the set; a configured bump never reads the builtin tables.
+    /// Every manifest of the set; a configured update never reads the builtin tables.
     pub manifests: Vec<String>,
     /// The hub repository of a maven set; it names the `maven.install` to edit.
     pub repository: Option<String>,
 }
 
-/// The version of a MODULE.bazel dependency a bazel bump edits.
+/// The version of a MODULE.bazel dependency a bazel update edits.
 ///
 /// Each consumer-facing dep carries a floor in its `bazel_dep` (the oldest version
 /// consumers may resolve) and a tested-latest in a root-only `single_version_override`.
@@ -74,15 +74,15 @@ pub enum DepVersion {
 
 impl DepVersion {
     /// The target `--floor` and `--reason` select; both or neither must be given.
-    pub fn from_flags(floor: bool, reason: Option<&str>) -> Result<DepVersion, BumpError> {
+    pub fn from_flags(floor: bool, reason: Option<&str>) -> Result<DepVersion, EditError> {
         match (floor, reason) {
             (false, None) => Ok(DepVersion::Tested),
-            (true, None) => Err(BumpError::FloorNeedsReason),
-            (false, Some(_)) => Err(BumpError::ReasonNeedsFloor),
+            (true, None) => Err(EditError::FloorNeedsReason),
+            (false, Some(_)) => Err(EditError::ReasonNeedsFloor),
             (true, Some(reason)) => {
                 let reason = reason.trim();
                 if reason.is_empty() || reason.chars().any(char::is_control) {
-                    return Err(BumpError::UnsafeReason {
+                    return Err(EditError::UnsafeReason {
                         reason: reason.to_owned(),
                     });
                 }
@@ -95,16 +95,16 @@ impl DepVersion {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BumpPlanOutcome {
+pub enum EditPlanOutcome {
     Changed(String),
     Unchanged,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum BumpError {
-    #[error("empty bump selector or version; expected `dx update <set:package> <version>`")]
+pub enum EditError {
+    #[error("empty update selector or version; expected `dx update <set:package> <version>`")]
     Empty,
-    #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. bazel:rules_cc)", UpdateSet::builtin_names().join("|"))]
+    #[error("unknown update selector {selector:?}; expected {} as `set:package` (e.g. bazel:rules_cc)", UpdateSet::builtin_names().join("|"))]
     UnknownSelector { selector: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {
@@ -112,9 +112,9 @@ pub enum BumpError {
         package: String,
         reason: &'static str,
     },
-    #[error("bump needs one package, not a whole set: {set:?} selects the set; use `{set}:<package> <version>`")]
+    #[error("update needs one package, not a whole set: {set:?} selects the set; use `{set}:<package> <version>`")]
     BareSet { set: String },
-    #[error("bump needs `set:package`, not a label or path: {target:?}")]
+    #[error("update needs `set:package`, not a label or path: {target:?}")]
     NotAPackage { target: String },
     #[error("no declared requirement for {package:?} in {manifest} (nothing widened)")]
     NotFound { manifest: String, package: String },
@@ -138,7 +138,7 @@ pub enum BumpError {
     FloorNotBazelDep { selector: String },
     #[error("floor reason {reason:?} must be one non-empty line")]
     UnsafeReason { reason: String },
-    #[error("floor {floor} of {package:?} would be above its tested version {tested} in the single_version_override; bump the tested version first (nothing changed)")]
+    #[error("floor {floor} of {package:?} would be above its tested version {tested} in the single_version_override; update the tested version first (nothing changed)")]
     FloorAboveTested {
         package: String,
         floor: String,
@@ -152,17 +152,17 @@ pub enum BumpError {
     },
 }
 
-impl BumpError {
+impl EditError {
     /// Whether this is an argument error rather than a manifest or network failure.
     pub fn is_usage(&self) -> bool {
         matches!(
             self,
-            BumpError::FloorNeedsReason
-                | BumpError::ReasonNeedsFloor
-                | BumpError::FloorNotBazelDep { .. }
-                | BumpError::UnsafeReason { .. }
-                | BumpError::FloorAboveTested { .. }
-                | BumpError::TestedBelowFloor { .. }
+            EditError::FloorNeedsReason
+                | EditError::ReasonNeedsFloor
+                | EditError::FloorNotBazelDep { .. }
+                | EditError::UnsafeReason { .. }
+                | EditError::FloorAboveTested { .. }
+                | EditError::TestedBelowFloor { .. }
         )
     }
 }
@@ -270,10 +270,10 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
 }
 
 impl UpdateRequest {
-    pub fn parse(selector: &str, version: &str) -> Result<UpdateRequest, BumpError> {
+    pub fn parse(selector: &str, version: &str) -> Result<UpdateRequest, EditError> {
         let head = selector.split_once(':').map_or(selector, |(head, _)| head);
         if !selector.is_empty() && !UpdateSet::builtin_names().contains(&head) {
-            return Err(BumpError::UnknownSelector {
+            return Err(EditError::UnknownSelector {
                 selector: selector.to_owned(),
             });
         }
@@ -281,9 +281,9 @@ impl UpdateRequest {
     }
 
     /// Parses a selector of any ecosystem; configured sets share these grammars.
-    pub(crate) fn parse_grammar(selector: &str, version: &str) -> Result<UpdateRequest, BumpError> {
+    pub(crate) fn parse_grammar(selector: &str, version: &str) -> Result<UpdateRequest, EditError> {
         if selector.is_empty() || version.is_empty() {
-            return Err(BumpError::Empty);
+            return Err(EditError::Empty);
         }
         let (set, package) = parse_selector(selector)?;
         let parsed = version::parse(set, version)?;
@@ -304,7 +304,7 @@ impl UpdateRequest {
         manifest: &str,
         selector: &str,
         version: &str,
-    ) -> Result<UpdateRequest, BumpError> {
+    ) -> Result<UpdateRequest, EditError> {
         Self::parse_configured_as(ConfiguredKind::Bazel, set_name, manifest, selector, version)
     }
 
@@ -315,7 +315,7 @@ impl UpdateRequest {
         manifest: &str,
         selector: &str,
         version: &str,
-    ) -> Result<UpdateRequest, BumpError> {
+    ) -> Result<UpdateRequest, EditError> {
         Self::parse_configured_set(
             kind,
             set_name,
@@ -334,9 +334,9 @@ impl UpdateRequest {
         repository: Option<&str>,
         selector: &str,
         version: &str,
-    ) -> Result<UpdateRequest, BumpError> {
+    ) -> Result<UpdateRequest, EditError> {
         if selector.is_empty() || version.is_empty() {
-            return Err(BumpError::Empty);
+            return Err(EditError::Empty);
         }
         let package = match kind {
             ConfiguredKind::Bazel => parse_configured_selector(set_name, selector)?,
@@ -423,13 +423,13 @@ impl UpdateRequest {
     }
 
     /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel bazel_dep.
-    pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<UpdateRequest, BumpError> {
+    pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<UpdateRequest, EditError> {
         if dep_version != DepVersion::Tested
             && (self.set != UpdateSet::Bazel
                 || (self.configured.is_some() && !self.target().is_configured_bazel())
                 || self.package == ".bazelversion")
         {
-            return Err(BumpError::FloorNotBazelDep {
+            return Err(EditError::FloorNotBazelDep {
                 selector: self.selector,
             });
         }
@@ -476,12 +476,12 @@ impl UpdateRequest {
         )
     }
 
-    pub fn plan_edit(&self, content: &str) -> Result<String, BumpError> {
+    pub fn plan_edit(&self, content: &str) -> Result<String, EditError> {
         self.plan_edit_in(self.target_manifest(), content)
     }
 
     /// The widened `content` of `manifest`, a manifest of this request's set.
-    pub fn plan_edit_in(&self, manifest: &str, content: &str) -> Result<String, BumpError> {
+    pub fn plan_edit_in(&self, manifest: &str, content: &str) -> Result<String, EditError> {
         if matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Uv) {
             return plan_pyproject_toml(content, &self.package, &self.version);
         }
@@ -516,35 +516,35 @@ impl UpdateRequest {
         &self,
         manifest: &str,
         content: &str,
-    ) -> Result<BumpPlanOutcome, BumpError> {
+    ) -> Result<EditPlanOutcome, EditError> {
         let widened = self.plan_edit_in(manifest, content)?;
         if widened == content {
-            Ok(BumpPlanOutcome::Unchanged)
+            Ok(EditPlanOutcome::Unchanged)
         } else {
-            Ok(BumpPlanOutcome::Changed(widened))
+            Ok(EditPlanOutcome::Changed(widened))
         }
     }
 }
 
 /// Parses a `set:package` selector into its set and package identity.
-pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), BumpError> {
+pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), EditError> {
     if selector.is_empty() {
-        return Err(BumpError::Empty);
+        return Err(EditError::Empty);
     }
     if is_target_shape(selector) {
-        return Err(BumpError::NotAPackage {
+        return Err(EditError::NotAPackage {
             target: selector.to_owned(),
         });
     }
     if let Some(set) = UpdateSet::parse(selector) {
-        return Err(BumpError::BareSet {
+        return Err(EditError::BareSet {
             set: set.name().to_owned(),
         });
     }
     let (head, tail) = match selector.split_once(':') {
         Some((head, tail)) => (head, tail),
         None => {
-            return Err(BumpError::UnknownSelector {
+            return Err(EditError::UnknownSelector {
                 selector: selector.to_owned(),
             });
         }
@@ -552,20 +552,20 @@ pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), BumpError> 
     let set = match UpdateSet::parse(head) {
         Some(set) => set,
         None => {
-            return Err(BumpError::UnknownSelector {
+            return Err(EditError::UnknownSelector {
                 selector: selector.to_owned(),
             });
         }
     };
     if tail.is_empty() {
-        return Err(BumpError::InvalidPackage {
+        return Err(EditError::InvalidPackage {
             set: set.name(),
             package: tail.to_owned(),
             reason: "package identity is empty",
         });
     }
     if set != UpdateSet::Maven && tail.contains(':') {
-        return Err(BumpError::InvalidPackage {
+        return Err(EditError::InvalidPackage {
             set: set.name(),
             package: tail.to_owned(),
             reason: "package identity never contains ':'",
@@ -576,16 +576,16 @@ pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), BumpError> 
 }
 
 /// Parses the `set:module` selector of a bazel dependency set into its module name.
-pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<String, BumpError> {
+pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<String, EditError> {
     if selector.is_empty() {
-        return Err(BumpError::Empty);
+        return Err(EditError::Empty);
     }
     let Some((_, tail)) = selector.split_once(':') else {
-        return Err(BumpError::BareSet {
+        return Err(EditError::BareSet {
             set: set_name.to_owned(),
         });
     };
-    let invalid = |reason: &'static str| BumpError::InvalidPackage {
+    let invalid = |reason: &'static str| EditError::InvalidPackage {
         set: UpdateSet::Bazel.name(),
         package: tail.to_owned(),
         reason,
@@ -610,15 +610,15 @@ pub(crate) fn parse_foreign_selector(
     set_name: &str,
     kind: ConfiguredKind,
     selector: &str,
-) -> Result<String, BumpError> {
+) -> Result<String, EditError> {
     let Some((_, tail)) = selector.split_once(':') else {
-        return Err(BumpError::BareSet {
+        return Err(EditError::BareSet {
             set: set_name.to_owned(),
         });
     };
     let set = kind.grammar();
     if tail.is_empty() {
-        return Err(BumpError::InvalidPackage {
+        return Err(EditError::InvalidPackage {
             set: set.name(),
             package: tail.to_owned(),
             reason: "package identity is empty",
@@ -630,7 +630,7 @@ pub(crate) fn parse_foreign_selector(
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
             && tail.starts_with(|c: char| c.is_ascii_alphanumeric());
         if !valid {
-            return Err(BumpError::InvalidPackage {
+            return Err(EditError::InvalidPackage {
                 set: "uv",
                 package: tail.to_owned(),
                 reason: "python package names use letters, digits, '-', '_' and '.'",

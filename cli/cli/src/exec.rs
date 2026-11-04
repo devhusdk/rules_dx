@@ -61,7 +61,7 @@ pub use audit::AUDIT_TODAY_ENV;
 pub use common::{print_actions, ActionTally, Env};
 pub use failure::{cancel, install_panic_events, install_panic_hint, set_usage_command};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
-pub use update_version::COMMIT_JSON_ENV as BUMP_COMMIT_JSON_ENV;
+pub use update_version::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
 pub use worktree::{hook_kind, run_worktree_hook};
 
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
@@ -137,7 +137,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         audit_today,
         actions,
         proc_root,
-        bump_commit_json,
+        edit_commit_json,
     } = env;
     let mut latched = common::LatchedOut::new(out);
     let code = dispatch(
@@ -155,7 +155,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             audit_today,
             actions,
             proc_root,
-            bump_commit_json,
+            edit_commit_json,
         },
     );
     if code == 0 {
@@ -217,7 +217,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
                 audit_today: env.audit_today,
                 actions: env.actions,
                 proc_root: env.proc_root,
-                bump_commit_json: env.bump_commit_json,
+                edit_commit_json: env.edit_commit_json,
             },
         ),
         None => dispatch_command(invocation, env),

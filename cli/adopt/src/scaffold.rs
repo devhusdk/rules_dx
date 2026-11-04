@@ -1160,7 +1160,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     }
 
     #[test]
-    fn pin_bump_changes_exactly_two_lines() {
+    fn pin_update_changes_exactly_two_lines() {
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-pin-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");

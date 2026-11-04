@@ -1,6 +1,6 @@
 //! Declares a requirement `dx update` found missing.
 
-use super::request::{BumpError, DepTarget, UpdateRequest};
+use super::request::{DepTarget, EditError, UpdateRequest};
 use super::sets::UpdateSet;
 use super::version::WidenVersion;
 
@@ -24,16 +24,16 @@ pub enum AddError {
     #[error("unsupported manifest shape in {manifest}: {reason} (nothing added)")]
     UnsupportedManifest { manifest: String, reason: String },
     #[error(transparent)]
-    Bump(BumpError),
+    Update(EditError),
 }
 
-impl From<BumpError> for AddError {
-    fn from(error: BumpError) -> AddError {
+impl From<EditError> for AddError {
+    fn from(error: EditError) -> AddError {
         match error {
-            BumpError::UnsupportedManifest { manifest, reason } => {
+            EditError::UnsupportedManifest { manifest, reason } => {
                 AddError::UnsupportedManifest { manifest, reason }
             }
-            other => AddError::Bump(other),
+            other => AddError::Update(other),
         }
     }
 }
@@ -42,13 +42,13 @@ const GITHUB_ACTIONS_HINT: &str =
     "add the `uses:` step to the workflow, then pin it with `dx update github-actions:<owner/repo> <tag-or-sha>`";
 
 impl AddRequest {
-    /// The insert request for the package a bump request names.
-    pub fn from_bump(bump: &UpdateRequest) -> AddRequest {
+    /// The insert request for the package an update request names.
+    pub fn from_request(request: &UpdateRequest) -> AddRequest {
         AddRequest {
-            target: bump.target(),
-            version: bump.version.clone(),
-            selector: bump.selector.clone(),
-            raw_version: bump.raw_version.clone(),
+            target: request.target(),
+            version: request.version.clone(),
+            selector: request.selector.clone(),
+            raw_version: request.raw_version.clone(),
         }
     }
 
@@ -73,7 +73,7 @@ impl AddRequest {
     }
 
     /// The `dx update` request for the same package and version.
-    pub fn as_bump(&self) -> UpdateRequest {
+    pub fn as_request(&self) -> UpdateRequest {
         UpdateRequest::for_target(
             &self.target,
             self.version.clone(),
@@ -84,14 +84,14 @@ impl AddRequest {
 
     /// The manifest with the new requirement declared, in the shape `dx update` widens.
     pub fn plan_insert(&self, content: &str) -> Result<String, AddError> {
-        match self.as_bump().plan_edit(content) {
-            Ok(_) | Err(BumpError::Ambiguous { .. }) => {
+        match self.as_request().plan_edit(content) {
+            Ok(_) | Err(EditError::Ambiguous { .. }) => {
                 return Err(AddError::Declared {
                     selector: self.selector.clone(),
                     manifest: self.target_manifest().to_owned(),
                 });
             }
-            Err(BumpError::NotFound { .. }) => {}
+            Err(EditError::NotFound { .. }) => {}
             Err(other) => return Err(other.into()),
         }
         let version = match &self.version {

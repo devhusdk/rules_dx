@@ -188,7 +188,7 @@ fn consumer_status_detects_missing_and_corrupt_tools() {
 }
 
 #[test]
-fn consumer_dependency_sets_audit_and_reject_bump() {
+fn consumer_dependency_sets_audit_and_reject_edit() {
     let security = read("DX_SETS_SECURITY");
     assert!(
         security.contains("failed to assess pypi-frontend")
@@ -209,10 +209,10 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
         license.contains("audit_license_clean"),
         "license passes with no packages: {license}"
     );
-    let bump = read("DX_SETS_BUMP");
+    let edit = read("DX_SETS_EDIT");
     assert!(
-        bump.contains("bump needs one package, not a whole set"),
-        "bump asks for a package of the configured uv set: {bump}"
+        edit.contains("update needs one package, not a whole set"),
+        "edit asks for a package of the configured uv set: {edit}"
     );
     let pinned = read("DX_SETS_UPDATE_PINNED");
     assert!(
@@ -228,13 +228,13 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
         !ruby.contains("no advisory coverage"),
         "configured ruby sets have advisory coverage: {ruby}"
     );
-    let bump = read("DX_SETS_BUMP_PINNED");
+    let edit = read("DX_SETS_EDIT_PINNED");
     assert!(
-        bump.contains(
+        edit.contains(
             "update is not supported for ecosystem ruby set gems \
 (supported operations: audit; check and update report pinned)"
         ),
-        "bump names the pinned operations: {bump}"
+        "edit names the pinned operations: {edit}"
     );
     let cargo = read("DX_SETS_SECURITY_CARGO");
     assert!(
@@ -245,14 +245,14 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
         !cargo.contains("no advisory coverage"),
         "configured cargo sets have advisory coverage: {cargo}"
     );
-    let bump = read("DX_SETS_BUMP_CARGO");
+    let edit = read("DX_SETS_EDIT_CARGO");
     assert!(
-        bump.contains("bump pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),
-        "bump plans an undeclared cargo package without writing: {bump}"
+        edit.contains("update pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),
+        "edit plans an undeclared cargo package without writing: {edit}"
     );
     assert!(
-        bump.contains("cannot resolve cargo hub \"crates\""),
-        "update refuses a cargo hub missing from use_repo: {bump}"
+        edit.contains("cannot resolve cargo hub \"crates\""),
+        "update refuses a cargo hub missing from use_repo: {edit}"
     );
 }
 

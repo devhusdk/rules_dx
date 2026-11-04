@@ -60,7 +60,7 @@ fn module_input_error() -> String {
 }
 
 /// The `bazel_dep` names whose version changed, with their new versions, when nothing else in MODULE.bazel did.
-pub(crate) fn bumped_deps(base: &str, head: &str) -> Result<BTreeMap<String, String>, String> {
+pub(crate) fn updated_deps(base: &str, head: &str) -> Result<BTreeMap<String, String>, String> {
     let base_file = ModuleFile::parse(base).map_err(|_| module_input_error())?;
     let head_file = ModuleFile::parse(head).map_err(|_| module_input_error())?;
     let base_versions = dep_versions(&base_file)?;
@@ -80,9 +80,9 @@ pub(crate) fn bumped_deps(base: &str, head: &str) -> Result<BTreeMap<String, Str
         .collect())
 }
 
-/// Fails unless the lock pins a registry `MODULE.bazel` for every bumped module at its new version.
-pub(crate) fn lock_pins(lock: &str, bumped: &BTreeMap<String, String>) -> Result<(), String> {
-    if bumped.is_empty() {
+/// Fails unless the lock pins a registry `MODULE.bazel` for every updated module at its new version.
+pub(crate) fn lock_pins(lock: &str, updated: &BTreeMap<String, String>) -> Result<(), String> {
+    if updated.is_empty() {
         return Ok(());
     }
     let unpinned = || "workspace input MODULE.bazel.lock".to_owned();
@@ -97,7 +97,7 @@ pub(crate) fn lock_pins(lock: &str, bumped: &BTreeMap<String, String>) -> Result
         .filter(|(_, _, _, file)| *file == "MODULE.bazel")
         .map(|(_, name, version, _)| (name, version))
         .collect();
-    if bumped
+    if updated
         .iter()
         .all(|(name, version)| pinned.contains(&(name.as_str(), version.as_str())))
     {
@@ -441,7 +441,7 @@ pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
     owners
 }
 
-/// Why the overrides in the module files keep a bump from narrowing, if they do.
+/// Why the overrides in the module files keep an update from narrowing, if they do.
 pub(crate) fn overrides_that_widen(files: &[ModuleFile]) -> Option<String> {
     files.iter().flat_map(ModuleFile::calls).find_map(|call| {
         let module = call.str("module_name").unwrap_or_default();
@@ -500,19 +500,19 @@ mod tests {
     }
 
     #[test]
-    fn bumped_deps_returns_names_whose_version_changed() {
+    fn updated_deps_returns_names_whose_version_changed() {
         let base = "module(name = \"r\")\nbazel_dep(name = \"leaf\", version = \"1.0\")\nbazel_dep(name = \"other\", version = \"2.0\")\n";
         let head = "module(name = \"r\")\nbazel_dep(name = \"leaf\", version = \"1.10\")\nbazel_dep(name = \"other\", version = \"2.0\")\n";
         assert_eq!(
-            bumped_deps(base, head),
+            updated_deps(base, head),
             Ok(BTreeMap::from([("leaf".to_owned(), "1.10".to_owned())]))
         );
-        assert_eq!(bumped_deps(base, base), Ok(BTreeMap::new()));
+        assert_eq!(updated_deps(base, base), Ok(BTreeMap::new()));
     }
 
     #[test]
     fn lock_pins_requires_the_new_version_module_file() {
-        let bumped = BTreeMap::from([("leaf".to_owned(), "1.1".to_owned())]);
+        let updated = BTreeMap::from([("leaf".to_owned(), "1.1".to_owned())]);
         let stale = lock(
             &format!(
                 "\"{R}/modules/leaf/1.0/MODULE.bazel\": \"a\", \"{R}/modules/leaf/1.0/source.json\": \"b\""
@@ -530,15 +530,15 @@ mod tests {
             "",
         );
         let error = Err("workspace input MODULE.bazel.lock".to_owned());
-        assert_eq!(lock_pins(&stale, &bumped), error);
-        assert_eq!(lock_pins(&missing, &bumped), error);
-        assert_eq!(lock_pins("{}", &bumped), error);
-        assert_eq!(lock_pins(&fresh, &bumped), Ok(()));
+        assert_eq!(lock_pins(&stale, &updated), error);
+        assert_eq!(lock_pins(&missing, &updated), error);
+        assert_eq!(lock_pins("{}", &updated), error);
+        assert_eq!(lock_pins(&fresh, &updated), Ok(()));
         assert_eq!(lock_pins(&stale, &BTreeMap::new()), Ok(()));
     }
 
     #[test]
-    fn bumped_deps_rejects_any_other_edit() {
+    fn updated_deps_rejects_any_other_edit() {
         let base = "bazel_dep(name = \"leaf\", version = \"1.0\")\n";
         let error = Err(module_input_error());
         for head in [
@@ -550,7 +550,7 @@ mod tests {
             "bazel_dep(name = \"leaf\", version = \"1.1\")\n# note\n",
             "bazel_dep(",
         ] {
-            assert_eq!(bumped_deps(base, head), error, "{head}");
+            assert_eq!(updated_deps(base, head), error, "{head}");
         }
     }
 

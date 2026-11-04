@@ -590,8 +590,8 @@ fn lock_change(
 const ROOT_MODULE: &str = "MODULE.bazel";
 const ROOT_LOCK: &str = "MODULE.bazel.lock";
 
-/// The modules a root MODULE.bazel bump changes, and the repositories they own.
-struct ModuleBump {
+/// The modules a root MODULE.bazel update changes, and the repositories they own.
+struct ModuleEdit {
     path: String,
     modules: BTreeSet<String>,
     loads: Vec<String>,
@@ -622,7 +622,7 @@ fn module_change(
     runner: &dyn QueryRunner,
     base: Option<(&Path, &str)>,
     startup_options: &[String],
-) -> Result<ModuleBump, String> {
+) -> Result<ModuleEdit, String> {
     let first = paths.first().map_or(ROOT_MODULE, String::as_str);
     let Some(base) = base else {
         return Err(format!("workspace input {first}"));
@@ -630,11 +630,11 @@ fn module_change(
     let changed = |path: &str| paths.iter().any(|changed| changed == path);
     let (base_module, head_module) =
         module_text(ROOT_MODULE, changed(ROOT_MODULE), workspace, runner, base)?;
-    let bumped = module_inputs::bumped_deps(&base_module, &head_module)?;
+    let updated = module_inputs::updated_deps(&base_module, &head_module)?;
     let (base_lock, head_lock) =
         module_text(ROOT_LOCK, changed(ROOT_LOCK), workspace, runner, base)?;
     let lock = module_inputs::lock_changes(&base_lock, &head_lock)?;
-    module_inputs::lock_pins(&head_lock, &bumped)?;
+    module_inputs::lock_pins(&head_lock, &updated)?;
     let read_include = |label: &str| {
         dx_module_bazel::label_path(label)
             .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
@@ -652,7 +652,7 @@ fn module_change(
         startup_options,
     );
     let read = |hash: &str| module_inputs::cached(&caches, hash);
-    let mut changed_modules: BTreeSet<String> = bumped.into_keys().collect();
+    let mut changed_modules: BTreeSet<String> = updated.into_keys().collect();
     changed_modules.extend(lock.modules);
     let graph = module_inputs::module_graph(&module_inputs::registry_files(&head_lock)?, &read)?;
     let old: Vec<_> = module_inputs::registry_files(&base_lock)?
@@ -722,7 +722,7 @@ fn module_change(
     } else {
         ROOT_LOCK
     };
-    Ok(ModuleBump {
+    Ok(ModuleEdit {
         path: path.to_owned(),
         modules,
         loads: loads.into_iter().collect(),
@@ -987,24 +987,24 @@ pub fn resolve_affected(
     }
     module_paths.sort();
     module_paths.dedup();
-    let mut bump = None;
+    let mut update = None;
     if !module_paths.is_empty() {
         match module_change(&module_paths, workspace, runner, base, startup_options) {
             Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
             Ok(found) => {
                 let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels);
                 widen_impact(impact, "@", &mut widened);
-                bump = Some(found).filter(|found| !found.modules.is_empty());
+                update = Some(found).filter(|found| !found.modules.is_empty());
             }
         }
     }
     candidates.sort();
     candidates.dedup();
     let mut graph = None;
-    if !candidates.is_empty() || !narrowed.is_empty() || bump.is_some() {
+    if !candidates.is_empty() || !narrowed.is_empty() || update.is_some() {
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
-        if let Some(bump) = &bump {
-            let seeds = module_inputs::module_seeds(loaded.external_inputs(), &bump.modules);
+        if let Some(update) = &update {
+            let seeds = module_inputs::module_seeds(loaded.external_inputs(), &update.modules);
             if let Some(toolchain) = loaded
                 .reached_of_kind(&seeds, |kind| kind == "toolchain")
                 .first()
@@ -1014,19 +1014,19 @@ pub fn resolve_affected(
                     "//...".to_owned(),
                     format!(
                         "changed modules in {} reach toolchain {toolchain}",
-                        bump.path
+                        update.path
                     ),
                 );
             }
             targets.extend(seeds);
-            let repos: Vec<String> = bump
+            let repos: Vec<String> = update
                 .modules
                 .iter()
                 .map(|module| format!("@{module}"))
                 .collect();
             widened.push(WidenedScope {
                 scope: rdeps_scope(&repos),
-                reason: format!("changed modules in {}", bump.path),
+                reason: format!("changed modules in {}", update.path),
                 repos,
             });
         }
@@ -1837,7 +1837,7 @@ mod tests {
     }
 
     #[test]
-    fn one_crate_cargo_lock_bump_selects_only_its_users() {
+    fn one_crate_cargo_lock_update_selects_only_its_users() {
         let scratch = crate_workspace("dx-changed-cargo-lock-");
         let workspace = scratch.path();
         let query = FakeQuery::new(vec![FakeQuery::ok(&cargo_lock("1.0.1")), crate_graph()]);
@@ -1869,7 +1869,7 @@ mod tests {
         assert_eq!(calls[0].0, strings(&["git", "show", "base:./Cargo.lock"]));
     }
 
-    struct Bump {
+    struct Update {
         leaf: &'static str,
         leaf_extra: &'static str,
         user_extra: &'static str,
@@ -1877,7 +1877,7 @@ mod tests {
         lock_extra: serde_json::Value,
     }
 
-    const BUMP: Bump = Bump {
+    const UPDATE: Update = Update {
         leaf: "leaf",
         leaf_extra: "",
         user_extra: "",
@@ -1885,7 +1885,7 @@ mod tests {
         lock_extra: serde_json::Value::Null,
     };
 
-    struct BumpWorkspace {
+    struct EditWorkspace {
         scratch: tempfile::TempDir,
         base_module: String,
         base_lock: String,
@@ -1901,14 +1901,14 @@ mod tests {
         hash
     }
 
-    fn bump_workspace(prefix: &str, bump: Bump) -> BumpWorkspace {
+    fn edit_workspace(prefix: &str, update: Update) -> EditWorkspace {
         let scratch = dx_test_scratch::scratch(prefix);
         let workspace = scratch.path();
-        let leaf = bump.leaf;
+        let leaf = update.leaf;
         let module = |version: &str| {
             format!(
                 "module(name = \"root\")\nbazel_dep(name = \"user\", version = \"1.0\")\nbazel_dep(name = \"{leaf}\", version = \"{version}\")\nbazel_dep(name = \"other\", version = \"1.0\")\n{}",
-                bump.root_extra
+                update.root_extra
             )
         };
         write(workspace, "MODULE.bazel", &module("1.1"));
@@ -1931,14 +1931,14 @@ mod tests {
             workspace,
             &format!(
                 "module(name = \"{leaf}\", version = \"1.1\")\n{}",
-                bump.leaf_extra
+                update.leaf_extra
             ),
         );
         let user = cache_put(
             workspace,
             &format!(
                 "module(name = \"user\")\nbazel_dep(name = \"{leaf}\", version = \"1.0\")\n{}",
-                bump.user_extra
+                update.user_extra
             ),
         );
         let other = cache_put(workspace, "module(name = \"other\")\n");
@@ -1970,16 +1970,16 @@ mod tests {
         write(
             workspace,
             "MODULE.bazel.lock",
-            &lock(hashes, &bump.lock_extra),
+            &lock(hashes, &update.lock_extra),
         );
-        BumpWorkspace {
+        EditWorkspace {
             scratch,
             base_module: module("1.0"),
             base_lock: lock(base_hashes, &serde_json::Value::Null),
         }
     }
 
-    fn bump_graph() -> QueryResult {
+    fn update_graph() -> QueryResult {
         graph_with_kinds(&[
             ("//d:lib", "cc_library", &["@@leaf+//:lib"]),
             ("//u:lib", "cc_library", &["@@user+//:lib"]),
@@ -1987,7 +1987,7 @@ mod tests {
         ])
     }
 
-    fn resolve_bump(fixture: &BumpWorkspace, query: &FakeQuery) -> AffectedSelection {
+    fn resolve_edit(fixture: &EditWorkspace, query: &FakeQuery) -> AffectedSelection {
         resolve_affected(
             &[
                 change("MODULE.bazel", dx_adopt::ChangeKind::Modified),
@@ -1999,17 +1999,17 @@ mod tests {
             &[],
             base(),
         )
-        .expect("bump resolves")
+        .expect("update resolves")
     }
 
-    fn widened_reason(fixture: &BumpWorkspace, query: &FakeQuery) -> String {
-        let selection = resolve_bump(fixture, query);
+    fn widened_reason(fixture: &EditWorkspace, query: &FakeQuery) -> String {
+        let selection = resolve_edit(fixture, query);
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(selection.widened.len(), 1, "{:?}", selection.widened);
         selection.widened[0].reason.clone()
     }
 
-    fn base_reads(fixture: &BumpWorkspace) -> FakeQuery {
+    fn base_reads(fixture: &EditWorkspace) -> FakeQuery {
         FakeQuery::new(vec![
             FakeQuery::ok(&fixture.base_module),
             FakeQuery::ok(&fixture.base_lock),
@@ -2017,14 +2017,14 @@ mod tests {
     }
 
     #[test]
-    fn version_only_bazel_dep_bump_selects_its_users() {
-        let fixture = bump_workspace("dx-changed-bump-", BUMP);
+    fn version_only_bazel_dep_update_selects_its_users() {
+        let fixture = edit_workspace("dx-changed-update-", UPDATE);
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&fixture.base_module),
             FakeQuery::ok(&fixture.base_lock),
-            bump_graph(),
+            update_graph(),
         ]);
-        let selection = resolve_bump(&fixture, &query);
+        let selection = resolve_edit(&fixture, &query);
         assert_eq!(
             selection.targets,
             strings(&["//d:all", "@@leaf+//:lib", "@@user+//:lib"])
@@ -2057,24 +2057,24 @@ mod tests {
     }
 
     #[test]
-    fn bump_of_toolchain_registering_module_widens() {
-        for (bump, module) in [
+    fn update_of_toolchain_registering_module_widens() {
+        for (update, module) in [
             (
-                Bump {
+                Update {
                     leaf_extra: "register_toolchains(\"//:t\")\n",
-                    ..BUMP
+                    ..UPDATE
                 },
                 "leaf",
             ),
             (
-                Bump {
+                Update {
                     user_extra: "register_execution_platforms(\"//:p\")\n",
-                    ..BUMP
+                    ..UPDATE
                 },
                 "user",
             ),
         ] {
-            let fixture = bump_workspace("dx-changed-bump-tc-", bump);
+            let fixture = edit_workspace("dx-changed-update-tc-", update);
             let query = base_reads(&fixture);
             assert_eq!(
                 widened_reason(&fixture, &query),
@@ -2085,12 +2085,12 @@ mod tests {
     }
 
     #[test]
-    fn bump_of_bazel_tools_dep_widens() {
-        let fixture = bump_workspace(
-            "dx-changed-bump-cc-",
-            Bump {
+    fn update_of_bazel_tools_dep_widens() {
+        let fixture = edit_workspace(
+            "dx-changed-update-cc-",
+            Update {
                 leaf: "rules_cc",
-                ..BUMP
+                ..UPDATE
             },
         );
         let query = base_reads(&fixture);
@@ -2102,7 +2102,7 @@ mod tests {
 
     #[test]
     fn non_version_module_edit_widens() {
-        let fixture = bump_workspace("dx-changed-bump-edit-", BUMP);
+        let fixture = edit_workspace("dx-changed-update-edit-", UPDATE);
         let edited = fixture.base_module.replace("\"root\"", "\"renamed\"");
         let query = FakeQuery::new(vec![FakeQuery::ok(&edited)]);
         assert_eq!(
@@ -2113,8 +2113,8 @@ mod tests {
     }
 
     #[test]
-    fn module_bump_without_lock_update_widens() {
-        let fixture = bump_workspace("dx-changed-bump-stale-", BUMP);
+    fn module_update_without_lock_update_widens() {
+        let fixture = edit_workspace("dx-changed-update-stale-", UPDATE);
         write(
             fixture.scratch.path(),
             "MODULE.bazel.lock",
@@ -2129,7 +2129,7 @@ mod tests {
             &[],
             base(),
         )
-        .expect("bump resolves");
+        .expect("update resolves");
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(selection.widened.len(), 1, "{:?}", selection.widened);
         assert_eq!(
@@ -2141,7 +2141,7 @@ mod tests {
 
     #[test]
     fn missing_cached_module_file_widens() {
-        let fixture = bump_workspace("dx-changed-bump-miss-", BUMP);
+        let fixture = edit_workspace("dx-changed-update-miss-", UPDATE);
         std::fs::remove_dir_all(fixture.scratch.path().join("cache")).expect("drop cache");
         let query = base_reads(&fixture);
         assert!(widened_reason(&fixture, &query).starts_with("no cached MODULE.bazel for "));
@@ -2149,7 +2149,7 @@ mod tests {
 
     #[test]
     fn cache_file_with_wrong_hash_is_ignored() {
-        let fixture = bump_workspace("dx-changed-bump-hash-", BUMP);
+        let fixture = edit_workspace("dx-changed-update-hash-", UPDATE);
         let user = "module(name = \"user\")\nbazel_dep(name = \"leaf\", version = \"1.0\")\n";
         let hash = dx_digest::sha256_hex(user.as_bytes());
         let file = fixture
@@ -2169,11 +2169,11 @@ mod tests {
     #[test]
     fn unowned_lock_extension_change_widens() {
         let extra = serde_json::json!({"moduleExtensions": {"@@other+//:e.bzl%e": {"x": 1}}});
-        let fixture = bump_workspace(
-            "dx-changed-bump-ext-",
-            Bump {
+        let fixture = edit_workspace(
+            "dx-changed-update-ext-",
+            Update {
                 lock_extra: extra,
-                ..BUMP
+                ..UPDATE
             },
         );
         let query = base_reads(&fixture);
@@ -2185,11 +2185,11 @@ mod tests {
 
     #[test]
     fn local_path_override_widens() {
-        let fixture = bump_workspace(
-            "dx-changed-bump-local-",
-            Bump {
+        let fixture = edit_workspace(
+            "dx-changed-update-local-",
+            Update {
                 root_extra: "local_path_override(module_name = \"other\", path = \"o\")\n",
-                ..BUMP
+                ..UPDATE
             },
         );
         let query = base_reads(&fixture);
@@ -2221,7 +2221,7 @@ mod tests {
     }
 
     #[test]
-    fn lock_bump_behind_a_toolchain_widens_to_everything() {
+    fn lock_update_behind_a_toolchain_widens_to_everything() {
         let scratch = crate_workspace("dx-changed-toolchain-lock-");
         let workspace = scratch.path();
         let query = FakeQuery::new(vec![
@@ -2263,7 +2263,7 @@ mod tests {
     }
 
     #[test]
-    fn pnpm_lock_bump_selects_only_users_of_changed_packages() {
+    fn pnpm_lock_update_selects_only_users_of_changed_packages() {
         let scratch = dx_test_scratch::scratch("dx-changed-pnpm-lock-");
         let workspace = scratch.path();
         write(
@@ -2312,7 +2312,7 @@ mod tests {
     }
 
     #[test]
-    fn lock_bump_nothing_uses_selects_nothing_but_names_its_crates() {
+    fn lock_update_nothing_uses_selects_nothing_but_names_its_crates() {
         let scratch = crate_workspace("dx-changed-unused-lock-");
         let workspace = scratch.path();
         let query = FakeQuery::new(vec![
@@ -2340,7 +2340,7 @@ mod tests {
     }
 
     #[test]
-    fn cargo_bazel_lock_json_bump_selects_only_its_users() {
+    fn cargo_bazel_lock_json_update_selects_only_its_users() {
         let scratch = crate_workspace("dx-changed-bazel-lock-");
         let workspace = scratch.path();
         let lock = |serde: &str| {

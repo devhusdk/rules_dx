@@ -16,10 +16,11 @@ pub fn plan_managed(
     if !command.is_managed() {
         return Err(unsupported());
     }
+    let repo = super::rules_dx_repo();
     let roots = match scope {
         dx_setup::SetupScope::Repository => {
-            let mut roots = dx_env_plan::scope_targets(&dx_env_plan::EnvScope::Repository);
-            for root in dx_codegen::scope_targets(&dx_codegen::CodegenScope::Repository) {
+            let mut roots = dx_env_plan::scope_targets(&dx_env_plan::EnvScope::Repository, repo);
+            for root in dx_codegen::scope_targets(&dx_codegen::CodegenScope::Repository, repo) {
                 if !roots.contains(&root) {
                     roots.push(root);
                 }
@@ -62,7 +63,11 @@ fn managed_argv(
     if !command.is_managed() {
         return Err(unsupported());
     }
-    let aspects = [dx_env_plan::ENV_ASPECT, dx_codegen::CODEGEN_ASPECT];
+    let repo = super::rules_dx_repo();
+    let aspects = [
+        dx_env_plan::aspect_label(repo),
+        dx_codegen::aspect_label(repo),
+    ];
     let output_groups = [dx_env_plan::OUTPUT_GROUP, dx_codegen::OUTPUT_GROUP];
     let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 3);
     for aspect in &aspects {
@@ -124,15 +129,15 @@ mod tests {
                 "--jobs=4",
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
-                "--aspects=//env:plan.bzl%dx_env_plan_aspect",
-                "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
+                "--aspects=@rules_dx//env:plan.bzl%dx_env_plan_aspect",
+                "--aspects=@rules_dx//generation:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_env_plans",
                 "--output_groups=dx_codegen_plans",
                 "--remote_download_outputs=toplevel",
                 "--build_event_json_file=/tmp/bep.json",
                 "--build_event_json_file_path_conversion=false",
-                "//dx:env",
-                "//dx:codegen",
+                "@rules_dx//dx:env",
+                "@rules_dx//dx:codegen",
             ])
         );
         assert_eq!(plan.summary, "Running env for //...");

@@ -24,9 +24,11 @@ pub const OUTPUT_GROUP: &str = "dx_env_plans";
 
 pub const SHARD_SUFFIX: &str = ".dxenv.pb";
 
-pub const ENV_ASPECT: &str = "//env:plan.bzl%dx_env_plan_aspect";
+/// Repo-relative label; qualify it with [`aspect_label`].
+pub const ENV_ASPECT: &str = "env:plan.bzl%dx_env_plan_aspect";
 
-pub const REPOSITORY_TARGET: &str = "//dx:env";
+/// Repo-relative label; qualify it with [`repository_target`].
+pub const REPOSITORY_TARGET: &str = "dx:env";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnvScope {
@@ -56,22 +58,32 @@ pub fn resolve_scope(targets: &[String]) -> Result<EnvScope, ScopeError> {
     }
 }
 
-pub fn scope_targets(scope: &EnvScope) -> Vec<String> {
+/// Returns the aspect label in the rules_dx repository named `repo`.
+pub fn aspect_label(repo: &str) -> String {
+    format!("@{repo}//{ENV_ASPECT}")
+}
+
+/// Returns the repository target in the rules_dx repository named `repo`.
+pub fn repository_target(repo: &str) -> String {
+    format!("@{repo}//{REPOSITORY_TARGET}")
+}
+
+pub fn scope_targets(scope: &EnvScope, repo: &str) -> Vec<String> {
     match scope {
-        EnvScope::Repository => targets_for_root_plan(&repository_plan()),
+        EnvScope::Repository => targets_for_root_plan(&repository_plan(), repo),
         EnvScope::Exact(label) => vec![label.clone()],
     }
 }
 
-pub fn targets_for_root_plan(plan: &RepositoryRootPlan) -> Vec<String> {
-    invocation_targets(plan, REPOSITORY_TARGET)
+pub fn targets_for_root_plan(plan: &RepositoryRootPlan, repo: &str) -> Vec<String> {
+    invocation_targets(plan, &repository_target(repo))
 }
 
-pub fn build_argv_for_plan(plan: &RepositoryRootPlan) -> Vec<String> {
+pub fn build_argv_for_plan(plan: &RepositoryRootPlan, repo: &str) -> Vec<String> {
     build_argv(
         plan,
-        REPOSITORY_TARGET,
-        &[ENV_ASPECT.to_owned()],
+        &repository_target(repo),
+        &[aspect_label(repo)],
         &[OUTPUT_GROUP.to_owned()],
     )
 }

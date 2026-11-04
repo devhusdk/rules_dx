@@ -83,26 +83,32 @@ fn collect_records(outputs: &[TargetOutput]) -> Result<Vec<EnvRecord>, CollectEr
 fn frozen_identities_match_starlark() {
     assert_eq!(OUTPUT_GROUP, "dx_env_plans");
     assert_eq!(SHARD_SUFFIX, ".dxenv.pb");
-    assert_eq!(ENV_ASPECT, "//env:plan.bzl%dx_env_plan_aspect");
-    assert_eq!(REPOSITORY_TARGET, "//dx:env");
+    assert_eq!(ENV_ASPECT, "env:plan.bzl%dx_env_plan_aspect");
+    assert_eq!(REPOSITORY_TARGET, "dx:env");
 }
 
 #[test]
 fn empty_scope_selects_repository() {
     assert_eq!(resolve_scope(&[]), Ok(EnvScope::Repository));
-    assert_eq!(scope_targets(&EnvScope::Repository), vec!["//dx:env"]);
+    assert_eq!(
+        scope_targets(&EnvScope::Repository, "rules_dx"),
+        vec!["@rules_dx//dx:env"]
+    );
 }
 
 #[test]
 fn root_plan_composes_baseline_invocation() {
     let plan = dx_roots::repository_plan();
-    assert_eq!(targets_for_root_plan(&plan), vec!["//dx:env"]);
     assert_eq!(
-        build_argv_for_plan(&plan),
+        targets_for_root_plan(&plan, "rules_dx"),
+        vec!["@rules_dx//dx:env"]
+    );
+    assert_eq!(
+        build_argv_for_plan(&plan, "rules_dx"),
         vec![
             "build".to_owned(),
-            "//dx:env".to_owned(),
-            format!("--aspects={ENV_ASPECT}"),
+            "@rules_dx//dx:env".to_owned(),
+            format!("--aspects={}", aspect_label("rules_dx")),
             format!("--output_groups={OUTPUT_GROUP}"),
         ]
     );
@@ -112,10 +118,13 @@ fn root_plan_composes_baseline_invocation() {
 fn root_plan_passes_aggregate_roots_through() {
     let plan = dx_roots::RepositoryRootPlan::monolithic_aggregate("//dx:env_roots");
     assert_eq!(
-        targets_for_root_plan(&plan),
+        targets_for_root_plan(&plan, "rules_dx"),
         vec!["//dx:env_roots".to_owned()]
     );
-    assert_eq!(build_argv_for_plan(&plan)[1], "//dx:env_roots".to_owned());
+    assert_eq!(
+        build_argv_for_plan(&plan, "rules_dx")[1],
+        "//dx:env_roots".to_owned()
+    );
 }
 
 #[test]
@@ -123,7 +132,7 @@ fn exact_labels_pass_through() {
     for label in ["//app:server", "@rules_dx//env:plan_proto"] {
         let scope = resolve_scope(&[label.to_owned()]).expect("exact label");
         assert_eq!(scope, EnvScope::Exact(label.to_owned()));
-        assert_eq!(scope_targets(&scope), vec![label.to_owned()]);
+        assert_eq!(scope_targets(&scope, "rules_dx"), vec![label.to_owned()]);
     }
 }
 
@@ -682,4 +691,18 @@ fn projection_rejects_bad_indexes() {
         plan_projection(&logical_records, &unreported_outputs),
         Err(CollectError::UnreportedArtifact { .. })
     ));
+}
+
+#[test]
+fn renamed_repo_qualifies_labels() {
+    let plan = dx_roots::repository_plan();
+    assert_eq!(
+        build_argv_for_plan(&plan, "dx"),
+        vec![
+            "build".to_owned(),
+            "@dx//dx:env".to_owned(),
+            "--aspects=@dx//env:plan.bzl%dx_env_plan_aspect".to_owned(),
+            format!("--output_groups={OUTPUT_GROUP}"),
+        ]
+    );
 }

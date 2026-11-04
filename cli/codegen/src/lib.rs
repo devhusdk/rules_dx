@@ -24,9 +24,11 @@ pub const OUTPUT_GROUP: &str = "dx_codegen_plans";
 
 pub const SHARD_SUFFIX: &str = ".dxcodegen.pb";
 
-pub const CODEGEN_ASPECT: &str = "//generation:codegen.bzl%dx_codegen_plan_aspect";
+/// Repo-relative label; qualify it with [`aspect_label`].
+pub const CODEGEN_ASPECT: &str = "generation:codegen.bzl%dx_codegen_plan_aspect";
 
-pub const REPOSITORY_TARGET: &str = "//dx:codegen";
+/// Repo-relative label; qualify it with [`repository_target`].
+pub const REPOSITORY_TARGET: &str = "dx:codegen";
 
 /// Rule class suffix shared by every codegen shard rule.
 pub const SHARD_KIND_SUFFIX: &str = "codegen_shard";
@@ -87,22 +89,32 @@ pub fn resolve_scope(targets: &[String]) -> Result<CodegenScope, ScopeError> {
     }
 }
 
-pub fn scope_targets(scope: &CodegenScope) -> Vec<String> {
+/// Returns the aspect label in the rules_dx repository named `repo`.
+pub fn aspect_label(repo: &str) -> String {
+    format!("@{repo}//{CODEGEN_ASPECT}")
+}
+
+/// Returns the repository target in the rules_dx repository named `repo`.
+pub fn repository_target(repo: &str) -> String {
+    format!("@{repo}//{REPOSITORY_TARGET}")
+}
+
+pub fn scope_targets(scope: &CodegenScope, repo: &str) -> Vec<String> {
     match scope {
-        CodegenScope::Repository => targets_for_root_plan(&repository_plan()),
+        CodegenScope::Repository => targets_for_root_plan(&repository_plan(), repo),
         CodegenScope::Exact(label) => vec![label.clone()],
     }
 }
 
-pub fn targets_for_root_plan(plan: &RepositoryRootPlan) -> Vec<String> {
-    invocation_targets(plan, REPOSITORY_TARGET)
+pub fn targets_for_root_plan(plan: &RepositoryRootPlan, repo: &str) -> Vec<String> {
+    invocation_targets(plan, &repository_target(repo))
 }
 
-pub fn build_argv_for_plan(plan: &RepositoryRootPlan) -> Vec<String> {
+pub fn build_argv_for_plan(plan: &RepositoryRootPlan, repo: &str) -> Vec<String> {
     build_argv(
         plan,
-        REPOSITORY_TARGET,
-        &[CODEGEN_ASPECT.to_owned()],
+        &repository_target(repo),
+        &[aspect_label(repo)],
         &[OUTPUT_GROUP.to_owned()],
     )
 }

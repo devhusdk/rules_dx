@@ -265,8 +265,8 @@ pub fn all_aspect_labels() -> Vec<String> {
         })
         .map(rules_dx_label)
         .collect();
-    labels.push(dx_codegen::CODEGEN_ASPECT.to_owned());
-    labels.push(dx_env_plan::ENV_ASPECT.to_owned());
+    labels.push(dx_codegen::aspect_label(super::rules_dx_repo()));
+    labels.push(dx_env_plan::aspect_label(super::rules_dx_repo()));
     labels.sort();
     labels.dedup();
     labels
@@ -287,8 +287,8 @@ mod tests {
         assert!(labels.contains(&"@rules_dx//quality:real_aspects.bzl%real_lint_aspect".to_owned()));
         assert!(labels
             .contains(&"@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect".to_owned()));
-        assert!(labels.contains(&dx_codegen::CODEGEN_ASPECT.to_owned()));
-        assert!(labels.contains(&dx_env_plan::ENV_ASPECT.to_owned()));
+        assert!(labels.contains(&dx_codegen::aspect_label(super::super::rules_dx_repo())));
+        assert!(labels.contains(&dx_env_plan::aspect_label(super::super::rules_dx_repo())));
         let mut sorted = labels.clone();
         sorted.sort();
         sorted.dedup();

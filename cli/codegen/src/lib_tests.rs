@@ -136,9 +136,9 @@ fn frozen_identities_match_starlark() {
     assert_eq!(SHARD_SUFFIX, ".dxcodegen.pb");
     assert_eq!(
         CODEGEN_ASPECT,
-        "//generation:codegen.bzl%dx_codegen_plan_aspect"
+        "generation:codegen.bzl%dx_codegen_plan_aspect"
     );
-    assert_eq!(REPOSITORY_TARGET, "//dx:codegen");
+    assert_eq!(REPOSITORY_TARGET, "dx:codegen");
     assert_eq!(SHARD_KIND_SUFFIX, "codegen_shard");
 }
 
@@ -214,21 +214,24 @@ fn expand_roots_unions_schema_with_projections() {
 fn empty_scope_selects_repository() {
     assert_eq!(resolve_scope(&[]), Ok(CodegenScope::Repository));
     assert_eq!(
-        scope_targets(&CodegenScope::Repository),
-        vec!["//dx:codegen"]
+        scope_targets(&CodegenScope::Repository, "rules_dx"),
+        vec!["@rules_dx//dx:codegen"]
     );
 }
 
 #[test]
 fn root_plan_composes_baseline_invocation() {
     let plan = dx_roots::repository_plan();
-    assert_eq!(targets_for_root_plan(&plan), vec!["//dx:codegen"]);
     assert_eq!(
-        build_argv_for_plan(&plan),
+        targets_for_root_plan(&plan, "rules_dx"),
+        vec!["@rules_dx//dx:codegen"]
+    );
+    assert_eq!(
+        build_argv_for_plan(&plan, "rules_dx"),
         vec![
             "build".to_owned(),
-            "//dx:codegen".to_owned(),
-            format!("--aspects={CODEGEN_ASPECT}"),
+            "@rules_dx//dx:codegen".to_owned(),
+            format!("--aspects={}", aspect_label("rules_dx")),
             format!("--output_groups={OUTPUT_GROUP}"),
         ]
     );
@@ -238,11 +241,11 @@ fn root_plan_composes_baseline_invocation() {
 fn root_plan_passes_aggregate_roots_through() {
     let plan = dx_roots::RepositoryRootPlan::monolithic_aggregate("//dx:codegen_roots");
     assert_eq!(
-        targets_for_root_plan(&plan),
+        targets_for_root_plan(&plan, "rules_dx"),
         vec!["//dx:codegen_roots".to_owned()]
     );
     assert_eq!(
-        build_argv_for_plan(&plan)[1],
+        build_argv_for_plan(&plan, "rules_dx")[1],
         "//dx:codegen_roots".to_owned()
     );
 }
@@ -252,7 +255,7 @@ fn exact_labels_pass_through() {
     for label in ["//gen:consumer", "@rules_dx//generation:result_proto_rs"] {
         let scope = resolve_scope(&[label.to_owned()]).expect("exact label");
         assert_eq!(scope, CodegenScope::Exact(label.to_owned()));
-        assert_eq!(scope_targets(&scope), vec![label.to_owned()]);
+        assert_eq!(scope_targets(&scope, "rules_dx"), vec![label.to_owned()]);
     }
 }
 
@@ -948,4 +951,18 @@ fn collect_records_counts_one_file_reported_by_two_targets_once() {
     ];
     let records = collect_records(&outputs).expect("collect");
     assert_eq!(records.len(), 1);
+}
+
+#[test]
+fn renamed_repo_qualifies_labels() {
+    let plan = dx_roots::repository_plan();
+    assert_eq!(
+        build_argv_for_plan(&plan, "dx"),
+        vec![
+            "build".to_owned(),
+            "@dx//dx:codegen".to_owned(),
+            "--aspects=@dx//generation:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
+            format!("--output_groups={OUTPUT_GROUP}"),
+        ]
+    );
 }

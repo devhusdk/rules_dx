@@ -1,9 +1,9 @@
 //! How dx reads Bazel rc files and which disk cache and resource flags it adds.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
 
 use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
 
@@ -363,8 +363,35 @@ pub fn configure_real(workspace: &Path) {
     configure(RcPolicy::from_env(
         &|name| std::env::var(name).ok(),
         workspace,
-        &|path| std::fs::read_to_string(path).ok(),
+        &read_file,
     ));
+}
+
+/// Reads an rc file the way Bazel does. A missing file is `None`; any other read error is
+/// reported once per path and also read as `None`.
+pub fn read_file(path: &Path) -> Option<String> {
+    match std::fs::read(path) {
+        Ok(bytes) => Some(decode(&bytes)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            report_unreadable(path, &error);
+            None
+        }
+    }
+}
+
+/// The rc text in `bytes`: invalid UTF-8 becomes U+FFFD and a leading byte-order mark is dropped.
+fn decode(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    text.strip_prefix('\u{feff}').unwrap_or(&text).to_owned()
+}
+
+fn report_unreadable(path: &Path, error: &std::io::Error) {
+    static REPORTED: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
+    let mut reported = REPORTED.lock().unwrap_or_else(PoisonError::into_inner);
+    if reported.insert(path.to_path_buf()) {
+        eprintln!("dx: cannot read rc file {}: {error}", path.display());
+    }
 }
 
 /// The policy for this process, hermetic until configured.

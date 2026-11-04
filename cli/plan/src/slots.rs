@@ -244,7 +244,7 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
     if !is_rules_dx {
         return 0;
     }
-    let read = |path: &Path| std::fs::read_to_string(path).ok();
+    let read = dx_process::rc::read_file;
     let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
     if !dx_process::rc::nested_bazel_selected(env_get, workspace, &read, read_user_rc, &[], &[]) {
         return 0;
@@ -1247,7 +1247,7 @@ impl Gate {
             pool,
             extras,
         } = sizing(setting, memory, reserved)?;
-        let read = |path: &Path| std::fs::read_to_string(path).ok();
+        let read = dx_process::rc::read_file;
         let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
         let startup = own_startup_options(args);
         let remote = dx_process::rc::remote_execution(

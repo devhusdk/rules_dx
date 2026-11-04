@@ -1028,3 +1028,39 @@ fn disk_cache_follows_config_expansion() {
         ws_policy("build --config=a\nbuild:a --config=b --disk_cache=/a\nbuild:b --config=a\n");
     assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/a")));
 }
+
+#[test]
+fn a_latin1_comment_keeps_the_user_disk_cache_and_memory() {
+    let text = decode(
+        b"# M\xFCller's build\nbuild --disk_cache=/x\nbuild --local_resources=memory=4096\n",
+    );
+    let policy = Machine::local().file("/ws/.bazelrc", &text).policy();
+    assert_eq!(policy.disk_cache, None);
+    assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/x")));
+    assert_eq!(resources(&policy), (true, false));
+}
+
+#[test]
+fn a_bom_prefixed_rc_parses_its_first_build_line() {
+    let text = decode(b"\xEF\xBB\xBFbuild --disk_cache=/x\n");
+    let policy = Machine::local().file("/ws/.bazelrc", &text).policy();
+    assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/x")));
+}
+
+#[test]
+fn read_file_decodes_bytes_and_drops_a_bom() {
+    let dir = dx_test_scratch::scratch("dx-rc-decode-");
+    let path = dir.path().join(".bazelrc");
+    std::fs::write(&path, b"\xEF\xBB\xBF# M\xFCller\nbuild --disk_cache=/x\n").expect("write");
+    assert_eq!(
+        read_file(&path).as_deref(),
+        Some("# M\u{fffd}ller\nbuild --disk_cache=/x\n")
+    );
+}
+
+#[test]
+fn read_file_is_none_for_a_missing_or_unreadable_path() {
+    let dir = dx_test_scratch::scratch("dx-rc-missing-");
+    assert_eq!(read_file(&dir.path().join("absent.bazelrc")), None);
+    assert_eq!(read_file(dir.path()), None);
+}

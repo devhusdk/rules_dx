@@ -21,6 +21,7 @@ load(
     "RULES_ERLANG_URL",
     "RUNTIME_MIRROR",
     "TOOL_SOURCES",
+    "WINDOWS_DROPPED_PATHS",
 )
 
 HUB_NAME = "dx_erlang_toolchains"
@@ -274,8 +275,12 @@ def _install(rctx, closure):
     rctx.file("releases/start_erl.data", ERTS_VERSION + " " + OTP_RELEASE + "\n")
     rctx.file("releases/RELEASES", rctx.read("releases/RELEASES.src").replace("%ERL_ROOT%/", ""))
 
-def _prune(rctx):
-    for path in DROPPED_PATHS:
+def is_windows_cell(cell):
+    """Returns whether a pinned cell runs on Windows."""
+    return "@platforms//os:windows" in cell.exec_compatible_with
+
+def _prune(rctx, windows):
+    for path in DROPPED_PATHS + (WINDOWS_DROPPED_PATHS if windows else []):
         rctx.delete(path)
     for app in rctx.path("lib").readdir():
         if dropped_application(app.basename):
@@ -293,13 +298,18 @@ def _otp_repo_impl(rctx):
     )
     if rctx.read("releases/" + OTP_RELEASE + "/OTP_VERSION").strip() != OTP_VERSION:
         fail("OTP archive is not release " + OTP_VERSION)
-    _prune(rctx)
+    windows = is_windows_cell(cell)
+    _prune(rctx, windows)
     if not rctx.path(nif_include_dir() + "/erl_nif.h").exists:
         found = [p.basename for p in rctx.path(".").readdir() if p.basename.startswith("erts-")]
         if "erts-" + ERTS_VERSION not in found:
             fail(erts_mismatch_message(ERTS_VERSION, found))
         fail("OTP archive ships no " + nif_include_dir() + "/erl_nif.h")
-    _install(rctx, CLOSURE_DIR if cell.runtime else None)
+    if windows:
+        if not rctx.path("bin/erl.exe").exists:
+            fail("OTP archive ships no bin/erl.exe")
+    else:
+        _install(rctx, CLOSURE_DIR if cell.runtime else None)
     if cell.runtime:
         deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
     rctx.file(VERSION_FILE, OTP_VERSION + "\n")

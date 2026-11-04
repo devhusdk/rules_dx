@@ -121,6 +121,9 @@ The library license texts ship in the OTP runtime tree under
 On macOS the OTP build comes from `erlef/otp_builds`. OpenSSL is linked into
 it, so it needs no extra libraries.
 
+On Windows the OTP build is the upstream `otp_win64` zip. The host needs the
+MSVC runtime (`vc_redist`); the installer in the zip is dropped.
+
 The `wx` application, sources and docs are dropped on every cell.
 
 ## Platforms
@@ -131,7 +134,7 @@ The `wx` application, sources and docs are dropped on every cell.
 | `linux_arm64` | Qualified | |
 | `macos_arm64` | Qualified | |
 | `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Not qualified | The `erl` launcher is POSIX sh and rules_erlang is not ported to Windows. |
+| `windows_x86_64` | Not qualified | OTP is pinned and downloads on CI. The `.bat` launchers are pending in #5962. |
 | `windows_arm64` | Not qualified | No upstream OTP build. |
 
 Elixir targets still run only on `linux_x86_64`. On other platforms

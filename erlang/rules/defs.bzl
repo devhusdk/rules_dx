@@ -13,13 +13,13 @@ load("//cc/rules:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library"
 load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:providers.bzl", "BeamInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
-load("//erlang/toolchain:pins.bzl", "CELLS")
+load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
 
-ERLANG_CELLS = sorted(CELLS.keys())
+ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
 
 ERLANG_COMPATIBLE_WITH = otp_compatible_with(ERLANG_CELLS)
 

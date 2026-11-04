@@ -1,8 +1,8 @@
 """Erlang toolchain pin and launcher tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
+load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
+load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -21,7 +21,10 @@ def _checks():
     return [
         expect_equal("otp version", OTP_VERSION, "29.1.2"),
         expect_equal("glibc floor", GLIBC_FLOOR, "2.35"),
-        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
+        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("only the windows cell is windows", [name for name in CELLS if is_windows_cell(CELLS[name])], ["windows_x86_64"]),
+        expect_true("windows ships a zip", CELLS["windows_x86_64"].otp_url.endswith(".zip")),
+        expect_equal("windows keeps the runtime tree", [path for path in ["bin", "erts-" + ERTS_VERSION, "lib", "releases"] if path in WINDOWS_DROPPED_PATHS], []),
         expect_equal("runtime packages", packages, ["libtinfo6", "zlib1g", "gcc-12-base", "libgcc-s1", "libstdc++6", "libssl3"]),
         expect_equal("arm64 ships the same packages", [package.package for package in arm.runtime], packages),
         expect_equal("arm64 libraries are aarch64", [path for path in arm_paths if "/aarch64-linux-gnu/" not in path], []),

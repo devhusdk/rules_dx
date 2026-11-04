@@ -185,7 +185,18 @@ CELLS = {
         strip_prefix = "",
         runtime = [],
     ),
+    "windows_x86_64": struct(
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        otp_sha256 = "4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0",
+        otp_url = "https://github.com/erlang/otp/releases/download/OTP-" + OTP_VERSION + "/otp_win64_" + OTP_VERSION + ".zip",
+        strip_prefix = "",
+        runtime = [],
+    ),
 }
+
+# Cells whose OTP is pinned but cannot run Erlang yet: the launchers are POSIX sh (#5962).
+# Apps do not build for them until those land.
+OTP_UNPORTED_CELLS = ["windows_x86_64"]
 
 # The OTP applications the dialyzer base PLT covers. A call into an application missing here
 # is an "Unknown function" warning, so the list holds what Erlang apps commonly use.
@@ -194,6 +205,8 @@ DIALYZER_PLT_CORE = ["erts", "kernel", "stdlib"]
 DIALYZER_PLT_APPS = ["compiler", "crypto", "syntax_tools", "sasl", "public_key", "ssl", "inets", "tools", "runtime_tools", "eunit"]
 
 DROPPED_PATHS = ["Install", "misc"]
+
+WINDOWS_DROPPED_PATHS = ["doc", "vc_redist.exe"]
 
 DROPPED_APPLICATIONS = ["wx"]
 

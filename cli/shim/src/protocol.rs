@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 pub const SHIM_VERSION: &str = "0.0.0";
@@ -57,11 +58,20 @@ impl std::fmt::Display for VersionSource {
         }
     }
 }
-pub fn resolve_version(
-    env_get: &dyn Fn(&str) -> Option<String>,
-    cwd: &Path,
-) -> Result<(String, VersionSource), ShimError> {
-    if let Some(value) = env_get("DX_VERSION").filter(|value| !value.is_empty()) {
+pub type EnvGet<'a> = &'a dyn Fn(&str) -> Option<OsString>;
+
+fn utf8_env(env_get: EnvGet, name: &str) -> Result<Option<String>, ShimError> {
+    match env_get(name).filter(|value| !value.is_empty()) {
+        None => Ok(None),
+        Some(value) => value
+            .into_string()
+            .map(Some)
+            .map_err(|_| ShimError::usage(format!("{name} must be valid UTF-8"))),
+    }
+}
+
+pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<(String, VersionSource), ShimError> {
+    if let Some(value) = utf8_env(env_get, "DX_VERSION")? {
         if !version_is_valid(&value) {
             return Err(ShimError::usage(format!(
                 "DX_VERSION must be a plain semver such as 1.2.3, got '{value}'"
@@ -131,7 +141,7 @@ pub fn cache_file_name(platform: Platform) -> String {
     let exe = if platform.os == "windows" { ".exe" } else { "" };
     format!("{}{exe}", asset_name(platform))
 }
-pub fn cache_root(env_get: &dyn Fn(&str) -> Option<String>, windows: bool) -> Option<PathBuf> {
+pub fn cache_root(env_get: EnvGet, windows: bool) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     if let Some(dir) = non_empty("DX_CACHE_DIR") {
         return Some(PathBuf::from(dir));
@@ -151,8 +161,8 @@ pub fn bin_path(root: &Path, version: &str, platform: Platform) -> PathBuf {
 pub fn release_url(base: &str, version: &str, asset: &str) -> String {
     format!("{}/v{version}/{asset}", base.trim_end_matches('/'))
 }
-pub fn release_base(env_get: &dyn Fn(&str) -> Option<String>) -> Result<String, ShimError> {
-    let Some(base) = env_get("DX_RELEASE_BASE_URL").filter(|value| !value.is_empty()) else {
+pub fn release_base(env_get: EnvGet) -> Result<String, ShimError> {
+    let Some(base) = utf8_env(env_get, "DX_RELEASE_BASE_URL")? else {
         return Ok(DEFAULT_RELEASE_BASE.to_owned());
     };
     if base_is_allowed(&base) {

@@ -11,10 +11,7 @@ pub struct Resolved {
     pub bin: PathBuf,
 }
 
-pub fn resolve(
-    env_get: &dyn Fn(&str) -> Option<String>,
-    cwd: &Path,
-) -> Result<Resolved, ShimError> {
+pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Resolved, ShimError> {
     let (version, source) = protocol::resolve_version(env_get, cwd)?;
     let (os, arch) = protocol::host_platform();
     let platform = protocol::platform(os, arch)
@@ -36,10 +33,7 @@ pub fn resolve(
     })
 }
 
-pub fn fetch(
-    env_get: &dyn Fn(&str) -> Option<String>,
-    resolved: &Resolved,
-) -> Result<PathBuf, ShimError> {
+pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, ShimError> {
     if resolved.bin.is_file() {
         return Ok(resolved.bin.clone());
     }
@@ -55,8 +49,8 @@ pub fn fetch(
     })
 }
 
-fn env_get(name: &str) -> Option<String> {
-    std::env::var(name).ok()
+fn env_get(name: &str) -> Option<OsString> {
+    std::env::var_os(name)
 }
 
 pub fn main(args: Vec<OsString>) -> i32 {

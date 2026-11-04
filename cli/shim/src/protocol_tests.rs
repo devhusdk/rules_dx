@@ -1,10 +1,10 @@
 use super::*;
 use std::collections::HashMap;
 
-fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
-    let map: HashMap<String, String> = pairs
+fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<OsString> {
+    let map: HashMap<String, OsString> = pairs
         .iter()
-        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+        .map(|(k, v)| ((*k).to_owned(), OsString::from(*v)))
         .collect();
     move |name: &str| map.get(name).cloned()
 }
@@ -234,4 +234,45 @@ fn pin_rule_matches_tools_dx() {
 #[test]
 fn shim_version_tracks_dx_version() {
     assert_eq!(SHIM_VERSION, dx_adopt::DX_VERSION);
+}
+
+#[cfg(unix)]
+mod non_utf8 {
+    use super::*;
+    use std::os::unix::ffi::OsStringExt;
+
+    fn bad() -> OsString {
+        OsString::from_vec(vec![b'/', 0xff, 0xfe])
+    }
+
+    fn env_of(name: &'static str) -> impl Fn(&str) -> Option<OsString> {
+        move |key: &str| (key == name).then(bad)
+    }
+
+    #[test]
+    fn cache_dir_is_used_as_is() {
+        let root = cache_root(&env_of("DX_CACHE_DIR"), false).expect("root");
+        assert_eq!(root, PathBuf::from(bad()));
+    }
+
+    #[test]
+    fn home_is_not_reported_unset() {
+        let root = cache_root(&env_of("HOME"), false).expect("root");
+        assert_eq!(root, PathBuf::from(bad()).join(".cache").join("dx"));
+    }
+
+    #[test]
+    fn release_base_and_version_name_the_variable() {
+        let dir = workspace("1.2.3\n");
+        let err = release_base(&env_of("DX_RELEASE_BASE_URL")).expect_err("base");
+        assert_eq!(err.code, EXIT_USAGE);
+        assert!(
+            err.message.contains("DX_RELEASE_BASE_URL"),
+            "{}",
+            err.message
+        );
+        let err = resolve_version(&env_of("DX_VERSION"), dir.path()).expect_err("version");
+        assert_eq!(err.code, EXIT_USAGE);
+        assert!(err.message.contains("DX_VERSION"), "{}", err.message);
+    }
 }

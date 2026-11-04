@@ -4,7 +4,10 @@ load(":toolchain.bzl", "swift_linux_toolchain")
 package(default_visibility = ["//visibility:public"])
 
 [
-    swift_linux_toolchain(cpu)
+    swift_linux_toolchain(
+        name = "toolchain_" + cpu,
+        cpu = cpu,
+    )
     for cpu in [
         "aarch64",
         "x86_64",

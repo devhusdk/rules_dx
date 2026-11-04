@@ -49,7 +49,7 @@ _with_link_libs = rule(
     },
 )
 
-def swift_linux_toolchain(cpu):
+def swift_linux_toolchain(name, cpu):
     """Declares the Swift toolchain and link libraries for one Linux cpu."""
     archive = "@dx_swift_linux_" + cpu
     sysroot = "@dx_swift_sysroot_linux_" + cpu
@@ -128,7 +128,7 @@ def swift_linux_toolchain(cpu):
     )
 
     native.toolchain(
-        name = "toolchain_" + cpu,
+        name = name,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + cpu],
         target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + cpu],
         toolchain = ":swift_toolchain_" + cpu,

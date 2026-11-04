@@ -1,6 +1,7 @@
 """Unit tests for the hadolint/ShellCheck pin guard in update.py (no network)."""
 
 import os
+import struct
 import sys
 import tempfile
 import unittest
@@ -222,6 +223,84 @@ class EmitTest(unittest.TestCase):
             "    },\n"
             "}\n",
         )
+
+
+def _elf(path, *, dynamic):
+    """Writes a minimal ELF64 file; dynamic ones carry an interpreter, a
+    needed library, a GLIBC version need and an ABI tag."""
+    interp = b"/lib64/ld-linux-x86-64.so.2\0"
+    strtab = b"\0libc.so.6\0GLIBC_2.17\0GLIBC_2.34\0GLIBCXX_3.4.29\0"
+    note = struct.pack("<III", 4, 16, 1) + b"GNU\0" + struct.pack("<IIII", 0, 3, 2, 0)
+    phnum = 5 if dynamic else 1
+    pos = 64 + 56 * phnum
+    interp_at, pos = pos, pos + len(interp)
+    str_at, pos = pos, pos + len(strtab)
+    note_at, pos = pos, pos + len(note)
+    verneed_at = pos
+    verneed = struct.pack("<HHIII", 1, 3, 1, 16, 0)
+    for name, last in ((11, 0), (22, 0), (33, 1)):
+        verneed += struct.pack("<IHHII", 0, 0, 0, name, 0 if last else 16)
+    pos += len(verneed)
+    dyn_at = pos
+    entries = [(1, 1), (5, str_at), (0x6FFFFFFE, verneed_at), (0x6FFFFFFF, 1), (0, 0)]
+    dyn = b"".join(struct.pack("<QQ", tag, value) for tag, value in entries)
+    size = pos + len(dyn)
+
+    def phdr(kind, offset, filesz):
+        return struct.pack(
+            "<IIQQQQQQ", kind, 4, offset, offset, offset, filesz, filesz, 1
+        )
+
+    headers = phdr(1, 0, size)
+    if dynamic:
+        headers += (
+            phdr(3, interp_at, len(interp))
+            + phdr(2, dyn_at, len(dyn))
+            + phdr(4, note_at, len(note))
+            + phdr(1, 0, size)
+        )
+    ident = b"\x7fELF\x02\x01\x01" + bytes(9)
+    ehdr = ident + struct.pack(
+        "<HHIQQQIHHHHHH", 2, 62, 1, 0, 64, 0, 0, 64, 56, phnum, 0, 0, 0
+    )
+    body = interp + strtab + note + verneed + dyn
+    with open(path, "wb") as handle:
+        handle.write(ehdr + headers + (body if dynamic else b""))
+
+
+class ElfTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = os.path.join(self.tmp.name, "tool")
+        old_path = os.environ.get("PATH")
+        os.environ["PATH"] = ""
+        self.addCleanup(os.environ.__setitem__, "PATH", old_path or "")
+
+    def test_static_executable(self):
+        _elf(self.path, dynamic=False)
+        self.assertEqual(update._elf_linkage(self.path), ("static", None, []))
+        self.assertEqual(
+            update._abi_floor(self.path),
+            {"kernel": None, "libc": None, "libstdcxx": None},
+        )
+
+    def test_dynamic_executable(self):
+        _elf(self.path, dynamic=True)
+        self.assertEqual(
+            update._elf_linkage(self.path),
+            ("dynamic", "/lib64/ld-linux-x86-64.so.2", ["libc.so.6"]),
+        )
+        self.assertEqual(
+            update._abi_floor(self.path),
+            {"kernel": "3.2.0", "libc": "2.34", "libstdcxx": "3.4.29"},
+        )
+
+    def test_not_an_elf_file_exits(self):
+        with open(self.path, "wb") as handle:
+            handle.write(b"MZ")
+        with self.assertRaises(SystemExit):
+            update._elf_linkage(self.path)
 
 
 if __name__ == "__main__":

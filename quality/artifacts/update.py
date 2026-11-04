@@ -9,6 +9,7 @@ import os
 import pathlib
 import re
 import stat
+import struct
 import subprocess
 import sys
 import tarfile
@@ -2233,20 +2234,108 @@ def _zip_members(asset, asset_path, workdir, executable):
     return members, exe_path, exe_digest
 
 
-def _elf_linkage(path):
-    readelf = _require_tool("readelf")
-    headers = _run([readelf, "-h", "-l", "-d", path])
-    linkage = "static"
-    if re.search(r"Type:.*DYN", headers):
-        linkage = "pie" if "INTERP" not in headers else "dynamic"
-    elif "INTERP" in headers:
-        linkage = "dynamic"
+def _cstr(data, offset):
+    return data[offset : data.index(b"\0", offset)].decode("ascii", "replace")
+
+
+def _read_elf(path):
+    """Returns type, interpreter, needed libraries, symbol versions and ABI tag."""
+    with open(path, "rb") as handle:
+        data = handle.read()
+    if data[:4] != b"\x7fELF" or data[4] not in (1, 2) or data[5] not in (1, 2):
+        sys.exit("update: %s is not an ELF file" % path)
+    wide = data[4] == 2
+    end = "<" if data[5] == 1 else ">"
+    word = "Q" if wide else "I"
+    e_type = struct.unpack_from(end + "H", data, 16)[0]
+    phoff = struct.unpack_from(end + word, data, 32 if wide else 28)[0]
+    phentsize, phnum = struct.unpack_from(end + "HH", data, 54 if wide else 42)
+    segments = []
+    for index in range(phnum):
+        base = phoff + index * phentsize
+        if wide:
+            kind, _, offset, vaddr, _, filesz, _, _ = struct.unpack_from(
+                end + "IIQQQQQQ", data, base
+            )
+        else:
+            kind, offset, vaddr, _, filesz, _, _, _ = struct.unpack_from(
+                end + "IIIIIIII", data, base
+            )
+        segments.append((kind, offset, vaddr, filesz))
+
+    def file_offset(vaddr):
+        for kind, offset, start, filesz in segments:
+            if kind == 1 and start <= vaddr < start + filesz:
+                return offset + vaddr - start
+        sys.exit("update: %s has an address outside its load segments" % path)
+
     interpreter = None
-    match = re.search(r"\[Requesting program interpreter: ([^\]]+)\]", headers)
-    if match:
-        interpreter = match.group(1)
-    needed = sorted(set(re.findall(r"\(NEEDED\)[^[]*\[([^\]]+)\]", headers)))
-    return linkage, interpreter, needed
+    dynamic = []
+    abi = None
+    for kind, offset, _, filesz in segments:
+        if kind == 3:
+            interpreter = _cstr(data, offset)
+        elif kind == 2:
+            size = struct.calcsize(end + word)
+            for pos in range(offset, offset + filesz, 2 * size):
+                tag, value = struct.unpack_from(end + word + word, data, pos)
+                if tag == 0:
+                    break
+                dynamic.append((tag, value))
+        elif kind == 4:
+            pos, stop = offset, offset + filesz
+            while pos + 12 <= stop:
+                namesz, descsz, note_type = struct.unpack_from(end + "III", data, pos)
+                name = data[pos + 12 : pos + 12 + namesz].rstrip(b"\0")
+                desc = pos + 12 + (namesz + 3) // 4 * 4
+                if name == b"GNU" and note_type == 1 and descsz >= 16:
+                    system, *version = struct.unpack_from(end + "IIII", data, desc)
+                    if system == 0:
+                        abi = ".".join(str(part) for part in version[:3])
+                pos = desc + (descsz + 3) // 4 * 4
+
+    tags: dict[int, int] = {}
+    needed_offsets = []
+    for tag, value in dynamic:
+        if tag == 1:
+            needed_offsets.append(value)
+        tags.setdefault(tag, value)
+    needed = []
+    versions = []
+    if 5 in tags:
+        strtab = file_offset(tags[5])
+        needed = [_cstr(data, strtab + value) for value in needed_offsets]
+        for table, count, header, aux_at, aux_header in (
+            (0x6FFFFFFE, 0x6FFFFFFF, "HHIII", 3, "IHHII"),
+            (0x6FFFFFFC, 0x6FFFFFFD, "HHHHIII", 5, "II"),
+        ):
+            if table not in tags:
+                continue
+            pos = file_offset(tags[table])
+            for _ in range(tags.get(count, 0)):
+                fields = struct.unpack_from(end + header, data, pos)
+                aux = pos + fields[aux_at]
+                for _ in range(fields[1] if header == "HHIII" else fields[3]):
+                    values = struct.unpack_from(end + aux_header, data, aux)
+                    versions.append(_cstr(data, strtab + values[-2]))
+                    if not values[-1]:
+                        break
+                    aux += values[-1]
+                if not fields[-1]:
+                    break
+                pos += fields[-1]
+    return e_type, interpreter, needed, versions, abi
+
+
+def _elf_linkage(path):
+    e_type, interpreter, needed, _, _ = _read_elf(path)
+    if interpreter:
+        linkage = "dynamic"
+    elif e_type == 3:
+        linkage = "pie"
+    else:
+        linkage = "static"
+    return linkage, interpreter, sorted(set(needed))
 
 
 def _abi_floor(path):
@@ -2254,26 +2343,24 @@ def _abi_floor(path):
     linkage, _, _ = _elf_linkage(path)
     if linkage == "static":
         return floor
-    objdump = _require_tool("objdump")
-    dynamic = _run([objdump, "-T", path])
-    glibc = re.findall(r"GLIBC_([0-9.]+)", dynamic)
-    cxx = re.findall(r"GLIBCXX_([0-9.]+)", dynamic)
+    _, _, _, versions, abi = _read_elf(path)
 
-    def _highest(versions):
+    def _highest(prefix):
         best = None
         for version in versions:
-            key = tuple(int(part) for part in version.split("."))
+            if not version.startswith(prefix):
+                continue
+            text = version[len(prefix) :]
+            if not re.fullmatch(r"[0-9]+(\.[0-9]+)*", text):
+                continue
+            key = tuple(int(part) for part in text.split("."))
             if best is None or key > best[0]:
-                best = (key, version)
+                best = (key, text)
         return best[1] if best else None
 
-    floor["libc"] = _highest(glibc)
-    floor["libstdcxx"] = _highest(cxx)
-    readelf = _require_tool("readelf")
-    note = _run([readelf, "-n", path])
-    match = re.search(r"OS:\s+Linux,\s+ABI:\s+([0-9.]+)", note)
-    if match:
-        floor["kernel"] = match.group(1)
+    floor["libc"] = _highest("GLIBC_")
+    floor["libstdcxx"] = _highest("GLIBCXX_")
+    floor["kernel"] = abi
     return floor
 
 

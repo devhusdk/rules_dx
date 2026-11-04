@@ -12,14 +12,6 @@ consumer_deps_json(name = "consumer_deps_json")
 
 versions_rs(name = "versions_rs")
 
-rust_library(
-    name = "dx_versions",
-    srcs = [":versions_rs"],
-    crate_name = "dx_versions",
-    crate_root = ":versions_rs",
-    edition = "2021",
-)
-
 # keep
 rust_test(
     name = "consumer_deps_test",
@@ -27,6 +19,7 @@ rust_test(
     data = [
         ":consumer_deps_json",
         "//:MODULE.bazel",
+        "//third_party/go:go.sum",
         "//tools/testing/hermetic:module_fragments",
     ],
     deps = [

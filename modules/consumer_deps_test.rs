@@ -188,6 +188,87 @@ fn root_module_matches_the_consumer_table() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
+/// Root-only go_deps tags on a usage that consumers inherit, and a go_repository
+/// whose version or sum disagrees with go.sum.
+fn go_deps_violations(source: &str, go_sum: &str) -> Vec<String> {
+    const ROOT_ONLY: &[&str] = &[
+        "module_override",
+        "gazelle_override",
+        "archive_override",
+        "gazelle_default_attributes",
+    ];
+    let module = match ModuleFile::parse(source) {
+        Ok(module) => module,
+        Err(error) => return vec![error.to_string()],
+    };
+    let mut problems = Vec::new();
+    for (binding, _) in module.extension_bindings("@gazelle//:extensions.bzl", "go_deps") {
+        let dev = module.calls_named("use_extension").any(|call| {
+            call.binding.as_deref() == Some(binding)
+                && matches!(call.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True")
+        });
+        if dev {
+            continue;
+        }
+        for call in module.calls() {
+            let Some((name, tag)) = call.name.rsplit_once('.') else {
+                continue;
+            };
+            if name == binding && ROOT_ONLY.contains(&tag) {
+                problems.push(format!(
+                    "{binding}.{tag} at line {} is rejected by gazelle in a non-root module",
+                    call.line
+                ));
+            }
+        }
+    }
+    for call in module.calls_named("go_repository") {
+        let (Some(path), Some(version), Some(sum)) =
+            (call.str("importpath"), call.str("version"), call.str("sum"))
+        else {
+            continue;
+        };
+        let line = format!("{path} {version} {sum}");
+        if !go_sum.lines().any(|l| l == line) {
+            problems.push(format!(
+                "go_repository at line {} does not match go.sum: {line}",
+                call.line
+            ));
+        }
+    }
+    problems
+}
+
+#[test]
+fn root_module_keeps_root_only_go_deps_tags_out() {
+    let source = dx_testing::read_runfiles("MODULE.bazel");
+    let go_sum = dx_testing::read_runfiles("third_party/go/go.sum");
+    let problems = go_deps_violations(&source, &go_sum);
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn go_deps_override_and_stale_go_repository_are_rejected() {
+    let go_sum = "example.com/m v1.0.0 h1:abc=\n";
+    let good = "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n\
+        go_repository(name = \"m\", importpath = \"example.com/m\", version = \"v1.0.0\", sum = \"h1:abc=\")\n";
+    assert!(go_deps_violations(good, go_sum).is_empty());
+    let overridden = format!("{good}go_deps.module_override(path = \"example.com/m\")\n");
+    let problems = go_deps_violations(&overridden, go_sum);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].contains("go_deps.module_override"),
+        "{problems:?}"
+    );
+    let stale = good.replace("v1.0.0\"", "v1.1.0\"");
+    let problems = go_deps_violations(&stale, go_sum);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].contains("does not match go.sum"),
+        "{problems:?}"
+    );
+}
+
 fn fixture_table(pins: &[(&str, &str, &str)]) -> Table {
     pins.iter()
         .map(|(name, floor, tested)| {
@@ -222,13 +303,21 @@ fn disagreeing_fixtures_fail() {
     };
     for (source, table, needle) in [
         (good("1.1.0", "1.2.0"), demo.clone(), "but its floor is"),
-        (good("1.2.0", "1.3.0"), demo.clone(), "but its tested version is"),
+        (
+            good("1.2.0", "1.3.0"),
+            demo.clone(),
+            "but its tested version is",
+        ),
         (
             good("1.2.0", "1.2.0"),
             fixture_table(&[("demo", "1.2.0", "1.2.0"), ("gone", "1", "1")]),
             "has no non-dev bazel_dep",
         ),
-        (good("1.2.0", "1.2.0"), Table::new(), "missing from CONSUMER_BAZEL_DEPS"),
+        (
+            good("1.2.0", "1.2.0"),
+            Table::new(),
+            "missing from CONSUMER_BAZEL_DEPS",
+        ),
         (
             good("1.2.0", "1.2.0").replace("# floor: equals tested\n", ""),
             demo.clone(),

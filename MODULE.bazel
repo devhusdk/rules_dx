@@ -135,14 +135,27 @@ single_version_override(
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
-# gotreesitter embeds grammars/grammar_blobs/go.bin from a sibling package, which
+# go_deps rejects module_override in a non-root module, so gotreesitter is fetched
+# directly. It embeds grammars/grammar_blobs/go.bin from a sibling package, which
 # Gazelle cannot express; the patch adds that file to the root library's embedsrcs.
-gazelle_go_deps.module_override(
-    patch_strip = 1,
+# map_kind makes the generated loads use rules_go's name in this module.
+go_repository = use_repo_rule("@gazelle//internal:go_repository.bzl", "go_repository")
+
+go_repository(
+    name = "com_github_odvcencio_gotreesitter",
+    build_directives = [
+        "gazelle:map_kind go_library go_library @rules_go//go:def.bzl",
+        "gazelle:map_kind go_test go_test @rules_go//go:def.bzl",
+        "gazelle:map_kind go_binary go_binary @rules_go//go:def.bzl",
+    ],
+    importpath = "github.com/odvcencio/gotreesitter",
+    patch_args = ["-p1"],
     patches = ["//third_party/go:gotreesitter_embed.patch"],
-    path = "github.com/odvcencio/gotreesitter",
+    sum = "h1:2cyxAbG9yAMs1d8xTAxq3HWrKh8m7mi7pAjRBZd1Pp8=",
+    version = "v0.56.0",
 )
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_odvcencio_gotreesitter", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
+
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(

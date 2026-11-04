@@ -17,7 +17,7 @@ diff --git a/grammars/grammar_blobs/BUILD.bazel b/grammars/grammar_blobs/BUILD.b
 --- a/grammars/grammar_blobs/BUILD.bazel
 +++ b/grammars/grammar_blobs/BUILD.bazel
 @@ -1,5 +1,10 @@
- load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+ load("@rules_go//go:def.bzl", "go_library", "go_test")
  
 +exports_files(
 +    ["go.bin"],
@@ -27,3 +27,9 @@ diff --git a/grammars/grammar_blobs/BUILD.bazel b/grammars/grammar_blobs/BUILD.b
  go_library(
      name = "grammar_blobs",
      srcs = [
+diff --git a/REPO.bazel b/REPO.bazel
+new file mode 100644
+--- /dev/null
++++ b/REPO.bazel
+@@ -0,0 +1 @@
++# Present so go_repository does not generate a package_info that needs @package_metadata.

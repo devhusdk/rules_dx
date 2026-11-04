@@ -190,3 +190,5 @@ func existingExtraSrcs(build *rule.File, name string) []string {
 	}
 	return nil
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

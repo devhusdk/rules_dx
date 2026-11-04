@@ -74,3 +74,5 @@ func makeTest(name, src string, content []byte) (*rule.Rule, error) {
 	r.SetAttr("test_class", class)
 	return r, nil
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

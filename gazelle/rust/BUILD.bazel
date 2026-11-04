@@ -22,7 +22,10 @@ go_library(
         "tsnode.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/rust",
-    visibility = ["//gazelle/dispatch:__pkg__"],
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
     deps = [
         "//gazelle/common",
         "@com_github_bazelbuild_buildtools//build",
@@ -47,7 +50,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = "//gazelle/dispatch:gazelle",
+    gazelle_binary = "@dx_gazelle//:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -58,10 +61,10 @@ rust_test(
     name = "failure_test",
     srcs = ["harness_test.rs"],
     data = [
-        "//gazelle/dispatch:gazelle",
+        "@dx_gazelle//:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath @dx_gazelle//:gazelle)",
         "DX_GAZELLE_CASE": "failure",
     },
     tags = ["no-coverage"],
@@ -74,10 +77,10 @@ rust_test(
     name = "idempotent_test",
     srcs = ["harness_test.rs"],
     data = [
-        "//gazelle/dispatch:gazelle",
+        "@dx_gazelle//:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath @dx_gazelle//:gazelle)",
         "DX_GAZELLE_CASE": "idempotent",
     },
     tags = ["no-coverage"],
@@ -90,10 +93,10 @@ rust_test(
     name = "native_config_test",
     srcs = ["harness_test.rs"],
     data = [
-        "//gazelle/dispatch:gazelle",
+        "@dx_gazelle//:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath @dx_gazelle//:gazelle)",
         "DX_GAZELLE_CASE": "native_config",
     },
     tags = ["no-coverage"],

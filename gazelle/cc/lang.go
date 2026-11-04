@@ -135,3 +135,5 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 		Wrap:   common.WrapImportSet,
 	}, rep)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

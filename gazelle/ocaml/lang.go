@@ -90,3 +90,5 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	owns := func(r *rule.Rule) bool { return !present[r.AttrString("struct")] }
 	return common.MergeStaleOwned(args.File, result, kinds, owns)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

@@ -48,62 +48,13 @@ func TestNameIsDispatch(t *testing.T) {
 	}
 }
 
-func TestGazelleBinaryLanguageOrder(t *testing.T) {
-	data, err := os.ReadFile("BUILD.bazel")
-	if err != nil {
-		t.Fatalf("read BUILD.bazel: %v", err)
-	}
-	f, err := rule.LoadData("BUILD.bazel", "gazelle/dispatch", data)
-	if err != nil {
-		t.Fatalf("LoadData: %v", err)
-	}
-	var bin *rule.Rule
-	for _, r := range f.Rules {
-		if r.Kind() == "gazelle_binary" && r.Name() == "gazelle" {
-			if bin != nil {
-				t.Fatal("BUILD.bazel has more than one gazelle_binary named gazelle")
-			}
-			bin = r
-		}
-	}
-	if bin == nil {
-		t.Fatal("BUILD.bazel has no gazelle_binary named gazelle")
-	}
-	got := bin.AttrStrings("languages")
-	seen := map[string]bool{}
-	for i, l := range got {
-		if seen[l] {
-			t.Errorf("languages[%d] = %q is listed twice", i, l)
-		}
-		seen[l] = true
-		if l == ":dispatch" && i != len(got)-1 {
-			t.Errorf("languages[%d] = \":dispatch\", but :dispatch must be the last entry", i)
-		}
-	}
-	var want []string
+func TestComposedLanguagesSortedByName(t *testing.T) {
+	var names []string
 	for _, lang := range composedLanguages() {
-		want = append(want, "//gazelle/"+lang.Name())
+		names = append(names, lang.Name())
 	}
-	want = append(want, ":dispatch")
-	n := len(got)
-	if len(want) > n {
-		n = len(want)
-	}
-	for i := 0; i < n; i++ {
-		var g, w string
-		if i < len(got) {
-			g = got[i]
-		}
-		if i < len(want) {
-			w = want[i]
-		}
-		if g != w {
-			t.Errorf("languages[%d] = %q, want %q: the list must match composedLanguages() in order with :dispatch last", i, g, w)
-		}
-	}
-	if t.Failed() {
-		t.Logf("got  %s", strings.Join(got, " "))
-		t.Logf("want %s", strings.Join(want, " "))
+	if !sort.StringsAreSorted(names) {
+		t.Errorf("composedLanguages() names are not sorted: %s", strings.Join(names, " "))
 	}
 }
 

@@ -193,3 +193,5 @@ func cycleError(nodes []*sourceNode, emitted map[*sourceNode]bool) error {
 	sort.Strings(cycle)
 	return fmt.Errorf("cyclic F# compile order among %s, first edge %s; split the directory or order sources by hand", strings.Join(cycle, ", "), edge)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

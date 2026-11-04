@@ -9,3 +9,5 @@ import (
 func NewLanguage() language.Language {
 	return common.NewWebComponentLang("astro", []string{".astro"}, ParseImports)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

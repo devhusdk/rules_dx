@@ -85,3 +85,5 @@ func (l *dartLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resol
 	}
 	return []resolve.ImportSpec{{Lang: languageName, Imp: name}}
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

@@ -15,7 +15,10 @@ go_library(
     ],
     embedsrcs = ["stdlib_modules.txt"],
     importpath = "github.com/devhusdk/rules_dx/gazelle/elixir",
-    visibility = ["//gazelle/dispatch:__pkg__"],
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
     deps = [
         "//gazelle/common",
         "@gazelle//config",
@@ -32,7 +35,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = "//gazelle/dispatch:gazelle",
+    gazelle_binary = "@dx_gazelle//:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],

@@ -324,3 +324,5 @@ func rootPackageJSONExists(repoRoot string) bool {
 	info, err := os.Stat(filepath.Join(repoRoot, "package.json"))
 	return err == nil && !info.IsDir()
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

@@ -87,16 +87,12 @@ fn module_items(module: &ModuleFile) -> BTreeMap<&'static str, BTreeSet<String>>
     ])
 }
 
-/// The `//gazelle/<x>` labels of the dispatch binary's languages.
-fn gazelle_languages(build: &str) -> BTreeSet<String> {
-    let start = build
-        .find("languages = [")
-        .expect("gazelle_binary languages");
-    let list = &build[start..];
-    let list = &list[..list.find(']').expect("end of languages")];
-    list.split('"')
-        .filter(|text| text.starts_with("//gazelle/"))
-        .map(str::to_owned)
+/// The `//gazelle/<x>` labels of the `dx_gazelle.language` tags.
+fn gazelle_languages(module: &ModuleFile) -> BTreeSet<String> {
+    module
+        .calls_named("dx_gazelle.language")
+        .filter(|call| !is_dev(call))
+        .filter_map(|call| call.str("library").map(str::to_owned))
         .collect()
 }
 
@@ -213,10 +209,7 @@ fn every_item_is_in_exactly_one_family() {
     let kinds = families(&dx_testing::read_runfiles("modules/families.json"));
     let mut actual = module_items(&module);
     actual.insert("dirs", root_dirs(&root));
-    actual.insert(
-        "gazelle",
-        gazelle_languages(&dx_testing::read_runfiles("gazelle/dispatch/BUILD.bazel")),
-    );
+    actual.insert("gazelle", gazelle_languages(&module));
     actual.insert(
         "aspects",
         aspect_names(&dx_testing::read_runfiles("quality/real_aspects.bzl")),
@@ -288,7 +281,8 @@ mod tests {
 
     #[test]
     fn gazelle_languages_reads_labels() {
-        let build = "gazelle_binary(\n languages = [\n \"//gazelle/go\",\n \":dispatch\",\n ],\n)";
-        assert_eq!(gazelle_languages(build), set(&["//gazelle/go"]));
+        let source = "dx_gazelle.language(library = \"//gazelle/go\")\n";
+        let module = ModuleFile::parse(source).expect("module");
+        assert_eq!(gazelle_languages(&module), set(&["//gazelle/go"]));
     }
 }

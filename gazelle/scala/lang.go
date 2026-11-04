@@ -46,3 +46,5 @@ func NewLanguage() language.Language {
 func isTestImplicit(imp string) bool {
 	return imp == "org.scalatest" || strings.HasPrefix(imp, "org.scalatest.")
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

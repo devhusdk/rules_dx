@@ -278,3 +278,5 @@ func external(root string, files []string) ([]string, error) {
 	sort.Strings(out)
 	return out, nil
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

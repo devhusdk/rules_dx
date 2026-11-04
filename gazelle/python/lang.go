@@ -255,3 +255,5 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 		return r.Kind() != testKind || r.AttrString("runner") == ""
 	})
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

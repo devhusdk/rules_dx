@@ -377,3 +377,5 @@ func ownedByAncestor(args language.GenerateArgs) bool {
 	}
 	return false
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

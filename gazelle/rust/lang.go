@@ -611,3 +611,5 @@ func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]stri
 	}
 	return deps, nil
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

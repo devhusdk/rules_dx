@@ -58,7 +58,6 @@ rust_test(
     data = [
         "families.json",
         "//:MODULE.bazel",
-        "//gazelle/dispatch:BUILD.bazel",
         "//quality:real_aspects.bzl",
     ],
     tags = [

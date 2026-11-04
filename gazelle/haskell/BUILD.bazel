@@ -11,7 +11,10 @@ go_library(
         "parser.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/haskell",
-    visibility = ["//gazelle/dispatch:__pkg__"],
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
     deps = [
         "//gazelle/common",
         "@gazelle//language",

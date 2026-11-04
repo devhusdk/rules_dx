@@ -9,7 +9,10 @@ go_library(
         "lang.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/ocaml",
-    visibility = ["//gazelle/dispatch:__pkg__"],
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
     deps = [
         "//gazelle/common",
         "@gazelle//config",

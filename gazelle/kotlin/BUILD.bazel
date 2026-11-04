@@ -15,7 +15,10 @@ go_library(
         "stdlib.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/kotlin",
-    visibility = ["//gazelle/dispatch:__pkg__"],
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
     deps = [
         "//gazelle/common",
         "//gazelle/common/treesitter",
@@ -33,7 +36,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = "//gazelle/dispatch:gazelle",
+    gazelle_binary = "@dx_gazelle//:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -67,7 +70,7 @@ rust_test(
         "testdata/compile_external/WORKSPACE",
         ":generation_testdata",
         ":kotlinc",
-        "//gazelle/dispatch:gazelle",
+        "@dx_gazelle//:gazelle",
         "@com_github_jetbrains_kotlin//:annotations",
         "@com_github_jetbrains_kotlin//:kotlin-reflect",
         "@com_github_jetbrains_kotlin//:kotlin-stdlib",
@@ -85,7 +88,7 @@ rust_test(
         ]),
         "DX_EXTENSION": "kt",
         "DX_FIXTURE": "$(rootpath testdata/compile_external/WORKSPACE)",
-        "DX_GAZELLE": "$(rootpath //gazelle/dispatch:gazelle)",
+        "DX_GAZELLE": "$(rootpath @dx_gazelle//:gazelle)",
         "DX_LANGUAGE": "kotlin",
         "DX_UNRESOLVED_HINT": "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package",
     },

@@ -58,3 +58,5 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

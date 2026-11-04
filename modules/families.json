@@ -288,6 +288,7 @@
       ],
       "extensions": [
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//quality/artifacts:extension.bzl%dx_tools",
         "@gazelle//:extensions.bzl%go_deps",
         "@rules_go//go:extensions.bzl%go_sdk",

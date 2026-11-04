@@ -38,3 +38,5 @@ func NewLanguage() language.Language {
 		Tests: &common.TestSpec{Kind: TestKind, Name: TestTargetName},
 	})
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

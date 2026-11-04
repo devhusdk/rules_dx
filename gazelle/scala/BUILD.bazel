@@ -15,7 +15,10 @@ go_library(
         "stdlib.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/scala",
-    visibility = ["//gazelle/dispatch:__pkg__"],
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
     deps = [
         "//gazelle/common",
         "//gazelle/common/treesitter",
@@ -32,7 +35,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = "//gazelle/dispatch:gazelle",
+    gazelle_binary = "@dx_gazelle//:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -52,7 +55,7 @@ rust_test(
         "testdata/compile_external/WORKSPACE",
         ":generation_testdata",
         ":scalac",
-        "//gazelle/dispatch:gazelle",
+        "@dx_gazelle//:gazelle",
         "@maven//:org_scala_lang_modules_scala_xml_2_13",
         "@maven//:org_scalactic_scalactic_2_13",
     ],
@@ -65,7 +68,7 @@ rust_test(
         ]),
         "DX_EXTENSION": "scala",
         "DX_FIXTURE": "$(rootpath testdata/compile_external/WORKSPACE)",
-        "DX_GAZELLE": "$(rootpath //gazelle/dispatch:gazelle)",
+        "DX_GAZELLE": "$(rootpath @dx_gazelle//:gazelle)",
         "DX_LANGUAGE": "scala",
         "DX_UNRESOLVED_HINT": "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package",
     },

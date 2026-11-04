@@ -1,13 +1,18 @@
-load("@gazelle//:def.bzl", "gazelle_binary")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":hub_tests.bzl", "dx_gazelle_hub_tests")
 
 package(default_visibility = ["//visibility:private"])
 
 exports_files(
-    ["BUILD.bazel"],
-    visibility = ["//modules:__pkg__"],
+    [
+        "extension.bzl",
+        "hub.bzl",
+    ],
+    visibility = ["//visibility:public"],
 )
+
+dx_gazelle_hub_tests(name = "hub_test")
 
 go_library(
     name = "dispatch",
@@ -17,37 +22,9 @@ go_library(
         "lang.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/dispatch",
-    visibility = ["//visibility:private"],
+    visibility = ["@dx_gazelle//:__pkg__"],
     deps = [
-        "//gazelle/astro",
-        "//gazelle/cc",
         "//gazelle/common",
-        "//gazelle/csharp",
-        "//gazelle/dart",
-        "//gazelle/elixir",
-        "//gazelle/erlang",
-        "//gazelle/fsharp",
-        "//gazelle/go",
-        "//gazelle/haskell",
-        "//gazelle/java",
-        "//gazelle/javascript",
-        "//gazelle/julia",
-        "//gazelle/kotlin",
-        "//gazelle/lua",
-        "//gazelle/mdx",
-        "//gazelle/ocaml",
-        "//gazelle/perl",
-        "//gazelle/php",
-        "//gazelle/powershell",
-        "//gazelle/python",
-        "//gazelle/ruby",
-        "//gazelle/rust",
-        "//gazelle/scala",
-        "//gazelle/svelte",
-        "//gazelle/swift",
-        "//gazelle/typescript",
-        "//gazelle/vue",
-        "//gazelle/zig",
         "@com_github_bazelbuild_buildtools//build",
         "@gazelle//config",
         "@gazelle//language",
@@ -55,9 +32,16 @@ go_library(
     ],
 )
 
-gazelle_binary(
-    name = "gazelle",
-    languages = [
+go_test(
+    name = "dispatch_test",
+    srcs = [
+        "all_languages_test.go",
+        "conformance_test.go",
+        "lang_test.go",
+    ],
+    embed = [":dispatch"],
+    pure = "on",
+    deps = [
         "//gazelle/astro",
         "//gazelle/cc",
         "//gazelle/csharp",
@@ -86,26 +70,6 @@ gazelle_binary(
         "//gazelle/typescript",
         "//gazelle/vue",
         "//gazelle/zig",
-        ":dispatch",
-    ],
-    tags = ["no-coverage"],
-    version = 1,
-    visibility = [
-        "//dx:__pkg__",
-        "//gazelle:__subpackages__",
-    ],
-)
-
-go_test(
-    name = "dispatch_test",
-    srcs = [
-        "conformance_test.go",
-        "lang_test.go",
-    ],
-    data = ["BUILD.bazel"],
-    embed = [":dispatch"],
-    pure = "on",
-    deps = [
         "//gazelle/common",
         "@gazelle//config",
         "@gazelle//language",
@@ -119,6 +83,11 @@ go_test(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "extension.bzl",
+        "hub.bzl",
+        "hub_tests.bzl",
+    ],
     tags = ["corpus"],
 )

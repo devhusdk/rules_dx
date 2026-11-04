@@ -9,3 +9,5 @@ import (
 func NewLanguage() language.Language {
 	return common.NewWebComponentLang("svelte", []string{".svelte"}, common.ParseScriptImports)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

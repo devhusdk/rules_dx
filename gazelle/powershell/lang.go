@@ -169,3 +169,5 @@ func readImports(args language.GenerateArgs, files []string, own map[string]bool
 	sort.Strings(out)
 	return out, true
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

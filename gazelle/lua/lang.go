@@ -202,3 +202,5 @@ func importsOf(args language.GenerateArgs, files []string, rep common.Reporter) 
 	sort.Strings(imports)
 	return imports
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

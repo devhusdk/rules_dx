@@ -213,3 +213,5 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 func path(rel string, parts ...string) string {
 	return strings.TrimPrefix(rel+"/"+strings.Join(parts, "/"), "/")
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

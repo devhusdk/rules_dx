@@ -317,3 +317,5 @@ func scan(root string, files []string) (Refs, error) {
 	return out, nil
 }
 
+
+func init() { common.RegisterLanguage(NewLanguage) }

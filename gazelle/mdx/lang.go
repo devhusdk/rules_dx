@@ -9,3 +9,5 @@ import (
 func NewLanguage() language.Language {
 	return common.NewWebComponentLang("mdx", []string{".mdx"}, ParseImports)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

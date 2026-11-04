@@ -15,71 +15,12 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 
-	"github.com/devhusdk/rules_dx/gazelle/astro"
-	"github.com/devhusdk/rules_dx/gazelle/cc"
 	"github.com/devhusdk/rules_dx/gazelle/common"
-	"github.com/devhusdk/rules_dx/gazelle/csharp"
-	"github.com/devhusdk/rules_dx/gazelle/dart"
-	"github.com/devhusdk/rules_dx/gazelle/elixir"
-	"github.com/devhusdk/rules_dx/gazelle/erlang"
-	"github.com/devhusdk/rules_dx/gazelle/fsharp"
-	"github.com/devhusdk/rules_dx/gazelle/go"
-	"github.com/devhusdk/rules_dx/gazelle/haskell"
-	"github.com/devhusdk/rules_dx/gazelle/java"
-	"github.com/devhusdk/rules_dx/gazelle/javascript"
-	"github.com/devhusdk/rules_dx/gazelle/julia"
-	"github.com/devhusdk/rules_dx/gazelle/kotlin"
-	"github.com/devhusdk/rules_dx/gazelle/lua"
-	"github.com/devhusdk/rules_dx/gazelle/mdx"
-	"github.com/devhusdk/rules_dx/gazelle/ocaml"
-	"github.com/devhusdk/rules_dx/gazelle/perl"
-	"github.com/devhusdk/rules_dx/gazelle/php"
-	"github.com/devhusdk/rules_dx/gazelle/powershell"
-	"github.com/devhusdk/rules_dx/gazelle/python"
-	"github.com/devhusdk/rules_dx/gazelle/ruby"
-	"github.com/devhusdk/rules_dx/gazelle/rust"
-	"github.com/devhusdk/rules_dx/gazelle/scala"
-	"github.com/devhusdk/rules_dx/gazelle/svelte"
-	"github.com/devhusdk/rules_dx/gazelle/swift"
-	"github.com/devhusdk/rules_dx/gazelle/typescript"
-	"github.com/devhusdk/rules_dx/gazelle/vue"
-	"github.com/devhusdk/rules_dx/gazelle/zig"
 )
 
 const languageName = "dx_dispatch"
 
-func composedLanguages() []language.Language {
-	return []language.Language{
-		astro.NewLanguage(),
-		cc.NewLanguage(),
-		csharp.NewLanguage(),
-		dart.NewLanguage(),
-		elixir.NewLanguage(),
-		erlang.NewLanguage(),
-		fsharp.NewLanguage(),
-		golang.NewLanguage(),
-		haskell.NewLanguage(),
-		java.NewLanguage(),
-		javascript.NewLanguage(),
-		julia.NewLanguage(),
-		kotlin.NewLanguage(),
-		lua.NewLanguage(),
-		mdx.NewLanguage(),
-		ocaml.NewLanguage(),
-		perl.NewLanguage(),
-		php.NewLanguage(),
-		powershell.NewLanguage(),
-		python.NewLanguage(),
-		ruby.NewLanguage(),
-		rust.NewLanguage(),
-		scala.NewLanguage(),
-		svelte.NewLanguage(),
-		swift.NewLanguage(),
-		typescript.NewLanguage(),
-		vue.NewLanguage(),
-		zig.NewLanguage(),
-	}
-}
+func composedLanguages() []language.Language { return common.RegisteredLanguages() }
 
 func unionApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
 	return unionApparentLoadsFrom(composedLanguages(), moduleToApparentName)

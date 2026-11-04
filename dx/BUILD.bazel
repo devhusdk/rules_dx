@@ -6,13 +6,13 @@ package(default_visibility = ["//visibility:private"])
 
 gazelle(
     name = "generate",
-    gazelle = "//gazelle/dispatch:gazelle",
+    gazelle = "@dx_gazelle//:gazelle",
     visibility = VIS_DX_COMMANDS,
 )
 
 gazelle(
     name = "generate_check",
-    gazelle = "//gazelle/dispatch:gazelle",
+    gazelle = "@dx_gazelle//:gazelle",
     mode = "diff",
     visibility = VIS_DX_COMMANDS,
 )

@@ -323,3 +323,5 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 	}
 	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
+
+func init() { common.RegisterLanguage(NewLanguage) }

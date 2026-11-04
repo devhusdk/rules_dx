@@ -60,6 +60,9 @@ rust_test(
         "//:MODULE.bazel",
         "//quality:real_aspects.bzl",
         "//quality:real_core.bzl",
+        "//quality:families/ansible.bzl",
+        "//quality:families/cloudformation.bzl",
+        "//quality:families/make.bzl",
     ],
     tags = [
         "external",

@@ -30,6 +30,9 @@ load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
+load("//quality:families/ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _ANSIBLE_SHARD_SPECS = "SHARD_SPECS", _ANSIBLE_TOOLS = "TOOLS")
+load("//quality:families/cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS")
+load("//quality:families/make.bzl", _real_make_lint_aspect = "real_make_lint_aspect", _real_make_format_aspect = "real_make_format_aspect", _MAKE_SHARD_SPECS = "SHARD_SPECS", _MAKE_TOOLS = "TOOLS")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "generated_source_paths", "prune_tool_generated_sources", "real_request_tool_env")
@@ -265,14 +268,6 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "html_template",
     },
-    "mbake": {
-        "attr": attr.label(default = "//quality/tools/python:mbake", cfg = "exec", executable = True),
-        "capabilities": ["format"],
-        "kind": "executable",
-        "resources": "light",
-        "runfiles_env": True,
-        "shard": "make",
-    },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -394,22 +389,6 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "dockerfile",
     },
-    "ansible_lint": {
-        "attr": attr.label(default = "//quality/tools/python:ansible_lint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "heavy",
-        "runfiles_env": True,
-        "shard": "ansible",
-    },
-    "cfn_lint": {
-        "attr": attr.label(default = "//quality/tools/python:cfn_lint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "cloudformation",
-    },
     "cmakelint": {
         "attr": attr.label(default = "//quality/tools/python:cmakelint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -431,13 +410,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "kubernetes",
-    },
-    "checkmake": {
-        "attr": attr.label(default = "@dx_tools//:checkmake", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "make",
     },
     "ffmt": {
         "attr": attr.label(default = "@dx_tools//:ffmt", allow_single_file = True, cfg = "exec"),
@@ -1640,18 +1612,6 @@ _REAL_SHARD_SPECS = {
         "shard": "nix",
         "suffix": "-nix",
     },
-    "real_ansible_lint": {
-        "capability": "lint",
-        "doc": "Additive Ansible lint family aspect (ansible-lint).",
-        "shard": "ansible",
-        "suffix": "-ansible",
-    },
-    "real_cloudformation_lint": {
-        "capability": "lint",
-        "doc": "Additive CloudFormation lint family aspect (cfn-lint).",
-        "shard": "cloudformation",
-        "suffix": "-cloudformation",
-    },
     "real_sql_format": {
         "capability": "format",
         "doc": "Additive SQL format family aspect (sqlfluff).",
@@ -1669,18 +1629,6 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive Kubernetes lint family aspect (kubeconform, helm).",
         "shard": "kubernetes",
         "suffix": "-kubernetes",
-    },
-    "real_make_lint": {
-        "capability": "lint",
-        "doc": "Additive Makefile lint family aspect (checkmake).",
-        "shard": "make",
-        "suffix": "-make",
-    },
-    "real_make_format": {
-        "capability": "format",
-        "doc": "Additive Makefile format family aspect (mbake).",
-        "shard": "make",
-        "suffix": "-make",
     },
     "real_cue_format": {
         "capability": "format",
@@ -2578,8 +2526,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE,
-    shard_specs = _REAL_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -2708,8 +2656,8 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
-real_make_format_aspect = _make_real_aspect("real_make_format")
-real_make_lint_aspect = _make_real_aspect("real_make_lint")
+real_make_format_aspect = _real_make_format_aspect
+real_make_lint_aspect = _real_make_lint_aspect
 
 real_nix_format_aspect = _make_real_aspect("real_nix_format")
 
@@ -2723,9 +2671,9 @@ real_ocaml_lint_aspect = _make_real_aspect("real_ocaml_lint")
 
 real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
 
-real_ansible_lint_aspect = _make_real_aspect("real_ansible_lint")
+real_ansible_lint_aspect = _real_ansible_lint_aspect
 
-real_cloudformation_lint_aspect = _make_real_aspect("real_cloudformation_lint")
+real_cloudformation_lint_aspect = _real_cloudformation_lint_aspect
 
 real_sql_format_aspect = _make_real_aspect("real_sql_format")
 

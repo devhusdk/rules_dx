@@ -384,3 +384,31 @@ fn real_core_loads_no_rule_set() {
         outside.join("\n")
     );
 }
+
+const FAMILY_FILES: [&str; 3] = ["ansible", "cloudformation", "make"];
+
+#[test]
+fn family_files_define_their_family_aspects() {
+    let json: serde_json::Value =
+        serde_json::from_str(&dx_testing::read_runfiles("modules/families.json")).expect("json");
+    for family in FAMILY_FILES {
+        let source = dx_testing::read_runfiles(&format!("quality/families/{family}.bzl"));
+        assert!(
+            !source.contains("load(\"//quality:families/"),
+            "{family}.bzl loads another family file"
+        );
+        let defined: BTreeSet<String> = source
+            .lines()
+            .filter_map(|line| line.split_once(" = "))
+            .filter(|(name, value)| name.ends_with("_aspect") && !value.starts_with('_'))
+            .map(|(name, _)| name.to_owned())
+            .collect();
+        let expected: BTreeSet<String> = json["families"][family]["aspects"]
+            .as_array()
+            .expect("aspects")
+            .iter()
+            .map(|name| name.as_str().expect("aspect name").to_owned())
+            .collect();
+        assert_eq!(defined, expected, "family {family}");
+    }
+}

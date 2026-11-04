@@ -160,8 +160,8 @@ selene has no autofix.
 ### Type check with LuaLS
 
 `dx check` type checks Lua sources with `lua-language-server --check`, pinned to
-3.19.2. The tool is opt in: pass `--@rules_dx//config:tool_luals=@rules_dx//lua/tools:luals`,
-or bind your own. Modules of `deps` are staged as a library and are never
+3.19.2. Select `luals` in a `lua` family;
+`--@rules_dx//config:tool_luals` overrides the pinned binary. Modules of `deps` are staged as a library and are never
 reported; only the sources of the target are. Bind a `luals_config` from
 `@rules_dx//quality:native_config.bzl` (a plain `.luarc.json`, never `.jsonc`) to
 set globals or diagnostics. The runtime version, the library, `libraryFiles` and

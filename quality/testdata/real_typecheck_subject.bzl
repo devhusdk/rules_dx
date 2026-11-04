@@ -2,7 +2,16 @@
 
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
-load("//quality:real_aspects.bzl", "real_rust_typecheck_aspect", "real_typecheck_aspect")
+load(
+    "//quality:real_aspects.bzl",
+    "real_erlang_typecheck_aspect",
+    "real_julia_typecheck_aspect",
+    "real_lua_typecheck_aspect",
+    "real_php_typecheck_aspect",
+    "real_ruby_typecheck_aspect",
+    "real_rust_typecheck_aspect",
+    "real_typecheck_aspect",
+)
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _label_text(label):
@@ -34,7 +43,7 @@ real_typecheck_subject = rule(
     implementation = _real_typecheck_subject_impl,
     attrs = {
         "target": attr.label(
-            aspects = [real_typecheck_aspect, real_rust_typecheck_aspect],
+            aspects = [real_typecheck_aspect, real_rust_typecheck_aspect, real_erlang_typecheck_aspect, real_php_typecheck_aspect, real_julia_typecheck_aspect, real_lua_typecheck_aspect, real_ruby_typecheck_aspect],
             mandatory = True,
         ),
     },

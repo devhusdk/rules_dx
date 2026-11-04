@@ -33,17 +33,13 @@ label_flag(
 
 label_flag(
     name = "tool_jet",
-    build_setting_default = ":no_jet",
+    build_setting_default = "//julia/tools/jet:jet",
 )
-
-filegroup(name = "no_jet")
 
 label_flag(
     name = "tool_luals",
-    build_setting_default = ":no_luals",
+    build_setting_default = "//lua/tools:luals",
 )
-
-filegroup(name = "no_luals")
 
 label_flag(
     name = "tool_nixfmt",
@@ -62,10 +58,8 @@ label_flag(
 
 label_flag(
     name = "tool_sorbet",
-    build_setting_default = ":no_sorbet",
+    build_setting_default = "//ruby/tools:sorbet",
 )
-
-filegroup(name = "no_sorbet")
 
 label_flag(
     name = "tool_stylua",
@@ -159,38 +153,28 @@ label_flag(
 
 label_flag(
     name = "tool_credo",
-    build_setting_default = ":no_credo",
+    build_setting_default = "//elixir/tools:credo",
 )
-
-filegroup(name = "no_credo")
 
 label_flag(
     name = "tool_dialyzer",
-    build_setting_default = ":no_dialyzer",
+    build_setting_default = "//erlang/tools:dialyzer",
 )
-
-filegroup(name = "no_dialyzer")
 
 label_flag(
     name = "tool_elvis",
-    build_setting_default = ":no_elvis",
+    build_setting_default = "//erlang/tools:elvis",
 )
-
-filegroup(name = "no_elvis")
 
 label_flag(
     name = "tool_erlfmt",
-    build_setting_default = ":no_erlfmt",
+    build_setting_default = "//erlang/tools:erlfmt",
 )
-
-filegroup(name = "no_erlfmt")
 
 label_flag(
     name = "tool_mix_format",
-    build_setting_default = ":no_mix_format",
+    build_setting_default = "//elixir/tools:mix_format",
 )
-
-filegroup(name = "no_mix_format")
 
 label_flag(
     name = "tool_qmlformat",
@@ -250,17 +234,13 @@ filegroup(name = "no_dfmt")
 
 label_flag(
     name = "tool_phpcs",
-    build_setting_default = ":no_phpcs",
+    build_setting_default = "//php/tools:phpcs",
 )
-
-filegroup(name = "no_phpcs")
 
 label_flag(
     name = "tool_phpstan",
-    build_setting_default = ":no_phpstan",
+    build_setting_default = "//php/tools:phpstan",
 )
-
-filegroup(name = "no_phpstan")
 
 label_flag(
     name = "tool_perlcritic",

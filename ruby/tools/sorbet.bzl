@@ -26,7 +26,7 @@ def _sorbet_tool_impl(ctx):
 
 sorbet_tool = rule(
     implementation = _sorbet_tool_impl,
-    doc = "Runs the pinned Sorbet; `dx check` sets it with --@rules_dx//config:tool_sorbet.",
+    doc = "Runs the pinned Sorbet; the default of --@rules_dx//config:tool_sorbet.",
     executable = True,
     attrs = {
         "binary": attr.label(allow_single_file = True, mandatory = True, doc = "The sorbet executable."),

@@ -35,7 +35,7 @@ _results = rule(
     implementation = _results_impl,
     attrs = {
         "policy": attr.string(mandatory = True),
-        "tool_dialyzer": attr.label(default = "//config:no_dialyzer"),
+        "tool_dialyzer": attr.label(default = "//erlang/tools:dialyzer"),
         "subject": attr.label(mandatory = True, cfg = _policy_transition),
     },
 )
@@ -47,7 +47,7 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
     _results(
         name = name + "_results",
         policy = str(native.package_relative_label(policy)),
-        tool_dialyzer = tool_dialyzer or "//config:no_dialyzer",
+        tool_dialyzer = tool_dialyzer or "//erlang/tools:dialyzer",
         subject = name + "_subject",
         tags = ["manual"],
         testonly = True,

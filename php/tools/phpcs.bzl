@@ -20,7 +20,7 @@ def _phpcs_tool_impl(ctx):
 
 phpcs_tool = rule(
     implementation = _phpcs_tool_impl,
-    doc = "Runs the pinned PHP_CodeSniffer phar on the pinned PHP; `dx check` sets it with --@rules_dx//config:tool_phpcs.",
+    doc = "Runs the pinned PHP_CodeSniffer phar on the pinned PHP; the default of --@rules_dx//config:tool_phpcs.",
     executable = True,
     attrs = NATIVE_LAUNCHER_ATTRS | {
         "_phpcs": attr.label(default = Label("@dx_phpcs//:phpcs.phar"), allow_single_file = True, doc = "The pinned PHP_CodeSniffer phar."),

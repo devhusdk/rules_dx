@@ -60,6 +60,9 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_xml_lint_aspect",
                 "quality:real_aspects.bzl%real_haskell_lint_aspect",
                 "quality:real_aspects.bzl%real_latex_lint_aspect",
+                "quality:real_aspects.bzl%real_erlang_lint_aspect",
+                "quality:real_aspects.bzl%real_elixir_lint_aspect",
+                "quality:real_aspects.bzl%real_php_lint_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -87,6 +90,11 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_cc_typecheck_aspect",
                 "quality:real_aspects.bzl%real_pkl_typecheck_aspect",
                 "quality:real_aspects.bzl%real_terraform_typecheck_aspect",
+                "quality:real_aspects.bzl%real_erlang_typecheck_aspect",
+                "quality:real_aspects.bzl%real_php_typecheck_aspect",
+                "quality:real_aspects.bzl%real_julia_typecheck_aspect",
+                "quality:real_aspects.bzl%real_lua_typecheck_aspect",
+                "quality:real_aspects.bzl%real_ruby_typecheck_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_typecheck_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -124,6 +132,8 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_html_template_format_aspect",
                 "quality:real_aspects.bzl%real_sql_format_aspect",
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
+                "quality:real_aspects.bzl%real_erlang_format_aspect",
+                "quality:real_aspects.bzl%real_elixir_format_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_format_probe_aspect"),
             reports: &[],
@@ -326,6 +336,9 @@ mod tests {
                 "quality:real_aspects.bzl%real_xml_lint_aspect",
                 "quality:real_aspects.bzl%real_haskell_lint_aspect",
                 "quality:real_aspects.bzl%real_latex_lint_aspect",
+                "quality:real_aspects.bzl%real_erlang_lint_aspect",
+                "quality:real_aspects.bzl%real_elixir_lint_aspect",
+                "quality:real_aspects.bzl%real_php_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
@@ -353,6 +366,11 @@ mod tests {
                 "quality:real_aspects.bzl%real_cc_typecheck_aspect",
                 "quality:real_aspects.bzl%real_pkl_typecheck_aspect",
                 "quality:real_aspects.bzl%real_terraform_typecheck_aspect",
+                "quality:real_aspects.bzl%real_erlang_typecheck_aspect",
+                "quality:real_aspects.bzl%real_php_typecheck_aspect",
+                "quality:real_aspects.bzl%real_julia_typecheck_aspect",
+                "quality:real_aspects.bzl%real_lua_typecheck_aspect",
+                "quality:real_aspects.bzl%real_ruby_typecheck_aspect",
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
@@ -390,6 +408,8 @@ mod tests {
                 "quality:real_aspects.bzl%real_html_template_format_aspect",
                 "quality:real_aspects.bzl%real_sql_format_aspect",
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
+                "quality:real_aspects.bzl%real_erlang_format_aspect",
+                "quality:real_aspects.bzl%real_elixir_format_aspect",
             ]
         );
         assert!(format.reports.is_empty());

@@ -125,7 +125,7 @@ umbrella root gets no rule. A module named in code resolves to the
 ## Formatting
 
 `dx format` checks Elixir sources with `mix format` from the pinned Elixir.
-Select `mix_format` in an `elixir` family and pass the tool flag:
+Select `mix_format` in an `elixir` family. The tool flag overrides the pinned binary:
 
 ```sh
 dx format -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format
@@ -135,7 +135,7 @@ dx format --apply -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools
 ## Linting
 
 `dx lint` runs Credo 1.7.19 on the pinned Elixir. Select `credo` in the `lint`
-list of an `elixir` family and pass the tool flag:
+list of an `elixir` family. The tool flag overrides the pinned binary:
 
 ```sh
 dx lint -- --@rules_dx//config:tool_credo=@rules_dx//elixir/tools:credo
@@ -150,7 +150,7 @@ supported. The compiler is still the type and warning check.
 
 `dx typecheck` runs the OTP 29.1.2 dialyzer on the compiled beams of each
 `elixir_app`. Select `dialyzer` in the `typecheck` list of an `elixir` family
-and pass the tool flag (the same flag as Erlang):
+The tool flag, shared with Erlang, overrides the pinned binary:
 
 ```sh
 dx typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer

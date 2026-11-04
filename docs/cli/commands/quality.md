@@ -679,8 +679,7 @@ To use your own perlcritic, set
 
 ### Erlang formatting
 
-`erlfmt` has no default executable. Select `erlfmt` in an `erlang` family and
-point the flag at the pinned erlfmt 1.8.0 escript.
+Select `erlfmt` in an `erlang` family. It runs the pinned erlfmt 1.8.0 escript.
 
 ```python
 quality_family(
@@ -696,8 +695,7 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_erlfmt=@rules_dx/
 bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt
 ```
 
-Without the flag, a policy that selects `erlfmt` fails the analysis and names
-the flag. The check runs `erlfmt --check` and never writes. `--apply` runs
+The `tool_erlfmt` flag overrides the pinned tool. The check runs `erlfmt --check` and never writes. `--apply` runs
 `erlfmt --write`. A file with a syntax error reports an error at its line and
 column and stays untouched. A `%% erlfmt-ignore` comment keeps the next form
 as written. Erlang sources come from the rules in
@@ -705,8 +703,7 @@ as written. Erlang sources come from the rules in
 
 ### Erlang linting
 
-`elvis` has no default executable. Select `elvis` in an `erlang` family and
-point the flag at the pinned Elvis 6.0.0 escript.
+Select `elvis` in an `erlang` family. It runs the pinned Elvis 6.0.0 escript.
 
 ```starlark
 quality_family(
@@ -720,8 +717,7 @@ quality_family(
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_elvis=@rules_dx//erlang/tools:elvis
 ```
 
-Without the flag, a policy that selects `elvis` fails the analysis and names
-the flag. Each finding is a warning at its line and column, with the rule as
+The `tool_elvis` flag overrides the pinned tool. Each finding is a warning at its line and column, with the rule as
 `elvis/<rule>`. Elvis never fixes, so `--apply` changes nothing. Elvis does not
 report syntax errors; `erlfmt` does.
 
@@ -751,8 +747,7 @@ matches none of the checked files fails the run unless it sets
 
 ### Erlang and Elixir type checking
 
-`dialyzer` has no default executable. Select `dialyzer` in an `erlang` family
-and point the flag at the pinned OTP dialyzer and its PLTs.
+Select `dialyzer` in an `erlang` family. It runs the pinned OTP dialyzer and its PLTs.
 
 ```starlark
 quality_family(
@@ -766,8 +761,7 @@ quality_family(
 bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer
 ```
 
-Without the flag, a policy that selects `dialyzer` fails the analysis and names
-the flag. Dialyzer checks the compiled `.beam` files of an `erlang_app` against
+The `tool_dialyzer` flag overrides the pinned tool. Dialyzer checks the compiled `.beam` files of an `erlang_app` against
 the beams of its dependencies, so it sees the real compiler options, macros and
 generated modules. Every `erlang_app` is compiled with `debug_info`, which
 dialyzer needs. A dependency built without it fails the run and names the beam.
@@ -808,8 +802,7 @@ quality_family(
 
 ### PHP linting
 
-`phpcs` has no default executable. Select `phpcs` in a `php` family and point
-the flag at the pinned PHP_CodeSniffer 4.0.4 on the pinned PHP.
+Select `phpcs` in a `php` family. It runs the pinned PHP_CodeSniffer 4.0.4 on the pinned PHP.
 
 ```starlark
 quality_family(
@@ -823,8 +816,7 @@ quality_family(
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs
 ```
 
-Without the flag, a policy that selects `phpcs` fails the analysis and names
-the flag. Without a config, phpcs checks the target's sources against the
+The `tool_phpcs` flag overrides the pinned tool. Without a config, phpcs checks the target's sources against the
 bundled `PSR12` standard. Bind a `phpcs.xml`, `.phpcs.xml` or `phpcs.xml.dist`
 ruleset with `phpcs_config` from `@rules_dx//quality:native_config.bzl` to
 change that; the standard is always passed explicitly, so a stray ruleset in a
@@ -839,8 +831,7 @@ nothing. The platform is `linux_x86_64`, the only one with a pinned PHP.
 
 ### PHP type checking
 
-`phpstan` has no default executable. Select `phpstan` in a `php` family and
-point the flag at the pinned PHPStan 2.3.3 on the pinned PHP.
+Select `phpstan` in a `php` family. It runs the pinned PHPStan 2.3.3 on the pinned PHP.
 
 ```starlark
 quality_family(
@@ -854,8 +845,7 @@ quality_family(
 bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/tools:phpstan
 ```
 
-Without the flag, a policy that selects `phpstan` fails the analysis and names
-the flag. PHPStan analyses the target's own sources. The sources of its
+The `tool_phpstan` flag overrides the pinned tool. PHPStan analyses the target's own sources. The sources of its
 `php_library` deps and the files of their Composer packages are only scanned
 for the classes, functions and constants they declare, so a class from a
 dependency is known without running any code. Nothing is autoloaded.
@@ -872,8 +862,7 @@ reported. PHPStan never fixes, so `--apply` changes nothing. The platform is
 
 ### Julia type checking
 
-`jet` has no default executable. Select `jet` in a `julia` family and point the
-flag at the pinned JET 0.13.1.
+Select `jet` in a `julia` family. It runs the pinned JET 0.13.1.
 
 ```starlark
 quality_family(
@@ -887,8 +876,7 @@ quality_family(
 bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_jet=@rules_dx//julia/tools/jet:jet
 ```
 
-Without the flag, a policy that selects `jet` fails the analysis and names the
-flag. JET analyzes the sources of each `julia_library` target with the sources
+The `tool_jet` flag overrides the pinned tool. JET analyzes the sources of each `julia_library` target with the sources
 of its deps on the load path. Only findings in the target's own sources are
 reported; each has the rule `jet/<kind>` at its line, such as
 `jet/UndefVar`. Every finding is an error. JET runs from a separate pinned
@@ -898,8 +886,7 @@ fixes, so `--apply` changes nothing.
 
 ### Lua type checking
 
-`luals` has no default executable. Select `luals` in a `lua` family and point
-the flag at the pinned LuaLS (lua-language-server) 3.19.2.
+Select `luals` in a `lua` family. It runs the pinned LuaLS (lua-language-server) 3.19.2.
 
 ```starlark
 quality_family(
@@ -913,8 +900,7 @@ quality_family(
 bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_luals=@rules_dx//lua/tools:luals
 ```
 
-Without the flag, a policy that selects `luals` fails the analysis and names the
-flag. LuaLS checks the target's own sources as Lua 5.4. The modules of its
+The `tool_luals` flag overrides the pinned tool. LuaLS checks the target's own sources as Lua 5.4. The modules of its
 `lua_library` deps are staged as a library by module name, so a `require` of a
 dependency resolves; library files are never reported. Bind a `.luarc.json`
 (never `.jsonc`) with `luals_config` from `@rules_dx//quality:native_config.bzl`
@@ -928,8 +914,7 @@ are pinned.
 
 ### Ruby type checking
 
-`sorbet` has no default executable. Select `sorbet` in a `ruby` family and point
-the flag at the pinned Sorbet 0.6.13599 (the `sorbet-static` gem, no Ruby needed).
+Select `sorbet` in a `ruby` family. It runs the pinned Sorbet 0.6.13599 (the `sorbet-static` gem, no Ruby needed).
 
 ```starlark
 quality_family(
@@ -943,8 +928,7 @@ quality_family(
 bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_sorbet=@rules_dx//ruby/tools:sorbet
 ```
 
-Without the flag, a policy that selects `sorbet` fails the analysis and names the
-flag. Sorbet reads the `# typed:` sigil of each file, so a file without one is
+The `tool_sorbet` flag overrides the pinned tool. Sorbet reads the `# typed:` sigil of each file, so a file without one is
 `typed: false` and only gets syntax and constant resolution errors. dx always
 passes `--no-config` and no cache directory, so `sorbet/config` of the source
 tree is never read and nothing is written outside the work directory. The `.rb`
@@ -1123,8 +1107,7 @@ sources and `javascript` (`checkJs`) are not typechecked yet.
 
 ### Elixir formatting
 
-`mix_format` has no default executable. Select `mix_format` in an `elixir`
-family and point the flag at the pinned Elixir 1.20.4 formatter.
+Select `mix_format` in an `elixir` family. It runs the pinned Elixir 1.20.4 formatter.
 
 ```python
 quality_family(
@@ -1140,8 +1123,7 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_mix_format=@rules
 bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format
 ```
 
-Without the flag, a policy that selects `mix_format` fails the analysis and
-names the flag. The check runs `mix format --check-formatted` with the default
+The `tool_mix_format` flag overrides the pinned tool. The check runs `mix format --check-formatted` with the default
 formatter options and never writes. `--apply` runs `mix format`. A file with a
 syntax error reports an error at its line and column and stays untouched. The
 formatter reads no `.formatter.exs`, Mix project or Hex home. Elixir sources
@@ -1149,9 +1131,7 @@ come from the rules in `@rules_dx//elixir/rules:defs.bzl`.
 
 ### Elixir linting
 
-`credo` has no default executable. Select `credo` in the `lint` list of an
-`elixir` family and point the flag at the pinned Credo 1.7.19, which runs on the
-pinned Elixir 1.20.4 and OTP.
+Select `credo` in the `lint` list of an `elixir` family. It runs the pinned Credo 1.7.19 on the pinned Elixir 1.20.4 and OTP.
 
 ```python
 quality_family(
@@ -1166,8 +1146,7 @@ quality_family(
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_credo=@rules_dx//elixir/tools:credo
 ```
 
-- Without the flag, a policy that selects `credo` fails the analysis and names
-  the flag.
+- The `tool_credo` flag overrides the pinned tool. 
 - Credo reports every finding as a warning with the rule `credo/<Category.Check>`,
   for example `credo/Warning.IoInspect`. It never writes, so `--apply` leaves
   the sources as written.

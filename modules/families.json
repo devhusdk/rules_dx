@@ -96,7 +96,13 @@
       "toolchains": []
     },
     "beam": {
-      "aspects": [],
+      "aspects": [
+        "real_elixir_format_aspect",
+        "real_elixir_lint_aspect",
+        "real_erlang_format_aspect",
+        "real_erlang_lint_aspect",
+        "real_erlang_typecheck_aspect"
+      ],
       "bazel_deps": [],
       "dirs": [
         "elixir",
@@ -556,7 +562,9 @@
       "toolchains": []
     },
     "julia": {
-      "aspects": [],
+      "aspects": [
+        "real_julia_typecheck_aspect"
+      ],
       "bazel_deps": [
         "rules_julia"
       ],
@@ -632,7 +640,8 @@
     "lua": {
       "aspects": [
         "real_lua_format_aspect",
-        "real_lua_lint_aspect"
+        "real_lua_lint_aspect",
+        "real_lua_typecheck_aspect"
       ],
       "bazel_deps": [
         "lua"
@@ -734,7 +743,10 @@
       "toolchains": []
     },
     "php": {
-      "aspects": [],
+      "aspects": [
+        "real_php_lint_aspect",
+        "real_php_typecheck_aspect"
+      ],
       "bazel_deps": [],
       "dirs": [
         "php"
@@ -840,7 +852,8 @@
     "ruby": {
       "aspects": [
         "real_ruby_format_aspect",
-        "real_ruby_lint_aspect"
+        "real_ruby_lint_aspect",
+        "real_ruby_typecheck_aspect"
       ],
       "bazel_deps": [],
       "dirs": [

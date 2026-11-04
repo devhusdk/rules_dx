@@ -54,8 +54,8 @@ targets. Syntax errors are reported with line and column and are never written.
 
 ## Type checking
 
-`dx typecheck` runs JET 0.13.1 when a `julia` family selects `jet` and
-`--@rules_dx//config:tool_jet=@rules_dx//julia/tools/jet:jet` is set. Findings
+`dx typecheck` runs JET 0.13.1 when a `julia` family selects `jet`.
+`--@rules_dx//config:tool_jet` overrides the pinned binary. Findings
 are reported at their line. See `docs/cli/commands/quality.md`.
 
 ## Platforms

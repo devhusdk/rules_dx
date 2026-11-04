@@ -159,14 +159,14 @@ yet, and there is no coverage: the pinned build has neither Xdebug nor PCOV.
 Until the formatter lands, the PHP rules add the `no-format` tag to every target.
 
 PHP_CodeSniffer 4.0.4 lints `php` targets against PSR12 or a bound ruleset.
-Select `phpcs` in a `php` family and pass the tool flag:
+Select `phpcs` in a `php` family. The tool flag overrides the pinned binary:
 
 ```sh
 dx lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs
 ```
 
-PHPStan 2.3.3 type checks `php` targets. Select `phpstan` in a `php` family
-and pass the tool flag:
+PHPStan 2.3.3 type checks `php` targets. Select `phpstan` in a `php` family.
+The tool flag overrides the pinned binary:
 
 ```sh
 dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/tools:phpstan

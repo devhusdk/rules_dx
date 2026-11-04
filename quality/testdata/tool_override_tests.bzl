@@ -6,7 +6,22 @@ load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
-load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect", "real_typecheck_aspect")
+load(
+    "//quality:real_aspects.bzl",
+    "real_elixir_format_aspect",
+    "real_elixir_lint_aspect",
+    "real_erlang_format_aspect",
+    "real_erlang_lint_aspect",
+    "real_erlang_typecheck_aspect",
+    "real_format_aspect",
+    "real_julia_typecheck_aspect",
+    "real_lint_aspect",
+    "real_lua_typecheck_aspect",
+    "real_php_lint_aspect",
+    "real_php_typecheck_aspect",
+    "real_ruby_typecheck_aspect",
+    "real_typecheck_aspect",
+)
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 _CANONICAL = "@@"  # buildifier: disable=canonical-repository
@@ -291,7 +306,7 @@ erlang_subject = rule(
     attrs = {
         "_erlfmt": attr.label(default = "//config:tool_erlfmt"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_erlang_format_aspect],
             mandatory = True,
         ),
     },
@@ -307,7 +322,7 @@ erlang_typecheck_subject = rule(
     attrs = {
         "_dialyzer": attr.label(default = "//config:tool_dialyzer"),
         "target": attr.label(
-            aspects = [real_typecheck_aspect],
+            aspects = [real_erlang_typecheck_aspect],
             mandatory = True,
         ),
     },
@@ -323,7 +338,7 @@ julia_typecheck_subject = rule(
     attrs = {
         "_jet": attr.label(default = "//config:tool_jet"),
         "target": attr.label(
-            aspects = [real_typecheck_aspect],
+            aspects = [real_julia_typecheck_aspect],
             mandatory = True,
         ),
     },
@@ -339,7 +354,7 @@ lua_typecheck_subject = rule(
     attrs = {
         "_luals": attr.label(default = "//config:tool_luals"),
         "target": attr.label(
-            aspects = [real_typecheck_aspect],
+            aspects = [real_lua_typecheck_aspect],
             mandatory = True,
         ),
     },
@@ -355,7 +370,7 @@ ruby_typecheck_subject = rule(
     attrs = {
         "_sorbet": attr.label(default = "//config:tool_sorbet"),
         "target": attr.label(
-            aspects = [real_typecheck_aspect],
+            aspects = [real_ruby_typecheck_aspect],
             mandatory = True,
         ),
     },
@@ -371,7 +386,7 @@ php_typecheck_subject = rule(
     attrs = {
         "_phpstan": attr.label(default = "//config:tool_phpstan"),
         "target": attr.label(
-            aspects = [real_typecheck_aspect],
+            aspects = [real_php_typecheck_aspect],
             mandatory = True,
         ),
     },
@@ -387,7 +402,7 @@ php_lint_subject = rule(
     attrs = {
         "_phpcs": attr.label(default = "//config:tool_phpcs"),
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_php_lint_aspect],
             mandatory = True,
         ),
     },
@@ -408,7 +423,7 @@ erlang_lint_subject = rule(
     attrs = {
         "_elvis": attr.label(default = "//config:tool_elvis"),
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_erlang_lint_aspect],
             mandatory = True,
         ),
     },
@@ -429,7 +444,7 @@ elixir_subject = rule(
     attrs = {
         "_mix_format": attr.label(default = "//config:tool_mix_format"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_elixir_format_aspect],
             mandatory = True,
         ),
     },
@@ -901,13 +916,6 @@ def julia_format_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_erlfmt_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _ERLANG_POLICY},
-)
-
 def _erlfmt_wired_impl(ctx):
     """Asserts the flag wires the erlfmt escript and a format stage result."""
     env = analysistest.begin(ctx)
@@ -915,6 +923,11 @@ def _erlfmt_wired_impl(ctx):
     asserts.true(env, fields["erlfmt"].endswith("/erlfmt"), "want the erlfmt escript, got " + fields["erlfmt"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the erlang target")
     return analysistest.end(env)
+
+_erlfmt_default_test = analysistest.make(
+    _erlfmt_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _ERLANG_POLICY},
+)
 
 _erlfmt_set_test = analysistest.make(
     _erlfmt_wired_impl,
@@ -926,11 +939,10 @@ _erlfmt_set_test = analysistest.make(
 
 def erlfmt_flag_tests(name, subject):
     """Instantiates the erlfmt flag proofs."""
-    _erlfmt_unset_test(
-        name = name + "_unset_test",
+    _erlfmt_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_erlfmt",
     )
     _erlfmt_set_test(
         name = name + "_set_test",
@@ -953,17 +965,10 @@ elixir_lint_subject = rule(
     attrs = {
         "_credo": attr.label(default = "//config:tool_credo"),
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_elixir_lint_aspect],
             mandatory = True,
         ),
     },
-)
-
-_credo_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _ELIXIR_LINT_POLICY},
 )
 
 def _credo_wired_impl(ctx):
@@ -973,6 +978,11 @@ def _credo_wired_impl(ctx):
     asserts.true(env, fields["credo"].endswith("/credo"), "want the credo launcher, got " + fields["credo"])
     asserts.true(env, fields["results"] != "", "want a lint stage result for the elixir target")
     return analysistest.end(env)
+
+_credo_default_test = analysistest.make(
+    _credo_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _ELIXIR_LINT_POLICY},
+)
 
 _credo_set_test = analysistest.make(
     _credo_wired_impl,
@@ -984,24 +994,16 @@ _credo_set_test = analysistest.make(
 
 def credo_flag_tests(name, subject):
     """Instantiates the credo flag proofs."""
-    _credo_unset_test(
-        name = name + "_unset_test",
+    _credo_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_credo",
     )
     _credo_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,
     )
-
-_elvis_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _ERLANG_LINT_POLICY},
-)
 
 def _elvis_wired_impl(ctx):
     """Asserts the flag wires the elvis escript and a lint stage result."""
@@ -1010,6 +1012,11 @@ def _elvis_wired_impl(ctx):
     asserts.true(env, fields["elvis"].endswith("/elvis"), "want the elvis escript, got " + fields["elvis"])
     asserts.true(env, fields["results"] != "", "want a lint stage result for the erlang target")
     return analysistest.end(env)
+
+_elvis_default_test = analysistest.make(
+    _elvis_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _ERLANG_LINT_POLICY},
+)
 
 _elvis_set_test = analysistest.make(
     _elvis_wired_impl,
@@ -1021,24 +1028,16 @@ _elvis_set_test = analysistest.make(
 
 def elvis_flag_tests(name, subject):
     """Instantiates the elvis flag proofs."""
-    _elvis_unset_test(
-        name = name + "_unset_test",
+    _elvis_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_elvis",
     )
     _elvis_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,
     )
-
-_mix_format_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _ELIXIR_POLICY},
-)
 
 def _mix_format_wired_impl(ctx):
     """Asserts the flag wires the mix format launcher and a format stage result."""
@@ -1047,6 +1046,11 @@ def _mix_format_wired_impl(ctx):
     asserts.true(env, fields["mix_format"].endswith("/mix_format"), "want the mix format launcher, got " + fields["mix_format"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the elixir target")
     return analysistest.end(env)
+
+_mix_format_default_test = analysistest.make(
+    _mix_format_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _ELIXIR_POLICY},
+)
 
 _mix_format_set_test = analysistest.make(
     _mix_format_wired_impl,
@@ -1058,11 +1062,10 @@ _mix_format_set_test = analysistest.make(
 
 def mix_format_flag_tests(name, subject):
     """Instantiates the mix format flag proofs."""
-    _mix_format_unset_test(
-        name = name + "_unset_test",
+    _mix_format_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_mix_format",
     )
     _mix_format_set_test(
         name = name + "_set_test",
@@ -1119,19 +1122,17 @@ def tool_override_tests(name, subject):
         expected_failure_substring = "fixture_policy' must produce a single file",
     )
 
-_dialyzer_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _ERLANG_TYPECHECK_POLICY},
-)
-
 def _dialyzer_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the erlang target."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the erlang target")
     return analysistest.end(env)
+
+_dialyzer_default_test = analysistest.make(
+    _dialyzer_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _ERLANG_TYPECHECK_POLICY},
+)
 
 _dialyzer_set_test = analysistest.make(
     _dialyzer_wired_impl,
@@ -1143,11 +1144,10 @@ _dialyzer_set_test = analysistest.make(
 
 def dialyzer_flag_tests(name, subject):
     """Instantiates the dialyzer flag proofs."""
-    _dialyzer_unset_test(
-        name = name + "_unset_test",
+    _dialyzer_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_dialyzer",
     )
     _dialyzer_set_test(
         name = name + "_set_test",
@@ -1155,10 +1155,8 @@ def dialyzer_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_dialyzer_elixir_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+_dialyzer_elixir_default_test = analysistest.make(
+    _dialyzer_wired_impl,
     config_settings = {_WORKSPACE_SETTING: _ELIXIR_TYPECHECK_POLICY},
 )
 
@@ -1172,11 +1170,10 @@ _dialyzer_elixir_set_test = analysistest.make(
 
 def dialyzer_elixir_flag_tests(name, subject):
     """Instantiates the dialyzer flag proofs for an elixir_app."""
-    _dialyzer_elixir_unset_test(
-        name = name + "_unset_test",
+    _dialyzer_elixir_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_dialyzer",
     )
     _dialyzer_elixir_set_test(
         name = name + "_set_test",
@@ -1184,19 +1181,17 @@ def dialyzer_elixir_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_phpcs_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _PHP_LINT_POLICY},
-)
-
 def _phpcs_wired_impl(ctx):
     """Asserts the flag wires a lint stage result for the php target."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.true(env, fields["results"] != "", "want a lint stage result for the php target")
     return analysistest.end(env)
+
+_phpcs_default_test = analysistest.make(
+    _phpcs_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _PHP_LINT_POLICY},
+)
 
 _phpcs_set_test = analysistest.make(
     _phpcs_wired_impl,
@@ -1208,11 +1203,10 @@ _phpcs_set_test = analysistest.make(
 
 def phpcs_flag_tests(name, subject):
     """Instantiates the phpcs flag proofs."""
-    _phpcs_unset_test(
-        name = name + "_unset_test",
+    _phpcs_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_phpcs",
     )
     _phpcs_set_test(
         name = name + "_set_test",
@@ -1220,19 +1214,17 @@ def phpcs_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_phpstan_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _PHP_TYPECHECK_POLICY},
-)
-
 def _phpstan_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the php target."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the php target")
     return analysistest.end(env)
+
+_phpstan_default_test = analysistest.make(
+    _phpstan_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _PHP_TYPECHECK_POLICY},
+)
 
 _phpstan_set_test = analysistest.make(
     _phpstan_wired_impl,
@@ -1244,11 +1236,10 @@ _phpstan_set_test = analysistest.make(
 
 def phpstan_flag_tests(name, subject):
     """Instantiates the phpstan flag proofs."""
-    _phpstan_unset_test(
-        name = name + "_unset_test",
+    _phpstan_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_phpstan",
     )
     _phpstan_set_test(
         name = name + "_set_test",
@@ -1256,19 +1247,17 @@ def phpstan_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_luals_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _LUA_TYPECHECK_POLICY},
-)
-
 def _luals_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the lua target."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the lua target")
     return analysistest.end(env)
+
+_luals_default_test = analysistest.make(
+    _luals_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _LUA_TYPECHECK_POLICY},
+)
 
 _luals_set_test = analysistest.make(
     _luals_wired_impl,
@@ -1280,11 +1269,10 @@ _luals_set_test = analysistest.make(
 
 def luals_flag_tests(name, subject):
     """Instantiates the luals flag proofs."""
-    _luals_unset_test(
-        name = name + "_unset_test",
+    _luals_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_luals",
     )
     _luals_set_test(
         name = name + "_set_test",
@@ -1292,19 +1280,17 @@ def luals_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_jet_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _JULIA_TYPECHECK_POLICY},
-)
-
 def _jet_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the julia target."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the julia target")
     return analysistest.end(env)
+
+_jet_default_test = analysistest.make(
+    _jet_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _JULIA_TYPECHECK_POLICY},
+)
 
 _jet_set_test = analysistest.make(
     _jet_wired_impl,
@@ -1316,11 +1302,10 @@ _jet_set_test = analysistest.make(
 
 def jet_flag_tests(name, subject):
     """Instantiates the jet flag proofs."""
-    _jet_unset_test(
-        name = name + "_unset_test",
+    _jet_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_jet",
     )
     _jet_set_test(
         name = name + "_set_test",
@@ -1328,19 +1313,17 @@ def jet_flag_tests(name, subject):
         target_under_test = subject,
     )
 
-_sorbet_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _RUBY_TYPECHECK_POLICY},
-)
-
 def _sorbet_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the ruby target."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the ruby target")
     return analysistest.end(env)
+
+_sorbet_default_test = analysistest.make(
+    _sorbet_wired_impl,
+    config_settings = {_WORKSPACE_SETTING: _RUBY_TYPECHECK_POLICY},
+)
 
 _sorbet_set_test = analysistest.make(
     _sorbet_wired_impl,
@@ -1352,11 +1335,10 @@ _sorbet_set_test = analysistest.make(
 
 def sorbet_flag_tests(name, subject):
     """Instantiates the sorbet flag proofs."""
-    _sorbet_unset_test(
-        name = name + "_unset_test",
+    _sorbet_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_sorbet",
     )
     _sorbet_set_test(
         name = name + "_set_test",

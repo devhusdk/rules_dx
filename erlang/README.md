@@ -85,7 +85,7 @@ Tests run without `epmd` and without a distributed node. `ct_suite` writes its
 logs to the test's undeclared outputs.
 
 `dx format` checks Erlang sources with erlfmt 1.8.0, built from source on the
-pinned runtime. Select `erlfmt` in an `erlang` family and pass the tool flag:
+pinned runtime. Select `erlfmt` in an `erlang` family. The tool flag overrides the pinned binary:
 
 ```sh
 dx format -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt
@@ -93,14 +93,14 @@ dx format --apply -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erl
 ```
 
 `dx lint` checks Erlang sources with Elvis 6.0.0. Select `elvis` in an
-`erlang` family and pass the tool flag:
+`erlang` family. The tool flag overrides the pinned binary:
 
 ```sh
 dx lint -- --@rules_dx//config:tool_elvis=@rules_dx//erlang/tools:elvis
 ```
 
 `dx typecheck` checks the compiled beams of each `erlang_app` with the OTP 29.1.2
-dialyzer. Select `dialyzer` in an `erlang` family and pass the tool flag:
+dialyzer. Select `dialyzer` in an `erlang` family. The tool flag overrides the pinned binary:
 
 ```sh
 dx typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer

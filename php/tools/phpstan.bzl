@@ -20,7 +20,7 @@ def _phpstan_tool_impl(ctx):
 
 phpstan_tool = rule(
     implementation = _phpstan_tool_impl,
-    doc = "Runs the pinned PHPStan phar on the pinned PHP; `dx check` sets it with --@rules_dx//config:tool_phpstan.",
+    doc = "Runs the pinned PHPStan phar on the pinned PHP; the default of --@rules_dx//config:tool_phpstan.",
     executable = True,
     attrs = NATIVE_LAUNCHER_ATTRS | {
         "_phpstan": attr.label(default = Label("@dx_phpstan//:phpstan.phar"), allow_single_file = True, doc = "The pinned PHPStan phar."),

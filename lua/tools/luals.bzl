@@ -29,7 +29,7 @@ def _luals_tool_impl(ctx):
 
 luals_tool = rule(
     implementation = _luals_tool_impl,
-    doc = "Runs the pinned LuaLS on its own release tree; `dx check` sets it with --@rules_dx//config:tool_luals.",
+    doc = "Runs the pinned LuaLS on its own release tree; the default of --@rules_dx//config:tool_luals.",
     executable = True,
     attrs = {
         "binary": attr.label(allow_single_file = True, mandatory = True, doc = "The LuaLS executable inside the release tree."),

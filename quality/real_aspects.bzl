@@ -139,7 +139,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//elixir/tools:credo",
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "elixir",
     },
     "csharpier": {
         "attr": attr.label(default = "//quality/tools/dotnet:csharpier", cfg = "exec", executable = True),
@@ -177,7 +177,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//erlang/tools:dialyzer",
         "kind": "setting",
         "resources": "heavy",
-        "shard": "core",
+        "shard": "erlang",
     },
     "phpcs": {
         "attr": attr.label(default = "//config:tool_phpcs", allow_files = True, cfg = "exec"),
@@ -185,7 +185,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//php/tools:phpcs",
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "php",
     },
     "jet": {
         "attr": attr.label(default = "//config:tool_jet", allow_files = True, cfg = "exec"),
@@ -193,7 +193,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//julia/tools/jet:jet",
         "kind": "setting",
         "resources": "heavy",
-        "shard": "core",
+        "shard": "julia",
     },
     "luals": {
         "attr": attr.label(default = "//config:tool_luals", allow_files = True, cfg = "exec"),
@@ -201,7 +201,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//lua/tools:luals",
         "kind": "setting",
         "resources": "heavy",
-        "shard": "core",
+        "shard": "lua",
     },
     "phpstan": {
         "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
@@ -209,7 +209,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//php/tools:phpstan",
         "kind": "setting",
         "resources": "heavy",
-        "shard": "core",
+        "shard": "php",
     },
     "sorbet": {
         "attr": attr.label(default = "//config:tool_sorbet", allow_files = True, cfg = "exec"),
@@ -217,7 +217,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//ruby/tools:sorbet",
         "kind": "setting",
         "resources": "heavy",
-        "shard": "core",
+        "shard": "ruby",
     },
     "elvis": {
         "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
@@ -225,7 +225,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//erlang/tools:elvis",
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "erlang",
     },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
@@ -233,7 +233,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//erlang/tools:erlfmt",
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "erlang",
     },
     "deadnix": {
         "attr": attr.label(default = "//quality/tools/rust:deadnix", cfg = "exec", executable = True),
@@ -510,7 +510,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//elixir/tools:mix_format",
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "elixir",
     },
     "nixfmt": {
         "attr": attr.label(default = "//config:tool_nixfmt", allow_files = True, cfg = "exec"),
@@ -2367,6 +2367,66 @@ _REAL_SHARD_SPECS = {
         "shard": "dotnet",
         "suffix": "-dotnet",
     },
+    "real_erlang_format": {
+        "capability": "format",
+        "doc": "Additive Erlang format family aspect (erlfmt).",
+        "shard": "erlang",
+        "suffix": "-erlang",
+    },
+    "real_erlang_lint": {
+        "capability": "lint",
+        "doc": "Additive Erlang lint family aspect (elvis).",
+        "shard": "erlang",
+        "suffix": "-erlang",
+    },
+    "real_erlang_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Erlang typecheck family aspect (dialyzer).",
+        "shard": "erlang",
+        "suffix": "-erlang",
+    },
+    "real_elixir_format": {
+        "capability": "format",
+        "doc": "Additive Elixir format family aspect (mix format).",
+        "shard": "elixir",
+        "suffix": "-elixir",
+    },
+    "real_elixir_lint": {
+        "capability": "lint",
+        "doc": "Additive Elixir lint family aspect (credo).",
+        "shard": "elixir",
+        "suffix": "-elixir",
+    },
+    "real_php_lint": {
+        "capability": "lint",
+        "doc": "Additive PHP lint family aspect (phpcs).",
+        "shard": "php",
+        "suffix": "-php",
+    },
+    "real_php_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive PHP typecheck family aspect (phpstan).",
+        "shard": "php",
+        "suffix": "-php",
+    },
+    "real_julia_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Julia typecheck family aspect (JET).",
+        "shard": "julia",
+        "suffix": "-julia",
+    },
+    "real_lua_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Lua typecheck family aspect (lua-language-server).",
+        "shard": "lua",
+        "suffix": "-lua",
+    },
+    "real_ruby_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Ruby typecheck family aspect (Sorbet).",
+        "shard": "ruby",
+        "suffix": "-ruby",
+    },
     "real_ruby_format": {
         "capability": "format",
         "doc": "Additive Ruby format family aspect (Standard).",
@@ -2999,6 +3059,26 @@ real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
 
 real_dotnet_typecheck_aspect = _make_real_aspect("real_dotnet_typecheck")
+
+real_erlang_format_aspect = _make_real_aspect("real_erlang_format")
+
+real_erlang_lint_aspect = _make_real_aspect("real_erlang_lint")
+
+real_erlang_typecheck_aspect = _make_real_aspect("real_erlang_typecheck")
+
+real_elixir_format_aspect = _make_real_aspect("real_elixir_format")
+
+real_elixir_lint_aspect = _make_real_aspect("real_elixir_lint")
+
+real_php_lint_aspect = _make_real_aspect("real_php_lint")
+
+real_php_typecheck_aspect = _make_real_aspect("real_php_typecheck")
+
+real_julia_typecheck_aspect = _make_real_aspect("real_julia_typecheck")
+
+real_lua_typecheck_aspect = _make_real_aspect("real_lua_typecheck")
+
+real_ruby_typecheck_aspect = _make_real_aspect("real_ruby_typecheck")
 
 real_ruby_format_aspect = _make_real_aspect("real_ruby_format")
 

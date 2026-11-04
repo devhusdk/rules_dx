@@ -44,7 +44,7 @@ dx_wrapper_contract_tests(
         expect_equal(
             "cuda cells",
             sorted(CUDA_CELLS.keys()),
-            ["linux_x86_64", "windows_x86_64"],
+            ["linux_arm64", "linux_x86_64", "windows_x86_64"],
         ),
         expect_equal(
             "only linux x86_64 is qualified",
@@ -54,6 +54,26 @@ dx_wrapper_contract_tests(
         expect_true(
             "windows x86_64 is blocked",
             len(CUDA_CELLS["windows_x86_64"].blocker) > 0,
+        ),
+        expect_true(
+            "linux arm64 is blocked",
+            len(CUDA_CELLS["linux_arm64"].blocker) > 0,
+        ),
+        expect_equal(
+            "linux arm64 pins the linux x86_64 component versions",
+            {k: c.version for k, c in CUDA_CELLS["linux_arm64"].components.items()},
+            {k: c.version for k, c in CUDA_CELLS["linux_x86_64"].components.items()},
+        ),
+        expect_true(
+            "linux arm64 archives are tarballs from the linux-sbsa redist",
+            all([
+                "/linux-sbsa/" in c.url and c.url.endswith(".tar.xz")
+                for c in CUDA_CELLS["linux_arm64"].components.values()
+            ]),
+        ),
+        expect_true(
+            "linux arm64 sha256 values are 64 characters",
+            all([len(c.sha256) == 64 for c in CUDA_CELLS["linux_arm64"].components.values()]),
         ),
         expect_equal(
             "cells pin the same component versions",

@@ -117,6 +117,57 @@ _WINDOWS_X86_64_COMPONENTS = {
     ),
 }
 
+_LINUX_ARM64_COMPONENTS = {
+    "cccl": struct(
+        version = "13.3.4.3.1",
+        url = _REDIST + "cccl/linux-sbsa/cccl-linux-sbsa-13.3.4.3.1-archive.tar.xz",
+        sha256 = "e36cc409c7ef4c3da18f0dd7f301b0df826121924cf817a7ff2ae508c944c6a1",
+        strip_prefix = "cccl-linux-sbsa-13.3.4.3.1-archive",
+    ),
+    "crt": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_crt/linux-sbsa/cuda_crt-linux-sbsa-13.4.92-archive.tar.xz",
+        sha256 = "0358db52257885611664240e030e45528f052aa1360c886f55dbaf2b2d61f87d",
+        strip_prefix = "cuda_crt-linux-sbsa-13.4.92-archive",
+    ),
+    "cublas": struct(
+        version = "13.8.0.4",
+        url = _REDIST + "libcublas/linux-sbsa/libcublas-linux-sbsa-13.8.0.4-archive.tar.xz",
+        sha256 = "34678808ea03c6fa57e62a3c8081dfa2e673da4c3838d1a6bef680a4ce22c88c",
+        strip_prefix = "libcublas-linux-sbsa-13.8.0.4-archive",
+    ),
+    "cudart": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_cudart/linux-sbsa/cuda_cudart-linux-sbsa-13.4.92-archive.tar.xz",
+        sha256 = "47e65e60d0f7cf832bff7992bd7a87ba4888195c31210392b5f23c607fe6c2a8",
+        strip_prefix = "cuda_cudart-linux-sbsa-13.4.92-archive",
+    ),
+    "cufft": struct(
+        version = "12.4.0.43",
+        url = _REDIST + "libcufft/linux-sbsa/libcufft-linux-sbsa-12.4.0.43-archive.tar.xz",
+        sha256 = "c62ea864ae7777e095463d10130d99e6d34995b996cda5f3d013c57bead7a574",
+        strip_prefix = "libcufft-linux-sbsa-12.4.0.43-archive",
+    ),
+    "curand": struct(
+        version = "10.4.4.72",
+        url = _REDIST + "libcurand/linux-sbsa/libcurand-linux-sbsa-10.4.4.72-archive.tar.xz",
+        sha256 = "2968e2d86dce64896ee3c2ac86c9e0f7decec4a0f157c8d73e3d0f31582e9e0c",
+        strip_prefix = "libcurand-linux-sbsa-10.4.4.72-archive",
+    ),
+    "nvcc": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_nvcc/linux-sbsa/cuda_nvcc-linux-sbsa-13.4.92-archive.tar.xz",
+        sha256 = "8aebd451afb3984bc0019e803ae8a01a3837b7c69f36db779a7ce77e70831f5f",
+        strip_prefix = "cuda_nvcc-linux-sbsa-13.4.92-archive",
+    ),
+    "nvvm": struct(
+        version = "13.4.92",
+        url = _REDIST + "libnvvm/linux-sbsa/libnvvm-linux-sbsa-13.4.92-archive.tar.xz",
+        sha256 = "483085a4f52d272ea2c5a6cb4727b24efc2cecab4c4df99e80dfc6548e5b7929",
+        strip_prefix = "libnvvm-linux-sbsa-13.4.92-archive",
+    ),
+}
+
 # A cell with a blocker is pinned but not qualified.
 CUDA_CELLS = {
     "linux_x86_64": struct(
@@ -130,6 +181,12 @@ CUDA_CELLS = {
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         components = _WINDOWS_X86_64_COMPONENTS,
+    ),
+    "linux_arm64": struct(
+        blocker = "needs an aarch64 cuda_host_llvm sysroot (#5974), per-platform rules_cuda wiring (#5975) and an arm64 run (#3315)",
+        redist = CUDA_VERSION,
+        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+        components = _LINUX_ARM64_COMPONENTS,
     ),
 }
 

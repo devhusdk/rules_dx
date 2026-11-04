@@ -1347,3 +1347,19 @@ fn c_evidence_needs_a_native_artifact_machine() {
         .unwrap_err()
         .contains("no native artifact machine"));
 }
+
+#[test]
+fn macos_profile_denies_network_except_loopback() {
+    assert_eq!(macos_profile(Net::Allowed), "(version 1)(allow default)");
+    let denied = macos_profile(Net::Denied);
+    assert!(denied.contains("(deny network*)"));
+    assert!(denied.contains("localhost:*"));
+    let command = macos_command(Net::Denied, &["/bin/true".to_owned()]);
+    assert_eq!(command.get_program(), "/usr/bin/sandbox-exec");
+    let args: Vec<_> = command
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(args[0], "-p");
+    assert_eq!(args[2..], ["--", "/bin/true"]);
+}

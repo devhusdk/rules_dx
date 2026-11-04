@@ -511,16 +511,16 @@ impl Isolation {
         keep: &[PathBuf],
         home: Option<&Path>,
     ) -> Result<Self, String> {
-        let status = std::fs::read_to_string("/proc/self/status")
-            .map_err(|err| format!("cannot read /proc/self/status: {err}"))?;
-        let uid = status_id(&status, "Uid:").ok_or("no Uid in /proc/self/status")?;
-        let gid = status_id(&status, "Gid:").ok_or("no Gid in /proc/self/status")?;
-        let ip = host
-            .ip_candidates
-            .iter()
-            .find(|path| path.is_file())
-            .cloned()
-            .ok_or("namespace isolation needs ip from iproute2 to raise loopback")?;
+        let (uid, gid) = real_ids()?;
+        let ip = if cfg!(target_os = "macos") {
+            PathBuf::new()
+        } else {
+            host.ip_candidates
+                .iter()
+                .find(|path| path.is_file())
+                .cloned()
+                .ok_or("namespace isolation needs ip from iproute2 to raise loopback")?
+        };
         let kept = |path: &Path| keep.iter().any(|needed| covers(path, needed));
         let sdk_dirs: Vec<PathBuf> = host
             .sdk_candidates
@@ -600,6 +600,9 @@ impl Isolation {
 
     /// Wraps one command in fresh user, mount and, when denied, network namespaces.
     pub fn command(&self, net: Net, inner: &[String]) -> Command {
+        if cfg!(target_os = "macos") {
+            return macos_command(net, inner);
+        }
         let mut command = Command::new("/usr/bin/unshare");
         command.env_clear();
         command.env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
@@ -611,6 +614,45 @@ impl Isolation {
         command.args(inner);
         command
     }
+}
+
+/// The macOS sandbox profile: everything allowed, network denied except loopback when asked.
+pub fn macos_profile(net: Net) -> String {
+    let mut profile = "(version 1)(allow default)".to_owned();
+    if net == Net::Denied {
+        profile.push_str("(deny network*)(allow network* (remote ip \"localhost:*\"))(allow network* (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
+    }
+    profile
+}
+
+/// Wraps one command in a macOS `sandbox-exec` profile (the network-denied backend).
+pub fn macos_command(net: Net, inner: &[String]) -> Command {
+    let mut command = Command::new("/usr/bin/sandbox-exec");
+    command.env_clear();
+    command.env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
+    command.args(["-p", &macos_profile(net), "--"]);
+    command.args(inner);
+    command
+}
+
+/// The real user and group id: /proc/self/status on Linux, `id` elsewhere.
+fn real_ids() -> Result<(u32, u32), String> {
+    if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+        let uid = status_id(&status, "Uid:").ok_or("no Uid in /proc/self/status")?;
+        let gid = status_id(&status, "Gid:").ok_or("no Gid in /proc/self/status")?;
+        return Ok((uid, gid));
+    }
+    let id = |flag: &str| -> Result<u32, String> {
+        let out = Command::new("/usr/bin/id")
+            .arg(flag)
+            .output()
+            .map_err(|err| format!("cannot run id {flag}: {err}"))?;
+        String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse()
+            .map_err(|err| format!("bad id {flag} output: {err}"))
+    };
+    Ok((id("-u")?, id("-g")?))
 }
 
 #[derive(Debug, Clone)]
@@ -1332,8 +1374,10 @@ fn run_all(
     write(&shim, SHIM)?;
     executable(&shim)?;
     let passwd = std::fs::read_to_string("/etc/passwd").unwrap_or_default();
-    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
-    let real_home = status_id(&status, "Uid:").and_then(|uid| passwd_home(&passwd, uid));
+    let real_home = real_ids()
+        .ok()
+        .and_then(|(uid, _)| passwd_home(&passwd, uid))
+        .or_else(|| std::env::var_os("HOME").map(PathBuf::from));
     let keep = vec![root.to_path_buf(), out.to_path_buf(), source.clone()];
     let host = HostPaths::detect();
     let isolation = Isolation::plan_with(&host, &shim, &keep, real_home.as_deref())?;

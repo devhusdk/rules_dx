@@ -15,6 +15,7 @@ tempfile = "3"
 ruzstd = "0.9"
 thiserror = "2"
 tracing = "0.1"
+ureq = { version = "3", features = ["platform-verifier"] }
 # Pinned to the same spec as dx/process: the `dx` binary shim references
 # libc paths in its signal-forwarding prelude, and crate_universe already
 # carries libc 0.2.189 for the workspace lockfile.

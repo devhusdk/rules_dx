@@ -78,6 +78,7 @@ pub(crate) struct Flags {
     pub(crate) open: bool,
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
+    pub(crate) outdated: bool,
     pub(crate) floor: bool,
     pub(crate) reason: Option<String>,
     pub(crate) cases: bool,
@@ -485,6 +486,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// List packages whose newest stable version is outside the declared range.
+    OutdatedFlag, {
+        #[arg(long, overrides_with = "outdated")]
+        outdated: bool,
+    }
+}
+
+flag_group! {
     /// Edit the bazel_dep floor instead of the tested override (needs a version and --reason).
     FloorFlag, {
         #[arg(long, overrides_with = "floor")]
@@ -855,6 +864,7 @@ command_args! {
         offline: OfflineFlag,
         frozen: FrozenFlag,
         apply: ApplyFlag,
+        outdated: OutdatedFlag,
         floor: FloorArgs,
     };
     /// The flags `dx env` accepts.

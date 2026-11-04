@@ -315,6 +315,7 @@ exports nothing.
 
 ```text
 dx update [--apply] [--offline] [--frozen] [selector ...]
+dx update --outdated [selector ...]
 dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:package> <version>
 ```
 
@@ -394,6 +395,42 @@ bazel run @rules_dx//:dx -- update --apply go
 bazel run @rules_dx//:dx -- update --apply bundle
 bazel run @rules_dx//:dx -- update --apply dx_pypi-python dx_pypi-tooling
 bazel run @rules_dx//:dx -- update --apply dx_npm_tools
+```
+
+## List outdated packages
+
+```text
+dx update --outdated [--output text|json] [selector ...]
+```
+
+Lists packages whose newest stable version is outside the declared range.
+It reads the registry, writes nothing, and starts no Bazel. Yanked versions
+and prereleases are ignored. Path, git, workspace, and renamed Cargo entries
+are skipped, and so are Bazel modules pinned by a path, git, or archive
+override.
+
+Covered sets are the Bazel module sets (`bazel_dep` against the Bazel Central
+Registry) and `cargo` sets (crates.io). Other sets print a
+`update_outdated_unsupported` warning and are not checked. A `set:package`
+selector limits the lookup to that package.
+
+Output: text prints one line per package with the declared version, the newest
+version, the publish time when the registry has one, and the command that
+applies it. `json` emits `command_started`, one `notice` per package
+(`update_outdated`, with `scope` set to `<set>:<package>` and
+`related_command` set to `dx update <set>:<package> <version>`), one `error`
+(`update_outdated_lookup_failed`) per failed lookup, and `command_finished`.
+Apply a result with `dx update <set>:<package> <version> --apply`. In-range
+refreshes stay with `dx update --apply <set>`.
+
+`--outdated` does not combine with `--apply`, `--floor`, `--reason`, or a
+version. `--offline` fails with `offline_required`.
+Exit codes: 0 when the lookups finish, also with outdated packages, 1 when a
+lookup fails, 2 for usage errors.
+
+```sh
+bazel run @rules_dx//:dx -- update --outdated
+bazel run @rules_dx//:dx -- update --outdated dx_crates
 ```
 
 ## Widen or add one package

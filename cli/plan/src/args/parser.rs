@@ -335,6 +335,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         open,
         offline,
         frozen,
+        outdated,
         floor,
         reason,
         cases,
@@ -478,6 +479,22 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
+    if command == Command::Update && outdated {
+        let culprit = if apply {
+            Some("--apply")
+        } else if floor {
+            Some("--floor")
+        } else if reason.is_some() {
+            Some("--reason")
+        } else if targets.len() == 2 && super::invocation::is_version(&targets[1]) {
+            Some("<version>")
+        } else {
+            None
+        };
+        if let Some(option) = culprit {
+            return Err(unsupported(command, option));
+        }
+    }
     if command == Command::Update && (floor || reason.is_some()) {
         let versioned = targets.len() == 2 && super::invocation::is_version(&targets[1]);
         if !versioned {
@@ -614,6 +631,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         open,
         offline,
         frozen,
+        outdated,
         floor,
         reason,
         cases,

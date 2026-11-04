@@ -266,6 +266,8 @@ pub struct Invocation {
     pub offline: bool,
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
+    /// `dx update --outdated`: list packages whose newest stable version is out of range.
+    pub outdated: bool,
     /// `dx update --floor`: edit the bazel_dep floor instead of the tested override.
     pub floor: bool,
     /// `dx update --reason`: why the floor is the oldest supported version.
@@ -644,6 +646,7 @@ mod tests {
             open: false,
             offline: false,
             frozen: false,
+            outdated: false,
             floor: false,
             reason: None,
             cases: false,

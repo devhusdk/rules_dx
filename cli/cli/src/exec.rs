@@ -50,6 +50,7 @@ mod test_reports;
 pub(crate) mod test_support;
 mod umbrella;
 mod update;
+mod update_outdated;
 mod update_version;
 mod update_version_add;
 mod workflow;
@@ -259,6 +260,9 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Env if invocation.shell.is_some() => managed::execute_env_shell(env),
         Command::Env => managed::execute_managed(invocation, env),
         Command::Security | Command::License => audit::execute_audit(invocation, env),
+        Command::Update if invocation.outdated => {
+            update_outdated::execute_update_outdated(invocation, env)
+        }
         Command::Update if invocation.edits_version() => {
             update_version::execute_update_version(invocation, env)
         }

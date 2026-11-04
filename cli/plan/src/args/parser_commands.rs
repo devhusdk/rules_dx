@@ -1121,6 +1121,29 @@ fn floor_and_reason_parse_only_on_an_update_with_a_version() {
 }
 
 #[test]
+fn update_outdated_is_a_read_only_listing() {
+    let got = parse(&strings(&["update", "--outdated", "cargo"])).expect("outdated");
+    assert!(got.outdated);
+    assert!(!got.edits_version());
+    assert!(!parse(&strings(&["update"])).expect("bare").outdated);
+    for words in [
+        vec!["update", "--outdated", "--apply"],
+        vec!["update", "--outdated", "--floor"],
+        vec!["update", "--outdated", "--reason", "x"],
+        vec!["update", "--outdated", "cargo:anyhow", "1.0.0"],
+        vec!["build", "--outdated"],
+    ] {
+        assert!(
+            matches!(
+                parse(&strings(&words)),
+                Err(ArgsError::UnsupportedOption { .. } | ArgsError::UnknownOption { .. })
+            ),
+            "{words:?}"
+        );
+    }
+}
+
+#[test]
 fn install_takes_a_tag_an_archive_and_optional_dir_and_apply() {
     let check = parse(&strings(&[
         "install",

@@ -13,6 +13,9 @@ dx_rust_crate(
     package_name = "cli/dx_update",
     srcs = [
         "src/backend.rs",
+        "src/discover/bcr.rs",
+        "src/discover/cargo.rs",
+        "src/discover/mod.rs",
         "src/edit/add.rs",
         "src/edit/add_plans.rs",
         "src/edit/gha.rs",

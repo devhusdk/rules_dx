@@ -1,0 +1,263 @@
+//! Lists Cargo dependencies whose newest stable crates.io version is outside the declared requirement.
+
+use super::{wanted, Candidate, Fetch, Findings, LookupError};
+use semver::{Version, VersionReq};
+use std::collections::BTreeMap;
+use toml_edit::{DocumentMut, Item, Table};
+
+pub const DEFAULT_BASE: &str = "https://index.crates.io";
+
+const DEP_TABLES: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
+
+/// Checks each registry dependency of the manifests against the sparse index at `base`.
+pub fn outdated(
+    set: &str,
+    manifests: &[String],
+    only: &[String],
+    base: &str,
+    fetch: &dyn Fetch,
+) -> Findings {
+    let mut found = Findings::default();
+    let mut wanted_reqs: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for text in manifests {
+        let Ok(doc) = text.parse::<DocumentMut>() else {
+            continue;
+        };
+        collect(doc.as_table(), &mut wanted_reqs);
+    }
+    for (name, reqs) in wanted_reqs {
+        if !wanted(only, &name) {
+            continue;
+        }
+        let error = |reason: String| LookupError {
+            set: set.to_owned(),
+            package: name.clone(),
+            reason,
+        };
+        let release = match fetch
+            .get(&format!("{base}/{}", index_path(&name)))
+            .and_then(|body| newest_stable(&body))
+        {
+            Ok(release) => release,
+            Err(reason) => {
+                found.errors.push(error(reason));
+                continue;
+            }
+        };
+        for current in reqs {
+            let Ok(req) = VersionReq::parse(&current) else {
+                found
+                    .errors
+                    .push(error(format!("invalid requirement {current}")));
+                continue;
+            };
+            if !req.matches(&release.version) {
+                found.candidates.push(Candidate {
+                    set: set.to_owned(),
+                    package: name.clone(),
+                    current,
+                    latest: release.version.to_string(),
+                    published: release.published.clone(),
+                });
+            }
+        }
+    }
+    found
+}
+
+fn collect(root: &Table, into: &mut BTreeMap<String, Vec<String>>) {
+    for key in DEP_TABLES {
+        add_table(root.get(key), into);
+    }
+    add_table(
+        root.get("workspace")
+            .and_then(Item::as_table_like)
+            .and_then(|workspace| workspace.get("dependencies")),
+        into,
+    );
+    if let Some(targets) = root.get("target").and_then(Item::as_table_like) {
+        for (_, target) in targets.iter() {
+            if let Some(target) = target.as_table_like() {
+                for key in DEP_TABLES {
+                    add_table(target.get(key), into);
+                }
+            }
+        }
+    }
+}
+
+fn add_table(item: Option<&Item>, into: &mut BTreeMap<String, Vec<String>>) {
+    let Some(table) = item.and_then(Item::as_table_like) else {
+        return;
+    };
+    for (name, entry) in table.iter() {
+        if let Some(req) = requirement(entry) {
+            let reqs = into.entry(name.to_owned()).or_default();
+            if !reqs.contains(&req) {
+                reqs.push(req);
+            }
+        }
+    }
+}
+
+fn requirement(entry: &Item) -> Option<String> {
+    if let Some(text) = entry.as_str() {
+        return Some(text.to_owned());
+    }
+    let table = entry.as_table_like()?;
+    let skipped = ["path", "git", "workspace", "package"];
+    if skipped.iter().any(|key| table.contains_key(key)) {
+        return None;
+    }
+    table.get("version")?.as_str().map(str::to_owned)
+}
+
+fn index_path(name: &str) -> String {
+    let lower = name.to_ascii_lowercase();
+    match lower.len() {
+        1 => format!("1/{lower}"),
+        2 => format!("2/{lower}"),
+        3 => format!("3/{}/{lower}", &lower[..1]),
+        _ => format!("{}/{}/{lower}", &lower[..2], &lower[2..4]),
+    }
+}
+
+struct Release {
+    version: Version,
+    published: Option<String>,
+}
+
+fn newest_stable(body: &str) -> Result<Release, String> {
+    let mut best: Option<Release> = None;
+    for line in body.lines().filter(|line| !line.trim().is_empty()) {
+        let entry: serde_json::Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
+        if entry["yanked"].as_bool().unwrap_or(false) {
+            continue;
+        }
+        let Some(version) = entry["vers"].as_str().and_then(|v| Version::parse(v).ok()) else {
+            continue;
+        };
+        if !version.pre.is_empty() {
+            continue;
+        }
+        if best.as_ref().is_none_or(|b| version > b.version) {
+            best = Some(Release {
+                version,
+                published: entry["pubtime"].as_str().map(str::to_owned),
+            });
+        }
+    }
+    best.ok_or_else(|| "no stable version".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MANIFEST: &str = r#"
+[dependencies]
+anyhow = "1"
+serde = { version = "1.0.100", features = ["derive"] }
+old = "0.3"
+local = { path = "../local", version = "0.1" }
+renamed = { package = "real", version = "0.1" }
+shared = { workspace = true }
+broken = "1"
+
+[dev-dependencies]
+tool = "2"
+
+[workspace.dependencies]
+wsdep = "1.0"
+"#;
+
+    fn index(name: &str) -> Result<String, String> {
+        let body = match name {
+            "an/yh/anyhow" => r#"{"vers":"1.0.104","yanked":false}"#,
+            "se/rd/serde" => r#"{"vers":"1.0.200","yanked":false}"#,
+            "3/o/old" => {
+                "{\"vers\":\"0.3.1\",\"yanked\":false}\n{\"vers\":\"0.4.0\",\"yanked\":false,\"pubtime\":\"2026-01-02T00:00:00Z\"}\n{\"vers\":\"0.5.0\",\"yanked\":true}\n{\"vers\":\"0.6.0-rc.1\",\"yanked\":false}"
+            }
+            "to/ol/tool" => r#"{"vers":"2.1.0","yanked":false}"#,
+            "ws/de/wsdep" => r#"{"vers":"2.0.0","yanked":false}"#,
+            _ => return Err("HTTP 404".to_owned()),
+        };
+        Ok(body.to_owned())
+    }
+
+    fn run(only: &[String]) -> Findings {
+        outdated(
+            "cargo",
+            &[MANIFEST.to_owned()],
+            only,
+            DEFAULT_BASE,
+            &|url: &str| index(url.strip_prefix("https://index.crates.io/").unwrap_or(url)),
+        )
+    }
+
+    #[test]
+    fn a_requirement_that_still_matches_is_current() {
+        let found = run(&[]);
+        let names: Vec<_> = found
+            .candidates
+            .iter()
+            .map(|c| c.package.as_str())
+            .collect();
+        assert!(!names.contains(&"anyhow"));
+        assert!(!names.contains(&"serde"));
+        assert!(!names.contains(&"tool"));
+    }
+
+    #[test]
+    fn a_stable_version_outside_the_range_is_listed_with_its_publish_time() {
+        let found = run(&[]);
+        let old = found.candidates.iter().find(|c| c.package == "old");
+        assert_eq!(
+            old,
+            Some(&Candidate {
+                set: "cargo".into(),
+                package: "old".into(),
+                current: "0.3".into(),
+                latest: "0.4.0".into(),
+                published: Some("2026-01-02T00:00:00Z".into()),
+            })
+        );
+        assert!(found.candidates.iter().any(|c| c.package == "wsdep"));
+    }
+
+    #[test]
+    fn path_renamed_and_workspace_entries_are_not_looked_up() {
+        let found = run(&[]);
+        let all: Vec<_> = found
+            .candidates
+            .iter()
+            .map(|c| c.package.as_str())
+            .chain(found.errors.iter().map(|e| e.package.as_str()))
+            .collect();
+        for skipped in ["local", "renamed", "real", "shared"] {
+            assert!(!all.contains(&skipped), "{skipped}");
+        }
+    }
+
+    #[test]
+    fn failed_lookups_are_errors() {
+        let found = run(&[]);
+        assert_eq!(found.errors.len(), 1);
+        assert_eq!(found.errors[0].package, "broken");
+    }
+
+    #[test]
+    fn the_package_filter_limits_lookups() {
+        let found = run(&["old".to_owned()]);
+        assert_eq!(found.candidates.len(), 1);
+        assert!(found.errors.is_empty());
+    }
+
+    #[test]
+    fn index_paths_follow_the_sparse_layout() {
+        assert_eq!(index_path("a"), "1/a");
+        assert_eq!(index_path("ab"), "2/ab");
+        assert_eq!(index_path("abc"), "3/a/abc");
+        assert_eq!(index_path("Serde"), "se/rd/serde");
+    }
+}

@@ -1,5 +1,5 @@
 {
-  "checksum": "5038d82892ddcc7044baa3bed58ed0402251577b009aa69aaadf52f203b66111",
+  "checksum": "0d1fadb23fae8bdbaa12aaca1e113324102c99be4cdc1b8059862b83adbe974b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6895,6 +6895,10 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
+          },
+          {
+            "id": "ureq 3.5.0",
+            "target": "ureq"
           }
         ],
         "deps_dev": [

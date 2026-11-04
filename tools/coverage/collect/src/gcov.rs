@@ -45,6 +45,25 @@ pub fn gcov_args(object_dir: &Path, gcda: &Path) -> Vec<String> {
     ]
 }
 
+/// The first gcov diagnostic that means the data is wrong, although gcov exits 0.
+pub fn gcov_problem(stderr: &str) -> Option<String> {
+    const MARKERS: [&str; 6] = [
+        "version mismatch",
+        "prefer '",
+        "stamp mismatch",
+        "corrupt",
+        "overflow",
+        "cannot open notes file",
+    ];
+    stderr
+        .lines()
+        .find(|line| {
+            let line = line.to_lowercase();
+            MARKERS.iter().any(|m| line.contains(m))
+        })
+        .map(|line| line.trim().to_string())
+}
+
 fn wanted(source: &str) -> bool {
     !Path::new(source).is_absolute() && !source.starts_with("external/")
 }
@@ -167,6 +186,21 @@ mod tests {
     #[test]
     fn rejects_bad_json() {
         assert!(add_gcov_json(&mut Report::new(), "{").is_err());
+    }
+
+    #[test]
+    fn flags_gcov_problems() {
+        for line in [
+            "a.gcda:version 'B52*', prefer 'B62*'",
+            "a.gcda:stamp mismatch with notes file",
+            "a.gcda:corrupted profile",
+            "a.gcno:cannot open notes file",
+            "a.gcda:overflowed arc counter",
+        ] {
+            let found = gcov_problem(&format!("ok\n{line}\n"));
+            assert_eq!(found.as_deref(), Some(line));
+        }
+        assert_eq!(gcov_problem("a.gcda:profiling:ok\n"), None);
     }
 
     #[test]

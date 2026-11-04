@@ -182,6 +182,9 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> String {
                 String::from_utf8_lossy(&out.stderr)
             ));
         }
+        if let Some(problem) = gcov::gcov_problem(&String::from_utf8_lossy(&out.stderr)) {
+            fail(&format!("gcov rejected {}: {problem}", gcda.display()));
+        }
         gcov::add_gcov_json(&mut report, &String::from_utf8_lossy(&out.stdout))
             .unwrap_or_else(|e| fail(&e));
     }

@@ -1,7 +1,9 @@
-load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_swift//swift:swift_binary.bzl", "swift_binary")
 load("@rules_swift//swift:swift_library.bzl", "swift_library")
+load("@rules_swift//swift:swift_test.bzl", "swift_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//swift/tests:forward.bzl", "swift_linux_binary", "swift_linux_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -27,19 +29,60 @@ swift_library(
 swift_binary(
     name = "hello",
     srcs = ["main.swift"],
-    tags = ["manual"],
     features = [
         "swift.static_stdlib",
         "-static_link_cpp_runtimes",
     ],
+    tags = ["manual"],
     deps = [":greet"],
 )
 
-platform_transition_binary(
+swift_linux_binary(
     name = "hello_linux_x86_64",
-    binary = ":hello",
     target_compatible_with = _LINUX_X86_64,
-    target_platform = "//swift/platforms:linux_x86_64",
+    upstream = ":hello",
+)
+
+swift_test(
+    name = "xctest_upstream",
+    srcs = ["greet_xctest.swift"],
+    tags = ["manual"],
+    deps = [":greet"],
+)
+
+swift_linux_test(
+    name = "xctest",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    upstream = ":xctest_upstream",
+)
+
+swift_test(
+    name = "testing_upstream",
+    srcs = ["greet_testing.swift"],
+    tags = ["manual"],
+    deps = [":greet"],
+)
+
+swift_linux_test(
+    name = "testing",
+    tags = ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+    upstream = ":testing_upstream",
+)
+
+sh_test(
+    name = "hello_link_test",
+    srcs = ["arch_test.sh"],
+    args = [
+        "$(location @llvm//tools:llvm-readelf)",
+        "$(location :hello_linux_x86_64)",
+    ],
+    data = [
+        ":hello_linux_x86_64",
+        "@llvm//tools:llvm-readelf",
+    ],
+    target_compatible_with = _LINUX_X86_64,
 )
 
 dx_hello_output_test(

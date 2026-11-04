@@ -18,9 +18,41 @@ package(default_visibility = ["//visibility:public"])
     ]
 ]
 
+[
+    platform(
+        name = "exec_linux_" + cpu,
+        constraint_values = [
+            "@llvm//constraints/libc:gnu.2.35",
+            "@platforms//cpu:" + cpu,
+            "@platforms//os:linux",
+        ],
+    )
+    for cpu in [
+        "aarch64",
+        "x86_64",
+    ]
+]
+
+[
+    config_setting(
+        name = "is_linux_" + cpu,
+        constraint_values = [
+            "@platforms//cpu:" + cpu,
+            "@platforms//os:linux",
+        ],
+    )
+    for cpu in [
+        "aarch64",
+        "x86_64",
+    ]
+]
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "transition.bzl",
+    ],
     tags = ["corpus"],
 )

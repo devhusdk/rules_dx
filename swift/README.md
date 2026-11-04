@@ -31,6 +31,8 @@ Build Swift code for a Swift platform:
 | --- | --- |
 | `@rules_dx//swift/platforms:linux_x86_64` | `libstdcxx.11.5.0`, `gnu.2.35` |
 | `@rules_dx//swift/platforms:linux_aarch64` | `libstdcxx.11.5.0`, `gnu.2.35` |
+| `@rules_dx//swift/platforms:exec_linux_x86_64` | `gnu.2.35` |
+| `@rules_dx//swift/platforms:exec_linux_aarch64` | `gnu.2.35` |
 
 ```sh
 dx build --platforms=//swift/platforms:linux_x86_64 //app:hello
@@ -46,7 +48,14 @@ system C library.
 - Libraries `swiftc` needs on the build host, such as `libncurses`, come from the same package set.
 - C++ resolution stays with `@llvm`.
 
-## Limits
+## Tests and host tools
 
-- `swift_test` does not build yet.
-- Binaries built for the host platform do not link. Build for a Swift platform.
+`swift_test` and binaries built for the host need an `exec_linux_*` platform as both
+the target platform and the first execution platform:
+
+```sh
+bazel test --platforms=//swift/platforms:exec_linux_x86_64 \
+  --extra_execution_platforms=//swift/platforms:exec_linux_x86_64 //app:tests
+```
+
+The build host needs glibc 2.35 or newer.

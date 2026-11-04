@@ -83,6 +83,7 @@ dx_rust_crate(
         "//cli/worktree:dx_worktree",
         "//generation/result:generation_result",
         "//libs/module_bazel:dx_module_bazel",
+        "//tools/bazelrc:dx_preset",
     ],
     extra_test_deps = [
         "//cli/test_scratch:dx_test_scratch",

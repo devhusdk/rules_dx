@@ -43,6 +43,7 @@ bins, or commits records.
 `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
+When the root `.bazelrc` imports a current correctness layer, which sets them, dx leaves the two flags out and still applies this check.
 These args fail the same way: `--aspects`, `--output_groups`,
 `--remote_download_minimal`, `--remote_download_outputs=minimal`,
 `--build_event_json_file`, any `--build_event_json_file_path_conversion` other

@@ -218,6 +218,19 @@ func TestGenerateToolsTaggedPackageSkipped(t *testing.T) {
 	}
 }
 
+func TestGenerateUnixAndWindowsFileSkipped(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
+	writeFixture(t, root, "pkg/demo/posix_win.go", "//go:build unix && windows\n\npackage other\n")
+	result := generateAt(t, root, "pkg/demo", []string{"lib.go", "posix_win.go"})
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	if got := result.Gen[0].AttrStrings("srcs"); strings.Join(got, ",") != "lib.go" {
+		t.Errorf("srcs = %v, want [lib.go]", got)
+	}
+}
+
 func TestGenerateBuildIgnoredTestSkipped(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")

@@ -139,6 +139,13 @@ func TestBuildExcluded(t *testing.T) {
 		{"plus build custom tag", "// +build integration\n\npackage demo\n", false, false},
 		{"tools and custom tag", "//go:build tools && integration\n\npackage tools\n", true, false},
 		{"two oses and custom tag", "//go:build linux && windows && integration\n\npackage demo\n", true, false},
+		{"unix and windows", "//go:build unix && windows\n\npackage demo\n", true, false},
+		{"unix and js", "//go:build unix && js\n\npackage demo\n", true, false},
+		{"unix and wasip1", "//go:build unix && wasip1\n\npackage demo\n", true, false},
+		{"unix and linux", "//go:build unix && linux\n\npackage demo\n", false, false},
+		{"unix", "//go:build unix\n\npackage demo\n", false, false},
+		{"not unix and windows", "//go:build !unix && windows\n\npackage demo\n", false, false},
+		{"unix or windows", "//go:build unix || windows\n\npackage demo\n", false, false},
 		{"malformed", "//go:build &&\n\npackage demo\n", false, true},
 	}
 	for _, tc := range cases {

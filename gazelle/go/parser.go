@@ -112,7 +112,11 @@ func satisfiable(expr constraint.Expr, free func(string) bool) bool {
 		}
 		seen[tag] = true
 		switch {
-		case rule.KnownOSSet[tag]:
+		case tag == "unix":
+			for name := range rule.UnixOS {
+				oses = append(oses, name)
+			}
+		case rule.KnownOSSet[tag] || tag == "wasip1":
 			oses = append(oses, tag)
 		case rule.KnownArchSet[tag]:
 			arches = append(arches, tag)
@@ -127,7 +131,7 @@ func satisfiable(expr constraint.Expr, free func(string) bool) bool {
 	for _, goos := range oses {
 		for _, goarch := range arches {
 			for mask := 0; mask < 1<<len(tags); mask++ {
-				set := map[string]bool{goos: true, impliedOS[goos]: true, goarch: true}
+				set := map[string]bool{goos: true, impliedOS[goos]: true, goarch: true, "unix": rule.UnixOS[goos]}
 				for i, tag := range tags {
 					set[tag] = mask&(1<<i) != 0
 				}

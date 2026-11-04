@@ -72,6 +72,8 @@ pub enum Error {
         target: String,
         compiler: String,
     },
+    #[error("compilation_db: msvc action for '{target}' has no {missing} to project")]
+    MissingMsvcContext { target: String, missing: String },
     #[error("compilation_db: {0}")]
     Usage(String),
 }
@@ -95,6 +97,16 @@ pub struct Action {
     pub execution_platform: String,
     #[serde(rename = "actionKey", default)]
     pub action_key: String,
+    #[serde(default, rename = "environmentVariables")]
+    pub environment_variables: Vec<EnvironmentVariable>,
+}
+
+/// One aquery action environment entry.
+#[derive(Debug, Deserialize)]
+pub struct EnvironmentVariable {
+    pub key: String,
+    #[serde(default)]
+    pub value: String,
 }
 
 /// One aquery artifact, addressed by execroot-relative path or path fragment.
@@ -289,6 +301,12 @@ impl AqueryGraph {
                 Some(quoting) => expand_response_files(&action.arguments, execroot, quoting)?,
                 None => action.arguments.clone(),
             };
+            let arguments = match identity {
+                Some(identity) if identity.driver == Driver::Msvc => {
+                    msvc_context_arguments(&target, action, identity, arguments)?
+                }
+                _ => arguments,
+            };
             let source = source_argument(&target, &arguments)?.to_string();
             commands.push(CompileCommand {
                 configuration: configurations
@@ -391,6 +409,50 @@ pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error
         }
     }
     Ok(identities)
+}
+
+/// Turns the hermetic MSVC action env into the flags clang-cl needs, right after argv0.
+fn msvc_context_arguments(
+    target: &str,
+    action: &Action,
+    identity: &CompilerIdentity,
+    arguments: Vec<String>,
+) -> Result<Vec<String>, Error> {
+    let env = |key: &str| {
+        action
+            .environment_variables
+            .iter()
+            .find(|variable| variable.key == key)
+            .map_or("", |variable| variable.value.as_str())
+    };
+    let missing = |what: &str| Error::MissingMsvcContext {
+        target: target.to_string(),
+        missing: what.to_string(),
+    };
+    let mut flags: Vec<String> = ["INCLUDE", "EXTERNAL_INCLUDE"]
+        .iter()
+        .flat_map(|key| env(key).split(';'))
+        .filter(|dir| !dir.is_empty())
+        .map(|dir| format!("/imsvc{}", dir.replace('\\', "/")))
+        .collect();
+    if flags.is_empty() {
+        return Err(missing("INCLUDE in the action env"));
+    }
+    flags.push("/X".to_string());
+    let has_target = arguments
+        .iter()
+        .any(|argument| argument == "-target" || argument.starts_with("--target"));
+    if !has_target {
+        if identity.target.is_empty() {
+            return Err(missing("target in the compiler identity"));
+        }
+        flags.push(format!("--target={}", identity.target));
+    }
+    let mut projected = arguments;
+    let tail = projected.split_off(1.min(projected.len()));
+    projected.extend(flags);
+    projected.extend(tail);
+    Ok(projected)
 }
 
 /// Fails when clang-tidy would run on an action whose driver Bazel did not identify.

@@ -371,3 +371,57 @@ fn a_response_file_carries_the_real_target_flags() {
     assert!(!text.contains("file not found"), "{text}");
     std::fs::remove_dir_all(&env.root).ok();
 }
+
+fn msvc_tidy(name: &str, extra: &str) -> (Option<i32>, String) {
+    let env = stage(name);
+    let sdk = env.tree.join("sdk");
+    std::fs::create_dir_all(&sdk).expect("sdk dir");
+    std::fs::write(sdk.join("stub.h"), "#define STUB 1\n").expect("stub header");
+    std::fs::write(
+        env.tree.join("a.c"),
+        "#include <stub.h>\nint f(int x) {\n  if (x) {\n    return STUB;\n  } else {\n    return 2;\n  }\n}\n",
+    )
+    .expect("source");
+    let text = format!(
+        r#"{{"actions":[{{"mnemonic":"CppCompile","arguments":["cl.exe","/nologo","/c","a.c","/DX=1","/W4"{extra}],"inputDepSetIds":[1],"outputIds":[2],"targetId":1,"configurationId":1,"environmentVariables":[{{"key":"INCLUDE","value":"sdk"}}]}}],"artifacts":[{{"id":2,"path":"a.obj"}},{{"id":3,"path":"a.c"}}],"depSetOfFiles":[{{"id":1,"directArtifactIds":[3],"transitiveDepSetIds":[]}}],"targets":[{{"id":1,"label":"//:a"}}],"configuration":[{{"id":1,"mnemonic":"k8-fastbuild","checksum":"x"}}]}}"#
+    );
+    let mut msvc = gnu();
+    msvc[0].driver = cc_context::Driver::Msvc;
+    msvc[0].target = "x86_64-pc-windows-msvc".to_string();
+    let graph = cc_context::AqueryGraph::parse(&text).expect("graph");
+    let commands = graph.compile_commands(&env.tree, &msvc).expect("commands");
+    let entries = cc_context::database(&commands, &env.tree, "//:a", &[]).expect("database");
+    let policy = "Checks: '-*,readability-else-after-return'\n";
+    std::fs::write(env.tree.join(".clang-tidy"), policy).expect("policy");
+    cc_context::write_bundle(&env.root.join("msvc"), &entries, policy).expect("bundle");
+    let output = Command::new(
+        env_path("DX_CLANG_TIDY")
+            .canonicalize()
+            .expect("clang-tidy"),
+    )
+    .arg("-p")
+    .arg(env.root.join("msvc"))
+    .arg("a.c")
+    .current_dir(&env.tree)
+    .output()
+    .expect("clang-tidy runs");
+    std::fs::remove_dir_all(&env.root).ok();
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned()
+            + &String::from_utf8_lossy(&output.stderr),
+    )
+}
+
+#[test]
+fn an_msvc_entry_finds_its_include_and_reports_in_the_adapter_format() {
+    let (_, text) = msvc_tidy("msvc_ok", "");
+    assert!(!text.contains("file not found"), "{text}");
+    assert!(text.contains("a.c:5:5: warning:"), "{text}");
+}
+
+#[test]
+fn an_unknown_cl_flag_makes_clang_tidy_fail() {
+    let (code, text) = msvc_tidy("msvc_bad", r#","/Zbogus""#);
+    assert_ne!(code, Some(0), "{text}");
+}

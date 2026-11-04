@@ -427,24 +427,73 @@ fn an_unknown_driver_keeps_argv_and_response_files_as_recorded() {
     fs::remove_dir_all(&root).ok();
 }
 
+fn with_env(graph: &mut AqueryGraph, include: &str, external: &str) {
+    graph.actions[0].environment_variables = [("INCLUDE", include), ("EXTERNAL_INCLUDE", external)]
+        .iter()
+        .map(|(key, value)| EnvironmentVariable {
+            key: key.to_string(),
+            value: value.to_string(),
+        })
+        .collect();
+}
+
 #[test]
-fn an_msvc_identity_keeps_argv_zero_and_every_argument() {
+fn an_msvc_identity_keeps_every_argument_and_adds_the_env_context() {
     let root = scratch("msvc");
-    let graph = rsp_graph(&root, "/DX=1 \"a b\"", "k8-fastbuild");
+    let mut graph = rsp_graph(&root, "/DX=1 \"a b\"", "k8-fastbuild");
+    with_env(&mut graph, "C:\\sdk\\inc;C:\\crt", "C:\\ext");
     let commands = graph
         .compile_commands(&root, &[identity("k8-fastbuild", Driver::Msvc)])
         .expect("commands");
     assert_eq!(
         commands[0].arguments,
-        strings(&["tool", "--odd", "-c", "pkg/a.cc", "/DX=1", "a b"])
+        strings(&[
+            "tool",
+            "/imsvcC:/sdk/inc",
+            "/imsvcC:/crt",
+            "/imsvcC:/ext",
+            "/X",
+            "--target=x86_64-linux-gnu",
+            "--odd",
+            "-c",
+            "pkg/a.cc",
+            "/DX=1",
+            "a b"
+        ])
     );
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn an_msvc_action_keeps_its_own_target_flag() {
+    let root = scratch("msvc_target");
+    let mut graph = rsp_graph(&root, "--target=aarch64-windows-msvc", "k8-fastbuild");
+    with_env(&mut graph, "inc", "");
+    let commands = graph
+        .compile_commands(&root, &[identity("k8-fastbuild", Driver::Msvc)])
+        .expect("commands");
+    let flags = &commands[0].arguments;
+    assert_eq!(flags[1..3], strings(&["/imsvcinc", "/X"]));
+    assert_eq!(flags.iter().filter(|a| a.contains("target")).count(), 1);
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn an_msvc_action_without_include_fails_closed() {
+    let root = scratch("msvc_missing");
+    let graph = rsp_graph(&root, "/DX=1", "k8-fastbuild");
+    let error = graph
+        .compile_commands(&root, &[identity("k8-fastbuild", Driver::Msvc)])
+        .expect_err("no INCLUDE");
+    assert!(matches!(error, Error::MissingMsvcContext { .. }), "{error}");
     fs::remove_dir_all(&root).ok();
 }
 
 #[test]
 fn each_configuration_gets_its_own_identity() {
     let root = scratch("configs");
-    let graph = rsp_graph(&root, "-DX=1", "arm64-opt");
+    let mut graph = rsp_graph(&root, "-DX=1", "arm64-opt");
+    with_env(&mut graph, "inc", "");
     let identities = [gnu(), identity("arm64-opt", Driver::Msvc)];
     let commands = graph
         .compile_commands(&root, &identities)

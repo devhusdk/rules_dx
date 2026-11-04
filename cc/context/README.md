@@ -35,10 +35,14 @@ clang-tidy against it with `-p out`.
 The command exits non-zero and writes no bundle when the record has no compile action for
 `--label`, a `--require-source` has no compile command, one source has two conflicting
 compile commands, `--execroot` is relative, `--config` is missing, empty or not named
-`.clang-tidy`, no `--identity` is given, or an action's configuration has no identity or an unknown driver.
+`.clang-tidy`, no `--identity` is given, an action's configuration has no identity or an unknown driver,
+or an MSVC action has no `INCLUDE` in its env or no identity target.
 
 Every recorded argument reaches `compile_commands.json` unchanged, including the
-compiler, its sysroot and include flags and the macros. `@response` files expand with
+compiler, its sysroot and include flags and the macros. MSVC entries also get, right
+after argv0, the context cl.exe read from the action env: one `/imsvc<dir>` per
+`INCLUDE` then `EXTERNAL_INCLUDE` directory, `/X` so clang-cl does not look for a Visual
+Studio, and `--target=<identity target>` unless the arguments carry a target. `@response` files expand with
 the quoting of the selected driver. A flag the
 clang driver does not know is a clang-tidy error, never a run without flags.
 

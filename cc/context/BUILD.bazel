@@ -145,27 +145,6 @@ real_source_target(
 )
 
 # keep
-rust_library(
-    name = "headless_lsp_client",
-    testonly = True,
-    srcs = ["tests/headless_lsp/client.rs"],
-    crate_name = "headless_lsp_client",
-    crate_root = "tests/headless_lsp/client.rs",
-    edition = "2021",
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep
-rust_test(
-    name = "headless_lsp_client_test",
-    crate = ":headless_lsp_client",
-    edition = "2021",
-)
-
-# keep
 rust_test(
     name = "headless_lsp_clangd_test",
     srcs = ["tests/headless_lsp/clangd.rs"],
@@ -193,7 +172,8 @@ rust_test(
     ],
     deps = [
         ":cc_context",
-        ":headless_lsp_client",
+        "//tools/testing:dx_lsp",
+        "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
 )
@@ -222,7 +202,8 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = [
-        ":headless_lsp_client",
+        "//tools/testing:dx_lsp",
+        "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
 )
@@ -241,8 +222,6 @@ rustfmt_test(
     targets = [
         ":context_clang_tidy_test",
         ":headless_lsp_clangd_test",
-        ":headless_lsp_client",
-        ":headless_lsp_client_test",
         ":headless_lsp_rust_analyzer_test",
     ],
 )

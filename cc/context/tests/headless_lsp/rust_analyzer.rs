@@ -1,12 +1,64 @@
 //! rust-analyzer headless LSP qualification.
 
-use headless_lsp_client::*;
+use dx_lsp::*;
+use dx_testing::resolve_runfiles;
 use serde_json::{json, Value};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
+const INIT_SECS: u64 = 90;
+const REQUEST_SECS: u64 = 90;
+const SHOW_SECS: u64 = 120;
+const QUIET_SECS: u64 = 30;
 const RUST_PUB_SECS: u64 = 240;
+
+const SUPPORTED: [(&str, &str); 2] = [("rust", "rust-analyzer"), ("c++", "clangd")];
+
+fn within(secs: u64) -> Instant {
+    Instant::now() + Duration::from_secs(secs)
+}
+
+fn tool(name: &str) -> PathBuf {
+    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a runfile"));
+    resolve_runfiles(&rel)
+}
+
+fn stage(prefix: &str) -> PathBuf {
+    let dir = dx_testing::mkscratch(prefix).expect("scratch dir must exist");
+    std::fs::create_dir_all(dir.join("home")).expect("home dir must exist");
+    dir
+}
+
+fn spawn_server(binary: &Path, args: &[String], work: &Path) -> Result<Session, Error> {
+    let mut command = Command::new(binary);
+    command
+        .args(args)
+        .current_dir(work)
+        .env_clear()
+        .env("HOME", work.join("home"))
+        .env("PATH", "/usr/bin:/bin")
+        .env("TMPDIR", work);
+    Session::from_command(command)
+}
+
+fn definition(server: &mut Session, uri: &str, line: u32, character: u32) -> Result<Value, Error> {
+    let mut response = Value::Null;
+    for _ in 0..50 {
+        let id = server.request(
+            "textDocument/definition",
+            json!({"textDocument": {"uri": uri},
+                   "position": {"line": line, "character": character}}),
+        )?;
+        response = server.wait_response(id, "definition", within(REQUEST_SECS))?;
+        if error_code(&response) != Some(-32801) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    Ok(response)
+}
+
 const RUST_LIB: &str = r#"mod featured;
 mod generated;
 
@@ -106,25 +158,18 @@ fn check_command(check_rustc: &Path, out: &Path, cfgs: &[&str]) -> Vec<String> {
     command
 }
 
-fn start_rust(work: &Path) -> Result<(Server, String), String> {
-    let server = Server::spawn(
-        &tool("DX_LSP_RUST_ANALYZER"),
-        &[],
-        work,
-        &work.join("home"),
-        work,
-        "rust-analyzer-stderr.log",
-    )?;
+fn start_rust(work: &Path) -> Result<(Session, String), Error> {
+    let server = spawn_server(&tool("DX_LSP_RUST_ANALYZER"), &[], work)?;
     let root = format!("file://{}", work.display());
     Ok((server, root))
 }
 
 fn open_rust(
-    server: &mut Server,
+    server: &mut Session,
     root: &str,
     work: &Path,
     names: &[&str],
-) -> Result<Vec<(String, String)>, String> {
+) -> Result<Vec<(String, String)>, Error> {
     let mut opened = Vec::new();
     for name in names {
         let path = work.join(name);
@@ -141,7 +186,7 @@ fn open_rust(
     Ok(opened)
 }
 
-fn init_rust(server: &mut Server, root: &str, check: &[String]) -> Result<Value, String> {
+fn init_rust(server: &mut Session, root: &str, check: &[String]) -> Result<Value, Error> {
     let options = if check.is_empty() {
         json!({})
     } else {
@@ -152,9 +197,12 @@ fn init_rust(server: &mut Server, root: &str, check: &[String]) -> Result<Value,
         json!({"processId": null, "rootUri": root, "capabilities": {},
                "initializationOptions": options}),
     )?;
-    let response = server.wait_response(id, INIT_SECS)?;
+    let response = server.wait_response(id, "rust initialize", within(INIT_SECS))?;
     if error_code(&response).is_some() {
-        return Err(format!("rust initialize failed: {response}"));
+        return Err(Error::Server(
+            error_code(&response).unwrap_or(-1),
+            format!("rust initialize failed: {response}"),
+        ));
     }
     server.notify("initialized", json!({}))?;
     Ok(response)
@@ -205,7 +253,7 @@ fn rust_reports_check_diagnostic_and_definition() {
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
     server
-        .wait_pub(&lib_uri, RUST_PUB_SECS, false)
+        .wait_publication(&lib_uri, false, "diagnostics", within(RUST_PUB_SECS))
         .expect("workspace must load");
     server
         .notify(
@@ -215,7 +263,7 @@ fn rust_reports_check_diagnostic_and_definition() {
         .expect("didSave must send");
 
     let params = server
-        .wait_pub(&lib_uri, RUST_PUB_SECS, true)
+        .wait_publication(&lib_uri, true, "diagnostics", within(RUST_PUB_SECS))
         .expect("rust diagnostic must arrive");
     let diags = params["diagnostics"]
         .as_array()
@@ -241,7 +289,7 @@ fn rust_reports_check_diagnostic_and_definition() {
     )
     .expect("definition must answer");
     assert_eq!(
-        definition_uri(&target)
+        location_uri(&target["result"])
             .as_deref()
             .map(|uri| uri.ends_with("src/featured.rs")),
         Some(true),
@@ -251,7 +299,7 @@ fn rust_reports_check_diagnostic_and_definition() {
     let generated = definition(&mut server, &lib_uri, gen_line, gen_character)
         .expect("generated definition must answer");
     assert_eq!(
-        definition_uri(&generated)
+        location_uri(&generated["result"])
             .as_deref()
             .map(|uri| uri.ends_with("src/generated.rs")),
         Some(true),
@@ -259,7 +307,7 @@ fn rust_reports_check_diagnostic_and_definition() {
     );
 
     for (uri, _) in opened.iter().skip(1) {
-        let latest = server.pubs_for(uri).expect("pubs must read");
+        let latest = server.publications(uri).expect("pubs must read");
         assert!(
             latest.iter().all(|p| p["diagnostics"]
                 .as_array()
@@ -274,7 +322,7 @@ fn rust_reports_check_diagnostic_and_definition() {
         .request("dx/doesNotExist", json!({}))
         .expect("request must send");
     let response = server
-        .wait_response(unknown, REQUEST_SECS)
+        .wait_response(unknown, "response", within(REQUEST_SECS))
         .expect("error must arrive");
     assert_eq!(
         error_code(&response),
@@ -321,7 +369,7 @@ fn rust_consumer_flags_and_renamed_repo() {
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
     server
-        .wait_pub(&lib_uri, RUST_PUB_SECS, false)
+        .wait_publication(&lib_uri, false, "diagnostics", within(RUST_PUB_SECS))
         .expect("workspace must load");
     server
         .notify(
@@ -332,7 +380,7 @@ fn rust_consumer_flags_and_renamed_repo() {
 
     let deadline = Instant::now() + Duration::from_secs(QUIET_SECS);
     while Instant::now() < deadline {
-        let pubs = server.pubs_for(&lib_uri).expect("pubs must read");
+        let pubs = server.publications(&lib_uri).expect("pubs must read");
         assert!(
             pubs.iter().all(|p| p["diagnostics"]
                 .as_array()
@@ -343,7 +391,7 @@ fn rust_consumer_flags_and_renamed_repo() {
         std::thread::sleep(Duration::from_secs(1));
     }
     let last = server
-        .pubs_for(&lib_uri)
+        .publications(&lib_uri)
         .expect("pubs must read")
         .pop()
         .expect("rust pub must exist");
@@ -365,7 +413,7 @@ fn rust_consumer_flags_and_renamed_repo() {
     )
     .expect("consumer definition must answer");
     assert_eq!(
-        definition_uri(&target)
+        location_uri(&target["result"])
             .as_deref()
             .map(|uri| uri.ends_with("src/featured.rs")),
         Some(true),
@@ -402,7 +450,7 @@ fn rust_wrong_target_config_is_explicit() {
     let lib_uri = opened[0].0.clone();
     let lib_text = opened[0].1.clone();
     server
-        .wait_pub(&lib_uri, RUST_PUB_SECS, false)
+        .wait_publication(&lib_uri, false, "diagnostics", within(RUST_PUB_SECS))
         .expect("workspace must load");
     server
         .notify(
@@ -412,7 +460,7 @@ fn rust_wrong_target_config_is_explicit() {
         .expect("didSave must send");
 
     let params = server
-        .wait_pub(&lib_uri, RUST_PUB_SECS, true)
+        .wait_publication(&lib_uri, true, "diagnostics", within(RUST_PUB_SECS))
         .expect("rust diagnostic must arrive");
     let diags = params["diagnostics"]
         .as_array()
@@ -465,7 +513,7 @@ fn rust_unavailable_check_command_is_explicit() {
     init_rust(&mut server, &root, &check).expect("rust initialize must succeed");
     let opened = open_rust(&mut server, &root, &work, &["src/lib.rs"]).expect("didOpen must send");
     server
-        .wait_pub(&opened[0].0, RUST_PUB_SECS, false)
+        .wait_publication(&opened[0].0, false, "diagnostics", within(RUST_PUB_SECS))
         .expect("workspace must load");
     server
         .notify(
@@ -474,7 +522,7 @@ fn rust_unavailable_check_command_is_explicit() {
         )
         .expect("didSave must send");
     let message = server
-        .wait_show_message("/nonexistent/dx-check", SHOW_SECS)
+        .wait_show_message("/nonexistent/dx-check", "showMessage", within(SHOW_SECS))
         .expect("unavailable check must be reported");
     assert!(
         message
@@ -499,9 +547,18 @@ fn rust_malformed_project_is_explicit() {
     let (mut server, root) = start_rust(&work).expect("rust-analyzer must start");
     init_rust(&mut server, &root, &check).expect("rust initialize must succeed");
     server
-        .wait_show_message("Failed to load workspace", SHOW_SECS)
+        .wait_show_message("Failed to load workspace", "showMessage", within(SHOW_SECS))
         .expect("malformed project must be reported");
     server
         .shutdown()
         .expect("server must stay usable after the failure");
+}
+
+#[test]
+fn qualified_servers_are_pinned() {
+    assert_eq!(
+        SUPPORTED,
+        [("rust", "rust-analyzer"), ("c++", "clangd")],
+        "only rust-analyzer and clangd are qualified headless servers",
+    );
 }

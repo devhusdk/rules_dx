@@ -1,12 +1,60 @@
 //! clangd headless LSP qualification.
 
 use cc_context::{AqueryGraph, DATABASE_FILE};
-use headless_lsp_client::*;
+use dx_lsp::*;
+use dx_testing::resolve_runfiles;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{Duration, Instant};
 
+const INIT_SECS: u64 = 90;
+const REQUEST_SECS: u64 = 90;
 const CLANGD_PUB_SECS: u64 = 120;
+fn within(secs: u64) -> Instant {
+    Instant::now() + Duration::from_secs(secs)
+}
+
+fn tool(name: &str) -> PathBuf {
+    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a runfile"));
+    resolve_runfiles(&rel)
+}
+
+fn stage(prefix: &str) -> PathBuf {
+    let dir = dx_testing::mkscratch(prefix).expect("scratch dir must exist");
+    std::fs::create_dir_all(dir.join("home")).expect("home dir must exist");
+    dir
+}
+
+fn spawn_server(binary: &Path, args: &[String], work: &Path) -> Result<Session, Error> {
+    let mut command = Command::new(binary);
+    command
+        .args(args)
+        .current_dir(work)
+        .env_clear()
+        .env("HOME", work.join("home"))
+        .env("PATH", "/usr/bin:/bin")
+        .env("TMPDIR", work);
+    Session::from_command(command)
+}
+
+fn definition(server: &mut Session, uri: &str, line: u32, character: u32) -> Result<Value, Error> {
+    let mut response = Value::Null;
+    for _ in 0..50 {
+        let id = server.request(
+            "textDocument/definition",
+            json!({"textDocument": {"uri": uri},
+                   "position": {"line": line, "character": character}}),
+        )?;
+        response = server.wait_response(id, "definition", within(REQUEST_SECS))?;
+        if error_code(&response) != Some(-32801) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    Ok(response)
+}
+
 const CLANGD_SENTINEL: &str = "\nint dx_headless_sentinel = dx_undeclared_sentinel;\n";
 
 fn gnu_identity() -> cc_context::CompilerIdentity {
@@ -66,17 +114,14 @@ fn clangd_database(work: &Path) -> (String, PathBuf, String) {
     (uri, work.join(&source), header)
 }
 
-fn start_clangd(work: &Path) -> Result<Server, String> {
-    Server::spawn(
+fn start_clangd(work: &Path) -> Result<Session, Error> {
+    spawn_server(
         &tool("DX_LSP_CLANGD"),
         &[
             format!("--compile-commands-dir={}", work.display()),
             "--log=error".to_string(),
         ],
         work,
-        &work.join("home"),
-        work,
-        "clangd-stderr.log",
     )
 }
 
@@ -91,7 +136,7 @@ fn clangd_reports_diagnostic_and_definition() {
         .request("initialize", json!({"processId": null, "rootUri": format!("file://{}", work.display()), "capabilities": {}}))
         .expect("initialize must send");
     let init = server
-        .wait_response(id, INIT_SECS)
+        .wait_response(id, "response", within(INIT_SECS))
         .expect("clangd initialize must succeed");
     assert_eq!(
         init.pointer("/result/capabilities/definitionProvider"),
@@ -109,7 +154,7 @@ fn clangd_reports_diagnostic_and_definition() {
         .expect("didOpen must send");
 
     let params = server
-        .wait_pub(&probe_uri, CLANGD_PUB_SECS, false)
+        .wait_publication(&probe_uri, false, "diagnostics", within(CLANGD_PUB_SECS))
         .expect("clangd pub must arrive");
     let diags = params["diagnostics"]
         .as_array()
@@ -124,7 +169,7 @@ fn clangd_reports_diagnostic_and_definition() {
         definition(&mut server, &probe_uri, line, character).expect("definition must answer");
     let header_text = std::fs::read_to_string(tool("DX_LSP_LIMITS_H")).expect("header must reread");
     let (define_line, _) = position_of(&header_text, "#define DX_ZERO_RESULT", 0);
-    let uri = definition_uri(&target).expect("definition must land somewhere");
+    let uri = location_uri(&target["result"]).expect("definition must land somewhere");
     assert!(
         uri.ends_with("generated/limits.h"),
         "generated definition must land in limits.h: {uri}"
@@ -146,7 +191,7 @@ fn clangd_reports_diagnostic_and_definition() {
         )
         .expect("didChange must send");
     let params = server
-        .wait_pub(&probe_uri, CLANGD_PUB_SECS, true)
+        .wait_publication(&probe_uri, true, "diagnostics", within(CLANGD_PUB_SECS))
         .expect("dirty diagnostic must arrive");
     let diags = params["diagnostics"]
         .as_array()
@@ -164,7 +209,7 @@ fn clangd_reports_diagnostic_and_definition() {
         .request("dx/doesNotExist", json!({}))
         .expect("request must send");
     let response = server
-        .wait_response(unknown, REQUEST_SECS)
+        .wait_response(unknown, "response", within(REQUEST_SECS))
         .expect("error must arrive");
     assert_eq!(
         error_code(&response),
@@ -179,7 +224,7 @@ fn clangd_reports_diagnostic_and_definition() {
         .notify("$/cancelRequest", json!({"id": slow}))
         .expect("cancel must send");
     let cancelled = server
-        .wait_response(slow, REQUEST_SECS)
+        .wait_response(slow, "response", within(REQUEST_SECS))
         .expect("cancelled request must settle");
     if let Some(code) = error_code(&cancelled) {
         assert_eq!(
@@ -191,7 +236,7 @@ fn clangd_reports_diagnostic_and_definition() {
     let alive = definition(&mut server, &probe_uri, again_line, again_character)
         .expect("server must stay alive after cancel");
     assert!(
-        definition_uri(&alive)
+        location_uri(&alive["result"])
             .map(|uri| uri.ends_with("generated/limits.h"))
             .unwrap_or(false),
         "server must answer after cancel: {alive}",
@@ -212,7 +257,7 @@ fn clangd_reports_diagnostic_and_definition() {
         .expect("reopen must send");
     let deadline = Instant::now() + Duration::from_secs(CLANGD_PUB_SECS);
     let stale = loop {
-        let pubs = server.pubs_for(&probe_uri).expect("pubs must read");
+        let pubs = server.publications(&probe_uri).expect("pubs must read");
         let found = pubs.iter().rev().find(|p| {
             p["diagnostics"]
                 .as_array()

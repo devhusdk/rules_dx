@@ -1,9 +1,11 @@
 //! A small headless LSP client for tests: framing, a reader thread and deadline-based waits.
 
-use std::io::{BufRead, BufReader, Write};
+use std::cell::RefCell;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, TryRecvError};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -139,7 +141,11 @@ pub struct Session {
     events: Receiver<Result<serde_json::Value, Error>>,
     next_id: i64,
     child: Child,
+    log: RefCell<Vec<serde_json::Value>>,
+    stderr: Arc<Mutex<Vec<u8>>>,
 }
+
+const STDERR_KEEP_BYTES: usize = 64 * 1024;
 
 impl Session {
     pub fn spawn(
@@ -148,23 +154,42 @@ impl Session {
         vars: &[(String, String)],
     ) -> Result<Session, Error> {
         let mut command = Command::new(binary);
-        command
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .env_clear();
+        command.args(args).env_clear();
         for (key, value) in vars {
             command.env(key, value);
         }
+        Session::from_command(command)
+    }
+
+    pub fn from_command(mut command: Command) -> Result<Session, Error> {
+        command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         let mut child = command.spawn().map_err(|err| {
-            Error::Unavailable(format!("cannot start {}: {err}", binary.display()))
+            Error::Unavailable(format!(
+                "cannot start {}: {err}",
+                command.get_program().to_string_lossy()
+            ))
         })?;
         let stdin = child.stdin.take().expect("lsp child keeps stdin");
         let stdout = child.stdout.take().expect("lsp child keeps stdout");
         let mut stderr = child.stderr.take().expect("lsp child keeps stderr");
+        let stderr_log = Arc::new(Mutex::new(Vec::new()));
+        let stderr_sink = Arc::clone(&stderr_log);
         thread::spawn(move || {
-            let _ = std::io::copy(&mut stderr, &mut std::io::sink());
+            let mut chunk = [0u8; 4096];
+            while let Ok(read) = stderr.read(&mut chunk) {
+                if read == 0 {
+                    break;
+                }
+                let mut kept = stderr_sink.lock().expect("stderr lock");
+                kept.extend_from_slice(&chunk[..read]);
+                if kept.len() > STDERR_KEEP_BYTES {
+                    let excess = kept.len() - STDERR_KEEP_BYTES;
+                    kept.drain(..excess);
+                }
+            }
         });
         let (sender, events) = mpsc::channel();
         thread::spawn(move || {
@@ -188,6 +213,8 @@ impl Session {
             events,
             next_id: 0,
             child,
+            log: RefCell::new(Vec::new()),
+            stderr: stderr_log,
         })
     }
 
@@ -221,14 +248,27 @@ impl Session {
         }))
     }
 
+    fn stderr_tail(&self) -> String {
+        let bytes = self.stderr.lock().expect("stderr lock").clone();
+        let text = String::from_utf8_lossy(&bytes);
+        let lines: Vec<&str> = text.lines().collect();
+        lines[lines.len().saturating_sub(5)..].join("\n")
+    }
+
     pub fn next_event(&self, what: &str, deadline: Instant) -> Result<serde_json::Value, Error> {
         match self
             .events
             .recv_timeout(deadline.saturating_duration_since(Instant::now()))
         {
-            Ok(Ok(message)) => Ok(message),
+            Ok(Ok(message)) => {
+                self.log.borrow_mut().push(message.clone());
+                Ok(message)
+            }
             Ok(Err(err)) => Err(err),
-            Err(RecvTimeoutError::Timeout) => Err(Error::Timeout(what.to_owned())),
+            Err(RecvTimeoutError::Timeout) => Err(Error::Timeout(format!(
+                "{what}; stderr: {}",
+                self.stderr_tail()
+            ))),
             Err(RecvTimeoutError::Disconnected) => {
                 Err(Error::Transport("lsp reader stopped".to_owned()))
             }
@@ -241,11 +281,104 @@ impl Session {
         what: &str,
         deadline: Instant,
     ) -> Result<serde_json::Value, Error> {
+        if let Some(found) = self
+            .log
+            .borrow()
+            .iter()
+            .find(|message| is_response_for(message, id))
+        {
+            return Ok(found.clone());
+        }
         loop {
             let message = self.next_event(what, deadline)?;
             if is_response_for(&message, id) {
                 return Ok(message);
             }
+        }
+    }
+
+    /// Moves everything the server has already sent into the log.
+    pub fn drain(&self) -> Result<(), Error> {
+        loop {
+            match self.events.try_recv() {
+                Ok(Ok(message)) => self.log.borrow_mut().push(message),
+                Ok(Err(err)) => return Err(err),
+                Err(TryRecvError::Empty) | Err(TryRecvError::Disconnected) => return Ok(()),
+            }
+        }
+    }
+
+    /// Every `publishDiagnostics` params for `uri` received so far, oldest first.
+    pub fn publications(&self, uri: &str) -> Result<Vec<serde_json::Value>, Error> {
+        self.drain()?;
+        Ok(self
+            .log
+            .borrow()
+            .iter()
+            .filter(|message| {
+                message.get("method").and_then(serde_json::Value::as_str)
+                    == Some("textDocument/publishDiagnostics")
+                    && message
+                        .pointer("/params/uri")
+                        .and_then(serde_json::Value::as_str)
+                        == Some(uri)
+            })
+            .filter_map(|message| message.get("params").cloned())
+            .collect())
+    }
+
+    /// The first publication for `uri` in arrival order, past or future.
+    pub fn wait_publication(
+        &self,
+        uri: &str,
+        want_nonempty: bool,
+        what: &str,
+        deadline: Instant,
+    ) -> Result<serde_json::Value, Error> {
+        let mut seen = 0;
+        loop {
+            let publications = self.publications(uri)?;
+            for params in &publications[seen.min(publications.len())..] {
+                let empty = params
+                    .get("diagnostics")
+                    .and_then(serde_json::Value::as_array)
+                    .map(Vec::is_empty)
+                    .unwrap_or(true);
+                if !want_nonempty || !empty {
+                    return Ok(params.clone());
+                }
+            }
+            seen = publications.len();
+            self.next_event(what, deadline)?;
+        }
+    }
+
+    /// The first `window/showMessage` whose text contains `needle`.
+    pub fn wait_show_message(
+        &self,
+        needle: &str,
+        what: &str,
+        deadline: Instant,
+    ) -> Result<serde_json::Value, Error> {
+        let mut seen = 0;
+        loop {
+            self.drain()?;
+            {
+                let log = self.log.borrow();
+                for message in &log[seen.min(log.len())..] {
+                    let is_show = message.get("method").and_then(serde_json::Value::as_str)
+                        == Some("window/showMessage");
+                    let text = message
+                        .pointer("/params/message")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("");
+                    if is_show && text.contains(needle) {
+                        return Ok(message.clone());
+                    }
+                }
+                seen = log.len();
+            }
+            self.next_event(what, deadline)?;
         }
     }
 
@@ -345,6 +478,30 @@ pub fn offset_to_position(text: &str, offset: usize) -> (u32, u32) {
         .map(|index| index + 1)
         .unwrap_or(0);
     (line, (offset - start) as u32)
+}
+
+pub fn error_code(message: &serde_json::Value) -> Option<i64> {
+    message.get("error")?.get("code")?.as_i64()
+}
+
+/// Line and character of the `occurrence`th (zero based) match of `needle`.
+pub fn position_of(text: &str, needle: &str, occurrence: usize) -> (u32, u32) {
+    let offset = text
+        .match_indices(needle)
+        .nth(occurrence)
+        .unwrap_or_else(|| panic!("{needle:?} occurrence {occurrence} not found"))
+        .0;
+    offset_to_position(text, offset)
+}
+
+/// The first `uri` or `targetUri` of a definition result.
+pub fn location_uri(result: &serde_json::Value) -> Option<String> {
+    let first = result.as_array()?.first()?;
+    first
+        .get("uri")
+        .or_else(|| first.get("targetUri"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
 }
 
 pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
@@ -502,5 +659,75 @@ mod tests {
             Ok(_) => panic!("missing server must not start"),
         };
         assert!(matches!(err, Error::Unavailable(_)), "unexpected {err}");
+    }
+
+    #[test]
+    fn lsp_error_code_reads_error_responses() {
+        let failed = serde_json::json!({"id": 7, "error": {"code": -32601, "message": "no"}});
+        assert_eq!(error_code(&failed), Some(-32601));
+        assert_eq!(
+            error_code(&serde_json::json!({"id": 7, "result": []})),
+            None
+        );
+    }
+
+    #[test]
+    fn lsp_position_of_counts_occurrences_across_lines() {
+        let text = "ab\nxab\n";
+        assert_eq!(position_of(text, "ab", 0), (0, 0));
+        assert_eq!(position_of(text, "ab", 1), (1, 1));
+    }
+
+    #[test]
+    fn lsp_location_uri_reads_both_shapes() {
+        let plain = serde_json::json!([{"uri": "file:///a"}]);
+        let linked = serde_json::json!([{"targetUri": "file:///b"}]);
+        assert_eq!(location_uri(&plain).as_deref(), Some("file:///a"));
+        assert_eq!(location_uri(&linked).as_deref(), Some("file:///b"));
+        assert_eq!(location_uri(&serde_json::json!([])), None);
+        assert_eq!(location_uri(&serde_json::Value::Null), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn lsp_log_keeps_publications_and_stderr() {
+        let publish = |diagnostics: serde_json::Value| {
+            String::from_utf8(encode(&serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "textDocument/publishDiagnostics",
+                "params": {"uri": "file:///a", "diagnostics": diagnostics},
+            })))
+            .expect("frame is utf8")
+        };
+        let script = format!(
+            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; sleep 5",
+            publish(serde_json::json!([])),
+            publish(serde_json::json!([{"message": "bad"}])),
+        );
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", &script]);
+        let session = Session::from_command(command).expect("fake server starts");
+        let soon = || Instant::now() + Duration::from_secs(10);
+        let first = session
+            .wait_publication("file:///a", false, "first", soon())
+            .expect("first publication");
+        assert_eq!(first["diagnostics"], serde_json::json!([]));
+        let loaded = session
+            .wait_publication("file:///a", true, "non-empty", soon())
+            .expect("non-empty publication");
+        assert_eq!(loaded["diagnostics"][0]["message"], "bad");
+        let again = session
+            .wait_publication("file:///a", false, "again", soon())
+            .expect("log is searched first");
+        assert_eq!(again, first);
+        assert_eq!(session.publications("file:///a").expect("log").len(), 2);
+        let err = session
+            .wait_show_message(
+                "never",
+                "show message",
+                Instant::now() + Duration::from_millis(500),
+            )
+            .expect_err("no message arrives");
+        assert!(err.to_string().contains("boom"), "unexpected {err}");
     }
 }

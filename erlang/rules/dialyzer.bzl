@@ -64,6 +64,8 @@ def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code,
         inputs = list(plts) + list(beams) + list(code) + [driver],
         outputs = [out],
         tools = [dialyzer],
+        # erlexec aborts on Windows without a PATH ("No PATH variable"); the hermetic action has none.
+        env = {"PATH": "C:\\Windows\\System32;C:\\Windows", "SystemRoot": "C:\\Windows"} if escript.executable.path.endswith(".exe") else {},
         use_default_shell_env = False,
     )
 

@@ -3,7 +3,7 @@
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_ts//ts/private:options.bzl", "OptionsInfo")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 TscInfo = provider(
     doc = "Output of one non-failing tsc run over a TypeScript project.",
@@ -77,7 +77,7 @@ def _tsc_js_impl(target, ctx):
             "JS_BINARY__STDOUT_OUTPUT_FILE": _bin_relative(ctx, stdout),
             "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
         },
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
     )
     return [TscInfo(stdout = stdout, status = status)]
 
@@ -124,7 +124,7 @@ def _tsc_impl(target, ctx):
             "JS_BINARY__STDOUT_OUTPUT_FILE": _bin_relative(ctx, stdout),
             "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
         },
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
     )
     return [TscInfo(stdout = stdout, status = status)]
 

@@ -3,7 +3,7 @@
 load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity")
 load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
@@ -327,7 +327,7 @@ def _clang_syntax_impl(target, ctx):
                 inputs = depset([tidy, runner], transitive = [action.inputs, headers, tidy_closure]),
                 outputs = [tidy_log],
                 env = action.env,
-                resource_set = dx_quality_heavy_resources,
+                resource_set = dx_heavy_resources,
             )
             tidy_diagnostics.append(tidy_log)
             continue
@@ -358,7 +358,7 @@ def _clang_syntax_impl(target, ctx):
             outputs = [log, status],
             env = action.env,
             execution_requirements = requirements,
-            resource_set = dx_quality_heavy_resources,
+            resource_set = dx_heavy_resources,
         )
         if tidy_argv.error != "":
             _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
@@ -372,7 +372,7 @@ def _clang_syntax_impl(target, ctx):
                 outputs = [tidy_log],
                 env = action.env,
                 execution_requirements = requirements,
-                resource_set = dx_quality_heavy_resources,
+                resource_set = dx_heavy_resources,
             )
         argvs.append(list(argv))
         envs.append(dict(action.env))

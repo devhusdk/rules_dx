@@ -8,7 +8,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
 load("//android/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load(":repos.bzl", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
@@ -748,7 +748,7 @@ def _apk_set_impl(ctx):
         tools = [bundletool],
         env = {"JAVA_HOME": java.java_home},
         mnemonic = "DxApkSet",
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
         progress_message = "Building APK set %{label}",
     )
     return [

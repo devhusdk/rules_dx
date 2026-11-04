@@ -12,24 +12,24 @@ def dx_bundler_resources(os_name, _inputs_size):
     """Resource set for JavaScript bundler actions."""
     return {"cpu": 1, "memory": _memory(os_name, 1536)}
 
-def dx_quality_light_resources(os_name, _inputs_size):
-    """Resource set for real quality actions that run only native single-binary tools."""
+def dx_light_resources(os_name, _inputs_size):
+    """Resource set for actions that run only native single-binary tools."""
     return {"cpu": 1, "memory": _memory(os_name, 512)}
 
-def dx_quality_medium_resources(os_name, _inputs_size):
-    """Resource set for real quality actions whose heaviest tool is an interpreter or BEAM VM."""
+def dx_medium_resources(os_name, _inputs_size):
+    """Resource set for actions whose heaviest tool is an interpreter or BEAM VM."""
     return {"cpu": 1, "memory": _memory(os_name, 1024)}
 
-def dx_quality_heavy_resources(os_name, _inputs_size):
-    """Resource set for real quality actions that run a JVM, dotnet, node or compiler tool."""
+def dx_heavy_resources(os_name, _inputs_size):
+    """Resource set for actions that run a JVM, dotnet, node, compiler or Xcode tool."""
     return {"cpu": 2, "memory": _memory(os_name, 2048)}
 
 DX_QUALITY_TIERS = ["light", "medium", "heavy"]
 
 _DX_QUALITY_TIER_RESOURCES = {
-    "heavy": dx_quality_heavy_resources,
-    "light": dx_quality_light_resources,
-    "medium": dx_quality_medium_resources,
+    "heavy": dx_heavy_resources,
+    "light": dx_light_resources,
+    "medium": dx_medium_resources,
 }
 
 def dx_quality_resource_set(tiers):
@@ -40,10 +40,6 @@ def dx_quality_resource_set(tiers):
             fail("dx_quality_resource_set: unknown tier '%s'" % tier)
         rank = max(rank, DX_QUALITY_TIERS.index(tier))
     return _DX_QUALITY_TIER_RESOURCES[DX_QUALITY_TIERS[rank]]
-
-def dx_apple_compile_resources(os_name, _inputs_size):
-    """Resource set for Xcode toolchain actions."""
-    return {"cpu": 2, "memory": _memory(os_name, 2048)}
 
 _HEAVY_TEST_RESOURCES = {
     "large": {"cpu": 2, "memory": 2048},

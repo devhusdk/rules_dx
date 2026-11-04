@@ -25,7 +25,7 @@ load(
     "resolved_xcode",
 )
 load("//apple/provisioning:defs.bzl", "version_below")
-load("//libs/starlark:resources.bzl", "dx_apple_compile_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load(
     ":cell.bzl",
     "APPLE_HOSTS",
@@ -911,7 +911,7 @@ def _xcframework_check_impl(ctx):
         env = env,
         execution_requirements = xcode_config.execution_info(),
         mnemonic = "AppleXcframeworkCheck",
-        resource_set = dx_apple_compile_resources,
+        resource_set = dx_heavy_resources,
         progress_message = "Checking the XCFramework slices of %{label}",
     )
     return [DefaultInfo(files = depset([out, report]))]

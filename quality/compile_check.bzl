@@ -6,7 +6,7 @@ a sandboxed action that records stderr and the exit code. The runner only parses
 """
 
 load("//fortran/toolchain:toolchain.bzl", "MODULE_FLAG_FORMAT")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 CompileCheckInfo = provider(
     doc = "Check-only replays of the compile actions of one target.",
@@ -379,7 +379,7 @@ def _compile_check_impl(target, ctx):
             outputs = outputs + [log, status],
             env = action.env,
             execution_requirements = getattr(action, "execution_info", None),
-            resource_set = dx_quality_heavy_resources,
+            resource_set = dx_heavy_resources,
         )
         diagnostics.append(log)
         statuses.append(status)

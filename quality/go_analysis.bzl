@@ -2,7 +2,7 @@
 
 load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_go//go/private:providers.bzl", "GoStdLib")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
@@ -131,7 +131,7 @@ def _go_analysis_impl(target, ctx):
             arguments = ["-out", report.path, config_file.path],
             inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs]),
             outputs = [report],
-            resource_set = dx_quality_heavy_resources,
+            resource_set = dx_heavy_resources,
             toolchain = None,
         )
         reports[tool] = report

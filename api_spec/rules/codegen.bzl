@@ -2,7 +2,7 @@
 
 load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
 load("//libs/starlark:defs.bzl", "display_label")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ApiSpecInfo")
 
@@ -63,7 +63,7 @@ def _client_impl(ctx):
         env = _ENV,
         execution_requirements = {"block-network": "1"},
         mnemonic = "OpenapiTypescriptClient",
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
         progress_message = "redocly generate-client " + root.short_path,
     )
     return [

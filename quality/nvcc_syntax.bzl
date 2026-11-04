@@ -1,7 +1,7 @@
 """Replays each CUDA compile action of a target up to nvcc's -cuda stage."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 NvccSyntaxInfo = provider(
     doc = "Front-end-only replays of the CudaCompile actions of one CUDA target.",
@@ -172,7 +172,7 @@ def _nvcc_syntax_impl(target, ctx):
             outputs = [log, status],
             # nvcc.profile leaves CICC_PATH and NVVMIR_LIBRARY_DIR to the environment.
             env = action.env,
-            resource_set = dx_quality_heavy_resources,
+            resource_set = dx_heavy_resources,
         )
         argvs.append(list(argv))
         envs.append(dict(action.env))

@@ -1,7 +1,7 @@
 """Shared Apple bundle checks for iOS and macOS rules."""
 
 load("//apple/provisioning:defs.bzl", "version_matches")
-load("//libs/starlark:resources.bzl", "dx_apple_compile_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 _ID_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
 
@@ -134,7 +134,7 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
         env = env,
         execution_requirements = xcode_config.execution_info(),
         mnemonic = mnemonic,
-        resource_set = dx_apple_compile_resources,
+        resource_set = dx_heavy_resources,
         progress_message = "Checking the {} library cell of %{{label}}".format(cell),
     )
     return report

@@ -28,7 +28,7 @@ load(
     "deployment_floor",
     "version_below",
 )
-load("//libs/starlark:resources.bzl", "dx_apple_compile_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 _CELL = "macos/arm64"
 
@@ -325,7 +325,7 @@ def _macos_app_check_impl(ctx):
         env = env,
         execution_requirements = xcode_config.execution_info(),
         mnemonic = "AppleMacosAppCheck",
-        resource_set = dx_apple_compile_resources,
+        resource_set = dx_heavy_resources,
         progress_message = "Checking the macOS app bundle of %{label}",
     )
     launcher = ctx.actions.declare_file(ctx.label.name + "_run.sh")

@@ -6,7 +6,7 @@ load("@rules_java//java/common:java_plugin_info.bzl", "JavaPluginInfo")
 load("@rules_kotlin//kotlin/internal:defs.bzl", "KspPluginInfo", "KtCompilerPluginInfo", "KtJvmInfo", "KtPluginConfiguration")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions", "kotlinc_options_to_flags")
 load("@rules_scala//scala:providers.bzl", "DepsInfo", "ScalaInfo")
-load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
@@ -153,7 +153,7 @@ def _kotlinc_check(target, ctx, attrs):
             transitive = [classpath, plugin_jars, friends],
         ),
         outputs = [log],
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
         toolchain = None,
     )
     return [JvmCheckInfo(log = log, tool = "kotlinc")]
@@ -229,7 +229,7 @@ def _scalac_check(target, ctx, attrs):
         arguments = [args],
         inputs = depset(sources + srcjars, transitive = [classpath, jars.compiler, plugin_jars]),
         outputs = [log],
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
         toolchain = None,
     )
     return [JvmCheckInfo(log = log, tool = "scalac")]
@@ -279,7 +279,7 @@ def _jvm_check_impl(target, ctx):
             transitive = [classpath, boot_classpath, processor_jars, processor_data],
         ),
         outputs = [log],
-        resource_set = dx_quality_heavy_resources,
+        resource_set = dx_heavy_resources,
         toolchain = None,
     )
     return [JvmCheckInfo(log = log, tool = "javac")]

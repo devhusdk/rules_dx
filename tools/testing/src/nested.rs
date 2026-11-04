@@ -1550,22 +1550,6 @@ pub fn seed_lock_json(lock: &str) -> Result<String, String> {
     Ok(text)
 }
 
-/// Appends a `local_path_override` that points `rules_dx` at the checkout in `rules`.
-///
-/// Panics when `module` has no `bazel_dep(name = "rules_dx"` line, or already has an override.
-pub fn with_rules_dx_override(module: &str, rules: &Path) -> String {
-    assert!(
-        module.contains("bazel_dep(name = \"rules_dx\""),
-        "consumer MODULE.bazel has no rules_dx bazel_dep:\n{module}"
-    );
-    assert!(
-        !module.contains("local_path_override(module_name = \"rules_dx\""),
-        "consumer MODULE.bazel already overrides rules_dx:\n{module}"
-    );
-    let path = rules.display().to_string().replace('\\', "/");
-    format!("{module}local_path_override(module_name = \"rules_dx\", path = \"{path}\")\n")
-}
-
 /// Writes `root/MODULE.bazel.lock` holding the extension facts of the rules_dx checkout at `rules`.
 ///
 /// The consumer must pin the `.bazelversion` of the same checkout, or Bazel ignores the lock.
@@ -2069,21 +2053,6 @@ mod tests {
         seed_rules_dx_lock(root.path(), rules.path());
         let text = std::fs::read_to_string(root.path().join("MODULE.bazel.lock")).expect("read");
         assert_eq!(text, seed_lock_json(LOCK).expect("seed"));
-    }
-
-    #[test]
-    fn rules_dx_override_is_appended_exactly_once() {
-        let module = "bazel_dep(name = \"rules_dx\", version = \"1\")\n";
-        let out = with_rules_dx_override(module, Path::new("/src/rules"));
-        assert_eq!(out.matches("local_path_override").count(), 1, "{out}");
-        assert!(out.starts_with(module), "{out}");
-        assert!(out.ends_with("path = \"/src/rules\")\n"), "{out}");
-    }
-
-    #[test]
-    #[should_panic(expected = "no rules_dx bazel_dep")]
-    fn rules_dx_override_fails_without_the_dep() {
-        with_rules_dx_override("module(name = \"x\")\n", Path::new("/src"));
     }
 
     #[test]

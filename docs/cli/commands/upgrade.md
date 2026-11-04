@@ -9,7 +9,7 @@ bazel run @rules_dx//:dx -- upgrade --to 2.0.0 --apply
 dx upgrade [--apply] --to <version>
 ```
 
-Moves `rules_dx` and the pin in `.dx/version` to `--to`. It reads the current
+Moves `rules_dx` and the pin in `.dx/pins` to `--to`. It reads the current
 version from the `rules_dx` `bazel_dep` in `MODULE.bazel`. `--to` may be newer
 or older than that version, so the same
 command upgrades and rolls back. Checks by default; `--apply` makes the move.
@@ -27,7 +27,7 @@ Scopes: none.
 3. When `--to` is not the version of this `dx`, the `--to` binary takes over
    with `bazel run @rules_dx//:dx -- upgrade --to <to> --apply` and writes
    the rest. This `dx` stops there and returns its exit code.
-4. `.dx/version` with `--to` and its sha256 lines. It is written on every
+4. `.dx/pins` with `--to` and its sha256 lines. It is written on every
    run, so a missing or stale file is regenerated.
 5. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
    differs from the current text. It never creates a launcher.

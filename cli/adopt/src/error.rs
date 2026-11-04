@@ -8,7 +8,7 @@ pub enum AdoptError {
     ReadFile { path: String, detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
-    #[error(".dx/version is missing; run `tools/dx init --apply`")]
+    #[error(".dx/pins is missing; run `tools/dx init --apply`")]
     MissingVersionPin,
     #[error("read MODULE.bazel: {detail}")]
     ReadModuleFile { detail: String },
@@ -18,7 +18,7 @@ pub enum AdoptError {
     ModulePin { path: String, detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
-    #[error("invalid .dx/version: {version:?} is not semver")]
+    #[error("invalid .dx/pins: {version:?} is not semver")]
     InvalidVersionPin { version: String },
     #[error("launcher sha256 pins: {detail}")]
     LauncherPins { detail: String },
@@ -142,7 +142,7 @@ mod tests {
         );
         assert_eq!(
             AdoptError::MissingVersionPin.to_string(),
-            ".dx/version is missing; run `tools/dx init --apply`"
+            ".dx/pins is missing; run `tools/dx init --apply`"
         );
         assert_eq!(
             AdoptError::ReadModuleFile {

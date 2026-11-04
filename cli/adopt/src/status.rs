@@ -567,7 +567,7 @@ mod tests {
         .expect("module");
         let check = super::module_check(&dir);
         assert_eq!(check.status, "error");
-        assert!(!check.hint.contains(".dx/version"), "{}", check.hint);
+        assert!(!check.hint.contains(".dx/pins"), "{}", check.hint);
         std::fs::remove_dir_all(&dir).ok();
     }
 

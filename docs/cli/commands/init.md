@@ -88,15 +88,15 @@ Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
 It also flags a missing preset import. It flags a dx-written launcher that differs from the current launcher text
-and an empty or non-semver `.dx/version`. It flags
+and an empty or non-semver `.dx/pins`. It flags
 a missing `AGENTS.md`, an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks, and a
 `CLAUDE.md` without the `@AGENTS.md` import. It looks at the tool files only when they exist or `--agents` names their agent, so a deleted tool file is not drift.
 When nothing is missing or stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
-`dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/version ("<pin>")`
+`dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/pins ("<pin>")`
 to stderr (only the parts that apply), followed by the `dx init --apply` command to run
 (`dx init <dir> --apply` when a directory was given). Apply adds the missing hooks to an existing hooks file. An invalid pin is not fixed by apply: write the module version to
-`.dx/version`, which the message names.
+`.dx/pins`, which the message names.
 Apply checks every destination before the first write. A path whose parent is
 a file, such as a `.vscode` file, an unreadable hooks file, or an `AGENTS.md`
 with a begin marker and no end marker fails with `init_failed` and writes
@@ -121,7 +121,7 @@ match the running dx.
 
 | Path | Owner | What `dx init --apply` updates |
 | --- | --- | --- |
-| `.dx/version` | dx | Generated. Line 1 is the version, then one sha256 line per release binary. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
+| `.dx/pins` | dx | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx upgrade --apply` deletes the old `.dx/version`. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
 | `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
 | `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
@@ -236,9 +236,9 @@ when they exist.
 
 ## Launcher
 
-`tools/dx` (sh) and `tools/dx.cmd` run dx without Bazel. They read `.dx/version`,
+`tools/dx` (sh) and `tools/dx.cmd` run dx without Bazel. They read `.dx/pins`,
 download the matching standalone binary from the GitHub release into
-`<cache>/bin/<version>/`, check it against the sha256 pinned in `.dx/version` for
+`<cache>/bin/<version>/`, check it against the sha256 pinned in `.dx/pins` for
 that platform, and run it. The launcher never downloads a hash file, so a
 swapped release asset and its `.sha256` cannot pass. A cached binary is only
 run. No Bazel server starts.
@@ -257,7 +257,7 @@ arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx 
 command to use instead when the download fails or the platform has no binary.
 A binary that does not match its pinned sha256 is deleted and never run.
 
-The launchers are the same for every dx version. `.dx/version` holds the
+The launchers are the same for every dx version. `.dx/pins` holds the
 version on line 1, then one `<sha256>  dx-<os>-<arch>` line per release binary:
 
 ```text
@@ -274,25 +274,25 @@ cache still runs.
 
 Run from another checkout of the same git repo (a `dx worktree` slot or a
 `git worktree`), the launcher first runs that checkout's own `tools/dx`, so that
-checkout's `.dx/version` pin applies. `worktree hook` commands never hand off.
+checkout's `.dx/pins` pin applies. `worktree hook` commands never hand off.
 Separate clones, other repos, and machines without `git` are not handed off.
 Existing launchers gain this on their next upgrade.
 
-When `.dx/version` is missing or has an invalid version, the launcher exits `1`
+When `.dx/pins` is missing or has an invalid version, the launcher exits `1`
 and prints:
 
 ```text
-dx: .dx/version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply
-dx: .dx/version has an invalid version '<v>'; refresh it: bazel run @rules_dx//:dx -- init --apply
+dx: .dx/pins is missing; refresh it: bazel run @rules_dx//:dx -- init --apply
+dx: .dx/pins has an invalid version '<v>'; refresh it: bazel run @rules_dx//:dx -- init --apply
 ```
 
 `dx init --apply` writes a missing launcher and rewrites a dx launcher that
 differs from the current text. dx treats a launcher as its own when it starts
 with the template's first three lines (`#!/bin/sh`, `set -eu`,
-`DX_PINS=.dx/version`, or `@echo off`, `setlocal`, `set "DX_PINS=.dx\version"`),
+`DX_PINS=.dx/pins`, or `@echo off`, `setlocal`, `set "DX_PINS=.dx\pins"`),
 or the older `VERSION=` form. Any other launcher is yours and is never
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
-When `.dx/version` is not semver, `dx init --apply` fails with `init_failed`
+When `.dx/pins` is not semver, `dx init --apply` fails with `init_failed`
 before writing any file. It also fails when `MODULE.bazel` pins a different
 `rules_dx` than the running `dx`. `dx upgrade --apply` refreshes existing launchers the same way.
 

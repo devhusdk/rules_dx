@@ -42,7 +42,7 @@ dx() { bazel run @rules_dx//:dx -- "$@"; }
 
 expect_version() {
   grep -q "version = \"$1\"" MODULE.bazel || { echo "MODULE.bazel is not at $1"; exit 1; }
-  grep -q "$1" .dx/version || { echo ".dx/version is not at $1"; exit 1; }
+  grep -q "$1" .dx/pins || { echo ".dx/pins is not at $1"; exit 1; }
 }
 
 dx init

@@ -19,7 +19,7 @@ downloads, installs, repairs, and runs nothing.
 Output: `--output text|json`. `--capabilities` adds the capability records.
 
 Exit codes: `0` all checks pass, `2` usage error, `1` a check failed or
-`.dx/version` is missing.
+`.dx/pins` is missing.
 
 ## Failure Explainer
 
@@ -70,7 +70,7 @@ directory cannot be opened.
   corrupt, or a tool link is missing, is not a link, or points at a missing
   Bazel artifact. Pinned quality tools resolve at build time and are not
   probed.
-- `pin`: compares `.dx/version` with the rules_dx module version this `dx`
+- `pin`: compares `.dx/pins` with the rules_dx module version this `dx`
   was built from. An empty or invalid (non-semver) pin hints
   `dx init --apply`.
 - `init`: names each file `dx init` writes that is missing or out of date: the
@@ -102,10 +102,10 @@ command is accepted, not that its tools are installed.
 A failure emits exactly one error event and exits `1`. If `pin` fails, the
 event is `status_pin_mismatch`, even when other checks fail too. Otherwise
 any failed check adds `status_check_failed`, which names the failed checks.
-An empty `.dx/version` fails the `pin` check.
+An empty `.dx/pins` fails the `pin` check.
 
-A missing `.dx/version` stops `dx status` with `status_pin_mismatch`
-(`.dx/version is missing`, with the next step `tools/dx init --apply`) before any check runs. It prints no check lines.
+A missing `.dx/pins` stops `dx status` with `status_pin_mismatch`
+(`.dx/pins is missing`, with the next step `tools/dx init --apply`) before any check runs. It prints no check lines.
 JSON output has only `command_started`, `error`, and `command_finished`.
 
 ```text
@@ -115,7 +115,7 @@ dx: status_check_failed: failed checks: module, tools (see hint)
 `dx --version` prints the binary version and exits `0`. `dx status` reports
 the pin, the module version, and the `rules_dx` dependency. To change the pin,
 run `dx upgrade --to <module version> --apply`. When the pin is not semver,
-write the module version to `.dx/version`.
+write the module version to `.dx/pins`.
 
 The [global shim](README.md#global-shim) sets `DX_SHIM=1` for the dx binary
 it runs.
@@ -124,7 +124,7 @@ it runs.
 
 Every command compares the rules_dx version in `MODULE.bazel` with the version
 built into `dx` before it runs. A mismatch is version skew. Without a rules_dx
-`bazel_dep`, the version in `.dx/version` is used. For example, `MODULE.bazel`
+`bazel_dep`, the version in `.dx/pins` is used. For example, `MODULE.bazel`
 says `1.2.0` and the binary is `1.3.0`, so `dx build` stops with
 `version skew: binary 1.3.0 MODULE.bazel rules_dx 1.2.0`.
 
@@ -133,7 +133,7 @@ says `1.2.0` and the binary is `1.3.0`, so `dx build` stops with
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it
-wraps. A missing or empty `.dx/version` is not skew, so other commands run.
+wraps. A missing or empty `.dx/pins` is not skew, so other commands run.
 An empty pin fails the `pin` check in `dx status`.
 A missing file makes `dx status` exit `1` with
 `status_pin_mismatch`.

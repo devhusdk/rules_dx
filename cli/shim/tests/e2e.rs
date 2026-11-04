@@ -34,11 +34,7 @@ impl Fixture {
         server.release(VERSION, &asset, &fake, &fake);
         let workspace = tempfile::tempdir().expect("workspace");
         std::fs::create_dir_all(workspace.path().join(".dx")).expect("mkdir");
-        std::fs::write(
-            workspace.path().join(".dx/version"),
-            format!("{VERSION}\r\n"),
-        )
-        .expect("pin");
+        std::fs::write(workspace.path().join(".dx/pins"), format!("{VERSION}\r\n")).expect("pin");
         Self {
             server,
             cache: tempfile::tempdir().expect("cache"),
@@ -218,7 +214,7 @@ fn outside_a_workspace_fails_with_exit_1() {
     assert_eq!(
         stderr(&output),
         format!(
-            "dx: not in a dx workspace (no .dx/version above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module\n",
+            "dx: not in a dx workspace (no .dx/pins above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module\n",
             cwd.display()
         )
     );

@@ -81,7 +81,7 @@ fn init_in_an_empty_dir() {
     let (_guard, root, home) = setup("adopt-empty");
     init(&root, &home);
     for file in [
-        ".dx/version",
+        ".dx/pins",
         "tools/dx",
         "tools/dx.cmd",
         "MODULE.bazel",
@@ -127,7 +127,7 @@ fn init_in_an_existing_module() {
 fn upgrade_moves_an_older_pin_to_this_dx() {
     let (_guard, root, home) = setup("adopt-upgrade");
     init(&root, &home);
-    let version_file = root.join(".dx/version");
+    let version_file = root.join(".dx/pins");
     let built = read(&version_file).trim().to_string();
     let launchers = [root.join("tools/dx"), root.join("tools/dx.cmd")];
     let fresh: Vec<String> = launchers.iter().map(|path| read(path)).collect();

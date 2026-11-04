@@ -54,7 +54,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
     if !workspace.join("MODULE.bazel").exists() {
         fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
     }
-    fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+    fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     fs::create_dir_all(workspace.join("pkg")).expect("pkg dir");
     fs::write(workspace.join("pkg/BUILD.bazel"), "").expect("pkg build file");

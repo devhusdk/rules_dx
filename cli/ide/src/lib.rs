@@ -196,7 +196,7 @@ fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
 
 fn inputs_digest(workspace: &Path, active: &[&Plugin]) -> String {
     let mut bytes = Vec::new();
-    for file in [".dx/version", "MODULE.bazel", "MODULE.bazel.lock"] {
+    for file in [".dx/pins", "MODULE.bazel", "MODULE.bazel.lock"] {
         bytes.extend_from_slice(file.as_bytes());
         bytes.push(0);
         bytes.extend(std::fs::read(workspace.join(file)).unwrap_or_default());
@@ -367,14 +367,14 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("a.ts"), "").expect("ts");
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "1").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "1").expect("pin");
         let runner = fake(root);
         let first = refresh(root, &runner).expect("first");
         assert_eq!(first.failed, []);
         assert!(first.ran);
         assert!(!refresh(root, &runner).expect("second").ran);
         assert_eq!(runner.calls.get(), 1);
-        std::fs::write(root.join(".dx/version"), "2").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "2").expect("pin");
         refresh(root, &runner).expect("third");
         assert_eq!(runner.calls.get(), 2);
         scratch.close().expect("cleanup");

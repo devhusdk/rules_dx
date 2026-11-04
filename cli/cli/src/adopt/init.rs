@@ -244,7 +244,7 @@ fn check_init(
         .collect();
     let has_entries = !clauses.is_empty();
     if let Some(pin) = &invalid_pin {
-        clauses.push(format!("invalid .dx/version ({pin:?})"));
+        clauses.push(format!("invalid .dx/pins ({pin:?})"));
     }
     if !conflicts.is_empty() {
         clauses.push(format!(
@@ -397,7 +397,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-semver-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "v1\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "v1\n").expect("pin");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 1);
         assert!(err.contains("init_failed"), "{err}");
@@ -440,11 +440,11 @@ mod tests {
             let root = scratch.path().to_path_buf();
             let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
             assert_eq!(code, 0);
-            std::fs::write(root.join(".dx/version"), format!("{bad}\n")).expect("pin");
+            std::fs::write(root.join(".dx/pins"), format!("{bad}\n")).expect("pin");
             let (code, _out, err) = run(&invocation(&["init"]), &root);
             assert_eq!(code, 1, "{bad:?}");
             assert!(
-                err.contains("init drift: ") && err.contains("invalid .dx/version"),
+                err.contains("init drift: ") && err.contains("invalid .dx/pins"),
                 "{err}"
             );
             assert!(err.contains("dx init --apply"), "{err}");
@@ -462,7 +462,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(root.join(".dx/version").exists());
+        assert!(root.join(".dx/pins").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());
         assert!(root.join(".claude/settings.json").exists());
         assert!(root.join(".codex/hooks.json").exists());
@@ -706,12 +706,12 @@ mod tests {
         assert!(err.contains("init_failed"), "{err}");
         assert!(err.contains("init drift"), "{err}");
         assert!(err.contains("--apply"), "{err}");
-        assert!(!root.join(".dx/version").exists(), "check must not write");
+        assert!(!root.join(".dx/pins").exists(), "check must not write");
         assert!(!root.join(".devcontainer/devcontainer.json").exists());
         let inv = invocation(&["init", "--apply"]);
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(root.join(".dx/version").exists());
+        assert!(root.join(".dx/pins").exists());
         let inv = invocation(&["init"]);
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0, "{out}");
@@ -772,7 +772,7 @@ mod tests {
             out.contains("wrote nested/Demo App/MODULE.bazel\n"),
             "{out}"
         );
-        assert!(out.contains("wrote nested/Demo App/.dx/version\n"), "{out}");
+        assert!(out.contains("wrote nested/Demo App/.dx/pins\n"), "{out}");
         let dir = root.join("nested/Demo App");
         let module = std::fs::read_to_string(dir.join("MODULE.bazel")).expect("module");
         assert!(module.contains("name = \"demo_app\""), "{module}");
@@ -846,7 +846,7 @@ mod tests {
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
         for path in [
-            ".dx/version",
+            ".dx/pins",
             ".gitignore",
             ".bazelignore",
             "tools/dx",
@@ -875,7 +875,7 @@ mod tests {
             assert_eq!(code, 0, "{path}: {out}{err}");
         }
         for path in [
-            ".dx/version",
+            ".dx/pins",
             ".gitignore",
             ".bazelignore",
             "tools/dx",

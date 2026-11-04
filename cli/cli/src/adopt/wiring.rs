@@ -124,7 +124,7 @@ mod tests {
         .expect("stale");
         std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "4.5.6\n").expect("pin");
         let (code, out, err) = init(root);
         assert_eq!(code, 0);
         assert_eq!(out, "wrote tools/dx\n");
@@ -144,7 +144,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-semver-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "1\"; x\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "1\"; x\n").expect("pin");
         assert!(init_files::preflight(root, "", &plan(root)).is_err());
         let (code, _out, err) = init(root);
         assert_eq!(code, 1);

@@ -9,7 +9,7 @@ _BUILD_BAZEL = '''genrule(
         "public_help.txt",
         "public_status.txt",
         "public_version.txt",
-        "workspace/.dx/version",
+        "workspace/.dx/pins",
         "workspace/MODULE.bazel",
     ],
     cmd = """
@@ -21,12 +21,12 @@ crate="$(location @rules_dx//cli/cli:dx)"
 cmp "$(location public_help.txt)" "$(location crate_help.txt)"
 echo 'module(name = "consumer", version = "0.0.0")' > "$(location workspace/MODULE.bazel)"
 echo 'bazel_dep(name = "rules_dx", version = "0.0.0")' >> "$(location workspace/MODULE.bazel)"
-echo '0.0.0' > "$(location workspace/.dx/version)"
+echo '0.0.0' > "$(location workspace/.dx/pins)"
 ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" status --workspace "$$ws" > "$(location public_status.txt)"
 "$$public" --version > "$(location public_version.txt)"
 "$$public" completion bash --workspace "$$ws" > "$(location public_completion.txt)"
-echo '9.9.9' > "$(location workspace/.dx/version)"
+echo '9.9.9' > "$(location workspace/.dx/pins)"
 if "$$public" status --workspace "$$ws" > "$(location public_drift.txt)" 2>&1; then
   echo "dx status accepted a drifted pin" >&2
   exit 1
@@ -63,7 +63,7 @@ gen=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 setup=3b047baa3764c0439825877a47aabce13030571807c14b34ba597ca402021770
 workspace() {
   mkdir -p "$$root/$$1/.dx"
-  echo "$$2" > "$$root/$$1/.dx/version"
+  echo "$$2" > "$$root/$$1/.dx/pins"
   echo 'module(name = "consumer_status", version = "0.0.0")' > "$$root/$$1/MODULE.bazel"
   if [ -n "$$3" ]; then
     echo 'bazel_dep(name = "rules_dx", version = "'"$$3"'")' >> "$$root/$$1/MODULE.bazel"
@@ -147,7 +147,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "security_ruby_json.txt",
         "update_pinned.txt",
         "sets_ok/MODULE.bazel",
-        "sets_ok/.dx/version",
+        "sets_ok/.dx/pins",
         "sets_ok/apps/frontend/pyproject.toml",
         "sets_ok/apps/frontend/uv.lock",
         "sets_ok/services/worker/pyproject.toml",
@@ -159,9 +159,9 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/rs/Cargo.toml",
         "sets_ok/apps/rs/Cargo.lock",
         "sets_bad/MODULE.bazel",
-        "sets_bad/.dx/version",
+        "sets_bad/.dx/pins",
         "sets_nolock/MODULE.bazel",
-        "sets_nolock/.dx/version",
+        "sets_nolock/.dx/pins",
         "sets_nolock/apps/frontend/pyproject.toml",
     ],
     cmd = """
@@ -175,7 +175,7 @@ trap 'rm -rf "$$orig"' EXIT
 for ws in "$$ok" "$$bad" "$$nolock"; do
   echo 'module(name = "consumer_sets", version = "0.0.0")' > "$$ws/MODULE.bazel"
   mkdir -p "$$ws/.dx"
-  echo '0.0.0' > "$$ws/.dx/version"
+  echo '0.0.0' > "$$ws/.dx/pins"
 done
 cat >> "$(location sets_ok/MODULE.bazel)" <<'EOF'
 uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
@@ -358,8 +358,8 @@ _SCAFFOLD_BUILD_BAZEL = '''genrule(
         "init_bad.txt",
         "foreign/myproj/MODULE.bazel",
         "foreign/myproj/.bazelversion",
-        "foreign/myproj/.dx/version",
-        "fortree/.dx/version",
+        "foreign/myproj/.dx/pins",
+        "fortree/.dx/pins",
     ],
     cmd = """
 set -eu
@@ -382,10 +382,10 @@ grep -q "unrecognized subcommand 'new'" "$(location new_removed.txt)"
 test ! -e "$$foreign/bad"
 "$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_dir_apply.txt)"
-grep -q "wrote myproj/.dx/version" "$(location init_dir_apply.txt)"
+grep -q "wrote myproj/.dx/pins" "$(location init_dir_apply.txt)"
 test -f "$$foreign/myproj/MODULE.bazel"
 test -f "$$foreign/myproj/.bazelversion"
-test -f "$$foreign/myproj/.dx/version"
+test -f "$$foreign/myproj/.dx/pins"
 grep -q 'name = "myproj"' "$$foreign/myproj/MODULE.bazel"
 cp "$$foreign/myproj/MODULE.bazel" "$$root/module.orig"
 "$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_reapply.txt)" 2>&1
@@ -393,8 +393,8 @@ echo "exit=0" >> "$(location init_dir_reapply.txt)"
 cmp "$$root/module.orig" "$$foreign/myproj/MODULE.bazel"
 "$$public" init --apply --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_apply.txt)"
-grep -q "wrote .dx/version" "$(location init_apply.txt)"
-test -f "$$fortree/.dx/version"
+grep -q "wrote .dx/pins" "$(location init_apply.txt)"
+test -f "$$fortree/.dx/pins"
 test ! -e "$$fortree/MODULE.bazel"
 if "$$public" init --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then
   echo "check-mode applied a scaffold" >&2

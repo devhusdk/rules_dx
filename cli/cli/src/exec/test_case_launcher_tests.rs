@@ -55,7 +55,7 @@ fn run(
         fs::create_dir_all(dir).expect("dir");
     }
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
-    fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+    fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     let fresh = logs.join("fresh.xml");
     let warm = logs.join("warm.xml");

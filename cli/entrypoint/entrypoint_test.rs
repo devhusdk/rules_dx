@@ -262,7 +262,7 @@ fn consumer_init_creates_a_new_directory() {
     for path in [
         "wrote myproj/MODULE.bazel\n",
         "wrote myproj/.bazelversion\n",
-        "wrote myproj/.dx/version\n",
+        "wrote myproj/.dx/pins\n",
         "wrote myproj/tools/dx\n",
         "wrote myproj/third_party/rules_dx/rules_dx.MODULE.bazel\n",
     ] {

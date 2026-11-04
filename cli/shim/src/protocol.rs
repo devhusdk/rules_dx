@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 pub const SHIM_VERSION: &str = "0.0.0";
 pub const DEFAULT_RELEASE_BASE: &str = "https://github.com/devhusdk/rules_dx/releases/download";
 
-pub const VERSION_FILE: &str = ".dx/version";
+pub const VERSION_FILE: &str = ".dx/pins";
 pub const EXIT_USAGE: i32 = 2;
 pub const EXIT_FAILURE: i32 = 1;
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,7 +81,7 @@ pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<(String, VersionSo
     }
     let Some(file) = find_version_file(cwd) else {
         return Err(ShimError::failure(format!(
-            "not in a dx workspace (no .dx/version above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
+            "not in a dx workspace (no .dx/pins above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
             cwd.display()
         )));
     };

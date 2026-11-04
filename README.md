@@ -11,7 +11,7 @@ Status: rules_dx is not released yet. Install starts with the first BCR release.
 Bazel via Bazelisk (reads `.bazelversion`).
 
 A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
-`.dx/version` without Bazel. See
+`.dx/pins` without Bazel. See
 [Global Shim](docs/cli/commands/README.md#global-shim).
 
 Once releases ship, run `dx` without Bazel: download a release archive with `gh`

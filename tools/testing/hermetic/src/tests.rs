@@ -626,7 +626,7 @@ fn the_consumer_materializes_from_dx_init() {
         );
     }
     assert!(
-        workspace.join(".dx/version").is_file(),
+        workspace.join(".dx/pins").is_file(),
         "dx init pins the version"
     );
     assert_eq!(

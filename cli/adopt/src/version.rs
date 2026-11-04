@@ -50,19 +50,24 @@ pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> boo
 
 pub fn read_version_pin(root: &Path) -> Result<String, AdoptError> {
     let raw = read_pin_file(root)?;
-    Ok(raw.lines().next().unwrap_or_default().trim().to_owned())
+    let first = raw.lines().next().unwrap_or_default();
+    Ok(first
+        .split_whitespace()
+        .next()
+        .unwrap_or_default()
+        .to_owned())
 }
 
 pub fn read_version_pins(root: &Path) -> Result<crate::LauncherPins, AdoptError> {
     let raw = read_pin_file(root)?;
-    crate::LauncherPins::from_pin_lines(raw.lines().skip(1))
+    crate::LauncherPins::from_pin_lines(raw.lines())
 }
 
 fn read_pin_file(root: &Path) -> Result<String, AdoptError> {
-    std::fs::read_to_string(root.join(".dx/version")).map_err(|e| match e.kind() {
+    std::fs::read_to_string(root.join(".dx/pins")).map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => AdoptError::MissingVersionPin,
         _ => AdoptError::ReadVersionPin {
-            detail: format!(".dx/version: {e}"),
+            detail: format!(".dx/pins: {e}"),
         },
     })
 }
@@ -83,13 +88,18 @@ pub fn write_version_pins(
     std::fs::create_dir_all(&dir).map_err(|e| AdoptError::CreateDxDir {
         detail: e.to_string(),
     })?;
-    let text = format!("{version}\n{}", pins.to_lines());
-    dx_atomic_fs::write_atomic(&dir.join("version"), text.as_bytes()).map_err(|e| {
+    let text = pins.to_lines(version);
+    dx_atomic_fs::write_atomic(&dir.join("pins"), text.as_bytes()).map_err(|e| {
         AdoptError::WriteVersionPin {
             detail: e.to_string(),
         }
     })?;
-    Ok(())
+    match std::fs::remove_file(dir.join("version")) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(AdoptError::WriteVersionPin {
+            detail: format!(".dx/version: {e}"),
+        }),
+        _ => Ok(()),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

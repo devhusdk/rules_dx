@@ -87,7 +87,7 @@ fn outside_a_workspace_names_cwd() {
     assert_eq!(
         err.to_string(),
         format!(
-            "dx: not in a dx workspace (no .dx/version above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
+            "dx: not in a dx workspace (no .dx/pins above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
             dir.path().display()
         )
     );

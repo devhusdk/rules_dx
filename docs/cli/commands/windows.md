@@ -14,7 +14,7 @@ winget install --id Git.Git -e
 ## PowerShell
 
 `tools\dx.cmd` uses PowerShell to download the pinned `dx` release binary from
-GitHub and checks its sha256 against `.dx/version`. It caches the binary in
+GitHub and checks its sha256 against `.dx/pins`. It caches the binary in
 `%USERPROFILE%\.cache\dx`. If the download fails, it prints the Bazel command to
 run instead and exits with an error. PowerShell needs network access to
 `github.com`. For proxy and custom CA setup, see

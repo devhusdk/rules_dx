@@ -474,7 +474,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-status-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
@@ -487,7 +487,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-launcher-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         dx_adopt::write_launcher_files(&root, &mut dx_adopt::Applied::default())
             .expect("launchers");
@@ -515,7 +515,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-json-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0);
@@ -553,7 +553,7 @@ mod tests {
             let scratch = dx_test_scratch::scratch("dx-adopt-status-mismatch-");
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
-            std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+            std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
             write_module(&root);
             let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
@@ -588,7 +588,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
-            assert!(err.contains(".dx/version is missing"), "words: {words:?}");
+            assert!(err.contains(".dx/pins is missing"), "words: {words:?}");
             assert!(err.contains("dx init --apply"), "words: {words:?}");
             let stdout = out;
             assert!(!stdout.contains("pin: ok"), "words: {words:?}");
@@ -613,7 +613,7 @@ mod tests {
                     serde_json::json!("status_pin_mismatch")
                 );
                 let message = events[error_index]["message"].to_string();
-                assert!(message.contains(".dx/version is missing"), "{message}");
+                assert!(message.contains(".dx/pins is missing"), "{message}");
                 assert!(message.contains("dx init --apply"), "{message}");
             }
         }
@@ -625,7 +625,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-empty-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "\n").expect("empty pin");
+        std::fs::write(root.join(".dx/pins"), "\n").expect("empty pin");
         write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
@@ -639,7 +639,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-text-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
@@ -661,7 +661,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-compact-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         let json = invocation(&["status", "--output=json"]);
         let (code, out, err) = run(&json, &root);
@@ -684,7 +684,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-verbose-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
@@ -699,7 +699,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-json-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
@@ -738,7 +738,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-health-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         std::fs::write(
             root.join("MODULE.bazel"),
             "bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\n",
@@ -781,7 +781,7 @@ mod tests {
             let scratch = dx_test_scratch::scratch("dx-adopt-status-bare-");
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
-            std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+            std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
             std::fs::write(root.join("MODULE.bazel"), "module(name = \"app\")\n").expect("module");
             let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
@@ -797,7 +797,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-both-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
         let (code, _, err) = run(&inv, &root);
         assert_eq!(code, 1);
         assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
@@ -809,7 +809,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-tool-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx/setups")).expect("setups");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         write_module(&root);
         std::fs::write(root.join(".dx/setups/current"), "foreign").expect("foreign");
         let (code, out, err) = run(&inv, &root);
@@ -837,7 +837,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-fail-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
         write_module(&root);
         let (code, out, _) = run(&inv, &root);
         assert_eq!(code, 1);
@@ -866,7 +866,7 @@ mod tests {
             let scratch = dx_test_scratch::scratch("dx-adopt-status-broken-");
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
-            std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+            std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
             write_module(&root);
             let mut err = Vec::new();
             let code = execute_status(&inv, &root, &mut BrokenPipeWriter, &mut err);

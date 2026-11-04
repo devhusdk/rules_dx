@@ -90,7 +90,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-skew-pin-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "1.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "1.0.0\n").expect("pin");
         assert_eq!(read_pin(root), "1.0.0");
         std::fs::write(
             root.join("MODULE.bazel"),
@@ -244,7 +244,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-skew-pin-");
         let dir = scratch.path().to_path_buf();
         let _ = std::fs::create_dir_all(dir.join(".dx"));
-        std::fs::write(dir.join(".dx/version"), "9.9.9\n").expect("write pin");
+        std::fs::write(dir.join(".dx/pins"), "9.9.9\n").expect("write pin");
         let pin = read_pin(&dir);
         assert_eq!(pin, "9.9.9");
         assert!(is_skewed(&pin));

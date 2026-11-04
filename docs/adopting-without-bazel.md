@@ -45,7 +45,7 @@ settings point at. rust-analyzer uses the rules_rust discover targets that
 ## What to commit
 
 - `tools/dx*`
-- `.dx/version`
+- `.dx/pins`
 - `MODULE.bazel` and `MODULE.bazel.lock`
 - `.bazelrc`
 - `AGENTS.md`

@@ -32,7 +32,7 @@ fn run_with(verb: &str, flags: &[&str]) -> (Option<i32>, String, String, Option<
         fs::create_dir_all(dir).expect("dir");
     }
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
-    fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+    fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     let stderr_file = base.join("action-stderr");
     fs::write(&stderr_file, format!("{DIAGNOSTIC}\n")).expect("stderr");
@@ -154,7 +154,7 @@ fn the_launcher_reports_a_bazel_killed_by_its_own_signal() {
         fs::create_dir_all(dir).expect("dir");
     }
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
-    fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+    fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     let bazel = bin.join("bazel");
     fs::write(&bazel, SIGNALLED_BAZEL).expect("fake bazel");

@@ -108,7 +108,7 @@ impl Consumer {
             fs::create_dir_all(dir).expect("dir");
         }
         fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
-        fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+        fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
         fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
         let bazel = base.join("bin/bazel");

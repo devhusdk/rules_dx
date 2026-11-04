@@ -9,7 +9,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     let root = scratch.path().to_path_buf();
     std::fs::create_dir(root.join(".dx")).expect("dx");
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+    std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
     let run = |words: &[&str], envs: &[(&str, &str)]| {
         let mut command = assert_cmd::Command::new(dx_binary());
         command.current_dir(&root);
@@ -120,7 +120,7 @@ fn sample_workspace(name: &str) -> dx_test_scratch::TempDir {
     let scratch = dx_test_scratch::scratch(name);
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(scratch.path().join(".dx/version"), "0.0.0\n").expect("pin");
+    std::fs::write(scratch.path().join(".dx/pins"), "0.0.0\n").expect("pin");
     scratch
 }
 
@@ -314,7 +314,7 @@ fn init_and_completion_run_without_a_workspace() {
     );
     assert!(out.contains("wrote demo/MODULE.bazel\n"), "{out}");
     assert!(root.join("demo/MODULE.bazel").is_file());
-    assert!(root.join("demo/.dx/version").is_file());
+    assert!(root.join("demo/.dx/pins").is_file());
     let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "completion works outside a workspace: {err}");
     assert!(out.contains("COMPLETE"), "{out}");

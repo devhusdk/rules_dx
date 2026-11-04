@@ -150,7 +150,7 @@ fn hand_off(
     }
 }
 
-/// Moves the `.dx/version` pin to `--to`, newer or older, then refreshes existing
+/// Moves the `.dx/pins` pin to `--to`, newer or older, then refreshes existing
 /// launchers and an existing AGENTS.md block. Every refusal runs before the first write.
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
@@ -629,7 +629,7 @@ mod tests {
             .filter(|entry| !before.contains(entry))
             .map(|(path, _)| path)
             .collect();
-        assert_eq!(changed, vec![root.join(".dx/version")]);
+        assert_eq!(changed, vec![root.join(".dx/pins")]);
     }
 
     #[test]
@@ -724,7 +724,7 @@ mod tests {
     }
 
     #[test]
-    fn a_dep_in_an_included_file_is_edited_there() {
+    fn a_dep_in_an_included_file_is_refused() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-include-", OLD);
         std::fs::write(
             root.join("MODULE.bazel"),
@@ -732,11 +732,9 @@ mod tests {
         )
         .expect("module");
         std::fs::write(root.join("deps.MODULE.bazel"), dep(OLD)).expect("include");
-        let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &Recorder::default());
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("wrote deps.MODULE.bazel\n"), "{out}");
-        let text = std::fs::read_to_string(root.join("deps.MODULE.bazel")).expect("include");
-        assert_eq!(text, dep(module()));
+        let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &Recorder::default());
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("MODULE.bazel itself"), "{err}");
     }
 
     #[test]
@@ -803,15 +801,13 @@ mod tests {
     #[test]
     fn apply_writes_a_missing_or_stale_pin_file() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-regen-", module());
-        std::fs::remove_file(root.join(".dx/version")).expect("remove");
+        std::fs::remove_file(root.join(".dx/pins")).expect("remove");
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
-        let expected = format!(
-            "{}\n{}",
-            module(),
-            dx_adopt::release_pins(module()).expect("pins").to_lines()
-        );
-        let pin_file = root.join(".dx/version");
+        let expected = dx_adopt::release_pins(module())
+            .expect("pins")
+            .to_lines(module());
+        let pin_file = root.join(".dx/pins");
         assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
         std::fs::write(&pin_file, "0.0.1\n").expect("stale");
         assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);

@@ -23,15 +23,20 @@ fn workspace() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("workspace");
     std::fs::create_dir_all(dir.path().join(".dx")).expect("mkdir");
     std::fs::create_dir_all(dir.path().join("tools")).expect("mkdir");
+    std::fs::write(
+        dir.path().join("MODULE.bazel"),
+        format!("bazel_dep(name = \"rules_dx\", version = \"{VERSION}\")\n"),
+    )
+    .expect("module");
     if cfg!(windows) {
-        std::fs::write(dir.path().join(".dx/version"), format!("{VERSION}\r\n")).expect("pin");
+        std::fs::write(dir.path().join(".dx/pins"), format!("{VERSION}\r\n")).expect("pin");
         std::fs::write(
             dir.path().join("tools/dx.cmd"),
             dx_adopt::render_launcher_cmd(),
         )
         .expect("launcher");
     } else {
-        std::fs::write(dir.path().join(".dx/version"), format!("{VERSION}\n")).expect("pin");
+        std::fs::write(dir.path().join(".dx/pins"), format!("{VERSION}\n")).expect("pin");
         std::fs::write(dir.path().join("tools/dx"), dx_adopt::render_launcher_sh())
             .expect("launcher");
     }

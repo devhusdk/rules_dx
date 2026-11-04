@@ -34,7 +34,7 @@ impl Watch {
         fs::create_dir_all(workspace.join("src")).expect("src");
         fs::create_dir_all(workspace.join("app")).expect("app");
         fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
-        fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+        fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
         fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
         fs::write(workspace.join("app/BUILD.bazel"), "").expect("app build file");
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");

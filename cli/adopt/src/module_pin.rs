@@ -23,6 +23,13 @@ fn refuse(path: &str, detail: impl std::fmt::Display) -> AdoptError {
     }
 }
 
+fn is_one_line_dep(line: &str) -> bool {
+    line.trim_end()
+        .strip_prefix("bazel_dep(name = \"rules_dx\", version = \"")
+        .and_then(|rest| rest.strip_suffix("\")"))
+        .is_some_and(|version| !version.contains('"'))
+}
+
 /// Plans setting the rules_dx `bazel_dep` version to `version`. Writes nothing.
 pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, AdoptError> {
     if version.is_empty() {
@@ -58,11 +65,21 @@ pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, A
             MODULE_FILE,
             "no bazel_dep(name = \"rules_dx\") in it or its includes",
         )),
+        [(path, _)] if path != MODULE_FILE => Err(refuse(
+            path,
+            "the rules_dx bazel_dep must be in MODULE.bazel itself, not an included file",
+        )),
         [(path, file)] => {
             let new = file
                 .set_bazel_dep_version("rules_dx", version)
                 .map_err(|e| refuse(path, e))?;
             let old = read(path).map_err(|detail| refuse(path, detail))?;
+            if !old.lines().any(is_one_line_dep) {
+                return Err(refuse(
+                    path,
+                    "the rules_dx bazel_dep must be one line: bazel_dep(name = \"rules_dx\", version = \"...\")",
+                ));
+            }
             Ok(ModuleEdit {
                 path: path.clone(),
                 old,
@@ -128,11 +145,11 @@ mod tests {
     }
 
     #[test]
-    fn edits_the_dep_in_an_included_file() {
+    fn refuses_the_dep_in_an_included_file() {
         let root = "include(\"//tools:dx.MODULE.bazel\")\n";
-        let edit = plan(&[("MODULE.bazel", root), ("tools/dx.MODULE.bazel", DEP)]).expect("plan");
-        assert_eq!(edit.path, "tools/dx.MODULE.bazel");
-        assert_eq!(edit.new, DEP.replace("1.0.0", "2.0.0"));
+        let err = plan(&[("MODULE.bazel", root), ("tools/dx.MODULE.bazel", DEP)])
+            .expect_err("refused");
+        assert!(err.to_string().contains("MODULE.bazel itself"), "{err}");
     }
 
     #[test]
@@ -179,8 +196,15 @@ mod tests {
     }
 
     #[test]
+    fn refuses_a_multi_line_dep() {
+        let text = "bazel_dep(\n    name = \"rules_dx\",\n    version = \"1.0.0\",\n)\n";
+        let err = plan(&[("MODULE.bazel", text)]).expect_err("refused");
+        assert!(err.to_string().contains("one line"), "{err}");
+    }
+
+    #[test]
     fn keeps_comments_and_formatting() {
-        let text = "# top\nmodule(name = \"app\")   # trailing\n\n# pin\nbazel_dep(\n    name = \"rules_dx\",   # dx\n    version   =   \"1.0.0\",\n)\n\nbazel_dep(name = \"other\", version = \"1.0.0\")\n";
+        let text = "# top\nmodule(name = \"app\")   # trailing\n\n# pin\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n\nbazel_dep(name = \"other\", version = \"1.0.0\")\n";
         let edit = plan(&[("MODULE.bazel", text)]).expect("plan");
         assert_eq!(edit.new, text.replacen("\"1.0.0\"", "\"2.0.0\"", 1));
     }

@@ -16,7 +16,7 @@ pub const RELEASE_ASSETS: [&str; 5] = [
     "dx-windows-arm64",
 ];
 
-/// The sha256 of each release asset, stored in `.dx/version`.
+/// The sha256 of each release asset, stored in `.dx/pins`.
 /// An empty pin means "no verified hash": the launcher refuses to download.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LauncherPins {
@@ -77,16 +77,24 @@ impl LauncherPins {
         Ok(pins)
     }
 
-    /// Parses the pin lines of `.dx/version`: `<hash>  <asset>`, any asset may be absent.
+    /// Parses `.dx/pins`: `<version> <sha256> <asset>` lines for one version, any
+    /// asset may be absent. A bare `<version>` line carries no hash.
     pub fn from_pin_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Result<Self, AdoptError> {
         let mut pins = Self::default();
+        let mut version = None;
         for line in lines {
-            let line = line.trim_end_matches('\r');
-            if line.trim().is_empty() {
-                continue;
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            let (line_version, hash, asset) = match fields.as_slice() {
+                [] => continue,
+                [version] => (*version, None, None),
+                [version, hash, asset] => (*version, Some(*hash), Some(*asset)),
+                _ => return Err(pins_error(format!("bad pin line {line:?}"))),
+            };
+            if *version.get_or_insert(line_version) != line_version {
+                return Err(pins_error("pins list more than one version".to_owned()));
             }
-            let Some((hash, asset)) = line.split_once("  ") else {
-                return Err(pins_error(format!("bad pin line {line:?}")));
+            let (Some(hash), Some(asset)) = (hash, asset) else {
+                continue;
             };
             let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
@@ -102,14 +110,20 @@ impl LauncherPins {
         Ok(pins)
     }
 
-    /// One `<hash>  <asset>` line per non-empty pin, in `RELEASE_ASSETS` order.
-    pub fn to_lines(&self) -> String {
-        RELEASE_ASSETS
+    /// One `<version> <sha256> <asset>` line per non-empty pin, in `RELEASE_ASSETS`
+    /// order; a bare `<version>` line when there is no pin.
+    pub fn to_lines(&self, version: &str) -> String {
+        let lines: String = RELEASE_ASSETS
             .iter()
             .zip(&self.sha256)
             .filter(|(_, pin)| !pin.is_empty())
-            .map(|(asset, pin)| format!("{pin}  {asset}\n"))
-            .collect()
+            .map(|(asset, pin)| format!("{version} {pin} {asset}\n"))
+            .collect();
+        if lines.is_empty() {
+            format!("{version}\n")
+        } else {
+            lines
+        }
     }
 }
 
@@ -137,7 +151,7 @@ pub fn pins_from_manifest_dir(dir: &Path) -> Result<LauncherPins, AdoptError> {
     match std::fs::read_to_string(dir.join("dx-sha256sums.txt")) {
         Ok(text) => LauncherPins::from_sha256sums(&text).map_err(|e| {
             pins_error(format!(
-                "{}: {e}; writing .dx/version without hashes",
+                "{}: {e}; writing .dx/pins without hashes",
                 dir.join("dx-sha256sums.txt").display()
             ))
         }),
@@ -205,7 +219,7 @@ fn pins_error(detail: String) -> AdoptError {
 
 const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
-DX_PINS=.dx/version
+DX_PINS=.dx/pins
 args="$*"
 fail() {
   echo "dx: $1" >&2
@@ -234,7 +248,7 @@ esac
 if [ "${1:-}" != worktree ] || [ "${2:-}" != hook ]; then
   here=$(pwd -P) || here=
   while [ -n "$here" ]; do
-    if [ -x "$here/tools/dx" ] && [ -f "$here/.dx/version" ]; then
+    if [ -x "$here/tools/dx" ] && [ -f "$here/.dx/pins" ]; then
       break
     fi
     if [ "$here" = / ]; then
@@ -331,20 +345,13 @@ if [ "$os" = linux ]; then
   esac
 fi
 [ -f "$pins" ] || via_bazel "$@"
-IFS= read -r pinned < "$pins" || true
-[ "$(printf %s "$pinned" | tr -d '\r ')" = "$VERSION" ] || via_bazel "$@"
 cr=$(printf '\r')
 want=
-first=1
-while IFS= read -r line || [ -n "$line" ]; do
-  if [ -n "$first" ]; then
-    first=
-    continue
+while read -r ver sum asset || [ -n "$ver" ]; do
+  asset=${asset%"$cr"}
+  if [ "$ver" = "$VERSION" ] && [ "$asset" = "dx-$os-$arch" ]; then
+    want=$sum
   fi
-  line=${line%"$cr"}
-  case "$line" in
-    *"  dx-$os-$arch") want=${line%%  *} ;;
-  esac
 done < "$pins"
 [ -n "$want" ] || via_bazel "$@"
 url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
@@ -383,14 +390,14 @@ exec "$bin" "$@"
 
 const LAUNCHER_CMD: &str = r##"@echo off
 setlocal
-set "DX_PINS=.dx\version"
+set "DX_PINS=.dx\pins"
 set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 set "DX_HERE="
 if /i "%~1"=="worktree" if /i "%~2"=="hook" goto dxdone
 set "DX_HERE=%CD%"
 :dxup
-if exist "%DX_HERE%\tools\dx.cmd" if exist "%DX_HERE%\.dx\version" goto dxfound
+if exist "%DX_HERE%\tools\dx.cmd" if exist "%DX_HERE%\.dx\pins" goto dxfound
 for %%I in ("%DX_HERE%\..") do set "DX_NEXT=%%~fI"
 if /i "%DX_NEXT%"=="%DX_HERE%" (
   set "DX_HERE="
@@ -431,11 +438,9 @@ if defined DX_CACHE_DIR set "DX_CACHE=%DX_CACHE_DIR%"
 set "DIR=%DX_CACHE%\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
-set "DX_PINNED="
-if exist "%~dp0..\%DX_PINS%" set /p DX_PINNED=<"%~dp0..\%DX_PINS%"
-if not "%DX_PINNED%"=="%VERSION%" goto bazel
+if not exist "%~dp0..\%DX_PINS%" goto bazel
 set "WANT="
-for /f "usebackq skip=1 tokens=1,2" %%A in ("%~dp0..\%DX_PINS%") do if "%%B"=="dx-windows-%ARCH%" set "WANT=%%A"
+for /f "usebackq tokens=1,2,3" %%A in ("%~dp0..\%DX_PINS%") do if "%%A"=="%VERSION%" if "%%C"=="dx-windows-%ARCH%" set "WANT=%%B"
 if not defined WANT goto bazel
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
 mkdir "%DIR%" 2>nul
@@ -548,16 +553,24 @@ pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(&dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
-    let (first, second, marker) = match rel {
-        LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/version"),
-        LAUNCHER_CMD_REL => ("@echo off", "setlocal", "set \"DX_PINS=.dx\\version\""),
+    let (first, second, markers) = match rel {
+        LAUNCHER_SH_REL => (
+            "#!/bin/sh",
+            "set -eu",
+            ["DX_PINS=.dx/pins", "DX_PINS=.dx/version"],
+        ),
+        LAUNCHER_CMD_REL => (
+            "@echo off",
+            "setlocal",
+            ["set \"DX_PINS=.dx\\pins\"", "set \"DX_PINS=.dx\\version\""],
+        ),
         _ => return None,
     };
     if lines.next()? != first || lines.next()? != second {
         return None;
     }
     let third = lines.next()?;
-    if third != marker {
+    if !markers.contains(&third) {
         return None;
     }
     if text != static_launcher(rel) || (rel == LAUNCHER_SH_REL && !is_executable(&dest)) {
@@ -690,9 +703,9 @@ mod tests {
     fn launchers_are_static_and_read_the_pins_file() {
         let sh = sh();
         assert!(sh.starts_with("#!/bin/sh\n"));
-        assert_eq!(sh.lines().nth(2), Some("DX_PINS=.dx/version"));
+        assert_eq!(sh.lines().nth(2), Some("DX_PINS=.dx/pins"));
         let cmd = cmd();
-        assert_eq!(cmd.lines().nth(2), Some("set \"DX_PINS=.dx\\version\""));
+        assert_eq!(cmd.lines().nth(2), Some("set \"DX_PINS=.dx\\pins\""));
         assert!(!cmd.replace("\r\n", "").contains('\n'));
         for script in [&sh, &cmd] {
             for gone in ["@VERSION@", "@SHA256_", "VERSION=\"1", "SHA256_"] {
@@ -739,6 +752,18 @@ mod tests {
     }
 
     #[test]
+    fn launchers_carrying_the_old_pin_file_are_stale() {
+        let dir = dx_test_scratch::scratch("dx-launcher-old-pins-");
+        let old = sh().replace("DX_PINS=.dx/pins", "DX_PINS=.dx/version");
+        write_launcher(dir.path(), LAUNCHER_SH_REL, &old, true).expect("sh");
+        let old = cmd().replace("DX_PINS=.dx\\pins", "DX_PINS=.dx\\version");
+        write_launcher(dir.path(), LAUNCHER_CMD_REL, &old, false).expect("cmd");
+        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
+            assert_eq!(launcher_state(dir.path(), rel), Some(LauncherState::Stale));
+        }
+    }
+
+    #[test]
     fn launcher_state_reads_line_three() {
         let dir = dx_test_scratch::scratch("dx-launcher-line3-");
         write_launcher(dir.path(), LAUNCHER_SH_REL, &sh(), true).expect("sh");
@@ -763,23 +788,34 @@ mod tests {
         assert!(err.to_string().contains("without hashes"), "{err}");
         std::fs::write(dir.path().join("dx-sha256sums.txt"), MANIFEST).expect("write");
         let pins = pins_from_manifest_dir(dir.path()).expect("pins");
-        assert_eq!(pins.to_lines(), MANIFEST);
+        assert_eq!(
+            pins,
+            LauncherPins::from_sha256sums(MANIFEST).expect("manifest")
+        );
     }
 
     #[test]
     fn pin_lines_round_trip_and_allow_missing_assets() {
         let all = LauncherPins::from_sha256sums(MANIFEST).expect("manifest");
-        assert_eq!(all.to_lines(), MANIFEST);
-        assert_eq!(LauncherPins::from_pin_lines(MANIFEST.lines()), Ok(all));
-        let some = LauncherPins::from_pin_lines(MANIFEST.lines().take(2)).expect("some");
+        let text = all.to_lines("1.2.3");
+        assert_eq!(
+            text.lines().next(),
+            Some(format!("1.2.3 {} dx-linux-x86_64", "1".repeat(64)).as_str())
+        );
+        assert_eq!(LauncherPins::from_pin_lines(text.lines()), Ok(all));
+        let some = LauncherPins::from_pin_lines(text.lines().take(2)).expect("some");
         assert_eq!(some.get("dx-linux-arm64"), Some("2".repeat(64).as_str()));
         assert_eq!(some.get("dx-macos-arm64"), Some(""));
         assert_eq!(
             LauncherPins::from_pin_lines(std::iter::empty()),
             Ok(LauncherPins::unreleased())
         );
-        assert_eq!(LauncherPins::unreleased().to_lines(), "");
-        let crlf = format!("{}\r", MANIFEST.lines().next().expect("line"));
+        assert_eq!(LauncherPins::unreleased().to_lines("1.2.3"), "1.2.3\n");
+        assert_eq!(
+            LauncherPins::from_pin_lines("1.2.3\n".lines()),
+            Ok(LauncherPins::unreleased())
+        );
+        let crlf = format!("{}\r", text.lines().next().expect("line"));
         assert_eq!(
             LauncherPins::from_pin_lines(std::iter::once(crlf.as_str()))
                 .expect("crlf")
@@ -792,12 +828,11 @@ mod tests {
     fn pin_lines_reject_bad_lines() {
         let a = "a".repeat(64);
         for bad in [
-            format!("{a} dx-linux-x86_64"),
-            format!("{a}  dx-macos-x86_64"),
-            format!("{}  dx-linux-x86_64", "A".repeat(64)),
-            format!("{}  dx-linux-x86_64", "a".repeat(63)),
-            "  dx-linux-x86_64".to_owned(),
-            "dx-linux-x86_64".to_owned(),
+            format!("1.2.3 {a}"),
+            format!("1.2.3 {a} dx-macos-x86_64"),
+            format!("1.2.3 {} dx-linux-x86_64", "A".repeat(64)),
+            format!("1.2.3 {} dx-linux-x86_64", "a".repeat(63)),
+            format!("1.2.3 {a} dx-linux-x86_64 extra"),
         ] {
             assert!(
                 matches!(
@@ -807,8 +842,10 @@ mod tests {
                 "{bad:?}"
             );
         }
-        let twice = format!("{a}  dx-linux-x86_64\n{a}  dx-linux-x86_64");
+        let twice = format!("1.2.3 {a} dx-linux-x86_64\n1.2.3 {a} dx-linux-x86_64");
         assert!(LauncherPins::from_pin_lines(twice.lines()).is_err());
+        let mixed = format!("1.2.3 {a} dx-linux-x86_64\n1.2.4 {a} dx-linux-arm64");
+        assert!(LauncherPins::from_pin_lines(mixed.lines()).is_err());
     }
 
     #[test]
@@ -1062,7 +1099,7 @@ mod tests {
         assert_eq!(launcher_state(dir.path(), "tools/missing"), None);
         std::fs::write(
             dir.path().join(LAUNCHER_SH_REL),
-            "#!/bin/sh\nVERSION=\"$(cat .dx/version)\"\nexec dx \"$@\"\n",
+            "#!/bin/sh\nVERSION=\"$(cat .dx/pins)\"\nexec dx \"$@\"\n",
         )
         .expect("custom with VERSION");
         assert_eq!(launcher_state(dir.path(), LAUNCHER_SH_REL), None);
@@ -1249,7 +1286,7 @@ mod tests {
             }
 
             fn set_pin(&self, text: &str) {
-                std::fs::write(self.base.join("repo/.dx/version"), text).expect("pin");
+                std::fs::write(self.base.join("repo/.dx/pins"), text).expect("pin");
             }
 
             fn rewrite_launcher(&self, from: &str, to: &str) {
@@ -1285,7 +1322,7 @@ mod tests {
                 std::fs::create_dir_all(slot.join(".dx")).expect("slot dx");
                 std::fs::create_dir_all(slot.join("tools")).expect("slot tools");
                 std::fs::create_dir_all(slot.join("sub")).expect("slot sub");
-                std::fs::write(slot.join(".dx/version"), "9.9.9\n").expect("slot pin");
+                std::fs::write(slot.join(".dx/pins"), "9.9.9\n").expect("slot pin");
                 let launcher = slot.join("tools/dx");
                 std::fs::write(&launcher, "#!/bin/sh\necho slot \"$@\"\n").expect("slot dx");
                 std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755))
@@ -1313,7 +1350,7 @@ mod tests {
         fn hands_off_to_the_slot_launcher_before_the_pin_check() {
             let fx = Fixture::new("dx-launcher-handoff-", true, None);
             let slot = fx.add_slot(true);
-            std::fs::write(fx.base.join("repo/.dx/version"), "0.0.1\n").expect("stale pin");
+            std::fs::write(fx.base.join("repo/.dx/pins"), "0.0.1\n").expect("stale pin");
             let (code, out, err) = fx.run_in(&slot.join("sub"), &["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "slot status\n"), "{err}");
             assert_eq!(fx.downloads(), 0);
@@ -1446,7 +1483,7 @@ mod tests {
             let original = fx.base.join("original");
             std::fs::write(&original, "#!/bin/sh\necho original\n").expect("original");
             let pin = sha_of(&original);
-            fx.set_pin(&format!("1.2.3\n{pin}  dx-linux-x86_64\n"));
+            fx.set_pin(&format!("1.2.3 {pin} dx-linux-x86_64\n"));
             let (code, out, err) = fx.run(&["version"]);
             assert_eq!(code, Some(1), "{out}{err}");
             assert!(out.is_empty(), "{out}");
@@ -1544,7 +1581,7 @@ mod tests {
         fn a_pins_file_for_another_version_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-oldpins-", true, None);
             let pin = sha_of(&fx.base.join("payload"));
-            fx.set_pin(&format!("1.2.2\n{pin}  dx-linux-x86_64\n"));
+            fx.set_pin(&format!("1.2.2 {pin} dx-linux-x86_64\n"));
             fx.assert_via_bazel(&["check", "//..."]);
             assert_eq!(fx.downloads(), 0);
         }
@@ -1696,7 +1733,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         #[test]
         fn a_missing_pins_file_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-nopin-", true, None);
-            std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
+            std::fs::remove_file(fx.base.join("repo/.dx/pins")).expect("remove pin");
             fx.assert_via_bazel(&["version"]);
             assert_eq!(fx.downloads(), 0);
         }
@@ -1713,7 +1750,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn the_version_and_hash_come_from_the_pin_file() {
             let fx = Fixture::new("dx-launcher-pinfile-", true, None);
             let pin = sha_of(&fx.base.join("payload"));
-            fx.set_pin(&format!("1.2.3\r\n{pin}  dx-linux-x86_64\r\n"));
+            fx.set_pin(&format!("1.2.3 {pin} dx-linux-x86_64\r\n"));
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
@@ -1992,7 +2029,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         #[test]
         fn a_missing_pins_file_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-cmd-nopin-", true, None);
-            std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
+            std::fs::remove_file(fx.base.join("repo/.dx/pins")).expect("remove pin");
             fx.assert_via_bazel(&["version"]);
             assert_eq!(fx.downloads(), 0);
         }

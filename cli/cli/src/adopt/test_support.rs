@@ -184,7 +184,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-run-streams-");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), scratch.path());
         assert_eq!(code, 0);
-        assert!(out.contains(".dx/version"), "{out}");
+        assert!(out.contains(".dx/pins"), "{out}");
         assert!(err.is_empty(), "{err}");
 
         let scratch = dx_test_scratch::scratch("dx-adopt-run-refused-");

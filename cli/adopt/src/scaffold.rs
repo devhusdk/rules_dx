@@ -320,8 +320,8 @@ fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldF
     validate_init_module(module_name)?;
     let files = vec![
         ScaffoldFile {
-            path: ".dx/version".to_owned(),
-            content: format!("{DX_VERSION}\n{}", release_pins(DX_VERSION)?.to_lines()),
+            path: ".dx/pins".to_owned(),
+            content: release_pins(DX_VERSION)?.to_lines(DX_VERSION),
             kind: FileKind::Generated,
         },
         ScaffoldFile {
@@ -579,7 +579,7 @@ mod tests {
             .map(|f| f.path)
             .collect();
         let mut want = [
-            ".dx/version",
+            ".dx/pins",
             ".devcontainer/devcontainer.json",
             ".bazelignore",
             ".envrc",
@@ -756,8 +756,8 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
         let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
-        assert!(first.iter().any(|p| p == ".dx/version"));
-        assert!(root.join(".dx/version").exists());
+        assert!(first.iter().any(|p| p == ".dx/pins"));
+        assert!(root.join(".dx/pins").exists());
         std::fs::write(root.join(".envrc"), "custom\n").expect("custom");
         let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
         assert!(second.iter().any(|p| p == "refused:.envrc"));
@@ -772,16 +772,15 @@ mod tests {
     fn the_version_pin_is_generated_and_rewritten_when_stale() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-pin-");
         let root = scratch.path().to_path_buf();
-        let pin = root.join(".dx/version");
+        let pin = root.join(".dx/pins");
         entries(|a| apply_init(&root, "demo", a)).expect("init");
-        let expected = format!(
-            "{DX_VERSION}\n{}",
-            crate::release_pins(DX_VERSION).expect("pins").to_lines()
-        );
+        let expected = crate::release_pins(DX_VERSION)
+            .expect("pins")
+            .to_lines(DX_VERSION);
         assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);
         std::fs::write(&pin, "0.0.1\n").expect("stale");
         let again = entries(|a| apply_init(&root, "demo", a)).expect("init again");
-        assert!(again.iter().any(|p| p == ".dx/version"));
+        assert!(again.iter().any(|p| p == ".dx/pins"));
         assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);
         scratch.close().expect("cleanup");
     }
@@ -1207,7 +1206,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         std::fs::write(root.join(".envrc"), "mine\n").expect("handwritten");
         let init = entries(|a| apply_init(&root, "demo", a)).expect("init");
         assert!(init.contains(&"refused:.envrc".to_owned()), "{init:?}");
-        assert!(init.contains(&".dx/version".to_owned()), "{init:?}");
+        assert!(init.contains(&".dx/pins".to_owned()), "{init:?}");
         assert_eq!(
             std::fs::read_to_string(root.join(".envrc")).unwrap(),
             "mine\n"

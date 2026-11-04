@@ -8,7 +8,7 @@ use dx_worktree::setup;
 use super::{agents, claude_md};
 
 const ESSENTIAL: [&str; 6] = [
-    ".dx/version",
+    ".dx/pins",
     ".gitignore",
     ".bazelignore",
     "MODULE.bazel",
@@ -496,7 +496,7 @@ mod tests {
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("MODULE.bazel pins rules_dx 9.9.9"), "{err}");
-        assert!(!root.join(".dx/version").exists());
+        assert!(!root.join(".dx/pins").exists());
     }
 
     #[test]
@@ -678,7 +678,7 @@ mod tests {
             "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
         )
         .expect("dx");
-        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "4.5.6\n").expect("pin");
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
         let (path, _) = dx_adopt::render_overrides().remove(0);

@@ -58,7 +58,7 @@ fn build_lines_with_env(
         fs::create_dir_all(dir).expect("dir");
     }
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
-    fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+    fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
     let bazel = bin.join("bazel");
     fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");

@@ -163,7 +163,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-status-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
         std::fs::write(
             root.join("MODULE.bazel"),
             "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",

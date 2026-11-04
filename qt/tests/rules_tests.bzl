@@ -102,6 +102,31 @@ def _unit_checks():
             [("licenses/fmt/LICENSE", "licenses/fmt/LICENSE"), ("licenses/zlib/LICENSE", "third_party/licenses/zlib/LICENSE")],
         ),
         expect_equal(
+            "bundle stages macos frameworks",
+            qt_bundle_members(
+                [
+                    "app/tool",
+                    "app/frames/QtGui.framework/Versions/A/QtGui",
+                    "../qt/lib/QtGui.framework/Versions/A/QtGui",
+                    "../qt/lib/QtCore.framework/Versions/A/QtCore",
+                    "../qt/lib/QtNetwork.framework/Versions/A/QtNetwork",
+                    "../qt/plugins/platforms/libqoffscreen.dylib",
+                ],
+                [],
+                None,
+                struct(
+                    library = {"QtGui.framework": ["QtCore.framework"]},
+                    plugin = {},
+                    runtime_plugin = {"platforms/libqoffscreen.dylib": ["QtGui.framework"]},
+                ),
+            ),
+            [
+                ("lib/QtCore.framework/Versions/A/QtCore", "../qt/lib/QtCore.framework/Versions/A/QtCore"),
+                ("lib/QtGui.framework/Versions/A/QtGui", "../qt/lib/QtGui.framework/Versions/A/QtGui"),
+                ("plugins/platforms/libqoffscreen.dylib", "../qt/plugins/platforms/libqoffscreen.dylib"),
+            ],
+        ),
+        expect_equal(
             "bundle without QML",
             qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None, CELLS["linux_x86_64"].needs),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],

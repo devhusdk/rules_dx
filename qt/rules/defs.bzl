@@ -31,6 +31,7 @@ QtInfo = provider(
 QT_REPOSITORY = "@dx_qt"
 
 QT_BUNDLE_RUNPATH = "-Wl,--disable-new-dtags,-rpath,$$ORIGIN/resources/lib"
+QT_BUNDLE_MACOS_RUNPATH = "-Wl,-rpath,@executable_path/resources/lib"
 
 QT_SOURCE_SPECS = [
     ("c", ["c", "h"]),
@@ -1086,6 +1087,7 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
     members = {}
     shipped = {}
     libraries = {}
+    frameworks = {}
     roots = []
     ordered = sorted([("_solib_" in path, path) for path in runfiles])
     for linked, path in ordered:
@@ -1096,6 +1098,15 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
                     members["qml/" + relative] = path
                     shipped[module] = True
                     roots.extend(needs.plugin.get(relative, []))
+            continue
+        framework = qt_framework_path(path)
+        if framework != None:
+            name = framework.partition("/")[0]
+            if name not in frameworks:
+                frameworks[name] = framework
+                libraries[name] = path
+            if not path.startswith("../"):
+                roots.append(name)
             continue
         name = path.rpartition("/")[2]
         if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
@@ -1119,6 +1130,9 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
             needed[name] = True
             roots.extend(needs.library.get(name, []))
     for name in needed:
+        if name in frameworks:
+            members["lib/" + frameworks[name]] = libraries[name]
+            continue
         versioned = [other for other in libraries if other.startswith(name + ".") and _soname(other)]
         if _soname(name) or len(versioned) == 0:
             members["lib/" + name] = libraries[name]

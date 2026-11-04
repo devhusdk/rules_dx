@@ -427,6 +427,11 @@ fn override_conflicts(sources: &[Source]) -> Vec<Finding> {
             if !owned && floor.is_none() {
                 continue;
             }
+            if let (false, Some((_, min)), Some(version)) = (owned, floor, call.str("version")) {
+                if compare_module_versions(version, min).is_ge() {
+                    continue;
+                }
+            }
             let before = match call.arg("version") {
                 Some(Value::Str(v)) => format!("{} {}", call.name, v.value),
                 _ => call.name.clone(),
@@ -787,6 +792,34 @@ mod tests {
         let plan = preflight(dir.path(), &snippet());
         assert_eq!(plan.findings.len(), 1);
         assert!(!plan.findings[0].hard);
+    }
+
+    #[test]
+    fn override_at_or_above_floor_is_not_a_conflict() {
+        for version in ["2.4.21", "2.4.22"] {
+            let text = format!(
+                "single_version_override(module_name = \"rules_kotlin\", version = \"{version}\")\n"
+            );
+            let dir = scratch(&[("MODULE.bazel", &text)]);
+            assert!(
+                preflight(dir.path(), &snippet()).findings.is_empty(),
+                "{version}"
+            );
+        }
+    }
+
+    #[test]
+    fn override_below_floor_or_without_version_is_advisory() {
+        let below =
+            "single_version_override(module_name = \"rules_kotlin\", version = \"2.4.20\")\n";
+        let no_version =
+            "git_override(module_name = \"rules_kotlin\", remote = \"x\", commit = \"y\")\n";
+        for text in [below, no_version] {
+            let dir = scratch(&[("MODULE.bazel", text)]);
+            let plan = preflight(dir.path(), &snippet());
+            assert_eq!(plan.findings.len(), 1, "{text}");
+            assert!(!plan.findings[0].hard);
+        }
     }
 
     #[test]

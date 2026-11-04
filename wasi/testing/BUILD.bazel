@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:wrapper_tests.bzl", "dx_wasi_test_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -21,14 +22,47 @@ rust_test(
     crate = ":wasi_run",
 )
 
+# keep
+rust_binary(
+    name = "wasi_test_runner",
+    srcs = ["wasi_test_runner.rs"],
+    crate_name = "wasi_test_runner",
+    crate_root = "wasi_test_runner.rs",
+    edition = "2021",
+    deps = [
+        ":wasi_run",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "wasi_guest_test",
+    srcs = ["wasi_guest_test.rs"],
+    crate_root = "wasi_guest_test.rs",
+    env = {"DX_WASI_DECLARED": "declared"},
+    preopens = {"/data": ":input.txt"},
+    wasm = "wasi",
+)
+
+dx_wasi_test_tests(
+    name = "wasi_guest_analysis_test",
+    target = ":wasi_guest_test",
+)
+
 rustfmt_test(
     name = "wasi_run_fmt_test",
-    targets = [":wasi_run"],
+    targets = [
+        ":wasi_run",
+        ":wasi_test_runner",
+    ],
 )
 
 rust_clippy_test(
     name = "wasi_run_clippy_test",
-    targets = [":wasi_run"],
+    targets = [
+        ":wasi_run",
+        ":wasi_test_runner",
+    ],
 )
 
 real_source_target(

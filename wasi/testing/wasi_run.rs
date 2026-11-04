@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
 
 use dx_testing::serde_json;
 
@@ -43,10 +44,63 @@ fn stage_preopen(host_rel: &str) -> PathBuf {
     stage
 }
 
+fn command(
+    runtime: &Path,
+    module: &Path,
+    args: &[String],
+    env: &BTreeMap<String, String>,
+    preopens: &[(String, PathBuf)],
+) -> Command {
+    let managed = dx_testing::resolve_runfiles(&var("DX_WASI_MANAGED_RUNTIME"));
+    let staged: Vec<(PathBuf, String)> = preopens
+        .iter()
+        .map(|(guest, host)| (stage_preopen(&host.to_string_lossy()), guest.clone()))
+        .collect();
+    let cache = dx_testing::mkscratch("wasi-cache").expect("scratch space must exist");
+    let mut command = Command::new(runtime);
+    command
+        .args(runtime_argv(env, &staged, module, args))
+        .env_clear()
+        .env("DX_WASI_MANAGED_RUNTIME", &managed)
+        .env("XDG_CACHE_HOME", &cache);
+    for name in RUNFILES_ENV {
+        if let Some(value) = std::env::var_os(name) {
+            command.env(name, value);
+        }
+    }
+    command
+}
+
+/// Runs one module under the runtime with only the declared args, env and preopens.
+pub fn run(
+    runtime: &Path,
+    module: &Path,
+    args: &[String],
+    env: &BTreeMap<String, String>,
+    preopens: &[(String, PathBuf)],
+) -> Output {
+    command(runtime, module, args, env, preopens)
+        .output()
+        .expect("the WASI runtime must execute")
+}
+
+/// Runs one module like `run`, with inherited stdio, and returns its exit code.
+pub fn run_inherited(
+    runtime: &Path,
+    module: &Path,
+    args: &[String],
+    env: &BTreeMap<String, String>,
+    preopens: &[(String, PathBuf)],
+) -> i32 {
+    let status = command(runtime, module, args, env, preopens)
+        .status()
+        .expect("the WASI runtime must execute");
+    status.code().unwrap_or(1)
+}
+
 pub fn assert_declared_run() {
     let module = dx_testing::resolve_runfiles(&var("DX_WASI_MODULE"));
     let runtime = dx_testing::resolve_runfiles(&var("DX_WASI_RUNTIME"));
-    let managed = dx_testing::resolve_runfiles(&var("DX_WASI_MANAGED_RUNTIME"));
     let args: Vec<String> =
         serde_json::from_str(&var("DX_WASI_ARGS")).expect("DX_WASI_ARGS must be a JSON array");
     let declared_env: BTreeMap<String, String> =
@@ -59,23 +113,11 @@ pub fn assert_declared_run() {
     let expected = var("DX_WASI_EXPECTED");
     let expected_stderr = var("DX_WASI_EXPECTED_STDERR");
 
-    let staged: Vec<(PathBuf, String)> = preopens
-        .iter()
-        .map(|(guest, host_rel)| (stage_preopen(host_rel), guest.clone()))
+    let preopens: Vec<(String, PathBuf)> = preopens
+        .into_iter()
+        .map(|(guest, host)| (guest, PathBuf::from(host)))
         .collect();
-    let cache = dx_testing::mkscratch("wasi-cache").expect("scratch space must exist");
-    let mut command = std::process::Command::new(&runtime);
-    command
-        .args(runtime_argv(&declared_env, &staged, &module, &args))
-        .env_clear()
-        .env("DX_WASI_MANAGED_RUNTIME", &managed)
-        .env("XDG_CACHE_HOME", &cache);
-    for name in RUNFILES_ENV {
-        if let Some(value) = std::env::var_os(name) {
-            command.env(name, value);
-        }
-    }
-    let output = command.output().expect("the WASI runtime must execute");
+    let output = run(&runtime, &module, &args, &declared_env, &preopens);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(

@@ -93,6 +93,20 @@ guarantee that until upstream rules_rust does.
 bazel build --platforms=@rules_rust//rust/platform:wasip1 //pkg:tool
 ```
 
+`rust_test(wasm = "wasi")` builds the test crate for `wasm32-wasip1`,
+without coverage, and runs it under Wasmtime. `srcs` or `crate` must
+build one test module. The guest gets only the declared `args`, `env`
+entries, and `preopens`. `--test_filter` reaches the guest's test
+harness. `env` and `preopens` guest paths are literal.
+
+| Attribute | Meaning |
+| --- | --- |
+| `wasm` | Set to `"wasi"`. |
+| `args` | Guest arguments. |
+| `env` | Guest environment entries. |
+| `preopens` | Guest directory mapped to one host file, staged alone. |
+| `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. Needs `wasm = "wasi"`. |
+
 `rust_wasi_test` runs the module under Wasmtime 49.0.5. The guest gets
 only the declared `args`, `env` entries, and `preopens`. Ambient
 environment and undeclared files stay denied.

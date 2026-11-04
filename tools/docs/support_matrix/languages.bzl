@@ -207,7 +207,7 @@ ROWS = [
         "section": "targets",
         "title": "Qt",
     },
-    {"ci_tests": ["//wasi/testing:wasi_run_unit_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
+    {"ci_tests": ["//wasi/testing:wasi_run_unit_test", "//wasi/testing:wasi_guest_test", "//wasi/testing:wasi_guest_analysis_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
     {"families": ["avro"], "name": "avro", "section": "formats", "title": "Avro"},

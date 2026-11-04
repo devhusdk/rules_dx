@@ -4,7 +4,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test", _rust_wasm_bindgen_toolchain = "rust_wasm_bindgen_toolchain")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -211,13 +211,38 @@ def rust_test(
         crate = None,
         edition = RUST_EDITION,
         visibility = None,
+        wasm = None,
+        preopens = None,
+        runtime = None,
         **kwargs):
     """Minimal wrapper over rust_test."""
+    if wasm not in (None, "wasi"):
+        fail("rust_test: wasm must be \"wasi\", got " + repr(wasm))
+    if wasm == None and (preopens != None or runtime != None):
+        fail("rust_test: preopens and runtime need wasm = \"wasi\"")
+    if wasm == "wasi":
+        _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs)
+        return
     upstream_kwargs = _libstdcxx_upstream(kwargs, link = True)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
     upstream_kwargs["crate_name"] = _crate_name(name, kwargs.get("crate_name"))
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = _libstdcxx_forward(), **kwargs)
+
+def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs):
+    """Builds the test crate for WASI preview 1 and runs it under Wasmtime."""
+    upstream_kwargs = {key: value for key, value in kwargs.items() if key not in ("args", "env", "data")}
+    upstream_kwargs["crate"] = crate
+    upstream_kwargs["edition"] = edition
+    upstream_kwargs["crate_name"] = _crate_name(name, kwargs.get("crate_name"))
+    forward_kwargs = {
+        "data": kwargs.get("data", []),
+        "guest_env": kwargs.get("env", {}),
+        "preopens": preopens or {},
+    }
+    if runtime != None:
+        forward_kwargs["runtime"] = runtime
+    dx_wrap_test(name, _rust_test, _rust_wasi_run_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, coverage_collector = False, **kwargs)
 
 def rust_proc_macro(
         name,
@@ -458,6 +483,65 @@ _rust_wasi_module = rule(
             mandatory = True,
             cfg = _wasip1_transition,
         ),
+    },
+)
+
+_EXTRA_EXEC = "//command_line_option:extra_execution_platforms"
+
+_HOST_PLATFORM = Label("@platforms//host")
+
+def _wasi_test_transition_impl(settings, _attr):
+    """Targets WASI preview 1 without coverage on one dependency edge."""
+    return {
+        _PLATFORMS: [str(_WASIP1_PLATFORM)],
+        _COVERAGE: False,
+        _EXTRA_EXEC: settings[_EXTRA_EXEC] + [str(_HOST_PLATFORM), str(_WASIP1_PLATFORM)],
+    }
+
+_wasi_test_transition = transition(
+    implementation = _wasi_test_transition_impl,
+    inputs = [_EXTRA_EXEC],
+    outputs = [_PLATFORMS, _COVERAGE, _EXTRA_EXEC],
+)
+
+def _rust_wasi_run_test_impl(ctx):
+    """Runs the upstream test module through the shared Wasmtime runner."""
+    upstream = dx_upstream(ctx)
+    modules = [file for file in upstream[DefaultInfo].files.to_list() if file.extension == "wasm"]
+    if len(modules) != 1:
+        fail("rust_test: '" + str(upstream.label) + "' built " + str(len(modules)) +
+             " .wasm files for wasm32-wasip1, want exactly one; set srcs or crate to a Rust crate that builds one test module")
+    runner = ctx.attr._runner[0]
+    link = dx_symlink_executable(ctx, runner[DefaultInfo].files_to_run.executable)
+    preopen_files = {guest: target[DefaultInfo].files.to_list()[0] for guest, target in ctx.attr.preopens.items()}
+    runfiles = ctx.runfiles(files = [link] + modules + [ctx.file.runtime, ctx.file._managed] + preopen_files.values() + ctx.files.data)
+    for dep in [runner, ctx.attr.runtime, ctx.attr._managed] + ctx.attr.data + ctx.attr.preopens.values():
+        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+    environment = {
+        "DX_WASI_ENV": json.encode(ctx.attr.guest_env),
+        "DX_WASI_MANAGED_RUNTIME": ctx.file._managed.short_path,
+        "DX_WASI_MODULE": modules[0].short_path,
+        "DX_WASI_PREOPENS": json.encode({guest: file.short_path for guest, file in preopen_files.items()}),
+        "DX_WASI_RUNTIME": ctx.file.runtime.short_path,
+    }
+    return [
+        DefaultInfo(executable = link, files = depset([link]), runfiles = runfiles),
+        RunEnvironmentInfo(environment = environment),
+    ]
+
+_rust_wasi_run_test = rule(
+    implementation = _rust_wasi_run_test_impl,
+    doc = "Runs one Rust test crate as a WASI preview 1 module under Wasmtime.",
+    test = True,
+    attrs = {
+        "data": attr.label_list(doc = "Files the test needs at run time.", allow_files = True),
+        "guest_env": attr.string_dict(doc = "Environment variables the guest sees."),
+        "preopens": attr.string_keyed_label_dict(doc = "Guest directory to the file staged there.", allow_files = True),
+        "runtime": attr.label(doc = "The WASI runtime.", default = _WASMTIME, allow_single_file = True),
+        "srcs": attr.label_list(doc = "The test crate sources.", allow_files = True),
+        "upstream": attr.label(doc = "The test crate built for wasm32-wasip1.", mandatory = True, cfg = _wasi_test_transition),
+        "_managed": attr.label(default = _WASMTIME, allow_single_file = True),
+        "_runner": attr.label(default = "//wasi/testing:wasi_test_runner", executable = True, cfg = _no_coverage_transition),
     },
 )
 

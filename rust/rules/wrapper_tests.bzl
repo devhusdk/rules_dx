@@ -373,6 +373,26 @@ def dx_wasi_binary_tests(name, target):
         target_under_test = target,
     )
 
+def _wasi_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    executable = target[DefaultInfo].files_to_run.executable
+    asserts.true(env, executable.basename.startswith(target.label.name), "{} is not the test's own executable".format(executable.path))
+    run_env = target[RunEnvironmentInfo].environment
+    asserts.true(env, run_env.get("DX_WASI_MODULE", "").endswith(".wasm"), "DX_WASI_MODULE is not a .wasm file")
+    asserts.true(env, "DX_WASI_RUNTIME" in run_env, "DX_WASI_RUNTIME is not set")
+    return analysistest.end(env)
+
+_wasi_test_test = analysistest.make(_wasi_test_impl)
+
+def dx_wasi_test_tests(name, target):
+    """Asserts a wasm = "wasi" rust_test runs one .wasm module through the shared runner."""
+    _wasi_test_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+    )
+
 def dx_browser_cell_tests(name, target):
     """Asserts a browser test runs the qualified cell's browser over the command line flag."""
     _browser_cell_test(

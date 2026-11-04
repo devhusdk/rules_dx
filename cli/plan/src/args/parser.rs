@@ -339,6 +339,11 @@ fn parse_inner<S: AsRef<OsStr>>(
         pr,
         group,
         labels,
+        automerge,
+        min_age,
+        ignore,
+        allow_major,
+        max_prs,
         floor,
         reason,
         cases,
@@ -516,15 +521,19 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, option));
         }
     }
-    if command == Command::Update && !pr && (group.is_some() || labels.is_some()) {
-        return Err(unsupported(
-            command,
-            if group.is_some() {
-                "--group"
-            } else {
-                "--labels"
-            },
-        ));
+    if command == Command::Update && !pr {
+        let stray = [
+            (group.is_some(), "--group"),
+            (labels.is_some(), "--labels"),
+            (automerge.is_some(), "--automerge"),
+            (min_age.is_some(), "--min-age"),
+            (!ignore.is_empty(), "--ignore"),
+            (allow_major, "--allow-major"),
+            (max_prs.is_some(), "--max-prs"),
+        ];
+        if let Some((_, name)) = stray.iter().find(|(set, _)| *set) {
+            return Err(unsupported(command, *name));
+        }
     }
     if command == Command::Update && (floor || reason.is_some()) {
         let versioned = targets.len() == 2 && super::invocation::is_version(&targets[1]);
@@ -655,6 +664,11 @@ fn parse_inner<S: AsRef<OsStr>>(
         pr,
         group,
         labels,
+        automerge,
+        min_age,
+        ignore,
+        allow_major,
+        max_prs,
         floor,
         reason,
         cases,

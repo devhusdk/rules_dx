@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 /// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
 pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
 
-fn today_utc(pinned: Option<&str>) -> String {
+pub(super) fn today_utc(pinned: Option<&str>) -> String {
     today_utc_from(pinned.map(str::to_owned))
 }
 

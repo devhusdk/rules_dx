@@ -28,6 +28,14 @@ fn non_empty(raw: &str) -> Result<String, String> {
     }
 }
 
+/// A `set:package` pair.
+fn set_package(raw: &str) -> Result<String, String> {
+    match raw.split_once(':') {
+        Some((set, package)) if !set.is_empty() && !package.is_empty() => Ok(raw.to_owned()),
+        _ => Err("want set:package".to_owned()),
+    }
+}
+
 /// A coverage percent between 0 and 100.
 fn percent(raw: &str) -> Result<u32, String> {
     match raw.parse::<u32>() {
@@ -82,6 +90,11 @@ pub(crate) struct Flags {
     pub(crate) pr: bool,
     pub(crate) group: Option<String>,
     pub(crate) labels: Option<String>,
+    pub(crate) automerge: Option<String>,
+    pub(crate) min_age: Option<u32>,
+    pub(crate) ignore: Vec<String>,
+    pub(crate) allow_major: bool,
+    pub(crate) max_prs: Option<u16>,
     pub(crate) floor: bool,
     pub(crate) reason: Option<String>,
     pub(crate) cases: bool,
@@ -492,6 +505,64 @@ flag_group! {
 }
 
 flag_group! {
+    /// Auto-merge level: none, patch, minor or all (needs --pr; default patch).
+    AutomergeFlag, {
+        #[arg(
+            long,
+            value_name = "LEVEL",
+            require_equals = true,
+            overrides_with = "automerge",
+            value_parser = clap::builder::PossibleValuesParser::new(["none", "patch", "minor", "all"])
+        )]
+        automerge: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Skip versions published fewer than this many days ago (needs --pr; default 3).
+    MinAgeFlag, {
+        #[arg(long, value_name = "DAYS", require_equals = true, overrides_with = "min_age")]
+        min_age: Option<u32>,
+    }
+}
+
+flag_group! {
+    /// Skip one package, as set:package; repeatable (needs --pr).
+    IgnoreFlag, {
+        #[arg(
+            long,
+            value_name = "SET:PACKAGE",
+            require_equals = true,
+            action = clap::ArgAction::Append,
+            value_parser = set_package
+        )]
+        ignore: Vec<String>,
+    }
+}
+
+flag_group! {
+    /// Include major version updates (needs --pr).
+    AllowMajorFlag, {
+        #[arg(long, overrides_with = "allow_major")]
+        allow_major: bool,
+    }
+}
+
+flag_group! {
+    /// Open at most this many dx-update pull requests (needs --pr; default 5).
+    MaxPrsFlag, {
+        #[arg(
+            long,
+            value_name = "N",
+            require_equals = true,
+            overrides_with = "max_prs",
+            value_parser = clap::value_parser!(u16).range(1..)
+        )]
+        max_prs: Option<u16>,
+    }
+}
+
+flag_group! {
     /// Edit the bazel_dep floor instead of the tested override (needs a version and --reason).
     FloorFlag, {
         #[arg(long, overrides_with = "floor")]
@@ -874,6 +945,11 @@ command_args! {
         pr: PrFlag,
         group: GroupFlag,
         labels: LabelsFlag,
+        automerge: AutomergeFlag,
+        min_age: MinAgeFlag,
+        ignore: IgnoreFlag,
+        allow_major: AllowMajorFlag,
+        max_prs: MaxPrsFlag,
         floor: FloorArgs,
     };
     /// The flags `dx env` accepts.

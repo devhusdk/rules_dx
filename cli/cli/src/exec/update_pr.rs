@@ -7,6 +7,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::Fetch;
+use dx_update::policy::{automerge, filter, Level, Policy};
 use dx_update::pr::{body, lock_numstat, plan, Group, GroupPlan, Item};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -14,6 +15,7 @@ use std::process::Command;
 
 pub(crate) const CODE_UPDATE_PR: &str = "update_pr";
 pub(crate) const CODE_UPDATE_PR_FAILED: &str = "update_pr_failed";
+pub(crate) const CODE_UPDATE_PR_SKIPPED: &str = "update_pr_skipped";
 pub(crate) const CODE_UPDATE_PR_LOOKUP: &str = "update_pr_lookup_failed";
 
 const BOT_NAME: &str = "github-actions[bot]";
@@ -31,6 +33,14 @@ impl Tools {
             gh: PathBuf::from("gh"),
         }
     }
+}
+
+const DEFAULT_MIN_AGE: u32 = 3;
+const DEFAULT_MAX_PRS: usize = 5;
+
+struct Rules {
+    automerge: Option<Level>,
+    max_prs: usize,
 }
 
 type Step<'a> = dyn FnMut(&[String]) -> Result<(), String> + 'a;
@@ -79,8 +89,47 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     let Collected {
         found, registries, ..
     } = collect(workspace, &resolved, &Builtins::default(), fetch);
-    let items: Vec<Item> = found
-        .candidates
+    let min_age = invocation.min_age.unwrap_or(DEFAULT_MIN_AGE);
+    let cutoff = (min_age > 0)
+        .then(|| {
+            let today = super::audit::today_utc(audit_today);
+            let date = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok()?;
+            let back = date.checked_sub_days(chrono::Days::new(u64::from(min_age)))?;
+            Some(back.format("%Y-%m-%d").to_string())
+        })
+        .flatten();
+    let policy = Policy {
+        ignore: invocation.ignore.clone(),
+        allow_major: invocation.allow_major,
+        cutoff,
+    };
+    let (kept, skipped) = filter(&found.candidates, &policy);
+    for skip in &skipped {
+        let c = &skip.candidate;
+        let line = format!(
+            "skipped {}:{} {} -> {}: {}",
+            c.set, c.package, c.current, c.latest, skip.reason
+        );
+        let written = if json {
+            emit_built(
+                out,
+                notice_event(&NoticeEvent {
+                    scope: Some(vec![format!("{}:{}", c.set, c.package)]),
+                    ..NoticeEvent::info(CODE_UPDATE_PR_SKIPPED, line)
+                }),
+            )
+        } else {
+            check_stdout_write(writeln!(out, "{line}"))
+        };
+        if let Err(exit) = written {
+            return exit;
+        }
+    }
+    let rules = Rules {
+        automerge: Level::limit(invocation.automerge.as_deref().unwrap_or("patch")),
+        max_prs: invocation.max_prs.map_or(DEFAULT_MAX_PRS, usize::from),
+    };
+    let items: Vec<Item> = kept
         .iter()
         .filter_map(|candidate| {
             registries.get(&candidate.set).map(|registry| Item {
@@ -137,7 +186,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             tail(&text)
         ))
     };
-    let outcomes = match publish(workspace, tools, &plans, &labels, &mut step) {
+    let outcomes = match publish(workspace, tools, &plans, &labels, &rules, &mut step) {
         Ok(outcomes) => outcomes,
         Err(reason) => {
             return operational_output(invocation.output, out, err, CODE_UPDATE_PR_FAILED, &reason);
@@ -235,6 +284,7 @@ fn publish(
     tools: &Tools,
     plans: &[GroupPlan],
     labels: &[String],
+    rules: &Rules,
     step: &mut Step<'_>,
 ) -> Result<Vec<Outcome>, String> {
     if plans.is_empty() {
@@ -251,9 +301,30 @@ fn publish(
         return Err("HEAD is detached; check out a branch first".to_owned());
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
+    let mut open = open_update_prs(tools, root)?;
     let mut outcomes = Vec::new();
     for group in plans {
-        let result = publish_one(root, tools, group, labels, &base, &sha, step);
+        let existing = open
+            .iter()
+            .find(|(_, head)| *head == group.branch)
+            .map(|(number, _)| *number);
+        if existing.is_none() && open.len() >= rules.max_prs {
+            outcomes.push(Outcome {
+                branch: group.branch.clone(),
+                result: Ok(format!("skipped: --max-prs={} reached", rules.max_prs)),
+            });
+            continue;
+        }
+        let ctx = Target {
+            base: &base,
+            sha: &sha,
+            existing,
+            rules,
+        };
+        let result = publish_one(root, tools, group, labels, &ctx, step);
+        if result.is_ok() && existing.is_none() {
+            open.push((0, group.branch.clone()));
+        }
         if result.is_err() {
             let _ = git(&["reset", "--hard", &sha]);
             let _ = git(&["clean", "-fd"]);
@@ -267,15 +338,58 @@ fn publish(
     Ok(outcomes)
 }
 
+struct Target<'a> {
+    base: &'a str,
+    sha: &'a str,
+    existing: Option<u64>,
+    rules: &'a Rules,
+}
+
+/// Lists open pull requests on `dx-update/` branches as number and branch.
+fn open_update_prs(tools: &Tools, root: &Path) -> Result<Vec<(u64, String)>, String> {
+    let listed = program(
+        &tools.gh,
+        root,
+        &[
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            "1000",
+            "--json",
+            "number,headRefName",
+        ],
+    )?;
+    let value: serde_json::Value = serde_json::from_str(&listed).map_err(|e| e.to_string())?;
+    Ok(value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|pr| {
+            let head = pr.get("headRefName")?.as_str()?;
+            if !head.starts_with("dx-update/") {
+                return None;
+            }
+            Some((pr.get("number")?.as_u64()?, head.to_owned()))
+        })
+        .collect())
+}
+
 fn publish_one(
     root: &Path,
     tools: &Tools,
     group: &GroupPlan,
     labels: &[String],
-    base: &str,
-    sha: &str,
+    target: &Target<'_>,
     step: &mut Step<'_>,
 ) -> Result<String, String> {
+    let Target {
+        base,
+        sha,
+        existing,
+        rules,
+    } = *target;
     let git = |args: &[&str]| program(&tools.git, root, args);
     let branch = group.branch.as_str();
     git(&["checkout", "-B", branch, sha])?;
@@ -323,13 +437,8 @@ fn publish_one(
     ]);
     git(&["push", "--force-with-lease", "origin", branch])?;
     let gh = |args: &[&str]| program(&tools.gh, root, args);
-    let listed = gh(&[
-        "pr", "list", "--head", branch, "--state", "open", "--json", "number",
-    ])?;
-    let number = serde_json::from_str::<serde_json::Value>(&listed)
-        .ok()
-        .and_then(|value| value.get(0)?.get("number")?.as_u64());
-    if let Some(number) = number {
+    let merge = automerge(rules.automerge, group);
+    if let Some(number) = existing {
         let number = number.to_string();
         gh(&[
             "pr",
@@ -340,6 +449,11 @@ fn publish_one(
             "--body",
             &text,
         ])?;
+        if merge {
+            gh(&["pr", "merge", &number, "--auto", "--squash"])?;
+        } else {
+            let _ = gh(&["pr", "merge", &number, "--disable-auto"]);
+        }
         return Ok(format!("updated #{number}"));
     }
     let mut args = vec![
@@ -358,6 +472,9 @@ fn publish_one(
         args.extend(["--label", label]);
     }
     let created = gh(&args)?;
+    if merge {
+        gh(&["pr", "merge", created.trim(), "--auto", "--squash"])?;
+    }
     Ok(format!("opened {}", created.trim()))
 }
 
@@ -443,6 +560,19 @@ mod tests {
         )
     }
 
+    fn rules() -> Rules {
+        Rules {
+            automerge: Some(Level::Patch),
+            max_prs: 5,
+        }
+    }
+
+    fn plans_to(latest: &str) -> Vec<GroupPlan> {
+        let mut got = plans();
+        got[0].items[0].candidate.latest = latest.into();
+        got
+    }
+
     fn editing(
         work: PathBuf,
         fail: Option<&'static str>,
@@ -462,8 +592,15 @@ mod tests {
     fn creates_a_pull_request_with_labels() {
         let fx = fixture("[]");
         let mut step = editing(fx.work.clone(), None);
-        let got =
-            publish(&fx.work, &fx.tools, &plans(), &["deps".into()], &mut step).expect("publish");
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &plans(),
+            &["deps".into()],
+            &rules(),
+            &mut step,
+        )
+        .expect("publish");
         assert_eq!(got[0].result, Ok("opened https://example.com/pr/9".into()));
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr create --base main --head dx-update/cargo"));
@@ -480,9 +617,10 @@ mod tests {
 
     #[test]
     fn edits_an_open_pull_request() {
-        let fx = fixture("[{\"number\":7}]");
+        let fx = fixture("[{\"number\":7,\"headRefName\":\"dx-update/cargo\"}]");
         let mut step = editing(fx.work.clone(), None);
-        let got = publish(&fx.work, &fx.tools, &plans(), &[], &mut step).expect("publish");
+        let got =
+            publish(&fx.work, &fx.tools, &plans(), &[], &rules(), &mut step).expect("publish");
         assert_eq!(got[0].result, Ok("updated #7".into()));
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr edit 7 --title Update cargo dependencies"));
@@ -490,12 +628,56 @@ mod tests {
     }
 
     #[test]
+    fn a_patch_group_turns_on_auto_merge() {
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        let plans = plans_to("1.0.1");
+        publish(&fx.work, &fx.tools, &plans, &[], &rules(), &mut step).expect("publish");
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("pr merge https://example.com/pr/9 --auto --squash"));
+    }
+
+    #[test]
+    fn a_major_group_is_not_merged() {
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        publish(&fx.work, &fx.tools, &plans(), &[], &rules(), &mut step).expect("publish");
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr merge"));
+    }
+
+    #[test]
+    fn a_refreshed_major_group_turns_auto_merge_off() {
+        let fx = fixture("[{\"number\":7,\"headRefName\":\"dx-update/cargo\"}]");
+        let mut step = editing(fx.work.clone(), None);
+        publish(&fx.work, &fx.tools, &plans(), &[], &rules(), &mut step).expect("publish");
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("pr merge 7 --disable-auto"));
+    }
+
+    #[test]
+    fn the_cap_skips_new_groups_only() {
+        let fx = fixture("[{\"number\":3,\"headRefName\":\"dx-update/npm\"}]");
+        let mut step = editing(fx.work.clone(), None);
+        let rules = Rules {
+            automerge: None,
+            max_prs: 1,
+        };
+        let got = publish(&fx.work, &fx.tools, &plans(), &[], &rules, &mut step).expect("publish");
+        assert_eq!(got[0].result, Ok("skipped: --max-prs=1 reached".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr create"));
+    }
+
+    #[test]
     fn a_failed_verify_pushes_nothing() {
         let fx = fixture("[]");
         let mut step = editing(fx.work.clone(), Some("test"));
-        let got = publish(&fx.work, &fx.tools, &plans(), &[], &mut step).expect("publish");
+        let got =
+            publish(&fx.work, &fx.tools, &plans(), &[], &rules(), &mut step).expect("publish");
         assert!(got[0].result.is_err());
-        assert!(!fx.argv.exists());
+        let argv = std::fs::read_to_string(&fx.argv).unwrap_or_default();
+        assert!(!argv.contains("pr create") && !argv.contains("pr edit"));
         let remote = sh(&fx.origin, &["branch", "--list", "dx-update/*"]);
         assert!(remote.trim().is_empty());
         assert_eq!(sh(&fx.work, &["status", "--porcelain"]).trim(), "");
@@ -510,7 +692,7 @@ mod tests {
         let fx = fixture("[]");
         std::fs::write(fx.work.join("Cargo.lock"), "dirty\n").expect("write");
         let mut step = editing(fx.work.clone(), None);
-        let got = publish(&fx.work, &fx.tools, &plans(), &[], &mut step);
+        let got = publish(&fx.work, &fx.tools, &plans(), &[], &rules(), &mut step);
         assert!(got.is_err());
     }
 

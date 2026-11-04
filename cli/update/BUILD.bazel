@@ -35,6 +35,7 @@ dx_rust_crate(
         "src/edit/version.rs",
         "src/lib.rs",
         "src/outcome.rs",
+        "src/policy.rs",
         "src/pr.rs",
         "src/recovery.rs",
         "src/report.rs",

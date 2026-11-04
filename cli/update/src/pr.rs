@@ -87,9 +87,14 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
     let mut text = String::new();
     for item in &plan.items {
         let c = &item.candidate;
+        let age = if c.published.is_none() {
+            ", age unknown"
+        } else {
+            ""
+        };
         let _ = writeln!(
             text,
-            "- {}:{} {} -> {} ({})",
+            "- {}:{} {} -> {} ({}{age})",
             c.set,
             c.package,
             c.current,
@@ -188,7 +193,9 @@ mod tests {
     fn body_lists_packages_and_lock_changes() {
         let got = plan(&items()[..1], Group::Set);
         let text = body(&got[0], &[("Cargo.lock".into(), 4, 2)]);
-        assert!(text.contains("- cargo:serde 1.0.0 -> 2.0.0 (https://crates.io/crates/serde)"));
+        assert!(text.contains(
+            "- cargo:serde 1.0.0 -> 2.0.0 (https://crates.io/crates/serde, age unknown)"
+        ));
         assert!(text.contains("| Cargo.lock | 4 | 2 |"));
         assert!(!body(&got[0], &[]).contains("Lock file"));
     }

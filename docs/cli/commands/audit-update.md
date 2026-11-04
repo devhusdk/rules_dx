@@ -478,7 +478,9 @@ bazel run @rules_dx//:dx -- update --outdated github-actions bazel:.bazelversion
 ## Open pull requests
 
 ```text
-dx update --pr [--group=package|set|all] [--labels=<a,b>] [--output text|json] [selector ...]
+dx update --pr [--group=package|set|all] [--labels=<a,b>] [--automerge=none|patch|minor|all]
+  [--min-age=<days>] [--ignore=<set:package>] [--allow-major] [--max-prs=<n>]
+  [--output text|json] [selector ...]
 ```
 
 Opens or refreshes one pull request per group of outdated packages. It needs
@@ -497,6 +499,26 @@ Characters outside letters, digits, `.`, `_`, and `-` become `-` in branch
 names. `--labels` adds comma-separated labels to new pull requests. The labels
 must exist, or `gh pr create` fails and the group fails.
 
+Policy flags:
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--automerge=none\|patch\|minor\|all` | `patch` | Turns on auto-merge for a pull request when every package in it is within that level. |
+| `--min-age=<days>` | `3` | Skips versions published fewer days ago. `0` turns it off. A version with no publish date is kept, and the body says `age unknown`. |
+| `--ignore=<set:package>` | none | Skips one package. Repeat the flag for more. |
+| `--allow-major` | off | Includes major updates. |
+| `--max-prs=<n>` | `5` | Stops opening new pull requests when `n` `dx-update/` pull requests are open. Open ones still refresh. |
+
+A zero-major version counts a minor bump as major. Auto-merge runs
+`gh pr merge --auto --squash`, so the repository must allow auto-merge. If it
+does not, pass `--automerge=none`. When a refresh brings a pull request above
+the level, `dx update --pr` turns auto-merge off for it.
+
+Each skipped package prints `skipped <set>:<package> <old> -> <new>: <reason>`
+with the reason `ignored`, `major` or `too new`. In JSON it is a notice with
+code `update_pr_skipped`. A group over `--max-prs` prints
+`skipped: --max-prs=<n> reached` and does not change the exit code.
+
 For each group, `dx update --pr` does this:
 
 1. Resets the branch to the base commit.
@@ -504,6 +526,7 @@ For each group, `dx update --pr` does this:
 3. Runs `dx check --affected` and `dx test --affected`.
 4. Commits, then pushes with `--force-with-lease`.
 5. Edits the open pull request for the branch, or creates one.
+6. Turns auto-merge on or off by `--automerge`.
 
 The body lists each package as `old -> new` with its registry link, then the
 lock files changed with added and removed line counts.
@@ -512,13 +535,14 @@ A group that fails any step is reset and not pushed. It is reported as failed
 and the next group runs. The base branch is checked out again at the end.
 
 `--pr` does not combine with `--outdated`, `--apply`, `--floor`, `--reason`,
-`--offline`, or a version. `--group` and `--labels` need `--pr`.
+`--offline`, or a version. The policy flags, `--group`, and `--labels` need `--pr`.
 Exit codes: 0 when every group is published or nothing is outdated, 1 when a
 group or lookup fails, 2 for usage errors.
 
 ```sh
 bazel run @rules_dx//:dx -- update --pr
 bazel run @rules_dx//:dx -- update --pr --group=package --labels=dependencies dx_crates
+bazel run @rules_dx//:dx -- update --pr --automerge=none --ignore=cargo:serde --max-prs=2
 ```
 
 ## Widen or add one package

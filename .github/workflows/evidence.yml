@@ -220,7 +220,7 @@ jobs:
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
           set -o pipefail
-          bazel test --noshow_progress //android/tests/fixtures/adopt-android/app:check_apk_test //android/tests/fixtures/adopt-android/app:inspect_apk_test //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test 2>&1 | tail -n 20
+          bazel test --noshow_progress --test_output=errors //android/tests/fixtures/adopt-android/app:check_apk_test //android/tests/fixtures/adopt-android/app:inspect_apk_test //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test //android/tests/fixtures/rust_apk:sign_app_test //android/tests/fixtures/rust_apk:sign_app_aab_test 2>&1 | tail -n 20
       - name: Wait for the emulator to boot
         id: boot
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}

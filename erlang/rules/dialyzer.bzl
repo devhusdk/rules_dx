@@ -1,5 +1,6 @@
 """Dialyzer PLT and tool rules over the pinned OTP runtime."""
 
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load(":defs.bzl", "otp_tool_binary_impl")
 load(":providers.bzl", "DialyzerToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
 
@@ -9,7 +10,7 @@ otp_tool_binary = rule(
     implementation = otp_tool_binary_impl,
     doc = "Runs `bin/<tool>` of the resolved OTP runtime.",
     executable = True,
-    attrs = {"tool": attr.string(mandatory = True, doc = "The OTP `bin/` program to run.")},
+    attrs = dict(NATIVE_LAUNCHER_ATTRS, tool = attr.string(mandatory = True, doc = "The OTP `bin/` program to run.")),
     toolchains = ["@rules_erlang//tools:toolchain_type"],
 )
 

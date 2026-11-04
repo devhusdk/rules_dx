@@ -1,4 +1,4 @@
-load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_DIALYZER_COMPATIBLE_WITH")
 load("//erlang/rules:dialyzer.bzl", "dialyzer_plt", "dialyzer_tool", "otp_tool_binary")
 load("//erlang/toolchain:pins.bzl", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -17,7 +17,7 @@ alias(
 
 otp_tool_binary(
     name = "dialyzer_bin",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    target_compatible_with = ERLANG_DIALYZER_COMPATIBLE_WITH,
     tool = "dialyzer",
 )
 
@@ -32,7 +32,7 @@ dialyzer_plt(
     apps = DIALYZER_PLT_CORE,
     dialyzer = ":dialyzer_bin",
     escript = ":escript_bin",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    target_compatible_with = ERLANG_DIALYZER_COMPATIBLE_WITH,
 )
 
 dialyzer_plt(
@@ -41,7 +41,7 @@ dialyzer_plt(
     dialyzer = ":dialyzer_bin",
     escript = ":escript_bin",
     plts = [":otp_core_plt"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    target_compatible_with = ERLANG_DIALYZER_COMPATIBLE_WITH,
 )
 
 dialyzer_tool(
@@ -51,7 +51,7 @@ dialyzer_tool(
         ":otp_core_plt",
         ":otp_ext_plt",
     ],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    target_compatible_with = ERLANG_DIALYZER_COMPATIBLE_WITH,
 )
 
 real_source_target(

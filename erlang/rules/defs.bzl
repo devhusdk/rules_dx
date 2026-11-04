@@ -13,7 +13,8 @@ load("//cc/rules:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library"
 load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:providers.bzl", "BeamInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
-load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
+load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS", "OTP_UNPORTED_CELLS")
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -22,6 +23,10 @@ ErlangAppInfo = _ErlangAppInfo
 ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
 
 ERLANG_COMPATIBLE_WITH = otp_compatible_with(ERLANG_CELLS)
+
+ERLANG_NIF_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ERLANG_CELLS if cell not in OTP_NIF_UNPORTED_CELLS])
+
+ERLANG_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ERLANG_CELLS if cell not in OTP_DIALYZER_UNPORTED_CELLS])
 
 DEFAULT_ERLC_OPTS = _DEFAULT_ERLC_OPTS
 
@@ -98,13 +103,24 @@ def runfiles_path(workspace_name, short_path):
         return short_path[3:]
     return workspace_name + "/" + short_path
 
+def otp_launch_descriptor(root, tool, archive_key = None):
+    """Returns the native launcher descriptor that runs `bin/<tool>.exe` of the OTP tree at `root`."""
+    lines = ["version=1", "program=" + root + "/bin/" + tool + ".exe"]
+    if archive_key:
+        lines.append("path=" + archive_key)
+    return "\n".join(lines) + "\n"
+
 def otp_tool_binary_impl(ctx):
     """Implements `otp_tool_binary`: a launcher for one `bin/<tool>` of the resolved OTP tree."""
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
+    otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
+    if target_is_windows(ctx):
+        launcher, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool))
+        return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles))]
     launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(launcher, otp_launcher_text(
-        root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
+        root = otp_root,
         tool = ctx.attr.tool,
         prelude = _HOME_PRELUDE,
     ), is_executable = True)
@@ -143,13 +159,19 @@ def _escript_binary_impl(ctx):
     archive = ctx.attr.upstream[DefaultInfo].files_to_run.executable
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
-    launcher = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(launcher, otp_launcher_text(
-        root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
-        tool = "escript",
-        args = '"$runfiles/' + runfiles_path(ctx.workspace_name, archive.short_path) + '" ',
-    ), is_executable = True)
-    runfiles = ctx.runfiles([launcher, archive]).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
+    otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
+    archive_key = runfiles_path(ctx.workspace_name, archive.short_path)
+    if target_is_windows(ctx):
+        launcher, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, "escript", archive_key))
+    else:
+        launcher = ctx.actions.declare_file(ctx.label.name)
+        ctx.actions.write(launcher, otp_launcher_text(
+            root = otp_root,
+            tool = "escript",
+            args = '"$runfiles/' + archive_key + '" ',
+        ), is_executable = True)
+        launcher_runfiles = ctx.runfiles([launcher])
+    runfiles = launcher_runfiles.merge(ctx.runfiles([archive])).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
     for dep in ctx.attr.data:
         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
         runfiles = runfiles.merge(ctx.runfiles(transitive_files = dep[DefaultInfo].files))
@@ -167,7 +189,7 @@ _escript_binary = rule(
         "srcs": attr.label_list(allow_files = _EXTS, doc = "Direct Erlang sources owned by this binary."),
         "upstream": attr.label(executable = True, cfg = "target", mandatory = True, doc = "The rules_erlang escript archive."),
         "apps": attr.label_list(providers = [_ErlangAppInfo], doc = "The apps bundled into the archive; none may ship a NIF."),
-    }, **dx_forward_data_attr()),
+    }, **dict(NATIVE_LAUNCHER_ATTRS, **dx_forward_data_attr())),
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     toolchains = ["@rules_erlang//tools:toolchain_type"],
 )
@@ -355,7 +377,7 @@ def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, 
     """
     if "/" in name:
         fail("erlang_nif " + name + ": the name is a file name, not a path")
-    compatible = target_compatible_with if target_compatible_with != None else ERLANG_COMPATIBLE_WITH
+    compatible = target_compatible_with if target_compatible_with != None else ERLANG_NIF_COMPATIBLE_WITH
     _cc_library(
         name = name + "_c",
         srcs = srcs,

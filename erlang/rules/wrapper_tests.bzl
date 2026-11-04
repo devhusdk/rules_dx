@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal")
-load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_forward_kwargs", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "runfiles_path")
+load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_forward_kwargs", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
 load(":providers.bzl", "BeamInfo")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -43,7 +43,9 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("suite args follow the local node", ct_run_args(["-ct_hooks cth_surefire"]), LOCAL_NODE_ARGS + ["-ct_hooks cth_surefire"]),
             expect_equal("named suites keep their node", ct_run_args(["-sname peer_host"]), ["-sname peer_host"]),
             expect_equal("long names keep their node", ct_run_args(["-name", "a@b"]), ["-name", "a@b"]),
-            expect_equal("apps compile on every OTP cell", ERLANG_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
+            expect_equal("apps compile on every OTP cell", ERLANG_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
+            expect_equal("tools run from the real exe path", otp_launch_descriptor("+otp+root", "erl"), "version=1\nprogram=+otp+root/bin/erl.exe\n"),
+            expect_equal("escripts pass the archive as the path", otp_launch_descriptor("+otp+root", "escript", "_main/x.escript"), "version=1\nprogram=+otp+root/bin/escript.exe\npath=_main/x.escript\n"),
             expect_equal("default apps own the globs", app_sources({}, _glob), [",".join(ERLANG_SOURCE_GLOBS) + "!"]),
             expect_equal("explicit srcs are the owned files", app_sources({"srcs": ["lib/a.erl"], "hdrs": ["lib/a.hrl"]}, _glob), ["lib/a.erl", "lib/a.hrl"]),
             expect_equal("prebuilt beams own no sources", app_sources({"beam_files": [":beams"]}, _glob), []),

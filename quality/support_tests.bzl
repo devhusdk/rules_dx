@@ -3,7 +3,7 @@
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
 load("//elixir/toolchain:pins.bzl", "ELIXIR_CELLS")
-load("//erlang/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_UNPORTED_CELLS")
+load("//erlang/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
@@ -204,12 +204,12 @@ def _canonical(cells):
 def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),
-        "dialyzer": _canonical([c for c in ERLANG_CELLS.keys() if c not in OTP_UNPORTED_CELLS]),
+        "dialyzer": _canonical([c for c in ERLANG_CELLS.keys() if c not in OTP_DIALYZER_UNPORTED_CELLS]),
         "dfmt": _canonical(LDC_CELLS.keys()),
         "dart": sorted(RULES_DART_PLATFORMS.keys()),
         "dscanner": _canonical(LDC_CELLS.keys()),
-        "elvis": _canonical([c for c in ERLANG_CELLS.keys() if c not in OTP_UNPORTED_CELLS]),
-        "erlfmt": _canonical([c for c in ERLANG_CELLS.keys() if c not in OTP_UNPORTED_CELLS]),
+        "elvis": _canonical(ERLANG_CELLS.keys()),
+        "erlfmt": _canonical(ERLANG_CELLS.keys()),
         "julia_format": sorted(JULIA_PLATFORMS.keys()),
         "mix_format": _canonical(ELIXIR_CELLS),
         "qmlformat": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],

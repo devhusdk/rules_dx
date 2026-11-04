@@ -134,7 +134,7 @@ The `wx` application, sources and docs are dropped on every cell.
 | `linux_arm64` | Qualified | |
 | `macos_arm64` | Qualified | |
 | `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Not qualified | OTP is pinned and downloads on CI. The `.bat` launchers are pending in #5962. |
+| `windows_x86_64` | Qualified | Tools and escripts run through the native launcher. NIFs are pending in #5963 and dialyzer in #6008. |
 | `windows_arm64` | Not qualified | No upstream OTP build. |
 
 Elixir targets still run only on `linux_x86_64`. On other platforms

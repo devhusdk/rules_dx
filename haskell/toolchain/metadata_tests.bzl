@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "GHC_VERSION", "GLIBC_FLOOR", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256", "qualified_cells")
-load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
+load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -29,6 +29,21 @@ _CONF = """name: ghc-bignum
 library-dirs: ${pkgroot}/../lib/{triple}-ghc-9.10.3/ghc-bignum-1.3-0000
 dynamic-library-dirs: ${pkgroot}/../lib/{triple}-ghc-9.10.3
 extra-libraries: gmp"""
+
+_DARWIN_RTS_CONF = """name: rts
+include-dirs:
+    ${pkgroot}/../lib/aarch64-osx-ghc-9.10.3/rts-1.0.2/include
+    /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/ffi
+library-dirs:
+    ${pkgroot}/../lib/aarch64-osx-ghc-9.10.3/rts-1.0.2
+    /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
+library-dirs-static:
+    ${pkgroot}/../lib/aarch64-osx-ghc-9.10.3/rts-1.0.2
+    /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
+dynamic-library-dirs:
+    ${pkgroot}/../lib/aarch64-osx-ghc-9.10.3
+    /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
+extra-libraries: m dl ffi"""
 
 def _unblocked_windows():
     cells = dict(CELLS)
@@ -67,6 +82,7 @@ def _cell_checks(name):
     ]
 
 def _checks():
+    darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
     windows_settings = ghc_settings(_SETTINGS.replace("$topdir/../bin/unlit", "$tooldir/mingw/bin/unlit.exe"))
     checks = [
@@ -113,6 +129,10 @@ def _checks():
         expect_contains("otool comes from the cc toolchain", settings, "(\"otool command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("install_name_tool comes from the cc toolchain", settings, "(\"install_name_tool command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("host link flags are dropped", settings, "(\"C compiler link flags\", \"\")"),
+        expect_false("darwin rts conf drops the host sdk", "MacOSX.sdk" in darwin_rts),
+        expect_equal("darwin rts conf keeps the bindist dirs", darwin_rts.count("${pkgroot}/../lib/aarch64-osx-ghc-9.10.3/rts-1.0.2"), 3),
+        expect_contains("darwin rts conf keeps ffi", darwin_rts, "extra-libraries: m dl ffi"),
+        expect_equal("linux conf is unchanged", drop_host_sdk_dirs(_CONF), _CONF),
         expect_contains("bundled programs stay relative", settings, "(\"unlit command\", \"$topdir/../bin/unlit\")"),
     ]
     for name in sorted(CELLS.keys()):

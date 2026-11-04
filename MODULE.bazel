@@ -434,6 +434,7 @@ osx.frameworks(names = [
     "Security",
     "SystemConfiguration",
 ])
+osx.libraries(names = ["libffi"])
 
 cuda_host_sysroot = use_repo_rule("@toolchains_llvm//toolchain:sysroot.bzl", "sysroot")
 

@@ -383,6 +383,13 @@ def ghc_settings(source):
         fail("GHC settings still name a host path:\n" + settings)
     return settings
 
+DARWIN_SDK_PREFIX = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
+
+def drop_host_sdk_dirs(conf):
+    """Returns the package .conf text without the lines that name the host macOS SDK."""
+    lines = [line for line in conf.split("\n") if not line.strip().startswith(DARWIN_SDK_PREFIX)]
+    return "\n".join(lines)
+
 def closure_library_dirs(conf, closure):
     """Returns the package .conf text with the closure lib directory added to its library dirs."""
     entry = "${pkgroot}/../" + closure + "/lib"
@@ -464,6 +471,12 @@ def _ghc_repo_impl(rctx):
         )
     if cell.exe_suffix == ".exe":
         _drop_import_libs(rctx)
+    for entry in rctx.path(LIBDIR + "/package.conf.d").readdir():
+        if entry.basename.endswith(".conf"):
+            conf = rctx.read(entry)
+            stripped = drop_host_sdk_dirs(conf)
+            if stripped != conf:
+                rctx.file(entry, stripped, executable = False)
     _execute(rctx, ["bin/ghc-pkg" + cell.exe_suffix, "recache", "--global"])
     version = _execute(rctx, ["bin/ghc" + cell.exe_suffix, "--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:
@@ -472,7 +485,7 @@ def _ghc_repo_impl(rctx):
     script = rctx.path(rctx.attr._pkgdb_to_bzl)
     result = json.decode(_execute(rctx, [python, "-E", "-s", "-B", script, rctx.name, LIBDIR]).stdout)
     if "#SYMLINK:" in result["file_content"]:
-        fail("GHC package database points outside the bindist")
+        fail("GHC package database points outside the bindist:\n" + "\n".join([line for line in result["file_content"].split("\n") if "#SYMLINK:" in line]))
     mingw_cc = getattr(cell, "mingw_cc", False)
     if mingw_cc and not rctx.path("mingw/bin/clang.exe").exists:
         fail("Windows bindist ships no mingw/bin/clang.exe")

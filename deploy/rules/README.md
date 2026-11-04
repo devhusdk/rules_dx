@@ -699,7 +699,8 @@ Every deploy target, `npm_deploy` included, rejects arguments beyond that output
 directory. Deploy targets run through `bazel run` or `dx deploy`, which set
 `DX_DEPLOY_CONFIG`. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `octo`,
 `npm`) run with a cleared environment plus a per-tool keep-list. Secrets reach
-them only through that environment, stdin or an owner-only temp file, never
-argv. The exceptions are the promotion `PROMOTION_HEALTH_CMD` and `wrangler`,
+them only through that environment, stdin or a temp file, never
+argv. On Unix the temp file is mode 0600. On Windows it relies on the user
+temp directory's access list. The exceptions are the promotion `PROMOTION_HEALTH_CMD` and `wrangler`,
 which has its own narrower list. The `npm`, `twine`, `dotnet` and `octo`
 output has the token replaced with `[redacted]` and appears when the tool exits.

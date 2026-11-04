@@ -110,6 +110,12 @@ cuda_host_sysroot(
     urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
 )
 
+cuda_host_sysroot(
+    name = "cuda_host_sysroot_aarch64",
+    sha256 = "e39b700d8858d18868544c8c84922f6adfa8419f3f42471b92024ba38eff7aca",
+    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_arm64_sysroot.tar.xz"],
+)
+
 cuda_host_llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 cuda_host_llvm.toolchain(
     name = "cuda_host_llvm",
@@ -120,6 +126,11 @@ cuda_host_llvm.sysroot(
     name = "cuda_host_llvm",
     label = "@cuda_host_sysroot//sysroot",
     targets = ["linux-x86_64"],
+)
+cuda_host_llvm.sysroot(
+    name = "cuda_host_llvm",
+    label = "@cuda_host_sysroot_aarch64//sysroot",
+    targets = ["linux-aarch64"],
 )
 use_repo(cuda_host_llvm, "cuda_host_llvm")
 
@@ -189,8 +200,8 @@ so `bazel build //...` skips them.
 
 Windows x86_64 archives (CUDA 13.4.2 redist) are pinned in `modules/cuda.bzl`
 but blocked until nvcc has an MSVC host compiler (#4815) and a Windows run
-(#4704). Linux arm64 (sbsa) 13.4.2 archives are pinned but blocked on an
-aarch64 host sysroot (#5974) and per-platform rules_cuda wiring (#5975). Windows arm64 is blocked on the rules_cuda platform list (#5969).
+(#4704). Linux arm64 (sbsa) 13.4.2 archives are pinned but blocked on
+per-platform rules_cuda wiring (#5975). Windows arm64 is blocked on the rules_cuda platform list (#5969).
 
 ## Errors
 

@@ -64,13 +64,15 @@ def versions_contract_tests(name):
         ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")", "use_repo(npm_dev, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_DEV_HUBS]) + ")"] +
         ["pnpm_lock = \"" + lock + "\"," for lock in _NPM_LOCKS],
     )
+    cuda_sysroot_blocks = []
+    for target, sysroot in _CUDA_HOST_SYSROOT.items():
+        cuda_sysroot_blocks.append("sha256 = \"" + sysroot.sha256 + "\",\n    urls = [\"" + sysroot.url + "\"],")
+        cuda_sysroot_blocks.append("label = \"@" + sysroot.repo + "//sysroot\",\n    targets = [\"" + target + "\"],")
     cuda_stanza = "\n".join([
         "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"",
         "name = \"toolchains_llvm\", version = \"" + _TOOLCHAINS_LLVM_VERSION + "\"",
         "llvm_version = \"" + _CUDA_HOST_LLVM_VERSION + "\"",
         "nvcc_version = \"" + _CUDA_VERSION + "\"",
-        "sha256 = \"" + _CUDA_HOST_SYSROOT.sha256 + "\"",
-        _CUDA_HOST_SYSROOT.url,
     ] + cuda_pins)
     starlark_test(
         name = name,
@@ -91,10 +93,14 @@ def versions_contract_tests(name):
             expect_equal("cuda rules module follows canonical", _MOD_RULES_CUDA_VERSION, _RULES_CUDA_VERSION),
             expect_equal("cuda host llvm module follows canonical", _MOD_CUDA_HOST_LLVM_VERSION, _CUDA_HOST_LLVM_VERSION),
             expect_equal("cuda host llvm major is accepted by the pinned nvcc", int(_CUDA_HOST_LLVM_VERSION.split(".")[0]) <= _CUDA_MAX_HOST_CLANG_MAJOR, True),
+            expect_equal("cuda host sysroot checksums are sha256", [len(s.sha256) for s in _CUDA_HOST_SYSROOT.values()], [64] * len(_CUDA_HOST_SYSROOT)),
             expect_equal("toolchains_llvm module follows canonical", _MOD_TOOLCHAINS_LLVM_VERSION, _TOOLCHAINS_LLVM_VERSION),
         ],
         file_blocks = {
-            "//:MODULE.bazel": [manifests_block] + source_archive_pins,
+            "//:MODULE.bazel": [manifests_block] + source_archive_pins + cuda_sysroot_blocks,
+            "//:cuda/README.md": cuda_sysroot_blocks,
+            "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_sysroot_blocks,
+            "//tools/testing/starters/fixtures:cuda/MODULE.bazel.fixture": cuda_sysroot_blocks,
         },
         file_checks = {
             "//:.bazelrc": "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
@@ -120,8 +126,6 @@ def versions_contract_tests(name):
                                "llvm_version = \"" + _CUDA_HOST_LLVM_VERSION + "\"\n" +
                                "cuda_host_llvm = use_extension(\"@toolchains_llvm//toolchain/extensions:llvm.bzl\", \"llvm\", dev_dependency = True)\n" +
                                "nvcc_version = \"" + _CUDA_VERSION + "\"\n" +
-                               "sha256 = \"" + _CUDA_HOST_SYSROOT.sha256 + "\"\n" +
-                               _CUDA_HOST_SYSROOT.url + "\n" +
                                "\n".join(cuda_pins) + "\n" +
                                "name = \"googletest\", version = \"" + _GOOGLETEST_VERSION + "\"\n" +
                                "name = \"rules_python\", version = \"" + _RULES_PYTHON_VERSION + "\"\n" +

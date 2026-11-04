@@ -183,7 +183,7 @@ CUDA_CELLS = {
         components = _WINDOWS_X86_64_COMPONENTS,
     ),
     "linux_arm64": struct(
-        blocker = "needs an aarch64 cuda_host_llvm sysroot (#5974), per-platform rules_cuda wiring (#5975) and an arm64 run (#3315)",
+        blocker = "needs per-platform rules_cuda wiring (#5975) and an arm64 run (#3315)",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         components = _LINUX_ARM64_COMPONENTS,
@@ -218,7 +218,15 @@ CUDA_ARCHS = [
     "sm_121",
 ]
 
-CUDA_HOST_SYSROOT = struct(
-    url = "https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz",
-    sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
-)
+CUDA_HOST_SYSROOT = {
+    "linux-x86_64": struct(
+        repo = "cuda_host_sysroot",
+        url = "https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz",
+        sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
+    ),
+    "linux-aarch64": struct(
+        repo = "cuda_host_sysroot_aarch64",
+        url = "https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_arm64_sysroot.tar.xz",
+        sha256 = "e39b700d8858d18868544c8c84922f6adfa8419f3f42471b92024ba38eff7aca",
+    ),
+}

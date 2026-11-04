@@ -11,8 +11,6 @@ pub struct HookFile {
     pub path: &'static str,
     /// The event and tool matcher that run each hook kind this file carries.
     pub hooks: &'static [(HookKind, &'static str, Option<&'static str>)],
-    /// Whether `dx status` reports the hooks when the file is absent.
-    required: bool,
     /// Whether the file carries the Claude Code `permissions.allow` rules.
     allow: bool,
 }
@@ -26,7 +24,6 @@ pub const CLAUDE: HookFile = HookFile {
         (HookKind::Stop, "SubagentStop", None),
         (HookKind::Guard, "PreToolUse", Some("Bash")),
     ],
-    required: true,
     allow: true,
 };
 
@@ -37,7 +34,6 @@ pub const SETTINGS: &str = CLAUDE.path;
 pub const CODEX: HookFile = HookFile {
     path: ".codex/hooks.json",
     hooks: &[(HookKind::Guard, "PreToolUse", Some("Bash"))],
-    required: false,
     allow: false,
 };
 
@@ -45,7 +41,6 @@ pub const CODEX: HookFile = HookFile {
 pub const GEMINI: HookFile = HookFile {
     path: ".gemini/settings.json",
     hooks: &[(HookKind::Guard, "BeforeTool", Some("run_shell_command"))],
-    required: false,
     allow: false,
 };
 
@@ -164,18 +159,16 @@ pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
         .collect()
 }
 
-/// The workspace hooks files that lack entries, with the entries each lacks.
+/// The existing workspace hooks files that lack entries, with the entries each lacks.
 ///
-/// An absent file counts only when it is required, so repositories adopted
-/// before dx wrote a file get no new warning.
+/// An absent file is never reported; the agent it belongs to was not chosen.
 pub fn workspace_missing(workspace: &Path) -> Vec<(&'static str, Vec<String>)> {
     HOOK_FILES
         .into_iter()
         .filter_map(|file| {
             let existing = match std::fs::read_to_string(workspace.join(file.path)) {
                 Ok(text) => text,
-                Err(_) if !file.required => return None,
-                Err(_) => String::new(),
+                Err(_) => return None,
             };
             let missing = missing_entries(file, &existing);
             (!missing.is_empty()).then_some((file.path, missing))
@@ -192,19 +185,19 @@ pub struct Outcome {
     pub missing_allow: Vec<String>,
 }
 
-/// Writes each absent hooks file and adds missing entries to an existing one in place.
-pub fn apply(workspace: &Path) -> io::Result<Outcome> {
-    sync(workspace, true, true)
+/// Writes each absent hooks file whose path is in `create` and adds missing entries to existing ones in place.
+pub fn apply(workspace: &Path, create: &[&str]) -> io::Result<Outcome> {
+    sync(workspace, true, create)
 }
 
 /// Merges missing entries into existing hooks files; absent files stay absent.
 pub fn refresh(workspace: &Path) -> io::Result<Outcome> {
-    sync(workspace, true, false)
+    sync(workspace, true, &[])
 }
 
 /// What [`apply`] would do, without writing; fails where it would fail to read.
-pub fn inspect(workspace: &Path) -> io::Result<Outcome> {
-    sync(workspace, false, true)
+pub fn inspect(workspace: &Path, create: &[&str]) -> io::Result<Outcome> {
+    sync(workspace, false, create)
 }
 
 fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
@@ -227,7 +220,7 @@ fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
     Ok(text)
 }
 
-fn sync(workspace: &Path, write: bool, create: bool) -> io::Result<Outcome> {
+fn sync(workspace: &Path, write: bool, create: &[&str]) -> io::Result<Outcome> {
     let mut outcome = Outcome {
         wrote: Vec::new(),
         missing: Vec::new(),
@@ -254,7 +247,7 @@ fn sync(workspace: &Path, write: bool, create: bool) -> io::Result<Outcome> {
             if !missing.is_empty() {
                 outcome.missing.push((file.path, missing));
             }
-        } else if create {
+        } else if create.contains(&file.path) {
             if write {
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent)?;
@@ -286,10 +279,16 @@ mod tests {
 
     use dx_test_scratch::scratch;
 
+    const ALL: [&str; 3] = [
+        ".claude/settings.json",
+        ".codex/hooks.json",
+        ".gemini/settings.json",
+    ];
+
     #[test]
     fn a_fresh_repository_gets_every_hooks_file() {
         let dir = scratch("dx-worktree-setup-fresh-");
-        let outcome = apply(dir.path()).expect("apply");
+        let outcome = apply(dir.path(), &ALL).expect("apply");
         assert_eq!(
             outcome.wrote,
             vec![
@@ -306,13 +305,22 @@ mod tests {
     }
 
     #[test]
+    fn apply_creates_only_the_paths_it_is_given_and_reports_only_existing_files() {
+        let dir = scratch("dx-worktree-setup-create-");
+        let outcome = apply(dir.path(), &[CODEX.path]).expect("apply");
+        assert_eq!(outcome.wrote, vec![CODEX.path.to_owned()]);
+        assert!(!dir.path().join(CLAUDE.path).exists());
+        assert!(workspace_missing(dir.path()).is_empty());
+    }
+
+    #[test]
     fn inspect_writes_nothing_and_fails_on_a_directory() {
         let dir = scratch("dx-worktree-setup-inspect-");
-        let outcome = inspect(dir.path()).expect("inspect");
+        let outcome = inspect(dir.path(), &ALL).expect("inspect");
         assert_eq!(outcome.wrote.len(), HOOK_FILES.len());
         assert!(!dir.path().join(".claude").exists());
         std::fs::create_dir_all(dir.path().join(CLAUDE.path)).expect("dir");
-        assert!(inspect(dir.path()).is_err());
+        assert!(inspect(dir.path(), &ALL).is_err());
     }
 
     const USER_SETTINGS: &str = "{\n  // mine\n  \"hooks\": {\n    \"PreToolUse\": [\n      { \"matcher\": \"Bash\", \"hooks\": [{ \"type\": \"command\", \"command\": \"mine\" }] },\n    ],\n  },\n  \"model\": \"opus\", /* keep */\n}\n";
@@ -322,7 +330,7 @@ mod tests {
         let dir = scratch("dx-worktree-setup-merge-");
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
-        let outcome = apply(dir.path()).expect("apply");
+        let outcome = apply(dir.path(), &ALL).expect("apply");
         assert!(outcome.wrote.contains(&CLAUDE.path.to_owned()));
         assert!(outcome.missing.is_empty() && outcome.missing_allow.is_empty());
         let text = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
@@ -341,7 +349,7 @@ mod tests {
         let dir = scratch("dx-worktree-setup-report-");
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
-        let outcome = inspect(dir.path()).expect("inspect");
+        let outcome = inspect(dir.path(), &ALL).expect("inspect");
         let (path, missing) = &outcome.missing[0];
         assert_eq!(*path, CLAUDE.path);
         assert!(missing.iter().any(|entry| entry.contains("WorktreeCreate")));
@@ -357,9 +365,9 @@ mod tests {
         let dir = scratch("dx-worktree-setup-merge-twice-");
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
-        apply(dir.path()).expect("first");
+        apply(dir.path(), &ALL).expect("first");
         let once = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
-        let outcome = apply(dir.path()).expect("second");
+        let outcome = apply(dir.path(), &ALL).expect("second");
         assert!(!outcome.wrote.contains(&CLAUDE.path.to_owned()));
         assert_eq!(
             std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read"),
@@ -373,7 +381,7 @@ mod tests {
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
         let own = "{\"general\": {\"vimMode\": true}}\n";
         std::fs::write(dir.path().join(GEMINI.path), own).expect("settings");
-        let outcome = apply(dir.path()).expect("apply");
+        let outcome = apply(dir.path(), &ALL).expect("apply");
         assert!(outcome.wrote.contains(&GEMINI.path.to_owned()));
         let text = std::fs::read_to_string(dir.path().join(GEMINI.path)).expect("read");
         assert_eq!(parse(&text)["general"]["vimMode"], true);
@@ -386,7 +394,7 @@ mod tests {
         let dir = scratch("dx-worktree-setup-broken-");
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
         std::fs::write(dir.path().join(GEMINI.path), "{ nope").expect("settings");
-        let outcome = apply(dir.path()).expect("apply");
+        let outcome = apply(dir.path(), &ALL).expect("apply");
         assert_eq!(outcome.missing[0].0, GEMINI.path);
         assert_eq!(
             std::fs::read_to_string(dir.path().join(GEMINI.path)).expect("read"),
@@ -395,19 +403,16 @@ mod tests {
     }
 
     #[test]
-    fn only_the_claude_file_is_reported_when_absent() {
+    fn no_file_is_reported_when_absent() {
         let dir = scratch("dx-worktree-setup-absent-");
-        let missing = workspace_missing(dir.path());
-        assert_eq!(missing.len(), 1);
-        assert_eq!(missing[0].0, CLAUDE.path);
-        assert_eq!(missing[0].1.len(), HookKind::ALL.len());
+        assert!(workspace_missing(dir.path()).is_empty());
     }
 
     #[test]
     fn a_second_apply_changes_nothing() {
         let dir = scratch("dx-worktree-setup-twice-");
-        apply(dir.path()).expect("first");
-        let outcome = apply(dir.path()).expect("second");
+        apply(dir.path(), &ALL).expect("first");
+        let outcome = apply(dir.path(), &ALL).expect("second");
         assert!(
             outcome.wrote.is_empty()
                 && outcome.missing.is_empty()
@@ -418,7 +423,7 @@ mod tests {
     #[test]
     fn a_fresh_repository_gets_every_allow_rule() {
         let dir = scratch("dx-worktree-setup-allow-");
-        apply(dir.path()).expect("apply");
+        apply(dir.path(), &ALL).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert!(missing_allow(&settings).is_empty());
         assert_eq!(allow_rules().len(), 6);

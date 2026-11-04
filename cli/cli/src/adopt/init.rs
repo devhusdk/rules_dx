@@ -6,7 +6,7 @@ use dx_output::{
     command_finished, command_started, init_plan_event, notice_event, FinishedCounts, NoticeEvent,
     OutputMode, PlanFindingEvent,
 };
-use dx_plan::args::Invocation;
+use dx_plan::args::{Agent, Invocation};
 
 use super::{operational, summaries_suppressed};
 
@@ -38,6 +38,7 @@ struct Target {
     module: String,
     /// Missing or empty apart from `.git`: init starts a workspace there.
     fresh: bool,
+    agents: Vec<Agent>,
 }
 
 impl Target {
@@ -72,21 +73,28 @@ impl Target {
             prefix,
             module,
             fresh,
+            agents: invocation.agents.clone(),
         })
     }
 
     /// The files this run plans, relative to `root`.
     fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
-        super::init_files::plan(&self.root, &self.module, self.fresh)
+        super::init_files::plan(&self.root, &self.module, self.fresh, &self.agents)
     }
 
     /// The command that fixes drift in this directory.
     fn apply_command(&self) -> String {
-        if self.dir.is_empty() {
-            "dx init --apply".to_owned()
-        } else {
-            format!("dx init {} --apply", self.dir)
+        let mut command = "dx init".to_owned();
+        if !self.dir.is_empty() {
+            command.push(' ');
+            command.push_str(&self.dir);
         }
+        command.push_str(" --apply");
+        if !self.agents.is_empty() {
+            let names: Vec<&str> = self.agents.iter().map(|agent| agent.name()).collect();
+            command.push_str(&format!(" --agents={}", names.join(",")));
+        }
+        command
     }
 }
 
@@ -271,13 +279,10 @@ mod tests {
     fn init_check_names_missing_hooks_and_agents_block() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-check-wiring-");
         let root = scratch.path().to_path_buf();
-        let apply = invocation(&["init", "--apply"]);
+        let apply = invocation(&["init", "--apply", "--agents=claude"]);
         let check = invocation(&["init"]);
         assert_eq!(run(&apply, &root).0, 0);
         assert_eq!(run(&check, &root).0, 0);
-        std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
-        let (code, out, _err) = run(&check, &root);
-        assert_eq!(code, 0, "{out}");
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("empty");
         let (code, _out, err) = run(&check, &root);
         assert_eq!(code, 1);
@@ -286,9 +291,6 @@ mod tests {
             "{err}"
         );
         assert_eq!(run(&apply, &root).0, 0);
-        std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
-        assert_eq!(run(&apply, &root).0, 0);
-        assert_eq!(run(&check, &root).0, 0);
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("no block");
         let (code, _out, err) = run(&check, &root);
         assert_eq!(code, 1);
@@ -301,6 +303,64 @@ mod tests {
         assert_eq!(run(&apply, &root).0, 0);
         let (code, out, _err) = run(&check, &root);
         assert_eq!(code, 0, "{out}");
+    }
+
+    #[test]
+    fn default_apply_writes_no_tool_files_and_check_is_clean() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-tools-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        assert!(root.join("AGENTS.md").exists());
+        for path in ["CLAUDE.md", ".claude", ".codex", ".gemini"] {
+            assert!(!root.join(path).exists(), "{path}");
+        }
+        assert_eq!(run(&invocation(&["init"]), &root).0, 0);
+    }
+
+    #[test]
+    fn agents_on_an_existing_repo_adds_only_that_tools_files() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-add-agent-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        let add = invocation(&["init", "--apply", "--agents=claude,claude"]);
+        let (code, out, err) = run(&add, &root);
+        assert_eq!(code, 0, "{err}");
+        let wrote: Vec<&str> = out
+            .lines()
+            .filter(|line| line.starts_with("wrote "))
+            .collect();
+        assert_eq!(
+            wrote,
+            vec!["wrote .claude/settings.json", "wrote CLAUDE.md"],
+            "{out}"
+        );
+        assert!(!root.join(".codex").exists() && !root.join(".gemini").exists());
+        let (code, out, _err) = run(&add, &root);
+        assert_eq!(code, 0);
+        assert!(!out.contains("wrote "), "{out}");
+    }
+
+    #[test]
+    fn a_deleted_tool_file_is_not_drift_and_is_not_recreated() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-deleted-tool-");
+        let root = scratch.path().to_path_buf();
+        let apply = invocation(&["init", "--apply", "--agents=claude"]);
+        assert_eq!(run(&apply, &root).0, 0);
+        std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
+        assert_eq!(run(&invocation(&["init"]), &root).0, 0);
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        assert!(!root.join(".claude/settings.json").exists());
+    }
+
+    #[test]
+    fn a_named_agent_with_a_missing_file_is_drift_and_the_hint_keeps_the_flag() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-named-agent-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        let (code, _out, err) = run(&invocation(&["init", "--agents=codex"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("missing .codex/hooks.json"), "{err}");
+        assert!(err.contains("dx init --apply --agents=codex"), "{err}");
     }
 
     #[test]
@@ -327,12 +387,7 @@ mod tests {
         let mut err = Vec::new();
         let code = super::super::execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 141);
-        for path in [
-            "tools/dx",
-            ".claude/settings.json",
-            "AGENTS.md",
-            "CLAUDE.md",
-        ] {
+        for path in ["tools/dx", "AGENTS.md"] {
             assert!(root.join(path).exists(), "{path}");
         }
         assert_eq!(run(&invocation(&["init"]), &root).0, 0);

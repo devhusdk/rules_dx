@@ -451,7 +451,6 @@ not need to be on `PATH`:
       "Bash(tools/dx test *)",
       "Bash(tools/dx build *)",
       "Bash(tools/dx status *)",
-      "Bash(tools/dx version *)",
       "Bash(export DX_WORKTREE_SESSION=*)",
       "Bash(export DX_WORKTREE_HOLDER=*)"
     ]
@@ -473,12 +472,12 @@ shape: `.codex/hooks.json` with event `PreToolUse` and matcher `Bash`, and
 | Cursor | `.claude/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 | Gemini CLI | `.gemini/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 
-`dx init --apply` writes each file when it is absent and never overwrites it. If
+`dx init --apply --agents=<list>` writes the file of each named agent when it is absent and never overwrites it. If
 one exists, it prints the hook entries that file lacks, and the missing
 `permissions.allow` entries of `.claude/settings.json`. It also writes
 the launcher and the agent commands block in `AGENTS.md`; see the
 [fixed file set](init.md#fixed-file-set). `dx status` reports the `agents` check as `warn` when a
-hook is missing from `.claude/settings.json`, or from `.codex/hooks.json` or
+hook is missing from `.claude/settings.json`, `.codex/hooks.json` or
 `.gemini/settings.json` when they exist, or `CLAUDE.md` does not import
 `AGENTS.md`.
 

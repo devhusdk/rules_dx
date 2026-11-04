@@ -330,7 +330,6 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         ".envrc",
         ".vscode/settings.json",
         ".github/workflows/ci.yml",
-        ".claude/settings.json",
         "AGENTS.md",
     ] {
         assert!(
@@ -338,6 +337,10 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
             "init writes {file}: {apply}"
         );
     }
+    assert!(
+        !apply.contains("wrote .claude/settings.json\n"),
+        "init leaves tool files to --agents: {apply}"
+    );
     assert!(
         !apply.contains("wrote MODULE.bazel\n"),
         "init leaves a non-empty tree without MODULE.bazel: {apply}"

@@ -30,7 +30,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [dir]
+dx init [--apply] [--agents=<list>] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -54,21 +54,21 @@ It writes every path in the [fixed file set](#fixed-file-set). Re-running
 rules_dx overrides. It carries no toolchain versions and no language
 stanzas, and it is the same for every tree.
 
-Init writes the `dx worktree` hooks for each agent:
+Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
 | Agent | Hooks file | Hooks |
 | --- | --- | --- |
-| Claude Code | `.claude/settings.json` | all four |
+| Claude Code (`claude`) | `.claude/settings.json`, and `CLAUDE.md` | all four |
 | Cursor | `.claude/settings.json`, through Third-Party Imports | all four |
-| Codex | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
-| Gemini CLI | `.gemini/settings.json` | `guard`, in a trusted folder |
+| Codex (`codex`) | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
+| Gemini CLI (`gemini`) | `.gemini/settings.json` | `guard`, in a trusted folder |
 
 See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
-creating the file when it is missing (see below). It writes `CLAUDE.md` with an
+creating the file when it is missing (see below). With `--agents=claude` it writes `CLAUDE.md` with an
 `@AGENTS.md` import when the import is missing.
 The new `.claude/settings.json` also carries a `permissions.allow` list for the
 read-only commands `tools/dx check *`, `test *`, `build *`,
-`status *` and `version *`. If a hooks file
+and `status *`. If a hooks file
 already exists, the missing hook and allow entries are added in place and your
 other entries stay.
 
@@ -84,16 +84,14 @@ rust-analyzer with the `rules_rust` discover and flycheck targets. Both run
 with `bazel run` on separate output bases under `.dx/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
-Flags: `--apply`.
+Flags: `--apply`, `--agents=<list>`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
 It also flags a missing preset import. It flags a dx-written launcher that differs from the current launcher text
 and an empty or non-semver `.dx/version`. It flags
-missing `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`,
-an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
-(`.codex/hooks.json` and `.gemini/settings.json` only when they exist), and a
-`CLAUDE.md` without the `@AGENTS.md` import.
+a missing `AGENTS.md`, an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks, and a
+`CLAUDE.md` without the `@AGENTS.md` import. It looks at the tool files only when they exist or `--agents` names their agent, so a deleted tool file is not drift.
 When nothing is missing or stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
 `dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/version ("<pin>")`
@@ -138,13 +136,11 @@ match the running dx.
 | `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow and `rules_dx_version` are updated. A file without `rules_dx_version` is left untouched. |
 | `.github/workflows/dx-update.yml` | you | Written when missing. Never rewritten. |
 | `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
-| `CLAUDE.md` | you | Created when missing. `@AGENTS.md` is added when the import is missing. |
-| `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
-| `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing. When they exist, the guard hook is added if it is missing. |
+| `CLAUDE.md` | you | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
+| `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
+| `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |
 
-Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin or `rules_dx_version` in `.github/workflows/ci.yml`, is stale. Deleting `.codex/hooks.json`
-or `.gemini/settings.json` stops check from reporting it, but `dx init --apply`
-writes it again. To opt out of a preset layer, comment out its import (see
+Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin or `rules_dx_version` in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).
 
 ## Init plan

@@ -229,7 +229,7 @@ pub(crate) fn execute_upgrade(
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
         return refuse(out, err, &error.to_string());
     }
-    let files = match init_files::plan(workspace, "refresh", false) {
+    let files = match init_files::plan(workspace, "refresh", false, &[]) {
         Ok(files) => files,
         Err(error) => return refuse(out, err, &error.to_string()),
     };
@@ -423,7 +423,8 @@ mod tests {
     #[test]
     fn upgrade_refreshes_stale_overrides_layers_hooks_and_claude_md() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-kinds-", OLD);
-        let plan = init_files::plan(&root, "refresh", false).expect("plan");
+        let plan =
+            init_files::plan(&root, "refresh", false, &dx_plan::args::Agent::ALL).expect("plan");
         let mut applied = dx_adopt::Applied::default();
         init_files::apply(
             &root,
@@ -463,7 +464,8 @@ mod tests {
 
     fn included_override_set(prefix: &str) -> (impl Sized, PathBuf, String, String) {
         let (scratch, root) = pinned(prefix, OLD);
-        let plan = init_files::plan(&root, "refresh", false).expect("plan");
+        let plan =
+            init_files::plan(&root, "refresh", false, &dx_plan::args::Agent::ALL).expect("plan");
         let mut applied = dx_adopt::Applied::default();
         init_files::apply(
             &root,
@@ -528,9 +530,13 @@ mod tests {
     #[test]
     fn upgrade_refreshes_only_what_exists_from_the_init_plan() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-plan-", OLD);
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &root,
+        );
         assert_eq!(code, 0, "{err}");
-        let plan = init_files::plan(&root, "refresh", false).expect("plan");
+        let plan =
+            init_files::plan(&root, "refresh", false, &dx_plan::args::Agent::ALL).expect("plan");
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
         legacy_launcher(&root, OLD);

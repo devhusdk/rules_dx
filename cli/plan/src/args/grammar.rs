@@ -1,10 +1,32 @@
 use std::collections::BTreeSet;
 use std::ffi::OsString;
 
-use clap::{Args, Parser};
+use clap::{Args, Parser, ValueEnum};
 
 use super::command::COMMANDS;
 use super::invocation::ReportRequest;
+
+/// An agent tool whose files `dx init --agents` adds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Agent {
+    Claude,
+    Codex,
+    Gemini,
+}
+
+impl Agent {
+    /// Every agent.
+    pub const ALL: [Self; 3] = [Self::Claude, Self::Codex, Self::Gemini];
+
+    /// The word `--agents` takes for this agent.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+            Self::Codex => "codex",
+            Self::Gemini => "gemini",
+        }
+    }
+}
 
 /// A report request.
 fn report_request(raw: &str) -> Result<ReportRequest, String> {
@@ -77,6 +99,7 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
+    pub(crate) agents: Vec<Agent>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -387,6 +410,14 @@ flag_group! {
     PruneUnobservedFlag, {
         #[arg(long = "prune-unobserved", overrides_with = "prune_unobserved")]
         prune_unobserved: bool,
+    }
+}
+
+flag_group! {
+    /// Agent tools whose files init adds.
+    AgentsFlag, {
+        #[arg(long, value_enum, value_delimiter = ',', value_name = "LIST", require_equals = true)]
+        agents: Vec<Agent>,
     }
 }
 
@@ -965,7 +996,11 @@ command_args! {
     /// The flags `dx env` accepts.
     Env => 14, BazelTail, { output: OutputFlag, apply: ApplyFlag, shell: EnvShellFlag, };
     /// The flags `dx init` accepts.
-    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ApplyFlag, };
+    Init => 15, NoPassthroughTail, {
+        output: OutputFlag,
+        apply: ApplyFlag,
+        agents: AgentsFlag,
+    };
     /// The flags `dx upgrade` accepts.
     Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.

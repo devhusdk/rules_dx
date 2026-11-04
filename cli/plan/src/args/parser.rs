@@ -300,6 +300,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         debug,
         release,
         prune_unobserved,
+        agents,
         to,
         here,
         affected,
@@ -602,6 +603,13 @@ fn parse_inner<S: AsRef<OsStr>>(
             option: "--include-edits",
         });
     }
+    let mut once = Vec::new();
+    for agent in agents {
+        if !once.contains(&agent) {
+            once.push(agent);
+        }
+    }
+    let agents = once;
     Ok(Invocation {
         command,
         apply,
@@ -623,6 +631,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         bazel_options,
         app_args,
         prune_unobserved,
+        agents,
         to,
         here,
         affected,

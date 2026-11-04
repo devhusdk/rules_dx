@@ -2,6 +2,7 @@ use std::path::Path;
 
 use dx_adopt::scaffold::ScaffoldFile;
 use dx_adopt::{AdoptError, Applied, FileKind};
+use dx_plan::args::Agent;
 use dx_worktree::setup;
 
 use super::{agents, claude_md};
@@ -43,8 +44,27 @@ pub(super) struct InitFile {
     pub(super) essential: bool,
 }
 
-/// Every file init manages, once each: scaffold files, launchers, overrides, preset, hooks, AGENTS.md, CLAUDE.md.
-pub(super) fn plan(root: &Path, module: &str, fresh: bool) -> Result<Vec<InitFile>, AdoptError> {
+/// The files each agent tool owns; the one place that maps an agent to its files.
+fn agent_paths(agent: Agent) -> &'static [&'static str] {
+    match agent {
+        Agent::Claude => &[setup::SETTINGS, claude_md::FILE],
+        Agent::Codex => &[setup::CODEX.path],
+        Agent::Gemini => &[setup::GEMINI.path],
+    }
+}
+
+/// Every file init manages, once each: scaffold files, launchers, overrides, preset, AGENTS.md, and the tool files that exist or whose agent is selected.
+pub(super) fn plan(
+    root: &Path,
+    module: &str,
+    fresh: bool,
+    agents: &[Agent],
+) -> Result<Vec<InitFile>, AdoptError> {
+    let selected: Vec<&str> = agents
+        .iter()
+        .flat_map(|agent| agent_paths(*agent).iter().copied())
+        .collect();
+    let wanted = |path: &str| selected.contains(&path) || root.join(path).exists();
     let mut scaffold = if fresh {
         dx_adopt::plan_fresh_files(module)
     } else {
@@ -75,25 +95,33 @@ pub(super) fn plan(root: &Path, module: &str, fresh: bool) -> Result<Vec<InitFil
             .into_iter()
             .map(|(path, content)| (path, content, Kind::Preset)),
     );
-    entries.extend(setup::HOOK_FILES.iter().map(|file| {
-        (
-            file.path.to_owned(),
-            setup::settings_text(file),
-            Kind::Hooks,
-        )
-    }));
+    entries.extend(
+        setup::HOOK_FILES
+            .iter()
+            .filter(|file| wanted(file.path))
+            .map(|file| {
+                (
+                    file.path.to_owned(),
+                    setup::settings_text(file),
+                    Kind::Hooks,
+                )
+            }),
+    );
     entries.push((agents::FILE.to_owned(), agents::block(), Kind::AgentsBlock));
-    entries.push((
-        claude_md::FILE.to_owned(),
-        format!("@{}\n", agents::FILE),
-        Kind::ClaudeImport,
-    ));
+    if wanted(claude_md::FILE) {
+        entries.push((
+            claude_md::FILE.to_owned(),
+            format!("@{}\n", agents::FILE),
+            Kind::ClaudeImport,
+        ));
+    }
     let overrides_included = std::fs::read_to_string(root.join("MODULE.bazel"))
         .is_ok_and(|text| text.contains(dx_adopt::OVERRIDES_INCLUDE));
     let mut files: Vec<InitFile> = Vec::new();
     for (path, content, kind) in entries {
         if files.iter().all(|file| file.path != path) {
             let essential = ESSENTIAL.contains(&path.as_str())
+                || selected.contains(&path.as_str())
                 || (kind == Kind::Override && overrides_included);
             files.push(InitFile {
                 path,
@@ -131,6 +159,14 @@ fn adopt_message(prefix: &str, error: &AdoptError) -> String {
     }
 }
 
+fn hook_paths(files: &[InitFile]) -> Vec<&str> {
+    files
+        .iter()
+        .filter(|file| file.kind == Kind::Hooks)
+        .map(|file| file.path.as_str())
+        .collect()
+}
+
 /// Fails before any write when a planned file cannot be read or written under `root`.
 pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result<(), String> {
     if root.exists() && !root.is_dir() {
@@ -147,7 +183,7 @@ pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result
     dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
     dx_adopt::preflight_preset(root).map_err(|error| adopt_message(prefix, &error))?;
     let io = |error: std::io::Error| error.to_string();
-    setup::inspect(root).map_err(io)?;
+    setup::inspect(root, &hook_paths(files)).map_err(io)?;
     agents::planned(root, true).map_err(io)?;
     claude_md::state(root).map_err(io)?;
     Ok(())
@@ -224,7 +260,7 @@ pub(super) fn apply(
         written.map_err(|error| adopt_message(prefix, &error))?;
     }
     if has(|kind| *kind == Kind::Hooks) {
-        let outcome = setup::apply(root).map_err(|error| error.to_string())?;
+        let outcome = setup::apply(root, &hook_paths(files)).map_err(|error| error.to_string())?;
         applied
             .wrote
             .extend(outcome.wrote.iter().map(|path| format!("{prefix}{path}")));
@@ -405,13 +441,17 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
 mod tests {
     use super::plan;
     use crate::adopt::test_support::{drift_of, invocation, run};
+    use dx_plan::args::Agent;
 
     #[test]
     fn everything_init_writes_is_owned_and_present() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-");
         let root = scratch.path();
-        let files = plan(root, "my_project", true).expect("plan");
-        let (code, out, err) = run(&invocation(&["init", "--apply"]), root);
+        let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
+        let (code, out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         for path in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
             assert!(files.iter().any(|file| file.path == path), "{path}");
@@ -428,7 +468,7 @@ mod tests {
     #[test]
     fn every_planned_file_has_content() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-content-");
-        for file in plan(scratch.path(), "my_project", true).expect("plan") {
+        for file in plan(scratch.path(), "my_project", true, &Agent::ALL).expect("plan") {
             assert!(!file.content.is_empty(), "{}", file.path);
         }
     }
@@ -436,7 +476,7 @@ mod tests {
     #[test]
     fn each_path_is_listed_once() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-once-");
-        let files = plan(scratch.path(), "my_project", true).expect("plan");
+        let files = plan(scratch.path(), "my_project", true, &Agent::ALL).expect("plan");
         let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
         paths.sort_unstable();
         let count = paths.len();
@@ -455,12 +495,15 @@ mod tests {
     fn apply_writes_the_owned_list_and_check_and_status_accept_it() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-equal-");
         let root = scratch.path();
-        let mut owned_paths: Vec<String> = plan(root, "my_project", true)
+        let mut owned_paths: Vec<String> = plan(root, "my_project", true, &Agent::ALL)
             .expect("plan")
             .into_iter()
             .map(|file| file.path)
             .collect();
-        let (code, out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         let mut wrote: Vec<String> = out
             .lines()
@@ -482,14 +525,17 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-owned-cuda-");
         let root = scratch.path();
         std::fs::write(root.join("a.cu"), "").expect("write");
-        let planned = plan(root, "my_project", true).expect("plan");
+        let planned = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         let planned_snippet = planned
             .iter()
             .find(|file| file.path == "MODULE.bazel.snippet")
             .expect("snippet")
             .content
             .clone();
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         let written = std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("read");
         assert_eq!(written, planned_snippet);
@@ -500,7 +546,7 @@ mod tests {
     fn drift_in_an_empty_dir_is_owned() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
         let root = scratch.path();
-        let files = plan(root, "my_project", true).expect("plan");
+        let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         for path in drift_of(root).missing {
             assert!(files.iter().any(|file| file.path == path), "{path}");
         }
@@ -511,9 +557,12 @@ mod tests {
     fn a_removed_planned_file_is_missing_only_when_essential() {
         let scratch = dx_test_scratch::scratch("dx-init-planned-removed-");
         let root = scratch.path();
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
-        let files = plan(root, "my_project", true).expect("plan");
+        let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         for file in &files {
             let full = root.join(&file.path);
             let Ok(kept) = std::fs::read(&full) else {
@@ -535,7 +584,10 @@ mod tests {
     fn removing_an_owned_file_after_init_is_reported_missing() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-removed-");
         let root = scratch.path();
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         let mut paths = vec![
             dx_adopt::LAUNCHER_SH_REL.to_owned(),
@@ -543,7 +595,7 @@ mod tests {
         ];
         paths.push(dx_adopt::preset::GITIGNORE.to_owned());
         paths.extend(dx_adopt::render_overrides().into_iter().map(|(p, _)| p));
-        let files = plan(root, "my_project", true).expect("plan");
+        let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         for path in paths {
             assert!(files.iter().any(|file| file.path == path), "{path}");
             let full = root.join(&path);
@@ -559,7 +611,10 @@ mod tests {
     fn drift_names_each_owned_gap() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-gaps-");
         let root = scratch.path();
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         assert_eq!(drift_of(root), super::Drift::default());
         std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("ignore");
@@ -590,7 +645,10 @@ mod tests {
     fn old_dx_keys_in_vscode_settings_are_stale() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-");
         let root = scratch.path();
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         let path = root.join(".vscode/settings.json");
         let text = std::fs::read_to_string(&path).expect("read");
@@ -599,7 +657,10 @@ mod tests {
         assert!(drift_of(root)
             .stale
             .contains(&".vscode/settings.json".to_owned()));
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            root,
+        );
         assert_eq!(code, 0, "{err}");
         assert_eq!(drift_of(root), super::Drift::default());
         scratch.close().expect("cleanup");

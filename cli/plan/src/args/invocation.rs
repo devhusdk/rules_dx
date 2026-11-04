@@ -252,6 +252,8 @@ pub struct Invocation {
     pub(super) bazel_options: Vec<String>,
     pub(super) app_args: Vec<String>,
     pub prune_unobserved: bool,
+    /// `dx init --agents`: agent tools whose files init adds, without repeats.
+    pub agents: Vec<crate::args::Agent>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
@@ -648,6 +650,7 @@ mod tests {
             bazel_options: Vec::new(),
             app_args: Vec::new(),
             prune_unobserved: false,
+            agents: Vec::new(),
             to: None,
             here: true,
             affected: false,

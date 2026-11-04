@@ -129,7 +129,8 @@ fn capability_line(capability: &CapabilityEvent) -> String {
 
 fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     let drift =
-        match super::init_files::plan(workspace, "refresh", dx_adopt::is_fresh_dir(workspace)) {
+        match super::init_files::plan(workspace, "refresh", dx_adopt::is_fresh_dir(workspace), &[])
+        {
             Ok(files) => super::init_files::drift(workspace, &files),
             Err(error) => super::init_files::Drift {
                 other: vec![error.to_string()],
@@ -314,11 +315,16 @@ mod tests {
     #[test]
     fn owned_list_covers_launcher_preset_and_override_paths() {
         let scratch = dx_test_scratch::scratch("dx-status-owned-");
-        let owned: Vec<String> = crate::adopt::init_files::plan(scratch.path(), "my_project", true)
-            .expect("plan")
-            .into_iter()
-            .map(|file| file.path)
-            .collect();
+        let owned: Vec<String> = crate::adopt::init_files::plan(
+            scratch.path(),
+            "my_project",
+            true,
+            &dx_plan::args::Agent::ALL,
+        )
+        .expect("plan")
+        .into_iter()
+        .map(|file| file.path)
+        .collect();
         for path in [dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL] {
             assert!(owned.iter().any(|p| p == path), "{path}");
         }
@@ -406,7 +412,11 @@ mod tests {
         );
         assert!(check.detail.contains("tools/dx"), "{}", check.detail);
         let (code, _out, err) = crate::adopt::test_support::run(
-            &crate::adopt::test_support::invocation(&["init", "--apply"]),
+            &crate::adopt::test_support::invocation(&[
+                "init",
+                "--apply",
+                "--agents=claude,codex,gemini",
+            ]),
             root,
         );
         assert_eq!(code, 0, "{err}");

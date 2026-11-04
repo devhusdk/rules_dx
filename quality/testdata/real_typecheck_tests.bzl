@@ -14,7 +14,7 @@ aspect_field subject_label=//quality/testdata:fixture_real_python_no_typecheck_s
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_python_typecheck_subject
 field dx_count=1
-field dx_results=fixture_real_python-real-typecheck.pb
+field dx_results=fixture_real_python-real-typecheck-py.pb
 field has_quality_sources=True
 field label=//quality/testdata:fixture_real_python
 aspect_field aspect_seen=True

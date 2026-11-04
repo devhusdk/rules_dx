@@ -565,8 +565,8 @@ consumer_policy_tests(
         {
             "case": "jupyter_formatted",
             "expected_dx_results": [
-                "clean_jupyter-real-format.pb",
-                "clean_jupyter-real-lint.pb",
+                "clean_jupyter-real-format-py.pb",
+                "clean_jupyter-real-lint-py.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:jupyter_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_jupyter",
@@ -574,7 +574,8 @@ consumer_policy_tests(
         {
             "case": "jupyter_outputs_linted",
             "expected_dx_results": [
-                "clean_jupyter-real-format.pb",
+                "clean_jupyter-real-format-py.pb",
+                "clean_jupyter-real-lint-py.pb",
                 "clean_jupyter-real-lint.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:jupyter_outputs_policy",

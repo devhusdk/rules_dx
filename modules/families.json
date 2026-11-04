@@ -278,6 +278,8 @@
     },
     "d": {
       "aspects": [
+        "real_d_format_aspect",
+        "real_d_lint_aspect",
         "real_d_typecheck_aspect"
       ],
       "bazel_deps": [],
@@ -297,7 +299,11 @@
       ]
     },
     "dart": {
-      "aspects": [],
+      "aspects": [
+        "real_dart_format_aspect",
+        "real_dart_lint_aspect",
+        "real_dart_typecheck_aspect"
+      ],
       "bazel_deps": [
         "rules_dart",
         "rules_flutter"
@@ -491,6 +497,7 @@
     },
     "julia": {
       "aspects": [
+        "real_julia_format_aspect",
         "real_julia_typecheck_aspect"
       ],
       "bazel_deps": [
@@ -619,7 +626,10 @@
       ]
     },
     "perl": {
-      "aspects": [],
+      "aspects": [
+        "real_perl_format_aspect",
+        "real_perl_lint_aspect"
+      ],
       "bazel_deps": [
         "rules_perl"
       ],
@@ -690,7 +700,9 @@
     },
     "python": {
       "aspects": [
-        "real_python_lint_aspect"
+        "real_python_format_aspect",
+        "real_python_lint_aspect",
+        "real_python_typecheck_aspect"
       ],
       "bazel_deps": [
         "aspect_rules_py"
@@ -772,7 +784,10 @@
       ]
     },
     "swift": {
-      "aspects": [],
+      "aspects": [
+        "real_swift_format_aspect",
+        "real_swift_lint_aspect"
+      ],
       "bazel_deps": [
         "bazel_linux_packages",
         "rules_swift"
@@ -797,6 +812,8 @@
     },
     "zig": {
       "aspects": [
+        "real_zig_format_aspect",
+        "real_zig_lint_aspect",
         "real_zig_typecheck_aspect"
       ],
       "bazel_deps": [

@@ -241,7 +241,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format", "lint", "typecheck"],
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "dart",
         "target_tool": True,
     },
     "dfmt": {
@@ -249,7 +249,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "d",
         "target_tool": True,
     },
     "dscanner": {
@@ -257,7 +257,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["lint"],
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "d",
         "target_tool": True,
     },
     "djlint": {
@@ -517,7 +517,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["lint"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "perl",
         "target_tool": True,
     },
     "perltidy": {
@@ -525,7 +525,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "perl",
         "target_tool": True,
     },
     "pkl": {
@@ -581,7 +581,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@dx_qt//:qmlformat",
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "cc",
     },
     "qmllint": {
         "attr": attr.label(default = "//config:tool_qmllint", allow_files = True, cfg = "exec"),
@@ -589,7 +589,7 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@dx_qt//:qmllint",
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "cc",
     },
     "redocly": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:redocly", cfg = "exec", executable = True),
@@ -675,7 +675,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format", "lint"],
         "kind": "file",
         "resources": "light",
-        "shard": "core",
+        "shard": "py",
     },
     "rustc": {
         "capabilities": ["typecheck"],
@@ -825,7 +825,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["typecheck"],
         "kind": "file",
         "resources": "medium",
-        "shard": "core",
+        "shard": "py",
     },
     "typstyle": {
         "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
@@ -895,7 +895,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format"],
         "kind": "setting",
         "resources": "medium",
-        "shard": "core",
+        "shard": "julia",
         "target_tool": True,
     },
     "swift_format": {
@@ -903,7 +903,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "swift",
         "target_tool": True,
     },
     "swift_lint": {
@@ -911,7 +911,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["lint"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "swift",
         "target_tool": True,
     },
     "zig": {
@@ -925,7 +925,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["lint"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "zig",
         "target_tool": True,
     },
     "zig_fmt": {
@@ -933,7 +933,7 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
-        "shard": "core",
+        "shard": "zig",
         "target_tool": True,
     },
 }
@@ -1246,14 +1246,14 @@ _REAL_SHARD_SPECS = {
     "real_cc_lint": {
         "capability": "lint",
         "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).",
-        "requires": [clang_syntax_aspect],
+        "requires": [clang_syntax_aspect, _qml_context_aspect],
         "shard": "cc",
         "suffix": "-cc",
     },
     "real_cc_typecheck": {
         "capability": "typecheck",
         "doc": "Additive C/C++/Objective-C/CUDA typecheck family aspect (compiler -fsyntax-only replay, nvcc -cuda replay).",
-        "requires": [clang_syntax_aspect, nvcc_syntax_aspect],
+        "requires": [clang_syntax_aspect, nvcc_syntax_aspect, _qml_context_aspect],
         "shard": "cc",
         "suffix": "-cc",
     },
@@ -1409,6 +1409,90 @@ _REAL_SHARD_SPECS = {
         "shard": "yaml",
         "suffix": "-yaml",
     },
+    "real_dart_format": {
+        "capability": "format",
+        "doc": "Additive Dart format family aspect (dart format).",
+        "shard": "dart",
+        "suffix": "-dart",
+    },
+    "real_dart_lint": {
+        "capability": "lint",
+        "doc": "Additive Dart lint family aspect (dart analyze).",
+        "shard": "dart",
+        "suffix": "-dart",
+    },
+    "real_dart_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Dart typecheck family aspect (dart analyze).",
+        "shard": "dart",
+        "suffix": "-dart",
+    },
+    "real_d_format": {
+        "capability": "format",
+        "doc": "Additive D format family aspect (dfmt).",
+        "shard": "d",
+        "suffix": "-d",
+    },
+    "real_d_lint": {
+        "capability": "lint",
+        "doc": "Additive D lint family aspect (D-Scanner).",
+        "shard": "d",
+        "suffix": "-d",
+    },
+    "real_perl_format": {
+        "capability": "format",
+        "doc": "Additive Perl format family aspect (perltidy).",
+        "shard": "perl",
+        "suffix": "-perl",
+    },
+    "real_perl_lint": {
+        "capability": "lint",
+        "doc": "Additive Perl lint family aspect (perlcritic).",
+        "shard": "perl",
+        "suffix": "-perl",
+    },
+    "real_python_format": {
+        "capability": "format",
+        "doc": "Additive Python format family aspect (ruff format).",
+        "shard": "py",
+        "suffix": "-py",
+    },
+    "real_python_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Python typecheck family aspect (ty).",
+        "shard": "py",
+        "suffix": "-py",
+    },
+    "real_julia_format": {
+        "capability": "format",
+        "doc": "Additive Julia format family aspect (JuliaFormatter).",
+        "shard": "julia",
+        "suffix": "-julia",
+    },
+    "real_swift_format": {
+        "capability": "format",
+        "doc": "Additive Swift format family aspect (swift-format).",
+        "shard": "swift",
+        "suffix": "-swift",
+    },
+    "real_swift_lint": {
+        "capability": "lint",
+        "doc": "Additive Swift lint family aspect (swift-lint).",
+        "shard": "swift",
+        "suffix": "-swift",
+    },
+    "real_zig_format": {
+        "capability": "format",
+        "doc": "Additive Zig format family aspect (zig fmt).",
+        "shard": "zig",
+        "suffix": "-zig",
+    },
+    "real_zig_lint": {
+        "capability": "lint",
+        "doc": "Additive Zig lint family aspect (zig ast-check).",
+        "shard": "zig",
+        "suffix": "-zig",
+    },
     "real_format": {
         "capability": "format",
         "doc": "Registers the exact-input real format pipeline action in dx_results.",
@@ -1464,8 +1548,6 @@ _REAL_SHARD_SPECS = {
     "real_lint": {
         "capability": "lint",
         "doc": "Registers the exact-input real lint pipeline action in dx_results.",
-        "required_aspect_providers": [[QmlContextInfo]],
-        "requires": [_qml_context_aspect],
         "shard": "core",
         "shared_attrs": True,
         "suffix": "",
@@ -2603,6 +2685,34 @@ real_erlang_typecheck_aspect = _make_real_aspect("real_erlang_typecheck")
 real_elixir_format_aspect = _make_real_aspect("real_elixir_format")
 
 real_elixir_lint_aspect = _make_real_aspect("real_elixir_lint")
+
+real_dart_format_aspect = _make_real_aspect("real_dart_format")
+
+real_dart_lint_aspect = _make_real_aspect("real_dart_lint")
+
+real_dart_typecheck_aspect = _make_real_aspect("real_dart_typecheck")
+
+real_d_format_aspect = _make_real_aspect("real_d_format")
+
+real_d_lint_aspect = _make_real_aspect("real_d_lint")
+
+real_perl_format_aspect = _make_real_aspect("real_perl_format")
+
+real_perl_lint_aspect = _make_real_aspect("real_perl_lint")
+
+real_python_format_aspect = _make_real_aspect("real_python_format")
+
+real_python_typecheck_aspect = _make_real_aspect("real_python_typecheck")
+
+real_julia_format_aspect = _make_real_aspect("real_julia_format")
+
+real_swift_format_aspect = _make_real_aspect("real_swift_format")
+
+real_swift_lint_aspect = _make_real_aspect("real_swift_lint")
+
+real_zig_format_aspect = _make_real_aspect("real_zig_format")
+
+real_zig_lint_aspect = _make_real_aspect("real_zig_lint")
 
 real_php_lint_aspect = _make_real_aspect("real_php_lint")
 

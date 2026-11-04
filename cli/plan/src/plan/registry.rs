@@ -63,6 +63,11 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_erlang_lint_aspect",
                 "quality:real_aspects.bzl%real_elixir_lint_aspect",
                 "quality:real_aspects.bzl%real_php_lint_aspect",
+                "quality:real_aspects.bzl%real_dart_lint_aspect",
+                "quality:real_aspects.bzl%real_d_lint_aspect",
+                "quality:real_aspects.bzl%real_perl_lint_aspect",
+                "quality:real_aspects.bzl%real_swift_lint_aspect",
+                "quality:real_aspects.bzl%real_zig_lint_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -95,6 +100,8 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_julia_typecheck_aspect",
                 "quality:real_aspects.bzl%real_lua_typecheck_aspect",
                 "quality:real_aspects.bzl%real_ruby_typecheck_aspect",
+                "quality:real_aspects.bzl%real_dart_typecheck_aspect",
+                "quality:real_aspects.bzl%real_python_typecheck_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_typecheck_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -134,6 +141,13 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
                 "quality:real_aspects.bzl%real_erlang_format_aspect",
                 "quality:real_aspects.bzl%real_elixir_format_aspect",
+                "quality:real_aspects.bzl%real_dart_format_aspect",
+                "quality:real_aspects.bzl%real_d_format_aspect",
+                "quality:real_aspects.bzl%real_perl_format_aspect",
+                "quality:real_aspects.bzl%real_python_format_aspect",
+                "quality:real_aspects.bzl%real_julia_format_aspect",
+                "quality:real_aspects.bzl%real_swift_format_aspect",
+                "quality:real_aspects.bzl%real_zig_format_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_format_probe_aspect"),
             reports: &[],
@@ -339,6 +353,11 @@ mod tests {
                 "quality:real_aspects.bzl%real_erlang_lint_aspect",
                 "quality:real_aspects.bzl%real_elixir_lint_aspect",
                 "quality:real_aspects.bzl%real_php_lint_aspect",
+                "quality:real_aspects.bzl%real_dart_lint_aspect",
+                "quality:real_aspects.bzl%real_d_lint_aspect",
+                "quality:real_aspects.bzl%real_perl_lint_aspect",
+                "quality:real_aspects.bzl%real_swift_lint_aspect",
+                "quality:real_aspects.bzl%real_zig_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
@@ -371,6 +390,8 @@ mod tests {
                 "quality:real_aspects.bzl%real_julia_typecheck_aspect",
                 "quality:real_aspects.bzl%real_lua_typecheck_aspect",
                 "quality:real_aspects.bzl%real_ruby_typecheck_aspect",
+                "quality:real_aspects.bzl%real_dart_typecheck_aspect",
+                "quality:real_aspects.bzl%real_python_typecheck_aspect",
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
@@ -410,6 +431,13 @@ mod tests {
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
                 "quality:real_aspects.bzl%real_erlang_format_aspect",
                 "quality:real_aspects.bzl%real_elixir_format_aspect",
+                "quality:real_aspects.bzl%real_dart_format_aspect",
+                "quality:real_aspects.bzl%real_d_format_aspect",
+                "quality:real_aspects.bzl%real_perl_format_aspect",
+                "quality:real_aspects.bzl%real_python_format_aspect",
+                "quality:real_aspects.bzl%real_julia_format_aspect",
+                "quality:real_aspects.bzl%real_swift_format_aspect",
+                "quality:real_aspects.bzl%real_zig_format_aspect",
             ]
         );
         assert!(format.reports.is_empty());

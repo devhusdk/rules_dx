@@ -8,19 +8,29 @@ load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
 load(
     "//quality:real_aspects.bzl",
+    "real_cc_format_aspect",
+    "real_cc_lint_aspect",
+    "real_d_format_aspect",
+    "real_d_lint_aspect",
+    "real_dart_format_aspect",
     "real_elixir_format_aspect",
     "real_elixir_lint_aspect",
     "real_erlang_format_aspect",
     "real_erlang_lint_aspect",
     "real_erlang_typecheck_aspect",
-    "real_format_aspect",
+    "real_julia_format_aspect",
     "real_julia_typecheck_aspect",
-    "real_lint_aspect",
     "real_lua_typecheck_aspect",
     "real_php_lint_aspect",
+    "real_perl_format_aspect",
+    "real_perl_lint_aspect",
     "real_php_typecheck_aspect",
+    "real_python_format_aspect",
+    "real_python_lint_aspect",
     "real_ruby_typecheck_aspect",
     "real_typecheck_aspect",
+    "real_zig_format_aspect",
+    "real_zig_lint_aspect",
 )
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -107,7 +117,7 @@ tool_override_subject = rule(
             allow_single_file = True,
         ),
         "target": attr.label(
-            aspects = [real_lint_aspect, real_format_aspect],
+            aspects = [real_python_lint_aspect, real_python_format_aspect],
             mandatory = True,
         ),
     },
@@ -133,7 +143,7 @@ qml_subject = rule(
     implementation = _qml_subject_impl,
     attrs = {
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_cc_format_aspect],
             mandatory = True,
         ),
     },
@@ -147,7 +157,7 @@ qml_lint_subject = rule(
     implementation = _qml_lint_subject_impl,
     attrs = {
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_cc_lint_aspect],
             mandatory = True,
         ),
     },
@@ -170,7 +180,7 @@ d_subject = rule(
     attrs = {
         "_dfmt": attr.label(default = "//config:tool_dfmt"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_d_format_aspect],
             mandatory = True,
         ),
     },
@@ -193,7 +203,7 @@ perl_subject = rule(
     attrs = {
         "_perltidy": attr.label(default = "//config:tool_perltidy"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_perl_format_aspect],
             mandatory = True,
         ),
     },
@@ -216,7 +226,7 @@ zig_subject = rule(
     attrs = {
         "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_zig_format_aspect],
             mandatory = True,
         ),
     },
@@ -239,7 +249,7 @@ zig_lint_subject = rule(
     attrs = {
         "_zig_ast_check": attr.label(default = "//config:tool_zig_ast_check"),
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_zig_lint_aspect],
             mandatory = True,
         ),
     },
@@ -262,7 +272,7 @@ dart_subject = rule(
     attrs = {
         "_dart": attr.label(default = "//config:tool_dart"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_dart_format_aspect],
             mandatory = True,
         ),
     },
@@ -285,7 +295,7 @@ julia_subject = rule(
     attrs = {
         "_julia_format": attr.label(default = "//config:tool_julia_format"),
         "target": attr.label(
-            aspects = [real_format_aspect],
+            aspects = [real_julia_format_aspect],
             mandatory = True,
         ),
     },
@@ -580,7 +590,7 @@ d_lint_subject = rule(
     attrs = {
         "_dscanner": attr.label(default = "//config:tool_dscanner"),
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_d_lint_aspect],
             mandatory = True,
         ),
     },
@@ -648,7 +658,7 @@ perl_lint_subject = rule(
     attrs = {
         "_perlcritic": attr.label(default = "//config:tool_perlcritic"),
         "target": attr.label(
-            aspects = [real_lint_aspect],
+            aspects = [real_perl_lint_aspect],
             mandatory = True,
         ),
     },

@@ -948,6 +948,22 @@ mod tests {
     }
 
     #[test]
+    fn hermetic_rows_are_tagged_by_smoke() {
+        let found = facts(
+            "hermetic_qualification(name = \"t\", target_compatible_with = [])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(found.tags, ["hermetic-golden"]);
+        let found = facts(
+            "hermetic_qualification(name = \"t\", smoke = True, target_compatible_with = [])\n",
+            "t",
+        )
+        .expect("facts");
+        assert!(found.tags.iter().any(|tag| tag == "hermetic-consumer"));
+    }
+
+    #[test]
     fn starter_consumer_tests_carry_their_tags_and_constraints() {
         let found = facts("starter_consumer_test(name = \"t\")\n", "t").expect("facts");
         assert_eq!(found.tags, ["manual", "starter-consumer"]);

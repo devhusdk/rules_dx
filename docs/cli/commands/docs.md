@@ -20,13 +20,13 @@ workspace-relative files or dirs resolved through Bazel query. `--here` builds
 the current directory tree (`//path/...`, or `//...` at the root) and cannot be
 combined with explicit scopes (exit `2`).
 
-- `--serve`: build, then preview the built site tree locally with
-  `python3 -m http.server`. Needs `python3` on `PATH` and exactly one built
-  site tree with an `index.html` entry page.
+- `--serve`: build, then preview the built site tree locally with the server
+  built into `dx`. It needs no `python3` and exactly one built site tree with
+  an `index.html` entry page. A port already in use is a `serve_failed` error.
 - `--port <n>`: preview port, `1`-`65535`, default `8000`. `0` is a usage error.
 - `--host <addr>`: preview bind address, non-empty, default `127.0.0.1`.
-- `--open`: open the preview URL in a browser through `python3`. If that
-  fails, `dx` prints a warning and the preview keeps running.
+- `--open`: open the preview URL with the OS opener (`open` on macOS,
+  `xdg-open` on Linux, `cmd /c start` on Windows). If that fails, `dx` prints a warning and the preview keeps running.
 
 `--port`, `--host`, and `--open` need `--serve`.
 

@@ -1,7 +1,5 @@
 use super::common::*;
-use dx_output::{
-    command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
-};
+use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
 use std::path::{Path, PathBuf};
@@ -18,13 +16,45 @@ fn preview_url(host: &str, port: u16) -> String {
     format!("http://{host}:{port}/")
 }
 
+fn opener_argv_for(os: &str, url: &str) -> Vec<String> {
+    let words: &[&str] = match os {
+        "macos" => &["open"],
+        "windows" => &["cmd", "/c", "start", ""],
+        _ => &["xdg-open"],
+    };
+    let mut argv: Vec<String> = words.iter().map(|word| (*word).to_owned()).collect();
+    argv.push(url.to_owned());
+    argv
+}
+
 fn opener_argv(url: &str) -> Vec<String> {
-    vec![
-        "python3".to_owned(),
-        "-c".to_owned(),
-        "import sys, webbrowser; webbrowser.open(sys.argv[1])".to_owned(),
-        url.to_owned(),
-    ]
+    opener_argv_for(std::env::consts::OS, url)
+}
+
+/// Binds the docs preview. The seam lets tests swap the real server for a fake.
+pub(crate) trait PreviewServer {
+    fn bind(&self, host: &str, port: u16, root: &Path) -> std::io::Result<Box<dyn RunningPreview>>;
+}
+
+pub(crate) trait RunningPreview {
+    fn run(self: Box<Self>) -> std::io::Result<()>;
+}
+
+struct StdPreview;
+
+struct StdRunning(dx_docs_serve::Site);
+
+impl PreviewServer for StdPreview {
+    fn bind(&self, host: &str, port: u16, root: &Path) -> std::io::Result<Box<dyn RunningPreview>> {
+        let site = dx_docs_serve::Site::bind(host, port, root.to_path_buf(), "")?;
+        Ok(Box::new(StdRunning(site)))
+    }
+}
+
+impl RunningPreview for StdRunning {
+    fn run(self: Box<Self>) -> std::io::Result<()> {
+        self.0.serve_forever()
+    }
 }
 
 fn site_tree_expression(labels: &[String]) -> String {
@@ -82,6 +112,10 @@ fn resolve_site_dir(
 }
 
 pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
+    execute_docs_with(invocation, env, &StdPreview)
+}
+
+fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn PreviewServer) -> i32 {
     let Env {
         workspace,
         runner,
@@ -196,6 +230,18 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     let serve_dir_text = serve_dir.display().to_string();
+    let running = match preview.bind(host, port, &serve_dir) {
+        Ok(running) => running,
+        Err(error) => {
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_SERVE_FAILED,
+                &format!("failed to bind docs preview at {url}: {error} (port in use? retry another --port)"),
+            );
+        }
+    };
     if !json && invocation.chatty() {
         if let Err(exit) =
             check_stdout_write(writeln!(out, "Serving docs at {url} ({serve_dir_text})"))
@@ -227,72 +273,30 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
     }
-    let serve_argv = vec![
-        "python3".to_owned(),
-        "-m".to_owned(),
-        "http.server".to_owned(),
-        port.to_string(),
-        "--directory".to_owned(),
-        serve_dir_text,
-        "--bind".to_owned(),
-        host.to_owned(),
-    ];
-    let serve_status = match runner.run(&serve_argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_SERVE_FAILED,
-                "python3 not found; install Python 3 to use --serve",
-            );
-        }
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_SERVE_FAILED,
-                &format!("failed to launch docs preview at {url}: {error} (port in use? retry another --port)"),
-            );
-        }
-    };
-    let Some(serve_code) = serve_status.code else {
+    if let Err(error) = running.run() {
         return operational(
             invocation,
             out,
             err,
-            CODE_BAZEL_SIGNALLED,
-            "Docs preview terminated by signal",
+            CODE_SERVE_FAILED,
+            &format!("docs preview at {url} stopped: {error}"),
         );
-    };
+    }
     if json {
-        if serve_code != 0 {
-            if let Err(exit) = emit_built(out, error_event(
-                CODE_SERVE_FAILED,
-                &format!("Docs preview exited with {serve_code} at {url} (port in use? retry another --port; see stderr diagnostics)"),
-                None,
-                None,
-                Some("serve"),
-            )) {
- return kept_child(err, serve_code, exit);
- }
-        }
-        if let Err(exit) = emit_event(
-            out,
-            &command_finished(serve_code, &FinishedCounts::default()),
-        ) {
-            return kept_child(err, serve_code, exit);
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
         }
     }
-    serve_code
+    0
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET};
+    use super::{
+        execute_docs_with, opener_argv, opener_argv_for, PreviewServer, RunningPreview,
+        CODE_SERVE_FAILED, DOCS_BUILD_TARGET,
+    };
     use dx_plan::resolve::QueryResult;
     use dx_testing::cli::strings;
 
@@ -407,180 +411,10 @@ mod tests {
     }
 
     #[test]
-    fn docs_serve_previews_after_build() {
-        let harness = Harness::new("docs-serve");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let (code, out, _) = harness.run(&["docs", "--serve", "--port=8080"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(
-            out.contains("Serving docs at http://127.0.0.1:8080/"),
-            "{out}"
-        );
-    }
-
-    #[test]
     fn docs_rejects_apply() {
         let err = dx_plan::args::parse(&strings(&["docs", "--serve", "--apply"]))
             .expect_err("docs takes no --apply");
         assert!(err.to_string().contains("--apply"), "{err}");
-    }
-
-    #[test]
-    fn docs_serve_host_and_open() {
-        let harness = Harness::new("docs-serve-host");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let (code, out, _) = harness.run(&[
-            "docs",
-            "--serve",
-            "--port=8080",
-            "--host=example.test",
-            "--open",
-        ]);
-        assert_eq!(code, 0, "{out}");
-        assert!(
-            out.contains("Serving docs at http://example.test:8080/"),
-            "{out}"
-        );
-        assert!(out.contains("Opening http://example.test:8080/"), "{out}");
-    }
-
-    #[test]
-    fn docs_serve_binds_host_and_opens_browser() {
-        use std::cell::RefCell;
-        use std::io;
-        use std::rc::Rc;
-        struct Probe {
-            seen: Rc<RefCell<Vec<Vec<String>>>>,
-        }
-        impl dx_process::Runner for Probe {
-            fn run(
-                &self,
-                argv: &[String],
-                _cwd: &std::path::Path,
-                _env: &[(&str, &str)],
-            ) -> io::Result<dx_process::ChildStatus> {
-                self.seen.borrow_mut().push(argv.to_vec());
-                Ok(dx_process::ChildStatus::exited(0))
-            }
-        }
-        let harness = Harness::new("docs-serve-bind");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&[
-            "docs",
-            "--serve",
-            "--port=8080",
-            "--host=example.test",
-            "--open",
-        ]);
-        let seen = Rc::new(RefCell::new(Vec::new()));
-        let runner = Probe {
-            seen: Rc::clone(&seen),
-        };
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 1, "{queries:?}");
-        assert!(queries[0].contains(&"cquery".to_owned()), "{queries:?}");
-        assert!(
-            queries[0].contains(&"--output=files".to_owned()),
-            "{queries:?}"
-        );
-        assert!(
-            queries[0].contains(&DOCS_BUILD_TARGET.to_owned()),
-            "{queries:?}"
-        );
-        let calls = seen.borrow();
-        assert_eq!(calls.len(), 3, "{calls:?}");
-        let build = calls
-            .iter()
-            .find(|argv| argv.contains(&"build".to_owned()))
-            .expect("docs build argv");
-        for setting in dx_plan::plan::BAZEL_SETTINGS {
-            assert!(build.contains(&setting.to_owned()), "{build:?}");
-        }
-        let serve = calls
-            .iter()
-            .find(|argv| argv.contains(&"http.server".to_owned()));
-        let serve = serve.expect("serve argv");
-        assert!(serve.contains(&"8080".to_owned()), "{serve:?}");
-        assert!(serve.contains(&"--bind".to_owned()), "{serve:?}");
-        assert!(serve.contains(&"example.test".to_owned()), "{serve:?}");
-        assert!(
-            serve
-                .iter()
-                .any(|arg| arg.ends_with("bazel-bin/tools/docs/site/user_site")),
-            "the preview must serve the tree cquery reported: {serve:?}"
-        );
-        let open = calls
-            .iter()
-            .find(|argv| argv.iter().any(|arg| arg.contains("webbrowser")));
-        assert!(open.is_some(), "opener must run for --open: {calls:?}");
-    }
-
-    #[test]
-    fn docs_serve_launch_failure_maps_to_serve_failed() {
-        use std::io;
-        struct LaunchFailRunner;
-        impl dx_process::Runner for LaunchFailRunner {
-            fn run(
-                &self,
-                argv: &[String],
-                _cwd: &std::path::Path,
-                _env: &[(&str, &str)],
-            ) -> io::Result<dx_process::ChildStatus> {
-                if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus::exited(0))
-                } else {
-                    Err(io::Error::other("fake bind failure: address in use"))
-                }
-            }
-        }
-        let harness = Harness::new("docs-serve-bind-fail");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--port=8080", "--output=json"]);
-        let runner = LaunchFailRunner;
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(code, 1, "launch failure is operational");
-        let err_text = String::from_utf8(err).expect("stderr");
-        assert!(err_text.contains("serve_failed"), "{err_text}");
-        assert!(!err_text.contains("launch_failed"), "{err_text}");
-        let text = String::from_utf8(out).expect("out");
-        assert!(text.contains("serve_failed"), "{text}");
-    }
-
-    #[test]
-    fn docs_serve_missing_python3_names_python3() {
-        use std::io;
-        struct NoPython3;
-        impl dx_process::Runner for NoPython3 {
-            fn run(
-                &self,
-                argv: &[String],
-                _cwd: &std::path::Path,
-                _env: &[(&str, &str)],
-            ) -> io::Result<dx_process::ChildStatus> {
-                if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus::exited(0))
-                } else {
-                    Err(io::Error::from(io::ErrorKind::NotFound))
-                }
-            }
-        }
-        let harness = Harness::new("docs-serve-no-python3");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--port=8080"]);
-        let runner = NoPython3;
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(code, 1, "missing python3 is operational");
-        let err_text = String::from_utf8(err).expect("stderr");
-        assert!(err_text.contains("python3 not found"), "{err_text}");
-        assert!(!err_text.contains("port"), "{err_text}");
     }
 
     #[test]
@@ -734,80 +568,6 @@ mod tests {
     }
 
     #[test]
-    fn docs_serve_previews_the_declared_site_tree() {
-        use std::cell::RefCell;
-        use std::io;
-        use std::rc::Rc;
-        struct Probe {
-            seen: Rc<RefCell<Vec<Vec<String>>>>,
-        }
-        impl dx_process::Runner for Probe {
-            fn run(
-                &self,
-                argv: &[String],
-                _cwd: &std::path::Path,
-                _env: &[(&str, &str)],
-            ) -> io::Result<dx_process::ChildStatus> {
-                self.seen.borrow_mut().push(argv.to_vec());
-                Ok(dx_process::ChildStatus::exited(0))
-            }
-        }
-        fn serve_directory(calls: &[Vec<String>]) -> String {
-            let serve = calls
-                .iter()
-                .find(|argv| argv.contains(&"http.server".to_owned()))
-                .expect("serve argv");
-            let position = serve
-                .iter()
-                .position(|arg| arg == "--directory")
-                .expect("serve names its directory");
-            serve[position + 1].clone()
-        }
-        let harness = Harness::new("docs-serve-tree");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--output=text"]);
-        let seen = Rc::new(RefCell::new(Vec::new()));
-        let runner = Probe {
-            seen: Rc::clone(&seen),
-        };
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let directory = serve_directory(&seen.borrow());
-        assert!(
-            directory.ends_with("bazel-bin/tools/docs/site/user_site"),
-            "the preview must serve the tree cquery reported: {directory}"
-        );
-        let harness = Harness::new("docs-serve-foreign-tree");
-        script_site_tree(&harness, "bazel-bin/other/site");
-        let inv = invocation(&["docs", "//other:site", "--serve", "--output=text"]);
-        let seen = Rc::new(RefCell::new(Vec::new()));
-        let runner = Probe {
-            seen: Rc::clone(&seen),
-        };
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 1, "{queries:?}");
-        assert!(
-            queries[0].contains(&"//other:site".to_owned()),
-            "{queries:?}"
-        );
-        let directory = serve_directory(&seen.borrow());
-        assert!(
-            directory.ends_with("bazel-bin/other/site"),
-            "an explicit scope must preview its own tree: {directory}"
-        );
-        assert!(
-            !directory.ends_with("bazel-bin/tools/docs/site/user_site"),
-            "an explicit scope must not preview the repository default: {directory}"
-        );
-    }
-
-    #[test]
     fn docs_serve_cquery_failure_is_serve_failed() {
         for output in ["--output=text", "--output=json"] {
             let harness = Harness::new("docs-serve-cquery-fail");
@@ -869,39 +629,234 @@ mod tests {
         assert_eq!(CODE_SERVE_FAILED, "serve_failed");
     }
 
-    #[test]
-    fn docs_serve_failure_emits_serve_failed() {
-        use std::io;
-        struct ServeFailRunner;
-        impl dx_process::Runner for ServeFailRunner {
-            fn run(
-                &self,
-                argv: &[String],
-                _cwd: &std::path::Path,
-                _env: &[(&str, &str)],
-            ) -> io::Result<dx_process::ChildStatus> {
-                if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus::exited(0))
-                } else {
-                    Ok(dx_process::ChildStatus::exited(3))
-                }
+    #[derive(Default)]
+    struct FakePreview {
+        bind_error: bool,
+        run_error: bool,
+        bound: std::cell::RefCell<Vec<(String, u16, std::path::PathBuf)>>,
+    }
+
+    struct FakeRunning {
+        fail: bool,
+    }
+
+    impl PreviewServer for FakePreview {
+        fn bind(
+            &self,
+            host: &str,
+            port: u16,
+            root: &std::path::Path,
+        ) -> std::io::Result<Box<dyn RunningPreview>> {
+            if self.bind_error {
+                return Err(std::io::Error::other("address in use"));
+            }
+            self.bound
+                .borrow_mut()
+                .push((host.to_owned(), port, root.to_path_buf()));
+            Ok(Box::new(FakeRunning {
+                fail: self.run_error,
+            }))
+        }
+    }
+
+    impl RunningPreview for FakeRunning {
+        fn run(self: Box<Self>) -> std::io::Result<()> {
+            if self.fail {
+                Err(std::io::Error::other("listener died"))
+            } else {
+                Ok(())
             }
         }
-        let harness = Harness::new("docs-serve-fail");
-        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--port=8080", "--output=json"]);
-        let runner = ServeFailRunner;
+    }
+
+    struct Recorder {
+        seen: std::cell::RefCell<Vec<Vec<String>>>,
+    }
+
+    impl dx_process::Runner for Recorder {
+        fn run(
+            &self,
+            argv: &[String],
+            _cwd: &std::path::Path,
+            _env: &[(&str, &str)],
+        ) -> std::io::Result<dx_process::ChildStatus> {
+            self.seen.borrow_mut().push(argv.to_vec());
+            Ok(dx_process::ChildStatus::exited(0))
+        }
+    }
+
+    struct Served {
+        code: i32,
+        out: String,
+        err: String,
+        argvs: Vec<Vec<String>>,
+    }
+
+    fn serve(harness: &Harness, preview: &FakePreview, words: &[&str]) -> Served {
+        let runner = Recorder {
+            seen: Default::default(),
+        };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(code, 3, "{code}");
-        let text = String::from_utf8(out).expect("out");
-        let events = json_events(&text);
+        let code = execute_docs_with(
+            &invocation(words),
+            harness.env(&runner, &mut out, &mut err),
+            preview,
+        );
+        Served {
+            code,
+            out: String::from_utf8(out).expect("stdout"),
+            err: String::from_utf8(err).expect("stderr"),
+            argvs: runner.seen.into_inner(),
+        }
+    }
+
+    #[test]
+    fn docs_serve_previews_after_build() {
+        let harness = Harness::new("docs-serve");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let preview = FakePreview::default();
+        let run = serve(&harness, &preview, &["docs", "--serve", "--port=8080"]);
+        assert_eq!(run.code, 0, "{}{}", run.out, run.err);
+        assert!(
+            run.out.contains("Serving docs at http://127.0.0.1:8080/"),
+            "{}",
+            run.out
+        );
+        let bound = preview.bound.borrow();
+        assert_eq!(bound.len(), 1, "{bound:?}");
+        assert_eq!((bound[0].0.as_str(), bound[0].1), ("127.0.0.1", 8080));
+        assert!(
+            bound[0].2.ends_with("bazel-bin/tools/docs/site/user_site"),
+            "the preview must serve the tree cquery reported: {bound:?}"
+        );
+        assert_eq!(run.argvs.len(), 1, "only bazel runs: {:?}", run.argvs);
+    }
+
+    #[test]
+    fn docs_serve_binds_host_and_opens_browser() {
+        let harness = Harness::new("docs-serve-bind");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let preview = FakePreview::default();
+        let run = serve(
+            &harness,
+            &preview,
+            &[
+                "docs",
+                "--serve",
+                "--port=8080",
+                "--host=example.test",
+                "--open",
+            ],
+        );
+        assert_eq!(run.code, 0, "{}{}", run.out, run.err);
+        assert!(
+            run.out
+                .contains("Serving docs at http://example.test:8080/"),
+            "{}",
+            run.out
+        );
+        assert!(
+            run.out.contains("Opening http://example.test:8080/"),
+            "{}",
+            run.out
+        );
+        let bound = preview.bound.borrow();
+        assert_eq!((bound[0].0.as_str(), bound[0].1), ("example.test", 8080));
+        assert_eq!(run.argvs.len(), 2, "{:?}", run.argvs);
+        let build = &run.argvs[0];
+        for setting in dx_plan::plan::BAZEL_SETTINGS {
+            assert!(build.contains(&setting.to_owned()), "{build:?}");
+        }
+        assert_eq!(
+            run.argvs[1].last().map(String::as_str),
+            Some("http://example.test:8080/")
+        );
+        assert!(
+            run.argvs.iter().flatten().all(|arg| arg != "python3"),
+            "no python3 may run: {:?}",
+            run.argvs
+        );
+    }
+
+    #[test]
+    fn docs_serve_bind_failure_is_serve_failed() {
+        let harness = Harness::new("docs-serve-bind-fail");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let preview = FakePreview {
+            bind_error: true,
+            ..FakePreview::default()
+        };
+        let run = serve(
+            &harness,
+            &preview,
+            &["docs", "--serve", "--port=8080", "--open", "--output=json"],
+        );
+        assert_eq!(run.code, 1, "bind failure is operational");
+        assert!(run.err.contains("serve_failed"), "{}", run.err);
+        assert!(run.err.contains("port in use"), "{}", run.err);
+        assert!(run.out.contains("serve_failed"), "{}", run.out);
+        assert!(!run.out.contains("Serving"), "{}", run.out);
+        assert_eq!(run.argvs.len(), 1, "no browser opens: {:?}", run.argvs);
+    }
+
+    #[test]
+    fn docs_serve_run_failure_is_serve_failed() {
+        let harness = Harness::new("docs-serve-run-fail");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let preview = FakePreview {
+            run_error: true,
+            ..FakePreview::default()
+        };
+        let run = serve(
+            &harness,
+            &preview,
+            &["docs", "--serve", "--port=8080", "--output=json"],
+        );
+        assert_eq!(run.code, 1, "{}{}", run.out, run.err);
+        let events = json_events(&run.out);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
-        assert!(kinds.contains(&"error"), "{kinds:?}");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         let error = event(&events, "error");
         assert_eq!(error["code"], serde_json::json!(CODE_SERVE_FAILED));
+    }
+
+    #[test]
+    fn docs_serve_previews_the_declared_site_tree() {
+        let harness = Harness::new("docs-serve-foreign-tree");
+        script_site_tree(&harness, "bazel-bin/other/site");
+        let preview = FakePreview::default();
+        let run = serve(
+            &harness,
+            &preview,
+            &["docs", "//other:site", "--serve", "--output=text"],
+        );
+        assert_eq!(run.code, 0, "{}{}", run.out, run.err);
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "{queries:?}");
+        assert!(
+            queries[0].contains(&"//other:site".to_owned()),
+            "{queries:?}"
+        );
+        let bound = preview.bound.borrow();
+        assert!(
+            bound[0].2.ends_with("bazel-bin/other/site"),
+            "an explicit scope must preview its own tree: {bound:?}"
+        );
+    }
+
+    #[test]
+    fn opener_argv_names_the_os_opener() {
+        let url = "http://127.0.0.1:8000/";
+        assert_eq!(opener_argv_for("macos", url), strings(&["open", url]));
+        assert_eq!(
+            opener_argv_for("windows", url),
+            strings(&["cmd", "/c", "start", "", url])
+        );
+        for os in ["linux", "freebsd"] {
+            assert_eq!(opener_argv_for(os, url), strings(&["xdg-open", url]));
+        }
+        assert!(!opener_argv(url).contains(&"python3".to_owned()));
     }
 }

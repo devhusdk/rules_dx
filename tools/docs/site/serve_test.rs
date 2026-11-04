@@ -1,51 +1,30 @@
 //! Serves the rendered site over real HTTP at every hosting base and walks it.
 
 use std::collections::BTreeSet;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use dx_docs_serve::{Handle, Site};
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Sender};
-use std::thread;
 
 const USER_SITE: &str = "DX_USER_SITE";
 
 struct Server {
     port: u16,
-    stop: Sender<()>,
+    _site: Handle,
 }
 
 impl Server {
     fn start(root: PathBuf, base: &'static str) -> Self {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
-        let port = listener.local_addr().expect("local addr").port();
-        let (stop, done) = channel();
-        let trimmed = base.trim_matches('/');
-        let prefix = if trimmed.is_empty() {
-            "/".to_string()
-        } else {
-            format!("/{trimmed}/")
-        };
-        thread::spawn(move || {
-            for stream in listener.incoming() {
-                if done.try_recv().is_ok() {
-                    return;
-                }
-                let Ok(stream) = stream else { continue };
-                let _ = handle(stream, &root, &prefix);
-            }
-        });
-        Server { port, stop }
+        let site = Site::bind("127.0.0.1", 0, root, base).expect("bind a loopback port");
+        let port = site.local_addr().expect("local addr").port();
+        Server {
+            port,
+            _site: site.spawn(),
+        }
     }
 
     fn get(&self, path: &str) -> Response {
         request(self.port, path)
-    }
-}
-
-impl Drop for Server {
-    fn drop(&mut self) {
-        let _ = self.stop.send(());
-        let _ = TcpStream::connect(("127.0.0.1", self.port));
     }
 }
 
@@ -60,61 +39,6 @@ impl Response {
         assert!(!self.body.is_empty(), "{path} served an empty body");
         self
     }
-}
-
-fn handle(mut stream: TcpStream, root: &Path, prefix: &str) -> std::io::Result<()> {
-    let mut reader = BufReader::new(stream.try_clone()?);
-    let mut request_line = String::new();
-    if reader.read_line(&mut request_line)? == 0 {
-        return Ok(());
-    }
-    loop {
-        let mut header = String::new();
-        if reader.read_line(&mut header)? == 0 || header.trim().is_empty() {
-            break;
-        }
-    }
-    let mut parts = request_line.split_whitespace();
-    let _method = parts.next().unwrap_or_default();
-    let target = parts.next().unwrap_or_default();
-    let path = target.split(['?', '#']).next().unwrap_or_default();
-    if !path.starts_with(prefix) {
-        return respond(&mut stream, 404, "Not Found");
-    }
-    let relative = path[prefix.len()..].to_string();
-    let file = root.join(if relative.is_empty() {
-        "index.html".to_string()
-    } else {
-        relative
-    });
-    let candidate = if file.is_dir() {
-        file.join("index.html")
-    } else {
-        file
-    };
-    let Ok(body) = std::fs::read(&candidate) else {
-        return respond(&mut stream, 404, "Not Found");
-    };
-    let mut stream_out = Vec::new();
-    stream_out.extend_from_slice(
-        format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-            body.len()
-        )
-        .as_bytes(),
-    );
-    stream_out.extend_from_slice(&body);
-    stream.write_all(&stream_out)?;
-    stream.flush()
-}
-
-fn respond(stream: &mut TcpStream, status: u16, body: &str) -> std::io::Result<()> {
-    write!(
-        stream,
-        "HTTP/1.1 {status} Not Found\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    )?;
-    stream.flush()
 }
 
 fn request(port: u16, path: &str) -> Response {

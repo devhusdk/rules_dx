@@ -11,6 +11,7 @@ RUST_CRATE_MANIFESTS = [
     "//cli/apply:Cargo.toml",
     "//cli/atomic_fs:Cargo.toml",
     "//cli/merge:Cargo.toml",
+    "//cli/docs_serve:Cargo.toml",
     "//cli/adopt:Cargo.toml",
     "//cli/setup:Cargo.toml",
     "//cli/clean:Cargo.toml",

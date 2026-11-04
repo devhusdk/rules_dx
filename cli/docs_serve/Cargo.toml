@@ -1,0 +1,11 @@
+[package]
+license = "Apache-2.0"
+name = "dx_docs_serve"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_docs_serve"
+path = "src/lib.rs"
+
+[dependencies]

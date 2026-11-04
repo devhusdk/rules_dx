@@ -116,6 +116,7 @@ rust_test(
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/docs_serve:dx_docs_serve",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
@@ -146,6 +147,7 @@ rust_test(
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/docs_serve:dx_docs_serve",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
@@ -160,7 +162,10 @@ rust_test(
     env = {"DX_USER_SITE": "$(rootpath :user_site)"},
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/docs_serve:dx_docs_serve",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 # keep

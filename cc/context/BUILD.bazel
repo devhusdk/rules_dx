@@ -144,27 +144,39 @@ real_source_target(
     tags = ["corpus"],
 )
 
+# keep
+rust_library(
+    name = "headless_lsp_client",
+    testonly = True,
+    srcs = ["tests/headless_lsp/client.rs"],
+    crate_name = "headless_lsp_client",
+    crate_root = "tests/headless_lsp/client.rs",
+    edition = "2021",
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
 rust_test(
-    name = "headless_lsp_test",
-    size = "medium",
-    timeout = "long",
-    srcs = ["tests/headless_lsp.rs"],
-    aliases = aliases(
-        package_name = "cc/cc_context",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "headless_lsp_test",
-    crate_root = "tests/headless_lsp.rs",
+    name = "headless_lsp_client_test",
+    crate = ":headless_lsp_client",
+    edition = "2021",
+)
+
+# keep
+rust_test(
+    name = "headless_lsp_clangd_test",
+    srcs = ["tests/headless_lsp/clangd.rs"],
+    crate_name = "headless_lsp_clangd_test",
+    crate_root = "tests/headless_lsp/clangd.rs",
     data = [
         "//cc/tests/fixtures/compilation_db:limits_h",
         "//cc/tests/fixtures/compilation_db:probe.c",
         "//cc/tests/fixtures/compilation_db:probe_legacy.aquery.json",
         "@llvm//tools:clang",
         "@llvm//tools:clangd",
-        "@rust_analyzer",
-        "@rust_analyzer//:rustc",
-        "@rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc",
     ],
     edition = "2021",
     env = {
@@ -173,6 +185,33 @@ rust_test(
         "DX_LSP_CLANGD": "$(rootpath @llvm//tools:clangd)",
         "DX_LSP_LIMITS_H": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
         "DX_LSP_PROBE_C": "$(rootpath //cc/tests/fixtures/compilation_db:probe.c)",
+    },
+    tags = ["no-remote-exec"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = [
+        ":cc_context",
+        ":headless_lsp_client",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
+    name = "headless_lsp_rust_analyzer_test",
+    size = "medium",
+    srcs = ["tests/headless_lsp/rust_analyzer.rs"],
+    crate_name = "headless_lsp_rust_analyzer_test",
+    crate_root = "tests/headless_lsp/rust_analyzer.rs",
+    data = [
+        "@rust_analyzer",
+        "@rust_analyzer//:rustc",
+        "@rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc",
+    ],
+    edition = "2021",
+    env = {
         "DX_LSP_RUSTC_CHECK": "$(rootpath @rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc)",
         "DX_LSP_RUSTC_PROJECT": "$(rootpath @rust_analyzer//:rustc)",
         "DX_LSP_RUST_ANALYZER": "$(rootpath @rust_analyzer//:rust_analyzer)",
@@ -182,13 +221,8 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = all_crate_deps(
-        package_name = "cc/cc_context",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":cc_context",
-        "//tools/testing:dx_testing",
+    deps = [
+        ":headless_lsp_client",
         "@crates//:serde_json",
     ],
 )
@@ -206,6 +240,9 @@ rustfmt_test(
     name = "context_linux_x86_64_fmt_test",
     targets = [
         ":context_clang_tidy_test",
-        ":headless_lsp_test",
+        ":headless_lsp_clangd_test",
+        ":headless_lsp_client",
+        ":headless_lsp_client_test",
+        ":headless_lsp_rust_analyzer_test",
     ],
 )

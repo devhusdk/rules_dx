@@ -53,6 +53,7 @@ exports_files([
 exports_files([
     "corpus_checkstyle.xml",
     "corpus_vale.ini",
+    "corpus_styles/Dx/Launcher.yml",
     "corpus_styles/Dx/Markers.yml",
 ])
 
@@ -762,7 +763,10 @@ test_suite(
 vale_config(
     name = "corpus_vale_config",
     src = "corpus_vale.ini",
-    data = ["corpus_styles/Dx/Markers.yml"],
+    data = [
+        "corpus_styles/Dx/Launcher.yml",
+        "corpus_styles/Dx/Markers.yml",
+    ],
 )
 
 checkstyle_config(

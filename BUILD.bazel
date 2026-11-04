@@ -436,7 +436,10 @@ real_source_target(
 vale_config(
     name = "vale_config",
     src = ".vale.ini",
-    data = ["//quality:corpus_styles/Dx/Markers.yml"],
+    data = [
+        "//quality:corpus_styles/Dx/Launcher.yml",
+        "//quality:corpus_styles/Dx/Markers.yml",
+    ],
     visibility = ["//:__subpackages__"],
 )
 

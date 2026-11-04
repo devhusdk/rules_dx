@@ -1,0 +1,5 @@
+extends: existence
+message: "Use 'tools/dx.cmd', not 'tools/dx.bat'."
+level: error
+tokens:
+  - 'tools/dx\.bat'

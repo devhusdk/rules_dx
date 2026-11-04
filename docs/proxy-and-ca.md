@@ -6,7 +6,7 @@ Each download path has its own proxy and CA settings. Set the ones for the paths
 | --- | --- | --- |
 | Bazel | `HTTPS_PROXY`, `NO_PROXY` | Java trust store |
 | `tools/dx` | curl or wget settings | curl or wget settings |
-| `tools/dx.bat` | PowerShell and Windows settings | Windows certificate store |
+| `tools/dx.cmd` | PowerShell and Windows settings | Windows certificate store |
 | `dx` shim | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
 | Deploy uploads | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
 
@@ -48,9 +48,9 @@ export CURL_CA_BUNDLE=/etc/ssl/company-ca.pem
 
 wget reads `ca_certificate` from `~/.wgetrc`.
 
-## tools/dx.bat
+## tools/dx.cmd
 
-`tools/dx.bat` downloads with PowerShell `Invoke-WebRequest`. It uses the Windows proxy settings and the Windows certificate store. Install the company CA there.
+`tools/dx.cmd` downloads with PowerShell `Invoke-WebRequest`. It uses the Windows proxy settings and the Windows certificate store. Install the company CA there.
 
 ## The dx shim
 

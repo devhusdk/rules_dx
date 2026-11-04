@@ -9,10 +9,10 @@ exports_files(
     visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
-APPS = ["//examples/erlang-app:__subpackages__"]
+APPS = ["//erlang/tests/fixtures/erlang-app:__subpackages__"]
 
 DEPS = [
-    "//examples/erlang-app/proto:erlang_app",
+    "//erlang/tests/fixtures/erlang-app/proto:erlang_app",
     "@erlang_app_thoas//:erlang_app",
 ]
 

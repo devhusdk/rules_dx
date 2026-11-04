@@ -1,6 +1,6 @@
 #include <erl_nif.h>
 
-#include "examples/erlang-app/checksum/c_src/fnv1a.h"
+#include "erlang/tests/fixtures/erlang-app/checksum/c_src/fnv1a.h"
 
 static ERL_NIF_TERM fnv1a(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
   ErlNifBinary data;

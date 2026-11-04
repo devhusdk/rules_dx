@@ -81,10 +81,10 @@ real_source_target(
 
 erlang_coverage_env_test(
     name = "nif_coverage_env_test",
-    apps_dirs = "examples/erlang-app",
+    apps_dirs = "erlang/tests/fixtures/erlang-app",
     native = True,
-    source = "examples/erlang-app/checksum/src/kv_checksum.erl",
-    target = "//examples/erlang-app/checksum:eunit",
+    source = "erlang/tests/fixtures/erlang-app/checksum/src/kv_checksum.erl",
+    target = "//erlang/tests/fixtures/erlang-app/checksum:eunit",
 )
 
 erlang_coverage_env_test(

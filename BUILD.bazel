@@ -145,7 +145,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/tests/fixtures/c-app
 # gazelle:exclude cc/tests/fixtures/cpp-app
 # gazelle:exclude elixir/tests/fixtures/elixir-app
-# gazelle:exclude examples/erlang-app
+# gazelle:exclude erlang/tests/fixtures/erlang-app
 # gazelle:exclude haskell/tests/fixtures/haskell-app
 # gazelle:exclude dart/tests/cross
 # gazelle:exclude dart/tests/runtime

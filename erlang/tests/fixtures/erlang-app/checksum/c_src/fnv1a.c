@@ -1,4 +1,4 @@
-#include "examples/erlang-app/checksum/c_src/fnv1a.h"
+#include "erlang/tests/fixtures/erlang-app/checksum/c_src/fnv1a.h"
 
 #define FNV_OFFSET_BASIS 2166136261u
 #define FNV_PRIME 16777619u

@@ -19,8 +19,8 @@ def erlang_wrapper_contract_tests(name):
             expect_contains("nif refusal names label", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "//x:cli"),
             expect_contains("nif refusal names app and file", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "app: x/priv/a.so"),
             expect_contains("nif refusal says how to fix", escript_nif_message("//x:cli", []), "ship the app in a release or run it with erlang_app"),
-            expect_equal("lcov finds example apps", lcov_apps_dirs(["examples/erlang-app/store/src/kv_store.erl", "examples/erlang-app/proto/src/p.erl"]), "examples/erlang-app"),
-            expect_equal("lcov joins sorted roots", lcov_apps_dirs(["examples/erlang-app/store/src/kv_store.erl", "erlang/tests/runtime/src/dx_runtime_probe.erl"]), "erlang/tests:examples/erlang-app"),
+            expect_equal("lcov finds example apps", lcov_apps_dirs(["erlang/tests/fixtures/erlang-app/store/src/kv_store.erl", "erlang/tests/fixtures/erlang-app/proto/src/p.erl"]), "erlang/tests/fixtures/erlang-app"),
+            expect_equal("lcov joins sorted roots", lcov_apps_dirs(["erlang/tests/fixtures/erlang-app/store/src/kv_store.erl", "erlang/tests/runtime/src/dx_runtime_probe.erl"]), "erlang/tests:erlang/tests/fixtures/erlang-app"),
             expect_equal("lcov skips non app sources", lcov_apps_dirs(["a/src/x.erl", "a/b/src/x.hrl", "lib/a.erl", "x/y/lib/z.erl"]), ""),
             expect_equal("apps forward target_compatible_with", app_forward_kwargs(False, [], None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"target_compatible_with": ["@platforms//:incompatible"]}),
             expect_equal("test apps forward target_compatible_with", app_forward_kwargs(True, [], None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"testonly": True, "target_compatible_with": ["@platforms//:incompatible"]}),
@@ -50,8 +50,8 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("extra sources leave the globs", app_sources({"extra_srcs": ["src/gen.erl", ":gen"]}, _glob), [",".join(ERLANG_SOURCE_GLOBS) + "!src/gen.erl"]),
             expect_equal(
                 "main repo files live under the workspace",
-                runfiles_path("_main", "examples/erlang-app/cli/kvctl.escript"),
-                "_main/examples/erlang-app/cli/kvctl.escript",
+                runfiles_path("_main", "erlang/tests/fixtures/erlang-app/cli/kvctl.escript"),
+                "_main/erlang/tests/fixtures/erlang-app/cli/kvctl.escript",
             ),
             expect_equal(
                 "external files live under their repo",

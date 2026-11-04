@@ -11,8 +11,8 @@ exports_files(
 )
 
 DEPS = [
-    "//examples/erlang-app/proto:erlang_app",
-    "//examples/erlang-app/store:erlang_app",
+    "//erlang/tests/fixtures/erlang-app/proto:erlang_app",
+    "//erlang/tests/fixtures/erlang-app/store:erlang_app",
 ]
 
 erlang_app(

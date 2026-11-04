@@ -1,44 +1,39 @@
-load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_xrl_yrl", "erlc_opts", "eunit", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_nif", "erlc_opts", "eunit", "test_erlang_app")
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
-    glob(["src/*"]) + [
+    glob([
+        "c_src/*",
+        "src/*",
+    ]) + [
         "BUILD.bazel",
-        "test/kv_proto_tests.erl",
+        "test/kv_checksum_tests.erl",
     ],
     visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
-APPS = ["//examples/erlang-app:__subpackages__"]
-
-GENERATED = [
-    "src/kv_lexer.erl",
-    "src/kv_parser.erl",
-]
-
-erlang_xrl_yrl(
-    name = "grammar",
+erlang_nif(
+    name = "kv_checksum_nif",
     srcs = [
-        "src/kv_lexer.xrl",
-        "src/kv_parser.yrl",
+        "c_src/fnv1a.c",
+        "c_src/kv_checksum_nif.c",
     ],
-    outs = GENERATED,
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    hdrs = ["c_src/fnv1a.h"],
 )
 
 erlang_app(
-    app_description = "Parses key-value store commands.",
-    app_name = "kv_proto",
+    app_description = "FNV-1a checksums through a NIF.",
+    app_name = "kv_checksum",
     app_version = "1.0.0",
-    extra_srcs = GENERATED,
+    nifs = [":kv_checksum_nif"],
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    visibility = APPS,
+    visibility = ["//erlang/tests/fixtures/erlang-app:__subpackages__"],
 )
 
 test_erlang_app(
-    app_name = "kv_proto",
+    app_name = "kv_checksum",
     app_version = "1.0.0",
-    extra_srcs = GENERATED,
+    nifs = [":kv_checksum_nif"],
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
@@ -50,8 +45,8 @@ erlc_opts(
 erlang_bytecode(
     name = "test_modules",
     testonly = True,
-    srcs = ["test/kv_proto_tests.erl"],
-    outs = ["test/kv_proto_tests.beam"],
+    srcs = ["test/kv_checksum_tests.erl"],
+    outs = ["test/kv_checksum_tests.beam"],
     erlc_opts = ":test_erlc_opts",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = [":test_erlang_app"],
@@ -62,6 +57,7 @@ eunit(
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//erlang/tests/runtime:__pkg__"],
 )
 
 real_source_target(

@@ -38,6 +38,8 @@ pub(super) fn changed_lines(
             "-U0",
             "-M",
             "--relative",
+            "--src-prefix=a/",
+            "--dst-prefix=b/",
             merge_base,
         ],
     )?;

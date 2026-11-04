@@ -318,22 +318,7 @@ impl QueryRunner for RealGit {
 fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     let repo = temp_dir("changed-real-git");
     let root = repo.path();
-    let git = |args: &[&str]| {
-        let status = std::process::Command::new("git")
-            .args([
-                "-c",
-                "user.name=dx",
-                "-c",
-                "user.email=dx@example.com",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args)
-            .current_dir(root)
-            .status()
-            .expect("git");
-        assert!(status.success(), "git {args:?}");
-    };
+    let git = |args: &[&str]| run_git(root, args);
     let write = |path: &str, text: &str| {
         let full = root.join(path);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("mkdir");
@@ -362,6 +347,40 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     assert_eq!(keys, vec!["src/my file.py", "src/new.py"], "{added:?}");
     assert_eq!(added["src/new.py"], [3].into_iter().collect());
     assert_eq!(added["src/my file.py"], [1, 2].into_iter().collect());
+}
+
+fn run_git(root: &Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .args([
+            "-c",
+            "user.name=dx",
+            "-c",
+            "user.email=dx@example.com",
+            "-c",
+            "commit.gpgsign=false",
+        ])
+        .args(args)
+        .current_dir(root)
+        .status()
+        .expect("git");
+    assert!(status.success(), "git {args:?}");
+}
+
+#[test]
+fn real_git_keys_modified_files_under_diff_prefix_config() {
+    for key in ["diff.mnemonicPrefix", "diff.noprefix"] {
+        let repo = temp_dir("changed-prefix-config");
+        let root = repo.path();
+        std::fs::create_dir_all(root.join("pkg")).expect("mkdir");
+        std::fs::write(root.join("pkg/A.rs"), "a\nb\n").expect("write");
+        run_git(root, &["init", "--quiet", "--initial-branch=main"]);
+        run_git(root, &["add", "."]);
+        run_git(root, &["commit", "--quiet", "-m", "base"]);
+        run_git(root, &["config", key, "true"]);
+        std::fs::write(root.join("pkg/A.rs"), "a\nb\nc\n").expect("write");
+        let added = changed_lines(root, &RealGit, "HEAD").expect("changed lines");
+        assert_eq!(added["pkg/A.rs"], [3].into_iter().collect(), "{key}");
+    }
 }
 
 #[test]

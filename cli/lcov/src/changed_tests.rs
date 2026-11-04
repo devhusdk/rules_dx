@@ -93,6 +93,12 @@ fn pure_rename_and_deletion_add_nothing() {
 }
 
 #[test]
+fn real_b_directory_stays_in_the_path() {
+    let diff = "diff --git a/b/x.py b/b/x.py\n--- a/b/x.py\n+++ b/b/x.py\n@@ -0,0 +1 @@\n+a\n";
+    assert_eq!(parse_added_lines(diff), added(&[("b/x.py", &[1])]));
+}
+
+#[test]
 fn binary_file_adds_nothing() {
     let diff = "diff --git a/i.png b/i.png\nnew file mode 100644\nBinary files /dev/null and b/i.png differ\n";
     assert!(parse_added_lines(diff).is_empty());

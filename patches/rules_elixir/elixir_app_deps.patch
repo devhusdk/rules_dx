@@ -1,0 +1,11 @@
+diff --git a/elixir_app.bzl b/elixir_app.bzl
+--- a/elixir_app.bzl
++++ b/elixir_app.bzl
+@@ -80,6 +80,7 @@ def elixir_app(
+         app_name = app_name,
+         extra_apps = ["elixir"] + extra_apps,
+         modules = [":" + beam_files],
++        deps = deps,
+         **(common | kwargs)
+     )
+ 

@@ -191,7 +191,11 @@ def _elixir_impl(mctx):
         name = "rules_elixir",
         dropped = RULES_ELIXIR_DROPPED,
         patches = [
-            Label("//patches/rules_elixir:hermetic_elixir.patch"),
+            # Applied in this order: the deps patch builds on the name patch.
+            Label("//patches/rules_elixir:elixir_app_name.patch"),
+            Label("//patches/rules_elixir:elixir_app_deps.patch"),
+            Label("//patches/rules_elixir:warnings_as_errors.patch"),
+            Label("//patches/rules_elixir:relocatable_tree.patch"),
             Label("//patches/rules_elixir:toolchain_type_alias.patch"),
             Label("//patches/rules_elixir:windows_ex_unit_test.patch"),
         ],

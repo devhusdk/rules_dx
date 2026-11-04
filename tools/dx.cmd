@@ -143,7 +143,6 @@ set "DX_SEL=0"
 shift
 if "%~1"=="" goto dxwantsend
 if /i "%~1"=="--apply" (set "DX_APPLY=1" & goto dxwantsloop)
-if /i "%~1"=="--check" exit /b 0
 if /i "%~1"=="--frozen" exit /b 0
 if /i "%~1"=="--offline" exit /b 0
 set "DX_WORD=%~1"

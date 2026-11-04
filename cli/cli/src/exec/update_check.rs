@@ -1,6 +1,11 @@
 use super::super::test_support::*;
 
 #[test]
+fn check_summary_names_the_plain_update_command() {
+    assert_eq!(super::RunMode::Check.command_text(), "dx update");
+}
+
+#[test]
 fn update_without_dependency_sets_reports_none() {
     let harness = Harness::new("update-no-sets");
     let (code, _, err) = harness.run(&["update"]);

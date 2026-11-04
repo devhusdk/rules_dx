@@ -86,7 +86,7 @@
   "jq.bzl": "0.4.0",
   "jsoncpp": "1.9.6.bcr.2",
   "libxml2": "2.15.3",
-  "llvm": "0.8.25",
+  "llvm": "0.8.26",
   "lua": "5.4.6.bcr.1",
   "mimalloc": "3.5.3",
   "nlohmann_json": "3.12.0.bcr.1",

@@ -908,6 +908,58 @@ pypi_deploy(
     wheel = ":pypi_probe_wheel",
 )
 
+filegroup(
+    name = "typed_probe_srcs",
+    srcs = [
+        ":typed_probe_nodata_srcs",
+        "typed_probe/dx_ns/typed_probe/data/greeting.txt",
+    ],
+)
+
+filegroup(
+    name = "typed_probe_nodata_srcs",
+    srcs = [
+        "typed_probe/dx_ns/typed_probe/__init__.py",
+        "typed_probe/dx_ns/typed_probe/__init__.pyi",
+        "typed_probe/dx_ns/typed_probe/__main__.py",
+        "typed_probe/dx_ns/typed_probe/py.typed",
+    ],
+)
+
+py_wheel_rule(
+    name = "typed_probe_wheel",
+    distribution = "dx_typed_probe",
+    python_tag = "py3",
+    strip_path_prefixes = ["deploy/rules/typed_probe/"],
+    version = "1.0",
+    deps = [":typed_probe_srcs"],
+)
+
+py_wheel_rule(
+    name = "typed_probe_nodata_wheel_build",
+    distribution = "dx_typed_probe",
+    python_tag = "py2.py3",
+    strip_path_prefixes = ["deploy/rules/typed_probe/"],
+    version = "1.0",
+    deps = [":typed_probe_nodata_srcs"],
+)
+
+copy_file(
+    name = "typed_probe_nodata_wheel",
+    src = ":typed_probe_nodata_wheel_build",
+    out = "nodata/dx_typed_probe-1.0-py3-none-any.whl",
+)
+
+pypi_deploy(
+    name = "dx_typed_probe",
+    wheel = ":typed_probe_wheel",
+)
+
+pypi_deploy(
+    name = "typed_probe_nodata",
+    wheel = ":typed_probe_nodata_wheel",
+)
+
 config_setting(
     name = "windows_arm64",
     constraint_values = [
@@ -927,6 +979,10 @@ rust_test(
         ":pypi_probe_mismatch_config",
         ":pypi_probe_release",
         ":pypi_probe_release_config",
+        ":dx_typed_probe",
+        ":dx_typed_probe_config",
+        ":typed_probe_nodata",
+        ":typed_probe_nodata_config",
         "//cli/update:python_files",
         "//cli/update:python_interpreter",
         "@dx_tools//:uv",
@@ -940,6 +996,10 @@ rust_test(
         "DX_PYPI_RENAMED_CONFIG": "$(rootpath :pypi_probe_release_config)",
         "DX_PYPI_RENAMED_PROG": "$(rootpath :pypi_probe_release)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
+        "DX_TYPED_CONFIG": "$(rootpath :dx_typed_probe_config)",
+        "DX_TYPED_NODATA_CONFIG": "$(rootpath :typed_probe_nodata_config)",
+        "DX_TYPED_NODATA_PROG": "$(rootpath :typed_probe_nodata)",
+        "DX_TYPED_PROG": "$(rootpath :dx_typed_probe)",
         "DX_VERIFY_MODE": "pypi",
     },
     tags = [

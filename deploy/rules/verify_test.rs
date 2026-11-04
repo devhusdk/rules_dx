@@ -415,7 +415,13 @@ fn serve(root: PathBuf) -> (String, RequestLog) {
     .expect("start loopback server")
 }
 
-fn stage(var: &str, config_var: &str, house_name: &str, target_name: &str) -> PathBuf {
+fn stage(
+    var: &str,
+    config_var: &str,
+    house_name: &str,
+    project: &str,
+    target_name: &str,
+) -> PathBuf {
     let prog = data(var);
     let outdir = dx_testing::mkscratch("pypi-out").expect("scratch outdir");
     let run = run_deploy(&prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
@@ -424,7 +430,7 @@ fn stage(var: &str, config_var: &str, house_name: &str, target_name: &str) -> Pa
     let house = outdir.join(house_name);
     let index = house.join("simple-index");
     assert!(
-        index.join("dx-pypi-probe").join("index.html").is_file(),
+        index.join(project).join("index.html").is_file(),
         "{}",
         run.combined()
     );
@@ -441,7 +447,7 @@ fn kept_env(command: &mut std::process::Command) {
     }
 }
 
-fn install(url: &str, spelling: &str) {
+fn install(url: &str, spelling: &str) -> PathBuf {
     let uv = data("DX_PYPI_UV");
     let python = data("DX_PYPI_PYTHON");
     let cache = dx_testing::mkscratch("pypi-uv-cache").expect("scratch cache");
@@ -475,12 +481,18 @@ fn install(url: &str, spelling: &str) {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let mut command = std::process::Command::new(&python);
+    target
+}
+
+fn run_module(target: &Path, module: &str) -> std::process::Output {
+    let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
     kept_env(&mut command);
-    command
-        .env("PYTHONPATH", &target)
-        .args(["-m", "dx_pypi_probe"]);
-    let output = command.output().expect("python must execute");
+    command.env("PYTHONPATH", target).args(["-m", module]);
+    command.output().expect("python must execute")
+}
+
+fn check_module(target: &Path, module: &str, expected: &str) {
+    let output = run_module(target, module);
     assert!(
         output.status.success(),
         "{}",
@@ -488,8 +500,8 @@ fn install(url: &str, spelling: &str) {
     );
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
-        "dx-pypi-probe ok",
-        "{spelling}"
+        expected,
+        "{module}"
     );
 }
 
@@ -499,6 +511,7 @@ fn pypi_case() {
         "DX_PYPI_PROG",
         "DX_PYPI_CONFIG",
         "dx_pypi_probe-wheelhouse",
+        "dx-pypi-probe",
         "dx_pypi_probe",
     );
     let (url, log) = serve(house.clone());
@@ -509,7 +522,8 @@ fn pypi_case() {
         "dx--pypi__probe",
         "dx-pypi-probe",
     ] {
-        install(&url, spelling);
+        let target = install(&url, spelling);
+        check_module(&target, "dx_pypi_probe", "dx-pypi-probe ok");
     }
     let seen = requests(&log);
     assert!(
@@ -536,11 +550,13 @@ fn pypi_case() {
         "DX_PYPI_RENAMED_PROG",
         "DX_PYPI_RENAMED_CONFIG",
         "pypi_probe_release-wheelhouse",
+        "dx-pypi-probe",
         "pypi_probe_release",
     );
     assert!(house.join(legacy).is_file(), "{}", house.display());
     let (url, log) = serve(house);
-    install(&url, "Dx_Pypi.Probe");
+    let target = install(&url, "Dx_Pypi.Probe");
+    check_module(&target, "dx_pypi_probe", "dx-pypi-probe ok");
     let seen = requests(&log);
     assert!(
         seen.iter()
@@ -564,6 +580,43 @@ fn pypi_case() {
         ),
         "{}",
         run.stderr
+    );
+
+    typed_case();
+}
+
+fn typed_case() {
+    let house = stage(
+        "DX_TYPED_PROG",
+        "DX_TYPED_CONFIG",
+        "dx_typed_probe-wheelhouse",
+        "dx-typed-probe",
+        "dx_typed_probe",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_typed_probe");
+    check_module(&target, "dx_ns.typed_probe", "dx-typed-probe hello");
+    let package = target.join("dx_ns").join("typed_probe");
+    assert!(package.join("py.typed").is_file());
+    assert!(package.join("__init__.pyi").is_file());
+    assert!(!target.join("dx_ns").join("__init__.py").exists());
+
+    let house = stage(
+        "DX_TYPED_NODATA_PROG",
+        "DX_TYPED_NODATA_CONFIG",
+        "typed_probe_nodata-wheelhouse",
+        "dx-typed-probe",
+        "typed_probe_nodata",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_typed_probe");
+    let output = run_module(&target, "dx_ns.typed_probe");
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("dx-typed-probe: missing data/greeting.txt"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 

@@ -77,7 +77,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "devcontainer-check",
         "gate",
         "hermetic",
-        "hermetic-arm64",
         "msix-install",
         "network",
         "preflight",

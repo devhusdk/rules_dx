@@ -182,10 +182,10 @@ bazel test //examples/shared-rust/... @shared_consumer//... \
 ```
 
 Tests tagged `block-network` run without network.
-`//tools/testing/hermetic:rust_wasi` runs this check: it fetches with
-network, then tests in a fresh output root with the network denied and
-`--repository_disable_download`. With an empty repository cache and no
-network, the build fails with `Unknown host`. A binary that leaves out
+`//tools/testing/hermetic:rust_wasi` is a golden check of the consumer
+manifest. `//wasi/testing:wasi_guest_test` builds and runs a wasip1 guest
+on every platform. With an empty repository cache and no network, the
+build fails with `Unknown host`. A binary that leaves out
 `tasks_core` fails with ``error[E0432]: unresolved import `shared_tasks` ``.
 `missing_interface_test` expects a web app
 without its bindgen interface to fail with

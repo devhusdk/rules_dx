@@ -79,7 +79,7 @@ pub struct Config {
     pub bazel: PathBuf,
     pub heap: String,
     pub disk_cache: PathBuf,
-    pub repository_cache: Option<PathBuf>,
+    pub repository_cache: PathBuf,
     pub offline: bool,
     /// The native `bazel` shim installed in each slot; without it Unix falls back to a sh wrapper.
     pub shim: Option<PathBuf>,
@@ -147,7 +147,8 @@ impl Config {
         );
         let repository_cache = env_path(lookup, "DX_NESTED_BAZEL_REPOSITORY_CACHE")
             .or_else(|| rc_path(rc, "repository_cache", home))
-            .or_else(|| home.and_then(default_repository_cache));
+            .or_else(|| home.and_then(default_repository_cache))
+            .unwrap_or_else(|| base.join("repository-cache"));
         Ok(Config {
             base,
             slots,
@@ -537,9 +538,12 @@ pub fn bazelrc(config: &Config, downloader: &Path) -> String {
         "common --disk_cache={}\n",
         config.disk_cache.display()
     ));
-    if let Some(cache) = &config.repository_cache {
-        text.push_str(&format!("common --repository_cache={}\n", cache.display()));
-    }
+    let cache = &config.repository_cache;
+    text.push_str(&format!("common --repository_cache={}\n", cache.display()));
+    text.push_str(&format!(
+        "common --repo_contents_cache={}\n",
+        cache.join("contents").display()
+    ));
     text
 }
 
@@ -1922,7 +1926,7 @@ mod tests {
             bazel: bazel.to_path_buf(),
             heap: DEFAULT_HEAP.to_owned(),
             disk_cache: PathBuf::from("/caches/disk"),
-            repository_cache: None,
+            repository_cache: PathBuf::from("/caches/repos"),
             offline: false,
             shim: None,
             reserve: None,
@@ -2199,18 +2203,21 @@ common --repository_cache=/rc/repos
 
         let chosen = fixture.config(&env, rc, Some(&home));
         assert_eq!(chosen.disk_cache, PathBuf::from("/env/disk"));
-        assert_eq!(chosen.repository_cache, Some(PathBuf::from("/env/repos")));
+        assert_eq!(chosen.repository_cache, PathBuf::from("/env/repos"));
 
         let chosen = fixture.config(&[], rc, Some(&home));
         assert_eq!(chosen.disk_cache, home.join("rc"));
-        assert_eq!(chosen.repository_cache, Some(PathBuf::from("/rc/repos")));
+        assert_eq!(chosen.repository_cache, PathBuf::from("/rc/repos"));
 
         let chosen = fixture.config(&[], "", Some(&home));
         assert_eq!(chosen.disk_cache, fixture.base().join("disk-cache"));
-        assert_eq!(chosen.repository_cache, Some(repos));
+        assert_eq!(chosen.repository_cache, repos);
 
         std::fs::remove_dir_all(home.join(".cache")).expect("remove cache");
-        assert_eq!(fixture.config(&[], "", Some(&home)).repository_cache, None);
+        assert_eq!(
+            fixture.config(&[], "", Some(&home)).repository_cache,
+            fixture.base().join("repository-cache")
+        );
     }
 
     #[test]
@@ -2282,7 +2289,7 @@ common --repository_cache=/rc/repos
         );
         assert_eq!(
             bazelrc(&config, Path::new("/b/0/downloader.cfg")),
-            "common --local_resources=cpu=2\ncommon --disk_cache=/caches/disk\n"
+            "common --local_resources=cpu=2\ncommon --disk_cache=/caches/disk\ncommon --repository_cache=/caches/repos\ncommon --repo_contents_cache=/caches/repos/contents\n"
         );
         let offline = Config {
             offline: true,
@@ -2290,7 +2297,7 @@ common --repository_cache=/rc/repos
         };
         assert_eq!(
             bazelrc(&offline, Path::new("/b/0/downloader.cfg")),
-            "common --local_resources=cpu=2\ncommon --downloader_config=/b/0/downloader.cfg\ncommon --disk_cache=/caches/disk\n"
+            "common --local_resources=cpu=2\ncommon --downloader_config=/b/0/downloader.cfg\ncommon --disk_cache=/caches/disk\ncommon --repository_cache=/caches/repos\ncommon --repo_contents_cache=/caches/repos/contents\n"
         );
     }
 
@@ -3069,7 +3076,7 @@ mod portable_tests {
             bazel: PathBuf::from("/r/bazel"),
             heap: DEFAULT_HEAP.to_owned(),
             disk_cache: PathBuf::from("/d"),
-            repository_cache: None,
+            repository_cache: PathBuf::from("/caches/repos"),
             offline: true,
             shim: None,
             reserve: None,

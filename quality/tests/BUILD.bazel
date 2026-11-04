@@ -88,7 +88,7 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "quality_check_smoke_test",
-    size = "enormous",
+    size = "large",
     srcs = [
         "quality_check_smoke_common.rs",
         "quality_check_smoke_test.rs",

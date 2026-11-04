@@ -456,14 +456,25 @@ fn sync_set(root: &Path) -> Result<Vec<String>, AdoptError> {
         }
     }
     for rel in orphaned_patches(root) {
-        let dest = crate::scaffold::scaffold_dest_within_root(root, &rel)?;
-        std::fs::remove_file(&dest).map_err(|e| AdoptError::WriteFile {
-            path: dest.display().to_string(),
-            detail: format!("cannot remove: {e}"),
-        })?;
-        entries.push(format!("removed:{rel}"));
+        if remove_retired(root, &rel)? {
+            entries.push(format!("removed:{rel}"));
+        }
     }
     Ok(entries)
+}
+
+/// Removes a retired patch. `Ok(false)` when it is already gone, since a concurrent run
+/// removed it after it was listed; other errors still fail.
+fn remove_retired(root: &Path, rel: &str) -> Result<bool, AdoptError> {
+    let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
+    match std::fs::remove_file(&dest) {
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(AdoptError::WriteFile {
+            path: dest.display().to_string(),
+            detail: format!("cannot remove: {e}"),
+        }),
+    }
 }
 
 /// Rewrites stale override files.
@@ -773,5 +784,19 @@ mod tests {
             OverridesState::Warn(detail) => assert!(detail.contains("0.0.1"), "{detail}"),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn a_retired_patch_already_gone_is_not_an_error() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-retired-");
+        let root = scratch.path();
+        let rel = format!("{OVERRIDES_DIR}/retired.patch");
+        std::fs::create_dir_all(root.join(OVERRIDES_DIR)).expect("dir");
+        assert!(!remove_retired(root, &rel).expect("missing"));
+        std::fs::write(root.join(&rel), "old\n").expect("write");
+        assert!(remove_retired(root, &rel).expect("removed"));
+        assert!(!root.join(&rel).exists());
+        std::fs::create_dir(root.join(&rel)).expect("dir");
+        assert!(remove_retired(root, &rel).is_err());
     }
 }

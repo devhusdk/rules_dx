@@ -60,8 +60,23 @@ def _llvm_impl(ctx):
         asserts.false(env, "dx_gcc" in value, "{} is GCC under llvm: {}".format(name, value))
     return analysistest.end(env)
 
+def _msvc_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    inputs = {f.path: True for f in action.inputs.to_list()}
+    for name, tool in [("CC", "cl.exe"), ("CXX", "cl.exe"), ("AR", "lib.exe")]:
+        value = _relative(action.env.get(name, ""))
+        asserts.true(env, value.lower().endswith(tool), "{} is not {}: {}".format(name, tool, value))
+        asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
+    include = action.env.get("INCLUDE", "")
+    asserts.true(env, include != "", "INCLUDE is not set")
+    for part in include.split(";"):
+        asserts.true(env, part.startswith("external/") or part.startswith("${pwd}/external/") or "dx_msvc" in part, "INCLUDE entry outside the provisioned SDK: {}".format(part))
+    return analysistest.end(env)
+
 _gcc_test = analysistest.make(_gcc_impl, config_settings = {_COMPILER: "gcc"})
 _llvm_test = analysistest.make(_llvm_impl, config_settings = {_COMPILER: "llvm"})
+_msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})
 
 def build_script_compiler_tests(name, target):
     """Asserts the build script runs with the pinned GCC under gcc and with other tools under llvm.
@@ -86,3 +101,17 @@ cross_build_script_tool_inputs_test = analysistest.make(
     _tool_inputs_test_impl,
     config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))},
 )
+
+def build_script_msvc_test(name, target):
+    """Asserts the build script runs with the provisioned cl.exe and lib.exe on Windows x64.
+
+    Args:
+        name: Name of the test.
+        target: A cargo_build_script that uses the cc toolchain.
+    """
+    _msvc_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )

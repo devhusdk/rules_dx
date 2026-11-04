@@ -1,9 +1,9 @@
-mod check_continuation_common;
+mod quality_check_smoke_common;
 
-use check_continuation_common::*;
+use quality_check_smoke_common::*;
 
 #[test]
-fn one_check_returns_every_independent_finding_and_leaves_bytes_unchanged() {
+fn quality_check_smoke_test() {
     let root = consumer(&DRIFT_SOURCES);
     let before = snapshot(&root);
     let run = dx(&root, "check", "//...", &["--output=json"]);

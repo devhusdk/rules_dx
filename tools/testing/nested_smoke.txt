@@ -41,12 +41,7 @@
 //qt/tests:qt_display_test
 //qt/tests:qt_rust_test
 //qt/tests:qt_tasks_test
-//quality/tests:check_continuation_clean_consumer_test
-//quality/tests:check_continuation_findings_consumer_test
-//quality/tests:check_continuation_generation_consumer_test
-//quality/tests:check_continuation_later_clean_consumer_test
-//quality/tests:check_continuation_rejected_consumer_test
-//quality/tests:check_continuation_views_consumer_test
+//quality/tests:quality_check_smoke_test
 //rust/ide:init_rust_analyzer_test
 //tools/docs/components/tests:consumer_test
 //tools/docs/go/tests:consumer_test

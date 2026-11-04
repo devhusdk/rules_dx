@@ -83,14 +83,6 @@ pub struct Sources {
     pub drift: bool,
 }
 
-pub const CLEAN_SOURCES: Sources = Sources {
-    app: CLEAN,
-    fmt: CLEAN,
-    lint: CLEAN,
-    typed: CLEAN,
-    drift: false,
-};
-
 pub const DRIFT_SOURCES: Sources = Sources {
     app: CLEAN,
     fmt: DIRTY_FORMAT,

@@ -167,7 +167,7 @@ common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_hos
     $refusedOut = Join-Path $short "refused.msix"
     $refused = Invoke-Tool $bazel ($startup + @("run", "//examples/msix-app/app:app_sign", "--", "-Pfx", $wrong, "-Out", $refusedOut)) $workspace
     Assert-That ($refused.Exit -ne 0) "a publisher mismatch signed the consumer package"
-    Assert-That ($refused.Stderr.Contains("dx_msix_sign:")) "a publisher mismatch gave no signer message: $($refused.Stderr)"
+    Assert-That ($refused.Stderr.Contains("msix_sign:")) "a publisher mismatch gave no signer message: $($refused.Stderr)"
     Assert-That (-not (Test-Path -LiteralPath $refusedOut)) "a publisher mismatch wrote $refusedOut"
 
     $missing = Invoke-Tool $bazel ($startup + @("run", "//examples/msix-app/app:app_sign", "--", "-Out", $refusedOut)) $workspace

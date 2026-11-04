@@ -339,7 +339,7 @@ foreach ($marker in @($false, $true)) {
     $label = if ($marker) { "stale marker" } else { "existing certificate" }
     $own = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($good, $env:DX_MSIX_PFX_PASSWORD, $flags)
     if ($marker) {
-        $own.FriendlyName = "dx_msix_sign temporary"
+        $own.FriendlyName = "msix_sign temporary"
     }
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
@@ -427,7 +427,7 @@ New-TestCertificate $identity.publisher $future $env:DX_MSIX_PFX_PASSWORD $codeS
 Assert-Refused "not yet valid certificate" (Invoke-Sign @("-Pfx", $future, "-Out", $rejected)) 3 "certificate $future is valid only from" $rejected
 
 $env:DX_MSIX_PFX_PASSWORD = "not-the-password"
-Assert-Refused "wrong password" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected)) 3 "dx_msix_sign: cannot open certificate $good" $rejected
+Assert-Refused "wrong password" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected)) 3 "msix_sign: cannot open certificate $good" $rejected
 Test-NoStoreCert $certificate.Thumbprint "wrong password"
 $env:DX_MSIX_PFX_PASSWORD = "dx-test-only"
 
@@ -437,7 +437,7 @@ Assert-Refused "public certificate" (Invoke-Sign @("-Pfx", $public, "-Out", $rej
 
 $server = Join-Path $work "server.pfx"
 New-TestCertificate $identity.publisher $server $env:DX_MSIX_PFX_PASSWORD "1.3.6.1.5.5.7.3.1" | Out-Null
-Assert-Refused "server certificate" (Invoke-Sign @("-Pfx", $server, "-Out", $rejected)) 1 "dx_msix_sign: signtool failed with exit code 1" $rejected
+Assert-Refused "server certificate" (Invoke-Sign @("-Pfx", $server, "-Out", $rejected)) 1 "msix_sign: signtool failed with exit code 1" $rejected
 
 $kept = Join-Path $work "kept.msix"
 [System.IO.File]::WriteAllText($kept, "existing")
@@ -450,7 +450,7 @@ foreach ($case in @(@{ Label = "rejected timestamp"; Status = 500 }, @{ Label = 
     $timestamp = Start-TimestampServer $case.Status
     $result = Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $timestamp.Url)
     $served = Stop-TimestampServer $timestamp
-    Assert-Refused $case.Label $result 4 "dx_msix_sign: timestamp server $($timestamp.Url) rejected the request, sent an invalid response, or could not be reached" $rejected
+    Assert-Refused $case.Label $result 4 "msix_sign: timestamp server $($timestamp.Url) rejected the request, sent an invalid response, or could not be reached" $rejected
     Assert-That ($served -ge 1) "$($case.Label): the server got no request"
 }
 
@@ -462,12 +462,12 @@ Assert-Refused "unreachable timestamp" (Invoke-Sign @("-Pfx", $good, "-Out", $re
 $timestamp = Start-TimestampServer 200
 $result = Invoke-Sign @("-Pfx", $server, "-Out", $rejected, "-Timestamp", $timestamp.Url)
 $served = Stop-TimestampServer $timestamp
-Assert-Refused "server certificate with timestamp" $result 1 "dx_msix_sign: signtool failed with exit code 1" $rejected
+Assert-Refused "server certificate with timestamp" $result 1 "msix_sign: signtool failed with exit code 1" $rejected
 Assert-Equal 0 $served "server certificate with timestamp: the server got a request"
 Assert-Refused "timestamp scheme" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", "ftp://127.0.0.1/")) 2 "-Timestamp ftp://127.0.0.1/ is not an http or https URL" $rejected
 
-Assert-Refused "missing certificate" (Invoke-Sign @("-Out", $rejected)) 2 "dx_msix_sign: pass -Pfx" $rejected
-Assert-Refused "missing output" (Invoke-Sign @("-Pfx", $good)) 2 "dx_msix_sign: pass -Out" $rejected
+Assert-Refused "missing certificate" (Invoke-Sign @("-Out", $rejected)) 2 "msix_sign: pass -Pfx" $rejected
+Assert-Refused "missing output" (Invoke-Sign @("-Pfx", $good)) 2 "msix_sign: pass -Out" $rejected
 Assert-Refused "absent certificate" (Invoke-Sign @("-Pfx", (Join-Path $work "absent.pfx"), "-Out", $rejected)) 2 "does not exist" $rejected
 
 if ($failures.Count -gt 0) {

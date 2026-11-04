@@ -254,7 +254,7 @@ def dx_msix(name, target_compatible_with = [], **kwargs):
         **kwargs
     )
 
-def dx_msix_sign(name, package, target_compatible_with = [], **kwargs):
+def msix_sign(name, package, target_compatible_with = [], **kwargs):
     """Declares a run target that signs a copy of one dx_msix package."""
     signtool = str(Label("//msix:signtool"))
     pwsh_binary(

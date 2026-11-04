@@ -25,7 +25,7 @@ msix_toolchain = rule(
 def _signtool_impl(ctx):
     toolchain = ctx.toolchains[str(Label("//msix:toolchain_type"))]
     if toolchain == None:
-        fail("dx_msix_sign: signing needs a windows_x86_64 or windows_arm64 execution platform, and this build has none")
+        fail("msix_sign: signing needs a windows_x86_64 or windows_arm64 execution platform, and this build has none")
     if toolchain.error:
         fail(toolchain.error)
     return [DefaultInfo(

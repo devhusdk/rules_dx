@@ -1,5 +1,5 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
-load("@rules_dx//msix:defs.bzl", "dx_msix", "dx_msix_sign")
+load("@rules_dx//msix:defs.bzl", "dx_msix", "msix_sign")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_binary(
@@ -27,7 +27,7 @@ dx_msix(
     version = "1.2.3.0",
 )
 
-dx_msix_sign(
+msix_sign(
     name = "app_sign",
     package = ":app",
 )

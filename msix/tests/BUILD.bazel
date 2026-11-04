@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_binary")
-load("//msix:defs.bzl", "dx_msix", "dx_msix_sign")
+load("//msix:defs.bzl", "dx_msix", "msix_sign")
 load("//msix:repos.bzl", "UNACCEPTED")
 load("//msix:toolchain.bzl", "msix_toolchain")
 load("//powershell/rules:defs.bzl", "pwsh_test")
@@ -126,7 +126,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix_sign(
+msix_sign(
     name = "cell_sign",
     package = ":cell",
     tags = ["manual"],

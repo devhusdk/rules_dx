@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 function Stop-Sign([int]$Code, [string]$Message) {
-    [Console]::Error.WriteLine("dx_msix_sign: $Message")
+    [Console]::Error.WriteLine("msix_sign: $Message")
     [Environment]::Exit($Code)
 }
 
@@ -39,10 +39,10 @@ function Invoke-Signtool([string]$Signtool, [string[]]$Arguments) {
     return [pscustomobject]@{ Exit = $LASTEXITCODE; Output = $output.Trim() }
 }
 
-$tempName = "dx_msix_sign temporary"
+$tempName = "msix_sign temporary"
 
 function Enter-SignLock([string]$Thumbprint) {
-    $mutex = [System.Threading.Mutex]::new($false, "Global\dx_msix_sign_$Thumbprint")
+    $mutex = [System.Threading.Mutex]::new($false, "Global\msix_sign_$Thumbprint")
     try {
         if (-not $mutex.WaitOne([TimeSpan]::FromMinutes(10))) {
             $mutex.Dispose()
@@ -104,7 +104,7 @@ function Remove-PrivateKey($Certificate) {
             $key.Clear()
         }
     } catch {
-        [Console]::Error.WriteLine("dx_msix_sign: cannot delete the private key of $($Certificate.Thumbprint): $($_.Exception.Message)")
+        [Console]::Error.WriteLine("msix_sign: cannot delete the private key of $($Certificate.Thumbprint): $($_.Exception.Message)")
     }
 }
 
@@ -124,7 +124,7 @@ function Remove-SigningCertificate($Import) {
             $store.Close()
         }
     } catch {
-        [Console]::Error.WriteLine("dx_msix_sign: cannot remove certificate $($certificate.Thumbprint) from the store: $($_.Exception.Message)")
+        [Console]::Error.WriteLine("msix_sign: cannot remove certificate $($certificate.Thumbprint) from the store: $($_.Exception.Message)")
     }
     Remove-PrivateKey $certificate
     if ($Import.Restore) {
@@ -137,7 +137,7 @@ function Remove-SigningCertificate($Import) {
                 $store.Close()
             }
         } catch {
-            [Console]::Error.WriteLine("dx_msix_sign: cannot restore certificate $($certificate.Thumbprint) to the store: $($_.Exception.Message)")
+            [Console]::Error.WriteLine("msix_sign: cannot restore certificate $($certificate.Thumbprint) to the store: $($_.Exception.Message)")
         }
     }
 }

@@ -4,7 +4,7 @@ Package a Windows target binary as an MSIX. No Windows SDK or Visual Studio
 install is needed.
 
 Cells: `windows_x86_64` and `windows_arm64` targets. Packaging runs on a
-Windows x64 or arm64 host. `dx_msix` and `dx_msix_sign` add
+Windows x64 or arm64 host. `dx_msix` and `msix_sign` add
 `@platforms//os:windows` to `target_compatible_with`; `bazel build //...`
 skips them on Linux and macOS. A Windows target with another CPU fails
 analysis with `target cell this platform is unsupported`. A build with no
@@ -39,7 +39,7 @@ Accepting the license here does not grant you one. You still need your own from 
 ## Use
 
 ```python
-load("@rules_dx//msix:defs.bzl", "dx_msix", "dx_msix_sign")
+load("@rules_dx//msix:defs.bzl", "dx_msix", "msix_sign")
 
 dx_msix(
     name = "app",
@@ -54,7 +54,7 @@ dx_msix(
     version = "1.2.3.0",
 )
 
-dx_msix_sign(
+msix_sign(
     name = "app_sign",
     package = ":app",
 )
@@ -123,7 +123,7 @@ cannot install or run an arm64 package.
 
 ## Sign
 
-`dx_msix_sign` signs a copy of the package with a PFX certificate. Building it
+`msix_sign` signs a copy of the package with a PFX certificate. Building it
 signs nothing. Signing happens only on `bazel run`. Set the password in
 `DX_MSIX_PFX_PASSWORD` when the PFX has one.
 

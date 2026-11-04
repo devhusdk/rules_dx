@@ -58,25 +58,13 @@ func ParseImports(content []byte) []string {
 }
 
 // ParsePackage returns the namespace name, or an error when the file declares
-// more than one namespace.
+// more than one namespace. A namespace nested in another one is part of the
+// package: namespace A { namespace B { } } is A.B.
 func ParsePackage(content []byte) (string, error) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
 	var names []string
-	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
-		switch tree.Type(n) {
-		case "namespace_declaration", "file_scoped_namespace_declaration":
-			for _, c := range n.Children() {
-				if k := tree.Type(c); k == "identifier" || k == "qualified_name" {
-					names = append(names, tree.Dotted(c))
-					break
-				}
-			}
-		case "block", "class_declaration", "struct_declaration", "method_declaration":
-			return false
-		}
-		return true
-	})
+	collectNamespaces(tree, tree.Root, "", &names)
 	if len(names) > 1 {
 		return "", errDuplicatePackage(names[0])
 	}
@@ -84,6 +72,39 @@ func ParsePackage(content []byte) (string, error) {
 		return "", nil
 	}
 	return names[0], nil
+}
+
+// collectNamespaces appends the full name of each namespace declared under n.
+// prefix is the full name of the enclosing namespace, if any. A namespace that
+// holds another one is named by the inner one, so A { B { } } yields A.B.
+func collectNamespaces(tree *treesitter.Tree, n *treesitter.Node, prefix string, names *[]string) {
+	if n == nil {
+		return
+	}
+	for _, c := range n.Children() {
+		switch tree.Type(c) {
+		case "namespace_declaration", "file_scoped_namespace_declaration":
+			full := prefix
+			for _, k := range c.Children() {
+				if kind := tree.Type(k); kind == "identifier" || kind == "qualified_name" {
+					full = tree.Dotted(k)
+					if prefix != "" {
+						full = prefix + "." + full
+					}
+					break
+				}
+			}
+			before := len(*names)
+			collectNamespaces(tree, c, full, names)
+			if len(*names) == before && full != "" {
+				*names = append(*names, full)
+			}
+		case "block", "class_declaration", "struct_declaration", "method_declaration":
+			// Namespaces are never declared inside these.
+		default:
+			collectNamespaces(tree, c, prefix, names)
+		}
+	}
 }
 
 type duplicatePackageError struct{ first string }

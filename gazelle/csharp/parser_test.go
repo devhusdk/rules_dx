@@ -79,6 +79,16 @@ func TestParsePackage(t *testing.T) {
 	}
 }
 
+func TestParsePackageNestedNamespace(t *testing.T) {
+	got, err := ParsePackage([]byte("namespace A {\n  namespace B {\n    class C {}\n  }\n}\n"))
+	if err != nil || got != "A.B" {
+		t.Errorf("ParsePackage nested = %q, %v; want A.B", got, err)
+	}
+	if _, err := ParsePackage([]byte("namespace A { namespace B {} }\nnamespace C {}\n")); err == nil {
+		t.Fatal("ParsePackage succeeded on a nested and a sibling namespace")
+	}
+}
+
 func TestDefinesMain(t *testing.T) {
 	if !DefinesMain([]byte("namespace Demo;\n\nclass Main {\n  static void Main(string[] args) {}\n}\n")) {
 		t.Error("DefinesMain missed a main function")

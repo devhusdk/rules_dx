@@ -103,6 +103,7 @@ def _pin_checks():
         ]),
         expect_false("arm64 gui closure skips krb5", "krb5-libs" in _closure_packages("linux_arm64", "gui")),
         expect_equal("blocked cells carry no runtime", [cell for cell in CELLS if CELLS[cell].blocker != "" and CELLS[cell].runtime != None], []),
+        expect_equal("macos cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "macos" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),
         expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and CELLS[cell].layout != LINUX_LAYOUT], []),
         expect_equal("windows layout names import libraries", [WINDOWS_LAYOUT.library("Core"), WINDOWS_LAYOUT.shared("Core")], ["Qt6Core.lib", "bin/Qt6Core.dll"]),
         expect_equal("windows layout runs tools from bin", [WINDOWS_LAYOUT.tool("libexec/moc"), WINDOWS_LAYOUT.tool("bin/lrelease")], ["bin/moc.exe", "bin/lrelease.exe"]),

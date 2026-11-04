@@ -85,6 +85,7 @@ alias(
 )
 
 # The macos_arm64 cell publishes no needs tables; its qt_test skips the table check.
+# macOS links system frameworks only; needs tables arrive with qt_bundle (#5194).
 alias(
     name = "needs_native",
     actual = select({

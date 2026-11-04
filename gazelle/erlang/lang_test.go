@@ -1,9 +1,14 @@
 package erlang
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
 func TestParseAppSrc(t *testing.T) {
@@ -51,5 +56,36 @@ func TestOwns(t *testing.T) {
 	}
 	if !Owns(mk(NifKind, "n", "c_src/a.c")) {
 		t.Error("generated nif should be owned")
+	}
+}
+
+func TestSymlinkedSrcKeepsErlangApp(t *testing.T) {
+	root := t.TempDir()
+	shared := filepath.Join(root, "shared", "src")
+	pkg := filepath.Join(root, "pkg", "demo")
+	for _, dir := range []string{shared, pkg} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(shared, "demo.app.src"), []byte(`{application, demo, [{vsn, "1.0.0"}]}.`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(shared, "demo.erl"), []byte("-module(demo).\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(shared, filepath.Join(pkg, SrcDir)); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config: &config.Config{RepoRoot: root},
+		Dir:    pkg,
+		Rel:    "pkg/demo",
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != AppKind {
+		t.Fatalf("generated %d rules, want one %s", len(result.Gen), AppKind)
+	}
+	if got := result.Gen[0].AttrStrings("srcs"); !slices.Equal(got, []string{"src/demo.erl"}) {
+		t.Fatalf("srcs = %v, want [src/demo.erl]", got)
 	}
 }

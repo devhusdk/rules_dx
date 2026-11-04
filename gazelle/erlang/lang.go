@@ -69,19 +69,24 @@ func (l *erlangLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []res
 }
 
 // listSources returns the files under dir that keep accepts, relative to root.
-// Directories that are another Erlang project are skipped.
+// Directories that are another Erlang project are skipped. A symlinked dir is
+// walked through its target, because WalkDir does not descend into a link.
 func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	base := filepath.Join(root, dir)
 	if _, err := os.Stat(base); err != nil {
 		return nil, nil
 	}
+	walk, err := filepath.EvalSymlinks(base)
+	if err != nil {
+		return nil, err
+	}
 	var out []string
-	err := filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(walk, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
-			if p != base {
+			if p != walk {
 				if _, err := os.Stat(filepath.Join(p, RebarConfig)); err == nil {
 					return filepath.SkipDir
 				}
@@ -92,11 +97,11 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 			}
 			return nil
 		}
-		rel, err := filepath.Rel(root, p)
+		under, err := filepath.Rel(walk, p)
 		if err != nil {
 			return err
 		}
-		rel = filepath.ToSlash(rel)
+		rel := filepath.ToSlash(filepath.Join(dir, under))
 		if keep(rel) {
 			out = append(out, rel)
 		}

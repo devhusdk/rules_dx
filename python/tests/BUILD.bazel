@@ -1,5 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//python/rules:defs.bzl", "python_test")
+load(":soabi_tests.bzl", "soabi_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -13,10 +14,27 @@ python_test(
     runner = "plain",
 )
 
+[
+    soabi_test(
+        name = "soabi_{}_test".format(name),
+        soabi = soabi,
+        target_under_test = "@python_3_12_{}//:py_cc_toolchain".format(repo),
+    )
+    for name, repo, soabi in [
+        ("linux_x86_64", "x86_64_unknown_linux_gnu", "cpython-312-x86_64-linux-gnu"),
+        ("linux_aarch64", "aarch64_unknown_linux_gnu", "cpython-312-aarch64-linux-gnu"),
+        ("darwin_arm64", "aarch64_apple_darwin", "cpython-312-darwin"),
+        ("windows_x86_64", "x86_64_pc_windows_msvc", "cp312-win_amd64"),
+    ]
+]
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "soabi_tests.bzl",
+    ],
     tags = ["corpus"],
 )

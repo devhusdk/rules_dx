@@ -28,7 +28,7 @@ _KOTLINC_JARS = [
 JvmCheckInfo = provider(
     doc = "Output of one non-failing JVM compiler check (javac, kotlinc and scalac).",
     fields = {
-        "log": "File: versioned JSON log with the tool, its exit status and its diagnostics.",
+        "log": "File: JSON log with the tool, its exit status and its diagnostics.",
         "tool": "string: the registry tool id that produced the log.",
     },
 )

@@ -20,14 +20,13 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Runs scalac on a target's sources without keeping classes and renders a versioned JSON log.
+ * Runs scalac on a target's sources without keeping classes and renders a JSON log.
  *
  * <p>The driver is never built against scala-compiler. It loads the consumer toolchain's own
  * compiler jars in an isolated class loader and talks to {@code Global} and {@code StoreReporter}
  * by reflection, so it follows whichever Scala 2.13 version the consumer uses.
  */
 public final class ScalacCheck {
-  private static final int VERSION = 1;
 
   /**
    * Code of the error reported when {@code -Werror} turned warnings into a failure. scalac reports
@@ -327,8 +326,7 @@ public final class ScalacCheck {
 
   static String render(int exit, List<Entry> entries) {
     StringBuilder out = new StringBuilder();
-    out.append("{\"version\":").append(VERSION);
-    out.append(",\"tool\":\"scalac\",\"exit\":").append(exit);
+    out.append("{\"tool\":\"scalac\",\"exit\":").append(exit);
     out.append(",\"diagnostics\":[");
     boolean first = true;
     for (Entry e : entries) {

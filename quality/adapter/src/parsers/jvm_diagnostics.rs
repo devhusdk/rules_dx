@@ -3,9 +3,6 @@ use serde::Deserialize;
 use super::{check_output_size, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
-/// The only log version this parser understands.
-const VERSION: u64 = 1;
-
 /// The error code, with no position, that reports `-Werror` turned warnings into a failure.
 ///
 /// javac reports it itself. The kotlinc and scalac drivers synthesize it from the compiler's
@@ -29,7 +26,6 @@ fn column_encoding(tool: &str) -> ColumnEncoding {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Log {
-    version: u64,
     tool: String,
     exit: i32,
     diagnostics: Vec<Diagnostic>,
@@ -46,7 +42,7 @@ struct Diagnostic {
     message: String,
 }
 
-/// Parses the versioned JSON log of a check-only compiler driver (javac, kotlinc and scalac).
+/// Parses the JSON log of a check-only compiler driver (javac, kotlinc and scalac).
 ///
 /// `code` is the driver's own exit status. The compiler's status is inside the log. Findings
 /// outside `files` (generated sources, unlocated notes) are dropped, but a failed compile that
@@ -68,11 +64,8 @@ pub fn parse_jvm_diagnostics(
         tool,
         detail: err.to_string(),
     })?;
-    if log.version != VERSION || log.tool != tool {
-        return Err(ParseError::shape(
-            tool,
-            format!("log version {} tool {:?}", log.version, log.tool),
-        ));
+    if log.tool != tool {
+        return Err(ParseError::shape(tool, format!("log tool {:?}", log.tool)));
     }
     let promote = log
         .diagnostics
@@ -146,8 +139,7 @@ mod tests {
     use super::*;
 
     fn log(exit: i32, diagnostics: &str) -> Vec<u8> {
-        format!(r#"{{"version":1,"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
-            .into_bytes()
+        format!(r#"{{"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#).into_bytes()
     }
 
     fn entry(file: &str, line: u64, severity: &str, code: &str) -> String {
@@ -241,9 +233,7 @@ mod tests {
         assert!(parse_jvm_diagnostics("javac", b"not json", Some(0), &[]).is_err());
         assert!(parse_jvm_diagnostics("javac", b"", Some(0), &[]).is_err());
         assert!(parse_jvm_diagnostics("javac", &log(0, ""), Some(1), &[]).is_err());
-        let v2 = br#"{"version":2,"tool":"javac","exit":0,"diagnostics":[]}"#;
-        assert!(parse_jvm_diagnostics("javac", v2, Some(0), &[]).is_err());
-        let other = br#"{"version":1,"tool":"kotlinc","exit":0,"diagnostics":[]}"#;
+        let other = br#"{"tool":"kotlinc","exit":0,"diagnostics":[]}"#;
         assert!(parse_jvm_diagnostics("javac", other, Some(0), &[]).is_err());
         let sev = entry("j/A.java", 1, "fatal", "c");
         assert!(parse_jvm_diagnostics("javac", &log(0, &sev), Some(0), &["j/A.java"]).is_err());

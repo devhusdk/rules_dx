@@ -24,14 +24,13 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Runs kotlinc on a target's sources without keeping classes and renders a versioned JSON log.
+ * Runs kotlinc on a target's sources without keeping classes and renders a JSON log.
  *
  * <p>The driver is never built against kotlin-compiler. It loads the consumer toolchain's own
  * compiler jars in an isolated class loader and talks to {@code K2JVMCompiler} and {@code
  * MessageCollector} by reflection, so it follows whichever kotlinc version the consumer uses.
  */
 public final class KotlincCheck {
-  private static final int VERSION = 1;
 
   /**
    * Code of the error reported when {@code -Werror} turned warnings into a failure. kotlinc reports
@@ -349,8 +348,7 @@ public final class KotlincCheck {
 
   static String render(int exit, List<Entry> entries) {
     StringBuilder out = new StringBuilder();
-    out.append("{\"version\":").append(VERSION);
-    out.append(",\"tool\":\"kotlinc\",\"exit\":").append(exit);
+    out.append("{\"tool\":\"kotlinc\",\"exit\":").append(exit);
     out.append(",\"diagnostics\":[");
     boolean first = true;
     for (Entry e : entries) {

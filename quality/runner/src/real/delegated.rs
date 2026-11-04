@@ -201,7 +201,7 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// Reads the versioned JSON log of a JVM compiler check (javac, kotlinc, scalac).
+    /// Reads the JSON log of a JVM compiler check (javac, kotlinc, scalac).
     ///
     /// A failed driver fails its Bazel action, so the log's own exit status carries javac's result
     /// and the process exit status is always zero here.

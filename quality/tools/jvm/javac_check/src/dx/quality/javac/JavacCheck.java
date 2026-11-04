@@ -22,9 +22,8 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
-/** Runs javac up to flow analysis on a target's sources and renders a versioned JSON log. */
+/** Runs javac up to flow analysis on a target's sources and renders a JSON log. */
 public final class JavacCheck {
-  private static final int VERSION = 1;
 
   private JavacCheck() {}
 
@@ -240,8 +239,7 @@ public final class JavacCheck {
 
   static String render(int exit, List<Entry> entries) {
     StringBuilder out = new StringBuilder();
-    out.append("{\"version\":").append(VERSION);
-    out.append(",\"tool\":\"javac\",\"exit\":").append(exit);
+    out.append("{\"tool\":\"javac\",\"exit\":").append(exit);
     out.append(",\"diagnostics\":[");
     boolean first = true;
     for (Entry e : entries) {

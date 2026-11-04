@@ -203,7 +203,7 @@ android_ndk_toolchain_repo = repository_rule(
     environ = ["ANDROID_NDK_REVISION", "ANDROID_SDK_ROOT"],
     attrs = {
         "api_level": attr.int(
-            doc = "Android API level for the NDK toolchain, or zero for the floor.",
+            doc = "Android API level used when a target does not set one, or zero for the floor.",
             default = 31,
         ),
         "cxx_runtime": attr.string(

@@ -1,11 +1,19 @@
 """Minimal NDK clang toolchain configuration for one Android tuple."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc:cc_toolchain_config_lib.bzl", "feature", "flag_group", "flag_set", "tool_path")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
+NdkToolchainLevelInfo = provider(
+    doc = "API level and clang target an NDK toolchain configuration uses.",
+    fields = ["api_level", "clang_target"],
+)
+
 def _ndk_cc_toolchain_config_impl(ctx):
     prebuilt = ctx.attr.ndk_prebuilt
-    target = ctx.attr.clang_target
+    selected = ctx.attr._api_level[BuildSettingInfo].value
+    api_level = selected if selected != 0 else ctx.attr.api_level
+    target = ctx.attr.rust_triple + str(api_level) if selected != 0 else ctx.attr.clang_target
     toolchain_identifier = "ndk-" + ctx.attr.tuple + "-android"
     tool_paths = [
         tool_path(name = "gcc", path = prebuilt + "/bin/clang"),
@@ -64,7 +72,7 @@ def _ndk_cc_toolchain_config_impl(ctx):
         ctx.attr.clang_resource_dir,
         ctx.attr.cxx_include_dir,
     ]
-    return cc_common.create_cc_toolchain_config_info(
+    config = cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
         toolchain_identifier = toolchain_identifier,
         host_system_name = "local",
@@ -73,20 +81,24 @@ def _ndk_cc_toolchain_config_impl(ctx):
         target_libc = "bionic",
         compiler = "clang",
         abi_version = "android",
-        abi_libc_version = str(ctx.attr.api_level),
+        abi_libc_version = str(api_level),
         tool_paths = tool_paths,
         cxx_builtin_include_directories = cxx_builtin_include_directories,
         features = features,
         builtin_sysroot = sysroot,
     )
+    return [config, NdkToolchainLevelInfo(api_level = api_level, clang_target = target)]
 
 ndk_cc_toolchain_config = rule(
     implementation = _ndk_cc_toolchain_config_impl,
     doc = "NDK clang toolchain configuration for one Android tuple.",
     attrs = {
         "api_level": attr.int(
-            doc = "Android API level that selects the libc version.",
+            doc = "Android API level used when no target selects one.",
             mandatory = True,
+        ),
+        "_api_level": attr.label(
+            default = Label("//android/platforms:api_level"),
         ),
         "clang_resource_dir": attr.string(
             doc = "Clang resource directory added to builtin include paths.",

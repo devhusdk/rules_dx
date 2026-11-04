@@ -70,7 +70,11 @@ android_native_library(
 Each tuple gets a `:name_<tuple>` output carrying `AndroidNativeInfo`
 with the triple, API level, and shared library. Unknown tuples,
 downgraded API levels, and unknown C++ runtimes fail at analysis.
-`crate_features`, `rustc_flags`, `copts`, and `linkopts` reach the
+`api_level` chooses the NDK level the library is compiled and linked
+against (default 31, the floor); each level builds in its own
+configuration. `compatible_with`, `deprecation`, `exec_compatible_with`,
+`features`, `restricted_to`, `tags`, `target_compatible_with`, and
+`testonly` reach every generated target. `crate_features`, `rustc_flags`, `copts`, and `linkopts` reach the
 underlying Rust and C actions; build scripts stay on the host toolchain.
 
 ## NDK toolchain

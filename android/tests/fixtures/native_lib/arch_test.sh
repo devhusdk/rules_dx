@@ -15,3 +15,9 @@ case "$emulator_machine" in
 *X86-64*) ;;
 *) echo "emulator library is not X86-64" >&2; exit 1 ;;
 esac
+api34_so="$4"
+if ! "$readelf" --notes "$api34_so" | grep -q 'API level: 34'; then
+    echo "api34 library was not built against API level 34" >&2
+    "$readelf" --notes "$api34_so" >&2
+    exit 1
+fi

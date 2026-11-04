@@ -4,7 +4,7 @@ load("@rules_android//rules:rules.bzl", _android_library = "android_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
-load("//android/platforms:defs.bzl", "platform_label", "triple_for", "tuple_errors", "tuples")
+load("//android/platforms:defs.bzl", "effective_api_level", "platform_label", "triple_for", "tuple_errors", "tuples")
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//rust/rules:defs.bzl", "rust_static_library")
 
@@ -15,15 +15,37 @@ AndroidNativeInfo = provider(
 
 _ANDROID_PLATFORMS = {name: platform_label(name) for name in tuples()}
 
+_API_LEVEL_SETTING = str(Label("//android/platforms:api_level"))
+
+_SHARED_KWARGS = [
+    "compatible_with",
+    "deprecation",
+    "exec_compatible_with",
+    "features",
+    "restricted_to",
+    "tags",
+    "target_compatible_with",
+    "testonly",
+]
+
+def split_native_kwargs(kwargs):
+    """Splits kwargs into attributes for every generated target and the rest."""
+    shared = {key: kwargs[key] for key in _SHARED_KWARGS if key in kwargs}
+    rest = {key: value for key, value in kwargs.items() if key not in shared}
+    return shared, rest
+
 def _android_transition_impl(_settings, attr):
     if attr.tuple not in _ANDROID_PLATFORMS:
         fail("android_native_library: unknown tuple '" + attr.tuple + "': want " + ", ".join(tuples()))
-    return {"//command_line_option:platforms": [_ANDROID_PLATFORMS[attr.tuple]]}
+    return {
+        "//command_line_option:platforms": [_ANDROID_PLATFORMS[attr.tuple]],
+        _API_LEVEL_SETTING: effective_api_level(attr.api_level),
+    }
 
 android_transition = transition(
     implementation = _android_transition_impl,
     inputs = [],
-    outputs = ["//command_line_option:platforms"],
+    outputs = ["//command_line_option:platforms", _API_LEVEL_SETTING],
 )
 
 def _android_library_proxy_impl(ctx):
@@ -57,7 +79,7 @@ _android_library_proxy = rule(
     doc = "Exposes one native library built for an Android tuple.",
     attrs = {
         "api_level": attr.int(
-            doc = "Android API level the native library is built against.",
+            doc = "Android API level the native library is compiled and linked against.",
             default = 31,
         ),
         "link": attr.label(
@@ -86,8 +108,15 @@ def android_native_library(
         linkopts = [],
         visibility = None,
         **kwargs):
-    """Builds one mixed Rust and C shared library per Android tuple."""
-    rust_kwargs = dict(kwargs)
+    """Builds one mixed Rust and C shared library per Android tuple.
+
+    api_level chooses the NDK level the library is compiled and linked
+    against; zero means the floor. Common attributes such as tags,
+    testonly and target_compatible_with reach every generated target.
+    """
+    shared, rust_kwargs = split_native_kwargs(kwargs)
+    proxy_shared = dict(shared)
+    proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
     if len(rust_srcs) == 1:
         rust_kwargs["crate_root"] = rust_srcs[0]
     rust_static_library(
@@ -98,7 +127,7 @@ def android_native_library(
         crate_features = crate_features,
         rustc_flags = rustc_flags,
         visibility = ["//visibility:private"],
-        **rust_kwargs
+        **dict(rust_kwargs, **shared)
     )
     cc_library(
         name = name + "_cc",
@@ -106,6 +135,7 @@ def android_native_library(
         hdrs = hdrs,
         copts = copts,
         visibility = ["//visibility:private"],
+        **shared
     )
     cc_binary(
         name = name + "_link",
@@ -114,6 +144,7 @@ def android_native_library(
         linkshared = True,
         linkopts = linkopts,
         visibility = ["//visibility:private"],
+        **shared
     )
     for tuple in tuples():
         _android_library_proxy(
@@ -122,7 +153,7 @@ def android_native_library(
             tuple = tuple,
             api_level = api_level,
             visibility = visibility,
-            tags = ["manual"],
+            **proxy_shared
         )
 
 def java_android_library(**kwargs):

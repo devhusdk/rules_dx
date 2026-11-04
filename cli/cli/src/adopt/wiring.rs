@@ -278,21 +278,12 @@ mod tests {
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
         let (code, out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 0);
-        assert!(out.is_empty());
+        assert_eq!(out, "wrote demo/.claude/settings.json\n");
         assert!(
             err.contains("dx: demo/tools/dx (absent-only, left untouched)"),
             "{err}"
         );
-        assert!(
-            err.contains("dx: demo/.claude/settings.json exists; add these hooks: "),
-            "{err}"
-        );
-        assert!(
-            err.contains(
-                "dx: demo/.claude/settings.json exists; add these permissions.allow entries: Bash(tools/dx check *)"
-            ),
-            "{err}"
-        );
+        assert!(!err.contains("add these hooks"), "{err}");
     }
 
     #[test]

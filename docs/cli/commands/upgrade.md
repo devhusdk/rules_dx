@@ -29,7 +29,10 @@ Scopes: none.
 4. `.dx/version` with `--to` and its sha256 lines.
 5. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
    differs from the current text. It never creates a launcher.
-6. The dx block of an existing `AGENTS.md`. It never creates the file.
+6. The dx-owned keys of an existing `.vscode/settings.json` and the pin and
+   `rules_dx_version` of an existing `.github/workflows/ci.yml`. It never
+   creates either file.
+7. The dx block of an existing `AGENTS.md`. It never creates the file.
 
 Steps 1 and 2 are skipped when `rules_dx` is already at `--to`.
 

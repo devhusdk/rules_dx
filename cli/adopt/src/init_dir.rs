@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use super::AdoptError;
-use crate::scaffold::ScaffoldFile;
+use crate::scaffold::{FileKind, ScaffoldFile};
 
 /// The module name `dx init` uses for the current directory.
 pub const DEFAULT_INIT_MODULE: &str = "my_project";
@@ -119,10 +119,12 @@ pub fn plan_fresh_files(module: &str) -> Vec<ScaffoldFile> {
                 super::DX_VERSION,
                 crate::overrides::OVERRIDES_INCLUDE
             ),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".bazelversion".to_owned(),
             content: format!("{FRESH_BAZEL_VERSION}\n"),
+            kind: FileKind::WriteOnce,
         },
     ]
 }

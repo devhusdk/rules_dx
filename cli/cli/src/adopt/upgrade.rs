@@ -252,6 +252,12 @@ pub(crate) fn execute_upgrade(
         Ok(files) => wrote.extend(files),
         Err(error) => return landed(out, err, &format!("launchers not refreshed: {error}")),
     }
+    match dx_adopt::refresh_owned_files(workspace) {
+        Ok(files) => wrote.extend(files),
+        Err(error) => {
+            return landed(out, err, &format!("editor and CI files not refreshed: {error}"))
+        }
+    }
     match agents::write(workspace, false) {
         Ok(true) => wrote.push("AGENTS.md".to_owned()),
         Ok(false) => {}
@@ -398,6 +404,22 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         assert!(!root.join("tools").exists());
         assert!(!root.join("AGENTS.md").exists());
+        assert!(!root.join(".vscode").exists());
+        assert!(!root.join(".github").exists());
+    }
+
+    #[test]
+    fn upgrade_rewrites_an_old_pin_in_an_existing_ci_file() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-ci-", OLD);
+        let ci = root.join(".github/workflows/ci.yml");
+        std::fs::create_dir_all(ci.parent().expect("parent")).expect("dir");
+        let fresh = dx_adopt::render_consumer_caller();
+        let stale = fresh.replace(dx_adopt::DX_VERSION, "0.0.1");
+        std::fs::write(&ci, &stale).expect("stale");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("wrote .github/workflows/ci.yml"), "{out}");
+        assert_eq!(std::fs::read_to_string(&ci).expect("read"), fresh);
     }
 
     #[test]

@@ -69,8 +69,8 @@ creating the file when it is missing (see below). It writes `CLAUDE.md` with an
 The new `.claude/settings.json` also carries a `permissions.allow` list for the
 read-only commands `tools/dx check *`, `test *`, `build *`,
 `status *` and `version *`. If a hooks file
-already exists, it is left alone and the missing hook and allow entries are printed to
-stderr.
+already exists, the missing hook and allow entries are added in place and your
+other entries stay.
 
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
@@ -98,8 +98,7 @@ When nothing is missing or stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
 `dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/version ("<pin>")`
 to stderr (only the parts that apply), followed by the `dx init --apply` command to run
-(`dx init <dir> --apply` when a directory was given). Apply does not edit an existing hooks file; it prints the hooks
-to add. An invalid pin is not fixed by apply: write the module version to
+(`dx init <dir> --apply` when a directory was given). Apply adds the missing hooks to an existing hooks file. An invalid pin is not fixed by apply: write the module version to
 `.dx/version`, which the message names.
 Apply checks every destination before the first write. A path whose parent is
 a file, such as a `.vscode` file, an unreadable hooks file, or an `AGENTS.md`
@@ -134,11 +133,13 @@ match the running dx.
 | `.bazelversion` | you | Written in a fresh directory only. |
 | `MODULE.bazel.snippet` | you | Written when missing. Never rewritten. |
 | `.gitignore` | you | Written when missing. An existing file gets `/.dx/bazelrc/` appended when no line covers it. |
-| `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/settings.json`, `.vscode/extensions.json`, `.github/workflows/ci.yml` | you | Written when missing. Never rewritten. |
+| `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
+| `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
+| `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow and `rules_dx_version` are updated. A file without `rules_dx_version` is left untouched. |
 | `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
 | `CLAUDE.md` | you | Created when missing. `@AGENTS.md` is added when the import is missing. |
-| `.claude/settings.json` | you | Written when missing. When it exists, dx prints the hooks and `permissions.allow` entries to add. |
-| `.codex/hooks.json`, `.gemini/settings.json` | you | Written when missing. When they exist, dx prints the guard hook to add if it is missing. |
+| `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
+| `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing. When they exist, the guard hook is added if it is missing. |
 
 Check reports a missing or stale path as drift. Deleting `.codex/hooks.json`
 or `.gemini/settings.json` stops check from reporting it, but `dx init --apply`

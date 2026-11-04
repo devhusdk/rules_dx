@@ -492,20 +492,17 @@ mod tests {
     }
 
     #[test]
-    fn init_apply_lists_missing_allow_entries_without_touching_settings() {
+    fn init_apply_merges_hooks_and_allow_rules_into_existing_settings() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-allow-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
-        let own = "{\"hooks\": {}}\n";
-        std::fs::write(root.join(".claude/settings.json"), own).expect("seed");
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
+        let (code, out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
-        assert_eq!(
-            std::fs::read_to_string(root.join(".claude/settings.json")).expect("read"),
-            own
-        );
+        assert!(out.contains("wrote .claude/settings.json"), "{out}");
+        let text = std::fs::read_to_string(root.join(".claude/settings.json")).expect("read");
         for rule in dx_worktree::setup::allow_rules() {
-            assert!(err.contains(&rule), "{rule}: {err}");
+            assert!(text.contains(&rule), "{rule}: {text}");
         }
     }
 
@@ -864,5 +861,55 @@ mod tests {
             );
             std::fs::write(root.join(path), saved).expect("restore");
         }
+    }
+
+    fn tree(root: &std::path::Path) -> Vec<(String, Vec<u8>)> {
+        let mut files = Vec::new();
+        let mut stack = vec![root.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(dir).expect("dir").flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else {
+                    let name = path.strip_prefix(root).expect("under root");
+                    files.push((
+                        name.to_string_lossy().into_owned(),
+                        std::fs::read(&path).expect("read"),
+                    ));
+                }
+            }
+        }
+        files.sort();
+        files
+    }
+
+    #[test]
+    fn a_second_apply_leaves_the_tree_byte_identical() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-twice-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["init", "--apply"]);
+        assert_eq!(run(&inv, &root).0, 0);
+        let before = tree(&root);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!out.contains("wrote "), "{out}");
+        assert_eq!(tree(&root), before);
+    }
+
+    #[test]
+    fn apply_rewrites_a_stale_ci_pin_and_editor_key_in_place() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-stale-pin-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["init", "--apply"]);
+        assert_eq!(run(&inv, &root).0, 0);
+        let ci = root.join(".github/workflows/ci.yml");
+        let fresh = std::fs::read_to_string(&ci).expect("read");
+        let stale = fresh.replace(dx_adopt::DX_VERSION, "0.0.1");
+        std::fs::write(&ci, &stale).expect("stale");
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("wrote .github/workflows/ci.yml"), "{out}");
+        assert_eq!(std::fs::read_to_string(&ci).expect("read"), fresh);
     }
 }

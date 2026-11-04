@@ -2,10 +2,19 @@ use std::path::Path;
 
 use super::{AdoptError, DX_VERSION};
 
+/// How a scaffold file is treated when it already exists.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FileKind {
+    WriteOnce,
+    VscodeKeys,
+    CiPin,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScaffoldFile {
     pub path: String,
     pub content: String,
+    pub kind: FileKind,
 }
 
 pub const DEVCONTAINER_JSON: &str = concat!(
@@ -145,7 +154,7 @@ pub fn render_consumer_caller_for(branch: &str) -> String {
     )
 }
 
-pub fn render_editor_settings() -> String {
+fn editor_settings_value() -> serde_json::Value {
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
     let settings = serde_json::json!({
@@ -184,7 +193,47 @@ pub fn render_editor_settings() -> String {
         "kotlin.java.home": ".dx/ide/jdk/home",
         "kotlin.languageServer.enabled": true,
     });
-    format!("{settings}\n")
+    settings
+}
+
+pub fn render_editor_settings() -> String {
+    format!("{}\n", editor_settings_value())
+}
+
+const NESTED_SETTINGS: [&str; 2] = ["files.watcherExclude", "search.exclude"];
+
+/// The existing text with only the dx-owned values brought up to date.
+fn merge_owned(kind: FileKind, existing: &str) -> Result<String, dx_merge::Error> {
+    match kind {
+        FileKind::WriteOnce => Ok(existing.to_owned()),
+        FileKind::VscodeKeys => {
+            let value = editor_settings_value();
+            let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
+            for (key, setting) in value.as_object().into_iter().flatten() {
+                match setting.as_object() {
+                    Some(nested) if NESTED_SETTINGS.contains(&key.as_str()) => {
+                        for (inner, leaf) in nested {
+                            edits.push((vec![key.as_str(), inner.as_str()], leaf.clone()));
+                        }
+                    }
+                    _ => edits.push((vec![key.as_str()], setting.clone())),
+                }
+            }
+            let edits: Vec<(&[&str], serde_json::Value)> = edits
+                .iter()
+                .map(|(path, leaf)| (path.as_slice(), leaf.clone()))
+                .collect();
+            dx_merge::jsonc::set_keys(existing, &edits)
+        }
+        FileKind::CiPin => {
+            let action = format!(
+                "{CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{CONSUMER_WORKFLOW_PATH}"
+            );
+            let pinned =
+                dx_merge::yaml_scalar::set_uses_ref(existing, &action, CONSUMER_WORKFLOW_PIN);
+            dx_merge::yaml_scalar::set_value(&pinned, "rules_dx_version", DX_VERSION)
+        }
+    }
 }
 
 /// Whether a `.bazelignore` already keeps Bazel out of `.dx`.
@@ -219,41 +268,50 @@ fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldF
         ScaffoldFile {
             path: ".dx/version".to_owned(),
             content: format!("{DX_VERSION}\n"),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".devcontainer/devcontainer.json".to_owned(),
             content: DEVCONTAINER_JSON.to_owned(),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".gitignore".to_owned(),
             content: format!("{}\n", crate::build_output::IGNORE_LINES.join("\n")),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".bazelignore".to_owned(),
             content: BAZELIGNORE_CONTENT.to_owned(),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".envrc".to_owned(),
             content: ENVRC_CONTENT.to_owned(),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".vscode/settings.json".to_owned(),
             content: render_editor_settings(),
+            kind: FileKind::VscodeKeys,
         },
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
             content: "{\"recommendations\":[\"rust-lang.rust-analyzer\",\"ms-python.python\",\"bradlc.vscode-tailwindcss\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]}\n"
                 .to_owned(),
+            kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
             content: render_consumer_caller_for(branch),
+            kind: FileKind::CiPin,
         },
         ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
             ),
+            kind: FileKind::WriteOnce,
         },
     ];
     Ok(files)
@@ -331,11 +389,28 @@ pub struct Applied {
     pub refused: Vec<String>,
 }
 
-/// Checks every destination, then writes each absent file and records it in `applied` as it lands.
+/// Checks every destination, then writes each absent file and merges dx-owned values into existing ones.
 pub fn apply_scaffold(
     root: &Path,
     files: &[ScaffoldFile],
     applied: &mut Applied,
+) -> Result<(), AdoptError> {
+    apply_files(root, files, applied, true)
+}
+
+/// Brings dx-owned values in existing editor and CI files up to date; creates nothing.
+pub fn refresh_owned_files(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let files = plan_init_files_full("refresh", DEFAULT_BRANCH_FALLBACK)?;
+    let mut applied = Applied::default();
+    apply_files(root, &files, &mut applied, false)?;
+    Ok(applied.wrote)
+}
+
+fn apply_files(
+    root: &Path,
+    files: &[ScaffoldFile],
+    applied: &mut Applied,
+    create_missing: bool,
 ) -> Result<(), AdoptError> {
     let relatives: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
     preflight_destinations(root, &relatives)?;
@@ -345,7 +420,16 @@ pub fn apply_scaffold(
     }
     for (file, dest) in files.iter().zip(staged.iter()) {
         if dest.exists() {
-            applied.refused.push(file.path.clone());
+            if file.kind == FileKind::WriteOnce {
+                if create_missing {
+                    applied.refused.push(file.path.clone());
+                }
+                continue;
+            }
+            merge_existing(file, dest, applied)?;
+            continue;
+        }
+        if !create_missing {
             continue;
         }
         if let Some(parent) = dest.parent() {
@@ -354,15 +438,37 @@ pub fn apply_scaffold(
                 detail: e.to_string(),
             })?;
         }
-        dx_atomic_fs::write_atomic(dest, file.content.as_ref()).map_err(|e| {
-            AdoptError::WriteFile {
-                path: dest.display().to_string(),
-                detail: e.to_string(),
-            }
-        })?;
+        write_file(dest, &file.content)?;
         applied.wrote.push(file.path.clone());
     }
     Ok(())
+}
+
+fn merge_existing(
+    file: &ScaffoldFile,
+    dest: &Path,
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
+    let existing = std::fs::read_to_string(dest).map_err(|e| AdoptError::ReadFile {
+        path: dest.display().to_string(),
+        detail: e.to_string(),
+    })?;
+    match merge_owned(file.kind, &existing) {
+        Ok(merged) if merged == existing => {}
+        Ok(merged) => {
+            write_file(dest, &merged)?;
+            applied.wrote.push(file.path.clone());
+        }
+        Err(_) => applied.refused.push(file.path.clone()),
+    }
+    Ok(())
+}
+
+fn write_file(dest: &Path, content: &str) -> Result<(), AdoptError> {
+    dx_atomic_fs::write_atomic(dest, content.as_ref()).map_err(|e| AdoptError::WriteFile {
+        path: dest.display().to_string(),
+        detail: e.to_string(),
+    })
 }
 
 pub fn apply_init(root: &Path, module_name: &str, applied: &mut Applied) -> Result<(), AdoptError> {
@@ -985,6 +1091,83 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         assert_eq!(
             std::fs::read_to_string(root.join(".envrc")).unwrap(),
             "mine\n"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    const OLD_SHA: &str = "0000000000000000000000000000000000000000";
+
+    fn old_ci() -> String {
+        render_consumer_caller()
+            .replace(super::CONSUMER_WORKFLOW_PIN, OLD_SHA)
+            .replace(&format!("\"{DX_VERSION}\""), "\"0.0.1\"")
+    }
+
+    #[test]
+    fn owned_settings_keep_comments_and_user_keys() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-json-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".vscode")).expect("dir");
+        let mine = "{\n  // mine\n  \"editor.tabSize\": 2,\n  \"go.toolsManagement.checkForUpdates\": \"on\",\n  \"search.exclude\": {\"**/mine\": true,},\n}\n";
+        std::fs::write(root.join(".vscode/settings.json"), mine).expect("write");
+        let wrote = super::refresh_owned_files(root).expect("refresh");
+        assert_eq!(wrote, [".vscode/settings.json"]);
+        let text = std::fs::read_to_string(root.join(".vscode/settings.json")).expect("read");
+        assert!(text.contains("// mine"), "{text}");
+        assert!(text.contains("\"editor.tabSize\": 2"), "{text}");
+        assert!(text.contains("\"**/mine\": true"), "{text}");
+        assert!(text.contains("\"go.toolsManagement.checkForUpdates\": \"off\""), "{text}");
+        assert!(text.contains("clangd.path"), "{text}");
+        assert!(!root.join(".github").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn second_apply_changes_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-twice-");
+        let root = scratch.path();
+        let first = entries(|a| apply_init(root, "demo", a)).expect("first");
+        assert!(first.contains(&".vscode/settings.json".to_owned()), "{first:?}");
+        let before = std::fs::read(root.join(".vscode/settings.json")).expect("read");
+        let ci = std::fs::read(root.join(".github/workflows/ci.yml")).expect("read");
+        let second = entries(|a| apply_init(root, "demo", a)).expect("second");
+        assert!(second.iter().all(|e| e.starts_with("refused:")), "{second:?}");
+        assert!(!second.contains(&"refused:.vscode/settings.json".to_owned()), "{second:?}");
+        assert_eq!(std::fs::read(root.join(".vscode/settings.json")).expect("read"), before);
+        assert_eq!(std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"), ci);
+        assert!(super::refresh_owned_files(root).expect("refresh").is_empty());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn pin_bump_changes_exactly_two_lines() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-pin-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
+        let old = old_ci();
+        std::fs::write(root.join(".github/workflows/ci.yml"), &old).expect("write");
+        let wrote = super::refresh_owned_files(root).expect("refresh");
+        assert_eq!(wrote, [".github/workflows/ci.yml"]);
+        let new = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read");
+        let changed = old.lines().zip(new.lines()).filter(|(a, b)| a != b).count();
+        assert_eq!(changed, 2, "{new}");
+        assert_eq!(old.lines().count(), new.lines().count());
+        assert_eq!(new, render_consumer_caller());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn ci_without_the_version_input_is_refused() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-refused-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
+        let mine = "name: ci\njobs: {}\n";
+        std::fs::write(root.join(".github/workflows/ci.yml"), mine).expect("write");
+        let ran = entries(|a| apply_init(root, "demo", a)).expect("init");
+        assert!(ran.contains(&"refused:.github/workflows/ci.yml".to_owned()), "{ran:?}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read"),
+            mine
         );
         scratch.close().expect("cleanup");
     }

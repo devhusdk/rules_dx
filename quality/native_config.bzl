@@ -178,8 +178,8 @@ def missing_required_config_error(tool, capability, configs_by_tool, what):
         return ""
     info = CONFIG_REQUIRED_TOOLS[tool]
     if hasattr(info, "hint"):
-        return what + ": " + info.name + " needs a config. " + info.hint
-    return (what + ": " + info.name + " needs a config. Declare " + tool + "_config(name = \"" +
+        return info.name + " needs a config. " + info.hint
+    return (info.name + " needs a config. Declare " + tool + "_config(name = \"" +
             tool + "_config\", src = \"" + info.src + "\") from @rules_dx//quality:native_config.bzl" +
             " and add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")
 

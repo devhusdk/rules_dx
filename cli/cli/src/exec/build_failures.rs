@@ -142,7 +142,9 @@ fn identity(event: &BuildFailureEvent) -> String {
             )
         })
         .collect();
-    let owner = if event.diagnostics.is_empty() {
+    let analysis_with_message =
+        event.stage == FailureStage::Analysis.name() && event.message.is_some();
+    let owner = if event.diagnostics.is_empty() && !analysis_with_message {
         event.target.clone()
     } else {
         None
@@ -592,6 +594,21 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].count, 2);
         assert!(merged[0].diagnostics[0].related.is_empty());
+    }
+
+    #[test]
+    fn analysis_failures_with_the_same_message_merge_across_targets() {
+        let mut a = to_failure_event_for_test();
+        a.stage = "analysis".to_owned();
+        a.category = "analysis_failed".to_owned();
+        a.diagnostics = Vec::new();
+        a.message = Some("Ruff needs a config.".to_owned());
+        let mut b = a.clone();
+        b.target = Some("//b:lib".to_owned());
+        let merged = dedupe(vec![a, b]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].count, 2);
+        assert_eq!(merged[0].targets, vec!["//b:lib".to_owned()]);
     }
 
     fn to_failure_event_for_test() -> BuildFailureEvent {

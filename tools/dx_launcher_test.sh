@@ -13,6 +13,16 @@ printf '%s\n' '--nodisk_cache' >"$ws/cache.bazelrc"
 cat >"$work/bin/bazel" <<'EOF'
 #!/bin/sh
 echo "$*" >>"$CALLS"
+# The first query writes a partial line without a newline and crashes; the retry writes the whole answer.
+case $* in
+*query*)
+  if [ "$(grep -c query "$CALLS")" = 1 ]; then
+    printf '%s' '//cli/cli/b.r'
+    exit 37
+  fi
+  echo '//cli/cli:a.rs'
+  ;;
+esac
 EOF
 chmod +x "$work/bin/bazel"
 cd "$work"
@@ -31,3 +41,8 @@ case $calls in
   exit 1
   ;;
 esac
+inputs=$(cat "$ws/.dx/launcher/inputs" 2>/dev/null || true)
+if [ "$inputs" != '//cli/cli:a.rs' ]; then
+  echo "a retried query kept the failed attempt's partial stdout: inputs=$inputs" >&2
+  exit 1
+fi

@@ -1,0 +1,76 @@
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//cc/toolchains:identity_subject.bzl", "cc_toolchain_identity_subject")
+load(":fake_config.bzl", "fake_cc_toolchain_config")
+load(":tests.bzl", "external_toolchain_tests")
+
+package(default_visibility = ["//:__subpackages__"])
+
+filegroup(name = "empty")
+
+fake_cc_toolchain_config(
+    name = "gcc_config",
+    compiler = "gcc",
+    target = "fake-gcc-linux-gnu",
+)
+
+fake_cc_toolchain_config(
+    name = "icx_config",
+    compiler = "icx",
+    target = "fake-icx-linux-gnu",
+)
+
+[
+    (
+        cc_toolchain(
+            name = name + "_cc_toolchain",
+            all_files = ":empty",
+            ar_files = ":empty",
+            compiler_files = ":empty",
+            dwp_files = ":empty",
+            linker_files = ":empty",
+            objcopy_files = ":empty",
+            strip_files = ":empty",
+            supports_param_files = False,
+            toolchain_config = ":" + name + "_config",
+        ),
+        toolchain(
+            name = name + "_toolchain",
+            toolchain = ":" + name + "_cc_toolchain",
+            toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+        ),
+    )
+    for name in [
+        "gcc",
+        "icx",
+    ]
+]
+
+cc_toolchain_identity_subject(
+    name = "gcc_subject",
+    extra_toolchains = ["//cc/toolchains/external:gcc_toolchain"],
+)
+
+cc_toolchain_identity_subject(
+    name = "gcc_flag_subject",
+    compiler = "gcc",
+    extra_toolchains = ["//cc/toolchains/external:gcc_toolchain"],
+)
+
+cc_toolchain_identity_subject(
+    name = "icx_subject",
+    extra_toolchains = ["//cc/toolchains/external:icx_toolchain"],
+)
+
+external_toolchain_tests(name = "external")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "fake_config.bzl",
+        "tests.bzl",
+    ],
+    tags = ["corpus"],
+)

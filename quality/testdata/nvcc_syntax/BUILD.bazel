@@ -1,4 +1,4 @@
-load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+load("//cuda/rules:defs.bzl", "cuda_library")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])
@@ -28,7 +28,6 @@ cuda_library(
     ],
     platforms = ["sm_89"],
     includes = ["."],
-    target_compatible_with = CUDA_TARGET,
 )
 
 cuda_library(
@@ -36,7 +35,6 @@ cuda_library(
     srcs = ["clean.cu"],
     platforms = ["sm_89"],
     copts = ["-DCLEAN_OFFSET=1"],
-    target_compatible_with = CUDA_TARGET,
     deps = [":dep"],
 )
 
@@ -49,7 +47,6 @@ cuda_library(
     ],
     copts = ["-DCLEAN_OFFSET=1"],
     tags = ["manual"],
-    target_compatible_with = CUDA_TARGET,
     deps = [":dep"],
 )
 
@@ -58,6 +55,5 @@ cuda_library(
     srcs = ["dirty.cu"],
     platforms = ["sm_89"],
     tags = ["manual"],
-    target_compatible_with = CUDA_TARGET,
     deps = [":dep"],
 )

@@ -1,4 +1,4 @@
-load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_binary", "cuda_test")
+load("//cuda/rules:defs.bzl", "cuda_binary", "cuda_test")
 
 package(default_visibility = ["//cuda/tests:__subpackages__"])
 
@@ -15,7 +15,6 @@ cuda_binary(
     ],
     hdrs = ["add.h"],
     platforms = _ARCHS,
-    target_compatible_with = CUDA_TARGET,
 )
 
 cuda_binary(
@@ -27,7 +26,6 @@ cuda_binary(
     hdrs = ["add.h"],
     platforms = _ARCHS,
     rdc = True,
-    target_compatible_with = CUDA_TARGET,
     deps = ["//cuda/tests/fixtures/rdc:axpy"],
 )
 
@@ -39,7 +37,6 @@ cuda_test(
     ],
     hdrs = ["add.h"],
     platforms = _ARCHS,
-    target_compatible_with = CUDA_TARGET,
 )
 
 cuda_test(
@@ -51,6 +48,5 @@ cuda_test(
     hdrs = ["add.h"],
     platforms = _ARCHS,
     rdc = True,
-    target_compatible_with = CUDA_TARGET,
     deps = ["//cuda/tests/fixtures/rdc:axpy"],
 )

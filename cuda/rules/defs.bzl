@@ -7,22 +7,14 @@ load("//cc/rules:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("//cuda/rules:components.bzl", _cuda_component_library = "cuda_component_library")
 load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/toolchain:transition.bzl", "cuda_host_transition")
+load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//modules:cuda.bzl", "CUDA_CELLS", "CUDA_VERSION", "cuda_qualified_cells")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 
-def _cuda_target_names():
-    cells = cuda_qualified_cells()
-    if len(cells) != 1:
-        fail("CUDA_TARGET supports one qualified cell, got %s; see #5968" % cells)
-    return CUDA_CELLS[cells[0]].exec_compatible_with
-
-_CUDA_TARGET_NAMES = _cuda_target_names()
-
-# Labels, so a consumer without its own platforms dependency can use them.
-CUDA_TARGET = [Label(name) for name in _CUDA_TARGET_NAMES]
+CUDA_TARGET = cells_compatible_with(CUDA_CELLS, "//cuda/toolchain", cuda_qualified_cells())
 
 _CUDA_SRCS = [".cu"]
 _CUDA_HDRS = [".cuh", ".h", ".hh", ".hpp", ".hxx"]
@@ -73,7 +65,9 @@ _UPSTREAM_ONLY_UNDER_TRANSITION = select({
 def cuda_target_compatible_with(target_compatible_with):
     """Returns the target constraints of a dx CUDA target."""
     extra = target_compatible_with if target_compatible_with != None else []
-    return CUDA_TARGET + [c for c in extra if c not in CUDA_TARGET and c not in _CUDA_TARGET_NAMES]
+    if type(extra) == "select":
+        return extra + CUDA_TARGET
+    return list(extra) + CUDA_TARGET
 
 def cuda_split_srcs(srcs):
     """Splits sources into the nvcc part and the host C/C++ part."""

@@ -36,7 +36,7 @@ def _cells(pinned, cells):
     return [pinned[cell].exec_compatible_with for cell in cells]
 
 COMPUTED_CONSTRAINTS = {
-    "//cuda/rules:defs.bzl%CUDA_TARGET": [CUDA_CELLS[cell].exec_compatible_with for cell in cuda_qualified_cells()],
+    "//cuda/rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),

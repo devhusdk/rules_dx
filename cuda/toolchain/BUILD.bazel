@@ -1,8 +1,15 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//libs/starlark:cells.bzl", "cell_settings")
+load("//modules:cuda.bzl", "CUDA_CELLS")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":check.bzl", "cuda_toolkit_check")
 
 package(default_visibility = ["//visibility:public"])
+
+cell_settings(
+    name = "cell",
+    cells = CUDA_CELLS,
+)
 
 exports_files([
     "check.bzl",

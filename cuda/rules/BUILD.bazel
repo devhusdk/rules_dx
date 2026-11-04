@@ -1,6 +1,6 @@
 load("//cuda/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "gpu_requirement_errors", "toolkit_errors")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "label_string")
+load("//libs/starlark:defs.bzl", "expect_equal", "expect_true")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load(":defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
@@ -91,21 +91,12 @@ dx_wrapper_contract_tests(
             "windows sha256 values are 64 characters",
             all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_x86_64"].components.values()]),
         ),
-        expect_equal(
-            "every target is linux x86_64",
-            [str(c) for c in cuda_target_compatible_with(None)],
-            [
-                str(label_string("@platforms//os:linux")),
-                str(label_string("@platforms//cpu:x86_64")),
-            ],
-        ),
-        expect_equal(
-            "extra constraints are kept once",
-            [str(c) for c in cuda_target_compatible_with([
-                "@platforms//os:linux",
-                "//x:y",
-            ])],
-            [str(c) for c in CUDA_TARGET] + ["//x:y"],
+        expect_true("CUDA_TARGET is a select", type(CUDA_TARGET) == "select"),
+        expect_true("no extra is a select", type(cuda_target_compatible_with(None)) == "select"),
+        expect_true("list extra is a select", type(cuda_target_compatible_with(["//x:y"])) == "select"),
+        expect_true(
+            "select extra is a select",
+            type(cuda_target_compatible_with(select({"//conditions:default": []}))) == "select",
         ),
         expect_equal(
             "pinned archs pass",

@@ -48,6 +48,12 @@ requires directly resolves to `@<repo>//<package>`. A module required only as
 | Typecheck | `gotype` | |
 | Lint | none | `errcheck`, `govet`, `staticcheck` |
 
+## cgo
+
+cgo needs a GNU-style C++ driver and ABI. With `cgo = True`, an MSVC or clang-cl
+toolchain fails at analysis, because rules_go would otherwise build the package
+without cgo.
+
 ## Platforms
 
 See the [support matrix](../docs/support-matrix.md).

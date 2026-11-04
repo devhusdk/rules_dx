@@ -1,9 +1,11 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load(":cgo_tests.bzl", "cgo_toolchain_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "cgo.bzl",
     "defs.bzl",
 ])
 
@@ -16,11 +18,15 @@ dx_wrapper_contract_tests(
     ],
 )
 
+cgo_toolchain_tests(name = "cgo_toolchain_test")
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "cgo.bzl",
+        "cgo_tests.bzl",
         "defs.bzl",
     ],
     tags = ["corpus"],

@@ -102,14 +102,16 @@ mod tests {
 
     #[test]
     fn module_keeps_the_default_name_unrenamed() {
-        let module = compose_module(SNIPPET, "m", "rules_dx", "", false, Path::new("/src")).unwrap();
+        let module =
+            compose_module(SNIPPET, "m", "rules_dx", "", false, Path::new("/src")).unwrap();
         assert!(module.contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"));
         assert!(!module.contains("repo_name"));
     }
 
     #[test]
     fn module_escapes_quotes_in_the_override_path() {
-        let module = compose_module(SNIPPET, "m", "my_dx", "", false, Path::new("/a\"b\\c")).unwrap();
+        let module =
+            compose_module(SNIPPET, "m", "my_dx", "", false, Path::new("/a\"b\\c")).unwrap();
         assert!(module.contains("path = \"/a\\\"b\\\\c\","), "{module}");
     }
 
@@ -162,7 +164,8 @@ mod tests {
     #[test]
     fn module_appends_the_fragment_unchanged_without_the_flag() {
         let fragment = "register_toolchains(\"@cuda_host_llvm//:all\")\n";
-        let module = compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
+        let module =
+            compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
         assert!(
             module.find("@llvm//toolchain:all").unwrap() < module.find("@cuda_host_llvm").unwrap(),
             "{module}"

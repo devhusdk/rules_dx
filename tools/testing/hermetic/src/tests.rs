@@ -17,6 +17,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         files: Vec::new(),
         module_fragment: Some(PathBuf::from("f")),
         fragment_before_toolchains: false,
+        families: Vec::new(),
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),
         bazelversion: PathBuf::from(".bazelversion"),
@@ -154,6 +155,10 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
     flagged["fragment_before_toolchains"] = json!(true);
     let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();
     assert!(manifest.fragment_before_toolchains);
+    assert!(manifest.families.is_empty());
+    flagged["families"] = json!(["go"]);
+    let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();
+    assert_eq!(manifest.families, vec!["go".to_owned()]);
 }
 
 #[test]

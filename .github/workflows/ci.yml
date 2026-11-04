@@ -130,6 +130,29 @@ jobs:
         run: |
           echo "### devcontainer-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
+  families:
+    name: families (each families/<family> module on linux_x86_64)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Test every family module
+        run: |
+          set -euo pipefail
+          set -- $BAZEL_CONFIG $BB_ARGS
+          for dir in families/*/; do
+            [ -f "$dir/MODULE.bazel" ] || continue
+            echo "::group::$dir"
+            (cd "$dir" && bazel test "$@" //...)
+            echo "::endgroup::"
+          done
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
     timeout-minutes: 90
@@ -753,6 +776,7 @@ jobs:
         dogfood,
         docs,
         devcontainer-check,
+        families,
         gate,
         hermetic,
         hermetic-arm64,
@@ -771,6 +795,7 @@ jobs:
           NEEDS_DOGFOOD: ${{ needs.dogfood.result }}
           NEEDS_DOCS: ${{ needs.docs.result }}
           NEEDS_DEVCONTAINER_CHECK: ${{ needs.devcontainer-check.result }}
+          NEEDS_FAMILIES: ${{ needs.families.result }}
           NEEDS_GATE: ${{ needs.gate.result }}
           NEEDS_HERMETIC: ${{ needs.hermetic.result }}
           NEEDS_HERMETIC_ARM64: ${{ needs.hermetic-arm64.result }}
@@ -782,7 +807,7 @@ jobs:
         run: |
           set -eu
           export LC_ALL=C
-          required=(coverage-cells dogfood docs devcontainer-check gate hermetic hermetic-arm64 msix-install network preflight starter-consumer workflow-check)
+          required=(coverage-cells dogfood docs devcontainer-check families gate hermetic hermetic-arm64 msix-install network preflight starter-consumer workflow-check)
           failing=()
           for name in "${required[@]}"; do
             var="NEEDS_${name^^}"

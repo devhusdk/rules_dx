@@ -176,7 +176,10 @@ rust_library(
     crate_name = "starter_scaffold",
     crate_root = "scaffold.rs",
     edition = "2021",
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
-use dx_nested::compose::compose_module;
+use dx_nested::compose::{compose_module, family_modules};
 use serde_json::{json, Value};
 
 /// Returns the lowercase hex SHA-256 digest of `data`.
@@ -214,6 +214,7 @@ pub struct Manifest {
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: Option<PathBuf>,
     pub fragment_before_toolchains: bool,
+    pub families: Vec<String>,
     pub dx: PathBuf,
     pub module_file: PathBuf,
     pub bazelversion: PathBuf,
@@ -359,6 +360,11 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let fragment_before_toolchains = value["fragment_before_toolchains"]
         .as_bool()
         .unwrap_or(false);
+    let families = if value["families"].is_null() {
+        Vec::new()
+    } else {
+        strings(&value, "families")?
+    };
     let repo_name = string(&value, "repo_name")?;
     let module_fragment = if fragment.is_empty() {
         None
@@ -381,6 +387,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         files,
         module_fragment,
         fragment_before_toolchains,
+        families,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -1215,6 +1222,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         manifest.fragment_before_toolchains,
         source,
     )?;
+    let module = format!("{module}{}", family_modules(&manifest.families, source));
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {

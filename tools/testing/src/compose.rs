@@ -35,6 +35,22 @@ pub fn rules_dx_override(rules_dx: &Path) -> String {
     )
 }
 
+/// Returns the `bazel_dep` and `local_path_override` lines that reach `families/<family>` of `source`.
+pub fn family_modules(families: &[String], source: &Path) -> String {
+    let mut text = String::new();
+    for family in families {
+        let name = format!("rules_dx_{family}");
+        let path = source.join("families").join(family);
+        text.push_str(&format!(
+            "bazel_dep(name = {}, version = \"0.0.0\")\nlocal_path_override(\n    module_name = {},\n    path = {},\n)\n",
+            starlark_string(&name),
+            starlark_string(&name),
+            starlark_string(&path.to_string_lossy()),
+        ));
+    }
+    text
+}
+
 /// Builds the consumer MODULE.bazel from the `MODULE.bazel` a fresh `dx init` wrote.
 ///
 /// Its `module()` line is replaced by one named `module`.
@@ -90,6 +106,16 @@ mod tests {
     const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
 
     #[test]
+    fn family_modules_depend_on_and_override_each_family() {
+        let text = family_modules(&["go".to_owned()], Path::new("/src"));
+        assert_eq!(
+            text,
+            "bazel_dep(name = \"rules_dx_go\", version = \"0.0.0\")\nlocal_path_override(\n    module_name = \"rules_dx_go\",\n    path = \"/src/families/go\",\n)\n"
+        );
+        assert_eq!(family_modules(&[], Path::new("/src")), "");
+    }
+
+    #[test]
     fn module_renames_rules_dx_and_overrides_it_locally() {
         let module = compose_module(
             SNIPPET,
@@ -110,7 +136,10 @@ mod tests {
     fn module_replaces_the_init_module_line() {
         let written = format!("module(name = \"my_project\")\n\n{SNIPPET}");
         let module = compose_module(&written, "m", "rules_dx", "", false, Path::new("/s")).unwrap();
-        assert!(module.starts_with("module(name = \"m\")\n\nbazel_dep("), "{module}");
+        assert!(
+            module.starts_with("module(name = \"m\")\n\nbazel_dep("),
+            "{module}"
+        );
         assert_eq!(module.matches("module(name").count(), 1);
     }
 

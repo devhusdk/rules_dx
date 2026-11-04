@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use super::cell::{self, CellOutcome, Expected};
-use super::{notice_verify_files, sbom_verify_files};
+use super::{notice_verify_files, sbom_verify_files, OpRecord, OpState};
 
-pub const REPORT_SCHEMA: &str = "publish-dry-run/v2";
+pub const REPORT_SCHEMA: &str = "publish-dry-run/v3";
 
 pub const SIGNING_TRUST_ROOT: &str = super::SIGNING_TRUST_ROOT;
 
@@ -244,13 +244,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "human-run driver //deploy/release:release_driver dry run (owner approval + tag ceiling, publishes nothing)",
             "install verifier //deploy/install:dx_verify refusal proof (checksum-only rejected, TUF trust root, fails before install)",
         ],
-        "not_attempted": [
-            "SBOM/provenance publishing (generated owner-gated via //deploy/release:sbom_demo)",
-            "Signing/attestation publishing (Sigstore keyless + GitHub attestations on the trust root, signing-first; GHCR images sign separately via cosign <digest>)",
-            "GHCR prebuilt images (separate workflow .github/workflows/ghcr.yml per owner decision)",
-            "BCR submission (owner-gated via //deploy/release:bcr_demo)",
-            "Any tag, registry submission, or release creation",
-        ],
+        "operations": operations(),
         "notice": {
             "header_ok": true,
             "signed_with_sbom": true,
@@ -291,10 +285,6 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "trust_root": SIGNING_TRUST_ROOT,
             "verifier": "//deploy/install:dx_verify",
         },
-        "would_publish": [
-            "Bazel Central Registry `rules_dx` module (owner-gated via //deploy/release:bcr_demo; owner approval required)",
-            "GitHub Release with standalone `dx` binaries (draft only via //cli/cli:github_draft; owner approval required)",
-        ],
     }));
     if report.is_empty() {
         return Err("publish dry-run: rendered report is empty".to_owned());
@@ -305,6 +295,44 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         qualified,
         verification: verification_text,
     })
+}
+
+fn operations() -> Vec<OpRecord> {
+    let record = |operation: &str, subject: &str, detail: &str| {
+        OpRecord::new(operation, subject, OpState::NotAuthorized, detail)
+    };
+    vec![
+        record(
+            "bcr",
+            "rules_dx module",
+            "BCR submission is owner-gated (//deploy/release:bcr_demo); dry run does not submit",
+        ),
+        record(
+            "docs",
+            ".github/workflows/reusable-docs.yml",
+            "docs publishing runs in its own workflow; dry run does not dispatch it",
+        ),
+        record(
+            "image",
+            ".github/workflows/ghcr.yml",
+            "GHCR prebuilt images build and sign in their own workflow; dry run does not dispatch it",
+        ),
+        record(
+            "publish",
+            "GitHub Release",
+            "release creation needs owner approval; dry run stages a draft only (//cli/cli:github_draft)",
+        ),
+        record(
+            "release-upload",
+            "standalone dx binaries",
+            "asset upload needs owner approval; dry run uploads nothing",
+        ),
+        record(
+            "signing",
+            "SBOM, provenance and NOTICE",
+            "Sigstore signing and attestation run only on release (//deploy/release:signing_demo is RELEASE_SIGN_DRY_RUN=1)",
+        ),
+    ]
 }
 
 pub fn sha256sum_line(digest: &str, name: &str) -> String {
@@ -440,6 +468,18 @@ mod tests {
         assert_eq!(report["schema"], serde_json::json!(REPORT_SCHEMA));
         assert_eq!(report["approved"], serde_json::json!(false));
         assert_eq!(report["published"], serde_json::json!(false));
+        assert!(report.get("would_publish").is_none());
+        assert!(report.get("not_attempted").is_none());
+        let operations = report["operations"].as_array().expect("operations array");
+        let names: Vec<_> = operations.iter().map(|op| op["operation"].clone()).collect();
+        assert_eq!(
+            names,
+            ["bcr", "docs", "image", "publish", "release-upload", "signing"]
+                .map(serde_json::Value::from)
+        );
+        assert!(operations
+            .iter()
+            .all(|op| op["state"] == serde_json::json!("not-authorized")));
         assert_eq!(report["stray"], serde_json::json!([]));
         let record: crate::cell::CellRecord = serde_json::from_str(
             &std::fs::read_to_string(release.records().join(format!("{TAR}.json")))

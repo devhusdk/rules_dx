@@ -235,6 +235,10 @@ jobs:
             echo "- signing dry-run: \`//deploy/release:signing_demo\` \`RELEASE_SIGN_DRY_RUN=1\` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)"
             echo "- BCR shape: \`rules_dx\` at \`0.0.0\` via \`//deploy/release:bcr_demo\` checked, not submitted"
             echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
+            echo "- operations (all \`not-authorized\`, none executed):"
+            echo '```'
+            jq -r '.operations[] | "\(.operation) \(.subject): \(.state)"' "$stage/dry-run-report.json"
+            echo '```'
             echo "- full report: \`dry-run-report.json\` in the job logs"
             echo "- failed steps: \`${failed:-none}\`"
           } >> "$GITHUB_STEP_SUMMARY"

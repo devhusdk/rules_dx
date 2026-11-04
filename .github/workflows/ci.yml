@@ -618,10 +618,41 @@ jobs:
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Build the bootstrap closure
+        id: bootstrap-build
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //cli/cli:dx //cc/tests/fixtures/hello:hello
+      - name: Record the Windows rmeta diagnostics (#4850)
+        if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
+        env:
+          MSYS2_ARG_CONV_EXCL: "*"
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          out="$RUNNER_TEMP/rmeta-diag"
+          mkdir -p "$out"
+          bazel build --noshow_progress --subcommands --keep_going "$@" //cli/cli:dx > "$out/rebuild.log" 2>&1 || true
+          bazel aquery "$@" --output=text --include_commandline 'outputs(".*-exec/.*\.rmeta", mnemonic("Rustc.*", deps(//cli/cli:dx)))' > "$out/aquery.txt" 2>&1 || true
+          op="$(bazel info "$@" output_path 2>/dev/null)" || op=""
+          if [ -n "$op" ]; then
+            find "$op" -path '*-exec/bin/*' -name '*.rmeta' -printf '%M %TY-%Tm-%TdT%TH:%TM %p\n' > "$out/rmeta-all.txt" 2>&1 || true
+            find "$op" -path '*-exec/bin/*' -name '*.rmeta' ! -perm -u=w -printf '%M %TY-%Tm-%TdT%TH:%TM %p\n' > "$out/rmeta-readonly.txt" 2>&1 || true
+          fi
+          touch "$out/rmeta-readonly.txt"
+          {
+            echo "### rmeta diagnostics (#4850)"
+            grep -m1 'not writeable' "$out/rebuild.log" || echo "no 'not writeable' line in the rebuild"
+            echo "read-only exec .rmeta files: $(wc -l < "$out/rmeta-readonly.txt")"
+          } >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload the rmeta diagnostics
+        if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rmeta-diagnostics-${{ matrix.platform }}
+          path: ${{ runner.temp }}/rmeta-diag
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Run the launch smoke
         env:
           QUALITY_TARGETS: ${{ matrix.quality }}

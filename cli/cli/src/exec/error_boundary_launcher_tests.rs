@@ -499,7 +499,12 @@ fn assert_bazel_exit_kept(outcome: &Outcome, results: &std::path::Path, code: i3
         "{context}"
     );
     assert!(has("error", "code", "incomplete_results"), "{context}");
-    assert!(has("error", "code", "bazel_failed"), "{context}");
+    let failure = if code == 37 {
+        "server_crashed"
+    } else {
+        "bazel_failed"
+    };
+    assert!(has("error", "code", failure), "{context}");
     assert!(!has("error", "code", absent), "{context}");
     let report = events
         .iter()

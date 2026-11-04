@@ -4,7 +4,7 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
 load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
-load(":inventory_tests.bzl", "inventory_file_tests", "inventory_unit_tests")
+load(":inventory_tests.bzl", "inventory_file_tests", "inventory_runtime_file_tests", "inventory_unit_tests")
 load(":matrix.bzl", "release_cells", "release_matrix_file")
 load(":matrix_tests.bzl", "matrix_unit_tests")
 load(":notice.bzl", "notice_bundle")
@@ -54,8 +54,8 @@ rust_library(
         "src/deploy.rs",
         "src/inventory.rs",
         "src/ledger.rs",
-        "src/modules.rs",
         "src/lib.rs",
+        "src/modules.rs",
         "src/provenance.rs",
         "src/publish.rs",
         "src/runtimes.rs",
@@ -108,8 +108,8 @@ rust_test(
         "src/deploy.rs",
         "src/inventory.rs",
         "src/ledger.rs",
-        "src/modules.rs",
         "src/lib.rs",
+        "src/modules.rs",
         "src/provenance.rs",
         "src/publish.rs",
         "src/runtimes.rs",
@@ -454,6 +454,11 @@ inventory_file_tests(
     ],
 )
 
+inventory_runtime_file_tests(
+    name = "runtime_inventory_test",
+    app = ":release_tool",
+)
+
 release_cells(name = "dx_host_cell")
 
 filegroup(
@@ -608,6 +613,7 @@ test_suite(
         ":release_artifacts_verify",
         ":release_host_cell_test",
         ":release_tool_inventory_test",
+        ":runtime_inventory_test",
         ":sbom_quoting_demo_contains_supplier",
         ":sbom_unit",
         ":signing_unit",

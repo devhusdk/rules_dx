@@ -1,5 +1,6 @@
 """Tests for the shipped crate inventory."""
 
+load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":inventory.bzl", "ShippedCratesInfo", "crate_name_tag", "inventory_text_path", "license_text_member", "license_text_name", "shipped_crates_aspect", "shipped_inventory")
 
@@ -87,4 +88,41 @@ def inventory_file_tests(name, app, present, absent, texts_contain = []):
         name = name,
         mode = "execution",
         file_checks = file_checks,
+    )
+
+def inventory_runtime_file_tests(name, app):
+    """Checks the runtime records hold the sha256 of the bytes the runtime ships."""
+    native.genrule(
+        name = name + "_lib",
+        outs = [name + "_lib.so"],
+        cmd = "echo hello > $@",
+    )
+    native.genrule(
+        name = name + "_notice_text",
+        outs = [name + "_notice.txt"],
+        cmd = "echo runtime notice words > $@",
+    )
+    native_runtime(
+        name = name + "_runtime",
+        srcs = [":" + name + "_lib"],
+        notice = ":" + name + "_notice_text",
+        redistribution = "app_local",
+        source = "fixture",
+        version = "1.2",
+    )
+    shipped_inventory(name = name + "_inventory", app = app, runtimes = [":" + name + "_runtime"])
+    starlark_test(
+        name = name,
+        mode = "execution",
+        file_checks = {
+            ":" + name + "_inventory_runtimes": "\n".join([
+                "runtime-inventory/v1",
+                name + "_runtime",
+                "1.2",
+                "app_local",
+                name + "_lib.so",
+                "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+                "runtime notice words",
+            ]),
+        },
     )

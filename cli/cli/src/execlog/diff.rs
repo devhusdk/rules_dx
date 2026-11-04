@@ -2,8 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::proto::exec_log_entry::Spawn;
-use crate::{ExeclogError, InputMap, Log, Segment};
+use crate::execlog::proto::exec_log_entry::Spawn;
+use crate::execlog::{ExeclogError, InputMap, Log, Segment};
 
 /// Changes kept per miss; the rest are counted in `changes_omitted`.
 pub const CHANGE_CAP: usize = 20;

@@ -6,15 +6,6 @@
 //! segment that defines them, so logs joined from several Bazel runs read as
 //! one [`Log`]. Entries are kept as decoded and resolved on demand: callers
 //! build input maps only for the spawns they look at.
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};

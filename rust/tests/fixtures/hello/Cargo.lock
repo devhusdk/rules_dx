@@ -1490,6 +1490,7 @@ dependencies = [
  "clap",
  "libc",
  "predicates",
+ "ruzstd 0.9.1",
  "serde",
  "serde-sarif",
  "serde_json",
@@ -1581,14 +1582,6 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "dx_execlog"
-version = "0.0.0"
-dependencies = [
- "ruzstd 0.9.1",
  "thiserror 2.0.20",
 ]
 

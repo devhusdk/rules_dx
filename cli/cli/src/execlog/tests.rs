@@ -53,7 +53,7 @@ pub(crate) fn spawn(input_set: u32, output: u32, mnemonic: &str) -> Spawn {
         args: vec!["tool".to_owned()],
         input_set_id: input_set,
         outputs: (output != 0)
-            .then(|| Output {
+            .then_some(Output {
                 r#type: Some(entry::output::Type::OutputId(output)),
             })
             .into_iter()

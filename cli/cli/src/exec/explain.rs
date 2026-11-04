@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use super::common::*;
 use super::explain_store;
-use dx_execlog::{CacheMiss, ExeclogError};
+use crate::execlog::{self, CacheMiss, ExeclogError};
 use dx_output::{
     cache_miss_event, command_finished, CacheMissChange, CacheMissEvent, FinishedCounts, OutputMode,
 };
@@ -98,9 +98,9 @@ fn pick(workspace: &Path, invocation: &Invocation) -> Result<(PathBuf, PathBuf),
 }
 
 fn misses(old: &Path, new: &Path) -> Result<Vec<CacheMiss>, Problem> {
-    let old_log = dx_execlog::read(old).map_err(|error| Problem::unreadable(old, &error))?;
-    let new_log = dx_execlog::read(new).map_err(|error| Problem::unreadable(new, &error))?;
-    dx_execlog::explain(&old_log, &new_log).map_err(|error| Problem::unreadable(new, &error))
+    let old_log = execlog::read(old).map_err(|error| Problem::unreadable(old, &error))?;
+    let new_log = execlog::read(new).map_err(|error| Problem::unreadable(new, &error))?;
+    execlog::explain(&old_log, &new_log).map_err(|error| Problem::unreadable(new, &error))
 }
 
 fn event(miss: &CacheMiss) -> CacheMissEvent {
@@ -201,10 +201,10 @@ pub(crate) fn execute_explain(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use dx_execlog::proto::exec_log_entry::{
+    use crate::execlog::proto::exec_log_entry::{
         output, File, InputSet, Invocation as Inv, Output, Spawn, Type,
     };
-    use dx_execlog::proto::{Digest, ExecLogEntry};
+    use crate::execlog::proto::{Digest, ExecLogEntry};
     use std::path::Path;
 
     fn entry(id: u32, payload: Type) -> ExecLogEntry {
@@ -229,7 +229,7 @@ mod tests {
     }
 
     fn log_with(source_hash: &str, output: &str) -> Vec<u8> {
-        dx_execlog::encode(&[
+        crate::execlog::encode(&[
             entry(
                 0,
                 Type::Invocation(Inv {
@@ -356,7 +356,7 @@ mod tests {
     #[test]
     fn unmatched_actions_are_not_in_old_log() {
         let harness = Harness::new("explain-unmatched");
-        save(&harness, "1.binpb.zst", &dx_execlog::encode(&[]));
+        save(&harness, "1.binpb.zst", &crate::execlog::encode(&[]));
         save(&harness, "2.binpb.zst", &log_with("h", OUT));
         let (code, out, err) = harness.run(&["explain"]);
         assert_eq!(code, 0, "{out}{err}");

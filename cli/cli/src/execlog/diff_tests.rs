@@ -1,7 +1,7 @@
 use super::*;
-use crate::proto::exec_log_entry::{Spawn, Type};
-use crate::proto::{EnvironmentVariable, ExecLogEntry, Platform};
-use crate::tests::{entry, file, invocation, log, set, spawn};
+use crate::execlog::proto::exec_log_entry::{Spawn, Type};
+use crate::execlog::proto::{EnvironmentVariable, ExecLogEntry, Platform};
+use crate::execlog::tests::{entry, file, invocation, log, set, spawn};
 
 fn with(spawn: Spawn) -> ExecLogEntry {
     entry(0, Type::Spawn(spawn))
@@ -145,7 +145,7 @@ fn args_diff_as_multiset_then_order() {
 
 #[test]
 fn platform_changes_by_property_name() {
-    let property = |name: &str, value: &str| crate::proto::platform::Property {
+    let property = |name: &str, value: &str| crate::execlog::proto::platform::Property {
         name: name.to_owned(),
         value: value.to_owned(),
     };

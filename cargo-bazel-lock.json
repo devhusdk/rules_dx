@@ -1,5 +1,5 @@
 {
-  "checksum": "2b5ead75baa40235f6c1555af5ee72b3e4a7d08544f2ae7aa54eb5ece44412ee",
+  "checksum": "5038d82892ddcc7044baa3bed58ed0402251577b009aa69aaadf52f203b66111",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6869,6 +6869,10 @@
             "target": "libc"
           },
           {
+            "id": "ruzstd 0.9.1",
+            "target": "ruzstd"
+          },
+          {
             "id": "serde 1.0.229",
             "target": "serde"
           },
@@ -7263,37 +7267,6 @@
         {
           "Library": {
             "crate_name": "dx_env_plan",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
-    "dx_execlog 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "ruzstd 0.9.1",
-            "target": "ruzstd"
-          },
-          {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "dx_execlog",
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "dx_execlog",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_execlog",
             "crate_root": "src/lib.rs"
           }
         }
@@ -27732,7 +27705,6 @@
     "dx_digest 0.0.0": "cli/dx_digest",
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
-    "dx_execlog 0.0.0": "cli/dx_execlog",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_ide 0.0.0": "cli/dx_ide",

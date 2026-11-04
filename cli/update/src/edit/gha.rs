@@ -194,6 +194,34 @@ fn trailing_comment(content: &str, end: usize) -> Option<String> {
     (!text.is_empty() && line.starts_with(char::is_whitespace)).then(|| text.to_owned())
 }
 
+pub fn version_numbers(version: &str) -> Option<Vec<u64>> {
+    let parts: Vec<u64> = version
+        .strip_prefix('v')
+        .unwrap_or(version)
+        .split('.')
+        .map(|part| part.parse().ok())
+        .collect::<Option<_>>()?;
+    (1..=3).contains(&parts.len()).then_some(parts)
+}
+
+pub fn replace_version_comment(content: &str, pin: &UsesPin, tag: &str) -> Option<String> {
+    let rest = content.get(pin.span.end..)?;
+    let line = rest.split('\n').next()?;
+    if !line.starts_with(char::is_whitespace) {
+        return None;
+    }
+    let trimmed = line.trim_start();
+    let after_hash = trimmed.strip_prefix('#')?;
+    let word = after_hash.split_whitespace().next()?;
+    version_numbers(word)?;
+    let word_at = pin.span.end + (line.len() - trimmed.len()) + 1 + after_hash.find(word)?;
+    let mut out = String::with_capacity(content.len() + tag.len());
+    out.push_str(&content[..word_at]);
+    out.push_str(tag);
+    out.push_str(&content[word_at + word.len()..]);
+    Some(out)
+}
+
 pub fn list_workflows(workspace: &std::path::Path) -> std::io::Result<Vec<String>> {
     let mut names: Vec<String> = std::fs::read_dir(workspace.join(WORKFLOW_DIR))?
         .filter_map(|entry| {
@@ -339,5 +367,36 @@ mod comment_tests {
         let pins = parse_workflow_pins(text).expect("parse").pins;
         let comments: Vec<_> = pins.iter().map(|pin| pin.comment.as_deref()).collect();
         assert_eq!(comments, [Some("v1"), Some("v2 x"), Some("v3"), None]);
+    }
+
+    fn first_pin(text: &str) -> UsesPin {
+        parse_workflow_pins(text).expect("parse").pins.remove(0)
+    }
+
+    #[test]
+    fn rewrites_only_the_version_word_of_a_comment() {
+        let cases = [
+            ("- uses: a/b@1 # v4\n", Some("- uses: a/b@1 # v5\n")),
+            (
+                "- uses: a/b@1 # v4.1.0 note\n",
+                Some("- uses: a/b@1 # v5 note\n"),
+            ),
+            ("- uses: 'a/b@1'  #  v4\n", Some("- uses: 'a/b@1'  #  v5\n")),
+            ("- uses: \"a/b@1\" # v4", Some("- uses: \"a/b@1\" # v5")),
+            ("- uses: a/b@1 # pinned\n", None),
+            ("- uses: a/b@1\n", None),
+        ];
+        let wrap = |line: &str| format!("jobs:\n  a:\n    steps:\n      {line}");
+        for (text, want) in cases {
+            let text = wrap(text);
+            let want = want.map(wrap);
+            let text = text.as_str();
+            let pin = first_pin(text);
+            assert_eq!(
+                replace_version_comment(text, &pin, "v5").as_deref(),
+                want.as_deref(),
+                "{text:?}"
+            );
+        }
     }
 }

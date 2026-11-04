@@ -78,6 +78,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
             manifest: None,
             configured: None,
             dep_version: DepVersion::Tested,
+            resolved_tag: None,
         };
         assert!(matches!(
             request.plan_edit(""),
@@ -90,7 +91,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
     ));
     let semver = WidenVersion::Semver("2.0.0".parse().expect("version"));
     assert!(matches!(
-        plan_github_workflow("", "actions/checkout", &semver),
+        plan_github_workflow("", "actions/checkout", &semver, None),
         Err(EditError::UnsupportedManifest { .. })
     ));
 }
@@ -866,6 +867,25 @@ fn github_actions_needs_sha_for_tags() {
         tag.plan_edit(&workflow),
         Err(EditError::NeedsSha { .. })
     ));
+}
+
+#[test]
+fn resolved_tag_rewrites_the_version_comment() {
+    let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let old = "3d3c42e5aac5ba805825da76410c181273ba90b1";
+    let workflow = steps(&format!("      - uses: actions/checkout@{old} # v4\n"));
+    let tag = UpdateRequest::parse("github-actions:actions/checkout", "v5").expect("tag");
+    let resolved = tag.with_resolved_sha(sha).expect("resolved");
+    assert_eq!(
+        resolved.plan_edit(&workflow).expect("edit"),
+        steps(&format!("      - uses: actions/checkout@{sha} # v5\n"))
+    );
+    let plain = UpdateRequest::parse("github-actions:actions/checkout", sha).expect("sha");
+    assert!(plain.with_resolved_sha(sha).is_err());
+    assert_eq!(
+        plain.plan_edit(&workflow).expect("edit"),
+        steps(&format!("      - uses: actions/checkout@{sha} # v4\n"))
+    );
 }
 
 #[test]

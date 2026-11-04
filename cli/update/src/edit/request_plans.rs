@@ -593,6 +593,7 @@ pub(super) fn plan_github_workflow(
     content: &str,
     package: &str,
     version: &WidenVersion,
+    tag: Option<&str>,
 ) -> Result<String, EditError> {
     match version {
         WidenVersion::GitTag(tag) => Err(EditError::NeedsSha {
@@ -633,7 +634,12 @@ pub(super) fn plan_github_workflow(
                 [index] => {
                     let pin = &parsed.pins[*index];
                     let no_pin = || unsupported(format!("{package:?} has no replaceable @SHA pin"));
-                    let out = crate::edit::gha::replace_pin_reference(content, pin, sha)
+                    let renamed = match tag {
+                        Some(tag) => crate::edit::gha::replace_version_comment(content, pin, tag),
+                        None => None,
+                    };
+                    let base = renamed.as_deref().unwrap_or(content);
+                    let out = crate::edit::gha::replace_pin_reference(base, pin, sha)
                         .ok_or_else(no_pin)?;
                     let reparsed = crate::edit::gha::parse_workflow_pins(&out)
                         .map_err(|error| unsupported(error.to_string()))?;
@@ -644,6 +650,13 @@ pub(super) fn plan_github_workflow(
                             |(at, (after, before))| {
                                 if at == *index {
                                     after.value == expected
+                                        && match (&renamed, tag) {
+                                            (Some(_), Some(tag)) => after
+                                                .comment
+                                                .as_deref()
+                                                .is_some_and(|c| c.starts_with(tag)),
+                                            _ => after.comment == before.comment,
+                                        }
                                 } else {
                                     after.value == before.value
                                 }

@@ -72,11 +72,15 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         Ok(request) => request,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    let request = match resolve_gha_tag_request(&request, edit_commit_json) {
+    let lazy_fetch = |url: &str| super::update_outdated::registry_fetch().get(url);
+    let request = match resolve_gha_tag_request(
+        &request,
+        edit_commit_json,
+        invocation.offline,
+        &lazy_fetch,
+    ) {
         Ok(request) => request,
-        Err(message) => {
-            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
-        }
+        Err((code, message)) => return operational(invocation, out, err, code, &message),
     };
     let summary = frozen_summary(
         offline_summary(request.summary(), invocation.offline),
@@ -413,25 +417,49 @@ fn plan_widens(
 fn resolve_gha_tag_request(
     request: &dx_update::edit::UpdateRequest,
     commit_json: Option<&str>,
-) -> Result<dx_update::edit::UpdateRequest, String> {
-    let is_gha_tag = matches!(&request.version, dx_update::edit::WidenVersion::GitTag(_))
-        && request.set == dx_update::edit::UpdateSet::GithubActions;
-    if !is_gha_tag {
-        return Ok(request.clone());
-    }
-    let Some(path) = commit_json else {
+    offline: bool,
+    fetch: &dyn dx_update::discover::Fetch,
+) -> Result<dx_update::edit::UpdateRequest, (&'static str, String)> {
+    let dx_update::edit::WidenVersion::GitTag(tag) = &request.version else {
         return Ok(request.clone());
     };
-    let text = std::fs::read_to_string(path).map_err(|_| {
-        format!(
-            "failed to widen {}: cannot read {path} (nothing widened; unknown tags fail closed, never invent a SHA)",
-            request.selector
+    if request.set != dx_update::edit::UpdateSet::GithubActions {
+        return Ok(request.clone());
+    }
+    let failed = |reason: String| {
+        (
+            CODE_UPDATE_WIDEN_FAILED,
+            format!("failed to widen {}: {reason}", request.selector),
         )
-    })?;
-    let sha = dx_update::edit::gha::resolve_sha_from_commit_response(&text)
-        .map_err(|error| format!("failed to widen {}: {error}", request.selector))?;
-    dx_update::edit::UpdateRequest::parse(&request.selector, &sha)
-        .map_err(|error| format!("failed to widen {}: {error}", request.selector))
+    };
+    let sha = if let Some(path) = commit_json {
+        let text = std::fs::read_to_string(path).map_err(|_| {
+            failed(format!(
+                "cannot read {path} (nothing widened; unknown tags fail closed, never invent a SHA)"
+            ))
+        })?;
+        dx_update::edit::gha::resolve_sha_from_commit_response(&text)
+            .map_err(|error| failed(error.to_string()))?
+    } else if offline {
+        return Err((
+            CODE_OFFLINE_REQUIRED,
+            format!(
+                "failed to widen {}: resolving tag {tag} needs the network; drop --offline or pass a commit SHA",
+                request.selector
+            ),
+        ));
+    } else {
+        dx_update::discover::github::commit_sha(
+            &request.package,
+            tag,
+            dx_update::discover::github::DEFAULT_BASE,
+            fetch,
+        )
+        .map_err(|reason| failed(format!("{reason} (nothing widened)")))?
+    };
+    request
+        .with_resolved_sha(&sha)
+        .map_err(|error| failed(error.to_string()))
 }
 
 fn emit_update_no_change(
@@ -486,6 +514,7 @@ fn emit_update_no_change(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+    use super::*;
 
     const HELLO_CARGO: &str = "rust/tests/fixtures/hello/Cargo.toml";
 
@@ -1662,6 +1691,48 @@ dependencies = ["anyio>=4"]
         }
     }
 
+    fn tag_request() -> dx_update::edit::UpdateRequest {
+        dx_update::edit::UpdateRequest::parse("github-actions:actions/checkout", "v5")
+            .expect("request")
+    }
+
+    #[test]
+    fn gha_tag_is_resolved_through_the_fetch() {
+        let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let seen = std::cell::RefCell::new(Vec::new());
+        let fetch = |url: &str| {
+            seen.borrow_mut().push(url.to_owned());
+            Ok(format!("{{\"sha\": \"{sha}\"}}"))
+        };
+        let resolved =
+            resolve_gha_tag_request(&tag_request(), None, false, &fetch).expect("resolved");
+        assert_eq!(
+            *seen.borrow(),
+            ["https://api.github.com/repos/actions/checkout/commits/v5"]
+        );
+        let text = "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4\n";
+        let widened = resolved.plan_edit(text).expect("edit");
+        assert!(widened.ends_with(&format!("@{sha} # v5\n")), "{widened}");
+    }
+
+    #[test]
+    fn gha_tag_fetch_error_and_offline_resolve_nothing() {
+        let failing = |_: &str| Err("HTTP 404".to_owned());
+        let (code, message) =
+            resolve_gha_tag_request(&tag_request(), None, false, &failing).expect_err("error");
+        assert_eq!(code, CODE_UPDATE_WIDEN_FAILED);
+        assert!(message.contains("HTTP 404"), "{message}");
+        let calls = std::cell::Cell::new(0);
+        let counting = |_: &str| {
+            calls.set(calls.get() + 1);
+            Err("unused".to_owned())
+        };
+        let (code, _) =
+            resolve_gha_tag_request(&tag_request(), None, true, &counting).expect_err("error");
+        assert_eq!(code, CODE_OFFLINE_REQUIRED);
+        assert_eq!(calls.get(), 0);
+    }
+
     #[test]
     fn live_github_tag_resolution_matrix() {
         let harness = Harness::new("update-live-gha-tag");
@@ -1669,11 +1740,15 @@ dependencies = ["anyio>=4"]
             ".github/workflows/ci.yml",
             "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
         );
-        let (code, _, err) =
-            harness.run(&["update", "github-actions:actions/checkout", "v5", "--apply"]);
+        let (code, _, err) = harness.run(&[
+            "update",
+            "github-actions:actions/checkout",
+            "v5",
+            "--offline",
+            "--apply",
+        ]);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("update_widen_failed"), "{err}");
-        assert!(err.contains("needs SHA resolution"), "{err}");
+        assert!(err.contains("offline_required"), "{err}");
 
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let commit_json = format!("{{\"sha\": \"{sha}\", \"commit\": {{\"message\": \"v5\"}}}}");
@@ -1709,6 +1784,10 @@ dependencies = ["anyio>=4"]
             "{widened}"
         );
         assert!(widened.contains("actions/cache@bbbb"), "{widened}");
+        assert!(
+            widened.contains(&format!("actions/checkout@{sha} # v5")),
+            "{widened}"
+        );
         let widened_yaml =
             std::fs::read_to_string(harness.workspace.join(".github/workflows/reusable.yaml"))
                 .expect("workflow");

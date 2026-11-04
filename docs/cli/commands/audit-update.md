@@ -591,8 +591,11 @@ is written:
 Duplicate declarations, a missing or computed version or name, and a
 `MODULE.bazel` that does not parse fail without writing. `maven` widens and
 a plain `dx update` never touch a `bazel_dep` floor or an override. A `github-actions` version is
-the resolved commit SHA, never a tag, and the pin is rewritten in every
-`.github/workflows` file that declares the action.
+a commit SHA or a tag. A tag is resolved to its commit SHA through
+`api.github.com`, using `GH_TOKEN` or `GITHUB_TOKEN` when set. The pin is
+always written as the SHA, in every `.github/workflows` file that declares the
+action. A version comment such as `# v4` is rewritten to the tag. With
+`--offline`, a tag fails with `offline_required`; pass a SHA instead.
 
 A [dependency set](#dependency-sets) is selected as `<set>:<package>`. `uv` and `npm` sets widen `pyproject.toml` or `package.json`
 and refresh their lock. A `cargo` set widens the crate in its

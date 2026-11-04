@@ -14,6 +14,7 @@ pub struct UpdateRequest {
     configured: Option<ConfiguredSet>,
     /// Which of a MODULE.bazel dep's two versions a bazel update edits.
     pub dep_version: DepVersion,
+    resolved_tag: Option<String>,
 }
 
 /// The ecosystem of a dependency set an update edits.
@@ -294,6 +295,7 @@ impl UpdateRequest {
             manifest: None,
             configured: None,
             dep_version: DepVersion::Tested,
+            resolved_tag: None,
         })
     }
 
@@ -361,6 +363,7 @@ impl UpdateRequest {
                 repository: repository.map(str::to_owned),
             }),
             dep_version: DepVersion::Tested,
+            resolved_tag: None,
         })
     }
 
@@ -417,6 +420,7 @@ impl UpdateRequest {
             manifest: target.manifest.clone(),
             configured: target.configured.clone(),
             dep_version: DepVersion::Tested,
+            resolved_tag: None,
         }
     }
 
@@ -433,6 +437,16 @@ impl UpdateRequest {
         }
         self.dep_version = dep_version;
         Ok(self)
+    }
+
+    /// This tag request with the tag already resolved to `sha`; the tag still rewrites the version comment.
+    pub fn with_resolved_sha(&self, sha: &str) -> Result<UpdateRequest, EditError> {
+        let WidenVersion::GitTag(tag) = &self.version else {
+            return Err(EditError::Empty);
+        };
+        let mut resolved = UpdateRequest::parse(&self.selector, sha)?;
+        resolved.resolved_tag = Some(tag.clone());
+        Ok(resolved)
     }
 
     pub fn summary(&self) -> String {
@@ -506,7 +520,12 @@ impl UpdateRequest {
             UpdateSet::NuGet => {
                 plan_paket_dependencies(manifest, content, &self.package, &self.version)
             }
-            UpdateSet::GithubActions => plan_github_workflow(content, &self.package, &self.version),
+            UpdateSet::GithubActions => plan_github_workflow(
+                content,
+                &self.package,
+                &self.version,
+                self.resolved_tag.as_deref(),
+            ),
         }
     }
 

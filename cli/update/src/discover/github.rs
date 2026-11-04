@@ -1,7 +1,9 @@
 //! Lists GitHub Actions pins and the `.bazelversion` pin that lag the newest GitHub release.
 
 use super::{Candidate, Fetch, Findings, LookupError};
-use crate::edit::gha::{parse_workflow_pins, split_pin};
+use crate::edit::gha::{
+    parse_workflow_pins, resolve_sha_from_commit_response, split_pin, version_numbers as numbers,
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -118,16 +120,6 @@ fn current_version(reference: &str, comment: Option<&str>) -> Option<String> {
     numbers(candidate).map(|_| candidate.to_owned())
 }
 
-fn numbers(version: &str) -> Option<Vec<u64>> {
-    let parts: Vec<u64> = version
-        .strip_prefix('v')
-        .unwrap_or(version)
-        .split('.')
-        .map(|part| part.parse().ok())
-        .collect::<Option<_>>()?;
-    (1..=3).contains(&parts.len()).then_some(parts)
-}
-
 fn judge(
     set: &str,
     package: &str,
@@ -169,6 +161,25 @@ fn judge(
 }
 
 const NO_RELEASE: &str = "no GitHub release";
+
+/// Resolves a tag or branch of `package` to its commit SHA.
+pub fn commit_sha(
+    package: &str,
+    tag: &str,
+    base: &str,
+    fetch: &dyn Fetch,
+) -> Result<String, String> {
+    let mut encoded = String::new();
+    for byte in tag.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    let body = fetch.get(&format!("{base}/repos/{package}/commits/{encoded}"))?;
+    resolve_sha_from_commit_response(&body).map_err(|error| error.to_string())
+}
 
 fn latest_release(package: &str, base: &str, fetch: &dyn Fetch) -> Result<Release, LookupError> {
     let fail = |reason: String| problem("", package, reason);
@@ -220,6 +231,27 @@ mod tests {
 
     fn run(uses: &str, body: Result<String, String>) -> Findings {
         actions(&[flow(uses)], &[], "b", &move |_: &str| body.clone())
+    }
+
+    #[test]
+    fn commit_sha_asks_for_the_encoded_tag() {
+        let seen = std::cell::RefCell::new(String::new());
+        let got = commit_sha("o/r", "release/v5", "b", &|url: &str| {
+            *seen.borrow_mut() = url.to_owned();
+            Ok(format!("{{\"sha\":\"{SHA}\"}}"))
+        });
+        assert_eq!(got.as_deref(), Ok(SHA));
+        assert_eq!(*seen.borrow(), "b/repos/o/r/commits/release%2Fv5");
+    }
+
+    #[test]
+    fn commit_sha_reports_fetch_and_upstream_errors() {
+        let missing = commit_sha("o/r", "v9", "b", &|_: &str| Err("HTTP 404".to_owned()));
+        assert_eq!(missing, Err("HTTP 404".to_owned()));
+        let upstream = commit_sha("o/r", "v9", "b", &|_: &str| {
+            Ok("{\"message\":\"No commit found\"}".to_owned())
+        });
+        assert!(upstream.expect_err("error").contains("No commit found"));
     }
 
     #[test]

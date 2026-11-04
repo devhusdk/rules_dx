@@ -1,0 +1,22 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":swift_tool.bzl", "swift_format_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+swift_format_tool(
+    name = "swift_format",
+    srcs = select({
+        "@platforms//cpu:aarch64": ["@dx_swift_linux_aarch64//:files"],
+        "//conditions:default": ["@dx_swift_linux_x86_64//:files"],
+    }),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "swift_tool.bzl",
+    ],
+    tags = ["corpus"],
+)

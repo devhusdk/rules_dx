@@ -253,6 +253,8 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "statix",
             "stylelint",
             "stylua",
+            "swift_format",
+            "swift_lint",
             "taplo",
             "terraform",
             "tflint",

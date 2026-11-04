@@ -196,6 +196,20 @@ label_flag(
 filegroup(name = "no_qmllint")
 
 label_flag(
+    name = "tool_swift_format",
+    build_setting_default = ":no_swift_format",
+)
+
+filegroup(name = "no_swift_format")
+
+label_flag(
+    name = "tool_swift_lint",
+    build_setting_default = ":no_swift_lint",
+)
+
+filegroup(name = "no_swift_lint")
+
+label_flag(
     name = "tool_zig_ast_check",
     build_setting_default = ":no_zig_ast_check",
 )

@@ -2027,6 +2027,36 @@ D_DSCANNER_LINT_SUPPORT = {
     "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
+SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["swift"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "swift",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64"],
+    "state": "supported",
+    "tool": "swift_format",
+    "transport": "single",
+    "unsupported": ["macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
+SWIFT_SWIFT_LINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["swift"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "swift",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64"],
+    "state": "supported",
+    "tool": "swift_lint",
+    "transport": "batched",
+    "unsupported": ["macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
 ZIG_ZIG_FMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2308,6 +2338,8 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     ERLANG_ELVIS_LINT_SUPPORT,
     ERLANG_ERLFMT_FORMAT_SUPPORT,
     JULIA_JULIA_FORMAT_FORMAT_SUPPORT,
+    SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT,
+    SWIFT_SWIFT_LINT_LINT_SUPPORT,
     ZIG_ZIG_FMT_FORMAT_SUPPORT,
     DART_DART_LINT_SUPPORT,
     DART_DART_FORMAT_SUPPORT,

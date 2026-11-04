@@ -278,6 +278,9 @@ const PERLCRITIC_CHECK_ARGS: &[&str] = &[
     "--verbose",
     PERLCRITIC_FORMAT,
 ];
+const SWIFT_FORMAT_CHECK_ARGS: &[&str] = &["format"];
+const SWIFT_FORMAT_FIX_ARGS: &[&str] = &["format", "--in-place"];
+const SWIFT_LINT_ARGS: &[&str] = &["lint", "--strict"];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -1517,6 +1520,20 @@ fn flag_value(flag: &str, path: &Path) -> OsString {
 /// `zig ast-check` takes exactly one file per process.
 pub fn zig_ast_check(binary: &Path, file: &Path) -> Invocation {
     fixed(binary, ZIG_AST_CHECK_ARGS, &[file], "")
+}
+
+/// `swift-format format` takes one file here and writes the formatted text to stdout.
+pub fn swift_format_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, SWIFT_FORMAT_CHECK_ARGS, &[file], "")
+}
+
+pub fn swift_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, SWIFT_FORMAT_FIX_ARGS, files, "")
+}
+
+/// One batched lint; `--strict` makes every finding exit 1.
+pub fn swift_lint(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, SWIFT_LINT_ARGS, files, "")
 }
 
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {

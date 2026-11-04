@@ -222,6 +222,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "shfmt",
         "standardrb",
         "stylua",
+        "swift_format",
         "terraform",
         "topiary",
         "typstyle",

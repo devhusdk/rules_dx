@@ -6,15 +6,20 @@ load("@rules_swift//swift:swift_binary.bzl", _swift_binary = "swift_binary")
 load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
 load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platform", "swift_linux_transition")
 
 _PLATFORM_ATTR = {"swift_platform": attr.string(doc = "Swift platform to build for.")}
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
 _SPECS = [("swift", "swift")]
+SWIFT_QUALITY_TOOLS = {
+    "swift_format": Label("//swift/tools:swift_format"),
+    "swift_lint": Label("//swift/tools:swift_format"),
+}
+_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 
 _swift_library_forward = dx_library_forward_rule(
-    provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo],
+    provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
     quality_specs = _SPECS,
     what = "swift_*",
@@ -23,11 +28,12 @@ _swift_library_forward = dx_library_forward_rule(
     extra_attrs = _PLATFORM_ATTR,
     runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
+    quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
 _swift_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
+    provides = _EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _SPECS,
     what = "swift_*",
@@ -36,11 +42,12 @@ _swift_binary_forward = dx_executable_forward_rule(
     extra_attrs = _PLATFORM_ATTR,
     runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
+    quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
 _swift_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
+    provides = _EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _SPECS,
     what = "swift_*",
@@ -49,6 +56,7 @@ _swift_forward_test = dx_executable_forward_rule(
     extra_attrs = _PLATFORM_ATTR,
     runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
+    quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
 def _forward():

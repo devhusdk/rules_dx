@@ -338,6 +338,8 @@ to.
 | `statix` | lint | nix |
 | `stylelint` | lint | css |
 | `stylua` | format | lua |
+| `swift_format` | format | swift |
+| `swift_lint` | lint | swift |
 | `taplo` | format, lint | toml |
 | `terraform` | format, typecheck | terraform |
 | `tflint` | lint | terraform |
@@ -410,17 +412,17 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
+  `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
   `jet`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`,
+- The `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`,
   `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
-  `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
+  `@rules_dx//zig/tools:zig`, `@rules_dx//swift/tools:swift_format`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perlcritic`, `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
   `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//julia/tools/jet:jet`, `@rules_dx//lua/tools:luals`, `@rules_dx//php/tools:phpcs`, `@rules_dx//php/tools:phpstan`,
@@ -583,6 +585,34 @@ reports syntax errors and AST-level errors such as unused locals at their line
 and column. Columns count UTF-8 bytes. Its `note:` lines are context and are not
 findings. A failed run, such as an unreadable file, is an error and never reads
 as clean. There is no `--apply` fix.
+
+### Swift formatting and linting
+
+`swift_format` and `swift_lint` run the `swift-format` from the pinned Swift
+toolchain that `swift_library`, `swift_binary` and `swift_test` carry. Select
+them in a `swift` family. No flag is needed. Typecheck is not available for
+Swift.
+
+```python
+quality_family(
+    name = "swift_family",
+    family_id = "swift",
+    disabled = ["audit", "typecheck"],
+    format = ["swift_format"],
+    lint = ["swift_lint"],
+)
+```
+
+To use your own swift-format, set
+`--@rules_dx//config:tool_swift_format=@rules_dx//swift/tools:swift_format`
+or `--@rules_dx//config:tool_swift_lint=@rules_dx//swift/tools:swift_format`.
+
+The format check formats each file to standard output, compares it with the
+file and never writes. `--apply` runs `swift-format format --in-place`. A file
+swift-format cannot parse reports a syntax error and stays untouched. The lint
+runs `swift-format lint --strict` once for all files and reports each finding
+under its rule name, such as `Spacing`. There is no lint `--apply` fix. dx uses
+the default swift-format style.
 
 ### Perl formatting and linting
 

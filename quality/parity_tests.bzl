@@ -5,9 +5,7 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
 PARITY_SCHEMA_VERSION = 1
 
-PARITY_DEFERRED = {
-    "swift": ("ADR-swift", "no Swift format, lint or typecheck adapter is pinned"),
-}
+PARITY_DEFERRED = {}
 
 def _adapter_backed_classes():
     backed = {}

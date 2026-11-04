@@ -1987,6 +1987,54 @@ FILE_FAMILY_CASES = [
         "windows_x86_64": True,
     },
     {
+        "name": "matrix_swift_format_pass",
+        "generated": {
+            "matrix/swift_clean.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
+        },
+        "capability": "format",
+        "stages": ["swift_format;swift;matrix/swift_clean.swift"],
+        "tool_names": ["swift_format"],
+        "tool_binaries": ["//swift/tools:swift_format"],
+        "expected_file": ":matrix/matrix_swift_format_pass.expected.txt",
+        "linux_arm64": True,
+    },
+    {
+        "name": "matrix_swift_format_fail",
+        "generated": {
+            "matrix/swift_dirty.swift": "func  add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
+        },
+        "capability": "format",
+        "stages": ["swift_format;swift;matrix/swift_dirty.swift"],
+        "tool_names": ["swift_format"],
+        "tool_binaries": ["//swift/tools:swift_format"],
+        "expected_file": ":matrix/matrix_swift_format_fail.expected.txt",
+        "linux_arm64": True,
+    },
+    {
+        "name": "matrix_swift_lint_pass",
+        "generated": {
+            "matrix/swift_lint_clean.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["swift_lint;swift;matrix/swift_lint_clean.swift"],
+        "tool_names": ["swift_lint"],
+        "tool_binaries": ["//swift/tools:swift_format"],
+        "expected_file": ":matrix/matrix_swift_lint_pass.expected.txt",
+        "linux_arm64": True,
+    },
+    {
+        "name": "matrix_swift_lint_fail",
+        "generated": {
+            "matrix/swift_lint_dirty.swift": "func  add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["swift_lint;swift;matrix/swift_lint_dirty.swift"],
+        "tool_names": ["swift_lint"],
+        "tool_binaries": ["//swift/tools:swift_format"],
+        "expected_file": ":matrix/matrix_swift_lint_fail.expected.txt",
+        "linux_arm64": True,
+    },
+    {
         "name": "matrix_perl_format_pass",
         "generated": {
             "matrix/perltidy_clean.pl": "my $x = 1;\n",

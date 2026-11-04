@@ -388,8 +388,8 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "redocly" | "kubeconform" | "helm" | "capnp" | "checkmake" | "flatc" | "tflint"
         | "cfn_lint" | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype" | "jet"
         | "luals" | "phpcs" | "phpstan" | "regal" | "sorbet" | "tsc" | "javac" | "kotlinc"
-        | "scalac" | "flang" | "ghc" | "ldc" | "ocaml" | "zig" | "zig_ast_check" | "xmllint"
-        | "selene" | "zanuda" | "thrift" | "avro_tools" => Ok(Route::Keep),
+        | "scalac" | "flang" | "ghc" | "ldc" | "ocaml" | "zig" | "zig_ast_check" | "swift_lint"
+        | "xmllint" | "selene" | "zanuda" | "thrift" | "avro_tools" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -427,6 +427,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
+        "swift_format" => Ok(Route::Rewrite(commands::swift_format_fix)),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
         "keep_sorted" => {
             if tool.upstream_diagnostics.is_empty() {
@@ -957,7 +958,7 @@ impl super::RealBackend {
                     ))
                 }
             }
-            Route::Rewrite(_) if tool_id == "perltidy" => {
+            Route::Rewrite(_) if tool_id == "perltidy" || tool_id == "swift_format" => {
                 if out.code == Some(0) {
                     Outcome::Fixed
                 } else {

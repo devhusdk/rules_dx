@@ -102,6 +102,8 @@ pub mod staticcheck;
 pub mod statix;
 pub mod stylelint;
 pub mod stylua;
+pub mod swift_format;
+pub mod swift_lint;
 pub mod taplo;
 pub mod terraform;
 pub mod terraform_validate;
@@ -222,6 +224,8 @@ pub use staticcheck::parse_staticcheck;
 pub use statix::parse_statix;
 pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
+pub use swift_format::parse_swift_format;
+pub use swift_lint::parse_swift_lint;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use terraform_validate::{parse_terraform_init, parse_terraform_validate};
@@ -2339,6 +2343,28 @@ mod tests {
         super::zig_ast_check::parse_zig_ast_check(input, input, code, files)
     }
 
+    fn fuzz_swift_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::swift_format::parse_swift_format(
+            input,
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
+    }
+
+    fn fuzz_swift_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::swift_lint::parse_swift_lint(input, input, code, files)
+    }
+
     fn fuzz_zig_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -2939,6 +2965,8 @@ mod tests {
         ("statix", fuzz_statix),
         ("stylelint", fuzz_stylelint),
         ("stylua", fuzz_stylua),
+        ("swift_format", fuzz_swift_format),
+        ("swift_lint", fuzz_swift_lint),
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
@@ -3065,6 +3093,8 @@ mod tests {
         ("statix", include_str!("statix.rs")),
         ("stylelint", include_str!("stylelint.rs")),
         ("stylua", include_str!("stylua.rs")),
+        ("swift_format", include_str!("swift_format.rs")),
+        ("swift_lint", include_str!("swift_lint.rs")),
         ("check_jsonschema", include_str!("check_jsonschema.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),

@@ -1556,6 +1556,19 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.pm"
         ]
     );
+    let swift = Path::new("/scratch/sample.swift");
+    assert_eq!(
+        argv_strings(&swift_format_check(Path::new(BIN), swift)),
+        vec![BIN, "format", "/scratch/sample.swift"]
+    );
+    assert_eq!(
+        argv_strings(&swift_format_fix(Path::new(BIN), &[swift])),
+        vec![BIN, "format", "--in-place", "/scratch/sample.swift"]
+    );
+    assert_eq!(
+        argv_strings(&swift_lint(Path::new(BIN), &[swift])),
+        vec![BIN, "lint", "--strict", "/scratch/sample.swift"]
+    );
     let erl = Path::new("/scratch/sample.erl");
     assert_eq!(
         argv_strings(&erlfmt_check(Path::new(BIN), &[erl])),

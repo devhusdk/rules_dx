@@ -29,6 +29,17 @@ dx build //app:hello
 dx test //app:tests
 ```
 
+## Format and lint
+
+`dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift
+sources. Select `swift_format` and `swift_lint` in a `swift` family. They use
+the default swift-format style.
+
+```sh
+dx format --apply
+dx lint
+```
+
 ## Toolchain
 
 - The compiler is the Swift 6.4.1 Ubuntu 22.04 archive from swift.org.

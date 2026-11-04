@@ -117,6 +117,8 @@ pub const REAL_TOOLS: &[&str] = &[
     "statix",
     "stylelint",
     "stylua",
+    "swift_format",
+    "swift_lint",
     "taplo",
     "terraform",
     "tflint",

@@ -807,6 +807,7 @@ rust_test(
         "//wasi/runtime:corpus_starlark",
         "//xml/rules:corpus_starlark",
         "//yaml/rules:corpus_starlark",
+        "//swift/tools:corpus_starlark",
         "//zig/rules:corpus_starlark",
         "//zig/tools:corpus_starlark",
     ],

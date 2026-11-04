@@ -231,6 +231,17 @@ class RequireToolTest(unittest.TestCase):
         )
 
 
+class VerifyOnlyPathTest(unittest.TestCase):
+    def test_verify_only_does_not_need_the_file_tool_on_path(self):
+        with (
+            tempfile.TemporaryDirectory() as empty,
+            mock.patch.dict(os.environ, {"PATH": empty}),
+            mock.patch.object(update, "TOOLS", {}),
+            mock.patch.object(update, "_check_hadolint_shellcheck"),
+        ):
+            self.assertIsNone(update.main(["--verify-only"]))
+
+
 class EmitTest(unittest.TestCase):
     def test_one_file_per_tool_keyed_by_platform(self):
         path, content = update._emit(

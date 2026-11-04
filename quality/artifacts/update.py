@@ -2750,7 +2750,6 @@ def _parse_args(argv):
 
 def main(argv):
     only_tool, verify_only = _parse_args(argv)
-    _require_tool("file")
     if not os.path.isdir(_source_dir()):
         sys.exit("update: source directory %r not found" % _source_dir())
     if only_tool in (None, "hadolint", "shellcheck"):

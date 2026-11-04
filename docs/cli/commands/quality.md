@@ -196,6 +196,32 @@ workspace_policy(
   tools listed for that capability.
 - `disabled = ["format"]` runs no formatter for that family.
 
+To set the policy once, add this line to `.bazelrc`:
+
+```text
+common --@rules_dx//config:workspace=//:policy
+```
+
+### Extending a policy
+
+`extends` starts from another policy. Families in `families` replace the base
+family with the same `family_id`, or add a new one. `disabled` on the policy
+lists family IDs to drop from the base.
+
+```python
+workspace_policy(
+    name = "policy",
+    extends = "@rules_dx//quality:default_workspace_policy",
+    families = [":python_family"],
+    disabled = ["rust"],
+)
+```
+
+- `disabled` without `extends` fails.
+- A disabled ID that the base policy lacks fails.
+- A family that is both disabled and in `families` fails.
+- A family that appears twice in `families` fails.
+
 ### Default policy
 
 `default_workspace_policy` selects these tools. A capability marked
@@ -214,17 +240,17 @@ workspace_policy(
 | `json` | `prettier` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `ktlint` | `kotlinc` |
 | `markdown` | disabled | `markdown_check`, `vale` | disabled |
-| `mdx` | `remark` | disabled | `tsc` |
+| `mdx` | `remark` | disabled | disabled |
 | `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
 | `rust` | `rustfmt` | `clippy` | `rustc` |
 | `scala` | `scalafmt` | disabled | `scalac` |
 | `shell` | `shfmt` | `shellcheck` | disabled |
 | `starlark` | `buildifier` | `buildifier` | disabled |
-| `svelte` | `prettier` | disabled | `tsc` |
+| `svelte` | `prettier` | disabled | disabled |
 | `text` | disabled | `keep_sorted` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
 | `typescript` | `biome` | `biome` | `tsc` |
-| `vue` | `prettier` | disabled | `tsc` |
+| `vue` | `prettier` | disabled | disabled |
 
 ### Wired tools
 

@@ -91,6 +91,29 @@ workspace_policy(
 )
 
 quality_family(
+    name = "python_lint_b_family",
+    family_id = "python",
+    lint = ["lint-b"],
+)
+
+workspace_policy(
+    name = "fixture_extends_policy",
+    extends = ":fixture_policy",
+)
+
+workspace_policy(
+    name = "fixture_override_policy",
+    extends = ":fixture_policy",
+    families = [":python_lint_b_family"],
+)
+
+workspace_policy(
+    name = "fixture_disable_policy",
+    disabled = ["rust"],
+    extends = ":fixture_policy",
+)
+
+quality_family(
     name = "default_cc_family",
     disabled = [
         "lint",
@@ -331,6 +354,21 @@ workspace_policy(
 policy_subject(
     name = "policy_under_test",
     policy = ":fixture_policy",
+)
+
+policy_subject(
+    name = "extends_policy_under_test",
+    policy = ":fixture_extends_policy",
+)
+
+policy_subject(
+    name = "override_policy_under_test",
+    policy = ":fixture_override_policy",
+)
+
+policy_subject(
+    name = "disable_policy_under_test",
+    policy = ":fixture_disable_policy",
 )
 
 policy_unit_tests(name = "policy_unit")

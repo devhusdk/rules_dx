@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":applicability.bzl", "capability_selection", "effective_classes", "selected_adapters")
+load(":policy.bzl", "merge_policy")
 
 _FIXTURE_ADAPTERS = {
     "fmt-a": ["rust"],
@@ -59,10 +60,108 @@ def policy_unit_tests(name):
                 effective_classes(["rust"], ["rust"], ["python"]),
                 [],
             ),
+            expect_equal(
+                "merge_policy keeps the base without sections",
+                merge_policy({"rust": "r", "python": "p"}, [], [], True),
+                ({"rust": "r", "python": "p"}, ""),
+            ),
+            expect_equal(
+                "merge_policy lets a section replace a base family",
+                merge_policy({"rust": "r", "python": "p"}, [("python", "p2")], [], True),
+                ({"rust": "r", "python": "p2"}, ""),
+            ),
+            expect_equal(
+                "merge_policy adds a new family",
+                merge_policy({"rust": "r"}, [("go", "g")], [], True),
+                ({"rust": "r", "go": "g"}, ""),
+            ),
+            expect_equal(
+                "merge_policy drops a disabled family",
+                merge_policy({"rust": "r", "python": "p"}, [], ["rust"], True),
+                ({"python": "p"}, ""),
+            ),
+            expect_equal(
+                "merge_policy rejects disabled without extends",
+                merge_policy({}, [], ["rust"], False)[1],
+                "workspace_policy: 'disabled' needs 'extends'",
+            ),
+            expect_equal(
+                "merge_policy rejects disabling a family the base lacks",
+                merge_policy({"rust": "r"}, [], ["go"], True)[1],
+                "workspace_policy: cannot disable family 'go', which the base policy does not have",
+            ),
+            expect_equal(
+                "merge_policy rejects a family both disabled and provided",
+                merge_policy({"rust": "r"}, [("rust", "r2")], ["rust"], True)[1],
+                "workspace_policy: family 'rust' is both disabled and provided",
+            ),
+            expect_equal(
+                "merge_policy rejects a family provided twice",
+                merge_policy({}, [("go", "a"), ("go", "b")], [], False)[1],
+                "workspace_policy: family 'go' is provided twice",
+            ),
         ],
     )
 
-EXPECTED_POLICY_OBSERVATIONS = """subject //quality:policy_under_test
+EXPECTED_POLICY_OBSERVATIONS = """subject //quality:disable_policy_under_test
+field disabled.python.audit=False
+field disabled.python.format=False
+field disabled.python.lint=False
+field disabled.python.typecheck=False
+field family.python.audit=
+field family.python.format=
+field family.python.lint=lint-a
+field family.python.typecheck=
+aspect_field aspect_seen=True
+aspect_field field_count=8
+aspect_field has_subject=True
+aspect_field subject_label=//quality:disable_policy_under_test
+aspect_field transitive_count=0
+subject //quality:extends_policy_under_test
+field disabled.python.audit=False
+field disabled.python.format=False
+field disabled.python.lint=False
+field disabled.python.typecheck=False
+field disabled.rust.audit=False
+field disabled.rust.format=False
+field disabled.rust.lint=False
+field disabled.rust.typecheck=False
+field family.python.audit=
+field family.python.format=
+field family.python.lint=lint-a
+field family.python.typecheck=
+field family.rust.audit=
+field family.rust.format=fmt-a
+field family.rust.lint=lint-a,lint-b
+field family.rust.typecheck=
+aspect_field aspect_seen=True
+aspect_field field_count=16
+aspect_field has_subject=True
+aspect_field subject_label=//quality:extends_policy_under_test
+aspect_field transitive_count=0
+subject //quality:override_policy_under_test
+field disabled.python.audit=False
+field disabled.python.format=False
+field disabled.python.lint=False
+field disabled.python.typecheck=False
+field disabled.rust.audit=False
+field disabled.rust.format=False
+field disabled.rust.lint=False
+field disabled.rust.typecheck=False
+field family.python.audit=
+field family.python.format=
+field family.python.lint=lint-b
+field family.python.typecheck=
+field family.rust.audit=
+field family.rust.format=fmt-a
+field family.rust.lint=lint-a,lint-b
+field family.rust.typecheck=
+aspect_field aspect_seen=True
+aspect_field field_count=16
+aspect_field has_subject=True
+aspect_field subject_label=//quality:override_policy_under_test
+aspect_field transitive_count=0
+subject //quality:policy_under_test
 field disabled.python.audit=False
 field disabled.python.format=False
 field disabled.python.lint=False
@@ -89,6 +188,11 @@ def policy_analysis_tests(name):
     starlark_test(
         name = name,
         mode = "analysis",
-        subjects = [":policy_under_test"],
+        subjects = [
+            ":policy_under_test",
+            ":extends_policy_under_test",
+            ":override_policy_under_test",
+            ":disable_policy_under_test",
+        ],
         expected_observations = EXPECTED_POLICY_OBSERVATIONS,
     )

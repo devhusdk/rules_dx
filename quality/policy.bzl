@@ -91,20 +91,60 @@ quality_family = rule(
     },
 )
 
+def merge_policy(base, sections, disabled, has_base):
+    """Merges family sections over a base policy.
+
+    Args:
+        base: dict from family ID to value, empty without `extends`.
+        sections: list of (family_id, value) pairs from `families`.
+        disabled: family IDs to drop from the base.
+        has_base: whether `extends` is set.
+
+    Returns:
+        (families, error): the merged dict, and an error string or "".
+    """
+    if disabled and not has_base:
+        return {}, "workspace_policy: 'disabled' needs 'extends'"
+    seen = {}
+    for family_id, _ in sections:
+        if family_id in seen:
+            return {}, "workspace_policy: family '" + family_id + "' is provided twice"
+        seen[family_id] = True
+    for family_id in disabled:
+        if family_id not in base:
+            return {}, "workspace_policy: cannot disable family '" + family_id + "', which the base policy does not have"
+        if family_id in seen:
+            return {}, "workspace_policy: family '" + family_id + "' is both disabled and provided"
+    families = {k: v for k, v in base.items() if k not in disabled}
+    for family_id, value in sections:
+        families[family_id] = value
+    return families, ""
+
 def _workspace_policy_impl(ctx):
-    families = {}
+    base = {}
+    if ctx.attr.extends:
+        base = ctx.attr.extends[QualityPolicyInfo].families
+    sections = []
     for section in ctx.attr.families:
         info = section[FamilyPolicyInfo]
-        if info.family_id in families:
-            fail("workspace_policy: family '" + info.family_id +
-                 "' is provided twice")
-        families[info.family_id] = info
+        sections.append((info.family_id, info))
+    families, error = merge_policy(base, sections, ctx.attr.disabled, bool(ctx.attr.extends))
+    if error:
+        fail(error)
     return [QualityPolicyInfo(families = families)]
 
 workspace_policy = rule(
     implementation = _workspace_policy_impl,
-    doc = "Workspace quality policy built from family sections.",
+    doc = "Workspace quality policy built from family sections, optionally extending another policy.",
     attrs = {
+        "disabled": attr.string_list(
+            doc = "Family IDs to drop from the policy named by `extends`.",
+            default = [],
+        ),
+        "extends": attr.label(
+            doc = "Base policy. Families here replace or add to the base families.",
+            providers = [QualityPolicyInfo],
+        ),
         "families": attr.label_list(
             doc = "Family policy sections combined into the workspace policy.",
             providers = [FamilyPolicyInfo],

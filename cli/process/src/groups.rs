@@ -211,7 +211,7 @@ struct Recorded {
     pgid: i32,
     namespace: String,
     start: String,
-    boot: Option<String>,
+    boot: String,
 }
 
 fn parse_lease(text: &str) -> Option<Recorded> {
@@ -220,7 +220,7 @@ fn parse_lease(text: &str) -> Option<Recorded> {
         pgid: parts.next()?.parse().ok()?,
         namespace: parts.next()?.to_owned(),
         start: parts.next()?.to_owned(),
-        boot: parts.next().map(str::to_owned),
+        boot: parts.next()?.to_owned(),
     })
 }
 
@@ -256,10 +256,8 @@ fn verdict(recorded: &Recorded, now: &Observed) -> Verdict {
     if !now.group_alive || recorded.start == "-" {
         return Verdict::Drop;
     }
-    if let Some(boot) = &recorded.boot {
-        if boot != "-" && now.boot != "-" && *boot != now.boot {
-            return Verdict::Drop;
-        }
+    if recorded.boot != "-" && now.boot != "-" && recorded.boot != now.boot {
+        return Verdict::Drop;
     }
     if now.own.contains(&recorded.pgid) {
         return Verdict::Drop;

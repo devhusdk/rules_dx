@@ -83,7 +83,7 @@ fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
     let pgid = child.id() as i32;
-    let line = format!("{pgid} {} 1", sys::namespace());
+    let line = format!("{pgid} {} 1 {}", sys::namespace(), sys::boot_id());
     std::fs::write(dir.join("424245-0.lock"), format!("{line}\n")).expect("lease");
     let reaped = reap_in(&dir);
     let alive = group_alive(pgid);
@@ -297,7 +297,7 @@ fn recorded(start: &str) -> Recorded {
         pgid: 4000,
         namespace: "pid:[1]".to_owned(),
         start: start.to_owned(),
-        boot: Some("boot-a".to_owned()),
+        boot: "boot-a".to_owned(),
     }
 }
 
@@ -325,9 +325,6 @@ fn verdict_table() {
     let mut now = observed();
     now.boot = "boot-b".to_owned();
     assert_eq!(verdict(&ok, &now), Verdict::Drop);
-    let mut legacy = recorded("77");
-    legacy.boot = None;
-    assert_eq!(verdict(&legacy, &now), Verdict::Stop);
     let mut now = observed();
     now.own = vec![4000];
     assert_eq!(verdict(&ok, &now), Verdict::Drop);
@@ -358,7 +355,8 @@ fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
     let mut child = sleeper();
     let pgid = child.id() as i32;
     let path = dir.join("424250-0.lock");
-    std::fs::write(&path, format!("{pgid} {} -\n", sys::namespace())).expect("lease");
+    let line = format!("{pgid} {} - {}", sys::namespace(), sys::boot_id());
+    std::fs::write(&path, format!("{line}\n")).expect("lease");
     let reaped = reap_in(&dir);
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
@@ -391,18 +389,9 @@ fn a_lease_from_another_boot_is_dropped_without_a_signal() {
 }
 
 #[test]
-fn a_three_field_legacy_lease_still_stops_its_group() {
-    let scratch = dx_test_scratch::scratch("dx-groups-legacy-");
-    let dir = scratch.path().join("groups");
-    std::fs::create_dir_all(&dir).expect("dir");
-    let mut child = sleeper();
-    let pgid = child.id() as i32;
-    let line = lease_line(pgid).expect("line");
-    let legacy = line.rsplit_once(' ').expect("fields").0.to_owned();
-    std::fs::write(dir.join("424252-0.lock"), format!("{legacy}\n")).expect("lease");
-    let reaped = reap_in(&dir);
-    let _ = child.wait();
-    assert_eq!(reaped, vec![Reaped { pid: 424252, pgid }]);
+fn a_three_field_lease_is_unparseable() {
+    assert!(parse_lease("4242 pid:[1] 77").is_none());
+    assert!(parse_lease("4242 pid:[1] 77 boot-a").is_some());
 }
 
 #[test]

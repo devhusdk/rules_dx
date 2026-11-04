@@ -1,0 +1,11 @@
+diff --git a/private/erlang_xrl_yrl.bzl b/private/erlang_xrl_yrl.bzl
+--- a/private/erlang_xrl_yrl.bzl
++++ b/private/erlang_xrl_yrl.bzl
+@@ -35,6 +35,7 @@ def _impl(ctx):
+ 
+     script = """set -euo pipefail
+ 
++{maybe_install_erlang}
+ 
+ mkdir -p {out_dir}
+ 

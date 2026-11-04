@@ -355,7 +355,10 @@ def _erlang_impl(mctx):
             "private/BUILD.bazel": _PRIVATE_BUILD,
         },
         patches = [
-            Label("//patches/rules_erlang:hermetic_otp.patch"),
+            Label("//patches/rules_erlang:01_xrl_yrl.patch"),
+            Label("//patches/rules_erlang:02_tcw_tags.patch"),
+            Label("//patches/rules_erlang:03_auto_sname.patch"),
+            Label("//patches/rules_erlang:04_otp_tree.patch"),
             Label("//patches/rules_erlang:toolchain_type_alias.patch"),
         ],
         sha256 = RULES_ERLANG_SHA256,

@@ -1,0 +1,76 @@
+diff --git a/ct.bzl b/ct.bzl
+--- a/ct.bzl
++++ b/ct.bzl
+@@ -35,6 +35,7 @@ def ct_suite(
+         erlc_opts = DEFAULT_TEST_ERLC_OPTS,
+         deps = [],
+         runtime_deps = [],
++        target_compatible_with = None,
+         **kwargs):
+     if suite_name == "":
+         suite_name = name
+@@ -46,6 +47,7 @@ def ct_suite(
+         erlc_opts = erlc_opts,
+         dest = "test",
+         deps = [":test_erlang_app"] + deps,
++        target_compatible_with = target_compatible_with,
+         testonly = True,
+     )
+ 
+@@ -54,6 +56,7 @@ def ct_suite(
+         suite_name = suite_name,
+         deps = deps,
+         runtime_deps = runtime_deps,
++        target_compatible_with = target_compatible_with,
+         **kwargs
+     )
+ 
+diff --git a/erlang_app.bzl b/erlang_app.bzl
+--- a/erlang_app.bzl
++++ b/erlang_app.bzl
+@@ -50,7 +50,9 @@ def _erlang_app(
+         deps = [],
+         runtime_deps = [],
+         stamp = None,
++        target_compatible_with = None,
+         testonly = False,
++        tags = None,
+         # new attrs for gazelle extension
+         beam_files = None,
+         hdrs = None,
+@@ -114,6 +116,8 @@ def _erlang_app(
+             erlc_opts = erlc_opts,
+             dest = "ebin" if not test else "test",
+             deps = build_deps + deps,
++            target_compatible_with = target_compatible_with,
++            tags = tags,
+             testonly = test or testonly,
+         )
+ 
+@@ -136,6 +140,8 @@ def _erlang_app(
+                 deps = deps + runtime_deps,
+                 dest = "ebin",
+                 stamp = stamp,
++                target_compatible_with = target_compatible_with,
++                tags = tags,
+                 testonly = testonly,
+             )
+         app = ":app_file"
+@@ -150,6 +156,8 @@ def _erlang_app(
+                 name = "appup",
+                 src = "src/{}.appup".format(app_name),
+                 out = "ebin/{}.appup".format(app_name),
++                target_compatible_with = target_compatible_with,
++                tags = tags,
+             )
+         appup = ":appup"
+     else:
+@@ -178,6 +186,8 @@ def _erlang_app(
+         license_files = license_files,
+         srcs = srcs,
+         deps = deps + runtime_deps,
++        target_compatible_with = target_compatible_with,
++        tags = tags,
+         visibility = ["//visibility:public"],
+         testonly = test or testonly,
+     )

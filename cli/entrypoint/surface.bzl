@@ -5,7 +5,6 @@
 DEV_ONLY_REPOS = [
     "cosign",
     "dx_qt",
-    "dx_rustdoc",
     "dx_yard",
     "firefox",
     "googletest",

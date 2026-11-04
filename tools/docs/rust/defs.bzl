@@ -1,20 +1,12 @@
-"""Rust API reference shards built from pinned nightly rustdoc JSON."""
+"""Rust API reference shards built from stable rustdoc JSON."""
 
-load("@rules_rust//rust:defs.bzl", "rust_common", "rust_doc")
+load("@rules_rust//rust:defs.bzl", "rust_common")
+load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
+load("@rules_rust//rust/private:rustdoc.bzl", "rustdoc_compile_action")
+load("@rules_rust//rust/private:utils.bzl", "find_toolchain")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", _repo_relative = "repo_relative", _srcs_manifest_line = "srcs_manifest_line")
 
-_CHANNEL = str(Label("@rules_rust//rust/toolchain/channel"))
-
 _RUSTDOC_FLAGS = ["-Zunstable-options", "--output-format=json"]
-
-def _nightly_transition_impl(_settings, _attr):
-    return {_CHANNEL: "nightly"}
-
-_nightly_transition = transition(
-    implementation = _nightly_transition_impl,
-    inputs = [],
-    outputs = [_CHANNEL],
-)
 
 _GeneratedSrcsInfo = provider(
     doc = "Repo-relative paths of one crate's generated srcs.",
@@ -34,15 +26,40 @@ _generated_srcs_aspect = aspect(
     doc = "Collects the paths of generated crate srcs.",
 )
 
-def _single(value):
-    return value[0] if type(value) == "list" else value
+def _rustdoc_json(ctx, crate_info, lints_info, output_dir):
+    action = rustdoc_compile_action(
+        ctx = ctx,
+        toolchain = find_toolchain(ctx),
+        crate_info = crate_info,
+        lints_info = lints_info,
+        output = output_dir,
+        rustdoc_flags = ["--extern", "{}={}".format(crate_info.name, crate_info.output.path)] + _RUSTDOC_FLAGS,
+    )
+    ctx.actions.run(
+        mnemonic = "DxDocsRustdoc",
+        progress_message = "Generating rustdoc JSON for %{label}",
+        outputs = [output_dir],
+        executable = action.executable,
+        inputs = action.inputs,
+        env = dict(action.env, RUSTC_BOOTSTRAP = "1"),
+        arguments = action.arguments,
+        tools = action.tools,
+    )
 
-def _docs_rust_shard_impl(ctx):
-    doc = _single(ctx.attr.doc)
-    crate = _single(ctx.attr.crate)
-    crate_info = crate[rust_common.crate_info]
-    package = ctx.attr.package or crate_info.name
-    generated = {path: True for path in crate[_GeneratedSrcsInfo].paths}
+def rust_shard_action(ctx, target, package):
+    """Runs stable rustdoc JSON and the extractor for one Rust crate target.
+
+    Args:
+        ctx: The rule or aspect context; it needs the rustdoc_compile_action attributes and `_extract`.
+        target: The documented target, which carries a CrateInfo.
+        package: Package segment of the symbol ids; empty means the crate name.
+
+    Returns:
+        A struct with the DocIr `shard` file and the `outputs` OutputGroupInfo fields.
+    """
+    crate_info = target[rust_common.crate_info]
+    package = package or crate_info.name
+    generated = {path: True for path in target[_GeneratedSrcsInfo].paths}
     lines = []
     for src in crate_info.srcs.to_list():
         rel = repo_relative(src.short_path)
@@ -54,7 +71,8 @@ def _docs_rust_shard_impl(ctx):
             lines.append(srcs_manifest_line(out_dir.path + "/", repo_relative(out_dir.short_path) + "/", True))
     manifest = ctx.actions.declare_file(ctx.label.name + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted(lines)))
-    rustdoc_dir = doc[OutputGroupInfo].rustdoc_dir.to_list()[0]
+    rustdoc_dir = ctx.actions.declare_directory(ctx.label.name + ".rustdoc")
+    _rustdoc_json(ctx, crate_info, target[LintsInfo] if LintsInfo in target else None, rustdoc_dir)
     shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
     args = ctx.actions.args()
     args.add("--json", rustdoc_dir.path + "/" + crate_info.name + ".json")
@@ -70,38 +88,49 @@ def _docs_rust_shard_impl(ctx):
         mnemonic = "DxDocsRustExtract",
         progress_message = "Extracting Rust API docs for %{label}",
     )
+    return struct(
+        shard = shard,
+        package = package,
+        outputs = {"rustdoc_json": depset([rustdoc_dir]), "srcs_manifest": depset([manifest])},
+    )
+
+def _docs_rust_shard_impl(ctx):
+    result = rust_shard_action(ctx, ctx.attr.crate, ctx.attr.package)
     return [
-        DefaultInfo(files = depset([shard])),
-        OutputGroupInfo(rustdoc_json = depset([rustdoc_dir]), srcs_manifest = depset([manifest])),
-        DocsShardInfo(language = "rust", package = package, shard = shard),
+        DefaultInfo(files = depset([result.shard])),
+        OutputGroupInfo(**result.outputs),
+        DocsShardInfo(language = "rust", package = result.package, shard = result.shard),
     ]
 
 docs_rust_shard = rule(
-    doc = "Converts one crate's nightly rustdoc JSON into a DocIr shard.",
+    doc = "Converts one crate's rustdoc JSON into a DocIr shard.",
     implementation = _docs_rust_shard_impl,
     attrs = {
         "crate": attr.label(
             doc = "The documented Rust library.",
             aspects = [_generated_srcs_aspect],
-            cfg = _nightly_transition,
             mandatory = True,
             providers = [rust_common.crate_info],
         ),
-        "doc": attr.label(
-            doc = "The crate's JSON rust_doc target.",
-            cfg = _nightly_transition,
-            mandatory = True,
-        ),
+        "crate_features": attr.string_list(doc = "Features enabled when documenting the crate."),
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the crate name."),
-        "_allowlist_function_transition": attr.label(
-            default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
-        ),
+        "_error_format": attr.label(default = Label("@rules_rust//rust/settings:error_format")),
         "_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/rust/extract:rust_extract"),
             executable = True,
         ),
+        "_process_wrapper": attr.label(
+            default = Label("@rules_rust//util/process_wrapper"),
+            cfg = "exec",
+            executable = True,
+        ),
     },
+    fragments = ["cpp"],
+    toolchains = [
+        str(Label("@rules_rust//rust:toolchain_type")),
+        "@bazel_tools//tools/cpp:toolchain_type",
+    ],
     provides = [DocsShardInfo],
 )
 
@@ -121,19 +150,11 @@ def _local_features(crate):
     return []
 
 def rust_doc_shard(name, crate, package = "", crate_features = None, **kwargs):
-    """Declares a manual JSON rust_doc of one crate and its DocIr shard."""
-    rust_doc(
-        name = name + "_rustdoc",
-        crate = crate,
-        crate_features = _local_features(crate) if crate_features == None else crate_features,
-        rustdoc_flags = _RUSTDOC_FLAGS,
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
+    """Declares the DocIr shard of one crate built from stable rustdoc JSON."""
     docs_rust_shard(
         name = name,
         crate = crate,
-        doc = ":" + name + "_rustdoc",
+        crate_features = _local_features(crate) if crate_features == None else crate_features,
         package = package,
         **kwargs
     )

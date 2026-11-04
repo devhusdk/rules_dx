@@ -3,7 +3,7 @@
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_JAVA_LIBRARY_PROVIDES = [
@@ -49,8 +49,10 @@ _java_forward_test = dx_executable_forward_rule(
 )
 
 def java_javacopts_with_werror(kwargs):
-    """Returns kwargs with -Werror plus -Xlint:all enforced on javacopts."""
-    return dx_append_flags(kwargs, "javacopts", ["-Werror", "-Xlint:all"])
+    """Returns kwargs with -Xlint:all and, unless turned off, -Werror on javacopts."""
+    out, werror = dx_warnings_as_errors(kwargs, ["-Werror"])
+    out = dx_append_flags(out, "javacopts", ["-Xlint:all"])
+    return dx_append_flags(out, "javacopts", werror)
 
 def java_entry_class(name, srcs, package):
     """Returns the class java_* infers for the wrapper name, or None."""
@@ -94,14 +96,15 @@ def java_entry_kwargs(name, srcs, package, kwargs, attr):
 
 def java_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_library."""
-    dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = java_javacopts_with_werror(kwargs), **kwargs)
+    upstream_kwargs = java_javacopts_with_werror(kwargs)
+    dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_binary."""
     upstream_kwargs = java_entry_kwargs(name, srcs, native.package_name(), java_javacopts_with_werror(kwargs), "main_class")
-    dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
 def java_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test."""
     upstream_kwargs = java_entry_kwargs(name, srcs, native.package_name(), java_javacopts_with_werror(kwargs), "test_class")
-    dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))

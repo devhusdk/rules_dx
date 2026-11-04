@@ -498,6 +498,10 @@ def dx_warnings_as_errors(kwargs, on, off = []):
         })
     return out, (on if setting else off)
 
+def dx_without_warnings_attr(kwargs):
+    """Returns kwargs without treat_warnings_as_errors."""
+    return {key: value for key, value in kwargs.items() if key != "treat_warnings_as_errors"}
+
 def dx_setdefaults(kwargs, defaults):
     """Returns a copy of kwargs with each absent default key set."""
     out = dict(kwargs)

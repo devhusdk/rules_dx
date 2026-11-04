@@ -5,6 +5,8 @@ load(":defs.bzl", "java_entry_class", "java_entry_kwargs", "java_javacopts_with_
 
 package(default_visibility = ["//visibility:public"])
 
+_ON = {"treat_warnings_as_errors": True}
+
 exports_files([
     "defs.bzl",
 ])
@@ -14,15 +16,18 @@ dx_wrapper_contract_tests(
     extra_checks = [
         expect_equal(
             "empty gains werror and lint",
-            java_javacopts_with_werror({})["javacopts"],
+            java_javacopts_with_werror(_ON)["javacopts"],
             [
-                "-Werror",
                 "-Xlint:all",
+                "-Werror",
             ],
         ),
         expect_equal(
             "existing werror is kept without duplication",
-            java_javacopts_with_werror({"javacopts": ["-Werror"]})["javacopts"],
+            java_javacopts_with_werror(dict(
+                _ON,
+                javacopts = ["-Werror"],
+            ))["javacopts"],
             [
                 "-Werror",
                 "-Xlint:all",
@@ -30,7 +35,10 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "existing lint gains werror",
-            java_javacopts_with_werror({"javacopts": ["-Xlint:all"]})["javacopts"],
+            java_javacopts_with_werror(dict(
+                _ON,
+                javacopts = ["-Xlint:all"],
+            ))["javacopts"],
             [
                 "-Xlint:all",
                 "-Werror",
@@ -38,18 +46,34 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "both flags stay unchanged",
-            java_javacopts_with_werror({"javacopts": [
-                "-Werror",
-                "-Xlint:all",
-            ]})["javacopts"],
+            java_javacopts_with_werror(dict(
+                _ON,
+                javacopts = [
+                    "-Werror",
+                    "-Xlint:all",
+                ],
+            ))["javacopts"],
             [
                 "-Werror",
                 "-Xlint:all",
             ],
         ),
         expect_equal(
+            "turned off keeps lint without werror",
+            java_javacopts_with_werror({"treat_warnings_as_errors": False})["javacopts"],
+            ["-Xlint:all"],
+        ),
+        expect_equal(
+            "attribute is consumed",
+            java_javacopts_with_werror(_ON).get("treat_warnings_as_errors"),
+            None,
+        ),
+        expect_equal(
             "other kwargs survive",
-            java_javacopts_with_werror({"deps": [":hello_lib"]})["deps"],
+            java_javacopts_with_werror(dict(
+                _ON,
+                deps = [":hello_lib"],
+            ))["deps"],
             [":hello_lib"],
         ),
         expect_equal(
@@ -206,12 +230,12 @@ dx_wrapper_contract_tests(
                 "M",
                 ["src/main/java/hello/M.java"],
                 "java/x",
-                java_javacopts_with_werror({}),
+                java_javacopts_with_werror(_ON),
                 "main_class",
             )["javacopts"],
             [
-                "-Werror",
                 "-Xlint:all",
+                "-Werror",
             ],
         ),
     ],

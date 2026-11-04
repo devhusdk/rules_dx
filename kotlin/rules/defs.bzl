@@ -3,7 +3,7 @@
 load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -77,30 +77,41 @@ def _kotlin_werror_opts_impl(ctx):
         if field.startswith("to_"):
             continue
         fields[field] = getattr(info, field)
-    fields["warn"] = "error"
+    if ctx.attr.werror:
+        fields["warn"] = "error"
     return [KotlincOptions(**fields)]
 
-_kotlin_werror_opts = rule(
+kotlin_werror_opts = rule(
     implementation = _kotlin_werror_opts_impl,
-    doc = "Copies kotlinc options and forces warnings to errors.",
-    attrs = {"opts": attr.label(mandatory = True, providers = [KotlincOptions], doc = "User kotlinc options.")},
+    doc = "Copies kotlinc options and turns warnings into errors when werror is set.",
+    attrs = {
+        "opts": attr.label(default = "//kotlin/rules:base_opts", providers = [KotlincOptions], doc = "Kotlinc options to copy."),
+        "werror": attr.bool(doc = "Whether warnings are errors."),
+    },
     provides = [KotlincOptions],
 )
 
+def _kotlin_has_own_opts(kwargs):
+    return kwargs.get("kotlinc_opts") != None or kwargs.get("treat_warnings_as_errors") != None
+
 def kotlin_kotlinc_opts_with_werror(name, kwargs):
-    """Returns kwargs with kotlinc_opts routed through the warnings-as-errors default or wrapper."""
-    if kwargs.get("kotlinc_opts") == None:
-        out = dict(kwargs)
+    """Returns kwargs with kotlinc_opts routed through the shared default or a per-target options rule."""
+    out = dx_without_warnings_attr(kwargs)
+    if _kotlin_has_own_opts(kwargs):
+        out["kotlinc_opts"] = ":" + name + "_kotlinc_opts"
+    else:
         out["kotlinc_opts"] = str(Label("//kotlin/rules:warnings_as_errors"))
-        return out
-    return dict(kwargs, kotlinc_opts = ":" + name + "_kotlinc_opts")
+    return out
 
 def _kotlin_declare_werror_opts(name, kwargs):
-    """Declares the wrapper target when the user set kotlinc_opts."""
-    if kwargs.get("kotlinc_opts") == None:
+    """Declares the per-target options rule when kotlinc_opts or treat_warnings_as_errors is set."""
+    if not _kotlin_has_own_opts(kwargs):
         return
     extra = {key: kwargs[key] for key in ("tags", "testonly", "target_compatible_with") if kwargs.get(key) != None}
-    _kotlin_werror_opts(name = name + "_kotlinc_opts", opts = kwargs["kotlinc_opts"], visibility = ["//visibility:private"], **extra)
+    if kwargs.get("kotlinc_opts") != None:
+        extra["opts"] = kwargs["kotlinc_opts"]
+    _, werror = dx_warnings_as_errors(kwargs, True, False)
+    kotlin_werror_opts(name = name + "_kotlinc_opts", werror = werror, visibility = ["//visibility:private"], **extra)
 
 def kotlin_test_class(name, srcs, package):
     """Returns the test class kt_jvm_test infers for the wrapper name, or None."""
@@ -131,12 +142,12 @@ def kotlin_test_entry_kwargs(name, srcs, package, kwargs):
 def kotlin_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_library."""
     _kotlin_declare_werror_opts(name, kwargs)
-    dx_wrap(name, _kt_jvm_library, _kotlin_library_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_werror(name, kwargs), **kwargs)
+    dx_wrap(name, _kt_jvm_library, _kotlin_library_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_werror(name, kwargs), **dx_without_warnings_attr(kwargs))
 
 def kotlin_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_binary."""
     _kotlin_declare_werror_opts(name, kwargs)
-    dx_wrap_binary(name, _kt_jvm_binary, _kotlin_binary_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_werror(name, kwargs), **kwargs)
+    dx_wrap_binary(name, _kt_jvm_binary, _kotlin_binary_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_werror(name, kwargs), **dx_without_warnings_attr(kwargs))
 
 def kotlin_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_test."""
@@ -145,4 +156,4 @@ def kotlin_test(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = kotlin_test_entry_kwargs(name, srcs, package, kotlin_kotlinc_opts_with_werror(name, kwargs))
     if upstream_kwargs.get("test_class") in (None, "") and upstream_kwargs.get("main_class") in (None, ""):
         fail("kotlin_test //{}:{}: cannot infer test_class from srcs; set test_class.".format(package, name))
-    dx_wrap_test(name, _kt_jvm_test, _kotlin_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    dx_wrap_test(name, _kt_jvm_test, _kotlin_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))

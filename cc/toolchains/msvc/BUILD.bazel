@@ -1,9 +1,14 @@
 load("//cc/toolchains/msvc:tests.bzl", "msvc_toolchain_tests")
+load(":repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//cc/toolchains:__subpackages__"])
 
 msvc_toolchain_tests(name = "msvc")
+
+msvc_repos_tests(name = "msvc_repos")
+
+msvc_unavailable_tests(name = "msvc_unavailable")
 
 real_source_target(
     name = "corpus_starlark",
@@ -11,8 +16,11 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "layout.bzl",
+        "repos.bzl",
+        "repos_tests.bzl",
         "subject.bzl",
         "tests.bzl",
         "toolchain.bzl",
+        "unavailable.bzl",
     ],    tags = ["corpus"],
 )

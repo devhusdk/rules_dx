@@ -538,6 +538,23 @@ failure_test(
     target = ":consumer_os_runtime_files_stage",
 )
 
+consumer_archive(
+    name = "consumer_plain_native_runtime",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = ["libplain.so"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "consumer_plain_native_runtime_fails",
+    expected_failure_substring = "native library 'libplain.so' from",
+    target = ":consumer_plain_native_runtime_stage",
+)
+
 failure_test(
     name = "consumer_runtime_no_version_fails",
     expected_failure_substring = "version must not be empty",

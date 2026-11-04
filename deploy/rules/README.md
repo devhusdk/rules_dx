@@ -281,8 +281,10 @@ consumer_archive(
 - `os`: required. `linux`, `macos` or `windows`.
 - `min_runtime`: required. A non-empty requirement such as `glibc-2.34`.
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
-- `runtime`: files the app needs at run time, such as DLLs. Each lands at
-  the archive root under its basename, mode 0644. Defaults to `[]`.
+- `runtime`: files the app needs at run time. Each lands at the archive root
+  under its basename, mode 0644. Native libraries (`.dll`, `.dylib`, `.so` or
+  `.so.<n>`) must come through a `native_runtime` target; a plain file with
+  such a name fails the archive. Defaults to `[]`.
 - `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
   sit under a directory named after its target. Defaults to `[]`.

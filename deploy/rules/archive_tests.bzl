@@ -7,6 +7,7 @@ load(
     "consumer_identity_error",
     "consumer_identity_text",
     "consumer_resource_member",
+    "native_library_name",
 )
 
 def archive_unit_tests(name):
@@ -86,6 +87,46 @@ def consumer_archive_unit_tests(name):
                 "consumer_identity_text sorts the runtime lines",
                 consumer_identity_text("demo", "x86_64", "linux", "dynamic", "glibc-2.17", ["zlib 1.3 app_local", "libc 2.17 os_supplied"]),
                 "name: demo\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.17\nruntime: libc 2.17 os_supplied\nruntime: zlib 1.3 app_local\n",
+            ),
+            expect_equal(
+                "native_library_name accepts a Windows DLL",
+                native_library_name("vcruntime140.dll"),
+                True,
+            ),
+            expect_equal(
+                "native_library_name accepts a macOS dylib",
+                native_library_name("libz.dylib"),
+                True,
+            ),
+            expect_equal(
+                "native_library_name accepts a shared object",
+                native_library_name("libdemo.so"),
+                True,
+            ),
+            expect_equal(
+                "native_library_name accepts a versioned shared object",
+                native_library_name("libdemo.so.1.2"),
+                True,
+            ),
+            expect_equal(
+                "native_library_name rejects a plain text file",
+                native_library_name("consumer_runtime.txt"),
+                False,
+            ),
+            expect_equal(
+                "native_library_name rejects a name that only contains .so",
+                native_library_name("libso.txt"),
+                False,
+            ),
+            expect_equal(
+                "native_library_name rejects a bare .so.<n> suffix",
+                native_library_name(".so.1"),
+                False,
+            ),
+            expect_equal(
+                "native_library_name rejects a non-numeric version",
+                native_library_name("libdemo.so.beta"),
+                False,
             ),
             expect_equal(
                 "consumer_resource_member maps a top-level staged file",

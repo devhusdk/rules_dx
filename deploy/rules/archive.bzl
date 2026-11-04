@@ -179,6 +179,13 @@ def consumer_identity_text(name, arch, os, linkage, min_runtime, runtimes = []):
             "min_runtime: " + min_runtime + "\n" +
             "".join(["runtime: " + record + "\n" for record in sorted(runtimes)]))
 
+def native_library_name(basename):
+    """Returns True when basename is a native library: a .dll, .dylib, .so or .so.<n> file."""
+    if basename.endswith((".dll", ".dylib", ".so")):
+        return True
+    (stem, sep, version) = basename.rpartition(".so.")
+    return stem != "" and sep != "" and version.replace(".", "").isdigit()
+
 _ConsumerStageInfo = provider(
     doc = "Staged consumer archive members.",
     fields = {
@@ -240,6 +247,11 @@ def _consumer_stage_impl(ctx):
             if len(files) == 0:
                 fail("consumer_archive " + str(ctx.label) + ": " +
                      display_label(target.label) + " provides no files")
+            for src in files:
+                if native_library_name(src.basename):
+                    fail("consumer_archive " + str(ctx.label) + ": native library '" +
+                         src.basename + "' from " + display_label(target.label) +
+                         " needs native_runtime metadata (version, source, notice)")
         for src in files:
             if src.basename in members:
                 fail("consumer_archive " + str(ctx.label) + ": duplicate member '" +

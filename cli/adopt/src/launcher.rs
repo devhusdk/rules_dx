@@ -490,21 +490,16 @@ pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
-    let (first, second, marker, legacy) = match rel {
-        LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/version", "VERSION=\""),
-        LAUNCHER_CMD_REL => (
-            "@echo off",
-            "setlocal",
-            "set \"DX_PINS=.dx\\version\"",
-            "set \"VERSION=",
-        ),
+    let (first, second, marker) = match rel {
+        LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/version"),
+        LAUNCHER_CMD_REL => ("@echo off", "setlocal", "set \"DX_PINS=.dx\\version\""),
         _ => return None,
     };
     if lines.next()? != first || lines.next()? != second {
         return None;
     }
     let third = lines.next()?;
-    if third != marker && !third.starts_with(legacy) {
+    if third != marker {
         return None;
     }
     if text == static_launcher(rel) {
@@ -584,10 +579,6 @@ mod tests {
 
     fn cmd() -> String {
         render_launcher_cmd()
-    }
-
-    fn legacy_sh(version: &str) -> String {
-        format!("#!/bin/sh\nset -eu\nVERSION=\"{version}\"\nexit 0\n")
     }
 
     const MANIFEST: &str =
@@ -871,9 +862,9 @@ mod tests {
         std::fs::write(dir.path().join(LAUNCHER_SH_REL), "custom\n").expect("edit");
         std::fs::write(
             dir.path().join(LAUNCHER_CMD_REL),
-            "@echo off\r\nsetlocal\r\nset \"VERSION=1.2.3\"\r\n",
+            format!("{}rem edited\r\n", cmd()),
         )
-        .expect("legacy");
+        .expect("edit");
         let second =
             crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("syncs");
         assert_eq!(second, vec!["tools/dx.cmd", "refused:tools/dx"]);
@@ -897,12 +888,16 @@ mod tests {
     }
 
     #[test]
-    fn a_legacy_launcher_is_stale_then_rewritten() {
+    fn an_edited_launcher_is_stale_then_rewritten() {
         let dir = dx_test_scratch::scratch("dx-launcher-refresh-");
         assert!(refresh_launcher_files(dir.path()).expect("none").is_empty());
         assert!(!dir.path().join(LAUNCHER_SH_REL).exists());
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        std::fs::write(dir.path().join(LAUNCHER_SH_REL), legacy_sh("1.2.3")).expect("seed");
+        std::fs::write(
+            dir.path().join(LAUNCHER_SH_REL),
+            format!("{}# edited\n", render_launcher_sh()),
+        )
+        .expect("seed");
         assert_eq!(
             launcher_state(dir.path(), LAUNCHER_SH_REL),
             Some(LauncherState::Stale)

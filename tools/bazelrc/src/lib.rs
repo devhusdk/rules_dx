@@ -282,12 +282,20 @@ pub fn render_all(repo: &str) -> String {
 
 /// The root `.bazelrc` line that imports `layer` from `dir`.
 pub fn import_line(dir: &str, layer: Layer) -> String {
-    let keyword = if dir == CONSUMER_DIR {
+    format!(
+        "{} %workspace%/{dir}/{}",
+        import_verb(dir),
+        layer.file_name()
+    )
+}
+
+/// The rc keyword that imports layers from `dir`.
+fn import_verb(dir: &str) -> &'static str {
+    if dir == CONSUMER_DIR {
         "try-import"
     } else {
         "import"
-    };
-    format!("{keyword} %workspace%/{dir}/{}", layer.file_name())
+    }
 }
 
 /// The comment `prepend_imports` writes above the import block.
@@ -332,37 +340,6 @@ pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
         out.push_str(rest);
     }
     out
-}
-
-/// Rewrites each active `import` of a layer under `dir` to `try-import`, or returns `None` when there is none.
-///
-/// Every other byte of `text` stays as it is.
-pub fn migrate_layer_imports(text: &str, dir: &str) -> Option<String> {
-    let layers: Vec<String> = Layer::ALL
-        .iter()
-        .map(|layer| format!("{dir}/{}", layer.file_name()))
-        .collect();
-    let mut out = String::with_capacity(text.len() + 16);
-    let mut changed = false;
-    for raw in text.split_inclusive('\n') {
-        let body = raw.trim_start_matches('\u{feff}');
-        let indent = body.len() - body.trim_start().len();
-        let rest = &body[indent..];
-        let is_legacy = rest.strip_prefix("import").is_some_and(|after| {
-            after.starts_with([' ', '\t'])
-                && workspace_import(rest.trim()).is_some_and(|rel| layers.contains(&rel))
-        });
-        if is_legacy {
-            let at = raw.len() - rest.len();
-            out.push_str(&raw[..at]);
-            out.push_str("try-");
-            out.push_str(rest);
-            changed = true;
-        } else {
-            out.push_str(raw);
-        }
-    }
-    changed.then_some(out)
 }
 
 /// How a root `.bazelrc` refers to one layer.
@@ -428,6 +405,9 @@ pub fn layer_import_state(text: &str, dir: &str) -> [(Layer, ImportState); 3] {
             Some(body) => (body.trim(), &mut commented),
             None => (line, &mut active),
         };
+        if body.split_whitespace().next() != Some(import_verb(dir)) {
+            continue;
+        }
         if let Some(target) = workspace_import(body) {
             set.insert(target);
         }
@@ -577,12 +557,10 @@ fn require_source_and_no_collisions(workspace: &Path) -> Result<(), PresetError>
             detail: "source directory not found".to_owned(),
         });
     }
-    let collisions =
-        read_collisions(&workspace.join(".bazelrc"), &render_all(DEFAULT_REPO)).map_err(|error| {
-            PresetError::Unwritable {
-                path: ".bazelrc".to_owned(),
-                detail: error.to_string(),
-            }
+    let collisions = read_collisions(&workspace.join(".bazelrc"), &render_all(DEFAULT_REPO))
+        .map_err(|error| PresetError::Unwritable {
+            path: ".bazelrc".to_owned(),
+            detail: error.to_string(),
         })?;
     if collisions.is_empty() {
         Ok(())
@@ -641,15 +619,6 @@ mod tests {
     }
 
     #[test]
-    fn migrate_layer_imports_changes_only_layer_import_lines() {
-        let text = "\u{feff}import %workspace%/.dx/bazelrc/correctness.bazelrc\r\n  import \"%workspace%/.dx/bazelrc/resources.bazelrc\"\r\n# import %workspace%/.dx/bazelrc/performance.bazelrc\r\nimport %workspace%/mine.bazelrc\r\nbuild --x";
-        let want = "\u{feff}try-import %workspace%/.dx/bazelrc/correctness.bazelrc\r\n  try-import \"%workspace%/.dx/bazelrc/resources.bazelrc\"\r\n# import %workspace%/.dx/bazelrc/performance.bazelrc\r\nimport %workspace%/mine.bazelrc\r\nbuild --x";
-        let out = migrate_layer_imports(text, CONSUMER_DIR).expect("changed");
-        assert_eq!(out, want);
-        assert_eq!(migrate_layer_imports(&out, CONSUMER_DIR), None);
-    }
-
-    #[test]
     fn prepend_imports_keeps_bom_eol_and_rest() {
         let all = Layer::ALL;
         let crlf = prepend_imports("\u{feff}build --x\r\n", CONSUMER_DIR, &all);
@@ -671,9 +640,21 @@ mod tests {
             let text = render_layer(layer, DEFAULT_REPO);
             assert!(is_generated(&text));
             assert!(layer_is_current(&text, layer, DEFAULT_REPO));
-            assert!(layer_is_current(&text.replace('\n', "\r\n"), layer, DEFAULT_REPO));
-            assert!(layer_is_current(&format!("\u{feff}{text}"), layer, DEFAULT_REPO));
-            assert!(!layer_is_current(&format!("{text}x\n"), layer, DEFAULT_REPO));
+            assert!(layer_is_current(
+                &text.replace('\n', "\r\n"),
+                layer,
+                DEFAULT_REPO
+            ));
+            assert!(layer_is_current(
+                &format!("\u{feff}{text}"),
+                layer,
+                DEFAULT_REPO
+            ));
+            assert!(!layer_is_current(
+                &format!("{text}x\n"),
+                layer,
+                DEFAULT_REPO
+            ));
         }
         assert!(!is_generated("build --x\n"));
     }
@@ -832,7 +813,9 @@ mod tests {
         }
         assert_eq!(
             render_all(DEFAULT_REPO),
-            Layer::ALL.map(|layer| render_layer(layer, DEFAULT_REPO)).concat(),
+            Layer::ALL
+                .map(|layer| render_layer(layer, DEFAULT_REPO))
+                .concat(),
             "render_all keeps import order"
         );
     }
@@ -881,7 +864,7 @@ mod tests {
                 (Layer::Resources, ImportState::Absent),
             ]
         );
-        let continued = "import \\\n%workspace%/.dx/bazelrc/resources.bazelrc\n";
+        let continued = "try-import \\\n%workspace%/.dx/bazelrc/resources.bazelrc\n";
         assert_eq!(
             layer_import_state(continued, CONSUMER_DIR)[2],
             (Layer::Resources, ImportState::Active)
@@ -889,6 +872,18 @@ mod tests {
         assert!(layer_import_state(&lines.join("\n"), REPO_DIR)
             .iter()
             .all(|(_, state)| *state == ImportState::Absent));
+        let plain = "import %workspace%/.dx/bazelrc/resources.bazelrc\n";
+        assert_eq!(
+            layer_import_state(plain, CONSUMER_DIR)[2].1,
+            ImportState::Absent
+        );
+        let repo: Vec<String> = Layer::ALL
+            .iter()
+            .map(|layer| import_line(REPO_DIR, *layer))
+            .collect();
+        assert!(layer_import_state(&repo.join("\n"), REPO_DIR)
+            .iter()
+            .all(|(_, state)| *state == ImportState::Active));
         let both = format!("# {}\n{}\n", lines[2], lines[2]);
         assert_eq!(
             layer_import_state(&both, CONSUMER_DIR)[2].1,

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AdoptError;
 use crate::preset_fragment::{
-    bazelrc_imports, is_generated, layer_import_state, layer_is_current, migrate_layer_imports,
+    bazelrc_imports, is_generated, layer_import_state, layer_is_current,
     owned_collisions_in_content, prepend_imports, render_all, render_layer, ImportState, Layer,
     CONSUMER_DIR, REPO_DIR,
 };
@@ -53,10 +53,8 @@ pub struct PresetState {
     pub rc_text: String,
     pub rc_exists: bool,
     pub rc_symlink: bool,
-    /// The `.bazelrc` text with old `import` layer lines changed to `try-import`, when any exist.
-    pub migrated_rc: Option<String>,
     /// The `.gitignore` text with the layers line added, when the file exists and lacks it.
-    pub migrated_ignore: Option<String>,
+    pub ignore_text: Option<String>,
     /// Owned preset lines the root `.bazelrc` repeats.
     pub collisions: Vec<String>,
     pub layers: Vec<(Layer, ImportState, LayerFile)>,
@@ -68,16 +66,6 @@ impl PresetState {
         self.layers
             .iter()
             .all(|(_, import, _)| *import == ImportState::Absent)
-    }
-
-    /// Whether apply would change old `import` lines to `try-import`.
-    pub fn will_migrate_rc(&self) -> bool {
-        self.applicable && !self.rc_symlink && self.migrated_rc.is_some()
-    }
-
-    /// Whether apply would add the layers line to `.gitignore`.
-    pub fn will_migrate_ignore(&self) -> bool {
-        self.applicable && self.migrated_ignore.is_some() && (!self.unwired() || self.will_import())
     }
 
     /// Whether apply would add the import block.
@@ -242,8 +230,7 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     let applicable = !bazelrc_imports(&rc_text)
         .iter()
         .any(|rel| rel.starts_with(&repo_prefix));
-    let migrated_rc = migrate_layer_imports(&rc_text, CONSUMER_DIR);
-    let migrated_ignore = ignore_with_layers(read_text(&root.join(GITIGNORE), GITIGNORE)?);
+    let ignore_text = ignore_with_layers(read_text(&root.join(GITIGNORE), GITIGNORE)?);
     let repo = dx_module_bazel::rules_dx_repo(root);
     let layers = layer_import_state(&rc_text, CONSUMER_DIR)
         .into_iter()
@@ -255,8 +242,7 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
         rc_text,
         rc_exists,
         rc_symlink,
-        migrated_rc,
-        migrated_ignore,
+        ignore_text,
         layers,
     })
 }
@@ -345,13 +331,10 @@ pub fn write_preset(
         let text = prepend_imports(&state.rc_text, CONSUMER_DIR, &Layer::ALL);
         write(root, BAZELRC, &text)?;
         applied.wrote.push(BAZELRC.to_owned());
-    } else if let (true, Some(text)) = (state.will_migrate_rc(), &state.migrated_rc) {
-        write(root, BAZELRC, text)?;
-        applied.wrote.push(BAZELRC.to_owned());
-    }
-    if let (true, Some(text)) = (state.will_migrate_ignore(), &state.migrated_ignore) {
-        write(root, GITIGNORE, text)?;
-        applied.wrote.push(GITIGNORE.to_owned());
+        if let Some(text) = &state.ignore_text {
+            write(root, GITIGNORE, text)?;
+            applied.wrote.push(GITIGNORE.to_owned());
+        }
     }
     if layers_tracked(root) {
         notes.push(tracked_note());
@@ -421,11 +404,9 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
         } else {
             drift.missing.push(BAZELRC.to_owned());
         }
-    } else if state.will_migrate_rc() {
-        drift.stale.push(BAZELRC.to_owned());
-    }
-    if state.will_migrate_ignore() {
-        drift.stale.push(GITIGNORE.to_owned());
+        if state.ignore_text.is_some() {
+            drift.stale.push(GITIGNORE.to_owned());
+        }
     }
     if layers_tracked(root) {
         drift.other.push(tracked_note());
@@ -616,25 +597,16 @@ mod tests {
     }
 
     #[test]
-    fn old_layout_moves_in_one_apply_and_keeps_user_lines() {
-        let scratch = dx_test_scratch::scratch("dx-preset-old-");
+    fn wiring_appends_the_layers_ignore_line() {
+        let scratch = dx_test_scratch::scratch("dx-preset-ignore-");
         let root = scratch.path();
-        apply(root);
-        let old: String = Layer::ALL
-            .iter()
-            .map(|layer| format!("import %workspace%/{CONSUMER_DIR}/{}\n", layer.file_name()))
-            .collect();
-        std::fs::write(root.join(".bazelrc"), format!("{old}build --jobs=2\n")).expect("rc");
+        std::fs::write(root.join(".bazelrc"), "build --jobs=2\n").expect("rc");
         std::fs::write(root.join(".gitignore"), "target/\nmine.log").expect("ignore");
-        let drift = preset_drift(root);
-        assert_eq!(drift.stale, vec![BAZELRC, GITIGNORE]);
+        assert_eq!(preset_drift(root).stale, vec![BAZELRC, GITIGNORE]);
         let (wrote, _) = apply(root);
-        assert_eq!(wrote, vec![BAZELRC, GITIGNORE]);
-        let rc = std::fs::read_to_string(root.join(".bazelrc")).expect("rc");
-        assert_eq!(
-            rc,
-            format!("{}build --jobs=2\n", old.replace("import", "try-import"))
-        );
+        let mut want: Vec<String> = Layer::ALL.iter().map(|layer| layer_rel(*layer)).collect();
+        want.extend([BAZELRC.to_owned(), GITIGNORE.to_owned()]);
+        assert_eq!(wrote, want);
         let ignore = std::fs::read_to_string(root.join(".gitignore")).expect("ignore");
         assert_eq!(ignore, "target/\nmine.log\n/.dx/bazelrc/\n");
         assert_eq!(preset_drift(root), PresetDrift::default());

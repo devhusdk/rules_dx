@@ -130,7 +130,7 @@ match the running dx.
 | `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | you | Written in a fresh directory only. |
 | `MODULE.bazel.snippet` | you | Written when missing. Never rewritten. |
-| `.gitignore` | you | Written when missing. An existing file gets `/.dx/bazelrc/` appended when no line covers it. |
+| `.gitignore` | you | Written when missing. An existing file gets `/.dx/bazelrc/` appended when dx adds the imports and no line covers it. |
 | `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow and `rules_dx_version` are updated. A file without `rules_dx_version` is left untouched. |
@@ -329,12 +329,8 @@ Plain `bazel` skips layers that do not exist.
   out all three drops the preset; the files may then be deleted. Imports are added
   only when no line, active or commented, names a `.dx/bazelrc` layer. If some
   are present and one is missing, check mode reports it and apply prints a note.
-- A workspace set up before the layers were generated keeps working. Apply changes
-  each active `import %workspace%/.dx/bazelrc/<layer>.bazelrc` line to `try-import`,
-  leaving every other byte as it is, and adds `/.dx/bazelrc/` to an existing
-  `.gitignore` that lacks a line covering it. Check mode reports `.bazelrc` and
-  `.gitignore` as stale. If git lists files under `.dx/bazelrc`, both modes print a
-  note to run `git rm --cached -r .dx/bazelrc`; dx never runs it.
+- If git lists files under `.dx/bazelrc`, both modes print a note to run
+  `git rm --cached -r .dx/bazelrc`; dx never runs it.
 - If the root `.bazelrc` repeats lines the preset owns, or is a symlink, apply
   prints a note and adds no imports.
 - Warnings are errors by default in the rules_dx wrappers. Add

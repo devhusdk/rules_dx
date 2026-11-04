@@ -17,6 +17,12 @@ MINGW* | MSYS* | CYGWIN*)
   export MSYS2_ARG_CONV_EXCL
   ;;
 esac
+if [ "$os" = linux ] && [ -z "${MALLOC_ARENA_MAX+x}" ]; then
+  case ${GLIBC_TUNABLES:-} in
+  *glibc.malloc.arena_max*) ;;
+  *) MALLOC_ARENA_MAX=2 && export MALLOC_ARENA_MAX ;;
+  esac
+fi
 source_checkout() {
   [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2>/dev/null
 }

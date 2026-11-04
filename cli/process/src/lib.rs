@@ -249,6 +249,20 @@ pub fn is_ci() -> bool {
     is_ci_value(std::env::var("CI").ok().as_deref())
 }
 
+pub fn bazel_env_defaults(
+    get: &dyn Fn(&str) -> Option<std::ffi::OsString>,
+    linux: bool,
+) -> Vec<(&'static str, &'static str)> {
+    let tunables = get("GLIBC_TUNABLES")
+        .map(|value| value.to_string_lossy().contains("glibc.malloc.arena_max"))
+        .unwrap_or(false);
+    if linux && get("MALLOC_ARENA_MAX").is_none() && !tunables {
+        vec![("MALLOC_ARENA_MAX", "2")]
+    } else {
+        Vec::new()
+    }
+}
+
 pub fn launcher_argv0() -> &'static str {
     "bazel"
 }

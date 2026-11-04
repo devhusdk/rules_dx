@@ -156,6 +156,12 @@ fn usage_error(
 }
 
 fn main() {
+    // Must run before any thread starts: set_var is not thread safe.
+    for (key, value) in
+        dx_process::bazel_env_defaults(&|name| std::env::var_os(name), cfg!(target_os = "linux"))
+    {
+        std::env::set_var(key, value);
+    }
     install_forwarding();
     dx_cli::exec::install_panic_hint();
     let code = run();

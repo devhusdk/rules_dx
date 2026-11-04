@@ -819,6 +819,29 @@ fn dx_exit_codes_are_frozen() {
     assert_eq!(pre_exec_code(), 2);
 }
 
+fn arena_defaults(vars: &[(&str, &str)], linux: bool) -> Vec<(&'static str, &'static str)> {
+    let get = |name: &str| {
+        vars.iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| std::ffi::OsString::from(value))
+    };
+    bazel_env_defaults(&get, linux)
+}
+
+#[test]
+fn bazel_env_defaults_sets_arena_max_only_when_free() {
+    let default = vec![("MALLOC_ARENA_MAX", "2")];
+    assert_eq!(arena_defaults(&[], true), default);
+    assert!(arena_defaults(&[("MALLOC_ARENA_MAX", "8")], true).is_empty());
+    assert!(arena_defaults(&[("MALLOC_ARENA_MAX", "")], true).is_empty());
+    assert!(arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.arena_max=4")], true).is_empty());
+    assert_eq!(
+        arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.tcache_count=0")], true),
+        default
+    );
+    assert!(arena_defaults(&[], false).is_empty());
+}
+
 #[test]
 fn ci_gate_matrix_is_single_sourced() {
     assert!(is_ci_value(Some("true")));

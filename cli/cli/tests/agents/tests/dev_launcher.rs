@@ -541,6 +541,31 @@ mod sh {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn source_launcher_defaults_malloc_arena_max_on_linux() {
+        let cases: [(&[(&str, &str)], &str); 3] = [
+            (&[], "ran status 2\n"),
+            (&[("MALLOC_ARENA_MAX", "8")], "ran status 8\n"),
+            (
+                &[("GLIBC_TUNABLES", "glibc.malloc.arena_max=4")],
+                "ran status unset\n",
+            ),
+        ];
+        for (env, want) in cases {
+            let repo = source_repo("arena-max");
+            std::fs::write(
+                repo.base.join("payload"),
+                "#!/bin/sh\necho ran \"$@\" ${MALLOC_ARENA_MAX-unset}\n",
+            )
+            .expect("payload");
+            let mut cmd = repo.command();
+            cmd.envs(env.iter().copied());
+            let out = spawn(&mut cmd).wait_with_output().expect("launcher runs");
+            assert_eq!(String::from_utf8_lossy(&out.stdout), want, "{env:?}");
+        }
+    }
+
     #[test]
     fn source_launcher_runs_the_previous_dx_when_dx_does_not_build() {
         let repo = source_repo("dx-launcher-fallback-");

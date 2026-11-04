@@ -505,6 +505,7 @@ default off.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
 - `DX_BUILD_SLOTS=auto|<n>|off`: default for `--build-slots`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
+- `MALLOC_ARENA_MAX=<n>`: dx and `tools/dx` set it to `2` on Linux when it and the `GLIBC_TUNABLES` `glibc.malloc.arena_max` tunable are unset, to cut Bazel server native memory. A running server keeps its environment until it restarts. Under `bazel run @rules_dx//:dx` the outer Bazel starts the server, so the default does not reach it.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
 - `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.
 

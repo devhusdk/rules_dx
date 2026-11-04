@@ -30,12 +30,24 @@ def _first(value):
 def _is_ts_project(attrs):
     return hasattr(attrs, "tsc") and hasattr(attrs, "_options") and hasattr(attrs, "tsconfig")
 
+def _js_launcher(ctx, has_astro, has_svelte, has_vue, has_mdx):
+    for present, launcher in [
+        (has_astro, ctx.executable._astro_tsc),
+        (has_svelte, ctx.executable._svelte_tsc),
+        (has_vue, ctx.executable._vue_tsc),
+        (has_mdx, ctx.executable._mdx_tsc),
+    ]:
+        if present:
+            return launcher
+    return ctx.executable._tsc
+
 def _tsc_js_impl(target, ctx):
     """Type-checks a js_library's JavaScript sources with checkJs through a generated tsconfig."""
-    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "mdx", "svelte", "vue")]
+    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "astro", "mdx", "svelte", "vue")]
     has_mdx = any([f.extension == "mdx" for f in sources])
     has_vue = any([f.extension == "vue" for f in sources])
     has_svelte = any([f.extension == "svelte" for f in sources])
+    has_astro = any([f.extension == "astro" for f in sources])
     if len(sources) == 0:
         return []
     tsconfig = ctx.actions.declare_file("dx_tsc/%s.tsconfig.json" % target.label.name)
@@ -69,8 +81,8 @@ def _tsc_js_impl(target, ctx):
         ctx,
         mnemonic = "TscDiagnostics",
         progress_message = "tsc diagnostics (js) %{label}",
-        executable = ctx.executable._svelte_tsc if has_svelte else (ctx.executable._vue_tsc if has_vue else (ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc)),
-        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + ([target[JsInfo].npm_sources] if has_vue or has_svelte else [])),
+        executable = _js_launcher(ctx, has_astro, has_svelte, has_vue, has_mdx),
+        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + ([target[JsInfo].npm_sources] if has_vue or has_svelte or has_astro else [])),
         outputs = [stdout, status],
         arguments = [args],
         env = {
@@ -133,6 +145,11 @@ tsc_aspect = aspect(
     doc = "Runs the project's own tsc with --noEmit over a typescript_project and records stdout and the exit code without failing the build.",
     attr_aspects = ["upstream"],
     attrs = {
+        "_astro_tsc": attr.label(
+            default = "//quality/tools/javascript/bin:astro_tsc",
+            executable = True,
+            cfg = "exec",
+        ),
         "_mdx_tsc": attr.label(
             default = "//quality/tools/javascript/bin:mdx_tsc",
             executable = True,

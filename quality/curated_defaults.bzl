@@ -6,7 +6,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["prettier"],
         "lint": [],
-        "typecheck": [],
+        "typecheck": ["tsc"],
     },
     "bicep": {
         "audit": [],

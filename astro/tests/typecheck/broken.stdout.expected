@@ -1,0 +1,2 @@
+astro/tests/typecheck/broken.astro(5,2): error TS17008: HTML element 'div' has no corresponding closing tag.
+astro/tests/typecheck/broken.astro(6,1): error astro/astro: Expected a closing tag but instead found the end of the file.

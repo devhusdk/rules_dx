@@ -69,6 +69,16 @@ js_binary(
 )
 
 js_binary(
+    name = "astro_tsc",
+    data = [
+        "//quality/tools/javascript:node_modules/@astrojs/language-server",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "astro_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_binary(
     name = "svelte_tsc",
     data = [
         "//quality/tools/javascript:node_modules/svelte",

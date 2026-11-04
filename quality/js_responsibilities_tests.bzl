@@ -105,9 +105,9 @@ def js_responsibilities_unit_tests(name):
                 [],
             ),
             expect_equal(
-                "astro is formatted by prettier and linted by eslint only",
-                [_claimants("format", "astro"), _claimants("lint", "astro")],
-                [["prettier"], ["eslint"]],
+                "astro is formatted by prettier, linted by eslint, and typechecked by tsc",
+                [_claimants("format", "astro"), _claimants("lint", "astro"), _claimants("typecheck", "astro")],
+                [["prettier"], ["eslint"], ["tsc"]],
             ),
             expect_equal(
                 "mdx is formatted by remark, linted by eslint, and typechecked by tsc",

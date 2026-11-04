@@ -40,6 +40,7 @@ fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, P
     let code = rule
         .strip_prefix("TS")
         .or_else(|| rule.strip_prefix("svelte/"))
+        .or_else(|| rule.strip_prefix("astro/"))
         .unwrap_or_default();
     let (Ok(line_no), Ok(column)) = (line_text.parse::<u64>(), column_text.parse::<u64>()) else {
         return Err(malformed(tool, line));
@@ -242,6 +243,21 @@ mod tests {
         let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.vue"]).expect("parsed");
         assert_eq!(found[0].file, "app/App.vue");
         assert_eq!(found[0].finding.start, TextPosition { line: 3, column: 5 });
+    }
+
+    #[test]
+    fn an_astro_diagnostic_keeps_its_astro_position() {
+        let line = "app/App.astro(3,5): error TS2322: Type 'string' is not assignable.\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.astro"]).expect("parsed");
+        assert_eq!(found[0].file, "app/App.astro");
+        assert_eq!(found[0].finding.start, TextPosition { line: 3, column: 5 });
+    }
+
+    #[test]
+    fn an_astro_parse_error_has_an_astro_rule() {
+        let line = "app/App.astro(6,1): error astro/astro: Expected a closing tag\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.astro"]).expect("parsed");
+        assert_eq!(found[0].finding.rule_id, "astro/astro");
     }
 
     #[test]

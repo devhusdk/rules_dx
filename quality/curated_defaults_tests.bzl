@@ -74,13 +74,13 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "astro curated defaults stay Prettier format only",
+                "astro curated defaults are Prettier format and tsc typecheck",
                 CURATED_DEFAULTS["astro"],
                 {
                     "audit": [],
                     "format": ["prettier"],
                     "lint": [],
-                    "typecheck": [],
+                    "typecheck": ["tsc"],
                 },
             ),
             expect_equal(

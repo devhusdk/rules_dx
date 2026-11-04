@@ -230,7 +230,7 @@ workspace_policy(
 
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
-| `astro` | `prettier` | disabled | disabled |
+| `astro` | `prettier` | disabled | `tsc` |
 | `cc` | `clang_format` | disabled | disabled |
 | `dockerfile` | disabled | `hadolint` | disabled |
 | `go` | `gofumpt` | disabled | `gotype` |
@@ -372,7 +372,7 @@ to.
 | `tflint` | lint | terraform |
 | `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
-| `tsc` | typecheck | javascript, jsx, mdx, svelte, tsx, typescript, vue |
+| `tsc` | typecheck | astro, javascript, jsx, mdx, svelte, tsx, typescript, vue |
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
@@ -3163,8 +3163,8 @@ A check never writes. `--apply` rewrites only the files the selected targets
 own. The frontmatter, template, style and script blocks are all formatted. An
 unformatted file is reported at the start of the file. A syntax error fails the
 run with the file, line and column. It never counts as clean. `.prettierrc`,
-`.editorconfig` and other user config files are ignored. `astro check` and
-`astro build` are not run.
+`.editorconfig` and other user config files are ignored. `tsc` typechecks `.astro`
+with `@astrojs/language-server` 2.17.3. `astro build` is not run by `dx check`.
 
 `eslint` lint is opt-in. Select it in the `astro` family and bind an
 `eslint_config` to the library with `aspect_hints`.
@@ -3215,7 +3215,8 @@ run. It never counts as clean.
 #### Building and checking an app
 
 `astro_build` and `astro_check` are Bazel targets. They run the `astro` and
-`@astrojs/check` from your own `node_modules`. `dx check` does not run them.
+`@astrojs/check` from your own `node_modules`. `dx check` does not run them; it
+typechecks `.astro` files itself.
 
 ```python
 load("@rules_dx//astro/rules:defs.bzl", "astro_build", "astro_check")

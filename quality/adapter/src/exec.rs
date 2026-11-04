@@ -1,6 +1,5 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
 use dx_process::lifecycle::{CapturePolicy, ChildOutcome, Descendants, EnvPolicy, SpawnSpec};
-use normpath::BasePathBuf;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::io;
@@ -84,25 +83,14 @@ impl Scratch {
                 format!("mirror path contains backslash: {}", rel.display()),
             ));
         }
-        let mut absolute = BasePathBuf::new(root.to_owned()).map_err(|error| {
-            io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("scratch root is not a base path: {error}"),
-            )
-        })?;
+        let mut absolute = root.to_path_buf();
         for component in rel.components() {
             use std::path::Component::{CurDir, Normal, ParentDir, Prefix, RootDir};
             match component {
                 Normal(part) => absolute.push(part),
                 CurDir => {}
                 ParentDir => {
-                    if absolute.pop().is_err() {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidInput,
-                            format!("mirror path escapes scratch: {}", rel.display()),
-                        ));
-                    }
-                    if absolute.as_path() != root && !absolute.starts_with(root) {
+                    if !absolute.pop() || !absolute.starts_with(root) {
                         return Err(io::Error::new(
                             io::ErrorKind::InvalidInput,
                             format!("mirror path escapes scratch: {}", rel.display()),
@@ -117,13 +105,13 @@ impl Scratch {
                 }
             }
         }
-        if absolute.as_path() != root && !absolute.starts_with(root) {
+        if !absolute.starts_with(root) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("mirror path escapes scratch: {}", rel.display()),
             ));
         }
-        Ok(absolute.into_path_buf())
+        Ok(absolute)
     }
 
     pub fn materialize(&self, files: &[MirrorFile]) -> io::Result<Vec<StagedFile>> {
@@ -463,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_normalizes_dot_segments_via_normpath() {
+    fn resolve_normalizes_dot_segments() {
         let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
         assert_eq!(
             scratch.resolve(Path::new("a/b/../c.rs")).expect("a/b/../c"),
@@ -477,6 +465,17 @@ mod tests {
             scratch.resolve(Path::new("a/b/")).expect("trailing slash"),
             scratch.root().join("a/b")
         );
+        assert_eq!(
+            scratch
+                .resolve(Path::new("a/./b/../../c.rs"))
+                .expect("dot and parent mix"),
+            scratch.root().join("c.rs")
+        );
+        assert_eq!(
+            scratch.resolve(Path::new("a/..")).expect("back to root"),
+            scratch.root()
+        );
+        assert!(scratch.resolve(Path::new("..")).is_err());
         assert!(scratch.resolve(Path::new("a/../../evil")).is_err());
         assert!(scratch.resolve(Path::new("a/b/../../../evil")).is_err());
     }

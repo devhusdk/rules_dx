@@ -81,6 +81,17 @@ fn falls_back_to_the_upstream_descriptor() {
     );
 }
 
+#[test]
+fn finds_the_exe_runfiles_for_an_extensionless_argv0() {
+    let dir = scratch("extensionless");
+    let tree = dir.join("app.exe.runfiles");
+    std::fs::create_dir_all(tree.join("_main")).unwrap();
+    std::fs::write(dir.join("app.launch"), "").unwrap();
+    assert_eq!(descriptor_path(&dir.join("app")), dir.join("app.launch"));
+    let resolver = resolver_for(&dir.join("app")).unwrap();
+    assert_eq!(runfiles_env(&resolver), ("RUNFILES_DIR", tree.clone()));
+}
+
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("exec_launcher_{name}_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

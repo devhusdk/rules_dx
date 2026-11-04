@@ -10,11 +10,21 @@ use runfiles::{Runfiles, RunfilesBuilder};
 /// A launcher keeps its own suffix on some hosts and drops it on others, so try
 /// the name as written and the name without its suffix.
 pub fn manifest_beside(binary: &Path) -> Option<PathBuf> {
-    let bare = binary.with_extension("");
-    [binary.to_path_buf(), bare]
+    names_beside(binary)
         .into_iter()
         .map(|name| PathBuf::from(format!("{}.runfiles_manifest", dx_path_display(&name))))
         .find(|candidate| candidate.is_file())
+}
+
+/// Names one binary by each spelling its runfiles may carry, best first.
+///
+/// A launcher run as `app` on Windows still has Bazel's `app.exe` beside it.
+fn names_beside(binary: &Path) -> Vec<PathBuf> {
+    let mut names = vec![binary.to_path_buf(), binary.with_extension("")];
+    if binary.extension().is_none() {
+        names.push(binary.with_extension("exe"));
+    }
+    names
 }
 
 /// Names the runfiles manifest for one binary, preferring the one on disk.
@@ -121,8 +131,7 @@ impl Resolver {
 
 fn tree_beside(binary: &Path) -> Option<PathBuf> {
     let dir = binary.parent()?;
-    let bare = binary.with_extension("");
-    [binary.to_path_buf(), bare]
+    names_beside(binary)
         .into_iter()
         .map(|name| dir.join(format!("{}.runfiles", dx_path_display(&name))))
         .find(|candidate| candidate.is_dir())
@@ -172,6 +181,20 @@ mod tests {
     fn a_suffixless_binary_keeps_its_name() {
         let missing = manifest_for(Path::new("/out/bin/prettier"));
         assert!(missing.ends_with("/out/bin/prettier.runfiles_manifest"));
+    }
+
+    #[test]
+    fn an_extensionless_binary_finds_the_exe_runfiles() {
+        let dir = scratch("extensionless");
+        let binary = write(&dir, "tool", "binary\n");
+        let target = write(
+            &dir,
+            "tool.exe.runfiles/_main/pkg/tool.txt",
+            "from the exe tree\n",
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("tool.exe.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
     }
 
     #[test]

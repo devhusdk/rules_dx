@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//flutter/rules:defs.bzl", "flutter_application", "flutter_library", "flutter_test", "flutter_web_app")
+load("//flutter/rules:defs.bzl", "flutter_application", "flutter_library", "flutter_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -22,10 +22,11 @@ flutter_application(
     deps = [":lib"] + _DEPS,
 )
 
-flutter_web_app(
+flutter_application(
     name = "web",
     package_name = "dx_flutter_probe",
     main = "lib/main.dart",
+    target = "web",
     deps = [":lib"] + _DEPS,
 )
 

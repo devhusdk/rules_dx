@@ -82,8 +82,16 @@ def flutter_test(name, main, srcs = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), coverage_collector = FLUTTER_COVERAGE_COLLECTOR, **kwargs)
 
-def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over flutter_application."""
+def flutter_application(name, main, srcs = None, visibility = None, target = "native", **kwargs):
+    """Thin wrapper over flutter_application; target is native or web."""
+    if target == "web":
+        web_kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+        if srcs != None:
+            web_kwargs["srcs"] = srcs
+        _flutter_web_app(name = name, main = main, visibility = visibility, **web_kwargs)
+        return
+    if target != "native":
+        fail('flutter_application: target must be "native" or "web", got "{}"'.format(target))
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap(
         name,
@@ -100,7 +108,3 @@ def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
         },
         **kwargs
     )
-
-def flutter_web_app(name, **kwargs):
-    """Thin wrapper over flutter_web_app."""
-    _flutter_web_app(name = name, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))

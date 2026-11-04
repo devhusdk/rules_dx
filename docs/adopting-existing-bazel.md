@@ -96,7 +96,8 @@ Build and test the package, then move the next one:
 bazel run @rules_dx//:dx -- test //pkg/...
 ```
 
-Other languages follow the same pattern. Each language's rules are listed in
+Other languages can change names too. The upstream and dx name of each rule
+are in the [Rule names](cli/commands/README.md#rule-names) table of
 [Supported Surface](cli/commands/README.md#supported-surface).
 
 ## Generated target names

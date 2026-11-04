@@ -1,8 +1,9 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//go/rules:defs.bzl", "go_library", "go_test")
 load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":toolchain_test.bzl", "toolchain_test")
+load(":toolchain_test.bzl", "cgo_toolchain_tests")
 
 package(
     default_testonly = True,
@@ -77,10 +78,39 @@ go_test(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
-toolchain_test(
+cgo_toolchain_tests(
     name = "toolchain_test",
-    target_compatible_with = ["@platforms//os:linux"],
     target_under_test = ":cxx_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_cgo_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    test = ":cgo_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_cxx_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    test = ":cxx_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_cgo_race_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    test = ":cgo_race_test",
 )
 
 real_source_target(

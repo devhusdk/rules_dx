@@ -40,6 +40,13 @@ Then run `dx generate --apply`. An import under a module that `go.mod`
 requires directly resolves to `@<repo>//<package>`. A module required only as
 `// indirect` fails with a hint to require it directly.
 
+## cgo
+
+Ordinary cgo, meaning C sources and C++ through `cdeps` over a C ABI, runs with
+LLVM (the default) and with GCC on Linux x86_64. Under GCC, libstdc++ links
+statically. Race mode has its own test target (`gcc_cgo_race_test`) so a race
+failure never hides ordinary cgo. Windows and MSVC are not supported yet.
+
 ## Quality tools
 
 | Check | Default tool | Opt-in tools |

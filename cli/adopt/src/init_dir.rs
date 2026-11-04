@@ -70,6 +70,9 @@ pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
     }
     let dir = dir.strip_prefix("./").unwrap_or(dir);
     let dir = dir.strip_suffix('/').unwrap_or(dir);
+    if dir.is_empty() {
+        return Ok(String::new());
+    }
     for segment in dir.split('/') {
         if let Some(reason) = segment_reason(segment) {
             return Err(refused(&reason));
@@ -156,7 +159,7 @@ mod tests {
 
     #[test]
     fn current_directory_spellings_mean_no_subdirectory() {
-        for dir in ["", "."] {
+        for dir in ["", ".", "./"] {
             assert_eq!(validate_init_dir(dir).expect(dir), "");
         }
         assert_eq!(init_dir_module(""), DEFAULT_INIT_MODULE);

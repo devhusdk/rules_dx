@@ -224,7 +224,7 @@ workspace_policy(
 | `text` | disabled | `keep_sorted` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
 | `typescript` | `biome` | `biome` | `tsc` |
-| `vue` | `prettier` | disabled | disabled |
+| `vue` | `prettier` | disabled | `tsc` |
 
 ### Wired tools
 
@@ -345,7 +345,7 @@ to.
 | `tflint` | lint | terraform |
 | `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
-| `tsc` | typecheck | javascript, jsx, mdx, tsx, typescript |
+| `tsc` | typecheck | javascript, jsx, mdx, tsx, typescript, vue |
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
@@ -2710,6 +2710,9 @@ own. The template, script and style blocks are all formatted. An unformatted
 file is reported at the start of the file. A syntax error fails the run with
 the file, line and column. It never counts as clean. `.prettierrc`,
 `.editorconfig` and other user config files are ignored.
+
+`tsc` typechecks `.vue` files with vue-tsc 3.3.13. It reports errors at the
+`.vue` line and column. Put `vue` in the `deps` of the `vue_library`.
 
 `eslint` lint is opt-in. Select it in the `vue` family and bind an
 `eslint_config` to the library with `aspect_hints`.

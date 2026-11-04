@@ -4,7 +4,9 @@
   "type": "module",
   "packageManager": "pnpm@10.34.5",
   "dependencies": {
+    "astro": "7.3.8",
     "csstype": "3.2.3",
+    "svelte": "5.57.0",
     "vue": "3.5.42"
   }
 }

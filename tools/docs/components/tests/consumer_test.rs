@@ -35,7 +35,7 @@ docs_site(
     name = "site",
     book_toml = "book.toml",
     prose = ["prose.md"],
-    shards = ["//ui:api"],
+    shards = ["//ui:api", "//cards:api", "//hero:api", "//notes:api"],
     source_url = "https://example.com/consumer/blob/main/",
 )
 "#;
@@ -52,6 +52,45 @@ vue_doc_shard(
     ],
     node_modules = "//:node_modules",
     package = "ui",
+    tsconfig = "config/tsconfig.docs.json",
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const CARDS_BUILD: &str = r#"load("@dxr//tools/docs/components:defs.bzl", "svelte_doc_shard")
+
+svelte_doc_shard(
+    name = "api",
+    srcs = glob(["src/*.svelte"]) + ["svelte.config.js", "tsconfig.base.json"],
+    deps = ["//:node_modules/csstype"],
+    entry_points = ["src/Card.svelte"],
+    node_modules = "//:node_modules",
+    package = "cards",
+    tsconfig = "config/tsconfig.docs.json",
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const HERO_BUILD: &str = r#"load("@dxr//tools/docs/components:defs.bzl", "astro_doc_shard")
+
+astro_doc_shard(
+    name = "api",
+    srcs = glob(["src/*.astro"]) + ["astro.config.mjs", "tsconfig.base.json"],
+    entry_points = ["src/Hero.astro"],
+    node_modules = "//:node_modules",
+    package = "hero",
+    tsconfig = "config/tsconfig.docs.json",
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const NOTES_BUILD: &str = r#"load("@dxr//tools/docs/components:defs.bzl", "mdx_doc_shard")
+
+mdx_doc_shard(
+    name = "api",
+    srcs = glob(["src/*.mdx"]) + ["tsconfig.base.json"],
+    entry_points = ["src/Intro.mdx"],
+    package = "notes",
     tsconfig = "config/tsconfig.docs.json",
     visibility = ["//visibility:public"],
 )
@@ -117,6 +156,72 @@ defineProps<{
 "#;
 
 const VITE_CONFIG: &str = "import { writeFileSync } from \"node:fs\";\n\nwriteFileSync(\"vite_config_ran.marker\", \"ran\");\n\nexport default {};\n";
+
+const CARD: &str = r#"<script lang="ts">
+  import type { Snippet } from "svelte";
+  import type * as CSS from "csstype";
+
+  /** The props of a card. */
+  interface Props {
+    /** Heading of the card. */
+    title: string;
+    /** Inline style of the card. */
+    look?: CSS.Properties;
+    /** Main content. */
+    children: Snippet;
+  }
+
+  let { title, look, children }: Props = $props();
+</script>
+
+<section style={look}>
+  <h2>{title}</h2>
+  {@render children()}
+</section>
+"#;
+
+const HERO: &str = r#"---
+/** The props of a hero. */
+interface Props {
+  /** Heading of the hero. */
+  title: string;
+  /** Number of visible links. */
+  links?: number;
+}
+
+const { title, links = 3 } = Astro.props;
+---
+
+<section>
+  <h1>{title}</h1>
+  <p>{links}</p>
+  <slot />
+  <slot name="footer" />
+</section>
+"#;
+
+const INTRO: &str = r#"---
+title: Intro
+---
+
+# Welcome
+
+export const limit = 10
+/**
+ * Greets someone.
+ * @param {string} name Who to greet.
+ * @returns {string}
+ */
+export function greet(name) {
+  return "hi " + name
+}
+
+Hello {props.title}.
+"#;
+
+const SVELTE_CONFIG: &str = "import fs from \"node:fs\";\n\nfs.writeFileSync(\"svelte_config_loaded.marker\", \"loaded\");\nexport default {};\n";
+
+const ASTRO_CONFIG: &str = "import fs from \"node:fs\";\n\nfs.writeFileSync(\"astro_config_loaded.marker\", \"loaded\");\nexport default {};\n";
 
 fn pin(text: &str, name: &str) -> String {
     let marker = format!("{name}\", version = \"");
@@ -190,6 +295,37 @@ fn consumer(name: &str, deps: &str) -> Case {
     write(&root.join("ui/src/Button.vue"), BUTTON);
     write(&root.join("ui/src/Swatch.vue"), SWATCH);
     write(&root.join("ui/vite.config.ts"), VITE_CONFIG);
+    for (package, build, source, file, config) in [
+        (
+            "cards",
+            CARDS_BUILD,
+            CARD,
+            "Card.svelte",
+            Some(("svelte.config.js", SVELTE_CONFIG)),
+        ),
+        (
+            "hero",
+            HERO_BUILD,
+            HERO,
+            "Hero.astro",
+            Some(("astro.config.mjs", ASTRO_CONFIG)),
+        ),
+        ("notes", NOTES_BUILD, INTRO, "Intro.mdx", None),
+    ] {
+        write(&root.join(package).join("BUILD.bazel"), build);
+        write(
+            &root.join(package).join("tsconfig.base.json"),
+            TSCONFIG_BASE,
+        );
+        write(
+            &root.join(package).join("config/tsconfig.docs.json"),
+            TSCONFIG_DOCS,
+        );
+        write(&root.join(package).join("src").join(file), source);
+        if let Some((name, text)) = config {
+            write(&root.join(package).join(name), text);
+        }
+    }
     root
 }
 
@@ -257,36 +393,79 @@ fn line_of(text: &str, needle: &str) -> usize {
 }
 
 #[test]
-fn dx_docs_renders_vue_components_without_running_consumer_code() {
+fn dx_docs_renders_component_docs_for_every_framework() {
     let root = consumer("component_docs_render", DEPS);
-    let before = hashes(&root.join("ui"));
+    let before: Vec<_> = ["ui", "cards", "hero", "notes"]
+        .iter()
+        .map(|package| hashes(&root.join(package)))
+        .collect();
     let built = docs(&root);
     assert_eq!(built.status.code(), Some(0), "{}", built.combined());
-    assert_eq!(hashes(&root.join("ui")), before, "dx docs changed a source");
-    assert!(
-        !root.join("vite_config_ran.marker").exists(),
-        "the consumer's vite config ran"
-    );
+    for (package, hashed) in ["ui", "cards", "hero", "notes"].iter().zip(&before) {
+        assert_eq!(
+            &hashes(&root.join(package)),
+            hashed,
+            "dx docs changed {package}"
+        );
+    }
+    for marker in [
+        "vite_config_ran.marker",
+        "svelte_config_loaded.marker",
+        "astro_config_loaded.marker",
+    ] {
+        assert!(!root.join(marker).exists(), "{marker} was written");
+    }
 
-    let pages = pages(&root, "vue");
+    let base = "https://example.com/consumer/blob/main";
+    let index = read(&site(&root).join("searchindex.js"));
+    let cases = [
+        (
+            "vue",
+            "ui/src/Button.vue",
+            BUTTON,
+            "label: string;",
+            "Text shown inside the button.",
+        ),
+        (
+            "svelte",
+            "cards/src/Card.svelte",
+            CARD,
+            "title: string;",
+            "Heading of the card.",
+        ),
+        (
+            "astro",
+            "hero/src/Hero.astro",
+            HERO,
+            "title: string;",
+            "Heading of the hero.",
+        ),
+        (
+            "mdx",
+            "notes/src/Intro.mdx",
+            INTRO,
+            "export const limit",
+            "Greets someone.",
+        ),
+    ];
+    for (language, file, source, needle, doc) in cases {
+        let pages = pages(&root, language);
+        assert!(pages.contains(doc), "{doc} missing\n{pages}");
+        let link = format!("href=\"{base}/{file}#L{}\"", line_of(source, needle));
+        assert!(pages.contains(&link), "{link} missing\n{pages}");
+        assert!(
+            index.contains(&format!("api/{language}/")),
+            "the search index never names a {language} page"
+        );
+    }
+    let vue = pages(&root, "vue");
     for expected in [
-        "Text shown inside the button.",
-        "Optional size in pixels.",
         "id: number",
         "Content of the button.",
         "Inline style of the swatch.",
-        "Properties",
     ] {
-        assert!(pages.contains(expected), "{expected} missing\n{pages}");
+        assert!(vue.contains(expected), "{expected} missing\n{vue}");
     }
-    let line = line_of(BUTTON, "label: string;");
-    let link = format!("href=\"https://example.com/consumer/blob/main/ui/src/Button.vue#L{line}\"");
-    assert!(pages.contains(&link), "{link} missing\n{pages}");
-    let index = read(&site(&root).join("searchindex.js"));
-    assert!(
-        index.contains("api/vue/"),
-        "the search index never names a Vue page"
-    );
 }
 
 #[test]

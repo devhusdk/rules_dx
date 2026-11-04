@@ -166,9 +166,11 @@ impl QueryFailure {
 
     /// The failure of a query that never started.
     pub fn launch(error: &io::Error) -> Self {
-        QueryFailure::Launch {
-            detail: error.to_string(),
+        let mut detail = error.to_string();
+        if error.kind() == io::ErrorKind::NotFound {
+            detail.push_str("; install bazelisk or put bazel on PATH, then run dx status");
         }
+        QueryFailure::Launch { detail }
     }
 }
 
@@ -242,6 +244,23 @@ impl ResolveError {
 mod tests {
     use super::*;
     use std::cell::RefCell;
+
+    #[test]
+    fn launch_failure_says_how_to_install_a_missing_bazel() {
+        let missing = io::Error::new(io::ErrorKind::NotFound, "no such file");
+        let QueryFailure::Launch { detail } = QueryFailure::launch(&missing) else {
+            panic!("launch failure");
+        };
+        assert_eq!(
+            detail,
+            "no such file; install bazelisk or put bazel on PATH, then run dx status"
+        );
+        let denied = io::Error::new(io::ErrorKind::PermissionDenied, "denied");
+        let QueryFailure::Launch { detail } = QueryFailure::launch(&denied) else {
+            panic!("launch failure");
+        };
+        assert_eq!(detail, "denied");
+    }
 
     struct Disk {
         code: i32,

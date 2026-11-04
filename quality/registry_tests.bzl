@@ -1,8 +1,8 @@
-"""Unit tests for the single-sourced versioned registry."""
+"""Unit tests for the single-sourced registry."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
-load(":registry.bzl", "REGISTRY_SCHEMA_VERSION", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
+load(":registry.bzl", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
 
 _A = {"ty": {"typecheck": ["python"]}}
 _C = {"python": "python", "yaml": "yaml"}
@@ -12,11 +12,6 @@ def registry_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "registry schema version stays v1",
-                REGISTRY_SCHEMA_VERSION,
-                1,
-            ),
             expect_equal(
                 "aggregated registry schemas validate",
                 registry_schema_error(),

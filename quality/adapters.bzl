@@ -1,6 +1,5 @@
 """Deterministic synthetic adapter registry."""
 
-ADAPTER_REGISTRY_SCHEMA_VERSION = 1
 
 SYNTHETIC_ADAPTERS = {
     "fmt-a": {"format": ["rust"]},
@@ -315,9 +314,7 @@ def _is_canonical_token(text):
     return True
 
 def adapter_registry_schema_error():
-    """Validates the versioned adapter-registry schema."""
-    if ADAPTER_REGISTRY_SCHEMA_VERSION != 1:
-        return "adapter registry: unsupported schema v" + str(ADAPTER_REGISTRY_SCHEMA_VERSION) + " (want v1)"
+    """Validates the adapter-registry schema."""
     for class_id in REAL_CLASS_TO_FAMILY:
         if not _is_canonical_token(class_id):
             return "adapter registry: non-canonical class '" + str(class_id) + "'"

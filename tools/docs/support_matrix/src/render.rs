@@ -215,7 +215,6 @@ mod tests {
     use crate::parse_facts;
 
     const FACTS: &str = r#"{
-      "schema_version": 1,
       "platforms": [
         {"id": "linux_x86_64", "os": "linux", "cpu": "x86_64"},
         {"id": "macos_arm64", "os": "macos", "cpu": "arm64"}

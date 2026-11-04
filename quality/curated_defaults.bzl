@@ -1,6 +1,5 @@
 """Frozen v1 curated quality defaults."""
 
-CURATED_SCHEMA_VERSION = 1
 
 CURATED_DEFAULTS = {
     "astro": {
@@ -191,7 +190,7 @@ FORMAT_FROZEN = {
 }
 
 def curated_families():
-    """Returns the sorted curated families in the versioned manifest."""
+    """Returns the sorted curated families in the manifest."""
     return sorted(CURATED_DEFAULTS.keys())
 
 def _is_canonical_token(text):
@@ -203,9 +202,7 @@ def _is_canonical_token(text):
     return True
 
 def curated_schema_error():
-    """Validates the versioned curated-defaults schema."""
-    if CURATED_SCHEMA_VERSION != 1:
-        return "curated defaults: unsupported schema v" + str(CURATED_SCHEMA_VERSION) + " (want v1)"
+    """Validates the curated-defaults schema."""
     for family in CURATED_DEFAULTS:
         if not _is_canonical_token(family):
             return "curated defaults: non-canonical family '" + str(family) + "'"

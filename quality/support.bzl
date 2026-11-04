@@ -4,7 +4,6 @@ load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
-SUPPORT_SCHEMA_VERSION = 1
 
 TEXT_KEEP_SORTED_SUPPORT = {
     "artifact": "pinned",
@@ -2485,8 +2484,6 @@ def support_unpinned_tools(capability, records = None):
 
 def support_record_error(record):
     """Validates one support record against the adapter taxonomy."""
-    if SUPPORT_SCHEMA_VERSION != 1:
-        return "support: unsupported schema v" + str(SUPPORT_SCHEMA_VERSION) + " (want v1)"
     for key in ["artifact", "capability", "classes", "context", "execution", "family", "fix", "platforms", "state", "tool", "transport"]:
         if key not in record:
             return "support: record is missing field '" + key + "'"

@@ -29,7 +29,6 @@ def support_matrix_facts_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_equal("facts schema stays v1", facts["schema_version"], 1),
             expect_equal(
                 "platform order is fixed",
                 [platform["id"] for platform in facts["platforms"]],

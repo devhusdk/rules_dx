@@ -3,7 +3,6 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
-PARITY_SCHEMA_VERSION = 1
 
 PARITY_DEFERRED = {}
 
@@ -32,9 +31,7 @@ def _is_canonical_token(text):
     return True
 
 def parity_schema_error():
-    """Validates the versioned parity-gate schema."""
-    if PARITY_SCHEMA_VERSION != 1:
-        return "parity gate: unsupported schema v" + str(PARITY_SCHEMA_VERSION) + " (want v1)"
+    """Validates the parity-gate schema."""
     for class_id in PARITY_DEFERRED:
         if not _is_canonical_token(class_id):
             return "parity gate: non-canonical deferred class '" + str(class_id) + "'"
@@ -88,11 +85,6 @@ def parity_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "parity schema version stays v1",
-                PARITY_SCHEMA_VERSION,
-                1,
-            ),
             expect_equal(
                 "parity deferral schema validates",
                 parity_schema_error(),

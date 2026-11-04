@@ -49,7 +49,6 @@ pub struct Support {
 /// The facts the Starlark rule writes.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Facts {
-    pub schema_version: u32,
     pub platforms: Vec<PlatformFact>,
     pub sections: Vec<String>,
     pub rows: Vec<Row>,
@@ -83,15 +82,7 @@ pub struct RowPlatforms {
 
 /// Parses the facts JSON.
 pub fn parse_facts(text: &str) -> Result<Facts, String> {
-    let facts: Facts =
-        serde_json::from_str(text).map_err(|error| format!("facts JSON is invalid: {error}"))?;
-    if facts.schema_version != 1 {
-        return Err(format!(
-            "facts schema v{} is unsupported (want v1)",
-            facts.schema_version
-        ));
-    }
-    Ok(facts)
+    serde_json::from_str(text).map_err(|error| format!("facts JSON is invalid: {error}"))
 }
 
 struct BuildLoader<'a> {

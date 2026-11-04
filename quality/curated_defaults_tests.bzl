@@ -1,7 +1,7 @@
-"""Unit tests for the versioned curated defaults."""
+"""Unit tests for the curated defaults."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":curated_defaults.bzl", "CURATED_DEFAULTS", "CURATED_SCHEMA_VERSION", "FORMAT_FROZEN", "curated_families", "curated_schema_error")
+load(":curated_defaults.bzl", "CURATED_DEFAULTS", "FORMAT_FROZEN", "curated_families", "curated_schema_error")
 
 FROZEN_CURATED_FAMILIES = [
     "javascript",
@@ -19,11 +19,6 @@ def curated_defaults_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "curated schema version stays v1",
-                CURATED_SCHEMA_VERSION,
-                1,
-            ),
             expect_equal(
                 "curated manifest schema validates",
                 curated_schema_error(),

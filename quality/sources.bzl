@@ -15,7 +15,6 @@ QualityToolsInfo = provider(
     fields = {"tools": "Dict[str, FilesToRunProvider]: tool ID to executable."},
 )
 
-SOURCES_REGISTRY_SCHEMA_VERSION = 1
 
 KNOWN_SEMANTIC_FILE_CLASSES = [
     "text",
@@ -199,7 +198,7 @@ def named_source_class_error(class_id, basename):
     return "'" + basename + "' is not a " + class_id + " file name; accepted names: " + ", ".join(accepted)
 
 def is_known_semantic_class(class_id):
-    """Reports whether a class ID is in the versioned registry."""
+    """Reports whether a class ID is in the registry."""
     return class_id in KNOWN_SEMANTIC_FILE_CLASSES
 
 def _is_canonical_id(text):
@@ -211,10 +210,10 @@ def _is_canonical_id(text):
     return True
 
 def sources_schema_error(classes = None):
-    """Validates the versioned class-registry schema."""
+    """Validates the class-registry schema."""
     ids = KNOWN_SEMANTIC_FILE_CLASSES if classes == None else classes
     if type(ids) != "list" or len(ids) == 0:
-        return "sources registry: want a non-empty class list (schema v1)"
+        return "sources registry: want a non-empty class list"
     seen = {}
     for class_id in ids:
         if type(class_id) != "string" or not _is_canonical_id(class_id):

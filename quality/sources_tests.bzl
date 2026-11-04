@@ -1,7 +1,7 @@
 """Versioned semantic-class registry tests (freeze)."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "SOURCES_REGISTRY_SCHEMA_VERSION", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "sources_schema_error", "upstream_source_class")
+load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "sources_schema_error", "upstream_source_class")
 
 FROZEN_SEMANTIC_FILE_CLASSES = [
     "julia",
@@ -112,11 +112,6 @@ def sources_registry_tests(name):
         name = name,
         mode = "load",
         checks = [
-            expect_equal(
-                "sources schema version stays v1",
-                SOURCES_REGISTRY_SCHEMA_VERSION,
-                1,
-            ),
             expect_equal(
                 "sources registry schema validates",
                 sources_schema_error(),

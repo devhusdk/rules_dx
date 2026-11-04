@@ -3,7 +3,6 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 
-WRAPPER_SCHEMA_VERSION = 1
 
 WRAPPER_OWNERS = {
     "ansible": "//ansible/rules:defs.bzl",
@@ -113,9 +112,7 @@ def _is_owner_label(owner):
     return owner.startswith("//") and owner.endswith("/rules:defs.bzl")
 
 def wrapper_schema_error():
-    """Validates the versioned wrapper-ownership schema."""
-    if WRAPPER_SCHEMA_VERSION != 1:
-        return "wrapper owners: unsupported schema v" + str(WRAPPER_SCHEMA_VERSION) + " (want v1)"
+    """Validates the wrapper-ownership schema."""
     for family in WRAPPER_OWNERS:
         if not _is_canonical_token(family):
             return "wrapper owners: non-canonical family '" + str(family) + "'"
@@ -150,11 +147,6 @@ def wrapper_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "wrapper schema version stays v1",
-                WRAPPER_SCHEMA_VERSION,
-                1,
-            ),
             expect_equal(
                 "wrapper ownership schema validates",
                 wrapper_schema_error(),

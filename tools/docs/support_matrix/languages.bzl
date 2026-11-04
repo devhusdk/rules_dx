@@ -18,8 +18,6 @@ load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 
-SUPPORT_MATRIX_SCHEMA_VERSION = 1
-
 PLATFORMS = [
     {"cpu": "x86_64", "id": "linux_x86_64", "os": "linux"},
     {"cpu": "arm64", "id": "linux_arm64", "os": "linux"},

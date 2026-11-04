@@ -3,7 +3,7 @@
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPUTED_CONSTRAINTS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "SUPPORT_MATRIX_SCHEMA_VERSION")
+load(":languages.bzl", "COMPUTED_CONSTRAINTS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -38,8 +38,6 @@ def tool_not_applicable(records):
 
 def support_matrix_facts_dict():
     """Returns the validated facts as a dict."""
-    if SUPPORT_MATRIX_SCHEMA_VERSION != 1:
-        fail("support matrix: unsupported schema v" + str(SUPPORT_MATRIX_SCHEMA_VERSION))
     quality = _quality()
     names = {}
     for row in ROWS:
@@ -105,7 +103,6 @@ def support_matrix_facts_dict():
             }
             for row in sorted(ROWS, key = lambda row: row["name"])
         ],
-        "schema_version": SUPPORT_MATRIX_SCHEMA_VERSION,
         "sections": SECTIONS,
         "tool_not_applicable": tool_na,
         "support": sorted(support, key = lambda record: (record["family"], record["capability"], record["tool"])),

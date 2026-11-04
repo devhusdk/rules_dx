@@ -278,6 +278,10 @@ const PERLCRITIC_CHECK_ARGS: &[&str] = &[
     "--verbose",
     PERLCRITIC_FORMAT,
 ];
+/// Colon-separated fields: file, line, column, length, kind, number, message (last). `%c` is a
+/// 1-based byte offset.
+pub const CHKTEX_FORMAT: &str = "%f:%l:%c:%d:%k:%n:%m\n";
+const CHKTEX_CHECK_ARGS: &[&str] = &["-q", "-I0", "-f", CHKTEX_FORMAT];
 const SWIFT_FORMAT_CHECK_ARGS: &[&str] = &["format"];
 const SWIFT_FORMAT_FIX_ARGS: &[&str] = &["format", "--in-place"];
 const SWIFT_LINT_ARGS: &[&str] = &["lint", "--strict"];
@@ -1462,6 +1466,11 @@ pub fn typstyle_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn typstyle_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TYPSTYLE_FIX_ARGS, files, "")
+}
+
+/// `chktex` on one file in the fixed colon-separated format. It never writes.
+pub fn chktex_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, CHKTEX_CHECK_ARGS, &[file], "")
 }
 
 /// `latexindent -k` on one file. The log and the backups go to `cruft` (an absolute directory in

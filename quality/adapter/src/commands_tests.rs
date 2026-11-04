@@ -1396,6 +1396,17 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         vec![BIN, "-i", "/scratch/sample.typ"]
     );
     let tex = Path::new("/scratch/doc/sample.tex");
+    assert_eq!(
+        argv_strings(&chktex_check(Path::new(BIN), tex)),
+        vec![
+            BIN,
+            "-q",
+            "-I0",
+            "-f",
+            CHKTEX_FORMAT,
+            "/scratch/doc/sample.tex"
+        ]
+    );
     let cruft = Path::new("/scratch/.latexindent");
     assert_eq!(
         argv_strings(&latexindent_check(Path::new(BIN), tex, cruft, None)),

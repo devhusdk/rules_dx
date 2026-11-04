@@ -9,6 +9,7 @@ pub mod cfn_lint;
 pub mod check_jsonschema;
 pub mod checkmake;
 pub mod checkstyle;
+pub mod chktex;
 pub mod clang_format;
 pub mod clang_syntax;
 pub mod clang_tidy;
@@ -133,6 +134,7 @@ pub use cfn_lint::parse_cfn_lint;
 pub use check_jsonschema::{parse_check_jsonschema, CheckJsonschemaTarget};
 pub use checkmake::parse_checkmake;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
+pub use chktex::parse_chktex;
 pub use clang_format::parse_clang_format;
 pub use clang_syntax::parse_clang_syntax;
 pub use clang_tidy::parse_clang_tidy;
@@ -2796,6 +2798,14 @@ mod tests {
         super::ty::parse_ty(input, code, files)
     }
 
+    fn fuzz_chktex(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::chktex::parse_chktex(input, input, code, files)
+    }
+
     fn fuzz_latexindent(
         input: &[u8],
         code: Option<i32>,
@@ -2906,6 +2916,7 @@ mod tests {
         ("cfn_lint", fuzz_cfn_lint),
         ("check_jsonschema", fuzz_check_jsonschema),
         ("kubeconform", fuzz_kubeconform),
+        ("chktex", fuzz_chktex),
         ("latexindent", fuzz_latexindent),
         ("mbake", fuzz_mbake),
         ("ktfmt", fuzz_ktfmt),
@@ -3041,6 +3052,7 @@ mod tests {
         ("capnp", include_str!("capnp.rs")),
         ("cfn_lint", include_str!("cfn_lint.rs")),
         ("kubeconform", include_str!("kubeconform.rs")),
+        ("chktex", include_str!("chktex.rs")),
         ("latexindent", include_str!("latexindent.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),

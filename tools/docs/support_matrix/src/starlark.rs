@@ -551,12 +551,14 @@ enum Constraint {
 const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("android_check", Constraint::AsWritten),
     ("cc_test", Constraint::AsWritten),
+    ("cc_toolchain_test", Constraint::AsWritten),
     ("csharp_test", Constraint::AsWritten),
     (
         "cuda_test",
         Constraint::Appended("//cuda/rules:defs.bzl", "CUDA_TARGET"),
     ),
     ("d_test", Constraint::AsWritten),
+    ("dx_wasi_test_tests", Constraint::AsWritten),
     ("eunit", Constraint::AsWritten),
     (
         "dart_test",

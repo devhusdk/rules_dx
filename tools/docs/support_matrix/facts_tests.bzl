@@ -61,6 +61,16 @@ def support_matrix_facts_tests(name):
                 ]),
                 {"a": {"windows_arm64": "x", "windows_x86_64": "y"}},
             ),
+            expect_equal(
+                "compiler rows have no families",
+                [row["name"] for row in facts["rows"] if row["section"] == "compilers" and row["families"]],
+                [],
+            ),
+            expect_equal(
+                "compiler rows include cc_llvm and cc_gcc",
+                [row["name"] for row in facts["rows"] if row["section"] == "compilers"],
+                ["cc_gcc", "cc_llvm"],
+            ),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],
     )

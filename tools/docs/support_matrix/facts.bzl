@@ -60,6 +60,10 @@ def support_matrix_facts_dict():
             for key in _BUILD_KEYS:
                 if row.get(key, []):
                     fail("support matrix: format row " + row["name"] + " sets " + key)
+        if row["section"] == "compilers":
+            for key in ["families", "workflows"]:
+                if row.get(key, []):
+                    fail("support matrix: compiler row " + row["name"] + " sets " + key)
     row_names = {row["name"]: True for row in ROWS}
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
     tool_na = tool_not_applicable(SUPPORT_RECORDS)

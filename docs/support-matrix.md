@@ -1,6 +1,6 @@
 # Support matrix
 
-This page lists, for each language and target, the platforms it does not support, and its lint, format, and typecheck tools.
+This page lists, for each language, target, and compiler, the platforms it does not support, and its lint, format, and typecheck tools.
 
 Everything builds and tests on every platform it supports. `none` means all five platforms are supported.
 
@@ -17,10 +17,11 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Astro | none |
 | C and C++ | none |
 | C# | none |
-| CUDA | `linux_arm64`, `windows_arm64`, `windows_x86_64`: not tested yet; `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS |
+| CUDA | `linux_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet; `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS |
+| D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
 | Elixir | `windows_x86_64`, `windows_arm64`: not tested yet |
-| Erlang | `windows_x86_64`, `windows_arm64`: not tested yet |
+| Erlang | `windows_arm64`: not tested yet |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
 | F# | none |
 | Go | none |
@@ -58,6 +59,15 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Qt | `windows_x86_64`, `windows_arm64`: not tested yet |
 | WASI | none |
 
+## Compilers
+
+Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
+
+| Compiler | Not supported on |
+| --- | --- |
+| GCC 16.2.0 (`gcc`) | `linux_arm64`: not tested yet; `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
+| LLVM (`llvm`, default) | none |
+
 ## Quality
 
 Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool runs on every platform its row supports unless a note says otherwise.
@@ -92,7 +102,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Scala | `scalafix` | `scalafmt` | `scalac` |
 | Svelte | `eslint` | `prettier` | no |
 | TypeScript | `biome` | `biome`, `prettier` | `tsc` |
-| Vue | `eslint` | `prettier` | no |
+| Vue | `eslint` | `prettier` | `tsc` |
 | Zig | `zig_ast_check` | `zig_fmt` | `zig` |
 | Apple | `clang_tidy` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) |
 | CMake | `cmakelint` | `gersemi` | n/a |

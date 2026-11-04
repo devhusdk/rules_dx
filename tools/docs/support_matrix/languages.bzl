@@ -1,6 +1,6 @@
 """The language list behind docs/support-matrix.md."""
 
-load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
+load("//cc/toolchains:pins.bzl", "GCC_VERSION")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
@@ -11,6 +11,7 @@ load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
 load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
 load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
+load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
@@ -27,7 +28,7 @@ PLATFORMS = [
     {"cpu": "arm64", "id": "windows_arm64", "os": "windows"},
 ]
 
-SECTIONS = ["languages", "targets", "formats"]
+SECTIONS = ["languages", "targets", "compilers", "formats"]
 
 def _os_cpu_pairs(platforms):
     return [["@platforms//os:" + os, "@platforms//cpu:" + cpu] for os, cpu in sorted(platforms.values())]
@@ -69,6 +70,28 @@ ROWS = [
         "name": "cc",
         "section": "languages",
         "title": "C and C++",
+    },
+    {
+        "ci_tests": [
+            "//cc/toolchains:gcc_asan_test",
+            "//cc/toolchains:gcc_c_test",
+            "//cc/toolchains:gcc_hello_test",
+            "//cc/toolchains:gcc_hello_c_test",
+            "//cc/toolchains:gcc_hello_lib_test",
+            "//cc/toolchains:gcc_shared_test",
+            "//cc/toolchains:gcc_ubsan_test",
+        ],
+        "families": [],
+        "name": "cc_gcc",
+        "section": "compilers",
+        "title": "GCC " + GCC_VERSION + " (`gcc`)",
+    },
+    {
+        "ci_tests": _hello("cc"),
+        "families": [],
+        "name": "cc_llvm",
+        "section": "compilers",
+        "title": "LLVM (`llvm`, default)",
     },
     {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {
@@ -228,6 +251,8 @@ ROWS = [
 ]
 
 NOT_LANGUAGES = [
+    "flutter",
+    "swift",
     "bcr_test_module",
     "ci",
     "cli",
@@ -258,6 +283,11 @@ PLATFORM_NOT_APPLICABLE = {
     "apple": {
         "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
         "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+    },
+    "cc_gcc": {
+        "macos_arm64": "The GCC backend builds only for Linux",
+        "windows_arm64": "The GCC backend builds only for Linux",
+        "windows_x86_64": "The GCC backend builds only for Linux",
     },
     "cuda": {
         "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",

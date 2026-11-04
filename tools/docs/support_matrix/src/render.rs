@@ -124,9 +124,13 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
         .join(", ")
 }
 
-/// Reports whether `row` has a quality row: every language and format, and targets with a family.
+/// Reports whether `row` has a quality row: every language and format, and targets with a family; never compilers.
 pub fn shows_quality(row: &Row) -> bool {
-    row.section != "targets" || !row.families.is_empty()
+    match row.section.as_str() {
+        "targets" => !row.families.is_empty(),
+        "compilers" => false,
+        _ => true,
+    }
 }
 
 fn quality_table(facts: &Facts) -> String {
@@ -157,7 +161,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     let mut out = String::new();
     out.push_str("# Support matrix\n\n");
     out.push_str(
-        "This page lists, for each language and target, the platforms it does not support, \
+        "This page lists, for each language, target, and compiler, the platforms it does not support, \
          and its lint, format, and typecheck tools.\n\n",
     );
     out.push_str(
@@ -173,6 +177,9 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str(&build_table(facts, platforms, "languages", "Language"));
     out.push_str("\n## Targets\n\n");
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
+    out.push_str("\n## Compilers\n\n");
+    out.push_str("Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.\n\n");
+    out.push_str(&build_table(facts, platforms, "compilers", "Compiler"));
     out.push_str("\n## Quality\n\n");
     out.push_str(
         "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. \
@@ -213,9 +220,11 @@ mod tests {
         {"id": "linux_x86_64", "os": "linux", "cpu": "x86_64"},
         {"id": "macos_arm64", "os": "macos", "cpu": "arm64"}
       ],
-      "sections": ["languages", "targets", "formats"],
+      "sections": ["languages", "targets", "compilers", "formats"],
       "rows": [
         {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
+         "ci_tests": [], "consumer_tests": [], "workflows": []},
+        {"name": "cc_llvm", "title": "LLVM", "section": "compilers", "families": [],
          "ci_tests": [], "consumer_tests": [], "workflows": []},
         {"name": "yaml", "title": "YAML", "section": "formats", "families": ["yaml"],
          "ci_tests": [], "consumer_tests": [], "workflows": []}
@@ -267,5 +276,15 @@ mod tests {
             "{page}"
         );
         assert!(!page.to_lowercase().contains("experimental"));
+    }
+
+    #[test]
+    fn lists_compilers_outside_quality() {
+        let facts = parse_facts(FACTS).expect("facts");
+        let page = render(&facts, &BTreeMap::new());
+        let (head, quality) = page.split_once("## Quality").expect("quality");
+        assert!(head.contains("## Compilers\n"), "{page}");
+        assert!(head.contains("| LLVM |"), "{page}");
+        assert!(!quality.contains("LLVM"), "{page}");
     }
 }

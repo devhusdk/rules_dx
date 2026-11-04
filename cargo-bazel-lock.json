@@ -1,5 +1,5 @@
 {
-  "checksum": "0d1fadb23fae8bdbaa12aaca1e113324102c99be4cdc1b8059862b83adbe974b",
+  "checksum": "190541a1a016eb2101136d106dde9aba44a8c57169d88cf1a718a0be269cb59c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8152,6 +8152,14 @@
     "dx_update 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "nodejs-semver 7.0.0",
+            "target": "nodejs_semver"
+          },
+          {
+            "id": "pep440_rs 0.7.3",
+            "target": "pep440_rs"
+          },
           {
             "id": "saphyr-parser 0.2.2",
             "target": "saphyr_parser"

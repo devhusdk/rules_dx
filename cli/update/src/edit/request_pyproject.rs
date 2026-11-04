@@ -14,7 +14,7 @@ fn unsupported(reason: impl Into<String>) -> EditError {
 }
 
 /// PEP 503 normalization: lowercase with runs of `-`, `_` and `.` as one `-`.
-fn normalize(name: &str) -> String {
+pub(crate) fn normalize(name: &str) -> String {
     let mut out = String::new();
     let mut separator = false;
     for c in name.chars() {

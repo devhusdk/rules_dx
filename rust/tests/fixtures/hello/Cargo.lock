@@ -1497,6 +1497,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
+ "ureq",
 ]
 
 [[package]]
@@ -1803,6 +1804,8 @@ dependencies = [
 name = "dx_update"
 version = "0.0.0"
 dependencies = [
+ "nodejs-semver",
+ "pep440_rs",
  "saphyr-parser",
  "semver",
  "serde_json",

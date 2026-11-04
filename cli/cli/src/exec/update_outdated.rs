@@ -5,7 +5,7 @@ use dx_output::{
     OutputMode,
 };
 use dx_plan::args::Invocation;
-use dx_update::discover::{bcr, cargo, Candidate, Fetch, Findings};
+use dx_update::discover::{bcr, cargo, npm, pypi, Candidate, Fetch, Findings};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -85,15 +85,24 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
                 }
             }
             Ecosystem::Cargo => {
-                let texts: Vec<String> = target
-                    .set
-                    .manifests
-                    .iter()
-                    .filter_map(|manifest| std::fs::read_to_string(workspace.join(manifest)).ok())
-                    .collect();
+                let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
                     cargo::outdated(name, &texts, only, cargo::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Npm => {
+                let texts = read_texts(workspace, &target.set.manifests);
+                merge(
+                    &mut found,
+                    npm::outdated(name, &texts, only, npm::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Uv => {
+                let texts = read_texts(workspace, &target.set.manifests);
+                merge(
+                    &mut found,
+                    pypi::outdated(name, &texts, only, pypi::DEFAULT_BASE, fetch),
                 );
             }
             _ => unsupported.push(name.to_owned()),
@@ -119,6 +128,13 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         );
     }
     exit
+}
+
+fn read_texts(workspace: &Path, manifests: &[String]) -> Vec<String> {
+    manifests
+        .iter()
+        .filter_map(|manifest| std::fs::read_to_string(workspace.join(manifest)).ok())
+        .collect()
 }
 
 fn merge(into: &mut Findings, from: Findings) {
@@ -293,6 +309,19 @@ mod tests {
     }
 
     #[test]
+    fn dir_fetch_maps_scoped_npm_urls() {
+        let dir = std::env::temp_dir().join(format!("dx-outdated-npm-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("registry.npmjs.org/@scope")).expect("mkdir");
+        std::fs::write(dir.join("registry.npmjs.org/@scope/pkg"), "{}").expect("write");
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.get("https://registry.npmjs.org/@scope/pkg"),
+            Ok("{}".into())
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn commands_name_the_set_package_and_version() {
         let candidate = Candidate {
             set: "cargo".into(),
@@ -320,11 +349,11 @@ mod tests {
             errors: Vec::new(),
         };
         let mut out = Vec::new();
-        emit_text(&mut out, &found, &["npm".into()]).expect("text");
+        emit_text(&mut out, &found, &["go".into()]).expect("text");
         let text = String::from_utf8_lossy(&out);
         assert!(text.contains(
             "cargo:serde 1 -> 2.0.0 (published 2026-01-01T00:00:00Z): dx update cargo:serde 2.0.0"
         ));
-        assert!(text.contains("npm: --outdated does not cover"));
+        assert!(text.contains("go: --outdated does not cover"));
     }
 }

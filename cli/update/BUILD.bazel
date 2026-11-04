@@ -16,6 +16,8 @@ dx_rust_crate(
         "src/discover/bcr.rs",
         "src/discover/cargo.rs",
         "src/discover/mod.rs",
+        "src/discover/npm.rs",
+        "src/discover/pypi.rs",
         "src/edit/add.rs",
         "src/edit/add_plans.rs",
         "src/edit/gha.rs",
@@ -54,6 +56,8 @@ dx_rust_crate(
         "src/edit/request_tests.rs",
     ],
     deps = [
+        "nodejs-semver",
+        "pep440_rs",
         "saphyr-parser",
         "semver",
         "serde_json",

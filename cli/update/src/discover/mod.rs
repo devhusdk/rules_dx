@@ -2,6 +2,8 @@
 
 pub mod bcr;
 pub mod cargo;
+pub mod npm;
+pub mod pypi;
 
 /// Reads one registry URL and returns the response body.
 pub trait Fetch {

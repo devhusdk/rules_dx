@@ -645,7 +645,7 @@ mod cargo;
 #[path = "request_plans.rs"]
 pub(crate) mod plans;
 #[path = "request_pyproject.rs"]
-mod pyproject;
+pub(crate) mod pyproject;
 
 use cargo::*;
 use plans::*;

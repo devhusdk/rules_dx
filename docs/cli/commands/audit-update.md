@@ -407,12 +407,23 @@ Lists packages whose newest stable version is outside the declared range.
 It reads the registry, writes nothing, and starts no Bazel. Yanked versions
 and prereleases are ignored. Path, git, workspace, and renamed Cargo entries
 are skipped, and so are Bazel modules pinned by a path, git, or archive
-override.
+override. npm specs that start with `workspace:`, `file:`, `link:`, `portal:`,
+`catalog:`, `npm:`, `git`, `github:`, or `http`, and `owner/repo` shorthands,
+are skipped. PyPI requirements that are direct references (`name @ url`) or
+have no version specifier are skipped.
 
 Covered sets are the Bazel module sets (`bazel_dep` against the Bazel Central
-Registry) and `cargo` sets (crates.io). Other sets print a
+Registry), `cargo` sets (crates.io), `npm` sets (npm registry), and `uv` sets
+(PyPI). npm sets read `dependencies`, `devDependencies`, and
+`optionalDependencies` from `package.json`. uv sets read `project.dependencies`,
+`project.optional-dependencies`, and `dependency-groups` from `pyproject.toml`.
+Other sets print a
 `update_outdated_unsupported` warning and are not checked. A `set:package`
 selector limits the lookup to that package.
+
+```bash
+bazel run @rules_dx//:dx -- update --outdated dx_npm_tools
+```
 
 Output: text prints one line per package with the declared version, the newest
 version, the publish time when the registry has one, and the command that

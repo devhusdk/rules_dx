@@ -113,7 +113,80 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<()
     Ok(())
 }
 
+struct Viewer {
+    uid: u32,
+    gids: Vec<u32>,
+}
+
+fn read_viewer(status: &str) -> Option<Viewer> {
+    let mut uid = None;
+    let mut gids = Vec::new();
+    for line in status.lines() {
+        if let Some(rest) = line.strip_prefix("Uid:") {
+            uid = rest.split_whitespace().nth(1).and_then(|v| v.parse().ok());
+        } else if let Some(rest) = line.strip_prefix("Gid:") {
+            gids.extend(
+                rest.split_whitespace()
+                    .filter_map(|v| v.parse::<u32>().ok()),
+            );
+        } else if let Some(rest) = line.strip_prefix("Groups:") {
+            gids.extend(
+                rest.split_whitespace()
+                    .filter_map(|v| v.parse::<u32>().ok()),
+            );
+        }
+    }
+    Some(Viewer { uid: uid?, gids })
+}
+
+/// Describes how `/proc` hides other users' processes from `viewer`, if it does.
+fn hidepid_reason(mountinfo: &str, viewer: &Viewer) -> Option<String> {
+    let options = mountinfo
+        .lines()
+        .filter_map(|line| {
+            let (before, after) = line.split_once(" - ")?;
+            if before.split_whitespace().nth(4)? != "/proc" {
+                return None;
+            }
+            after.split_whitespace().nth(2)
+        })
+        .next_back()?;
+    let mut hidepid = None;
+    let mut gid = None;
+    for option in options.split(',') {
+        if let Some(value) = option.strip_prefix("hidepid=") {
+            hidepid = Some(value);
+        } else if let Some(value) = option.strip_prefix("gid=") {
+            gid = value.parse::<u32>().ok();
+        }
+    }
+    let hidepid = hidepid.filter(|value| matches!(*value, "1" | "2" | "noaccess" | "invisible"))?;
+    if viewer.uid == 0 || gid.is_some_and(|gid| viewer.gids.contains(&gid)) {
+        return None;
+    }
+    Some(format!(
+        "/proc is mounted with hidepid={hidepid}; other users' processes are not visible"
+    ))
+}
+
+fn proc_hidepid_reason(proc_root: &Path) -> Option<String> {
+    if !cfg!(target_os = "linux") || proc_root != Path::new("/proc") {
+        return None;
+    }
+    let mountinfo = fs::read_to_string("/proc/self/mountinfo").ok()?;
+    let viewer = read_viewer(&fs::read_to_string("/proc/self/status").ok()?)?;
+    hidepid_reason(&mountinfo, &viewer)
+}
+
 pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation {
+    scan_live_observation_with(proc_root, dx_dir, proc_hidepid_reason(proc_root))
+}
+
+fn scan_live_observation_with(
+    proc_root: &Path,
+    dx_dir: &Path,
+    filtered: Option<String>,
+) -> LiveObservation {
     let entries = match fs::read_dir(proc_root) {
         Ok(entries) => entries,
         Err(error) => {
@@ -151,6 +224,12 @@ pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation
             .then_with(|| left.hex.cmp(&right.hex))
     });
     live.generations.dedup();
+    if let Some(reason) = filtered {
+        return LiveObservation::Unknown {
+            partial: live,
+            reason,
+        };
+    }
     let Some(first) = unreadable.first() else {
         return LiveObservation::Known(live);
     };
@@ -234,6 +313,84 @@ mod tests {
         for (index, target) in fds.iter().enumerate() {
             stage_symlink(target, &dir.join("fd").join(index.to_string()));
         }
+    }
+
+    fn mountinfo(options: &str) -> String {
+        format!(
+            "22 28 0:21 / /proc rw,nosuid - proc proc {options}\n29 28 0:30 / /tmp rw - tmpfs tmpfs rw\n"
+        )
+    }
+
+    fn user(uid: u32, gids: &[u32]) -> Viewer {
+        Viewer {
+            uid,
+            gids: gids.to_vec(),
+        }
+    }
+
+    #[test]
+    fn hidepid_levels_are_filtered_only_when_they_hide_processes() {
+        let other = user(1000, &[1000]);
+        for (options, filtered) in [
+            ("rw", false),
+            ("rw,hidepid=0", false),
+            ("rw,hidepid=off", false),
+            ("rw,hidepid=1", true),
+            ("rw,hidepid=2", true),
+            ("rw,hidepid=noaccess", true),
+            ("rw,hidepid=invisible", true),
+        ] {
+            let reason = hidepid_reason(&mountinfo(options), &other);
+            assert_eq!(reason.is_some(), filtered, "{options}");
+        }
+        let reason = hidepid_reason(&mountinfo("rw,hidepid=2"), &other).expect("filtered");
+        assert!(reason.contains("hidepid=2"));
+    }
+
+    #[test]
+    fn hidepid_exempts_root_and_the_gid_group() {
+        let options = mountinfo("rw,hidepid=2,gid=999");
+        assert!(hidepid_reason(&options, &user(1000, &[1000])).is_some());
+        assert!(hidepid_reason(&options, &user(1000, &[1000, 999])).is_none());
+        assert!(hidepid_reason(&options, &user(0, &[0])).is_none());
+        assert!(hidepid_reason("29 28 0:30 / /tmp rw - tmpfs tmpfs rw\n", &user(1, &[])).is_none());
+    }
+
+    #[test]
+    fn viewer_is_read_from_proc_status() {
+        let status = "Name:\tdx\nUid:\t1000\t1001\t1000\t1000\nGid:\t1000\t1000\t1000\t1000\nGroups:\t4 999\n";
+        let viewer = read_viewer(status).expect("viewer");
+        assert_eq!(viewer.uid, 1001);
+        assert!(viewer.gids.contains(&999));
+    }
+
+    #[test]
+    fn scan_with_filtered_proc_reports_unknown_and_keeps_partial() {
+        let scratch = {
+            let __scratch = dx_test_scratch::scratch("dx-clean-test-scan-hidepid-");
+            std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
+            __scratch
+        };
+        let root = scratch.path().to_path_buf();
+        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let proc_root = root.join("proc");
+        fs::create_dir_all(&proc_root).expect("proc root");
+        let setup = digest('3');
+        stage_process(
+            &proc_root,
+            "4242",
+            Some(&dx_dir.join("setups").join(&setup)),
+            &[],
+        );
+        let reason = hidepid_reason(&mountinfo("rw,hidepid=2"), &user(1000, &[1000]));
+        match scan_live_observation_with(&proc_root, &dx_dir, reason) {
+            LiveObservation::Unknown { partial, reason } => {
+                assert_eq!(partial.setup, vec![setup]);
+                assert!(reason.contains("hidepid=2"));
+            }
+            LiveObservation::Known(_) => panic!("a hidepid /proc is unknown, never idle"),
+        }
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

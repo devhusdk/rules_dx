@@ -184,6 +184,30 @@ mod tests {
     }
 
     #[test]
+    fn removing_an_owned_file_after_init_is_reported_missing() {
+        let scratch = dx_test_scratch::scratch("dx-init-owned-removed-");
+        let root = scratch.path();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let mut paths = vec![
+            dx_adopt::LAUNCHER_SH_REL.to_owned(),
+            dx_adopt::LAUNCHER_CMD_REL.to_owned(),
+        ];
+        paths.extend(dx_adopt::preset_paths());
+        paths.extend(dx_adopt::render_overrides().into_iter().map(|(p, _)| p));
+        let files = owned(&[]);
+        for path in paths {
+            assert!(files.iter().any(|file| file.path == path), "{path}");
+            let full = root.join(&path);
+            let kept = std::fs::read(&full).expect("read");
+            std::fs::remove_file(&full).expect("remove");
+            assert!(drift(root).missing.contains(&path), "{path}");
+            std::fs::write(&full, kept).expect("restore");
+        }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn drift_names_each_owned_gap() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-gaps-");
         let root = scratch.path();

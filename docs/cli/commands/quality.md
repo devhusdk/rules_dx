@@ -3740,9 +3740,10 @@ alone.
 ### YAML
 
 `yamlfmt` formats and `yamllint` lints. Both run from managed pins on Linux
-x86_64. Select them in a `yaml` family. Only `yamlfmt` has fixes. After one
-warm run, both pins come from the Bazel repository cache, so `format` and `lint`
-pass with tool downloads blocked.
+x86_64 and arm64, macOS arm64, and Windows x86_64 and arm64. Select them in a
+`yaml` family. Only `yamlfmt` has fixes. After one warm run, both pins come
+from the Bazel repository cache, so `format` and `lint` pass with tool downloads
+blocked.
 
 ```python
 quality_family(

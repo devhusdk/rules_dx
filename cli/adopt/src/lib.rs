@@ -55,7 +55,7 @@ pub use preset::{
 };
 pub use scaffold::{
     bazelignore_covers_dx, plan_init_files, plan_init_files_at, preflight_destinations,
-    refresh_owned_files, render_consumer_caller, render_consumer_module_setup, stale_owned_files,
+    refresh_scaffold, render_consumer_caller, render_consumer_module_setup, stale_owned_files,
     Applied, FileKind,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};

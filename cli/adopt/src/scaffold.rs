@@ -407,11 +407,12 @@ pub fn apply_scaffold(
 }
 
 /// Brings dx-owned values in existing editor and CI files up to date; creates nothing.
-pub fn refresh_owned_files(root: &Path) -> Result<Vec<String>, AdoptError> {
-    let files = plan_init_files_full("refresh", DEFAULT_BRANCH_FALLBACK)?;
-    let mut applied = Applied::default();
-    apply_files(root, &files, &mut applied, false)?;
-    Ok(applied.wrote)
+pub fn refresh_scaffold(
+    root: &Path,
+    files: &[ScaffoldFile],
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
+    apply_files(root, files, applied, false)
 }
 
 /// Owned files whose dx-owned values are out of date, and files that cannot be parsed.
@@ -1185,6 +1186,13 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             .replace(&format!("\"{DX_VERSION}\""), "\"0.0.1\"")
     }
 
+    fn refreshed(root: &std::path::Path) -> Vec<String> {
+        let files = plan_init_files("refresh").expect("plan");
+        let mut applied = super::Applied::default();
+        super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
+        applied.wrote
+    }
+
     #[test]
     fn owned_settings_keep_comments_and_user_keys() {
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-json-");
@@ -1192,7 +1200,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         std::fs::create_dir_all(root.join(".vscode")).expect("dir");
         let mine = "{\n  // mine\n  \"editor.tabSize\": 2,\n  \"go.toolsManagement.checkForUpdates\": \"on\",\n  \"search.exclude\": {\"**/mine\": true,},\n}\n";
         std::fs::write(root.join(".vscode/settings.json"), mine).expect("write");
-        let wrote = super::refresh_owned_files(root).expect("refresh");
+        let wrote = refreshed(root);
         assert_eq!(wrote, [".vscode/settings.json"]);
         let text = std::fs::read_to_string(root.join(".vscode/settings.json")).expect("read");
         assert!(text.contains("// mine"), "{text}");
@@ -1235,9 +1243,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             std::fs::read(root.join(".github/workflows/ci.yml")).expect("read"),
             ci
         );
-        assert!(super::refresh_owned_files(root)
-            .expect("refresh")
-            .is_empty());
+        assert!(refreshed(root).is_empty());
         scratch.close().expect("cleanup");
     }
 
@@ -1248,7 +1254,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
         let old = old_ci();
         std::fs::write(root.join(".github/workflows/ci.yml"), &old).expect("write");
-        let wrote = super::refresh_owned_files(root).expect("refresh");
+        let wrote = refreshed(root);
         assert_eq!(wrote, [".github/workflows/ci.yml"]);
         let new = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read");
         let changed = old.lines().zip(new.lines()).filter(|(a, b)| a != b).count();

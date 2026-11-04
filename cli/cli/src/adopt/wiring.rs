@@ -60,7 +60,14 @@ mod tests {
         let (mut applied, mut notes) = (Applied::default(), Vec::new());
         let mut files = plan(root);
         files.retain(|file| !matches!(file.kind, Kind::Scaffold(_)));
-        let result = init_files::apply(root, prefix, &files, &mut applied, &mut notes);
+        let result = init_files::apply(
+            root,
+            prefix,
+            &files,
+            init_files::Mode::Create,
+            &mut applied,
+            &mut notes,
+        );
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let exit = super::report(&inv, &applied, &notes, result, code, &mut out, &mut err);
         (

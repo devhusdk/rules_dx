@@ -10,7 +10,7 @@ use dx_process::Runner;
 use dx_output::OutputMode;
 
 use super::status::CODE_STATUS_PIN_MISMATCH;
-use super::{agents, operational, pre_exec, summaries_suppressed};
+use super::{init_files, operational, pre_exec, summaries_suppressed};
 
 pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
 
@@ -225,6 +225,10 @@ pub(crate) fn execute_upgrade(
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
         return refuse(out, err, &error.to_string());
     }
+    let files = match init_files::plan(workspace, "refresh", false) {
+        Ok(files) => files,
+        Err(error) => return refuse(out, err, &error.to_string()),
+    };
     let recovery = dx_adopt::upgrade_recovery_message(to, &intent);
     let landed = |out: &mut dyn Write, err: &mut dyn Write, what: &str| {
         let message = format!("pinned {to} but {what}; {recovery}");
@@ -248,25 +252,18 @@ pub(crate) fn execute_upgrade(
             return refuse(out, err, &error.to_string());
         }
     }
-    match dx_adopt::refresh_launcher_files(workspace) {
-        Ok(files) => wrote.extend(files),
-        Err(error) => return landed(out, err, &format!("launchers not refreshed: {error}")),
+    let mut applied = dx_adopt::Applied::default();
+    if let Err(what) = init_files::apply(
+        workspace,
+        "",
+        &files,
+        init_files::Mode::Refresh,
+        &mut applied,
+        &mut Vec::new(),
+    ) {
+        return landed(out, err, &what);
     }
-    match dx_adopt::refresh_owned_files(workspace) {
-        Ok(files) => wrote.extend(files),
-        Err(error) => {
-            return landed(
-                out,
-                err,
-                &format!("editor and CI files not refreshed: {error}"),
-            )
-        }
-    }
-    match agents::write(workspace, false) {
-        Ok(true) => wrote.push("AGENTS.md".to_owned()),
-        Ok(false) => {}
-        Err(error) => return landed(out, err, &format!("AGENTS.md not refreshed: {error}")),
-    }
+    wrote.extend(applied.wrote);
     let ide_warning = query_runner.and_then(|runner| {
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
     });
@@ -424,6 +421,49 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("wrote .github/workflows/ci.yml"), "{out}");
         assert_eq!(std::fs::read_to_string(&ci).expect("read"), fresh);
+    }
+
+    #[test]
+    fn upgrade_refreshes_only_what_exists_from_the_init_plan() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-plan-", OLD);
+        let plan = init_files::plan(&root, "refresh", false).expect("plan");
+        let mut applied = dx_adopt::Applied::default();
+        init_files::apply(
+            &root,
+            "",
+            &plan,
+            init_files::Mode::Create,
+            &mut applied,
+            &mut Vec::new(),
+        )
+        .expect("init");
+        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
+        dx_adopt::write_version_pin(&root, OLD).expect("pin");
+        legacy_launcher(&root, OLD);
+        let ci = root.join(".github/workflows/ci.yml");
+        let fresh = dx_adopt::render_consumer_caller();
+        std::fs::write(&ci, fresh.replace(dx_adopt::DX_VERSION, "0.0.1")).expect("stale");
+        let mut gone = vec![
+            "tools/dx.cmd".to_owned(),
+            ".vscode/settings.json".to_owned(),
+            "AGENTS.md".to_owned(),
+            "CLAUDE.md".to_owned(),
+            dx_worktree::setup::HOOK_FILES[0].path.to_owned(),
+            dx_adopt::render_overrides().remove(0).0,
+        ];
+        for path in &gone {
+            std::fs::remove_file(root.join(path)).expect("remove");
+        }
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let known: Vec<&str> = plan.iter().map(|file| file.path.as_str()).collect();
+        for line in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
+            assert!(known.contains(&line), "{line} is not in the plan");
+        }
+        assert!(out.contains("wrote tools/dx\n"), "{out}");
+        assert!(out.contains("wrote .github/workflows/ci.yml"), "{out}");
+        gone.retain(|path| root.join(path).exists());
+        assert!(gone.is_empty(), "recreated {gone:?}");
     }
 
     #[test]

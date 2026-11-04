@@ -28,6 +28,13 @@ pub(super) enum Kind {
     ClaudeImport,
 }
 
+/// Whether apply creates missing files or only refreshes existing ones.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Mode {
+    Create,
+    Refresh,
+}
+
 /// One file init manages.
 pub(super) struct InitFile {
     pub(super) path: String,
@@ -142,10 +149,14 @@ pub(super) fn apply(
     root: &Path,
     prefix: &str,
     files: &[InitFile],
+    mode: Mode,
     applied: &mut Applied,
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
+    if mode == Mode::Refresh {
+        return refresh(root, prefix, files, applied);
+    }
     let prefixed = |paths: Vec<String>| paths.into_iter().map(|path| format!("{prefix}{path}"));
     let scaffold: Vec<ScaffoldFile> = files
         .iter()
@@ -229,6 +240,49 @@ pub(super) fn apply(
         && claude_md::write(root).map_err(|error| error.to_string())?
     {
         applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
+    }
+    Ok(())
+}
+
+fn refresh(
+    root: &Path,
+    prefix: &str,
+    files: &[InitFile],
+    applied: &mut Applied,
+) -> Result<(), String> {
+    let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
+    let record = |applied: &mut Applied, paths: Vec<String>| {
+        applied
+            .wrote
+            .extend(paths.into_iter().map(|path| format!("{prefix}{path}")));
+    };
+    if has(|kind| *kind == Kind::Launcher) {
+        let wrote = dx_adopt::refresh_launcher_files(root)
+            .map_err(|error| format!("launchers not refreshed: {error}"))?;
+        record(applied, wrote);
+    }
+    let scaffold: Vec<ScaffoldFile> = files
+        .iter()
+        .filter_map(|file| match file.kind {
+            Kind::Scaffold(kind) => Some(ScaffoldFile {
+                path: file.path.clone(),
+                content: file.content.clone(),
+                kind,
+            }),
+            _ => None,
+        })
+        .collect();
+    if !scaffold.is_empty() {
+        let mut own = Applied::default();
+        dx_adopt::refresh_scaffold(root, &scaffold, &mut own)
+            .map_err(|error| format!("editor and CI files not refreshed: {error}"))?;
+        record(applied, own.wrote);
+    }
+    if has(|kind| *kind == Kind::AgentsBlock)
+        && agents::write(root, false)
+            .map_err(|error| format!("AGENTS.md not refreshed: {error}"))?
+    {
+        record(applied, vec![agents::FILE.to_owned()]);
     }
     Ok(())
 }

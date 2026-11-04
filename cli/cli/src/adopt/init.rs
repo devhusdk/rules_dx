@@ -125,7 +125,14 @@ pub(crate) fn execute_init(
     }
     let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
-    let result = super::init_files::apply(root, &target.prefix, &planned, &mut applied, &mut notes);
+    let result = super::init_files::apply(
+        root,
+        &target.prefix,
+        &planned,
+        super::init_files::Mode::Create,
+        &mut applied,
+        &mut notes,
+    );
     super::wiring::report(
         invocation,
         &applied,

@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -17,8 +17,8 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//:__subpackages__"],
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "rust/tests/fixtures/adopt-rust/crates/api",
     ) + [":api_build_script"],
 )
@@ -31,8 +31,8 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":api",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "rust/tests/fixtures/adopt-rust/crates/api",
     ) + [":api_build_script"],
 )
@@ -48,8 +48,8 @@ rust_test(
     crate_name = "helper_test",
     crate_root = "tests/helper.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "rust/tests/fixtures/adopt-rust/crates/api",
     ) + [
         ":api",
@@ -73,8 +73,8 @@ rust_test(
     crate_name = "api_roundtrip_test",
     crate_root = "tests/api_roundtrip.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "rust/tests/fixtures/adopt-rust/crates/api",
     ) + [
         ":api",
@@ -94,8 +94,8 @@ rust_test(
     crate_name = "common_test",
     crate_root = "tests/common.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "rust/tests/fixtures/adopt-rust/crates/api",
     ) + [
         ":api",

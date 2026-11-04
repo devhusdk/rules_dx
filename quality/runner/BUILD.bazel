@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
@@ -82,12 +82,8 @@ rust_binary(
     crate_name = "matrix_harness",
     crate_root = "src/matrix_harness.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "quality/quality_runner",
     ) + [
         "//cli/path:dx_path",
@@ -184,13 +180,8 @@ rust_test(
 rust_test(
     name = "quality_runner_bin_test",
     crate = ":quality_runner",
-    deps = crate_deps(
-        [
-            "clap",
-            "tempfile",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "quality/quality_runner",
     ) + [
         ":quality_runner_lib",
@@ -209,12 +200,8 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":matrix_harness",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "quality/quality_runner",
     ) + [
         ":quality_runner_lib",

@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//java/rules:defs.bzl", "java_library")
@@ -125,24 +125,8 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [
-            "base64",
-            "flate2",
-            "md-5",
-            "pgp",
-            "quick-xml",
-            "rand",
-            "ruzstd",
-            "rustls",
-            "serde",
-            "serde_json",
-            "sha1",
-            "sha2",
-            "tar",
-            "ureq",
-            "zip",
-        ],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "deploy/dx_deploy_tools",
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -230,14 +214,9 @@ rust_test(
         "MAVEN_GNUPG_PUBKEY": "$(rlocationpath testdata/maven/gnupg/pubkey.asc)",
         "MAVEN_GNUPG_SIGNATURE": "$(rlocationpath testdata/maven/gnupg/payload.txt.asc)",
     },
-    deps = crate_deps(
-        [
-            "flate2",
-            "ruzstd",
-            "tar",
-            "tempfile",
-            "zip",
-        ],
+    deps = all_crate_deps(
+        normal = True,
+        normal_dev = True,
         package_name = "deploy/dx_deploy_tools",
     ),
 )

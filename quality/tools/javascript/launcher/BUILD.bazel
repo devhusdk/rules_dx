@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
@@ -35,8 +35,8 @@ rust_binary(
     crate_name = "js_launcher",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
+        normal = True,
         package_name = "quality/tools/javascript/dx_js_launcher",
     ) + [":dx_js_launcher"],
 )

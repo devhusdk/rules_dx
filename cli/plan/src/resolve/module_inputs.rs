@@ -781,11 +781,7 @@ mod tests {
         ];
         assert_eq!(
             module_seeds(labels.into_iter(), &set(&["foo"])),
-            [
-                "@@+ext+local//:e",
-                "@@foo++ext+hub//:b",
-                "@@foo+//:a",
-            ]
+            ["@@+ext+local//:e", "@@foo++ext+hub//:b", "@@foo+//:a",]
         );
     }
 }

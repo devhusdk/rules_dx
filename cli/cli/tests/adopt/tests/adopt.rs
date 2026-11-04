@@ -13,6 +13,10 @@ struct Out {
 }
 
 fn dx(root: &Path, home: &Path, args: &[&str]) -> Out {
+    dx_with_env(root, home, args, &[])
+}
+
+fn dx_with_env(root: &Path, home: &Path, args: &[&str], env: &[(&str, &str)]) -> Out {
     let bin = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must be set"));
     let output = Command::new(bin)
         .args(args)
@@ -22,6 +26,7 @@ fn dx(root: &Path, home: &Path, args: &[&str]) -> Out {
         .env("HOME", home)
         .env("XDG_CACHE_HOME", home.join(".cache"))
         .env("GIT_CEILING_DIRECTORIES", home.parent().expect("base"))
+        .envs(env.iter().copied())
         .output()
         .unwrap_or_else(|error| panic!("spawn dx: {error}"));
     Out {
@@ -92,6 +97,17 @@ fn init_in_an_empty_dir() {
     let before = snapshot(&root);
     init(&root, &home);
     assert_eq!(before, snapshot(&root));
+}
+
+#[test]
+fn init_apply_works_with_the_agent_json_default() {
+    let (_guard, root, home) = setup("adopt-agent");
+    let agent = [("CLAUDECODE", "1")];
+    let out = dx_with_env(&root, &home, &["init", "--apply"], &agent);
+    assert_eq!(out.code, 0, "{}", out.stderr);
+    assert!(root.join("MODULE.bazel").is_file());
+    let json = dx_with_env(&root, &home, &["init", "--apply", "--output=json"], &agent);
+    assert_eq!(json.code, 2, "{}", json.stderr);
 }
 
 #[test]

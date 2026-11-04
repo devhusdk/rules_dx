@@ -426,11 +426,7 @@ fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
     let name = file_name_of(path);
     matches!(
         name,
-        "MODULE.bazel"
-            | "MODULE.bazel.lock"
-            | ".bazelversion"
-            | ".bazeliskrc"
-            | ".bazelignore"
+        "MODULE.bazel" | "MODULE.bazel.lock" | ".bazelversion" | ".bazeliskrc" | ".bazelignore"
     ) || name.starts_with(".bazelrc")
         || (name.ends_with(".MODULE.bazel") && !name.starts_with('.'))
         || rc_files.contains(path)

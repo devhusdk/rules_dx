@@ -324,6 +324,17 @@ fn agent_markers_default_json_and_explicit_choices_win() {
 }
 
 #[test]
+fn init_apply_ignores_the_agent_json_default() {
+    let env = env_of(&[("CLAUDECODE", "1")]);
+    let got = parse_with(&strings(&["init", "--apply"]), &env).expect("apply");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let got = parse_with(&strings(&["init"]), &env).expect("plan");
+    assert_eq!(got.output, OutputMode::Json);
+    let got = parse_with(&strings(&["init", "--apply", "--output=json"]), &env).expect("parses");
+    assert_eq!(got.output, OutputMode::Json);
+}
+
+#[test]
 fn ci_ignores_preference_env_but_keeps_flags() {
     use super::parse_with_ci;
     let env = env_of(&[("DX_OUTPUT", "json"), ("DX_VERBOSE", "true")]);

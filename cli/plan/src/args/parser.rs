@@ -370,11 +370,12 @@ fn parse_inner<S: AsRef<OsStr>>(
     let agent = invocation_defaults::is_agent(env_get);
     let output_from_flag = output.is_some();
     let fail_on_from_flag = fail_on.is_some();
+    let apply_without_output_flag = command == Command::Init && apply && !output_from_flag;
     let output_name = resolve_output_name(
         Some(command),
         output.as_deref(),
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
-        agent,
+        agent && !apply_without_output_flag,
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,

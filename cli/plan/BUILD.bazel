@@ -114,6 +114,7 @@ dx_rust_crate(
         "src/args/tutorial_tests.rs",
         "src/resolve/fake_query.rs",
     ],
+    visibility = VIS_QUALITY_CLI,
     deps = [
         "base64",
         "clap",
@@ -130,7 +131,6 @@ dx_rust_crate(
         "tempfile",
         "thiserror",
     ],
-    visibility = VIS_QUALITY_CLI,
 )
 
 real_source_target(

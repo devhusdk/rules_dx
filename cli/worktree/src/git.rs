@@ -271,7 +271,7 @@ pub(super) fn default_base(repo: &Path) -> Result<String, WorktreeError> {
             "refs/remotes/origin/HEAD",
         ],
     ) {
-        if !name.is_empty() {
+        if !name.is_empty() && ref_exists(repo, &name) {
             return Ok(name);
         }
     }

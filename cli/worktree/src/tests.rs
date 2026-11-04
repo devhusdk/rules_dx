@@ -1061,6 +1061,40 @@ fn a_missing_branch_starts_from_the_default_base() {
     assert_eq!(taken.code, "branch_exists");
 }
 
+#[test]
+fn default_base_skips_an_origin_head_whose_target_is_gone() {
+    let fixture = Fixture::new();
+    git(
+        &fixture.main,
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/master",
+        ],
+    );
+    let base = super::git::default_base(&fixture.main).expect("falls back to main");
+    assert_eq!(base, "origin/main");
+}
+
+#[test]
+fn default_base_refuses_when_origin_head_and_the_candidates_are_gone() {
+    let fixture = Fixture::new();
+    git(
+        &fixture.main,
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/master",
+        ],
+    );
+    git(
+        &fixture.main,
+        &["update-ref", "-d", "refs/remotes/origin/main"],
+    );
+    let refused = super::git::default_base(&fixture.main).expect_err("no default branch");
+    assert_eq!(refused.code, "no_default_branch");
+}
+
 fn slot_one(listing: &ops::Listing) -> &ops::Row {
     listing
         .rows

@@ -24,9 +24,9 @@ python_library(
 )
 
 python_library(
-    name = "test_login",
+    name = "login_fixtures",
     testonly = True,
-    srcs = ["test_login.py"],
+    srcs = ["login_fixtures.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
     deps = [":logins"],

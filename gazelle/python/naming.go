@@ -3,6 +3,7 @@ package python
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 	"path"
+	"strings"
 )
 
 var SupportedExts = []string{".py", ".pyi"}
@@ -12,8 +13,17 @@ var TestSourceExts = []string{".py"}
 var TestSourceSuffixes = []string{"_test"}
 
 func IsTestFile(name string) bool {
-	return common.HasExt(path.Base(name), TestSourceExts) && common.IsTestSource(name, TestSourceExts, TestSourceSuffixes)
+	base := path.Base(name)
+	if !common.HasExt(base, TestSourceExts) {
+		return false
+	}
+	if strings.HasPrefix(base, "test_") && base != "test_.py" {
+		return true
+	}
+	return common.IsTestSource(name, TestSourceExts, TestSourceSuffixes)
 }
+
+func IsConftest(name string) bool { return path.Base(name) == "conftest.py" }
 
 func ModuleName(name string) string { return common.Stem(name, SupportedExts) }
 

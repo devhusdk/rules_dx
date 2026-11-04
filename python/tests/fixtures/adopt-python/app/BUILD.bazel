@@ -34,9 +34,9 @@ python_test(
 )
 
 python_library(
-    name = "test_helpers",
+    name = "seed_helpers",
     testonly = True,
-    srcs = ["test_helpers.py"],
+    srcs = ["seed_helpers.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
     deps = [":envelopes"],

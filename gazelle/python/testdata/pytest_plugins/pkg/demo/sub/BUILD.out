@@ -2,6 +2,7 @@ load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
 
 python_library(
     name = "conftest",
+    testonly = True,
     srcs = ["conftest.py"],
     imports = ["."],
     deps = [":deep_fixtures"],
@@ -17,4 +18,8 @@ python_test(
     name = "sub_test",
     srcs = ["sub_test.py"],
     imports = ["."],
+    deps = [
+        ":conftest",
+        "//pkg/demo:conftest",
+    ],
 )

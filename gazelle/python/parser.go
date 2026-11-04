@@ -31,7 +31,8 @@ func ParseImports(content []byte) []string {
 		set[root] = struct{}{}
 	}
 	if tree.Root != nil {
-		tree.Walk(tree.Root, func(n *ts.Node) bool {
+		var visit func(n *ts.Node) bool
+		visit = func(n *ts.Node) bool {
 			switch tree.Type(n) {
 			case "import_statement":
 				for _, c := range n.Children() {
@@ -50,11 +51,21 @@ func ParseImports(content []byte) []string {
 					add(tree.Dotted(mod))
 				}
 				return false
+			case "if_statement":
+				if isTypeChecking(tree, n) {
+					for _, c := range n.Children() {
+						if k := tree.Type(c); k == "elif_clause" || k == "else_clause" {
+							tree.Walk(c, visit)
+						}
+					}
+					return false
+				}
 			case "call":
 				addDynamic(tree, n, add)
 			}
 			return true
-		})
+		}
+		tree.Walk(tree.Root, visit)
 		addPytestPlugins(tree, add)
 	}
 	out := make([]string, 0, len(set))
@@ -243,4 +254,19 @@ func pythonString(tree *treesitter.Tree, n *ts.Node) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+func isTypeChecking(tree *treesitter.Tree, n *ts.Node) bool {
+	cond := n.ChildByFieldName("condition", grammar())
+	if cond == nil {
+		return false
+	}
+	switch tree.Type(cond) {
+	case "identifier":
+		return tree.Text(cond) == "TYPE_CHECKING"
+	case "attribute":
+		attr := cond.ChildByFieldName("attribute", grammar())
+		return attr != nil && tree.Text(attr) == "TYPE_CHECKING"
+	}
+	return false
 }

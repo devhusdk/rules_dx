@@ -1,7 +1,10 @@
 package python
 
 import (
+	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -139,6 +142,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		return language.GenerateResult{}
 	}
 
+	conftestDeps := conftestLabels(args.Config.RepoRoot, args.Rel, sources)
 	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "pytest")
 	var result language.GenerateResult
 	for _, p := range plans {
@@ -156,6 +160,12 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		r.SetAttr("srcs", srcs)
 		r.SetAttr("imports", []string{importsAttr})
+		if p.test && len(conftestDeps) > 0 {
+			r.SetAttr("deps", conftestDeps)
+		}
+		if IsConftest(p.src) {
+			r.SetAttr("testonly", true)
+		}
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(append([]string(nil), p.imports...)))
 		if p.entry {
@@ -173,6 +183,26 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	return mergeStale(args.File, result)
+}
+
+func conftestLabels(root, rel string, sources []string) []string {
+	var labels []string
+	if slices.ContainsFunc(sources, IsConftest) {
+		labels = append(labels, ":conftest")
+	}
+	for dir := rel; dir != ""; {
+		dir = path.Dir(dir)
+		if dir == "." {
+			dir = ""
+		}
+		if _, err := os.Stat(filepath.Join(root, dir, "conftest.py")); err == nil {
+			labels = append(labels, "//"+dir+":conftest")
+		}
+		if dir == "" {
+			break
+		}
+	}
+	return labels
 }
 
 func claimKind(c Claimant) string {

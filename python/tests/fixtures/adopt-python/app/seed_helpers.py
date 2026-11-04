@@ -1,4 +1,4 @@
-"""Shared helpers that must NOT be classified as tests (`test_` prefix negative)."""
+"""Shared helpers that stay libraries."""
 
 import envelopes
 

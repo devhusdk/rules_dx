@@ -10,7 +10,11 @@ func TestIsTestFile(t *testing.T) {
 		{"helper_test.py", true},
 		{"pkg/helper_test.py", true},
 		{"helper.py", false},
-		{"test_helper.py", false},
+		{"test_helper.py", true},
+		{"pkg/test_x.py", true},
+		{"test_.py", false},
+		{"test_x.pyi", false},
+		{"conftest.py", false},
 		{"tests/helper.py", false},
 		{"helper_test.pyi", false},
 		{"helper_test", false},
@@ -81,6 +85,14 @@ func TestIsEntryFile(t *testing.T) {
 	for _, tc := range cases {
 		if got := IsEntryFile(tc.name); got != tc.want {
 			t.Errorf("IsEntryFile(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestIsConftest(t *testing.T) {
+	for name, want := range map[string]bool{"conftest.py": true, "a/conftest.py": true, "conftest.pyi": false, "my_conftest.py": false} {
+		if got := IsConftest(name); got != want {
+			t.Errorf("IsConftest(%q) = %v, want %v", name, got, want)
 		}
 	}
 }

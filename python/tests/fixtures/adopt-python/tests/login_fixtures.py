@@ -1,4 +1,4 @@
-"""Conventional test-dir file that must stay a library (`test_` prefix negative)."""
+"""Conventional test-dir file that stays a library."""
 
 import logins
 

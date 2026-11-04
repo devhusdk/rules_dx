@@ -34,6 +34,10 @@ func TestParseImports(t *testing.T) {
 		{"namesContinuation", "from foo import \\\n bar\n", []string{"foo"}},
 		{"unclosedParen", "from foo import (a,\n b", nil}, // malformed
 		{"semicolonParen", "from foo import (a; b)\n", []string{"foo"}},
+		{"typeChecking", "if TYPE_CHECKING:\n    from _typeshed import X\n", nil},
+		{"typingTypeChecking", "if typing.TYPE_CHECKING:\n    import a\n", nil},
+		{"typeCheckingElse", "if TYPE_CHECKING:\n    import a\nelse:\n    import b\n", []string{"b"}},
+		{"typeCheckingDynamic", "if TYPE_CHECKING:\n    import_module(\"p\")\n", nil},
 		{"relativeBare", "from . import foo\n", nil},
 		{"relativeModule", "from .foo import bar\n", nil},
 		{"fromNewline", "from\n", nil},

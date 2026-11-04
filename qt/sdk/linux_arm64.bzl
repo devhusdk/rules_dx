@@ -710,6 +710,8 @@ _LICENSE_TEXTS = {
     ),
 }
 
+IDENTITY = struct(arch = "aarch64", os = "linux", min_runtime = "glibc-2.39")
+
 CELL = struct(
     archives = {
         "icu": struct(

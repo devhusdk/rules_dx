@@ -6,6 +6,8 @@ _RELEASE = "6.11.3-0-202610220312"
 
 _SUFFIX = "-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z"
 
+IDENTITY = None
+
 CELL = struct(
     archives = {
         "qtbase": struct(

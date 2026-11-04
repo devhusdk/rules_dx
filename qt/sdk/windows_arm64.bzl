@@ -1,5 +1,7 @@
 """Blocked placeholder of the windows_arm64 cell."""
 
+IDENTITY = None
+
 CELL = struct(
     archives = {},
     blocker = "no Windows layout, launcher or probe evidence is pinned for windows_arm64 (#5104, #5109)",

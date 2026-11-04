@@ -16,7 +16,7 @@ load(
     "dx_upstream_tags",
 )
 load("//qt/sdk:needs.bzl", "QtNeedsInfo")
-load("//qt/sdk:pins.bzl", "CELLS", "RUNTIME_PLUGINS")
+load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -1003,24 +1003,21 @@ def _soname(basename):
     return separator != "" and stem != "" and version.isdigit()
 
 def qt_consumer_identity(cell):
-    """Returns the consumer_archive arch and min_runtime of one qualified Qt cell."""
-    runtime = CELLS[cell].runtime
-    return struct(arch = runtime.arch, min_runtime = "glibc-" + runtime.glibc)
+    """Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell."""
+    return IDENTITIES[cell]
 
-# Qualified cells with a glibc runtime identity. Non-glibc cells (macos_arm64)
-# need a per-OS runtime field first (#3301).
-_CONSUMER_CELLS = [
-    cell
-    for cell in qualified_cells()
-    if CELLS[cell].runtime != None and hasattr(CELLS[cell].runtime, "glibc")
-]
+# Qualified cells that have a consumer identity.
+_CONSUMER_CELLS = [cell for cell in qualified_cells() if IDENTITIES[cell] != None]
+
+# Consumer cells with a needs table, the ones qt_bundle can stage.
+_BUNDLE_CELLS = [cell for cell in _CONSUMER_CELLS if CELLS[cell].needs != None]
 
 def _cell_setting(cell):
     return Label("//qt/platforms:cell_" + cell)
 
-# target_compatible_with for targets that build against @dx_qt: every glibc cell.
+# target_compatible_with for targets that build against @dx_qt: every cell with a needs table.
 QT_COMPATIBLE_WITH = select(
-    {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
+    {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
     {"//conditions:default": [Label("@platforms//:incompatible")]},
 )
 
@@ -1029,6 +1026,18 @@ QT_COMPATIBLE_WITH = select(
 QT_HOST_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in qualified_cells()} |
     {"//conditions:default": [Label("@platforms//:incompatible")]},
+)
+
+# target_compatible_with added to every qt_bundle: cells with a needs table.
+QT_BUNDLE_COMPATIBLE_WITH = select(
+    {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
+    {"//conditions:default": [Label("@platforms//:incompatible")]},
+)
+
+# consumer_archive os of the qualified cell the build targets.
+QT_CONSUMER_OS = select(
+    {_cell_setting(cell): IDENTITIES[cell].os for cell in _CONSUMER_CELLS} |
+    {"//conditions:default": ""},
 )
 
 # consumer_archive arch of the qualified cell the build targets.
@@ -1135,6 +1144,7 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plu
     for plugin in plugins:
         if plugin not in RUNTIME_PLUGINS:
             fail("qt_bundle: plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
+    kwargs["target_compatible_with"] = kwargs.pop("target_compatible_with", []) + QT_BUNDLE_COMPATIBLE_WITH
     _qt_bundle(
         name = name,
         binary = binary,

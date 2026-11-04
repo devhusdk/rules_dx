@@ -3,12 +3,12 @@
 load("//libs/starlark:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
-load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
-load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL")
+load(":linux_arm64.bzl", LINUX_ARM64 = "CELL", LINUX_ARM64_IDENTITY = "IDENTITY")
+load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL", LINUX_X86_64_IDENTITY = "IDENTITY")
 load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
-load(":macos_arm64.bzl", MACOS_ARM64 = "CELL")
-load(":windows_arm64.bzl", WINDOWS_ARM64 = "CELL")
-load(":windows_x86_64.bzl", WINDOWS_X86_64 = "CELL")
+load(":macos_arm64.bzl", MACOS_ARM64 = "CELL", MACOS_ARM64_IDENTITY = "IDENTITY")
+load(":windows_arm64.bzl", WINDOWS_ARM64 = "CELL", WINDOWS_ARM64_IDENTITY = "IDENTITY")
+load(":windows_x86_64.bzl", WINDOWS_X86_64 = "CELL", WINDOWS_X86_64_IDENTITY = "IDENTITY")
 
 QT_VERSION = "6.11.3"
 
@@ -56,6 +56,14 @@ CELLS = {
     "macos_arm64": MACOS_ARM64,
     "windows_arm64": WINDOWS_ARM64,
     "windows_x86_64": WINDOWS_X86_64,
+}
+
+IDENTITIES = {
+    "linux_arm64": LINUX_ARM64_IDENTITY,
+    "linux_x86_64": LINUX_X86_64_IDENTITY,
+    "macos_arm64": MACOS_ARM64_IDENTITY,
+    "windows_arm64": WINDOWS_ARM64_IDENTITY,
+    "windows_x86_64": WINDOWS_X86_64_IDENTITY,
 }
 
 EXTRACTORS = SEVEN_ZIP_EXTRACTORS

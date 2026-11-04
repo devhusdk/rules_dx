@@ -6,6 +6,8 @@ _RELEASE = "6.11.3-0-202610220312"
 
 _SUFFIX = "-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z"
 
+IDENTITY = struct(arch = "aarch64", os = "macos", min_runtime = "macos-13.0")
+
 CELL = struct(
     archives = {
         "qtbase": struct(

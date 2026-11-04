@@ -1,4 +1,4 @@
-use crate::locks::locks_spec::{indent_of, split_paren_spec};
+use crate::locks::{indent_of, split_paren_spec};
 use crate::vuln::{split_gem_lock_version, LockedPackage};
 
 #[derive(Clone, Copy, Eq, PartialEq)]

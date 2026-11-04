@@ -1,4 +1,4 @@
-use crate::locks::locks_spec::split_paren_spec;
+use crate::locks::split_paren_spec;
 use crate::vuln::LockedPackage;
 
 pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {

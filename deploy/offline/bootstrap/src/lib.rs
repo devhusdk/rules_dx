@@ -334,16 +334,12 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
             }
             None => return format!("advisory identity {identity} has no sha256"),
         }
-        let target = populated.join(&named);
-        if let Err(detail) = copy(snapshot, &target) {
-            return detail;
-        }
         let meta = format!(
             "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
              \"sha256\": \"{sha}\", \"retrieved_at\": \"{retrieved}\", \
              \"path\": \".dx/advisory/{named}\"}}"
         );
-        if let Err(detail) = write(&populated.join(format!("{set}.meta.json")), &meta) {
+        if let Err(detail) = publish_set(snapshot, &populated, &set, &meta, write) {
             return detail;
         }
         count += 1;
@@ -452,8 +448,27 @@ fn copy(source: &Path, target: &Path) -> Result<(), String> {
     })
 }
 
+/// Replaces one populated set. The old identity goes first and the new one is
+/// written last, so an interrupt leaves a missing identity, never a wrong one.
+fn publish_set(
+    snapshot: &Path,
+    populated: &Path,
+    set: &str,
+    meta: &str,
+    write_identity: fn(&Path, &str) -> Result<(), String>,
+) -> Result<(), String> {
+    let identity = populated.join(format!("{set}.meta.json"));
+    match std::fs::remove_file(&identity) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("cannot remove {}: {error}", identity.display())),
+    }
+    copy(snapshot, &populated.join(format!("{set}.json")))?;
+    write_identity(&identity, meta)
+}
+
 fn write(target: &Path, body: &str) -> Result<(), String> {
-    std::fs::write(target, body)
+    dx_atomic_fs::write_atomic(target, body.as_bytes())
         .map_err(|error| format!("cannot write {}: {error}", target.display()))
 }
 

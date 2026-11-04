@@ -143,6 +143,17 @@ fn prepare_family(
     })?;
     let prepared = convert_entries(family, url, &options.retrieved_at, &entries)?;
     let identity = identity_bytes(&prepared.snapshot)?;
+    let meta_path = options.out.join(format!("{family}.meta.json"));
+    match std::fs::remove_file(&meta_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(PrepError::Write {
+                path: dx_audit::advisory::identity_rel(family),
+                detail: error.to_string(),
+            })
+        }
+    }
     write_atomic(
         &options.out.join(format!("{family}.json")),
         &prepared.payload,
@@ -152,11 +163,10 @@ fn prepare_family(
         detail: error.to_string(),
     })?;
     let meta_rel = dx_audit::advisory::identity_rel(family);
-    dx_atomic_fs::write_atomic(&options.out.join(format!("{family}.meta.json")), &identity)
-        .map_err(|error| PrepError::Write {
-            path: meta_rel,
-            detail: error.to_string(),
-        })?;
+    dx_atomic_fs::write_atomic(&meta_path, &identity).map_err(|error| PrepError::Write {
+        path: meta_rel,
+        detail: error.to_string(),
+    })?;
     Ok(Prepared {
         family: family.to_owned(),
         path: prepared.snapshot.path,

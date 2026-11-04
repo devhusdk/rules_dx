@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use super::{
     default_install_dir, host_launcher, is_plain_date, manifest_entry, parse_args, pinned,
-    recorded_field, run, today_utc, usage, Command, Options, ADVISORY_SETS,
+    publish_set, recorded_field, run, today_utc, usage, Command, Options, ADVISORY_SETS,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -547,5 +547,27 @@ fn an_orphan_sidecar_is_refused() {
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-10-24"),
         "advisory identity npm.meta.json has no snapshot; want advisory/npm.json"
+    );
+}
+
+fn failing_write(_target: &Path, _body: &str) -> Result<(), String> {
+    Err("disk full".to_owned())
+}
+
+#[test]
+fn an_interrupted_replace_never_pairs_a_new_snapshot_with_an_old_identity() {
+    let root = scratch("dx-bootstrap-publish-");
+    let populated = root.join("populated");
+    std::fs::create_dir_all(&populated).expect("populated");
+    std::fs::write(populated.join("cargo.json"), "old").expect("old snapshot");
+    std::fs::write(populated.join("cargo.meta.json"), "old identity").expect("old identity");
+    let new = root.join("new.json");
+    std::fs::write(&new, "new").expect("new snapshot");
+    let result = publish_set(&new, &populated, "cargo", "meta", failing_write);
+    assert_eq!(result, Err("disk full".to_owned()));
+    assert!(!populated.join("cargo.meta.json").exists());
+    assert_eq!(
+        std::fs::read_to_string(populated.join("cargo.json")).unwrap(),
+        "new"
     );
 }

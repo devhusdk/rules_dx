@@ -38,6 +38,7 @@ dx_rust_crate(
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
         "//patches/avro-cpp:iterator.patch",
         "//patches/fmt:cstdlib.patch",
+        "//patches/gcc_toolchain:sanitizer_spec.patch",
         "//patches/protobuf:no_crate_universe.patch",
         "//patches/rules_julia:package_name.patch",
         "//patches/rules_rust:lld_link.patch",

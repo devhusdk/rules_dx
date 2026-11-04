@@ -41,3 +41,10 @@ bazel build --@rules_dx//cc/toolchains:compiler=gcc //pkg/...
 It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary.
 
 `cc_test` coverage works with both toolchains. GCC coverage uses the gcov that ships with the toolchain.
+
+Sanitizers work under GCC with the `asan` and `ubsan` features. Link the runtime statically so nothing loads from the host:
+
+```sh
+bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=asan --linkopt=-static-libasan //pkg:test
+bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=ubsan --linkopt=-static-libubsan //pkg:test
+```

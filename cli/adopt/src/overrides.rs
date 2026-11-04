@@ -112,6 +112,15 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "gcc_toolchain",
+        version: "0.13.0",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "sanitizer_spec.patch",
+            content: include_str!("../../../patches/gcc_toolchain/sanitizer_spec.patch"),
+        }],
+    },
+    Override {
         module: "fmt",
         version: "11.1.4",
         patch_strip: 1,

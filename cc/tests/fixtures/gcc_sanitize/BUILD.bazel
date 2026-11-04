@@ -1,0 +1,40 @@
+load("//cc/rules:defs.bzl", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_GCC_ONLY = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+cc_test(
+    name = "asan_test",
+    srcs = ["sanitize_test.cc"],
+    # GCC's static libasan still trips the dynamic link order check at startup.
+    env = {"ASAN_OPTIONS": "verify_asan_link_order=0"},
+    linkopts = ["-static-libasan"],
+    local_defines = ["DX_EXPECT_ASAN"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_test(
+    name = "ubsan_test",
+    srcs = ["sanitize_test.cc"],
+    copts = ["-fno-sanitize-recover=undefined"],
+    linkopts = ["-static-libubsan"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -97,14 +97,40 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/gcc_shared:c_test",
 )
 
+cc_toolchain_test(
+    name = "gcc_asan_test",
+    compiler = "gcc",
+    extra_features = ["asan"],
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/gcc_sanitize:asan_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_ubsan_test",
+    compiler = "gcc",
+    extra_features = ["ubsan"],
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
+)
+
 test_suite(
     name = "all",
     tests = [
+        ":gcc_asan_test",
         ":gcc_c_test",
         ":gcc_hello_c_test",
         ":gcc_hello_lib_test",
         ":gcc_hello_test",
         ":gcc_shared_test",
+        ":gcc_ubsan_test",
         ":identity",
         ":identity_contract",
         ":identity_gcc",

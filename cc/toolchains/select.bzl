@@ -1,6 +1,6 @@
 """Run a test under an explicitly selected C++ toolchain."""
 
-load("//libs/starlark:wrapper.bzl", "dx_lcov_merger_attr")
+load("//libs/starlark:wrapper.bzl", "dx_lcov_merger_attr", "dx_symlink_executable")
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
 
@@ -25,14 +25,7 @@ toolchain_transition = transition(
 def _test_impl(ctx):
     src = ctx.attr.test[0]
     inner = src[DefaultInfo].files_to_run.executable
-    path = inner.short_path
-    path = path[3:] if path.startswith("../") else ctx.workspace_name + "/" + path
-    exe = ctx.actions.declare_file(ctx.label.name + ".sh")
-    ctx.actions.write(
-        output = exe,
-        content = "#!/bin/bash\nexec \"${RUNFILES_DIR:-$0.runfiles}/%s\" \"$@\"\n" % path,
-        is_executable = True,
-    )
+    exe = dx_symlink_executable(ctx, inner)
     runfiles = ctx.runfiles(files = [inner]).merge(src[DefaultInfo].default_runfiles)
     providers = [DefaultInfo(executable = exe, runfiles = runfiles)]
     if RunEnvironmentInfo in src:

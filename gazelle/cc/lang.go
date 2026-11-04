@@ -92,8 +92,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		}
 	}
 	if args.Config != nil && common.IsErlangNifDir(args.Config.RepoRoot, args.Rel) {
-		// Drop rules an earlier run left here so c_src stops being a package.
-		return common.MergeStale(args.File, language.GenerateResult{}, owned)
+		return language.GenerateResult{}
 	}
 	res := generateCc(args, owned, rep)
 	cuda := generateCuda(args, rep)

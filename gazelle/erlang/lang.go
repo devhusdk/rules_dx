@@ -85,10 +85,8 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 				if _, err := os.Stat(filepath.Join(p, RebarConfig)); err == nil {
 					return filepath.SkipDir
 				}
-				// A subdirectory with its own BUILD file is a separate package
-				// that this one cannot list. c_src is exempt: the cc generator
-				// removes the stale file it left there.
-				if dir != NifDir && hasBuildFile(p) {
+				// A subdirectory with its own BUILD file is a separate package.
+				if hasBuildFile(p) {
 					return filepath.SkipDir
 				}
 			}

@@ -12,6 +12,7 @@ exports_files(
         "BUILD.bazel",
         "consumers/cuda/module_fragment.bazel",
         "defs.bzl",
+        "manifest_golden_test.rs",
         "qualification_test.rs",
     ],
     visibility = VIS_TOOLS_CLI_TEST,
@@ -243,6 +244,7 @@ hermetic_qualification(
         "//examples/node-app/cli/...",
         "//examples/node-app/registry/...",
     ],
+    smoke = True,
 )
 
 hermetic_qualification(

@@ -1,0 +1,15 @@
+language appimage
+pattern //...
+file .bazelrc
+file appimage/tests/fixtures/appimage-app/app/BUILD.bazel
+file appimage/tests/fixtures/appimage-app/app/NOTICE.txt
+file appimage/tests/fixtures/appimage-app/app/dxappimage.desktop
+file appimage/tests/fixtures/appimage-app/app/dxappimage.png
+file appimage/tests/fixtures/appimage-app/app/greeting.txt
+file appimage/tests/fixtures/appimage-app/app/main.c
+file appimage/tests/fixtures/appimage-app/app/run_test.sh
+file appimage/tests/fixtures/appimage-app/greet/BUILD.bazel
+file appimage/tests/fixtures/appimage-app/greet/greet.c
+file appimage/tests/fixtures/appimage-app/greet/greet.h
+bazel_dep platforms
+bazel_dep rules_shell

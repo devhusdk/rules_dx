@@ -92,9 +92,10 @@ def hermetic_qualification(
         module = "hermetic_consumer",
         repo_name = "my_dx",
         srcs = [],
+        smoke = False,
         workspace_dir = "consumer ws",
         **kwargs):
-    """Declares one consumer qualification test and its manifest."""
+    """Declares a consumer manifest and a golden check; smoke also runs the nested qualification."""
     hermetic_manifest(
         name = name + "_manifest",
         testonly = True,
@@ -113,6 +114,26 @@ def hermetic_qualification(
         target_compatible_with = HERMETIC_COMPATIBLE_WITH,
         workspace_dir = workspace_dir,
     )
+    if not smoke:
+        golden = "//tools/testing/hermetic:golden/%s.txt" % name
+        rust_test(
+            name = name,
+            srcs = ["//tools/testing/hermetic:manifest_golden_test.rs"],
+            crate_root = "//tools/testing/hermetic:manifest_golden_test.rs",
+            data = [":" + name + "_manifest", golden],
+            env = {
+                "DX_GOLDEN": "$(rootpath %s)" % golden,
+                "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
+            },
+            size = "small",
+            tags = ["hermetic-golden"],
+            target_compatible_with = HERMETIC_COMPATIBLE_WITH,
+            deps = [
+                "//tools/testing:dx_testing",
+                "@crates//:serde_json",
+            ],
+        )
+        return
     rust_test(
         name = name,
         size = "enormous",

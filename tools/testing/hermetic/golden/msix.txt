@@ -1,0 +1,13 @@
+language msix
+pattern //...
+file examples/msix-app/app/BUILD.bazel
+file examples/msix-app/app/NOTICE.txt
+file examples/msix-app/app/greeting.txt
+file examples/msix-app/app/logo.png
+file examples/msix-app/app/main.c
+file examples/msix-app/app/tools_test.sh
+file examples/msix-app/greet/BUILD.bazel
+file examples/msix-app/greet/greet.c
+file examples/msix-app/greet/greet.h
+bazel_dep platforms
+bazel_dep rules_shell

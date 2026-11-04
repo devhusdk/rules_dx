@@ -1,0 +1,7 @@
+language julia
+pattern //...
+file BUILD.bazel
+file Project.toml
+file main.jl
+file src/DemoApp.jl
+file test/runtests.jl

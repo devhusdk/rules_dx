@@ -188,93 +188,145 @@ type cargoDependency struct {
 
 const androidPlatformConstraint = "@platforms//os:android"
 
-// cargoCfgPlatform maps a cfg to a comma-joined, sorted set of platform
-// constraints. cfg(unix) and cfg(any(...)) of known atoms expand to several.
-func cargoCfgPlatform(cfg string) (string, bool) {
-	set := cfgConstraintSet(strings.Join(strings.Fields(cfg), ""))
-	if len(set) == 0 {
-		return "", false
+type cfgTarget struct {
+	triple, os, family, arch, env, vendor, pointer string
+}
+
+// cfgTargets has one row per (os, cpu) that rules_rust defines a platform for.
+var cfgTargets = []cfgTarget{
+	{"x86_64-unknown-linux-gnu", "linux", "unix", "x86_64", "gnu", "unknown", "64"},
+	{"aarch64-unknown-linux-gnu", "linux", "unix", "aarch64", "gnu", "unknown", "64"},
+	{"x86_64-apple-darwin", "macos", "unix", "x86_64", "", "apple", "64"},
+	{"aarch64-apple-darwin", "macos", "unix", "aarch64", "", "apple", "64"},
+	{"x86_64-pc-windows-msvc", "windows", "windows", "x86_64", "msvc", "pc", "64"},
+	{"aarch64-pc-windows-msvc", "windows", "windows", "aarch64", "msvc", "pc", "64"},
+	{"x86_64-linux-android", "android", "unix", "x86_64", "", "unknown", "64"},
+	{"aarch64-linux-android", "android", "unix", "aarch64", "", "unknown", "64"},
+	{"x86_64-apple-ios", "ios", "unix", "x86_64", "", "apple", "64"},
+	{"aarch64-apple-ios", "ios", "unix", "aarch64", "", "apple", "64"},
+	{"x86_64-unknown-freebsd", "freebsd", "unix", "x86_64", "", "unknown", "64"},
+	{"x86_64-unknown-netbsd", "netbsd", "unix", "x86_64", "", "unknown", "64"},
+	{"x86_64-unknown-openbsd", "openbsd", "unix", "x86_64", "", "unknown", "64"},
+	{"wasm32-unknown-unknown", "unknown", "wasm", "wasm32", "", "unknown", "32"},
+	{"wasm32-wasip1", "wasi", "wasm", "wasm32", "p1", "unknown", "32"},
+}
+
+// cargoCfgPlatform maps a target key (a cfg(...) expression or a bare triple)
+// to a comma-joined, sorted set of Bazel platform keys. It returns "" when
+// every supported target matches, and an error when none does.
+func cargoCfgPlatform(cfg string) (string, error) {
+	cfg = strings.Join(strings.Fields(cfg), "")
+	var matched []cfgTarget
+	if inner, ok := strings.CutPrefix(cfg, "cfg("); ok && strings.HasSuffix(cfg, ")") {
+		expr := strings.TrimSuffix(inner, ")")
+		for _, t := range cfgTargets {
+			ok, err := t.eval(expr)
+			if err != nil {
+				return "", fmt.Errorf("cannot parse %s: %v", cfg, err)
+			}
+			if ok {
+				matched = append(matched, t)
+			}
+		}
+	} else {
+		for _, t := range cfgTargets {
+			if t.triple == cfg {
+				matched = append(matched, t)
+			}
+		}
 	}
-	keys := make([]string, 0, len(set))
-	for k := range set {
-		keys = append(keys, k)
+	if len(matched) == 0 {
+		return "", fmt.Errorf("%s matches no supported target", cfg)
+	}
+	if len(matched) == len(cfgTargets) {
+		return "", nil
+	}
+	count := map[string]int{}
+	for _, t := range cfgTargets {
+		count[t.os]++
+	}
+	matchedOS := map[string]int{}
+	for _, t := range matched {
+		matchedOS[t.os]++
+	}
+	var keys []string
+	seenOS := map[string]bool{}
+	for _, t := range matched {
+		switch {
+		case t.family == "wasm" || matchedOS[t.os] < count[t.os]:
+			keys = append(keys, "@rules_rust//rust/platform:"+t.triple)
+		case !seenOS[t.os]:
+			seenOS[t.os] = true
+			keys = append(keys, "@platforms//os:"+t.os)
+		}
 	}
 	sort.Strings(keys)
-	return strings.Join(keys, ","), true
+	return strings.Join(keys, ","), nil
 }
 
-var unixOSes = []string{"android", "freebsd", "ios", "linux", "macos", "netbsd", "openbsd"}
-
-func cfgConstraintSet(cfg string) map[string]bool {
-	if inner, ok := strings.CutPrefix(cfg, "cfg("); ok && strings.HasSuffix(cfg, ")") {
-		return cfgAtomSet(strings.TrimSuffix(inner, ")"))
+func (t cfgTarget) eval(expr string) (bool, error) {
+	if expr == "" {
+		return false, fmt.Errorf("empty cfg")
 	}
-	return nil
-}
-
-func cfgAtomSet(atom string) map[string]bool {
-	out := map[string]bool{}
-	switch {
-	case atom == "windows":
-		out["@platforms//os:windows"] = true
-	case atom == "unix":
-		for _, os := range unixOSes {
-			out["@platforms//os:"+os] = true
+	for _, op := range []string{"any", "all", "not"} {
+		inner, ok := strings.CutPrefix(expr, op+"(")
+		if !ok || !strings.HasSuffix(inner, ")") {
+			continue
 		}
-	case strings.HasPrefix(atom, "target_os=\"") && strings.HasSuffix(atom, "\""):
-		os := strings.Trim(strings.TrimPrefix(atom, "target_os="), "\"")
-		switch os {
-		case "android", "windows", "linux", "macos", "ios", "freebsd", "netbsd", "openbsd":
-			out["@platforms//os:"+os] = true
-		default:
-			return nil
+		args := splitCfgArgs(strings.TrimSuffix(inner, ")"))
+		if op == "not" && len(args) != 1 {
+			return false, fmt.Errorf("not() takes one argument")
 		}
-	case strings.HasPrefix(atom, "any(") && strings.HasSuffix(atom, ")"):
-		for _, part := range splitCfgArgs(atom[len("any(") : len(atom)-1]) {
-			sub := cfgAtomSet(part)
-			if len(sub) == 0 {
-				return nil
+		result := op == "all"
+		for _, arg := range args {
+			if arg == "" && len(args) == 1 {
+				break
 			}
-			for k := range sub {
-				out[k] = true
+			v, err := t.eval(arg)
+			if err != nil {
+				return false, err
+			}
+			switch op {
+			case "any":
+				result = result || v
+			case "all":
+				result = result && v
+			default:
+				result = !v
 			}
 		}
-	case strings.HasPrefix(atom, "all(") && strings.HasSuffix(atom, ")"):
-		for i, part := range splitCfgArgs(atom[len("all(") : len(atom)-1]) {
-			sub := cfgAtomSet(part)
-			if len(sub) == 0 {
-				return nil
-			}
-			if i == 0 {
-				out = sub
-				continue
-			}
-			for k := range out {
-				if !sub[k] {
-					delete(out, k)
-				}
-			}
-		}
-		if len(out) == 0 {
-			return nil
-		}
-	case strings.HasPrefix(atom, "not(") && strings.HasSuffix(atom, ")"):
-		sub := cfgAtomSet(atom[len("not(") : len(atom)-1])
-		if len(sub) == 0 {
-			return nil
-		}
-		for _, os := range append([]string{"windows"}, unixOSes...) {
-			if k := "@platforms//os:" + os; !sub[k] {
-				out[k] = true
-			}
-		}
-		if len(out) == 0 {
-			return nil
-		}
-	default:
-		return nil
+		return result, nil
 	}
-	return out
+	key, value, hasValue := strings.Cut(expr, "=")
+	if !hasValue {
+		switch key {
+		case "unix", "windows":
+			return t.family == key, nil
+		}
+		return false, nil
+	}
+	value, ok := strings.CutPrefix(value, "\"")
+	value, ok2 := strings.CutSuffix(value, "\"")
+	if !ok || !ok2 {
+		return false, fmt.Errorf("value in %q must be quoted", expr)
+	}
+	switch key {
+	case "target_os":
+		return t.os == value, nil
+	case "target_family":
+		return t.family == value, nil
+	case "target_arch":
+		return t.arch == value, nil
+	case "target_env":
+		return t.env == value, nil
+	case "target_vendor":
+		return t.vendor == value, nil
+	case "target_pointer_width":
+		return t.pointer == value, nil
+	case "target_endian":
+		return value == "little", nil
+	}
+	return false, nil
 }
 
 func splitCfgArgs(inner string) []string {
@@ -305,8 +357,8 @@ func (d cargoDependency) platformConstraint() string {
 	}
 	union := map[string]bool{}
 	for _, cfg := range strings.Split(d.cfgs, "\n") {
-		constraint, ok := cargoCfgPlatform(cfg)
-		if !ok {
+		constraint, err := cargoCfgPlatform(cfg)
+		if err != nil || constraint == "" {
 			return ""
 		}
 		for _, k := range strings.Split(constraint, ",") {
@@ -595,6 +647,11 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 				if err != nil {
 					return err
 				}
+				if cfg != "" && !dep.external {
+					if _, err := cargoCfgPlatform(cfg); err != nil {
+						return fmt.Errorf("rust: %s: %s: %v; keep a handwritten target", manifestPath, entry.keyPath, err)
+					}
+				}
 				if i == 0 {
 					chosen, first = dep, entry
 					if cfg != "" && !dep.external {
@@ -607,6 +664,9 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 				}
 				if !dep.external {
 					chosen.cfgs += "\n" + cfg
+				}
+				if dep.external && chosen.external {
+					continue
 				}
 				same := dep.external == chosen.external && dep.label == chosen.label && dep.depPath == chosen.depPath && dep.workspace == chosen.workspace && dep.renamed == chosen.renamed
 				if same && !dep.external && dep.version != chosen.version {

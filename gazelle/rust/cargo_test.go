@@ -979,21 +979,30 @@ func cfgCount(cfgs string) int {
 }
 
 func TestCargoCfgPlatformCompound(t *testing.T) {
-	cases := []struct{ cfg, want string }{
-		{`cfg(unix)`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
-		{`cfg(any(windows, target_os = "linux"))`, "@platforms//os:linux,@platforms//os:windows"},
-		{`cfg(target_os = "wasi")`, ""},
-		{`cfg(all(unix, windows))`, ""},
-		{`cfg(any(unix, feature = "x"))`, ""},
-		{`cfg(not(windows))`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
-		{`cfg(all(unix, not(target_os = "linux")))`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
-		{`cfg(all(unix, windows))`, ""},
-		{`cfg(not(target_arch = "x86"))`, ""},
+	const rr = "@rules_rust//rust/platform:"
+	cases := []struct {
+		cfg, want string
+		fail      bool
+	}{
+		{cfg: `cfg(unix)`, want: "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{cfg: `cfg(any(windows, target_os = "linux"))`, want: "@platforms//os:linux,@platforms//os:windows"},
+		{cfg: `cfg(target_os = "wasi")`, want: rr + "wasm32-wasip1"},
+		{cfg: `cfg(all(unix, windows))`, fail: true},
+		{cfg: `cfg(any(unix, feature = "x"))`, want: "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{cfg: `cfg(not(windows))`, want: "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd," + rr + "wasm32-unknown-unknown," + rr + "wasm32-wasip1"},
+		{cfg: `cfg(all(unix, not(target_os = "linux")))`, want: "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{cfg: `cfg(not(target_arch = "x86"))`},
+		{cfg: `cfg(target_arch = "aarch64")`, want: rr + "aarch64-apple-darwin," + rr + "aarch64-apple-ios," + rr + "aarch64-linux-android," + rr + "aarch64-pc-windows-msvc," + rr + "aarch64-unknown-linux-gnu"},
+		{cfg: `cfg(all(target_os = "linux", target_arch = "x86_64"))`, want: rr + "x86_64-unknown-linux-gnu"},
+		{cfg: `x86_64-pc-windows-msvc`, want: rr + "x86_64-pc-windows-msvc"},
+		{cfg: `riscv64-unknown-linux-gnu`, fail: true},
+		{cfg: `cfg(feature = "x")`, fail: true},
+		{cfg: `cfg(target_os = linux)`, fail: true},
 	}
 	for _, tc := range cases {
-		got, ok := cargoCfgPlatform(tc.cfg)
-		if got != tc.want || ok != (tc.want != "") {
-			t.Errorf("%s = %q,%v want %q", tc.cfg, got, ok, tc.want)
+		got, err := cargoCfgPlatform(tc.cfg)
+		if got != tc.want || (err != nil) != tc.fail {
+			t.Errorf("%s = %q,%v want %q fail=%v", tc.cfg, got, err, tc.want, tc.fail)
 		}
 	}
 	dep := cargoDependency{cfgs: "cfg(windows)\ncfg(target_os=\"linux\")"}

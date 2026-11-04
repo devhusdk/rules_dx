@@ -1,0 +1,26 @@
+load("@crates//:crates.bzl", "aliases")
+load("@rules_dx//rust/rules:defs.bzl", "rust_library")
+
+rust_library(
+    name = "plat",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "crates/plat",
+        normal = True,
+    ),
+    crate_name = "plat",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = select({
+        "@rules_rust//rust/platform:aarch64-apple-darwin": ["//crates/api"],
+        "@rules_rust//rust/platform:aarch64-apple-ios": ["//crates/api"],
+        "@rules_rust//rust/platform:aarch64-linux-android": ["//crates/api"],
+        "@rules_rust//rust/platform:aarch64-pc-windows-msvc": ["//crates/api"],
+        "@rules_rust//rust/platform:aarch64-unknown-linux-gnu": ["//crates/api"],
+        "//conditions:default": [],
+    }) + select({
+        "@rules_rust//rust/platform:x86_64-pc-windows-msvc": ["//crates/app"],
+        "//conditions:default": [],
+    }),
+)

@@ -10,4 +10,9 @@
 // Crates without TestOnly files keep the crate= unit test. Files reached only
 // through an inner #![cfg(test)] stay in srcs. Proc-macro, cdylib, staticlib
 // and example targets keep their test modules in srcs and a crate= test.
+//
+// Target-gated dependencies: external crates under [target.*.dependencies] are
+// gated by crate_universe through all_crate_deps. Local path deps are gated by
+// a select on os or rules_rust triple config_settings; a cfg that matches no
+// supported target is an error.
 package rust

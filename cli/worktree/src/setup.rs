@@ -93,7 +93,7 @@ fn parse(text: &str) -> Value {
     dx_merge::jsonc::parse(text).unwrap_or(Value::Null)
 }
 
-/// Allow rules an existing settings file lacks; the `:*` spelling counts as present.
+/// Allow rules an existing settings file lacks.
 pub fn missing_allow(existing: &str) -> Vec<String> {
     let parsed = parse(existing);
     let have: Vec<&str> = parsed
@@ -106,10 +106,7 @@ pub fn missing_allow(existing: &str) -> Vec<String> {
         .collect();
     allow_rules()
         .into_iter()
-        .filter(|rule| {
-            let legacy = rule.replace(" *)", ":*)");
-            !have.iter().any(|h| *h == rule || *h == legacy)
-        })
+        .filter(|rule| !have.contains(&rule.as_str()))
         .collect()
 }
 
@@ -438,14 +435,6 @@ mod tests {
         let hooks_only = "{\"hooks\": {}}\n";
         assert_eq!(missing_allow(hooks_only), allow_rules());
         assert_eq!(missing_allow("not json"), allow_rules());
-    }
-
-    #[test]
-    fn the_colon_star_form_counts_as_present() {
-        let legacy = serde_json::to_string(&json!({ "permissions": { "allow": allow_rules()
-            .iter().map(|r| r.replace(" *)", ":*)")).collect::<Vec<_>>() } }))
-        .unwrap();
-        assert!(missing_allow(&legacy).is_empty());
     }
 
     fn commands(settings: &Value, event: &str) -> Vec<String> {

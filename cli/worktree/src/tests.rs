@@ -2747,7 +2747,7 @@ mod hooks {
 
     fn lease_record(agent: Option<&str>) -> Record {
         serde_json::from_value(serde_json::json!({
-            "slot": 1, "held": true, "session": "s1", "agent": agent, "pid": 7, "leased_at": 0, "last_used": 0, "lock_digest": null,
+            "slot": 1, "held": true, "session": "s1", "agent": agent, "pid": 7, "gone": false, "unclaimed": false, "broken": false, "leased_at": 0, "last_used": 0, "lock_digest": null,
         }))
         .expect("record")
     }

@@ -164,25 +164,18 @@ pub struct Record {
     pub branch: Option<String>,
     pub last_branch: Option<String>,
     pub session: Option<String>,
-    #[serde(default)]
     pub agent: Option<String>,
     pub pid: Option<u32>,
     /// The holder's start time, to tell it from a process that reused the pid.
-    #[serde(default)]
     pub pid_start: Option<String>,
     /// The boot the pid belongs to.
-    #[serde(default)]
     pub boot_id: Option<String>,
-    #[serde(default)]
     pub gone: bool,
     /// When the holder's agent last stopped. A stop ends a turn, so the agent may come back.
-    #[serde(default)]
     pub stopped_at: Option<u64>,
     /// The first agent that runs `dx worktree` inside the slot takes the lease.
-    #[serde(default)]
     pub unclaimed: bool,
     /// A delete left part of the checkout on disk; `add` never leases it, `prune` deletes it again.
-    #[serde(default)]
     pub broken: bool,
     pub leased_at: u64,
     pub last_used: u64,
@@ -862,8 +855,9 @@ mod tests {
     }
 
     #[test]
-    fn old_records_without_an_agent_still_load() {
-        let text = r#"{"slot":2,"held":true,"branch":"b","last_branch":null,"session":"s1","pid":7,"leased_at":0,"last_used":0,"lock_digest":null}"#;
+    fn a_record_must_carry_every_flag() {
+        let text = r#"{"slot":2,"held":true,"branch":"b","last_branch":null,"session":"s1","agent":null,"pid":7,"pid_start":null,"boot_id":null,"gone":false,"stopped_at":null,"unclaimed":false,"broken":false,"leased_at":0,"last_used":0,"lock_digest":null}"#;
+        assert!(serde_json::from_str::<Record>(&text.replace(r#""broken":false,"#, "")).is_err());
         let loaded: Record = serde_json::from_str(text).expect("loads");
         assert_eq!(loaded.agent, None);
         assert!(!loaded.gone);

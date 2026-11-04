@@ -160,13 +160,11 @@ starter_consumer_test(
 
 rustfmt_test(
     name = "starter_fmt_test",
-    size = "small",
     targets = [":c"],
 )
 
 rust_clippy_test(
     name = "starter_clippy_test",
-    size = "small",
     targets = [":c"],
 )
 

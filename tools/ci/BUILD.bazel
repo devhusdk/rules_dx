@@ -40,7 +40,6 @@ filegroup(
 # keep
 rust_test(
     name = "aggregate_scripts_test",
-    size = "small",
     srcs = ["aggregate_scripts_test.rs"],
     data = [
         ":aggregate_fixtures",
@@ -74,7 +73,6 @@ rust_binary(
 # keep
 rust_test(
     name = "input_validation_test",
-    size = "small",
     srcs = ["input_validation_test.rs"],
     data = [
         ":input_validation_bin",
@@ -113,7 +111,6 @@ rust_binary(
 # keep
 rust_test(
     name = "evidence_inputs_test",
-    size = "small",
     srcs = ["evidence_inputs_test.rs"],
     deps = [":evidence_inputs"],
 )
@@ -136,7 +133,6 @@ rust_binary(
 # keep
 rust_test(
     name = "junit_summary_test",
-    size = "small",
     srcs = ["junit_summary_test.rs"],
     deps = [":junit_summary"],
 )
@@ -159,7 +155,6 @@ rust_binary(
 # keep
 rust_test(
     name = "docs_scope_test",
-    size = "small",
     srcs = ["docs_scope_test.rs"],
     data = [":docs_scope_bin"],
     env = {"DX_DOCS_SCOPE_BIN": "$(rootpath :docs_scope_bin)"},
@@ -188,7 +183,6 @@ rust_binary(
 # keep
 rust_test(
     name = "fill_pins_test",
-    size = "small",
     srcs = ["fill_pins_test.rs"],
     deps = [
         ":fill_pins",
@@ -216,7 +210,6 @@ rust_binary(
 # keep
 rust_test(
     name = "remote_cache_flags_test",
-    size = "small",
     srcs = ["remote_cache_flags_test.rs"],
     deps = [":remote_cache_flags"],
 )
@@ -239,7 +232,6 @@ rust_binary(
 # keep
 rust_test(
     name = "module_pin_test",
-    size = "small",
     srcs = ["module_pin_test.rs"],
     data = [
         ":module_pin_bin",
@@ -271,7 +263,6 @@ rust_binary(
 # keep
 rust_test(
     name = "gate_base_test",
-    size = "small",
     srcs = ["gate_base_test.rs"],
     data = [":gate_base_bin"],
     env = {"DX_GATE_BASE": "$(rootpath :gate_base_bin)"},
@@ -297,7 +288,6 @@ rust_library(
 # keep
 rust_test(
     name = "ci_workflow_test",
-    size = "small",
     srcs = ["ci_workflow_test.rs"],
     data = [
         "//.github:workflows/ci.yml",
@@ -312,7 +302,6 @@ rust_test(
 # keep
 rust_test(
     name = "actionlint_test",
-    size = "small",
     srcs = ["actionlint_test.rs"],
     data = [
         "input_validation.rs",
@@ -340,7 +329,6 @@ rust_test(
 # keep
 rust_test(
     name = "aggregate_gates_test",
-    size = "small",
     srcs = ["aggregate_gates_test.rs"],
     data = [
         "//.github:rulesets/main.json",
@@ -359,7 +347,6 @@ rust_test(
 # keep
 rust_test(
     name = "artifact_writes_test",
-    size = "small",
     srcs = ["artifact_writes_test.rs"],
     data = [
         "//env/env_shard:src/main.rs",
@@ -372,7 +359,6 @@ rust_test(
 # keep
 rust_test(
     name = "advisory_snapshots_test",
-    size = "small",
     srcs = ["advisory_snapshots_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
@@ -384,7 +370,6 @@ rust_test(
 # keep
 rust_test(
     name = "consumer_reports_test",
-    size = "small",
     srcs = ["consumer_reports_test.rs"],
     data = [
         "//.github:workflows/reusable-consumer.yml",
@@ -400,7 +385,6 @@ rust_test(
 # keep
 rust_test(
     name = "workflow_permissions_test",
-    size = "small",
     srcs = ["workflow_permissions_test.rs"],
     data = [
         "//.github:workflows",
@@ -419,7 +403,6 @@ rust_test(
 # keep
 rust_test(
     name = "advisory_launch_test",
-    size = "small",
     srcs = ["advisory_launch_test.rs"],
     data = [
         "//.github:workflows/reusable-consumer.yml",
@@ -437,7 +420,6 @@ rust_test(
 # keep
 rust_test(
     name = "tool_resolve_test",
-    size = "small",
     srcs = ["tool_resolve_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
@@ -449,7 +431,6 @@ rust_test(
 # keep
 rust_test(
     name = "action_pins_test",
-    size = "small",
     srcs = ["action_pins_test.rs"],
     data = [
         "//.github:actions",
@@ -465,7 +446,6 @@ rust_test(
 # keep
 rust_test(
     name = "workflow_expressions_test",
-    size = "small",
     srcs = ["workflow_expressions_test.rs"],
     data = [
         "//.github:workflows",
@@ -481,7 +461,6 @@ rust_test(
 # keep
 rust_test(
     name = "bump_auth_test",
-    size = "small",
     srcs = ["bump_auth_test.rs"],
     data = [
         ":bump_auth_fixtures",
@@ -497,7 +476,6 @@ rust_test(
 # keep
 rust_test(
     name = "setup_bazel_test",
-    size = "small",
     srcs = ["setup_bazel_test.rs"],
     data = [
         ":input_validation.rs",
@@ -516,7 +494,6 @@ rust_test(
 # keep
 rust_test(
     name = "consumer_inputs_test",
-    size = "small",
     srcs = ["consumer_inputs_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
@@ -529,7 +506,6 @@ rust_test(
 # keep
 rust_test(
     name = "crate_platform_pins_test",
-    size = "small",
     srcs = ["crate_platform_pins_test.rs"],
     data = [
         "//:MODULE.bazel",
@@ -541,7 +517,6 @@ rust_test(
 # keep
 rust_test(
     name = "config_consistency_test",
-    size = "small",
     srcs = ["config_consistency_test.rs"],
     data = [
         "//:.bazelignore",
@@ -589,7 +564,6 @@ rust_test(
 # keep
 rust_test(
     name = "rustfmt_coverage_test",
-    size = "small",
     srcs = ["rustfmt_coverage_test.rs"],
     data = [
         "//.devcontainer:corpus_starlark",
@@ -743,7 +717,6 @@ rust_test(
 # keep
 rust_test(
     name = "starlark_docs_test",
-    size = "small",
     srcs = ["starlark_docs_test.rs"],
     data = [
         "//android/packaging:corpus_starlark",
@@ -853,7 +826,6 @@ rust_test(
 # keep
 rust_test(
     name = "docs_deploy_test",
-    size = "small",
     srcs = ["docs_deploy_test.rs"],
     data = [
         "//.github:workflows/ci.yml",
@@ -869,7 +841,6 @@ rust_test(
 # keep
 rust_test(
     name = "release_cells_runners_test",
-    size = "small",
     srcs = ["release_cells_runners_test.rs"],
     data = [
         "//.github:workflows/release-cells.yml",
@@ -887,7 +858,6 @@ rust_test(
 # keep
 rust_test(
     name = "release_assets_test",
-    size = "small",
     srcs = ["release_assets_test.rs"],
     data = [
         "//:MODULE.bazel",
@@ -905,7 +875,6 @@ rust_test(
 # keep
 rust_test(
     name = "signing_pins_test",
-    size = "small",
     srcs = ["signing_pins_test.rs"],
     data = [
         "//:MODULE.bazel",
@@ -920,7 +889,6 @@ rust_test(
 # keep
 rust_test(
     name = "gitlab_example_test",
-    size = "small",
     srcs = ["gitlab_example_test.rs"],
     data = [
         "//ci/gitlab:dx.gitlab-ci.yml",
@@ -935,7 +903,6 @@ rust_test(
 # keep
 rust_test(
     name = "reusable_callers_test",
-    size = "small",
     srcs = ["reusable_callers_test.rs"],
     data = [
         "//.github:workflows/ci.yml",
@@ -955,7 +922,6 @@ rust_test(
 # keep
 rust_test(
     name = "workflow_pins_test",
-    size = "small",
     srcs = ["workflow_pins_test.rs"],
     data = [
         "docs_scope.rs",
@@ -979,7 +945,6 @@ real_source_target(
 
 rustfmt_test(
     name = "ci_fmt_test",
-    size = "small",
     targets = [
         ":action_pins_test",
         ":actionlint_test",
@@ -1032,7 +997,6 @@ rust_binary(
 # keep
 rust_test(
     name = "coverage_cells_test",
-    size = "small",
     srcs = ["coverage_cells_test.rs"],
     data = ["//tools/coverage:cells.txt"],
     deps = [
@@ -1068,7 +1032,6 @@ rust_binary(
 # keep
 rust_test(
     name = "bcr_outdated_test",
-    size = "small",
     srcs = ["bcr_outdated_test.rs"],
     deps = [
         ":bcr_outdated",

@@ -67,7 +67,6 @@ rust_test(
 
 rustfmt_test(
     name = "roslyn_linux_fmt_test",
-    size = "small",
     targets = [
         ":roslyn_aggregation_test",
     ],

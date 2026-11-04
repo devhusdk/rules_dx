@@ -44,13 +44,11 @@ rust_binary(
 
 rustfmt_test(
     name = "bootstrap_offline_fmt_test",
-    size = "small",
     targets = [":bootstrap_offline"],
 )
 
 rust_clippy_test(
     name = "bootstrap_offline_clippy_test",
-    size = "small",
     targets = [":bootstrap_offline"],
 )
 

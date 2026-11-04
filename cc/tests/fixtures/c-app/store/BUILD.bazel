@@ -106,7 +106,6 @@ real_source_target(
 
 rustfmt_test(
     name = "store_fmt_test",
-    size = "small",
     targets = [
         ":format_test",
     ],

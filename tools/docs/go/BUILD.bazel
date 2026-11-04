@@ -19,7 +19,6 @@ filegroup(
 # keep
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         ":fixture_godoc_json",
@@ -47,7 +46,6 @@ rust_test(
 
 rustfmt_test(
     name = "go_extract_fmt_test",
-    size = "small",
     targets = [":extract_test"],
 )
 

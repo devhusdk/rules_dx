@@ -72,7 +72,6 @@ real_source_target(
 
 rustfmt_test(
     name = "scoped_fmt_test",
-    size = "small",
     targets = [
         ":scoped_boundary_test",
     ],

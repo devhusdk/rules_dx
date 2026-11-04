@@ -23,7 +23,6 @@ rust_library(
 
 rust_test(
     name = "dx_preset_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/dx_preset",
         normal = True,
@@ -39,7 +38,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_preset_fmt_test",
-    size = "small",
     targets = [
         ":dx_preset",
         ":preset_update",
@@ -49,7 +47,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_preset_clippy_test",
-    size = "small",
     targets = [
         ":dx_preset",
         ":preset_update",
@@ -127,7 +124,6 @@ rust_binary(
 # keep
 rust_test(
     name = "preset_update_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/dx_preset",
         normal = True,

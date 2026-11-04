@@ -6,7 +6,6 @@ package(default_visibility = ["//:__subpackages__"])
 
 rust_test(
     name = "driver_policy_test",
-    size = "small",
     srcs = ["driver_policy.rs"],
     aliases = aliases(
         package_name = "cc/cc_tests",
@@ -44,7 +43,6 @@ rust_test(
 
 rustfmt_test(
     name = "driver_policy_fmt_test",
-    size = "small",
     targets = [":driver_policy_test"],
 )
 

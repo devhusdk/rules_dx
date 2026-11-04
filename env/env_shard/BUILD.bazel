@@ -50,7 +50,6 @@ rust_binary(
 
 rust_test(
     name = "env_shard_test",
-    size = "small",
     aliases = aliases(
         package_name = "env/env_shard",
         normal = True,
@@ -69,7 +68,6 @@ rust_test(
 
 rustfmt_test(
     name = "env_shard_fmt_test",
-    size = "small",
     targets = [
         ":env_shard",
         ":env_shard_writer",
@@ -79,7 +77,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "env_shard_clippy_test",
-    size = "small",
     targets = [
         ":env_shard",
         ":env_shard_writer",
@@ -89,7 +86,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "env_shard_writer_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "env/env_shard",
         normal = True,

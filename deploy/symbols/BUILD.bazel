@@ -35,7 +35,6 @@ rust_binary(
 
 rust_test(
     name = "symbols_test",
-    size = "small",
     srcs = ["symbols_test.rs"],
     data = [
         ":split",

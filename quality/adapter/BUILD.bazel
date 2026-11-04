@@ -24,7 +24,6 @@ rust_library(
 
 rust_test(
     name = "api_spec_preflight_test",
-    size = "small",
     srcs = ["src/api_spec_preflight.rs"],
     aliases = aliases(
         package_name = "quality/quality_adapter",
@@ -43,7 +42,6 @@ rust_test(
 
 rustfmt_test(
     name = "api_spec_preflight_fmt_test",
-    size = "small",
     targets = [
         ":api_spec_preflight_test",
         ":api_spec_preflight",
@@ -52,7 +50,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "api_spec_preflight_clippy_test",
-    size = "small",
     targets = [":api_spec_preflight"],
 )
 
@@ -216,7 +213,6 @@ rust_library(
 
 rust_test(
     name = "quality_adapter_test",
-    size = "small",
     srcs = [
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
@@ -391,7 +387,6 @@ rust_test(
 
 rustfmt_test(
     name = "quality_adapter_fmt_test",
-    size = "small",
     targets = [
         ":quality_adapter_test",
         ":quality_adapter",
@@ -400,7 +395,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "quality_adapter_clippy_test",
-    size = "small",
     targets = [":quality_adapter"],
 )
 

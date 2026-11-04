@@ -49,7 +49,6 @@ rust_binary(
 
 rustfmt_test(
     name = "hello_fmt_test",
-    size = "small",
     targets = [
         ":hello_lib",
         ":hello",
@@ -58,7 +57,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "hello_clippy_test",
-    size = "small",
     targets = [
         ":hello_lib",
         ":hello",
@@ -100,7 +98,6 @@ rust_static_library(
 
 rustfmt_test(
     name = "hello_flavors_fmt_test",
-    size = "small",
     targets = [
         ":hello_cdylib",
         ":hello_derive",
@@ -110,7 +107,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "hello_flavors_clippy_test",
-    size = "small",
     targets = [
         ":hello_cdylib",
         ":hello_derive",
@@ -130,7 +126,6 @@ rust_library(
 
 rustfmt_test(
     name = "edition_fmt_test",
-    size = "small",
     targets = [":edition_2015_lib"],
 )
 
@@ -420,7 +415,6 @@ dx_default_crate_name_tests(
 
 rustfmt_test(
     name = "hello_more_fmt_test",
-    size = "small",
     targets = [
         ":default-cdylib",
         ":default-derive",
@@ -433,7 +427,6 @@ rustfmt_test(
 
 rustfmt_test(
     name = "hello_linux_fmt_test",
-    size = "small",
     targets = [
         ":release_verify",
     ],

@@ -27,7 +27,6 @@ rust_test(
 
 rustfmt_test(
     name = "app_rust_fmt_test",
-    size = "small",
     targets = [":app_rust"],
 )
 

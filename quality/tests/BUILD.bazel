@@ -25,7 +25,6 @@ _CHECK_CONTINUATION_CASES = [
 # keep
 rust_test(
     name = "qt_adapter_test",
-    size = "small",
     srcs = ["qt_adapter_test.rs"],
     data = [
         "//quality/tests/fixtures/qmlformat:Sample.qml",
@@ -854,7 +853,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "consumer_maven_guard_test",
-    size = "small",
     srcs = ["consumer_maven_guard_test.rs"],
     data = glob(["*_consumer_test.rs"]) + ["//python/tests/consumer:service_consumer_test.rs"],
     env = {"DX_GUARD_FILES": " ".join([
@@ -886,7 +884,6 @@ real_source_target(
 # keep
 rust_test(
     name = "powershell_gallery_lock_test",
-    size = "small",
     srcs = ["powershell_gallery_lock_test.rs"],
     data = [
         "//:MODULE.bazel",

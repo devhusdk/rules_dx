@@ -36,13 +36,11 @@ rust_test(
 
 rustfmt_test(
     name = "latency_fmt_test",
-    size = "small",
     targets = [":latency_test"],
 )
 
 rust_clippy_test(
     name = "latency_clippy_test",
-    size = "small",
     targets = [":latency_test"],
 )
 
@@ -76,12 +74,10 @@ rust_test(
 
 rustfmt_test(
     name = "bazel_latency_fmt_test",
-    size = "small",
     targets = [":bazel_latency_test"],
 )
 
 rust_clippy_test(
     name = "bazel_latency_clippy_test",
-    size = "small",
     targets = [":bazel_latency_test"],
 )

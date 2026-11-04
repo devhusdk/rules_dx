@@ -24,13 +24,11 @@ nested_bazel_test(
 
 rustfmt_test(
     name = "consumer_fmt_test",
-    size = "small",
     targets = [":consumer_test"],
 )
 
 rust_clippy_test(
     name = "consumer_clippy_test",
-    size = "small",
     targets = [":consumer_test"],
 )
 

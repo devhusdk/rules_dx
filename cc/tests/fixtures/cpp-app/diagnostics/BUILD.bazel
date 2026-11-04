@@ -42,7 +42,6 @@ real_source_target(
 
 rustfmt_test(
     name = "diagnostics_linux_x86_64_fmt_test",
-    size = "small",
     targets = [
         ":diagnostics_test",
     ],

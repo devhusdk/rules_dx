@@ -52,7 +52,6 @@ real_source_target(
 
 rustfmt_test(
     name = "ide_linux_x86_64_fmt_test",
-    size = "small",
     targets = [
         ":lsp_headless_test",
     ],

@@ -29,13 +29,11 @@ rust_test(
 
 rustfmt_test(
     name = "negative_fmt_test",
-    size = "small",
     targets = [":negative_test"],
 )
 
 rust_clippy_test(
     name = "negative_clippy_test",
-    size = "small",
     targets = [":negative_test"],
 )
 

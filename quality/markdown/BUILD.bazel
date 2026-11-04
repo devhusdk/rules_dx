@@ -50,7 +50,6 @@ rust_binary(
 
 rustfmt_test(
     name = "quality_markdown_fmt_test",
-    size = "small",
     targets = [
         ":quality_markdown_test",
         ":quality_markdown",
@@ -60,7 +59,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "quality_markdown_clippy_test",
-    size = "small",
     targets = [
         ":quality_markdown",
         ":quality_markdown_lib",

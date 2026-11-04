@@ -29,7 +29,6 @@ rust_library(
 
 rust_test(
     name = "documentation_ir_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,
@@ -48,7 +47,6 @@ rust_test(
 # keep
 rust_test(
     name = "site_shard_test",
-    size = "small",
     srcs = ["site_shard_test.rs"],
     data = [
         "//tools/docs/rust/fixture:docs_fixture_changed_docs",
@@ -62,13 +60,11 @@ rust_test(
 
 rustfmt_test(
     name = "documentation_ir_fmt_test",
-    size = "small",
     targets = [":documentation_ir"],
 )
 
 rust_clippy_test(
     name = "documentation_ir_clippy_test",
-    size = "small",
     targets = [":documentation_ir"],
 )
 
@@ -95,7 +91,6 @@ real_source_target(
 
 rustfmt_test(
     name = "ir_fmt_test",
-    size = "small",
     targets = [
         ":site_shard_test",
     ],

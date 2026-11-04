@@ -426,7 +426,6 @@ rust_test(
 
 rustfmt_test(
     name = "consumer_archive_fmt_test",
-    size = "small",
     targets = [
         ":consumer_app",
         ":consumer_release_zip_verify",
@@ -436,7 +435,6 @@ rustfmt_test(
 
 rustfmt_test(
     name = "consumer_archive_linux_fmt_test",
-    size = "small",
     targets = [
         ":consumer_release_verify",
         ":external_release_verify",

@@ -16,7 +16,6 @@ rust_library(
 
 rust_test(
     name = "ledger_test",
-    size = "small",
     crate = ":ledger",
 )
 
@@ -29,7 +28,6 @@ real_source_target(
 
 rustfmt_test(
     name = "ledger_fmt_test",
-    size = "small",
     targets = [
         ":ledger",
         ":ledger_test",

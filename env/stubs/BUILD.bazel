@@ -37,7 +37,6 @@ rust_binary(
 
 rustfmt_test(
     name = "env_stubs_fmt_test",
-    size = "small",
     targets = [
         ":doctor",
         ":tool_sh",
@@ -46,7 +45,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "env_stubs_clippy_test",
-    size = "small",
     targets = [
         ":doctor",
         ":tool_sh",

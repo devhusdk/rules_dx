@@ -112,7 +112,6 @@ real_source_target(
 
 rustfmt_test(
     name = "cli_fmt_test",
-    size = "small",
     targets = [
         ":exit_codes_test",
         ":format_test",

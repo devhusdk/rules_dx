@@ -14,7 +14,6 @@ rust_binary(
 
 rust_test(
     name = "preflight_test",
-    size = "small",
     srcs = ["preflight_main.rs"],
     crate_name = "openapi_codegen_preflight",
     crate_root = "preflight_main.rs",
@@ -24,7 +23,6 @@ rust_test(
 
 rustfmt_test(
     name = "preflight_fmt_test",
-    size = "small",
     targets = [
         ":preflight",
         ":preflight_test",
@@ -33,7 +31,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "preflight_clippy_test",
-    size = "small",
     targets = [":preflight"],
 )
 

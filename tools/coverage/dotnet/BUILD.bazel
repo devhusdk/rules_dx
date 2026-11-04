@@ -36,7 +36,6 @@ rust_binary(
 
 rust_test(
     name = "coverlet_launcher_test",
-    size = "small",
     srcs = [
         "src/lcov.rs",
         "src/main.rs",
@@ -47,7 +46,6 @@ rust_test(
 
 rustfmt_test(
     name = "coverlet_launcher_fmt_test",
-    size = "small",
     targets = [
         ":coverlet_launcher",
         ":coverlet_launcher_test",
@@ -56,7 +54,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "coverlet_launcher_clippy_test",
-    size = "small",
     targets = [
         ":coverlet_launcher",
         ":coverlet_launcher_test",

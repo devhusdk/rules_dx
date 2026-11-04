@@ -13,7 +13,6 @@ exports_files([
 # keep
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/powershell/extract:powershell_extract",
@@ -39,7 +38,6 @@ rust_test(
 
 rustfmt_test(
     name = "powershell_extract_fmt_test",
-    size = "small",
     targets = [":extract_test"],
 )
 

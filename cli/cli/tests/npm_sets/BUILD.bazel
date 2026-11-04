@@ -38,12 +38,10 @@ rust_test(
 
 rustfmt_test(
     name = "npm_sets_fmt_test",
-    size = "small",
     targets = [":npm_sets_test"],
 )
 
 rust_clippy_test(
     name = "npm_sets_clippy_test",
-    size = "small",
     targets = [":npm_sets_test"],
 )

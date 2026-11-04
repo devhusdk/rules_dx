@@ -58,7 +58,6 @@ rust_test(
 
 rustfmt_test(
     name = "affected_fmt_test",
-    size = "small",
     targets = [
         ":affected_incompatible_test",
         ":affected_test",
@@ -67,7 +66,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "affected_clippy_test",
-    size = "small",
     targets = [
         ":affected_incompatible_test",
         ":affected_test",

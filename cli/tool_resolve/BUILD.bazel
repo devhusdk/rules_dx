@@ -24,7 +24,6 @@ rust_library(
 
 rust_test(
     name = "dx_tool_resolve_test",
-    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -65,7 +64,6 @@ rust_binary(
 
 rust_test(
     name = "tool_resolve_bin_test",
-    size = "small",
     srcs = [
         "src/main.rs",
         "src/main_tests.rs",
@@ -90,7 +88,6 @@ rust_test(
 
 rustfmt_test(
     name = "tool_resolve_fmt_test",
-    size = "small",
     targets = [
         ":dx_tool_resolve_test",
         ":tool_resolve",
@@ -101,7 +98,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "tool_resolve_clippy_test",
-    size = "small",
     targets = [
         ":tool_resolve",
         ":dx_tool_resolve",

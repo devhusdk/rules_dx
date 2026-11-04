@@ -48,7 +48,6 @@ rust_test(
 
 rustfmt_test(
     name = "consumer_hub_fmt_test",
-    size = "small",
     targets = [
         ":consumer_hub_lib",
         ":consumer_hub",
@@ -57,7 +56,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "consumer_hub_clippy_test",
-    size = "small",
     targets = [
         ":consumer_hub_lib",
         ":consumer_hub",

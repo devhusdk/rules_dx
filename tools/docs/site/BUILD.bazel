@@ -155,7 +155,6 @@ rust_test(
 # keep
 rust_test(
     name = "serve_test",
-    size = "small",
     srcs = ["serve_test.rs"],
     data = [":user_site"],
     env = {"DX_USER_SITE": "$(rootpath :user_site)"},
@@ -167,7 +166,6 @@ rust_test(
 # keep
 rust_test(
     name = "rendered_site_test",
-    size = "small",
     srcs = ["rendered_site_test.rs"],
     data = [
         ":demo_changed_site",
@@ -196,7 +194,6 @@ rust_test(
 # keep
 rust_test(
     name = "site_check_test",
-    size = "small",
     srcs = ["site_check_test.rs"],
     data = ["//tools/docs/site/check:site_check"],
     env = {"DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)"},
@@ -212,7 +209,6 @@ rust_test(
 # keep
 rustfmt_test(
     name = "site_fmt_test",
-    size = "small",
     targets = [
         ":browser_test",
         ":deploy_smoke_test",

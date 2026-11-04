@@ -24,7 +24,6 @@ rust_binary(
 # keep
 rust_test(
     name = "load_test",
-    size = "small",
     crate = ":parallel_worktrees",
     edition = "2021",
     target_compatible_with = ["@platforms//os:linux"],
@@ -32,13 +31,11 @@ rust_test(
 
 rustfmt_test(
     name = "parallel_worktrees_fmt_test",
-    size = "small",
     targets = [":parallel_worktrees"],
 )
 
 rust_clippy_test(
     name = "parallel_worktrees_clippy_test",
-    size = "small",
     targets = [":parallel_worktrees"],
 )
 

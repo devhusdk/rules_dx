@@ -28,7 +28,6 @@ rust_library(
 
 rust_test(
     name = "quality_result_test",
-    size = "small",
     aliases = aliases(
         package_name = "quality/quality_result",
         normal = True,
@@ -44,7 +43,6 @@ rust_test(
 
 rustfmt_test(
     name = "quality_result_fmt_test",
-    size = "small",
     targets = [
         ":print_result",
         ":quality_result",
@@ -53,7 +51,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "quality_result_clippy_test",
-    size = "small",
     targets = [
         ":print_result",
         ":quality_result",

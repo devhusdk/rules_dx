@@ -15,7 +15,6 @@ exports_files(
 
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/dotnet/fixture/csharp:ledger_docs",
@@ -34,13 +33,11 @@ rust_test(
 
 rustfmt_test(
     name = "csharp_extract_fmt_test",
-    size = "small",
     targets = [":extract_test"],
 )
 
 rust_test(
     name = "fsharp_extract_test",
-    size = "small",
     srcs = ["fsharp_extract_test.rs"],
     data = [
         "//tools/docs/dotnet/fixture/fsharp:ledger_docs",
@@ -59,7 +56,6 @@ rust_test(
 
 rustfmt_test(
     name = "fsharp_extract_fmt_test",
-    size = "small",
     targets = [":fsharp_extract_test"],
 )
 

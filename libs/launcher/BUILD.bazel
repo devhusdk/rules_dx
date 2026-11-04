@@ -17,7 +17,6 @@ rust_binary(
 
 rust_test(
     name = "exec_launcher_test",
-    size = "small",
     srcs = [
         "src/launch.rs",
         "src/launch_tests.rs",
@@ -31,7 +30,6 @@ rust_test(
 
 rustfmt_test(
     name = "exec_launcher_fmt_test",
-    size = "small",
     targets = [
         ":exec_launcher",
         ":exec_launcher_test",
@@ -40,7 +38,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "exec_launcher_clippy_test",
-    size = "small",
     targets = [":exec_launcher"],
 )
 

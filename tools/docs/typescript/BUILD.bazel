@@ -12,7 +12,6 @@ exports_files(
 # keep
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/typescript/extract:typescript_extract",
@@ -35,7 +34,6 @@ rust_test(
 
 rust_test(
     name = "isolation_test",
-    size = "small",
     srcs = ["isolation_test.rs"],
     data = [
         "//tools/docs/typescript/fixture/hostile:hostile_control_base",
@@ -61,7 +59,6 @@ rust_test(
 
 rustfmt_test(
     name = "typescript_extract_fmt_test",
-    size = "small",
     targets = [
         ":extract_test",
         ":isolation_test",

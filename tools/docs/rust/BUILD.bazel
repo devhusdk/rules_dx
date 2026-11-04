@@ -29,7 +29,6 @@ filegroup(
 # keep
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         ":fixture_rustdoc_json",
@@ -63,7 +62,6 @@ real_source_target(
 
 rustfmt_test(
     name = "rust_linux_fmt_test",
-    size = "small",
     targets = [
         ":extract_test",
     ],

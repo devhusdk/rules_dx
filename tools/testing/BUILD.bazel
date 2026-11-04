@@ -55,7 +55,6 @@ rust_library(
 
 rust_test(
     name = "dx_testing_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/dx_testing",
         normal = True,
@@ -80,7 +79,6 @@ rust_test(
 
 rust_test(
     name = "dx_nested_test",
-    size = "small",
     crate = ":dx_nested",
     data = [
         ":nested_bazel_shim",
@@ -167,7 +165,6 @@ rust_binary(
 # keep
 rust_test(
     name = "module_srcs_test",
-    size = "small",
     srcs = ["module_srcs_test.rs"],
     data = [
         "//apple:module_srcs",
@@ -216,7 +213,6 @@ rust_test(
 # keep
 rust_test(
     name = "consumer_maven_lock_test",
-    size = "small",
     srcs = ["consumer_maven_lock_test.rs"],
     data = CONSUMER_MAVEN_DATA,
     env = CONSUMER_MAVEN_ENV,
@@ -246,7 +242,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_testing_fmt_test",
-    size = "small",
     targets = [
         ":consumer_maven_lock_test",
         ":dx_lsp",
@@ -266,7 +261,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_testing_clippy_test",
-    size = "small",
     targets = [
         ":consumer_maven_lock_test",
         ":dx_lsp",
@@ -305,7 +299,6 @@ rust_binary(
 # keep
 rust_test(
     name = "starlark_harness_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/dx_testing",
         normal = True,
@@ -321,7 +314,6 @@ rust_test(
 # keep
 rust_test(
     name = "starlark_harness_exit_test",
-    size = "small",
     srcs = ["starlark_harness_exit_test.rs"],
     aliases = aliases(
         package_name = "tools/dx_testing",
@@ -340,7 +332,6 @@ rust_test(
 # keep
 rust_test(
     name = "preflight_smoke_test",
-    size = "small",
     srcs = ["preflight_smoke_test.rs"],
     data = [
         "//cc/tests/fixtures/hello",

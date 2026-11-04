@@ -54,7 +54,6 @@ rust_binary(
 
 rust_test(
     name = "dx_docs_powershell_extract_test",
-    size = "small",
     srcs = [
         "src/convert.rs",
         "src/exports.rs",
@@ -79,7 +78,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_docs_powershell_extract_fmt_test",
-    size = "small",
     targets = [
         ":dx_docs_powershell_extract",
         ":dx_docs_powershell_extract_test",
@@ -89,7 +87,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_docs_powershell_extract_clippy_test",
-    size = "small",
     targets = [
         ":dx_docs_powershell_extract",
         ":powershell_extract",

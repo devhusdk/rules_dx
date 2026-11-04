@@ -35,7 +35,6 @@ cross_deployment(
 # keep
 rust_test(
     name = "cross_archive_test",
-    size = "small",
     srcs = ["cross_archive_test.rs"],
     data = [":aarch64_release"],
     env = {"DX_RELEASE_FILES": "$(rootpaths :aarch64_release)"},
@@ -48,13 +47,11 @@ rust_test(
 
 rustfmt_test(
     name = "cross_archive_fmt_test",
-    size = "small",
     targets = [":cross_archive_test"],
 )
 
 rust_clippy_test(
     name = "cross_archive_clippy_test",
-    size = "small",
     targets = [":cross_archive_test"],
 )
 

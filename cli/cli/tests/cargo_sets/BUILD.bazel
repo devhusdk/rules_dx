@@ -41,12 +41,10 @@ rust_test(
 
 rustfmt_test(
     name = "cargo_sets_fmt_test",
-    size = "small",
     targets = [":cargo_sets_test"],
 )
 
 rust_clippy_test(
     name = "cargo_sets_clippy_test",
-    size = "small",
     targets = [":cargo_sets_test"],
 )

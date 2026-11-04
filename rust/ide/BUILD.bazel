@@ -60,13 +60,11 @@ nested_bazel_test(
 
 rustfmt_test(
     name = "init_rust_analyzer_fmt_test",
-    size = "small",
     targets = [":init_rust_analyzer_test"],
 )
 
 rust_clippy_test(
     name = "init_rust_analyzer_clippy_test",
-    size = "small",
     targets = [":init_rust_analyzer_test"],
 )
 

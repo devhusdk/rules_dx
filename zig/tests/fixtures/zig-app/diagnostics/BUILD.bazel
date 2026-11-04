@@ -5,7 +5,6 @@ package(default_visibility = ["//zig/tests/fixtures/zig-app:__subpackages__"])
 
 rust_test(
     name = "diagnostics_test",
-    size = "small",
     srcs = ["diagnostics_test.rs"],
     data = [
         "clean.zig",
@@ -58,7 +57,6 @@ real_source_target(
 
 rustfmt_test(
     name = "diagnostics_fmt_test",
-    size = "small",
     targets = [
         ":diagnostics_test",
     ],

@@ -80,7 +80,6 @@ rust_binary(
 
 rust_test(
     name = "depcheck_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/dx_depcheck",
         normal = True,
@@ -120,7 +119,6 @@ rust_test(
 # keep
 rust_test(
     name = "depcheck_bin_test",
-    size = "small",
     crate = ":depcheck",
     deps = crate_deps(
         [
@@ -142,7 +140,6 @@ rust_test(
 
 rustfmt_test(
     name = "depcheck_fmt_test",
-    size = "small",
     targets = [
         ":depcheck_bin_test",
         ":depcheck_lib",
@@ -152,7 +149,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "depcheck_clippy_test",
-    size = "small",
     targets = [
         ":depcheck_lib",
         ":depcheck",
@@ -388,7 +384,6 @@ real_source_target(
 
 rustfmt_test(
     name = "depcheck_linux_fmt_test",
-    size = "small",
     targets = [
         ":adopt_locks_test",
         ":repo_locks_test",

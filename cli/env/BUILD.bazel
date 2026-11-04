@@ -53,7 +53,6 @@ rust_binary(
 
 rust_test(
     name = "dx_env_test",
-    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -92,7 +91,6 @@ rust_test(
 # keep
 rust_test(
     name = "env_bin_test",
-    size = "small",
     crate = ":env",
     deps = [
         ":dx_env",
@@ -102,7 +100,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_env_fmt_test",
-    size = "small",
     targets = [
         ":dx_env_test",
         ":bootstrap_test",
@@ -113,7 +110,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_env_clippy_test",
-    size = "small",
     targets = [
         ":bootstrap_test",
         ":dx_env",

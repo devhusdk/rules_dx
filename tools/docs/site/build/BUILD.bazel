@@ -77,7 +77,6 @@ real_source_target(
 
 rustfmt_test(
     name = "build_fmt_test",
-    size = "small",
     targets = [
         ":dx_site_build",
         ":dx_site_build_test",

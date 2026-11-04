@@ -20,19 +20,16 @@ rust_binary(
 
 rust_test(
     name = "dx_topiary_test",
-    size = "small",
     crate = ":dx_topiary",
     deps = _DEPS,
 )
 
 rustfmt_test(
     name = "dx_topiary_fmt_test",
-    size = "small",
     targets = [":dx_topiary"],
 )
 
 rust_clippy_test(
     name = "dx_topiary_clippy_test",
-    size = "small",
     targets = [":dx_topiary"],
 )

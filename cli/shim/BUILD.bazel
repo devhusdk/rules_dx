@@ -44,7 +44,6 @@ rust_binary(
 
 rust_test(
     name = "dx_shim_test",
-    size = "small",
     srcs = [
         "src/fetch.rs",
         "src/lib.rs",
@@ -69,7 +68,6 @@ rust_test(
 
 rust_test(
     name = "fetch_test",
-    size = "small",
     srcs = [
         "tests/fetch.rs",
         "tests/support/mod.rs",
@@ -91,7 +89,6 @@ rust_test(
 
 rust_test(
     name = "e2e_test",
-    size = "small",
     srcs = [
         "tests/e2e.rs",
         "tests/support/mod.rs",
@@ -121,7 +118,6 @@ rust_test(
 
 rust_test(
     name = "interop_test",
-    size = "small",
     srcs = [
         "tests/interop.rs",
         "tests/support/mod.rs",
@@ -154,7 +150,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_shim_fmt_test",
-    size = "small",
     targets = [
         ":dx_shim",
         ":dx_shim_bin",
@@ -168,7 +163,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_shim_clippy_test",
-    size = "small",
     targets = [
         ":dx_shim",
         ":dx_shim_bin",

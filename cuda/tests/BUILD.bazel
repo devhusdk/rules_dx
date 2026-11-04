@@ -13,7 +13,6 @@ package(default_visibility = ["//visibility:private"])
 # keep
 rust_test(
     name = "saxpy_device_code_test",
-    size = "small",
     srcs = ["saxpy_device_code_test.rs"],
     data = [
         "//cuda/tests/fixtures/saxpy",
@@ -42,7 +41,6 @@ cuda_gpu_test(
 
 rust_test(
     name = "rdc_device_code_test",
-    size = "small",
     srcs = ["rdc_device_code_test.rs"],
     data = [
         "//cuda/tests/fixtures/rdc:axpy",
@@ -106,7 +104,6 @@ cuda_gpu_test(
 
 rust_test(
     name = "saxpy_gpu_unavailable_test",
-    size = "small",
     srcs = ["saxpy_gpu_unavailable_test.rs"],
     data = [":saxpy_gpu_test"],
     env = cuda_gpu_env("8.9", "13.0") | {
@@ -133,7 +130,6 @@ failure_test(
 
 rust_test(
     name = "cublas_device_code_test",
-    size = "small",
     srcs = ["cublas_device_code_test.rs"],
     data = [
         "//cuda/tests/fixtures/cublas",
@@ -317,7 +313,6 @@ exports_files(
 
 rustfmt_test(
     name = "tests_linux_x86_64_fmt_test",
-    size = "small",
     targets = [
         ":cublas_device_code_test",
         ":rdc_device_code_test",

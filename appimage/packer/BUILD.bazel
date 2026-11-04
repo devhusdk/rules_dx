@@ -42,7 +42,6 @@ rust_binary(
 
 rust_test(
     name = "appimage_packer_test",
-    size = "small",
     aliases = aliases(
         package_name = "appimage/appimage_packer",
         normal = True,
@@ -60,7 +59,6 @@ rust_test(
 
 rustfmt_test(
     name = "appimage_packer_fmt_test",
-    size = "small",
     targets = [
         ":appimage_packer",
         ":appimage_packer_lib",
@@ -69,7 +67,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "appimage_packer_clippy_test",
-    size = "small",
     targets = [
         ":appimage_packer",
         ":appimage_packer_lib",

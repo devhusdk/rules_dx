@@ -52,7 +52,6 @@ offline_file_tests(
 # keep
 rust_test(
     name = "bootstrap_test",
-    size = "small",
     srcs = ["bootstrap_test.rs"],
     data = [
         ":bootstrap_offline",
@@ -89,7 +88,6 @@ real_source_target(
 
 rustfmt_test(
     name = "offline_fmt_test",
-    size = "small",
     targets = [
         ":bootstrap_test",
     ],

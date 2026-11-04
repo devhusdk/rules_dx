@@ -31,7 +31,6 @@ rust_library(
 
 rust_test(
     name = "generation_result_test",
-    size = "small",
     aliases = aliases(
         package_name = "generation/generation_result",
         normal = True,
@@ -47,13 +46,11 @@ rust_test(
 
 rustfmt_test(
     name = "generation_result_fmt_test",
-    size = "small",
     targets = [":generation_result"],
 )
 
 rust_clippy_test(
     name = "generation_result_clippy_test",
-    size = "small",
     targets = [":generation_result"],
 )
 

@@ -207,7 +207,6 @@ rust_binary(
 
 rust_test(
     name = "dx_deploy_tools_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",
         normal = True,
@@ -242,7 +241,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_deploy_tools_fmt_test",
-    size = "small",
     targets = [
         ":archiver",
         ":cloudflare_verify",
@@ -257,7 +255,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_deploy_tools_clippy_test",
-    size = "small",
     targets = [
         ":archiver",
         ":cloudflare_verify",
@@ -1352,7 +1349,6 @@ filegroup(
 
 rustfmt_test(
     name = "rules_linux_fmt_test",
-    size = "small",
     targets = [
         ":cloudflare_demo_verify",
         ":github_demo_verify",

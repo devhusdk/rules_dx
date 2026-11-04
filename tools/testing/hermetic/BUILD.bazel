@@ -58,7 +58,6 @@ rust_library(
 
 rust_test(
     name = "hermetic_unit_test",
-    size = "small",
     aliases = aliases(
         package_name = "tools/dx_testing",
         normal = True,
@@ -96,7 +95,6 @@ rust_binary(
 
 rust_test(
     name = "isolation_probe_test",
-    size = "small",
     srcs = ["isolation_test.rs"],
     tags = QUALIFICATION_TAGS,
     target_compatible_with = LINUX,
@@ -620,7 +618,6 @@ hermetic_qualification(
 
 rust_test(
     name = "cuda_gpu_facts_test",
-    size = "small",
     srcs = ["cuda_gpu_test.rs"],
     deps = [
         "//tools/testing:dx_nested",
@@ -892,7 +889,6 @@ hermetic_qualification(
 
 rustfmt_test(
     name = "hermetic_fmt_test",
-    size = "small",
     target_compatible_with = LINUX,
     targets = [
         ":adopt_android",
@@ -922,7 +918,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "hermetic_clippy_test",
-    size = "small",
     target_compatible_with = LINUX,
     targets = [
         ":adopt_android",

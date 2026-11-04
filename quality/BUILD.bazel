@@ -782,7 +782,6 @@ real_source_target(
 # keep
 rust_test(
     name = "clippy_policy_test",
-    size = "small",
     srcs = ["clippy_policy_test.rs"],
     data = [
         "//:clippy.toml",
@@ -879,7 +878,6 @@ rust_test(
 # keep
 rust_test(
     name = "jvm_classpath_policy_test",
-    size = "small",
     srcs = ["jvm_classpath_policy_test.rs"],
     data = glob(["*.bzl"]),
     tags = ["no-coverage"],
@@ -917,7 +915,6 @@ filegroup(
 
 rustfmt_test(
     name = "quality_fmt_test",
-    size = "small",
     targets = [
         ":clippy_policy_test",
         ":jvm_classpath_policy_test",
@@ -926,7 +923,6 @@ rustfmt_test(
 
 rustfmt_test(
     name = "quality_linux_fmt_test",
-    size = "small",
     targets = [
         ":preset_parity_test",
     ],

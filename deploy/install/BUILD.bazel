@@ -51,7 +51,6 @@ rust_binary(
 
 rust_test(
     name = "dx_install_tools_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_install_tools",
         normal = True,
@@ -67,7 +66,6 @@ rust_test(
 
 rust_test(
     name = "cosign_real_test",
-    size = "small",
     srcs = ["tests/cosign_real.rs"],
     aliases = aliases(
         package_name = "deploy/dx_install_tools",
@@ -108,7 +106,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_install_tools_fmt_test",
-    size = "small",
     targets = [
         ":dx_install_tools",
         ":dx_verify",
@@ -118,7 +115,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_install_tools_clippy_test",
-    size = "small",
     targets = [
         ":dx_install_tools",
         ":dx_verify",

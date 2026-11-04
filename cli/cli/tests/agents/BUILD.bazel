@@ -33,13 +33,11 @@ rust_test(
 
 rustfmt_test(
     name = "agents_fmt_test",
-    size = "small",
     targets = [":agents_test"],
 )
 
 rust_clippy_test(
     name = "agents_clippy_test",
-    size = "small",
     targets = [":agents_test"],
 )
 
@@ -70,13 +68,11 @@ rust_test(
 
 rustfmt_test(
     name = "dev_launcher_fmt_test",
-    size = "small",
     targets = [":dev_launcher_test"],
 )
 
 rust_clippy_test(
     name = "dev_launcher_clippy_test",
-    size = "small",
     targets = [":dev_launcher_test"],
 )
 

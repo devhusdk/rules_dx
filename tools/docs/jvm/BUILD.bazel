@@ -70,7 +70,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "java_extract_test",
-    size = "small",
     srcs = ["java_extract_test.rs"],
     data = [
         ":fixture_shapes_json",
@@ -103,7 +102,6 @@ rust_test(
 
 rustfmt_test(
     name = "java_extract_fmt_test",
-    size = "small",
     targets = [
         ":java_extract_test",
         ":jvm_test_support",
@@ -113,7 +111,6 @@ rustfmt_test(
 # keep
 rust_test(
     name = "kotlin_extract_test",
-    size = "small",
     srcs = ["kotlin_extract_test.rs"],
     data = [
         "//tools/docs/jvm/convert:jvm_convert",
@@ -144,14 +141,12 @@ rust_test(
 
 rustfmt_test(
     name = "kotlin_extract_fmt_test",
-    size = "small",
     targets = [":kotlin_extract_test"],
 )
 
 # keep
 rust_test(
     name = "scala_extract_test",
-    size = "small",
     srcs = ["scala_extract_test.rs"],
     data = [
         "//tools/docs/jvm/convert:jvm_convert",
@@ -182,7 +177,6 @@ rust_test(
 
 rustfmt_test(
     name = "scala_extract_fmt_test",
-    size = "small",
     targets = [":scala_extract_test"],
 )
 

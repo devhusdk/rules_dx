@@ -47,7 +47,6 @@ rust_library(
 # keep
 rust_test(
     name = "support_matrix_test",
-    size = "small",
     crate = ":support_matrix",
 )
 
@@ -64,7 +63,6 @@ rust_binary(
 
 rustfmt_test(
     name = "support_matrix_fmt_test",
-    size = "small",
     targets = [
         ":support_matrix",
         ":update",
@@ -73,7 +71,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "support_matrix_clippy_test",
-    size = "small",
     targets = [
         ":support_matrix",
         ":update",

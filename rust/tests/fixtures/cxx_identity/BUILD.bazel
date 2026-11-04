@@ -71,7 +71,6 @@ real_source_target(
 
 rustfmt_test(
     name = "cxx_identity_fmt_test",
-    size = "small",
     targets = [
         ":cxx_identity",
         ":cxx_identity_test",

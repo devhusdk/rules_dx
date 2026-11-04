@@ -558,7 +558,6 @@ real_source_target(
 
 rustfmt_test(
     name = "shared_rust_fmt_test",
-    size = "small",
     targets = [
         ":asset_test",
         ":consumer_native_test",
@@ -577,7 +576,6 @@ rustfmt_test(
 
 rustfmt_test(
     name = "shared_rust_linux_fmt_test",
-    size = "small",
     targets = [
         ":browser_test",
         ":consumer_browser_test",

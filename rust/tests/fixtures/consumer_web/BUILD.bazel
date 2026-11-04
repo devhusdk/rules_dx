@@ -37,7 +37,6 @@ rust_test(
 
 rustfmt_test(
     name = "consumer_web_fmt_test",
-    size = "small",
     targets = [
         ":consumer_web",
         ":consumer_web_bin",
@@ -46,7 +45,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "consumer_web_clippy_test",
-    size = "small",
     targets = [
         ":consumer_web",
         ":consumer_web_bin",

@@ -20,7 +20,6 @@ platform_transition_filegroup(
 
 rust_test(
     name = "cross_arm64_test",
-    size = "small",
     srcs = ["cross_arm64_test.rs"],
     data = [":greet_arm64"],
     env = {"GREET_ARM64": "$(rootpath :greet_arm64)"},

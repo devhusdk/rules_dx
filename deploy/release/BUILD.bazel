@@ -115,7 +115,6 @@ rust_binary(
 
 rust_test(
     name = "dx_release_tools_test",
-    size = "small",
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
@@ -155,7 +154,6 @@ rust_test(
 # keep
 rust_test(
     name = "release_artifacts_verify",
-    size = "small",
     srcs = ["verify_test.rs"],
     data = [
         ":notice_demo_a.txt",
@@ -188,7 +186,6 @@ rust_test(
 # keep
 rust_test(
     name = "bcr_templates_test",
-    size = "small",
     srcs = ["bcr_templates_test.rs"],
     data = ["//.bcr:templates"],
     deps = crate_deps(
@@ -219,7 +216,6 @@ rust_test(
 # keep
 rust_test(
     name = "release_host_cell_test",
-    size = "small",
     srcs = ["host_cell_test.rs"],
     data = [
         "consumer/consumer.BUILD.bazel",
@@ -255,7 +251,6 @@ _RELEASE_BINS = [
 
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
-    size = "small",
     targets = [
         ":dx_release_tools_test",
         ":candidate_identity_test",
@@ -266,7 +261,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_release_tools_clippy_test",
-    size = "small",
     targets = [
         ":candidate_identity_test",
         ":dx_release_tools",
@@ -356,7 +350,6 @@ rust_binary(
 
 rust_test(
     name = "publish_dry_run_check_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -372,7 +365,6 @@ rust_test(
 
 rust_test(
     name = "release_cell_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -388,7 +380,6 @@ rust_test(
 
 rust_test(
     name = "release_driver_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -404,7 +395,6 @@ rust_test(
 
 rust_test(
     name = "source_archive_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -420,7 +410,6 @@ rust_test(
 
 rust_test(
     name = "bump_version_bin_test",
-    size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -657,7 +646,6 @@ real_source_target(
 
 rustfmt_test(
     name = "release_fmt_test",
-    size = "small",
     targets = [
         ":release_artifacts_verify",
     ],

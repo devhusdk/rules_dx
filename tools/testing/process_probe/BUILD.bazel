@@ -21,7 +21,6 @@ rust_binary(
 
 rust_test(
     name = "process_probe_test",
-    size = "small",
     srcs = ["probe_test.rs"],
     data = [":process_probe"],
     env = {
@@ -35,7 +34,6 @@ rust_test(
 
 rustfmt_test(
     name = "process_probe_fmt_test",
-    size = "small",
     targets = [
         ":process_probe",
         ":process_probe_test",
@@ -44,7 +42,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "process_probe_clippy_test",
-    size = "small",
     targets = [
         ":process_probe",
         ":process_probe_test",

@@ -18,19 +18,16 @@ rust_library(
 # keep
 rust_test(
     name = "wasi_run_unit_test",
-    size = "small",
     crate = ":wasi_run",
 )
 
 rustfmt_test(
     name = "wasi_run_fmt_test",
-    size = "small",
     targets = [":wasi_run"],
 )
 
 rust_clippy_test(
     name = "wasi_run_clippy_test",
-    size = "small",
     targets = [":wasi_run"],
 )
 

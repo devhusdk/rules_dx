@@ -35,7 +35,6 @@ child_runfiles(
 # keep
 rust_test(
     name = "deploy_runfiles_test",
-    size = "small",
     srcs = ["deploy_runfiles_test.rs"],
     data = [
         ":archive_child",
@@ -68,13 +67,11 @@ rust_test(
 
 rustfmt_test(
     name = "deploy_runfiles_fmt_test",
-    size = "small",
     targets = [":deploy_runfiles_test"],
 )
 
 rust_clippy_test(
     name = "deploy_runfiles_clippy_test",
-    size = "small",
     targets = [":deploy_runfiles_test"],
 )
 
@@ -104,13 +101,11 @@ rust_test(
 
 rustfmt_test(
     name = "renamed_consumer_fmt_test",
-    size = "small",
     targets = [":renamed_consumer_test"],
 )
 
 rust_clippy_test(
     name = "renamed_consumer_clippy_test",
-    size = "small",
     targets = [":renamed_consumer_test"],
 )
 

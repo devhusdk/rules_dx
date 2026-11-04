@@ -52,7 +52,6 @@ rust_binary(
 
 rust_test(
     name = "dx_docs_jvm_convert_test",
-    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -77,7 +76,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_docs_jvm_convert_fmt_test",
-    size = "small",
     targets = [
         ":dx_docs_jvm_convert",
         ":dx_docs_jvm_convert_test",
@@ -87,7 +85,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_docs_jvm_convert_clippy_test",
-    size = "small",
     targets = [
         ":dx_docs_jvm_convert",
         ":jvm_convert",

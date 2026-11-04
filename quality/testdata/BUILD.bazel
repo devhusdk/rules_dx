@@ -1936,19 +1936,16 @@ rust_library(
 
 rust_test(
     name = "fake_format_test",
-    size = "small",
     crate = ":fake_format",
 )
 
 rustfmt_test(
     name = "fake_format_fmt_test",
-    size = "small",
     targets = [":fake_format"] + [":fake_" + tool for tool in _FAKE_FORMAT_TOOLS],
 )
 
 rust_clippy_test(
     name = "fake_format_clippy_test",
-    size = "small",
     targets = [":fake_format"] + [":fake_" + tool for tool in _FAKE_FORMAT_TOOLS],
 )
 

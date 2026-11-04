@@ -171,7 +171,6 @@ genrule(
 
 rust_test(
     name = "dx_cli_test",
-    size = "small",
     srcs = [
         "src/adopt.rs",
         "src/adopt/agents.rs",
@@ -337,7 +336,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_cli_fmt_test",
-    size = "small",
     targets = [
         ":dx_cli_test",
         ":dx_cli",
@@ -348,7 +346,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_cli_clippy_test",
-    size = "small",
     targets = [
         ":dx_cli",
         ":dx",

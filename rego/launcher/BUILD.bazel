@@ -23,7 +23,6 @@ rust_binary(
 
 rust_test(
     name = "opa_test_launcher_test",
-    size = "small",
     srcs = [
         "src/main.rs",
         "src/opa.rs",
@@ -37,7 +36,6 @@ rust_test(
 
 rustfmt_test(
     name = "opa_test_launcher_fmt_test",
-    size = "small",
     targets = [
         ":opa_test_launcher",
         ":opa_test_launcher_test",
@@ -46,7 +44,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "opa_test_launcher_clippy_test",
-    size = "small",
     targets = [":opa_test_launcher"],
 )
 

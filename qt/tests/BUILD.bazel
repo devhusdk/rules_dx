@@ -120,7 +120,6 @@ _QT_TEST_ENV = {
 
 rust_test(
     name = "qt_test",
-    size = "small",
     srcs = ["qt_test.rs"],
     data = [
         "fixtures/dialog.ui",

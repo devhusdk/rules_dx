@@ -6,7 +6,6 @@ package(default_visibility = ["//visibility:private"])
 
 rust_test(
     name = "device_code_test",
-    size = "small",
     srcs = ["device_code_test.rs"],
     data = [
         "//examples/cuda-app/app:cuda_app",
@@ -22,7 +21,6 @@ rust_test(
 
 rust_test(
     name = "format_test",
-    size = "small",
     srcs = ["//tools/testing:clang_format_test.rs"],
     data = [
         "//:.clang-format",
@@ -52,7 +50,6 @@ real_source_target(
 
 rustfmt_test(
     name = "checks_fmt_test",
-    size = "small",
     targets = [
         ":format_test",
     ],
@@ -60,7 +57,6 @@ rustfmt_test(
 
 rustfmt_test(
     name = "checks_linux_x86_64_fmt_test",
-    size = "small",
     targets = [
         ":device_code_test",
     ],

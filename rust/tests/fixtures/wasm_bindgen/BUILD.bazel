@@ -46,7 +46,6 @@ rust_binary(
 
 rustfmt_test(
     name = "wasm_hello_fmt_test",
-    size = "small",
     targets = [
         ":wasm_hello_bin",
         ":wasm_hello_lib",
@@ -55,7 +54,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "wasm_hello_clippy_test",
-    size = "small",
     targets = [":wasm_hello_lib"],
 )
 
@@ -388,7 +386,6 @@ real_source_target(
 
 rustfmt_test(
     name = "wasm_bindgen_fmt_test",
-    size = "small",
     targets = [
         ":wasm_hello_bundle_test",
         ":wasm_hello_rlib_subject",

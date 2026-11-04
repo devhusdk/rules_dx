@@ -52,7 +52,6 @@ rust_binary(
 
 rust_test(
     name = "dx_docs_python_extract_test",
-    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -78,7 +77,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_docs_python_extract_fmt_test",
-    size = "small",
     targets = [
         ":dx_docs_python_extract",
         ":dx_docs_python_extract_test",
@@ -88,7 +86,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_docs_python_extract_clippy_test",
-    size = "small",
     targets = [
         ":dx_docs_python_extract",
         ":python_extract",

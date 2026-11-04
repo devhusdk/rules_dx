@@ -76,7 +76,6 @@ rust_test(
 
 rustfmt_test(
     name = "results_consumer_fmt_test",
-    size = "small",
     targets = [
         ":quality_results_consumer_test",
         ":test_results_consumer_test",
@@ -85,7 +84,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "results_consumer_clippy_test",
-    size = "small",
     targets = [
         ":quality_results_consumer_test",
         ":test_results_consumer_test",

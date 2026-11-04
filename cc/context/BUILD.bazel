@@ -42,7 +42,6 @@ rust_library(
 
 rust_test(
     name = "cc_context_test",
-    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -178,7 +177,6 @@ rust_test(
 
 rustfmt_test(
     name = "context_fmt_test",
-    size = "small",
     targets = [
         ":cc_context",
         ":cc_context_test",
@@ -188,7 +186,6 @@ rustfmt_test(
 
 rustfmt_test(
     name = "context_linux_x86_64_fmt_test",
-    size = "small",
     targets = [
         ":context_clang_tidy_test",
         ":headless_lsp_test",

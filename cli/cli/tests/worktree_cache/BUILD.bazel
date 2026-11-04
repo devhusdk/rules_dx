@@ -35,12 +35,10 @@ rust_test(
 
 rustfmt_test(
     name = "worktree_cache_fmt_test",
-    size = "small",
     targets = [":worktree_cache_test"],
 )
 
 rust_clippy_test(
     name = "worktree_cache_clippy_test",
-    size = "small",
     targets = [":worktree_cache_test"],
 )

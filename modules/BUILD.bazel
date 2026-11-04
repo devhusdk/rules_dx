@@ -24,7 +24,6 @@ rust_library(
 # keep
 rust_test(
     name = "consumer_deps_test",
-    size = "small",
     srcs = ["consumer_deps_test.rs"],
     data = [
         "consumer_names_test.rs",
@@ -41,20 +40,17 @@ rust_test(
 
 rustfmt_test(
     name = "consumer_deps_fmt_test",
-    size = "small",
     targets = [":consumer_deps_test"],
 )
 
 rust_clippy_test(
     name = "consumer_deps_clippy_test",
-    size = "small",
     targets = [":consumer_deps_test"],
 )
 
 # keep
 rust_test(
     name = "versions_loaded_test",
-    size = "small",
     srcs = ["versions_loaded_test.rs"],
     data = [
         ":module_srcs",
@@ -71,13 +67,11 @@ rust_test(
 
 rustfmt_test(
     name = "versions_loaded_fmt_test",
-    size = "small",
     targets = [":versions_loaded_test"],
 )
 
 rust_clippy_test(
     name = "versions_loaded_clippy_test",
-    size = "small",
     targets = [":versions_loaded_test"],
 )
 
@@ -118,13 +112,11 @@ rust_test(
 
 rustfmt_test(
     name = "consumer_names_fmt_test",
-    size = "small",
     targets = [":consumer_names_test"],
 )
 
 rust_clippy_test(
     name = "consumer_names_clippy_test",
-    size = "small",
     targets = [":consumer_names_test"],
 )
 
@@ -164,13 +156,11 @@ rust_test(
 
 rustfmt_test(
     name = "floor_graph_fmt_test",
-    size = "small",
     targets = [":floor_graph_test"],
 )
 
 rust_clippy_test(
     name = "floor_graph_clippy_test",
-    size = "small",
     targets = [":floor_graph_test"],
 )
 

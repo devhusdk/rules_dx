@@ -49,7 +49,6 @@ rust_binary(
 
 rust_test(
     name = "quality_notebook_test",
-    size = "small",
     aliases = aliases(
         package_name = "quality/quality_notebook",
         normal = True,
@@ -66,7 +65,6 @@ rust_test(
 
 rustfmt_test(
     name = "quality_notebook_fmt_test",
-    size = "small",
     targets = [
         ":quality_notebook_test",
         ":quality_notebook",
@@ -76,7 +74,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "quality_notebook_clippy_test",
-    size = "small",
     targets = [
         ":quality_notebook",
         ":quality_notebook_lib",

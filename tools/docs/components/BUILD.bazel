@@ -12,7 +12,6 @@ exports_files(
 # keep
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/components/extract:component_extract",
@@ -53,7 +52,6 @@ rust_test(
 
 rust_test(
     name = "site_test",
-    size = "small",
     srcs = ["site_test.rs"],
     data = [
         "//tools/docs/components/fixture/astro:ui_docs",
@@ -78,7 +76,6 @@ rust_test(
 
 rust_test(
     name = "isolation_test",
-    size = "small",
     srcs = ["isolation_test.rs"],
     data = [
         "//quality/tools/javascript/bin:astro_component_meta",
@@ -112,7 +109,6 @@ rust_test(
 
 rustfmt_test(
     name = "component_docs_fmt_test",
-    size = "small",
     targets = [
         ":extract_test",
         ":isolation_test",

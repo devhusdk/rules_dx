@@ -49,7 +49,6 @@ rust_binary(
 
 rust_test(
     name = "dx_site_check_test",
-    size = "small",
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
@@ -75,7 +74,6 @@ rust_test(
 
 rustfmt_test(
     name = "dx_site_check_fmt_test",
-    size = "small",
     targets = [
         ":dx_site_check",
         ":dx_site_check_test",
@@ -85,7 +83,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "dx_site_check_clippy_test",
-    size = "small",
     targets = [
         ":dx_site_check",
         ":site_check",

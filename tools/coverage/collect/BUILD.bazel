@@ -23,7 +23,6 @@ rust_binary(
 
 rust_test(
     name = "collect_test",
-    size = "small",
     srcs = [
         "src/collect.rs",
         "src/main.rs",
@@ -33,7 +32,6 @@ rust_test(
 
 rustfmt_test(
     name = "collect_fmt_test",
-    size = "small",
     targets = [
         ":collect_native",
         ":collect_test",
@@ -42,7 +40,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "collect_clippy_test",
-    size = "small",
     targets = [
         ":collect_native",
         ":collect_test",

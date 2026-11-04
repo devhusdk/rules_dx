@@ -97,7 +97,6 @@ rust_binary(
 
 rustfmt_test(
     name = "quality_runner_fmt_test",
-    size = "small",
     targets = [
         ":quality_runner_test",
         ":matrix_harness",
@@ -108,7 +107,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "quality_runner_clippy_test",
-    size = "small",
     targets = [
         ":matrix_harness",
         ":quality_runner_lib",
@@ -185,7 +183,6 @@ rust_test(
 # keep
 rust_test(
     name = "quality_runner_bin_test",
-    size = "small",
     crate = ":quality_runner",
     deps = crate_deps(
         [
@@ -206,7 +203,6 @@ rust_test(
 # keep
 rust_test(
     name = "matrix_harness_test",
-    size = "small",
     aliases = aliases(
         package_name = "quality/quality_runner",
         normal = True,

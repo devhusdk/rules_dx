@@ -9,7 +9,6 @@ exports_files(["defs.bzl"], visibility = VIS_TOOLS)
 # keep
 rust_test(
     name = "extract_test",
-    size = "small",
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/python/fixture:mylib_docs",
@@ -30,7 +29,6 @@ rust_test(
 
 rustfmt_test(
     name = "python_extract_fmt_test",
-    size = "small",
     targets = [":extract_test"],
 )
 

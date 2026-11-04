@@ -76,7 +76,6 @@ rust_library(
 
 rustfmt_test(
     name = "cc_optout_fmt_test",
-    size = "small",
     targets = [
         ":cc_optout",
         ":cc_optout_build_script_",

@@ -35,7 +35,6 @@ rust_binary(
 
 rust_test(
     name = "dx_advisory_prep_test",
-    size = "small",
     srcs = [
         "src/archive.rs",
         "src/lib.rs",
@@ -63,7 +62,6 @@ rust_test(
 
 rust_test(
     name = "advisory_prep_bin_test",
-    size = "small",
     srcs = [
         "src/main.rs",
         "src/main_tests.rs",
@@ -88,7 +86,6 @@ rust_test(
 
 rustfmt_test(
     name = "advisory_prep_fmt_test",
-    size = "small",
     targets = [
         ":dx_advisory_prep_test",
         ":advisory_prep",
@@ -99,7 +96,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "advisory_prep_clippy_test",
-    size = "small",
     targets = [
         ":advisory_prep",
         ":dx_advisory_prep",

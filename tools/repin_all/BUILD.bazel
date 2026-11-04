@@ -32,7 +32,6 @@ rust_binary(
 
 rust_test(
     name = "workspace_cwd_test",
-    size = "small",
     srcs = ["tests/workspace_cwd_test.rs"],
     aliases = aliases(
         package_name = "tools/repin_all",
@@ -54,7 +53,6 @@ rust_test(
 
 rustfmt_test(
     name = "repin_all_fmt_test",
-    size = "small",
     targets = [
         ":repin_all",
         ":workspace_cwd_test",
@@ -63,7 +61,6 @@ rustfmt_test(
 
 rust_clippy_test(
     name = "repin_all_clippy_test",
-    size = "small",
     targets = [
         ":repin_all",
         ":workspace_cwd_test",

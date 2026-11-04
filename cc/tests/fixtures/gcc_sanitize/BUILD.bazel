@@ -14,9 +14,8 @@ _GCC_ONLY = [
 cc_test(
     name = "asan_test",
     srcs = ["sanitize_test.cc"],
-    # GCC's static libasan still trips the dynamic link order check at startup.
+    # GCC's static libasan still trips the dynamic link order check at startup (#5981).
     env = {"ASAN_OPTIONS": "verify_asan_link_order=0"},
-    linkopts = ["-static-libasan"],
     local_defines = ["DX_EXPECT_ASAN"],
     tags = ["manual"],
     target_compatible_with = _GCC_ONLY,
@@ -26,7 +25,6 @@ cc_test(
     name = "ubsan_test",
     srcs = ["sanitize_test.cc"],
     copts = ["-fno-sanitize-recover=undefined"],
-    linkopts = ["-static-libubsan"],
     tags = ["manual"],
     target_compatible_with = _GCC_ONLY,
 )

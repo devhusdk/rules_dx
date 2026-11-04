@@ -42,9 +42,9 @@ It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and li
 
 `cc_test` coverage works with both toolchains. GCC coverage uses the gcov that ships with the toolchain.
 
-Sanitizers work under GCC with the `asan` and `ubsan` features. Link the runtime statically so nothing loads from the host:
+Sanitizers work under GCC with the `asan` and `ubsan` features. The toolchain links the runtimes statically, so nothing loads from the host. GCC's static libasan still fails its link order check at startup (#5981), so the asan command turns it off:
 
 ```sh
-bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=asan --linkopt=-static-libasan //pkg:test
-bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=ubsan --linkopt=-static-libubsan //pkg:test
+bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=asan --test_env=ASAN_OPTIONS=verify_asan_link_order=0 //pkg:test
+bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=ubsan //pkg:test
 ```

@@ -2,7 +2,6 @@
 
 use super::{api_path, code, parse, relative, render, title, Options};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
-use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 
 fn args(list: &[&str]) -> Vec<String> {
     list.iter().map(|s| s.to_string()).collect()
@@ -56,8 +55,6 @@ fn shard() -> DocIr {
         source.generated = true;
     }
     DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "rust".to_string(),
         package: "demo".to_string(),
         symbols: vec![
@@ -290,8 +287,6 @@ fn go_symbols_render_with_a_go_fence_under_their_import_path() {
         35,
     );
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "go".to_string(),
         package: "example.com/ledger/money".to_string(),
         symbols: vec![account, deposit],
@@ -361,8 +356,6 @@ fn ruby_shard() -> DocIr {
     );
     sized.display_name = "Geometry::Sized".to_string();
     DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "ruby".to_string(),
         package: "geometry".to_string(),
         symbols: vec![circle, empty, tick, sized],
@@ -450,8 +443,6 @@ fn a_title_with_a_backtick_gets_a_longer_code_fence() {
 
 fn java_shard(doc: &str) -> DocIr {
     DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "java".to_string(),
         package: "demo".to_string(),
         symbols: vec![
@@ -517,8 +508,6 @@ fn vue_shard() -> DocIr {
     button.kind = SymbolKind::Component as i32;
     button.display_name = "Button.vue".to_string();
     DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "vue".to_string(),
         package: "ui".to_string(),
         symbols: vec![
@@ -559,8 +548,6 @@ fn vue_components_group_their_members_by_kind() {
 #[test]
 fn python_symbols_render_with_a_python_fence_and_title() {
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "python".to_string(),
         package: "mylib".to_string(),
         symbols: vec![symbol(

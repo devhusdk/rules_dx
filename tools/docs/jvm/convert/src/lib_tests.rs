@@ -99,8 +99,6 @@ fn relations_and_links_resolve_in_shard_and_drop_the_jdk() {
 #[test]
 fn dep_shards_resolve_by_display_name_and_overload() {
     let dep = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "java".to_owned(),
         package: "shapes".to_owned(),
         symbols: vec![Symbol {

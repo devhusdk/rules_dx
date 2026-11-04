@@ -16,7 +16,6 @@ use std::fs;
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 use serde_json::{Map, Value};
 
 const LANGUAGE: &str = "ruby";
@@ -558,8 +557,6 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: LANGUAGE.to_owned(),
         package: package.to_owned(),
         symbols,

@@ -1,8 +1,6 @@
 // Generation Result Protocol schema.
 //
 // Private binary contract between the canonical Gazelle workflow and `dx`.
-// Unknown major versions are rejected; newer minor versions are accepted
-// when understood.
 
 syntax = "proto3";
 
@@ -12,14 +10,12 @@ enum Mode {
   MODE_UNSPECIFIED = 0;
   CHECK = 1;
   DEFAULT = 2;
-  reserved 3 to 15;
 }
 
 enum WriteOutcome {
   WRITE_OUTCOME_UNSPECIFIED = 0;
   APPLIED = 1;
   NOT_APPLIED = 2;
-  reserved 3 to 15;
 }
 
 // One resolved command-line scope element. Completion is optional so a
@@ -27,7 +23,6 @@ enum WriteOutcome {
 message Scope {
   string value = 1;
   optional bool results_complete = 2;
-  reserved 3 to 7;
 }
 
 // One half-open UTF-8 byte edit against Modification.original_content.
@@ -35,7 +30,6 @@ message Edit {
   uint64 start_byte = 1;
   uint64 end_byte = 2;
   bytes replacement = 3;
-  reserved 4 to 7;
 }
 
 // Exact change to an existing BUILD file. The digest is BLAKE3-256 over the
@@ -44,7 +38,6 @@ message Modification {
   bytes original_digest = 1;
   bytes original_content = 2;
   repeated Edit edits = 3;
-  reserved 4 to 7;
 }
 
 // One changed BUILD file in deterministic Gazelle attempt order.
@@ -57,7 +50,6 @@ message FileResult {
   }
   WriteOutcome outcome = 5;
   string failure_code = 6;
-  reserved 7 to 15;
 }
 
 // One accepted exact ignored-import directive use.
@@ -66,7 +58,6 @@ message IgnoredImport {
   string language = 2;
   string import = 3;
   uint32 scope_index = 4;
-  reserved 5 to 15;
 }
 
 // One generation failure reported by a language extension.
@@ -75,16 +66,12 @@ message GenerationError {
   // Unset when the failing package is unknown; "" is the root package.
   optional string package = 2;
   string message = 3;
-  reserved 4 to 7;
 }
 
 message GenerationManifest {
-  uint32 schema_major = 1;
-  uint32 schema_minor = 2;
-  Mode mode = 3;
-  repeated Scope scopes = 4;
-  repeated FileResult files = 5;
-  repeated IgnoredImport ignored_imports = 6;
-  repeated GenerationError errors = 7;
-  reserved 8 to 24;
+  Mode mode = 1;
+  repeated Scope scopes = 2;
+  repeated FileResult files = 3;
+  repeated IgnoredImport ignored_imports = 4;
+  repeated GenerationError errors = 5;
 }

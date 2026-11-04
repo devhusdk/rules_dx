@@ -551,7 +551,7 @@ func TestEmitWritesOneManifest(t *testing.T) {
 				t.Fatalf("Emit: %v", err)
 			}
 			manifest := readIntended(t, out)
-			if manifest.SchemaMajor != IntendedManifestSchemaMajor || manifest.SchemaMinor != IntendedManifestSchemaMinor || manifest.Mode != "check" {
+			if manifest.Mode != "check" {
 				t.Errorf("header = %+v", manifest)
 			}
 			if len(manifest.Scopes) != 1 || manifest.Scopes[0].Value != "//..." || !manifest.Scopes[0].ResultsComplete {

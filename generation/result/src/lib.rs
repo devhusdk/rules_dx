@@ -14,15 +14,11 @@ use proto::{
 pub use result_proto::dx::generation::v1 as proto;
 
 pub use dx_digest::DIGEST_LEN;
-pub use dx_path::schema::SCHEMA_MAJOR;
-pub use dx_path::schema::SCHEMA_MINOR;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
     #[error("cannot decode generation result: {0}")]
     Decode(String),
-    #[error("unsupported schema major {found}: want {major}", major = SCHEMA_MAJOR)]
-    UnsupportedMajor { found: u32 },
     #[error("invalid mode {found}: want default or check")]
     InvalidMode { found: i32 },
     #[error("empty scopes: want at least one scope")]
@@ -402,8 +398,6 @@ fn validate_errors(manifest: &GenerationManifest) -> Result<(), Error> {
 }
 
 pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
-    dx_path::schema::check_major(manifest.schema_major)
-        .map_err(|found| Error::UnsupportedMajor { found })?;
     let mode = Mode::try_from(manifest.mode).map_err(|_| Error::InvalidMode {
         found: manifest.mode,
     })?;
@@ -460,8 +454,6 @@ mod tests {
 
     fn sample(mode: Mode) -> GenerationManifest {
         GenerationManifest {
-            schema_major: SCHEMA_MAJOR,
-            schema_minor: SCHEMA_MINOR,
             mode: mode as i32,
             scopes: vec![Scope {
                 value: "//...".into(),
@@ -590,15 +582,14 @@ mod tests {
     }
 
     #[test]
-    fn digest_roundtrip_and_compatibility() {
+    fn digest_and_roundtrip() {
         let expected = [
             0xaf, 0x13, 0x49, 0xb9, 0xf5, 0xf9, 0xa1, 0xa6, 0xa0, 0x40, 0x4d, 0xea, 0x36, 0xdc,
             0xc9, 0x49, 0x9b, 0xcb, 0x25, 0xc9, 0xad, 0xc1, 0x12, 0xb7, 0xcc, 0x9a, 0x93, 0xca,
             0xe4, 0x1f, 0x32, 0x62,
         ];
         assert_eq!(digest(b""), expected);
-        let mut manifest = sample(Mode::Default);
-        manifest.schema_minor += 1;
+        let manifest = sample(Mode::Default);
         let bytes = encode_validated(&manifest).unwrap();
         assert_eq!(decode_validated(&bytes).unwrap(), manifest);
         let mut unknown = bytes;
@@ -612,11 +603,6 @@ mod tests {
 
     #[test]
     fn header_and_scope_rules() {
-        assert_error(
-            sample(Mode::Check),
-            |m| m.schema_major = 2,
-            Error::UnsupportedMajor { found: 2 },
-        );
         assert_error(
             sample(Mode::Check),
             |m| m.mode = 99,

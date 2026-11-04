@@ -203,8 +203,6 @@ impl Consumer {
         let path = self.base.join("findings.pb");
         fs::write(&path, result).expect("result");
         let witness = serde_json::json!({
-            "schema_major": 1,
-            "schema_minor": 1,
             "mode": "check",
             "result": "clean",
             "scopes": [{"value": "//...", "results_complete": true}],

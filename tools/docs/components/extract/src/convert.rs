@@ -3,10 +3,10 @@
 //! The framework is data: the converter never branches on it, it only checks that
 //! it equals the language the shard is built for.
 
+use documentation_ir::escape_segment;
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::{escape_segment, SCHEMA_MAJOR, SCHEMA_MINOR};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
@@ -61,8 +61,6 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: settings.language.clone(),
         package: settings.package.clone(),
         symbols,

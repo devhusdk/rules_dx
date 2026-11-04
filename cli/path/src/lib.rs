@@ -15,7 +15,6 @@ pub mod host;
 pub mod nested_bazel;
 pub mod proto_validate;
 pub mod runfiles;
-pub mod schema;
 pub mod spelling;
 pub mod uri;
 pub mod workspace;

@@ -15,7 +15,7 @@ use quality_result::{
     proto::{
         Capability, Convergence, Diagnostic, Edit, FileEdits, FileSnapshot, QualityResult, Stage,
     },
-    MAX_COMPLETED_ROUNDS, SCHEMA_MAJOR, SCHEMA_MINOR,
+    MAX_COMPLETED_ROUNDS,
 };
 
 pub mod real;
@@ -354,8 +354,6 @@ fn assemble(
         })
         .collect();
     Ok(QualityResult {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         producer: producer.to_owned(),
         capability: capability_value,
         stages: stages_proto,

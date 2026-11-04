@@ -207,8 +207,8 @@ mod tests {
     use dx_fingerprint::baseline::{
         normalize_message, render_baseline, BaselineEntry, BaselineFile,
     };
+    use quality_result::encode_validated;
     use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
-    use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
     use std::collections::BTreeMap;
 
     const TOOL: &str = "lint-tool";
@@ -579,8 +579,6 @@ mod tests {
             .map(|message| Harness::diagnostic_with(2, tool, path, message, false))
             .collect();
         encode_validated(&QualityResult {
-            schema_major: SCHEMA_MAJOR,
-            schema_minor: SCHEMA_MINOR,
             producer: producer.to_owned(),
             capability: Capability::Lint as i32,
             stages: vec![Stage {
@@ -720,8 +718,6 @@ mod tests {
             })
             .collect();
         encode_validated(&QualityResult {
-            schema_major: SCHEMA_MAJOR,
-            schema_minor: SCHEMA_MINOR,
             producer: producer.to_owned(),
             capability: Capability::Lint as i32,
             stages: vec![Stage {

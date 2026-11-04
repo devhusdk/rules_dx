@@ -14,8 +14,6 @@ use proto::{
 };
 pub use result_proto::dx::quality::v1 as proto;
 
-pub use dx_path::schema::SCHEMA_MAJOR;
-pub use dx_path::schema::SCHEMA_MINOR;
 pub const MAX_COMPLETED_ROUNDS: u32 = 10;
 pub use dx_digest::DIGEST_LEN;
 
@@ -27,8 +25,6 @@ pub fn digest(bytes: &[u8]) -> [u8; 32] {
 pub enum Error {
     #[error("cannot decode quality result: {0}")]
     Decode(String),
-    #[error("unsupported schema major {found}: want {major}", major = SCHEMA_MAJOR)]
-    UnsupportedMajor { found: u32 },
     #[error("empty producer: want a non-empty tool identity")]
     EmptyProducer,
     #[error("invalid capability: want a known capability")]
@@ -257,8 +253,6 @@ fn check_edits(file: &FileEdits) -> Result<(), Error> {
 }
 
 pub fn validate(result: &QualityResult) -> Result<(), Error> {
-    dx_path::schema::check_major(result.schema_major)
-        .map_err(|found| Error::UnsupportedMajor { found })?;
     if result.producer.is_empty() {
         return Err(Error::EmptyProducer);
     }
@@ -348,7 +342,6 @@ pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use prost::Message;
 
     fn digest_of(byte: u8) -> Vec<u8> {
         vec![byte; DIGEST_LEN]
@@ -374,8 +367,6 @@ mod tests {
 
     fn sample() -> QualityResult {
         QualityResult {
-            schema_major: SCHEMA_MAJOR,
-            schema_minor: SCHEMA_MINOR,
             producer: "//quality:test".to_owned(),
             capability: Capability::Lint as i32,
             stages: vec![Stage {
@@ -432,30 +423,6 @@ mod tests {
         let second = encode_validated(&result).unwrap();
         assert_eq!(first, second);
         assert_eq!(decode_validated(&first).unwrap(), result);
-    }
-
-    #[test]
-    fn newer_minor_accepted_when_bytes_satisfy_rules() {
-        let mut result = sample();
-        result.schema_minor = SCHEMA_MINOR + 1;
-        let bytes = result.encode_to_vec();
-        assert_eq!(
-            decode_validated(&bytes).unwrap().schema_minor,
-            SCHEMA_MINOR + 1
-        );
-    }
-
-    #[test]
-    fn unknown_major_rejected() {
-        let mut result = sample();
-        result.schema_major = SCHEMA_MAJOR + 1;
-        let bytes = result.encode_to_vec();
-        assert_eq!(
-            decode_validated(&bytes),
-            Err(Error::UnsupportedMajor {
-                found: SCHEMA_MAJOR + 1
-            })
-        );
     }
 
     #[test]

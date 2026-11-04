@@ -75,8 +75,6 @@ where
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct IntendedPayload {
-    schema_major: u32,
-    schema_minor: u32,
     mode: String,
     result: IntendedResult,
     #[serde(default)]
@@ -187,14 +185,6 @@ fn gazelle_status(
 pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     let payload: IntendedPayload = serde_json::from_slice(input.intended_json)
         .map_err(|err| FinalizeError::Malformed(format!("invalid intended JSON: {err}")))?;
-    if payload.schema_major != generation_result::SCHEMA_MAJOR {
-        return Err(FinalizeError::Malformed(format!(
-            "unsupported schema {}.{}; want major {}",
-            payload.schema_major,
-            payload.schema_minor,
-            generation_result::SCHEMA_MAJOR,
-        )));
-    }
     let want_mode = if input.check { "check" } else { "default" };
     if payload.mode != want_mode {
         return Err(FinalizeError::Malformed(format!(
@@ -344,8 +334,6 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     errors.dedup();
 
     let manifest = GenerationManifest {
-        schema_major: generation_result::SCHEMA_MAJOR,
-        schema_minor: generation_result::SCHEMA_MINOR,
         mode: if input.check {
             Mode::Check as i32
         } else {
@@ -368,7 +356,7 @@ mod tests {
     fn payload(mode: &str, results_complete: bool) -> Vec<u8> {
         format!(
             concat!(
-                r#"{{"schema_major":1,"schema_minor":1,"mode":"{mode}","result":"diff_found","#,
+                r#"{{"mode":"{mode}","result":"diff_found","#,
                 r#""scopes":[{{"value":"//...","results_complete":{complete}}}],"#,
                 r#""files":[{{"path":"rust/tests/fixtures/hello/BUILD.bazel","scope_index":0,"#,
                 r#""original_content":"YWJjCg==","#,
@@ -519,7 +507,7 @@ mod tests {
     #[test]
     fn create_file_finalizes() {
         let json = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","#,
+            r#"{"mode":"default","result":"diff_found","#,
             r#""scopes":[{"value":"//...","results_complete":true}],"#,
             r#""files":[{"path":"new/BUILD.bazel","scope_index":0,"#,
             r#""create_content":"eAo="}],"ignored_imports":[]}"#,
@@ -562,11 +550,10 @@ mod tests {
             FinalizeError::Malformed(_)
         ));
         assert!(matches!(
-            run(br#"{"schema_major":1}"#, false, true),
+            run(br#"{"mode":"default"}"#, false, true),
             FinalizeError::Malformed(_)
         ));
-        let bad_schema =
-            br#"{"schema_major":2,"schema_minor":1,"mode":"default","result":"clean"}"#;
+        let bad_schema = br#"{"schema_major":1,"mode":"default","result":"clean"}"#;
         assert!(matches!(
             run(bad_schema, false, true),
             FinalizeError::Malformed(_)
@@ -593,14 +580,14 @@ mod tests {
         ));
         assert!(matches!(
             run(
-                br#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"clean","bogus":[]}"#,
+                br#"{"mode":"default","result":"clean","bogus":[]}"#,
                 false,
                 true
             ),
             FinalizeError::Malformed(_)
         ));
         let both = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","scopes":[],"#,
+            r#"{"mode":"default","result":"diff_found","scopes":[],"#,
             r#""files":[{"path":"a","create_content":"eA==","original_content":"eQ=="}],"#,
             r#""ignored_imports":[]}"#,
         );
@@ -611,7 +598,7 @@ mod tests {
             "unexpected message: {both_err}"
         );
         let bad_b64 = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","scopes":[],"#,
+            r#"{"mode":"default","result":"diff_found","scopes":[],"#,
             r#""files":[{"path":"a","create_content":"!!!"}],"ignored_imports":[]}"#,
         );
         assert!(matches!(
@@ -619,7 +606,7 @@ mod tests {
             FinalizeError::Malformed(_)
         ));
         let bad_edits = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","scopes":[],"#,
+            r#"{"mode":"default","result":"diff_found","scopes":[],"#,
             r#""files":[{"path":"a","original_content":"YWJjCg==","#,
             r#""edits":[{"start_byte":9,"end_byte":2,"replacement":"eA=="}]}],"#,
             r#""ignored_imports":[]}"#,
@@ -654,7 +641,7 @@ mod tests {
         ] {
             let json = format!(
                 concat!(
-                    r#"{{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","#,
+                    r#"{{"mode":"default","result":"diff_found","#,
                     r#""scopes":[{{"value":"//...","results_complete":true}}],"#,
                     r#""files":[{{"path":{path:?},"scope_index":0,"#,
                     r#""create_content":"eHl6Cg=="}}],"#,
@@ -685,7 +672,7 @@ mod tests {
     #[test]
     fn crate_validation_still_guards_structural_rules() {
         let json = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","#,
+            r#"{"mode":"default","result":"diff_found","#,
             r#""scopes":[{"value":"//...","results_complete":true}],"#,
             r#""files":[{"path":"a","scope_index":7,"create_content":"eA=="}],"#,
             r#""ignored_imports":[]}"#,
@@ -754,7 +741,7 @@ mod tests {
     #[test]
     fn scope_shape_round_trip() {
         let json = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"clean","#,
+            r#"{"mode":"default","result":"clean","#,
             r#""scopes":[{"value":"//rust/...","results_complete":true}],"#,
             r#""files":[],"ignored_imports":[]}"#,
         );
@@ -794,7 +781,7 @@ mod tests {
         };
         format!(
             concat!(
-                r#"{{"schema_major":1,"schema_minor":1,"mode":"{mode}","result":"{result}","#,
+                r#"{{"mode":"{mode}","result":"{result}","#,
                 r#""scopes":[{{"value":"//...","results_complete":true}}],"#,
                 r#""files":{files},"ignored_imports":[]}}"#
             ),
@@ -818,7 +805,7 @@ mod tests {
             })
         };
         let missing = concat!(
-            r#"{"schema_major":1,"schema_minor":1,"mode":"check","#,
+            r#"{"mode":"check","#,
             r#""scopes":[],"files":[],"ignored_imports":[]}"#,
         );
         let err = run(missing.as_bytes()).unwrap_err();
@@ -956,7 +943,7 @@ mod tests {
             "[]"
         };
         format!(
-            r#"{{"schema_major":1,"schema_minor":2,"mode":"{mode}","result":"failed","scopes":[{{"value":"//...","results_complete":false}}],"files":{files},"errors":{errors}}}"#
+            r#"{{"mode":"{mode}","result":"failed","scopes":[{{"value":"//...","results_complete":false}}],"files":{files},"errors":{errors}}}"#
         )
         .into_bytes()
     }

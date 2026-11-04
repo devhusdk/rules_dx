@@ -3,10 +3,6 @@
 // Internal binary contract between quality pipeline actions, Bazel
 // evaluators, and the `dx` CLI. Distinct from the public NDJSON output
 // protocol.
-//
-// Unknown major versions are rejected; newer minors are accepted when
-// decoding succeeds and all semantics required by the operation are
-// understood.
 
 syntax = "proto3";
 
@@ -19,7 +15,6 @@ enum Severity {
   INFO = 1;
   WARNING = 2;
   ERROR = 3;
-  reserved 4 to 15;
 }
 
 // Pipeline capability that produced the result. Zero is invalid.
@@ -29,7 +24,6 @@ enum Capability {
   TYPECHECK = 2;
   FORMAT = 3;
   AUDIT = 4;
-  reserved 5 to 15;
 }
 
 // Terminal state of a completed pipeline. Tool launch, configuration,
@@ -44,7 +38,6 @@ enum Convergence {
   OSCILLATION = 2;
   // Round ten changed a virtual file; no eleventh round runs.
   ITERATION_LIMIT = 3;
-  reserved 4 to 15;
 }
 
 // One normalized diagnostic. Ranges are half-open UTF-8 byte offsets:
@@ -71,7 +64,6 @@ message Diagnostic {
   // Why `fixable` is false for an initial diagnostic with a path; empty
   // when fixable or unknown. One of: no_change, unstable, persists.
   string unfixable_reason = 16;
-  reserved 10 to 15;
 }
 
 // One explanatory item attached to a diagnostic. `role` is the native
@@ -87,7 +79,6 @@ message Related {
   optional uint64 end_byte = 5;
   optional string replacement = 6;
   string applicability = 7;
-  reserved 8 to 11;
 }
 
 // One source snapshot: workspace path plus BLAKE3-256 over exact file
@@ -96,7 +87,6 @@ message Related {
 message FileSnapshot {
   string path = 1;
   bytes digest = 2;
-  reserved 3 to 7;
 }
 
 // One normalized byte-range edit against original file bytes. Empty
@@ -106,7 +96,6 @@ message Edit {
   uint64 start_byte = 1;
   uint64 end_byte = 2;
   bytes replacement = 3;
-  reserved 4 to 7;
 }
 
 // Replacement set for one workspace path: original digest plus strictly
@@ -117,7 +106,6 @@ message FileEdits {
   string path = 1;
   bytes original_digest = 2;
   repeated Edit edits = 3;
-  reserved 4 to 7;
 }
 
 // One executed stage: tool identity plus its fixed source subset.
@@ -125,7 +113,6 @@ message Stage {
   string tool_id = 1;
   repeated string class_ids = 2;
   repeated string source_paths = 3;
-  reserved 4 to 7;
 }
 
 // One pipeline result. `original_snapshot` is the analyzed snapshot;
@@ -134,20 +121,17 @@ message Stage {
 // `terminal_diagnostics` use ranges relative to the terminal snapshot.
 // Only `STABLE` results may carry `replacements`.
 message QualityResult {
-  uint32 schema_major = 1;
-  uint32 schema_minor = 2;
   // Configured producer target label (internal identity).
-  string producer = 3;
-  Capability capability = 4;
+  string producer = 1;
+  Capability capability = 2;
   // Stages in versioned ruleset order.
-  repeated Stage stages = 5;
+  repeated Stage stages = 3;
   // Complete cross-tool rounds executed; at most ten.
-  uint32 completed_rounds = 6;
-  Convergence convergence = 7;
-  repeated FileSnapshot original_snapshot = 8;
-  repeated FileSnapshot terminal_snapshot = 9;
-  repeated Diagnostic initial_diagnostics = 10;
-  repeated Diagnostic terminal_diagnostics = 11;
-  repeated FileEdits replacements = 12;
-  reserved 13 to 24;
+  uint32 completed_rounds = 4;
+  Convergence convergence = 5;
+  repeated FileSnapshot original_snapshot = 6;
+  repeated FileSnapshot terminal_snapshot = 7;
+  repeated Diagnostic initial_diagnostics = 8;
+  repeated Diagnostic terminal_diagnostics = 9;
+  repeated FileEdits replacements = 10;
 }

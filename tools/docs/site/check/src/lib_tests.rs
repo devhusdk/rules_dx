@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
+use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Symbol};
-use documentation_ir::{encode_shard, SCHEMA_MAJOR};
 
 use super::{
     anchor_name, check, first_field, has_empty_link_target, inline_targets, parse_args,
@@ -24,7 +24,6 @@ fn write(dir: &Path, name: &str, body: &str) {
 
 fn write_shard(dir: &Path, ids: &[&str]) {
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
         language: "rust".to_string(),
         package: "demo".to_string(),
         symbols: ids
@@ -164,7 +163,7 @@ fn a_shard_that_does_not_decode_is_refused() {
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
     write(dir, "api.md", "# API\n");
-    write(dir, "shard.ir.pb", "schema_major: 1\n");
+    write(dir, "shard.ir.pb", "not a shard\n");
     write(dir, "guide.md", "# Guide\n");
     let refusal = check(&inputs(dir));
     assert!(refusal.contains("is not a valid DocIr shard"), "{refusal}");

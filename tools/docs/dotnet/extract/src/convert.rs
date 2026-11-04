@@ -1,10 +1,10 @@
 //! Maps the dotnet API facts onto the versioned documentation IR.
 
 use crate::types::{parse_api, Api, Item, SCHEMA};
+use documentation_ir::escape_id_segment;
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::{escape_id_segment, SCHEMA_MAJOR, SCHEMA_MINOR};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -66,8 +66,6 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: settings.language.clone(),
         package: settings.package.clone(),
         symbols,

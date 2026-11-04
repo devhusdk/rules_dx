@@ -18,9 +18,6 @@ import (
 )
 
 const (
-	IntendedManifestSchemaMajor = 1
-	IntendedManifestSchemaMinor = 2
-
 	EnvIntendedManifest = "DX_GENERATE_INTENDED"
 	EnvGenerateScope    = "DX_GENERATE_SCOPE"
 	EnvGenerateMode     = "DX_GENERATE_MODE"
@@ -73,8 +70,6 @@ const (
 )
 
 type IntendedManifest struct {
-	SchemaMajor    int                     `json:"schema_major"`
-	SchemaMinor    int                     `json:"schema_minor"`
 	Mode           string                  `json:"mode"`
 	Result         IntendedResult          `json:"result"`
 	Scopes         []IntendedScope         `json:"scopes"`
@@ -205,8 +200,6 @@ func (r *ManifestRecorder) ScopeIndex(rel string) int {
 
 func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 	manifest := IntendedManifest{
-		SchemaMajor:    IntendedManifestSchemaMajor,
-		SchemaMinor:    IntendedManifestSchemaMinor,
 		Mode:           r.Mode,
 		Scopes:         []IntendedScope{},
 		Files:          []IntendedFile{},
@@ -293,8 +286,6 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 // written BUILD files, so the manifest claims no changes.
 func (r *ManifestRecorder) EmitFailed(errs []GenerationError) error {
 	manifest := IntendedManifest{
-		SchemaMajor:    IntendedManifestSchemaMajor,
-		SchemaMinor:    IntendedManifestSchemaMinor,
 		Mode:           r.Mode,
 		Result:         IntendedResultFailed,
 		Scopes:         []IntendedScope{},

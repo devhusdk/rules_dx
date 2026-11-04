@@ -7,7 +7,6 @@ use crate::types::{
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -73,8 +72,6 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     let mut symbols = walker.symbols;
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: LANGUAGE.to_owned(),
         package: settings.package.clone(),
         symbols,

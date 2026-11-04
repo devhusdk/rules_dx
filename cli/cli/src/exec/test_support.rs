@@ -8,9 +8,9 @@ use dx_process::{ChildStatus, Runner};
 use dx_setup::{
     commit_pair, setup_hex, GenerationId, SetupPair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME,
 };
+use quality_result::encode_validated;
 use quality_result::proto;
 use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
-use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::{self};
@@ -339,8 +339,6 @@ impl Harness {
         snapshots: Vec<FileSnapshot>,
     ) -> Vec<u8> {
         let result = QualityResult {
-            schema_major: SCHEMA_MAJOR,
-            schema_minor: SCHEMA_MINOR,
             producer: "//test:corpus".to_owned(),
             capability: Capability::Lint as i32,
             stages: vec![Stage {
@@ -880,8 +878,6 @@ pub(crate) fn intended_witness_failed(mode: &str, errors: &str) -> Vec<u8> {
     let errors_value: Vec<serde_json::Value> =
         serde_json::from_str(&format!("[{errors}]")).expect("errors JSON");
     serde_json::to_vec(&serde_json::json!({
-        "schema_major": 1,
-        "schema_minor": 2,
         "mode": mode,
         "result": "failed",
         "scopes": [{"value": "//...", "results_complete": false}],
@@ -908,8 +904,6 @@ pub(crate) fn intended_witness_with_result(
         serde_json::from_str(&format!("[{ignored}]")).expect("ignored JSON")
     };
     serde_json::to_vec(&serde_json::json!({
-        "schema_major": 1,
-        "schema_minor": 1,
         "mode": mode,
         "result": result,
         "scopes": [{"value": "//...", "results_complete": complete}],

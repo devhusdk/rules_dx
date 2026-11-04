@@ -13,8 +13,8 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 
+use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind, Visibility};
-use documentation_ir::{encode_shard, SCHEMA_MAJOR, SCHEMA_MINOR};
 use rustdoc_types::{
     Crate, GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind, Generics,
     Id, Item, ItemEnum, MacroKind, Path, StructKind, Term, TraitBoundModifier, Type, VariantKind,
@@ -213,8 +213,6 @@ pub fn extract(
         return Err(format!("crate '{krate}' has no public API"));
     }
     Ok(DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: "rust".to_string(),
         package: package.to_string(),
         symbols,

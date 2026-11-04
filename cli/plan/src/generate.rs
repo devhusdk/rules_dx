@@ -353,8 +353,6 @@ mod tests {
 
     fn check_manifest() -> GenerationManifest {
         GenerationManifest {
-            schema_major: generation_result::SCHEMA_MAJOR,
-            schema_minor: generation_result::SCHEMA_MINOR,
             mode: Mode::Check as i32,
             scopes: vec![scope("//...", true)],
             files: vec![modify_file(
@@ -371,8 +369,6 @@ mod tests {
 
     fn default_manifest() -> GenerationManifest {
         GenerationManifest {
-            schema_major: generation_result::SCHEMA_MAJOR,
-            schema_minor: generation_result::SCHEMA_MINOR,
             mode: Mode::Default as i32,
             scopes: vec![scope("//...", true)],
             files: vec![
@@ -527,8 +523,6 @@ mod tests {
     #[test]
     fn empty_manifest_projects_to_zero_counts() {
         let manifest = GenerationManifest {
-            schema_major: generation_result::SCHEMA_MAJOR,
-            schema_minor: generation_result::SCHEMA_MINOR,
             mode: Mode::Check as i32,
             scopes: vec![scope("//...", true)],
             files: vec![],
@@ -564,8 +558,6 @@ mod tests {
     #[test]
     fn empty_create_fails_to_render_a_diff() {
         let manifest = GenerationManifest {
-            schema_major: generation_result::SCHEMA_MAJOR,
-            schema_minor: generation_result::SCHEMA_MINOR,
             mode: Mode::Default as i32,
             scopes: vec![scope("//...", true)],
             files: vec![create_file("e/BUILD.bazel", b"", WriteOutcome::Applied, "")],
@@ -593,8 +585,6 @@ mod tests {
         assert_eq!(incomplete.exit_code(2), 2);
 
         let success_manifest = GenerationManifest {
-            schema_major: generation_result::SCHEMA_MAJOR,
-            schema_minor: generation_result::SCHEMA_MINOR,
             mode: Mode::Default as i32,
             scopes: vec![scope("//...", true)],
             files: vec![create_file(
@@ -611,8 +601,6 @@ mod tests {
         assert_eq!(success.finished_counts().effects, Some([1, 0]));
 
         let check_empty_manifest = GenerationManifest {
-            schema_major: generation_result::SCHEMA_MAJOR,
-            schema_minor: generation_result::SCHEMA_MINOR,
             mode: Mode::Check as i32,
             scopes: vec![scope("//...", true)],
             files: vec![],
@@ -666,10 +654,6 @@ mod tests {
 
     #[test]
     fn projection_assumes_a_validated_manifest() {
-        let mut bad_major = check_manifest();
-        bad_major.schema_major = 99;
-        assert!(project(&bad_major).is_ok());
-
         let mut empty_scopes = check_manifest();
         empty_scopes.scopes.clear();
         assert!(project(&empty_scopes).is_ok());
@@ -682,7 +666,7 @@ mod tests {
         check_outcome.files[0].outcome = WriteOutcome::Applied as i32;
         assert!(project(&check_outcome).is_ok());
 
-        for manifest in [bad_major, empty_scopes, duplicate, check_outcome] {
+        for manifest in [empty_scopes, duplicate, check_outcome] {
             assert!(
                 generation_result::validate(&manifest).is_err(),
                 "the boundary rejects what projection trusts"

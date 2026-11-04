@@ -1240,7 +1240,6 @@ mod tests {
 
     fn sample_result() -> proto::QualityResult {
         proto::QualityResult {
-            schema_major: quality_result::SCHEMA_MAJOR,
             producer: "//quality/testdata:matrix_probe".to_owned(),
             capability: proto::Capability::Format as i32,
             stages: vec![proto::Stage {

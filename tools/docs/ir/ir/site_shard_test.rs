@@ -1,4 +1,4 @@
-use documentation_ir::{decode_shard, proto, SCHEMA_MAJOR};
+use documentation_ir::{decode_shard, proto};
 use proto::{DocIr, Symbol, SymbolKind};
 
 const SHARD: &str = "tools/docs/rust/fixture/docs_fixture_docs.ir.pb";
@@ -21,7 +21,6 @@ fn symbol<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
 #[test]
 fn the_fixture_shard_names_every_public_item_once() {
     let shard = decoded(SHARD);
-    assert_eq!(shard.schema_major, SCHEMA_MAJOR);
     assert_eq!(
         (shard.language.as_str(), shard.package.as_str()),
         ("rust", "docs_fixture")

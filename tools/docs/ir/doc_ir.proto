@@ -22,26 +22,22 @@ enum SymbolKind {
   COMPONENT = 14;
   EVENT = 15;
   SLOT = 16;
-  reserved 17 to 20;
 }
 
 enum Visibility {
   VISIBILITY_UNSPECIFIED = 0;
   PUBLIC = 1;
-  reserved 2 to 15;
 }
 
 message Param {
   string name = 1;
   string type = 2;
   string doc = 3;
-  reserved 4 to 7;
 }
 
 message Returns {
   string type = 1;
   string doc = 2;
-  reserved 3 to 7;
 }
 
 message SourceRef {
@@ -50,7 +46,6 @@ message SourceRef {
   uint64 line = 2;
   // True when the file is build output, not a checked-in source.
   bool generated = 3;
-  reserved 4 to 7;
 }
 
 message Relations {
@@ -58,13 +53,11 @@ message Relations {
   repeated string implements = 2;
   // Public alias ids under which a re-export exposes this symbol.
   repeated string reexported_as = 3;
-  reserved 4 to 7;
 }
 
 message Extension {
   string key = 1;
   bytes value = 2;
-  reserved 3 to 7;
 }
 
 message Symbol {
@@ -87,14 +80,10 @@ message Symbol {
   // Reader-facing title when the id cannot spell it, such as Foo#empty?.
   // Empty means the renderer derives the title from the id.
   string display_name = 12;
-  reserved 13 to 15;
 }
 
 message DocIr {
-  uint32 schema_major = 1;
-  uint32 schema_minor = 2;
-  string language = 3;
-  string package = 4;
-  repeated Symbol symbols = 5;
-  reserved 6 to 15;
+  string language = 1;
+  string package = 2;
+  repeated Symbol symbols = 3;
 }

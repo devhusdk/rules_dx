@@ -15,8 +15,6 @@ use dx_path::proto_validate::{
     check_sorted_next, decode_with_validation, encode_with_validation, OrderViolation,
 };
 use dx_path::reject_reason;
-pub use dx_path::schema::SCHEMA_MAJOR;
-pub use dx_path::schema::SCHEMA_MINOR;
 
 /// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
 pub fn escape_segment(segment: &str) -> String {
@@ -34,9 +32,6 @@ pub fn escape_segment(segment: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Decode(String),
-    UnsupportedMajor {
-        found: u32,
-    },
     EmptyLanguage,
     EmptyPackage,
     EmptySymbolId {
@@ -105,8 +100,6 @@ pub fn escape_id_segment(segment: &str) -> String {
 }
 
 pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
-    dx_path::schema::check_major(shard.schema_major)
-        .map_err(|found| Error::UnsupportedMajor { found })?;
     if shard.language.is_empty() {
         return Err(Error::EmptyLanguage);
     }
@@ -316,8 +309,6 @@ mod tests {
 
     fn example_shard() -> DocIr {
         DocIr {
-            schema_major: SCHEMA_MAJOR,
-            schema_minor: SCHEMA_MINOR,
             language: "python".to_owned(),
             package: "mylib".to_owned(),
             symbols: vec![Symbol {
@@ -402,13 +393,6 @@ mod tests {
 
     #[test]
     fn encode_and_decode_reject_the_same_invalid_shards() {
-        let mut bad_major = example_shard();
-        bad_major.schema_major = 0;
-        assert_eq!(
-            encode_shard(&bad_major),
-            Err(Error::UnsupportedMajor { found: 0 })
-        );
-
         let mut bad_lang = example_shard();
         bad_lang.language.clear();
         assert_eq!(encode_shard(&bad_lang), Err(Error::EmptyLanguage));
@@ -646,14 +630,6 @@ mod tests {
                 parent: "vue:mylib:Other".to_owned(),
             })
         );
-    }
-
-    #[test]
-    fn newer_minors_decode_when_understood() {
-        let mut shard = example_shard();
-        shard.schema_minor = 3;
-        let bytes = encode_shard(&shard).unwrap();
-        assert_eq!(decode_shard(&bytes).unwrap(), shard);
     }
 
     #[test]

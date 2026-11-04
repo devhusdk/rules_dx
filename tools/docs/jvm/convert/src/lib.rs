@@ -22,10 +22,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
+use documentation_ir::escape_segment;
 use documentation_ir::proto::{
     DocIr, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::{escape_segment, SCHEMA_MAJOR, SCHEMA_MINOR};
 use serde_json::{Map, Value};
 
 const FORMAT: u64 = 1;
@@ -575,8 +575,6 @@ pub fn convert(
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
-        schema_minor: SCHEMA_MINOR,
         language: language.to_owned(),
         package: package.to_owned(),
         symbols,

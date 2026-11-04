@@ -1,15 +1,14 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Symbol};
-use documentation_ir::{encode_shard, SCHEMA_MAJOR};
 
 const ID: &str = "rust:docs_fixture:shapes.Circle.area";
 const PAGE: &str = "api/rust/docs_fixture/shapes.Circle.area.md";
 
 fn shard(ids: &[&str]) -> Vec<u8> {
     let shard = DocIr {
-        schema_major: SCHEMA_MAJOR,
         language: "rust".to_string(),
         package: "docs_fixture".to_string(),
         symbols: ids
@@ -281,7 +280,7 @@ fn a_shard_without_symbols_fails() {
 #[test]
 fn a_shard_that_does_not_decode_fails() {
     let site = Site::new("dx-site-check-bad-shard");
-    site.write("shard.ir.pb", "schema_major: 1\n");
+    site.write("shard.ir.pb", "not a shard\n");
     site.standard()
         .expect_refusal("shard 'shard.ir.pb' is not a valid DocIr shard");
 }
@@ -290,7 +289,6 @@ fn a_shard_that_does_not_decode_fails() {
 fn a_reexport_without_its_own_api_page_fails() {
     let site = Site::new("dx-site-check-alias");
     let mut ir = DocIr {
-        schema_major: SCHEMA_MAJOR,
         language: "rust".to_string(),
         package: "docs_fixture".to_string(),
         ..DocIr::default()

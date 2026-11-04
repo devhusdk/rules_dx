@@ -62,7 +62,10 @@ dx_rust_crate(
         "src/slots.rs",
         "src/slots/pressure.rs",
     ],
-    compile_data = ["//docs:tutorial.md"],
+    compile_data = [
+        "//docs:cli/commands/README.md",
+        "//docs:tutorial.md",
+    ],
     dev_deps = ["insta"],
     extra_deps = [
         "//cli/adopt:dx_adopt",

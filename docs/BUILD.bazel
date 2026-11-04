@@ -4,7 +4,10 @@ load("//tools/docs/site:site_tests.bzl", "docs_book_coverage_tests")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["tutorial.md"])
+exports_files([
+    "cli/commands/README.md",
+    "tutorial.md",
+])
 
 filegroup(
     name = "command_docs",

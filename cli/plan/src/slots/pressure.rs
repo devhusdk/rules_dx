@@ -243,4 +243,17 @@ mod tests {
         assert!(!pause.hold_back(None, Instant::now()));
         assert!(!pause.expired());
     }
+
+    const README: &str = include_str!("../../../../docs/cli/commands/README.md");
+
+    #[test]
+    fn readme_describes_the_macos_pressure_signal() {
+        let text = README.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            text.contains("`kern.memorystatus_vm_pressure_level`"),
+            "the slots section must name the macOS pressure level"
+        );
+        assert!(!text.contains("macOS and Windows get no extra slots"));
+        assert!(!text.contains("macOS and Windows have no signal"));
+    }
 }

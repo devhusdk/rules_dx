@@ -74,18 +74,20 @@ files Bazel reads, their `--config` sections, and the flags you pass. A run
 takes an extra slot only when no regular slot is free, the host is not under
 memory pressure, and no other run took an extra slot in the last 10 seconds.
 On Linux, memory pressure means `/proc/pressure/memory` `some avg10` is 10 or
-more, or `MemAvailable` is below 1.5 GiB when that file is missing. macOS and
-Windows get no extra slots. A run that waits only because of memory pressure
-says so in its waiting notice.
+more, or `MemAvailable` is below 1.5 GiB when that file is missing. On macOS it
+means the kernel level `kern.memorystatus_vm_pressure_level` is 2 (warn) or 4
+(critical); level 1 is calm. Windows has no signal, so it gets no extra slots.
+An unreadable or unknown level is no signal. A run that waits only because of
+memory pressure says so in its waiting notice.
 
 Regular slots have a softer rule, for `auto` and for `--build-slots <n>`. When
 another slot is held and the host is under memory pressure, a run that finds a
 free slot waits instead of taking it, and its notice ends with `; paused under
 memory pressure`. Here memory pressure means the same PSI reading, or
 `MemAvailable` below one slot's memory budget (3 GiB, or 1.5 GiB with a remote
-executor) when that file is missing. Each run waits at most 30 seconds, then
-takes the slot. A run that finds no other slot held never waits, and macOS and
-Windows have no signal and no pause.
+executor) when that file is missing. On macOS it is the same kernel level as
+above. Each run waits at most 30 seconds, then takes the slot. A run that finds
+no other slot held never waits. Windows has no signal and no pause.
 
 While a slot is held, dx adds two flags right after `build`, `test`,
 `coverage` and `run`:

@@ -79,7 +79,10 @@ rust_test(
 
 rust_library(
     name = "dx_nested",
-    srcs = ["src/nested.rs"],
+    srcs = [
+        "src/compose.rs",
+        "src/nested.rs",
+    ],
     crate_name = "dx_nested",
     crate_root = "src/nested.rs",
     edition = "2021",

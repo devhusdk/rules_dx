@@ -9,6 +9,8 @@
     )
 )]
 
+pub mod compose;
+
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
 use std::fs::File;
@@ -1888,8 +1890,8 @@ impl Case {
 
 fn consumer_module(rules: &Path, extra: &str) -> String {
     format!(
-        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{extra}",
-        rules.display()
+        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{extra}",
+        compose::rules_dx_override(rules)
     )
 }
 
@@ -3053,7 +3055,7 @@ mod portable_tests {
         let text = consumer_module(Path::new("/src/rules_dx"), "\nuse_repo(x)\n");
         assert_eq!(
             text,
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"/src/rules_dx\")\n\nuse_repo(x)\n"
+            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules_dx\",\n)\n\nuse_repo(x)\n"
         );
     }
 

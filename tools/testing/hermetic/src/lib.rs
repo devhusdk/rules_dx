@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
+use dx_nested::compose::compose_module;
 use serde_json::{json, Value};
 
 /// Returns the lowercase hex SHA-256 digest of `data`.
@@ -381,81 +382,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
     })
-}
-
-fn starlark_string(text: &str) -> String {
-    format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
-}
-
-/// Inserts `fragment` before the first `register_toolchains(` line of `setup`.
-fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, String> {
-    let mut at = None;
-    let mut offset = 0;
-    for line in setup.split_inclusive('\n') {
-        if line.starts_with("register_toolchains(") {
-            at = Some(offset);
-            break;
-        }
-        offset += line.len();
-    }
-    let Some(at) = at else {
-        return Ok(format!("{}\n{}", setup.trim_end(), fragment.trim_end()));
-    };
-    Ok(format!(
-        "{}{}\n\n{}",
-        &setup[..at],
-        fragment.trim_end(),
-        &setup[at..]
-    ))
-}
-
-fn rules_dx_override(rules_dx: &Path) -> String {
-    format!(
-        "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
-        starlark_string(&rules_dx.to_string_lossy()),
-    )
-}
-
-/// Builds the consumer MODULE.bazel from the `dx init` snippet.
-///
-/// The fragment is appended, or with `before_toolchains` placed ahead of the snippet's first
-/// toolchain registration so its own registrations resolve first.
-pub fn compose_module(
-    snippet: &str,
-    module: &str,
-    repo_name: &str,
-    fragment: &str,
-    before_toolchains: bool,
-    rules_dx: &Path,
-) -> Result<String, String> {
-    let needle = "bazel_dep(name = \"rules_dx\", ";
-    if snippet.matches(needle).count() != 1 {
-        return Err(format!(
-            "dx init snippet must declare rules_dx exactly once: {snippet}"
-        ));
-    }
-    let setup = if repo_name == "rules_dx" {
-        snippet.to_owned()
-    } else {
-        snippet.replacen(
-            needle,
-            &format!("{needle}repo_name = {}, ", starlark_string(repo_name)),
-            1,
-        )
-    };
-    let body = if before_toolchains {
-        insert_before_toolchains(&setup, fragment)?
-            .trim_end()
-            .to_owned()
-    } else {
-        format!("{}\n{}", setup.trim_end(), fragment.trim_end())
-    };
-    Ok(format!(
-        "module(name = {})\n\n{}\n{}",
-        starlark_string(module),
-        body,
-        rules_dx_override(rules_dx),
-    ))
 }
 
 /// Returns the leak package that proves each isolation boundary.

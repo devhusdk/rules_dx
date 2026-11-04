@@ -1,7 +1,5 @@
 use super::*;
 
-const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
-
 fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
     Manifest {
         label: label.to_owned(),
@@ -92,92 +90,6 @@ fn sha256_matches_the_standard_vectors() {
     assert_eq!(
         sha256_hex(&[b'a'; 1000]),
         "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"
-    );
-}
-
-#[test]
-fn module_renames_rules_dx_and_overrides_it_locally() {
-    let module = compose_module(
-        SNIPPET,
-        "hermetic_consumer",
-        "my_dx",
-        "bazel_dep(name = \"googletest\", version = \"1.18.0\")\n",
-        false,
-        Path::new("/src/rules dx"),
-    )
-    .unwrap();
-    assert_eq!(
-        module,
-        "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n"
-    );
-}
-
-#[test]
-fn module_keeps_the_default_name_unrenamed() {
-    let module = compose_module(SNIPPET, "m", "rules_dx", "", false, Path::new("/src")).unwrap();
-    assert!(module.contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"));
-    assert!(!module.contains("repo_name"));
-}
-
-#[test]
-fn module_escapes_quotes_in_the_override_path() {
-    let module = compose_module(SNIPPET, "m", "my_dx", "", false, Path::new("/a\"b\\c")).unwrap();
-    assert!(module.contains("path = \"/a\\\"b\\\\c\","), "{module}");
-}
-
-#[test]
-fn module_rejects_a_snippet_without_exactly_one_rules_dx() {
-    let missing = compose_module(
-        "bazel_dep(name = \"rules_cc\")\n",
-        "m",
-        "x",
-        "",
-        false,
-        Path::new("/"),
-    );
-    assert!(missing.unwrap_err().contains("exactly once"));
-    let twice = format!("{SNIPPET}{SNIPPET}");
-    assert!(compose_module(&twice, "m", "x", "", false, Path::new("/")).is_err());
-}
-
-#[test]
-fn module_puts_the_fragment_before_the_first_toolchain_registration_on_request() {
-    let module = compose_module(
-        SNIPPET,
-        "m",
-        "my_dx",
-        "register_toolchains(\"@cuda_host_llvm//:all\")\n\n",
-        true,
-        Path::new("/src"),
-    )
-    .unwrap();
-    assert_eq!(
-        module,
-        "module(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@cuda_host_llvm//:all\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n"
-    );
-}
-
-#[test]
-fn module_appends_the_fragment_when_the_snippet_registers_nothing() {
-    let module = compose_module(
-        "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
-        "m",
-        "rules_dx",
-        "register_toolchains(\"@x//:all\")\n",
-        true,
-        Path::new("/src"),
-    )
-    .unwrap();
-    assert!(module.contains("0.0.0\")\nregister_toolchains(\"@x//:all\")\nlocal_path"));
-}
-
-#[test]
-fn module_appends_the_fragment_unchanged_without_the_flag() {
-    let fragment = "register_toolchains(\"@cuda_host_llvm//:all\")\n";
-    let module = compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
-    assert!(
-        module.find("@llvm//toolchain:all").unwrap() < module.find("@cuda_host_llvm").unwrap(),
-        "{module}"
     );
 }
 

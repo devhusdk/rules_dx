@@ -116,3 +116,8 @@ failure_test(
     target = ":unsigned_device_app_selection",
     target_compatible_with = MACOS_ARM64,
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

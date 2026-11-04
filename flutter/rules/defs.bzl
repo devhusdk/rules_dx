@@ -1,8 +1,9 @@
 """Thin Flutter wrappers over rules_flutter."""
 
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartInfo")
+load("@rules_dart//dart:utils.bzl", "dart_analyzable_info_with_package", "derive_lib_root")
 load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_application", _flutter_library = "flutter_library", _flutter_test = "flutter_test")
-load("@rules_flutter//flutter:providers.bzl", "FlutterInfo")
+load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app")
 load("//dart/rules:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS", "dart_entry_sources")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
@@ -40,6 +41,38 @@ _flutter_forward_test = dx_executable_forward_rule(
     runtime = "besteffort",
 )
 
+def _application_dart_info(ctx, _upstream):
+    root = derive_lib_root(ctx.label.workspace_root, ctx.label.package)
+    lib = (root + "/lib/") if root else "lib/"
+    package_srcs = [f for f in ctx.files.srcs if f.short_path.startswith(lib)]
+    entry = [f for f in ctx.files.srcs if f not in package_srcs]
+    return [dart_analyzable_info_with_package(
+        label = ctx.label,
+        package_name = ctx.attr.package_name,
+        lib_root = root,
+        deps = ctx.attr.deps,
+        srcs = entry,
+        package_srcs = package_srcs,
+        language_version = ctx.attr.language_version,
+    )]
+
+_flutter_application_forward = dx_library_forward_rule(
+    provides = [DartAnalyzableInfo, DefaultInfo, FlutterApplicationInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+    required_providers = [(FlutterApplicationInfo, "FlutterApplicationInfo")],
+    quality_specs = DART_SOURCE_SPECS,
+    quality_tools = DART_QUALITY_TOOLS,
+    what = "flutter_application",
+    allow_files = FLUTTER_SOURCE_EXTS,
+    upstream_providers = [[FlutterApplicationInfo]],
+    extra_attrs = {
+        "deps": attr.label_list(providers = [DartInfo]),
+        "language_version": attr.string(),
+        "package_name": attr.string(mandatory = True),
+    },
+    extra_providers = _application_dart_info,
+    runtime = "besteffort",
+)
+
 def flutter_deferred_tags(tags):
     """Adds the Flutter skip tags to a tag list."""
     out = list(tags or [])
@@ -64,9 +97,24 @@ def flutter_test(name, main, srcs = None, visibility = None, **kwargs):
     kwargs = _flutter_kwargs(kwargs)
     dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), coverage_collector = FLUTTER_COVERAGE_COLLECTOR, **kwargs)
 
-def flutter_application(name, **kwargs):
+def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_application."""
-    _flutter_application(name = name, **_flutter_kwargs(kwargs))
+    kwargs = _flutter_kwargs(kwargs)
+    dx_wrap(
+        name,
+        _flutter_application,
+        _flutter_application_forward,
+        srcs,
+        visibility = visibility,
+        upstream_kwargs = dict(kwargs, main = main),
+        quality_srcs = dart_entry_sources(main, srcs),
+        extra_forward_kwargs = {
+            "deps": kwargs.get("deps", []),
+            "language_version": kwargs.get("language_version", ""),
+            "package_name": kwargs["package_name"],
+        },
+        **kwargs
+    )
 
 def flutter_web_app(name, **kwargs):
     """Thin wrapper over flutter_web_app."""

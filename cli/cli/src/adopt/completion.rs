@@ -16,7 +16,10 @@ pub(crate) fn execute_completion(
             invocation.output,
             out,
             err,
-            &format!("unknown-shell: {shell}"),
+            &format!(
+                "unknown shell {shell:?}: want {}",
+                dx_plan::args::COMPLETION_SHELLS.join("|")
+            ),
         );
     }
     match dx_plan::args::render_completion(shell) {
@@ -62,7 +65,7 @@ mod tests {
         }
         let unknown = dx_plan::args::render_completion("tcsh");
         assert!(unknown.is_err());
-        assert!(unknown.unwrap_err().to_string().contains("unknown-shell"));
+        assert!(unknown.unwrap_err().to_string().contains("unknown shell"));
     }
 
     #[test]
@@ -88,6 +91,6 @@ mod tests {
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 2);
         assert!(out.is_empty(), "{out}");
-        assert!(err.contains("unknown-shell"));
+        assert!(err.contains("unknown shell"));
     }
 }

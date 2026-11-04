@@ -22,7 +22,7 @@ pub enum ArgsError {
     )]
     MissingCommand,
     /// The command does not take this flag.
-    #[error("option {option:?} is not supported by dx {command}")]
+    #[error("option {option:?} is not supported by dx {command}: {}", unsupported_hint(.command, .option))]
     UnsupportedOption {
         command: &'static str,
         option: String,
@@ -54,7 +54,7 @@ pub enum ArgsError {
     #[error("{detail}")]
     BadDefault { detail: String },
     /// The completion shell is not one of the four.
-    #[error("unknown-shell: {shell}")]
+    #[error("unknown shell {shell:?}: want {}", COMPLETION_SHELLS.join("|"))]
     UnknownShell { shell: String },
     /// A JSON-only flag arrived without JSON output.
     #[error("option {option:?} requires --output=json")]
@@ -98,6 +98,22 @@ pub fn scope_error(scope: &str) -> ArgsError {
             scope: scope.to_owned(),
         }
     }
+}
+
+fn unsupported_hint(command: &str, option: &str) -> String {
+    use clap::ValueEnum;
+    if let Some(rest) = option.strip_prefix("--") {
+        let long = rest.split('=').next().unwrap_or(rest);
+        let names: Vec<&str> = Command::value_variants()
+            .iter()
+            .filter(|c| c.name() != command && grammar::accepts_long(**c, long))
+            .map(|c| c.name())
+            .collect();
+        if !names.is_empty() {
+            return format!("use it with dx {}", names.join("|"));
+        }
+    }
+    format!("run dx {command} --help")
 }
 
 pub use command::{Command, WorkflowVerb};

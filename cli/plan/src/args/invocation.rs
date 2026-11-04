@@ -797,7 +797,7 @@ mod tests {
 
         let refused = apply_here(&invocation_for(Command::Watch, &["run"]), workspace, subdir)
             .expect_err("run takes no --here");
-        assert_eq!(refused, "option \"--here\" is not supported by dx run");
+        assert!(refused.starts_with("option \"--here\" is not supported by dx run"));
 
         let combined = apply_here(
             &invocation_for(Command::Watch, &["test", "//a:one"]),

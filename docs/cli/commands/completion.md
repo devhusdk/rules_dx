@@ -10,7 +10,7 @@ Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
 - Takes exactly one shell and prints its script to stdout.
 - No shell, more than one shell, `--output=json`,
   `--diff`, or `--` Bazel options is a usage error.
-- Unknown shells fail with `unknown-shell`.
+- Unknown shells fail with `unknown shell`.
 
 The script asks `dx` for candidates as you type, so keep `dx` on your `PATH`.
 Candidates cover every command, every flag, the per-command slots, the

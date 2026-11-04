@@ -1141,3 +1141,17 @@ fn update_outdated_is_a_read_only_listing() {
         );
     }
 }
+
+#[test]
+fn unsupported_flag_names_the_commands_that_take_it() {
+    assert!(parse(&strings(&["lint", "--affected"])).is_ok());
+    let err = parse(&strings(&["run", "--affected"]))
+        .expect_err("run takes no --affected")
+        .to_string();
+    assert!(err.contains("use it with dx"), "{err}");
+    assert!(err.contains("test"), "{err}");
+    assert_eq!(
+        super::super::unsupported_hint("run", "--nope"),
+        "run dx run --help"
+    );
+}

@@ -380,7 +380,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "require",
         describe: "emit shell completions from the CLI grammar (bash|zsh|fish|powershell)",
         usage: "Usage: dx completion <shell> bash|zsh|fish|powershell",
-        scopes: "Scopes: exactly one shell (bash|zsh|fish|powershell); unknown shells fail with unknown-shell.",
+        scopes: "Scopes: exactly one shell (bash|zsh|fish|powershell); unknown shells fail with unknown shell.",
         is_managed: false,
         is_adoption: true,
         default_release: false,

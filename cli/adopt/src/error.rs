@@ -30,7 +30,7 @@ pub enum AdoptError {
     WatchRefusesCi,
     #[error("not watchable: {command}")]
     NotWatchable { command: String },
-    #[error("unknown-shell: {shell}")]
+    #[error("unknown shell {shell:?}: want bash|zsh|fish|powershell")]
     UnknownShell { shell: String },
     #[error("watch spawn failed: {detail}")]
     WatchSpawn { detail: String },
@@ -127,7 +127,7 @@ mod tests {
                 shell: "tcsh".to_owned()
             }
             .to_string(),
-            "unknown-shell: tcsh"
+            "unknown shell \"tcsh\": want bash|zsh|fish|powershell"
         );
         assert_eq!(
             AdoptError::EmptyVersion.to_string(),
@@ -167,7 +167,7 @@ mod tests {
                 shell: "tcsh".to_owned()
             }
             .to_string(),
-            "unknown-shell: tcsh"
+            "unknown shell \"tcsh\": want bash|zsh|fish|powershell"
         );
     }
 }

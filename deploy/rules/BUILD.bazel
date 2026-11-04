@@ -126,8 +126,8 @@ rust_library(
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
-        normal = True,
         package_name = "deploy/dx_deploy_tools",
+        normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
@@ -215,9 +215,9 @@ rust_test(
         "MAVEN_GNUPG_SIGNATURE": "$(rlocationpath testdata/maven/gnupg/payload.txt.asc)",
     },
     deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
         normal = True,
         normal_dev = True,
-        package_name = "deploy/dx_deploy_tools",
     ),
 )
 
@@ -895,8 +895,8 @@ pypi_deploy(
 filegroup(
     name = "typed_probe_srcs",
     srcs = [
-        ":typed_probe_nodata_srcs",
         "typed_probe/dx_ns/typed_probe/data/greeting.txt",
+        ":typed_probe_nodata_srcs",
     ],
 )
 
@@ -944,14 +944,6 @@ pypi_deploy(
     wheel = ":typed_probe_nodata_wheel",
 )
 
-config_setting(
-    name = "windows_arm64",
-    constraint_values = [
-        "@platforms//os:windows",
-        "@platforms//cpu:arm64",
-    ],
-)
-
 # keep
 rust_test(
     name = "pypi_probe_verify",
@@ -959,12 +951,12 @@ rust_test(
     data = [
         ":dx_pypi_probe",
         ":dx_pypi_probe_config",
+        ":dx_typed_probe",
+        ":dx_typed_probe_config",
         ":pypi_probe_mismatch",
         ":pypi_probe_mismatch_config",
         ":pypi_probe_release",
         ":pypi_probe_release_config",
-        ":dx_typed_probe",
-        ":dx_typed_probe_config",
         ":typed_probe_nodata",
         ":typed_probe_nodata_config",
         "//cli/update:python_files",
@@ -990,10 +982,6 @@ rust_test(
         "block-network",
         "no-coverage",
     ],
-    target_compatible_with = select({
-        ":windows_arm64": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
     deps = ["//tools/testing:dx_testing"],
 )
 

@@ -61,5 +61,6 @@ fn syntax_error_exits_65_with_a_location() {
     let file = scratch("broken", BROKEN);
     let out = run(&CHECK, &file);
     assert_eq!(out.status.code(), Some(65));
-    assert!(text(&out.stderr).contains(&format!("of {}:", file.display())));
+    let stderr = text(&out.stderr);
+    assert!(stderr.contains("broken.dart:"), "{stderr}");
 }

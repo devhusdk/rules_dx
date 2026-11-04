@@ -383,3 +383,55 @@ fn explicit_affected_without_git_exits_2() {
     let (code, _, err) = harness.execute_with(&inv, &harness.runner());
     assert_eq!(code, 2, "{err}");
 }
+
+#[test]
+fn untracked_non_utf8_source_counts_every_line() {
+    let harness = gate_harness(
+        "changed-latin1",
+        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
+        "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/n.py\nDA:1,1\nDA:2,0\nend_of_record\n",
+    );
+    let full = harness.workspace.join("src/n.py");
+    std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
+    std::fs::write(&full, b"a = 1\nb = '\xe9'\n").expect("latin-1 source");
+    script_changes(&harness, "", "src/n.py\0");
+    let (code, _, err) = harness.run(&[
+        "coverage",
+        "--output=text",
+        "--min-changed-line-coverage=60",
+    ]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("(1/2 lines) below minimum 60%"), "{err}");
+    assert!(err.contains("changed_line_uncovered: src/n.py:2"), "{err}");
+}
+
+#[cfg(unix)]
+#[test]
+fn unreadable_untracked_source_is_unavailable() {
+    use std::os::unix::fs::PermissionsExt;
+    let harness = gate_harness(
+        "changed-unreadable",
+        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
+        "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/n.py\nDA:1,1\nend_of_record\n",
+    );
+    harness.write_source("src/n.py", "a = 1\n");
+    let full = harness.workspace.join("src/n.py");
+    std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o000)).expect("chmod");
+    if std::fs::read(&full).is_ok() {
+        // Root reads a mode 000 file, so there is no unreadable file to test.
+        return;
+    }
+    script_changes(&harness, "", "src/n.py\0");
+    let (code, out, _) = harness.run(&[
+        "coverage",
+        "--output=json",
+        "--min-changed-line-coverage=60",
+    ]);
+    assert_eq!(code, 1, "{out}");
+    assert_eq!(gate_event(&out)["result"], "unavailable", "{out}");
+    assert!(
+        has_error(&out, "changed_line_coverage_unavailable"),
+        "{out}"
+    );
+    assert!(out.contains("src/n.py: "), "{out}");
+}

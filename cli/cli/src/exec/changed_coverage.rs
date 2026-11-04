@@ -53,11 +53,19 @@ pub(super) fn changed_lines(
         if path.is_empty() || dx_adopt::is_dx_state(&path) {
             continue;
         }
-        if let Ok(text) = std::fs::read_to_string(workspace.join(path.as_ref())) {
-            let lines = all_lines(&text);
-            if !lines.is_empty() {
-                added.insert(path.into_owned(), lines);
-            }
+        let full = workspace.join(path.as_ref());
+        let meta = match std::fs::metadata(&full) {
+            Ok(meta) => meta,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(format!("{path}: {error}")),
+        };
+        if !meta.is_file() {
+            continue;
+        }
+        let bytes = std::fs::read(&full).map_err(|error| format!("{path}: {error}"))?;
+        let lines = all_lines(&String::from_utf8_lossy(&bytes));
+        if !lines.is_empty() {
+            added.insert(path.into_owned(), lines);
         }
     }
     Ok(added)

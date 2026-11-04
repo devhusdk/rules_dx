@@ -3431,7 +3431,7 @@ fn kubeconform_tool(config: &str) -> RealTool {
 
 fn kubeconform_bound() -> RealTool {
     kubeconform_tool(
-        r#"{"schema_version":1,"kubernetes_version":"1.31.0","strict":true,"skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#,
+        r#"{"kubernetes_version":"1.31.0","strict":true,"skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#,
     )
 }
 
@@ -3575,9 +3575,8 @@ fn kubeconform_needs_a_local_config() {
         )
         .expect_err("no config");
     assert!(err.to_string().contains("kubernetes_schemas"), "{err}");
-    let remote = kubeconform_tool(
-        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"default","crd_dir":"c"}"#,
-    );
+    let remote =
+        kubeconform_tool(r#"{"kubernetes_version":"1.31.0","core_dir":"default","crd_dir":"c"}"#);
     let backend = backend_for("kubeconform", remote, kubeconform_fake);
     let err = backend
         .diagnose(

@@ -19,7 +19,6 @@ def _schemas_config_impl(ctx):
     )
     writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite"]
     config = json.decode(writes[0].content)
-    asserts.equals(env, 1, config["schema_version"])
     asserts.equals(
         env,
         [

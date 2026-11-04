@@ -2460,7 +2460,6 @@ const KUBECONFORM_CRD_TEMPLATE: &str = "{{.Group}}/{{.ResourceKind}}_{{.Resource
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct KubeconformConfigFile {
-    schema_version: u32,
     kubernetes_version: String,
     #[serde(default)]
     strict: bool,
@@ -2521,12 +2520,6 @@ pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConf
     }
     let raw: KubeconformConfigFile = serde_json::from_slice(bytes)
         .map_err(|err| format!("kubeconform config {}: {err}", config.display()))?;
-    if raw.schema_version != 1 {
-        return Err(format!(
-            "kubeconform config schema_version must be 1, got {}",
-            raw.schema_version
-        ));
-    }
     let version = &raw.kubernetes_version;
     if version.is_empty()
         || !version

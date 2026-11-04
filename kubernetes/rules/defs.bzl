@@ -80,7 +80,6 @@ def _kubernetes_schemas_impl(ctx):
         "core_dir": root + "/core",
         "crd_dir": root + "/crd",
         "kubernetes_version": ctx.attr.kubernetes_version,
-        "schema_version": 1,
         "skip_kinds": sorted(ctx.attr.skip_kinds),
         "strict": ctx.attr.strict,
     }) + "\n")

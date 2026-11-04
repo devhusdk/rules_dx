@@ -110,7 +110,6 @@ def _json_schemas_impl(ctx):
         resource_entries.append(resource)
     ctx.actions.write(config, json.encode({
         "resources": resource_entries,
-        "schema_version": 1,
         "schemas": entries,
     }) + "\n")
     closure = depset([config] + links)

@@ -15,9 +15,6 @@ use url::Url;
 
 use crate::pointer_index::{self, escape, Index, SyntaxAt};
 
-/// The `schema_version` of the config this module reads.
-pub const CONFIG_VERSION: u32 = 1;
-
 /// The `$schema` spellings dx accepts, without a trailing `#`. A missing `$schema` means 2020-12.
 pub const DRAFTS: [&str; 5] = [
     "http://json-schema.org/draft-04/schema",
@@ -60,7 +57,6 @@ impl Filetype {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawConfig {
-    schema_version: u32,
     schemas: Vec<RawSchema>,
     #[serde(default)]
     resources: Vec<RawResource>,
@@ -129,12 +125,6 @@ pub fn parse_config(path: &Path, bytes: &[u8]) -> Result<Config, String> {
     let shown = path.display();
     let raw: RawConfig = serde_json::from_slice(bytes)
         .map_err(|err| format!("{shown}: not a JSON Schema config: {err}"))?;
-    if raw.schema_version != CONFIG_VERSION {
-        return Err(format!(
-            "{shown}: schema_version {} is not supported (expected {CONFIG_VERSION})",
-            raw.schema_version
-        ));
-    }
     let dir = path.parent().unwrap_or_else(|| Path::new(""));
     let mut schemas = Vec::new();
     let mut resources: Vec<Resource> = Vec::new();
@@ -651,7 +641,7 @@ mod tests {
     #[test]
     fn config_paths_join_the_config_directory() {
         let c = config(
-            r#"{"schema_version":1,"schemas":[{"schema":"r/a.json","files":["c/*.json"],"url":"https://e.test/a.json"}],"resources":[{"schema":"r/b.json"}]}"#,
+            r#"{"schemas":[{"schema":"r/a.json","files":["c/*.json"],"url":"https://e.test/a.json"}],"resources":[{"schema":"r/b.json"}]}"#,
         );
         assert_eq!(c.schemas[0].path, Path::new("cfg/r/a.json"));
         assert_eq!(c.resources.len(), 2);
@@ -661,26 +651,17 @@ mod tests {
     #[test]
     fn config_rejects_bad_input() {
         let bad = |json: &str| parse_config(Path::new("c.json"), json.as_bytes()).unwrap_err();
-        assert!(bad(r#"{"schema_version":2,"schemas":[]}"#).contains("schema_version"));
-        assert!(
-            bad(r#"{"schema_version":1,"schemas":[{"schema":"../a.json","files":["x"]}]}"#)
-                .contains("relative")
-        );
-        assert!(
-            bad(r#"{"schema_version":1,"schemas":[{"schema":"a.json"}]}"#).contains("needs files")
-        );
-        assert!(
-            bad(r#"{"schema_version":1,"schemas":[{"schema":"a.json","url":"ftp://x"}]}"#)
-                .contains("http(s)")
-        );
+        assert!(bad(r#"{"schemas":[],"extra":1}"#).contains("extra"));
+        assert!(bad(r#"{"schemas":[{"schema":"../a.json","files":["x"]}]}"#).contains("relative"));
+        assert!(bad(r#"{"schemas":[{"schema":"a.json"}]}"#).contains("needs files"));
+        assert!(bad(r#"{"schemas":[{"schema":"a.json","url":"ftp://x"}]}"#).contains("http(s)"));
         assert!(bad("nope").contains("not a JSON Schema config"));
     }
 
     #[test]
     fn globs_respect_separators() {
-        let c = config(
-            r#"{"schema_version":1,"schemas":[{"schema":"a.json","files":["conf/*.json","deep/**/*.yaml"]}]}"#,
-        );
+        let c =
+            config(r#"{"schemas":[{"schema":"a.json","files":["conf/*.json","deep/**/*.yaml"]}]}"#);
         let files = [
             cand("conf/a.json", b"{}"),
             cand("conf/sub/b.json", b"{}"),
@@ -698,7 +679,7 @@ mod tests {
     #[test]
     fn schema_pickup_needs_a_declared_url_and_counts_once() {
         let c = config(
-            r#"{"schema_version":1,"schemas":[{"schema":"a.json","files":["a/*.json"],"url":"https://e.test/a.json"}]}"#,
+            r#"{"schemas":[{"schema":"a.json","files":["a/*.json"],"url":"https://e.test/a.json"}]}"#,
         );
         let json = br#"{"$schema":"https://e.test/a.json"}"#;
         let other = br#"{"$schema":"https://e.test/other.json"}"#;
@@ -783,7 +764,7 @@ mod tests {
         })
     }
 
-    const ID_CONFIG: &str = r#"{"schema_version":1,"schemas":[{"schema":"a.json","files":["x"]}],"resources":[{"schema":"dep.json","url":"https://e.test/s/dep.json"}]}"#;
+    const ID_CONFIG: &str = r#"{"schemas":[{"schema":"a.json","files":["x"]}],"resources":[{"schema":"dep.json","url":"https://e.test/s/dep.json"}]}"#;
 
     #[test]
     fn id_relative_ref_to_a_pinned_dep_is_allowed() {

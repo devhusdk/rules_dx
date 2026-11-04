@@ -2718,7 +2718,7 @@ fn invocation_batches_respect_launcher_budget() {
     }
 }
 
-const KUBECONFORM_CONFIG: &str = r#"{"schema_version":1,"kubernetes_version":"1.31.0","strict":true,"skip_kinds":["CustomThing","Other"],"core_dir":"k.kubeconform/core","crd_dir":"k.kubeconform/crd"}"#;
+const KUBECONFORM_CONFIG: &str = r#"{"kubernetes_version":"1.31.0","strict":true,"skip_kinds":["CustomThing","Other"],"core_dir":"k.kubeconform/core","crd_dir":"k.kubeconform/crd"}"#;
 
 #[test]
 fn kubeconform_pins_local_schema_locations() {
@@ -2761,8 +2761,7 @@ fn kubeconform_pins_local_schema_locations() {
     assert!(!argv_strings(&invocation)
         .iter()
         .any(|arg| arg.contains("ignore-missing-schemas")));
-    let loose =
-        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    let loose = r#"{"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
     let config = kubeconform_config(config_path, loose.as_bytes()).expect("defaults");
     let argv = argv_strings(&kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv"));
     assert!(!argv.contains(&"-strict".to_owned()));
@@ -2784,18 +2783,16 @@ fn kubeconform_config_refuses_remote_or_escaping_locations() {
         ("a\\\\b", "relative forward-slash"),
         ("", "relative forward-slash"),
     ] {
-        let text = format!(
-            r#"{{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"{core}","crd_dir":"d"}}"#
-        );
+        let text =
+            format!(r#"{{"kubernetes_version":"1.31.0","core_dir":"{core}","crd_dir":"d"}}"#);
         let err = kubeconform_config(config_path, text.as_bytes()).expect_err(core);
         assert!(err.contains(wanted), "{core}: {err}");
     }
     let bad = [
-        r#"{"schema_version":2,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#,
-        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d","extra":1}"#,
-        r#"{"schema_version":1,"kubernetes_version":"","core_dir":"c","crd_dir":"d"}"#,
-        r#"{"schema_version":1,"kubernetes_version":"1.31.0","skip_kinds":["a,b"],"core_dir":"c","crd_dir":"d"}"#,
-        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c"}"#,
+        r#"{"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d","extra":1}"#,
+        r#"{"kubernetes_version":"","core_dir":"c","crd_dir":"d"}"#,
+        r#"{"kubernetes_version":"1.31.0","skip_kinds":["a,b"],"core_dir":"c","crd_dir":"d"}"#,
+        r#"{"kubernetes_version":"1.31.0","core_dir":"c"}"#,
     ];
     for text in bad {
         assert!(
@@ -2803,7 +2800,7 @@ fn kubeconform_config_refuses_remote_or_escaping_locations() {
             "{text}"
         );
     }
-    let ok = r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    let ok = r#"{"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
     assert!(kubeconform_config(Path::new("/scratch/cfg/k.json"), ok.as_bytes()).is_err());
     let remote = KubeconformConfig {
         kubernetes_version: "1.31.0".to_owned(),

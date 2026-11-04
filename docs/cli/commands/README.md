@@ -174,7 +174,7 @@ runs without a slot. With
 `--output=json` it also writes one `notice` event with code
 `build_slots_disabled`.
 
-Ctrl-C or SIGTERM during the wait stops dx at once. dx prints
+Ctrl-C or SIGTERM during the wait stops dx at once, before any child starts. dx prints
 `dx: cancelled: stopped by signal N` and exits `128` plus the signal number.
 
 `status`, `version`, `worktree`, `completion` and the other commands that do not
@@ -299,13 +299,15 @@ error prints the command list and a `see dx <command> --help` hint.
 `event` name and a `schema` with `major` and `minor`. The schema is `3.7`.
 Readers accept any `3.x` and reject other majors. The JSON Schema for every event is
 [`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json). The stream starts with one
-`command_started` and ends with one `command_finished`. Diagnostics and logs go to
+`command_started` and ends with one `command_finished`, unless a stop kills dx by a signal. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
 the process exit code and `results_complete: false`. If dx cannot build an
 event, it writes `error` with code `invalid_result`, then `command_finished`,
-and exits `1`. `DX_OUTPUT=json` gives the same stream. A stop signal writes `error` with code `cancelled` and
-`command_finished`; dx exits `128` plus the signal number. A dx crash writes
+and exits `1`. `DX_OUTPUT=json` gives the same stream. A stop before any child starts, or during
+failure reporting, writes `error` with code `cancelled` and `command_finished`; dx exits `128` plus the signal number.
+A stop while Bazel or the app runs makes dx die by the same signal, with no `cancelled` event and no `command_finished`.
+A dx crash writes
 `error` with code `internal_error` and `command_finished`; dx exits `101`. A closed stdout
 exits `141`.
 

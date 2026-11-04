@@ -25,8 +25,10 @@ dx started, as under `nohup`, stays ignored. Ctrl-C, a signal sent to dx, and a 
 sent to dx's process group each reach Bazel or the app once, even from outside a container.
 In a terminal, Bazel or the app runs in its own foreground process group; Ctrl-Z stops it and dx, and `fg` resumes both.
 Outside a terminal, every process dx started gets it too, and any still running after
-10 seconds is killed. A stopped run prints `dx: cancelled: stopped by signal N`, exits `128` plus the signal number, and in JSON mode
-writes `error` with code `cancelled` and `command_finished`. The shared Bazel server keeps running. If Bazel
+10 seconds is killed. A stop while Bazel or the app runs makes dx die by the same signal: the shell sees `128` plus N,
+dx prints no `dx:` line, and in JSON mode the stream ends after `command_started`. A stop before any child starts, or during
+failure reporting, prints `dx: cancelled: stopped by signal N`, exits `128` plus the signal number, and in JSON mode writes
+`error` with code `cancelled` and `command_finished`. The shared Bazel server keeps running. If Bazel
 dies by a signal dx did not get, dx reports a `bazel_signalled` error and
 exits `1`. Under `dx run` and `dx deploy --apply`, an app that dies by its own
 signal is an app failure instead: dx prints

@@ -19,7 +19,7 @@ java_library(
         "Totals.java",
         ":build_info",
     ],
-    resource_strip_prefix = "examples/java-app",
+    resource_strip_prefix = "java/tests/fixtures/java-app",
     resources = ["invoices.json"],
     visibility = _PUBLIC,
     deps = [
@@ -38,7 +38,7 @@ java_library(
         "Totals.java",
         ":build_info",
     ],
-    resource_strip_prefix = "examples/java-app",
+    resource_strip_prefix = "java/tests/fixtures/java-app",
     resources = ["invoices.json"],
     tags = ["manual"],
     deps = ["@maven//:com_google_guava_guava"],

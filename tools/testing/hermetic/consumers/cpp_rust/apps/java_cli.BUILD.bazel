@@ -4,7 +4,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 java_library(
     name = "cli",
     srcs = ["Cli.java"],
-    deps = ["//examples/java-app/billing"],
+    deps = ["//java/tests/fixtures/java-app/billing"],
 )
 
 java_library(

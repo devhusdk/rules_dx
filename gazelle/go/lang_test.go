@@ -40,7 +40,7 @@ func TestConfigureRoutesIgnoreDirectivesToTheSharedConfig(t *testing.T) {
 	lang := newLang()
 	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{
 		{Key: "other"},
-		{Key: "dx_ignore_import", Value: "go go example.com/widget"},
+		{Key: "dx_ignore_import", Value: "go example.com/widget"},
 		{Key: "dx_ignore_import", Value: "go"},
 	}})
 	if _, ok := cfg.Exts[languageName].(*common.IgnoreConfig); !ok {

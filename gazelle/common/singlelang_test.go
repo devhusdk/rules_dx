@@ -78,7 +78,7 @@ func TestConfigureCollectsIgnoreWitness(t *testing.T) {
 	}
 	delete(cfg.Exts, dotLanguage)
 	l := newDotLang()
-	f := &rule.File{Directives: []rule.Directive{{Key: "other", Value: "ignored"}, {Key: "dx_ignore_import", Value: "dot dot Widget"}}}
+	f := &rule.File{Directives: []rule.Directive{{Key: "other", Value: "ignored"}, {Key: "dx_ignore_import", Value: "dot Widget"}}}
 	l.Configure(cfg, "parent", f)
 	l.Configure(cfg, "parent/child", nil)
 	entry := MatchingIgnore(cfg, dotLanguage, "Widget")
@@ -103,7 +103,7 @@ func TestConfigureAcceptsBothIgnoreSpellings(t *testing.T) {
 	l := newDotLang()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{
 		{Key: "dx_ignore_import", Value: "dot Short"},
-		{Key: "dx_ignore_import", Value: "dot dot Long"},
+		{Key: "dx_ignore_import", Value: "dot Long"},
 		{Key: "dx_ignore_import", Value: "other dot Foreign"},
 		{Key: "dx_ignore_import", Value: ""},
 		{Key: "dx_ignore_import", Value: "other"},

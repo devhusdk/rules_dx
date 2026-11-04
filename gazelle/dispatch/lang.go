@@ -172,7 +172,7 @@ func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 			continue
 		}
 		fields := strings.Fields(d.Value)
-		if len(fields) == 0 {
+		if len(fields) != 2 {
 			l.fail(common.InPackage(rel), "dx_ignore_import: //%s: malformed # gazelle:dx_ignore_import %s; want <language> <import>", rel, d.Value)
 			continue
 		}

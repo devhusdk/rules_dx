@@ -605,8 +605,8 @@ func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
 		{value: "ts react", want: `unknown language "ts"`},
 		{value: "", want: "malformed"},
 		{value: "python requests"},
-		{value: "go a go b"},
-		{value: "rust a b c"},
+		{value: "go go b", want: "malformed"},
+		{value: "rust a b c", want: "malformed"},
 	}
 	for _, tc := range cases {
 		l := &dispatchLang{}

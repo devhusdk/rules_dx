@@ -15,6 +15,7 @@ pub mod candidate;
 pub mod cell;
 mod deploy;
 pub mod inventory;
+pub mod ledger;
 mod provenance;
 mod publish;
 mod spdx;
@@ -37,6 +38,7 @@ pub use deploy::{
     bcr_deploy, release_deploy_tool_main, signing_deploy, BcrDeployConfig, ReleaseDeployConfig,
     SigningDeployConfig,
 };
+pub use ledger::{ledger_exit, render_ledger, OpRecord, OpState};
 pub use tool::release_tool_run;
 
 use spdx::SpdxDocument;
@@ -441,17 +443,20 @@ pub fn bcr_run(
                 .to_owned(),
         );
     }
-    let mut out = String::new();
-    out.push_str(&format!(
-        "bcr: owner-approved submission for {module}@{version} (human-run path only)\n"
-    ));
-    for input in inputs {
-        out.push_str(&format!("  input: {} ({input})\n", basename_of(input)));
-    }
-    out.push_str(
-        "bcr: open the BCR PR manually with the inputs above (this program never pushes itself)\n",
+    let detail = format!(
+        "owner-approved; open the BCR PR manually with the inputs [{}] (this program never pushes itself)",
+        inputs
+            .iter()
+            .map(|input| basename_of(input))
+            .collect::<Vec<_>>()
+            .join(", ")
     );
-    Ok(out)
+    Ok(render_ledger(&[OpRecord::new(
+        "bcr-submit",
+        &format!("{module}@{version}"),
+        OpState::Validated,
+        &detail,
+    )]))
 }
 
 pub struct CosignPin<'a> {
@@ -1255,7 +1260,9 @@ mod tests {
         assert!(bcr_run("rules_dx", "1.2.3", &[], false, false).is_err());
         let live =
             bcr_run("rules_dx", "1.2.3", &["/x/y.json".to_owned()], false, true).expect("live");
-        assert!(live.contains("owner-approved submission for rules_dx@1.2.3"));
+        assert!(live.contains("\"schema\": \"release-ledger/v1\""));
+        assert!(live.contains("\"subject\": \"rules_dx@1.2.3\""));
+        assert!(live.contains("\"state\": \"validated\""));
         assert!(live.contains("never pushes itself"));
     }
 

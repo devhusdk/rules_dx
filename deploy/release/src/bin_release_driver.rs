@@ -8,13 +8,95 @@
     )
 )]
 
+use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use dx_release_tools::candidate::{self, Candidate};
-use dx_release_tools::GitState;
+use dx_release_tools::ledger::{sync_assets, ReleaseBackend};
+use dx_release_tools::{ledger_exit, render_ledger, GitState, OpRecord, OpState};
 
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
+const RELEASE_API: &str = "repos/devhusdk/rules_dx/releases/tags";
+
+fn resolve_assets(argv: &[String]) -> &[String] {
+    argv.get(3..).unwrap_or(&[])
+}
+
+struct GhBackend {
+    program: String,
+    token: Option<String>,
+}
+
+impl GhBackend {
+    fn call(&self, args: &[&str]) -> Result<String, String> {
+        let output = Command::new(&self.program)
+            .args(args)
+            .output()
+            .map_err(|err| format!("cannot run gh: {err}"))?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(scrub(stderr.trim(), self.token.as_deref()))
+    }
+}
+
+fn scrub(text: &str, secret: Option<&str>) -> String {
+    match secret {
+        Some(secret) if !secret.is_empty() => text.replace(secret, "***"),
+        _ => text.to_owned(),
+    }
+}
+
+impl ReleaseBackend for GhBackend {
+    fn view(&self, tag: &str) -> Result<String, String> {
+        self.call(&["api", &format!("{RELEASE_API}/{tag}")])
+    }
+
+    fn upload(&self, tag: &str, path: &str) -> Result<String, String> {
+        self.call(&["release", "upload", tag, path])
+    }
+}
+
+fn stage_assets(
+    assets: &[String],
+) -> Result<(Vec<(String, String)>, BTreeMap<String, String>), String> {
+    let mut staged = Vec::new();
+    let mut paths = BTreeMap::new();
+    for asset in assets {
+        let name = Path::new(asset)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| format!("release: invalid asset path {asset}"))?
+            .to_owned();
+        let sha = dx_digest::sha256_file_hex(Path::new(asset))
+            .map_err(|err| format!("release: cannot hash {asset}: {err}"))?;
+        staged.push((name.clone(), sha));
+        paths.insert(name, asset.clone());
+    }
+    Ok((staged, paths))
+}
+
+fn ledger_with(
+    backend: &dyn ReleaseBackend,
+    tag: &str,
+    assets: &[String],
+    approved: bool,
+) -> (String, i32) {
+    let mut records = match stage_assets(assets) {
+        Ok((staged, paths)) => sync_assets(backend, tag, &staged, &paths, approved),
+        Err(err) => vec![OpRecord::new("asset-stage", tag, OpState::Failed, &err)],
+    };
+    records.push(OpRecord::new(
+        "publish",
+        tag,
+        OpState::NotAuthorized,
+        "the owner publishes the draft release by hand",
+    ));
+    (render_ledger(&records), ledger_exit(&records))
+}
 
 fn resolve_tag(argv: &[String]) -> &str {
     argv.get(1).map(String::as_str).unwrap_or(DRY_RUN_TAG)
@@ -85,7 +167,18 @@ fn run(argv: &[String]) -> i32 {
         Ok(candidate) => {
             let output =
                 candidate::ls_remote_output(dir.as_deref(), candidate.remote(), &candidate);
-            remote_with(&candidate, output)
+            let code = remote_with(&candidate, output);
+            let assets = resolve_assets(argv);
+            if code != 0 || assets.is_empty() {
+                return code;
+            }
+            let backend = GhBackend {
+                program: "gh".to_owned(),
+                token: std::env::var("GH_TOKEN").ok(),
+            };
+            let (text, code) = ledger_with(&backend, &tag, assets, approve == "1");
+            print!("{text}");
+            code
         }
         Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
     }
@@ -266,5 +359,88 @@ mod tests {
             workspace_dir_of(Some(absolute.clone().into_os_string())),
             Some(absolute)
         );
+    }
+
+    #[test]
+    fn assets_are_the_args_after_the_commit() {
+        let argv: Vec<String> = ["d", "v1", SHA, "/o/a", "/o/b"].map(String::from).to_vec();
+        assert_eq!(resolve_assets(&argv), ["/o/a", "/o/b"]);
+        assert!(resolve_assets(&argv[..3]).is_empty());
+        assert!(resolve_assets(&argv[..1]).is_empty());
+    }
+
+    #[cfg(unix)]
+    fn fake_gh(dir: &Path, body: &str) -> String {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::create_dir_all(dir).expect("dir");
+        let script = dir.join("gh");
+        std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).expect("write");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        script.to_string_lossy().into_owned()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn gh_failure_output_never_leaks_the_token() {
+        let dir = std::env::temp_dir().join(format!("rd-leak-{}", std::process::id()));
+        let asset = dir.join("a.bin");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(&asset, b"x").expect("asset");
+        let backend = GhBackend {
+            program: fake_gh(&dir.join("bin"), "echo \"token s3cret-token\" >&2; exit 1"),
+            token: Some("s3cret-token".to_owned()),
+        };
+        let (text, code) = ledger_with(
+            &backend,
+            "v1.2.3",
+            &[asset.to_string_lossy().into_owned()],
+            true,
+        );
+        assert_eq!(code, 1);
+        assert!(!text.contains("s3cret-token"));
+        assert!(text.contains("***"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn matching_draft_release_validates_and_publish_stays_unauthorized() {
+        let dir = std::env::temp_dir().join(format!("rd-ok-{}", std::process::id()));
+        let asset = dir.join("a.bin");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(&asset, b"x").expect("asset");
+        let sha = dx_digest::sha256_file_hex(&asset).expect("sha");
+        let json = format!(
+            "{{\"draft\":true,\"assets\":[{{\"name\":\"a.bin\",\"digest\":\"sha256:{sha}\"}}]}}"
+        );
+        let backend = GhBackend {
+            program: fake_gh(&dir.join("bin"), &format!("echo '{json}'")),
+            token: None,
+        };
+        let (text, code) = ledger_with(
+            &backend,
+            "v1.2.3",
+            &[asset.to_string_lossy().into_owned()],
+            true,
+        );
+        assert_eq!(code, 0);
+        assert!(text.contains("\"state\": \"validated\""));
+        assert!(text.contains("\"operation\": \"publish\""));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn missing_asset_file_fails() {
+        let (text, code) = ledger_with(
+            &GhBackend {
+                program: "gh".to_owned(),
+                token: None,
+            },
+            "v1",
+            &["/nonexistent/a.bin".to_owned()],
+            true,
+        );
+        assert_eq!(code, 1);
+        assert!(text.contains("asset-stage"));
     }
 }

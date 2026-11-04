@@ -102,7 +102,7 @@ pub fn parse_staticcheck(
                 start,
                 end,
                 suggestions: Vec::new(),
-                encoding: ColumnEncoding::Scalars,
+                encoding: ColumnEncoding::Utf8,
                 related: Vec::new(),
             },
         });
@@ -127,6 +127,10 @@ mod tests {
     const COMPILE: &str = "{\"code\": \"compile\", \"severity\": \"error\", \"location\": {\"file\": \"\", \"line\": 0, \"column\": 0}, \"end\": {\"file\": \"\", \"line\": 0, \"column\": 0}, \"message\": \"found packages app (app.go) and staticcheck (sample_copy.go) in /tmp/sc2/app\"}";
 
     const UNUSED: &str = "{\"code\": \"U1000\", \"severity\": \"error\", \"location\": {\"file\": \"go/tests/fixtures/staticcheck/Sample.go\", \"line\": 5, \"column\": 6}, \"end\": {\"file\": \"\", \"line\": 0, \"column\": 0}, \"message\": \"func Greet is unused\"}";
+
+    const AFTER_ACCENT: &str = "{\"code\": \"SA4017\", \"severity\": \"error\", \"location\": {\"file\": \"app/main.go\", \"line\": 4, \"column\": 15}, \"end\": {\"file\": \"app/main.go\", \"line\": 4, \"column\": 32}, \"message\": \"Sprintf doesn't have side effects and its return value is ignored\"}";
+
+    const PAST_SCALARS: &str = "{\"code\": \"SA4017\", \"severity\": \"error\", \"location\": {\"file\": \"app/main.go\", \"line\": 1, \"column\": 9}, \"message\": \"Sprintf doesn't have side effects and its return value is ignored\"}";
 
     #[test]
     fn staticcheck_reports_json_findings() {
@@ -204,5 +208,28 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "U1000");
         assert!(findings[0].finding.end.is_none());
+    }
+
+    #[test]
+    fn staticcheck_columns_are_utf8_bytes() {
+        let text = "package main\n\nfunc f() {\n\tx := \"éé\"; fmt.Sprintf(\"hi\")\n}\n";
+        let findings =
+            parse_staticcheck(AFTER_ACCENT.as_bytes(), Some(1), &["app/main.go"]).expect("parsed");
+        let placed =
+            crate::place_finding(&findings[0].finding, "app/main.go", text).expect("placed");
+        let call = "fmt.Sprintf(\"hi\")";
+        let start = text.find(call).expect("call") as u64;
+        assert_eq!(placed.start_byte, Some(start));
+        assert_eq!(placed.end_byte, Some(start + call.len() as u64));
+    }
+
+    #[test]
+    fn staticcheck_byte_column_past_scalar_width_places() {
+        let text = "\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}\n";
+        let findings =
+            parse_staticcheck(PAST_SCALARS.as_bytes(), Some(1), &["app/main.go"]).expect("parsed");
+        let placed =
+            crate::place_finding(&findings[0].finding, "app/main.go", text).expect("placed");
+        assert_eq!(placed.start_byte, Some(8));
     }
 }

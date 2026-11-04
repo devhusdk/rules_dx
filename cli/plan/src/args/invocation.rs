@@ -268,6 +268,12 @@ pub struct Invocation {
     pub frozen: bool,
     /// `dx update --outdated`: list packages whose newest stable version is out of range.
     pub outdated: bool,
+    /// `dx update --pr`: open or refresh one pull request per group.
+    pub pr: bool,
+    /// `dx update --group`: `package`, `set` or `all`; `set` when absent.
+    pub group: Option<String>,
+    /// `dx update --labels`: comma-separated labels for new pull requests.
+    pub labels: Option<String>,
     /// `dx update --floor`: edit the bazel_dep floor instead of the tested override.
     pub floor: bool,
     /// `dx update --reason`: why the floor is the oldest supported version.
@@ -642,6 +648,9 @@ mod tests {
             offline: false,
             frozen: false,
             outdated: false,
+            pr: false,
+            group: None,
+            labels: None,
             floor: false,
             reason: None,
             cases: false,

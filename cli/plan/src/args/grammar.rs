@@ -79,6 +79,9 @@ pub(crate) struct Flags {
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
     pub(crate) outdated: bool,
+    pub(crate) pr: bool,
+    pub(crate) group: Option<String>,
+    pub(crate) labels: Option<String>,
     pub(crate) floor: bool,
     pub(crate) reason: Option<String>,
     pub(crate) cases: bool,
@@ -458,6 +461,36 @@ flag_group! {
 }
 
 flag_group! {
+    /// Open or refresh one pull request per group of updates.
+    PrFlag, {
+        #[arg(long, overrides_with = "pr")]
+        pr: bool,
+    }
+}
+
+flag_group! {
+    /// Group updates per package, set or all (needs --pr; default set).
+    GroupFlag, {
+        #[arg(
+            long,
+            value_name = "GROUP",
+            require_equals = true,
+            overrides_with = "group",
+            value_parser = clap::builder::PossibleValuesParser::new(["package", "set", "all"])
+        )]
+        group: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Comma-separated labels for new pull requests (needs --pr).
+    LabelsFlag, {
+        #[arg(long, value_name = "LABELS", require_equals = true, overrides_with = "labels", value_parser = non_empty)]
+        labels: Option<String>,
+    }
+}
+
+flag_group! {
     /// Edit the bazel_dep floor instead of the tested override (needs a version and --reason).
     FloorFlag, {
         #[arg(long, overrides_with = "floor")]
@@ -829,6 +862,9 @@ command_args! {
         frozen: FrozenFlag,
         apply: ApplyFlag,
         outdated: OutdatedFlag,
+        pr: PrFlag,
+        group: GroupFlag,
+        labels: LabelsFlag,
         floor: FloorArgs,
     };
     /// The flags `dx env` accepts.

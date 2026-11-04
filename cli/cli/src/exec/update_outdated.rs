@@ -6,7 +6,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings,
+    bcr, cargo, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -24,7 +24,7 @@ const ACTIONS_SELECTOR: &str = "github-actions";
 const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
 
 #[derive(Debug, Default, Eq, PartialEq)]
-struct Builtins {
+pub(super) struct Builtins {
     actions: Option<Vec<String>>,
     bazelversion: bool,
 }
@@ -66,11 +66,15 @@ fn github_auth(url: &str, token: Option<&str>) -> Option<(&'static str, String)>
         .then(|| ("Authorization", format!("Bearer {token}")))
 }
 
-pub(crate) fn execute_update_outdated(invocation: &Invocation, env: Env<'_>) -> i32 {
-    let fetch: Box<dyn Fetch> = match std::env::var_os(REGISTRY_DIR_ENV) {
+pub(super) fn registry_fetch() -> Box<dyn Fetch> {
+    match std::env::var_os(REGISTRY_DIR_ENV) {
         Some(dir) => Box::new(DirFetch(PathBuf::from(dir))),
         None => Box::new(HttpFetch::new()),
-    };
+    }
+}
+
+pub(crate) fn execute_update_outdated(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let fetch = registry_fetch();
     run(invocation, env, fetch.as_ref())
 }
 
@@ -111,11 +115,51 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
             return exit;
         }
     }
+    let Collected {
+        found,
+        unsupported,
+        ecosystems,
+        ..
+    } = collect(workspace, &resolved, &builtins, fetch);
+    let exit = i32::from(!found.errors.is_empty());
+    if let Err(code) = if json {
+        emit_json(out, &found, &unsupported, &ecosystems, exit)
+    } else {
+        emit_text(out, &found, &unsupported, &ecosystems)
+    } {
+        return code;
+    }
+    for error in &found.errors {
+        let _ = writeln!(
+            err,
+            "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})",
+            error.set, error.package, error.reason
+        );
+    }
+    exit
+}
+
+/// What the registries said about the resolved sets.
+pub(super) struct Collected {
+    pub found: Findings,
+    pub unsupported: Vec<String>,
+    pub registries: BTreeMap<String, Registry>,
+    pub ecosystems: BTreeMap<String, Ecosystem>,
+}
+
+/// Looks up every resolved set and returns sorted, unique candidates.
+pub(super) fn collect(
+    workspace: &Path,
+    resolved: &[dependency_sets::ResolvedTarget],
+    builtins: &Builtins,
+    fetch: &dyn Fetch,
+) -> Collected {
     let mut found = Findings::default();
     let mut unsupported = Vec::new();
     let mut ecosystems = BTreeMap::new();
-    run_builtins(&builtins, workspace, fetch, &mut found);
-    for target in &resolved {
+    let mut registries = BTreeMap::new();
+    run_builtins(builtins, workspace, fetch, &mut found);
+    for target in resolved {
         let only: &[String] = match &target.request {
             Selection::Full => &[],
             Selection::Packages(names) => names,
@@ -124,6 +168,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         ecosystems.insert(name.to_owned(), target.set.ecosystem);
         match target.set.ecosystem {
             Ecosystem::Bazel => {
+                registries.insert(name.to_owned(), Registry::Bcr);
                 for manifest in &target.set.manifests {
                     let parsed = std::fs::read_to_string(workspace.join(manifest))
                         .map_err(|e| e.to_string())
@@ -144,6 +189,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
                 }
             }
             Ecosystem::Cargo => {
+                registries.insert(name.to_owned(), Registry::Crates);
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
@@ -192,6 +238,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
                 }
             }
             Ecosystem::Npm => {
+                registries.insert(name.to_owned(), Registry::Npm);
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
@@ -199,6 +246,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
                 );
             }
             Ecosystem::Uv => {
+                registries.insert(name.to_owned(), Registry::Pypi);
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
@@ -212,22 +260,12 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         .candidates
         .sort_by(|a, b| (&a.set, &a.package, &a.current).cmp(&(&b.set, &b.package, &b.current)));
     found.candidates.dedup();
-    let exit = i32::from(!found.errors.is_empty());
-    if let Err(code) = if json {
-        emit_json(out, &found, &unsupported, &ecosystems, exit)
-    } else {
-        emit_text(out, &found, &unsupported, &ecosystems)
-    } {
-        return code;
+    Collected {
+        found,
+        unsupported,
+        registries,
+        ecosystems,
     }
-    for error in &found.errors {
-        let _ = writeln!(
-            err,
-            "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})",
-            error.set, error.package, error.reason
-        );
-    }
-    exit
 }
 
 fn read_texts(workspace: &Path, manifests: &[String]) -> Vec<String> {

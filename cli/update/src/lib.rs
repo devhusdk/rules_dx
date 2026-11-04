@@ -12,6 +12,7 @@ pub mod backend;
 pub mod discover;
 pub mod edit;
 pub mod outcome;
+pub mod pr;
 pub mod recovery;
 pub mod report;
 #[cfg(test)]

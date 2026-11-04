@@ -316,6 +316,7 @@ exports nothing.
 ```text
 dx update [--apply] [--offline] [--frozen] [selector ...]
 dx update --outdated [selector ...]
+dx update --pr [--group=package|set|all] [--labels=<a,b>] [selector ...]
 dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:package> <version>
 ```
 
@@ -472,6 +473,52 @@ lookup fails, 2 for usage errors.
 bazel run @rules_dx//:dx -- update --outdated
 bazel run @rules_dx//:dx -- update --outdated dx_crates
 bazel run @rules_dx//:dx -- update --outdated github-actions bazel:.bazelversion
+```
+
+## Open pull requests
+
+```text
+dx update --pr [--group=package|set|all] [--labels=<a,b>] [--output text|json] [selector ...]
+```
+
+Opens or refreshes one pull request per group of outdated packages. It needs
+`git` and an authenticated `gh`, a clean working tree, and a checked-out
+branch. That branch is the pull request base.
+
+`--group` sets how packages share a pull request. The default is `set`.
+
+| `--group` | Branch | One pull request per |
+| --- | --- | --- |
+| `set` | `dx-update/<set>` | dependency set |
+| `package` | `dx-update/<set>--<package>` | package |
+| `all` | `dx-update/all` | run |
+
+Characters outside letters, digits, `.`, `_`, and `-` become `-` in branch
+names. `--labels` adds comma-separated labels to new pull requests. The labels
+must exist, or `gh pr create` fails and the group fails.
+
+For each group, `dx update --pr` does this:
+
+1. Resets the branch to the base commit.
+2. Widens each package, then runs `dx update --apply <set>`.
+3. Runs `dx check --affected` and `dx test --affected`.
+4. Commits, then pushes with `--force-with-lease`.
+5. Edits the open pull request for the branch, or creates one.
+
+The body lists each package as `old -> new` with its registry link, then the
+lock files changed with added and removed line counts.
+
+A group that fails any step is reset and not pushed. It is reported as failed
+and the next group runs. The base branch is checked out again at the end.
+
+`--pr` does not combine with `--outdated`, `--apply`, `--floor`, `--reason`,
+`--offline`, or a version. `--group` and `--labels` need `--pr`.
+Exit codes: 0 when every group is published or nothing is outdated, 1 when a
+group or lookup fails, 2 for usage errors.
+
+```sh
+bazel run @rules_dx//:dx -- update --pr
+bazel run @rules_dx//:dx -- update --pr --group=package --labels=dependencies dx_crates
 ```
 
 ## Widen or add one package

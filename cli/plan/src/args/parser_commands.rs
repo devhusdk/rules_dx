@@ -1120,6 +1120,36 @@ fn floor_and_reason_parse_only_on_an_update_with_a_version() {
 }
 
 #[test]
+fn update_pr_takes_group_and_labels() {
+    let got = parse(&strings(&[
+        "update",
+        "--pr",
+        "--group=all",
+        "--labels=deps,bot",
+        "cargo",
+    ]))
+    .expect("pr");
+    assert!(got.pr);
+    assert_eq!(got.group.as_deref(), Some("all"));
+    assert_eq!(got.labels.as_deref(), Some("deps,bot"));
+    assert!(!parse(&strings(&["update"])).expect("bare").pr);
+    for words in [
+        vec!["update", "--pr", "--outdated"],
+        vec!["update", "--pr", "--apply"],
+        vec!["update", "--pr", "--floor"],
+        vec!["update", "--pr", "--reason", "x"],
+        vec!["update", "--pr", "--offline"],
+        vec!["update", "--pr", "cargo:anyhow", "1.0.0"],
+        vec!["update", "--group=set"],
+        vec!["update", "--labels=deps"],
+        vec!["update", "--pr", "--group=team"],
+        vec!["build", "--pr"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
+}
+
+#[test]
 fn update_outdated_is_a_read_only_listing() {
     let got = parse(&strings(&["update", "--outdated", "cargo"])).expect("outdated");
     assert!(got.outdated);

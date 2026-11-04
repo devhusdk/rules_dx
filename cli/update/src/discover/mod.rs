@@ -53,6 +53,27 @@ pub fn wanted(only: &[String], package: &str) -> bool {
     only.is_empty() || only.iter().any(|name| name == package)
 }
 
+/// The registry a set's packages come from.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Registry {
+    Bcr,
+    Crates,
+    Npm,
+    Pypi,
+}
+
+impl Registry {
+    /// The page that lists a package's releases.
+    pub fn url(self, package: &str) -> String {
+        match self {
+            Registry::Bcr => format!("https://registry.bazel.build/modules/{package}"),
+            Registry::Crates => format!("https://crates.io/crates/{package}"),
+            Registry::Npm => format!("https://www.npmjs.com/package/{package}"),
+            Registry::Pypi => format!("https://pypi.org/project/{package}"),
+        }
+    }
+}
+
 /// Compares dotted numeric versions; a missing segment counts as 0.
 pub(crate) fn numeric_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     let segments = |text: &str| -> Vec<u64> {

@@ -117,6 +117,10 @@ exists, the Perl rules add the `no-typecheck` tag to every target. Set
 | `windows_x86_64` | Not qualified |
 | `windows_arm64` | Unsupported |
 
+`macos_x86_64` has no CI cell. The `linux_arm64`, `macos_arm64` and
+`windows_x86_64` cells stay Not qualified until the evidence workflow has
+passed on them.
+
 rules_perl has no toolchain for other platforms. The wrappers mark their
 targets incompatible there, so a build fails instead of running the host
 Perl. Unix launchers start through a bash script.

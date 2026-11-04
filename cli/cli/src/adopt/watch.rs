@@ -882,7 +882,7 @@ mod tests {
     fn watch_scope_label_names_affected_bare_and_explicit_scopes() {
         let label = |words: &[&str]| scope_label(&build_iteration(&invocation(words)).unwrap());
         assert_eq!(label(&["watch", "test", "--affected"]), "--affected");
-        assert_eq!(label(&["watch", "build"]), "--affected");
+        assert_eq!(label(&["watch", "build"]), "//...");
         assert_eq!(
             label(&["watch", "build", "//a:one", "//b/..."]),
             "//a:one //b/..."

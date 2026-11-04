@@ -6,9 +6,9 @@ bazel run @rules_dx//:dx -- typecheck //...
 bazel run @rules_dx//:dx -- format //...
 ```
 
-No scope means `--affected`: the targets your git changes reach. Pass `//...` to run everything.
+No scope means `//...`. Pass `--affected` to run only what your changes reach.
 Use `--here` for the current dir tree (see [Scope Defaults](scope-defaults.md)). With nothing
-affected they print `no affected targets` and exit `0`. All three
+affected, `--affected` runs print `no affected targets` and exit `0`. All three
 check files by default and report drift without writing. Pass `--apply` to
 write validated fixes. Args after `--` go to Bazel, and dx always adds
 `--keep_going` and `--remote_download_outputs=toplevel` after them. Pass

@@ -365,14 +365,21 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
 }
 
 #[test]
-fn implied_affected_without_git_runs_everything() {
-    let harness = Harness::new("implied-no-git");
+fn bare_test_runs_everything_without_git() {
+    let harness = Harness::new("bare-no-git");
     let words = dx_testing::cli::strings(&["test", "--output=text"]);
     let inv = dx_plan::args::parse(&words).expect("parse");
     let (_, _, err) = harness.execute_with(&inv, &harness.runner());
-    assert!(
-        err.contains("dx: scope: //... (cannot find the default branch"),
-        "{err}"
-    );
+    assert!(harness.query.git_calls.borrow().is_empty());
+    assert!(!err.contains("dx: scope:"), "{err}");
     assert!(!err.contains("dx: affected:"), "{err}");
+}
+
+#[test]
+fn explicit_affected_without_git_exits_2() {
+    let harness = Harness::new("explicit-no-git");
+    let words = dx_testing::cli::strings(&["test", "--affected", "--output=text"]);
+    let inv = dx_plan::args::parse(&words).expect("parse");
+    let (code, _, err) = harness.execute_with(&inv, &harness.runner());
+    assert_eq!(code, 2, "{err}");
 }

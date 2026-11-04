@@ -3,12 +3,11 @@
 Most `dx` commands take Bazel scopes. This page lists what each command does
 with a scope.
 
-## No Scope Means `--affected`
+## No Scope Means `//...`
 
 - `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx check`, `dx security`, `dx license`: pass `//...` to run
-  everything. `--here` still selects the current directory tree. Outside Git,
-  or without a default branch, they run `//...` and say so.
+  `dx format`, `dx check`, `dx security`, `dx license`: pass `--affected` to
+  run only what your changes reach. `--here` selects the current directory tree.
 
 ## No Scope Means The Repository
 
@@ -188,9 +187,6 @@ exit `2`).
   `and N more`, for example
   `dx: affected: 0 targets from 1 changed files since 1a2b3c4d5e6f; widened to //p0:all (loads q/f.bzl), //p1:all (loads q/f.bzl), //p2:all (loads q/f.bzl) and 477 more`.
   `--output=json` lists every widened scope.
-- When you give no scope, dx prints
-  `dx: scope: --affected (no scope given; pass //... to run everything)`. Outside
-  Git it prints `dx: scope: //... (<reason>)` and runs everything.
 - Before the queries run, dx prints
   `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
   summary. `--quiet`, `--diff`, and `--output=json` print neither. An

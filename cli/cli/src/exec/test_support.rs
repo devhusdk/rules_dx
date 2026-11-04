@@ -230,22 +230,6 @@ impl QueryRunner for ScriptQuery {
     }
 }
 
-pub(crate) fn with_default_scope<'a>(words: &[&'a str]) -> Vec<&'a str> {
-    let mut words = words.to_vec();
-    let end = words
-        .iter()
-        .position(|word| *word == "--")
-        .unwrap_or(words.len());
-    let scoped = words[..end]
-        .iter()
-        .skip(1)
-        .any(|word| !word.starts_with('-') && !word.contains('=') || *word == "--affected");
-    if !scoped && matches!(words.first(), Some(&("test" | "check" | "coverage"))) {
-        words.insert(end, "//...");
-    }
-    words
-}
-
 impl Harness {
     pub(crate) fn new(name: &str) -> Self {
         let workspace_guard = temp_dir(&format!("{name}-ws"));
@@ -548,8 +532,7 @@ impl Harness {
     }
 
     fn parse_words(&self, words: &[&str], ci: bool) -> Result<Invocation, String> {
-        let words = with_default_scope(words);
-        let inv = dx_plan::args::parse_with_ci(&dx_testing::cli::strings(&words), &|_| None, ci)
+        let inv = dx_plan::args::parse_with_ci(&dx_testing::cli::strings(words), &|_| None, ci)
             .map_err(|error| format!("dx: {error}\n{}\n", dx_plan::args::help::usage_banner()))?;
         dx_plan::args::apply_here(&inv, &self.workspace, &self.cwd)
             .map_err(|detail| format!("dx: {detail}\n"))

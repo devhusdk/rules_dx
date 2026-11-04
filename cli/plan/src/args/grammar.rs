@@ -1012,7 +1012,7 @@ command_args! {
 #[command(
     name = "dx",
     about = "Run Bazel workflows",
-    long_about = "dx <command> [flags] [scope ...] [-- bazel-options ...]\n\nScopes: labels, patterns, files, or dirs. No scope means --affected for commands that take scopes.\n\nExit codes: 0 success, 2 usage error, 1 failed check.",
+    long_about = "dx <command> [flags] [scope ...] [-- bazel-options ...]\n\nScopes: labels, patterns, files, or dirs. No scope means //... for commands that take scopes.\n\nExit codes: 0 success, 2 usage error, 1 failed check.",
     version,
     disable_help_subcommand = true
 )]

@@ -95,7 +95,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
         usage: "Usage: dx security [--offline] [--frozen] [--here] [--affected] [scope ...]",
-        scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs --affected; pass //... to run everything. It audits secrets plus vulnerabilities. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. It audits secrets plus vulnerabilities. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -110,7 +110,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run license audit over resolved scopes (non-mutating)",
         usage: "Usage: dx license [--offline] [--frozen] [--here] [--affected] [scope ...]",
-        scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -125,7 +125,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run lint analysis over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -140,7 +140,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run typecheck analysis over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -155,7 +155,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -185,7 +185,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run Bazel build over resolved targets",
         usage: "Usage: dx build [--here] [--affected] [--debug|--release] [--explain] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -200,7 +200,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run Bazel test over resolved targets",
         usage: "Usage: dx test [--here] [--affected] [--debug|--release] [--explain] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -215,7 +215,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "collect LCOV coverage with optional threshold",
         usage: "Usage: dx coverage [--here] [--affected] [--explain] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -260,7 +260,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         scope_policy: "default-//...",
         describe: "run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)",
         usage: "Usage: dx check [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         default_release: false,
@@ -490,11 +490,6 @@ impl Command {
     /// Whether `--here` applies; watch passes it to the command it wraps.
     pub fn supports_here(self) -> bool {
         super::grammar::accepts_long(self, "here") && self != Command::Watch
-    }
-
-    /// Whether an empty scope defaults to `--affected`.
-    pub fn supports_affected(self) -> bool {
-        super::grammar::accepts_long(self, "affected") && self != Command::Watch
     }
 
     /// Whether the grammar lets `dx <command> --apply` parse.

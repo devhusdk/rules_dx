@@ -1,9 +1,6 @@
 /// Parse test words into one invocation, panicking on a failure.
 pub(crate) fn parsed(words: &[&str]) -> dx_plan::args::Invocation {
-    dx_plan::args::parse(&dx_testing::cli::strings(
-        &crate::exec::test_support::with_default_scope(words),
-    ))
-    .expect("parse")
+    dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parse")
 }
 
 const SETTLE_LIMIT: std::time::Duration = std::time::Duration::from_secs(5);

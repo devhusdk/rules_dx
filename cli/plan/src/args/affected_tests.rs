@@ -57,19 +57,14 @@ fn the_grammar_accepts_affected_exactly_for_the_affected_owners() {
 }
 
 #[test]
-fn scoped_commands_default_to_affected_without_a_scope() {
+fn scoped_commands_run_everything_without_a_scope() {
     for command in AFFECTED.iter().copied() {
-        assert!(command.supports_affected());
         let name = command.name();
         let bare = parse(&strings(&[name])).expect("bare");
-        assert!(bare.affected && bare.affected_implied, "{name}");
+        assert!(!bare.affected && bare.targets.is_empty(), "{name}");
         let typed = parse(&strings(&[name, "--affected"])).expect("typed");
-        assert!(typed.affected && !typed.affected_implied, "{name}");
+        assert!(typed.affected, "{name}");
         assert!(!parse(&strings(&[name, "//..."])).expect("scoped").affected);
         assert!(!parse(&strings(&[name, "--here"])).expect("here").affected);
-    }
-    use clap::ValueEnum;
-    for command in Command::value_variants().iter().copied() {
-        assert_eq!(command.supports_affected(), AFFECTED.contains(&command));
     }
 }

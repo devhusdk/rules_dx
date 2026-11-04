@@ -11,6 +11,7 @@
 %% directory and move to /dx_execroot, so the PLT is the same in every sandbox. The PLT is rebuilt
 %% whenever OTP changes, so the record layout is checked here and a change fails the build instead of corrupting the PLT.
 main([Dialyzer, Out | Args]) ->
+    ensure_home(),
     Port = open_port({spawn_executable, filename:absname(Dialyzer)},
                      [{args, Args ++ ["--output_plt", Out]}, exit_status, binary, stderr_to_stdout, hide]),
     case collect(Port, []) of
@@ -19,6 +20,18 @@ main([Dialyzer, Out | Args]) ->
         {_Status, Log} ->
             io:format(standard_error, "~s", [Log]),
             halt(1)
+    end.
+
+%% Dialyzer reads the user's home for its caches, and a hermetic action has none (Windows has no HOME).
+ensure_home() ->
+    case os:getenv("HOME") of
+        false ->
+            Home = case os:getenv("USERPROFILE") of
+                       false -> filename:basedir(user_cache, "dx");
+                       Profile -> Profile
+                   end,
+            true = os:putenv("HOME", Home);
+        _ -> ok
     end.
 
 collect(Port, Acc) ->

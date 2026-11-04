@@ -36,6 +36,11 @@ The wrappers forward to `rules_julia` and add the `julia` quality class.
 with a lockfile hub, a `Bzip2_jll` binary dependency, runfiles data and a
 diagnostics package.
 
+`julia_standalone_binary(name, binary)` compiles a `julia_library` into a
+system image and a launcher that runs after the runfiles are copied out of
+`bazel-bin`. The library's module must define `julia_main()::Cint` and return
+the exit code. See `tests/fixtures/hello/app`.
+
 ## Generate
 
 `dx generate` reads `Project.toml` only. A `Project.toml` with a `name` and a

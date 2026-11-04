@@ -47,9 +47,5 @@ rules_julia needs to precompile a package.
 
 ## Known gaps
 
-Standalone output (`julia_standalone_binary`) and build-time precompile
-failures do not work on a dx-wrapped target yet, because the wrapper names the
-upstream target `<name>_upstream` and rules_julia looks for `<name>.jl`.
-The diagnostics package covers syntax, runtime and missing-dependency
-failures with the pinned Julia until #4606 is fixed. Windows arm64 has no
+Windows arm64 has no
 Julia build, so every target here is skipped there.

@@ -1,0 +1,6 @@
+name = "HelloApp"
+uuid = "9b6f2d47-4a8e-4c15-8f0d-3e7a1c5b2d68"
+version = "0.1.0"
+
+[deps]
+Greet = "03a301b1-133e-4d9b-aa7e-50bae6af788d"

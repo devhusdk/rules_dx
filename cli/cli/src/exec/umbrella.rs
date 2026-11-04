@@ -1835,7 +1835,7 @@ mod tests {
         let harness = overrides_consumer("umbrella-check-overrides-stale");
         dx_adopt::apply_overrides(&harness.workspace).expect("applies");
         harness.write_source(
-            "third_party/rules_dx/rules_rust.msvc_stdlib_linkflags.patch",
+            "third_party/rules_dx/rules_rust.clippy_metadata_inputs.patch",
             "corrupt\n",
         );
         let (code, out, err) = harness.run(&["check", "--output=json"]);

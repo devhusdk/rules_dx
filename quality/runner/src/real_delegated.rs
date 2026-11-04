@@ -1626,16 +1626,24 @@ fn delegated_fsc_merges_frameworks_and_fails_on_a_silent_failure() {
 }
 
 fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
+    clang_syntax_driver_tool(log, exit, Some("gnu"))
+}
+
+fn clang_syntax_driver_tool(log: &Path, exit: Option<&str>, driver: Option<&str>) -> RealTool {
     let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
     let mut tool = delegated_tool(log.to_path_buf());
-    tool.tool_files = exit
-        .map(|text| {
-            vec![(
-                format!("dx-clang-syntax/{stem}/exit"),
-                text.as_bytes().to_vec(),
-            )]
-        })
-        .unwrap_or_default();
+    if let Some(text) = exit {
+        tool.tool_files.push((
+            format!("dx-clang-syntax/{stem}/exit"),
+            text.as_bytes().to_vec(),
+        ));
+    }
+    if let Some(text) = driver {
+        tool.tool_files.push((
+            format!("dx-clang-syntax/{stem}/driver"),
+            text.as_bytes().to_vec(),
+        ));
+    }
     tool
 }
 
@@ -1798,6 +1806,38 @@ fn delegated_clang_syntax_reads_clean_and_dirty_logs() {
         .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
         .expect("dirty");
     assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn delegated_clang_syntax_parses_an_msvc_log_by_driver() {
+    let log = upstream_file(
+        "clang_syntax",
+        "a.cpp\nsrc/a.c(1,1): error C2065: 'x': undeclared identifier\n",
+    );
+    let found = backend_for(
+        "clang_syntax",
+        clang_syntax_driver_tool(log.path(), Some("2\n"), Some("msvc\n")),
+        must_not_spawn,
+    )
+    .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+    .expect("msvc");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].rule_id, "C2065");
+}
+
+#[test]
+fn delegated_clang_syntax_needs_a_known_driver() {
+    let log = upstream_file("clang_syntax", "");
+    for (driver, needle) in [(None, "compiler driver"), (Some("watcom"), "watcom")] {
+        let error = backend_for(
+            "clang_syntax",
+            clang_syntax_driver_tool(log.path(), Some("0\n"), driver),
+            must_not_spawn,
+        )
+        .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+        .expect_err("driver");
+        assert!(error.to_string().contains(needle), "{error}");
+    }
 }
 
 #[test]

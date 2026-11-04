@@ -1,7 +1,7 @@
 """Identity tests pinning the hermetic C++ toolchain binding."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity")
+load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
 
 EXPECTED_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test
 field cc.abi=itanium
@@ -76,6 +76,11 @@ def cc_toolchain_identity_tests(name):
                 "empty compiler on empty target",
                 cc_compiler_identity("", ""),
                 struct(family = "unknown", driver = "unknown", abi = "unknown", coverage = "", syntax_only = ""),
+            ),
+            expect_equal(
+                "no resolved toolchain gives the unknown identity",
+                cc_toolchain_identity(struct(toolchains = {CC_TOOLCHAIN_TYPE: None})),
+                cc_compiler_identity("", ""),
             ),
             expect_equal(
                 "icx on x86_64-unknown-linux-gnu",

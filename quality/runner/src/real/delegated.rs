@@ -26,6 +26,12 @@ impl DotnetLog {
     }
 }
 
+#[derive(Clone, Copy)]
+enum ReplayParser {
+    One(LogParser),
+    ByDriver { gnu: LogParser, msvc: LogParser },
+}
+
 type CompileLogParser =
     fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
 
@@ -405,7 +411,10 @@ impl RealBackend {
             tool,
             pairs,
             "dx-clang-syntax",
-            parsers::parse_clang_syntax,
+            ReplayParser::ByDriver {
+                gnu: parsers::parse_clang_syntax,
+                msvc: parsers::parse_msvc_syntax,
+            },
         )
     }
 
@@ -420,7 +429,7 @@ impl RealBackend {
             tool,
             pairs,
             "dx-nvcc-syntax",
-            parsers::parse_nvcc_syntax,
+            ReplayParser::One(parsers::parse_nvcc_syntax),
         )
     }
 
@@ -431,7 +440,7 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
         prefix: &str,
-        parse: LogParser,
+        replay: ReplayParser,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let workspaces: Vec<&str> = pairs
             .iter()
@@ -471,6 +480,36 @@ impl RealBackend {
                         ),
                     )
                 })?;
+            let parse = match replay {
+                ReplayParser::One(parse) => parse,
+                ReplayParser::ByDriver { gnu, msvc } => {
+                    let key = format!("{prefix}/{stem}/driver");
+                    let driver = tool
+                        .tool_files
+                        .iter()
+                        .find(|(rel, _)| *rel == key)
+                        .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
+                        .map(str::trim);
+                    match driver {
+                        Some("gnu" | "unknown") => gnu,
+                        Some("msvc") => msvc,
+                        Some(other) => {
+                            return Err(execution(
+                                tool_id,
+                                format!("{tool_id} does not know the compiler driver {other:?} for {stem}"),
+                            ));
+                        }
+                        None => {
+                            return Err(execution(
+                                tool_id,
+                                format!(
+                                    "{tool_id} needs the compiler driver for {stem}; the {tool_id} aspect did not supply it"
+                                ),
+                            ));
+                        }
+                    }
+                }
+            };
             findings.extend(parsed(tool_id, parse(&bytes, Some(code), &workspaces))?);
         }
         for found in &mut findings {

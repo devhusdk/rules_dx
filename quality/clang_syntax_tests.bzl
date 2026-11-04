@@ -1,12 +1,19 @@
 """Unit tests for the clang_syntax argv rewrite."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
 load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
 
 _CLANG = "external/llvm/bin/clang"
 
-def _rewrite(argv, src = "a.c"):
-    return clang_syntax_argv(argv, src)
+_LLVM = cc_compiler_identity("clang", "x86_64-unknown-linux-gnu")
+_GCC = cc_compiler_identity("gcc", "x86_64-linux-gnu")
+_CL = cc_compiler_identity("msvc-cl", "x86_64-pc-windows-msvc")
+_CLANG_CL = cc_compiler_identity("clang-cl", "x86_64-pc-windows-msvc")
+_UNKNOWN = cc_compiler_identity("", "")
+
+def _rewrite(argv, src = "a.c", identity = _LLVM):
+    return clang_syntax_argv(argv, src, identity)
 
 def clang_syntax_unit_tests(name):
     starlark_test(
@@ -20,7 +27,7 @@ def clang_syntax_unit_tests(name):
             ),
             expect_equal(
                 "clang-tidy takes the config file right after the executable",
-                clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", "q/.clang-tidy").argv[:4],
+                clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM, "q/.clang-tidy").argv[:4],
                 ["tidy", "--config-file=q/.clang-tidy", "a.c", "--"],
             ),
             expect_equal(
@@ -30,12 +37,12 @@ def clang_syntax_unit_tests(name):
             ),
             expect_equal(
                 "clang-tidy gets the source then -- then the compile flags",
-                clang_tidy_argv("tidy", [_CLANG, "-DX=1", "-c", "a.c", "-o", "a.o"], "a.c").argv,
+                clang_tidy_argv("tidy", [_CLANG, "-DX=1", "-c", "a.c", "-o", "a.o"], "a.c", _LLVM).argv,
                 ["tidy", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],
             ),
             expect_equal(
                 "clang-tidy keeps Apple placeholders for the runner and Objective-C flags",
-                clang_tidy_argv("tidy", ["wrapped_clang", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m").argv[:6],
+                clang_tidy_argv("tidy", ["wrapped_clang", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m", _LLVM).argv[:6],
                 ["tidy", "pkg/a.m", "--", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc"],
             ),
             expect_equal(
@@ -55,7 +62,7 @@ def clang_syntax_unit_tests(name):
             ),
             expect_equal(
                 "gcc gets the gcc diagnostic flags",
-                _rewrite(["/usr/bin/gcc", "-c", "a.c", "-o", "a.o"]).argv,
+                _rewrite(["/usr/bin/gcc", "-c", "a.c", "-o", "a.o"], "a.c", _GCC).argv,
                 ["/usr/bin/gcc", "-fsyntax-only", "a.c", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"],
             ),
             expect_equal(
@@ -69,9 +76,49 @@ def clang_syntax_unit_tests(name):
                 True,
             ),
             expect_equal(
-                "MSVC command lines are rejected",
-                _rewrite(["cl.exe", "/c", "a.c", "/Foa.obj"]).error != "",
+                "cl.exe replays with /Zs, drops output flags and reports columns",
+                _rewrite(["cl.exe", "/nologo", "/DX=1", "/c", "a.c", "/Foa.obj", "/Fdv.pdb", "-showIncludes", "/sourceDependencies", "a.json", "/I", "inc"], "a.c", _CL).argv,
+                ["cl.exe", "/nologo", "/DX=1", "/Zs", "a.c", "/I", "inc", "/diagnostics:column"],
+            ),
+            expect_equal(
+                "clang-cl replays with /Zs and keeps its flags",
+                _rewrite(["clang-cl.exe", "-c", "a.c", "/Foa.obj", "/std:c++17", "-m64"], "a.c", _CLANG_CL).argv,
+                ["clang-cl.exe", "/Zs", "a.c", "/std:c++17", "-m64", "/diagnostics:column"],
+            ),
+            expect_equal(
+                "GNU drivers never get MSVC flags",
+                "/diagnostics:column" in _rewrite([_CLANG, "-c", "a.c"]).argv,
+                False,
+            ),
+            expect_equal(
+                "an unknown compiler gets no diagnostic flags",
+                _rewrite(["cc", "-c", "a.c"], "a.c", _UNKNOWN).argv,
+                ["cc", "-fsyntax-only", "a.c"],
+            ),
+            expect_equal(
+                "MSVC with two /c is rejected",
+                _rewrite(["cl.exe", "/c", "/c", "a.c"], "a.c", _CL).error != "",
                 True,
+            ),
+            expect_equal(
+                "MSVC with a missing source is rejected",
+                _rewrite(["cl.exe", "/c", "b.c"], "a.c", _CL).error != "",
+                True,
+            ),
+            expect_equal(
+                "MSVC params files are rejected",
+                _rewrite(["cl.exe", "@a.rsp", "/c", "a.c"], "a.c", _CL).error != "",
+                True,
+            ),
+            expect_equal(
+                "clang-tidy names the MSVC driver as unsupported",
+                clang_tidy_argv("tidy", ["cl.exe", "/c", "a.c"], "a.c", _CL).error,
+                "clang-tidy does not support MSVC-style command lines (driver msvc)",
+            ),
+            expect_equal(
+                "the source is the argument after /c",
+                clang_syntax_source(["cl.exe", "/DX", "/c", "a.c", "/Foa.obj"]),
+                "a.c",
             ),
             expect_equal(
                 "a command line without -c is rejected",

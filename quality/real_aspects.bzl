@@ -2177,6 +2177,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 stem = clang_syntax.diagnostics[i].basename.rpartition(".")[0]
                 tool_files.append(real_request_tool_file("dx-clang-syntax/" + stem + "/exit", clang_syntax.statuses[i].path))
                 inputs.append(clang_syntax.statuses[i])
+                tool_files.append(real_request_tool_file("dx-clang-syntax/" + stem + "/driver", clang_syntax.drivers[i].path))
+                inputs.append(clang_syntax.drivers[i])
         if tool == "nvcc_syntax":
             for i in range(len(nvcc_syntax.diagnostics)):
                 upstream.append(nvcc_syntax.diagnostics[i].path)

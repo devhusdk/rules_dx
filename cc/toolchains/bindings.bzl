@@ -54,5 +54,7 @@ def cc_compiler_identity(compiler, target):
 def cc_toolchain_identity(ctx):
     """Return the compiler identity of the resolved C++ toolchain."""
     info = cc_toolchain_info(ctx)
+    if info == None:
+        return cc_compiler_identity("", "")
     cc_info = info.cc if hasattr(info, "cc") else info
     return cc_compiler_identity(cc_info.compiler, cc_info.target_gnu_system_name)

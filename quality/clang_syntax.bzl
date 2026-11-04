@@ -4,6 +4,7 @@ load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity")
 load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 
@@ -12,6 +13,7 @@ ClangSyntaxInfo = provider(
     fields = {
         "argv": "list of list of string: the original compile command line per replayed action.",
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
+        "drivers": "list of File: the compiler driver style (gnu, msvc or unknown), one per replayed action.",
         "envs": "list of dict: the compile action environment per replayed action.",
         "inputs": "list of depset of File: the compile action inputs (plus declared headers) per replayed action.",
         "sources": "list of string: source path (execroot relative) per replayed action.",
@@ -28,8 +30,38 @@ _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 # Flags that produce build outputs and are not wanted for a syntax-only run.
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
 _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
+_MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
 
-def clang_syntax_argv(argv, src):
+def _msvc_dropped(arg):
+    return len(arg) > 1 and arg[0] in "/-" and arg[1:].startswith(tuple(_MSVC_DROP_PREFIXES))
+
+def _msvc_syntax_argv(argv, src, identity):
+    out = []
+    compiles = 0
+    skip = False
+    for i in range(len(argv)):
+        arg = argv[i]
+        if skip:
+            skip = False
+            continue
+        if arg.startswith("@"):
+            return struct(argv = [], error = "params files are not supported (found " + arg + ")")
+        if arg in ["/c", "-c"]:
+            compiles += 1
+            out.append(identity.syntax_only)
+        elif arg in ["/sourceDependencies", "-sourceDependencies"]:
+            skip = True
+        elif _msvc_dropped(arg):
+            continue
+        else:
+            out.append(arg)
+    if compiles != 1:
+        return struct(argv = [], error = "expected exactly one /c in the compile command line, found " + str(compiles))
+    if src not in out:
+        return struct(argv = [], error = "the source " + src + " is not on the compile command line")
+    return struct(argv = out + ["/diagnostics:column"], error = "")
+
+def clang_syntax_argv(argv, src, identity):
     """Rewrites a compile command line into its -fsyntax-only form.
 
     Pure function so other projections (clang-tidy, editor databases) can share it.
@@ -37,7 +69,7 @@ def clang_syntax_argv(argv, src):
     Args:
       argv: list of string: the compile action command line, compiler first.
       src: string: the source path the action compiles.
-      config: string: the .clang-tidy path, or empty for none.
+      identity: struct: the compiler identity from cc_compiler_identity.
 
     Returns:
       A struct with `argv` (the rewritten list) and `error` (non-empty when the
@@ -45,6 +77,8 @@ def clang_syntax_argv(argv, src):
     """
     if len(argv) == 0:
         return struct(argv = [], error = "the compile action has an empty command line")
+    if identity.driver == "msvc":
+        return _msvc_syntax_argv(argv, src, identity)
     out = []
     compiles = 0
     skip = False
@@ -52,8 +86,6 @@ def clang_syntax_argv(argv, src):
         if skip:
             skip = False
             continue
-        if arg == "/c" or arg.startswith("/Fo") or arg.startswith("/Fd"):
-            return struct(argv = [], error = "MSVC/clang-cl command lines are not supported (found " + arg + ")")
         if arg.startswith("@"):
             return struct(argv = [], error = "params files are not supported (found " + arg + ")")
         if arg == "-c":
@@ -74,30 +106,32 @@ def clang_syntax_argv(argv, src):
         return struct(argv = [], error = "expected exactly one -c in the compile command line, found " + str(compiles))
     if src not in out:
         return struct(argv = [], error = "the source " + src + " is not on the compile command line")
-    compiler = out[0].rpartition("/")[2]
-    if "clang" in compiler:
+    if identity.family == "clang":
         out += ["-fno-caret-diagnostics", "-fno-color-diagnostics"]
-    elif "gcc" in compiler or "g++" in compiler or compiler in ["cc", "c++"]:
+    elif identity.family == "gcc":
         out += ["-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
     return struct(argv = out, error = "")
 
 def _config_flag(config):
     return ["--config-file=" + config] if config else []
 
-def clang_tidy_argv(tidy, argv, src, config = ""):
+def clang_tidy_argv(tidy, argv, src, identity, config = ""):
     """Projects a compile command line into a clang-tidy command line.
 
     Args:
       tidy: string: the clang-tidy executable path.
       argv: list of string: the compile action command line, compiler first.
       src: string: the source path the action compiles.
+      identity: struct: the compiler identity from cc_compiler_identity.
       config: string: the .clang-tidy path, or empty for none.
 
     Returns:
       A struct with `argv` (clang-tidy, the source, `--`, then the compile flags) and
       `error` (non-empty when the command line cannot be projected).
     """
-    rewritten = clang_syntax_argv(argv, src)
+    if identity.driver == "msvc":
+        return struct(argv = [], error = "clang-tidy does not support MSVC-style command lines (driver msvc)")
+    rewritten = clang_syntax_argv(argv, src, identity)
     if rewritten.error != "":
         return rewritten
     flags = []
@@ -175,7 +209,7 @@ def clang_syntax_source(argv):
     with a C-family extension is taken.
     """
     for i in range(len(argv) - 1):
-        if argv[i] == "-c":
+        if argv[i] in ["-c", "/c"]:
             return argv[i + 1]
     if "-fsyntax-only" in argv:
         for arg in reversed(argv):
@@ -193,10 +227,11 @@ def _clang_syntax_impl(target, ctx):
         if ClangSyntaxInfo not in upstream:
             return []
         info = upstream[ClangSyntaxInfo]
-        return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses), clang_tidy = depset(info.tidy_diagnostics))]
+        return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]
     if target.label.repo_name != "":
         return []
 
+    identity = cc_toolchain_identity(ctx)
     xcode_config = ctx.attr._xcode_config[XcodeVersionInfo]
     # Declared headers are pruned from the compile action inputs (they are rediscovered
     # from the .d file), so a replay without them cannot find its own includes.
@@ -219,6 +254,7 @@ def _clang_syntax_impl(target, ctx):
     diagnostics = []
     statuses = []
     tidy_diagnostics = []
+    drivers = []
     cuda_indices = [i for i in range(len(actions)) if actions[i].mnemonic == "CudaCompile"]
     cuda_keep = [cuda_indices[j] for j in nvcc_syntax_select([actions[i].argv or [] for i in cuda_indices])]
     for i in range(len(actions)):
@@ -248,24 +284,27 @@ def _clang_syntax_impl(target, ctx):
             tidy_diagnostics.append(tidy_log)
             continue
         src = clang_syntax_source(list(argv))
-        rewritten = clang_syntax_argv(list(argv), src)
+        rewritten = clang_syntax_argv(list(argv), src, identity)
         if rewritten.error != "":
             fail("clang_syntax: " + str(target.label) + ": " + rewritten.error)
         stem = "%s_%d" % (target.label.name, i)
         log = ctx.actions.declare_file("dx_clang_syntax/%s.log" % stem)
         status = ctx.actions.declare_file("dx_clang_syntax/%s.exit" % stem)
         all_inputs = depset(transitive = [action.inputs, headers])
-        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, tidy_config)
-        if tidy_argv.error != "":
-            fail("clang_syntax: " + str(target.label) + ": " + tidy_argv.error)
+        driver = ctx.actions.declare_file("dx_clang_syntax/%s.driver" % stem)
+        ctx.actions.write(output = driver, content = identity.driver)
+        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config)
         tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
         requirements = {}
         if action.mnemonic == "ObjcCompile":
             requirements = dict(xcode_config.execution_info())
+        capture = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"'
+        if identity.driver == "msvc":
+            capture = 'log="$1"; status="$2"; shift 2; "$@" > "$log" 2>&1; echo "$?" > "$status"'
         ctx.actions.run_shell(
             mnemonic = "ClangSyntax",
             progress_message = "Syntax check %{label}: " + src,
-            command = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"',
+            command = capture,
             arguments = [log.path, status.path] + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
@@ -273,17 +312,26 @@ def _clang_syntax_impl(target, ctx):
             execution_requirements = requirements,
             resource_set = dx_quality_heavy_resources,
         )
-        ctx.actions.run_shell(
-            mnemonic = "ClangTidy",
-            progress_message = "clang-tidy %{label}: " + src,
-            command = 'bash "$@"',
-            arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
-            inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
-            outputs = [tidy_log],
-            env = action.env,
-            execution_requirements = requirements,
-            resource_set = dx_quality_heavy_resources,
-        )
+        if tidy_argv.error != "":
+            ctx.actions.run_shell(
+                mnemonic = "ClangTidy",
+                progress_message = "clang-tidy %{label}: " + src,
+                command = 'echo "$2" > "$1"; echo "$2" >&2; exit 1',
+                arguments = [tidy_log.path, tidy_argv.error],
+                outputs = [tidy_log],
+            )
+        else:
+            ctx.actions.run_shell(
+                mnemonic = "ClangTidy",
+                progress_message = "clang-tidy %{label}: " + src,
+                command = 'bash "$@"',
+                arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
+                inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
+                outputs = [tidy_log],
+                env = action.env,
+                execution_requirements = requirements,
+                resource_set = dx_quality_heavy_resources,
+            )
         argvs.append(list(argv))
         envs.append(dict(action.env))
         inputs.append(all_inputs)
@@ -291,15 +339,17 @@ def _clang_syntax_impl(target, ctx):
         sources.append(src)
         diagnostics.append(log)
         statuses.append(status)
+        drivers.append(driver)
     return [
-        ClangSyntaxInfo(argv = argvs, envs = envs, inputs = inputs, sources = sources, diagnostics = diagnostics, statuses = statuses, tidy_diagnostics = tidy_diagnostics),
-        OutputGroupInfo(clang_syntax = depset(diagnostics + statuses), clang_tidy = depset(tidy_diagnostics)),
+        ClangSyntaxInfo(argv = argvs, envs = envs, inputs = inputs, sources = sources, diagnostics = diagnostics, drivers = drivers, statuses = statuses, tidy_diagnostics = tidy_diagnostics),
+        OutputGroupInfo(clang_syntax = depset(diagnostics + statuses + drivers), clang_tidy = depset(tidy_diagnostics)),
     ]
 
 clang_syntax_aspect = aspect(
     implementation = _clang_syntax_impl,
     doc = "Replays the compile actions of a C/C++/Objective-C target with -fsyntax-only.",
     attr_aspects = ["upstream"],
+    toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
     attrs = apple_support.action_required_attrs() | {
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
         "_clang_tidy_run": attr.label(default = "//quality:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),

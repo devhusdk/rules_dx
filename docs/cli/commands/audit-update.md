@@ -436,6 +436,22 @@ A `set:package` selector limits the lookup to that package.
 bazel run @rules_dx//:dx -- update --outdated dx_npm_tools
 ```
 
+Two more selectors check GitHub releases. `github-actions` checks every
+remote `uses:` pin in `.github/workflows` against the newest release of its
+repo. `github-actions:<owner>/<repo>` checks one repo. `bazel:.bazelversion`
+checks `.bazelversion` against the newest `bazelbuild/bazel` release. With no
+selector, these run along with the dependency sets. Prereleases are ignored,
+and only a newer version is reported.
+
+A pin is read from its tag (`@v4`) or, for a commit SHA, from a trailing
+comment whose first word is a version (`@<sha> # v4.1.0`). Only as many
+version parts as the pin has are compared. Pins with no readable version, and
+repos with no GitHub release, print `<set>:<package>: unknown (<reason>)` and a
+`update_outdated_unknown` warning. They do not change the exit code.
+
+GitHub allows 60 requests an hour without a token. Set `GH_TOKEN` or
+`GITHUB_TOKEN` to raise the limit. The token is sent to `api.github.com` only.
+
 Output: text prints one line per package with the declared version, the newest
 version, the publish time when the registry has one, and the command that
 applies it. `json` emits `command_started`, one `notice` per package
@@ -455,6 +471,7 @@ lookup fails, 2 for usage errors.
 ```sh
 bazel run @rules_dx//:dx -- update --outdated
 bazel run @rules_dx//:dx -- update --outdated dx_crates
+bazel run @rules_dx//:dx -- update --outdated github-actions bazel:.bazelversion
 ```
 
 ## Widen or add one package

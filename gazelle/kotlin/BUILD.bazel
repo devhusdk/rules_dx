@@ -117,6 +117,7 @@ real_source_target(
         "testdata/android_keep/README.md",
         "testdata/compile_external/README.md",
         "testdata/entries/README.md",
+        "testdata/member_import/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",
     ],

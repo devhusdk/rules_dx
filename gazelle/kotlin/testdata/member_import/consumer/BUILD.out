@@ -1,0 +1,11 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+
+kotlin_library(
+    name = "consumer",
+    srcs = ["Consumer.kt"],
+    deps = [
+        "//util",
+        "//widget",
+        "//widgets",
+    ],
+)

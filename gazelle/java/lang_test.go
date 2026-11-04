@@ -386,6 +386,7 @@ func TestResolveQualifiedImportPrefersPackage(t *testing.T) {
 		{"com.a.Outer.Inner", "//nested"},
 		{"com.b.Helper", "//b"},
 		{"com.b.*", "//b"},
+		{"com.a.Outer.*", "//nested"},
 		{"com.x.Inject", "@maven//:javax_inject_javax_inject"},
 	} {
 		r := rule.NewRule(LibraryKind, "consumer")

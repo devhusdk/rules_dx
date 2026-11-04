@@ -113,11 +113,36 @@ impl LauncherPins {
     }
 }
 
-/// The sha256 pins for dx `version`'s release assets, read from `cli/prebuilt/pins.bzl`.
+/// The sha256 pins for dx `version`'s release assets.
 ///
-/// Unreleased (empty) when `version` is not the pinned release or a pin is empty.
+/// Read from the embedded `cli/prebuilt/pins.bzl`. A release binary is built from the
+/// tag, where the embedded pins are empty, so it falls back to the `dx-sha256sums.txt`
+/// that sits next to the running executable. Unreleased (empty) when neither has pins.
 pub fn release_pins(version: &str) -> Result<LauncherPins, AdoptError> {
-    pins_from_bzl(include_str!("../../prebuilt/pins.bzl"), version)
+    let embedded = pins_from_bzl(include_str!("../../prebuilt/pins.bzl"), version)?;
+    if embedded != LauncherPins::unreleased() {
+        return Ok(embedded);
+    }
+    let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+    else {
+        return Ok(embedded);
+    };
+    pins_from_manifest_dir(&dir)
+}
+
+/// Pins from `dir/dx-sha256sums.txt`; unreleased when the file is absent.
+pub fn pins_from_manifest_dir(dir: &Path) -> Result<LauncherPins, AdoptError> {
+    match std::fs::read_to_string(dir.join("dx-sha256sums.txt")) {
+        Ok(text) => LauncherPins::from_sha256sums(&text).map_err(|e| {
+            pins_error(format!(
+                "{}: {e}; writing .dx/version without hashes",
+                dir.join("dx-sha256sums.txt").display()
+            ))
+        }),
+        Err(_) => Ok(LauncherPins::unreleased()),
+    }
 }
 
 fn pins_from_bzl(text: &str, version: &str) -> Result<LauncherPins, AdoptError> {
@@ -672,6 +697,21 @@ mod tests {
                 Some(LauncherState::Current)
             );
         }
+    }
+
+    #[test]
+    fn manifest_dir_gives_pins_and_missing_manifest_gives_none() {
+        let dir = dx_test_scratch::scratch("dx-pins-manifest-");
+        assert_eq!(
+            pins_from_manifest_dir(dir.path()),
+            Ok(LauncherPins::unreleased())
+        );
+        std::fs::write(dir.path().join("dx-sha256sums.txt"), "junk\n").expect("write");
+        let err = pins_from_manifest_dir(dir.path()).expect_err("bad manifest");
+        assert!(err.to_string().contains("without hashes"), "{err}");
+        std::fs::write(dir.path().join("dx-sha256sums.txt"), MANIFEST).expect("write");
+        let pins = pins_from_manifest_dir(dir.path()).expect("pins");
+        assert_eq!(pins.to_lines(), MANIFEST);
     }
 
     #[test]

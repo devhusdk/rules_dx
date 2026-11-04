@@ -295,6 +295,16 @@ PLATFORM_NOT_APPLICABLE = {
 
 # A platform a quality tool cannot run on, keyed by tool name, with the reason.
 TOOL_NOT_APPLICABLE = {
+    "ansible_lint": {
+        "windows_arm64": "ansible-core does not run on Windows",
+        "windows_x86_64": "ansible-core does not run on Windows",
+    },
+    "nixfmt": {
+        "linux_arm64": "nixfmt ships only a Linux x86_64 binary",
+        "macos_arm64": "nixfmt ships only a Linux x86_64 binary",
+        "windows_arm64": "nixfmt ships only a Linux x86_64 binary",
+        "windows_x86_64": "nixfmt ships only a Linux x86_64 binary",
+    },
     "rubocop": {
         "windows_arm64": "Ruby portable builds ship no Windows interpreter",
         "windows_x86_64": "Ruby portable builds ship no Windows interpreter",

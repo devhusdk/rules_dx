@@ -47,7 +47,6 @@ DOCKERFILE_HADOLINT_SUPPORT = {
     "transport": "batched",
 }
 
-# ansible-core does not run on Windows, and cryptography has no Windows on Arm wheel.
 ANSIBLE_ANSIBLE_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -510,10 +509,6 @@ NIX_STATIX_SUPPORT = {
     "transport": "single",
 }
 
-# linux_arm64: nixfmt ships only a linux x86_64 binary
-# macos_arm64: nixfmt ships only a linux x86_64 binary
-# windows_arm64: nixfmt ships only a linux x86_64 binary
-# windows_x86_64: nixfmt ships only a linux x86_64 binary
 NIX_NIXFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -892,7 +887,6 @@ PROTOBUF_BUF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
-# flatc ships Linux x86_64 only, so it is unsupported on every other platform.
 FLATBUFFERS_FLATC_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -901,14 +895,12 @@ FLATBUFFERS_FLATC_LINT_SUPPORT = {
     "execution": "direct",
     "family": "flatbuffers",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "flatc",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
-# flatc ships Linux x86_64 only, so it is unsupported on every other platform.
 FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -917,11 +909,10 @@ FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "flatbuffers",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "flatc",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
 CAPNP_CAPNP_LINT_SUPPORT = {
@@ -1549,6 +1540,34 @@ ASCIIDOC_VALE_LINT_SUPPORT = {
     "context": "owned",
     "execution": "direct",
     "family": "asciidoc",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "vale",
+    "transport": "batched",
+}
+
+MARKDOWN_VALE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["markdown"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "markdown",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "vale",
+    "transport": "batched",
+}
+
+RST_VALE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["rst"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "rst",
     "fix": "check_only",
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
@@ -2300,6 +2319,8 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     LATEX_LATEXINDENT_FORMAT_SUPPORT,
     LATEX_CHKTEX_LINT_SUPPORT,
     ASCIIDOC_VALE_LINT_SUPPORT,
+    MARKDOWN_VALE_LINT_SUPPORT,
+    RST_VALE_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     PKL_TYPECHECK_SUPPORT,
     LUA_SELENE_LINT_SUPPORT,

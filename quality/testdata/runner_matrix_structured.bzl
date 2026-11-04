@@ -62,6 +62,10 @@ STRUCTURED_CASES = [
         "tool_names": ["flatc"],
         "tool_binaries": ["@dx_flatbuffers//:flatc"],
         "expected_file": ":matrix/matrix_flatbuffers_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_flatbuffers_typecheck_pass",
@@ -76,6 +80,10 @@ STRUCTURED_CASES = [
         "tool_names": ["flatc"],
         "tool_binaries": ["@dx_flatbuffers//:flatc"],
         "expected_file": ":matrix/matrix_flatbuffers_typecheck_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_flatbuffers_typecheck_semantic_fail",
@@ -87,6 +95,10 @@ STRUCTURED_CASES = [
         "tool_names": ["flatc"],
         "tool_binaries": ["@dx_flatbuffers//:flatc"],
         "expected_file": ":matrix/matrix_flatbuffers_typecheck_semantic_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_flatbuffers_typecheck_warning_clean",
@@ -120,6 +132,10 @@ STRUCTURED_CASES = [
         "tool_names": ["flatc"],
         "tool_binaries": ["@dx_flatbuffers//:flatc"],
         "expected_file": ":matrix/matrix_flatbuffers_lint_semantic_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_flatbuffers_lint_syntax_error",

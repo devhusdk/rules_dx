@@ -13,6 +13,10 @@ MARKDOWN_CASES = [
         "config_tools": ["vale"],
         "config_files": [":vale_test.ini"],
         "expected_file": ":matrix/matrix_markdown_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_markdown_lint_fail",
@@ -28,6 +32,10 @@ MARKDOWN_CASES = [
         "config_tools": ["vale"],
         "config_files": [":vale_test.ini"],
         "expected_file": ":matrix/matrix_markdown_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_markdown_sibling_pass",
@@ -60,6 +68,10 @@ MARKDOWN_CASES = [
         "path_tool_names": ["rst2html"],
         "path_tool_binaries": ["//quality/tools/python:rst2html"],
         "expected_file": ":matrix/matrix_vale_rst_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_vale_rst_lint_fail",
@@ -78,6 +90,10 @@ MARKDOWN_CASES = [
         "path_tool_names": ["rst2html"],
         "path_tool_binaries": ["//quality/tools/python:rst2html"],
         "expected_file": ":matrix/matrix_vale_rst_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_vale_rst_lint_multi",

@@ -28,7 +28,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 
 | Module | Version | Patches | Why |
 | --- | --- | --- | --- |
-| `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch`, `clippy_metadata_inputs.patch` | Rust on Windows (lld-link, MSVC stdlib link flags); clippy reads dependency `.rmeta` |
+| `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch`, `clippy_metadata_inputs.patch`, `pipelined_rmeta_path.patch` | Rust on Windows (lld-link, MSVC stdlib link flags); clippy reads dependency `.rmeta`; the full rustc action writes its own `.rmeta` so it does not hit the read-only one from the metadata action |
 | `rules_julia` | 0.8.0 | `package_name.patch` | Julia `package_name` attribute for the wrapper targets |
 | `aspect_rules_py` | 2.0.0-alpha.10 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |

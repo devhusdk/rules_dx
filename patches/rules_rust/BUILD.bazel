@@ -4,6 +4,7 @@ exports_files([
     "clippy_metadata_inputs.patch",
     "lld_link.patch",
     "msvc_stdlib_linkflags.patch",
+    "pipelined_rmeta_path.patch",
 ])
 
 real_source_target(

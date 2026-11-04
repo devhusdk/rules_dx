@@ -13,6 +13,7 @@ single_version_override(
         "//patches/rules_rust:lld_link.patch",
         "//patches/rules_rust:msvc_stdlib_linkflags.patch",
         "//patches/rules_rust:clippy_metadata_inputs.patch",
+        "//patches/rules_rust:pipelined_rmeta_path.patch",
     ],
     version = "0.75.0",
 )

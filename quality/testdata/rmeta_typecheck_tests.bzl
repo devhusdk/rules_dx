@@ -40,3 +40,26 @@ clippy_rmeta_inputs_test = analysistest.make(
     },
     extra_target_under_test_aspects = [rust_clippy_aspect],
 )
+
+def _rmeta_paths_impl(ctx):
+    """Checks the Rustc action writes its own .rmeta, apart from the RustcMetadata output."""
+    env = analysistest.begin(ctx)
+    actions = analysistest.target_under_test(env).actions
+    full = [a for a in actions if a.mnemonic == "Rustc"]
+    meta = [a for a in actions if a.mnemonic == "RustcMetadata"]
+    asserts.equals(env, 1, len(full), "want one Rustc action")
+    asserts.equals(env, 1, len(meta), "want one RustcMetadata action")
+    if len(full) == 1 and len(meta) == 1:
+        argv = full[0].argv
+        asserts.true(env, any([a.startswith("--emit=metadata=") and "/_rmeta_full/" in a for a in argv]), "no --emit=metadata= under _rmeta_full: %s" % argv)
+        asserts.false(env, any([a.startswith("--emit=") and "metadata" in a and "metadata=" not in a for a in argv]), "bare metadata emit: %s" % argv)
+        shared = [f.path for f in full[0].outputs.to_list() if f in meta[0].outputs.to_list()]
+        asserts.equals(env, [], shared, "outputs shared with RustcMetadata")
+    return analysistest.end(env)
+
+pipelined_rmeta_paths_test = analysistest.make(
+    _rmeta_paths_impl,
+    config_settings = {
+        str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
+    },
+)

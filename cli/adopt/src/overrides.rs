@@ -156,6 +156,15 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "rules_cuda",
+        version: "0.4.0-beta1",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "redist_cccl_key.patch",
+            content: include_str!("../../../patches/rules_cuda/redist_cccl_key.patch"),
+        }],
+    },
+    Override {
         module: "windows_support",
         version: "0.4.1",
         patch_strip: 1,

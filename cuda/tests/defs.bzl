@@ -1,6 +1,7 @@
 """Test helpers for the dx CUDA family."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//cuda/toolchain:check.bzl", "in_component")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _COMPILER = "@rules_cuda//cuda:compiler"
@@ -53,7 +54,7 @@ def _hermetic_impl(ctx):
     commands = analysistest.target_under_test(env)[CudaCompileInfo].commands
     asserts.true(env, len(commands) > 0, "expected at least one CudaCompile action")
     for executable, argv in commands:
-        asserts.true(env, executable.endswith("+cuda_nvcc/nvcc/bin/nvcc"), "nvcc must come from the cuda_nvcc component, got " + executable)
+        asserts.true(env, in_component(executable, "nvcc") and executable.endswith("nvcc/bin/nvcc"), "nvcc must come from the cuda_nvcc component, got " + executable)
         asserts.true(env, "-ccbin" in argv, "nvcc must get -ccbin")
         if "-ccbin" in argv:
             ccbin = argv[argv.index("-ccbin") + 1]

@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaToolkitInfo")
-load("//modules:cuda.bzl", "CUDA_ARCHS", "CUDA_VERSION")
+load("//modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
 
 CudaLicenseInfo = provider(
     doc = "Whether the CUDA Toolkit EULA is accepted.",
@@ -93,22 +93,33 @@ def compiler_errors(compiler):
         return ["dx_cuda: @rules_cuda//cuda:compiler is '" + compiler + "'; dx CUDA targets compile with nvcc only"]
     return []
 
+def component_markers(name):
+    """Returns the repo suffixes rules_cuda gives a pinned component, one per qualified platform."""
+    version = CUDA_REDIST_VERSION.replace(".", "_")
+    return [
+        "+cuda_" + name + "_" + CUDA_CELLS[cell].rules_cuda_platform.replace("-", "_") + "_" + version + "/"
+        for cell in cuda_qualified_cells()
+    ]
+
+def in_component(path, name):
+    """Returns whether path is a file of the pinned component."""
+    return any([marker in path for marker in component_markers(name)])
+
 def toolkit_errors(nvcc_path, toolkit_path, version):
     """Returns errors for a CUDA toolchain that is not the pinned nvcc toolkit."""
-    if toolkit_path.startswith("/") or not nvcc_path.endswith("+cuda_nvcc/nvcc/bin/nvcc"):
-        return ["dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '" + nvcc_path + "'); declare the cuda.component and cuda.toolkit tags from the dx CUDA README"]
+    if toolkit_path.startswith("/") or not in_component(nvcc_path, "nvcc"):
+        return ["dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '" + nvcc_path + "'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README"]
     if version != CUDA_VERSION:
         return ["dx_cuda: the CUDA toolkit is " + version + "; dx CUDA targets need " + CUDA_VERSION]
     return []
 
 def component_errors(name, paths):
     """Returns errors for a library component whose files are not from the pinned redistributable."""
-    marker = "+cuda_" + name + "/"
     if not paths:
-        return ["dx_cuda: component '" + name + "' has no files; declare the cuda.component tags from the dx CUDA README"]
+        return ["dx_cuda: component '" + name + "' has no files; declare the cuda.redist_json tag from the dx CUDA README"]
     for path in paths:
-        if marker not in path:
-            return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); declare the cuda.component and cuda.toolkit tags from the dx CUDA README"]
+        if not in_component(path, name):
+            return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README"]
     return []
 
 def _check_impl(ctx):

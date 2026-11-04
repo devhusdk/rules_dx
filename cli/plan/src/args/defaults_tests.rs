@@ -347,18 +347,15 @@ fn slots(n: usize) -> dx_adopt::defaults::BuildSlots {
     dx_adopt::defaults::BuildSlots::Count(std::num::NonZeroUsize::new(n).expect("n"))
 }
 
-fn resolved_slots(words: &[&str], env: &[(&str, &str)]) -> dx_adopt::defaults::BuildSlots {
+fn resolved_slots(words: &[&str], env: &[(&str, &str)]) -> Option<dx_adopt::defaults::BuildSlots> {
     parse_with(&strings(words), &env_of(env))
         .expect("parse")
         .build_slots
 }
 
 #[test]
-fn build_slots_default_is_auto() {
-    assert_eq!(
-        resolved_slots(&["build"], &[]),
-        dx_adopt::defaults::BuildSlots::Auto
-    );
+fn build_slots_default_is_unset() {
+    assert_eq!(resolved_slots(&["build"], &[]), None);
 }
 
 #[test]
@@ -366,20 +363,17 @@ fn build_slots_flag_beats_env() {
     let env = [("DX_BUILD_SLOTS", "3")];
     assert_eq!(
         resolved_slots(&["build", "--build-slots=2"], &env),
-        slots(2)
+        Some(slots(2))
     );
     assert_eq!(
         resolved_slots(&["build", "--build-slots", "off"], &env),
-        dx_adopt::defaults::BuildSlots::Off
+        Some(dx_adopt::defaults::BuildSlots::Off)
     );
 }
 
 #[test]
 fn build_slots_empty_env_is_unset() {
-    assert_eq!(
-        resolved_slots(&["build"], &[("DX_BUILD_SLOTS", "")]),
-        dx_adopt::defaults::BuildSlots::Auto
-    );
+    assert_eq!(resolved_slots(&["build"], &[("DX_BUILD_SLOTS", "")]), None);
 }
 
 #[test]
@@ -387,9 +381,9 @@ fn ci_ignores_build_slots_env_but_keeps_flag() {
     use super::parse_with_ci;
     let env = env_of(&[("DX_BUILD_SLOTS", "off")]);
     let got = parse_with_ci(&strings(&["build"]), &env, true).expect("ci");
-    assert_eq!(got.build_slots, dx_adopt::defaults::BuildSlots::Auto);
+    assert_eq!(got.build_slots, None);
     let got = parse_with_ci(&strings(&["build", "--build-slots=2"]), &env, true).expect("ci flag");
-    assert_eq!(got.build_slots, slots(2));
+    assert_eq!(got.build_slots, Some(slots(2)));
 }
 
 #[test]
@@ -436,13 +430,16 @@ fn bad_build_slots_are_usage_errors() {
 
 #[test]
 fn build_slots_flag_is_accepted_on_every_command() {
-    assert_eq!(resolved_slots(&["build", "--build-slots=2"], &[]), slots(2));
+    assert_eq!(
+        resolved_slots(&["build", "--build-slots=2"], &[]),
+        Some(slots(2))
+    );
     assert_eq!(
         resolved_slots(&["status", "--build-slots=off"], &[]),
-        dx_adopt::defaults::BuildSlots::Off
+        Some(dx_adopt::defaults::BuildSlots::Off)
     );
     assert_eq!(
         resolved_slots(&["lint", "--build-slots", "3", "//..."], &[]),
-        slots(3)
+        Some(slots(3))
     );
 }

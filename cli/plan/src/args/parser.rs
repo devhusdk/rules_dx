@@ -250,21 +250,23 @@ pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
         )
 }
 
-/// Resolve `--build-slots` across flag, `DX_BUILD_SLOTS`, then auto.
+/// Resolve `--build-slots` across flag, `DX_BUILD_SLOTS`, then unset.
 fn resolve_build_slots(
     flag: Option<String>,
     env_get: &dyn Fn(&str) -> Option<String>,
-) -> Result<dx_adopt::defaults::BuildSlots, ArgsError> {
+) -> Result<Option<dx_adopt::defaults::BuildSlots>, ArgsError> {
     use dx_adopt::defaults::{env_string, BuildSlots, DX_BUILD_SLOTS_ENV};
     let (source, value) = match (flag, env_string(env_get, DX_BUILD_SLOTS_ENV)) {
         (Some(flag), _) => ("--build-slots", flag),
         (None, Some(env)) => (DX_BUILD_SLOTS_ENV, env),
-        (None, None) => return Ok(BuildSlots::default()),
+        (None, None) => return Ok(None),
     };
-    BuildSlots::parse(&value).ok_or(ArgsError::BadBuildSlots {
-        origin: source,
-        value,
-    })
+    BuildSlots::parse(&value)
+        .map(Some)
+        .ok_or(ArgsError::BadBuildSlots {
+            origin: source,
+            value,
+        })
 }
 
 fn parse_inner<S: AsRef<OsStr>>(

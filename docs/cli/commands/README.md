@@ -51,9 +51,10 @@ memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16.
 
 `--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` sets
-a default, and the flag wins. The default is `auto`, the count above. In CI the
-env var is ignored, like every other default. CI runs still take a slot and
-pass its `--local_resources` share to Bazel.
+a default, and the flag wins. The default is `auto`, the count above, inside a
+`dx worktree` slot and `off` anywhere else. In CI the env var is ignored, like
+every other default, so a CI run outside a slot takes no slot unless
+`--build-slots` is passed.
 
 - `auto`: the memory-based count above, with the remote extras below.
 - `<n>`: exactly `n` slots, from 1 to 1024. There is no 16 cap and no remote

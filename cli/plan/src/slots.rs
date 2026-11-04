@@ -298,6 +298,17 @@ pub fn sizing(setting: BuildSlots, memory: u64, reserved: u64) -> Option<Sizing>
     }
 }
 
+/// The build slot setting to use: the one given, else `Auto` inside a `dx worktree` slot and `Off` elsewhere.
+pub fn effective_setting(set: Option<BuildSlots>, workspace: &Path) -> BuildSlots {
+    set.unwrap_or_else(|| {
+        if dx_worktree::lease_for_dir(workspace).is_some() {
+            BuildSlots::Auto
+        } else {
+            BuildSlots::Off
+        }
+    })
+}
+
 /// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
 pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_process::LocalShare {
     let held = u64::try_from(held.max(1)).unwrap_or(u64::MAX);
@@ -3413,6 +3424,45 @@ mod tests {
             "an explicit count is not clamped to {MAX_SLOTS}"
         );
         assert_eq!(sizing(BuildSlots::Off, memory, 0), None);
+    }
+
+    #[test]
+    fn the_default_setting_is_auto_only_inside_a_worktree_slot() {
+        let plain = dx_test_scratch::scratch("dx-slots-setting-");
+        assert_eq!(effective_setting(None, plain.path()), BuildSlots::Off);
+        assert_eq!(effective_setting(Some(count(2)), plain.path()), count(2));
+        let pool = dx_test_scratch::scratch("dx-slots-setting-pool-");
+        let slot = pool.path().join("pool/1");
+        std::fs::create_dir_all(&slot).expect("slot");
+        std::fs::create_dir_all(pool.path().join("pool/.dx")).expect("meta");
+        let record = dx_worktree::Record {
+            slot: 1,
+            held: false,
+            branch: None,
+            last_branch: None,
+            session: None,
+            agent: None,
+            pid: None,
+            pid_start: None,
+            boot_id: None,
+            gone: false,
+            stopped_at: None,
+            unclaimed: false,
+            broken: false,
+            leased_at: 0,
+            last_used: 0,
+            lock_digest: None,
+        };
+        std::fs::write(
+            pool.path().join("pool/.dx/1.json"),
+            serde_json::to_vec(&record).expect("json"),
+        )
+        .expect("record");
+        assert_eq!(effective_setting(None, &slot), BuildSlots::Auto);
+        assert_eq!(
+            effective_setting(Some(BuildSlots::Off), &slot),
+            BuildSlots::Off
+        );
     }
 
     #[test]

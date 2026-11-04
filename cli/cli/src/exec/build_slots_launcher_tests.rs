@@ -10,10 +10,48 @@ exit 0
 "#;
 
 /// Runs `dx build` against a fake Bazel; returns every recorded build argv line and stderr.
-fn build_lines(args: &[&str]) -> (Vec<String>, String) {
+fn build_lines(args: &[&str], in_slot: bool) -> (Vec<String>, String) {
+    build_lines_with_env(args, in_slot, &[])
+}
+
+/// Like `build_lines`; with `in_slot` the workspace is a free `dx worktree` pool slot.
+fn build_lines_with_env(
+    args: &[&str],
+    in_slot: bool,
+    env: &[(&str, &str)],
+) -> (Vec<String>, String) {
     let scratch = dx_test_scratch::scratch("dx-build-slots-launcher-");
     let base = scratch.path().to_path_buf();
-    let workspace = base.join("ws");
+    let workspace = if in_slot {
+        let meta = base.join("pool/.dx");
+        fs::create_dir_all(&meta).expect("meta");
+        let record = dx_worktree::Record {
+            slot: 1,
+            held: false,
+            branch: None,
+            last_branch: None,
+            session: None,
+            agent: None,
+            pid: None,
+            pid_start: None,
+            boot_id: None,
+            gone: false,
+            stopped_at: None,
+            unclaimed: false,
+            broken: false,
+            leased_at: 0,
+            last_used: 0,
+            lock_digest: None,
+        };
+        fs::write(
+            meta.join("1.json"),
+            serde_json::to_vec(&record).expect("json"),
+        )
+        .expect("record");
+        base.join("pool/1")
+    } else {
+        base.join("ws")
+    };
     let bin = base.join("bin");
     let tmp = base.join("tmp");
     for dir in [&workspace, &bin, &tmp, &workspace.join(".dx")] {
@@ -36,6 +74,7 @@ fn build_lines(args: &[&str]) -> (Vec<String>, String) {
         .env("XDG_CACHE_HOME", base.join("cache"))
         .env("TMPDIR", &tmp)
         .env("ARGV_LOG", &log)
+        .envs(env.iter().copied())
         .stdin(Stdio::null())
         .output()
         .expect("dx runs");
@@ -48,8 +87,19 @@ fn build_lines(args: &[&str]) -> (Vec<String>, String) {
 }
 
 #[test]
-fn a_plain_build_gets_a_local_resources_share() {
-    let (lines, err) = build_lines(&["//..."]);
+fn a_plain_build_outside_a_slot_takes_no_slot() {
+    let (lines, err) = build_lines(&["//..."], false);
+    assert!(!lines.is_empty(), "bazel build never ran: {err}");
+    assert!(
+        !lines.iter().any(|line| line.contains("--local_resources")),
+        "{lines:?}"
+    );
+    assert!(!err.contains("waiting for a build slot"), "{err}");
+}
+
+#[test]
+fn a_plain_build_in_a_slot_gets_a_local_resources_share() {
+    let (lines, err) = build_lines(&["//..."], true);
     assert!(
         lines
             .iter()
@@ -59,8 +109,19 @@ fn a_plain_build_gets_a_local_resources_share() {
 }
 
 #[test]
+fn the_env_can_turn_build_slots_on_outside_a_slot() {
+    let (lines, err) = build_lines_with_env(&["//..."], false, &[("DX_BUILD_SLOTS", "auto")]);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("--local_resources=cpu=")),
+        "{lines:?}\n{err}"
+    );
+}
+
+#[test]
 fn build_slots_off_adds_no_local_resources_and_never_waits() {
-    let (lines, err) = build_lines(&["--build-slots", "off", "//..."]);
+    let (lines, err) = build_lines(&["--build-slots", "off", "//..."], false);
     assert!(!lines.is_empty(), "bazel build never ran: {err}");
     assert!(
         !lines.iter().any(|line| line.contains("--local_resources")),
@@ -71,13 +132,16 @@ fn build_slots_off_adds_no_local_resources_and_never_waits() {
 
 #[test]
 fn a_count_keeps_a_cpu_resource_passed_after_the_separator() {
-    let (lines, err) = build_lines(&[
-        "--build-slots",
-        "2",
-        "//...",
-        "--",
-        "--local_resources=cpu=4",
-    ]);
+    let (lines, err) = build_lines(
+        &[
+            "--build-slots",
+            "2",
+            "//...",
+            "--",
+            "--local_resources=cpu=4",
+        ],
+        false,
+    );
     let builds: Vec<&String> = lines
         .iter()
         .filter(|line| line.contains("--local_resources=cpu=4"))

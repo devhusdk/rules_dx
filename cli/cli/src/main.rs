@@ -369,7 +369,7 @@ fn run() -> i32 {
         &env_get,
         invocation.output == OutputMode::Json,
         &slot_options,
-        invocation.build_slots,
+        dx_plan::slots::effective_setting(invocation.build_slots, &workspace),
     );
     let slot = match gate.as_ref().map_or(Ok(None), |gate| {
         gate.hold(invocation.command, &mut err, &mut pending)

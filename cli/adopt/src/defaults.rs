@@ -53,7 +53,7 @@ pub const MAX_BUILD_SLOTS: usize = 1024;
 /// How many build slots this dx process sizes its gate with.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum BuildSlots {
-    /// Size from host memory, as dx always has.
+    /// Size from host memory. The default inside a `dx worktree` slot.
     #[default]
     Auto,
     /// Exactly this many slots, with no memory-based clamp and no remote extras.

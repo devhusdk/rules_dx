@@ -10,7 +10,7 @@ dx worktree hook create|remove|stop|guard
 ```
 
 Keeps a small pool of warm checkouts, called slots, so a new worktree reuses
-a slot that already has a Bazel server, output base and caches. Slots live at
+a slot that already has a Bazel server, output base and caches. Builds run in a slot take build slots by default; elsewhere they take none. Slots live at
 `<cache>/dx/worktrees/<repo>/<n>`. `<cache>` is `$XDG_CACHE_HOME`, else
 `$HOME/.cache`, else `%LOCALAPPDATA%`. Lease records live in
 `<cache>/dx/worktrees/<repo>/.dx/`. `<repo>` is the basename of the main

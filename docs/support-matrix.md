@@ -132,7 +132,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a | n/a |
 | Terraform | `tflint` | `terraform` | `terraform` | n/a |
 | Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a |
-| Typst | no | `typstyle` | n/a | n/a |
+| Typst | `tinymist` | `typstyle` | n/a | n/a |
 | XML | `xmllint` | `prettier` | n/a | n/a |
 | YAML | `yamllint` | `yamlfmt` | n/a | n/a |
 

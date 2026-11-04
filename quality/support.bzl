@@ -1551,6 +1551,19 @@ JSONNET_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+TYPST_TINYMIST_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["typst"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "typst",
+    "fix": "check_only",
+    "state": "supported",
+    "tool": "tinymist",
+    "transport": "single",
+}
+
 TYPST_TYPSTYLE_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2389,6 +2402,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     HASKELL_HLINT_LINT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
+    TYPST_TINYMIST_LINT_SUPPORT,
     LATEX_LATEXINDENT_FORMAT_SUPPORT,
     LATEX_CHKTEX_LINT_SUPPORT,
     ASCIIDOC_VALE_LINT_SUPPORT,

@@ -829,6 +829,13 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "py",
     },
+    "tinymist": {
+        "attr": attr.label(default = "@dx_tools//:tinymist", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "typst",
+    },
     "typstyle": {
         "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1790,6 +1797,12 @@ _REAL_SHARD_SPECS = {
     "real_typst_format": {
         "capability": "format",
         "doc": "Additive Typst format family aspect (typstyle).",
+        "shard": "typst",
+        "suffix": "-typst",
+    },
+    "real_typst_lint": {
+        "capability": "lint",
+        "doc": "Additive Typst lint family aspect (tinymist).",
         "shard": "typst",
         "suffix": "-typst",
     },
@@ -2829,6 +2842,8 @@ real_fortran_lint_aspect = _make_real_aspect("real_fortran_lint")
 real_fortran_typecheck_aspect = _make_real_aspect("real_fortran_typecheck")
 
 real_typst_format_aspect = _make_real_aspect("real_typst_format")
+
+real_typst_lint_aspect = _make_real_aspect("real_typst_lint")
 
 real_latex_format_aspect = _make_real_aspect("real_latex_format")
 

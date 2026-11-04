@@ -372,6 +372,7 @@ to.
 | `tflint` | lint | terraform |
 | `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
+| `tinymist` | lint | typst |
 | `tsc` | typecheck | astro, javascript, jsx, mdx, svelte, tsx, typescript, vue |
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
@@ -2074,14 +2075,16 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_hlint=//tools:hlint
 
 ### Typst
 
-`typstyle` runs from the managed pin for format. Select it in a `typst` family.
-It runs on Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64.
+`typstyle` runs from the managed pin for format and `tinymist` 0.15.12 for lint.
+Select them in a `typst` family. Both run on Linux x86_64, Linux arm64, macOS
+arm64, Windows x86_64 and Windows arm64.
 
 ```python
 quality_family(
     name = "typst_family",
     family_id = "typst",
     format = ["typstyle"],
+    lint = ["tinymist"],
 )
 ```
 
@@ -2097,6 +2100,11 @@ targets own. An unformatted file is reported at the start of the file. A
 syntax error fails the run with the file named. `typstyle` exits 0 on a syntax
 error, so dx reads its warning and never counts that file as clean. `typstyle`
 has no config file, so it runs with its upstream defaults.
+
+`tinymist lint` compiles one file per run, so every compile error and lint
+finding of that file is reported with the position tinymist gives. It runs
+without system fonts. Diagnostics in imported files that the run does not own
+are dropped, and any output that is not a diagnostic line fails the run.
 
 ### reStructuredText
 

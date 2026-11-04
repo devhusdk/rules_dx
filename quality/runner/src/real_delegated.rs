@@ -863,6 +863,39 @@ pub(super) fn xmllint_reports_parse_errors_and_never_trusts_a_failed_run() {
     assert!(lint("crash\n").is_err());
 }
 
+fn tinymist_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (2, "error: boom\n".to_owned())
+    } else if text.contains("broken") {
+        (1, format!("{file}:1:1: error: unknown variable: broken\n"))
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn tinymist_lints_each_file_and_never_trusts_a_failed_run() {
+    let backend = backend_for("tinymist", plain_tool(), tinymist_behavior);
+    let lint = |text: &str| backend.diagnose("tinymist", "lint", &single("a.typ", text));
+    assert!(lint("= Title\n").expect("check").is_empty());
+    let found = lint("#broken\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].rule_id, "tinymist/lint");
+    assert!(lint("crash\n").is_err());
+}
+
 fn dscanner_behavior(
     argv: &[OsString],
     cwd: &Path,

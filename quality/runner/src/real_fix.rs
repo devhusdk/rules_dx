@@ -389,7 +389,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "cfn_lint" | "chktex" | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype"
         | "jet" | "luals" | "phpcs" | "phpstan" | "regal" | "sorbet" | "tsc" | "javac"
         | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc" | "ocaml" | "zig" | "zig_ast_check"
-        | "swift_lint" | "xmllint" | "selene" | "zanuda" | "thrift" | "avro_tools" => {
+        | "swift_lint" | "xmllint" | "selene" | "zanuda" | "thrift" | "avro_tools" | "tinymist" => {
             Ok(Route::Keep)
         }
         "graphql_eslint" => match tool.config_rel {

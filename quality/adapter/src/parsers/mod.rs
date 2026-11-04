@@ -110,6 +110,7 @@ pub mod terraform;
 pub mod terraform_validate;
 pub mod tflint;
 pub mod thrift;
+pub mod tinymist;
 pub mod topiary;
 pub mod tsc;
 pub mod ty;
@@ -233,6 +234,7 @@ pub use terraform::parse_terraform;
 pub use terraform_validate::{parse_terraform_init, parse_terraform_validate};
 pub use tflint::parse_tflint;
 pub use thrift::{parse_thrift, ThriftReport};
+pub use tinymist::parse_tinymist;
 pub use topiary::parse_topiary;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
@@ -2814,6 +2816,14 @@ mod tests {
         super::latexindent::parse_latexindent(input, input, code, files)
     }
 
+    fn fuzz_tinymist(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::tinymist::parse_tinymist(input, input, code, files)
+    }
+
     fn fuzz_typstyle(
         input: &[u8],
         code: Option<i32>,
@@ -2983,6 +2993,7 @@ mod tests {
         ("terraform", fuzz_terraform),
         ("terraform_init", fuzz_terraform_init),
         ("terraform_validate", fuzz_terraform_validate),
+        ("tinymist", fuzz_tinymist),
         ("tsc", fuzz_tsc),
         ("ty", fuzz_ty),
         ("typstyle", fuzz_typstyle),
@@ -3113,6 +3124,7 @@ mod tests {
         ("terraform_validate", include_str!("terraform_validate.rs")),
         ("tsc", include_str!("tsc.rs")),
         ("ty", include_str!("ty.rs")),
+        ("tinymist", include_str!("tinymist.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),
         ("xmllint", include_str!("xmllint.rs")),

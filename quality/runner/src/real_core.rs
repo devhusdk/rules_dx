@@ -260,6 +260,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "terraform",
             "tflint",
             "thrift",
+            "tinymist",
             "topiary",
             "tsc",
             "ty",

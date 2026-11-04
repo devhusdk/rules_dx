@@ -47,6 +47,7 @@ load("//quality/artifacts:stylua.bzl", _stylua = "ARTIFACTS")
 load("//quality/artifacts:taplo.bzl", _taplo = "ARTIFACTS")
 load("//quality/artifacts:terraform.bzl", _terraform = "ARTIFACTS")
 load("//quality/artifacts:tflint.bzl", _tflint = "ARTIFACTS")
+load("//quality/artifacts:tinymist.bzl", _tinymist = "ARTIFACTS")
 load("//quality/artifacts:ty.bzl", _ty = "ARTIFACTS")
 load("//quality/artifacts:typstyle.bzl", _typstyle = "ARTIFACTS")
 load("//quality/artifacts:uv.bzl", _uv = "ARTIFACTS")
@@ -93,6 +94,7 @@ _ARTIFACTS = [
         _taplo,
         _terraform,
         _tflint,
+        _tinymist,
         _ty,
         _typstyle,
         _uv,

@@ -1437,6 +1437,63 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "tinymist": {
+        "upstream_version": "0.15.12",
+        "release_page": "https://github.com/Myriad-Dreamin/tinymist/releases/tag/v0.15.12",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/Myriad-Dreamin/tinymist/blob/v0.15.12/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "tinymist-x86_64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-x86_64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "tinymist-x86_64-unknown-linux-musl/tinymist",
+                "checksums_url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-x86_64-unknown-linux-musl.tar.gz.sha256",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "tinymist-aarch64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-aarch64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "tinymist-aarch64-unknown-linux-musl/tinymist",
+                "checksums_url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-aarch64-unknown-linux-musl.tar.gz.sha256",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "tinymist-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "tinymist-aarch64-apple-darwin/tinymist",
+                "checksums_url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-aarch64-apple-darwin.tar.gz.sha256",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "tinymist-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "tinymist.exe",
+                "checksums_url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-x86_64-pc-windows-msvc.zip.sha256",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "tinymist-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "tinymist.exe",
+                "checksums_url": "https://github.com/Myriad-Dreamin/tinymist/releases/download/v0.15.12/tinymist-aarch64-pc-windows-msvc.zip.sha256",
+            },
+        },
+    },
     "ffmt": {
         "upstream_version": "0.4.5",
         "release_page": "https://pypi.org/project/ffmt/0.4.5/",

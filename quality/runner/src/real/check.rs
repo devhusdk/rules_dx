@@ -1591,6 +1591,20 @@ impl RealBackend {
                     parsers::parse_typstyle(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "tinymist" => {
+                // One process per file: each run compiles one entry file.
+                let mut findings = Vec::new();
+                for absolute in &refs {
+                    let invocation =
+                        commands::tinymist_lint(&tool.binary, scratch.root(), absolute);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    findings.extend(parsed(
+                        tool_id,
+                        parsers::parse_tinymist(&out.stdout, &out.stderr, out.code, &strs),
+                    )?);
+                }
+                Ok(findings)
+            }
             "swift_format" => {
                 // One process per file: the check prints the formatted text of one file.
                 let mut findings = Vec::new();

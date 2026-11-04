@@ -1373,6 +1373,23 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/b.xml"
         ]
     );
+    assert_eq!(
+        argv_strings(&tinymist_lint(
+            Path::new(BIN),
+            Path::new("/scratch"),
+            Path::new("/scratch/a.typ")
+        )),
+        vec![
+            BIN,
+            "lint",
+            "--root",
+            "/scratch",
+            "--ignore-system-fonts",
+            "--diagnostic-format",
+            "short",
+            "/scratch/a.typ"
+        ]
+    );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
         argv_strings(&jsonnet_lint_check(Path::new(BIN), &[jsonnet])),

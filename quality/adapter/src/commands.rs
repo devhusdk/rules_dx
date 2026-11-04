@@ -157,6 +157,8 @@ const CUE_VET_ARGS: &[&str] = &["vet", "-c=false", "-E"];
 const CUE_FIX_ARGS: &[&str] = &["fmt"];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
+const TINYMIST_LINT_ARGS: &[&str] = &["lint"];
+const TINYMIST_LINT_TAIL: &[&str] = &["--ignore-system-fonts", "--diagnostic-format", "short"];
 const TYPSTYLE_CHECK_ARGS: &[&str] = &["--check"];
 const TYPSTYLE_FIX_ARGS: &[&str] = &["-i"];
 const LATEXINDENT_CHECK_ARGS: &[&str] = &["-k"];
@@ -1457,6 +1459,16 @@ pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn jsonnetfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_FIX_ARGS, files, "")
+}
+
+/// `tinymist lint` takes one file; `root` is where it resolves imports and includes.
+pub fn tinymist_lint(binary: &Path, root: &Path, file: &Path) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(TINYMIST_LINT_ARGS.iter().map(OsString::from));
+    head.push(OsString::from("--root"));
+    head.push(root.as_os_str().to_owned());
+    head.extend(TINYMIST_LINT_TAIL.iter().map(OsString::from));
+    assemble(binary, head, &[file], "")
 }
 
 /// `typstyle --check`; no `-q`, which would hide the `Would reformat` lines.

@@ -15,7 +15,7 @@ pub const ALLOW_FILE: &str = ".dx-large-files";
 /// Directory names that always hold build output.
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
 
-/// Lines `dx init` writes to `.gitignore`.
+/// Lines dx keeps in `.gitignore`; the preset adds the missing ones.
 pub const IGNORE_LINES: [&str; 10] = [
     "target/",
     "/bazel-*",

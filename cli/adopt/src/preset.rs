@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::build_output::IGNORE_LINES;
 use crate::error::AdoptError;
 use crate::preset_fragment::{
     bazelrc_imports, is_generated, layer_import_state, layer_is_current,
@@ -17,20 +18,6 @@ pub const BAZELRC: &str = ".bazelrc";
 
 /// The root `.gitignore` file.
 pub const GITIGNORE: &str = ".gitignore";
-
-/// The line `.gitignore` needs so the generated layers stay out of git.
-pub const LAYERS_IGNORE: &str = "/.dx/bazelrc/";
-
-const COVERING_LINES: [&str; 8] = [
-    "/.dx/bazelrc/",
-    "/.dx/bazelrc",
-    ".dx/bazelrc/",
-    ".dx/bazelrc",
-    "/.dx/",
-    "/.dx",
-    ".dx/",
-    ".dx",
-];
 
 /// What one layer file under `.dx/bazelrc` holds.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,7 +40,8 @@ pub struct PresetState {
     pub rc_text: String,
     pub rc_exists: bool,
     pub rc_symlink: bool,
-    /// The `.gitignore` text with the layers line added, when the file exists and lacks it.
+    /// The `.gitignore` text with each `IGNORE_LINES` entry it lacks added; the whole set when the
+    /// file is missing. None when nothing is missing.
     pub ignore_text: Option<String>,
     /// Owned preset lines the root `.bazelrc` repeats.
     pub collisions: Vec<String>,
@@ -183,7 +171,10 @@ pub fn preset_files(root: &Path) -> Vec<(String, String)> {
         .collect();
     let mut files = vec![
         (BAZELRC.to_owned(), format!("{}\n", imports.join("\n"))),
-        (GITIGNORE.to_owned(), format!("{LAYERS_IGNORE}\n")),
+        (
+            GITIGNORE.to_owned(),
+            format!("{}\n", IGNORE_LINES.join("\n")),
+        ),
     ];
     files.extend(
         Layer::ALL
@@ -230,7 +221,7 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     let applicable = !bazelrc_imports(&rc_text)
         .iter()
         .any(|rel| rel.starts_with(&repo_prefix));
-    let ignore_text = ignore_with_layers(read_text(&root.join(GITIGNORE), GITIGNORE)?);
+    let ignore_text = ignore_with_missing(read_text(&root.join(GITIGNORE), GITIGNORE)?);
     let repo = dx_module_bazel::rules_dx_repo(root);
     let layers = layer_import_state(&rc_text, CONSUMER_DIR)
         .into_iter()
@@ -247,20 +238,38 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     })
 }
 
-fn ignore_with_layers(text: Option<String>) -> Option<String> {
-    let mut text = text?;
-    if text
-        .lines()
-        .any(|line| COVERING_LINES.contains(&line.trim()))
-    {
+/// Whether `lines` already ignore `entry`: a line equal to it, or a listed ancestor directory.
+/// A leading or trailing slash does not count.
+fn ignores(lines: &[&str], entry: &str) -> bool {
+    let entry = entry.trim_matches('/');
+    lines.iter().any(|line| {
+        let line = line.trim().trim_matches('/');
+        !line.is_empty()
+            && (entry == line
+                || entry
+                    .strip_prefix(line)
+                    .is_some_and(|rest| rest.starts_with('/')))
+    })
+}
+
+fn ignore_with_missing(text: Option<String>) -> Option<String> {
+    let mut text = text.unwrap_or_default();
+    let lines: Vec<&str> = text.lines().collect();
+    let missing: Vec<&str> = IGNORE_LINES
+        .into_iter()
+        .filter(|entry| !ignores(&lines, entry))
+        .collect();
+    if missing.is_empty() {
         return None;
     }
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
     if !text.is_empty() && !text.ends_with('\n') {
         text.push_str(eol);
     }
-    text.push_str(LAYERS_IGNORE);
-    text.push_str(eol);
+    for entry in missing {
+        text.push_str(entry);
+        text.push_str(eol);
+    }
     Some(text)
 }
 
@@ -331,10 +340,10 @@ pub fn write_preset(
         let text = prepend_imports(&state.rc_text, CONSUMER_DIR, &Layer::ALL);
         write(root, BAZELRC, &text)?;
         applied.wrote.push(BAZELRC.to_owned());
-        if let Some(text) = &state.ignore_text {
-            write(root, GITIGNORE, text)?;
-            applied.wrote.push(GITIGNORE.to_owned());
-        }
+    }
+    if let Some(text) = &state.ignore_text {
+        write(root, GITIGNORE, text)?;
+        applied.wrote.push(GITIGNORE.to_owned());
     }
     if layers_tracked(root) {
         notes.push(tracked_note());
@@ -404,9 +413,9 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
         } else {
             drift.missing.push(BAZELRC.to_owned());
         }
-        if state.ignore_text.is_some() {
-            drift.stale.push(GITIGNORE.to_owned());
-        }
+    }
+    if state.ignore_text.is_some() {
+        drift.stale.push(GITIGNORE.to_owned());
     }
     if layers_tracked(root) {
         drift.other.push(tracked_note());
@@ -441,7 +450,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-preset-empty-");
         let root = scratch.path();
         let (wrote, notes) = apply(root);
-        assert_eq!(wrote.len(), Layer::ALL.len() + 1);
+        assert_eq!(wrote.len(), Layer::ALL.len() + 2);
         assert!(notes.is_empty());
         assert_eq!(preset_drift(root), PresetDrift::default());
         let (wrote, notes) = apply(root);
@@ -481,7 +490,7 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "build --verbose_failures\n").expect("rc");
         let (wrote, notes) = apply(root);
-        assert!(wrote.is_empty());
+        assert_eq!(wrote, [GITIGNORE.to_owned()]);
         assert!(notes[0].contains("duplicates preset lines"), "{notes:?}");
         assert_eq!(
             std::fs::read_to_string(root.join(".bazelrc")).expect("read"),
@@ -597,7 +606,7 @@ mod tests {
     }
 
     #[test]
-    fn wiring_appends_the_layers_ignore_line() {
+    fn wiring_appends_the_missing_ignore_lines() {
         let scratch = dx_test_scratch::scratch("dx-preset-ignore-");
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "build --jobs=2\n").expect("rc");
@@ -608,21 +617,41 @@ mod tests {
         want.extend([BAZELRC.to_owned(), GITIGNORE.to_owned()]);
         assert_eq!(wrote, want);
         let ignore = std::fs::read_to_string(root.join(".gitignore")).expect("ignore");
-        assert_eq!(ignore, "target/\nmine.log\n/.dx/bazelrc/\n");
+        let added: String = IGNORE_LINES[1..]
+            .iter()
+            .map(|line| format!("{line}\n"))
+            .collect();
+        assert_eq!(ignore, format!("target/\nmine.log\n{added}"));
         assert_eq!(preset_drift(root), PresetDrift::default());
         assert!(apply(root).0.is_empty());
     }
 
     #[test]
-    fn covering_ignore_line_is_enough() {
-        for line in [".dx/", "/.dx/bazelrc"] {
-            assert_eq!(
-                ignore_with_layers(Some(format!("{line}\n"))),
-                None,
-                "{line}"
-            );
+    fn target_only_gitignore_gains_every_other_line() {
+        let text = ignore_with_missing(Some("target/\n".to_owned())).expect("missing");
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0], "target/");
+        assert_eq!(lines[1..], IGNORE_LINES[1..]);
+        assert_eq!(ignore_with_missing(Some(text)), None);
+    }
+
+    #[test]
+    fn an_equal_or_ancestor_line_ignores_the_entry() {
+        for line in [".dx/", "/.dx", "/.dx/bazelrc", ".dx/bazelrc/", "bazel-*"] {
+            let entry = if line == "bazel-*" {
+                "/bazel-*"
+            } else {
+                "/.dx/bazelrc/"
+            };
+            assert!(ignores(&[line], entry), "{line}");
         }
-        assert_eq!(ignore_with_layers(None), None);
+        for line in ["dx/", ".dx/bazel", "!.dx/", "# /.dx/bazelrc/"] {
+            assert!(!ignores(&[line], "/.dx/bazelrc/"), "{line}");
+        }
+        assert_eq!(
+            ignore_with_missing(None).expect("all").lines().count(),
+            IGNORE_LINES.len()
+        );
     }
 
     fn git(root: &Path, sandbox: &Path, args: &[&str]) {

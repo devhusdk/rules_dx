@@ -131,7 +131,7 @@ match the running dx.
 | `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | you | Written in a fresh directory only. |
 | `MODULE.bazel.snippet` | you | Written when missing. Never rewritten. |
-| `.gitignore` | you | Written when missing. An existing file gets `/.dx/bazelrc/` appended when dx adds the imports and no line covers it. |
+| `.gitignore` | you | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow and `rules_dx_version` are updated. A file without `rules_dx_version` is left untouched. |

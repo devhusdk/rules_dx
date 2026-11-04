@@ -216,8 +216,11 @@ def _toolchain_platforms():
         "qmllint": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
     }
 
+# Tools listed in #4665.
+_CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "statix", "terraform", "tflint", "typstyle", "vale", "yamlfmt", "yamllint"]
+
 # Records that must name every platform as either supported or unsupported with a reason.
-_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gofumpt", "gplint", "modfmt", "hlint", "julia_format", "keep_sorted", "latexindent", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "vale", "zig_fmt"]
+_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "terraform", "tflint", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
@@ -348,8 +351,8 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
-                "keep_sorted, shellcheck, latexindent, chktex, flatc, djlint, gplint and vale claims are proven",
-                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["keep_sorted", "shellcheck", "latexindent", "chktex", "flatc", "djlint", "gplint", "vale"]], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                "config, infrastructure and document tools claims are proven (#4665)",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in _CONFIG_INFRA_DOC_TOOLS], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],
             ),
             expect_equal(

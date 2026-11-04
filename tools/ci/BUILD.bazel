@@ -567,7 +567,6 @@ rust_test(
     srcs = ["rustfmt_coverage_test.rs"],
     data = [
         "//.devcontainer:corpus_starlark",
-        "//android/sdk/tests/fetch:corpus_starlark",
         "//android/tests/fixtures/native_lib:corpus_starlark",
         "//android/tests/fixtures/rust_apk:corpus_starlark",
         "//ansible/rules:corpus_starlark",

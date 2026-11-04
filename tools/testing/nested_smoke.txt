@@ -1,5 +1,4 @@
 # Tests that run a nested Bazel. This list may only shrink.
-//android/sdk/tests/fetch:fetch_test
 //apple/tests:linux_consumer_test
 //apple/tests:macos_app_consumer_test
 //apple/tests:macos_bundle_consumer_test

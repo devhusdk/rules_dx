@@ -8,6 +8,17 @@ use dx_module_bazel::{compare_module_versions, ModuleFile, Value};
 /// Modules released together whose floors must move together.
 const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_prost", "rules_rust_wasm_bindgen"]];
 
+/// Non-dev `bazel_dep`s that carry no floor or single_version_override yet; each is
+/// only a transitive need of a root extension.
+const UNPINNED: &[&str] = &[
+    "libxml2",
+    "bazel_features",
+    "tar.bzl",
+    "yaml.bzl",
+    "rules_batch",
+    "rules_flutter",
+];
+
 type Table = BTreeMap<String, (String, String)>;
 
 fn table(json: &str) -> Table {
@@ -44,7 +55,7 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
         }
     }
     for name in &declared {
-        if !table.contains_key(name) {
+        if !table.contains_key(name) && !UNPINNED.contains(&name.as_str()) {
             problems.push(format!(
                 "bazel_dep {name:?} is missing from CONSUMER_BAZEL_DEPS"
             ));

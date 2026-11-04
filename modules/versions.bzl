@@ -118,5 +118,7 @@ CONSUMER_BAZEL_DEPS = {
     "aspect_rules_js": struct(floor = ASPECT_RULES_JS_VERSION, tested = ASPECT_RULES_JS_VERSION),
     "aspect_rules_ts": struct(floor = ASPECT_RULES_TS_VERSION, tested = ASPECT_RULES_TS_VERSION),
     "aspect_rules_jest": struct(floor = ASPECT_RULES_JEST_VERSION, tested = ASPECT_RULES_JEST_VERSION),
-    "rules_nodejs": struct(floor = RULES_NODEJS_VERSION, tested = RULES_NODEJS_VERSION),
+    "avro-cpp": struct(floor = "1.12.0.bcr.1", tested = "1.12.0.bcr.1"),
+    "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
+    "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
 }

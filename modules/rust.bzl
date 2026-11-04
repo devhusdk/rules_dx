@@ -27,6 +27,7 @@ RUST_CRATE_MANIFESTS = [
     "//cli/cli:Cargo.toml",
     "//cli/diff:Cargo.toml",
     "//cli/digest:Cargo.toml",
+    "//cli/ide:Cargo.toml",
     "//cli/lcov:Cargo.toml",
     "//cli/env:Cargo.toml",
     "//cli/codegen:Cargo.toml",
@@ -40,6 +41,7 @@ RUST_CRATE_MANIFESTS = [
     "//cli/worktree:Cargo.toml",
     "//cli/shim:Cargo.toml",
     "//deploy/rules:Cargo.toml",
+    "//deploy/symbols:Cargo.toml",
     "//deploy/offline/bootstrap:Cargo.toml",
     "//deploy/release:Cargo.toml",
     "//deploy/install:Cargo.toml",
@@ -76,6 +78,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/testing:Cargo.toml",
     "//appimage/packer:Cargo.toml",
     "//qt/rust:Cargo.toml",
+    "//rust/tests/fixtures/native_call:Cargo.toml",
 ]
 
 CRATE_CARGO_LOCK = "//rust/tests/fixtures/hello:Cargo.lock"

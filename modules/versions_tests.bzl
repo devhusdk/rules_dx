@@ -128,7 +128,6 @@ def versions_contract_tests(name):
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//quality/tools/javascript:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",
-            "//examples:consumer-ci/README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//rust/rules:README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,

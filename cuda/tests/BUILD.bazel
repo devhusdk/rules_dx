@@ -1,5 +1,5 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_gpu_test", "cuda_library")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
 load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
 load("//cuda/toolchain:repos.bzl", "UNACCEPTED")
 load("//libs/starlark:failure_test.bzl", "failure_test")
@@ -26,7 +26,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-cuda_gpu_test(
+cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
     archs = [
@@ -88,7 +88,7 @@ hermetic_toolchain_test(
     target_under_test = "//cuda/tests/fixtures/rdc:scale_objects",
 )
 
-cuda_gpu_test(
+cuda_test(
     name = "rdc_gpu_test",
     srcs = ["rdc_gpu_test.cu"],
     archs = [
@@ -143,7 +143,7 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-cuda_gpu_test(
+cuda_test(
     name = "cublas_gpu_test",
     srcs = ["cublas_gpu_test.cu"],
     archs = [

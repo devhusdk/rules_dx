@@ -190,23 +190,28 @@ def cuda_binary(name, srcs, archs, deps = None, hdrs = None, visibility = None, 
     """Compiles .cu sources with nvcc and links them into a cc_binary."""
     _cuda_executable(_cc_binary, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc)
 
-def cuda_test(name, srcs, archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
-    """Compiles .cu sources with nvcc and links them into a cc_test."""
-    kwargs["testonly"] = True
-    _cuda_executable(_cc_test, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc)
-
 _GPU_TAGS = ["exclusive", "external", "local", "requires-gpu"]
 
 def cuda_gpu_env(min_compute_capability, min_driver):
-    """Returns the env a cuda_gpu_test binary reads its declared requirements from."""
+    """Returns the env a GPU cuda_test binary reads its declared requirements from."""
     return {
         "DX_GPU_MIN_CC": min_compute_capability,
         "DX_GPU_MIN_DRIVER": min_driver,
         "DX_GPU_RUNTIME": CUDA_VERSION,
     }
 
-def cuda_gpu_test(name, srcs, archs, min_compute_capability, min_driver, deps = None, hdrs = None, visibility = None, tags = None, env = None, data = None, target_compatible_with = None, rdc = False, **kwargs):
-    """Runs dx_gpu_test_main on a real GPU and records gpu_facts.json; a host without a GPU fails."""
+def cuda_test(name, srcs, archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, **kwargs):
+    """Compiles .cu sources into a cc_test; min_compute_capability and min_driver make it a GPU test."""
+    if (min_compute_capability == None) != (min_driver == None):
+        fail("cuda_test //{}:{}: set both min_compute_capability and min_driver for a GPU test".format(native.package_name(), name))
+    if min_compute_capability == None:
+        if env != None:
+            kwargs["env"] = env
+        if data != None:
+            kwargs["data"] = data
+        kwargs["testonly"] = True
+        _cuda_executable(_cc_test, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc)
+        return
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_gpu_check(
         name = name + "_gpu_check",

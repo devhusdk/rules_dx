@@ -14,7 +14,7 @@ cuda_library(
 )
 "#;
 
-/// Returns the facts JSON a `cuda_gpu_test` binary logs on its `dx-gpu-facts:` line.
+/// Returns the facts JSON a GPU `cuda_test` binary logs on its `dx-gpu-facts:` line.
 fn parse_facts(log: &str) -> Result<Value, String> {
     let line = log
         .lines()

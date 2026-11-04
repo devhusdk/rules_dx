@@ -101,7 +101,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 	if args.File != nil {
 		for _, r := range args.File.Rules {
 			switch r.Kind() {
-			case "cuda_binary", "cuda_test", "cuda_gpu_test":
+			case "cuda_binary", "cuda_test":
 				if r.Name() == base {
 					rep.Fail(common.InPackage(args.Rel), "cc: %s: %s(%s) already creates %s; rename it or the generated target", args.Rel, r.Kind(), r.Name(), name)
 					return language.GenerateResult{}

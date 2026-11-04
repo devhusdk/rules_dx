@@ -232,9 +232,9 @@ If your stanza has no `cuda_cublas` tag, building these targets fails with
 ## GPU tests
 
 ```python
-load("@rules_dx//cuda/rules:defs.bzl", "cuda_gpu_test")
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_test")
 
-cuda_gpu_test(
+cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
     archs = ["compute_89:compute_89,sm_89", "sm_120"],
@@ -255,17 +255,16 @@ reference, and record each comparison with
 `dx_gpu_check(name, want, got, n, abs_tol, rel_tol)`. Pass `got = NULL`
 when a kernel launch fails. Return 0.
 
-Attributes:
+Set `min_compute_capability` and `min_driver` on `cuda_test` to run it on a GPU. Set both.
 
 - `archs`: required arch specs, as for `cuda_library`.
 - `min_compute_capability`: lowest device compute capability, `X.Y`.
   It must be at least the lowest arch in `archs`.
 - `min_driver`: lowest CUDA driver version, `X.Y`, from `13.0` to `13.4`.
-- `srcs`, `hdrs`, `deps`, `env`, `data`, `tags`: as for `cuda_test`.
 
 The runtime version is always the pinned toolkit, 13.4.
 
-Every `cuda_gpu_test` gets the tags `requires-gpu`, `external`, `local`
+Every GPU `cuda_test` gets the tags `requires-gpu`, `external`, `local`
 and `exclusive`. It never adds `manual`.
 
 Each run prints one `dx-gpu-facts: {...}` line and writes

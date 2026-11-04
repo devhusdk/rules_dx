@@ -171,7 +171,7 @@ replaces it. Separate specs with spaces, because a spec can contain commas, as
 in `compute_89:compute_89,sm_89`. The `cc` language generates a `<dir>_cuda`
 target for `.cu` and `.cuh` files that no hand-written CUDA rule lists, and it
 fails when the directive is missing. Gazelle never touches hand-written
-`cuda_library`, `cuda_binary`, `cuda_test` or `cuda_gpu_test` targets. It sets
+`cuda_library`, `cuda_binary`, or `cuda_test` targets. It sets
 `archs` only when it creates the target, so a hand-edited value survives later
 runs. Sources named `*_test.cu` and sources that define `main` are not
 generated, and `main` fails the run.

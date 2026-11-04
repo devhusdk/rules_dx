@@ -1,4 +1,4 @@
-load("@rules_dx//cuda/rules:defs.bzl", "cuda_gpu_test")
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
@@ -11,7 +11,7 @@ exports_files([
 ])
 
 # Runs only on a host with a GPU; //tools/testing/hermetic:cuda_gpu_nested_test drives it through a nested consumer.
-cuda_gpu_test(
+cuda_test(
     name = "gpu_test",
     srcs = ["gpu_test.cu"],
     archs = [

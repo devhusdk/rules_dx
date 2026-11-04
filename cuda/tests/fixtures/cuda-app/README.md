@@ -6,7 +6,7 @@ A multi-package CUDA app. A `cuda_library` holds three kernels behind a C ABI he
 | --- | --- |
 | `kernels` | Vector add, block reduction and 1D stencil kernels, shared `common.cuh`, C ABI `kernels.h` |
 | `app` | `cuda_app` binary and its output test |
-| `gpu` | `gpu_test`, a `cuda_gpu_test` that checks the three kernels against their CPU versions on a real GPU |
+| `gpu` | `gpu_test`, a GPU `cuda_test` that checks the three kernels against their CPU versions on a real GPU |
 | `checks` | Device code and format checks |
 
 ```sh

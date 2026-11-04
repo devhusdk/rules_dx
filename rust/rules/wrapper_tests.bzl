@@ -348,6 +348,7 @@ def _browser_cell_impl(ctx):
     target = analysistest.target_under_test(env)
     run_env = target[RunEnvironmentInfo].environment
     asserts.equals(env, "firefox", run_env.get("BROWSER_TYPE", ""))
+    asserts.true(env, rust_common.crate_info in target, "no crate providers for fmt and lint")
     return analysistest.end(env)
 
 _browser_cell_test = analysistest.make(
@@ -379,6 +380,7 @@ def _wasi_test_impl(ctx):
     target = analysistest.target_under_test(env)
     executable = target[DefaultInfo].files_to_run.executable
     asserts.true(env, executable.basename.startswith(target.label.name), "{} is not the test's own executable".format(executable.path))
+    asserts.true(env, rust_common.crate_info in target or rust_common.test_crate_info in target, "no crate providers for fmt and lint")
     run_env = target[RunEnvironmentInfo].environment
     asserts.true(env, run_env.get("DX_WASI_MODULE", "").endswith(".wasm"), "DX_WASI_MODULE is not a .wasm file")
     asserts.true(env, "DX_WASI_RUNTIME" in run_env, "DX_WASI_RUNTIME is not set")

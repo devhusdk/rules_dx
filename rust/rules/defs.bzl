@@ -472,6 +472,10 @@ def _rust_wasm_bindgen_browser_test_impl(ctx):
     providers = [dx_symlink_default_info(ctx, "rust_wasm_bindgen_test")]
     if RunEnvironmentInfo in upstream:
         providers.append(upstream[RunEnvironmentInfo])
+    crate = ctx.attr.crate
+    providers.append(crate[_rust_common.crate_info])
+    if _rust_common.dep_info in crate:
+        providers.append(crate[_rust_common.dep_info])
     return providers
 
 _rust_wasm_bindgen_browser_test = rule(
@@ -480,6 +484,11 @@ _rust_wasm_bindgen_browser_test = rule(
     test = True,
     attrs = {
         "browser": attr.string(doc = "The managed browser of this platform cell, or empty."),
+        "crate": attr.label(
+            doc = "The Rust crate whose providers format and lint checks read.",
+            mandatory = True,
+            providers = [[_rust_common.crate_info]],
+        ),
         "data": attr.label_list(doc = "Runtime files for forwarded args.", allow_files = True),
         "upstream": attr.label(
             doc = "The upstream rust_wasm_bindgen_test.",
@@ -507,6 +516,7 @@ def _rust_browser_test(name, wasm, **kwargs):
     cells = {cell: browser for cell, browser in _BROWSER_CELLS.items()}
     _rust_wasm_bindgen_browser_test(
         name = name,
+        crate = wasm,
         upstream = name + "_upstream",
         browser = select(cells | {"//conditions:default": ""}),
         tags = dx_test_resource_tags(forward["size"], user_tags + ([] if _NO_REMOTE_EXEC in user_tags else [_NO_REMOTE_EXEC])),
@@ -560,7 +570,7 @@ def _rust_wasi_run_test_impl(ctx):
     return [
         DefaultInfo(executable = link, files = depset([link]), runfiles = runfiles),
         RunEnvironmentInfo(environment = environment),
-    ]
+    ] + [upstream[p] for p in (_rust_common.crate_info, _rust_common.test_crate_info, _rust_common.dep_info) if p in upstream]
 
 _rust_wasi_run_test = rule(
     implementation = _rust_wasi_run_test_impl,

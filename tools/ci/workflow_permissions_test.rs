@@ -17,7 +17,10 @@ const MARKERS: &[(&str, &[&str])] = &[
     ("issues", &["gh issue "]),
     ("packages", &["docker push"]),
     ("pages", &["actions/deploy-pages@"]),
-    ("pull-requests", &["gh pr ", "/issues/", "/pulls", "dx update --pr"]),
+    (
+        "pull-requests",
+        &["gh pr ", "/issues/", "/pulls", "dx update --pr"],
+    ),
 ];
 
 /// Scopes that act through OIDC, so a step needs no GITHUB_TOKEN to use them.

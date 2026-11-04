@@ -67,6 +67,7 @@ fn needs_of(workflow: &str, job: &str) -> Vec<String> {
 fn the_outer_gate_requires_every_declared_dependency() {
     let document = document(CI_WORKFLOW);
     let wanted = json!([
+        "coverage-cells",
         "dogfood",
         "docs",
         "devcontainer-check",
@@ -202,7 +203,10 @@ fn every_aggregate_job_needs_every_other_job() {
         let (id, job) = aggregates[0];
         let needs = job_needs(workflow, id, job);
         for (other, _) in &all {
-            if other == id || (workflow == CI_WORKFLOW && other == "repo-cache-prune") {
+            if other == id
+                || (workflow == CI_WORKFLOW
+                    && (other == "repo-cache-prune" || other == "scheduled-report"))
+            {
                 continue;
             }
             assert!(
@@ -266,6 +270,26 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
             on["merge_group"]["types"],
             json!(["checks_requested"]),
             "{workflow} must subscribe to merge_group checks_requested: {on}"
+        );
+    }
+}
+
+#[test]
+fn the_scheduled_report_only_follows_the_gate() {
+    let document = document(CI_WORKFLOW);
+    let job = &document["jobs"]["scheduled-report"];
+    assert_eq!(job["needs"], json!(["ci"]));
+    assert!(job["if"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("github.event_name == 'schedule'"));
+    let step = &job["steps"][0];
+    assert_eq!(step["env"]["CI_RESULT"], json!("${{ needs.ci.result }}"));
+    let run = step["run"].as_str().unwrap_or_default();
+    for word in ["cancelled", "skipped", "timed_out"] {
+        assert!(
+            run.contains(word),
+            "scheduled-report script must handle {word}"
         );
     }
 }

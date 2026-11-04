@@ -859,13 +859,20 @@ jobs:
         run: |
           title="ci: scheduled run is failing"
           number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [ "$CI_RESULT" = "cancelled" ] || [ "$CI_RESULT" = "skipped" ]; then
+            echo "Run $RUN_ID was $CI_RESULT and gave no result; leaving the tracking issue alone."
+            exit 0
+          fi
           if [ "$CI_RESULT" = "success" ]; then
             if [ -n "$number" ]; then
               gh issue close "$number" --comment "Scheduled run is green again: $RUN_URL"
             fi
             exit 0
           fi
-          failed=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure") | "- " + .name] | join("\n")')
+          failed=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | "- " + .name] | join("\n")')
+          if [ -z "$failed" ]; then
+            failed="- (no failed job recorded; see the run)"
+          fi
           body="Scheduled ci run failed: $RUN_URL"$'\n\n'"Failed jobs:"$'\n'"$failed"
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"

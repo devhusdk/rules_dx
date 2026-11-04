@@ -10,7 +10,6 @@
 //cli/cli/tests/affected:affected_incompatible_test
 //cli/cli/tests/affected:affected_test
 //cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
-//cli/cli/tests/latency:bazel_latency_test
 //cli/cli/tests/results_consumer:quality_results_consumer_test
 //cli/cli/tests/results_consumer:test_results_consumer_test
 //dart/tests/negative:negative_test

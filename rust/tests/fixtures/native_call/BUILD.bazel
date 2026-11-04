@@ -6,7 +6,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
 load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_tool_inputs_test")
 
 package(
@@ -122,6 +122,14 @@ rust_library(
     edition = "2021",
     link_deps = [":native_c"],
     deps = [":native_call_build_script"],
+)
+
+rust_binary(
+    name = "native_call_bin",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":native_call"],
 )
 
 rust_test(

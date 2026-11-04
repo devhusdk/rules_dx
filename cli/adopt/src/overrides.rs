@@ -134,6 +134,16 @@ pub const OVERRIDES: &[Override] = &[
                 file: "runtime_libs.patch",
                 content: include_str!("../../../patches/gcc_toolchain/runtime_libs.patch"),
             },
+            OverridePatch {
+                file: "target_identity_config.patch",
+                content: include_str!(
+                    "../../../patches/gcc_toolchain/target_identity_config.patch"
+                ),
+            },
+            OverridePatch {
+                file: "target_identity_defs.patch",
+                content: include_str!("../../../patches/gcc_toolchain/target_identity_defs.patch"),
+            },
         ],
     },
     Override {

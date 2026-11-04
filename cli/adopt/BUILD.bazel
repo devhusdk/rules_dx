@@ -40,6 +40,8 @@ dx_rust_crate(
         "//patches/fmt:cstdlib.patch",
         "//patches/gcc_toolchain:runtime_libs.patch",
         "//patches/gcc_toolchain:sanitizer_spec.patch",
+        "//patches/gcc_toolchain:target_identity_config.patch",
+        "//patches/gcc_toolchain:target_identity_defs.patch",
         "//patches/protobuf:no_crate_universe.patch",
         "//patches/rules_julia:package_name.patch",
         "//patches/rules_rust:msvc_stdlib_linkflags.patch",

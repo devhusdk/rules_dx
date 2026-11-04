@@ -36,6 +36,8 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes with libc++ |
 | `fmt` | 11.1.4 | `cstdlib.patch` | Missing `<cstdlib>` include with libc++ |
 | `gcc_toolchain` | 0.13.0 | `sanitizer_spec.patch` | Ships `libsanitizer.spec` so GCC `-fsanitize=` links in the sandbox |
+| `gcc_toolchain` | 0.13.0 | `target_identity_config.patch` | `cc_toolchain_config` takes `target_libc` and `target_system_name` and reports them instead of `local` |
+| `gcc_toolchain` | 0.13.0 | `target_identity_defs.patch` | Repository rule passes `target_libc` and `<arch>-linux-gnu` into the generated toolchain |
 | `windows_support` | 0.4.1 | `host_tools.patch` | Opt-in `host_tools` tag keeps the MSVC compiler tools and Windows SDK `bin` (hermeticbuild/windows_support#19) |
 
 The trade-off: a `single_version_override` pins the module for the whole

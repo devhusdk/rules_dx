@@ -1,0 +1,50 @@
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "FLUTTER_DEFERRED_SKIP_TAGS", "flutter_deferred_tags")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["defs.bzl"])
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "lint and typecheck stay skipped",
+            FLUTTER_DEFERRED_SKIP_TAGS,
+            [
+                "no-lint",
+                "no-typecheck",
+            ],
+        ),
+        expect_equal(
+            "skip tags are appended once",
+            flutter_deferred_tags([
+                "no-lint",
+                "x",
+            ]),
+            [
+                "no-lint",
+                "x",
+                "no-typecheck",
+            ],
+        ),
+    ],
+    file_classes = ["dart"],
+    known_gaps = {"library": {"upstream_instrumented": "False"}},
+    wrappers = {
+        "library": "//flutter/tests/runtime:lib",
+        "test": "//flutter/tests/runtime:widget_test",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

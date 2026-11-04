@@ -533,10 +533,10 @@ bazel_dep(name = "rules_flutter", version = "0.0.8", dev_dependency = True)
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
 flutter.toolchain(flutter_version = "3.47.8")
 flutter.pub(
-    name = "dx_flutter_probe_deps",
-    lock = "//flutter/tests/probe:pubspec.lock",
+    name = "dx_flutter_deps",
+    lock = "//flutter/tests/runtime:pubspec.lock",
 )
-use_repo(flutter, "dx_flutter_probe_deps", "flutter_toolchains", "flutter_web_sdk")
+use_repo(flutter, "dx_flutter_deps", "flutter_toolchains", "flutter_web_sdk")
 
 register_toolchains("@flutter_toolchains//:all", dev_dependency = True)
 

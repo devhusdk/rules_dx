@@ -1,5 +1,7 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
-load("//python/rules:defs.bzl", "python_py_test")
+load("//python/rules:defs.bzl", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -13,7 +15,25 @@ py_extension(
     imports = ["."],
 )
 
-python_py_test(
+cc_library(
+    name = "dxhelper",
+    srcs = ["dxhelper.cc"],
+)
+
+cc_shared_library(
+    name = "dxhelper_shared",
+    deps = [":dxhelper"],
+)
+
+py_extension(
+    name = "dxlinked",
+    srcs = ["dxlinked.cc"],
+    dynamic_deps = [":dxhelper_shared"],
+    imports = ["."],
+    deps = [":dxhelper"],
+)
+
+python_test(
     name = "native_ext_test",
     srcs = ["native_ext_test.py"],
     aspect_hints = ["//:ruff_config"],
@@ -24,11 +44,15 @@ python_py_test(
         "@rules_cc//cc/compiler:clang-cl": {"DX_EXPECTED_COMPILER": "clang-cl"},
     }),
     imports = ["."],
+    runner = "plain",
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = [":dxnative"],
+    deps = [
+        ":dxlinked",
+        ":dxnative",
+    ],
 )
 
 real_source_target(
@@ -43,6 +67,20 @@ real_source_target(
     name = "corpus_cpp",
     testonly = True,
     aspect_hints = ["//:clang_format_config"],
-    cpp_srcs = ["dxnative.cc"],
+    cpp_srcs = [
+        "dxhelper.cc",
+        "dxlinked.cc",
+        "dxnative.cc",
+    ],
     tags = ["corpus"],
+)
+
+cc_library(
+    name = "native_ext",
+    testonly = True,
+    srcs = [
+        "dxhelper.cc",
+        "dxlinked.cc",
+        "dxnative.cc",
+    ],
 )

@@ -50,6 +50,7 @@ dx_rust_crate(
         "//patches/rules_rust:crate_universe_root_lookup.patch",
         "//patches/rules_rust:exec_cc_toolchain_env.patch",
         "//patches/windows_support:host_tools.patch",
+        "//patches/windows_support:rules_dx_hosts.patch",
     ],
     dev_deps = [
         "insta",

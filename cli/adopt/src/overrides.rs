@@ -159,10 +159,16 @@ pub const OVERRIDES: &[Override] = &[
         module: "windows_support",
         version: "0.4.1",
         patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "host_tools.patch",
-            content: include_str!("../../../patches/windows_support/host_tools.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "host_tools.patch",
+                content: include_str!("../../../patches/windows_support/host_tools.patch"),
+            },
+            OverridePatch {
+                file: "rules_dx_hosts.patch",
+                content: include_str!("../../../patches/windows_support/rules_dx_hosts.patch"),
+            },
+        ],
     },
 ];
 

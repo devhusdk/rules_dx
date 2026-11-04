@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_nested::{self as nested, Case};
+use dx_nested::{self as nested, footprint, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const MODULE: &str = r#"module(name = "consumer")
@@ -174,9 +174,13 @@ fn consumer_build(example: &str) -> String {
 }
 
 fn consumer() -> Case {
+    consumer_in("consumer")
+}
+
+fn consumer_in(name: &str) -> Case {
     let rules = rules_dx_root();
     let versions = read(&rules.join("modules/versions.bzl"));
-    let case = nested::case("consumer");
+    let case = nested::case(name);
     let root = case.root().to_path_buf();
     write(
         &root.join(".bazelversion"),
@@ -485,6 +489,52 @@ fn typecheck_reports_a_type_error_at_its_position() {
     );
 }
 
+fn footprint_after(case: &Case, command: &str) -> footprint::Footprint {
+    let workspace = case.to_string_lossy().into_owned();
+    let ran = case.run(
+        &dx_bin(),
+        &[command, "--workspace", &workspace, "//ledger/..."],
+        &[],
+    );
+    assert_eq!(
+        ran.status.code(),
+        Some(0),
+        "dx {command}:\n{}",
+        ran.combined()
+    );
+    let graph = case.bazel(&["mod", "graph", "--output=json"]);
+    assert_eq!(graph.status.code(), Some(0), "{}", graph.combined());
+    let info = case.bazel(&["info", "output_base"]);
+    assert_eq!(info.status.code(), Some(0), "{}", info.combined());
+    let external = PathBuf::from(info.stdout.trim()).join("external");
+    footprint::measure(
+        &graph.stdout,
+        &read(&case.root().join("MODULE.bazel.lock")),
+        &external,
+    )
+    .unwrap_or_else(|error| panic!("{error}"))
+}
+
+#[test]
+fn the_consumer_stays_within_its_budget() {
+    let budget_path = std::env::var("DX_PYTHON_BUDGET")
+        .unwrap_or_else(|_| panic!("DX_PYTHON_BUDGET must name the budget"));
+    let budget: serde_json::Value = serde_json::from_str(&read(&resolve_runfiles(&budget_path)))
+        .unwrap_or_else(|error| panic!("{budget_path}: {error}"));
+    let case = consumer_in("budget");
+    let mut failures = Vec::new();
+    for (stage, command) in [("after_test", "test"), ("after_check", "check")] {
+        let measured = footprint_after(&case, command);
+        eprintln!("footprint {stage}: {}", measured.to_json());
+        if cfg!(target_os = "linux") {
+            if let Err(error) = footprint::check_budget(&measured, &budget[stage]) {
+                failures.push(format!("{stage}:\n{error}"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 #[test]
 fn init_adopts_an_existing_python_tree() {
     let dir = mkscratch("python-service-adopt").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -507,11 +557,7 @@ fn init_adopts_an_existing_python_tree() {
     assert!(!dir.join(".dx/version").exists());
     let applied = invoke(&["init", "--apply"]);
     assert_eq!(applied.status.code(), Some(0), "{applied:?}");
-    for file in [
-        ".dx/version",
-        ".bazelignore",
-        ".github/workflows/ci.yml",
-    ] {
+    for file in [".dx/version", ".bazelignore", ".github/workflows/ci.yml"] {
         assert!(dir.join(file).is_file(), "{file} missing");
     }
     assert_eq!(read(&dir.join("app/main.py")), "print(\"hi\")\n");

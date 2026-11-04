@@ -81,6 +81,7 @@ rust_library(
     name = "dx_nested",
     srcs = [
         "src/compose.rs",
+        "src/footprint.rs",
         "src/nested.rs",
     ],
     crate_name = "dx_nested",

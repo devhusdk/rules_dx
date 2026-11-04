@@ -10,6 +10,7 @@
 )]
 
 pub mod compose;
+pub mod footprint;
 
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;

@@ -11,9 +11,11 @@ rust_test(
         "//:MODULE.bazel.lock",
         "//cli/cli:dx",
         "//examples/python-service:consumer_srcs",
+        "//modules:python_budget.json",
     ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_PYTHON_BUDGET": "$(rootpath //modules:python_budget.json)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV | CONSUMER_MAVEN_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
@@ -21,6 +23,7 @@ rust_test(
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

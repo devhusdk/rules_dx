@@ -2093,14 +2093,10 @@ D_DFMT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "d",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "dfmt",
     "transport": "batched",
-    "unsupported": {
-        "windows_arm64": "No Windows runner matrix case yet (#5967)",
-        "windows_x86_64": "No Windows runner matrix case yet (#5967)",
-    },
 }
 
 D_DSCANNER_LINT_SUPPORT = {
@@ -2111,14 +2107,10 @@ D_DSCANNER_LINT_SUPPORT = {
     "execution": "direct",
     "family": "d",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "dscanner",
     "transport": "batched",
-    "unsupported": {
-        "windows_arm64": "No Windows runner matrix case yet (#5967)",
-        "windows_x86_64": "No Windows runner matrix case yet (#5967)",
-    },
 }
 
 SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT = {

@@ -363,6 +363,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "dfmt and dscanner claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["dfmt", "dscanner"]], RUNNER_MATRIX_CASES),
+                [],
+            ),
+            expect_equal(
                 "ruby claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["rubocop", "standardrb"]], RUNNER_MATRIX_CASES),
                 [],

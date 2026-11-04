@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
+load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(
     ":pins.bzl",
     "CELLS",
@@ -101,13 +102,14 @@ def _pin_checks():
             "xcb-util-wm",
         ]),
         expect_false("arm64 gui closure skips krb5", "krb5-libs" in _closure_packages("linux_arm64", "gui")),
-        expect_equal("blocked cells carry no runtime", [cell for cell in CELLS if CELLS[cell].blocker != "" and (CELLS[cell].runtime != None or CELLS[cell].release != "")], []),
+        expect_equal("blocked cells carry no runtime", [cell for cell in CELLS if CELLS[cell].blocker != "" and CELLS[cell].runtime != None], []),
         expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and CELLS[cell].layout != LINUX_LAYOUT], []),
-        expect_equal("blocked cells name no layout", [cell for cell in CELLS if CELLS[cell].blocker != "" and CELLS[cell].layout != None], []),
+        expect_equal("windows layout names import libraries", [WINDOWS_LAYOUT.library("Core"), WINDOWS_LAYOUT.shared("Core")], ["Qt6Core.lib", "bin/Qt6Core.dll"]),
+        expect_equal("windows layout runs tools from bin", [WINDOWS_LAYOUT.tool("libexec/moc"), WINDOWS_LAYOUT.tool("bin/lrelease")], ["bin/moc.exe", "bin/lrelease.exe"]),
         expect_equal("linux layout names libraries by soname", LINUX_LAYOUT.library("Core"), "libQt6Core.so.6"),
         expect_equal("macos layout names libraries by framework binary", MACOS_LAYOUT.library("Core"), "QtCore.framework/Versions/A/QtCore"),
         expect_equal("layouts name their link kind", [LINUX_LAYOUT.link, MACOS_LAYOUT.link], ["srcs", "framework"]),
-        expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
+        expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("macos extractor binary", EXTRACTORS["macos_arm64"].binary, "7zz"),
         expect_equal("runtime mirror is the vault root", RUNTIME_MIRROR, "https://vault.almalinux.org"),
         expect_equal("library license", QT_LIBRARY_LICENSE, "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"),
@@ -115,7 +117,7 @@ def _pin_checks():
         expect_equal("pin errors", pin_errors(), []),
         expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
-        expect_equal("blocked cells carry no artifacts", [cell for cell in CELLS if CELLS[cell].blocker != "" and len(CELLS[cell].archives) > 0], []),
+        expect_equal("blocked cells pass the pin checks", [cell for cell in CELLS if CELLS[cell].blocker != "" and cell_errors(cell, CELLS[cell]) != []], []),
         expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
         expect_equal("qttools keeps lrelease only", MODULES["qttools"].files, ["bin/lrelease", "modules/Linguist.json", "sbom/qttools-6.11.3.spdx.json"]),
         expect_equal("default modules", DEFAULT_MODULES, ["qtbase"]),
@@ -277,6 +279,7 @@ def _layout(**kwargs):
         "display_plugins": {},
         "icu_libraries": [],
         "launcher": "posix",
+        "tool": LINUX_LAYOUT.tool,
         "library": LINUX_LAYOUT.library,
         "link": "srcs",
         "os": "macos",
@@ -313,7 +316,7 @@ def _seam_checks():
             "cell 'linux_x' pins no 'icu' archive",
         ]),
         expect_equal("qualified cell needs a layout", cell_errors("bare", _cell(None)), ["cell 'bare' names no layout"]),
-        expect_equal("layout launcher is known", cell_errors("odd", _cell(_layout(launcher = "win32"))), ["cell 'odd' layout launcher 'win32' is not one of posix"]),
+        expect_equal("layout launcher is known", cell_errors("odd", _cell(_layout(launcher = "win32"))), ["cell 'odd' layout launcher 'win32' is not one of exec, posix"]),
     ]
 
 def _url_checks():
@@ -396,6 +399,7 @@ def _build_checks():
     tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     macos = cell_build("macos_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     macos_full = cell_build("macos_arm64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    windows = cell_build("windows_x86_64", ["qtbase", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", tool = "//qt/sdk:tool.bzl")
     all_modules = sorted(MODULES.keys())
     return [
         expect_equal("every qualified cell defines every hub target", [
@@ -458,8 +462,13 @@ def _build_checks():
         expect_contains("arm64 core closure links zlib-ng", arm64, '"lib/libz.so.1"'),
         expect_false("arm64 core closure skips pcre", '"lib/libpcre.so.1"' in arm64),
         expect_contains("hub guards other platforms", hub, no_match_error()),
-        expect_contains("no-match names blocked cells", no_match_error(), "windows_x86_64 (no runtime closure or probe evidence is pinned for windows_x86_64)"),
+        expect_contains("no-match names blocked cells", no_match_error(), "windows_x86_64 (MSVC toolchain and Windows probe evidence pending (#4815, #5972))"),
         expect_contains("no-match names the qualified cells", no_match_error(), "qualified: linux_arm64, linux_x86_64, macos_arm64;"),
+        expect_contains("windows cell imports core", windows, '    interface_library = "lib/Qt6Core.lib",\n    shared_library = "bin/Qt6Core.dll",'),
+        expect_contains("windows core depends on its import", windows, '    deps = [":core_import"'),
+        expect_contains("windows cell launches moc", windows, 'qt_tool(\n    name = "moc",\n    program = "bin/moc.exe",'),
+        expect_contains("windows cell loads qt_tool", windows, 'load("//qt/sdk:tool.bzl", "qt_tool")'),
+        expect_false("windows cell writes no c launchers", "launcher/launcher.c" in windows),
         expect_contains("base cell links core", base, '    srcs = ["lib/libQt6Core.so.6"],'),
         expect_contains("base cell refuses qml", base, "    name = \"qml\",\n    reason = \"enable module 'qtdeclarative' in qt_sdk.configure(modules = ...)\","),
         expect_false("base cell builds no qmllint", 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]' in base),
@@ -630,7 +639,7 @@ def _consumer_checks():
         expect_equal("consumer spec is JSON", _errors("{"), ["cell 'custom' spec is not a JSON object"]),
         expect_equal("consumer cell names are plain", consumer_cells([_tag(_spec(), "Bad-Name")])[1], ["cell 'Bad-Name' name is not made of lowercase letters, digits and '_'"]),
         expect_equal("consumer cell names avoid hub targets", consumer_cells([_tag(_spec(), "core")])[1], ["cell 'core' name is taken by a @dx_qt target"]),
-        expect_equal("consumer layouts are known", consumer_cells([_tag(_spec(), layout = "windows")])[1], ["cell 'custom' layout 'windows' is not one of linux, macos"]),
+        expect_equal("consumer layouts are known", consumer_cells([_tag(_spec(), layout = "bsd")])[1], ["cell 'custom' layout 'bsd' is not one of linux, macos, windows"]),
         expect_equal("consumer cells are declared once", consumer_cells([_tag(_spec()), _tag(_spec())])[1], ["cell 'custom' is declared twice"]),
         expect_equal("consumer constraints set the cell apart", consumer_cells([_tag(_spec(), constraints = pinned)])[1], ["cell 'custom' constraints match cell 'linux_x86_64'; add a constraint that sets it apart"]),
         expect_equal("a consumer cell replaces its pinned namesake", consumer_cells([_tag(_spec(), "linux_x86_64", ["@platforms//os:linux", "@platforms//cpu:x86_64"])])[1], []),

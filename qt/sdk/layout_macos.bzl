@@ -3,6 +3,9 @@
 def _library(name):
     return "Qt" + name + ".framework/Versions/A/Qt" + name
 
+def _tool(path):
+    return path
+
 LAYOUT = struct(
     display_plugins = {},
     icu_libraries = [],
@@ -25,4 +28,5 @@ LAYOUT = struct(
             "plugins/tls/libqsecuretransportbackend.dylib",
         ],
     },
+    tool = _tool,
 )

@@ -1,7 +1,7 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
 load("//libs/starlark:repo.bzl", "hub_repo")
-load("//libs/starlark:seven_zip.bzl", "seven_zip_host")
+load("//libs/starlark:seven_zip.bzl", "seven_zip_fetch", "seven_zip_host")
 load(
     ":pins.bzl",
     "CELLS",
@@ -92,7 +92,7 @@ _QML = [":qml", ":network", ":core"]
 
 _CLOSURE_DEPS = [":closure", ":gui_closure"]
 
-_LAUNCHERS = {"posix": "_launcher"}
+_LAUNCHERS = {"exec": "", "posix": "_launcher"}
 
 _LIBRARIES = {
     "core": struct(define = "QT_CORE_LIB", deps = [":closure"], headers = ["QtCore"], module = "qtbase", name = "Core"),
@@ -196,9 +196,10 @@ def cell_errors(cell, entry):
     if len(entry.constraints) == 0:
         errors.append("cell '" + cell + "' names no platform constraints")
     if entry.blocker != "":
-        if len(entry.archives) > 0 or entry.directory != "" or entry.release != "" or entry.runtime != None:
-            errors.append("cell '" + cell + "' is blocked but names archives")
-        return errors
+        if len(entry.archives) == 0:
+            if entry.directory != "" or entry.release != "" or entry.runtime != None:
+                errors.append("cell '" + cell + "' is blocked but names a release")
+            return errors
     if entry.directory == "":
         errors.append("cell '" + cell + "' names no repository directory")
     elif not _is_relative(entry.directory, "?#:"):
@@ -586,14 +587,26 @@ def _unsupported(name, reason):
 def _library(name, spec, layout, closures):
     deps = [dep for dep in spec.deps if closures or dep not in _CLOSURE_DEPS]
     library = "lib/" + layout.library(spec.name)
-    if layout.link == "framework":
+    lines = []
+    if layout.link == "import":
+        lines.extend([
+            "cc_import(",
+            '    name = "%s_import",' % name,
+            '    interface_library = "%s",' % library,
+            '    shared_library = "%s",' % layout.shared(spec.name),
+            ")",
+            "",
+        ])
+        link = []
+        deps = [":" + name + "_import"] + deps
+    elif layout.link == "framework":
         link = [
             '    additional_linker_inputs = ["%s"],' % library,
             '    linkopts = ["$(execpath %s)"],' % library,
         ]
     else:
         link = ['    srcs = ["%s"],' % library]
-    return [
+    return lines + [
         "cc_library(",
         '    name = "%s",' % name,
     ] + link + [
@@ -605,9 +618,19 @@ def _library(name, spec, layout, closures):
         "",
     ]
 
-def _tool(name):
+def _tool(name, layout):
     tool = TOOLS[name]
-    data = ['"%s"' % tool.path] + ['"%s"' % label for label in tool.data] + ['":runtime"']
+    path = layout.tool(tool.path)
+    if layout.launcher == "exec":
+        return [
+            "qt_tool(",
+            '    name = "%s",' % name,
+            '    program = "%s",' % path,
+            "    data = [%s]," % ", ".join(['"%s"' % label for label in tool.data] + ['":runtime"']),
+            ")",
+            "",
+        ]
+    data = ['"%s"' % path] + ['"%s"' % label for label in tool.data] + ['":runtime"']
     return [
         "cc_binary(",
         '    name = "%s",' % name,
@@ -659,15 +682,19 @@ def _needs(cell, needs):
         "",
     ]
 
-def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS):
+def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool = ""):
     """Returns the BUILD file of one acquired cell for the enabled modules."""
     entry = cells[cell]
     layout = entry.layout
     lines = [
-        'load("%s", "cc_binary", "cc_library")' % rules_cc,
+        'load("%s", "cc_binary", "cc_import", "cc_library")' % rules_cc,
         'load("%s", "qt_needs")' % needs,
         'load("%s", "qt_unsupported")' % unsupported,
         "",
+    ]
+    if layout.launcher == "exec":
+        lines.insert(3, 'load("%s", "qt_tool")' % tool)
+    lines += [
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
@@ -726,7 +753,7 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS):
         ])
     for name in sorted(TOOLS.keys()):
         if name in enabled:
-            lines.extend(_tool(name))
+            lines.extend(_tool(name, layout))
     defined = {}
     for line in lines:
         if line.startswith('    name = "'):
@@ -821,17 +848,12 @@ def _qt_cell_repo_impl(ctx):
     extractor = EXTRACTORS[host]
     entry = cells[ctx.attr.cell]
     layout = entry.layout
-    ctx.download_and_extract(
-        url = extractor.url,
-        output = _EXTRACT + "/7zip",
-        sha256 = extractor.sha256,
-        canonical_id = canonical_id_for(extractor.url),
-    )
+    seven_zip_fetch(ctx, _EXTRACT + "/7zip")
     for key in _archive_keys(entry) + ctx.attr.modules:
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror, cells)
         archive = _EXTRACT + "/" + entry.archives[key].archive
         ctx.download(url = url, output = archive, sha256 = entry.archives[key].sha256, canonical_id = canonical_id_for(url))
-        kept = MODULES[key].files if key in MODULES else []
+        kept = [layout.tool(path) if path.startswith("bin/") else path for path in MODULES[key].files] if key in MODULES else []
         _extract(ctx, extractor, archive, _EXTRACT + "/" + key if key == "icu" or len(kept) > 0 else ".", links = True)
         for path in kept:
             _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
@@ -854,9 +876,10 @@ def _qt_cell_repo_impl(ctx):
     if "qttools" in ctx.attr.modules:
         _check_module(ctx, "Linguist")
     ctx.delete(_EXTRACT)
-    ctx.file("launcher/launcher.c", ctx.read(getattr(ctx.attr, _LAUNCHERS[layout.launcher])))
-    for name in sorted(TOOLS.keys()):
-        ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
+    if layout.launcher == "posix":
+        ctx.file("launcher/launcher.c", ctx.read(getattr(ctx.attr, _LAUNCHERS[layout.launcher])))
+        for name in sorted(TOOLS.keys()):
+            ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(
         ctx.attr.cell,
         ctx.attr.modules,
@@ -864,6 +887,7 @@ def _qt_cell_repo_impl(ctx):
         str(Label("//qt/sdk:unsupported.bzl")),
         str(Label("//qt/sdk:needs.bzl")),
         cells,
+        str(Label("//qt/sdk:tool.bzl")),
     ))
     return ctx.repo_metadata(reproducible = True)
 

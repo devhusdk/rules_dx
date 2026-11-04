@@ -3,6 +3,9 @@
 def _library(name):
     return "libQt6" + name + ".so.6"
 
+def _tool(path):
+    return path
+
 LAYOUT = struct(
     display_plugins = {
         "wayland": [
@@ -37,4 +40,5 @@ LAYOUT = struct(
             "plugins/tls/libqopensslbackend.so",
         ],
     },
+    tool = _tool,
 )

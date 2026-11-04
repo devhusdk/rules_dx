@@ -5,7 +5,9 @@ load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
 load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL")
+load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")
 load(":macos_arm64.bzl", MACOS_ARM64 = "CELL")
+load(":windows_x86_64.bzl", WINDOWS_X86_64 = "CELL")
 
 QT_VERSION = "6.11.3"
 
@@ -45,29 +47,16 @@ DEFAULT_MODULES = ["qtbase"]
 
 RUNTIME_PLUGINS = LINUX_LAYOUT.runtime_plugins
 
-LAYOUTS = {"linux": LINUX_LAYOUT, "macos": MACOS_LAYOUT}
+LAYOUTS = {"linux": LINUX_LAYOUT, "macos": MACOS_LAYOUT, "windows": WINDOWS_LAYOUT}
 
 CELLS = {
     "linux_arm64": LINUX_ARM64,
     "linux_x86_64": LINUX_X86_64,
     "macos_arm64": MACOS_ARM64,
-    "windows_x86_64": struct(
-        archives = {},
-        blocker = "no runtime closure or probe evidence is pinned for windows_x86_64",
-        constraints = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-        directory = "",
-        layout = None,
-        needs = None,
-        release = "",
-        runtime = None,
-    ),
+    "windows_x86_64": WINDOWS_X86_64,
 }
 
-EXTRACTORS = {
-    host: extractor
-    for host, extractor in SEVEN_ZIP_EXTRACTORS.items()
-    if not host.startswith("windows_")
-}
+EXTRACTORS = SEVEN_ZIP_EXTRACTORS
 
 LICENSE_TEXTS = {
     "icu/LICENSE": struct(

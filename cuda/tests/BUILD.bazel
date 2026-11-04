@@ -29,7 +29,7 @@ rust_test(
 cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
-    archs = [
+    platforms = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -91,7 +91,7 @@ hermetic_toolchain_test(
 cuda_test(
     name = "rdc_gpu_test",
     srcs = ["rdc_gpu_test.cu"],
-    archs = [
+    platforms = [
         "sm_89",
         "sm_120",
     ],
@@ -114,7 +114,7 @@ rust_test(
 )
 
 cuda_gpu_check(
-    name = "gpu_cc_below_archs",
+    name = "gpu_cc_below_platforms",
     archs = ["sm_89"],
     min_compute_capability = "7.5",
     min_driver = "13.0",
@@ -122,9 +122,9 @@ cuda_gpu_check(
 )
 
 failure_test(
-    name = "gpu_cc_below_archs_failure_test",
-    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in archs (8.9)",
-    target = ":gpu_cc_below_archs",
+    name = "gpu_cc_below_platforms_failure_test",
+    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in platforms (8.9)",
+    target = ":gpu_cc_below_platforms",
     target_compatible_with = CUDA_TARGET,
 )
 
@@ -146,7 +146,7 @@ rust_test(
 cuda_test(
     name = "cublas_gpu_test",
     srcs = ["cublas_gpu_test.cu"],
-    archs = [
+    platforms = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -189,23 +189,23 @@ hermetic_toolchain_test(
 )
 
 cuda_library(
-    name = "missing_archs",
+    name = "missing_platforms",
     srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
-    archs = [],
+    platforms = [],
     tags = ["manual"],
 )
 
 failure_test(
-    name = "missing_archs_failure_test",
-    expected_failure_substring = "dx_cuda: archs is empty",
-    target = ":missing_archs",
+    name = "missing_platforms_failure_test",
+    expected_failure_substring = "dx_cuda: platforms is empty",
+    target = ":missing_platforms",
     target_compatible_with = CUDA_TARGET,
 )
 
 cuda_library(
     name = "unsupported_arch",
     srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
-    archs = ["sm_70"],
+    platforms = ["sm_70"],
     tags = ["manual"],
 )
 

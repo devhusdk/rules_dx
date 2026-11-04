@@ -65,12 +65,12 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 		return language.GenerateResult{}
 	}
 
-	var archs []string
+	var platforms []string
 	if args.Config != nil {
-		archs, _ = args.Config.Exts[archsDirective].([]string)
+		platforms, _ = args.Config.Exts[platformsDirective].([]string)
 	}
-	if len(archs) == 0 {
-		rep.Fail(common.InPackage(args.Rel), "cc: %s: .cu/.cuh files need # gazelle:%s <arch>...", args.Rel, archsDirective)
+	if len(platforms) == 0 {
+		rep.Fail(common.InPackage(args.Rel), "cc: %s: .cu/.cuh files need # gazelle:%s <arch>...", args.Rel, platformsDirective)
 		return language.GenerateResult{}
 	}
 
@@ -121,7 +121,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 	if len(hdrs) > 0 {
 		r.SetAttr("hdrs", hdrs)
 	}
-	r.SetAttr("archs", archs)
+	r.SetAttr("platforms", platforms)
 	if common.IsFixturePath(args.Rel) {
 		r.SetAttr("testonly", true)
 	}

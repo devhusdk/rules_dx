@@ -12,5 +12,5 @@ cuda_library(
     name = "newgpu_cuda",
     srcs = ["kernel.cu"],
     hdrs = ["kernel.cuh"],
-    archs = ["sm_89"],
+    platforms = ["sm_89"],
 )

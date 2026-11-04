@@ -14,7 +14,7 @@ cuda_binary(
         "main.cc",
     ],
     hdrs = ["add.h"],
-    archs = _ARCHS,
+    platforms = _ARCHS,
     target_compatible_with = CUDA_TARGET,
 )
 
@@ -25,7 +25,7 @@ cuda_binary(
         "rdc_main.cc",
     ],
     hdrs = ["add.h"],
-    archs = _ARCHS,
+    platforms = _ARCHS,
     rdc = True,
     target_compatible_with = CUDA_TARGET,
     deps = ["//cuda/tests/fixtures/rdc:axpy"],
@@ -38,7 +38,7 @@ cuda_test(
         "main.cc",
     ],
     hdrs = ["add.h"],
-    archs = _ARCHS,
+    platforms = _ARCHS,
     target_compatible_with = CUDA_TARGET,
 )
 
@@ -49,7 +49,7 @@ cuda_test(
         "rdc_main.cc",
     ],
     hdrs = ["add.h"],
-    archs = _ARCHS,
+    platforms = _ARCHS,
     rdc = True,
     target_compatible_with = CUDA_TARGET,
     deps = ["//cuda/tests/fixtures/rdc:axpy"],

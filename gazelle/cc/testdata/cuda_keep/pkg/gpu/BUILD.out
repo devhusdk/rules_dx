@@ -5,7 +5,7 @@ cuda_library(
     name = "kernel",
     srcs = ["kernel.cu"],
     hdrs = ["kernel.cuh"],
-    archs = ["sm_89"],
+    platforms = ["sm_89"],
 )
 
 cc_library(

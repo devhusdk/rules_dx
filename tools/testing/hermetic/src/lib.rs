@@ -213,7 +213,6 @@ pub struct Manifest {
     pub covered: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: Option<PathBuf>,
-    pub fragment_before_toolchains: bool,
     pub families: Vec<String>,
     pub dx: PathBuf,
     pub module_file: PathBuf,
@@ -357,9 +356,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let failures = parse_failures(&value)?;
     let (coverage, covered) = parse_coverage(&value, &files)?;
     let fragment = value["module_fragment"].as_str().unwrap_or("");
-    let fragment_before_toolchains = value["fragment_before_toolchains"]
-        .as_bool()
-        .unwrap_or(false);
     let families = if value["families"].is_null() {
         Vec::new()
     } else {
@@ -386,7 +382,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         covered,
         files,
         module_fragment,
-        fragment_before_toolchains,
         families,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
@@ -1219,7 +1214,6 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         &manifest.module,
         &manifest.repo_name,
         &fragment,
-        manifest.fragment_before_toolchains,
         source,
     )?;
     let module = format!("{module}{}", family_modules(&manifest.families, source));

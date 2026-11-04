@@ -6,28 +6,6 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// Inserts `fragment` before the first `register_toolchains(` line of `setup`.
-fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, String> {
-    let mut at = None;
-    let mut offset = 0;
-    for line in setup.split_inclusive('\n') {
-        if line.starts_with("register_toolchains(") {
-            at = Some(offset);
-            break;
-        }
-        offset += line.len();
-    }
-    let Some(at) = at else {
-        return Ok(format!("{}\n{}", setup.trim_end(), fragment.trim_end()));
-    };
-    Ok(format!(
-        "{}{}\n\n{}",
-        &setup[..at],
-        fragment.trim_end(),
-        &setup[at..]
-    ))
-}
-
 pub fn rules_dx_override(rules_dx: &Path) -> String {
     format!(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
@@ -55,14 +33,12 @@ pub fn family_modules(families: &[String], source: &Path) -> String {
 ///
 /// Its `module()` line is replaced by one named `module`.
 ///
-/// The fragment is appended, or with `before_toolchains` placed ahead of the snippet's first
-/// toolchain registration so its own registrations resolve first.
+/// The fragment is appended.
 pub fn compose_module(
     snippet: &str,
     module: &str,
     repo_name: &str,
     fragment: &str,
-    before_toolchains: bool,
     rules_dx: &Path,
 ) -> Result<String, String> {
     let snippet = snippet
@@ -84,13 +60,7 @@ pub fn compose_module(
             1,
         )
     };
-    let body = if before_toolchains {
-        insert_before_toolchains(&setup, fragment)?
-            .trim_end()
-            .to_owned()
-    } else {
-        format!("{}\n{}", setup.trim_end(), fragment.trim_end())
-    };
+    let body = format!("{}\n{}", setup.trim_end(), fragment.trim_end());
     Ok(format!(
         "module(name = {})\n\n{}\n{}",
         starlark_string(module),
@@ -122,7 +92,6 @@ mod tests {
             "hermetic_consumer",
             "my_dx",
             "bazel_dep(name = \"googletest\", version = \"1.18.0\")\n",
-            false,
             Path::new("/src/rules dx"),
         )
         .unwrap();
@@ -135,7 +104,7 @@ mod tests {
     #[test]
     fn module_replaces_the_init_module_line() {
         let written = format!("module(name = \"my_project\")\n\n{SNIPPET}");
-        let module = compose_module(&written, "m", "rules_dx", "", false, Path::new("/s")).unwrap();
+        let module = compose_module(&written, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert!(
             module.starts_with("module(name = \"m\")\n\nbazel_dep("),
             "{module}"
@@ -146,7 +115,7 @@ mod tests {
     #[test]
     fn module_keeps_the_default_name_unrenamed() {
         let module =
-            compose_module(SNIPPET, "m", "rules_dx", "", false, Path::new("/src")).unwrap();
+            compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/src")).unwrap();
         assert!(module.contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"));
         assert!(!module.contains("repo_name"));
     }
@@ -154,7 +123,7 @@ mod tests {
     #[test]
     fn module_escapes_quotes_in_the_override_path() {
         let module =
-            compose_module(SNIPPET, "m", "my_dx", "", false, Path::new("/a\"b\\c")).unwrap();
+            compose_module(SNIPPET, "m", "my_dx", "", Path::new("/a\"b\\c")).unwrap();
         assert!(module.contains("path = \"/a\\\"b\\\\c\","), "{module}");
     }
 
@@ -165,50 +134,18 @@ mod tests {
             "m",
             "x",
             "",
-            false,
             Path::new("/"),
         );
         assert!(missing.unwrap_err().contains("exactly once"));
         let twice = format!("{SNIPPET}{SNIPPET}");
-        assert!(compose_module(&twice, "m", "x", "", false, Path::new("/")).is_err());
+        assert!(compose_module(&twice, "m", "x", "", Path::new("/")).is_err());
     }
 
     #[test]
-    fn module_puts_the_fragment_before_the_first_toolchain_registration_on_request() {
-        let module = compose_module(
-            SNIPPET,
-            "m",
-            "my_dx",
-            "register_toolchains(\"@x//:all\")\n\n",
-            true,
-            Path::new("/src"),
-        )
-        .unwrap();
-        assert_eq!(
-            module,
-            "module(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@x//:all\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n"
-        );
-    }
-
-    #[test]
-    fn module_appends_the_fragment_when_the_snippet_registers_nothing() {
-        let module = compose_module(
-            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
-            "m",
-            "rules_dx",
-            "register_toolchains(\"@x//:all\")\n",
-            true,
-            Path::new("/src"),
-        )
-        .unwrap();
-        assert!(module.contains("0.0.0\")\nregister_toolchains(\"@x//:all\")\nlocal_path"));
-    }
-
-    #[test]
-    fn module_appends_the_fragment_unchanged_without_the_flag() {
+    fn module_appends_the_fragment_after_the_snippet() {
         let fragment = "register_toolchains(\"@x//:all\")\n";
         let module =
-            compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
+            compose_module(SNIPPET, "m", "my_dx", fragment, Path::new("/src")).unwrap();
         assert!(
             module.find("@llvm//toolchain:all").unwrap() < module.find("@x").unwrap(),
             "{module}"

@@ -16,7 +16,6 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         covered: Vec::new(),
         files: Vec::new(),
         module_fragment: Some(PathBuf::from("f")),
-        fragment_before_toolchains: false,
         families: Vec::new(),
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),
@@ -147,14 +146,7 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         )]
     );
     assert_eq!(manifest.dx, PathBuf::from("/run/cli/cli/dx"));
-    assert!(
-        !manifest.fragment_before_toolchains,
-        "a manifest without the key appends the fragment"
-    );
     let mut flagged: Value = serde_json::from_str(&text).unwrap();
-    flagged["fragment_before_toolchains"] = json!(true);
-    let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();
-    assert!(manifest.fragment_before_toolchains);
     assert!(manifest.families.is_empty());
     flagged["families"] = json!(["go"]);
     let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();

@@ -4366,6 +4366,19 @@ bazel run @rules_dx//:dx -- format --apply //...
 files a `cmake_library` owns. A file that does not parse is reported as an
 error at its line and column, and `--apply` leaves it unchanged. One broken
 file does not change what is reported for the other files in its batch.
+
+`cmake_library` only formats and lints. To build a CMake dependency, use the
+`cmake` rule from rules_foreign_cc.
+
+```python
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+cmake(
+    name = "zlib",
+    lib_source = "@zlib//:all_srcs",
+    out_static_libs = ["libz.a"],
+)
+```
 Unknown-command warnings from gersemi are neither findings nor errors. A
 missing or invalid config, an unreadable file and a non-zero exit without a
 diff are errors and never count as clean.

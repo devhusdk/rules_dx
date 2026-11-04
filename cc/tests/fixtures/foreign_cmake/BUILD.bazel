@@ -1,0 +1,74 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_THIRD_PARTY = [
+    "no-audit",
+    "no-coverage",
+    "no-format",
+    "no-lint",
+    "no-typecheck",
+]
+
+_LINUX_X86_64 = [
+    "@platforms//cpu:x86_64",
+    "@platforms//os:linux",
+]
+
+cmake(
+    name = "zlib_static",
+    build_args = ["--verbose"],
+    cache_entries = {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
+    generate_args = ["-GNinja"],
+    lib_source = "@foreign_cmake_zlib//:all_srcs",
+    out_static_libs = ["libz.a"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+cmake(
+    name = "zlib_shared",
+    build_args = ["--verbose"],
+    cache_entries = {"CMAKE_C_FLAGS": "-DDX_FOREIGN_CMAKE_FLAG=1"},
+    generate_args = ["-GNinja"],
+    lib_source = "@foreign_cmake_zlib//:all_srcs",
+    out_shared_libs = ["libz.so.1"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+cc_test(
+    name = "zlib_static_test",
+    srcs = ["zlib_test.cc"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [":zlib_static"],
+)
+
+cc_test(
+    name = "zlib_shared_test",
+    srcs = ["zlib_test.cc"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [":zlib_shared"],
+)
+
+filegroup(
+    name = "zlib_log",
+    srcs = [":zlib_static"],
+    output_group = "CMake_logs",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

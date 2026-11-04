@@ -76,12 +76,17 @@ fn resolve_logical_entries(
             replaces,
         });
     }
-    let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut seen: BTreeMap<String, &LogicalEntry> = BTreeMap::new();
     for resolved in &entries {
-        if let Some(previous) =
-            seen.insert(resolved.path.as_str(), resolved.entry.artifact.as_str())
-        {
-            if previous != resolved.entry.artifact.as_str() {
+        let folded = resolved.path.as_str().to_lowercase();
+        if let Some(previous) = seen.insert(folded, resolved) {
+            if previous.path.as_str() != resolved.path.as_str() {
+                return Err(invalid_plan(format!(
+                    "generated logical paths {:?} and {:?} differ only by case",
+                    previous.entry.logical_path, resolved.entry.logical_path
+                )));
+            }
+            if previous.entry.artifact != resolved.entry.artifact {
                 return Err(invalid_plan(format!(
                     "generated logical path {:?} maps to multiple artifacts",
                     resolved.entry.logical_path
@@ -368,6 +373,18 @@ mod tests {
         .expect_err("conflict");
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(message.contains("multiple artifacts"), "{message}");
+        let (code, message) = stage_codegen_generation(
+            &workspace,
+            &workspace,
+            &id,
+            &[
+                codegen_entry("src/Model.rs", &first),
+                codegen_entry("src/model.rs", &second),
+            ],
+        )
+        .expect_err("case conflict");
+        assert_eq!(code, CODE_INVALID_RESULT);
+        assert!(message.contains("differ only by case"), "{message}");
         std::fs::create_dir_all(workspace.join("gen")).expect("source dir");
         std::fs::write(workspace.join("gen/owned.txt"), "source").expect("source");
         let (code, message) = stage_codegen_generation(

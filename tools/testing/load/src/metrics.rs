@@ -1,3 +1,4 @@
+use crate::mnemonics::{self, Mnemonic};
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
@@ -175,6 +176,15 @@ fn escape(text: &str) -> String {
 pub struct Setup {
     pub user_rc: bool,
     pub disk_cache: Option<String>,
+    pub measure: Option<Measure>,
+}
+
+/// What `--mnemonics` adds to the JSON: the host, the run and the per-mnemonic peaks.
+pub struct Measure {
+    pub mem_total_kb: Option<u64>,
+    pub commit: String,
+    pub command: String,
+    pub mnemonics: Vec<Mnemonic>,
 }
 
 impl Setup {
@@ -209,6 +219,20 @@ pub fn to_json(
         "  \"disk_cache\": \"{}\",",
         escape(setup.disk_cache.as_deref().unwrap_or(""))
     );
+    if let Some(measure) = &setup.measure {
+        let _ = writeln!(
+            out,
+            "  \"mem_total_kb\": {},",
+            json_count(measure.mem_total_kb)
+        );
+        let _ = writeln!(out, "  \"commit\": \"{}\",", escape(&measure.commit));
+        let _ = writeln!(out, "  \"command\": \"{}\",", escape(&measure.command));
+        let _ = writeln!(
+            out,
+            "  \"mnemonics\": {},",
+            mnemonics::to_json_array(&measure.mnemonics)
+        );
+    }
     for (index, (name, phase)) in [("cold", cold), ("warm", warm)].into_iter().enumerate() {
         let _ = writeln!(out, "  \"{name}\": {{");
         for (key, value) in phase.scalars() {
@@ -569,6 +593,7 @@ mod tests {
         Setup {
             user_rc,
             disk_cache: disk_cache.map(str::to_string),
+            measure: None,
         }
     }
 
@@ -610,6 +635,30 @@ mod tests {
         assert_eq!(rss.percent, 0.0);
         assert!(compare_table(&deltas, 15.0).contains("  !"));
         assert!(deltas.iter().all(|d| d.metric != "slot_waits"));
+    }
+
+    #[test]
+    fn compare_ignores_mnemonics() {
+        let mut measured = local();
+        measured.measure = Some(Measure {
+            mem_total_kb: Some(16),
+            commit: "abc".to_string(),
+            command: "dx test //a".to_string(),
+            mnemonics: vec![Mnemonic {
+                name: "Rustc".to_string(),
+                count: 1,
+                max_bytes: 5,
+                p95_bytes: 5,
+                max_label: "//a:a".to_string(),
+                unknown: 0,
+            }],
+        });
+        let cold = phase(10.0, 1000);
+        let with = to_json(4, "//...", &measured, &cold, &cold);
+        assert!(with.contains("\"mem_total_kb\": 16,"));
+        assert!(with.contains("\"mnemonic\": \"Rustc\""));
+        let without = to_json(4, "//...", &local(), &cold, &cold);
+        assert!(compare(&with, &without).is_ok());
     }
 
     #[test]

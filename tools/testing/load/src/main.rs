@@ -1,7 +1,8 @@
 mod metrics;
+mod mnemonics;
 
 use dx_process::RcPolicy;
-use metrics::{Actions, Peaks, Phase, Setup};
+use metrics::{Actions, Measure, Peaks, Phase, Setup};
 use std::collections::BTreeSet;
 use std::fs;
 use std::os::unix::process::CommandExt;
@@ -12,7 +13,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-const USAGE: &str = "usage: parallel_worktrees [--worktrees N] [--target LABEL] [--out FILE] [--isolated-repo-cache] [--force]\n       parallel_worktrees --compare FIRST.json SECOND.json";
+const USAGE: &str = "usage: parallel_worktrees [--worktrees N] [--target LABEL] [--out FILE] [--isolated-repo-cache] [--mnemonics] [--force]\n       parallel_worktrees --compare FIRST.json SECOND.json";
 const SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
 const TOLERANCE_PERCENT: f64 = 15.0;
 const NAME_PREFIX: &str = "parallel-load-";
@@ -70,11 +71,20 @@ fn check_interrupted() -> Result<(), String> {
     }
 }
 
-fn parse_mem_available(meminfo: &str) -> Option<u64> {
+fn parse_meminfo_kb(meminfo: &str, key: &str) -> Option<u64> {
     meminfo
         .lines()
-        .find_map(|line| line.strip_prefix("MemAvailable:"))
+        .find_map(|line| line.strip_prefix(key))
         .and_then(|rest| rest.split_whitespace().next()?.parse().ok())
+}
+
+fn parse_mem_available(meminfo: &str) -> Option<u64> {
+    parse_meminfo_kb(meminfo, "MemAvailable:")
+}
+
+fn mem_total_kb() -> Option<u64> {
+    let meminfo = fs::read_to_string("/proc/meminfo").ok()?;
+    parse_meminfo_kb(&meminfo, "MemTotal:")
 }
 
 fn available_kib() -> Option<u64> {
@@ -108,6 +118,7 @@ struct Options {
     target: String,
     out: Option<PathBuf>,
     isolated_repo_cache: bool,
+    mnemonics: bool,
     force: bool,
 }
 
@@ -122,6 +133,7 @@ fn parse_args(args: &[String]) -> Result<Mode, String> {
         target: "//...".to_string(),
         out: None,
         isolated_repo_cache: false,
+        mnemonics: false,
         force: false,
     };
     let mut iter = args.iter();
@@ -142,6 +154,7 @@ fn parse_args(args: &[String]) -> Result<Mode, String> {
             "--target" => options.target = value("--target")?,
             "--out" => options.out = Some(PathBuf::from(value("--out")?)),
             "--isolated-repo-cache" => options.isolated_repo_cache = true,
+            "--mnemonics" => options.mnemonics = true,
             "--force" => options.force = true,
             "--compare" => {
                 let first = PathBuf::from(value("--compare")?);
@@ -219,7 +232,12 @@ fn disk_cache(policy: &RcPolicy, test_args: &[String]) -> Option<String> {
         .map(str::to_string)
 }
 
-fn dx_test_args(options: &Options, output_base: &Path) -> Vec<String> {
+fn exec_log(output_base: &Path) -> PathBuf {
+    output_base.join("exec_log.json")
+}
+
+/// `exec_log` is set for the cold phase of a `--mnemonics` run.
+fn dx_test_args(options: &Options, output_base: &Path, exec_log_phase: bool) -> Vec<String> {
     let mut args = vec![
         "test".to_string(),
         format!(
@@ -233,6 +251,13 @@ fn dx_test_args(options: &Options, output_base: &Path) -> Vec<String> {
         "--disk_cache=".to_string(),
         "--remote_cache=".to_string(),
     ];
+    if options.mnemonics && exec_log_phase {
+        args.push(format!(
+            "--execution_log_json_file={}",
+            exec_log(output_base).display()
+        ));
+        args.push("--experimental_collect_resource_estimation".to_string());
+    }
     if options.isolated_repo_cache {
         args.push(format!(
             "--repository_cache={}",
@@ -616,7 +641,7 @@ fn run_phase(
             .and_then(|file| {
                 let err_file = file.try_clone().map_err(|err| err.to_string())?;
                 dx(&tree.dir, binary)
-                    .args(dx_test_args(options, &tree.output_base))
+                    .args(dx_test_args(options, &tree.output_base, label == "cold"))
                     .stdout(file)
                     .stderr(err_file)
                     .spawn()
@@ -745,7 +770,8 @@ fn run(options: &Options) -> Result<(), String> {
     });
     let setup = Setup {
         user_rc: policy.read_user_rc,
-        disk_cache: disk_cache(&policy, &dx_test_args(options, &first.output_base)),
+        disk_cache: disk_cache(&policy, &dx_test_args(options, &first.output_base, false)),
+        measure: None,
     };
     let started = start_servers(&trees, &policy)?;
     let cold = run_phase(&trees, options, &binary, &policy, "cold")?;
@@ -758,6 +784,31 @@ fn run(options: &Options) -> Result<(), String> {
             ));
         }
     }
+    let mut setup = setup;
+    if options.mnemonics {
+        let logs = trees
+            .trees
+            .iter()
+            .map(|tree| {
+                let path = exec_log(&tree.output_base);
+                let file =
+                    fs::File::open(&path).map_err(|err| format!("{}: {err}", path.display()))?;
+                mnemonics::parse_exec_log(std::io::BufReader::new(file))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        setup.measure = Some(Measure {
+            mem_total_kb: mem_total_kb(),
+            commit: git(&workspace, &["rev-parse", "HEAD"])
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+            command: format!(
+                "dx {}",
+                dx_test_args(options, Path::new("<output_base>"), true).join(" ")
+            ),
+            mnemonics: mnemonics::merge(logs),
+        });
+    }
     let warm = run_phase(&trees, options, &binary, &policy, "warm")?;
     drop(trees);
     check_interrupted()?;
@@ -768,6 +819,9 @@ fn run(options: &Options) -> Result<(), String> {
     .map_err(|err| format!("{}: {err}", out.display()))?;
     println!("{}", setup.line());
     print!("{}", metrics::to_table(&cold, &warm));
+    if let Some(measure) = &setup.measure {
+        print!("{}", mnemonics::to_table(&measure.mnemonics, 20));
+    }
     println!("wrote {}", out.display());
     Ok(())
 }
@@ -848,6 +902,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_process::VerbMask;
     use std::os::unix::process::ExitStatusExt;
 
     const CHILD_ENV: &str = "PARALLEL_WORKTREES_DRIVER_CHILD";
@@ -1081,7 +1136,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             panic!("expected run");
         };
         assert_eq!(
-            dx_test_args(&options, Path::new("/base")),
+            dx_test_args(&options, Path::new("/base"), false),
             args(&[
                 "test",
                 "--bazel-startup-option=--output_base=/base",
@@ -1097,9 +1152,24 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             panic!("expected run");
         };
         assert_eq!(
-            dx_test_args(&options, Path::new("/base")).last().unwrap(),
+            dx_test_args(&options, Path::new("/base"), false)
+                .last()
+                .unwrap(),
             "--repository_cache=/base/load-repo-cache"
         );
+    }
+
+    #[test]
+    fn mnemonics_log_the_cold_phase_only() {
+        let Ok(Mode::Run(options)) = parse_args(&args(&["--mnemonics"])) else {
+            panic!("expected run");
+        };
+        let cold = dx_test_args(&options, Path::new("/base"), true);
+        assert!(cold.contains(&"--execution_log_json_file=/base/exec_log.json".to_string()));
+        assert!(cold.contains(&"--experimental_collect_resource_estimation".to_string()));
+        let warm = dx_test_args(&options, Path::new("/base"), false);
+        assert!(!warm.iter().any(|arg| arg.contains("execution_log")));
+        assert_eq!(parse_meminfo_kb("MemTotal: 12 kB\n", "MemTotal:"), Some(12));
     }
 
     #[test]
@@ -1146,8 +1216,8 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             read_user_rc: true,
             disk_cache: None,
             bazel_disk_cache: None,
-            local_cpu: true,
-            local_memory: true,
+            local_cpu: VerbMask::ALL,
+            local_memory: VerbMask::ALL,
             disk_cache_gc: false,
             gc_idle_delay_secs: None,
         };
@@ -1183,8 +1253,8 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
                 read_user_rc: true,
                 disk_cache: Some("/h/.cache/dx/disk-cache".to_string()),
                 bazel_disk_cache: Some("/h/.cache/dx/disk-cache".into()),
-                local_cpu: true,
-                local_memory: true,
+                local_cpu: VerbMask::ALL,
+                local_memory: VerbMask::ALL,
                 disk_cache_gc: true,
                 gc_idle_delay_secs: None,
             }
@@ -1203,8 +1273,8 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             read_user_rc: true,
             disk_cache: Some("/h/disk".to_string()),
             bazel_disk_cache: Some("/h/disk".into()),
-            local_cpu: true,
-            local_memory: true,
+            local_cpu: VerbMask::ALL,
+            local_memory: VerbMask::ALL,
             disk_cache_gc: true,
             gc_idle_delay_secs: None,
         };
@@ -1212,7 +1282,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             panic!("expected run");
         };
         assert_eq!(
-            disk_cache(&shared, &dx_test_args(&options, Path::new("/base"))),
+            disk_cache(&shared, &dx_test_args(&options, Path::new("/base"), false)),
             None
         );
         assert_eq!(

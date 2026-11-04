@@ -14,6 +14,7 @@ Flags:
 - `--target LABEL`: what each worktree tests. Default `//...`.
 - `--out FILE`: JSON result. Default `parallel_worktrees.json`.
 - `--isolated-repo-cache`: give each worktree its own empty repository cache. Cold runs then fetch every external repository again.
+- `--mnemonics`: record peak memory per mnemonic in the cold phase. See below.
 - `--force`: run even when available memory is below the minimum.
 - `--compare A B`: print the percent difference per metric. Exit 1 if any is over 15%. Exit 2 if the runs used different `--worktrees`, `--target`, rc files or disk cache, lack the `user_rc` or `shared_disk_cache` fields, or have no metrics. Relative paths are relative to where you run it.
 
@@ -29,6 +30,18 @@ Cached is action cache hits plus disk cache hits plus remote cache hits; execute
 `null` in the JSON and `-` in the table mean unknown: a worktree's log had no summary line (an rc `--ui_event_filters` can hide it), and the total is unknown if any worktree is. Unknown is never 0.
 The harness passes `--disk_cache=` today, so cached is mostly action cache hits.
 `--compare` compares the two totals only when both files have them, so older result files still compare. Warm counts are small, so 0 to 3 shows as 100% and exits 1; that usually means non-hermetic actions or a server restart. The per-worktree arrays are never compared.
+
+Peak memory per mnemonic: the cold phase passes `--execution_log_json_file` and `--experimental_collect_resource_estimation` to `dx test`, and the harness reads the log afterwards.
+One command on an idle host gives the per-mnemonic peaks plus the memory pressure peaks of one worktree's full test run:
+
+```sh
+bazel run //tools/testing/load:parallel_worktrees -- --worktrees 1 --mnemonics --out measure.json
+```
+
+The JSON gets `mem_total_kb`, `commit`, `command` and `mnemonics`, sorted by `max_bytes` descending. Each entry has `count`, `max_bytes`, `p95_bytes`, `max_label` (the target of the largest spawn) and `unknown` (spawns that reported 0 bytes). The table prints the top 20.
+Cache hits and remote spawns are skipped. `--compare` ignores `mnemonics`.
+Without cgroups the peak is the largest single process's maxrss. Nested Bazel servers are daemons, so their memory is not counted; the server RSS is sampled separately.
+Never run this on `//...` in a build lane.
 
 When it ends, including on failure, it removes its worktrees, branches and Bazel servers. Linux only.
 

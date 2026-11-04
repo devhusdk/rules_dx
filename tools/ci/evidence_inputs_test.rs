@@ -105,3 +105,18 @@ fn rejects_unknown_task_and_displays() {
         .err()
         .is_some_and(|e| e.contains("displays must be one of")));
 }
+
+#[test]
+fn accepts_the_coverage_task() {
+    let done = validate(|name| {
+        match name {
+            "DX_SCOPE" => "//...",
+            "DX_TASK" => "coverage",
+            "DX_PLATFORMS" => OK,
+            "DX_TEST_TIMEOUT" => "600",
+            _ => "",
+        }
+        .to_string()
+    });
+    assert!(done.is_ok());
+}

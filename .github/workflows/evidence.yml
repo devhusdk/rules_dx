@@ -7,7 +7,7 @@ on:
         description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_swift_consumer_test."
         required: true
       task:
-        description: "One of test or build."
+        description: "One of test, build or coverage."
         required: false
         default: "test"
       platforms:
@@ -211,6 +211,8 @@ jobs:
           read -ra patterns <<< "$DX_SCOPE"
           if [ "$DX_TASK" = "build" ]; then
             bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
+          elif [ "$DX_TASK" = "coverage" ]; then
+            bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" 2>&1 | tee evidence.log
           else
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
@@ -348,6 +350,9 @@ jobs:
             printf "Commit \`%s\`, displays \`%s\`.\n" "$GITHUB_SHA" "$DX_DISPLAYS"
             if [ -f evidence.log ]; then
               tail -n 20 evidence.log
+              if [ "$DX_TASK" = coverage ]; then
+                grep -E 'coverage sources|coverage_sources_incomplete' evidence.log | tail -n 40
+              fi
             fi
             if [ -f "$RUNNER_TEMP/evidence/android-versions.txt" ]; then
               printf '\n```\n'

@@ -10,7 +10,7 @@ pub const PLATFORMS: [(&str, &str); 5] = [
     ("windows_arm64", "windows-11-arm"),
 ];
 
-const TASKS: [&str; 2] = ["test", "build"];
+const TASKS: [&str; 3] = ["test", "build", "coverage"];
 
 const DISPLAYS: [&str; 4] = ["xcb", "wayland", "xcb,wayland", "wayland,xcb"];
 

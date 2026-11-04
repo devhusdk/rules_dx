@@ -3,7 +3,7 @@ use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
 use clap::ValueEnum;
-use dx_output::OutputMode;
+use dx_output::{OutputMode, Threshold};
 use dx_testing::cli::strings;
 
 #[test]
@@ -760,6 +760,26 @@ fn watch_takes_here_and_affected_as_the_wrapped_command_does() {
         parse(&strings(&["watch", "run", "//:demo", "--here"])),
         Err(ArgsError::UnsupportedOption { option, .. }) if option == "--here"
     ));
+}
+
+#[test]
+fn watch_defers_fail_on_to_the_wrapped_command() {
+    let got = parse(&strings(&["watch", "lint", "--fail-on=error"])).expect("fail-on parses");
+    assert_eq!(got.command, Command::Watch);
+    assert_eq!(got.fail_on, Threshold::Error);
+    assert_eq!(got.targets[0], "lint");
+    assert!(matches!(
+        parse(&strings(&["watch", "build", "--fail-on=error"])),
+        Err(ArgsError::UnsupportedOption { command, option })
+            if command == "build" && option == "--fail-on"
+    ));
+    assert!(matches!(
+        parse(&strings(&["watch", "--fail-on=error"])),
+        Err(ArgsError::MissingValue { .. })
+    ));
+    let got = parse(&strings(&["watch", "docs", "--fail-on=error"]))
+        .expect("the runtime rejects a non-watchable target");
+    assert_eq!(got.targets[0], "docs");
 }
 
 #[test]

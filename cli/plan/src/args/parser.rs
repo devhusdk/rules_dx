@@ -452,7 +452,7 @@ fn parse_inner<S: AsRef<OsStr>>(
     let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
         value: fail_on_name.clone(),
     })?;
-    if fail_on_name != "warning" && !command.supports_fail_on() {
+    if fail_on_name != "warning" && command != Command::Watch && !command.supports_fail_on() {
         if fail_on_from_flag {
             return Err(unsupported(command, "--fail-on"));
         }

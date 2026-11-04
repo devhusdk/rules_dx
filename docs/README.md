@@ -11,6 +11,38 @@ Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 - [Licenses](licenses.md): the licence of every tool rules_dx downloads.
 - [Support matrix](support-matrix.md): the platforms CI tests each language on and its quality tools. An empty cell or `no` is a missing test, tracked as an issue.
 
+## Languages
+
+Per-language guides in the repository:
+
+- [Android](https://github.com/devhusdk/rules_dx/blob/main/android/README.md)
+- [AppImage](https://github.com/devhusdk/rules_dx/blob/main/appimage/README.md)
+- [Apple](https://github.com/devhusdk/rules_dx/blob/main/apple/README.md)
+- [C#](https://github.com/devhusdk/rules_dx/blob/main/csharp/README.md)
+- [C/C++](https://github.com/devhusdk/rules_dx/blob/main/cc/rules/README.md)
+- [CUDA](https://github.com/devhusdk/rules_dx/blob/main/cuda/README.md)
+- [D](https://github.com/devhusdk/rules_dx/blob/main/d/README.md)
+- [Dart](https://github.com/devhusdk/rules_dx/blob/main/dart/README.md)
+- [Elixir](https://github.com/devhusdk/rules_dx/blob/main/elixir/README.md)
+- [Erlang](https://github.com/devhusdk/rules_dx/blob/main/erlang/README.md)
+- [Flutter](https://github.com/devhusdk/rules_dx/blob/main/flutter/README.md)
+- [Fortran](https://github.com/devhusdk/rules_dx/blob/main/fortran/README.md)
+- [F#](https://github.com/devhusdk/rules_dx/blob/main/fsharp/README.md)
+- [Go](https://github.com/devhusdk/rules_dx/blob/main/go/README.md)
+- [Haskell](https://github.com/devhusdk/rules_dx/blob/main/haskell/README.md)
+- [Julia](https://github.com/devhusdk/rules_dx/blob/main/julia/README.md)
+- [Lua](https://github.com/devhusdk/rules_dx/blob/main/lua/README.md)
+- [MSIX](https://github.com/devhusdk/rules_dx/blob/main/msix/README.md)
+- [OCaml](https://github.com/devhusdk/rules_dx/blob/main/ocaml/README.md)
+- [Perl](https://github.com/devhusdk/rules_dx/blob/main/perl/README.md)
+- [PHP](https://github.com/devhusdk/rules_dx/blob/main/php/README.md)
+- [PowerShell](https://github.com/devhusdk/rules_dx/blob/main/powershell/README.md)
+- [Python](https://github.com/devhusdk/rules_dx/blob/main/python/README.md)
+- [Qt](https://github.com/devhusdk/rules_dx/blob/main/qt/README.md)
+- [Ruby](https://github.com/devhusdk/rules_dx/blob/main/ruby/README.md)
+- [Swift](https://github.com/devhusdk/rules_dx/blob/main/swift/README.md)
+- [Zig](https://github.com/devhusdk/rules_dx/blob/main/zig/README.md)
+
 ## Commands
 
 - [Command reference](cli/commands/README.md): behavior of each `dx` command.

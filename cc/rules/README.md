@@ -3,7 +3,25 @@
 `defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `objc_library`.
 
 ```starlark
-load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test", "objc_library")
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
+
+cc_library(
+    name = "greet",
+    srcs = ["greet.cc"],
+    hdrs = ["greet.h"],
+)
+
+cc_binary(
+    name = "hello",
+    srcs = ["main.cc"],
+    deps = [":greet"],
+)
+
+cc_test(
+    name = "greet_test",
+    srcs = ["greet_test.cc"],
+    deps = [":greet"],
+)
 ```
 
 `objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.

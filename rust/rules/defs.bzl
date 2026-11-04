@@ -446,7 +446,7 @@ def _rust_wasi_module_impl(ctx):
     modules = [file for file in binary[DefaultInfo].files.to_list() if file.extension == "wasm"]
     if len(modules) != 1:
         fail("rust_wasi_module: '" + str(binary.label) + "' built " + str(len(modules)) +
-             " .wasm files for wasm32-wasip1, want exactly one")
+             " .wasm files for wasm32-wasip1, want exactly one; set binary to a rust_binary that builds one wasm32-wasip1 .wasm file")
     return [DefaultInfo(files = depset(modules), runfiles = ctx.runfiles(files = modules))]
 
 _rust_wasi_module = rule(

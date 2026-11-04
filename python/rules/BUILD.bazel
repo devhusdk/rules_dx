@@ -131,7 +131,7 @@ dx_wrapper_contract_tests(
                     "b.py",
                 ],
             ),
-            "has multiple srcs and none is tool.py; set main.",
+            "has multiple srcs (a.py, b.py) and none is tool.py; set main.",
         ),
         expect_equal(
             "several main matches are rejected",

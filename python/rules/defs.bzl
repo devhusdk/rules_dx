@@ -71,7 +71,7 @@ def python_main_rejection(name, srcs):
     proposed = name.split("/")[-1] + ".py"
     matches = _python_main_matches(name, srcs)
     if not matches:
-        return "has multiple srcs and none is {}; set main.".format(proposed)
+        return "has multiple srcs ({}) and none is {}; set main.".format(", ".join([str(s) for s in srcs]), proposed)
     if len(matches) > 1:
         return "has multiple srcs matching {}: {}; set main.".format(proposed, ", ".join([str(m) for m in matches]))
     return None

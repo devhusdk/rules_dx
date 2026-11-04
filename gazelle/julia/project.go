@@ -58,6 +58,9 @@ func ParseProject(path string, content []byte) (Project, error) {
 	if raw.Name != "" && !IsIdentifier(raw.Name) {
 		return Project{}, fmt.Errorf("%s: name %q is not a Julia identifier", path, raw.Name)
 	}
+	if !isASCII(raw.Name) {
+		return Project{}, fmt.Errorf("%s: name %q must be ASCII to be a Bazel target name", path, raw.Name)
+	}
 	p := Project{Name: raw.Name, UUID: raw.UUID}
 	var err error
 	if p.Deps, err = uuidTable(path, "deps", raw.Deps); err != nil {
@@ -73,6 +76,15 @@ func ParseProject(path string, content []byte) (Project, error) {
 		}
 	}
 	return p, nil
+}
+
+func isASCII(s string) bool {
+	for _, r := range s {
+		if r > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }
 
 func uuidTable(path, table string, raw map[string]any) (map[string]string, error) {

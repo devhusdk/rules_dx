@@ -170,6 +170,10 @@ mod tests {
         applied(root, "", CODE_INIT_FAILED, &["init", "--apply"])
     }
 
+    fn full_init(root: &Path) -> (i32, String, String) {
+        crate::adopt::test_support::run(&invocation(&["init", "--apply"]), root)
+    }
+
     #[test]
     fn launcher_is_written_when_absent_or_stale() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-");
@@ -250,7 +254,7 @@ mod tests {
         let root = scratch.path();
         let drift = crate::adopt::init_files::drift(root);
         assert!(drift.missing.contains(&".bazelrc".to_owned()), "{drift:?}");
-        assert_eq!(init(root).0, 0);
+        assert_eq!(full_init(root).0, 0);
         assert!(crate::adopt::init_files::drift(root).missing.is_empty());
         let layer = root.join(".dx/bazelrc/resources.bazelrc");
         std::fs::remove_file(&layer).expect("rm");
@@ -368,7 +372,7 @@ mod tests {
         ] {
             assert!(fresh.missing.iter().any(|m| m == path), "{path}: {fresh:?}");
         }
-        assert_eq!(init(root).0, 0);
+        assert_eq!(full_init(root).0, 0);
         assert_eq!(
             crate::adopt::init_files::drift(root),
             crate::adopt::init_files::Drift::default()

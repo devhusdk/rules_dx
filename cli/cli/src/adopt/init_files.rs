@@ -108,6 +108,16 @@ pub(super) fn drift(root: &Path) -> Drift {
         Ok(claude_md::State::Absent) => drift.missing.push(claude_md::FILE.to_owned()),
         Err(error) => drift.other.push(format!("{}: {error}", claude_md::FILE)),
     }
+    let mut planned = dx_adopt::plan_init_files("refresh").unwrap_or_default();
+    if dx_adopt::is_fresh_dir(root) {
+        planned.extend(dx_adopt::plan_fresh_files("refresh"));
+    }
+    for file in owned(&planned) {
+        if file.essential && !root.join(&file.path).exists() && !drift.missing.contains(&file.path)
+        {
+            drift.missing.push(file.path);
+        }
+    }
     drift
 }
 
@@ -155,6 +165,31 @@ mod tests {
     }
 
     #[test]
+    fn apply_writes_the_owned_list_and_check_and_status_accept_it() {
+        let scratch = dx_test_scratch::scratch("dx-init-owned-equal-");
+        let root = scratch.path();
+        let mut planned = dx_adopt::plan_init_files_at(root, "my_project").expect("plan");
+        planned.extend(dx_adopt::plan_fresh_files("my_project"));
+        let mut owned_paths: Vec<String> =
+            owned(&planned).into_iter().map(|file| file.path).collect();
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let mut wrote: Vec<String> = out
+            .lines()
+            .filter_map(|line| line.strip_prefix("wrote "))
+            .map(str::to_owned)
+            .collect();
+        wrote.sort();
+        owned_paths.sort();
+        assert_eq!(wrote, owned_paths);
+        assert_eq!(drift(root), super::Drift::default());
+        let (code, out, err) = run(&invocation(&["init"]), root);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("init current"), "{out}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn check_and_apply_write_the_same_snippet_in_a_cuda_tree() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-cuda-");
         let root = scratch.path();
@@ -176,8 +211,11 @@ mod tests {
     #[test]
     fn drift_in_an_empty_dir_is_owned() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
-        let files = owned(&[]);
-        for path in drift(scratch.path()).missing {
+        let root = scratch.path();
+        let mut planned = dx_adopt::plan_init_files_at(root, "my_project").expect("plan");
+        planned.extend(dx_adopt::plan_fresh_files("my_project"));
+        let files = owned(&planned);
+        for path in drift(root).missing {
             assert!(files.iter().any(|file| file.path == path), "{path}");
         }
         scratch.close().expect("cleanup");
@@ -193,7 +231,7 @@ mod tests {
             dx_adopt::LAUNCHER_SH_REL.to_owned(),
             dx_adopt::LAUNCHER_CMD_REL.to_owned(),
         ];
-        paths.extend(dx_adopt::preset_paths());
+        paths.extend([dx_adopt::preset::BAZELRC, dx_adopt::preset::GITIGNORE].map(str::to_owned));
         paths.extend(dx_adopt::render_overrides().into_iter().map(|(p, _)| p));
         let files = owned(&[]);
         for path in paths {

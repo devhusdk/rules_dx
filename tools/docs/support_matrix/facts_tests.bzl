@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//quality:adapters.bzl", "NOT_APPLICABLE")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
-load(":facts.bzl", "support_matrix_facts_dict")
+load(":facts.bzl", "support_matrix_facts_dict", "tool_not_applicable")
 load(":languages.bzl", "PLATFORMS")
 
 def _families_resolve(facts):
@@ -51,6 +51,15 @@ def support_matrix_facts_tests(name):
                 "typecheck n/a families are an explicit snapshot",
                 sorted(NOT_APPLICABLE["typecheck"].keys()),
                 ["ansible", "api_spec", "asciidoc", "bicep", "cloudformation", "cmake", "dockerfile", "gherkin", "helm", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "rst", "sql", "typst", "xml", "yaml"],
+            ),
+            expect_equal(
+                "records merge per tool",
+                tool_not_applicable([
+                    {"tool": "a", "unsupported": {"windows_arm64": "x"}},
+                    {"tool": "a", "unsupported": {"windows_arm64": "x", "windows_x86_64": "y"}},
+                    {"tool": "b"},
+                ]),
+                {"a": {"windows_arm64": "x", "windows_x86_64": "y"}},
             ),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],

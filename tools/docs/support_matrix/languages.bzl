@@ -293,32 +293,6 @@ PLATFORM_NOT_APPLICABLE = {
     },
 }
 
-# A platform a quality tool cannot run on, keyed by tool name, with the reason.
-TOOL_NOT_APPLICABLE = {
-    "ansible_lint": {
-        "windows_arm64": "ansible-core does not run on Windows",
-        "windows_x86_64": "ansible-core does not run on Windows",
-    },
-    "nixfmt": {
-        "linux_arm64": "nixfmt ships only a Linux x86_64 binary",
-        "macos_arm64": "nixfmt ships only a Linux x86_64 binary",
-        "windows_arm64": "nixfmt ships only a Linux x86_64 binary",
-        "windows_x86_64": "nixfmt ships only a Linux x86_64 binary",
-    },
-    "rubocop": {
-        "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-        "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
-    },
-    "sorbet": {
-        "windows_arm64": "Sorbet ships no Windows build",
-        "windows_x86_64": "Sorbet ships no Windows build",
-    },
-    "standardrb": {
-        "windows_arm64": "Ruby portable builds ship no Windows interpreter",
-        "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
-    },
-}
-
 def _build_file(label):
     return label.split(":")[0] + ":BUILD.bazel"
 

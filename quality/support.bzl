@@ -59,7 +59,10 @@ ANSIBLE_ANSIBLE_LINT_SUPPORT = {
     "state": "supported",
     "tool": "ansible_lint",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "ansible-core does not run on Windows",
+        "windows_x86_64": "ansible-core does not run on Windows",
+    },
 }
 
 BICEP_BICEP_FORMAT_SUPPORT = {
@@ -444,12 +447,32 @@ RUBY_RUBOCOP_SUPPORT = {
     "execution": "direct",
     "family": "ruby",
     "fix": "check_only",
-    # Ruby portable builds have no Windows, so rubocop is unsupported on windows_x86_64 and windows_arm64.
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "rubocop",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+        "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+    },
+}
+
+RUBY_SORBET_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["ruby"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "ruby",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "sorbet",
+    "transport": "batched",
+    "unsupported": {
+        "windows_arm64": "Sorbet ships no Windows build",
+        "windows_x86_64": "Sorbet ships no Windows build",
+    },
 }
 
 RUBY_STANDARDRB_SUPPORT = {
@@ -460,12 +483,14 @@ RUBY_STANDARDRB_SUPPORT = {
     "execution": "direct",
     "family": "ruby",
     "fix": "supported",
-    # Ruby portable builds have no Windows, so standardrb is unsupported on windows_x86_64 and windows_arm64.
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "standardrb",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+        "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+    },
 }
 
 YAML_YAMLFMT_SUPPORT = {
@@ -520,7 +545,12 @@ NIX_NIXFMT_SUPPORT = {
     "state": "supported",
     "tool": "nixfmt",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "nixfmt ships only a Linux x86_64 binary",
+        "macos_arm64": "nixfmt ships only a Linux x86_64 binary",
+        "windows_arm64": "nixfmt ships only a Linux x86_64 binary",
+        "windows_x86_64": "nixfmt ships only a Linux x86_64 binary",
+    },
 }
 
 OCAML_TOPIARY_FORMAT_SUPPORT = {
@@ -549,7 +579,12 @@ OCAML_ZANUDA_LINT_SUPPORT = {
     "state": "supported",
     "tool": "zanuda",
     "transport": "single",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "zanuda is built only for Linux x86_64",
+        "macos_arm64": "zanuda is built only for Linux x86_64",
+        "windows_arm64": "zanuda is built only for Linux x86_64",
+        "windows_x86_64": "zanuda is built only for Linux x86_64",
+    },
 }
 
 NIX_DEADNIX_SUPPORT = {
@@ -829,7 +864,6 @@ GO_GOTYPE_TYPECHECK_SUPPORT = {
     "transport": "batched",
 }
 
-# linux_arm64, linux_x86_64, windows_arm64, windows_x86_64: objc_library builds only with an Apple toolchain.
 OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -842,7 +876,12 @@ OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "clang_syntax",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "linux_x86_64", "windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "objc_library builds only with an Apple toolchain",
+        "linux_x86_64": "objc_library builds only with an Apple toolchain",
+        "windows_arm64": "objc_library builds only with an Apple toolchain",
+        "windows_x86_64": "objc_library builds only with an Apple toolchain",
+    },
 }
 
 RUST_RUSTC_TYPECHECK_SUPPORT = {
@@ -927,7 +966,11 @@ CAPNP_CAPNP_LINT_SUPPORT = {
     "state": "supported",
     "tool": "capnp",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "The capnp compiler is built only for Linux x86_64",
+        "macos_arm64": "The capnp compiler is built only for Linux x86_64",
+        "windows_x86_64": "The capnp compiler is built only for Linux x86_64",
+    },
 }
 
 CAPNP_CAPNP_TYPECHECK_SUPPORT = {
@@ -942,7 +985,11 @@ CAPNP_CAPNP_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "capnp",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "The capnp compiler is built only for Linux x86_64",
+        "macos_arm64": "The capnp compiler is built only for Linux x86_64",
+        "windows_x86_64": "The capnp compiler is built only for Linux x86_64",
+    },
 }
 
 AVRO_AVRO_TOOLS_LINT_SUPPORT = {
@@ -985,7 +1032,11 @@ THRIFT_THRIFT_LINT_SUPPORT = {
     "state": "supported",
     "tool": "thrift",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "The thrift compiler is built only for Linux x86_64",
+        "macos_arm64": "The thrift compiler is built only for Linux x86_64",
+        "windows_x86_64": "The thrift compiler is built only for Linux x86_64",
+    },
 }
 
 THRIFT_THRIFT_TYPECHECK_SUPPORT = {
@@ -1000,7 +1051,11 @@ THRIFT_THRIFT_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "thrift",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "The thrift compiler is built only for Linux x86_64",
+        "macos_arm64": "The thrift compiler is built only for Linux x86_64",
+        "windows_x86_64": "The thrift compiler is built only for Linux x86_64",
+    },
 }
 
 CSS_STYLELINT_LINT_SUPPORT = {
@@ -1263,7 +1318,9 @@ PERL_PERLCRITIC_LINT_SUPPORT = {
     "state": "supported",
     "tool": "perlcritic",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
+    },
 }
 
 PERL_PERLTIDY_FORMAT_SUPPORT = {
@@ -1278,7 +1335,9 @@ PERL_PERLTIDY_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "perltidy",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
+    },
 }
 
 PHP_PRETTIER_FORMAT_SUPPORT = {
@@ -1307,7 +1366,9 @@ PHP_PHPCS_LINT_SUPPORT = {
     "state": "supported",
     "tool": "phpcs",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
+    },
 }
 
 PHP_PHPSTAN_TYPECHECK_SUPPORT = {
@@ -1322,7 +1383,9 @@ PHP_PHPSTAN_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "phpstan",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
+    },
 }
 
 SQL_PRETTIER_FORMAT_SUPPORT = {
@@ -1516,7 +1579,6 @@ LATEX_LATEXINDENT_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
-# chktex has no pinned build on any platform yet. Selecting it fails the policy check by name.
 LATEX_CHKTEX_LINT_SUPPORT = {
     "artifact": "missing",
     "capability": "lint",
@@ -1529,7 +1591,13 @@ LATEX_CHKTEX_LINT_SUPPORT = {
     "state": "known",
     "tool": "chktex",
     "transport": "single",
-    "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "linux_arm64": "chktex has no pinned build yet",
+        "linux_x86_64": "chktex has no pinned build yet",
+        "macos_arm64": "chktex has no pinned build yet",
+        "windows_arm64": "chktex has no pinned build yet",
+        "windows_x86_64": "chktex has no pinned build yet",
+    },
 }
 
 # Vale lints AsciiDoc through the pinned Asciidoctor.js converter the owner rule carries.
@@ -1583,12 +1651,14 @@ POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "powershell",
     "fix": "supported",
-    # No pinned PSScriptAnalyzer artifact exists for Windows, so it is unsupported on windows_x86_64 and windows_arm64.
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "psscriptanalyzer",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No PSScriptAnalyzer artifact is pinned for Windows",
+        "windows_x86_64": "No PSScriptAnalyzer artifact is pinned for Windows",
+    },
 }
 
 POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
@@ -1599,12 +1669,14 @@ POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
     "execution": "direct",
     "family": "powershell",
     "fix": "check_only",
-    # No pinned PSScriptAnalyzer artifact exists for Windows, so it is unsupported on windows_x86_64 and windows_arm64.
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "psscriptanalyzer",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No PSScriptAnalyzer artifact is pinned for Windows",
+        "windows_x86_64": "No PSScriptAnalyzer artifact is pinned for Windows",
+    },
 }
 
 HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT = {
@@ -1635,8 +1707,6 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "transport": "single",
 }
 
-# linux_arm64: hlint publishes no linux_arm64 build.
-# macos_arm64: hlint v3.10 ships only x86_64-osx and no macOS fallback exists.
 HASKELL_HLINT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1648,12 +1718,12 @@ HASKELL_HLINT_LINT_SUPPORT = {
     "state": "supported",
     "tool": "hlint",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64"],
+    "unsupported": {
+        "linux_arm64": "hlint publishes no linux_arm64 build",
+        "macos_arm64": "hlint v3.10 ships only x86_64-osx and no macOS fallback exists",
+    },
 }
 
-# linux_arm64: ormolu publishes no linux_arm64 build.
-# macos_arm64: the aarch64-darwin zip needs sibling @executable_path dylibs the standalone
-# artifact model does not expose (tracked by #4664).
 HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1665,7 +1735,10 @@ HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "state": "qualified",
     "tool": "ormolu",
     "transport": "single",
-    "unsupported": ["linux_arm64", "macos_arm64"],
+    "unsupported": {
+        "linux_arm64": "ormolu publishes no linux_arm64 build",
+        "macos_arm64": "The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose",
+    },
 }
 
 PKL_FORMAT_SUPPORT = {
@@ -1894,8 +1967,6 @@ REGO_REGAL_LINT_SUPPORT = {
     "transport": "batched",
 }
 
-# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
-# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 ELIXIR_CREDO_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1908,11 +1979,12 @@ ELIXIR_CREDO_LINT_SUPPORT = {
     "state": "supported",
     "tool": "credo",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No OTP Windows cell is pinned",
+        "windows_x86_64": "No OTP Windows cell is pinned",
+    },
 }
 
-# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
-# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1925,11 +1997,12 @@ ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "mix_format",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No OTP Windows cell is pinned",
+        "windows_x86_64": "No OTP Windows cell is pinned",
+    },
 }
 
-# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
-# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
 ERLANG_ELVIS_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1942,11 +2015,12 @@ ERLANG_ELVIS_LINT_SUPPORT = {
     "state": "supported",
     "tool": "elvis",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No OTP Windows cell is pinned",
+        "windows_x86_64": "No OTP Windows cell is pinned",
+    },
 }
 
-# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
-# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
 ERLANG_DIALYZER_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -1959,11 +2033,12 @@ ERLANG_DIALYZER_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "dialyzer",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No OTP Windows cell is pinned",
+        "windows_x86_64": "No OTP Windows cell is pinned",
+    },
 }
 
-# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
-# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
 ELIXIR_DIALYZER_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -1976,11 +2051,12 @@ ELIXIR_DIALYZER_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "dialyzer",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No OTP Windows cell is pinned",
+        "windows_x86_64": "No OTP Windows cell is pinned",
+    },
 }
 
-# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
-# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
 ERLANG_ERLFMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1993,10 +2069,12 @@ ERLANG_ERLFMT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "erlfmt",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No OTP Windows cell is pinned",
+        "windows_x86_64": "No OTP Windows cell is pinned",
+    },
 }
 
-# windows_arm64: Julia ships no windows_arm64 runtime (julia/rules/platforms.bzl)
 JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2009,11 +2087,11 @@ JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "julia_format",
     "transport": "single",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "Julia ships no windows_arm64 runtime",
+    },
 }
 
-# windows_arm64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
-# windows_x86_64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
 D_DFMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2026,11 +2104,12 @@ D_DFMT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "dfmt",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "The LDC Windows cell is pinned but unproven",
+        "windows_x86_64": "The LDC Windows cell is pinned but unproven",
+    },
 }
 
-# windows_arm64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
-# windows_x86_64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
 D_DSCANNER_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2043,7 +2122,10 @@ D_DSCANNER_LINT_SUPPORT = {
     "state": "supported",
     "tool": "dscanner",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "The LDC Windows cell is pinned but unproven",
+        "windows_x86_64": "The LDC Windows cell is pinned but unproven",
+    },
 }
 
 SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT = {
@@ -2058,7 +2140,11 @@ SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "swift_format",
     "transport": "single",
-    "unsupported": ["macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "macos_arm64": "swift-format is pinned only for Linux",
+        "windows_arm64": "swift-format is pinned only for Linux",
+        "windows_x86_64": "swift-format is pinned only for Linux",
+    },
 }
 
 SWIFT_SWIFT_LINT_LINT_SUPPORT = {
@@ -2073,7 +2159,11 @@ SWIFT_SWIFT_LINT_LINT_SUPPORT = {
     "state": "supported",
     "tool": "swift_lint",
     "transport": "batched",
-    "unsupported": ["macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "macos_arm64": "SwiftLint is pinned only for Linux",
+        "windows_arm64": "SwiftLint is pinned only for Linux",
+        "windows_x86_64": "SwiftLint is pinned only for Linux",
+    },
 }
 
 ZIG_ZIG_FMT_FORMAT_SUPPORT = {
@@ -2088,10 +2178,9 @@ ZIG_ZIG_FMT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "zig_fmt",
     "transport": "single",
-    "unsupported": [],
+    "unsupported": {},
 }
 
-# windows_arm64: rules_dart ships no windows_arm64 SDK (dart/rules/platforms.bzl)
 DART_DART_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2104,10 +2193,11 @@ DART_DART_LINT_SUPPORT = {
     "state": "supported",
     "tool": "dart",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "rules_dart ships no windows_arm64 SDK",
+    },
 }
 
-# windows_arm64: rules_dart ships no windows_arm64 SDK (dart/rules/platforms.bzl)
 DART_DART_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2120,10 +2210,11 @@ DART_DART_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "dart",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "rules_dart ships no windows_arm64 SDK",
+    },
 }
 
-# windows_arm64: rules_dart ships no windows_arm64 SDK (dart/rules/platforms.bzl)
 DART_DART_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -2136,11 +2227,11 @@ DART_DART_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "dart",
     "transport": "batched",
-    "unsupported": ["windows_arm64"],
+    "unsupported": {
+        "windows_arm64": "rules_dart ships no windows_arm64 SDK",
+    },
 }
 
-# windows_arm64: no Qt SDK cell in qt/sdk/pins.bzl
-# windows_x86_64: Qt windows_x86_64 cell has a blocker in qt/sdk/pins.bzl
 QML_QMLLINT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2153,11 +2244,12 @@ QML_QMLLINT_LINT_SUPPORT = {
     "state": "supported",
     "tool": "qmllint",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No Qt SDK cell is pinned for Windows arm64",
+        "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
+    },
 }
 
-# windows_arm64: no Qt SDK cell in qt/sdk/pins.bzl
-# windows_x86_64: Qt windows_x86_64 cell has a blocker in qt/sdk/pins.bzl
 QML_QMLLINT_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -2170,11 +2262,12 @@ QML_QMLLINT_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "qmllint",
     "transport": "batched",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No Qt SDK cell is pinned for Windows arm64",
+        "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
+    },
 }
 
-# windows_arm64: no Qt SDK cell in qt/sdk/pins.bzl
-# windows_x86_64: Qt windows_x86_64 cell has a blocker in qt/sdk/pins.bzl
 QML_QMLFORMAT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2187,7 +2280,10 @@ QML_QMLFORMAT_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "qmlformat",
     "transport": "single",
-    "unsupported": ["windows_arm64", "windows_x86_64"],
+    "unsupported": {
+        "windows_arm64": "No Qt SDK cell is pinned for Windows arm64",
+        "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
+    },
 }
 
 SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
@@ -2211,7 +2307,7 @@ def with_platforms(record):
     for platform, source in PLATFORM_FALLBACKS.items():
         if source in pinned and platform not in platforms and tool in EMULATED_TOOLS.get(platform, []):
             platforms.append(platform)
-    unsupported = record.get("unsupported", [])
+    unsupported = record.get("unsupported", {}).keys()
     return dict(record, platforms = sorted([p for p in platforms if p not in unsupported]))
 
 SUPPORT_RECORDS = [with_platforms(r) for r in [
@@ -2241,6 +2337,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     FSHARP_FSC_SUPPORT,
     FSHARP_FSHARPLINT_SUPPORT,
     RUBY_RUBOCOP_SUPPORT,
+    RUBY_SORBET_TYPECHECK_SUPPORT,
     RUBY_STANDARDRB_SUPPORT,
     YAML_YAMLFMT_SUPPORT,
     YAML_YAMLLINT_SUPPORT,
@@ -2385,12 +2482,12 @@ def _is_unbuilt(record):
     Only a known record with a missing artifact may leave `platforms` empty, and it must list
     every platform as unsupported.
     """
-    unsupported = record.get("unsupported", [])
+    unsupported = record.get("unsupported", {})
     return (
         record["artifact"] == "missing" and
         record["state"] == "known" and
-        type(unsupported) == "list" and
-        sorted(unsupported) == sorted(SUPPORT_PLATFORMS)
+        type(unsupported) == "dict" and
+        sorted(unsupported.keys()) == sorted(SUPPORT_PLATFORMS)
     )
 
 def support_unpinned_tools(capability):
@@ -2398,7 +2495,7 @@ def support_unpinned_tools(capability):
     unpinned = {}
     for record in SUPPORT_RECORDS:
         if record["capability"] == capability and len(record["platforms"]) == 0 and _is_unbuilt(record):
-            unpinned[record["tool"]] = sorted(record["unsupported"])
+            unpinned[record["tool"]] = sorted(record["unsupported"].keys())
     return unpinned
 
 def support_record_error(record):
@@ -2449,14 +2546,16 @@ def support_record_error(record):
             return "support: non-canonical platform '" + str(platform) + "' for tool '" + tool + "'"
         if platform not in SUPPORT_PLATFORMS:
             return "support: unknown platform '" + str(platform) + "' for tool '" + tool + "'"
-    unsupported = record.get("unsupported", [])
-    if type(unsupported) != "list":
-        return "support: tool '" + tool + "' needs 'unsupported' to be a list"
-    for platform in unsupported:
+    unsupported = record.get("unsupported", {})
+    if type(unsupported) != "dict":
+        return "support: tool '" + tool + "' needs 'unsupported' to map each platform to a one-line reason"
+    for platform, reason in unsupported.items():
         if platform not in SUPPORT_PLATFORMS:
             return "support: unknown unsupported platform '" + str(platform) + "' for tool '" + tool + "'"
         if platform in platforms:
             return "support: platform '" + platform + "' is both supported and unsupported for tool '" + tool + "'"
+        if type(reason) != "string" or reason == "" or "\n" in reason:
+            return "support: tool '" + tool + "' needs 'unsupported' to map each platform to a one-line reason"
     if record["state"] not in ["known", "qualified", "supported"]:
         return "support: tool '" + tool + "' needs state 'known', 'supported' or 'qualified', got '" + str(record["state"]) + "'"
     if record["artifact"] not in ["missing", "pinned"]:

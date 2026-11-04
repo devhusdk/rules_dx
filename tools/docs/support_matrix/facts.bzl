@@ -3,7 +3,7 @@
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPUTED_CONSTRAINTS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "SUPPORT_MATRIX_SCHEMA_VERSION", "TOOL_NOT_APPLICABLE")
+load(":languages.bzl", "COMPUTED_CONSTRAINTS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "SUPPORT_MATRIX_SCHEMA_VERSION")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -25,6 +25,16 @@ def _quality():
         family: {capability: sorted(tools[capability].keys()) for capability in _CAPABILITIES}
         for family, tools in families.items()
     }
+
+def tool_not_applicable(records):
+    """Merges the unsupported platforms of the records into one reason table per tool."""
+    merged = {}
+    for record in records:
+        for platform, reason in record.get("unsupported", {}).items():
+            reasons = merged.setdefault(record["tool"], {})
+            if reasons.setdefault(platform, reason) != reason:
+                fail("support matrix: " + record["tool"] + " gives two reasons for " + platform)
+    return merged
 
 def support_matrix_facts_dict():
     """Returns the validated facts as a dict."""
@@ -52,7 +62,8 @@ def support_matrix_facts_dict():
                     fail("support matrix: format row " + row["name"] + " sets " + key)
     row_names = {row["name"]: True for row in ROWS}
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
-    for name, declared in PLATFORM_NOT_APPLICABLE.items() + [(tool, d) for tool, d in TOOL_NOT_APPLICABLE.items()]:
+    tool_na = tool_not_applicable(SUPPORT_RECORDS)
+    for name, declared in PLATFORM_NOT_APPLICABLE.items() + tool_na.items():
         for platform, reason in declared.items():
             if platform not in platform_ids or not reason:
                 fail("support matrix: " + name + " needs a known platform and a reason, got " + platform)
@@ -92,7 +103,7 @@ def support_matrix_facts_dict():
         ],
         "schema_version": SUPPORT_MATRIX_SCHEMA_VERSION,
         "sections": SECTIONS,
-        "tool_not_applicable": TOOL_NOT_APPLICABLE,
+        "tool_not_applicable": tool_na,
         "support": sorted(support, key = lambda record: (record["family"], record["capability"], record["tool"])),
     }
 

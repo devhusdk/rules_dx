@@ -12,7 +12,6 @@ load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
-load("//tools/docs/support_matrix:languages.bzl", "TOOL_NOT_APPLICABLE")
 load(":real_aspects.bzl", "real_wired_capabilities")
 load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "BICEP_BICEP_FORMAT_SUPPORT", "BICEP_BICEP_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CC_CPPCHECK_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "PYTHON_FLAKE8_LINT_SUPPORT", "PYTHON_PYDOCLINT_LINT_SUPPORT", "PYTHON_PYLINT_LINT_SUPPORT", "PYTHON_RUFF_FORMAT_SUPPORT", "PYTHON_RUFF_LINT_SUPPORT", "PYTHON_TY_TYPECHECK_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "TERRAFORM_TYPECHECK_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools", "with_platforms")
 
@@ -186,7 +185,7 @@ def _evidence_checks():
         ),
         expect_equal(
             "windows_arm64 is a valid unsupported platform",
-            support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["windows_arm64"]}),
+            support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"windows_arm64": "no build"}}),
             "",
         ),
         expect_equal(
@@ -217,7 +216,7 @@ def _toolchain_platforms():
         "qmllint": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
     }
 
-# Records that must name every platform as either supported or unsupported with a reason comment.
+# Records that must name every platform as either supported or unsupported with a reason.
 _COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gofumpt", "gplint", "modfmt", "hlint", "julia_format", "keep_sorted", "latexindent", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "vale", "zig_fmt"]
 
 def _toolchain_checks():
@@ -236,7 +235,7 @@ def _toolchain_checks():
         if tool in _COMPLETE_TOOLS:
             checks.append(expect_equal(
                 label + " platforms plus unsupported cover every platform",
-                sorted(record["platforms"] + record.get("unsupported", [])),
+                sorted(record["platforms"] + record.get("unsupported", {}).keys()),
                 sorted(SUPPORT_PLATFORMS),
             ))
     return checks
@@ -374,11 +373,6 @@ def support_unit_tests(name):
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2,
             ),
             expect_equal(
-                "nixfmt and ansible_lint unsupported platforms have reasons",
-                {r["tool"]: sorted(TOOL_NOT_APPLICABLE[r["tool"]].keys()) for r in SUPPORT_RECORDS if r["tool"] in ["nixfmt", "ansible_lint"]},
-                {r["tool"]: sorted(r["unsupported"]) for r in SUPPORT_RECORDS if r["tool"] in ["nixfmt", "ansible_lint"]},
-            ),
-            expect_equal(
                 "terraform format record covers five platforms",
                 with_platforms(TERRAFORM_FORMAT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
@@ -480,22 +474,22 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "an unbuilt known record may have no platforms",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
                 "",
             ),
             expect_equal(
                 "empty platforms need every platform unsupported",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": {"linux_x86_64": "no build"}}),
                 "support: tool 'chktex' needs a non-empty platform list",
             ),
             expect_equal(
                 "empty platforms are rejected for a supported record",
-                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "supported", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),
+                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "supported", "tool": "chktex", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
                 "support: tool 'chktex' needs a non-empty platform list",
             ),
             expect_equal(
                 "empty platforms are rejected for a qualified record",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "chktex", "transport": "single", "unsupported": {"linux_arm64": "no build", "linux_x86_64": "no build", "macos_arm64": "no build", "windows_arm64": "no build", "windows_x86_64": "no build"}}),
                 "support: tool 'chktex' needs a non-empty platform list",
             ),
             expect_equal(
@@ -505,23 +499,33 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "valid unsupported platform is accepted",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["windows_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"windows_x86_64": "no build"}}),
                 "",
             ),
             expect_equal(
                 "unsupported overlapping platforms is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["linux_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"linux_x86_64": "no build"}}),
                 "support: platform 'linux_x86_64' is both supported and unsupported for tool 'keep_sorted'",
             ),
             expect_equal(
                 "unknown unsupported platform is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["plan9_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"plan9_x86_64": "no build"}}),
                 "support: unknown unsupported platform 'plan9_x86_64' for tool 'keep_sorted'",
             ),
             expect_equal(
-                "non-list unsupported is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": "windows_x86_64"}),
-                "support: tool 'keep_sorted' needs 'unsupported' to be a list",
+                "non-dict unsupported is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["windows_x86_64"]}),
+                "support: tool 'keep_sorted' needs 'unsupported' to map each platform to a one-line reason",
+            ),
+            expect_equal(
+                "empty unsupported reason is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"windows_x86_64": ""}}),
+                "support: tool 'keep_sorted' needs 'unsupported' to map each platform to a one-line reason",
+            ),
+            expect_equal(
+                "multi-line unsupported reason is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": {"windows_x86_64": "one\ntwo"}}),
+                "support: tool 'keep_sorted' needs 'unsupported' to map each platform to a one-line reason",
             ),
             expect_equal(
                 "unknown tool is rejected",

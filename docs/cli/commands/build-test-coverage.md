@@ -14,7 +14,8 @@ the tests that depend on its owners. A test tagged `manual` runs only when
 it owns the file. Args after `--` go to Bazel unchanged.
 `dx build`, `dx test`, `dx coverage`, `dx run` and `dx deploy` also pass
 `--@rules_dx//config:clippy_output_diagnostics=true`
-and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
+and `--@rules_dx//config:rustc_output_diagnostics=true`. The dx correctness layer sets the same two
+flags, so plain `bazel build` and `dx build` share one analysis cache. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
 `--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
@@ -84,7 +85,7 @@ value. A rejected flag fails before Bazel starts with exit `2`.
 
 dx forces these flags and treats them as protected: `--skip_incompatible_explicit_targets`
 (build, test and coverage), the `--@rules_dx//config:clippy_output_diagnostics=true` and
-`--@rules_dx//config:rustc_output_diagnostics=true` settings, `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
+`--@rules_dx//config:rustc_output_diagnostics=true` settings (the correctness layer also sets them), `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
 `--combined_report=lcov` (coverage), and `--build_event_json_file`. Another value
 for one of them, and Bazel startup options after `--`, exit `2`.
 

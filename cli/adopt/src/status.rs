@@ -726,7 +726,7 @@ mod tests {
             std::fs::create_dir_all(dir.join(dir_rel)).expect("preset dir");
             std::fs::write(
                 dir.join(dir_rel).join("performance.bazelrc"),
-                dx_preset::render_layer(dx_preset::Layer::Performance),
+                dx_preset::render_layer(dx_preset::Layer::Performance, dx_preset::DEFAULT_REPO),
             )
             .expect("layer");
             let import = dx_preset::import_line(dir_rel, dx_preset::Layer::Performance);

@@ -187,7 +187,8 @@ pub fn preset_paths() -> Vec<String> {
 }
 
 /// Every file the preset owns with the content a fresh workspace gets.
-pub fn preset_files() -> Vec<(String, String)> {
+pub fn preset_files(root: &Path) -> Vec<(String, String)> {
+    let repo = dx_module_bazel::rules_dx_repo(root);
     let imports: Vec<String> = Layer::ALL
         .iter()
         .map(|layer| dx_preset::import_line(CONSUMER_DIR, *layer))
@@ -199,7 +200,7 @@ pub fn preset_files() -> Vec<(String, String)> {
     files.extend(
         Layer::ALL
             .iter()
-            .map(|layer| (layer_rel(*layer), render_layer(*layer))),
+            .map(|layer| (layer_rel(*layer), render_layer(*layer, &repo))),
     );
     files
 }
@@ -215,7 +216,7 @@ fn read_text(path: &Path, rel: &str) -> Result<Option<String>, AdoptError> {
     }
 }
 
-fn layer_file(root: &Path, layer: Layer) -> LayerFile {
+fn layer_file(root: &Path, layer: Layer, repo: &str) -> LayerFile {
     let path = root.join(layer_rel(layer));
     let Ok(meta) = std::fs::symlink_metadata(&path) else {
         return LayerFile::Missing;
@@ -224,7 +225,7 @@ fn layer_file(root: &Path, layer: Layer) -> LayerFile {
         return LayerFile::Symlink;
     }
     match std::fs::read_to_string(&path) {
-        Ok(text) if layer_is_current(&text, layer) => LayerFile::Current,
+        Ok(text) if layer_is_current(&text, layer, repo) => LayerFile::Current,
         Ok(text) if is_generated(&text) => LayerFile::Stale,
         _ => LayerFile::Custom,
     }
@@ -243,13 +244,14 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
         .any(|rel| rel.starts_with(&repo_prefix));
     let migrated_rc = migrate_layer_imports(&rc_text, CONSUMER_DIR);
     let migrated_ignore = ignore_with_layers(read_text(&root.join(GITIGNORE), GITIGNORE)?);
+    let repo = dx_module_bazel::rules_dx_repo(root);
     let layers = layer_import_state(&rc_text, CONSUMER_DIR)
         .into_iter()
-        .map(|(layer, import)| (layer, import, layer_file(root, layer)))
+        .map(|(layer, import)| (layer, import, layer_file(root, layer, &repo)))
         .collect();
     Ok(PresetState {
         applicable,
-        collisions: owned_collisions_in_content(&rc_text, &render_all()),
+        collisions: owned_collisions_in_content(&rc_text, &render_all(&repo)),
         rc_text,
         rc_exists,
         rc_symlink,
@@ -333,9 +335,10 @@ pub fn write_preset(
         let pin = std::fs::read_to_string(root.join(".bazelversion")).unwrap_or_default();
         notes.extend(crate::status::old_pin_note(&pin));
     }
+    let repo = dx_module_bazel::rules_dx_repo(root);
     for (layer, _) in state.to_write() {
         let rel = layer_rel(layer);
-        write(root, &rel, &render_layer(layer))?;
+        write(root, &rel, &render_layer(layer, &repo))?;
         applied.wrote.push(rel);
     }
     if state.will_import() {
@@ -373,6 +376,7 @@ fn sync_layers(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptEr
     if !state.applicable {
         return Ok(Vec::new());
     }
+    let repo = dx_module_bazel::rules_dx_repo(root);
     let mut wrote = Vec::new();
     for (layer, import, file) in &state.layers {
         let wanted = match file {
@@ -382,7 +386,7 @@ fn sync_layers(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptEr
         };
         if *import == ImportState::Active && wanted {
             let rel = layer_rel(*layer);
-            write(root, &rel, &render_layer(*layer))?;
+            write(root, &rel, &render_layer(*layer, &repo))?;
             wrote.push(rel);
         }
     }
@@ -433,12 +437,12 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
 mod tests {
     #[test]
     fn preset_files_match_preset_paths() {
-        let files: Vec<String> = super::preset_files()
+        let files: Vec<String> = super::preset_files(Path::new("."))
             .into_iter()
             .map(|(path, _)| path)
             .collect();
         assert_eq!(files, super::preset_paths());
-        assert!(super::preset_files()
+        assert!(super::preset_files(Path::new("."))
             .iter()
             .all(|(_, content)| !content.is_empty()));
     }
@@ -461,6 +465,22 @@ mod tests {
         assert_eq!(preset_drift(root), PresetDrift::default());
         let (wrote, notes) = apply(root);
         assert!(wrote.is_empty() && notes.is_empty(), "{wrote:?} {notes:?}");
+    }
+
+    #[test]
+    fn renamed_rules_dx_gets_labels_with_its_repo_name() {
+        let scratch = dx_test_scratch::scratch("dx-preset-repo-");
+        let root = scratch.path();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"1.0.0\", repo_name = \"my_dx\")\n",
+        )
+        .expect("module");
+        apply(root);
+        let text = std::fs::read_to_string(root.join(layer_rel(Layer::Correctness))).expect("read");
+        assert!(text.contains("--@my_dx//config:clippy_output_diagnostics=true"));
+        assert!(!text.contains("@rules_dx//"));
+        assert_eq!(preset_drift(root), PresetDrift::default());
     }
 
     #[test]

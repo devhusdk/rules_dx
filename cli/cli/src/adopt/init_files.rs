@@ -71,7 +71,7 @@ pub(super) fn plan(root: &Path, module: &str, fresh: bool) -> Result<Vec<InitFil
             .map(|(path, content)| (path, content, Kind::Override)),
     );
     entries.extend(
-        dx_adopt::preset_files()
+        dx_adopt::preset_files(root)
             .into_iter()
             .map(|(path, content)| (path, content, Kind::Preset)),
     );

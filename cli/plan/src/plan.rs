@@ -46,16 +46,7 @@ static RULES_DX_REPO: OnceLock<String> = OnceLock::new();
 
 /// Records the name the workspace MODULE.bazel (and the files it includes) gives rules_dx.
 pub fn set_rules_dx_repo(workspace: &Path) {
-    let read_include = |label: &str| {
-        dx_module_bazel::label_path(label)
-            .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
-            .map_err(|_| format!("workspace input {label}"))
-    };
-    let repo = std::fs::read_to_string(workspace.join("MODULE.bazel")).map_or_else(
-        |_| RULES_DX.to_owned(),
-        |text| rules_dx_repo_with(&text, &read_include),
-    );
-    let _ = RULES_DX_REPO.set(repo);
+    let _ = RULES_DX_REPO.set(dx_module_bazel::rules_dx_repo(workspace));
 }
 
 /// Returns the recorded name for rules_dx, or `rules_dx`.
@@ -65,44 +56,7 @@ pub(crate) fn rules_dx_repo() -> &'static str {
 
 /// Returns the name a MODULE.bazel source gives rules_dx, ignoring any includes.
 pub fn rules_dx_repo_of(module_text: &str) -> String {
-    rules_dx_repo_with(module_text, &|_| Err("no includes".to_owned()))
-}
-
-/// Returns the name rules_dx gets across a MODULE.bazel and its includes, in include order.
-/// When the includes cannot be loaded, falls back to the root file alone.
-fn rules_dx_repo_with(
-    module_text: &str,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> String {
-    let repo = match dx_module_bazel::load_with_includes(module_text, read_include) {
-        Ok(files) => files.iter().find_map(repo_in_file).map(str::to_owned),
-        Err(_) => dx_module_bazel::ModuleFile::parse(module_text)
-            .ok()
-            .and_then(|file| repo_in_file(&file).map(str::to_owned)),
-    };
-    match repo {
-        Some(repo) if valid_repo_name(&repo) => repo,
-        _ => RULES_DX.to_owned(),
-    }
-}
-
-/// The repo name one module file gives rules_dx, if the file declares rules_dx.
-fn repo_in_file(file: &dx_module_bazel::ModuleFile) -> Option<&str> {
-    match file
-        .calls_named("module")
-        .find(|call| call.str("name") == Some(RULES_DX))
-    {
-        Some(call) => Some(call.str("repo_name").unwrap_or(RULES_DX)),
-        None => file.repo_name(RULES_DX),
-    }
-}
-
-fn valid_repo_name(name: &str) -> bool {
-    let mut chars = name.chars();
-    chars
-        .next()
-        .is_some_and(|first| first.is_ascii_alphabetic())
-        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    dx_module_bazel::rules_dx_repo_of(module_text)
 }
 
 /// Returns a label in the rules_dx repository.

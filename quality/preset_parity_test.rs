@@ -18,7 +18,7 @@ fn preset_parity() {
         let path = expected_dir.join(layer.file_name());
         let text = std::fs::read_to_string(&path).expect("read checked-in preset layer");
         assert_eq!(
-            dx_preset::render_layer(layer),
+            dx_preset::render_layer(layer, dx_preset::DEFAULT_REPO),
             text,
             "//tools/bazelrc:preset_update would rewrite tools/bazelrc/{}; \
              run `bazel run //tools/bazelrc:preset_update`",
@@ -52,6 +52,8 @@ fn preset_parity() {
             "build:dx_toolchain --compilation_mode=fastbuild",
             "build:windows --enable_runfiles",
             "common --repo_env=DO_NOT_TRACK=1",
+            "build --@rules_dx//config:clippy_output_diagnostics=true",
+            "build --@rules_dx//config:rustc_output_diagnostics=true",
             "common --incompatible_strict_action_env",
             "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
             "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",

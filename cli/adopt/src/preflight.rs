@@ -202,7 +202,9 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
 /// line the dx preset layers own. Advisory: `dx init` will not import the layers while the
 /// root file repeats them, so the file and line are named for the user to drop.
 fn bazelrc_conflicts(root: &Path) -> Vec<Finding> {
-    let owned = crate::preset_fragment::rendered_flag_lines(&crate::preset_fragment::render_all());
+    let owned = crate::preset_fragment::rendered_flag_lines(&crate::preset_fragment::render_all(
+        &dx_module_bazel::rules_dx_repo(root),
+    ));
     let mut out = Vec::new();
     let mut pending = vec![".bazelrc".to_owned()];
     let mut seen = std::collections::BTreeSet::new();

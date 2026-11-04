@@ -43,3 +43,9 @@ build:windows --enable_runfiles
 
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
+
+# Clippy findings are part of the build output, as in dx build.
+build --@rules_dx//config:clippy_output_diagnostics=true
+
+# Rustc diagnostics are part of the build output, as in dx build.
+build --@rules_dx//config:rustc_output_diagnostics=true

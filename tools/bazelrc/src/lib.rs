@@ -125,6 +125,17 @@ const TELEMETRY_FLAGS: [Flag; 1] = [(
     "Opt out of aspect_tools_telemetry usage reports.",
 )];
 
+const DIAGNOSTICS_FLAGS: [Flag; 2] = [
+    (
+        "build --@rules_dx//config:clippy_output_diagnostics=true",
+        "Clippy findings are part of the build output, as in dx build.",
+    ),
+    (
+        "build --@rules_dx//config:rustc_output_diagnostics=true",
+        "Rustc diagnostics are part of the build output, as in dx build.",
+    ),
+];
+
 const RESOURCE_FLAGS: [Flag; 12] = [
     (
         "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
@@ -225,6 +236,7 @@ impl Layer {
                 &RUNFILES_FLAGS,
                 &WINDOWS_FLAGS,
                 &TELEMETRY_FLAGS,
+                &DIAGNOSTICS_FLAGS,
             ],
             Layer::Performance => &[&BUILD_PROFILES],
             Layer::Resources => &[&RESOURCE_FLAGS],
@@ -236,8 +248,12 @@ impl Layer {
     }
 }
 
-/// Renders one layer file. The bytes are the same in rules_dx and in consumer workspaces.
-pub fn render_layer(layer: Layer) -> String {
+/// The name rules_dx has in its own workspace.
+pub const DEFAULT_REPO: &str = "rules_dx";
+
+/// Renders one layer file for a workspace that names rules_dx `repo`.
+/// Labels follow `repo`; the bytes are otherwise the same everywhere.
+pub fn render_layer(layer: Layer, repo: &str) -> String {
     let mut out = format!(
         "{HEADER_MARKER}, do not edit.\n\
          # Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.\n\
@@ -250,17 +266,17 @@ pub fn render_layer(layer: Layer) -> String {
         out.push_str("# ");
         out.push_str(comment);
         out.push('\n');
-        out.push_str(flag);
+        out.push_str(&flag.replacen("@rules_dx//", &format!("@{repo}//"), 1));
         out.push('\n');
     }
     out
 }
 
 /// Renders every layer in import order, for collision checks over the whole preset.
-pub fn render_all() -> String {
+pub fn render_all(repo: &str) -> String {
     Layer::ALL
         .iter()
-        .map(|layer| render_layer(*layer))
+        .map(|layer| render_layer(*layer, repo))
         .collect()
 }
 
@@ -291,8 +307,8 @@ pub fn is_generated(text: &str) -> bool {
 }
 
 /// Whether `text` is what dx renders for `layer`, ignoring a BOM and CRLF line endings.
-pub fn layer_is_current(text: &str, layer: Layer) -> bool {
-    normalized(text) == render_layer(layer)
+pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
+    normalized(text) == render_layer(layer, repo)
 }
 
 /// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.
@@ -562,7 +578,7 @@ fn require_source_and_no_collisions(workspace: &Path) -> Result<(), PresetError>
         });
     }
     let collisions =
-        read_collisions(&workspace.join(".bazelrc"), &render_all()).map_err(|error| {
+        read_collisions(&workspace.join(".bazelrc"), &render_all(DEFAULT_REPO)).map_err(|error| {
             PresetError::Unwritable {
                 path: ".bazelrc".to_owned(),
                 detail: error.to_string(),
@@ -579,7 +595,7 @@ pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
     require_source_and_no_collisions(workspace)?;
     let mut stale = Vec::new();
     for (layer, path) in preset_paths(workspace, REPO_DIR) {
-        let rendered = render_layer(layer);
+        let rendered = render_layer(layer, DEFAULT_REPO);
         let checked_in = std::fs::read_to_string(&path).unwrap_or_default();
         if checked_in != rendered {
             let diff = unified_diff(&checked_in, &rendered);
@@ -601,7 +617,7 @@ pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
 pub fn update_preset(workspace: &Path) -> Result<(), PresetError> {
     require_source_and_no_collisions(workspace)?;
     for (layer, path) in preset_paths(workspace, REPO_DIR) {
-        let rendered = render_layer(layer);
+        let rendered = render_layer(layer, DEFAULT_REPO);
         if std::fs::read_to_string(&path).ok().as_deref() == Some(rendered.as_str()) {
             continue;
         }
@@ -652,14 +668,24 @@ mod tests {
     #[test]
     fn generated_and_current_ignore_bom_and_crlf() {
         for layer in Layer::ALL {
-            let text = render_layer(layer);
+            let text = render_layer(layer, DEFAULT_REPO);
             assert!(is_generated(&text));
-            assert!(layer_is_current(&text, layer));
-            assert!(layer_is_current(&text.replace('\n', "\r\n"), layer));
-            assert!(layer_is_current(&format!("\u{feff}{text}"), layer));
-            assert!(!layer_is_current(&format!("{text}x\n"), layer));
+            assert!(layer_is_current(&text, layer, DEFAULT_REPO));
+            assert!(layer_is_current(&text.replace('\n', "\r\n"), layer, DEFAULT_REPO));
+            assert!(layer_is_current(&format!("\u{feff}{text}"), layer, DEFAULT_REPO));
+            assert!(!layer_is_current(&format!("{text}x\n"), layer, DEFAULT_REPO));
         }
         assert!(!is_generated("build --x\n"));
+    }
+
+    #[test]
+    fn labels_follow_the_repo_name() {
+        let text = render_layer(Layer::Correctness, "my_dx");
+        assert!(text.contains("build --@my_dx//config:clippy_output_diagnostics=true\n"));
+        assert!(text.contains("build --@my_dx//config:rustc_output_diagnostics=true\n"));
+        assert!(!text.contains("@rules_dx//"));
+        assert!(layer_is_current(&text, Layer::Correctness, "my_dx"));
+        assert!(!layer_is_current(&text, Layer::Correctness, DEFAULT_REPO));
     }
 
     #[test]
@@ -670,7 +696,7 @@ mod tests {
     #[test]
     fn layer_flags_keep_the_retired_python_bytes() {
         assert_eq!(
-            flag_sequence(&render_layer(Layer::Correctness)),
+            flag_sequence(&render_layer(Layer::Correctness, DEFAULT_REPO)),
             [
                 "common --enable_bzlmod",
                 "build --verbose_failures",
@@ -685,10 +711,12 @@ mod tests {
                 "build:windows --nobuild_runfile_links",
                 "build:windows --enable_runfiles",
                 "common --repo_env=DO_NOT_TRACK=1",
+                "build --@rules_dx//config:clippy_output_diagnostics=true",
+                "build --@rules_dx//config:rustc_output_diagnostics=true",
             ]
         );
         assert_eq!(
-            flag_sequence(&render_layer(Layer::Performance)),
+            flag_sequence(&render_layer(Layer::Performance, DEFAULT_REPO)),
             [
                 "build --host_compilation_mode=fastbuild",
                 "build:dx_debug --compilation_mode=dbg",
@@ -700,7 +728,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            flag_sequence(&render_layer(Layer::Resources)),
+            flag_sequence(&render_layer(Layer::Resources, DEFAULT_REPO)),
             [
                 "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
                 "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
@@ -721,7 +749,7 @@ mod tests {
     #[test]
     fn every_layer_starts_with_the_shared_header() {
         for layer in Layer::ALL {
-            let rendered = render_layer(layer);
+            let rendered = render_layer(layer, DEFAULT_REPO);
             let mut lines = rendered.lines();
             assert_eq!(
                 lines.next(),
@@ -746,7 +774,7 @@ mod tests {
     #[test]
     fn every_flag_line_has_a_comment_directly_above() {
         for layer in Layer::ALL {
-            let rendered = render_layer(layer);
+            let rendered = render_layer(layer, DEFAULT_REPO);
             let lines: Vec<&str> = rendered.lines().collect();
             for (index, line) in lines.iter().enumerate() {
                 if line.is_empty() || line.starts_with('#') {
@@ -781,8 +809,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 33);
-        assert_eq!(rendered_flag_lines(&render_all()).len(), 33);
+        assert_eq!(total, 35);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 35);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -803,8 +831,8 @@ mod tests {
             );
         }
         assert_eq!(
-            render_all(),
-            Layer::ALL.map(render_layer).concat(),
+            render_all(DEFAULT_REPO),
+            Layer::ALL.map(|layer| render_layer(layer, DEFAULT_REPO)).concat(),
             "render_all keeps import order"
         );
     }
@@ -871,19 +899,19 @@ mod tests {
 
     #[test]
     fn flag_lines_skip_comments_and_blanks() {
-        let flags = rendered_flag_lines(&render_all());
+        let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("common --enable_bzlmod"));
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 33);
+        assert_eq!(flags.len(), 35);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }
 
     #[test]
     fn collisions_ignore_imports_comments_and_blanks() {
-        let rendered = render_all();
+        let rendered = render_all(DEFAULT_REPO);
         let root = "# comment\n\nimport %workspace%/tools/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\nbuild --verbose_failures\n";
         let collisions = owned_collisions_in_content(root, &rendered);
         assert_eq!(collisions, vec!["build --verbose_failures".to_owned()]);
@@ -895,7 +923,7 @@ mod tests {
 
     #[test]
     fn collisions_are_sorted_and_deduped() {
-        let rendered = render_all();
+        let rendered = render_all(DEFAULT_REPO);
         let root =
             "test --test_output=errors\nbuild --verbose_failures\ntest --test_output=errors\n";
         let collisions = owned_collisions_in_content(root, &rendered);
@@ -910,7 +938,7 @@ mod tests {
 
     #[test]
     fn collisions_match_whole_generated_lines_only() {
-        let rendered = render_all();
+        let rendered = render_all(DEFAULT_REPO);
         for root in [
             "build --verbose_failures # why\n",
             "build  --verbose_failures\n",
@@ -1018,7 +1046,7 @@ mod tests {
         for (layer, path) in preset_paths(root, REPO_DIR) {
             assert_eq!(
                 std::fs::read_to_string(&path).expect("read"),
-                render_layer(layer)
+                render_layer(layer, DEFAULT_REPO)
             );
         }
         let resources = &preset_paths(root, REPO_DIR)[2].1;

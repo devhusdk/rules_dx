@@ -51,7 +51,10 @@ fn command(
     env: &BTreeMap<String, String>,
     preopens: &[(String, PathBuf)],
 ) -> Command {
-    let managed = dx_testing::resolve_runfiles(&var("DX_WASI_MANAGED_RUNTIME"));
+    let managed = match std::env::var("DX_WASI_MANAGED_RUNTIME") {
+        Ok(rel) => dx_testing::resolve_runfiles(&rel),
+        Err(_) => runtime.to_path_buf(),
+    };
     let staged: Vec<(PathBuf, String)> = preopens
         .iter()
         .map(|(guest, host)| (stage_preopen(&host.to_string_lossy()), guest.clone()))

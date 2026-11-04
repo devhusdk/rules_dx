@@ -20,7 +20,7 @@ _DISABLED_PLATFORM_REPOS = [
 
 _WASM_PLATFORM = "@rules_rust//rust/platform:wasm32"
 
-_FOLLOW_ATTRS = ["actual", "binary", "crate", "data", "deps", "proc_macro_deps", "target", "targets", "upstream"]
+_FOLLOW_ATTRS = ["actual", "binary", "crate", "data", "deps", "proc_macro_deps", "runtime", "target", "targets", "upstream"]
 
 _WASI_RUNTIME_PREFIX = "dx_wasmtime"
 

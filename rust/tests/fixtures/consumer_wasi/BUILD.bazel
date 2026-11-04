@@ -1,8 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_test", "rust_wasi_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_test", "rustfmt_test")
 load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_wasi_binary_tests")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":acquisition.bzl", "consumer_wasi_acquisition_tests")
 
 package(
@@ -14,6 +13,7 @@ exports_files([
     "build.rs",
     "data/input.txt",
     "data/secret.txt",
+    "injecting_runtime.sh",
     "macros/lib.rs",
     "src/lib.rs",
     "src/main.rs",
@@ -87,6 +87,7 @@ rustfmt_test(
         ":consumer_wasi",
         ":consumer_wasi_lib",
         ":consumer_wasi_macros",
+        ":consumer_wasi_run_test",
     ],
 )
 
@@ -96,156 +97,50 @@ rust_clippy_test(
         ":consumer_wasi",
         ":consumer_wasi_lib",
         ":consumer_wasi_macros",
+        ":consumer_wasi_run_test",
     ],
 )
 
-sh_binary(
-    name = "injecting_runtime",
-    srcs = ["injecting_runtime.sh"],
-)
-
-_TOOLCHAIN_LINES = [
-    "module=wasm",
-    "build_target=wasm32-wasip1",
-    "build_script=native",
-    "proc_macro=native",
-]
-
-_DEFAULT_OUTPUT = "\n".join([
-    "argv=[]",
-    "declared=<unset>",
-    "wrapped=<unset>",
-    "hostile=hidden",
-    "data=no-access",
-    "probe=no-access",
-] + _TOOLCHAIN_LINES)
-
-rust_wasi_test(
-    name = "default_run",
-    ambient = {"DX_WASI_HOSTILE": "1"},
-    binary = ":consumer_wasi",
-    data = [":data/secret.txt"],
-    expected_stdout = _DEFAULT_OUTPUT,
-)
-
-rust_wasi_test(
-    name = "declared_capabilities",
-    ambient = {"DX_WASI_HOSTILE": "1"},
-    args = [
-        "one",
-        "two",
+rust_test(
+    name = "consumer_wasi_run_test",
+    srcs = ["src/run_test.rs"],
+    crate_root = "src/run_test.rs",
+    data = [
+        ":consumer_wasi_module",
+        ":data/input.txt",
+        ":data/secret.txt",
+        "@rules_dx//wasi/runtime:wasmtime",
     ],
-    binary = ":consumer_wasi",
+    edition = "2021",
     env = {
-        "DX_WASI_DECLARED": "declared-value",
-        "DX_WASI_PROBE": "/data/input.txt",
+        "DX_WASI_HOSTILE": "1",
+        "DX_WASI_INPUT": "$(rootpath :data/input.txt)",
+        "DX_WASI_MODULE": "$(rootpath :consumer_wasi_module)",
+        "DX_WASI_RUNTIME": "$(rootpath @rules_dx//wasi/runtime:wasmtime)",
     },
-    expected_stdout = "\n".join([
-        'argv=["one", "two"]',
-        "declared=declared-value",
-        "wrapped=<unset>",
-        "hostile=hidden",
-        "data=staged input",
-        "probe=staged input",
-    ] + _TOOLCHAIN_LINES),
-    preopens = {"/data": ":data/input.txt"},
-)
-
-rust_wasi_test(
-    name = "preopen_in_data",
-    ambient = {"DX_WASI_HOSTILE": "1"},
-    args = [
-        "one",
-        "two",
+    deps = [
+        "@rules_dx//tools/testing:dx_testing",
+        "@rules_dx//wasi/testing:wasi_run",
     ],
-    binary = ":consumer_wasi",
-    data = [":data/input.txt"],
-    env = {
-        "DX_WASI_DECLARED": "declared-value",
-        "DX_WASI_PROBE": "/data/input.txt",
-    },
-    expected_stdout = "\n".join([
-        'argv=["one", "two"]',
-        "declared=declared-value",
-        "wrapped=<unset>",
-        "hostile=hidden",
-        "data=staged input",
-        "probe=staged input",
-    ] + _TOOLCHAIN_LINES),
-    preopens = {"/data": ":data/input.txt"},
 )
 
-rust_wasi_test(
-    name = "shared_preopen",
-    ambient = {"DX_WASI_HOSTILE": "1"},
-    args = [
-        "one",
-        "two",
-    ],
-    binary = ":consumer_wasi",
-    env = {
-        "DX_WASI_DECLARED": "declared-value",
-        "DX_WASI_PROBE": "/b/input.txt",
-    },
-    expected_stdout = "\n".join([
-        'argv=["one", "two"]',
-        "declared=declared-value",
-        "wrapped=<unset>",
-        "hostile=hidden",
-        "data=no-access",
-        "probe=staged input",
-    ] + _TOOLCHAIN_LINES),
-    preopens = {
-        "/a": ":data/input.txt",
-        "/b": ":data/input.txt",
-    },
+rust_test(
+    name = "guest_test",
+    srcs = ["src/guest_test.rs"],
+    crate_root = "src/guest_test.rs",
+    edition = "2021",
+    wasm = "wasi",
+    deps = [":consumer_wasi_lib"],
 )
 
-rust_wasi_test(
-    name = "dollar_literals",
-    ambient = {"DX_WASI_HOSTILE": "1"},
-    args = [
-        "--price",
-        "$5",
-        "$(BINDIR)",
-    ],
-    binary = ":consumer_wasi",
-    env = {
-        "DX_WASI_DECLARED": "$HOME",
-        "DX_WASI_PROBE": "/d$ta/input.txt",
-    },
-    expected_stdout = "\n".join([
-        'argv=["--price", "$5", "$(BINDIR)"]',
-        "declared=$HOME",
-        "wrapped=<unset>",
-        "hostile=hidden",
-        "data=no-access",
-        "probe=staged input",
-    ] + _TOOLCHAIN_LINES),
-    preopens = {"/d$ta": ":data/input.txt"},
-)
-
-rust_wasi_test(
-    name = "custom_exit",
-    binary = ":consumer_wasi",
-    env = {"DX_WASI_EXIT": "3"},
-    expected_code = 3,
-    expected_stdout = _DEFAULT_OUTPUT,
-)
-
-rust_wasi_test(
+rust_test(
     name = "custom_runtime",
-    ambient = {"DX_WASI_HOSTILE": "1"},
-    binary = ":consumer_wasi",
-    expected_stdout = "\n".join([
-        "argv=[]",
-        "declared=<unset>",
-        "wrapped=wrapped-value",
-        "hostile=hidden",
-        "data=no-access",
-        "probe=no-access",
-    ] + _TOOLCHAIN_LINES),
-    runtime = ":injecting_runtime",
+    srcs = ["src/custom_runtime_test.rs"],
+    crate_root = "src/custom_runtime_test.rs",
+    edition = "2021",
+    runtime = "injecting_runtime.sh",
+    wasm = "wasi",
+    deps = [":consumer_wasi_lib"],
 )
 
 real_source_target(
@@ -263,7 +158,7 @@ consumer_wasi_acquisition_tests(
     name = "acquisition",
     binary = ":consumer_wasi",
     module = ":consumer_wasi_module",
-    run = ":default_run",
+    run = ":guest_test",
 )
 
 rustfmt_test(

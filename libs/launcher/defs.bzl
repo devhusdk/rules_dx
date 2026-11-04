@@ -9,6 +9,12 @@ def target_is_windows(ctx):
     """Returns whether the rule builds for a Windows target platform."""
     return ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo])
 
+def native_launch_descriptor_path(exe_path):
+    """Returns the descriptor path of the native launcher at `exe_path`: `x.exe` becomes `x.launch`."""
+    if not exe_path.endswith(".exe"):
+        fail("not a native launcher: " + exe_path)
+    return exe_path[:-len(".exe")] + ".launch"
+
 def write_native_launcher(ctx, descriptor_text):
     """Writes `<name>.exe` (the native launcher) and `<name>.launch` (its descriptor).
 

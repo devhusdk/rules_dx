@@ -9,7 +9,7 @@ exports_files([
     "beam.bzl",
     "dialyzer.bzl",
     "nif_exports.lds",
-    "plt_fixup.escript",
+    "plt_build.escript",
     "providers.bzl",
     "wrapper_tests.bzl",
 ])

@@ -1,6 +1,6 @@
 """Dialyzer PLT and tool rules over the pinned OTP runtime."""
 
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "native_launch_descriptor_path")
 load(":defs.bzl", "otp_tool_binary_impl")
 load(":providers.bzl", "DialyzerToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
 
@@ -14,21 +14,6 @@ otp_tool_binary = rule(
     toolchains = ["@rules_erlang//tools:toolchain_type"],
 )
 
-# The PLT is built into a scratch file, then rewritten by plt_fixup.escript (see there) into $out.
-_PLT_SCRIPT = """set -u
-tool="$1"; escript="$2"; fixup="$3"; out="$4"; shift 4
-log="$(mktemp)"
-raw="$(mktemp)"
-"$tool" "$@" --output_plt "$raw" >"$log" 2>&1
-rc=$?
-if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then
-    cat "$log" >&2
-    exit 1
-fi
-"$escript" "$fixup" "$raw" "$out" || exit 1
-rm -f "$log" "$raw"
-"""
-
 def _dirs(files):
     """The distinct directories of `files`, in order."""
     seen = {}
@@ -36,7 +21,7 @@ def _dirs(files):
         seen[f.dirname] = True
     return list(seen)
 
-def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, code, out):
+def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code, out):
     """Builds one PLT of OTP `apps` and `beams`, layered over `plts`.
 
     Dialyzer exits 2 when it only emitted warnings, which a PLT build does for
@@ -46,7 +31,7 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, code, 
       ctx: The rule context.
       dialyzer: The dialyzer launcher's FilesToRunProvider.
       escript: The escript launcher's FilesToRunProvider.
-      fixup: The plt_fixup.escript file.
+      driver: The plt_build.escript file.
       apps: OTP application names to include.
       plts: PLT files the new PLT builds on.
       beams: .beam files to include.
@@ -54,9 +39,8 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, code, 
       out: The declared output PLT.
     """
     args = ctx.actions.args()
+    args.add(driver)
     args.add(dialyzer.executable)
-    args.add(escript.executable)
-    args.add(fixup)
     args.add(out)
     for directory in _dirs(code):
         args.add("-pa")
@@ -72,14 +56,14 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, code, 
     if beams:
         args.add("--")
         args.add_all(beams)
-    ctx.actions.run_shell(
+    ctx.actions.run(
         mnemonic = "DxDialyzerPlt",
         progress_message = "Building dialyzer PLT %{output}",
-        command = _PLT_SCRIPT,
+        executable = escript,
         arguments = [args],
-        inputs = list(plts) + list(beams) + list(code) + [fixup],
+        inputs = list(plts) + list(beams) + list(code) + [driver],
         outputs = [out],
-        tools = [dialyzer, escript],
+        tools = [dialyzer],
         use_default_shell_env = False,
     )
 
@@ -88,7 +72,7 @@ def _dialyzer_plt_impl(ctx):
     base = [dep[DialyzerPltInfo].plt for dep in ctx.attr.plts]
     if not ctx.attr.apps and not ctx.files.beams:
         fail("dialyzer_plt " + ctx.label.name + ": set apps or beams")
-    dialyzer_plt_action(ctx, ctx.attr.dialyzer[DefaultInfo].files_to_run, ctx.attr.escript[DefaultInfo].files_to_run, ctx.file._fixup, ctx.attr.apps, base, ctx.files.beams, ctx.files.code, out)
+    dialyzer_plt_action(ctx, ctx.attr.dialyzer[DefaultInfo].files_to_run, ctx.attr.escript[DefaultInfo].files_to_run, ctx.file._driver, ctx.attr.apps, base, ctx.files.beams, ctx.files.code, out)
     return [DefaultInfo(files = depset([out])), DialyzerPltInfo(plt = out)]
 
 dialyzer_plt = rule(
@@ -101,7 +85,7 @@ dialyzer_plt = rule(
         "dialyzer": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "An otp_tool_binary for dialyzer."),
         "escript": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "An otp_tool_binary for escript."),
         "plts": attr.label_list(providers = [DialyzerPltInfo], doc = "PLTs this one builds on, in order."),
-        "_fixup": attr.label(default = "//erlang/rules:plt_fixup.escript", allow_single_file = True),
+        "_driver": attr.label(default = "//erlang/rules:plt_build.escript", allow_single_file = True),
     },
     provides = [DefaultInfo, DialyzerPltInfo],
 )
@@ -109,13 +93,26 @@ dialyzer_plt = rule(
 def _dialyzer_tool_impl(ctx):
     binary = ctx.attr.binary[DefaultInfo]
     plts = [dep[DialyzerPltInfo].plt for dep in ctx.attr.plts]
-    launcher = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = launcher, target_file = binary.files_to_run.executable, is_executable = True)
+    exe = binary.files_to_run.executable
+    runfiles = binary.default_runfiles
+    if exe.path.endswith(".exe"):
+        launcher = ctx.actions.declare_file(ctx.label.name + ".exe")
+        ctx.actions.symlink(output = launcher, target_file = exe, is_executable = True)
+        wanted = native_launch_descriptor_path(exe.path)
+        descriptors = [f for f in binary.default_runfiles.files.to_list() if f.path == wanted]
+        if not descriptors:
+            fail("dialyzer_tool " + ctx.label.name + ": " + wanted + " is not in the runfiles of " + str(ctx.attr.binary.label))
+        descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
+        ctx.actions.symlink(output = descriptor, target_file = descriptors[0])
+        runfiles = ctx.runfiles(files = [launcher, descriptor]).merge(binary.default_runfiles)
+    else:
+        launcher = ctx.actions.declare_file(ctx.label.name)
+        ctx.actions.symlink(output = launcher, target_file = exe, is_executable = True)
     return [
         DefaultInfo(
             executable = launcher,
             files = depset([launcher]),
-            runfiles = binary.default_runfiles,
+            runfiles = runfiles,
         ),
         DialyzerToolInfo(plts = plts),
     ]

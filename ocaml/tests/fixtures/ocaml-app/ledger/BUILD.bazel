@@ -39,7 +39,6 @@ ocaml_module(
 
 ocaml_test(
     name = "ledger_test",
-    size = "small",
     main = ":ledger_test_main",
 )
 

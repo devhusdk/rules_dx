@@ -40,7 +40,6 @@ ocaml_module(
 
 ocaml_test(
     name = "lexer_test",
-    size = "small",
     main = ":lexer_test_main",
 )
 

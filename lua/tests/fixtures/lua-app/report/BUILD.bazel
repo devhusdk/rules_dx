@@ -22,7 +22,6 @@ lua_library(
 
 lua_test(
     name = "report_test",
-    size = "small",
     main = "report_test.lua",
     deps = [":report"],
 )

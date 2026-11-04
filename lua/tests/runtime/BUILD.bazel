@@ -23,7 +23,6 @@ lua_binary(
 
 lua_test(
     name = "probe_test",
-    size = "small",
     args = [
         "--flag",
         "value",

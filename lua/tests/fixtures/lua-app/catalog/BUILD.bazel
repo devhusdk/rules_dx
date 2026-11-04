@@ -32,7 +32,6 @@ lua_library(
 
 lua_test(
     name = "catalog_test",
-    size = "small",
     data = ["units.tsv"],
     env = {"UNITS": "$(rlocationpath units.tsv)"},
     main = "catalog_test.lua",

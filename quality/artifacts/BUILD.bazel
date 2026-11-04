@@ -22,7 +22,6 @@ python_binary(
 
 python_test(
     name = "update_unit_test",
-    size = "small",
     srcs = ["update_test.py"],
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",

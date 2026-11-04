@@ -39,7 +39,6 @@ ocaml_module(
 
 ocaml_test(
     name = "checksum_test",
-    size = "small",
     main = ":checksum_test_main",
 )
 

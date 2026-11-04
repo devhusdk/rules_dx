@@ -173,9 +173,10 @@ impl SelectionContext {
     pub(crate) fn selection_query_file_argv(
         &self,
         verb: &str,
+        required: &[String],
         query_file: &Path,
     ) -> Result<Vec<String>, ForwardError> {
-        let mut argv = self.verb_argv(verb, &[])?;
+        let mut argv = self.verb_argv(verb, required)?;
         argv.push(format!("--query_file={}", query_file.display()));
         Ok(argv)
     }
@@ -230,7 +231,7 @@ mod tests {
         let unconfigured = SelectionContext::unconfigured(&strings(&["--output_base=/o"]));
         assert_eq!(
             unconfigured
-                .selection_query_file_argv("query", file)
+                .selection_query_file_argv("query", &[], file)
                 .expect("argv"),
             strings(&[
                 "bazel",
@@ -247,7 +248,7 @@ mod tests {
             &[],
         );
         let argv = configured
-            .selection_query_file_argv("cquery", file)
+            .selection_query_file_argv("cquery", &[], file)
             .expect("argv");
         assert_eq!(argv[3], "cquery");
         let dev = argv
@@ -464,7 +465,7 @@ mod tests {
             assert!(!argv.contains(&dropped.to_owned()), "{dropped}: {argv:?}");
         }
         let file_argv = selection
-            .selection_query_file_argv("query", Path::new("/tmp/q.txt"))
+            .selection_query_file_argv("query", &[], Path::new("/tmp/q.txt"))
             .expect("argv");
         assert_eq!(file_argv[4..9], expected, "{file_argv:?}");
         assert!(!file_argv.contains(&"--config=dx_dev".to_owned()));

@@ -37,7 +37,7 @@ fn run_labels(
         prepare_failure(expression, format!("cannot write the query file: {error}"))
     })?;
     let argv = selection
-        .selection_query_file_argv(verb, file.path())
+        .selection_query_file_argv(verb, &[], file.path())
         .map_err(|error| prepare_failure(expression, error.to_string()))?;
     let result = ResolveError::run(runner, &argv, workspace, expression)?;
     let lines = parse_owners(&result.stdout, expression)?;

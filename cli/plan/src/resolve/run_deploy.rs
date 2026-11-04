@@ -34,16 +34,15 @@ fn filter_executables(
         format!("--starlark:expr={}", executable_probe_expr()),
     ];
     let selection = SelectionContext::unconfigured(startup_options);
+    let prepare =
+        |detail: String| ResolveError::query(&expression, QueryFailure::Prepare { detail });
+    let mut file = tempfile::NamedTempFile::new()
+        .map_err(|error| prepare(format!("cannot write the query file: {error}")))?;
+    std::io::Write::write_all(&mut file, expression.as_bytes())
+        .map_err(|error| prepare(format!("cannot write the query file: {error}")))?;
     let argv = selection
-        .selection_argv("cquery", &required, &expression)
-        .map_err(|error| {
-            ResolveError::query(
-                &expression,
-                QueryFailure::Prepare {
-                    detail: error.to_string(),
-                },
-            )
-        })?;
+        .selection_query_file_argv("cquery", &required, file.path())
+        .map_err(|error| prepare(error.to_string()))?;
     let result = ResolveError::run(runner, &argv, workspace, &expression)?;
     let malformed = |detail: &str| {
         ResolveError::query(
@@ -633,5 +632,24 @@ mod tests {
         let err =
             resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("malformed");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+    }
+
+    #[test]
+    fn large_candidate_sets_go_through_a_query_file() {
+        let candidates: Vec<String> = (0..4000)
+            .map(|index| format!("//services/pkg_{index}:binary_target"))
+            .collect();
+        let probe: String = candidates
+            .iter()
+            .map(|label| format!("{label}|True\n"))
+            .collect();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&probe)]);
+        let got = filter_executables(&candidates, Path::new("/work"), &query, &[]).expect("probe");
+        assert_eq!(got.len(), candidates.len());
+        let calls = query.calls();
+        let argv = &calls[0].0;
+        assert!(argv.iter().any(|arg| arg.starts_with("--query_file=")));
+        assert!(argv.iter().any(|arg| arg.starts_with("--starlark:expr=")));
+        assert!(argv.iter().all(|arg| arg.len() < 4096));
     }
 }

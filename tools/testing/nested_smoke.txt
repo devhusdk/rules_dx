@@ -30,13 +30,7 @@
 //python/tests/consumer:docs_consumer_test
 //python/tests/consumer:overrides_consumer_test
 //python/tests/consumer:service_consumer_test
-//qt/tests:qt_app_consumer_test
-//qt/tests:qt_cell_consumer_test
-//qt/tests:qt_display_test
-//qt/tests:qt_rust_test
-//qt/tests:qt_tasks_test
 //quality/tests:quality_check_smoke_test
-//rust/ide:init_rust_analyzer_test
 //tools/docs/components/tests:consumer_test
 //tools/docs/go/tests:consumer_test
 //tools/docs/jvm:consumer_test

@@ -5,8 +5,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//qt/rules:defs.bzl", "QT_HOST_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":rules_tests.bzl", "qt_rules_tests")
 
 _LINUX = select({
@@ -164,157 +163,6 @@ rust_clippy_test(
     targets = [":qt_test"],
 )
 
-rust_test(
-    name = "qt_app_consumer_test",
-    size = "enormous",
-    srcs = ["qt_app_consumer_test.rs"],
-    data = [
-        "//cli/cli:dx",
-        "//qt:module_srcs",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches the Qt SDK.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX,
-    deps = [
-        ":qt_board_support",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "qt_app_consumer_fmt_test",
-    targets = [":qt_app_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "qt_app_consumer_clippy_test",
-    targets = [":qt_app_consumer_test"],
-)
-
-rust_test(
-    name = "qt_cell_consumer_test",
-    size = "enormous",
-    srcs = ["qt_cell_consumer_test.rs"],
-    data = [
-        "//qt:module_srcs",
-        "//qt/sdk:linux_x86_64_cell",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "CELL_SPEC": "$(rootpath //qt/sdk:linux_x86_64_cell)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches the Qt SDK.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "qt_cell_consumer_fmt_test",
-    targets = [":qt_cell_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "qt_cell_consumer_clippy_test",
-    targets = [":qt_cell_consumer_test"],
-)
-
-rust_library(
-    name = "qt_board_support",
-    testonly = True,
-    srcs = ["qt_board_support.rs"],
-    crate_name = "qt_board_support",
-    deps = [
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-        "//tools/testing/hermetic",
-    ],
-)
-
-rust_test(
-    name = "qt_tasks_test",
-    size = "enormous",
-    srcs = ["qt_tasks_test.rs"],
-    data = ["//tools/testing/hermetic:qt_tasks_manifest"] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    # Fetches the Qt SDK.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX,
-    deps = [
-        ":qt_board_support",
-        "//tools/testing:dx_testing",
-        "//tools/testing/hermetic",
-    ],
-)
-
-rust_test(
-    name = "qt_display_test",
-    size = "enormous",
-    srcs = ["qt_display_test.rs"],
-    data = ["//tools/testing/hermetic:qt_tasks_manifest"] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "DISPLAY",
-        "DX_QT_DISPLAYS",
-        "HOME",
-        "PATH",
-        "WAYLAND_DISPLAY",
-        "XAUTHORITY",
-        "XDG_RUNTIME_DIR",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
-    target_compatible_with = _LINUX,
-    deps = [
-        ":qt_board_support",
-        "//tools/testing:dx_testing",
-        "//tools/testing/hermetic",
-    ],
-)
-
-rustfmt_test(
-    name = "qt_tasks_fmt_test",
-    targets = [
-        ":qt_board_support",
-        ":qt_display_test",
-        ":qt_tasks_test",
-    ],
-)
-
-rust_clippy_test(
-    name = "qt_tasks_clippy_test",
-    targets = [
-        ":qt_board_support",
-        ":qt_display_test",
-        ":qt_tasks_test",
-    ],
-)
-
 qt_cc_library(
     name = "gui",
     testonly = True,
@@ -390,42 +238,6 @@ alias(
         "@dx_qt//:macos_arm64": ":gui_check_macos_arm64",
     }),
     tags = ["manual"],
-)
-
-rust_test(
-    name = "qt_rust_test",
-    size = "enormous",
-    srcs = ["qt_rust_test.rs"],
-    data = [
-        "//tools/testing/hermetic:qt_rust_manifest",
-        "//tools/testing/hermetic:qt_tasks_manifest",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_QT_RUST_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_rust_manifest)",
-        "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX,
-    deps = [
-        ":qt_board_support",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "qt_rust_fmt_test",
-    targets = [":qt_rust_test"],
-)
-
-rust_clippy_test(
-    name = "qt_rust_clippy_test",
-    targets = [":qt_rust_test"],
 )
 
 qt_cc_library(

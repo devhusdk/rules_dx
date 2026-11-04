@@ -77,9 +77,3 @@ server:
 DISPLAY=:0 QT_QPA_PLATFORM=xcb /tmp/board/board --store /tmp/tasks.json /tmp/board/xcb.png
 WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland /tmp/board/board --store /tmp/tasks.json /tmp/board/wayland.png
 ```
-
-Run the display check on a host with a display:
-
-```sh
-DX_QT_DISPLAYS=xcb,wayland bazel test //qt/tests:qt_display_test
-```

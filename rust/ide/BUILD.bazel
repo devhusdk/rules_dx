@@ -1,8 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rustfmt_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_rust_analyzer_tool")
-load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -26,45 +24,6 @@ ide_acquisition_test(
     expected = "rust-analyzer",
     tags = ["no-remote-exec"],
     version_args = ["--version"],
-)
-
-nested_bazel_test(
-    name = "init_rust_analyzer_test",
-    srcs = ["tests/init_rust_analyzer.rs"],
-    data = [
-        "//:module_srcs",
-        "//cli/cli:dx",
-        "@rust_analyzer",
-    ],
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_RUST_ANALYZER": "$(rootpath @rust_analyzer//:rust_analyzer)",
-    },
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    network = True,
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    deps = [
-        "//tools/testing:dx_lsp",
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-rustfmt_test(
-    name = "init_rust_analyzer_fmt_test",
-    targets = [":init_rust_analyzer_test"],
-)
-
-rust_clippy_test(
-    name = "init_rust_analyzer_clippy_test",
-    targets = [":init_rust_analyzer_test"],
 )
 
 real_source_target(

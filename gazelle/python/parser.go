@@ -98,7 +98,11 @@ func addDynamic(tree *treesitter.Tree, call *ts.Node, add func(string)) {
 			return
 		}
 		s := tree.Text(a)
-		s = strings.TrimLeft(s, "rRbBuUfF")
+		prefix := s[:len(s)-len(strings.TrimLeft(s, "rRbBuUfF"))]
+		if strings.ContainsAny(prefix, "fF") {
+			return
+		}
+		s = s[len(prefix):]
 		if len(s) >= 6 && (strings.HasPrefix(s, `"""`) || strings.HasPrefix(s, `'''`)) && strings.HasSuffix(s, s[:3]) {
 			s = s[3 : len(s)-3]
 		} else if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {

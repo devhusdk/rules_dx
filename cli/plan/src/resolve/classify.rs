@@ -106,8 +106,73 @@ fn check_recursive_label_has_packages(raw: &str, workspace: &Path) -> Result<(),
     } else {
         Err(ResolveError::NoTargets {
             scope: raw.to_owned(),
+            suggestions: suggest_packages(rel, workspace),
         })
     }
+}
+
+/// Walks up to the nearest existing directory and returns up to three sibling
+/// directories with a BUILD file whose name is within edit distance 2 of the
+/// missing path segment.
+fn suggest_packages(rel: &str, workspace: &Path) -> Vec<String> {
+    let mut parent = Path::new(rel.trim_end_matches('/'));
+    let mut missing = String::new();
+    while !workspace.join(parent).is_dir() {
+        missing = parent
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        match parent.parent() {
+            Some(up) => parent = up,
+            None => return Vec::new(),
+        }
+    }
+    if missing.is_empty() {
+        return Vec::new();
+    }
+    let Ok(entries) = std::fs::read_dir(workspace.join(parent)) else {
+        return Vec::new();
+    };
+    let mut ranked = Vec::new();
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let dir = entry.path();
+        let has_build = dir.join("BUILD").is_file() || dir.join("BUILD.bazel").is_file();
+        let distance = edit_distance(&missing, &name);
+        if dir.is_dir() && has_build && distance <= 2 {
+            ranked.push((distance, name));
+        }
+    }
+    ranked.sort();
+    ranked
+        .into_iter()
+        .take(3)
+        .map(|(_, name)| {
+            let base = parent.to_string_lossy();
+            if base.is_empty() {
+                format!("//{name}")
+            } else {
+                format!("//{base}/{name}")
+            }
+        })
+        .collect()
+}
+
+fn edit_distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut diagonal = row[0];
+        row[0] = i + 1;
+        for (j, cb) in b.iter().enumerate() {
+            let above = row[j + 1];
+            row[j + 1] = (above + 1)
+                .min(row[j] + 1)
+                .min(diagonal + usize::from(ca != *cb));
+            diagonal = above;
+        }
+    }
+    row[b.len()]
 }
 
 fn has_build_file_under(dir: &Path) -> bool {
@@ -260,6 +325,23 @@ mod tests {
         assert!(matches!(err, ResolveError::NoTargets { .. }), "{err:?}");
         let ok = resolve(&strings(&["//pkg/..."]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(ok.targets, strings(&["//pkg/..."]));
+    }
+
+    #[test]
+    fn no_targets_suggests_similar_packages() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-suggest-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "cli/worktree/BUILD.bazel", "");
+        write(&workspace, "cli/plan/BUILD.bazel", "");
+        write(&workspace, "cli/notes/file.txt", "x");
+        let query = NeverQuery;
+        let err = resolve(&strings(&["//cli/worktre/..."]), &workspace, &query, &[]).unwrap_err();
+        assert!(
+            err.to_string().ends_with("; did you mean //cli/worktree?"),
+            "{err}"
+        );
+        let err = resolve(&strings(&["//cli/zzzzzz/..."]), &workspace, &query, &[]).unwrap_err();
+        assert!(!err.to_string().contains("did you mean"), "{err}");
     }
 
     #[test]

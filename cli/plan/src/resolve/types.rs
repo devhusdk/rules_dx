@@ -58,8 +58,14 @@ pub enum ResolveError {
     OutsideWorkspace { scope: String },
     #[error("unknown path {scope:?}: no such file or directory under the workspace")]
     PathNotFound { scope: String },
-    #[error("no targets found for {scope:?}: no BUILD file exists under that package path")]
-    NoTargets { scope: String },
+    #[error(
+        "no targets found for {scope:?}: no BUILD file exists under that package path{hint}",
+        hint = did_you_mean(suggestions),
+    )]
+    NoTargets {
+        scope: String,
+        suggestions: Vec<String>,
+    },
     #[error("unsupported path {scope:?}: scope paths must be regular files or directories")]
     NotFileOrDir { scope: String },
     #[error(
@@ -171,6 +177,14 @@ impl QueryFailure {
             detail.push_str("; install bazelisk or put bazel on PATH, then run dx status");
         }
         QueryFailure::Launch { detail }
+    }
+}
+
+fn did_you_mean(suggestions: &[String]) -> String {
+    if suggestions.is_empty() {
+        String::new()
+    } else {
+        format!("; did you mean {}?", suggestions.join(", "))
     }
 }
 

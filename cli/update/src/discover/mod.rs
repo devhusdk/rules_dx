@@ -2,6 +2,7 @@
 
 pub mod bcr;
 pub mod cargo;
+pub mod github;
 pub mod go;
 pub mod maven;
 pub mod npm;
@@ -44,6 +45,7 @@ pub struct LookupError {
 pub struct Findings {
     pub candidates: Vec<Candidate>,
     pub errors: Vec<LookupError>,
+    pub unknown: Vec<LookupError>,
 }
 
 /// Keeps a package when no filter is given or the filter names it.

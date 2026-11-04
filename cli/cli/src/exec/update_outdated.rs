@@ -6,7 +6,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings,
+    bcr, cargo, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -18,6 +18,53 @@ pub(crate) const REGISTRY_DIR_ENV: &str = "DX_UPDATE_REGISTRY_DIR";
 pub(crate) const CODE_UPDATE_OUTDATED: &str = "update_outdated";
 pub(crate) const CODE_UPDATE_OUTDATED_UNSUPPORTED: &str = "update_outdated_unsupported";
 pub(crate) const CODE_UPDATE_OUTDATED_LOOKUP: &str = "update_outdated_lookup_failed";
+pub(crate) const CODE_UPDATE_OUTDATED_UNKNOWN: &str = "update_outdated_unknown";
+
+const ACTIONS_SELECTOR: &str = "github-actions";
+const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
+
+#[derive(Debug, Default, Eq, PartialEq)]
+struct Builtins {
+    actions: Option<Vec<String>>,
+    bazelversion: bool,
+}
+
+fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
+    let mut builtins = Builtins::default();
+    let mut rest = Vec::new();
+    if targets.is_empty() {
+        builtins.actions = Some(Vec::new());
+        builtins.bazelversion = true;
+        return (builtins, rest);
+    }
+    for target in targets {
+        if target == ACTIONS_SELECTOR {
+            builtins.actions = Some(Vec::new());
+        } else if let Some(repo) = target
+            .strip_prefix(ACTIONS_SELECTOR)
+            .and_then(|r| r.strip_prefix(':'))
+        {
+            if let Some(only) = builtins.actions.as_mut() {
+                if !only.is_empty() {
+                    only.push(repo.to_owned());
+                }
+            } else {
+                builtins.actions = Some(vec![repo.to_owned()]);
+            }
+        } else if target == BAZELVERSION_SELECTOR {
+            builtins.bazelversion = true;
+        } else {
+            rest.push(target.clone());
+        }
+    }
+    (builtins, rest)
+}
+
+fn github_auth(url: &str, token: Option<&str>) -> Option<(&'static str, String)> {
+    let token = token.filter(|token| !token.is_empty())?;
+    url.starts_with("https://api.github.com/")
+        .then(|| ("Authorization", format!("Bearer {token}")))
+}
 
 pub(crate) fn execute_update_outdated(invocation: &Invocation, env: Env<'_>) -> i32 {
     let fetch: Box<dyn Fetch> = match std::env::var_os(REGISTRY_DIR_ENV) {
@@ -43,14 +90,20 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
             "dx update --outdated reads package registries; drop --offline",
         );
     }
-    let registry = match dependency_sets::load(workspace) {
-        Ok(Some(registry)) => registry,
-        Ok(None) => return pre_exec(invocation.output, out, err, "no dependency sets"),
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let resolved = match dependency_sets::resolve(&registry, &invocation.targets) {
-        Ok(resolved) => resolved,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    let (builtins, selectors) = split_builtin(&invocation.targets);
+    let only_builtins = !invocation.targets.is_empty() && selectors.is_empty();
+    let resolved = if only_builtins {
+        Vec::new()
+    } else {
+        match dependency_sets::load(workspace) {
+            Ok(Some(registry)) => match dependency_sets::resolve(&registry, &selectors) {
+                Ok(resolved) => resolved,
+                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+            },
+            Ok(None) if selectors.is_empty() => Vec::new(),
+            Ok(None) => return pre_exec(invocation.output, out, err, "no dependency sets"),
+            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        }
     };
     let json = invocation.output == OutputMode::Json;
     if json {
@@ -61,6 +114,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     let mut found = Findings::default();
     let mut unsupported = Vec::new();
     let mut ecosystems = BTreeMap::new();
+    run_builtins(&builtins, workspace, fetch, &mut found);
     for target in &resolved {
         let only: &[String] = match &target.request {
             Selection::Full => &[],
@@ -183,7 +237,31 @@ fn read_texts(workspace: &Path, manifests: &[String]) -> Vec<String> {
         .collect()
 }
 
+fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found: &mut Findings) {
+    if let Some(only) = &builtins.actions {
+        let mut flows = Vec::new();
+        for path in dx_update::edit::gha::list_workflows(workspace).unwrap_or_default() {
+            if let Ok(text) = std::fs::read_to_string(workspace.join(&path)) {
+                flows.push((path, text));
+            }
+        }
+        merge(
+            found,
+            github::actions(&flows, only, github::DEFAULT_BASE, fetch),
+        );
+    }
+    if builtins.bazelversion {
+        if let Ok(text) = std::fs::read_to_string(workspace.join(".bazelversion")) {
+            merge(
+                found,
+                github::bazelversion(&text, github::DEFAULT_BASE, fetch),
+            );
+        }
+    }
+}
+
 fn merge(into: &mut Findings, from: Findings) {
+    into.unknown.extend(from.unknown);
     into.candidates.extend(from.candidates);
     into.errors.extend(from.errors);
 }
@@ -236,6 +314,18 @@ fn emit_json(
     }
     for set in unsupported {
         emit_built(out, unsupported_notice(set))?;
+    }
+    for unknown in &found.unknown {
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                scope: Some(vec![format!("{}:{}", unknown.set, unknown.package)]),
+                ..NoticeEvent::warning(
+                    CODE_UPDATE_OUTDATED_UNKNOWN,
+                    format!("{}: {}", unknown.package, unknown.reason),
+                )
+            }),
+        )?;
     }
     for error in &found.errors {
         emit_built(
@@ -301,7 +391,14 @@ fn emit_text(
             "{set}: --outdated does not cover this set yet"
         ))?;
     }
-    if found.candidates.is_empty() && found.errors.is_empty() {
+    for unknown in &found.unknown {
+        check_stdout_write(writeln!(
+            out,
+            "{}:{}: unknown ({})",
+            unknown.set, unknown.package, unknown.reason
+        ))?;
+    }
+    if found.candidates.is_empty() && found.errors.is_empty() && found.unknown.is_empty() {
         check_stdout_write(writeln!(out, "nothing is outdated"))?;
     }
     Ok(())
@@ -317,7 +414,7 @@ impl Fetch for DirFetch {
     }
 }
 
-struct HttpFetch(ureq::Agent);
+struct HttpFetch(ureq::Agent, Option<String>);
 
 impl HttpFetch {
     fn new() -> HttpFetch {
@@ -333,13 +430,22 @@ impl HttpFetch {
             .timeout_global(Some(Duration::from_secs(60)))
             .build()
             .into();
-        HttpFetch(agent)
+        let token = ["GH_TOKEN", "GITHUB_TOKEN"]
+            .iter()
+            .find_map(|name| std::env::var(name).ok().filter(|value| !value.is_empty()));
+        HttpFetch(agent, token)
     }
 }
 
 impl Fetch for HttpFetch {
     fn get(&self, url: &str) -> Result<String, String> {
-        let mut response = self.0.get(url).call().map_err(|e| e.to_string())?;
+        let mut request = self.0.get(url);
+        if let Some((name, value)) = github_auth(url, self.1.as_deref()) {
+            request = request
+                .header(name, value)
+                .header("Accept", "application/vnd.github+json");
+        }
+        let mut response = request.call().map_err(|e| e.to_string())?;
         if response.status().as_u16() != 200 {
             return Err(format!("HTTP {}", response.status().as_u16()));
         }
@@ -414,6 +520,7 @@ mod tests {
                 published: Some("2026-01-01T00:00:00Z".into()),
             }],
             errors: Vec::new(),
+            unknown: Vec::new(),
         };
         let mut out = Vec::new();
         emit_text(&mut out, &found, &["gradle".into()], &BTreeMap::new()).expect("text");
@@ -422,5 +529,66 @@ mod tests {
             "cargo:serde 1 -> 2.0.0 (published 2026-01-01T00:00:00Z): dx update cargo:serde 2.0.0"
         ));
         assert!(text.contains("gradle: --outdated does not cover"));
+    }
+
+    #[test]
+    fn builtin_selectors_split_from_sets() {
+        let list = |items: &[&str]| items.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        let (all, rest) = split_builtin(&[]);
+        assert!(all.actions.is_some() && all.bazelversion && rest.is_empty());
+        let (one, rest) = split_builtin(&list(&["github-actions:o/r", "dx_crates"]));
+        assert_eq!(one.actions, Some(list(&["o/r"])));
+        assert!(!one.bazelversion);
+        assert_eq!(rest, list(&["dx_crates"]));
+        let (bazel, rest) = split_builtin(&list(&["bazel:.bazelversion", "github-actions"]));
+        assert!(bazel.bazelversion && rest.is_empty());
+        assert_eq!(bazel.actions, Some(Vec::new()));
+    }
+
+    #[test]
+    fn token_goes_to_api_github_only() {
+        let api = "https://api.github.com/repos/o/r/releases/latest";
+        assert_eq!(
+            github_auth(api, Some("t")),
+            Some(("Authorization", "Bearer t".to_owned()))
+        );
+        assert_eq!(github_auth(api, None), None);
+        assert_eq!(github_auth("https://bcr.bazel.build/x", Some("t")), None);
+        assert_eq!(github_auth("https://index.crates.io/x", Some("t")), None);
+        assert_eq!(
+            github_auth("https://api.github.com.evil.io/x", Some("t")),
+            None
+        );
+    }
+
+    #[test]
+    fn dir_fetch_maps_github_release_urls() {
+        let dir = std::env::temp_dir().join(format!("dx-outdated-gh-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("api.github.com/repos/o/r/releases")).expect("mkdir");
+        std::fs::write(dir.join("api.github.com/repos/o/r/releases/latest"), "{}").expect("write");
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.get("https://api.github.com/repos/o/r/releases/latest"),
+            Ok("{}".into())
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn text_output_shows_unknown_pins() {
+        let found = Findings {
+            unknown: vec![dx_update::discover::LookupError {
+                set: "github-actions".into(),
+                package: "o/r".into(),
+                reason: "no GitHub release".into(),
+            }],
+            ..Findings::default()
+        };
+        let mut out = Vec::new();
+        emit_text(&mut out, &found, &[], &BTreeMap::new()).expect("text");
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "github-actions:o/r: unknown (no GitHub release)\n"
+        );
     }
 }

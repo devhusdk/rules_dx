@@ -21,6 +21,7 @@ pub struct UsesPin {
     pub value: String,
     pub style: ScalarStyle,
     pub span: Range<usize>,
+    pub comment: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -139,16 +140,18 @@ pub fn parse_workflow_pins(content: &str) -> Result<WorkflowPins, WorkflowYamlEr
                         _ => None,
                     };
                     if let Some(kind) = kind {
+                        let span = scalar_span(
+                            content,
+                            byte(span.start.index()),
+                            byte(span.end.index()),
+                            style,
+                        );
                         found.pins.push(UsesPin {
                             kind,
                             value: value.to_string(),
                             style,
-                            span: scalar_span(
-                                content,
-                                byte(span.start.index()),
-                                byte(span.end.index()),
-                                style,
-                            ),
+                            comment: trailing_comment(content, span.end),
+                            span,
                         });
                     }
                 }
@@ -182,6 +185,24 @@ pub fn parse_workflow_pins(content: &str) -> Result<WorkflowPins, WorkflowYamlEr
         }
     }
     Ok(found)
+}
+
+fn trailing_comment(content: &str, end: usize) -> Option<String> {
+    let rest = content.get(end..)?;
+    let line = rest.split('\n').next()?;
+    let text = line.trim_start().strip_prefix('#')?.trim();
+    (!text.is_empty() && line.starts_with(char::is_whitespace)).then(|| text.to_owned())
+}
+
+pub fn list_workflows(workspace: &std::path::Path) -> std::io::Result<Vec<String>> {
+    let mut names: Vec<String> = std::fs::read_dir(workspace.join(WORKFLOW_DIR))?
+        .filter_map(|entry| {
+            let name = entry.ok()?.file_name().to_string_lossy().into_owned();
+            workflow_file(&name).then(|| format!("{WORKFLOW_DIR}/{name}"))
+        })
+        .collect();
+    names.sort();
+    Ok(names)
 }
 
 // Framing only: trims quote delimiters off the span; the YAML event parser reads the pins.
@@ -305,5 +326,18 @@ pub fn resolve_sha_from_commit_response(text: &str) -> Result<String, GhaResolve
             }),
             _ => Err(GhaResolveError::MissingSha),
         },
+    }
+}
+
+#[cfg(test)]
+mod comment_tests {
+    use super::*;
+
+    #[test]
+    fn reads_trailing_comments_for_every_quote_style() {
+        let text = "jobs:\n  a:\n    steps:\n      - uses: a/b@1 # v1\n      - uses: 'a/c@2'  #  v2 x\n      - uses: \"a/d@3\" # v3\n      - uses: a/e@4\n";
+        let pins = parse_workflow_pins(text).expect("parse").pins;
+        let comments: Vec<_> = pins.iter().map(|pin| pin.comment.as_deref()).collect();
+        assert_eq!(comments, [Some("v1"), Some("v2 x"), Some("v3"), None]);
     }
 }

@@ -315,23 +315,13 @@ fn widen_targets(
     if request.set != dx_update::edit::UpdateSet::GithubActions {
         return Ok(vec![request.target_manifest().to_owned()]);
     }
-    let dir = workspace.join(dx_update::edit::gha::WORKFLOW_DIR);
-    let entries = std::fs::read_dir(&dir).map_err(|_| {
+    dx_update::edit::gha::list_workflows(workspace).map_err(|_| {
         format!(
             "failed to widen {}: cannot list {}",
             request.selector,
             dx_update::edit::gha::WORKFLOW_DIR
         )
-    })?;
-    let mut manifests: Vec<String> = entries
-        .filter_map(|entry| {
-            let name = entry.ok()?.file_name().to_string_lossy().into_owned();
-            dx_update::edit::gha::workflow_file(&name)
-                .then(|| format!("{}/{name}", dx_update::edit::gha::WORKFLOW_DIR))
-        })
-        .collect();
-    manifests.sort();
-    Ok(manifests)
+    })
 }
 
 /// Why a widen could not be planned: a refused argument (exit 2) or a failed edit.

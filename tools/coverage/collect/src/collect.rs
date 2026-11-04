@@ -43,7 +43,6 @@ pub fn export_args(profdata: &Path, root: &Path, objects: &[PathBuf]) -> Vec<Str
         "-instr-profile".to_string(),
         profdata.display().to_string(),
         "-ignore-filename-regex=.*external/.+".to_string(),
-        "-ignore-filename-regex=/tmp/.+".to_string(),
         format!("-path-equivalence=.,{}", root.display()),
     ];
     for (i, object) in objects.iter().enumerate() {
@@ -125,6 +124,21 @@ mod tests {
             args[..4],
             ["export", "-format=lcov", "-instr-profile", "p.profdata"].map(String::from)
         );
+    }
+
+    #[test]
+    fn keeps_sources_under_a_tmp_workspace_root() {
+        let args = export_args(
+            Path::new("p.profdata"),
+            Path::new("/tmp/ws"),
+            &[PathBuf::from("a")],
+        );
+        let ignores: Vec<&String> = args
+            .iter()
+            .filter(|arg| arg.starts_with("-ignore-filename-regex="))
+            .collect();
+        assert_eq!(ignores, vec!["-ignore-filename-regex=.*external/.+"]);
+        assert!(args.contains(&"-path-equivalence=.,/tmp/ws".to_string()));
     }
 
     #[test]

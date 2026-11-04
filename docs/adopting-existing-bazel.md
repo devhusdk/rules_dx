@@ -22,7 +22,7 @@ check what `dx init` would write:
 bazel run @rules_dx//:dx -- init
 ```
 
-Read the drift output and `MODULE.bazel.snippet` before you apply. Then run:
+Read the drift output before you apply. Then run:
 
 ```sh
 bazel run @rules_dx//:dx -- init --apply

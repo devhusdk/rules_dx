@@ -358,10 +358,8 @@ _SCAFFOLD_BUILD_BAZEL = '''genrule(
         "init_bad.txt",
         "foreign/myproj/MODULE.bazel",
         "foreign/myproj/.bazelversion",
-        "foreign/myproj/MODULE.bazel.snippet",
         "foreign/myproj/.dx/version",
         "fortree/.dx/version",
-        "fortree/MODULE.bazel.snippet",
     ],
     cmd = """
 set -eu
@@ -384,11 +382,9 @@ grep -q "unrecognized subcommand 'new'" "$(location new_removed.txt)"
 test ! -e "$$foreign/bad"
 "$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_dir_apply.txt)"
-grep -q "wrote myproj/MODULE.bazel.snippet" "$(location init_dir_apply.txt)"
 grep -q "wrote myproj/.dx/version" "$(location init_dir_apply.txt)"
 test -f "$$foreign/myproj/MODULE.bazel"
 test -f "$$foreign/myproj/.bazelversion"
-test -f "$$foreign/myproj/MODULE.bazel.snippet"
 test -f "$$foreign/myproj/.dx/version"
 grep -q 'name = "myproj"' "$$foreign/myproj/MODULE.bazel"
 cp "$$foreign/myproj/MODULE.bazel" "$$root/module.orig"
@@ -397,9 +393,7 @@ echo "exit=0" >> "$(location init_dir_reapply.txt)"
 cmp "$$root/module.orig" "$$foreign/myproj/MODULE.bazel"
 "$$public" init --apply --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_apply.txt)"
-grep -q "wrote MODULE.bazel.snippet" "$(location init_apply.txt)"
 grep -q "wrote .dx/version" "$(location init_apply.txt)"
-test -f "$$fortree/MODULE.bazel.snippet"
 test -f "$$fortree/.dx/version"
 test ! -e "$$fortree/MODULE.bazel"
 if "$$public" init --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then

@@ -56,7 +56,7 @@ pub use preset::{
 pub use scaffold::{
     bazelignore_covers_dx, owned_file_drift, plan_init_files, plan_init_files_at,
     preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,
-    Applied, FileKind,
+    with_overrides_include, Applied, FileKind,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent};

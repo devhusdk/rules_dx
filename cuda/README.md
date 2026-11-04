@@ -242,8 +242,7 @@ checks, or on `@cuda//:cuda_headers` or `@cuda//:cuda_all_files`, which fetch
 every component. The `cufft` and `curand` targets are tagged `manual`.
 
 If your stanza has no `cuda_cublas` tag, building these targets fails with
-`no such target @cuda//:cublas`; copy the stanza that `dx init` writes to
-`MODULE.bazel.snippet` when the tree has `.cu` files. See
+`no such target @cuda//:cublas`; add the `cuda_cublas` tag to your `cuda` stanza when the tree has `.cu` files. See
 `cuda/tests/fixtures/cublas`.
 
 ## GPU tests

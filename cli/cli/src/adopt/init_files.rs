@@ -7,12 +7,11 @@ use dx_worktree::setup;
 
 use super::{agents, claude_md};
 
-const ESSENTIAL: [&str; 7] = [
+const ESSENTIAL: [&str; 6] = [
     ".dx/version",
     ".gitignore",
     ".bazelignore",
     "MODULE.bazel",
-    "MODULE.bazel.snippet",
     "tools/dx",
     "tools/dx.cmd",
 ];
@@ -546,28 +545,6 @@ mod tests {
         let (code, out, err) = run(&invocation(&["init"]), root);
         assert_eq!(code, 0, "{err}");
         assert!(out.contains("init current"), "{out}");
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn check_and_apply_write_the_same_snippet_in_a_cuda_tree() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-cuda-");
-        let root = scratch.path();
-        std::fs::write(root.join("a.cu"), "").expect("write");
-        let planned = plan(root, "my_project", true, &Agent::ALL).expect("plan");
-        let planned_snippet = planned
-            .iter()
-            .find(|file| file.path == "MODULE.bazel.snippet")
-            .expect("snippet")
-            .content
-            .clone();
-        let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
-            root,
-        );
-        assert_eq!(code, 0, "{err}");
-        let written = std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("read");
-        assert_eq!(written, planned_snippet);
         scratch.close().expect("cleanup");
     }
 

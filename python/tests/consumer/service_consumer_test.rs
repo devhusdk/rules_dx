@@ -509,7 +509,7 @@ fn init_adopts_an_existing_python_tree() {
     assert_eq!(applied.status.code(), Some(0), "{applied:?}");
     for file in [
         ".dx/version",
-        "MODULE.bazel.snippet",
+        ".bazelignore",
         ".github/workflows/ci.yml",
     ] {
         assert!(dir.join(file).is_file(), "{file} missing");

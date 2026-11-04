@@ -387,7 +387,11 @@ fn rules_dx_override(checkout: &Path) -> String {
 }
 
 /// Builds the consumer MODULE.bazel from the `dx init` snippet and the rules_dx checkout.
-pub fn consumer_module(snippet: &str, checkout: &Path) -> Result<String, String> {
+pub fn consumer_module(init_module: &str, checkout: &Path) -> Result<String, String> {
+    let snippet = init_module
+        .strip_prefix("module(")
+        .and_then(|rest| rest.split_once('\n'))
+        .map_or(init_module, |(_, rest)| rest.trim_start());
     if snippet.matches("bazel_dep(name = \"rules_dx\", ").count() != 1 {
         return Err(format!(
             "dx init snippet must declare rules_dx exactly once: {snippet}"
@@ -432,10 +436,6 @@ pub fn stage_consumer(
             .map(drop)
             .map_err(|error| format!("stage: cannot copy {}: {error}", from.display()))
     };
-    for (source, dest) in CONSUMER_FILES {
-        copy(consumer.template.join(source), dest)?;
-    }
-    copy(consumer.checkout.join(".bazelversion"), ".bazelversion")?;
     let workspace = dir.to_string_lossy().into_owned();
     ran(
         runner,
@@ -444,12 +444,16 @@ pub fn stage_consumer(
         &dir,
     )
     .map_err(|error| format!("stage: {error}"))?;
-    let snippet = std::fs::read_to_string(dir.join("MODULE.bazel.snippet"))
-        .map_err(|error| format!("stage: dx init wrote no MODULE.bazel.snippet: {error}"))?;
+    let written = std::fs::read_to_string(dir.join("MODULE.bazel"))
+        .map_err(|error| format!("stage: dx init wrote no MODULE.bazel: {error}"))?;
     let module =
-        consumer_module(&snippet, &consumer.checkout).map_err(|error| format!("stage: {error}"))?;
+        consumer_module(&written, &consumer.checkout).map_err(|error| format!("stage: {error}"))?;
     std::fs::write(dir.join("MODULE.bazel"), module)
         .map_err(|error| format!("stage: cannot write MODULE.bazel: {error}"))?;
+    for (source, dest) in CONSUMER_FILES {
+        copy(consumer.template.join(source), dest)?;
+    }
+    copy(consumer.checkout.join(".bazelversion"), ".bazelversion")?;
     Ok(dir)
 }
 

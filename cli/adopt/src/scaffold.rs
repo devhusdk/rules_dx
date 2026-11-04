@@ -62,7 +62,7 @@ pub fn render_consumer_module_setup() -> String {
 }
 
 /// Adds the include of the dx-written overrides right after the rules_dx `bazel_dep`.
-fn with_overrides_include(setup: &str) -> Result<String, AdoptError> {
+pub fn with_overrides_include(setup: &str) -> Result<String, AdoptError> {
     let module = parse_init_snippet(setup)?;
     let included = module
         .insert_include(crate::overrides::OVERRIDES_INCLUDE, "rules_dx")
@@ -317,9 +317,7 @@ fn needs_empty_ruff_config(root: &Path) -> bool {
 }
 
 fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    let module = validate_init_module(module_name)?;
-    let consumer_setup = render_consumer_module_setup();
-    let setup = with_overrides_include(&consumer_setup)?;
+    validate_init_module(module_name)?;
     let files = vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
@@ -360,13 +358,6 @@ fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldF
         ScaffoldFile {
             path: ".github/workflows/dx-update.yml".to_owned(),
             content: DX_UPDATE_WORKFLOW.to_owned(),
-            kind: FileKind::WriteOnce,
-        },
-        ScaffoldFile {
-            path: "MODULE.bazel.snippet".to_owned(),
-            content: format!(
-                "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
-            ),
             kind: FileKind::WriteOnce,
         },
     ];
@@ -567,7 +558,6 @@ mod tests {
         CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
         DX_VERSION,
     };
-    use crate::version::consumer_setup::parse_consumer_setup;
 
     pub(super) fn apply_init(
         root: &std::path::Path,
@@ -597,7 +587,6 @@ mod tests {
             ".vscode/extensions.json",
             ".github/workflows/ci.yml",
             ".github/workflows/dx-update.yml",
-            "MODULE.bazel.snippet",
         ];
         want.sort_unstable();
         let mut got: Vec<&str> = paths.iter().map(String::as_str).collect();
@@ -862,12 +851,6 @@ mod tests {
                 "module name must not guess the workflow owner: {line}"
             );
         }
-        let files = plan_init_files("demo").expect("init plans");
-        let snippet = files
-            .iter()
-            .find(|f| f.path == "MODULE.bazel.snippet")
-            .expect("snippet");
-        assert!(snippet.content.contains("# module: demo\n"));
     }
 
     #[test]
@@ -1158,44 +1141,6 @@ mod tests {
     }
 
     #[test]
-    fn init_snippet_is_a_complete_consumer_setup() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-consumer-setup-");
-        let root = scratch.path().to_path_buf();
-        entries(|a| apply_init(&root, "demo", a)).expect("init");
-        let text =
-            std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("emitted snippet");
-        assert!(text.contains(&format!(
-            "bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\ninclude(\"{}\")\n",
-            crate::overrides::OVERRIDES_INCLUDE
-        )));
-        let setup = parse_consumer_setup(&text);
-        assert_eq!(
-            setup.deps,
-            vec![("rules_dx".to_owned(), DX_VERSION.to_owned())]
-        );
-        assert!(setup.extensions.is_empty() && setup.registered.is_empty());
-        let versions = text.matches(char::is_numeric).count();
-        assert_eq!(versions, DX_VERSION.matches(char::is_numeric).count());
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn snippet_is_the_same_with_or_without_cuda_sources() {
-        let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
-        entries(|a| apply_init(plain.path(), "demo", a)).expect("init");
-        let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
-        std::fs::write(with.path().join("a.cu"), "").expect("write");
-        std::fs::write(with.path().join("a.rs"), "").expect("write");
-        entries(|a| apply_init(with.path(), "demo", a)).expect("init");
-        let read = |dir: &std::path::Path| {
-            std::fs::read_to_string(dir.join("MODULE.bazel.snippet")).expect("read")
-        };
-        assert_eq!(read(plain.path()), read(with.path()));
-        plain.close().expect("cleanup");
-        with.close().expect("cleanup");
-    }
-
-    #[test]
     fn snippet_edits_follow_parsed_calls_not_text() {
         let setup = "# bazel_dep(
 bazel_dep(name = \"rules_dx\", version = \"1\")\n";
@@ -1204,22 +1149,6 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
             "bazel_dep(name = \"rules_dx\", version = \"1\")\ninclude(\"{}\")\n",
             crate::overrides::OVERRIDES_INCLUDE
         )));
-    }
-
-    #[test]
-    fn apply_init_snippet_is_absent_only() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-snippet-absent-");
-        let root = scratch.path().to_path_buf();
-        entries(|a| apply_init(&root, "demo", a)).expect("init");
-        let snippet = root.join("MODULE.bazel.snippet");
-        std::fs::write(&snippet, "custom\n").expect("custom");
-        let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
-        assert!(
-            second.iter().any(|p| p == "refused:MODULE.bazel.snippet"),
-            "snippet must stay absent-only: {second:?}"
-        );
-        assert_eq!(std::fs::read_to_string(&snippet).expect("read"), "custom\n");
-        scratch.close().expect("cleanup");
     }
 
     #[test]

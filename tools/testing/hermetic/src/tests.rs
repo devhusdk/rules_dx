@@ -675,10 +675,7 @@ fn materialize_reports_each_missing_input() {
     let mut silent = real.clone();
     silent.dx = PathBuf::from("/bin/true");
     let err = materialize(&silent, &dir.path().join("c"), source, "cc").unwrap_err();
-    assert!(
-        err.starts_with("dx init wrote no MODULE.bazel.snippet: "),
-        "{err}"
-    );
+    assert!(err.starts_with("dx init wrote no MODULE.bazel: "), "{err}");
     let mut no_fragment = real;
     no_fragment.module_fragment = Some(dir.path().join("no-fragment"));
     let err = materialize(&no_fragment, &dir.path().join("d"), source, "cc").unwrap_err();

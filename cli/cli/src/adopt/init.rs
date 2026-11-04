@@ -171,10 +171,9 @@ fn check_init(
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
         .filter(|pin| !dx_adopt::pin_is_valid(pin));
-    let plan = files
-        .iter()
-        .find(|file| file.path == "MODULE.bazel.snippet")
-        .map(|snippet| dx_adopt::preflight(workspace, &snippet.content))
+    let plan = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
+        .ok()
+        .map(|setup| dx_adopt::preflight(workspace, &setup))
         .filter(|plan| plan.applicable);
     let json = invocation.output == OutputMode::Json;
     if json {
@@ -850,7 +849,6 @@ mod tests {
             ".dx/version",
             ".gitignore",
             ".bazelignore",
-            "MODULE.bazel.snippet",
             "tools/dx",
             ".envrc",
             ".devcontainer/devcontainer.json",

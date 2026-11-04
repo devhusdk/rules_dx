@@ -50,10 +50,6 @@ before any file is written.
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
-`MODULE.bazel.snippet` holds the `rules_dx` pin and one `include()` of the
-rules_dx overrides. It carries no toolchain versions and no language
-stanzas, and it is the same for every tree.
-
 Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
 | Agent | Hooks file | Hooks |
@@ -74,7 +70,7 @@ other entries stay.
 
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`rules_dx_version` matching the `rules_dx` pin in `MODULE.bazel`. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
 warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
@@ -130,7 +126,6 @@ match the running dx.
 | `.bazelrc` | you | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |
 | `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | you | Written in a fresh directory only. |
-| `MODULE.bazel.snippet` | you | Written when missing. Never rewritten. |
 | `.gitignore` | you | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
@@ -151,7 +146,7 @@ what adopting rules_dx would change, found from the declared files and `MODULE.b
 and writes nothing. Sections:
 
 - `version raises`: a module that resolves below the version rules_dx needs (the highest of
-  its own `bazel_dep` floors, the snippet init would write, and the version in
+  its own `bazel_dep` floors, the `rules_dx` pin init would add, and the version in
   `modules/consumer_graph.json`, see below). For a module dx patches, the
   target is the exact version dx pins, and a pin below yours is reported as lower. Modules
   you override yourself are skipped. The current version is the one in `MODULE.bazel.lock`
@@ -206,7 +201,7 @@ with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent defa
 and `.gitattributes`. These files are always rewritten to match the running dx.
 When `MODULE.bazel` has `bazel_dep(name = "rules_dx")`, apply adds
 `include("//third_party/rules_dx:rules_dx.MODULE.bazel")` after it and prints
-`wrote MODULE.bazel`. `MODULE.bazel.snippet` carries the same line. When
+`wrote MODULE.bazel`. When
 `MODULE.bazel` already overrides one of the modules, the line is left out and
 stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 `rules_dx` repository nothing is written. See

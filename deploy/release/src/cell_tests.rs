@@ -150,7 +150,7 @@ fn patch_machine_flips_every_container() {
     }
 }
 
-const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\ninclude(\"//third_party/rules_dx:toolchains.MODULE.bazel\")\n";
+const SNIPPET: &str = "module(name = \"my_project\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\ninclude(\"//third_party/rules_dx:toolchains.MODULE.bazel\")\n";
 
 struct FakeRunner {
     version: String,
@@ -187,7 +187,7 @@ impl Runner for FakeRunner {
         }
         if args[0] == "init" {
             if let Some(snippet) = self.snippet {
-                std::fs::write(cwd.join("MODULE.bazel.snippet"), snippet).expect("snippet");
+                std::fs::write(cwd.join("MODULE.bazel"), snippet).expect("module");
             }
         }
         let stdout = if args[0] == "--version" {
@@ -1253,7 +1253,7 @@ fn stage_consumer_reports_each_stage_that_fails() {
     assert!(run(&good, &runner).contains("init broke"));
     let mut runner = FakeRunner::new();
     runner.snippet = None;
-    assert!(run(&good, &runner).contains("wrote no MODULE.bazel.snippet"));
+    assert!(run(&good, &runner).contains("wrote no MODULE.bazel:"));
     let mut runner = FakeRunner::new();
     runner.snippet = Some("");
     assert!(run(&good, &runner).contains("exactly once"));

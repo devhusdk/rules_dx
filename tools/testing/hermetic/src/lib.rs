@@ -1199,8 +1199,8 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
     }
-    let snippet = std::fs::read_to_string(workspace.join("MODULE.bazel.snippet"))
-        .map_err(|err| format!("dx init wrote no MODULE.bazel.snippet: {err}"))?;
+    let snippet = std::fs::read_to_string(workspace.join("MODULE.bazel"))
+        .map_err(|err| format!("dx init wrote no MODULE.bazel: {err}"))?;
     let fragment_path = manifest
         .module_fragment
         .as_ref()

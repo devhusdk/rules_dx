@@ -16,32 +16,15 @@ Set the pin, inputs and repository settings as [GitHub CI](../../docs/github-ci.
 
 ## Default C/C++ and Rust setup
 
-Generate the setup snippet:
+Initialise a new directory:
 
 ```sh
 bazel run @rules_dx//:dx -- init --apply my_project
 ```
 
-Copy `MODULE.bazel.snippet` into `MODULE.bazel`. The snippet pins the
-hermetic LLVM and Rust toolchains and registers them:
-
-```python
-bazel_dep(name = "rules_dx", version = "0.0.0")
-bazel_dep(name = "rules_cc", version = "0.2.27")
-bazel_dep(name = "llvm", version = "0.8.25")
-bazel_dep(name = "rules_rust", version = "0.75.0")
-
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
-    edition = "2021",
-    rustfmt_version = "1.99.1",
-    versions = ["1.99.1"],
-)
-use_repo(rust, "rust_toolchains")
-
-register_toolchains("@llvm//toolchain:all")
-register_toolchains("@rust_toolchains//:all")
-```
+It writes `my_project/MODULE.bazel` with the `rules_dx` pin and the include of
+the dx overrides. In an existing tree, `init --apply` adds that include to
+`MODULE.bazel`.
 
 Only Bazel/Bazelisk is required. Ordinary `cc_*` and `rust_*` rules need
 no linker paths or per-target flags. Native host builds are the default.
@@ -50,8 +33,7 @@ Windows ARM64 builds stay unqualified.
 
 ## Own toolchains
 
-Keep the `bazel_dep` lines and drop the `register_toolchains` lines, then
-register selected toolchains. Loading the rules never replaces consumer
+Register your own toolchains in `MODULE.bazel`. Loading the rules never replaces consumer
 toolchains:
 
 ```python

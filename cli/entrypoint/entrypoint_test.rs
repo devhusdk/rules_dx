@@ -262,7 +262,6 @@ fn consumer_init_creates_a_new_directory() {
     for path in [
         "wrote myproj/MODULE.bazel\n",
         "wrote myproj/.bazelversion\n",
-        "wrote myproj/MODULE.bazel.snippet\n",
         "wrote myproj/.dx/version\n",
         "wrote myproj/tools/dx\n",
         "wrote myproj/third_party/rules_dx/rules_dx.MODULE.bazel\n",
@@ -285,11 +284,6 @@ fn consumer_init_creates_a_new_directory() {
     assert!(
         !read("DX_SCAFFOLD_BAZELVERSION").trim().is_empty(),
         "a fresh directory pins Bazel"
-    );
-    let snippet = read("DX_SCAFFOLD_SNIPPET");
-    assert!(
-        snippet.contains("register_toolchains(\"@llvm//toolchain:all\")"),
-        "snippet registers hermetic LLVM: {snippet}"
     );
     assert!(
         !read("DX_SCAFFOLD_VERSION").trim().is_empty(),
@@ -346,10 +340,6 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         "init leaves a non-empty tree without MODULE.bazel: {apply}"
     );
     assert!(
-        apply.contains("wrote MODULE.bazel.snippet"),
-        "init scaffolds the consumer setup: {apply}"
-    );
-    assert!(
         apply.contains("exit=0"),
         "apply records its exit code: {apply}"
     );
@@ -371,11 +361,6 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         "a directory outside the workspace fails: {bad}"
     );
     assert!(bad.contains("exit=2"), "usage errors exit 2: {bad}");
-    let snippet = read("DX_INIT_SNIPPET");
-    assert!(
-        snippet.contains("register_toolchains(\"@llvm//toolchain:all\")"),
-        "the init snippet matches the hermetic setup: {snippet}"
-    );
     assert!(
         !read("DX_INIT_VERSION").trim().is_empty(),
         "the wired tree pins a dx version"

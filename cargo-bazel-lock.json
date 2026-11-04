@@ -1,5 +1,5 @@
 {
-  "checksum": "d332df444c249ad74a3ee74952de007140f7feb44e772c1e6de44cafffbcc3c8",
+  "checksum": "105dc810bcf1a4bfcfcc34cb7d66c465422397e800c3f2cec0a338511e896194",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -19032,6 +19032,12 @@
       "package_url": "https://github.com/briansmith/ring",
       "repository": {
         "Http": {
+          "patch_args": [
+            "-p1"
+          ],
+          "patches": [
+            "@@//patches/ring:clang_cl_aarch64_windows.patch"
+          ],
           "sha256": "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7",
           "url": "https://static.crates.io/crates/ring/0.17.14/download"
         }

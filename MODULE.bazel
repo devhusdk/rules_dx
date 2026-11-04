@@ -621,6 +621,7 @@ flutter_dev.pub(
 use_repo(flutter_dev, "dx_flutter_deps")
 
 bazel_dep(name = "tar.bzl", version = "0.10.4")
+# needed: @dx_rules_dart_pub (root dart_tools extension) loads @yaml.bzl
 bazel_dep(name = "yaml.bzl", version = "0.1.2")
 
 bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
@@ -820,8 +821,6 @@ elixir = use_extension("//elixir/toolchain:repos.bzl", "elixir")
 use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
 
 register_toolchains("@dx_elixir_toolchains//:all")
-
-bazel_dep(name = "rules_batch", version = "0.1.1")
 
 powershell = use_extension("//powershell/toolchain:repos.bzl", "powershell")
 use_repo(

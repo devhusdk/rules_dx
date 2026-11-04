@@ -57,7 +57,13 @@ pub fn missing_value_flag(error: &clap::Error) -> String {
 pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
     match error.kind() {
         clap::error::ErrorKind::UnknownArgument => {
-            format!("unknown flag {:?}", unknown_token(error, args))
+            let mut message = format!("unknown flag {:?}", unknown_token(error, args));
+            if let Some(clap::error::ContextValue::String(arg)) =
+                error.get(clap::error::ContextKind::SuggestedArg)
+            {
+                message.push_str(&format!("; did you mean {arg}?"));
+            }
+            message
         }
         clap::error::ErrorKind::InvalidValue => {
             format!("missing value for {}", missing_value_flag(error))
@@ -123,6 +129,15 @@ mod tests {
         assert_eq!(
             parse_error(&bare, &["-z".to_owned()]),
             "unknown flag \"-z\""
+        );
+    }
+
+    #[test]
+    fn unknown_flag_suggests_the_closest_flag() {
+        let typo = error(&["--workspac", "x"]);
+        assert_eq!(
+            parse_error(&typo, &["--workspac".to_owned(), "x".to_owned()]),
+            "unknown flag \"--workspac\"; did you mean --workspace?"
         );
     }
 

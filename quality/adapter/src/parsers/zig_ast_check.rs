@@ -56,23 +56,30 @@ pub(super) fn zig_errors(
         let Some((file, rest)) = prefixed(line, files) else {
             continue;
         };
-        let Some((row, col, tail)) = columned(tool, line, rest).ok() else {
-            continue;
+        // An error without a usable position is kept at the top of its file, with the text zig wrote.
+        let (start, message) = match columned(tool, line, rest) {
+            Ok((row, col, tail)) => match tail.strip_prefix("error:") {
+                Some(message) => (
+                    TextPosition {
+                        line: row,
+                        column: col,
+                    },
+                    message.trim(),
+                ),
+                None => continue,
+            },
+            Err(_) if rest.contains("error:") => (TextPosition { line: 1, column: 1 }, rest.trim()),
+            Err(_) => continue,
         };
-        if let Some(message) = tail.strip_prefix("error:") {
-            out.push(finding(
-                tool,
-                file,
-                rule_id.to_owned(),
-                message.trim().to_owned(),
-                ToolSeverity::Error,
-                TextPosition {
-                    line: row,
-                    column: col,
-                },
-                ColumnEncoding::Utf8,
-            ));
-        }
+        out.push(finding(
+            tool,
+            file,
+            rule_id.to_owned(),
+            message.to_owned(),
+            ToolSeverity::Error,
+            start,
+            ColumnEncoding::Utf8,
+        ));
     }
     Ok(out)
 }
@@ -110,6 +117,16 @@ mod tests {
         let err = "lib/a.zig:1:31: error: bad\n";
         let found = parse_zig_ast_check(b"", err.as_bytes(), Some(1), &FILES).expect("parsed");
         assert_eq!(found[0].finding.encoding, ColumnEncoding::Utf8);
+    }
+
+    #[test]
+    fn unparseable_errors_are_kept_at_the_top_of_their_file() {
+        let err = "lib/a.zig:2:9: error: unused local variable\nlib/a.zig: error: unexpected end of file\n";
+        let found = parse_zig_ast_check(b"", err.as_bytes(), Some(1), &FILES).expect("parsed");
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[1].file, "lib/a.zig");
+        assert_eq!(found[1].finding.message, "error: unexpected end of file");
+        assert_eq!(found[1].finding.start, TextPosition { line: 1, column: 1 });
     }
 
     #[test]

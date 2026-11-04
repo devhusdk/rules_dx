@@ -5,7 +5,7 @@ load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test", "rust_wasi_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test", "rustfmt_test")
 load(":release.bzl", "release_artifact")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -256,53 +256,24 @@ rust_binary(
     deps = [":tasks_core"],
 )
 
-rust_wasi_test(
+rust_test(
     name = "wasi_test",
-    args = [
-        "--asset=/assets/notes.txt",
-        "/board/board.txt",
-        "add Ship the WASI build",
-        "done 2",
+    srcs = ["tests/wasi_test.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    data = [
+        "assets/board.txt",
+        "assets/notes.txt",
+        ":tasks_wasi",
+        "//wasi/runtime:wasmtime",
     ],
-    binary = ":tasks",
-    expected_stdout = "\n".join([
-        "ok:added 5",
-        "ok:done 2",
-        "[x] 1 Pin the Rust toolchain",
-        "[x] 2 Draft release notes @notes.txt",
-        "[ ] 3 Record emulator evidence",
-        "[ ] 4 Ship the browser build",
-        "[ ] 5 Ship the WASI build",
-        "summary tasks=5 done=2 open=3 assets=1",
-        "asset notes.txt bytes=41 adler32:3d6a0e9d",
-    ]),
-    preopens = {
-        "/assets": "assets/notes.txt",
-        "/board": "assets/board.txt",
+    env = {
+        "BOARD": "$(rootpath assets/board.txt)",
+        "NOTES": "$(rootpath assets/notes.txt)",
+        "TASKS_WASM": "$(rootpath :tasks_wasi)",
+        "WASMTIME": "$(rootpath //wasi/runtime:wasmtime)",
     },
     tags = ["block-network"],
-)
-
-rust_wasi_test(
-    name = "wasi_error_test",
-    args = [
-        "/board/board.txt",
-        "done 9",
-    ],
-    binary = ":tasks",
-    expected_code = 1,
-    expected_stderr_substring = "err:no_such_task: no task 9",
-    preopens = {"/board": "assets/board.txt"},
-    tags = ["block-network"],
-)
-
-rust_wasi_test(
-    name = "wasi_capability_test",
-    args = ["/board/board.txt"],
-    binary = ":tasks",
-    expected_code = 2,
-    expected_stderr_substring = "err:unreadable: /board/board.txt",
-    tags = ["block-network"],
+    deps = ["//wasi/testing:wasi_run"],
 )
 
 javascript_web_app(
@@ -571,6 +542,7 @@ rustfmt_test(
         ":tasks_model_test",
         ":shared_tasks",
         ":tasks_web_lib",
+        ":wasi_test",
     ],
 )
 

@@ -2,17 +2,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use dx_testing::serde_json;
-
 const RUNFILES_ENV: [&str; 3] = [
     "RUNFILES_DIR",
     "RUNFILES_MANIFEST_FILE",
     "RUNFILES_MANIFEST_ONLY",
 ];
-
-fn var(name: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| panic!("{name} must hold the WASI test wiring"))
-}
 
 pub fn runtime_argv(
     declared_env: &BTreeMap<String, String>,
@@ -60,9 +54,11 @@ fn command(
         .map(|(guest, host)| (stage_preopen(&host.to_string_lossy()), guest.clone()))
         .collect();
     let cache = dx_testing::mkscratch("wasi-cache").expect("scratch space must exist");
+    let runtime = dx_testing::resolve_runfiles(&runtime.to_string_lossy());
+    let module = dx_testing::resolve_runfiles(&module.to_string_lossy());
     let mut command = Command::new(runtime);
     command
-        .args(runtime_argv(env, &staged, module, args))
+        .args(runtime_argv(env, &staged, &module, args))
         .env_clear()
         .env("DX_WASI_MANAGED_RUNTIME", &managed)
         .env("XDG_CACHE_HOME", &cache);
@@ -75,6 +71,7 @@ fn command(
 }
 
 /// Runs one module under the runtime with only the declared args, env and preopens.
+/// The runtime, module and preopened files are runfiles or absolute paths.
 pub fn run(
     runtime: &Path,
     module: &Path,
@@ -99,44 +96,6 @@ pub fn run_inherited(
         .status()
         .expect("the WASI runtime must execute");
     status.code().unwrap_or(1)
-}
-
-pub fn assert_declared_run() {
-    let module = dx_testing::resolve_runfiles(&var("DX_WASI_MODULE"));
-    let runtime = dx_testing::resolve_runfiles(&var("DX_WASI_RUNTIME"));
-    let args: Vec<String> =
-        serde_json::from_str(&var("DX_WASI_ARGS")).expect("DX_WASI_ARGS must be a JSON array");
-    let declared_env: BTreeMap<String, String> =
-        serde_json::from_str(&var("DX_WASI_ENV")).expect("DX_WASI_ENV must be a JSON object");
-    let preopens: BTreeMap<String, String> = serde_json::from_str(&var("DX_WASI_PREOPENS"))
-        .expect("DX_WASI_PREOPENS must be a JSON object");
-    let expected_code: i32 = var("DX_WASI_EXPECTED_CODE")
-        .parse()
-        .expect("DX_WASI_EXPECTED_CODE must be an integer");
-    let expected = var("DX_WASI_EXPECTED");
-    let expected_stderr = var("DX_WASI_EXPECTED_STDERR");
-
-    let preopens: Vec<(String, PathBuf)> = preopens
-        .into_iter()
-        .map(|(guest, host)| (guest, PathBuf::from(host)))
-        .collect();
-    let output = run(&runtime, &module, &args, &declared_env, &preopens);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_eq!(
-        output.status.code(),
-        Some(expected_code),
-        "unexpected WASI exit code, stderr: {stderr}"
-    );
-    assert_eq!(
-        stdout.trim_end_matches(['\r', '\n']),
-        expected,
-        "unexpected WASI output, stderr: {stderr}"
-    );
-    assert!(
-        stderr.contains(&expected_stderr),
-        "WASI stderr lacks {expected_stderr:?}, stderr: {stderr}"
-    );
 }
 
 #[cfg(test)]

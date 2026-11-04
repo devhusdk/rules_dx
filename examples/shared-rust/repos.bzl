@@ -100,6 +100,44 @@ fn main() -> ExitCode {
 }
 """
 
+_CONSUMER_WASI_TEST_RS = """//! Runs the consumer report under Wasmtime.
+
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+#[test]
+fn report_runs_in_the_guest() {
+    let args = vec!["/board/board.txt".to_owned(), "done 1".to_owned()];
+    let board = PathBuf::from(std::env::var("BOARD").unwrap());
+    let preopens = vec![("/board".to_owned(), board)];
+    let output = wasi_run::run(
+        &PathBuf::from(std::env::var("WASMTIME").unwrap()),
+        &PathBuf::from(std::env::var("REPORT_WASM").unwrap()),
+        &args,
+        &BTreeMap::new(),
+        &preopens,
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(0), "stderr: {stderr}");
+    let expected = [
+        "id,done,title",
+        "1,true,Review the shared core",
+        "2,true,Wire the consumer app",
+        "summary tasks=2 done=2 open=0 assets=1",
+        "runtime=default",
+    ]
+    .join("\\n");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim_end_matches(['\\r', '\\n']), expected);
+}
+"""
+
+_CONSUMER_WASI_RUNTIME_TEST_RS = """#[test]
+fn wrapped_runtime_adds_its_env() {
+    assert_eq!(std::env::var("CONSUMER_RUNTIME").as_deref(), Ok("wrapped"));
+}
+"""
+
 _WRAPPED_RUNTIME = """#!/bin/sh
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
 subcommand="$1"
@@ -110,8 +148,7 @@ exec "$DX_WASI_MANAGED_RUNTIME" "$subcommand" --env CONSUMER_RUNTIME=wrapped "$@
 _BUILD_BAZEL = '''load("@rules_dx//android/packaging:defs.bzl", "rust_android_apk")
 load("@rules_dx//examples/shared-rust:release.bzl", "release_artifact")
 load("@rules_dx//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_wasi_test")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 package(
     default_testonly = True,
@@ -157,40 +194,41 @@ genrule(
     cmd = "$(location :consumer_report) $(location :assets/board.txt) 'add Consumer native task' > $@",
 )
 
-sh_binary(
-    name = "wrapped_runtime",
-    srcs = ["wrapped_runtime.sh"],
+rust_binary(
+    name = "consumer_report_wasi",
+    srcs = ["report.rs"],
+    crate_features = ["csv"],
+    crate_root = "report.rs",
+    rustc_flags = ["--cfg=consumer_build"],
+    wasm = "wasi",
+    deps = ["@rules_dx//examples/shared-rust:tasks_core"],
 )
 
-rust_wasi_test(
+rust_test(
     name = "consumer_wasi_test",
-    binary = ":consumer_report",
-    args = ["/board/board.txt", "done 1"],
-    preopens = {"/board": ":assets/board.txt"},
-    expected_stdout = "\\n".join([
-        "id,done,title",
-        "1,true,Review the shared core",
-        "2,true,Wire the consumer app",
-        "summary tasks=2 done=2 open=0 assets=1",
-        "runtime=default",
-    ]),
+    srcs = ["wasi_test.rs"],
+    crate_root = "wasi_test.rs",
+    data = [
+        ":assets/board.txt",
+        ":consumer_report_wasi",
+        "@rules_dx//wasi/runtime:wasmtime",
+    ],
+    env = {
+        "BOARD": "$(rootpath :assets/board.txt)",
+        "REPORT_WASM": "$(rootpath :consumer_report_wasi)",
+        "WASMTIME": "$(rootpath @rules_dx//wasi/runtime:wasmtime)",
+    },
     tags = ["block-network"],
+    deps = ["@rules_dx//wasi/testing:wasi_run"],
 )
 
-rust_wasi_test(
+rust_test(
     name = "consumer_wasi_runtime_test",
-    binary = ":consumer_report",
-    args = ["/board/board.txt"],
-    preopens = {"/board": ":assets/board.txt"},
-    runtime = ":wrapped_runtime",
-    expected_stdout = "\\n".join([
-        "id,done,title",
-        "1,false,Review the shared core",
-        "2,true,Wire the consumer app",
-        "summary tasks=2 done=1 open=1 assets=1",
-        "runtime=wrapped",
-    ]),
+    srcs = ["wasi_runtime_test.rs"],
+    crate_root = "wasi_runtime_test.rs",
+    runtime = "wrapped_runtime.sh",
     tags = ["block-network"],
+    wasm = "wasi",
 )
 
 rust_android_apk(
@@ -219,6 +257,8 @@ def _shared_consumer_repo_impl(ctx):
     ctx.file("assets/notes.txt", _CONSUMER_NOTES)
     ctx.file("res/values/strings.xml", _CONSUMER_STRINGS)
     ctx.file("report.rs", _REPORT_RS)
+    ctx.file("wasi_test.rs", _CONSUMER_WASI_TEST_RS)
+    ctx.file("wasi_runtime_test.rs", _CONSUMER_WASI_RUNTIME_TEST_RS)
     ctx.file("wrapped_runtime.sh", _WRAPPED_RUNTIME, executable = True)
     return ctx.repo_metadata(reproducible = True)
 

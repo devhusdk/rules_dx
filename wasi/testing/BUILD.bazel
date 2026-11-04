@@ -4,8 +4,6 @@ load("//rust/rules:wrapper_tests.bzl", "dx_wasi_test_tests")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["wasi_run_test.rs"])
-
 # keep
 rust_library(
     name = "wasi_run",

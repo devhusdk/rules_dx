@@ -1,5 +1,4 @@
 #!/bin/sh
 subcommand="$1"
 shift
-echo "runtime=custom $subcommand $*" >&2
-exec "$DX_WASI_MANAGED_RUNTIME" "$subcommand" "$@"
+exec "$DX_WASI_MANAGED_RUNTIME" "$subcommand" --env DX_WASI_RUNTIME_NOTE=custom "$@"

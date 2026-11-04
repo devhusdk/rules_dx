@@ -7,7 +7,7 @@ browser, and WASI outputs. The target platform picks the output.
 load(
     "@rules_dx//rust/rules:defs.bzl",
     "rust_binary",
-    "rust_wasi_test",
+    "rust_test",
 )
 
 rust_binary(
@@ -27,13 +27,12 @@ rust_binary(
     wasm = "wasi",
 )
 
-rust_wasi_test(
+rust_test(
     name = "tool_wasi_test",
-    binary = ":tool",
-    args = ["serve"],
+    srcs = ["tool_test.rs"],
     env = {"TOOL_MODE": "check"},
     preopens = {"/data": ":input.txt"},
-    expected_stdout = "ok",
+    wasm = "wasi",
 )
 ```
 
@@ -113,25 +112,13 @@ harness. `env` and `preopens` guest paths are literal.
 | `preopens` | Guest directory mapped to one host file, staged alone. |
 | `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. Needs `wasm = "wasi"`. |
 
-`rust_wasi_test` runs the module under Wasmtime 49.0.5. The guest gets
-only the declared `args`, `env` entries, and `preopens`. Ambient
-environment and undeclared files stay denied.
-`args`, `env`, `preopens` guest paths, `expected_stdout`, and
-`expected_stderr_substring` are literal, so `$` needs no escaping. Text
-containing `$(location ` or `$(execpath ` is not supported there.
-`ambient` values get make-variable expansion.
-
-| Attribute | Meaning |
-| --- | --- |
-| `binary` | The `rust_binary` to run. |
-| `args` | Guest arguments. |
-| `env` | Guest environment entries. |
-| `preopens` | Guest directory mapped to one host file, staged alone. |
-| `expected_stdout` | Exact guest stdout, trailing newlines trimmed. Default empty. |
-| `expected_code` | Guest exit code. Default `0`. |
-| `expected_stderr_substring` | Text guest stderr must contain. Default empty. |
-| `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. |
-| `ambient` | Host test environment entries. Never reach the guest. |
+To check a built `wasm = "wasi"` binary from outside, use a native
+`rust_test`. Put `@rules_dx//wasi/runtime:wasmtime` and the module in
+`data` and `@rules_dx//wasi/testing:wasi_run` in `deps`. Pass their
+`$(rootpath)` values in `env`. Then call
+`wasi_run::run(runtime, module, args, env, preopens) -> Output` and
+assert on the exit code, stdout, and stderr. Preopens map a guest
+directory to one host file.
 
 A custom `runtime` receives `DX_WASI_MANAGED_RUNTIME`, the path of the
 default Wasmtime, so it can delegate. Proc macros and build scripts stay

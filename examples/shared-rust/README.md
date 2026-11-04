@@ -56,15 +56,13 @@ applies commands through the input and button.
 ## WASI
 
 ```sh
-bazel test //examples/shared-rust:wasi_test \
-  //examples/shared-rust:wasi_error_test \
-  //examples/shared-rust:wasi_capability_test
+bazel test //examples/shared-rust:wasi_test
 ```
 
 `tasks_wasi` is `tasks` as a `wasm = "wasi"` binary for `wasm32-wasip1` and run under
-Wasmtime 49.0.5. `wasi_error_test` expects exit 1 for a rejected
-command. `wasi_capability_test` expects exit 2 and
-`err:unreadable: /board/board.txt` when the board is not preopened.
+Wasmtime 49.0.5. `wasi_test` checks the board output, exit 1 for a
+rejected command, and exit 2 with `err:unreadable: /board/board.txt`
+when the board is not preopened.
 
 ## Android
 
@@ -172,7 +170,7 @@ bazel test @shared_consumer//... \
 `//tools/testing/hermetic:rust_wasi` builds the core from a fresh
 module that names rules_dx `@my_dx`. That module's own `rust.toolchain`
 adds the `wasm32-wasip1` target and the `rustc` flag
-`--cfg=consumer_toolchain`. `consumer_report_test` only compiles with
+`--cfg=consumer_toolchain`. `consumer_report` only compiles with
 that flag.
 
 ## Offline and errors

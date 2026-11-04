@@ -12,7 +12,6 @@ BOOK_INTRO = (
 
 BOOK_EXCLUDED_DOCS = [
     "docs/AGENTS.md",
-    "docs/module-families.md",
 ]
 
 INDEX_LINK_LIST = "```sh" + "\n" + "bazel run @rules_dx//:dx -- --help" + "\n" + "```"

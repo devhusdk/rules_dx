@@ -56,7 +56,6 @@ real_source_target(
         "licenses.md",
         "support-matrix.md",
         "tutorial.md",
-        "module-families.md",
         "proxy-and-ca.md",
     ],
     tags = ["corpus"],

@@ -51,6 +51,37 @@ rust_clippy_test(
 
 # keep
 rust_test(
+    name = "families_test",
+    srcs = ["families_test.rs"],
+    data = [
+        "families.json",
+        "//:MODULE.bazel",
+        "//gazelle/dispatch:BUILD.bazel",
+        "//quality:real_aspects.bzl",
+    ],
+    tags = [
+        "external",
+        "no-remote-exec",
+    ],
+    deps = [
+        "//libs/module_bazel:dx_module_bazel",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rustfmt_test(
+    name = "families_fmt_test",
+    targets = [":families_test"],
+)
+
+rust_clippy_test(
+    name = "families_clippy_test",
+    targets = [":families_test"],
+)
+
+# keep
+rust_test(
     name = "versions_loaded_test",
     srcs = ["versions_loaded_test.rs"],
     data = [
@@ -80,6 +111,7 @@ test_suite(
     name = "all",
     tests = [
         ":consumer_deps_test",
+        ":families_test",
         ":versions_contract",
         ":versions_loaded_test",
     ],
@@ -94,6 +126,7 @@ exports_files([
     "js.bzl",
     "java-scala-kotlin.bzl",
     "dotnet.bzl",
+    "families.json",
     "powershell.bzl",
     "toolchains.bzl",
     "versions.bzl",

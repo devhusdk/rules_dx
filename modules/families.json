@@ -1,0 +1,990 @@
+{
+  "families": {
+    "android": {
+      "aspects": [],
+      "bazel_deps": [
+        "rules_android"
+      ],
+      "dirs": [
+        "android"
+      ],
+      "extensions": [
+        "//android/sdk:repos.bzl%android_sdk",
+        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension"
+      ],
+      "file_extensions": [
+        ".aidl"
+      ],
+      "gazelle": [],
+      "repo_rules": [
+        "//android/toolchain:repos.bzl%android_ndk_toolchain_repo"
+      ],
+      "toolchains": []
+    },
+    "ansible": {
+      "aspects": [
+        "real_ansible_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "ansible"
+      ],
+      "extensions": [],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "api_spec": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "api_spec"
+      ],
+      "extensions": [],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "appimage": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "appimage"
+      ],
+      "extensions": [
+        "//appimage:repos.bzl%appimage_tools"
+      ],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "apple": {
+      "aspects": [],
+      "bazel_deps": [
+        "apple_support",
+        "rules_apple"
+      ],
+      "dirs": [
+        "apple"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".m",
+        ".mm",
+        ".plist"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "asciidoc": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "asciidoc"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".adoc",
+        ".asciidoc"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "beam": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "elixir",
+        "erlang"
+      ],
+      "extensions": [
+        "//elixir/toolchain:repos.bzl%elixir",
+        "//erlang/toolchain:repos.bzl%erlang"
+      ],
+      "file_extensions": [
+        ".erl",
+        ".ex",
+        ".exs",
+        ".hrl"
+      ],
+      "gazelle": [
+        "//gazelle/elixir",
+        "//gazelle/erlang"
+      ],
+      "repo_rules": [
+        "//elixir/rules:hex.bzl%hex_package"
+      ],
+      "toolchains": [
+        "@dx_elixir_toolchains//:all",
+        "@dx_erlang_toolchains//:all"
+      ]
+    },
+    "bicep": {
+      "aspects": [
+        "real_bicep_format_aspect",
+        "real_bicep_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "bicep"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".bicep"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "cc": {
+      "aspects": [
+        "real_cc_format_aspect",
+        "real_cc_lint_aspect",
+        "real_cc_typecheck_aspect"
+      ],
+      "bazel_deps": [
+        "gcc_toolchain",
+        "llvm",
+        "rules_cc",
+        "rules_cuda"
+      ],
+      "dirs": [
+        "cc",
+        "cuda",
+        "qt"
+      ],
+      "extensions": [
+        "//cc/toolchains/msvc:repos.bzl%msvc",
+        "//cc/toolchains:repos.bzl%gcc",
+        "//cuda/toolchain:repos.bzl%cuda_license",
+        "@llvm//extensions:osx.bzl%osx",
+        "@rules_cuda//cuda:extensions.bzl%toolchain"
+      ],
+      "file_extensions": [
+        ".c",
+        ".cc",
+        ".cpp",
+        ".cu",
+        ".cuh",
+        ".h",
+        ".hpp",
+        ".qml"
+      ],
+      "gazelle": [
+        "//gazelle/cc"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "//cc/toolchains:gcc_linux_x86_64",
+        "//cc/toolchains:gcc_linux_x86_64_to_arm64",
+        "@llvm//toolchain:all"
+      ]
+    },
+    "cloudformation": {
+      "aspects": [
+        "real_cloudformation_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "cloudformation"
+      ],
+      "extensions": [],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "cmake": {
+      "aspects": [
+        "real_cmake_format_aspect",
+        "real_cmake_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "cmake"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".cmake"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "core": {
+      "aspects": [
+        "real_cue_format_aspect",
+        "real_cue_typecheck_aspect",
+        "real_dockerfile_lint_aspect",
+        "real_format_aspect",
+        "real_format_probe_aspect",
+        "real_html_template_format_aspect",
+        "real_html_template_lint_aspect",
+        "real_jsonnet_format_aspect",
+        "real_jsonnet_lint_aspect",
+        "real_latex_format_aspect",
+        "real_latex_lint_aspect",
+        "real_lint_aspect",
+        "real_lint_probe_aspect",
+        "real_nix_format_aspect",
+        "real_nix_lint_aspect",
+        "real_pkl_format_aspect",
+        "real_pkl_typecheck_aspect",
+        "real_shell_format_aspect",
+        "real_shell_lint_aspect",
+        "real_text_lint_aspect",
+        "real_typecheck_aspect",
+        "real_typecheck_probe_aspect",
+        "real_typst_format_aspect",
+        "real_xml_lint_aspect",
+        "real_yaml_format_aspect",
+        "real_yaml_lint_aspect"
+      ],
+      "bazel_deps": [
+        "bazel_features",
+        "bazel_lib",
+        "bazel_skylib",
+        "gazelle",
+        "libxml2",
+        "platforms",
+        "rules_go",
+        "rules_python",
+        "rules_shell",
+        "tar.bzl",
+        "windows_support",
+        "yaml.bzl"
+      ],
+      "dirs": [
+        "bcr_test_module",
+        "ci",
+        "cli",
+        "config",
+        "deploy",
+        "dockerfile",
+        "docs",
+        "dx",
+        "env",
+        "examples",
+        "gazelle",
+        "libs",
+        "modules",
+        "patches",
+        "quality",
+        "third_party",
+        "tools"
+      ],
+      "extensions": [
+        "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//quality/artifacts:extension.bzl%dx_tools",
+        "@gazelle//:extensions.bzl%go_deps",
+        "@rules_go//go:extensions.bzl%go_sdk",
+        "@rules_python//python/extensions:python.bzl%python",
+        "@tar.bzl//tar:extensions.bzl%toolchains",
+        "@windows_support//windows:extensions.bzl%msvc_runtime",
+        "@windows_support//windows:extensions.bzl%windows_sdk"
+      ],
+      "file_extensions": [
+        ".bazel",
+        ".bzl",
+        ".json",
+        ".md",
+        ".sh",
+        ".toml",
+        ".xml",
+        ".yaml",
+        ".yml"
+      ],
+      "gazelle": [],
+      "repo_rules": [
+        "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar"
+      ],
+      "toolchains": [
+        "//tools/platforms:protoc_windows_arm64"
+      ]
+    },
+    "d": {
+      "aspects": [
+        "real_d_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "d"
+      ],
+      "extensions": [
+        "//d/toolchain:repos.bzl%d"
+      ],
+      "file_extensions": [
+        ".d"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": [
+        "@dx_d_toolchains//:all"
+      ]
+    },
+    "dart": {
+      "aspects": [],
+      "bazel_deps": [
+        "rules_dart",
+        "rules_flutter"
+      ],
+      "dirs": [
+        "dart",
+        "flutter"
+      ],
+      "extensions": [
+        "//dart:repos.bzl%dart_tools",
+        "@rules_dart//dart:extensions.bzl%dart",
+        "@rules_flutter//flutter:extensions.bzl%flutter"
+      ],
+      "file_extensions": [
+        ".dart"
+      ],
+      "gazelle": [
+        "//gazelle/dart"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "dotnet": {
+      "aspects": [
+        "real_dotnet_format_aspect",
+        "real_dotnet_lint_aspect",
+        "real_dotnet_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "csharp",
+        "dotnet",
+        "fsharp"
+      ],
+      "extensions": [
+        "//dotnet:extensions.bzl%dotnet",
+        "//dotnet:repos.bzl%dotnet_tools",
+        "//third_party/dotnet:extension.bzl%paket"
+      ],
+      "file_extensions": [
+        ".cs",
+        ".csproj",
+        ".fs",
+        ".fsproj",
+        ".fsx"
+      ],
+      "gazelle": [
+        "//gazelle/csharp",
+        "//gazelle/fsharp"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@dotnet_toolchains//:all"
+      ]
+    },
+    "fortran": {
+      "aspects": [
+        "real_fortran_format_aspect",
+        "real_fortran_lint_aspect",
+        "real_fortran_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "fortran"
+      ],
+      "extensions": [
+        "//fortran/toolchain:repos.bzl%fortran"
+      ],
+      "file_extensions": [
+        ".f90"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": [
+        "@dx_fortran_toolchains//:all"
+      ]
+    },
+    "generation": {
+      "aspects": [
+        "real_avro_lint_aspect",
+        "real_avro_typecheck_aspect",
+        "real_capnp_lint_aspect",
+        "real_capnp_typecheck_aspect",
+        "real_flatbuffers_lint_aspect",
+        "real_flatbuffers_typecheck_aspect",
+        "real_protobuf_format_aspect",
+        "real_protobuf_lint_aspect",
+        "real_thrift_lint_aspect",
+        "real_thrift_typecheck_aspect"
+      ],
+      "bazel_deps": [
+        "avro-cpp",
+        "protobuf",
+        "rules_proto",
+        "rules_rust_prost"
+      ],
+      "dirs": [
+        "avro",
+        "capnproto",
+        "flatbuffers",
+        "generation",
+        "thrift"
+      ],
+      "extensions": [
+        "@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl%protoc"
+      ],
+      "file_extensions": [
+        ".avsc",
+        ".capnp",
+        ".fbs",
+        ".proto",
+        ".thrift"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "go": {
+      "aspects": [
+        "real_go_format_aspect",
+        "real_go_lint_aspect",
+        "real_go_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "go"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".go"
+      ],
+      "gazelle": [
+        "//gazelle/go"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "haskell": {
+      "aspects": [
+        "real_haskell_format_aspect",
+        "real_haskell_lint_aspect",
+        "real_haskell_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "haskell"
+      ],
+      "extensions": [
+        "//haskell/toolchain:repos.bzl%haskell"
+      ],
+      "file_extensions": [
+        ".hs"
+      ],
+      "gazelle": [
+        "//gazelle/haskell"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@dx_haskell_toolchains//cc:all",
+        "@dx_haskell_toolchains//toolchains:all"
+      ]
+    },
+    "helm": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "helm"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".tpl"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "js": {
+      "aspects": [
+        "real_js_format_aspect",
+        "real_js_lint_aspect",
+        "real_js_typecheck_aspect"
+      ],
+      "bazel_deps": [
+        "aspect_rules_jest",
+        "aspect_rules_js",
+        "aspect_rules_ts"
+      ],
+      "dirs": [
+        "astro",
+        "javascript",
+        "mdx",
+        "svelte",
+        "typescript",
+        "vue"
+      ],
+      "extensions": [
+        "//javascript/private:dev_hub.bzl%dx_dev_hub",
+        "@aspect_rules_js//npm:extensions.bzl%npm",
+        "@aspect_rules_js//npm:extensions.bzl%pnpm",
+        "@aspect_rules_ts//ts:extensions.bzl%typescript"
+      ],
+      "file_extensions": [
+        ".astro",
+        ".cjs",
+        ".js",
+        ".jsx",
+        ".mdx",
+        ".mjs",
+        ".svelte",
+        ".ts",
+        ".tsx",
+        ".vue"
+      ],
+      "gazelle": [
+        "//gazelle/astro",
+        "//gazelle/javascript",
+        "//gazelle/mdx",
+        "//gazelle/svelte",
+        "//gazelle/typescript",
+        "//gazelle/vue"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "julia": {
+      "aspects": [],
+      "bazel_deps": [
+        "rules_julia"
+      ],
+      "dirs": [
+        "julia"
+      ],
+      "extensions": [
+        "@rules_julia//julia/pkg:extensions.bzl%pkg",
+        "@rules_julia//julia:extensions.bzl%julia"
+      ],
+      "file_extensions": [
+        ".jl"
+      ],
+      "gazelle": [
+        "//gazelle/julia"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "jvm": {
+      "aspects": [
+        "real_jvm_format_aspect",
+        "real_jvm_lint_aspect",
+        "real_jvm_typecheck_aspect",
+        "real_scala_format_aspect",
+        "real_scala_lint_aspect"
+      ],
+      "bazel_deps": [
+        "rules_java",
+        "rules_jvm_external",
+        "rules_kotlin",
+        "rules_scala"
+      ],
+      "dirs": [
+        "java",
+        "kotlin",
+        "scala"
+      ],
+      "extensions": [
+        "@rules_jvm_external//:extensions.bzl%maven",
+        "@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions",
+        "@rules_scala//scala/extensions:config.bzl%scala_config",
+        "@rules_scala//scala/extensions:deps.bzl%scala_deps"
+      ],
+      "file_extensions": [
+        ".java",
+        ".kt",
+        ".kts",
+        ".scala"
+      ],
+      "gazelle": [
+        "//gazelle/java",
+        "//gazelle/kotlin",
+        "//gazelle/scala"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "kubernetes": {
+      "aspects": [
+        "real_kubernetes_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "kubernetes"
+      ],
+      "extensions": [],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "lua": {
+      "aspects": [
+        "real_lua_format_aspect",
+        "real_lua_lint_aspect"
+      ],
+      "bazel_deps": [
+        "lua"
+      ],
+      "dirs": [
+        "lua"
+      ],
+      "extensions": [
+        "//lua/toolchain:repos.bzl%lua"
+      ],
+      "file_extensions": [
+        ".lua"
+      ],
+      "gazelle": [
+        "//gazelle/lua"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "//lua/toolchain:all"
+      ]
+    },
+    "make": {
+      "aspects": [
+        "real_make_format_aspect",
+        "real_make_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "make"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".mk"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "msix": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "msix"
+      ],
+      "extensions": [
+        "//msix:repos.bzl%msix_tools"
+      ],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": [
+        "//msix/toolchains:all"
+      ]
+    },
+    "ocaml": {
+      "aspects": [
+        "real_ocaml_format_aspect",
+        "real_ocaml_lint_aspect",
+        "real_ocaml_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "ocaml"
+      ],
+      "extensions": [
+        "//ocaml/toolchain:repos.bzl%ocaml"
+      ],
+      "file_extensions": [
+        ".ml",
+        ".mli"
+      ],
+      "gazelle": [
+        "//gazelle/ocaml"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@dx_ocaml_toolchains//:all"
+      ]
+    },
+    "perl": {
+      "aspects": [],
+      "bazel_deps": [
+        "rules_perl"
+      ],
+      "dirs": [
+        "perl"
+      ],
+      "extensions": [
+        "@rules_perl//perl/cpan:extensions.bzl%cpan"
+      ],
+      "file_extensions": [
+        ".pl",
+        ".pm"
+      ],
+      "gazelle": [
+        "//gazelle/perl"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "php": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "php"
+      ],
+      "extensions": [
+        "//php/toolchain:repos.bzl%php"
+      ],
+      "file_extensions": [
+        ".php"
+      ],
+      "gazelle": [
+        "//gazelle/php"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@dx_php_toolchains//:all"
+      ]
+    },
+    "powershell": {
+      "aspects": [
+        "real_powershell_format_aspect",
+        "real_powershell_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "powershell"
+      ],
+      "extensions": [
+        "//powershell/toolchain:repos.bzl%powershell"
+      ],
+      "file_extensions": [
+        ".ps1",
+        ".psm1"
+      ],
+      "gazelle": [
+        "//gazelle/powershell"
+      ],
+      "repo_rules": [
+        "//powershell/rules:gallery.bzl%psgallery_module"
+      ],
+      "toolchains": [
+        "@dx_powershell_toolchains//:all"
+      ]
+    },
+    "python": {
+      "aspects": [
+        "real_python_lint_aspect"
+      ],
+      "bazel_deps": [
+        "aspect_rules_py"
+      ],
+      "dirs": [
+        "python"
+      ],
+      "extensions": [
+        "@aspect_rules_py//py:extensions.bzl%python_interpreters",
+        "@aspect_rules_py//uv:extensions.bzl%uv"
+      ],
+      "file_extensions": [
+        ".py",
+        ".pyi"
+      ],
+      "gazelle": [
+        "//gazelle/python"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@python_interpreters//:all"
+      ]
+    },
+    "rego": {
+      "aspects": [
+        "real_rego_format_aspect",
+        "real_rego_lint_aspect",
+        "real_rego_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "rego"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".rego"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "rst": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "rst"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".rst"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "ruby": {
+      "aspects": [
+        "real_ruby_format_aspect",
+        "real_ruby_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "ruby"
+      ],
+      "extensions": [
+        "//ruby/coverage:repos.bzl%ruby_coverage",
+        "//ruby/toolchain:repos.bzl%ruby_tools",
+        "//ruby:extensions.bzl%ruby"
+      ],
+      "file_extensions": [
+        ".rb",
+        ".rbs"
+      ],
+      "gazelle": [
+        "//gazelle/ruby"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@ruby_toolchains//:all"
+      ]
+    },
+    "rust": {
+      "aspects": [
+        "real_rust_format_aspect",
+        "real_rust_lint_aspect",
+        "real_rust_typecheck_aspect"
+      ],
+      "bazel_deps": [
+        "rules_rust",
+        "rules_rust_wasm_bindgen"
+      ],
+      "dirs": [
+        "rust"
+      ],
+      "extensions": [
+        "@rules_rust//crate_universe:extensions.bzl%crate",
+        "@rules_rust//rust:extensions.bzl%rust",
+        "@rules_rust_wasm_bindgen//:extensions.bzl%rust_ext"
+      ],
+      "file_extensions": [
+        ".rs"
+      ],
+      "gazelle": [
+        "//gazelle/rust"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "@rust_toolchains//:all"
+      ]
+    },
+    "sql": {
+      "aspects": [
+        "real_sql_format_aspect",
+        "real_sql_lint_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "sql"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".sql"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "swift": {
+      "aspects": [],
+      "bazel_deps": [
+        "bazel_linux_packages",
+        "rules_swift"
+      ],
+      "dirs": [
+        "swift"
+      ],
+      "extensions": [
+        "//swift/toolchain:repos.bzl%swift",
+        "@bazel_linux_packages//apt:extensions.bzl%apt"
+      ],
+      "file_extensions": [
+        ".swift"
+      ],
+      "gazelle": [
+        "//gazelle/swift"
+      ],
+      "repo_rules": [],
+      "toolchains": [
+        "//swift/toolchain:all"
+      ]
+    },
+    "terraform": {
+      "aspects": [
+        "real_terraform_format_aspect",
+        "real_terraform_lint_aspect",
+        "real_terraform_typecheck_aspect"
+      ],
+      "bazel_deps": [],
+      "dirs": [
+        "terraform"
+      ],
+      "extensions": [],
+      "file_extensions": [
+        ".tf",
+        ".tfvars"
+      ],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "wasi": {
+      "aspects": [],
+      "bazel_deps": [],
+      "dirs": [
+        "wasi"
+      ],
+      "extensions": [],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
+    "zig": {
+      "aspects": [
+        "real_zig_typecheck_aspect"
+      ],
+      "bazel_deps": [
+        "rules_zig"
+      ],
+      "dirs": [
+        "zig"
+      ],
+      "extensions": [
+        "@rules_zig//zig:extensions.bzl%zig"
+      ],
+      "file_extensions": [
+        ".zig"
+      ],
+      "gazelle": [
+        "//gazelle/zig"
+      ],
+      "repo_rules": [],
+      "toolchains": []
+    }
+  }
+}

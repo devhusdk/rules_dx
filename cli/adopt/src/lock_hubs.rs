@@ -1,4 +1,5 @@
-//! Plans the `MODULE.bazel` stanzas for the root `Cargo.lock`, `uv.lock` and `pnpm-lock.yaml`.
+//! Plans the `MODULE.bazel` stanzas for `uv.lock` and `pnpm-lock.yaml` files anywhere in the
+//! repo and the root `Cargo.lock`. Other `Cargo.lock` files are reported.
 //!
 //! A lock file counts when its manifest sits next to it. A lock that an existing stanza
 //! already names is left alone, so a second run plans nothing.
@@ -65,6 +66,10 @@ fn refuse(detail: impl std::fmt::Display) -> AdoptError {
 
 fn root_label(file: &str) -> String {
     format!("//:{file}")
+}
+
+fn dir_label(dir: &str, file: &str) -> String {
+    format!("//{dir}:{file}")
 }
 
 fn string(value: &str) -> Arg {
@@ -150,7 +155,25 @@ impl Planner<'_> {
         }
     }
 
+    fn report_extra_cargo_locks(&mut self) {
+        for dir in self.lock_dirs(CARGO_LOCK, "Cargo.toml") {
+            let label = dir_label(&dir, CARGO_LOCK);
+            let named = self.files.iter().any(|file| {
+                file.cargo_hubs().is_ok_and(|hubs| {
+                    hubs.iter()
+                        .any(|hub| hub.cargo_lockfile == Some(label.as_str()))
+                })
+            });
+            if !dir.is_empty() && !named {
+                self.notes.push(format!(
+                    "{dir}/{CARGO_LOCK} is not wired; add a crate.from_cargo for it"
+                ));
+            }
+        }
+    }
+
     fn cargo(&mut self) -> Result<(), AdoptError> {
+        self.report_extra_cargo_locks();
         if !self.exists(CARGO_LOCK) || !self.exists("Cargo.toml") {
             return Ok(());
         }
@@ -185,7 +208,7 @@ impl Planner<'_> {
                 ("manifests", Arg::List(manifests)),
             ],
         )];
-        self.add(&CARGO, &tags)
+        self.add(&CARGO, &tags, &[CARGO.hub])
     }
 
     fn cargo_manifests(&mut self) -> Vec<String> {
@@ -214,11 +237,42 @@ impl Planner<'_> {
         manifests
     }
 
+    /// Directories under the root (as `""` or `a/b`) holding `lock` next to `manifest`.
+    fn lock_dirs(&self, lock: &str, manifest: &str) -> Vec<String> {
+        let mut found = Vec::new();
+        let mut pending = vec![String::new()];
+        while let Some(dir) = pending.pop() {
+            let path = self.root.join(&dir);
+            if path.join(lock).is_file() && path.join(manifest).is_file() {
+                found.push(dir.clone());
+            }
+            let Ok(entries) = std::fs::read_dir(&path) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let skip = name.starts_with('.')
+                    || name.starts_with("bazel-")
+                    || matches!(name.as_str(), "node_modules" | "target");
+                if !skip && entry.file_type().is_ok_and(|t| t.is_dir()) {
+                    pending.push(if dir.is_empty() {
+                        name
+                    } else {
+                        format!("{dir}/{name}")
+                    });
+                }
+            }
+        }
+        found.sort();
+        found
+    }
+
     fn uv(&mut self) -> Result<(), AdoptError> {
-        if !self.exists(UV_LOCK) || !self.exists("pyproject.toml") {
+        let dirs = self.lock_dirs(UV_LOCK, "pyproject.toml");
+        if dirs.is_empty() {
             return Ok(());
         }
-        let lock = root_label(UV_LOCK);
+        let mut named: Vec<String> = Vec::new();
         let mut declared = false;
         for file in self.files {
             let Ok(projects) = file.uv_projects() else {
@@ -226,33 +280,41 @@ impl Planner<'_> {
                     .push("a uv.project has computed arguments; uv.lock not wired".into());
                 return Ok(());
             };
-            if projects.iter().any(|project| project.lock == lock) {
-                return Ok(());
-            }
+            named.extend(projects.iter().map(|project| project.lock.to_owned()));
             declared |= file
                 .calls_named("uv.declare_hub")
                 .any(|call| call.str("hub_name") == Some(UV.hub));
         }
         let mut tags = Vec::new();
-        if !declared {
-            tags.push(tag("declare_hub", vec![("hub_name", string(UV.hub))]));
+        for dir in dirs {
+            let lock = dir_label(&dir, UV_LOCK);
+            if named.contains(&lock) {
+                continue;
+            }
+            tags.push(tag(
+                "project",
+                vec![
+                    ("hub_name", string(UV.hub)),
+                    ("pyproject", string(&dir_label(&dir, "pyproject.toml"))),
+                    ("lock", string(&lock)),
+                ],
+            ));
         }
-        tags.push(tag(
-            "project",
-            vec![
-                ("hub_name", string(UV.hub)),
-                ("pyproject", string(&root_label("pyproject.toml"))),
-                ("lock", string(&lock)),
-            ],
-        ));
-        self.add(&UV, &tags)
+        if tags.is_empty() {
+            return Ok(());
+        }
+        if !declared {
+            tags.insert(0, tag("declare_hub", vec![("hub_name", string(UV.hub))]));
+        }
+        self.add(&UV, &tags, &[UV.hub])
     }
 
     fn npm(&mut self) -> Result<(), AdoptError> {
-        if !self.exists(PNPM_LOCK) || !self.exists("package.json") {
+        let dirs = self.lock_dirs(PNPM_LOCK, "package.json");
+        if dirs.is_empty() {
             return Ok(());
         }
-        let lock = root_label(PNPM_LOCK);
+        let mut existing: Vec<(String, Option<String>)> = Vec::new();
         for file in self.files {
             let Ok(locks) = file.npm_translate_locks() else {
                 self.notes.push(
@@ -261,27 +323,45 @@ impl Planner<'_> {
                 );
                 return Ok(());
             };
-            for existing in locks {
-                if existing.pnpm_lock == Some(lock.as_str()) {
-                    return Ok(());
-                }
-                if existing.name == NPM.hub {
-                    self.notes.push(format!(
-                        "npm.npm_translate_lock \"{}\" reads another lock; pnpm-lock.yaml not wired",
-                        existing.name
-                    ));
-                    return Ok(());
-                }
-            }
+            existing.extend(
+                locks
+                    .iter()
+                    .map(|l| (l.name.to_owned(), l.pnpm_lock.map(str::to_owned))),
+            );
         }
-        let tags = vec![tag(
-            "npm_translate_lock",
-            vec![("name", string(NPM.hub)), ("pnpm_lock", string(&lock))],
-        )];
-        self.add(&NPM, &tags)
+        let mut tags = Vec::new();
+        let mut hubs = Vec::new();
+        for dir in dirs {
+            let lock = dir_label(&dir, PNPM_LOCK);
+            let hub = if dir.is_empty() {
+                NPM.hub.to_owned()
+            } else {
+                format!("{}_{}", NPM.hub, dir.replace('/', "_"))
+            };
+            if existing.iter().any(|(_, l)| l.as_deref() == Some(&lock)) {
+                continue;
+            }
+            if existing.iter().any(|(name, _)| *name == hub) {
+                self.notes.push(format!(
+                    "npm.npm_translate_lock \"{hub}\" reads another lock; {PNPM_LOCK} in {} not wired",
+                    if dir.is_empty() { "." } else { &dir }
+                ));
+                continue;
+            }
+            tags.push(tag(
+                "npm_translate_lock",
+                vec![("name", string(&hub)), ("pnpm_lock", string(&lock))],
+            ));
+            hubs.push(hub);
+        }
+        if tags.is_empty() {
+            return Ok(());
+        }
+        let hubs: Vec<&str> = hubs.iter().map(String::as_str).collect();
+        self.add(&NPM, &tags, &hubs)
     }
 
-    fn add(&mut self, eco: &Ecosystem, tags: &[NewTag]) -> Result<(), AdoptError> {
+    fn add(&mut self, eco: &Ecosystem, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
         let declared = self
             .files
             .iter()
@@ -301,7 +381,7 @@ impl Planner<'_> {
             .map_or(eco.binding, |(name, _)| *name)
             .to_owned();
         self.text = file
-            .insert_extension_block(&binding, eco.bzl, eco.ext, tags, &[eco.hub])
+            .insert_extension_block(&binding, eco.bzl, eco.ext, tags, hubs)
             .map_err(refuse)?;
         Ok(())
     }
@@ -432,5 +512,37 @@ mod tests {
         assert_eq!(hubs.edit, None);
         assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
         assert!(hubs.notes[0].contains("svc/uv.lock"), "{:?}", hubs.notes);
+    }
+
+    #[test]
+    fn nested_uv_and_pnpm_locks_get_their_own_projects() {
+        let hubs = plan(&[
+            ("uv.lock", ""),
+            ("pyproject.toml", ""),
+            ("svc/uv.lock", ""),
+            ("svc/pyproject.toml", ""),
+            ("web/app/pnpm-lock.yaml", ""),
+            ("web/app/package.json", "{}"),
+            ("pnpm-lock.yaml", ""),
+            ("package.json", "{}"),
+            ("node_modules/x/pnpm-lock.yaml", ""),
+            ("node_modules/x/package.json", "{}"),
+        ]);
+        let text = new_text(&hubs);
+        assert!(text.contains("lock = \"//svc:uv.lock\""), "{text}");
+        assert!(text.contains("lock = \"//:uv.lock\""), "{text}");
+        assert_eq!(text.matches("declare_hub").count(), 1, "{text}");
+        assert!(text.contains("name = \"npm_web_app\""), "{text}");
+        assert!(text.contains("pnpm_lock = \"//web/app:pnpm-lock.yaml\""), "{text}");
+        assert!(text.contains("use_repo(npm, \"npm\", \"npm_web_app\")"), "{text}");
+        assert!(!text.contains("node_modules"), "{text}");
+    }
+
+    #[test]
+    fn an_extra_cargo_lock_is_reported_not_wired() {
+        let hubs = plan(&[("tools/Cargo.lock", ""), ("tools/Cargo.toml", "")]);
+        assert_eq!(hubs.edit, None);
+        assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
+        assert!(hubs.notes[0].contains("tools/Cargo.lock"), "{:?}", hubs.notes);
     }
 }

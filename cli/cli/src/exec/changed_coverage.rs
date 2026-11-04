@@ -117,9 +117,11 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         Err(message) => return unavailable(event, message),
     };
     let changed = changed_account(account, gate.lcov_documents, &added, &|path| {
-        std::fs::read_to_string(gate.workspace.join(path)).map_err(|error| dx_lcov::LcovError::Io {
-            message: format!("{path}: {error}"),
-        })
+        std::fs::read(gate.workspace.join(path))
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+            .map_err(|error| dx_lcov::LcovError::Io {
+                message: format!("{path}: {error}"),
+            })
     });
     let result = changed.result(minimum);
     event.result = result.name().to_owned();

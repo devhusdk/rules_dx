@@ -1140,9 +1140,11 @@ fn account_sources(
     workspace: &Path,
 ) -> dx_lcov::CellAccount {
     dx_lcov::account(&sources.manifests, lcov_documents, &|path| {
-        std::fs::read_to_string(workspace.join(path)).map_err(|error| dx_lcov::LcovError::Io {
-            message: format!("{path}: {error}"),
-        })
+        std::fs::read(workspace.join(path))
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+            .map_err(|error| dx_lcov::LcovError::Io {
+                message: format!("{path}: {error}"),
+            })
     })
 }
 

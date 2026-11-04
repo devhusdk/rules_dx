@@ -232,6 +232,10 @@ fn is_header(path: &str) -> bool {
     HEADER_SUFFIXES.iter().any(|suffix| path.ends_with(suffix))
 }
 
+fn read_error(path: &str, error: &LcovError) -> String {
+    format!("cannot read {path} for LCOV_EXCL markers: {error}")
+}
+
 /// True when a valid exclusion range covers every line that is not blank or a comment.
 fn whole_file_excluded(path: &str, source: &str) -> bool {
     let Ok(ignores) = find_ignores(path, source) else {
@@ -304,7 +308,6 @@ pub fn account(
         reported.insert(key, hits);
     }
     for (key, (path, test)) in &owned {
-        let source = || load_source(path).unwrap_or_default();
         let disposition = if *test || is_declaration_stub(path) {
             Disposition::Support
         } else if !is_covered_language(path) {
@@ -321,7 +324,10 @@ pub fn account(
                             Ignores::default()
                         }
                     },
-                    Err(_) => Ignores::default(),
+                    Err(error) => {
+                        result.errors.push(read_error(path, &error));
+                        Ignores::default()
+                    }
                 };
                 let count = count_lines(hits, &ignores);
                 result.raw_lines += count.eligible + count.ignored;
@@ -330,7 +336,13 @@ pub fn account(
                 result.covered_lines += count.covered;
                 Disposition::Eligible
             }
-        } else if whole_file_excluded(path, &source()) {
+        } else if whole_file_excluded(
+            path,
+            &load_source(path).unwrap_or_else(|error| {
+                result.errors.push(read_error(path, &error));
+                String::new()
+            }),
+        ) {
             Disposition::Excluded
         } else if is_header(path) {
             Disposition::Support

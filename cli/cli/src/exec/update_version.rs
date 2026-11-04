@@ -307,19 +307,8 @@ fn widen_targets(
     if let Some(manifests) = request.configured_manifests() {
         return Ok(manifests.to_vec());
     }
-    match request.set {
-        dx_update::bump::UpdateSet::GithubActions => {}
-        dx_update::bump::UpdateSet::Cargo => {
-            let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).map_err(|_| {
-                format!(
-                    "failed to widen {}: cannot read MODULE.bazel",
-                    request.selector
-                )
-            })?;
-            return dx_update::bump::cargo_manifests(&module)
-                .map_err(|error| format!("failed to widen {}: {error}", request.selector));
-        }
-        _ => return Ok(vec![request.target_manifest().to_owned()]),
+    if request.set != dx_update::bump::UpdateSet::GithubActions {
+        return Ok(vec![request.target_manifest().to_owned()]);
     }
     let dir = workspace.join(dx_update::bump::gha::WORKFLOW_DIR);
     let entries = std::fs::read_dir(&dir).map_err(|_| {
@@ -414,11 +403,6 @@ fn plan_widens(
             } else {
                 request.target_manifest().to_owned()
             }
-        } else if request.set == dx_update::bump::UpdateSet::Cargo {
-            format!(
-                "any of the {} manifests of the crate.from_cargo hub in MODULE.bazel",
-                targets.len()
-            )
         } else {
             request.target_manifest().to_owned()
         };

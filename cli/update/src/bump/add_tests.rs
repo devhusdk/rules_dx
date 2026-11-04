@@ -2,7 +2,7 @@ use super::*;
 use crate::bump::request::{BumpPlanOutcome, ConfiguredKind};
 
 fn request(selector: &str, version: &str) -> AddRequest {
-    AddRequest::from_bump(&UpdateRequest::parse(selector, version).expect("bump request"))
+    AddRequest::from_bump(&UpdateRequest::parse_grammar(selector, version).expect("bump request"))
 }
 
 fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError> {
@@ -11,13 +11,13 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
 
 /// A widen reads what an add wrote: the same version is current, a higher one widens.
 fn assert_bump_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
-    let same = UpdateRequest::parse(selector, version).expect("bump request");
+    let same = UpdateRequest::parse_grammar(selector, version).expect("bump request");
     assert_eq!(
         same.plan_edit_outcome(same.target_manifest(), written),
         Ok(BumpPlanOutcome::Unchanged),
         "{selector} at {version}"
     );
-    let next = UpdateRequest::parse(selector, higher).expect("bump request");
+    let next = UpdateRequest::parse_grammar(selector, higher).expect("bump request");
     assert!(
         matches!(
             next.plan_edit_outcome(next.target_manifest(), written),

@@ -104,7 +104,7 @@ pub enum BumpPlanOutcome {
 pub enum BumpError {
     #[error("empty bump selector or version; expected `dx update <set:package> <version>`")]
     Empty,
-    #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. cargo:anyhow, maven:junit:junit)", UpdateSet::pipe_list())]
+    #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. bazel:rules_cc)", UpdateSet::builtin_names().join("|"))]
     UnknownSelector { selector: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {
@@ -271,6 +271,17 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
 
 impl UpdateRequest {
     pub fn parse(selector: &str, version: &str) -> Result<UpdateRequest, BumpError> {
+        let head = selector.split_once(':').map_or(selector, |(head, _)| head);
+        if !selector.is_empty() && !UpdateSet::builtin_names().contains(&head) {
+            return Err(BumpError::UnknownSelector {
+                selector: selector.to_owned(),
+            });
+        }
+        Self::parse_grammar(selector, version)
+    }
+
+    /// Parses a selector of any ecosystem; configured sets share these grammars.
+    pub(crate) fn parse_grammar(selector: &str, version: &str) -> Result<UpdateRequest, BumpError> {
         if selector.is_empty() || version.is_empty() {
             return Err(BumpError::Empty);
         }

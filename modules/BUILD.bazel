@@ -12,14 +12,6 @@ consumer_deps_json(name = "consumer_deps_json")
 
 versions_rs(name = "versions_rs")
 
-rust_library(
-    name = "dx_versions",
-    srcs = [":versions_rs"],
-    crate_name = "dx_versions",
-    crate_root = ":versions_rs",
-    edition = "2021",
-)
-
 # keep
 rust_test(
     name = "consumer_deps_test",
@@ -38,7 +30,10 @@ rust_test(
 
 rustfmt_test(
     name = "consumer_deps_fmt_test",
-    targets = [":consumer_deps_test"],
+    targets = [
+        ":consumer_deps_test",
+        ":dx_versions",
+    ],
 )
 
 rust_clippy_test(

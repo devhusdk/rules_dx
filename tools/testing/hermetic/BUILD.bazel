@@ -898,6 +898,7 @@ rustfmt_test(
     target_compatible_with = LINUX,
     targets = [
         ":adopt_android",
+        ":cuda_gpu_facts_test",
         ":appimage",
         ":c_fixture",
         ":cpp_rust",

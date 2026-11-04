@@ -87,7 +87,10 @@ rustfmt_test(
         ":consumer_wasi",
         ":consumer_wasi_lib",
         ":consumer_wasi_macros",
+        ":consumer_wasi_module",
         ":consumer_wasi_run_test",
+        ":custom_runtime",
+        ":guest_test",
     ],
 )
 

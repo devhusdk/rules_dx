@@ -96,23 +96,6 @@ rust_binary(
     ) + [":dx_release_tools"],
 )
 
-rust_binary(
-    name = "release_deploy_tool",
-    srcs = ["src/bin_release_deploy_tool.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_release_tools",
-        normal = True,
-    ),
-    crate_name = "release_deploy_tool",
-    crate_root = "src/bin_release_deploy_tool.rs",
-    edition = "2021",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_release_tools",
-        normal = True,
-    ) + [":dx_release_tools"],
-)
-
 rust_test(
     name = "dx_release_tools_test",
     srcs = [
@@ -252,6 +235,7 @@ rustfmt_test(
     name = "dx_release_tools_fmt_test",
     targets = [
         ":dx_release_tools_test",
+        ":bcr_templates_test",
         ":candidate_identity_test",
         ":dx_release_tools",
         ":release_host_cell_test",

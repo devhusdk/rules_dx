@@ -1941,7 +1941,7 @@ rust_test(
 
 rustfmt_test(
     name = "fake_format_fmt_test",
-    targets = [":fake_format"] + [":fake_" + tool for tool in _FAKE_FORMAT_TOOLS],
+    targets = [":fake_format", ":fixture_upstream_rust_bin"] + [":fake_" + tool for tool in _FAKE_FORMAT_TOOLS],
 )
 
 rust_clippy_test(

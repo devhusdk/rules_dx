@@ -541,6 +541,7 @@ rustfmt_test(
         ":tasks_model",
         ":tasks_model_test",
         ":shared_tasks",
+        ":tasks_wasi",
         ":tasks_web_lib",
         ":wasi_test",
     ],

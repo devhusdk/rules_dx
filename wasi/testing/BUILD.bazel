@@ -51,6 +51,7 @@ rustfmt_test(
     name = "wasi_run_fmt_test",
     targets = [
         ":wasi_run",
+        ":wasi_guest_test",
         ":wasi_test_runner",
     ],
 )

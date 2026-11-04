@@ -358,6 +358,8 @@ rustfmt_test(
     name = "wasm_bindgen_fmt_test",
     targets = [
         ":wasm_hello_bundle_test",
+        ":wasm_hello_browser_test",
+        ":wasm_hello_web",
         ":wasm_stale_bin",
         ":wasm_stale_lib",
     ],

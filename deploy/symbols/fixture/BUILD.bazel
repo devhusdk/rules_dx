@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_binary")
-load("//deploy/rules:debug_info.bzl", "dx_dsym", "dx_split_debug_info")
+load("//deploy/rules:debug_info.bzl", "dx_dsym", "dx_pdb", "dx_split_debug_info")
 
 package(default_visibility = ["//deploy/symbols:__subpackages__"])
 
@@ -77,4 +77,43 @@ filegroup(
     srcs = [":known_dsym"],
     output_group = "symbols",
     target_compatible_with = ["@platforms//os:macos"],
+)
+
+cc_binary(
+    name = "known_windows",
+    srcs = ["known.c"],
+    copts = ["/O2"],
+    local_defines = ["DX_PRINT_RVA"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_binary(
+    name = "other_windows",
+    srcs = ["other.c"],
+    copts = ["/O2"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+dx_pdb(
+    name = "known_pdb",
+    binary = ":known_windows",
+)
+
+filegroup(
+    name = "known_pdb_symbols",
+    srcs = [":known_pdb"],
+    output_group = "symbols",
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+dx_pdb(
+    name = "other_pdb",
+    binary = ":other_windows",
+)
+
+filegroup(
+    name = "other_pdb_symbols",
+    srcs = [":other_pdb"],
+    output_group = "symbols",
+    target_compatible_with = ["@platforms//os:windows"],
 )

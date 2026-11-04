@@ -747,6 +747,38 @@ Look up an address in the bundle with `llvm-symbolizer`:
 llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 ```
 
+# dx_pdb
+
+Pairs the PDB of a Windows `cc_binary` with that binary.
+
+```
+load("@rules_dx//deploy/rules:debug_info.bzl", "dx_pdb")
+
+dx_pdb(
+    name = "app_pdb",
+    binary = ":app",
+)
+```
+
+The `binary` is built again with the `generate_pdb_file` feature added,
+through a transition, so the link writes the PDB. Build the `symbols` output
+group to get the PDB and the manifest:
+
+```
+bazel build --output_groups=symbols //pkg:app_pdb
+```
+
+This writes the PDB the link wrote, such as `app.pdb`, and `app_pdb.pdb.json`. The manifest has the
+CodeView GUID and age, arch, sha256 of the binary, PDB name, CodeView path and
+linker version. The build fails if the PDB is not a PDB, or if its GUID, age or
+machine differ from the binary. The target is Windows only.
+
+Look up an address (a relative virtual address) with `llvm-symbolizer`:
+
+```
+llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
+```
+
 # Common behavior
 
 Except for `cloudflare_pages_deploy`, a default run writes into the

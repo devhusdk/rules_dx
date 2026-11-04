@@ -1,4 +1,4 @@
-"""Splits Linux ELF debug info from a binary and pairs macOS dSYM bundles with it."""
+"""Splits Linux ELF debug info from a binary and pairs macOS dSYM bundles and Windows PDBs with it."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("//libs/starlark:wrapper.bzl", "dx_toolchain_tool")
@@ -139,3 +139,71 @@ def dx_dsym(name, binary, **kwargs):
     """Keeps the dSYM of a macOS cc_binary, checked against it; build the symbols output group to get it."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:macos"])
     _dsym_pair(name = name, binary = binary, **kwargs)
+
+_FEATURES_FLAG = "//command_line_option:features"
+
+def _pdb_transition_impl(settings, _attr):
+    features = list(settings[_FEATURES_FLAG])
+    if "generate_pdb_file" not in features:
+        features.append("generate_pdb_file")
+    return {_FEATURES_FLAG: features}
+
+_pdb_transition = transition(
+    implementation = _pdb_transition_impl,
+    inputs = [_FEATURES_FLAG],
+    outputs = [_FEATURES_FLAG],
+)
+
+def _pdb_pair_impl(ctx):
+    binary = ctx.executable.binary
+    pdbs = getattr(ctx.attr.binary[OutputGroupInfo], "pdb_file", None)
+    if pdbs == None or len(pdbs.to_list()) != 1:
+        fail("%s did not produce one pdb_file; the dx_pdb binary must be a Windows cc_binary" % ctx.attr.binary.label)
+    pdb = pdbs.to_list()[0]
+    manifest = ctx.actions.declare_file(ctx.label.name + ".pdb.json")
+    ctx.actions.run(
+        executable = ctx.executable._pdb,
+        arguments = [
+            "--in",
+            binary.path,
+            "--pdb",
+            pdb.path,
+            "--manifest",
+            manifest.path,
+        ],
+        inputs = [binary, pdb],
+        outputs = [manifest],
+        mnemonic = "DxPdb",
+        progress_message = "Pairing the PDB of %{label}",
+    )
+    return [
+        ctx.attr.binary[DefaultInfo],
+        OutputGroupInfo(symbols = depset([pdb, manifest])),
+    ]
+
+_pdb_pair = rule(
+    implementation = _pdb_pair_impl,
+    doc = "Pairs a Windows cc_binary with the PDB its link wrote; the PDB stays in the symbols group.",
+    attrs = {
+        "binary": attr.label(
+            doc = "The cc_binary whose PDB is kept. Built with the generate_pdb_file feature.",
+            executable = True,
+            cfg = _pdb_transition,
+            mandatory = True,
+        ),
+        "_pdb": attr.label(
+            default = Label("//deploy/symbols:pdb"),
+            executable = True,
+            cfg = "exec",
+        ),
+        "_allowlist_function_transition": attr.label(
+            default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
+        ),
+    },
+    executable = True,
+)
+
+def dx_pdb(name, binary, **kwargs):
+    """Keeps the PDB of a Windows cc_binary, checked against it; build the symbols output group to get it."""
+    kwargs.setdefault("target_compatible_with", ["@platforms//os:windows"])
+    _pdb_pair(name = name, binary = binary, **kwargs)

@@ -187,3 +187,126 @@ fn manifest_records_uuid_arch_digest_and_tool() {
     assert_eq!(json["dsymutil"], "LLVM version 22");
     assert_eq!(json["sha256"], format!("{:x}", Sha256::digest(&bin)));
 }
+
+fn msf(info: Option<(&[u8; 16], u32)>, dbi: Option<(u32, u16)>) -> Vec<u8> {
+    const BLOCK: usize = 512;
+    let mut streams: Vec<Vec<u8>> = vec![Vec::new(); 4];
+    if let Some((guid, age)) = info {
+        let mut s = vec![0u8; 12];
+        s.extend_from_slice(guid);
+        s[8..12].copy_from_slice(&age.to_le_bytes());
+        streams[1] = s;
+    }
+    if let Some((age, machine)) = dbi {
+        let mut s = vec![0u8; 64];
+        s[8..12].copy_from_slice(&age.to_le_bytes());
+        s[58..60].copy_from_slice(&machine.to_le_bytes());
+        streams[3] = s;
+    }
+    let mut dir = (streams.len() as u32).to_le_bytes().to_vec();
+    for s in &streams {
+        dir.extend_from_slice(&(s.len() as u32).to_le_bytes());
+    }
+    let mut data = Vec::new();
+    let mut next = 3u32;
+    for s in &streams {
+        if !s.is_empty() {
+            dir.extend_from_slice(&next.to_le_bytes());
+            data.extend_from_slice(s);
+            data.resize(data.len().next_multiple_of(BLOCK), 0);
+            next += 1;
+        }
+    }
+    let mut b = vec![0u8; BLOCK * 3];
+    b[..MSF_MAGIC.len()].copy_from_slice(MSF_MAGIC);
+    b[32..36].copy_from_slice(&(BLOCK as u32).to_le_bytes());
+    b[40..44].copy_from_slice(&next.to_le_bytes());
+    b[44..48].copy_from_slice(&(dir.len() as u32).to_le_bytes());
+    b[52..56].copy_from_slice(&1u32.to_le_bytes());
+    b[BLOCK..BLOCK + 4].copy_from_slice(&2u32.to_le_bytes());
+    b[BLOCK * 2..BLOCK * 2 + dir.len()].copy_from_slice(&dir);
+    b.extend_from_slice(&data);
+    b
+}
+
+const AMD64: u16 = 0x8664;
+const GUID: [u8; 16] = [7; 16];
+
+fn pe_id(guid: [u8; 16], age: u32, machine: u16) -> PeId {
+    PeId {
+        guid,
+        age,
+        path: "app.pdb".to_string(),
+        machine,
+        linker_version: "14.0".to_string(),
+    }
+}
+
+#[test]
+fn pdb_identity_reads_guid_age_and_machine() {
+    let id = pdb_identity(&msf(Some((&GUID, 3)), Some((3, AMD64)))).expect("pdb");
+    assert_eq!(
+        id,
+        PdbId {
+            guid: GUID,
+            age: 3,
+            machine: AMD64
+        }
+    );
+}
+
+#[test]
+fn matching_pdb_pairs() {
+    let id = pdb_identity(&msf(Some((&GUID, 3)), Some((3, AMD64)))).unwrap();
+    let pair = compare_pdb(&pe_id(GUID, 3, AMD64), &id).expect("pair");
+    assert_eq!(pair.guid, "07".repeat(16));
+    assert_eq!(pair.age, 3);
+    assert_eq!(pair.arch, "x86_64");
+}
+
+#[test]
+fn pdb_guid_mismatch_is_rejected() {
+    let id = pdb_identity(&msf(Some((&[9; 16], 3)), Some((3, AMD64)))).unwrap();
+    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id).unwrap_err();
+    assert!(err.contains("guid mismatch"), "{err}");
+}
+
+#[test]
+fn stale_pdb_age_is_rejected() {
+    let id = pdb_identity(&msf(Some((&GUID, 3)), Some((2, AMD64)))).unwrap();
+    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id).unwrap_err();
+    assert!(err.contains("age mismatch"), "{err}");
+}
+
+#[test]
+fn pdb_machine_mismatch_is_rejected() {
+    let id = pdb_identity(&msf(Some((&GUID, 3)), Some((3, 0xaa64)))).unwrap();
+    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id).unwrap_err();
+    assert!(err.contains("arch mismatch"), "{err}");
+}
+
+#[test]
+fn truncated_pdb_is_rejected() {
+    let mut bytes = msf(Some((&GUID, 3)), Some((3, AMD64)));
+    bytes.truncate(bytes.len() - 512);
+    let err = pdb_identity(&bytes).unwrap_err();
+    assert!(err.contains("truncated or corrupt"), "{err}");
+}
+
+#[test]
+fn pdb_with_bad_magic_is_rejected() {
+    let err = pdb_identity(b"hello world").unwrap_err();
+    assert!(err.contains("not a PDB"), "{err}");
+}
+
+#[test]
+fn pdb_without_dbi_stream_is_rejected() {
+    let err = pdb_identity(&msf(Some((&GUID, 3)), None)).unwrap_err();
+    assert!(err.contains("no DBI stream"), "{err}");
+}
+
+#[test]
+fn pe_codeview_rejects_elf() {
+    let err = pe_codeview(&elf(X86, Some(&[1]))).unwrap_err();
+    assert!(err.contains("not a PE file"), "{err}");
+}

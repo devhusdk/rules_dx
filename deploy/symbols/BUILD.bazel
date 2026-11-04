@@ -63,6 +63,33 @@ rust_test(
 )
 
 rust_test(
+    name = "pdb_test",
+    srcs = ["pdb_test.rs"],
+    data = [
+        ":pdb",
+        "//deploy/symbols/fixture:known.c",
+        "//deploy/symbols/fixture:known_pdb",
+        "//deploy/symbols/fixture:known_pdb_symbols",
+        "//deploy/symbols/fixture:other_pdb_symbols",
+        "@llvm//tools:llvm-symbolizer",
+    ],
+    env = {
+        "DX_KNOWN_BINARY": "$(rootpath //deploy/symbols/fixture:known_pdb)",
+        "DX_KNOWN_PDB_SYMBOLS": "$(rootpaths //deploy/symbols/fixture:known_pdb_symbols)",
+        "DX_KNOWN_SOURCE": "$(rootpath //deploy/symbols/fixture:known.c)",
+        "DX_LLVM_SYMBOLIZER": "$(rootpath @llvm//tools:llvm-symbolizer)",
+        "DX_OTHER_PDB_SYMBOLS": "$(rootpaths //deploy/symbols/fixture:other_pdb_symbols)",
+        "DX_PDB": "$(rootpath :pdb)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = [
+        ":dx_symbols",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
     name = "symbols_test",
     srcs = ["symbols_test.rs"],
     data = [

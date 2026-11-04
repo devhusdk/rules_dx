@@ -39,7 +39,7 @@ fn adopt_locks_consistent() {
         "js",
         &data("DX_PRETTIER_FIXTURE_MANIFEST"),
         &data("DX_PRETTIER_FIXTURE_LOCK"),
-        "prettier_consumer fixture package.json plus pnpm-lock.yaml",
+        "prettier lock fixture package.json plus pnpm-lock.yaml",
     );
     check_pair(
         "js",

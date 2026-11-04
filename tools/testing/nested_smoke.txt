@@ -47,8 +47,6 @@
 //quality/tests:check_continuation_later_clean_consumer_test
 //quality/tests:check_continuation_rejected_consumer_test
 //quality/tests:check_continuation_views_consumer_test
-//quality/tests:prettier_consumer_test
-//quality/tests:prettier_plugins_consumer_test
 //rust/ide:init_rust_analyzer_test
 //tools/docs/components/tests:consumer_test
 //tools/docs/go/tests:consumer_test

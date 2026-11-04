@@ -564,7 +564,6 @@ rust_test(
         "//cli/cli/tests/affected:corpus_starlark",
         "//cli/cli/tests/agents:corpus_starlark",
         "//cli/cli/tests/cli_argv_e2e:corpus_starlark",
-        "//cli/cli/tests/latency:corpus_starlark",
         "//cli/cli/tests/results_consumer:corpus_starlark",
         "//cli/cli/tests/startup_consistency:corpus_starlark",
         "//cli/cli/tests/uv_sets:corpus_starlark",

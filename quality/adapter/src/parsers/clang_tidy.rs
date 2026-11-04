@@ -53,7 +53,7 @@ pub fn parse_clang_tidy(
                     line: line_no,
                     column,
                 },
-                ColumnEncoding::Scalars,
+                ColumnEncoding::Utf8,
             ));
             continue;
         }
@@ -147,5 +147,26 @@ mod tests {
         ));
         assert!(parse_clang_tidy(b"Error while processing x.c.\n", Some(0), &files).is_err());
         assert!(parse_clang_tidy(b"nope\n1 warning generated.\n", Some(0), &files).is_err());
+    }
+
+    #[test]
+    fn clang_tidy_columns_are_utf8_bytes() {
+        let file = "cc/a.c";
+        let line = "const char *s = \"é\"; int b = 1;\n";
+        let text = format!("{line}\t{line}");
+        let log = format!(
+            "{file}:1:27: warning: unused variable 'b' [-Wunused-variable]\n{file}:2:28: warning: unused variable 'b' [-Wunused-variable]\n"
+        );
+        let found = parse_clang_tidy(log.as_bytes(), Some(0), &[file]).expect("parsed");
+        assert_eq!(found.len(), 2);
+        let offsets = [text.find("b = 1"), text.rfind("b = 1")];
+        for (item, offset) in found.iter().zip(offsets) {
+            let at = item.finding.start;
+            assert_eq!(item.finding.encoding, ColumnEncoding::Utf8);
+            assert_eq!(
+                crate::line_col_to_byte(&text, at.line, at.column, item.finding.encoding),
+                offset.map(|i| i as u64)
+            );
+        }
     }
 }

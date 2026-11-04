@@ -112,7 +112,7 @@ pub fn parse_clang_syntax(
                 line: line_no,
                 column,
             },
-            ColumnEncoding::Scalars,
+            ColumnEncoding::Utf8,
         ));
     }
     require_findings(TOOL, &findings, code)?;
@@ -190,5 +190,25 @@ mod tests {
         let gcc = "In file included from dep/b.h:1,\n                 from cc/a.c:7:\ndep/c.h:2:5: warning: w [-Wx]\n";
         let found = parse_clang_syntax(gcc.as_bytes(), Some(0), &[FILE]).expect("parsed");
         assert_eq!(found[0].finding.start.line, 7);
+    }
+
+    #[test]
+    fn columns_are_utf8_bytes() {
+        let line = "const char *s = \"é\"; int b = 1;\n";
+        let text = format!("{line}\t{line}");
+        let log = format!(
+            "{FILE}:1:27: warning: unused variable 'b' [-Wunused-variable]\n{FILE}:2:28: warning: unused variable 'b' [-Wunused-variable]\n"
+        );
+        let found = parse_clang_syntax(log.as_bytes(), Some(0), &[FILE]).expect("parsed");
+        assert_eq!(found.len(), 2);
+        let offsets = [text.find("b = 1"), text.rfind("b = 1")];
+        for (item, offset) in found.iter().zip(offsets) {
+            let at = item.finding.start;
+            assert_eq!(item.finding.encoding, ColumnEncoding::Utf8);
+            assert_eq!(
+                crate::line_col_to_byte(&text, at.line, at.column, item.finding.encoding),
+                offset.map(|i| i as u64)
+            );
+        }
     }
 }

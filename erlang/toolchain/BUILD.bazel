@@ -22,9 +22,15 @@ erlang_cell_tests(name = "cells")
 erlang_metadata_tests(name = "metadata")
 
 build_test(
+    name = "otp_windows_arm64",
+    target_compatible_with = otp_compatible_with(["windows_arm64"]),
+    targets = ["@dx_otp_windows_arm64//:otp"],
+)
+
+build_test(
     name = "otp_windows_x86_64",
-    targets = ["@dx_otp_windows_x86_64//:otp"],
     target_compatible_with = otp_compatible_with(["windows_x86_64"]),
+    targets = ["@dx_otp_windows_x86_64//:otp"],
 )
 
 real_source_target(

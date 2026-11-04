@@ -21,7 +21,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
 | Elixir | `windows_x86_64`, `windows_arm64`: not tested yet |
-| Erlang | `windows_arm64`: not tested yet |
+| Erlang | none |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
 | F# | none |
 | Go | none |
@@ -100,7 +100,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) |
 | Rust | `clippy` | `rustfmt` | `rustc` |
 | Scala | `scalafix` | `scalafmt` | `scalac` |
-| Svelte | `eslint` | `prettier` | no |
+| Svelte | `eslint` | `prettier` | `tsc` |
 | TypeScript | `biome` | `biome`, `prettier` | `tsc` |
 | Vue | `eslint` | `prettier` | `tsc` |
 | Zig | `zig_ast_check` | `zig_fmt` | `zig` |

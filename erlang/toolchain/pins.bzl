@@ -65,6 +65,10 @@ GLIBC_FLOOR = "2.35"
 
 RUNTIME_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
 
+_WINDOWS_OTP_URL = "https://github.com/erlang/otp/releases/download/OTP-" + OTP_VERSION + "/otp_win64_" + OTP_VERSION + ".zip"
+
+_WINDOWS_OTP_SHA256 = "4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0"
+
 CELLS = {
     "linux_amd64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
@@ -187,8 +191,16 @@ CELLS = {
     ),
     "windows_x86_64": struct(
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-        otp_sha256 = "4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0",
-        otp_url = "https://github.com/erlang/otp/releases/download/OTP-" + OTP_VERSION + "/otp_win64_" + OTP_VERSION + ".zip",
+        otp_sha256 = _WINDOWS_OTP_SHA256,
+        otp_url = _WINDOWS_OTP_URL,
+        strip_prefix = "",
+        runtime = [],
+    ),
+    # No arm64 OTP is published, so this is the x64 build running under Windows emulation.
+    "windows_arm64": struct(
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64"],
+        otp_sha256 = _WINDOWS_OTP_SHA256,
+        otp_url = _WINDOWS_OTP_URL,
         strip_prefix = "",
         runtime = [],
     ),
@@ -198,9 +210,10 @@ CELLS = {
 # Apps do not build for them until those land.
 OTP_UNPORTED_CELLS = []
 
-OTP_NIF_UNPORTED_CELLS = []
+# An arm64 NIF .dll cannot load into the x64 BEAM that windows_arm64 runs (#6321).
+OTP_NIF_UNPORTED_CELLS = ["windows_arm64"]
 
-OTP_DIALYZER_UNPORTED_CELLS = ["windows_x86_64"]
+OTP_DIALYZER_UNPORTED_CELLS = ["windows_arm64", "windows_x86_64"]
 
 # The OTP applications the dialyzer base PLT covers. A call into an application missing here
 # is an "Unknown function" warning, so the list holds what Erlang apps commonly use.

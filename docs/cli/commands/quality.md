@@ -1753,7 +1753,7 @@ bazel run @rules_dx//:dx -- format //config/...
 bazel run @rules_dx//:dx -- format --apply //config/...
 ```
 
-Own CUE files with `cue_library` from `@rules_dx//cue/rules:defs.bzl`. List the
+Own CUE files with `cue_library` from `@rules_dx//quality/rules:defs.bzl`. List the
 package files in `srcs` and the libraries it imports in `deps`. Put the
 `cue.mod/module.cue` of your module in the `srcs` of a `cue_library` and list
 that library in `deps`. Both are staged as import context. A check never
@@ -1891,7 +1891,7 @@ bazel run @rules_dx//:dx -- format --apply //config/...
 ```
 
 Own Jsonnet files with `jsonnet_library` from
-`@rules_dx//jsonnet/rules:defs.bzl`. List the `.jsonnet` and `.libsonnet` files
+`@rules_dx//quality/rules:defs.bzl`. List the `.jsonnet` and `.libsonnet` files
 of the package in `srcs` and the libraries it imports in `deps`. The imported
 libraries are staged beside the entry file. A check never writes. `--apply`
 rewrites only the files the selected targets own. An unformatted file is
@@ -2082,7 +2082,7 @@ bazel run @rules_dx//:dx -- format //docs/...
 bazel run @rules_dx//:dx -- format --apply //docs/...
 ```
 
-Own Typst files with `typst_library` from `@rules_dx//typst/rules:defs.bzl`.
+Own Typst files with `typst_library` from `@rules_dx//quality/rules:defs.bzl`.
 List the `.typ` files of the package in `srcs` and the libraries it imports in
 `deps`. A check never writes. `--apply` rewrites only the files the selected
 targets own. An unformatted file is reported at the start of the file. A
@@ -2154,7 +2154,7 @@ bazel run @rules_dx//:dx -- format //docs/...
 bazel run @rules_dx//:dx -- format --apply //docs/...
 ```
 
-Own LaTeX files with `latex_library` from `@rules_dx//latex/rules:defs.bzl`.
+Own LaTeX files with `latex_library` from `@rules_dx//quality/rules:defs.bzl`.
 List the `.tex`, `.sty` and `.cls` files of the package in `srcs`. A check
 never writes. `--apply` rewrites only the files the selected targets own.
 `latexindent` takes one document per process, so dx runs it once per file. Its
@@ -2198,7 +2198,7 @@ bazel run @rules_dx//:dx -- format //config/...
 bazel run @rules_dx//:dx -- format --apply //config/...
 ```
 
-Own Pkl files with `pkl_library` from `@rules_dx//pkl/rules:defs.bzl`. List the
+Own Pkl files with `pkl_library` from `@rules_dx//quality/rules:defs.bzl`. List the
 `.pkl` files of the package in `srcs` and the libraries it imports in `deps`. A
 check never writes. `--apply` rewrites only the files the selected targets own.
 An unformatted file is reported at the start of the file. A syntax error fails
@@ -3437,8 +3437,8 @@ bazel run @rules_dx//:dx -- format --apply //db/...
 ```
 
 Own the files with `sql_library` from `@rules_dx//sql/rules:defs.bzl`,
-`xml_library` from `@rules_dx//xml/rules:defs.bzl` and `gherkin_library` from
-`@rules_dx//gherkin/rules:defs.bzl`. They accept `.sql`; `.xml`, `.xsd`, `.xsl`,
+`xml_library` from `@rules_dx//quality/rules:defs.bzl` and `gherkin_library` from
+`@rules_dx//quality/rules:defs.bzl`. They accept `.sql`; `.xml`, `.xsd`, `.xsl`,
 `.xslt` and `.wsdl`; and `.feature` in `srcs`, and other libraries in `deps`. A
 check never writes. `--apply` rewrites only the files the selected targets own.
 An unformatted file is reported at the start of the file. A syntax error fails
@@ -3756,7 +3756,7 @@ bazel run @rules_dx//:dx -- format --apply //config/...
 bazel run @rules_dx//:dx -- lint //config/...
 ```
 
-Own YAML files with `yaml_library` from `@rules_dx//yaml/rules:defs.bzl`. List
+Own YAML files with `yaml_library` from `@rules_dx//quality/rules:defs.bzl`. List
 the `.yaml` and `.yml` files of the package in `srcs`. A check never writes.
 `--apply` rewrites only the files the selected targets own. `yamllint` is
 check-only. Multiple documents and anchors are supported.
@@ -3911,11 +3911,11 @@ quality_family(
 )
 ```
 
-Own Nix files with `nix_library` from `@rules_dx//nix/rules:defs.bzl`. List
+Own Nix files with `nix_library` from `@rules_dx//quality/rules:defs.bzl`. List
 the `.nix` files of the package in `srcs`.
 
 ```python
-load("@rules_dx//nix/rules:defs.bzl", "nix_library")
+load("@rules_dx//quality/rules:defs.bzl", "nix_library")
 
 nix_library(
     name = "pkgs",
@@ -3992,7 +3992,7 @@ quality_family(
 )
 ```
 
-Own notebooks with `jupyter_library` from `@rules_dx//jupyter/rules:defs.bzl`.
+Own notebooks with `jupyter_library` from `@rules_dx//quality/rules:defs.bzl`.
 List the `.ipynb` files of the package in `srcs`.
 
 ```sh
@@ -4080,7 +4080,7 @@ bazel run @rules_dx//:dx -- lint //web/...
 ```
 
 Own templates with `html_template_library` from
-`@rules_dx//html_template/rules:defs.bzl`. List the `.html`, `.htm`, `.jinja`,
+`@rules_dx//quality/rules:defs.bzl`. List the `.html`, `.htm`, `.jinja`,
 `.jinja2`, `.j2`, `.njk`, `.hbs`, `.gohtml` and `.tmpl` files of the package in
 `srcs`. Use `deps` for libraries that your templates include from. A check never
 writes. `--apply` rewrites only the files the selected targets own.

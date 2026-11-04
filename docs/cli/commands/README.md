@@ -566,7 +566,6 @@ Language rules:
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.
-- `@rules_dx//cue/rules:defs.bzl`: CUE.
 - `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
 - `@rules_dx//cmake/rules:defs.bzl`: CMake files.
@@ -574,31 +573,25 @@ Language rules:
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
 - `@rules_dx//fsharp/rules:defs.bzl`: F#.
-- `@rules_dx//gherkin/rules:defs.bzl`: Gherkin.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
-- `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
 - `@rules_dx//java/rules:defs.bzl`: Java.
 - `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
 - `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
 - `@rules_dx//ansible/rules:defs.bzl`: Ansible.
 - `@rules_dx//bicep/rules:defs.bzl`: Bicep.
 - `@rules_dx//cloudformation/rules:defs.bzl`: CloudFormation.
-- `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
-- `@rules_dx//jupyter/rules:defs.bzl`: Jupyter notebooks.
 - `@rules_dx//julia/rules:defs.bzl`: Julia.
 - `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
-- `@rules_dx//latex/rules:defs.bzl`: LaTeX.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
 - `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.
-- `@rules_dx//nix/rules:defs.bzl`: Nix.
 - `@rules_dx//perl/rules:defs.bzl`: Perl.
-- `@rules_dx//pkl/rules:defs.bzl`: Pkl.
 - `@rules_dx//php/rules:defs.bzl`: PHP.
 - `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
 - `@rules_dx//python/rules:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//quality/rules:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//rego/rules:defs.bzl`: Rego.
 - `@rules_dx//ruby/rules:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
@@ -606,10 +599,7 @@ Language rules:
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
-- `@rules_dx//typst/rules:defs.bzl`: Typst.
 - `@rules_dx//vue/rules:defs.bzl`: Vue.
-- `@rules_dx//xml/rules:defs.bzl`: XML.
-- `@rules_dx//yaml/rules:defs.bzl`: YAML.
 - `@rules_dx//zig/rules:defs.bzl`: Zig.
 
 Packaging and deploy:

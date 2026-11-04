@@ -15,7 +15,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 94] = [
+const PACKAGES: [&str; 88] = [
     "android/packaging",
     "android/platforms",
     "android/rules",
@@ -37,7 +37,6 @@ const PACKAGES: [&str; 94] = [
     "csharp/rules",
     "cuda/rules",
     "cuda/toolchain",
-    "cue/rules",
     "deploy/offline",
     "deploy/release",
     "deploy/rules",
@@ -51,12 +50,9 @@ const PACKAGES: [&str; 94] = [
     "examples/shared-rust",
     "fsharp/rules",
     "generation",
-    "gherkin/rules",
     "go/rules",
-    "html_template/rules",
     "java/rules",
     "javascript/rules",
-    "jsonnet/rules",
     "kotlin/rules",
     "libs/starlark",
     "libs/testing",
@@ -71,7 +67,6 @@ const PACKAGES: [&str; 94] = [
     "ocaml/toolchain",
     "perl/cpan",
     "perl/rules",
-    "pkl/rules",
     "powershell/rules",
     "python/rules",
     "qt/rules",
@@ -80,6 +75,7 @@ const PACKAGES: [&str; 94] = [
     "quality/artifacts",
     "quality/artifacts/acquire_test",
     "quality/artifacts/hub_test",
+    "quality/rules",
     "quality/tools/cc",
     "quality/tools/dotnet/fsharplint",
     "quality/tools/javascript",
@@ -106,8 +102,6 @@ const PACKAGES: [&str; 94] = [
     "julia/tools",
     "typescript/rules",
     "vue/rules",
-    "xml/rules",
-    "yaml/rules",
     "zig/rules",
     "zig/tools",
 ];

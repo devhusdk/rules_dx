@@ -62,7 +62,7 @@
         },
         "text": {
           "default": null,
-          "description": "Workspace-relative path of the vendored license words; implies\n`text_present` and feeds the `notice` report.",
+          "description": "Workspace-relative path of the vendored license words; implies\n`text_present`.",
           "type": [
             "string",
             "null"

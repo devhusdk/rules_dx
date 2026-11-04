@@ -664,10 +664,6 @@ fn inventory_text_parses_validates_and_implies_present() {
         &pkg,
         &policy.inventory
     ));
-    assert_eq!(
-        crate::locks::inventory_text(&pkg, &policy.inventory),
-        Some("vendor/react/LICENSE")
-    );
     for bad in ["../x", "/abs", "a\\\\b", "a//b", "a/"] {
         let text = format!(
             "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext = \"{bad}\"\n"

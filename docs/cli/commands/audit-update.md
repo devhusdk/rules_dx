@@ -202,8 +202,8 @@ license the `cargo` and `npm` sets read from `cargo-bazel-lock.json` and
 a package with no entry is `UNKNOWN`.
 
 An entry may also set `text = "<workspace-relative path>"` to a vendored license
-file. It implies `text_present`, must be a `/`-separated path with no leading
-`/`, `\`, or empty, `.`, or `..` components, and feeds the `notice` report.
+file. It implies `text_present` and must be a `/`-separated path with no
+leading `/`, `\`, or empty, `.`, or `..` components.
 
 Each `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`,
 and `expires`, and covers a finding only when `package`, `set`, and `license`

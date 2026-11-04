@@ -294,7 +294,7 @@ pub struct LicenseInventory {
     #[serde(default)]
     pub text_present: bool,
     /// Workspace-relative path of the vendored license words; implies
-    /// `text_present` and feeds the `notice` report.
+    /// `text_present`.
     #[serde(default)]
     pub text: Option<String>,
 }

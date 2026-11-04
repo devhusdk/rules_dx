@@ -1,4 +1,7 @@
-"""Lists the third-party crates one Rust binary ships, with their license texts."""
+"""Lists the third-party crates one Rust binary ships, with their license texts.
+
+For rules_dx's own release archives. Not a consumer API.
+"""
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
 load("//deploy/rules:native_runtime.bzl", "NativeRuntimeInfo")

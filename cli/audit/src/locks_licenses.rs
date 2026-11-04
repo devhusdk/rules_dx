@@ -215,15 +215,6 @@ pub fn inventory_text_present(
     }
 }
 
-/// The recorded workspace-relative license text path of the first matching
-/// inventory entry (the same first-match rule as `inventory_text_present`).
-pub fn inventory_text<'a>(
-    package: &LockedPackage,
-    inventory: &'a [crate::license_policy::LicenseInventory],
-) -> Option<&'a str> {
-    first_inventory_match(package, inventory).and_then(|entry| entry.text.as_deref())
-}
-
 fn first_inventory_match<'a>(
     package: &LockedPackage,
     inventory: &'a [crate::license_policy::LicenseInventory],

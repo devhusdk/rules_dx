@@ -1,4 +1,4 @@
-"""Aggregated NOTICE bundling for distributed-tier releases."""
+"""NOTICE bundling for rules_dx's own release archives. Not a consumer API."""
 
 load("//deploy/rules:validate.bzl", "genrule_arg")
 

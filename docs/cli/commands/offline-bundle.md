@@ -75,7 +75,7 @@ is percent-encoded, so any path the host allows is recorded faithfully.
 The retrieval date is the `retrieved_at` the bundle records in
 `advisory/<set>.meta.json`, not the day of the install. The manifest pins that
 file, and its `sha256` must match the snapshot. An old bundle therefore keeps
-its old date, and `dx audit` reports `advisory_refresh_failed` for it until
+its old date, and `dx security` and `dx license` report `advisory_refresh_failed` for it until
 the bundle is rebuilt from a fresh snapshot.
 
 It prints three `bootstrap-offline:` lines on stdout: the installed launcher

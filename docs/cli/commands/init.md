@@ -250,7 +250,7 @@ run. No Bazel server starts.
 uses the same cache, so each runs binaries the other downloaded.
 
 ```text
-tools/dx version
+tools/dx --version
 tools/dx check //...
 ```
 

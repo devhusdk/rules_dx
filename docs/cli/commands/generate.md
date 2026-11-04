@@ -169,8 +169,20 @@ when the language is unknown, or when the value is malformed. A scoped run
 checks only directives in packages inside the scope.
 
 Accepted languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`,
-`haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `perl`, `php`, `powershell`,
-`python`, `ruby`, `rust`, `scala`, `svelte`, `typescript`, `vue`, `zig`.
+`haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`,
+`powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
+
+`# gazelle:dx_native_tools <tool>...` picks the config tools that the Rust
+language wires up for this directory and below. The tools are `buildifier`,
+`taplo`, `vale` and `rustfmt`, and all four are on by default. Each selected
+tool gets its config target when the directory holds its config file
+(`.buildifier.json`, `taplo.toml`, `.vale.ini` or `rustfmt.toml`). An unknown
+tool name or an empty value fails the run.
+
+`# gazelle:dx_corpus true|false` turns the Rust corpus target on or off for this
+directory and below. When it is `true`, generation emits `real_source_target`
+corpus targets named `corpus`, `corpus_markdown`, `corpus_starlark`,
+`corpus_toml` or `corpus_json`. Any other value fails the run.
 
 `# gazelle:dx_cuda_platforms <spec> <spec>...` sets the `platforms` of a generated
 `cuda_library`. It applies to this directory and below, and a deeper directive

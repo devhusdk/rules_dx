@@ -28,7 +28,6 @@ dart_binary(
 
 dart_test(
     name = "greet_test",
-    main = "test/greet_test.dart",
     deps = [
         ":greet",
         "@my_pub_deps//:test",
@@ -44,6 +43,8 @@ dart_test(
 | `dart_codegen` | Runs a generator script over one `.dart` file and makes the output files |
 | `dart_js_binary` | Compiles a Dart web app to a `.js` file |
 | `dart_wasm_binary` | Compiles a Dart web app to `.wasm` plus its `.mjs` loader and `.support.js` |
+
+`dart_binary` and `dart_test` default `main` to `<name>.dart`, then `bin/<name>.dart` or `test/<name>.dart`.
 
 - The generated upstream target is `manual`, so `//...` builds only the
   public wrapper.

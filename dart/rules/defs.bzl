@@ -62,6 +62,20 @@ def dart_entry_sources(main, srcs):
     """Returns the sources a Dart executable owns: its entrypoint, then its srcs."""
     return [main] + [src for src in (srcs or []) if src != main]
 
+def dart_main_candidates(name, test):
+    """Returns the paths dart_binary or dart_test tries when main is unset."""
+    stem = name.split("/")[-1]
+    return [stem + ".dart", ("test/" if test else "bin/") + stem + ".dart"]
+
+def _dart_main(kind, name, main, srcs, test):
+    if main != None:
+        return main
+    candidates = dart_main_candidates(name, test)
+    found = [c for c in candidates if c in (srcs or [])] or native.glob(candidates, allow_empty = True)
+    if len(found) == 1:
+        return found[0]
+    fail("{} //{}:{} has no main; add {} or set main.".format(kind, native.package_name(), name, " or ".join(candidates)))
+
 def dart_root_package_name(package, name, kwargs):
     """Returns the package name a root-package library needs, or None."""
     if package != "" or "package_name" in kwargs or "package" in kwargs:
@@ -80,15 +94,17 @@ def dart_library(name, srcs = None, visibility = None, **kwargs):
         kwargs["package_name"] = root_name
     dx_wrap(name, _dart_library, _dart_library_forward, srcs or [], visibility = visibility, **kwargs)
 
-def dart_binary(name, main, srcs = None, visibility = None, **kwargs):
+def dart_binary(name, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_binary."""
+    main = _dart_main("dart_binary", name, main, srcs, False)
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, _dart_binary, _dart_binary_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
 
 DART_COVERAGE_COLLECTOR = False
 
-def dart_test(name, main, srcs = None, visibility = None, **kwargs):
+def dart_test(name, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_test."""
+    main = _dart_main("dart_test", name, main, srcs, True)
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), coverage_collector = DART_COVERAGE_COLLECTOR, **kwargs)
 

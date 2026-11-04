@@ -2,7 +2,7 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "DART_COVERAGE_COLLECTOR", "DART_SOURCE_SPECS", "dart_entry_sources", "dart_root_package_name")
+load(":defs.bzl", "DART_COVERAGE_COLLECTOR", "DART_SOURCE_SPECS", "dart_entry_sources", "dart_main_candidates", "dart_root_package_name")
 load(":platforms.bzl", "RULES_DART_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
@@ -35,6 +35,22 @@ dx_wrapper_contract_tests(
             [
                 "bin/main.dart",
                 "bin/flags.dart",
+            ],
+        ),
+        expect_equal(
+            "binary main candidates",
+            dart_main_candidates("tool", False),
+            [
+                "tool.dart",
+                "bin/tool.dart",
+            ],
+        ),
+        expect_equal(
+            "test main candidates",
+            dart_main_candidates("x/greet_test", True),
+            [
+                "greet_test.dart",
+                "test/greet_test.dart",
             ],
         ),
         expect_equal(

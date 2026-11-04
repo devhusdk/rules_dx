@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_shared_library")
 
-package(default_visibility = ["//examples/msix-app:__subpackages__"])
+package(default_visibility = ["//msix/tests/fixtures/msix-app:__subpackages__"])
 
 cc_library(
     name = "greet",

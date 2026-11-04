@@ -542,7 +542,7 @@ jobs:
         run: |
           if [ "$EVENT_NAME" != "pull_request" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^(msix/|examples/msix-app/)'; then
+          elif git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^msix/'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"

@@ -2,7 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_shared_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
-    "//examples/msix-app:__subpackages__",
+    "//msix/tests/fixtures/msix-app:__subpackages__",
     "//msix/tests:__pkg__",
 ])
 

@@ -11,7 +11,7 @@ calls a function from a DLL in another package and prints its package identity.
 Build on a Windows host:
 
 ```sh
-bazel build //examples/msix-app/app
+bazel build //msix/tests/fixtures/msix-app/app
 ```
 
 `app` needs the Windows SDK Build Tools license accepted. rules_dx accepts it
@@ -45,7 +45,7 @@ before it starts.
 Sign a copy with a test certificate:
 
 ```sh
-bazel run //examples/msix-app/app:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\dxmsix.msix
+bazel run //msix/tests/fixtures/msix-app/app:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\dxmsix.msix
 ```
 
 `//msix/tests` builds, inspects, installs and signs this example.

@@ -5,13 +5,13 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 cc_binary(
     name = "dxmsix",
     srcs = ["main.c"],
-    dynamic_deps = ["//examples/msix-app/greet:greet_dll"],
+    dynamic_deps = ["//msix/tests/fixtures/msix-app/greet:greet_dll"],
     features = [
         "-runtime_library_search_directories",
         "-runtime_library_search_directories_workaround",
     ],
     target_compatible_with = ["@platforms//os:windows"],
-    deps = ["//examples/msix-app/greet"],
+    deps = ["//msix/tests/fixtures/msix-app/greet"],
 )
 
 dx_msix(

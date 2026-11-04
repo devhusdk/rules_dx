@@ -225,7 +225,7 @@ dx_msix(
     logo = "fixtures/logo.png",
     notice = [
         "fixtures/NOTICE.txt",
-        "//examples/msix-app/app:NOTICE.txt",
+        "//msix/tests/fixtures/msix-app/app:NOTICE.txt",
     ],
     publisher = "CN=Dx Cell",
     tags = ["manual"],
@@ -352,25 +352,25 @@ arm64_action_test(
 
 msix_variant(
     name = "pe_x64",
-    src = "//examples/msix-app/app:dxmsix",
+    src = "//msix/tests/fixtures/msix-app/app:dxmsix",
     platform = "@llvm//platforms:windows_x86_64",
 )
 
 msix_variant(
     name = "greet_x64",
-    src = "//examples/msix-app/greet:greet_dll",
+    src = "//msix/tests/fixtures/msix-app/greet:greet_dll",
     platform = "@llvm//platforms:windows_x86_64",
 )
 
 msix_variant(
     name = "pe_arm64",
-    src = "//examples/msix-app/app:dxmsix",
+    src = "//msix/tests/fixtures/msix-app/app:dxmsix",
     platform = "@llvm//platforms:windows_aarch64",
 )
 
 msix_variant(
     name = "greet_arm64",
-    src = "//examples/msix-app/greet:greet_dll",
+    src = "//msix/tests/fixtures/msix-app/greet:greet_dll",
     platform = "@llvm//platforms:windows_aarch64",
 )
 
@@ -401,21 +401,21 @@ pwsh_test(
 
 msix_variant(
     name = "app_arm64",
-    src = "//examples/msix-app/app",
+    src = "//msix/tests/fixtures/msix-app/app",
     platform = "//msix/platforms:windows_arm64",
     target_compatible_with = _WINDOWS,
 )
 
 msix_variant(
     name = "app_x64",
-    src = "//examples/msix-app/app",
+    src = "//msix/tests/fixtures/msix-app/app",
     platform = "//msix/platforms:windows_x86_64",
     target_compatible_with = _WINDOWS,
 )
 
 msix_variant(
     name = "app_probe",
-    src = "//examples/msix-app/app",
+    src = "//msix/tests/fixtures/msix-app/app",
     copts = ["-DDX_CONSUMER_PROBE"],
     platform = "//msix/platforms:windows_x86_64",
     target_compatible_with = _WINDOWS,
@@ -424,10 +424,10 @@ msix_variant(
 dx_msix(
     name = "app_noresource",
     alias = "dxmsix.exe",
-    binary = "//examples/msix-app/app:dxmsix",
+    binary = "//msix/tests/fixtures/msix-app/app:dxmsix",
     identity_name = "DxMsix.NoResource",
-    logo = "//examples/msix-app/app:logo.png",
-    notice = ["//examples/msix-app/app:NOTICE.txt"],
+    logo = "//msix/tests/fixtures/msix-app/app:logo.png",
+    notice = ["//msix/tests/fixtures/msix-app/app:NOTICE.txt"],
     publisher = "CN=DxMsixExample, O=Dx",
     version = "1.2.3.0",
 )
@@ -470,15 +470,15 @@ pwsh_test(
     data = [
         ":app_arm64",
         ":argv_signtool",
-        "//examples/msix-app/app",
-        "//examples/msix-app/app:app_sign",
+        "//msix/tests/fixtures/msix-app/app",
+        "//msix/tests/fixtures/msix-app/app:app_sign",
         "//msix:signtool",
     ],
     env = {
         "DX_MSIX_ARGV_SIGNTOOL": "$(rlocationpaths :argv_signtool)",
         "DX_MSIX_ARM64": "$(rlocationpaths :app_arm64)",
-        "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
-        "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
+        "DX_MSIX_PACKAGE": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
+        "DX_MSIX_SIGN": "_main/msix/tests/fixtures/msix-app/app/app_sign.bat",
         "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
     },
     target_compatible_with = _WINDOWS,
@@ -488,7 +488,7 @@ pwsh_test(
 sign_env_test(
     name = "sign_env_test",
     target_compatible_with = _WINDOWS,
-    target_under_test = "//examples/msix-app/app:app_sign",
+    target_under_test = "//msix/tests/fixtures/msix-app/app:app_sign",
 )
 
 pwsh_test(
@@ -498,17 +498,17 @@ pwsh_test(
     data = [
         ":app_noresource",
         ":app_probe",
-        "//examples/msix-app/app",
-        "//examples/msix-app/app:app_sign",
+        "//msix/tests/fixtures/msix-app/app",
+        "//msix/tests/fixtures/msix-app/app:app_sign",
         "//msix:signtool",
     ],
     env = {
         "DX_MSIX_NORESOURCE": "$(rlocationpaths :app_noresource)",
-        "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
+        "DX_MSIX_PACKAGE": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
         "DX_MSIX_PROBE": "$(rlocationpaths :app_probe)",
-        "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",
+        "DX_MSIX_SIGN": "_main/msix/tests/fixtures/msix-app/app/app_sign.bat",
         "DX_MSIX_SIGNTOOL": "$(rlocationpaths //msix:signtool)",
-        "DX_MSIX_X64": "$(rlocationpaths //examples/msix-app/app)",
+        "DX_MSIX_X64": "$(rlocationpaths //msix/tests/fixtures/msix-app/app)",
     },
     tags = [
         "exclusive",

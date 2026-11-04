@@ -143,12 +143,12 @@ common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_hos
 "@)
     Copy-Consumer $env:DX_MSIX_FILES $workspace
 
-    $build = Invoke-Tool $bazel ($startup + @("build", "//examples/msix-app/app:app", "//examples/msix-app/app:app_sign")) $workspace
+    $build = Invoke-Tool $bazel ($startup + @("build", "//msix/tests/fixtures/msix-app/app:app", "//msix/tests/fixtures/msix-app/app:app_sign")) $workspace
     Assert-Equal 0 $build.Exit "consumer build exit ($($build.Stderr))"
     $info = Invoke-Tool $bazel ($startup + @("info", "bazel-bin")) $workspace
     Assert-Equal 0 $info.Exit "consumer info exit ($($info.Stderr))"
     $bin = $info.Output
-    $package = Join-Path $bin "examples/msix-app/app/app.msix"
+    $package = Join-Path $bin "msix/tests/fixtures/msix-app/app/app.msix"
     $identity = Get-Content -LiteralPath "$package.identity.json" -Raw | ConvertFrom-Json -AsHashtable
     Assert-Equal "DxMsix.Example" $identity.name "consumer identity name"
     Assert-Equal "CN=DxMsixExample" $identity.publisher "consumer publisher"
@@ -165,18 +165,18 @@ common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_hos
     $env:DX_MSIX_PFX_PASSWORD = $password
 
     $refusedOut = Join-Path $short "refused.msix"
-    $refused = Invoke-Tool $bazel ($startup + @("run", "//examples/msix-app/app:app_sign", "--", "-Pfx", $wrong, "-Out", $refusedOut)) $workspace
+    $refused = Invoke-Tool $bazel ($startup + @("run", "//msix/tests/fixtures/msix-app/app:app_sign", "--", "-Pfx", $wrong, "-Out", $refusedOut)) $workspace
     Assert-That ($refused.Exit -ne 0) "a publisher mismatch signed the consumer package"
     Assert-That ($refused.Stderr.Contains("msix_sign:")) "a publisher mismatch gave no signer message: $($refused.Stderr)"
     Assert-That (-not (Test-Path -LiteralPath $refusedOut)) "a publisher mismatch wrote $refusedOut"
 
-    $missing = Invoke-Tool $bazel ($startup + @("run", "//examples/msix-app/app:app_sign", "--", "-Out", $refusedOut)) $workspace
+    $missing = Invoke-Tool $bazel ($startup + @("run", "//msix/tests/fixtures/msix-app/app:app_sign", "--", "-Out", $refusedOut)) $workspace
     Assert-Equal 2 $missing.Exit "a missing certificate exit code"
     Assert-That ($missing.Stderr.Contains("pass -Pfx <certificate.pfx>")) "a missing certificate gave: $($missing.Stderr)"
     Assert-That (-not (Test-Path -LiteralPath $refusedOut)) "a missing certificate wrote $refusedOut"
 
     $signedOut = Join-Path $short "signed.msix"
-    $signed = Invoke-Tool $bazel ($startup + @("run", "//examples/msix-app/app:app_sign", "--", "-Pfx", $good, "-Out", $signedOut)) $workspace
+    $signed = Invoke-Tool $bazel ($startup + @("run", "//msix/tests/fixtures/msix-app/app:app_sign", "--", "-Pfx", $good, "-Out", $signedOut)) $workspace
     Assert-Equal 0 $signed.Exit "consumer sign exit ($($signed.Stderr))"
     $bytes = [System.IO.File]::ReadAllBytes($signedOut)
     $expected = "signed=$signedOut`nsha256=$(Get-Sha $bytes)`npublisher=$($identity.publisher)`nsigner=$($certificate.Thumbprint)`ntimestamp=none"
@@ -209,7 +209,7 @@ common --extra_execution_platforms=@@rules_dx+//tools/platforms:windows_msvc_hos
     [System.IO.File]::WriteAllBytes($tamperedPath, $tampered)
     Assert-Equal "HashMismatch" (Get-AuthenticodeSignature -LiteralPath $tamperedPath).Status "Windows status of a changed package"
 
-    $probe = Invoke-Tool $bazel ($startup + @("build", "//examples/msix-app/app:app", "--copt=-DDX_CONSUMER_PROBE")) $workspace
+    $probe = Invoke-Tool $bazel ($startup + @("build", "//msix/tests/fixtures/msix-app/app:app", "--copt=-DDX_CONSUMER_PROBE")) $workspace
     Assert-Equal 0 $probe.Exit "consumer probe build exit ($($probe.Stderr))"
     $probed = Read-Zip $package
     Assert-That ([System.Text.Encoding]::Latin1.GetString($probed["dxmsix.exe"]).Contains("probe=on")) "the consumer copt did not reach the packaged executable"

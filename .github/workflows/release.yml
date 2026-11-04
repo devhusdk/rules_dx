@@ -285,13 +285,13 @@ jobs:
       - name: Prove checkout left clean
         run: test -z "$(git status --porcelain)"
 
-  upload:
+  attest:
     needs: [cells, source]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
       artifact-metadata: write
@@ -367,33 +367,47 @@ jobs:
               --deny-self-hosted-runners
             done
           done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets
+          path: out
+          if-no-files-found: error
+
+  assets:
+    needs: attest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-assets
+          path: .
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          read -ra files < out/files.list
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
-          existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
-          mkdir -p existing
-          for file in "${files[@]}" "$src" "$src.sha256" source.json; do
-            if printf '%s\n' "$existing_names" | grep -Fxq "$file"; then
-              gh release download "$RELEASE_TAG" --pattern "$file" --dir existing
-              if ! cmp -s "existing/$file" "out/$file"; then
-                echo "Release $RELEASE_TAG already holds a different $file; refusing to replace it. Delete the draft's assets by hand to start over." >&2
-                exit 1
-              fi
-            else
-              gh release upload "$RELEASE_TAG" "out/$file"
-            fi
+          paths=()
+          for file in $(cat out/files.list) "$src" "$src.sha256" source.json; do
+            paths+=("$PWD/out/$file")
           done
-          allowed="$(printf '%s\n' "${files[@]}" "$src" "$src.sha256" source.json)"
-          extra="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fvx -f <(printf '%s\n' "$allowed") || true)"
-          if [ -n "$extra" ]; then
-            echo "Release $RELEASE_TAG holds assets outside the manifest: $extra. Delete them by hand." >&2
-            exit 1
-          fi
+          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" | tee ledger.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           mkdir -p verify
           gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
           (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)
@@ -401,7 +415,7 @@ jobs:
           verify/dx --version
 
   pins:
-    needs: upload
+    needs: assets
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 15

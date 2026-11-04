@@ -36,7 +36,7 @@ This creates a draft with release notes only. It carries no binaries. It needs `
 gh workflow run release.yml --ref vX.Y.Z
 ```
 
-The workflow builds every cell, writes `dx-sha256sums.txt`, fills the sha256 values into the `cli/prebuilt/pins.bzl` of the release source archive, attests the manifest, and uploads the assets to the draft. `main` keeps the pins empty. It fails when:
+The workflow builds every cell, writes `dx-sha256sums.txt`, fills the sha256 values into the `cli/prebuilt/pins.bzl` of the release source archive, attests the manifest, and uploads the assets to the draft through `release_driver`. `main` keeps the pins empty. It fails when:
 
 - there is no release for the tag (go back to step 3)
 - the release already holds a different file of the same name (delete that asset by hand)
@@ -45,7 +45,7 @@ The workflow builds every cell, writes `dx-sha256sums.txt`, fills the sha256 val
 
 ## 5. Publish
 
-Check the draft on GitHub, then publish it. The upload job has already unpacked the Linux archive and run `dx --version` as a final check.
+Check the draft on GitHub, then publish it. The assets job has already unpacked the Linux archive and run `dx --version` as a final check.
 
 ## 6. Submit to the Bazel Central Registry
 

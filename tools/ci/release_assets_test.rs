@@ -123,43 +123,47 @@ fn the_sidecar_is_hash_two_spaces_name_beside_the_asset() {
 }
 
 #[test]
-fn the_upload_never_overwrites() {
+fn the_assets_go_through_the_release_driver_without_clobber() {
     let text = workflow();
-    let upload = &text[text.find("\n  upload:\n").expect("upload job")..];
-    assert!(!upload.contains("--clobber"), "{WORKFLOW} upload clobbers");
-    let uploads: Vec<&str> = upload
-        .lines()
-        .map(str::trim)
-        .filter(|line| line.starts_with("gh release upload"))
-        .collect();
-    assert_eq!(
-        uploads,
-        ["gh release upload \"$RELEASE_TAG\" \"out/$file\""]
+    assert!(!text.contains("--clobber"), "{WORKFLOW} clobbers");
+    assert!(!text.contains("gh release upload"));
+    assert!(!text.contains("cmp -s"));
+    let assets = &text[text.find("\n  assets:\n").expect("assets job")..];
+    let call = "RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"${paths[@]}\"";
+    let driver = assets.find(call).expect("driver call with the assets");
+    assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
+    assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
+    assert!(
+        assets.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do")
     );
-    let guard = upload
-        .find("if ! cmp -s \"existing/$file\" \"out/$file\"; then")
-        .expect("cmp guard");
-    let put = upload.find("gh release upload").expect("upload");
-    assert!(guard < put);
-    assert!(upload.contains("for file in $files \"$src\" \"$src.sha256\" source.json; do"));
-    assert!(upload.contains(
+    assert!(
+        driver
+            < assets
+                .find("sha256sum -c dx-sha256sums.txt")
+                .expect("check")
+    );
+    let attest = &text[text.find("\n  attest:\n").expect("attest job")..];
+    assert!(attest.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
+    assert!(attest.contains(
         "files=\"$files $asset $asset.sha256 $archive $archive.sha256 $archive.spdx.json\""
     ));
-    assert!(upload.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
 }
 
 #[test]
-fn the_upload_fails_on_assets_outside_the_manifest() {
+fn only_the_attest_job_can_write_ids_and_only_the_assets_job_can_write_contents() {
     let text = workflow();
-    let upload = &text[text.find("\n  upload:\n").expect("upload job")..];
-    let loop_end = upload.find("gh release upload").expect("upload");
-    let check = upload
-        .find("holds assets outside the manifest")
-        .expect("extra check");
-    let verify = upload.find("mkdir -p verify").expect("verify step");
-    assert!(loop_end < check && check < verify);
-    assert!(upload.contains("printf '%s\\n' $files \"$src\" \"$src.sha256\" source.json"));
-    assert!(!upload.contains("gh release delete-asset"));
+    let attest = text.find("\n  attest:\n").expect("attest job");
+    let assets = text.find("\n  assets:\n").expect("assets job");
+    let pins = text.find("\n  pins:\n").expect("pins job");
+    assert!(attest < assets && assets < pins);
+    let (attest_job, assets_job) = (&text[attest..assets], &text[assets..pins]);
+    assert!(attest_job.contains("contents: read"));
+    assert!(!attest_job.contains("contents: write"));
+    assert!(!attest_job.contains("bazel"));
+    assert!(assets_job.contains("needs: attest"));
+    assert!(assets_job.contains("contents: write"));
+    assert!(!assets_job.contains("id-token"));
+    assert!(!assets_job.contains("attestations"));
 }
 
 #[test]
@@ -231,7 +235,7 @@ fn the_source_job_checks_the_tag_against_the_commit_before_building_the_archive(
 fn the_source_job_is_read_only_and_gates_the_upload() {
     let text = workflow();
     let source = text.find("\n  source:\n").expect("source job");
-    let upload = text.find("\n  upload:\n").expect("upload job");
+    let upload = text.find("\n  attest:\n").expect("attest job");
     assert!(source < upload);
     assert!(
         text[source..upload].contains("contents: read"),
@@ -245,16 +249,15 @@ fn the_source_job_is_read_only_and_gates_the_upload() {
 fn the_source_archive_is_uploaded_without_clobber() {
     let text = workflow();
     assert!(text.contains("test -s \"out/$src\""));
-    assert!(text.contains("gh release upload \"$RELEASE_TAG\" \"out/$file\"\n"));
-    assert!(!text.contains("rules_dx-* --clobber"));
-    assert!(!text.contains("\"out/$file\" --clobber"));
+    assert!(text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do"));
+    assert!(!text.contains("--clobber"));
     assert!(text.contains("sha256sum -c \"$src.sha256\""));
 }
 
 const CELLS_WORKFLOW: &str = ".github/workflows/release-cells.yml";
 
 fn upload_job(text: &str) -> &str {
-    let start = text.find("\n  upload:\n").expect("upload job");
+    let start = text.find("\n  attest:\n").expect("upload job");
     &text[start..]
 }
 
@@ -500,7 +503,7 @@ fn the_attestation_is_signed_once_from_the_tag_in_the_upload_job() {
     let text = workflow();
     let step = "uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2";
     assert_eq!(text.matches("actions/attest@").count(), 1);
-    let upload = text.find("\n  upload:\n").expect("upload job");
+    let upload = text.find("\n  attest:\n").expect("attest job");
     let at = text.find(step).expect("pinned attest step");
     assert!(at > upload);
     let head = &text[text[..at].rfind("      - name:").expect("step")..at];
@@ -540,7 +543,9 @@ fn the_archives_are_verified_with_the_install_engine_flags() {
     assert!(text.contains("release.yml@refs/tags/$RELEASE_TAG"));
     assert!(text.contains("--source-ref \"refs/tags/$RELEASE_TAG\""));
     let verify = text.find("gh attestation verify").expect("verify");
-    let put = text.find("gh release upload").expect("upload");
+    let put = text
+        .find("release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"${paths")
+        .expect("upload");
     assert!(verify < put);
 }
 

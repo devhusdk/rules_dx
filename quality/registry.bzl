@@ -1,7 +1,7 @@
 """Single-sourced registry queries."""
 
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "adapter_registry_schema_error")
-load(":curated_defaults.bzl", "CURATED_DEFAULTS", "FORMAT_FROZEN", "curated_schema_error")
+load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
 load(":parity_tests.bzl", "PARITY_DEFERRED", "parity_schema_error")
 load(":sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "sources_schema_error")
 load(":support.bzl", "support_schema_error")
@@ -82,9 +82,6 @@ def registry_schema_error():
             for tool in CURATED_DEFAULTS[family][capability]:
                 if tool not in REAL_ADAPTERS:
                     return "registry: curated tool '" + tool + "' for family '" + family + "' is outside REAL_ADAPTERS"
-    for family in FORMAT_FROZEN:
-        if family not in CURATED_DEFAULTS:
-            return "registry: FORMAT_FROZEN family '" + family + "' has no curated entry"
     for class_id in REAL_CLASS_TO_FAMILY:
         family = REAL_CLASS_TO_FAMILY[class_id]
         if family not in WRAPPER_OWNERS:

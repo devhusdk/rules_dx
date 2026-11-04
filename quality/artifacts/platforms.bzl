@@ -2,29 +2,17 @@
 
 load(":hub.bzl", "TOOL_PLATFORMS")
 
-_OS_ALIASES = {
-    "darwin": "macos",
-    "linux": "linux",
-    "macos": "macos",
-    "win32": "windows",
-    "windows": "windows",
-}
+_OSES = ["linux", "macos", "windows"]
 
-_CPU_ALIASES = {
-    "aarch64": "arm64",
-    "amd64": "x86_64",
-    "arm64": "arm64",
-    "x64": "x86_64",
-    "x86_64": "x86_64",
-}
+_CPUS = ["x86_64", "arm64"]
 
 def normalize_os(raw):
-    """Maps one raw OS token to its canonical OS, or empty when unknown."""
-    return _OS_ALIASES.get(str(raw).lower(), "")
+    """Returns the OS token if canonical, or empty when unknown."""
+    return raw if raw in _OSES else ""
 
 def normalize_cpu(raw):
-    """Maps one raw CPU token to its canonical CPU, or empty when unknown."""
-    return _CPU_ALIASES.get(str(raw).lower(), "")
+    """Returns the CPU token if canonical, or empty when unknown."""
+    return raw if raw in _CPUS else ""
 
 def platform_key(os_raw, cpu_raw):
     """Returns the canonical platform key for raw OS/CPU tokens, or empty."""

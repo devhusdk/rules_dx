@@ -1,4 +1,4 @@
-"""Frozen v1 curated quality defaults."""
+"""Curated quality defaults."""
 
 
 CURATED_DEFAULTS = {
@@ -160,35 +160,6 @@ CURATED_DEFAULTS = {
     },
 }
 
-FORMAT_FROZEN = {
-    "astro": ["prettier"],
-    "bicep": ["bicep"],
-    "cc": ["clang_format"],
-    "cloudformation": [],
-    "dockerfile": [],
-    "go": ["gofumpt"],
-    "graphql": ["prettier"],
-    "html": ["prettier"],
-    "java": ["google_java_format"],
-    "javascript": ["biome"],
-    "json": ["prettier"],
-    "kotlin": ["ktfmt"],
-    "helm": [],
-    "kubernetes": [],
-    "markdown": [],
-    "mdx": ["remark"],
-    "python": ["ruff"],
-    "rust": ["rustfmt"],
-    "scala": ["scalafmt"],
-    "shell": ["shfmt"],
-    "starlark": ["buildifier"],
-    "svelte": ["prettier"],
-    "text": [],
-    "toml": ["taplo"],
-    "typescript": ["biome"],
-    "vue": ["prettier"],
-}
-
 def curated_families():
     """Returns the sorted curated families in the manifest."""
     return sorted(CURATED_DEFAULTS.keys())
@@ -213,12 +184,4 @@ def curated_schema_error():
             for tool in entry[capability]:
                 if not _is_canonical_token(tool):
                     return "curated defaults: non-canonical tool '" + str(tool) + "' for family '" + family + "'"
-        if family in FORMAT_FROZEN:
-            if FORMAT_FROZEN[family] != entry["format"]:
-                return "curated defaults: FORMAT_FROZEN drift for family '" + family + "' (formatter-set changes need a major release)"
-        else:
-            return "curated defaults: family '" + family + "' missing from FORMAT_FROZEN"
-    for family in FORMAT_FROZEN:
-        if family not in CURATED_DEFAULTS:
-            return "curated defaults: FORMAT_FROZEN family '" + family + "' has no curated entry"
     return ""

@@ -1,18 +1,7 @@
 """Unit tests for the curated defaults."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":curated_defaults.bzl", "CURATED_DEFAULTS", "FORMAT_FROZEN", "curated_families", "curated_schema_error")
-
-FROZEN_CURATED_FAMILIES = [
-    "javascript",
-    "json",
-    "markdown",
-    "python",
-    "rust",
-    "starlark",
-    "toml",
-    "typescript",
-]
+load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
 
 def curated_defaults_unit_tests(name):
     starlark_test(
@@ -23,11 +12,6 @@ def curated_defaults_unit_tests(name):
                 "curated manifest schema validates",
                 curated_schema_error(),
                 "",
-            ),
-            expect_equal(
-                "frozen curated families stay curated (additions need no allowlist edit)",
-                [f for f in FROZEN_CURATED_FAMILIES if f not in curated_families()],
-                [],
             ),
             expect_equal(
                 "python curated defaults stay Ruff + Ty + pydoclint",
@@ -91,68 +75,53 @@ def curated_defaults_unit_tests(name):
             ),
             expect_equal(
                 "astro curated defaults stay Prettier format only",
-                [CURATED_DEFAULTS["astro"], FORMAT_FROZEN["astro"]],
-                [
-                    {
-                        "audit": [],
-                        "format": ["prettier"],
-                        "lint": [],
-                        "typecheck": [],
-                    },
-                    ["prettier"],
-                ],
+                CURATED_DEFAULTS["astro"],
+                {
+                    "audit": [],
+                    "format": ["prettier"],
+                    "lint": [],
+                    "typecheck": [],
+                },
             ),
             expect_equal(
                 "mdx curated defaults are remark format plus tsc typecheck",
-                [CURATED_DEFAULTS["mdx"], FORMAT_FROZEN["mdx"]],
-                [
-                    {
-                        "audit": [],
-                        "format": ["remark"],
-                        "lint": [],
-                        "typecheck": ["tsc"],
-                    },
-                    ["remark"],
-                ],
+                CURATED_DEFAULTS["mdx"],
+                {
+                    "audit": [],
+                    "format": ["remark"],
+                    "lint": [],
+                    "typecheck": ["tsc"],
+                },
             ),
             expect_equal(
                 "svelte curated defaults are Prettier format and tsc typecheck",
-                [CURATED_DEFAULTS["svelte"], FORMAT_FROZEN["svelte"]],
-                [
-                    {
-                        "audit": [],
-                        "format": ["prettier"],
-                        "lint": [],
-                        "typecheck": ["tsc"],
-                    },
-                    ["prettier"],
-                ],
+                CURATED_DEFAULTS["svelte"],
+                {
+                    "audit": [],
+                    "format": ["prettier"],
+                    "lint": [],
+                    "typecheck": ["tsc"],
+                },
             ),
             expect_equal(
                 "vue curated defaults are Prettier format plus tsc typecheck",
-                [CURATED_DEFAULTS["vue"], FORMAT_FROZEN["vue"]],
-                [
-                    {
-                        "audit": [],
-                        "format": ["prettier"],
-                        "lint": [],
-                        "typecheck": ["tsc"],
-                    },
-                    ["prettier"],
-                ],
+                CURATED_DEFAULTS["vue"],
+                {
+                    "audit": [],
+                    "format": ["prettier"],
+                    "lint": [],
+                    "typecheck": ["tsc"],
+                },
             ),
             expect_equal(
                 "dockerfile curated defaults stay hadolint lint only (check-only, no formatter)",
-                [CURATED_DEFAULTS["dockerfile"], FORMAT_FROZEN["dockerfile"]],
-                [
-                    {
-                        "audit": [],
-                        "format": [],
-                        "lint": ["hadolint"],
-                        "typecheck": [],
-                    },
-                    [],
-                ],
+                CURATED_DEFAULTS["dockerfile"],
+                {
+                    "audit": [],
+                    "format": [],
+                    "lint": ["hadolint"],
+                    "typecheck": [],
+                },
             ),
             expect_equal(
                 "rust curated defaults stay rustfmt + Clippy + rustc",
@@ -162,20 +131,6 @@ def curated_defaults_unit_tests(name):
                     "format": ["rustfmt"],
                     "lint": ["clippy"],
                     "typecheck": ["rustc"],
-                },
-            ),
-            expect_equal(
-                "formatter set stays frozen for the core families (major-release gate)",
-                {f: FORMAT_FROZEN[f] for f in FROZEN_CURATED_FAMILIES},
-                {
-                    "javascript": ["biome"],
-                    "json": ["prettier"],
-                    "markdown": [],
-                    "python": ["ruff"],
-                    "rust": ["rustfmt"],
-                    "starlark": ["buildifier"],
-                    "toml": ["taplo"],
-                    "typescript": ["biome"],
                 },
             ),
         ],

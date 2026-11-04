@@ -70,9 +70,6 @@ fi
 tag_state() {
   { printf '%s\n%s\n' 'Signature: 8a477f597d28d172789f06886806bc55' '# Rebuildable copy of dx kept by tools/dx; see https://bford.info/cachedir/' >"$state/CACHEDIR.TAG.$$" && mv -f "$state/CACHEDIR.TAG.$$" "$state/CACHEDIR.TAG"; } 2>/dev/null || rm -f "$state/CACHEDIR.TAG.$$"
 }
-if [ -d "$state" ] && [ ! -f "$state/CACHEDIR.TAG" ]; then
-  tag_state
-fi
 stale() {
   [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
   # shellcheck disable=SC2016 # the sh -c script takes its arguments from xargs
@@ -158,6 +155,7 @@ guard_temps() {
 if stale; then
   command -v bazel >/dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
+  tag_state
   guard_temps
   : >"$state/built.$$"
   rc="--nohome_rc --nosystem_rc"

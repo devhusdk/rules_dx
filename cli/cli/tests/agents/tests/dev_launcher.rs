@@ -677,17 +677,6 @@ mod sh {
     }
 
     #[test]
-    fn the_tag_is_added_to_an_existing_untagged_copy() {
-        let repo = source_repo("dx-launcher-late-tag-");
-        repo.run_ok();
-        let tag = repo.root().join(".dx/launcher/CACHEDIR.TAG");
-        std::fs::remove_file(&tag).expect("remove the tag");
-        repo.run_ok();
-        assert_eq!(repo.builds(), 1, "tagging does not rebuild");
-        assert!(tag.exists());
-    }
-
-    #[test]
     fn update_apply_cargo_repins_when_dx_does_not_build() {
         for args in [
             &["update", "--apply", "cargo"][..],
@@ -743,7 +732,7 @@ mod sh {
         assert_eq!(code, Some(1), "{err}");
         assert!(err.contains("dx: bazel build //:dx failed"), "{err}");
         assert_eq!(repo.builds(), 2);
-        assert!(!repo.root().join(".dx/launcher").exists() || repo.state_files().is_empty());
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG"]);
     }
 
     #[test]
@@ -935,7 +924,7 @@ mod sh {
         assert!(!err.contains("previous dx"), "{err}");
         assert!(!err.contains("crashed"), "{err}");
         assert_eq!(repo.builds(), 1, "a compile error is not tried again");
-        assert_eq!(repo.state_files(), Vec::<String>::new());
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG"]);
     }
 
     #[test]
@@ -2280,10 +2269,6 @@ mod cmd {
             text.starts_with("Signature: 8a477f597d28d172789f06886806bc55"),
             "{text}"
         );
-        std::fs::remove_file(&tag).expect("remove the tag");
-        let (code, out) = repo.run(&[]);
-        assert_eq!(code, Some(0), "{out}");
-        assert!(tag.exists(), "an existing untagged copy gets the tag");
     }
 
     #[test]

@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//appimage:pins.bzl", "MKSQUASHFS_LICENSE", "MKSQUASHFS_VERSION", "RUNTIME_LICENSE", "RUNTIME_VERSION", "TOOL_LICENSE", "TOOL_VERSION")
-load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
 
 _HEADER = """# Licenses
 
@@ -16,12 +16,18 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | --- | --- | --- |
 """
 
+def _license_names(tool, licenses):
+    if not licenses:
+        fail("docs/licenses.md: %s has no licence in its pin" % tool)
+    return ", ".join(sorted({entry["name"]: True for entry in licenses}.keys()))
+
 def licenses_rows():
     """Returns the sorted table rows as (tool, version, licenses) tuples."""
     rows = {}
     for artifact in TOOL_ARTIFACTS:
-        names = sorted({entry["name"]: True for entry in artifact["licenses"]}.keys())
-        rows[artifact["tool"]] = (artifact["upstream_version"], ", ".join(names))
+        rows[artifact["tool"]] = (artifact["upstream_version"], _license_names(artifact["tool"], artifact["licenses"]))
+    for source in TOOL_SOURCES:
+        rows[source["tool"]] = (source["version"], _license_names(source["tool"], source["licenses"]))
     rows["appimagetool"] = (TOOL_VERSION, TOOL_LICENSE)
     rows["appimage runtime"] = (RUNTIME_VERSION, RUNTIME_LICENSE)
     rows["mksquashfs"] = (MKSQUASHFS_VERSION, MKSQUASHFS_LICENSE)

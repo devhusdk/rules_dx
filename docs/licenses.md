@@ -10,22 +10,29 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | actionlint | 1.7.12 | MIT |
 | appimage runtime | 20251108 | MIT |
 | appimagetool | 1.9.1 | MIT |
+| avro_tools | 1.12.2 | Apache-2.0 |
 | bicep | 0.48.1 | MIT |
 | biome | 2.5.12 | Apache-2.0, MIT |
 | buf | 1.72.0 | Apache-2.0 |
 | buildifier | 8.5.1 | Apache-2.0 |
 | checkmake | 0.3.2 | MIT |
+| checkstyle | 14.1.0 | LGPL-2.1-only |
+| chktex | 2025 | GPL-2.0-or-later, LGPL-2.1-or-later |
+| cppcheck | 2.21.0 | GPL-3.0-or-later |
 | cue | 0.17.1 | Apache-2.0 |
 | ffmt | 0.4.5 | MIT |
 | fortitude | 0.10.0 | MIT |
 | gersemi | 0.29.2 | MPL-2.0 |
 | gitleaks | 8.30.1 | MIT |
+| google_java_format | 1.35.0 | Apache-2.0 |
 | hadolint | 2.15.1 | GPL-3.0 |
 | helm | 4.3.1 | Apache-2.0 |
 | hlint | 3.10 | BSD-3-Clause |
 | jsonnet_lint | 0.22.0 | Apache-2.0 |
 | jsonnetfmt | 0.22.0 | Apache-2.0 |
 | keep_sorted | 0.10.0 | Apache-2.0 |
+| ktfmt | 0.63 | Apache-2.0 |
+| ktlint | 1.8.0 | MIT |
 | kubeconform | 0.8.0 | Apache-2.0 |
 | latexindent | 4.0.3 | GPL-3.0-only |
 | mdbook | 0.4.52 | MPL-2.0 |
@@ -34,11 +41,13 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | opa | 1.21.4 | Apache-2.0 |
 | ormolu | 0.9.0.0 | BSD-3-Clause |
 | pkl | 0.32.1 | Apache-2.0 |
+| pmd | 7.27.0 | BSD-3-Clause |
 | regal | 0.43.0 | Apache-2.0 |
 | ruff | 0.16.7 | MIT |
 | scalafmt | 3.11.4 | Apache-2.0 |
 | shellcheck | 0.11.0 | GPL-3.0 |
 | shfmt | 3.12.0 | BSD-3-Clause |
+| spotbugs | 4.10.4 | LGPL-2.1-only |
 | stylua | 2.6.0 | MPL-2.0 |
 | taplo | 0.10.0 | MIT |
 | terraform | 1.16.1 | BUSL-1.1 |
@@ -49,3 +58,4 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | vale | 3.20.0 | MIT |
 | wasmtime | 49.0.5 | Apache-2.0 WITH LLVM-exception |
 | yamlfmt | 0.21.0 | Apache-2.0 |
+| zanuda | 2.1.0 | LGPL-3.0-only |

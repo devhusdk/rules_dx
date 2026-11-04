@@ -6,8 +6,15 @@ ZANUDA_OCAML_RANGES = [
     ("5.5.0", "5.6.0"),
 ]
 
+# buildifier: disable=attr-licenses
 SOURCE = {
     "kind": "duniverse",
+    "licenses": [
+        {
+            "name": "LGPL-3.0-only",
+            "source": "https://github.com/Kakadu/zanuda/blob/HEAD/LICENSE",
+        },
+    ],
     "packages": [
         {
             "dir": "dune_src",
@@ -194,5 +201,6 @@ SOURCE = {
         "//quality/tools/ocaml:patches/zanuda.3-source-alias.patch",
     ],
     "repo": "dx_ocaml_duniverse",
+    "tool": "zanuda",
     "version": "2.1.0",
 }

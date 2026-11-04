@@ -1,4 +1,5 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_test")
+load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_files")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 
@@ -62,6 +63,29 @@ filegroup(
     name = "zlib_log",
     srcs = [":zlib_static"],
     output_group = "CMake_logs",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+platform(
+    name = "linux_x86_64",
+    constraint_values = _LINUX_X86_64,
+)
+
+cc_toolchain_files(
+    name = "zlib_log_gcc",
+    srcs = [":zlib_log"],
+    compiler = "gcc",
+    platforms = ["//cc/tests/fixtures/foreign_cmake:linux_x86_64"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+genrule(
+    name = "zlib_log_gcc_copy",
+    srcs = [":zlib_log_gcc"],
+    outs = ["gcc_configure.log"],
+    cmd = "for f in $(locations :zlib_log_gcc); do case $$f in *CMake.log) cp $$f $@;; esac; done",
     tags = _THIRD_PARTY,
     target_compatible_with = _LINUX_X86_64,
 )

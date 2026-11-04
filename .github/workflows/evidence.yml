@@ -39,8 +39,6 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
   DX_ANDROID_API: "34"
   DX_ANDROID_ABI: "x86_64"
-  DX_ANDROID_BUILD_TOOLS: "35.0.0"
-  DX_ANDROID_NDK: "27.2.12479018"
 
 jobs:
   validate:
@@ -124,25 +122,15 @@ jobs:
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdkmanager" --licenses > /dev/null || true
           "$sdkmanager" --install \
-            "platforms;android-$DX_ANDROID_API" \
-            "build-tools;$DX_ANDROID_BUILD_TOOLS" \
-            "ndk;$DX_ANDROID_NDK" \
             "platform-tools" \
             "emulator" \
             "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI" > /dev/null
           {
-            echo "ANDROID_NDK_REVISION=$DX_ANDROID_NDK"
             echo "SDKMANAGER=$sdkmanager"
             echo "EMULATOR=$ANDROID_HOME/emulator/emulator"
             echo "ANDROID_HOME=$ANDROID_HOME"
           } >> "$GITHUB_ENV"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-      - name: Select the NDK toolchains
-        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
-        run: |
-          {
-            echo "test --test_env=ANDROID_HOME"
-          } > user.bazelrc
       - name: Boot the emulator
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

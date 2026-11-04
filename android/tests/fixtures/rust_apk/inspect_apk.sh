@@ -10,16 +10,9 @@ permission="$7"
 version_code="$8"
 version_name="$9"
 extra_permission="${10:-}"
-aapt="${DX_AAPT:-}"
-sdk="${ANDROID_HOME:-}"
-if [ -z "$aapt" ] && [ -z "$sdk" ]; then
-    echo "inspect_apk: ANDROID_HOME names the installed SDK" >&2
-    exit 2
-fi
-build_tools=""
-[ -z "$sdk" ] || build_tools="$(ls -d "$sdk"/build-tools/* | sort -V | tail -n 1)"
-[ -n "$aapt" ] || aapt="$build_tools/aapt"
-apksigner="$build_tools/apksigner"
+aapt="${DX_AAPT:?inspect_apk: DX_AAPT names the aapt binary}"
+apksigner_jar="${DX_APKSIGNER_JAR:?inspect_apk: DX_APKSIGNER_JAR names apksigner.jar}"
+java="${DX_JAVA:?inspect_apk: DX_JAVA names the java binary}"
 badging="$("$aapt" dump badging "$apk")"
 echo "$badging" | grep -q "package: name='$app_id' versionCode='$version_code'" || { echo "badging misses package $app_id version $version_code"; exit 1; }
 echo "$badging" | grep -q "sdkVersion:'$min_sdk'" || { echo "badging misses min sdk $min_sdk"; exit 1; }
@@ -66,5 +59,5 @@ for other in arm64-v8a x86_64; do
 done
 echo "$listing" | grep -q "assets/message.txt" || { echo "apk misses assets/message.txt"; exit 1; }
 echo "$listing" | grep -q "resources.arsc" || { echo "apk misses resources.arsc"; exit 1; }
-"$apksigner" verify --print-certs "$apk" | grep -q "Signer #1 certificate DN:" || { echo "apksigner rejects $apk"; exit 1; }
+"$java" -jar "$apksigner_jar" verify --print-certs "$apk" | grep -q "Signer #1 certificate DN:" || { echo "apksigner rejects $apk"; exit 1; }
 echo "inspect_apk: $apk installs $app_id with lib$lib.so for $abis"

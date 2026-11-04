@@ -185,17 +185,12 @@ record() {
 }
 
 versions() {
-    sdk="${ANDROID_HOME:-}"
     {
         record uname uname -a
         record os-release cat /etc/os-release
         record bazel "$BAZEL" version
         record adb "$ADB" version
         record emulator "${EMULATOR:-emulator}" -version
-        record ndk grep Pkg.Revision "$sdk/ndk/${ANDROID_NDK_REVISION:-}/source.properties"
-        for props in "$sdk"/build-tools/*/source.properties; do
-            record build-tools grep Pkg.Revision "$props"
-        done
         record sdkmanager "${SDKMANAGER:-sdkmanager}" --list_installed
         for prop in ro.build.version.release ro.build.version.sdk ro.product.cpu.abi ro.build.fingerprint; do
             record "$prop" device shell getprop "$prop"

@@ -371,18 +371,17 @@ patch and its `single_version_override` are gone (remove them from your
 `MODULE.bazel`), and any repo not set up by `dx init --apply` must add
 `build --tool_java_runtime_version=remotejdk_21` and
 `build --tool_java_language_version=17` to its `.bazelrc`.
-Build one APK for both tuples on a qualified host:
+`dx build`, `dx test` and `dx check` never install or sign an APK on a
+device, and APK builds need no `ANDROID_HOME`. Build one APK for both
+tuples with:
 
 ```sh
-export ANDROID_HOME="$HOME/Android/Sdk" ANDROID_NDK_REVISION="27.2.12479018"
-bazel build //android/tests/fixtures/rust_apk:app_apk_file \
-    --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+bazel build //android/tests/fixtures/rust_apk:app_apk_file
 ```
 
-Inspect the artifact with the SDK `aapt`, or run the manual
-`inspect_apk_test` and `inspect_custom_apk_test` in
-`//android/tests/fixtures/rust_apk` with `--test_env=ANDROID_HOME` and
-the same `--extra_toolchains`. They assert the package ID, version, SDK
+Inspect the artifact with the SDK `aapt`, or run `inspect_apk_test` and
+`inspect_custom_apk_test` in `//android/tests/fixtures/rust_apk` on Linux
+x86_64. They assert the package ID, version, SDK
 floors, label, activity, library name, permissions, the requested ABI
 directories, the exported `ANativeActivity_onCreate`, system-only
 `NEEDED` entries, the asset bundle, and the debug signature. The custom

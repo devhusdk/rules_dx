@@ -1,4 +1,4 @@
-# AppImage example
+# AppImage fixture
 
 A Linux C app packaged as an AppImage. The app reads a packaged resource and
 calls a function from a shared library in another package.
@@ -11,14 +11,14 @@ calls a function from a shared library in another package.
 Build on a Linux host:
 
 ```sh
-bazel build //examples/appimage-app/app
+bazel build //appimage/tests/fixtures/appimage-app/app
 ```
 
 Run the image without FUSE:
 
 ```text
-APPIMAGE_EXTRACT_AND_RUN=1 bazel-bin/examples/appimage-app/app/app.AppImage
-bazel-bin/examples/appimage-app/app/app.AppImage --appimage-extract
+APPIMAGE_EXTRACT_AND_RUN=1 bazel-bin/appimage/tests/fixtures/appimage-app/app/app.AppImage
+bazel-bin/appimage/tests/fixtures/appimage-app/app/app.AppImage --appimage-extract
 APPDIR="$PWD/squashfs-root" squashfs-root/AppRun
 ```
 
@@ -42,7 +42,7 @@ glibc, image digest and a digest for every packaged file.
 Test:
 
 ```sh
-bazel test //examples/appimage-app/...
+bazel test //appimage/tests/fixtures/appimage-app/...
 ```
 
 `run_test` copies the image to a new directory and runs it both ways. It checks
@@ -52,7 +52,7 @@ missing library and a truncated image.
 Build for arm64:
 
 ```sh
-bazel build //examples/appimage-app/app --platforms=//appimage/platforms:linux_arm64
+bazel build //appimage/tests/fixtures/appimage-app/app --platforms=//appimage/platforms:linux_arm64
 ```
 
 Supported hosts and run routes: [AppImage supported tuples](https://github.com/devhusdk/rules_dx/blob/main/appimage/README.md#supported-tuples).

@@ -300,27 +300,6 @@ fn run() -> i32 {
             }
         }
     }
-    let pin = dx_plan::skew::read_pin(&workspace);
-    match dx_plan::skew::disposition(&invocation, dx_plan::skew::is_skewed(&pin)) {
-        dx_plan::skew::SkewDisposition::Proceed => {}
-        dx_plan::skew::SkewDisposition::Warn => {
-            let _ = writeln!(
-                io::stderr(),
-                "dx: warning: {} (proceeding: read-only invocation)",
-                dx_plan::skew::diagnostic(&pin)
-            );
-        }
-        dx_plan::skew::SkewDisposition::Refuse => {
-            let message = dx_plan::skew::diagnostic(&pin);
-            return startup_failure(
-                &format!("dx: {message}"),
-                "version_skew",
-                &message,
-                operational_code(),
-                invocation.output == OutputMode::Json,
-            );
-        }
-    }
     let pid = std::process::id();
     let temp_base = std::env::temp_dir();
     let (temp_dir, nonce) = match create_run_temp_dir(&temp_base, pid) {
@@ -398,12 +377,7 @@ fn run() -> i32 {
         .map_or(&runner as &dyn dx_process::Runner, |held| {
             held as &dyn dx_process::Runner
         });
-    dx_cli::exec::preset_sync::sync_preset_layers(
-        &invocation,
-        &workspace,
-        dx_plan::skew::is_skewed(&pin),
-        &mut err,
-    );
+    dx_cli::exec::preset_sync::sync_preset_layers(&invocation, &workspace, &mut err);
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {

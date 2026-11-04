@@ -58,7 +58,6 @@ dx_rust_crate(
         "src/resolve/selection.rs",
         "src/resolve/test_map.rs",
         "src/resolve/types.rs",
-        "src/skew.rs",
         "src/slots.rs",
         "src/slots/pressure.rs",
     ],

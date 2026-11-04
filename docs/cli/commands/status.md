@@ -120,29 +120,8 @@ write the module version to `.dx/pins`.
 The [global shim](README.md#global-shim) sets `DX_SHIM=1` for the dx binary
 it runs.
 
-## Version Skew
-
-Every command compares the rules_dx version in `MODULE.bazel` with the version
-built into `dx` before it runs. A mismatch is version skew. Without a rules_dx
-`bazel_dep`, the version in `.dx/pins` is used. For example, `MODULE.bazel`
-says `1.2.0` and the binary is `1.3.0`, so `dx build` stops with
-`version skew: binary 1.3.0 MODULE.bazel rules_dx 1.2.0`.
-
-- Runs anyway: `status`, `upgrade`, `completion`, `worktree`, `explain`.
-- Warns and runs: `check`, `security`, `license`.
-- Stops with exit code `1`: every other command.
-
-`watch` answers for the command it
-wraps. A missing or empty `.dx/pins` is not skew, so other commands run.
-An empty pin fails the `pin` check in `dx status`.
-A missing file makes `dx status` exit `1` with
-`status_pin_mismatch`.
-
-A stop prints `dx: version skew: binary <version> MODULE.bazel rules_dx <version>; fix: <hint>`
-on stderr. The hint is `dx upgrade --to <module version> --apply`
-when the pin is semver, otherwise `dx init --apply`. Under `--output=json` it adds a `version_skew`
-error event, then `command_finished` with `exit_code` `1` and
-`results_complete` `false`.
+A missing `.dx/pins` makes `dx status` exit `1` with `status_pin_mismatch`,
+and an empty one fails the `pin` check.
 
 Once `.dx/ide/state.json` exists, the `ide` check reports `ok`, or `error` with the failing editor plug-ins and the hint `tools/dx env --apply`.
 

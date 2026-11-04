@@ -478,7 +478,6 @@ mod tests {
             ("report_failed", "report"),
             ("disk_full", "host"),
             ("bazel_signalled", "unknown"),
-            ("version_skew", "operational"),
         ] {
             assert_eq!(Cause::of(code).name(), cause, "{code}");
         }

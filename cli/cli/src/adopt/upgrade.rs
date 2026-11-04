@@ -303,7 +303,6 @@ mod tests {
     use crate::adopt::test_support::{
         event, event_kinds, invocation, json_events, run, run_with, Recorder,
     };
-    use dx_plan::skew::{disposition, is_skewed, SkewDisposition};
     use std::path::PathBuf;
 
     const OLD: &str = "0.0.0-alpha.1";
@@ -369,17 +368,12 @@ mod tests {
     }
 
     #[test]
-    fn the_skew_hint_upgrades_the_pin_and_refreshes_existing_files() {
+    fn upgrade_moves_the_pin_and_refreshes_existing_files() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-hint-", OLD);
         set_module_version(&root, OLD);
-        assert!(is_skewed(&read_pin(&root)));
         std::fs::write(root.join("AGENTS.md"), STALE_AGENTS).expect("agents");
         legacy_launcher(&root, OLD);
-        let hint = dx_adopt::pin_fix_hint(OLD, module());
-        let words: Vec<&str> = hint.split_whitespace().skip(1).collect();
-        assert_eq!(words[0], "upgrade", "{hint}");
-        let inv = invocation(&words);
-        assert_eq!(disposition(&inv, true), SkewDisposition::Proceed);
+        let inv = invocation(&["upgrade", "--to", module(), "--apply"]);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
@@ -390,7 +384,6 @@ mod tests {
             )
         );
         assert_eq!(read_pin(&root), module());
-        assert!(!is_skewed(&read_pin(&root)));
         let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
         assert_ne!(agents, STALE_AGENTS);
         assert!(agents.starts_with("# Mine\n") && agents.ends_with("Tail.\n"));
@@ -572,14 +565,6 @@ mod tests {
         assert!(out.contains("wrote .github/workflows/ci.yml"), "{out}");
         gone.retain(|path| root.join(path).exists());
         assert!(gone.is_empty(), "recreated {gone:?}");
-    }
-
-    #[test]
-    fn upgrade_runs_on_skew() {
-        assert_eq!(
-            disposition(&upgrade(&["--apply"]), true),
-            SkewDisposition::Proceed
-        );
     }
 
     #[test]
@@ -845,16 +830,6 @@ mod tests {
             vec!["command_started", "error", "command_finished"]
         );
         assert_eq!(event(&events, "error")["code"], CODE_UPGRADE_FAILED);
-    }
-
-    #[test]
-    fn following_the_hint_for_a_newer_pin_clears_skew() {
-        let (_scratch, root) = pinned("dx-adopt-upgrade-newer-", "9.9.9");
-        let hint = dx_adopt::pin_fix_hint("9.9.9", module());
-        let words: Vec<&str> = hint.split_whitespace().skip(1).collect();
-        let (code, out, err) = run(&invocation(&words), &root);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(!is_skewed(&read_pin(&root)));
     }
 
     #[test]

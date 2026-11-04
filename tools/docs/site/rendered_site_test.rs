@@ -296,7 +296,6 @@ fn every_page_links_to_every_other_page_it_names() {
         "docs.html",
         "quality.html",
         "scope-defaults.html",
-        "status.html#version-skew",
     ] {
         assert!(
             commands.contains(page),

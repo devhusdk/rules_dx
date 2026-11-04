@@ -343,7 +343,6 @@ mod tests {
                 assert!(!text.contains(banned), "{text}");
             }
         }
-        assert_eq!(next_action("version_skew"), None);
         assert_eq!(next_action("tests_failed"), None);
     }
 }

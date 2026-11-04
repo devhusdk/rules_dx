@@ -13,8 +13,6 @@ Moves `rules_dx` and the pin in `.dx/pins` to `--to`. It reads the current
 version from the `rules_dx` `bazel_dep` in `MODULE.bazel`. `--to` may be newer
 or older than that version, so the same
 command upgrades and rolls back. Checks by default; `--apply` makes the move.
-`dx upgrade` runs even when the pin and `MODULE.bazel` disagree, so it is the
-fix that version skew names.
 Flags: `--to <version>` (required), `--apply`.
 Scopes: none.
 

@@ -6,18 +6,11 @@ use std::path::Path;
 use dx_plan::args::{Command, Invocation};
 
 /// Writes missing or stale imported layers; a failure prints one warning and changes nothing else.
-pub fn sync_preset_layers(
-    invocation: &Invocation,
-    workspace: &Path,
-    skewed: bool,
-    err: &mut dyn Write,
-) {
-    if skewed
-        || matches!(
-            invocation.command,
-            Command::Init | Command::Status | Command::Upgrade
-        )
-        || !workspace.join("MODULE.bazel").is_file()
+pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut dyn Write) {
+    if matches!(
+        invocation.command,
+        Command::Init | Command::Status | Command::Upgrade
+    ) || !workspace.join("MODULE.bazel").is_file()
     {
         return;
     }
@@ -51,7 +44,7 @@ mod tests {
         scratch
     }
 
-    fn run(command: &str, root: &Path, skewed: bool) -> String {
+    fn run(command: &str, root: &Path) -> String {
         let argv: &[&str] = if command == "upgrade" {
             &["upgrade", "--to", "1.0.0"]
         } else {
@@ -59,7 +52,7 @@ mod tests {
         };
         let invocation = dx_plan::args::parse(argv).expect("parse");
         let mut err = Vec::new();
-        sync_preset_layers(&invocation, root, skewed, &mut err);
+        sync_preset_layers(&invocation, root, &mut err);
         String::from_utf8(err).expect("utf8")
     }
 
@@ -67,7 +60,7 @@ mod tests {
     fn missing_layers_are_written_quietly() {
         let scratch = workspace(true);
         let root = scratch.path();
-        assert_eq!(run("build", root, false), "");
+        assert_eq!(run("build", root), "");
         assert!(root.join(LAYER).is_file());
     }
 
@@ -75,22 +68,15 @@ mod tests {
     fn init_status_and_upgrade_do_not_write() {
         for command in ["init", "status", "upgrade"] {
             let scratch = workspace(true);
-            run(command, scratch.path(), false);
+            run(command, scratch.path());
             assert!(!scratch.path().join(LAYER).exists(), "{command}");
         }
     }
 
     #[test]
-    fn a_skewed_pin_does_not_write() {
-        let scratch = workspace(true);
-        run("build", scratch.path(), true);
-        assert!(!scratch.path().join(LAYER).exists());
-    }
-
-    #[test]
     fn no_module_does_not_write() {
         let scratch = workspace(false);
-        run("build", scratch.path(), false);
+        run("build", scratch.path());
         assert!(!scratch.path().join(LAYER).exists());
     }
 
@@ -99,7 +85,7 @@ mod tests {
         let scratch = workspace(true);
         let root = scratch.path();
         std::fs::write(root.join(".dx"), "file").expect("blocker");
-        let err = run("build", root, false);
+        let err = run("build", root);
         assert!(
             err.starts_with("dx: warning: preset layers not refreshed: "),
             "{err}"

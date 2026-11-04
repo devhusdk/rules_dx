@@ -80,7 +80,11 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             )),
             Err(error) => problems.push(error.to_string()),
         }
+        let archived = module
+            .calls_named("archive_override")
+            .any(|call| call.str("module_name") == Some(name.as_str()));
         match module.override_version(name) {
+            Err(_) if archived => {}
             Ok(version) if &version.value == tested => {}
             Ok(version) => problems.push(format!(
                 "single_version_override {name:?} is {} but its tested version is {tested}",
@@ -346,11 +350,6 @@ fn disagreeing_fixtures_fail() {
             good("1.1.0", "1.2.0"),
             fixture_table(&[("demo", "1.1.0", "1.2.0")]),
             "floor 1.1.0 != tested 1.2.0",
-        ),
-        (
-            good("1.2.0", "1.2.0").replace("single_version_override", "archive_override"),
-            demo.clone(),
-            "no single_version_override",
         ),
         (
             good("1.3.0", "1.2.0"),

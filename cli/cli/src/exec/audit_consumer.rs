@@ -4,7 +4,7 @@ mod tests {
     use super::super::super::test_support::{event_kinds, json_events};
     use super::super::audit_live::{write_advisory, AuditRunner};
 
-    const UV_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"pypi\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
+    const UV_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"pypi\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
 
     const PYPROJECT: &str = r#"
 [project]

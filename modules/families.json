@@ -707,14 +707,14 @@
         "real_python_typecheck_aspect"
       ],
       "bazel_deps": [
-        "aspect_rules_py"
+        "rules_py"
       ],
       "dirs": [
         "python"
       ],
       "extensions": [
-        "@aspect_rules_py//py:extensions.bzl%python_interpreters",
-        "@aspect_rules_py//uv:extensions.bzl%uv"
+        "@rules_py//py:extensions.bzl%python_interpreters",
+        "@rules_py//uv:extensions.bzl%uv"
       ],
       "file_extensions": [
         ".py",

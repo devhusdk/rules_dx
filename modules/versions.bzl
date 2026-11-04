@@ -36,7 +36,7 @@ GO_SDK_SDKS = {
 }
 
 RULES_PYTHON_VERSION = "2.4.6"
-ASPECT_RULES_PY_VERSION = "2.0.0-alpha.10"
+RULES_PY_VERSION = "2.0.0-alpha.11"
 PYTHON_VERSION = "3.12"
 
 ASPECT_RULES_JS_VERSION = "3.5.2"
@@ -112,7 +112,7 @@ CONSUMER_BAZEL_DEPS = {
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),
     "lua": struct(floor = LUA_VERSION, tested = LUA_VERSION),
-    "aspect_rules_py": struct(floor = ASPECT_RULES_PY_VERSION, tested = ASPECT_RULES_PY_VERSION),
+    "rules_py": struct(floor = RULES_PY_VERSION, tested = RULES_PY_VERSION),
     "aspect_rules_js": struct(floor = ASPECT_RULES_JS_VERSION, tested = ASPECT_RULES_JS_VERSION),
     "aspect_rules_ts": struct(floor = ASPECT_RULES_TS_VERSION, tested = ASPECT_RULES_TS_VERSION),
     "aspect_rules_jest": struct(floor = ASPECT_RULES_JEST_VERSION, tested = ASPECT_RULES_JEST_VERSION),

@@ -512,7 +512,7 @@ fn configured_sets_add_their_advisory_family_once() {
     for (rel, text) in [
         (
             "MODULE.bazel",
-            "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//api:uv.lock\", pyproject = \"//api:pyproject.toml\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"docs\", pnpm_lock = \"//docs:pnpm-lock.yaml\")\n",
+            "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//api:uv.lock\", pyproject = \"//api:pyproject.toml\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"docs\", pnpm_lock = \"//docs:pnpm-lock.yaml\")\n",
         ),
         ("api/pyproject.toml", "[project]\nname = \"api\"\n"),
         ("api/uv.lock", "version = 1\n"),

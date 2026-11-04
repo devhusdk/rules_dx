@@ -19,12 +19,22 @@ pub struct OverridePatch {
     pub content: &'static str,
 }
 
-/// One `single_version_override` row, mirroring rules_dx's own `MODULE.bazel`.
+/// Where a module comes from when it is not in the registry: an `archive_override`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Archive {
+    pub url: &'static str,
+    pub integrity: &'static str,
+    pub strip_prefix: &'static str,
+}
+
+/// One `single_version_override` row, or an `archive_override` row when `archive` is set,
+/// mirroring rules_dx's own `MODULE.bazel`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Override {
     pub module: &'static str,
     pub version: &'static str,
     pub patch_strip: u32,
+    pub archive: Option<Archive>,
     pub patches: &'static [OverridePatch],
 }
 
@@ -42,6 +52,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "rules_rust",
         version: "0.75.0",
         patch_strip: 1,
+        archive: None,
         patches: &[
             OverridePatch {
                 file: "clippy_metadata_inputs.patch",
@@ -67,6 +78,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "rules_android",
         version: "0.8.0",
         patch_strip: 1,
+        archive: None,
         patches: &[OverridePatch {
             file: "bundle_keystore_properties.patch",
             content: include_str!(
@@ -78,6 +90,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "rules_julia",
         version: "0.8.0",
         patch_strip: 1,
+        archive: None,
         patches: &[OverridePatch {
             file: "package_name.patch",
             content: include_str!("../../../patches/rules_julia/package_name.patch"),
@@ -87,25 +100,29 @@ pub const OVERRIDES: &[Override] = &[
         module: "protobuf",
         version: "36.2",
         patch_strip: 1,
+        archive: None,
         patches: &[OverridePatch {
             file: "no_crate_universe.patch",
             content: include_str!("../../../patches/protobuf/no_crate_universe.patch"),
         }],
     },
     Override {
-        module: "aspect_rules_py",
-        version: "2.0.0-alpha.10",
+        module: "rules_py",
+        version: "2.0.0-alpha.11",
         patch_strip: 1,
+        archive: Some(Archive {
+            url: "https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz",
+            integrity: "sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=",
+            strip_prefix: "rules_py-2.0.0-alpha.11",
+        }),
         patches: &[
             OverridePatch {
                 file: "windows_venv.patch",
-                content: include_str!("../../../patches/aspect_rules_py/windows_venv.patch"),
+                content: include_str!("../../../patches/rules_py/windows_venv.patch"),
             },
             OverridePatch {
                 file: "py_cc_toolchain_platform.patch",
-                content: include_str!(
-                    "../../../patches/aspect_rules_py/py_cc_toolchain_platform.patch"
-                ),
+                content: include_str!("../../../patches/rules_py/py_cc_toolchain_platform.patch"),
             },
         ],
     },
@@ -113,6 +130,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "aspect_rules_ts",
         version: "3.10.1",
         patch_strip: 1,
+        archive: None,
         patches: &[OverridePatch {
             file: "typecheck_root_dir.patch",
             content: include_str!("../../../patches/aspect_rules_ts/typecheck_root_dir.patch"),
@@ -122,6 +140,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "avro-cpp",
         version: "1.12.0.bcr.1",
         patch_strip: 1,
+        archive: None,
         patches: &[OverridePatch {
             file: "iterator.patch",
             content: include_str!("../../../patches/avro-cpp/iterator.patch"),
@@ -131,6 +150,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "gcc_toolchain",
         version: "0.13.0",
         patch_strip: 1,
+        archive: None,
         patches: &[
             OverridePatch {
                 file: "sanitizer_spec.patch",
@@ -156,12 +176,14 @@ pub const OVERRIDES: &[Override] = &[
         module: "fmt",
         version: "12.2.0.bcr.1",
         patch_strip: 0,
+        archive: None,
         patches: &[],
     },
     Override {
         module: "rules_cuda",
         version: "0.4.0-beta1",
         patch_strip: 1,
+        archive: None,
         patches: &[OverridePatch {
             file: "redist_cccl_key.patch",
             content: include_str!("../../../patches/rules_cuda/redist_cccl_key.patch"),
@@ -171,6 +193,7 @@ pub const OVERRIDES: &[Override] = &[
         module: "windows_support",
         version: "0.4.1",
         patch_strip: 1,
+        archive: None,
         patches: &[
             OverridePatch {
                 file: "host_tools.patch",
@@ -210,6 +233,13 @@ fn render_module() -> String {
                     .collect::<String>()
             ),
         };
+        if let Some(archive) = row.archive {
+            out.push_str(&format!(
+                "\narchive_override(\n    module_name = \"{}\",\n    integrity = \"{}\",\n    patch_strip = {},\n    patches = {patches},\n    strip_prefix = \"{}\",\n    urls = [\"{}\"],\n)\n",
+                row.module, archive.integrity, row.patch_strip, archive.strip_prefix, archive.url,
+            ));
+            continue;
+        }
         if labels.is_empty() {
             out.push_str(&format!(
                 "\nsingle_version_override(\n    module_name = \"{}\",\n    version = \"{}\",\n)\n",
@@ -629,7 +659,10 @@ mod tests {
         let text = crate::version::repo_text("MODULE.bazel");
         let module = ModuleFile::parse(&text).expect("MODULE.bazel parses");
         let mut seen = Vec::new();
-        for call in module.calls_named("single_version_override") {
+        let calls = module
+            .calls_named("single_version_override")
+            .chain(module.calls_named("archive_override"));
+        for call in calls {
             let patches = call.str_list("patches");
             let name = call.str("module_name").expect("literal module_name");
             let in_table = OVERRIDES.iter().any(|row| row.module == name);
@@ -640,7 +673,28 @@ mod tests {
                 .iter()
                 .find(|row| row.module == name)
                 .unwrap_or_else(|| panic!("MODULE.bazel overrides {name}; add it to OVERRIDES"));
-            assert_eq!(call.str("version"), Some(row.version), "{name} version");
+            match row.archive {
+                Some(archive) => {
+                    assert_eq!(call.str_list("urls"), [archive.url], "{name} urls");
+                    assert_eq!(
+                        call.str("integrity"),
+                        Some(archive.integrity),
+                        "{name} integrity"
+                    );
+                    assert_eq!(
+                        call.str("strip_prefix"),
+                        Some(archive.strip_prefix),
+                        "{name} strip_prefix"
+                    );
+                    let dep = module.bazel_dep(name).expect("archive row has a bazel_dep");
+                    assert_eq!(
+                        dep.str("version"),
+                        Some(row.version),
+                        "{name} bazel_dep version"
+                    );
+                }
+                None => assert_eq!(call.str("version"), Some(row.version), "{name} version"),
+            }
             if !row.patches.is_empty() {
                 assert!(
                     text[call.span.clone()].contains(&format!("patch_strip = {}", row.patch_strip)),
@@ -680,10 +734,27 @@ mod tests {
         assert!(rendered.contains(
             "    patches = [\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n        \"//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch\",\n        \"//third_party/rules_dx:rules_rust.crate_universe_root_lookup.patch\",\n        \"//third_party/rules_dx:rules_rust.exec_cc_toolchain_env.patch\",\n    ],\n"
         ));
+        assert!(rendered.contains(
+            r#"
+archive_override(
+    module_name = "rules_py",
+    integrity = "sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=",
+    patch_strip = 1,
+    patches = [
+        "//third_party/rules_dx:rules_py.windows_venv.patch",
+        "//third_party/rules_dx:rules_py.py_cc_toolchain_platform.patch",
+    ],
+    strip_prefix = "rules_py-2.0.0-alpha.11",
+    urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
+)
+"#
+        ));
         let module = ModuleFile::parse(&rendered).expect("parses");
+        let archives = module.calls_named("archive_override").count();
+        assert_eq!(archives, 1);
         assert_eq!(
             module.calls_named("single_version_override").count(),
-            OVERRIDES.len()
+            OVERRIDES.len() - archives
         );
     }
 

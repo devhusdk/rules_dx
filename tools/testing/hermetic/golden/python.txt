@@ -26,4 +26,4 @@ file ruff.toml
 file uv.lock
 bazel_dep platforms
 bazel_dep rules_python
-bazel_dep aspect_rules_py
+bazel_dep rules_py

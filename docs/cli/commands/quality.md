@@ -3758,7 +3758,7 @@ quality_family(
 `yamllint` runs from a Python 3.12 toolchain. Declare the same toolchain in your
 `MODULE.bazel` as `rules_dx` does: `python_interpreters.toolchain` and
 `python.toolchain` with `python_version = "3.12"`, plus `rules_python` and
-`aspect_rules_py`.
+`rules_py`.
 
 ```sh
 bazel run @rules_dx//:dx -- format //config/...
@@ -4081,7 +4081,7 @@ quality_family(
 `djlint` runs from a Python 3.12 toolchain. Declare the same toolchain in your
 `MODULE.bazel` as `rules_dx` does: `python_interpreters.toolchain` and
 `python.toolchain` with `python_version = "3.12"`, plus `rules_python` and
-`aspect_rules_py`.
+`rules_py`.
 
 ```sh
 bazel run @rules_dx//:dx -- format //web/...

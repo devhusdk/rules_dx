@@ -1,6 +1,6 @@
 """Target-scoped real capability aspects over real adapters."""
 
-load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
+load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")

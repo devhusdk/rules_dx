@@ -96,7 +96,7 @@ bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 bazel_dep(name = "aspect_rules_js", version = "2.0.0")
-bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
+bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(

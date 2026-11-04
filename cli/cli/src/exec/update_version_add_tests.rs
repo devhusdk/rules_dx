@@ -53,7 +53,7 @@ fn configured_uv_set_reports_unsupported_add() {
     let harness = Harness::new("update-add-consumer-uv");
     harness.write_source(
         "MODULE.bazel",
-        "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\n",
+        "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\n",
     );
     let pyproject = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n";
     harness.write_source("apps/frontend/pyproject.toml", pyproject);

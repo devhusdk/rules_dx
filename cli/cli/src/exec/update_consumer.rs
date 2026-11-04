@@ -641,7 +641,7 @@ mod tests {
         argv
     }
 
-    const UV_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"deps\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
+    const UV_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"deps\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
 
     const PYPROJECT: &str = r#"
 [project]
@@ -1094,7 +1094,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_invalid_config_fails_before_any_backend() {
-        let harness = consumer_harness("invalid", "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\")\n", true);
+        let harness = consumer_harness("invalid", "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\")\n", true);
         let runner = ScriptRunner::new(&[]);
         let (code, _, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
@@ -1122,7 +1122,7 @@ source = { registry = "https://pypi.org/simple" }
         let _ = event(&events, "command_started");
     }
 
-    const MIXED_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"jobs\", pnpm_lock = \"//consumer-npm/jobs:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//consumer-npm/web:pnpm-lock.yaml\")\n";
+    const MIXED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"jobs\", pnpm_lock = \"//consumer-npm/jobs:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//consumer-npm/web:pnpm-lock.yaml\")\n";
 
     const PACKAGE_JSON: &str = "{\n  \"name\": \"app\",\n  \"version\": \"1.0.0\"\n}\n";
 
@@ -1428,7 +1428,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(runner.calls.borrow().is_empty());
     }
 
-    const PINNED_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
+    const PINNED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     const PINNED_FILES: [(&str, &str); 2] = [
         (

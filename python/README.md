@@ -31,7 +31,7 @@ script instead.
 Declare a `uv` hub named `pypi` in `MODULE.bazel`:
 
 ```starlark
-uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "pypi")
 uv.project(
     hub_name = "pypi",

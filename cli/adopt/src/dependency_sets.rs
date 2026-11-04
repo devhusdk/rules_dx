@@ -1745,7 +1745,7 @@ mod tests {
         "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n";
     const NPM_EXT: &str =
         "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n";
-    const UV_EXT: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\n";
+    const UV_EXT: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\n";
 
     #[test]
     fn cargo_hubs_become_sets_with_the_lock_dir_manifest_first() {

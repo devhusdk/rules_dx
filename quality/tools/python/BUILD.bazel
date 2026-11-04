@@ -1,4 +1,4 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
+load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])

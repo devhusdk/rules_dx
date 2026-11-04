@@ -7,6 +7,7 @@ python_library(
     srcs = ["envelopes.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":handlers"],
 )
 
@@ -16,6 +17,7 @@ python_library(
     srcs = ["handlers.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_test(
@@ -39,6 +41,7 @@ python_library(
     srcs = ["seed_helpers.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":envelopes"],
 )
 

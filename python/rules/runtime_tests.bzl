@@ -1,8 +1,8 @@
 """Python runtime ownership gate for the coherent setup keep review."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//modules:python.bzl", _MOD_ASPECT_PY = "ASPECT_RULES_PY_VERSION", _MOD_PY_HUB = "UV_HUB", _MOD_PY_LOCKS = "UV_LOCKS", _MOD_PY_PROJECTS = "UV_PROJECTS", _MOD_PY_REPIN = "UV_REPIN_DIRS", _MOD_PY_VERSION = "PYTHON_VERSION", _MOD_RULES_PY = "RULES_PYTHON_VERSION")
-load("//modules:versions.bzl", _ASPECT_PY = "ASPECT_RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
+load("//modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_HUB = "UV_HUB", _MOD_PY_LOCKS = "UV_LOCKS", _MOD_PY_PROJECTS = "UV_PROJECTS", _MOD_PY_REPIN = "UV_REPIN_DIRS", _MOD_PY_VERSION = "PYTHON_VERSION", _MOD_RULES_PY = "RULES_PYTHON_VERSION")
+load("//modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 
 _UV_PROJECTS_BLOCK = """UV_PROJECTS = [
     "//examples/python-service:pyproject.toml",
@@ -25,7 +25,7 @@ def python_runtime_unit_tests(name):
             expect_equal(
                 "aspect backend stays pinned",
                 _MOD_ASPECT_PY,
-                "2.0.0-alpha.10",
+                "2.0.0-alpha.11",
             ),
             expect_equal(
                 "rules_python stays pinned beside aspect",
@@ -89,7 +89,7 @@ def python_runtime_unit_tests(name):
             "//modules:python.bzl": [_UV_PROJECTS_BLOCK, _UV_LOCKS_BLOCK],
         },
         file_checks = {
-            "//:MODULE.bazel": "//patches/aspect_rules_py:windows_venv.patch\n" +
+            "//:MODULE.bazel": "//patches/rules_py:windows_venv.patch\n" +
                                "python_version = \"3.12\"",
             "//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
             "//quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",

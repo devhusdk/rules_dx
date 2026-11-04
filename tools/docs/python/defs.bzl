@@ -1,6 +1,6 @@
 """Python API reference shards read statically by the pinned griffe."""
 
-load("@aspect_rules_py//py:defs.bzl", "PyInfo")
+load("@rules_py//py:defs.bzl", "PyInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 load("//tools/docs/site:site.bzl", "docs_site")
 

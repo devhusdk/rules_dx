@@ -646,9 +646,9 @@ dx rule that wraps it.
 | `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl/rules:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
 | `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` |
-| `@aspect_rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python/rules:defs.bzl` | `python_binary` |
-| `@aspect_rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python/rules:defs.bzl` | `python_library` |
-| `@aspect_rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python/rules:defs.bzl` | `python_test` |
+| `@rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python/rules:defs.bzl` | `python_binary` |
+| `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python/rules:defs.bzl` | `python_library` |
+| `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python/rules:defs.bzl` | `python_test` |
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby/rules:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
 | `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_clippy_test`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test`, `rustfmt_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
 | `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala/rules:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |

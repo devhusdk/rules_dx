@@ -178,7 +178,7 @@ for ws in "$$ok" "$$bad" "$$nolock"; do
   echo '0.0.0' > "$$ws/.dx/version"
 done
 cat >> "$(location sets_ok/MODULE.bazel)" <<'EOF'
-uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.project(hub_name = "pypi", lock = "//apps/frontend:uv.lock", pyproject = "//apps/frontend:pyproject.toml")
 uv.project(hub_name = "pypi", lock = "//services/worker:uv.lock", pyproject = "//services/worker:pyproject.toml")
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
@@ -224,7 +224,7 @@ npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(**HUB)
 EOF
 cat >> "$(location sets_nolock/MODULE.bazel)" <<'EOF'
-uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.project(hub_name = "pypi", lock = "//apps/frontend:uv.lock", pyproject = "//apps/frontend:pyproject.toml")
 EOF
 for project in "$(location sets_ok/apps/frontend/pyproject.toml)" "$(location sets_ok/services/worker/pyproject.toml)" "$(location sets_nolock/apps/frontend/pyproject.toml)"; do

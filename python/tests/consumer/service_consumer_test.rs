@@ -13,9 +13,9 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 bazel_dep(name = "rules_python", version = "RULES_PYTHON")
-bazel_dep(name = "aspect_rules_py", version = "ASPECT_RULES_PY")
+bazel_dep(name = "rules_py", version = "RULES_PY")
 
-python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
+python_interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
 python_interpreters.toolchain(python_version = "3.12")
 use_repo(python_interpreters, "python_interpreters")
 
@@ -25,7 +25,7 @@ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
 use_repo(python, "python_3_12")
 
-uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "shop_pypi")
 uv.project(
     hub_name = "shop_pypi",
@@ -192,10 +192,7 @@ fn consumer_in(name: &str) -> Case {
             .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
             .replace("RULES_DX", &rules.display().to_string())
             .replace("RULES_PYTHON", &pin(&versions, "RULES_PYTHON_VERSION"))
-            .replace(
-                "ASPECT_RULES_PY",
-                &pin(&versions, "ASPECT_RULES_PY_VERSION"),
-            ),
+            .replace("RULES_PY", &pin(&versions, "RULES_PY_VERSION")),
     );
     nested::seed_rules_dx_lock(&root, &rules);
     write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));

@@ -218,7 +218,7 @@ pub struct NpmLock<'a> {
     pub line: usize,
 }
 
-/// One aspect_rules_py `uv.project` tag.
+/// One rules_py `uv.project` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UvProject<'a> {
     pub hub_name: &'a str,
@@ -253,7 +253,7 @@ pub struct ModuleFile {
 const MAVEN_MODULE: &str = "rules_jvm_external";
 const RUST_MODULE: &str = "rules_rust";
 const JS_MODULE: &str = "aspect_rules_js";
-const PY_MODULE: &str = "aspect_rules_py";
+const PY_MODULE: &str = "rules_py";
 const GAZELLE_MODULE: &str = "gazelle";
 const RUBY_MODULE: &str = "rules_dx";
 
@@ -715,7 +715,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every aspect_rules_py `uv.project` tag in source order.
+    /// Every rules_py `uv.project` tag in source order.
     pub fn uv_projects(&self) -> Result<Vec<UvProject<'_>>, ModuleError> {
         const TAG: &str = "uv.project";
         self.tags(PY_MODULE, "uv:extensions.bzl", "uv", "project")

@@ -1,4 +1,4 @@
-"""Analysis tests for the SOABI of the aspect_rules_py interpreter toolchains."""
+"""Analysis tests for the SOABI of the rules_py interpreter toolchains."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 

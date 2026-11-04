@@ -2,8 +2,8 @@
 
 use dx_nested::Case;
 
-/// The facts key aspect_rules_py's `python_interpreters` extension stores its SHA256SUMS under.
-const PYTHON_FACTS: &str = "@@aspect_rules_py+//py:extensions.bzl%python_interpreters";
+/// The facts key rules_py's `python_interpreters` extension stores its SHA256SUMS under.
+const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
 
 #[test]
 fn seeded_consumer_resolves_python_interpreters_offline() {
@@ -12,7 +12,7 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
         "query",
         "--color=no",
         "--curses=no",
-        "@@aspect_rules_py++python_interpreters+python_interpreters//:all",
+        "@@rules_py++python_interpreters+python_interpreters//:all",
     ]);
     assert!(run.status.success(), "{}", run.combined());
 

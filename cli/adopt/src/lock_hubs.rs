@@ -40,9 +40,9 @@ const CARGO: Ecosystem = Ecosystem {
     hub: "crates",
 };
 const UV: Ecosystem = Ecosystem {
-    dep: "aspect_rules_py",
-    version: dx_versions::ASPECT_RULES_PY_VERSION,
-    bzl: "@aspect_rules_py//uv:extensions.bzl",
+    dep: "rules_py",
+    version: dx_versions::RULES_PY_VERSION,
+    bzl: "@rules_py//uv:extensions.bzl",
     ext: "uv",
     binding: "uv",
     hub: "pypi",
@@ -356,10 +356,7 @@ mod tests {
     fn uv_lock_gets_a_pypi_hub() {
         let hubs = plan(&[("uv.lock", ""), ("pyproject.toml", "")]);
         let text = new_text(&hubs);
-        assert!(
-            text.contains("bazel_dep(name = \"aspect_rules_py\""),
-            "{text}"
-        );
+        assert!(text.contains("bazel_dep(name = \"rules_py\""), "{text}");
         assert!(
             text.contains("uv.declare_hub(\n    hub_name = \"pypi\",\n)"),
             "{text}"
@@ -427,7 +424,7 @@ mod tests {
     #[test]
     fn a_stanza_for_a_gone_lock_is_reported_and_kept() {
         let module = format!(
-            "{MODULE}\nuv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(\n    hub_name = \"pypi\",\n    lock = \"//svc:uv.lock\",\n    pyproject = \"//svc:pyproject.toml\",\n)\n"
+            "{MODULE}\nuv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(\n    hub_name = \"pypi\",\n    lock = \"//svc:uv.lock\",\n    pyproject = \"//svc:pyproject.toml\",\n)\n"
         );
         let dir = scratch("lock_hubs_gone");
         write(dir.path(), MODULE_FILE, &module);

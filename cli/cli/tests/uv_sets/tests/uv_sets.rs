@@ -6,9 +6,9 @@ use dx_testing::{resolve_runfiles, run, Run};
 
 const MODULE: &str = r#"module(name = "consumer")
 
-bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
+bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 
-uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.project(hub_name = "pypi", lock = "//apps/frontend:uv.lock", pyproject = "//apps/frontend:pyproject.toml")
 uv.project(hub_name = "pypi", lock = "//services/worker:uv.lock", pyproject = "//services/worker:pyproject.toml")
 "#;

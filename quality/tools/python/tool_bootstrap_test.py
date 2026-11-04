@@ -106,7 +106,7 @@ class SitePackagesTest(BootstrapTestCase):
         install = self.root / "pydoclint" / "actual_install.install"
         site = install / "lib" / "python3.12" / "site-packages"
         site.mkdir(parents=True)
-        self.manifest(["aspect_rules_py++uv+whl_install {}".format(install)])
+        self.manifest(["rules_py++uv+whl_install {}".format(install)])
         self.assertEqual(site_packages(), [site])
 
     def test_nearest_site_packages_ancestor_wins(self):

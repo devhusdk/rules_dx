@@ -554,7 +554,7 @@ mod tests {
         }
     }
 
-    const CONSUMER_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\n";
+    const CONSUMER_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\n";
 
     const CONSUMER_PYPROJECT: &str = r#"
 [project]

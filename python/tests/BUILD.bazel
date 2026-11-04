@@ -8,8 +8,8 @@ python_test(
     name = "windows_venv_launcher_test",
     srcs = ["windows_venv_launcher_test.py"],
     aspect_hints = ["//:ruff_config"],
-    data = ["@aspect_rules_py//py/private/py_venv:templates/windows_venv_launcher.py"],
-    env = {"LAUNCHER": "$(rlocationpath @aspect_rules_py//py/private/py_venv:templates/windows_venv_launcher.py)"},
+    data = ["@rules_py//py/private/py_venv:templates/windows_venv_launcher.py"],
+    env = {"LAUNCHER": "$(rlocationpath @rules_py//py/private/py_venv:templates/windows_venv_launcher.py)"},
     main = "windows_venv_launcher_test.py",
     runner = "plain",
 )

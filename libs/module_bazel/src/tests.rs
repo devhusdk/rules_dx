@@ -1083,8 +1083,8 @@ fn npm_translate_locks_follow_the_aspect_rules_js_extension() {
 }
 
 #[test]
-fn uv_projects_follow_the_aspect_rules_py_extension() {
-    let file = parse("uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.declare_hub(hub_name = \"pypi\")\nuv.project(hub_name = \"pypi\", lock = \"//a:uv.lock\", pyproject = \"//a:pyproject.toml\")\n");
+fn uv_projects_follow_the_rules_py_extension() {
+    let file = parse("uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.declare_hub(hub_name = \"pypi\")\nuv.project(hub_name = \"pypi\", lock = \"//a:uv.lock\", pyproject = \"//a:pyproject.toml\")\n");
     assert_eq!(
         file.uv_projects().expect("projects"),
         [UvProject {
@@ -1094,7 +1094,7 @@ fn uv_projects_follow_the_aspect_rules_py_extension() {
             line: 3,
         }]
     );
-    let missing = parse("uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//a:pyproject.toml\")\n");
+    let missing = parse("uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//a:pyproject.toml\")\n");
     assert!(missing.uv_projects().is_err());
 }
 

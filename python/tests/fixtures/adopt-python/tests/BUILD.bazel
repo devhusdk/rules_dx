@@ -21,6 +21,7 @@ python_library(
     srcs = ["logins.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 python_library(
@@ -29,6 +30,7 @@ python_library(
     srcs = ["login_fixtures.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
+    visibility = ["//visibility:public"],
     deps = [":logins"],
 )
 

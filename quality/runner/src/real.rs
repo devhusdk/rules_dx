@@ -168,6 +168,7 @@ const BICEP_DEFAULTS_BYTES: &[u8] = b"{}\n";
 /// Home of the Bicep child: its module cache is `$HOME/.bicep`, so it starts empty and no `br:`
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
+const DIALYZER_HOME_REL: &str = "dx-dialyzer/home";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 /// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
@@ -812,6 +813,20 @@ impl RealBackend {
             ] {
                 env.push((OsString::from(key), OsString::from(value)));
             }
+        }
+        if tool_id == "dialyzer" {
+            // The launcher descriptor cannot set env, and dialyzer reads HOME for its caches;
+            // Windows has none. Point it into the scratch tree.
+            let home = scratch.root().join(DIALYZER_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("dialyzer home: {err}")))?;
+            env.retain(|(key, _)| {
+                !["HOME", "USERPROFILE"]
+                    .iter()
+                    .any(|name| key.to_string_lossy().eq_ignore_ascii_case(name))
+            });
+            env.push((OsString::from("HOME"), home.clone().into_os_string()));
+            env.push((OsString::from("USERPROFILE"), home.into_os_string()));
         }
         if tool_id == "zanuda" {
             // zanuda type checks against the compiler's standard library. The request names it

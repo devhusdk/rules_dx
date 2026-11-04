@@ -400,14 +400,10 @@ fn parses_single_requirement_shapes() {
     let update = UpdateRequest::parse_grammar("cargo:anyhow", "1.2.3").expect("cargo");
     assert_eq!(update.set, UpdateSet::Cargo);
     assert_eq!(update.package, "anyhow");
-    assert_eq!(
-        update.target_manifest(),
-        "rust/tests/fixtures/hello/Cargo.toml"
-    );
     assert!(update.needs_update_refresh());
 
     let update = UpdateRequest::parse_grammar("npm:react", "1.2.3").expect("npm");
-    assert_eq!(update.target_manifest(), "package.json");
+    assert_eq!(update.set, UpdateSet::Npm);
 
     let update = UpdateRequest::parse_grammar("npm:@astrojs/compiler", "1.2.3").expect("scoped");
     assert_eq!(update.package, "@astrojs/compiler");
@@ -424,12 +420,11 @@ fn parses_single_requirement_shapes() {
     assert!(!update.needs_update_refresh());
 
     let update = UpdateRequest::parse_grammar("go:example.com/mod", "1.2.3").expect("go");
-    assert_eq!(update.target_manifest(), "third_party/go/go.mod");
+    assert_eq!(update.set, UpdateSet::Go);
 
     let update = UpdateRequest::parse_grammar("maven:junit:junit", "4.13.2").expect("maven");
     assert_eq!(update.set, UpdateSet::Maven);
     assert_eq!(update.package, "junit:junit");
-    assert_eq!(update.target_manifest(), "MODULE.bazel");
     assert!(update.needs_update_refresh());
 
     let update = UpdateRequest::parse_grammar("maven:org.junit.jupiter:junit-jupiter-api", "6.1.3")
@@ -438,10 +433,6 @@ fn parses_single_requirement_shapes() {
 
     let update = UpdateRequest::parse_grammar("nuget:FSharp.Core", "10.1.201").expect("nuget");
     assert_eq!(update.set, UpdateSet::NuGet);
-    assert_eq!(
-        update.target_manifest(),
-        "third_party/dotnet/paket.dependencies"
-    );
     assert!(update.needs_update_refresh());
 }
 

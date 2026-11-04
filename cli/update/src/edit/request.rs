@@ -260,12 +260,10 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
                 "MODULE.bazel"
             }
         }
-        UpdateSet::Cargo => "rust/tests/fixtures/hello/Cargo.toml",
         UpdateSet::GithubActions => WORKFLOW_DIR,
-        UpdateSet::Go => "third_party/go/go.mod",
-        UpdateSet::Maven => "MODULE.bazel",
-        UpdateSet::Npm => "package.json",
-        UpdateSet::NuGet => "third_party/dotnet/paket.dependencies",
+        UpdateSet::Cargo | UpdateSet::Go | UpdateSet::Maven | UpdateSet::Npm | UpdateSet::NuGet => {
+            ""
+        }
     }
 }
 

@@ -1,10 +1,28 @@
 use super::*;
 use crate::edit::request::{ConfiguredKind, EditPlanOutcome};
 
+fn parse(selector: &str, version: &str) -> UpdateRequest {
+    let (head, _) = selector.split_once(':').expect("set prefix");
+    let (kind, manifest) = match head {
+        "cargo" => (
+            ConfiguredKind::Cargo,
+            "rust/tests/fixtures/hello/Cargo.toml",
+        ),
+        "go" => (ConfiguredKind::Go, "third_party/go/go.mod"),
+        "maven" => (ConfiguredKind::Maven, "MODULE.bazel"),
+        "npm" => (ConfiguredKind::Npm, "package.json"),
+        "nuget" => (
+            ConfiguredKind::Nuget,
+            "third_party/dotnet/paket.dependencies",
+        ),
+        _ => return UpdateRequest::parse_grammar(selector, version).expect("update request"),
+    };
+    UpdateRequest::parse_configured_set(kind, head, &[manifest.to_owned()], None, selector, version)
+        .expect("update request")
+}
+
 fn request(selector: &str, version: &str) -> AddRequest {
-    AddRequest::from_request(
-        &UpdateRequest::parse_grammar(selector, version).expect("update request"),
-    )
+    AddRequest::from_request(&parse(selector, version))
 }
 
 fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError> {
@@ -13,13 +31,13 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
 
 /// A widen reads what an add wrote: the same version is current, a higher one widens.
 fn assert_edit_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
-    let same = UpdateRequest::parse_grammar(selector, version).expect("update request");
+    let same = parse(selector, version);
     assert_eq!(
         same.plan_edit_outcome(same.target_manifest(), written),
         Ok(EditPlanOutcome::Unchanged),
         "{selector} at {version}"
     );
-    let next = UpdateRequest::parse_grammar(selector, higher).expect("update request");
+    let next = parse(selector, higher);
     assert!(
         matches!(
             next.plan_edit_outcome(next.target_manifest(), written),

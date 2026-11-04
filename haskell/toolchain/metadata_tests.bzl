@@ -1,7 +1,7 @@
 """Haskell toolchain pin and settings tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "GHC_VERSION", "GLIBC_FLOOR", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256")
+load(":pins.bzl", "CELLS", "GHC_VERSION", "GLIBC_FLOOR", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256", "qualified_cells")
 load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "ghc_library_dir", "ghc_settings", "hub_files")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
@@ -38,7 +38,7 @@ def _cell_checks(name):
     triple = cell.ghc_libdir_triple
     has_runtime = len(cell.runtime) > 0
     conf = closure_library_dirs(_CONF.replace("{triple}", triple), CLOSURE_DIR)
-    arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": ""}[name]
+    arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
     return [
         expect_equal(name + " ghc digest", len(cell.ghc_sha256), 64),
         expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"] if has_runtime else []),
@@ -63,7 +63,12 @@ def _checks():
         expect_equal("rules_haskell digest", len(RULES_HASKELL_SHA256), 64),
         expect_false("toolchain hub loads nothing", "load(" in hub_files()["toolchains/BUILD.bazel"]),
         expect_false("toolchain hub names no rules_haskell", "@rules_haskell" in hub_files()["toolchains/BUILD.bazel"]),
-        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
+        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("qualified cells", qualified_cells(), ["linux_amd64", "linux_arm64", "macos_arm64"]),
+        expect_true("windows is blocked", CELLS["windows_x86_64"].blocker != ""),
+        expect_true("windows host runs the windows cell", cell_matches_host("windows_x86_64", "windows server 2022", "amd64")),
+        expect_false("linux never runs the windows cell", cell_matches_host("windows_x86_64", "linux", "amd64")),
+        expect_false("blocked windows cell gets no hub target", "windows_x86_64" in hub_files()["toolchains/BUILD.bazel"]),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),

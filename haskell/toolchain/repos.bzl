@@ -10,6 +10,7 @@ load(
     "RULES_HASKELL_SHA256",
     "RULES_HASKELL_URL",
     "RUNTIME_MIRROR",
+    "qualified_cells",
 )
 
 HUB_NAME = "dx_haskell_toolchains"
@@ -395,7 +396,7 @@ def hub_files():
     toolchains = []
     content = []
     arms = []
-    for cell in sorted(CELLS.keys()):
+    for cell in qualified_cells():
         toolchains.append(_TOOLCHAIN.format(
             cell = cell,
             constraints = repr(CELLS[cell].exec_compatible_with),
@@ -429,7 +430,7 @@ def _haskell_impl(mctx):
         strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,
         urls = [RULES_HASKELL_URL],
     )
-    for cell in sorted(CELLS.keys()):
+    for cell in qualified_cells():
         _ghc_repo(
             name = cell_repository_name(cell),
             cell = cell,

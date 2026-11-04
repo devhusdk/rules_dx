@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:defs.bzl", _haskell_binary = "haskell_binary", _haskell_library = "haskell_library", _haskell_test = "haskell_test")
 load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCoverageInfo", _HaskellInfo = "HaskellInfo", _HaskellLibraryInfo = "HaskellLibraryInfo")
-load("//haskell/toolchain:pins.bzl", "CELLS")
+load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -14,7 +14,7 @@ HaskellLibraryInfo = _HaskellLibraryInfo
 
 HASKELL_COVERAGE_COLLECTOR = False
 
-HASKELL_CELLS = sorted(CELLS.keys())
+HASKELL_CELLS = qualified_cells()
 
 HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS)
 

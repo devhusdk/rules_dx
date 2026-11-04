@@ -14,6 +14,7 @@ RUNTIME_MIRROR = "https://snapshot.debian.org/archive"
 
 CELLS = {
     "linux_amd64": struct(
+        blocker = "",
         ghc_libdir_triple = "x86_64-linux",
         host = struct(os = ["linux"], arch = ["amd64", "x86_64"]),
         python = "@python_3_12_x86_64_unknown_linux_gnu",
@@ -43,6 +44,7 @@ CELLS = {
         ],
     ),
     "linux_arm64": struct(
+        blocker = "",
         ghc_libdir_triple = "aarch64-linux",
         host = struct(os = ["linux"], arch = ["aarch64", "arm64"]),
         python = "@python_3_12_aarch64_unknown_linux_gnu",
@@ -72,6 +74,7 @@ CELLS = {
         ],
     ),
     "macos_arm64": struct(
+        blocker = "",
         ghc_libdir_triple = "aarch64-osx",
         host = struct(os = ["mac"], arch = ["aarch64", "arm64"]),
         python = "@python_3_12_aarch64_apple_darwin",
@@ -90,4 +93,21 @@ CELLS = {
             url = "https://www.gnu.org/licenses/lgpl-3.0.txt",
         ),
     ),
+    "windows_x86_64": struct(
+        blocker = "mingw toolchain and Windows runtime not qualified yet (#5956, #5957)",
+        ghc_libdir_triple = "x86_64-windows",
+        host = struct(os = ["windows"], arch = ["amd64", "x86_64"]),
+        python = "@python_3_12_x86_64_pc_windows_msvc",
+        deb_arch = "",
+        locale = "C.UTF-8",
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        ghc_sha256 = "ad17bdbee5f195d50024da1447f458071d9d8a34f90d76907c873abaf95d893f",
+        ghc_strip_prefix = "ghc-" + GHC_VERSION + "-x86_64-unknown-mingw32",
+        ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-x86_64-unknown-mingw32.tar.xz",
+        runtime = [],
+    ),
 }
+
+def qualified_cells(cells = CELLS):
+    """Returns the cells that are not blocked."""
+    return [cell for cell in sorted(cells.keys()) if cells[cell].blocker == ""]

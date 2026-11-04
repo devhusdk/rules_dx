@@ -150,7 +150,7 @@ impl ScriptRunner {
         {
             "uv-tools".to_owned()
         } else if argv.contains(&"uv".to_owned())
-            && argv.iter().any(|arg| arg.contains("examples/adopt-python"))
+            && argv.iter().any(|arg| arg.contains("python/tests/fixtures/adopt-python"))
         {
             "uv-adopt".to_owned()
         } else if argv.contains(&"uv".to_owned())
@@ -159,7 +159,7 @@ impl ScriptRunner {
                 .any(|arg| arg.contains("examples/adopt-polyglot"))
         {
             "uv-adopt-polyglot".to_owned()
-        } else if argv.iter().any(|arg| arg.contains("examples/adopt-js-ts")) {
+        } else if argv.iter().any(|arg| arg.contains("javascript/tests/fixtures/adopt-js-ts")) {
             "npm-adopt".to_owned()
         } else if argv
             .iter()

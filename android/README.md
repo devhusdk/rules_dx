@@ -418,5 +418,5 @@ bazel test //android/...
 
 ## Example
 
-See [`examples/adopt-android`](../examples/adopt-android/README.md) for a
+See [`android/tests/fixtures/adopt-android`](../android/tests/fixtures/adopt-android/README.md) for a
 consumer that adopts these rules end to end.

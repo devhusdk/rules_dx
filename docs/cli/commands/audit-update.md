@@ -44,20 +44,20 @@ lockfile.
 
 ```text
 //cli/..., //tools/docs/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
-//examples/adopt-rust/...                                                             cargo
+//rust/tests/fixtures/adopt-rust/...                                                             cargo
 //csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
 //csharp/tests/fixtures/adopt-csharp/..., //fsharp/tests/fixtures/adopt-fsharp/...                              nuget
 //go/..., //third_party/go/...                                                         go
-//examples/adopt-go/...                                                               go
+//go/tests/fixtures/adopt-go/...                                                               go
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
 //java/tests/fixtures/adopt-java/..., //kotlin/tests/fixtures/adopt-kotlin/..., //scala/tests/fixtures/adopt-scala/...    maven
 //javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
 //quality/tools/javascript/...                                                        npm-tools
-//examples/adopt-js-ts/...                                                            npm-adopt
+//javascript/tests/fixtures/adopt-js-ts/...                                                            npm-adopt
 //examples/adopt-polyglot/...                                                         npm-adopt-polyglot
 //examples/adopt-polyglot/...                                                         uv-adopt-polyglot
 //python/..., //python/tests/fixtures/hello/...                                       uv
-//examples/adopt-python/...                                                           uv-adopt
+//python/tests/fixtures/adopt-python/...                                                           uv-adopt
 //quality/tools/python/...                                                            uv-tools
 ```
 

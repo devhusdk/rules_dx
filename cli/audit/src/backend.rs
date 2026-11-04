@@ -82,7 +82,7 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
     match set {
         "cargo" => &["rust/tests/fixtures/hello/Cargo.lock"],
         "npm" => &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
-        "npm-adopt" => &["examples/adopt-js-ts/pnpm-lock.yaml"],
+        "npm-adopt" => &["javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"],
         "npm-adopt-polyglot" => &["examples/adopt-polyglot/pnpm-lock.yaml"],
         "npm-tools" => &["quality/tools/javascript/pnpm-lock.yaml"],
         "maven" => &["third_party/jvm/maven_install.json"],
@@ -91,7 +91,7 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
         "go" => &["third_party/go/go.mod"],
         "ruby" | "rubygems" => &[
             "third_party/ruby/Gemfile.lock",
-            "examples/adopt-ruby/Gemfile.lock",
+            "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
         ],
         _ => &[],
     }
@@ -226,7 +226,7 @@ mod tests {
         );
         assert_eq!(
             vuln_locks("npm-adopt"),
-            &["examples/adopt-js-ts/pnpm-lock.yaml"]
+            &["javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"]
         );
         assert_eq!(
             vuln_locks("npm-adopt-polyglot"),
@@ -247,7 +247,7 @@ mod tests {
             vuln_locks("ruby"),
             &[
                 "third_party/ruby/Gemfile.lock",
-                "examples/adopt-ruby/Gemfile.lock",
+                "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
             ]
         );
         assert!(!is_empty_set("ruby"));

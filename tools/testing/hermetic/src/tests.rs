@@ -583,13 +583,13 @@ fn the_cpp_rust_target_names_a_real_consumer() {
     for dest in [
         ".bazelrc",
         "BUILD.bazel",
-        "examples/adopt-cpp/solo/BUILD.bazel",
-        "examples/adopt-cpp/solo/pure.cc",
-        "examples/adopt-cpp/solo/pure.h",
-        "examples/adopt-cpp/solo/pure_test.cc",
-        "examples/adopt-rust/solo/BUILD.bazel",
-        "examples/adopt-rust/solo/src/lib.rs",
-        "examples/adopt-rust/solo/src/net.rs",
+        "cc/tests/fixtures/adopt-cpp/solo/BUILD.bazel",
+        "cc/tests/fixtures/adopt-cpp/solo/pure.cc",
+        "cc/tests/fixtures/adopt-cpp/solo/pure.h",
+        "cc/tests/fixtures/adopt-cpp/solo/pure_test.cc",
+        "rust/tests/fixtures/adopt-rust/solo/BUILD.bazel",
+        "rust/tests/fixtures/adopt-rust/solo/src/lib.rs",
+        "rust/tests/fixtures/adopt-rust/solo/src/net.rs",
     ] {
         assert!(dests.contains(&dest), "missing consumer file {dest}");
     }

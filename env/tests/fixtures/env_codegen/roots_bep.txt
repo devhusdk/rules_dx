@@ -31,8 +31,8 @@ Platform plus consumer plus release linkage (issue #787, beyond
 seed-host-delivered): platform hosts linux_x86_64 plus linux_arm64
 plus macos_arm64 plus windows_x86_64 with symlink-only on every required
 host plus unsupported_platform refusal plus per-cell coverage with no
-cross-cell union; consumer via examples/adopt-rust plus
-examples/adopt-python plus examples/adopt-js-ts plus
+cross-cell union; consumer via rust/tests/fixtures/adopt-rust plus
+python/tests/fixtures/adopt-python plus javascript/tests/fixtures/adopt-js-ts plus
 .github/workflows/reusable-consumer.yml plus
 examples/consumer-ci/caller.yml; release via //deploy/release:sbom_demo
 plus //deploy/release:signing_demo plus //deploy/release:bcr_demo plus

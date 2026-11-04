@@ -107,8 +107,8 @@ mod tests {
         for words in [
             vec!["status"],
             vec!["status", "--output=json"],
-            vec!["status", "--verbose"],
-            vec!["status", "--output=json", "--verbose"],
+            vec!["status", "--capabilities"],
+            vec!["status", "--output=json", "--capabilities"],
             vec!["upgrade", "--to=2.0.0"],
             vec!["upgrade", "--to=2.0.0", "--output=json"],
             vec!["completion", "bash"],

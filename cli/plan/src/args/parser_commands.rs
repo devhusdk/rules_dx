@@ -987,6 +987,16 @@ fn worktree_subcommands_parse_with_their_flags() {
     assert!(!got.bases);
     let got = parse(&strings(&["worktree", "prune", "--apply", "--bases"])).expect("bases");
     assert!(got.bases && got.apply);
+    let got = parse(&strings(&["status", "--capabilities"])).expect("status");
+    assert!(got.capabilities);
+    assert!(!parse(&strings(&["status"])).expect("status").capabilities);
+    assert_eq!(
+        parse(&strings(&["lint", "--capabilities"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "lint",
+            option: "--capabilities".to_owned(),
+        })
+    );
     let got = parse(&strings(&["worktree", "list", "--disk"])).expect("list --disk");
     assert!(got.disk);
     let got = parse(&strings(&["worktree", "--disk"])).expect("bare --disk");

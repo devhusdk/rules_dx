@@ -283,6 +283,8 @@ pub struct Invocation {
     pub force: bool,
     pub disk: bool,
     pub bases: bool,
+    /// `dx status --capabilities`: add capability records.
+    pub capabilities: bool,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
     /// An umbrella phase's execution log file; set instead of `explain` so the umbrella owns the store entry.
@@ -658,6 +660,7 @@ mod tests {
             force: false,
             disk: false,
             bases: false,
+            capabilities: false,
             explain: false,
             exec_log: None,
             old_log: None,

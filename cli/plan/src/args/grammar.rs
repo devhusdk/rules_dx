@@ -89,6 +89,7 @@ pub(crate) struct Flags {
     pub(crate) force: bool,
     pub(crate) disk: bool,
     pub(crate) bases: bool,
+    pub(crate) capabilities: bool,
     pub(crate) explain: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
@@ -546,6 +547,14 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Add one capability record per command (status only).
+    CapabilitiesFlag, {
+        #[arg(long, overrides_with = "capabilities")]
+        capabilities: bool,
+    }
+}
+
 composite_group! {
     /// The profile flags the workflow commands share.
     ProfileArgs, {
@@ -876,6 +885,7 @@ command_args! {
     /// The flags `dx status` accepts.
     Status => 17, NoScopeTail, {
         output: OutputFlag,
+        capabilities: CapabilitiesFlag,
     };
     /// The flags `dx watch` accepts.
     Watch => 18, BazelTail, {

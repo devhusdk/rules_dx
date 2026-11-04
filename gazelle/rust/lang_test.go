@@ -523,7 +523,7 @@ func TestConfigureDirectiveForms(t *testing.T) {
 	l := &rustLang{}
 	l.Before(context.Background())
 	cfg := config.New()
-	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:other ignored\n# gazelle:dx_ignore_import rust rust external\n# gazelle:dx_ignore_import python foreign\n"))
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:other ignored\n# gazelle:dx_ignore_import rust external\n# gazelle:dx_ignore_import python foreign\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

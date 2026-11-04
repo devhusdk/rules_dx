@@ -88,17 +88,12 @@ func DeclaredIgnores(languageName, rel string, f *rule.File) ([]*IgnoreEntry, []
 		if len(fields) == 0 || fields[0] != languageName {
 			continue
 		}
-		value := ""
-		switch {
-		case len(fields) == 2:
-			value = fields[1]
-		case len(fields) == 3 && fields[1] == languageName:
-			value = fields[2]
-		default:
+		if len(fields) != 2 {
 			errs = append(errs, fmt.Sprintf("%s: //%s: malformed # gazelle:dx_ignore_import %s",
 				languageName, rel, directive.Value))
 			continue
 		}
+		value := fields[1]
 		declared = append(declared, &IgnoreEntry{Value: value, Path: rel})
 	}
 	return declared, errs

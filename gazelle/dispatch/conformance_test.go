@@ -477,7 +477,7 @@ func checkIgnoreNaming(t *testing.T, name string, lang language.Language) {
 	lm := lifecycle(t, lang)
 	lm.Before(context.Background())
 	c := freshConfig(t)
-	lang.Configure(c, "app", ignoreDirectives(name+" Dropped", name+" "+name+" Second", "other Foreign", ""))
+	lang.Configure(c, "app", ignoreDirectives(name+" Dropped", name+" Second", "other Foreign", ""))
 	lm.AfterResolvingDeps(context.Background())
 	if got := common.Errors.Take(); got != nil {
 		t.Errorf("a foreign or empty ignore recorded %#v, want none", got)
@@ -491,6 +491,10 @@ func checkIgnoreNaming(t *testing.T, name string, lang language.Language) {
 	}
 	lm.Before(context.Background())
 	lang.Configure(freshConfig(t), "app", ignoreDirectives(name))
+	lm.AfterResolvingDeps(context.Background())
+	wantErrorEntry(t, name, name+": //app: malformed # gazelle:dx_ignore_import", false)
+	lm.Before(context.Background())
+	lang.Configure(freshConfig(t), "app", ignoreDirectives(name+" "+name+" x"))
 	lm.AfterResolvingDeps(context.Background())
 	wantErrorEntry(t, name, name+": //app: malformed # gazelle:dx_ignore_import", false)
 }

@@ -645,7 +645,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
-	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import javascript javascript mydep\n"))
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import javascript mydep\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

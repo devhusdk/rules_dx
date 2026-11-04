@@ -519,7 +519,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
-	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import typescript typescript mydep\n"))
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import typescript mydep\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

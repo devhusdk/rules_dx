@@ -7,9 +7,8 @@ Nothing needs to be installed.
 
 Run `dx init --apply demo-app` and add sources; see `tests/fixtures/julia-app`. Name
 each library after its module and keep the source in `src/<label>.jl`: that is the layout rules_julia needs
-to precompile. The wrappers name the upstream target `<name>_upstream`, so
-until #4606 is fixed libraries still compile on first load and a syntax error
-fails at run time, not at build time.
+to precompile. Libraries precompile at build time, so a syntax error fails
+`bazel build`.
 
 ```python
 load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")

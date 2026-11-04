@@ -9,6 +9,7 @@ _FEATURES = "//command_line_option:features"
 _EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
 
 _PLATFORMS = "//command_line_option:platforms"
+_MODE = "//command_line_option:compilation_mode"
 
 def _impl(settings, attr):
     features = list(settings[_FEATURES])
@@ -24,12 +25,13 @@ def _impl(settings, attr):
         _EXTRA_TOOLCHAINS: extra_toolchains,
         _FEATURES: features,
         _PLATFORMS: getattr(attr, "platforms", []) or settings[_PLATFORMS],
+        _MODE: getattr(attr, "compilation_mode", "") or settings[_MODE],
     }
 
 toolchain_transition = transition(
     implementation = _impl,
-    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _PLATFORMS],
-    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _PLATFORMS],
+    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS],
+    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS],
 )
 
 def _test_impl(ctx):
@@ -49,6 +51,7 @@ cc_toolchain_test = rule(
     attrs = {
         "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
         "extra_toolchains": attr.string_list(doc = "Toolchain labels to register ahead of the registered ones.", default = []),
+        "compilation_mode": attr.string(doc = "Compilation mode to build with, or empty to keep the command line value.", values = ["", "dbg", "fastbuild", "opt"]),
         "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as asan.", default = []),
         "test": attr.label(doc = "Test to rebuild.", executable = True, cfg = toolchain_transition, mandatory = True),
     } | dx_lcov_merger_attr(),

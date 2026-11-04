@@ -1,0 +1,117 @@
+load("@rules_cc//cc:defs.bzl", "cc_shared_library")
+load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//cc/toolchains:action_tests.bzl", "cc_msvc_action_tests")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_MSVC_ONLY = [
+    "@platforms//os:windows",
+    "@platforms//cpu:x86_64",
+]
+
+cc_library(
+    name = "greet_api",
+    hdrs = ["greet.h"],
+    includes = ["."],
+)
+
+cc_library(
+    name = "greet_static",
+    srcs = [
+        "greet_static.cc",
+        "greet_static_suffix.cc",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [":greet_api"],
+)
+
+cc_library(
+    name = "add_c",
+    srcs = ["add.c"],
+    hdrs = ["add.h"],
+    includes = ["."],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+)
+
+cc_library(
+    name = "greet_dll_lib",
+    srcs = ["greet_dll.cc"],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [":greet_api"],
+)
+
+cc_shared_library(
+    name = "greet_dll",
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [":greet_dll_lib"],
+)
+
+cc_test(
+    name = "shared_test",
+    srcs = ["shared_test.cc"],
+    dynamic_deps = [":greet_dll"],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [
+        ":add_c",
+        ":greet_api",
+        ":greet_static",
+    ],
+)
+
+cc_test(
+    name = "c_test",
+    srcs = ["c_test.c"],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [":add_c"],
+)
+
+cc_test(
+    name = "spaced_test",
+    srcs = ["dir with space/spaced_test.cc"],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+)
+
+cc_library(
+    name = "static_crt_greet",
+    srcs = [
+        "greet_static.cc",
+        "greet_static_suffix.cc",
+    ],
+    features = ["static_link_msvcrt"],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [":greet_api"],
+)
+
+cc_binary(
+    name = "crt_mix",
+    srcs = ["crt_mix.cc"],
+    tags = ["manual"],
+    target_compatible_with = _MSVC_ONLY,
+    deps = [":static_crt_greet"],
+)
+
+cc_msvc_action_tests(
+    name = "toolchain_action_tests",
+    compile_target = ":add_c",
+    link_target = ":shared_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

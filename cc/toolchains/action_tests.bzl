@@ -67,3 +67,42 @@ def cc_action_tests(name, compile_target, link_target):
             )
             tests.append(test)
     native.test_suite(name = name, tests = tests, testonly = True)
+
+_MSVC_TOOLS = {"CppCompile": "cl.exe", "CppLink": "link.exe", "CppArchive": "lib.exe"}
+
+def _msvc_impl(ctx):
+    env = analysistest.begin(ctx)
+    for action in _actions(env, _MSVC_TOOLS.keys()):
+        tool = action.argv[0].replace("\\", "/")
+        asserts.true(env, "dx_msvc" in tool, "tool outside the pinned MSVC: " + tool)
+        asserts.true(env, tool.endswith("/" + _MSVC_TOOLS[action.mnemonic]), "unexpected tool for %s: %s" % (action.mnemonic, tool))
+        for key in ["PATH", "INCLUDE", "LIB"]:
+            for entry in (action.env or {}).get(key, "").split(";"):
+                if entry:
+                    asserts.true(env, "dx_msvc" in entry, "%s entry outside the pinned MSVC: %s" % (key, entry))
+        if action.mnemonic == "CppLink":
+            asserts.true(env, any([arg.startswith("@") for arg in action.argv]), "link does not use a param file: %s" % action.argv)
+    return analysistest.end(env)
+
+_msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})
+
+def cc_msvc_action_tests(name, compile_target, link_target):
+    """Asserts compile, archive and link actions use the pinned MSVC tools under msvc.
+
+    Args:
+        name: Name of the test suite.
+        compile_target: A cc_library with C sources.
+        link_target: A cc_binary or cc_test.
+    """
+    tests = []
+    for kind, target in [("compile", compile_target), ("link", link_target)]:
+        test = "%s_%s_msvc" % (name, kind)
+        _msvc_test(
+            name = test,
+            size = "small",
+            testonly = True,
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+        tests.append(test)
+    native.test_suite(name = name, tests = tests, testonly = True)

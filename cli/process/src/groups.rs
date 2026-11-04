@@ -83,6 +83,7 @@ pub(crate) fn lease_line(pgid: i32) -> Option<String> {
 }
 
 /// What is known about the process whose pid equals a recorded group number.
+#[cfg_attr(not(unix), allow(dead_code))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Leader {
     Present(String),

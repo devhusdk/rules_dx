@@ -6,6 +6,11 @@ Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 - [Tutorial](tutorial.md): from an empty directory to a passing `dx test`.
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md): move from upstream rules one package at a time.
 
+## Guides
+
+- [Use a remote cache](remote-cache.md): share build outputs with your team and CI.
+- [Use JetBrains IDEs and other editors](editors.md): point editors at the files `dx` writes.
+
 ## Support
 
 - [Licenses](licenses.md): the licence of every tool rules_dx downloads.

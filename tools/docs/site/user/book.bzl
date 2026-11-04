@@ -27,6 +27,8 @@ USER_BOOK = [
     ),
     mdbook_page("Tutorial", "docs/tutorial.md", "//docs:tutorial.md"),
     mdbook_page("Proxy And CA Certificates", "docs/proxy-and-ca.md", "//docs:proxy-and-ca.md"),
+    mdbook_page("Use A Remote Cache", "docs/remote-cache.md", "//docs:remote-cache.md"),
+    mdbook_page("Use JetBrains IDEs And Other Editors", "docs/editors.md", "//docs:editors.md"),
     mdbook_section("Command Reference"),
     mdbook_page(
         "Command Reference",

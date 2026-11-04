@@ -94,7 +94,7 @@ pub fn write_module_edit(root: &Path, edit: &ModuleEdit) -> Result<(), AdoptErro
     if current != edit.old {
         return Err(refuse(&edit.path, "changed since the edit was planned"));
     }
-    std::fs::write(&full, &edit.new).map_err(|e| AdoptError::WriteFile {
+    dx_atomic_fs::write_atomic(&full, edit.new.as_bytes()).map_err(|e| AdoptError::WriteFile {
         path: edit.path.clone(),
         detail: e.to_string(),
     })
@@ -195,5 +195,24 @@ mod tests {
         assert_eq!(text, edit.new);
         let err = write_module_edit(dir.path(), &edit).expect_err("stale");
         assert!(err.to_string().contains("changed since"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_write_leaves_module_bazel_unchanged() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("module_pin_failed_write");
+        write(dir.path(), "MODULE.bazel", DEP);
+        let edit = plan_rules_dx_version(dir.path(), "2.0.0").expect("plan");
+        let root = dir.path();
+        std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
+        let result = write_module_edit(root, &edit);
+        std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        assert!(
+            result.is_err(),
+            "write into a read-only directory must fail"
+        );
+        let text = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
+        assert_eq!(text, DEP);
     }
 }

@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -63,7 +63,7 @@ dx_hello_output_test(
     expected = "hello world",
 )
 
-python_py_test(
+python_test(
     name = "tool_test",
     srcs = [
         "tool_test.py",
@@ -72,6 +72,7 @@ python_py_test(
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
+    runner = "plain",
 )
 
 real_source_target(

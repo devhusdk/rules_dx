@@ -1,15 +1,16 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//python/rules:defs.bzl", "python_py_test")
+load("//python/rules:defs.bzl", "python_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-python_py_test(
+python_test(
     name = "windows_venv_launcher_test",
     srcs = ["windows_venv_launcher_test.py"],
     aspect_hints = ["//:ruff_config"],
     data = ["@aspect_rules_py//py/private/py_venv:templates/windows_venv_launcher.py"],
     env = {"LAUNCHER": "$(rlocationpath @aspect_rules_py//py/private/py_venv:templates/windows_venv_launcher.py)"},
     main = "windows_venv_launcher_test.py",
+    runner = "plain",
 )
 
 real_source_target(

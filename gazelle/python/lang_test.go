@@ -661,7 +661,8 @@ func generatePlain(t *testing.T, file *rule.File, other []*rule.Rule, regular []
 
 func TestGeneratePreservesHandwrittenPlainTest(t *testing.T) {
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
-	plain := rule.NewRule(plainKind, "smoke_test")
+	plain := rule.NewRule(testKind, "smoke_test")
+	plain.SetAttr("runner", "plain")
 	plain.SetAttr("main", "smoke_test.py")
 	file.Rules = append(file.Rules, plain)
 	l, result := generatePlain(t, file, nil, []string{"smoke_test.py", "other_test.py"})
@@ -681,13 +682,15 @@ func TestGeneratePreservesHandwrittenPlainTest(t *testing.T) {
 	if len(l2.Errors()) != 0 || len(again.Gen) != 1 || len(again.Empty) != 0 {
 		t.Fatalf("repeat generation changed: errors=%v gen=%d empty=%d", l2.Errors(), len(again.Gen), len(again.Empty))
 	}
-	if plain.AttrString("main") != "smoke_test.py" || plain.Kind() != plainKind {
+	if plain.AttrString("main") != "smoke_test.py" || plain.AttrString("runner") != "plain" {
 		t.Fatalf("handwritten rule modified: %s main=%q", plain.Kind(), plain.AttrString("main"))
 	}
 }
 
 func TestGeneratePlainTestInOtherGen(t *testing.T) {
-	other := []*rule.Rule{rule.NewRule(plainKind, "smoke_test")}
+	plain := rule.NewRule(testKind, "smoke_test")
+	plain.SetAttr("runner", "plain")
+	other := []*rule.Rule{plain}
 	l, result := generatePlain(t, nil, other, []string{"smoke_test.py"})
 	if len(l.Errors()) != 0 || len(result.Gen) != 0 {
 		t.Fatalf("errors=%v gen=%d, want none", l.Errors(), len(result.Gen))
@@ -696,15 +699,26 @@ func TestGeneratePlainTestInOtherGen(t *testing.T) {
 
 func TestGeneratePlainTestNameCollisionsStillFail(t *testing.T) {
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
-	file.Rules = append(file.Rules, rule.NewRule(plainKind, "smoke"))
+	file.Rules = append(file.Rules, rule.NewRule(testKind, "smoke"))
 	l, _ := generatePlain(t, file, nil, []string{"smoke.py"})
 	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "smoke") {
-		t.Fatalf("library over python_py_test: errors = %v, want collision", l.Errors())
+		t.Fatalf("library over python_test: errors = %v, want collision", l.Errors())
 	}
 	file = rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	file.Rules = append(file.Rules, rule.NewRule("filegroup", "smoke_test"))
 	l, _ = generatePlain(t, file, nil, []string{"smoke_test.py"})
 	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "smoke_test") {
 		t.Fatalf("test over filegroup: errors = %v, want collision", l.Errors())
+	}
+}
+
+func TestGenerateKeepsPlainTestWithoutSource(t *testing.T) {
+	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	plain := rule.NewRule(testKind, "gone_test")
+	plain.SetAttr("runner", "plain")
+	file.Rules = append(file.Rules, plain)
+	_, result := generatePlain(t, file, nil, []string{"other_test.py"})
+	if len(result.Empty) != 0 {
+		t.Fatalf("empty = %v, want none", result.Empty)
 	}
 }

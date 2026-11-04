@@ -98,22 +98,21 @@ def python_binary(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = _python_main_kwargs("python_binary", name, srcs, kwargs)
     dx_wrap_binary(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
 
-def python_test_rejection(kwargs):
-    """Returns the rejection for forbidden python_test kwargs, or None."""
-    if "main" in kwargs:
-        return ("python_test always runs pytest and provides its own " +
-                "entrypoint; `main` is not supported. Use python_py_test " +
-                "for a custom main.")
+def python_test_rejection(runner, kwargs):
+    """Returns the rejection for a bad python_test runner or kwargs, or None."""
+    if runner not in ("pytest", "plain"):
+        return "python_test runner must be \"pytest\" or \"plain\", got %r." % (runner,)
+    if runner == "pytest" and "main" in kwargs:
+        return "python_test with runner = \"pytest\" runs pytest; set runner = \"plain\" to use main."
     return None
 
-def python_test(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over py_pytest_test."""
-    rejection = python_test_rejection(kwargs)
+def python_test(name, srcs = None, runner = "pytest", visibility = None, **kwargs):
+    """Wrapper over py_pytest_test, or py_test when runner is plain."""
+    rejection = python_test_rejection(runner, kwargs)
     if rejection != None:
         fail(rejection)
-    dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
-
-def python_py_test(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over py_test."""
-    upstream_kwargs = _python_main_kwargs("python_py_test", name, srcs, kwargs)
-    dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    if runner == "plain":
+        upstream_kwargs = _python_main_kwargs("python_test", name, srcs, kwargs)
+        dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    else:
+        dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)

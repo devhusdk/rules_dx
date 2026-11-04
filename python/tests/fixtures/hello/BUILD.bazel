@@ -1,5 +1,5 @@
 load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_py_tests", "thin_compare_subject")
-load("//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//python/rules:windows_launcher_tests.bzl", "python_windows_launcher_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -61,16 +61,17 @@ python_test(
     ],
 )
 
-python_py_test(
+python_test(
     name = "generic_unittest_test",
     srcs = ["generic_unittest_test.py"],
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
+    runner = "plain",
     deps = [":hello_lib"],
 )
 
-python_py_test(
+python_test(
     name = "generic_main_test",
     srcs = ["generic_main_test.py"],
     aspect_hints = ["//:ruff_config"],
@@ -78,6 +79,7 @@ python_py_test(
     env = {"DX_GENERIC_FIXTURE": "1"},
     imports = ["."],
     main = "generic_main_test.py",
+    runner = "plain",
     deps = [":hello_lib"],
 )
 

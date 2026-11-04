@@ -88,8 +88,7 @@ load("@rules_python//python:defs.bzl", "py_library", "py_test")
 load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
 ```
 
-`python_test` runs pytest and rejects `main`. Use `python_py_test` for a
-custom entrypoint.
+`python_test` runs pytest. Set `runner = "plain"` and `main` for a custom entrypoint.
 
 Build and test the package, then move the next one:
 

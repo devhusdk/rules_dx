@@ -124,6 +124,26 @@ func RuleNamesOfKind(file *rule.File, other []*rule.Rule, kind string) map[strin
 	return names
 }
 
+// CustomRunnerTests returns the names of kind rules in file and other whose
+// runner attribute is set and differs from defaultRunner.
+func CustomRunnerTests(file *rule.File, other []*rule.Rule, kind, defaultRunner string) map[string]bool {
+	names := make(map[string]bool)
+	check := func(r *rule.Rule) {
+		if runner := r.AttrString("runner"); r.Kind() == kind && runner != "" && runner != defaultRunner {
+			names[r.Name()] = true
+		}
+	}
+	if file != nil {
+		for _, r := range file.Rules {
+			check(r)
+		}
+	}
+	for _, r := range other {
+		check(r)
+	}
+	return names
+}
+
 func MergeStale(file *rule.File, result language.GenerateResult, kinds map[string]rule.KindInfo) language.GenerateResult {
 	return MergeStaleOwned(file, result, kinds, nil)
 }

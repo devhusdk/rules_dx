@@ -1,4 +1,4 @@
-load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//examples/python-service:__subpackages__"])
@@ -55,7 +55,8 @@ python_test(
     ],
 )
 
-python_py_test(
+python_test(
+    runner = "plain",
     name = "cli_unittest_test",
     srcs = ["cli_unittest_test.py"],
     aspect_hints = ["//:ruff_config"],

@@ -17,35 +17,58 @@ dx_wrapper_contract_tests(
     extra_checks = [
         expect_equal(
             "generic main is rejected",
-            python_test_rejection({"main": "main.py"}) != None,
+            python_test_rejection(
+                "pytest",
+                {"main": "main.py"},
+            ) != None,
             True,
         ),
         expect_equal(
             "main rejection names pytest",
-            python_test_rejection({"main": "main.py"}),
-            "python_test always runs pytest and provides its own " +
-            "entrypoint; `main` is not supported. Use python_py_test " +
-            "for a custom main.",
+            python_test_rejection(
+                "pytest",
+                {"main": "main.py"},
+            ),
+            "python_test with runner = \"pytest\" runs pytest; set runner = \"plain\" to use main.",
+        ),
+        expect_equal(
+            "plain runner accepts main",
+            python_test_rejection(
+                "plain",
+                {"main": "main.py"},
+            ),
+            None,
+        ),
+        expect_equal(
+            "unknown runner is rejected",
+            python_test_rejection("nose", {}),
+            "python_test runner must be \"pytest\" or \"plain\", got \"nose\".",
         ),
         expect_equal(
             "empty kwargs are clean",
-            python_test_rejection({}),
+            python_test_rejection("pytest", {}),
             None,
         ),
         expect_equal(
             "ordinary test kwargs are clean",
-            python_test_rejection({
-                "deps": ["@pypi//pytest"],
-                "tags": ["small"],
-            }),
+            python_test_rejection(
+                "pytest",
+                {
+                    "deps": ["@pypi//pytest"],
+                    "tags": ["small"],
+                },
+            ),
             None,
         ),
         expect_equal(
             "pytest-native entrypoint kwargs stay pytest",
-            python_test_rejection({
-                "pytest_args": ["-k foo"],
-                "chdir": "pkg",
-            }),
+            python_test_rejection(
+                "pytest",
+                {
+                    "pytest_args": ["-k foo"],
+                    "chdir": "pkg",
+                },
+            ),
             None,
         ),
         expect_equal(

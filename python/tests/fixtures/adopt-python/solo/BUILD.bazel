@@ -1,8 +1,9 @@
-load("@rules_dx//python/rules:defs.bzl", "python_library", "python_py_test", "python_test")
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 python_library(
     name = "pure",
+    testonly = True,
     srcs = ["pure.py"],
     aspect_hints = ["//:ruff_config"],
     imports = ["."],
@@ -10,6 +11,7 @@ python_library(
 
 python_test(
     name = "pure_test",
+    testonly = True,
     srcs = ["pure_test.py"],
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
@@ -21,17 +23,19 @@ python_test(
     ],
 )
 
-python_py_test(
+python_test(
     name = "pure_unittest_test",
     srcs = ["pure_unittest_test.py"],
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
+    runner = "plain",
     deps = [":pure"],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],

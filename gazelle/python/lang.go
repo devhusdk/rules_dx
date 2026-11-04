@@ -15,12 +15,8 @@ const (
 	libraryKind  = "python_library"
 	testKind     = "python_test"
 	binaryKind   = "python_binary"
-	plainKind    = "python_py_test"
 	importsAttr  = "."
 )
-
-// claimAliases lets a handwritten plain-runner test stand in for the generated test of the same name.
-var claimAliases = map[string]string{plainKind: testKind}
 
 var pythonKinds = map[string]rule.KindInfo{
 	libraryKind: kindInfo(),
@@ -143,7 +139,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		return language.GenerateResult{}
 	}
 
-	plain := handPlainTests(args.File, args.OtherGen)
+	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "pytest")
 	var result language.GenerateResult
 	for _, p := range plans {
 		kind := libraryKind
@@ -195,28 +191,13 @@ func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 		c.Kind = claimKind(c)
 		filled[i] = c
 	}
-	return common.CheckClaims(file, other, filled, claimAliases)
-}
-
-func handPlainTests(file *rule.File, other []*rule.Rule) map[string]bool {
-	owned := make(map[string]bool)
-	if file != nil {
-		for _, r := range file.Rules {
-			if r.Kind() == plainKind {
-				owned[r.Name()] = true
-			}
-		}
-	}
-	for _, r := range other {
-		if r.Kind() == plainKind {
-			owned[r.Name()] = true
-		}
-	}
-	return owned
+	return common.CheckClaims(file, other, filled, nil)
 }
 
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	return common.MergeStale(file, result, pythonKinds)
+	return common.MergeStaleOwned(file, result, pythonKinds, func(r *rule.Rule) bool {
+		return r.Kind() != testKind || r.AttrString("runner") == ""
+	})
 }

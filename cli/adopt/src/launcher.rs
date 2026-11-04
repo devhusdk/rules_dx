@@ -274,7 +274,9 @@ if [ "$os" = windows ]; then
 fi
 dir="$cache/bin/$VERSION"
 bin="$dir/dx-$os-$arch$exe"
-if [ -x "$bin" ]; then
+noexec="cannot execute $bin; is $cache on a noexec mount? set DX_CACHE_DIR to an executable directory"
+if [ -f "$bin" ]; then
+  [ -x "$bin" ] || fail "$noexec"
   exec "$bin" "$@"
 fi
 cr=$(printf '\r')
@@ -317,6 +319,7 @@ chmod +x "$tmp"
 if ! mv "$tmp" "$bin" && [ -x "$bin" ]; then
   rm -f "$tmp"
 fi
+[ -x "$bin" ] || fail "$noexec"
 exec "$bin" "$@"
 "##;
 
@@ -1258,6 +1261,35 @@ mod tests {
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.downloads(), 1, "cached run must not download");
+        }
+
+        #[test]
+        fn a_cached_binary_that_cannot_run_fails_without_a_download() {
+            let fx = Fixture::new("dx-launcher-noexec-", false, None);
+            let dir = fx.base.join("home/.cache/dx/bin/1.2.3");
+            std::fs::create_dir_all(&dir).expect("cache dir");
+            let bin = dir.join("dx-linux-x86_64");
+            std::fs::write(&bin, PAYLOAD).expect("cached");
+            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o644)).expect("chmod");
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(out.is_empty(), "{out}");
+            assert!(err.contains("noexec mount"), "{err}");
+            assert!(err.contains("DX_CACHE_DIR"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- status"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn a_download_that_cannot_run_is_not_fetched_again() {
+            let fx = Fixture::new("dx-launcher-noexec-mv-", true, None);
+            fx.stub("mv", "#!/bin/sh\ncp \"$1\" \"$2\"\nchmod 644 \"$2\"\n");
+            for _ in 0..2 {
+                let (code, out, err) = fx.run(&["status"]);
+                assert_eq!(code, Some(1), "{out}{err}");
+                assert!(err.contains("noexec mount"), "{err}");
+            }
+            assert_eq!(fx.downloads(), 1);
         }
 
         #[test]

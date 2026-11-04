@@ -571,3 +571,22 @@ fn an_interrupted_replace_never_pairs_a_new_snapshot_with_an_old_identity() {
         "new"
     );
 }
+
+#[test]
+fn an_old_staging_file_from_an_interrupted_install_is_removed() {
+    let (root, options) = bundle_with_launcher("dx-bootstrap-stale-", b"launcher");
+    let bin = root.join("bin");
+    std::fs::create_dir_all(&bin).expect("bin dir");
+    let stale = bin.join(".bazel.abc.tmp");
+    std::fs::write(&stale, b"partial").expect("stale file");
+    let long_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 60 * 60);
+    std::fs::File::options()
+        .write(true)
+        .open(&stale)
+        .expect("open stale")
+        .set_modified(long_ago)
+        .expect("age stale");
+    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    assert!(!stale.exists());
+    assert!(bin.join("bazel").exists());
+}

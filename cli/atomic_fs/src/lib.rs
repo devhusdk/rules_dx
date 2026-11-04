@@ -68,6 +68,36 @@ pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
         && name.ends_with(STAGING_SUFFIX)
 }
 
+const STALE_STAGING_AGE: Duration = Duration::from_secs(60 * 60);
+
+/// Removes staging files next to target that an interrupted write left behind.
+/// Files younger than an hour are kept since another process may still be writing them.
+pub fn remove_stale_staging(target: &Path) {
+    let Some(parent) = target
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    else {
+        return;
+    };
+    let Ok(entries) = std::fs::read_dir(parent) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !is_staging_sibling(target, &path) {
+            continue;
+        }
+        let age = entry
+            .metadata()
+            .and_then(|metadata| metadata.modified())
+            .ok()
+            .and_then(|modified| modified.elapsed().ok());
+        if age.is_some_and(|age| age >= STALE_STAGING_AGE) {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
+
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     use std::io::Write as _;
     let mut staging = staging_for(path)?;
@@ -480,6 +510,35 @@ mod tests {
             .expect_err("missing source");
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(names_in(&out).is_empty());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn remove_stale_staging_keeps_fresh_and_unrelated_files() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-stale-");
+        let dir = scratch.path();
+        let target = dir.join("bazel");
+        let old = dir.join(".bazel.abc.tmp");
+        for name in [
+            ".bazel.abc.tmp",
+            ".bazel.fresh.tmp",
+            ".other.abc.tmp",
+            ".bashrc",
+        ] {
+            std::fs::write(dir.join(name), b"x").expect("write");
+        }
+        let long_ago = std::time::SystemTime::now() - Duration::from_secs(2 * 60 * 60);
+        File::options()
+            .write(true)
+            .open(&old)
+            .expect("open old")
+            .set_modified(long_ago)
+            .expect("age old");
+        remove_stale_staging(&target);
+        assert_eq!(
+            names_in(dir),
+            [".bashrc", ".bazel.fresh.tmp", ".other.abc.tmp"]
+        );
         scratch.close().expect("cleanup");
     }
 

@@ -439,6 +439,7 @@ fn install(source: &Path, install_dir: &str, asset: &str, want: &str) -> Result<
 }
 
 fn copy(source: &Path, target: &Path) -> Result<(), String> {
+    dx_atomic_fs::remove_stale_staging(target);
     dx_atomic_fs::copy_atomic(source, target).map_err(|error| {
         format!(
             "cannot copy {} to {}: {error}",

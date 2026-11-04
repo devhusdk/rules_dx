@@ -86,6 +86,7 @@ fn init_in_an_empty_dir() {
     ] {
         assert!(root.join(file).is_file(), "missing {file}");
     }
+    assert!(!root.join("dx.toml").exists(), "init wrote dx.toml");
     let check = dx(&root, &home, &["init"]);
     assert_eq!(check.code, 0, "{}", check.stderr);
     let before = snapshot(&root);
@@ -101,6 +102,7 @@ fn init_in_an_existing_module() {
     write(&root.join("BUILD.bazel"), "");
     init(&root, &home);
     assert_eq!(read(&root.join("MODULE.bazel")), module);
+    assert!(!root.join("dx.toml").exists(), "init wrote dx.toml");
     let check = dx(&root, &home, &["init"]);
     assert_eq!(check.code, 0, "{}", check.stderr);
 }

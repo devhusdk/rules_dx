@@ -9,6 +9,15 @@ fn update_without_dependency_sets_reports_none() {
 }
 
 #[test]
+fn update_ignores_a_stray_dx_toml() {
+    let harness = Harness::new("update-stray-dx-toml");
+    harness.write_source("dx.toml", "[[dependency_set]]\nname = \"x\"\nnot toml {{");
+    let (code, _, err) = harness.run(&["update"]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("no dependency sets"), "{err}");
+}
+
+#[test]
 fn backend_error_codes_match_the_shared_constants() {
     use crate::exec::common::{
         CODE_BACKEND_UNAVAILABLE, CODE_FROZEN_LOCKED, CODE_OFFLINE_REQUIRED,

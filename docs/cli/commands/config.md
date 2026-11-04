@@ -2,8 +2,8 @@
 
 dx reads two files from the workspace root: `security.toml` for `dx security`
 and `licenses.toml` for `dx license`. Both are optional. An unknown key fails
-the run. dx has no `dx.toml`; its defaults come from flags and `DX_` variables
-(see [Command Reference](README.md)).
+the run. Defaults come from flags and `DX_` variables (see
+[Command Reference](README.md)).
 
 In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
 `versions` uses the range syntax of the `set` ecosystem.

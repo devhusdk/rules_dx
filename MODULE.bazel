@@ -1869,13 +1869,13 @@ windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl",
 use_repo(windows_msvc_runtime, "msvc_runtime")
 
 windows_msvc_runtime_dev = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime", dev_dependency = True)
-windows_msvc_runtime_dev.host_tools(hosts = ["x64"])
+windows_msvc_runtime_dev.host_tools(hosts = ["x64", "arm64"])
 
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
 
 windows_sdk_dev = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk", dev_dependency = True)
-windows_sdk_dev.host_tools(hosts = ["x64"])
+windows_sdk_dev.host_tools(hosts = ["x64", "arm64"])
 
 msvc = use_extension("//cc/toolchains/msvc:repos.bzl", "msvc")
 use_repo(msvc, "dx_msvc")

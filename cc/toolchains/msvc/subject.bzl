@@ -80,6 +80,9 @@ def _msvc_toolchain_subject_impl(ctx):
     )
     fields["dll_link.has_dll_flag"] = str("/DLL" in dll_line)
     fields["cc.compiler"] = cc_toolchain.compiler
+    fields["cc.cpu"] = cc_toolchain.cpu
+    fields["cc.target_system"] = cc_toolchain.target_gnu_system_name
+    fields["flags.machine"] = " ".join([f for f in dll_line if f.startswith("/MACHINE:")])
     fields["cc.family"] = cc_compiler_identity(cc_toolchain.compiler, "").family
     return [
         DefaultInfo(files = depset([])),

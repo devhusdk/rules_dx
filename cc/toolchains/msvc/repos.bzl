@@ -2,7 +2,7 @@
 
 load("//libs/starlark:license.bzl", "accepted", "license_tag", "unaccepted")
 load("//libs/starlark:repo.bzl", "hub_repo")
-load(":layout.bzl", "msvc_layout")
+load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
 
 HUB_NAME = "dx_msvc"
 LICENSE = "visual-studio-build-tools"
@@ -24,23 +24,49 @@ def layout_links(msvc_version, sdk_version):
     return [
         struct(dst = "VC/Tools/MSVC/" + msvc_version, repo = "msvc_runtime", src = "sysroot/Contents/VC/Tools/MSVC/" + msvc_version),
         struct(dst = sdk + "Include/" + sdk_version, repo = "windows_sdk", src = "sysroot/base/c/Include/" + sdk_version),
-        struct(dst = sdk + "bin/" + sdk_version + "/x64", repo = "windows_sdk", src = "sysroot/base/c/bin/" + sdk_version + "/x64"),
-        struct(dst = sdk + "Lib/" + sdk_version + "/ucrt/x64", repo = "windows_sdk", src = "sysroot/x64/c/ucrt/x64"),
-        struct(dst = sdk + "Lib/" + sdk_version + "/um/x64", repo = "windows_sdk", src = "sysroot/x64/c/um/x64"),
+    ] + [
+        link
+        for arch in ["x64", "arm64"]
+        for link in [
+            struct(dst = sdk + "bin/" + sdk_version + "/" + arch, repo = "windows_sdk", src = "sysroot/base/c/bin/" + sdk_version + "/" + arch),
+            struct(dst = sdk + "Lib/" + sdk_version + "/ucrt/" + arch, repo = "windows_sdk", src = "sysroot/{}/c/ucrt/{}".format(arch, arch)),
+            struct(dst = sdk + "Lib/" + sdk_version + "/um/" + arch, repo = "windows_sdk", src = "sysroot/{}/c/um/{}".format(arch, arch)),
+        ]
     ]
 
 def missing_error(paths):
     """Returns the error for tools missing from the assembled layout."""
     return "dx_msvc: incomplete MSVC payload; missing " + ", ".join(paths)
 
-def hub_build(accepted, msvc_version, sdk_version):
-    """Returns the BUILD text of the layout repository."""
+def cell_name(host, target):
+    """Returns the hub target name for a host and target architecture."""
+    return "cc_toolchain_{}_{}".format(host, target)
+
+def hub_build(accepted, msvc_version, sdk_version, unavailable = {}):
+    """Returns the BUILD text of the layout repository.
+
+    Args:
+        accepted: Whether the license is accepted.
+        msvc_version: MSVC toolset version directory.
+        sdk_version: Windows SDK version directory.
+        unavailable: Map of cell target name to the error for cells whose tools are missing.
+
+    Returns:
+        The BUILD file text with one target per supported (host, target) cell.
+    """
     text = 'package(default_visibility = ["//visibility:public"])\n\n'
     if accepted:
-        text = 'load("{}", "msvc_cc_toolchain")\n\n'.format(str(Label(":toolchain.bzl"))) + text
-        return text + 'msvc_cc_toolchain(\n    name = "cc_toolchain",\n    msvc_version = "{}",\n    sdk_version = "{}",\n)\n'.format(msvc_version, sdk_version)
-    text = 'load("{}", "msvc_unavailable")\n\n'.format(str(Label(":unavailable.bzl"))) + text
-    return text + 'msvc_unavailable(\n    name = "cc_toolchain",\n    error = {},\n)\n'.format(json.encode(UNACCEPTED))
+        text = 'load("{}", "msvc_cc_toolchain")\nload("{}", "msvc_unavailable")\n\n'.format(str(Label(":toolchain.bzl")), str(Label(":unavailable.bzl"))) + text
+    else:
+        text = 'load("{}", "msvc_unavailable")\n\n'.format(str(Label(":unavailable.bzl"))) + text
+    for host, target in SUPPORTED_CELLS:
+        name = cell_name(host, target)
+        error = unavailable.get(name) or (None if accepted else UNACCEPTED)
+        if error:
+            text += 'msvc_unavailable(\n    name = "{}",\n    error = {},\n)\n\n'.format(name, json.encode(error))
+        else:
+            text += 'msvc_cc_toolchain(\n    name = "{}",\n    msvc_version = "{}",\n    sdk_version = "{}",\n    exec_cpu = "{}",\n    target_cpu = "{}",\n)\n\n'.format(name, msvc_version, sdk_version, host, target)
+    return text.rstrip("\n") + "\n"
 
 def _only_child(rctx, root):
     names = [p.basename for p in root.readdir()]
@@ -55,14 +81,18 @@ def _layout_repo_impl(rctx):
     msvc_version = _only_child(rctx, vc_root.get_child("sysroot/Contents/VC/Tools/MSVC"))
     sdk_version = _only_child(rctx, sdk_root.get_child("sysroot/base/c/Include"))
     for link in layout_links(msvc_version, sdk_version):
-        rctx.symlink(roots[link.repo].get_child(link.src), link.dst)
-    layout = msvc_layout(msvc_version, sdk_version)
-    missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml64] if not rctx.path(p).exists]
-    if missing:
-        fail(missing_error(missing))
+        source = roots[link.repo].get_child(link.src)
+        if source.exists:
+            rctx.symlink(source, link.dst)
+    unavailable = {}
+    for host, target in SUPPORTED_CELLS:
+        layout = msvc_layout(msvc_version, sdk_version, host, target)
+        missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml] if p and not rctx.path(p).exists]
+        if missing:
+            unavailable[cell_name(host, target)] = missing_error(missing)
     rctx.file("NOTICE", "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, msvc_version, sdk_version))
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version))
+    rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable))
     return rctx.repo_metadata(reproducible = True)
 
 _layout_repo = repository_rule(

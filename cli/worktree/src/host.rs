@@ -95,15 +95,85 @@ fn normalize(path: &Path) -> String {
 }
 
 fn flag_value(args: &str, flag: &str) -> Option<PathBuf> {
+    if cfg!(windows) {
+        windows_flag_value(args, flag)
+    } else {
+        ps_flag_value(args, flag)
+    }
+}
+
+/// Reads a flag from a Windows command line, where quoted arguments may hold spaces.
+fn windows_flag_value(line: &str, flag: &str) -> Option<PathBuf> {
+    let key = format!("{flag}=");
+    let value = windows_args(line)
+        .into_iter()
+        .find_map(|arg| arg.strip_prefix(&key).map(str::to_owned))?;
+    non_empty_path(&value)
+}
+
+/// Reads a flag from `ps` output, which has no quoting. A value ends at the next ` --`.
+fn ps_flag_value(args: &str, flag: &str) -> Option<PathBuf> {
     let start = args.find(&format!(" {flag}="))? + flag.len() + 2;
     let rest = &args[start..];
     let end = rest.find(" --").unwrap_or(rest.len());
-    let value = rest[..end].trim();
+    non_empty_path(&rest[..end])
+}
+
+fn non_empty_path(value: &str) -> Option<PathBuf> {
+    let value = value.trim();
     if value.is_empty() {
         None
     } else {
         Some(PathBuf::from(value))
     }
+}
+
+/// Splits a Windows command line into arguments with the C runtime quoting rules.
+fn windows_args(line: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut arg = String::new();
+    let mut in_arg = false;
+    let mut quoted = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                let mut count = 1;
+                while chars.next_if_eq(&'\\').is_some() {
+                    count += 1;
+                }
+                in_arg = true;
+                if chars.next_if_eq(&'"').is_some() {
+                    arg.extend(std::iter::repeat_n('\\', count / 2));
+                    if count % 2 == 1 {
+                        arg.push('"');
+                    } else {
+                        quoted = !quoted;
+                    }
+                } else {
+                    arg.extend(std::iter::repeat_n('\\', count));
+                }
+            }
+            '"' => {
+                quoted = !quoted;
+                in_arg = true;
+            }
+            ' ' | '\t' if !quoted => {
+                if in_arg {
+                    args.push(std::mem::take(&mut arg));
+                    in_arg = false;
+                }
+            }
+            _ => {
+                arg.push(c);
+                in_arg = true;
+            }
+        }
+    }
+    if in_arg {
+        args.push(arg);
+    }
+    args
 }
 
 /// Builds a server from one process, or `None` when it is not a Bazel server.
@@ -718,6 +788,39 @@ mod tests {
         assert_eq!(server.workspace, Some(PathBuf::from(r"C:\w")));
         assert_eq!(server.output_base, Some(PathBuf::from(r"C:\x")));
         assert!(server_from(9, 5, r"C:\other.exe").is_none());
+    }
+
+    #[test]
+    fn windows_command_lines_keep_quoted_paths_with_spaces() {
+        let line = r#"C:\jdk\bin\java.exe -jar C:\i\A-server.jar "--output_base=C:\Users\John Smith\base" --workspace_directory="C:\my repo\w" --output_user_root=C:\root"#;
+        assert_eq!(
+            windows_flag_value(line, "--output_base"),
+            Some(PathBuf::from(r"C:\Users\John Smith\base"))
+        );
+        assert_eq!(
+            windows_flag_value(line, "--workspace_directory"),
+            Some(PathBuf::from(r"C:\my repo\w"))
+        );
+        assert_eq!(
+            windows_flag_value(line, "--output_user_root"),
+            Some(PathBuf::from(r"C:\root"))
+        );
+        assert_eq!(windows_flag_value(line, "--missing"), None);
+    }
+
+    #[test]
+    fn windows_args_follow_the_c_runtime_quoting_rules() {
+        assert_eq!(
+            windows_args(r#""C:\Program Files\java.exe" -a "b c" d\"e "f\\" g\\\"h"#),
+            vec![
+                r"C:\Program Files\java.exe",
+                "-a",
+                "b c",
+                "d\"e",
+                r"f\",
+                "g\\\"h",
+            ]
+        );
     }
 
     #[test]

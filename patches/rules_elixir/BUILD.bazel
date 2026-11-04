@@ -3,6 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "hermetic_elixir.patch",
     "toolchain_type_alias.patch",
+    "windows_ex_unit_test.patch",
 ])
 
 real_source_target(

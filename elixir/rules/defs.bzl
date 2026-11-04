@@ -8,6 +8,7 @@ load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:defs.bzl", _escript_archive = "escript_archive")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
+load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -20,6 +21,11 @@ ErlangAppInfo = _ErlangAppInfo
 ELIXIR_CELLS = _ELIXIR_CELLS
 
 ELIXIR_COMPATIBLE_WITH = otp_compatible_with(ELIXIR_CELLS)
+
+# mix_format and credo do not run on Windows yet.
+ELIXIR_TOOL_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_CELLS if not cell.startswith("windows_")])
+
+ELIXIR_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_CELLS if cell not in OTP_DIALYZER_UNPORTED_CELLS])
 
 ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]
 
@@ -37,7 +43,7 @@ _EXTS = [".ex", ".exs"]
 
 def _beam_info(ctx, upstream):
     nifs = [nif[ErlangNifInfo] for nif in ctx.attr.nifs]
-    plts = [dep[DialyzerPltInfo].plt for dep in ctx.attr._dialyzer_plts]
+    plts = [dep[DialyzerPltInfo].plt for dep in ctx.attr._dialyzer_plts if DialyzerPltInfo in dep]
     code = [f for dep in ctx.attr._dialyzer_code for f in dep[DefaultInfo].files.to_list()]
     return [ErlangNifInfo(
         libraries = depset(transitive = [nif.libraries for nif in nifs]),
@@ -52,13 +58,12 @@ _elixir_app_forward = dx_library_forward_rule(
             providers = [ErlangNifInfo],
         ),
         "_dialyzer_code": attr.label_list(
-            default = ["//elixir/tools:dialyzer_code"],
+            default = ["//elixir/tools:dialyzer_code_if_ported"],
             doc = "The Elixir compiler beams dialyzer loads to read the debug info of Elixir beams.",
         ),
         "_dialyzer_plts": attr.label_list(
-            default = ["//elixir/tools:elixir_plt"],
-            providers = [DialyzerPltInfo],
-            doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against.",
+            default = ["//elixir/tools:elixir_plt_if_ported"],
+            doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against; empty where dialyzer is not ported.",
         ),
     },
     provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],

@@ -4,9 +4,17 @@ load("//elixir/tools:launcher.bzl", "MIX_FORMAT_ENV", "launcher_preamble")
 load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
 load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
-load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_script", "hub_build")
+load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build")
+
+_BAT_SOURCE = """if x (
+  echo "%ERTS_BIN%erl.exe" %ELIXIR_ERL_OPTIONS% %*
+) else (
+  "%ERTS_BIN%erl.exe" %ELIXIR_ERL_OPTIONS% %*
+)
+"""
 
 _SOURCE = """#!/bin/sh
+if [ "$OSTYPE" = "cygwin" ]; then SCRIPT_PATH=$(cygpath -m "$SCRIPT_PATH"); fi
 set -- "$ERTS_BIN$ERL_EXEC" -noshell -pa "$SCRIPT_PATH"/../lib/elixir/ebin $ELIXIR_ERL_OPTIONS $ERL "$@"
 """
 
@@ -40,13 +48,15 @@ def _checks():
         expect_equal("rules_elixir digest", len(RULES_ELIXIR_SHA256), 64),
         expect_contains("rules_elixir url names the commit", RULES_ELIXIR_URL, RULES_ELIXIR_COMMIT),
         expect_contains("launcher forces Unicode names and stdio", script, "+fnu -kernel standard_io_encoding unicode $ELIXIR_ERL_OPTIONS $ERL"),
-        expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
+        expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),
         expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
         expect_false("the hub names no rules_elixir target", "@rules_elixir" in hub),
         expect_contains("the hub names the rules_dx type", hub, "//elixir/toolchain/type:toolchain_type"),
         expect_false("launcher keeps no bare options", "-ebin $ELIXIR_ERL_OPTIONS" in script),
-        expect_equal("windows launchers are dropped", [path for path in DROPPED_PATHS if path.endswith(".bat") or path.endswith(".ps1")], ["bin/elixir.bat", "bin/elixirc.bat", "bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]),
+        expect_equal("only the elixir windows launcher is kept", [path for path in DROPPED_PATHS if path.endswith(".bat") or path.endswith(".ps1")], ["bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]),
+        expect_contains("windows launcher forces Unicode names and stdio", elixir_bat(_BAT_SOURCE), '"%ERTS_BIN%erl.exe" +fnu -kernel standard_io_encoding unicode %ELIXIR_ERL_OPTIONS%'),
+        expect_contains("launcher converts the script path on msys", script, '[ "$OSTYPE" = "msys" ]; then SCRIPT_PATH'),
     ] + _credo_checks()
 
 def elixir_metadata_tests(name):

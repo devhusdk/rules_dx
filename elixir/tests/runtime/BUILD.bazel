@@ -15,7 +15,10 @@ erlang_beam_info_test(
     name = "beam_info_test",
     app_name = "dx_runtime_probe",
     owned = ["ebin"],
-    plts = ["elixir_plt.plt"],
+    plts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["elixir_plt.plt"],
+    }),
     target = ":erlang_app",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )

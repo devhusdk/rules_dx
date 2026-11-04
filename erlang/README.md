@@ -137,8 +137,7 @@ The `wx` application, sources and docs are dropped on every cell.
 | `windows_x86_64` | Qualified | Tools and escripts run through the native launcher. Dialyzer is pending in #6008. |
 | `windows_arm64` | Qualified | x64 OTP under emulation; NIFs and dialyzer pending in #6321. |
 
-Elixir targets still run only on `linux_x86_64`. On other platforms
-Erlang and Elixir targets are skipped.
+On other platforms Erlang and Elixir targets are skipped.
 
 ## Generating targets
 

@@ -20,7 +20,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | CUDA | `linux_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet; `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS |
 | D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
-| Elixir | `windows_x86_64`, `windows_arm64`: not tested yet |
+| Elixir | none |
 | Erlang | none |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
 | F# | none |

@@ -26,9 +26,11 @@ CREDO_NAME = "dx_credo"
 
 VERSION_FILE = "DX_ELIXIR_VERSION"
 
-DROPPED_PATHS = ["man", "Makefile", "bin/elixir.bat", "bin/elixirc.bat", "bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]
+DROPPED_PATHS = ["man", "Makefile", "bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]
 
 ERL_OPTIONS_MARKER = "$ELIXIR_ERL_OPTIONS $ERL"
+
+SCRIPT_PATH_CYGWIN = 'if [ "$OSTYPE" = "cygwin" ]; then SCRIPT_PATH'
 
 UNICODE_ERL_OPTIONS = "+fnu -kernel standard_io_encoding unicode "
 
@@ -36,7 +38,18 @@ def elixir_script(source):
     """Returns the elixir launcher with Unicode file names and stdio whatever the locale."""
     if source.count(ERL_OPTIONS_MARKER) != 1:
         fail("bin/elixir no longer passes ELIXIR_ERL_OPTIONS once")
-    return source.replace(ERL_OPTIONS_MARKER, UNICODE_ERL_OPTIONS + ERL_OPTIONS_MARKER)
+    source = source.replace(ERL_OPTIONS_MARKER, UNICODE_ERL_OPTIONS + ERL_OPTIONS_MARKER)
+    if SCRIPT_PATH_CYGWIN not in source:
+        fail("bin/elixir no longer converts SCRIPT_PATH on cygwin")
+    return source.replace(SCRIPT_PATH_CYGWIN, SCRIPT_PATH_CYGWIN.replace('= "cygwin" ]', '= "cygwin" ] || [ "$OSTYPE" = "msys" ]'))
+
+BAT_ERL_OPTIONS_MARKER = '  "%ERTS_BIN%erl.exe" %ELIXIR_ERL_OPTIONS%'
+
+def elixir_bat(source):
+    """Returns the Windows elixir launcher with Unicode file names and stdio whatever the code page."""
+    if source.count(BAT_ERL_OPTIONS_MARKER) != 1:
+        fail("bin/elixir.bat no longer passes ELIXIR_ERL_OPTIONS once")
+    return source.replace(BAT_ERL_OPTIONS_MARKER, '  "%ERTS_BIN%erl.exe" ' + UNICODE_ERL_OPTIONS.strip() + " %ELIXIR_ERL_OPTIONS%")
 
 _DIST_BUILD = """load("@rules_dx//elixir/toolchain:elixir.bzl", "dx_elixir")
 load("@rules_elixir//:elixir_toolchain.bzl", "elixir_toolchain")
@@ -153,6 +166,7 @@ def _dist_impl(rctx):
     for path in DROPPED_PATHS:
         rctx.delete(path)
     rctx.file("bin/elixir", elixir_script(rctx.read("bin/elixir")), executable = True)
+    rctx.file("bin/elixir.bat", elixir_bat(rctx.read("bin/elixir.bat")), executable = True)
     rctx.file(VERSION_FILE, ELIXIR_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _DIST_BUILD.format(version_file = VERSION_FILE, dialyzer_beams = "".join([_DIALYZER_BEAMS.format(app = app) for app in DIALYZER_PLT_ELIXIR])))
@@ -179,6 +193,7 @@ def _elixir_impl(mctx):
         patches = [
             Label("//patches/rules_elixir:hermetic_elixir.patch"),
             Label("//patches/rules_elixir:toolchain_type_alias.patch"),
+            Label("//patches/rules_elixir:windows_ex_unit_test.patch"),
         ],
         sha256 = RULES_ELIXIR_SHA256,
         strip_prefix = "rules_elixir-" + RULES_ELIXIR_COMMIT,

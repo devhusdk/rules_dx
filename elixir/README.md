@@ -167,10 +167,10 @@ See `docs/cli/commands/quality.md`.
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
-| `macos_x86_64` | Not qualified |
-| `macos_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
+| `linux_arm64` | Qualified |
+| `macos_arm64` | Qualified |
+| `windows_x86_64` | Pending CI. No `mix_format`, `credo` or dialyzer yet. |
+| `windows_arm64` | Pending CI. No `mix_format`, `credo` or dialyzer yet. |
 
 On other platforms Elixir targets fail toolchain resolution.
 

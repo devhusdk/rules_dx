@@ -1,0 +1,89 @@
+diff --git a/private/ex_unit_test.bzl b/private/ex_unit_test.bzl
+index 45f0597..71c7a02 100644
+--- a/private/ex_unit_test.bzl
++++ b/private/ex_unit_test.bzl
+@@ -24,6 +24,16 @@ def _package_relative_path(ctx, p):
+         return p
+     return p.removeprefix(ctx.label.package + "/")
+ 
++def _windows_dir(path):
++    return path.replace("/", "\\")
++
++def _runfiles_dir(short_path, workspace_name):
++    """Returns the runfiles-relative directory holding a file, without a leading `../`."""
++    directory = short_path.rpartition("/")[0]
++    if directory.startswith("../"):
++        return directory.removeprefix("../")
++    return workspace_name + "/" + directory
++
+ def _impl(ctx):
+     # TEST_TMPDIR, not TEST_UNDECLARED_OUTPUTS_DIR.
+     #
+@@ -147,10 +157,64 @@ rm test.log
+             ]),
+         )
+     else:
+-        fail("not implemented")
++        env = "\n".join([
++            "set {}={}".format(k, v)
++            for k, v in ctx.attr.env.items()
++        ])
+         output = ctx.actions.declare_file(ctx.label.name + ".bat")
+-        script = """
+-"""
++        otp_info = ctx.toolchains["//:toolchain_type"].otpinfo
++        copy_srcs_and_data_commands = [
++            'if not exist "%TEST_TMPDIR%\\{dir}" mkdir "%TEST_TMPDIR%\\{dir}"\r\ncopy /y "{src}" "%TEST_TMPDIR%\\{dst}" >nul'.format(
++                dir = _windows_dir(s.path.rpartition("/")[0]),
++                src = _windows_dir(s.path),
++                dst = _windows_dir(s.path),
++            )
++            for s in ctx.files.srcs + ctx.files.data
++        ]
++        script = """@echo off
++setlocal
++set ERL_LIBS=%TEST_SRCDIR%/%TEST_WORKSPACE%/{erl_libs_path}
++set ERL_LIBS=%ERL_LIBS:/=\\%
++set OTP_HOME=%TEST_SRCDIR%/{otp_home}
++set OTP_HOME=%OTP_HOME:/=\\%
++set ELIXIR_HOME=%TEST_SRCDIR%/{elixir_home}
++set ELIXIR_HOME=%ELIXIR_HOME:/=\\%
++set PATH=%ELIXIR_HOME%\\bin;%OTP_HOME%\\bin;%PATH%
++
++{env}
++
++{copy_srcs_and_data_commands}
++
++cd /d "%TEST_TMPDIR%\\{package}"
++set HOME=%CD%
++
++{setup}
++call "%ELIXIR_HOME%\\bin\\elixir.bat" {elixir_opts} {srcs_args} > test.log 2>&1
++set STATUS=%ERRORLEVEL%
++type test.log
++if not "%STATUS%"=="0" exit /b %STATUS%
++findstr /c:"excluded" test.log >nul && goto :done
++findstr /r /c:"Result: 0 tests" /c:"[^0-9]0 tests," /c:"^0 tests," test.log >nul
++if not errorlevel 1 (
++    echo ex_unit_test: the suite executed no tests, and excluded none 1>&2
++    exit /b 1
++)
++:done
++del test.log
++""".format(
++            otp_home = _runfiles_dir(otp_info.version_file.short_path, ctx.workspace_name),
++            elixir_home = _runfiles_dir(elixir_home + "/x", ctx.workspace_name),
++            erl_libs_path = erl_libs_path,
++            package = _windows_dir(package),
++            env = env,
++            setup = ctx.attr.setup,
++            elixir_opts = " ".join(ctx.attr.elixir_opts),
++            srcs_args = " ".join([
++                "-r {}".format(_windows_dir(_package_relative_path(ctx, s.path)))
++                for s in ctx.files.srcs
++            ]),
++            copy_srcs_and_data_commands = "\r\n".join(copy_srcs_and_data_commands),
++        ).replace("\r\n", "\n").replace("\n", "\r\n")
+ 
+     ctx.actions.write(
+         output = output,

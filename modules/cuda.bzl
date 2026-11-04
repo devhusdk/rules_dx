@@ -122,6 +122,57 @@ _WINDOWS_X86_64_COMPONENTS = {
     ),
 }
 
+_WINDOWS_ARM64_COMPONENTS = {
+    "cccl": struct(
+        version = "13.3.4.3.1",
+        url = _REDIST + "cccl/windows-arm64/cccl-windows-arm64-13.3.4.3.1-archive.zip",
+        sha256 = "e298fc4546a889a4d8329657eac567d93a082c0480d7c9b23690d28d8753d21d",
+        strip_prefix = "cccl-windows-arm64-13.3.4.3.1-archive",
+    ),
+    "crt": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_crt/windows-arm64/cuda_crt-windows-arm64-13.4.92-archive.zip",
+        sha256 = "3fa09349f4af5a39ffb806ce48db9c406f81fcd3366e066fdca6eba97927764a",
+        strip_prefix = "cuda_crt-windows-arm64-13.4.92-archive",
+    ),
+    "cublas": struct(
+        version = "13.8.0.4",
+        url = _REDIST + "libcublas/windows-arm64/libcublas-windows-arm64-13.8.0.4-archive.zip",
+        sha256 = "ec79698528f64361a370d1b0254a927e369b57525831fadcb2cdb7732d8ab621",
+        strip_prefix = "libcublas-windows-arm64-13.8.0.4-archive",
+    ),
+    "cudart": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_cudart/windows-arm64/cuda_cudart-windows-arm64-13.4.92-archive.zip",
+        sha256 = "d3cec2717ba3c2c714c5869a5374365d087c698d87c0ddd3bd41715447112891",
+        strip_prefix = "cuda_cudart-windows-arm64-13.4.92-archive",
+    ),
+    "cufft": struct(
+        version = "12.4.0.43",
+        url = _REDIST + "libcufft/windows-arm64/libcufft-windows-arm64-12.4.0.43-archive.zip",
+        sha256 = "44e86a7ebcfc2e26dde3156a62d59b944e80ca0fbdbb13f9c92825c92c810091",
+        strip_prefix = "libcufft-windows-arm64-12.4.0.43-archive",
+    ),
+    "curand": struct(
+        version = "10.4.4.72",
+        url = _REDIST + "libcurand/windows-arm64/libcurand-windows-arm64-10.4.4.72-archive.zip",
+        sha256 = "14bb95c3173140fecb49919b4d568abff1d245a54e60a5ebf6814c72bbe16831",
+        strip_prefix = "libcurand-windows-arm64-10.4.4.72-archive",
+    ),
+    "nvcc": struct(
+        version = "13.4.92",
+        url = _REDIST + "cuda_nvcc/windows-arm64/cuda_nvcc-windows-arm64-13.4.92-archive.zip",
+        sha256 = "8ca6e46052dba9e1a3e72d071ce83079e7edf70020f94eac54de55689b0d2141",
+        strip_prefix = "cuda_nvcc-windows-arm64-13.4.92-archive",
+    ),
+    "nvvm": struct(
+        version = "13.4.92",
+        url = _REDIST + "libnvvm/windows-arm64/libnvvm-windows-arm64-13.4.92-archive.zip",
+        sha256 = "3bd0c42bca5f16a6055b32a10535e48c23e8701eb9c9fbb7e6eff655841cfe9d",
+        strip_prefix = "libnvvm-windows-arm64-13.4.92-archive",
+    ),
+}
+
 _LINUX_ARM64_COMPONENTS = {
     "cccl": struct(
         version = "13.3.4.3.1",
@@ -195,6 +246,13 @@ CUDA_CELLS = {
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         components = _LINUX_ARM64_COMPONENTS,
+    ),
+    "windows_arm64": struct(
+        rules_cuda_platform = "windows-arm64",
+        blocker = "rules_cuda 0.4.0-beta1 has no windows-arm64 platform and pins nvcc_msvc to x86_64 (#5969); needs an MSVC ARM64 cl.exe toolchain (#4822)",
+        redist = CUDA_VERSION,
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64"],
+        components = _WINDOWS_ARM64_COMPONENTS,
     ),
 }
 

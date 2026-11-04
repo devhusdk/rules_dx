@@ -44,7 +44,7 @@ dx_wrapper_contract_tests(
         expect_equal(
             "cuda cells",
             sorted(CUDA_CELLS.keys()),
-            ["linux_arm64", "linux_x86_64", "windows_x86_64"],
+            ["linux_arm64", "linux_x86_64", "windows_arm64", "windows_x86_64"],
         ),
         expect_equal(
             "only linux x86_64 is qualified",
@@ -90,6 +90,26 @@ dx_wrapper_contract_tests(
         expect_true(
             "windows sha256 values are 64 characters",
             all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_x86_64"].components.values()]),
+        ),
+        expect_true(
+            "windows arm64 is blocked",
+            len(CUDA_CELLS["windows_arm64"].blocker) > 0,
+        ),
+        expect_equal(
+            "windows arm64 pins the linux x86_64 component versions",
+            {k: c.version for k, c in CUDA_CELLS["windows_arm64"].components.items()},
+            {k: c.version for k, c in CUDA_CELLS["linux_x86_64"].components.items()},
+        ),
+        expect_true(
+            "windows arm64 archives are zips from the windows-arm64 redist",
+            all([
+                "/windows-arm64/" in c.url and c.url.endswith(".zip")
+                for c in CUDA_CELLS["windows_arm64"].components.values()
+            ]),
+        ),
+        expect_true(
+            "windows arm64 sha256 values are 64 characters",
+            all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_arm64"].components.values()]),
         ),
         expect_true("CUDA_TARGET is a select", type(CUDA_TARGET) == "select"),
         expect_true("no extra is a select", type(cuda_target_compatible_with(None)) == "select"),

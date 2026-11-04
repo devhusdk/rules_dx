@@ -201,7 +201,8 @@ so `bazel build //...` skips them.
 Windows x86_64 archives (CUDA 13.4.2 redist) are pinned in `modules/cuda.bzl`
 but blocked until nvcc has an MSVC host compiler (#4815) and a Windows run
 (#4704). Linux arm64 (sbsa) 13.4.2 archives are pinned but blocked on
-per-platform rules_cuda wiring (#5975). Windows arm64 is blocked on the rules_cuda platform list (#5969).
+per-platform rules_cuda wiring (#5975). Windows arm64 13.4.2 archives are pinned but blocked on
+rules_cuda platform support (#5969) and an MSVC ARM64 host compiler (#4822).
 
 ## Errors
 

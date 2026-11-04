@@ -75,14 +75,10 @@ fn the_launchers_download_the_names_the_workflow_uploads() {
         launcher.contains("releases/download/v%VERSION%/dx-windows-%ARCH%\""),
         "{LAUNCHER} cmd URL scheme changed"
     );
-    for asset in ASSETS {
-        let platform = asset.trim_start_matches("dx-");
-        let var = format!("SHA256_{}", platform.replace('-', "_").to_uppercase());
-        assert!(
-            launcher.contains(&format!("  {platform}) want=${var} ;;")),
-            "{LAUNCHER} shell launcher does not pick the {asset} pin"
-        );
-    }
+    assert!(
+        launcher.contains("*\"  dx-$os-$arch\") want=${line%%  *} ;;"),
+        "{LAUNCHER} shell launcher does not pick the pin by asset name"
+    );
     assert!(launcher.contains("os=linux") && launcher.contains("os=macos"));
     assert!(launcher.contains("arch=x86_64") && launcher.contains("arch=arm64"));
     assert!(launcher.contains("set \"ARCH=x86_64\"") && launcher.contains("set \"ARCH=arm64\""));
@@ -108,19 +104,6 @@ fn the_sidecar_is_hash_two_spaces_name_beside_the_asset() {
         !launcher.contains("'.sha256'"),
         "cmd launcher fetches a sidecar"
     );
-    for asset in expected() {
-        let var = format!(
-            "SHA256_{}",
-            asset
-                .trim_start_matches("dx-")
-                .replace('-', "_")
-                .to_uppercase()
-        );
-        assert!(
-            launcher.contains(&format!("{var}=\"@{var}@\"")),
-            "{LAUNCHER} has no pin for {asset}"
-        );
-    }
 }
 
 #[test]
@@ -398,7 +381,7 @@ fn the_prebuilt_version_matches_the_module_and_the_cli() {
     let module = read_runfiles("MODULE.bazel");
     assert!(
         module.contains(&format!(
-            "module(\n    name = \"rules_dx\",\n    version = \"{version}\",\n)"
+            "module(\n    name = \"rules_dx\",\n    version = \"{version}\","
         )),
         "{PINS} DX_VERSION {version} differs from MODULE.bazel"
     );
@@ -552,15 +535,19 @@ fn the_archives_are_verified_with_the_install_engine_flags() {
 }
 
 #[test]
-fn a_published_release_is_checked_with_dx_install() {
+fn a_published_release_is_checked_by_running_the_downloaded_dx() {
     let text = workflow();
     let download = text
         .find("--pattern 'dx-*' --dir verify")
         .expect("download");
-    let install = text
-        .find("verify/dx install --tag \"$RELEASE_TAG\" --archive verify/dx-linux-x86_64.tar.gz --output json")
-        .expect("dx install check");
-    assert!(download < install);
+    let check = text
+        .find("sha256sum -c dx-sha256sums.txt)")
+        .expect("manifest check");
+    let run = text
+        .find("tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx")
+        .expect("extract");
+    assert!(download < check && check < run);
+    assert!(text.contains("verify/dx --version"));
     assert!(!text.contains("--apply"));
 }
 

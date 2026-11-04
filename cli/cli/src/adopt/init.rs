@@ -12,16 +12,6 @@ use super::{operational, summaries_suppressed};
 
 pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
 
-const ESSENTIAL: [&str; 7] = [
-    ".dx/version",
-    ".gitignore",
-    ".bazelignore",
-    "MODULE.bazel",
-    "MODULE.bazel.snippet",
-    "tools/dx",
-    "tools/dx.cmd",
-];
-
 fn invalid_module_code(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -135,8 +125,8 @@ pub(crate) fn execute_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let destinations: Vec<&str> = planned.iter().map(|file| file.path.as_str()).collect();
-    if let Err(message) = super::wiring::preflight(root, &target.prefix, &destinations) {
+    let owned = super::init_files::owned(&planned);
+    if let Err(message) = super::wiring::preflight(root, &target.prefix, &owned) {
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut own = dx_adopt::Applied::default();
@@ -195,17 +185,11 @@ fn check_init(
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
     let wiring = super::wiring::drift(workspace);
-    let mut missing: Vec<String> = files
-        .iter()
-        .map(|file| file.path.clone())
-        .filter(|path| ESSENTIAL.contains(&path.as_str()) && !workspace.join(path).exists())
+    let missing: Vec<String> = super::init_files::owned(&files)
+        .into_iter()
+        .filter(|file| file.essential && !workspace.join(&file.path).exists())
+        .map(|file| file.path)
         .collect();
-    missing.extend(
-        wiring
-            .missing
-            .into_iter()
-            .filter(|path| ESSENTIAL.contains(&path.as_str())),
-    );
     let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
     let mut stale = wiring.stale;
     if std::fs::read_to_string(workspace.join(".bazelignore"))
@@ -336,7 +320,10 @@ mod tests {
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("empty");
         let (code, _out, err) = run(&check, &root);
         assert_eq!(code, 1);
-        assert!(err.contains("stale .claude/settings.json (lacks hooks: "), "{err}");
+        assert!(
+            err.contains("stale .claude/settings.json (lacks hooks: "),
+            "{err}"
+        );
         assert_eq!(run(&apply, &root).0, 0);
         std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
         assert_eq!(run(&apply, &root).0, 0);

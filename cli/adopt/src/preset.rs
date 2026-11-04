@@ -179,6 +179,13 @@ pub fn layer_rel(layer: Layer) -> String {
     format!("{CONSUMER_DIR}/{}", layer.file_name())
 }
 
+/// Every workspace-relative path the preset owns.
+pub fn preset_paths() -> Vec<String> {
+    let mut paths = vec![BAZELRC.to_owned(), GITIGNORE.to_owned()];
+    paths.extend(Layer::ALL.iter().map(|layer| layer_rel(*layer)));
+    paths
+}
+
 fn read_text(path: &Path, rel: &str) -> Result<Option<String>, AdoptError> {
     match std::fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),

@@ -6,6 +6,7 @@ use dx_adopt::Applied;
 use dx_plan::args::Invocation;
 use dx_worktree::setup;
 
+use super::init_files::InitFile;
 use super::{agents, claude_md, operational, summaries_suppressed};
 
 fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
@@ -29,18 +30,15 @@ fn adopt_message(prefix: &str, error: &dx_adopt::AdoptError) -> String {
 
 /// Fails before any write when a file [`apply`] writes under `root` cannot be read or written.
 ///
-/// `extra` adds more destinations.
-pub(super) fn preflight(root: &Path, prefix: &str, extra: &[&str]) -> Result<(), String> {
+/// `owned` lists every file init manages.
+pub(super) fn preflight(root: &Path, prefix: &str, owned: &[InitFile]) -> Result<(), String> {
     if root.exists() && !root.is_dir() {
         return Err(format!(
             "{} is not a directory",
             prefix.trim_end_matches('/')
         ));
     }
-    let mut destinations = vec![dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL];
-    destinations.extend(extra);
-    destinations.extend(setup::HOOK_FILES.iter().map(|file| file.path));
-    destinations.extend([agents::FILE, claude_md::FILE]);
+    let destinations: Vec<&str> = owned.iter().map(|file| file.path.as_str()).collect();
     dx_adopt::preflight_destinations(root, &destinations)
         .map_err(|error| adopt_message(prefix, &error))?;
     check_pin(root, prefix)?;
@@ -200,11 +198,9 @@ pub(super) fn agents_drift(root: &Path) -> Drift {
     match claude_md::state(root) {
         Ok(claude_md::State::Imported | claude_md::State::Linked) => {}
         Ok(claude_md::State::Missing) => {
-            drift.stale.push(format!(
-                "{} (lacks @{})",
-                claude_md::FILE,
-                agents::FILE
-            ))
+            drift
+                .stale
+                .push(format!("{} (lacks @{})", claude_md::FILE, agents::FILE))
         }
         Ok(claude_md::State::Absent) => drift.missing.push(claude_md::FILE.to_owned()),
         Err(error) => drift.other.push(format!("{}: {error}", claude_md::FILE)),
@@ -284,7 +280,7 @@ mod tests {
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "1\"; x\n").expect("pin");
-        assert!(super::preflight(root, "", &[]).is_err());
+        assert!(super::preflight(root, "", &crate::adopt::init_files::owned(&[])).is_err());
         let (code, _out, err) = init(root);
         assert_eq!(code, 1);
         assert!(err.contains("init_failed"));
@@ -297,7 +293,7 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("tools"), "file").expect("blocker");
         assert_eq!(
-            super::preflight(root, "demo/", &[]),
+            super::preflight(root, "demo/", &crate::adopt::init_files::owned(&[])),
             Err("demo/tools is not a directory".to_owned())
         );
         let (code, _out, err) = init(root);
@@ -306,7 +302,7 @@ mod tests {
         let file = scratch.path().join("file");
         std::fs::write(&file, "x").expect("file");
         assert_eq!(
-            super::preflight(&file, "file/", &[]),
+            super::preflight(&file, "file/", &crate::adopt::init_files::owned(&[])),
             Err("file is not a directory".to_owned())
         );
         assert!(!root.join(".claude").exists());
@@ -368,7 +364,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-code-");
         let root = scratch.path();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
-        assert!(super::preflight(root, "demo/", &[]).is_err());
+        assert!(super::preflight(root, "demo/", &crate::adopt::init_files::owned(&[])).is_err());
         let words = ["init", "--apply", "demo"];
         let (code, _out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 1);

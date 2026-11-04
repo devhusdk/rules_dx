@@ -2,6 +2,7 @@ pub(crate) mod agents;
 pub(crate) mod claude_md;
 mod completion;
 mod init;
+mod init_files;
 mod status;
 mod status_tools;
 #[cfg(test)]

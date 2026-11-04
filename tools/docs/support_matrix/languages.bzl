@@ -73,7 +73,7 @@ ROWS = [
     {"ci_tests": _hello("astro"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": "Astro"},
     {
         "ci_tests": _hello("cc"),
-        "consumer_tests": ["//cc/tests/consumer:app_consumer_test"] + _starter_consumers("c", "cpp"),
+        "consumer_tests": _starter_consumers("c", "cpp"),
         "name": "cc",
         "section": "languages",
         "title": "C and C++",

@@ -537,7 +537,7 @@ impl Want {
     fn render(&self) -> String {
         let range = |r: &Range<usize>| format!("{}..{}", r.start, r.end);
         format!(
-            "v=1 base={} reserve={} extras={} remote={}\n",
+            "base={} reserve={} extras={} remote={}\n",
             range(&self.base),
             range(&self.reserve),
             range(&self.extras),
@@ -550,20 +550,17 @@ impl Want {
             let (start, end) = value.split_once("..")?;
             Some(start.parse().ok()?..end.parse().ok()?)
         };
-        let (mut base, mut reserve, mut extras, mut remote, mut version) =
-            (None, None, None, None, false);
+        let (mut base, mut reserve, mut extras, mut remote) = (None, None, None, None);
         for field in text.split_whitespace() {
             let (key, value) = field.split_once('=')?;
             match key {
-                "v" => version = value == "1",
                 "base" => base = range(value),
                 "reserve" => reserve = range(value),
                 "extras" => extras = range(value),
                 "remote" => remote = Some(value == "1"),
-                _ => {}
+                _ => return None,
             }
         }
-        version.then_some(())?;
         Some(Self {
             base: base?,
             reserve: reserve?,
@@ -3557,8 +3554,8 @@ mod tests {
         for garbage in [
             "",
             "base=0..1",
-            "v=1 base=x",
-            "v=2 base=0..1 reserve=1..1 extras=1..1 remote=0",
+            "base=x",
+            "base=0..1 reserve=1..1 extras=1..1 remote=0 bogus=1",
         ] {
             assert_eq!(Want::parse(garbage), None, "{garbage}");
         }

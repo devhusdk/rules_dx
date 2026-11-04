@@ -1051,6 +1051,39 @@ uv.project(
 )
 use_repo(uv, pypi = "dx_pypi")
 
+uv_rust = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv", dev_dependency = True)
+uv_rust.declare_hub(hub_name = "dx_pypi_rust_sdist")
+uv_rust.project(
+    default_build_dependencies = [
+        "build",
+        "maturin",
+    ],
+    hub_name = "dx_pypi_rust_sdist",
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    pyproject = "//python/tests/fixtures/rust_sdist:pyproject.toml",
+)
+uv_rust.override_package(
+    name = "rpds-py",
+    env = {
+        "CARGO_NET_OFFLINE": "true",
+        "CARGO_HOME": "$(EXECROOT)/$(DX_CARGO_VENDOR)/../.cargo",
+    },
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    toolchains = [
+        "@rules_rust//rust/toolchain:current_rust_toolchain",
+        "@dx_rust_sdist_crates//:layer",
+    ],
+)
+use_repo(uv_rust, rust_sdist_pypi = "dx_pypi_rust_sdist")
+
+sdist_cargo_vendor = use_extension("//python/rules:sdist_cargo_vendor.bzl", "sdist_cargo_vendor", dev_dependency = True)
+sdist_cargo_vendor.crates(
+    name = "dx_rust_sdist_crates",
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    package = "rpds-py",
+)
+use_repo(sdist_cargo_vendor, "dx_rust_sdist_crates")
+
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",

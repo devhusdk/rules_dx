@@ -69,6 +69,8 @@ offline = true
 
 _BUILD = """load(":layer.bzl", "cargo_vendor_layer")
 
+exports_files([".cargo/config.toml"], visibility = ["//visibility:public"])
+
 cargo_vendor_layer(
     name = "layer",
     config = ".cargo/config.toml",
@@ -80,7 +82,10 @@ cargo_vendor_layer(
 _LAYER = """def _impl(ctx):
     return [
         DefaultInfo(files = depset([ctx.file.config] + ctx.files.vendor)),
-        platform_common.TemplateVariableInfo({"DX_CARGO_CONFIG": ctx.file.config.path}),
+        platform_common.TemplateVariableInfo({
+            "DX_CARGO_CONFIG": ctx.file.config.path,
+            "DX_CARGO_VENDOR": ctx.label.workspace_root + "/vendor",
+        }),
     ]
 
 cargo_vendor_layer = rule(
@@ -92,11 +97,18 @@ cargo_vendor_layer = rule(
 )
 """
 
+def _stem(url):
+    name = url.rsplit("/", 1)[-1]
+    for suffix in (".tar.gz", ".zip"):
+        if name.endswith(suffix):
+            return name[:-len(suffix)]
+    return name
+
 def _repo_impl(rctx):
     sdist = parse_uv_lock_sdist(rctx.read(rctx.attr.lock), rctx.attr.package)
     if sdist == None:
         fail("%s has no sdist in %s." % (rctx.attr.package, rctx.attr.lock))
-    rctx.download_and_extract(url = sdist["url"], sha256 = sdist["sha256"], output = "sdist", strip_prefix = "")
+    rctx.download_and_extract(url = sdist["url"], sha256 = sdist["sha256"], output = "sdist", strip_prefix = _stem(sdist["url"]))
     crates = parse_cargo_lock(rctx.read("sdist/" + rctx.attr.cargo_lock_path))
     if type(crates) == "string":
         fail(crates)
@@ -105,6 +117,7 @@ def _repo_impl(rctx):
             url = "https://static.crates.io/crates/%s/%s-%s.crate" % (name, name, version),
             sha256 = checksum,
             output = "vendor",
+            type = "tar.gz",
         )
         rctx.file("vendor/%s-%s/.cargo-checksum.json" % (name, version), json.encode({"files": {}, "package": checksum}))
     rctx.file(".cargo/config.toml", _CONFIG)

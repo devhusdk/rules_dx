@@ -3706,6 +3706,23 @@
         }
       }
     },
+    "//python/rules:sdist_cargo_vendor.bzl%sdist_cargo_vendor": {
+      "general": {
+        "bzlTransitiveDigest": "rSLKHgWHwhMKEhw9mlU6XQPOs1mA7wUHRjjfFNeceyc=",
+        "usagesDigest": "TIXraI114HfuQZww6lrdy/q1QEO4UuLz61LioRLktYg=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_rust_sdist_crates": {
+            "repoRuleId": "@@//python/rules:sdist_cargo_vendor.bzl%sdist_cargo_vendor_repo",
+            "attributes": {
+              "lock": "@@//python/tests/fixtures/rust_sdist:uv.lock",
+              "package": "rpds-py",
+              "cargo_lock_path": "Cargo.lock"
+            }
+          }
+        }
+      }
+    },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
         "bzlTransitiveDigest": "q6Fxrfk7Q7Dj3cdb5fuQaeLb+ZsDMDRQu7dWMT/FryY=",

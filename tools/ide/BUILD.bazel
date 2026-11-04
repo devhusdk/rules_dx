@@ -14,20 +14,6 @@ exports_files(
 )
 
 # keep
-rust_library(
-    name = "lsp_test_client",
-    testonly = True,
-    srcs = ["lsp_test_client.rs"],
-    deps = ["@crates//:serde_json"],
-)
-
-# keep
-rust_test(
-    name = "lsp_test_client_test",
-    crate = ":lsp_test_client",
-)
-
-# keep
 rust_test(
     name = "lsp_headless_clangd_test",
     srcs = ["lsp_headless_clangd_test.rs"],
@@ -45,9 +31,9 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = [
-        ":lsp_test_client",
         "//cc/context:cc_context",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_lsp",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -68,8 +54,8 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = [
-        ":lsp_test_client",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_lsp",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -91,7 +77,5 @@ rustfmt_test(
     targets = [
         ":lsp_headless_clangd_test",
         ":lsp_headless_rust_analyzer_test",
-        ":lsp_test_client",
-        ":lsp_test_client_test",
     ],
 )

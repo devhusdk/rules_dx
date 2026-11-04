@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use lsp_test_client::*;
+use dx_lsp::*;
 
 fn toolchain_pick(variable: &str, suffix: &str) -> PathBuf {
     let rels = std::env::var(variable)

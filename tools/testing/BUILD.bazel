@@ -119,6 +119,7 @@ rust_test(
 # keep
 rust_library(
     name = "dx_lsp",
+    testonly = True,
     srcs = ["src/lsp.rs"],
     crate_name = "dx_lsp",
     crate_root = "src/lsp.rs",

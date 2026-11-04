@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use lsp_test_client::*;
+use dx_lsp::*;
 
 fn tool_path(variable: &str) -> PathBuf {
     let rel =

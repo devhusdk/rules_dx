@@ -363,3 +363,16 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     assert_eq!(added["src/new.py"], [3].into_iter().collect());
     assert_eq!(added["src/my file.py"], [1, 2].into_iter().collect());
 }
+
+#[test]
+fn implied_affected_without_git_runs_everything() {
+    let harness = Harness::new("implied-no-git");
+    let words = dx_testing::cli::strings(&["test", "--output=text"]);
+    let inv = dx_plan::args::parse(&words).expect("parse");
+    let (_, _, err) = harness.execute_with(&inv, &harness.runner());
+    assert!(
+        err.contains("dx: scope: //... (cannot find the default branch"),
+        "{err}"
+    );
+    assert!(!err.contains("dx: affected:"), "{err}");
+}

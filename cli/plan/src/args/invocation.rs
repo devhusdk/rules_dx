@@ -255,6 +255,8 @@ pub struct Invocation {
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
+    /// The scope was empty, so dx picked --affected.
+    pub affected_implied: bool,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
@@ -631,6 +633,7 @@ mod tests {
             to: None,
             here: true,
             affected: false,
+            affected_implied: false,
             affected_handoff: None,
             serve: false,
             port: None,

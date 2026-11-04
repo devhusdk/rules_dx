@@ -60,7 +60,10 @@ fn the_grammar_accepts_affected_exactly_for_the_affected_owners() {
 fn test_and_check_default_to_affected_without_a_scope() {
     for command in [Command::Test, Command::Check] {
         let name = command.name();
-        assert!(parse(&strings(&[name])).expect("bare").affected, "{name}");
+        let bare = parse(&strings(&[name])).expect("bare");
+        assert!(bare.affected && bare.affected_implied, "{name}");
+        let typed = parse(&strings(&[name, "--affected"])).expect("typed");
+        assert!(typed.affected && !typed.affected_implied, "{name}");
         assert!(!parse(&strings(&[name, "//..."])).expect("scoped").affected);
         assert!(!parse(&strings(&[name, "--here"])).expect("here").affected);
     }

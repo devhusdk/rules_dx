@@ -418,8 +418,11 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
     }
     let reports = report;
-    let affected = affected
-        || (matches!(command, Command::Test | Command::Check) && targets.is_empty() && !here);
+    let affected_implied = !affected
+        && matches!(command, Command::Test | Command::Check)
+        && targets.is_empty()
+        && !here;
+    let affected = affected || affected_implied;
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
     }
@@ -609,6 +612,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         to,
         here,
         affected,
+        affected_implied,
         affected_handoff: None,
         serve,
         port,

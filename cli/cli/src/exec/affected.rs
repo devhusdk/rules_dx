@@ -443,11 +443,44 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
     let base = match affected_base(workspace, query_runner) {
         Ok(base) => base,
+        Err(PlanError::Git(message)) if invocation.affected_implied => {
+            let mut next = invocation.clone();
+            next.affected = false;
+            next.affected_implied = false;
+            next.targets = vec!["//...".to_owned()];
+            if text {
+                let _ = writeln!(err, "dx: scope: //... ({message})");
+            }
+            return execute(
+                &next,
+                Env {
+                    workspace,
+                    runner,
+                    query_runner,
+                    temp_dir,
+                    pid,
+                    nonce,
+                    out,
+                    err,
+                    ci,
+                    audit_today,
+                    actions,
+                    proc_root,
+                    edit_commit_json,
+                },
+            );
+        }
         Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
         Err(PlanError::Resolve(error)) => {
             return resolve_failed(invocation.output, out, err, &error)
         }
     };
+    if text && invocation.affected_implied {
+        let _ = writeln!(
+            err,
+            "dx: scope: --affected (no scope given; pass //... to run everything)"
+        );
+    }
     if text {
         let _ = writeln!(err, "{}", resolving_line(&base));
     }

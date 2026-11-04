@@ -5,11 +5,6 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 package(default_visibility = VIS_TOOLS)
 
 filegroup(
-    name = "module_pin_fixtures",
-    srcs = glob(["module_pin_fixtures/**"]),
-)
-
-filegroup(
     name = "aggregate_fixtures",
     srcs = glob(["aggregate_fixtures/**"]),
 )
@@ -186,38 +181,6 @@ rust_test(
     name = "remote_cache_flags_test",
     srcs = ["remote_cache_flags_test.rs"],
     deps = [":remote_cache_flags"],
-)
-
-# keep
-rust_library(
-    name = "module_pin",
-    srcs = ["module_pin.rs"],
-    crate_name = "module_pin",
-)
-
-# keep
-rust_binary(
-    name = "module_pin_bin",
-    srcs = ["module_pin_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":module_pin"],
-)
-
-# keep
-rust_test(
-    name = "module_pin_test",
-    srcs = ["module_pin_test.rs"],
-    data = [
-        ":module_pin_bin",
-        ":module_pin_fixtures",
-        "//:MODULE.bazel",
-        "//.github:workflows/ci.yml",
-    ],
-    env = {"DX_MODULE_PIN": "$(rootpath :module_pin_bin)"},
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 # keep
@@ -889,7 +852,6 @@ rust_test(
     data = [
         "docs_scope.rs",
         "input_validation.rs",
-        "module_pin.rs",
         "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
@@ -923,9 +885,6 @@ rustfmt_test(
         ":remote_cache_flags",
         ":remote_cache_flags_bin",
         ":remote_cache_flags_test",
-        ":module_pin",
-        ":module_pin_bin",
-        ":module_pin_test",
         ":gate_base",
         ":gate_base_bin",
         ":gate_base_test",

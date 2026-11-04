@@ -1,2 +1,0 @@
-DEPS = "//:a.MODULE.bazel"
-include(DEPS)

@@ -14,33 +14,8 @@ rules_dx is not released yet. Install starts with the first BCR release.
 bazel_dep(name = "rules_dx", version = "0.0.0")
 ```
 
-## Pin Check
-
-Set `rules_dx_version` to the version of your `rules_dx` `bazel_dep`. The
-`validate (inputs)` job compares the two before any check starts. A repository
-that calls the workflow from its own tree declares itself instead:
-
-```python
-module(
-    name = "rules_dx",
-    version = "0.0.0",
-)
-```
-
-A mismatch fails `validate`, so no check runs:
-
-```text
-MODULE.bazel:<line> declares rules_dx "<x>", the workflow expects "<y>". Pin both to the same version.
-```
-
-The check reads `MODULE.bazel` and every file it pulls in with
-`include("//pkg:name.MODULE.bazel")`, nested includes too. `rules_dx` may be
-declared once across all of them, and diagnostics name the file and line. A
-missing, repeated, non-literal or non-`//` include fails.
-
-It also fails when `MODULE.bazel` declares no `rules_dx`, declares it twice, or
-gives a version that is not a quoted string. A `rules_dx` release too old for
-the check fails in Bazel before the check runs.
+The workflows run `bazel run @rules_dx//:dx`, so the `rules_dx` version in your
+`MODULE.bazel` decides which dx runs.
 
 ## Consumer Workflow
 
@@ -78,8 +53,6 @@ qualified.
 
 Inputs:
 
-- `rules_dx_version`: the version your `rules_dx` declaration carries. The
-  pin check compares it with `MODULE.bazel`.
 - `disabled_checks`: job IDs above to skip, comma-separated. Empty runs all
   nine. Surrounding spaces are ignored. An unknown ID, a repeated ID and an
   empty ID fail.
@@ -156,7 +129,6 @@ the whole-repo threshold:
 
 ```yaml
     with:
-      rules_dx_version: "0.0.0"
       min_changed_line_coverage: "80"
 ```
 
@@ -195,8 +167,6 @@ fail before deploy.
 
 Inputs:
 
-- `rules_dx_version`: the version your `rules_dx` declaration carries. The
-  pin check compares it with `MODULE.bazel`.
 - `docs_scope`: target patterns covered by the docs check, separated by
   spaces, such as `//... //docs:all`. Default `//...`. Each pattern reaches
   `dx` as one argument. A value with quotes, shell characters, wildcards, a
@@ -331,8 +301,6 @@ Without a remote cache, no config flag is passed and no stanza is needed.
 
 ## Failures
 
-- Pin mismatch: `validate (inputs)` fails and names both versions. Set
-  `rules_dx_version` to your `bazel_dep` version.
 - Rejected input: `validate (inputs)` fails with the accepted values and no
   check runs. `dx-ci (aggregate)` fails with it.
 - `Config value 'ci' is not defined in any .rc file`: add the `.bazelrc`

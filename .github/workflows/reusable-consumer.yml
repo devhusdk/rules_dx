@@ -3,10 +3,6 @@ name: rules-dx-consumer
 on:
   workflow_call:
     inputs:
-      rules_dx_version:
-        description: "Version of the rules_dx declaration in the consumer MODULE.bazel (e.g. 0.0.0). It must equal that call's version, not another dependency's."
-        required: true
-        type: string
       disabled_checks:
         description: "Comma-separated check IDs to omit (e.g. coverage,license-audit). Empty enables all nine."
         required: false
@@ -111,13 +107,6 @@ jobs:
         if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Validate workflow inputs
         id: validate
         env:

@@ -1,3 +1,0 @@
-module(name = "consumer_app")
-
-bazel_dep(name = "rules_dx", version = "1.2.3")

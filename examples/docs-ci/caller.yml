@@ -11,7 +11,6 @@ jobs:
   docs:
     uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@04bb90c9221b324fe86a16bee0a4e5dadb3adaf7
     with:
-      rules_dx_version: "0.0.0"
       docs_scope: "//..."
       site: "//docs:site"
       publish: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

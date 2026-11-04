@@ -153,12 +153,11 @@ pub fn render_consumer_caller() -> String {
 
 pub fn render_consumer_caller_for(branch: &str) -> String {
     format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      contents: read\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      contents: read\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
         pin = CONSUMER_WORKFLOW_PIN,
-        version = DX_VERSION,
     )
 }
 
@@ -241,7 +240,10 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
             );
             let pinned =
                 dx_merge::yaml_scalar::set_uses_ref(existing, &action, CONSUMER_WORKFLOW_PIN);
-            dx_merge::yaml_scalar::set_value(&pinned, "rules_dx_version", DX_VERSION)
+            Ok(pinned
+                .split_inclusive('\n')
+                .filter(|line| !line.trim_start().starts_with("rules_dx_version:"))
+                .collect())
         }
     }
 }
@@ -867,7 +869,8 @@ mod tests {
         let without_defaults: String = starter
             .lines()
             .filter(|l| {
-                !l.trim_start().starts_with("disabled_checks:")
+                l.trim() != "with:"
+                    && !l.trim_start().starts_with("disabled_checks:")
                     && !l.trim_start().starts_with("platforms:")
             })
             .map(|l| format!("{l}\n"))
@@ -986,10 +989,7 @@ mod tests {
             )),
             "{caller}"
         );
-        assert!(
-            caller.contains(&format!("rules_dx_version: \"{DX_VERSION}\"")),
-            "{caller}"
-        );
+        assert!(!caller.contains("rules_dx_version"), "{caller}");
         for required in [
             "merge_group:\n    types: [checks_requested]",
             "secrets:\n      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}",
@@ -1220,7 +1220,6 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     fn old_ci() -> String {
         render_consumer_caller()
             .replace(super::CONSUMER_WORKFLOW_PIN, OLD_SHA)
-            .replace(&format!("\"{DX_VERSION}\""), "\"0.0.1\"")
     }
 
     fn refreshed(root: &std::path::Path) -> Vec<String> {
@@ -1285,7 +1284,20 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     }
 
     #[test]
-    fn pin_update_changes_exactly_two_lines() {
+    fn pin_update_drops_the_retired_version_input() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-legacy-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
+        let legacy = old_ci().replace("    secrets:", "    with:\n      rules_dx_version: \"0.0.1\"\n    secrets:");
+        std::fs::write(root.join(".github/workflows/ci.yml"), legacy).expect("write");
+        refreshed(root);
+        let new = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read");
+        assert!(!new.contains("rules_dx_version"), "{new}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn pin_update_changes_exactly_one_line() {
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-pin-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
@@ -1295,24 +1307,20 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         assert_eq!(wrote, [".github/workflows/ci.yml"]);
         let new = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read");
         let changed = old.lines().zip(new.lines()).filter(|(a, b)| a != b).count();
-        assert_eq!(changed, 2, "{new}");
+        assert_eq!(changed, 1, "{new}");
         assert_eq!(old.lines().count(), new.lines().count());
         assert_eq!(new, render_consumer_caller());
         scratch.close().expect("cleanup");
     }
 
     #[test]
-    fn ci_without_the_version_input_is_refused() {
+    fn ci_without_the_workflow_call_is_left_untouched() {
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-refused-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
         let mine = "name: ci\njobs: {}\n";
         std::fs::write(root.join(".github/workflows/ci.yml"), mine).expect("write");
-        let ran = entries(|a| apply_init(root, "demo", a)).expect("init");
-        assert!(
-            ran.contains(&"refused:.github/workflows/ci.yml".to_owned()),
-            "{ran:?}"
-        );
+        entries(|a| apply_init(root, "demo", a)).expect("init");
         assert_eq!(
             std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read"),
             mine

@@ -1,2 +1,0 @@
-# include("//bazel:missing.MODULE.bazel")
-include(label = "//bazel:deps.MODULE.bazel")

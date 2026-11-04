@@ -7,22 +7,10 @@ const CALLERS: [(&str, &str); 2] = [
 
 const REUSABLE: [&str; 2] = ["reusable-consumer.yml", "reusable-docs.yml"];
 
-const PIN_STEP: &str = "- name: Verify rules_dx pin";
-
-const PIN_ENV: &str = "RULES_DX_PIN";
-
-const PIN_RUN: &str = "bazel run \"$@\" @rules_dx//tools/ci:module_pin_bin";
-
-const SCRIPTS: [(&str, &[&str]); 3] = [
+const SCRIPTS: [(&str, &[&str]); 2] = [
     ("tools/ci/input_validation.rs", &["reusable-consumer.yml"]),
-    (
-        "tools/ci/module_pin.rs",
-        &["reusable-consumer.yml", "reusable-docs.yml"],
-    ),
     ("tools/ci/docs_scope.rs", &["reusable-docs.yml"]),
 ];
-
-const STEP_KEY: &str = "        ";
 
 const OWNER: &str = "devhusdk";
 
@@ -133,164 +121,6 @@ fn both_starters_pin_one_reviewed_commit() {
     }
 }
 
-/// Returns each job block of a workflow file with its name, after the jobs: key.
-fn jobs(workflow: &str) -> Vec<(String, String)> {
-    let text = read_runfiles(&format!(".github/workflows/{workflow}"));
-    let lines: Vec<&str> = text.lines().collect();
-    let start = lines
-        .iter()
-        .position(|line| *line == "jobs:")
-        .unwrap_or_else(|| panic!("{workflow} has no jobs: key"));
-    let mut starts: Vec<(usize, String)> = Vec::new();
-    for (index, line) in lines.iter().enumerate().skip(start + 1) {
-        let Some(name) = line
-            .strip_prefix("  ")
-            .and_then(|rest| rest.strip_suffix(':'))
-            .filter(|name| !name.is_empty() && name.chars().all(is_job_key_char))
-        else {
-            continue;
-        };
-        starts.push((index, name.to_owned()));
-    }
-    assert!(
-        !starts.is_empty(),
-        "{workflow} names no job after its jobs: key"
-    );
-    let mut out = Vec::with_capacity(starts.len());
-    for (slot, (index, name)) in starts.iter().enumerate() {
-        let end = starts.get(slot + 1).map_or(lines.len(), |(next, _)| *next);
-        out.push((name.clone(), lines[*index..end].join("\n")));
-    }
-    out
-}
-
-/// Returns whether a character may appear in a top-level job key.
-fn is_job_key_char(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')
-}
-
-/// Returns the job names a job body lists under `needs:`, inline or as a block list.
-fn needs(body: &str) -> Vec<String> {
-    let lines: Vec<&str> = body.lines().collect();
-    let Some(index) = lines.iter().position(|line| line.starts_with("    needs:")) else {
-        return Vec::new();
-    };
-    let value = lines[index].trim_start_matches("    needs:").trim();
-    if !value.is_empty() {
-        return value
-            .trim_start_matches('[')
-            .trim_end_matches(']')
-            .split(',')
-            .map(|name| name.trim().to_owned())
-            .filter(|name| !name.is_empty())
-            .collect();
-    }
-    lines[index + 1..]
-        .iter()
-        .map_while(|line| line.trim().strip_prefix("- "))
-        .map(|name| name.trim().to_owned())
-        .collect()
-}
-
-#[test]
-fn needs_reads_inline_and_block_lists() {
-    assert_eq!(
-        needs("  a:\n    needs: [validate, lint]\n"),
-        ["validate", "lint"]
-    );
-    assert_eq!(needs("  a:\n    needs: validate\n"), ["validate"]);
-    assert_eq!(
-        needs("  a:\n    needs:\n      - one\n      - two\n    if: x\n"),
-        ["one", "two"]
-    );
-    assert!(needs("  a:\n    runs-on: x\n").is_empty());
-}
-
-#[test]
-fn every_checkout_job_verifies_the_pin_or_needs_a_job_that_does() {
-    for workflow in REUSABLE {
-        let jobs = jobs(workflow);
-        let pinned: Vec<&str> = jobs
-            .iter()
-            .filter(|(_, body)| body.matches(PIN_STEP).count() == 1)
-            .map(|(name, _)| name.as_str())
-            .collect();
-        let checkout_jobs: Vec<&(String, String)> = jobs
-            .iter()
-            .filter(|(_, body)| body.contains("uses: actions/checkout@"))
-            .collect();
-        assert!(
-            !checkout_jobs.is_empty(),
-            "{workflow} has no job that checks out the tree"
-        );
-        for (name, body) in checkout_jobs {
-            let pins = body.matches(PIN_STEP).count();
-            if pins == 1 {
-                continue;
-            }
-            assert_eq!(
-                pins, 0,
-                "{workflow} job {name} must carry at most one {PIN_STEP:?} step, found {pins}"
-            );
-            let needs = needs(body);
-            assert!(
-                needs.iter().any(|need| pinned.contains(&need.as_str())),
-                "{workflow} job {name} carries no {PIN_STEP:?} step and needs no job that does \
-                 (needs: {needs:?}, pinned: {pinned:?})"
-            );
-        }
-    }
-}
-
-#[test]
-fn the_consumer_verifies_the_pin_once_in_validate() {
-    let workflow = "reusable-consumer.yml";
-    let pinned: Vec<String> = jobs(workflow)
-        .into_iter()
-        .flat_map(|(name, body)| vec![name; body.matches(PIN_STEP).count()])
-        .collect();
-    assert_eq!(
-        pinned,
-        ["validate"],
-        "{workflow} must run {PIN_STEP:?} exactly once, in validate"
-    );
-}
-
-/// Returns every pin step of a workflow, as the file lines of the step block.
-fn pin_steps(workflow: &str) -> Vec<Vec<String>> {
-    let text = read_runfiles(&format!(".github/workflows/{workflow}"));
-    let lines: Vec<&str> = text.lines().collect();
-    let mut steps = Vec::new();
-    for (index, line) in lines.iter().enumerate() {
-        if line.trim() != PIN_STEP {
-            continue;
-        }
-        let mut block = Vec::new();
-        for key in lines.iter().skip(index + 1) {
-            if !key.is_empty() && !key.starts_with(STEP_KEY) {
-                break;
-            }
-            block.push((*key).to_owned());
-        }
-        steps.push(block);
-    }
-    steps
-}
-
-#[test]
-fn every_pin_step_runs_the_module_pin_target() {
-    for workflow in REUSABLE {
-        let steps = pin_steps(workflow);
-        assert!(!steps.is_empty(), "{workflow} runs no {PIN_STEP:?} step");
-        for step in &steps {
-            assert!(
-                step.iter().any(|line| line.trim() == PIN_RUN),
-                "{workflow} pin step must run {PIN_RUN:?}"
-            );
-        }
-    }
-}
-
 #[test]
 fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
     for (script, users) in SCRIPTS {
@@ -316,37 +146,6 @@ fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
                 text.contains(&target),
                 users.contains(&workflow),
                 "{workflow} must run {target} only where it uses {script}"
-            );
-        }
-    }
-}
-
-#[test]
-fn no_pin_step_matches_a_version_string_anywhere_in_the_module() {
-    for workflow in REUSABLE {
-        for step in pin_steps(workflow) {
-            assert!(
-                !step.join("\n").contains("grep"),
-                "{workflow} pin step greps MODULE.bazel instead of reading the rules_dx declaration"
-            );
-        }
-    }
-}
-
-#[test]
-fn the_expected_version_reaches_the_validator_through_the_environment() {
-    let wanted = format!("{PIN_ENV}: ${{{{ inputs.rules_dx_version }}}}");
-    for workflow in REUSABLE {
-        for step in pin_steps(workflow) {
-            let text = step.join("\n");
-            assert!(
-                text.contains(&wanted),
-                "{workflow} pin step must pass the expected version as {PIN_ENV}"
-            );
-            let script = text.split_once("run: |").map_or("", |(_, rest)| rest);
-            assert!(
-                !script.contains("inputs.rules_dx_version"),
-                "{workflow} pin step must not interpolate the version into the validator"
             );
         }
     }
@@ -429,7 +228,7 @@ fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
 #[test]
 fn bare_main_repo_label_check_flags_only_unqualified_labels() {
     for good in [
-        "run: bazel run @rules_dx//tools/ci:module_pin_bin",
+        "run: bazel run @rules_dx//tools/ci:input_validation_bin",
         "run: bazel run @dx_tools//:dx",
         "run: bazel run @@//:dx",
         "url: https://example.com/a",

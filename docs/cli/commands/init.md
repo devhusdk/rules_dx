@@ -71,8 +71,7 @@ already exists, the missing hook and allow entries are added in place and your
 other entries stay.
 
 The CI caller pins the
-`rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the `rules_dx` pin in `MODULE.bazel`. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
 warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
@@ -131,14 +130,14 @@ match the running dx.
 | `.gitignore` | you | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
-| `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow and `rules_dx_version` are updated. A file without `rules_dx_version` is left untouched. |
+| `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
 | `.github/workflows/dx-update.yml` | you | Written when missing. Never rewritten. |
 | `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
 | `CLAUDE.md` | you | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
 | `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
 | `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |
 
-Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin or `rules_dx_version` in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. To opt out of a preset layer, comment out its import (see
+Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).
 
 ## Init plan

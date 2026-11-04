@@ -29,7 +29,6 @@ jobs:
     needs: [workflow-check, preflight]
     uses: ./.github/workflows/reusable-consumer.yml
     with:
-      rules_dx_version: "0.0.0"
       platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
       min_coverage: "100"
     secrets:
@@ -72,7 +71,6 @@ jobs:
     name: docs (self-call reusable docs workflow)
     uses: ./.github/workflows/reusable-docs.yml
     with:
-      rules_dx_version: "0.0.0"
       docs_scope: "//docs/... //tools/docs/..."
       site: "//tools/docs/site:user_site"
       site_check: "//tools/docs/site:user_site_check"

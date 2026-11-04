@@ -3,10 +3,6 @@ name: rules-dx-docs
 on:
   workflow_call:
     inputs:
-      rules_dx_version:
-        description: "Version of the rules_dx declaration in the consumer MODULE.bazel (e.g. 0.0.0). It must equal that call's version, not another dependency's."
-        required: true
-        type: string
       docs_scope:
         description: "dx scope covered by docs check and lint (e.g. //...)."
         required: false
@@ -116,13 +112,6 @@ jobs:
         if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Lint the docs scope
         env:
           DX_DOCS_SCOPE: ${{ inputs.docs_scope }}
@@ -198,13 +187,6 @@ jobs:
         if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Build rendered site
         run: |
           # shellcheck disable=SC2086

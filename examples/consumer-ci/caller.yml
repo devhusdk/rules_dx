@@ -10,7 +10,6 @@ jobs:
   dx:
     uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@04bb90c9221b324fe86a16bee0a4e5dadb3adaf7
     with:
-      rules_dx_version: "0.0.0"
       disabled_checks: ""
       platforms: '["linux_x86_64"]'
     secrets:

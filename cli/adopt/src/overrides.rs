@@ -282,9 +282,10 @@ fn orphaned_patches(root: &Path) -> Vec<String> {
 }
 
 /// Generated files that are missing or differ on disk, then orphaned patches.
-fn stale_files(root: &Path) -> Vec<String> {
+fn stale_files(root: &Path, owned: Option<&[String]>) -> Vec<String> {
     let mut stale: Vec<String> = render_overrides()
         .into_iter()
+        .filter(|(path, _)| owned.map_or(true, |owned| owned.contains(path)))
         .filter(|(path, content)| {
             std::fs::read(root.join(path)).map_or(true, |bytes| bytes != content.as_bytes())
         })
@@ -296,6 +297,11 @@ fn stale_files(root: &Path) -> Vec<String> {
 
 /// Compares the consumer's overrides with this dx build without writing anything.
 pub fn check_overrides(root: &Path) -> OverridesState {
+    check_overrides_in(root, None)
+}
+
+/// Like `check_overrides`, but only inspects the generated files in `owned` when given.
+pub fn check_overrides_in(root: &Path, owned: Option<&[String]>) -> OverridesState {
     let text = match std::fs::read_to_string(root.join("MODULE.bazel")) {
         Ok(text) => text,
         Err(_) => return OverridesState::NotApplicable("no MODULE.bazel".to_owned()),
@@ -327,7 +333,7 @@ pub fn check_overrides(root: &Path) -> OverridesState {
             observed.owned.join(", ")
         ));
     }
-    let stale = stale_files(root);
+    let stale = stale_files(root, owned);
     if !stale.is_empty() {
         return OverridesState::Error(format!(
             "stale or missing: {}; run `tools/dx init --apply` to regenerate",

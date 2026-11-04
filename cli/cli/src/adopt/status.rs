@@ -226,7 +226,11 @@ pub(crate) fn execute_status(
     } else {
         Vec::new()
     };
-    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
+    let owned: Vec<String> = super::init_files::owned(&[])
+        .into_iter()
+        .map(|file| file.path)
+        .collect();
+    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools, &owned);
     checks.push(init_check(workspace));
     if let Some(check) = lease_check(workspace) {
         checks.push(check);
@@ -296,6 +300,23 @@ mod tests {
     use super::*;
     use crate::adopt::test_support::{event_kinds, invocation, json_events, run};
     use std::io;
+
+    #[test]
+    fn owned_list_covers_launcher_preset_and_override_paths() {
+        let owned: Vec<String> = crate::adopt::init_files::owned(&[])
+            .into_iter()
+            .map(|file| file.path)
+            .collect();
+        for path in [dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL] {
+            assert!(owned.iter().any(|p| p == path), "{path}");
+        }
+        for path in dx_adopt::preset_paths() {
+            assert!(owned.contains(&path), "{path}");
+        }
+        for (path, _) in dx_adopt::render_overrides() {
+            assert!(owned.contains(&path), "{path}");
+        }
+    }
 
     fn write_module(root: &std::path::Path) {
         std::fs::write(

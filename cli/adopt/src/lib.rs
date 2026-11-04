@@ -45,7 +45,7 @@ pub use launcher::{
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
 pub use module_pin::{plan_rules_dx_version, write_module_edit, ModuleEdit};
 pub use overrides::{
-    apply_overrides, check_overrides, preflight_overrides, render_overrides, OverridesState,
+    apply_overrides, check_overrides, check_overrides_in, preflight_overrides, render_overrides, OverridesState,
     OVERRIDES_INCLUDE,
 };
 pub use preflight::{preflight, render_plan_text, Finding, Preflight};

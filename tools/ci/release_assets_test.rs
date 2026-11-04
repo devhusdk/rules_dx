@@ -133,18 +133,17 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     let driver = assets.find(call).expect("driver call with the assets");
     assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
     assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
-    assert!(
-        assets.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do")
-    );
+    assert!(assets
+        .contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do"));
     assert!(
         driver
             < assets
                 .find("sha256sum -c dx-sha256sums.txt")
                 .expect("check")
     );
-    let attest = &text[text.find("\n  attest:\n").expect("attest job")..];
-    assert!(attest.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
-    assert!(attest.contains(
+    let source = &text[text.find("\n  source:\n").expect("source job")..];
+    assert!(source.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
+    assert!(source.contains(
         "files=\"$files $asset $asset.sha256 $archive $archive.sha256 $archive.spdx.json\""
     ));
 }
@@ -249,7 +248,9 @@ fn the_source_job_is_read_only_and_gates_the_upload() {
 fn the_source_archive_is_uploaded_without_clobber() {
     let text = workflow();
     assert!(text.contains("test -s \"out/$src\""));
-    assert!(text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do"));
+    assert!(
+        text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do")
+    );
     assert!(!text.contains("--clobber"));
     assert!(text.contains("sha256sum -c \"$src.sha256\""));
 }
@@ -573,8 +574,8 @@ fn pull_requests_that_touch_pins_run_the_attested_check() {
 fn the_source_job_fills_the_pins_into_the_archive_and_the_pins_job_checks_them() {
     let text = workflow();
     let source = text.find("\n  source:\n").expect("source job");
-    let upload = text.find("\n  upload:\n").expect("upload job");
-    let source_job = &text[source..upload];
+    let attest = text.find("\n  attest:\n").expect("attest job");
+    let source_job = &text[source..attest];
     assert!(source_job.contains("needs: cells"));
     let fill = source_job
         .find("fill_pins_bin -- \"$RELEASE_TAG\" --manifest")

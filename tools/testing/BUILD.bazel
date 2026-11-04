@@ -77,6 +77,7 @@ rust_test(
     ),
 )
 
+# keep
 rust_library(
     name = "dx_nested",
     srcs = [
@@ -97,6 +98,7 @@ rust_library(
     ),
 )
 
+# keep
 rust_test(
     name = "dx_nested_test",
     crate = ":dx_nested",
@@ -114,6 +116,7 @@ rust_test(
     ),
 )
 
+# keep
 rust_library(
     name = "dx_lsp",
     srcs = ["src/lsp.rs"],
@@ -126,6 +129,7 @@ rust_library(
     ),
 )
 
+# keep
 rust_test(
     name = "dx_lsp_test",
     crate = ":dx_lsp",

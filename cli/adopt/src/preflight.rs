@@ -626,14 +626,14 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
                 file,
                 line,
                 hint: format!(
-                    "Bazel prefers the first registration in the root module, so yours wins over the line dx appends, and --extra_toolchains in .bazelrc beats both; keep the bazel_dep lines and drop the snippet's {} lines",
+                    "Bazel prefers the first registration in the root module, so yours wins over the line dx appends, and --extra_toolchains in .bazelrc beats both; {}",
                     if eco == Eco::Rust {
-                        "rust.toolchain/use_repo/register_toolchains"
+                        "keep the bazel_dep lines and drop the snippet's rust.toolchain/use_repo/register_toolchains lines"
                     } else {
-                        "register_toolchains"
+                        "nothing needs to change"
                     }
                 ),
-                hard: true,
+                hard: eco == Eco::Rust,
             });
         }
     }
@@ -1113,7 +1113,7 @@ mod tests {
     }
 
     #[test]
-    fn llvm_and_cc_configure_registrations_are_hard() {
+    fn llvm_and_cc_configure_registrations_are_advisory() {
         for ext in [
             "x = use_extension(\"@toolchains_llvm//toolchain/extensions:llvm.bzl\", \"llvm\")\n",
             "x = use_extension(\"@bazel_tools//tools/cpp:cc_configure.bzl\", \"cc_configure_extension\")\n",
@@ -1121,7 +1121,7 @@ mod tests {
             let module = format!("{ext}use_repo(x, \"cc_x\")\nregister_toolchains(\"@cc_x//:all\")\n");
             let found = toolchain_findings(&module);
             assert_eq!(found.len(), 1, "{found:?}");
-            assert!(found[0].hard && found[0].subject == "llvm/cc");
+            assert!(!found[0].hard && found[0].subject == "llvm/cc");
             assert!(found[0].hint.contains("first registration"));
         }
     }
@@ -1136,6 +1136,7 @@ mod tests {
 
     #[test]
     fn unknown_registration_is_not_flagged() {
+        assert!(toolchain_findings("register_toolchains(\"//my:cc_toolchain\")\n").is_empty());
         assert!(toolchain_findings("register_toolchains(\"@whatever//:all\")\n").is_empty());
     }
 

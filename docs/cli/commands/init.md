@@ -162,7 +162,8 @@ and writes nothing. Sections:
 - `toolchain conflicts`: toolchains you register that compete with registrations the snippet
   would add, measured against the merged file, so a repo that already has the snippet shows
   none. A Rust toolchain (your `rust.toolchain` tag, or a registered repo from your own
-  `rules_rust` extension) or a `toolchains_llvm` / `cc_configure` registration is hard.
+  `rules_rust` extension) is hard. A `toolchains_llvm` / `cc_configure` registration is
+  advisory, like `python.toolchain`: yours wins and nothing needs to change.
   Bazel prefers root-module registrations in listed order (first wins) and
   `--extra_toolchains` beats all of them, see
   <https://bazel.build/extending/toolchains>. A `python.toolchain` of yours is advisory:

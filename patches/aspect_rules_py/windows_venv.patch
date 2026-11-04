@@ -16,7 +16,7 @@ index 8df0198..596f3cf 100644
      name = "debug_venv",
      build_setting_default = False,
 diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
-index 5ddeec1..022c2bf 100644
+index 5ddeec1..53313e2 100644
 --- a/py/private/py_venv/py_venv.bzl
 +++ b/py/private/py_venv/py_venv.bzl
 @@ -27,6 +27,7 @@ layout details.
@@ -35,6 +35,15 @@ index 5ddeec1..022c2bf 100644
      )
      venv_only = assembled.console_scripts + ([assembled.activate] if assembled.activate != None else [])
  
+@@ -104,7 +106,7 @@ def _assemble_venv_target(ctx, executable, console_scripts):
+     runfiles = _py_library.make_merged_runfiles(
+         ctx,
+         extra_depsets = [py_toolchain.files] + virtual_resolution.runfiles,
+-        extra_runfiles = assembled.declared_outputs,
++        extra_runfiles = assembled.declared_outputs + ([assembled.launcher_script] if assembled.launcher_script else []),
+         extra_runfiles_depsets = [
+             ctx.attr._runfiles_lib[DefaultInfo].default_runfiles,
+         ],
 @@ -112,6 +114,8 @@ def _assemble_venv_target(ctx, executable, console_scripts):
  
      return VirtualenvInfo(

@@ -16,18 +16,14 @@ CUDA_REDIST_VERSION = "13.4.2"
 TOOLCHAINS_LLVM_VERSION = "1.12.0"
 CUDA_HOST_LLVM_VERSION = "22.1.8"
 
-FLOOR_RULES_GO = "0.64.2"
 TESTED_RULES_GO = "0.65.0"
 GAZELLE_VERSION = "0.54.0"
 RULES_SHELL_VERSION = "0.8.0"
-FLOOR_APPLE_SUPPORT = "2.9.1"
 TESTED_APPLE_SUPPORT = "2.10.1"
-FLOOR_RULES_APPLE = "5.2.0"
 TESTED_RULES_APPLE = "5.3.1"
 PLATFORMS_VERSION = "1.1.0"
 BAZEL_SKYLIB_VERSION = "1.9.2"
 RULES_PROTO_VERSION = "7.1.0"
-FLOOR_PROTOBUF = "34.0.bcr.1"
 TESTED_PROTOBUF = "36.2"
 GO_SDK_VERSION = "1.26.10"
 GO_LANGUAGE_FLOOR = "1.26.0"
@@ -41,7 +37,6 @@ GO_SDK_SDKS = {
     "windows_arm64": ["go1.26.10.windows-arm64.zip", "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"],
 }
 
-FLOOR_RULES_PYTHON = "1.9.0"
 RULES_PYTHON_VERSION = "2.4.6"
 ASPECT_RULES_PY_VERSION = "2.0.0-alpha.10"
 PYTHON_VERSION = "3.12"
@@ -63,12 +58,9 @@ NODE_VERSION_PREFIX = "v22."
 
 RULES_JAVA_VERSION = "9.9.0"
 RULES_ANDROID_VERSION = "0.8.0"
-FLOOR_RULES_KOTLIN = "2.4.10"
 TESTED_RULES_KOTLIN = "2.4.21"
-FLOOR_RULES_SCALA = "7.3.0"
 TESTED_RULES_SCALA = "7.4.0"
 SCALA_VERSION = "2.13.18"
-FLOOR_RULES_JVM_EXTERNAL = "7.1"
 TESTED_RULES_JVM_EXTERNAL = "7.2"
 
 RULES_DOTNET_VERSION = "0.22.2"
@@ -98,23 +90,23 @@ CONSUMER_BAZEL_DEPS = {
     "rules_cc": struct(floor = RULES_CC_VERSION, tested = RULES_CC_VERSION),
     "llvm": struct(floor = LLVM_VERSION, tested = LLVM_VERSION),
     "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
-    "rules_python": struct(floor = FLOOR_RULES_PYTHON, tested = RULES_PYTHON_VERSION),
-    "rules_go": struct(floor = FLOOR_RULES_GO, tested = TESTED_RULES_GO),
+    "rules_python": struct(floor = RULES_PYTHON_VERSION, tested = RULES_PYTHON_VERSION),
+    "rules_go": struct(floor = TESTED_RULES_GO, tested = TESTED_RULES_GO),
     "gazelle": struct(floor = GAZELLE_VERSION, tested = GAZELLE_VERSION),
     "rules_shell": struct(floor = RULES_SHELL_VERSION, tested = RULES_SHELL_VERSION),
-    "apple_support": struct(floor = FLOOR_APPLE_SUPPORT, tested = TESTED_APPLE_SUPPORT),
-    "rules_apple": struct(floor = FLOOR_RULES_APPLE, tested = TESTED_RULES_APPLE),
+    "apple_support": struct(floor = TESTED_APPLE_SUPPORT, tested = TESTED_APPLE_SUPPORT),
+    "rules_apple": struct(floor = TESTED_RULES_APPLE, tested = TESTED_RULES_APPLE),
     "platforms": struct(floor = PLATFORMS_VERSION, tested = PLATFORMS_VERSION),
     "bazel_skylib": struct(floor = BAZEL_SKYLIB_VERSION, tested = BAZEL_SKYLIB_VERSION),
     "rules_proto": struct(floor = RULES_PROTO_VERSION, tested = RULES_PROTO_VERSION),
-    "protobuf": struct(floor = FLOOR_PROTOBUF, tested = TESTED_PROTOBUF),
+    "protobuf": struct(floor = TESTED_PROTOBUF, tested = TESTED_PROTOBUF),
     "rules_rust_prost": struct(floor = RULES_RUST_PROST_VERSION, tested = RULES_RUST_PROST_VERSION),
     "rules_java": struct(floor = RULES_JAVA_VERSION, tested = RULES_JAVA_VERSION),
     "rules_android": struct(floor = RULES_ANDROID_VERSION, tested = RULES_ANDROID_VERSION),
-    "rules_kotlin": struct(floor = FLOOR_RULES_KOTLIN, tested = TESTED_RULES_KOTLIN),
-    "rules_scala": struct(floor = FLOOR_RULES_SCALA, tested = TESTED_RULES_SCALA),
+    "rules_kotlin": struct(floor = TESTED_RULES_KOTLIN, tested = TESTED_RULES_KOTLIN),
+    "rules_scala": struct(floor = TESTED_RULES_SCALA, tested = TESTED_RULES_SCALA),
     "bazel_lib": struct(floor = BAZEL_LIB_VERSION, tested = BAZEL_LIB_VERSION),
-    "rules_jvm_external": struct(floor = FLOOR_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
+    "rules_jvm_external": struct(floor = TESTED_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),
     "rules_swift": struct(floor = RULES_SWIFT_VERSION, tested = RULES_SWIFT_VERSION),
     "bazel_linux_packages": struct(floor = "0.4.1", tested = "0.4.1"),

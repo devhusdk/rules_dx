@@ -84,15 +84,15 @@ single_version_override(
 bazel_dep(name = "toolchains_llvm", version = "1.12.0", dev_dependency = True)
 bazel_dep(name = "googletest", version = "1.18.0", dev_dependency = True)
 
-# floor: 1.9.0 (#3747)
-bazel_dep(name = "rules_python", version = "1.9.0")
+# floor: equals tested
+bazel_dep(name = "rules_python", version = "2.4.6")
 single_version_override(
     module_name = "rules_python",
     version = "2.4.6",
 )
 
-# floor: forced by rules_dart 0.8.1 MVS (#1783)
-bazel_dep(name = "rules_go", version = "0.64.2")
+# floor: equals tested
+bazel_dep(name = "rules_go", version = "0.65.0")
 single_version_override(
     module_name = "rules_go",
     version = "0.65.0",
@@ -112,15 +112,15 @@ single_version_override(
     version = "0.8.0",
 )
 
-# floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "apple_support", version = "2.9.1")
+# floor: equals tested
+bazel_dep(name = "apple_support", version = "2.10.1")
 single_version_override(
     module_name = "apple_support",
     version = "2.10.1",
 )
 
-# floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "rules_apple", version = "5.2.0")
+# floor: equals tested
+bazel_dep(name = "rules_apple", version = "5.3.1")
 single_version_override(
     module_name = "rules_apple",
     version = "5.3.1",
@@ -190,8 +190,8 @@ single_version_override(
     version = "7.1.0",
 )
 
-# floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "protobuf", version = "34.0.bcr.1")
+# floor: equals tested
+bazel_dep(name = "protobuf", version = "36.2")
 single_version_override(
     module_name = "protobuf",
     patch_strip = 1,
@@ -229,15 +229,15 @@ single_version_override(
     version = "0.0.8",
 )
 
-# floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "rules_kotlin", version = "2.4.20")
+# floor: equals tested
+bazel_dep(name = "rules_kotlin", version = "2.4.21")
 single_version_override(
     module_name = "rules_kotlin",
     version = "2.4.21",
 )
 
-# floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "rules_scala", version = "7.3.0")
+# floor: equals tested
+bazel_dep(name = "rules_scala", version = "7.4.0")
 single_version_override(
     module_name = "rules_scala",
     version = "7.4.0",
@@ -320,8 +320,8 @@ use_repo(
     "paket.rules_dotnet_nuget_packages",
 )
 
-# floor: previous tested version; not yet searched (#3747)
-bazel_dep(name = "rules_jvm_external", version = "7.1")
+# floor: equals tested
+bazel_dep(name = "rules_jvm_external", version = "7.2")
 single_version_override(
     module_name = "rules_jvm_external",
     version = "7.2",

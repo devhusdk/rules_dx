@@ -249,8 +249,8 @@ Your `MODULE.bazel` needs `rules_swift` and the Apple C++ toolchain
 registration next to `rules_dx`:
 
 ```python
-bazel_dep(name = "rules_swift", version = "4.1.1")
-bazel_dep(name = "apple_support", version = "2.9.1")
+bazel_dep(name = "rules_swift", version = "4.2.2")
+bazel_dep(name = "apple_support", version = "2.10.1")
 
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
@@ -513,7 +513,7 @@ apple_ios_app(
 ```
 
 Your `MODULE.bazel` needs `bazel_dep(name = "rules_apple", version =
-"5.2.0")`. Sources import `<Share/share_api.h>`. The app embeds the
+"5.3.1")`. Sources import `<Share/share_api.h>`. The app embeds the
 framework under `Frameworks/`, and its resources load from
 `[NSBundle bundleWithIdentifier:]`.
 

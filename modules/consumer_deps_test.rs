@@ -77,17 +77,14 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             )),
             Err(error) => problems.push(error.to_string()),
         }
+        if floor != tested {
+            problems.push(format!("{name:?} floor {floor} != tested {tested}"));
+        }
         if compare_module_versions(floor, tested) == Ordering::Greater {
             problems.push(format!("{name:?} floor {floor} is above tested {tested}"));
         }
         match module.floor_comment(name) {
-            Ok(Some(reason)) => {
-                if reason.contains("equals tested") && floor != tested {
-                    problems.push(format!(
-                        "bazel_dep {name:?} floor comment says \"equals tested\" but floor {floor} != tested {tested}"
-                    ));
-                }
-            }
+            Ok(Some(_)) => {}
             Ok(None) => problems.push(format!(
                 "bazel_dep {name:?} has no `# floor: <reason>` comment directly above it"
             )),
@@ -169,13 +166,13 @@ fn consumer_fragments_pin_consumer_deps_at_their_floors() {
 
 #[test]
 fn a_fragment_above_its_floor_fails() {
-    let table = fixture_table(&[("demo", "1.0.0", "1.2.0")]);
-    let at_floor = "bazel_dep(name = \"demo\", version = \"1.0.0\")\nbazel_dep(name = \"other\", version = \"9\")\n";
+    let table = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
+    let at_floor = "bazel_dep(name = \"demo\", version = \"1.2.0\")\nbazel_dep(name = \"other\", version = \"9\")\n";
     assert!(fragment_violations(at_floor, "f", &table).is_empty());
-    let problems = fragment_violations(&at_floor.replace("1.0.0", "1.2.0"), "f", &table);
+    let problems = fragment_violations(&at_floor.replace("1.2.0", "1.4.0"), "f", &table);
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(
-        problems[0].contains("is 1.2.0 but its floor is 1.0.0"),
+        problems[0].contains("is 1.4.0 but its floor is 1.2.0"),
         "{problems:?}"
     );
 }
@@ -202,51 +199,59 @@ fn fixture_table(pins: &[(&str, &str, &str)]) -> Table {
         .collect()
 }
 
-const GOOD: &str = "# floor: oldest passing\nbazel_dep(name = \"demo\", version = \"1.0.0\")\nsingle_version_override(\n    module_name = \"demo\",\n    version = \"1.2.0\",\n)\n\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\n";
+fn good(dep: &str, over: &str) -> String {
+    format!("# floor: equals tested\nbazel_dep(name = \"demo\", version = \"{dep}\")\nsingle_version_override(\n    module_name = \"demo\",\n    version = \"{over}\",\n)\n\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\n")
+}
 
 #[test]
 fn a_matching_fixture_passes() {
     assert_eq!(
-        violations(GOOD, &fixture_table(&[("demo", "1.0.0", "1.2.0")])),
+        violations(
+            &good("1.2.0", "1.2.0"),
+            &fixture_table(&[("demo", "1.2.0", "1.2.0")])
+        ),
         Vec::<String>::new()
     );
 }
 
 #[test]
 fn disagreeing_fixtures_fail() {
-    let demo = fixture_table(&[("demo", "1.0.0", "1.2.0")]);
+    let demo = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
+    let rust = |floor: &str, tested: &str| {
+        format!("# floor: a\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: a\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n")
+    };
     for (source, table, needle) in [
-        (GOOD.replace("1.0.0", "1.1.0"), demo.clone(), "but its floor is"),
-        (GOOD.replace("1.2.0", "1.3.0"), demo.clone(), "but its tested version is"),
+        (good("1.1.0", "1.2.0"), demo.clone(), "but its floor is"),
+        (good("1.2.0", "1.3.0"), demo.clone(), "but its tested version is"),
         (
-            GOOD.to_owned(),
-            fixture_table(&[("demo", "1.0.0", "1.2.0"), ("gone", "1", "1")]),
+            good("1.2.0", "1.2.0"),
+            fixture_table(&[("demo", "1.2.0", "1.2.0"), ("gone", "1", "1")]),
             "has no non-dev bazel_dep",
         ),
-        (GOOD.to_owned(), Table::new(), "missing from CONSUMER_BAZEL_DEPS"),
+        (good("1.2.0", "1.2.0"), Table::new(), "missing from CONSUMER_BAZEL_DEPS"),
         (
-            GOOD.replace("# floor: oldest passing\n", ""),
+            good("1.2.0", "1.2.0").replace("# floor: equals tested\n", ""),
             demo.clone(),
             "has no `# floor: <reason>` comment",
         ),
         (
-            GOOD.replace("oldest passing", "equals tested"),
-            demo.clone(),
-            "says \"equals tested\"",
+            good("1.1.0", "1.2.0"),
+            fixture_table(&[("demo", "1.1.0", "1.2.0")]),
+            "floor 1.1.0 != tested 1.2.0",
         ),
         (
-            GOOD.replace("single_version_override", "archive_override"),
+            good("1.2.0", "1.2.0").replace("single_version_override", "archive_override"),
             demo.clone(),
             "no single_version_override",
         ),
         (
-            GOOD.replace("1.0.0", "1.3.0"),
+            good("1.3.0", "1.2.0"),
             fixture_table(&[("demo", "1.3.0", "1.2.0")]),
             "is above tested",
         ),
         (
-            "# floor: a\nbazel_dep(name = \"rules_rust\", version = \"1\")\nsingle_version_override(module_name = \"rules_rust\", version = \"2\")\n# floor: a\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n".to_owned(),
-            fixture_table(&[("rules_rust", "1", "2"), ("rules_rust_prost", "2", "2")]),
+            rust("1", "1"),
+            fixture_table(&[("rules_rust", "1", "1"), ("rules_rust_prost", "2", "2")]),
             "must share one floor",
         ),
     ] {

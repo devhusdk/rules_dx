@@ -55,6 +55,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("yaml.bzl", "0.1.2"),
     ("rules_julia", "0.8.0"),
     ("rules_perl", "1.5.0"),
+    ("rules_batch", "0.1.1"),
     ("lua", "5.4.6.bcr.1"),
     ("aspect_rules_py", "2.0.0-alpha.10"),
     ("aspect_rules_js", "3.5.2"),

@@ -874,6 +874,9 @@ use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir"
 
 register_toolchains("@dx_elixir_toolchains//:all")
 
+# needed: @rules_powershell (powershell extension) loads @rules_batch
+bazel_dep(name = "rules_batch", version = "0.1.1")
+
 powershell = use_extension("//powershell/toolchain:repos.bzl", "powershell")
 use_repo(
     powershell,

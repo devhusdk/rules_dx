@@ -145,6 +145,12 @@ cc_binary(
     srcs = ["main.cc"],
     tags = ["manual"],
 )
+
+cc_binary(
+    name = "c_app",
+    srcs = ["main.c"],
+    tags = ["manual"],
+)
 "#;
 
 /// Stages a registry for the archive and returns its directory.
@@ -188,6 +194,10 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     write(
         &root.join("gcc/main.cc"),
         b"#include <iostream>\n\nint main() {\n  std::cout << \"gcc consumer\\n\";\n}\n",
+    );
+    write(
+        &root.join("gcc/main.c"),
+        b"#include <stdio.h>\n\nint main(void) {\n  puts(\"gcc c consumer\");\n  return 0;\n}\n",
     );
     case
 }
@@ -279,26 +289,38 @@ fn assert_gcc_consumer(case: &Case) {
         repo_env.as_str(),
         action_env.as_str(),
     ];
-    let with = |head: &[&'static str]| -> Vec<&str> {
+    let with = |head: &[&'static str], target: &'static str| -> Vec<&str> {
         head.iter()
             .copied()
             .chain(flags)
-            .chain(["//gcc:app"])
+            .chain([target])
             .collect()
     };
-
-    ok(&case.bazel(&with(&["build"])), "gcc build");
-    let files = case.bazel(&with(&["cquery", "--output=files"]));
-    ok(&files, "gcc cquery");
     let root = case.bazel(&["info", "execution_root"]);
     ok(&root, "info execution_root");
-    let rel = files.stdout.trim();
-    let binary = Path::new(root.stdout.trim()).join(rel);
-    let bytes = std::fs::read(&binary).unwrap_or_else(|error| panic!("{binary:?}: {error}"));
-    let has = |needle: &str| bytes.windows(needle.len()).any(|w| w == needle.as_bytes());
-    assert!(has("GCC: ("), "{binary:?} has no GCC comment");
-    assert!(has("16.2.0"), "{binary:?} is not GCC 16.2.0");
-    assert!(!has("clang version"), "{binary:?} was built by clang");
+
+    for (target, expected) in [
+        ("//gcc:app", "gcc consumer\n"),
+        ("//gcc:c_app", "gcc c consumer\n"),
+    ] {
+        ok(&case.bazel(&with(&["build"], target)), "gcc build");
+        let files = case.bazel(&with(&["cquery", "--output=files"], target));
+        ok(&files, "gcc cquery");
+        let binary = Path::new(root.stdout.trim()).join(files.stdout.trim());
+        let bytes = std::fs::read(&binary).unwrap_or_else(|error| panic!("{binary:?}: {error}"));
+        let has = |needle: &str| bytes.windows(needle.len()).any(|w| w == needle.as_bytes());
+        assert!(has("GCC: ("), "{binary:?} has no GCC comment");
+        assert!(has("16.2.0"), "{binary:?} is not GCC 16.2.0");
+        assert!(!has("clang version"), "{binary:?} was built by clang");
+
+        let output = std::process::Command::new(&binary)
+            .env_clear()
+            .env("PATH", &shim)
+            .output()
+            .unwrap_or_else(|error| panic!("run {binary:?}: {error}"));
+        assert!(output.status.success(), "{binary:?} exited {:?}", output.status);
+        assert_eq!(String::from_utf8_lossy(&output.stdout), expected, "{binary:?}");
+    }
 }
 
 #[test]

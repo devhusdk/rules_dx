@@ -27,6 +27,7 @@ julia_library(
     name = "Report",
     srcs = ["src/Report.jl"],
     data = ["Project.toml"],
+    # Precompiling Report also recompiles its dependencies, which rules_julia rejects.
     precompile = False,
     deps = [
         "//julia/tests/fixtures/julia-app/archive:Archive",

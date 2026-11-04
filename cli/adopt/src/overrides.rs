@@ -666,13 +666,18 @@ mod tests {
         let scratch = consumer(&dep_module());
         let root = scratch.path();
         apply_overrides(root).expect("applies");
-        let patch = root.join(OVERRIDES_DIR).join("rules_rust.msvc_stdlib_linkflags.patch");
+        let patch = root
+            .join(OVERRIDES_DIR)
+            .join("rules_rust.msvc_stdlib_linkflags.patch");
         let mut bytes = std::fs::read(&patch).expect("patch");
         bytes[0] ^= 1;
         std::fs::write(&patch, bytes).expect("corrupt");
         match check_overrides(root) {
             OverridesState::Error(detail) => {
-                assert!(detail.contains("rules_rust.msvc_stdlib_linkflags.patch"), "{detail}")
+                assert!(
+                    detail.contains("rules_rust.msvc_stdlib_linkflags.patch"),
+                    "{detail}"
+                )
             }
             other => panic!("{other:?}"),
         }

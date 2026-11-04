@@ -7,7 +7,7 @@ load("//cc/rules:defs.bzl", "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
-load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_tool_inputs_test")
+load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_tool_inputs_test")
 
 package(
     default_testonly = True,
@@ -117,6 +117,11 @@ build_script_compiler_tests(
 build_script_msvc_test(
     name = "native_cc_build_script_msvc_test",
     target = ":native_cc_build_script",
+)
+
+build_script_libstdcxx_test(
+    name = "native_cc_libstdcxx_test",
+    target = ":native_cc_test_upstream",
 )
 
 cross_build_script_tool_inputs_test(

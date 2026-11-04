@@ -78,6 +78,37 @@ _gcc_test = analysistest.make(_gcc_impl, config_settings = {_COMPILER: "gcc"})
 _llvm_test = analysistest.make(_llvm_impl, config_settings = {_COMPILER: "llvm"})
 _msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})
 
+def _libstdcxx_impl(ctx):
+    env = analysistest.begin(ctx)
+    links = [
+        a
+        for a in analysistest.target_actions(env)
+        if a.mnemonic == "Rustc"
+    ]
+    asserts.true(env, len(links) > 0, "no rustc action")
+    for action in links:
+        archives = [f.path for f in action.inputs.to_list() if f.path.endswith("/lib64/libstdc++.a")]
+        asserts.true(env, len(archives) > 0, "libstdc++.a is not an input of {}".format(action.outputs.to_list()))
+        for path in archives:
+            asserts.true(env, "dx_gcc_linux_x86_64" in path, "libstdc++.a is not from the pinned GCC: {}".format(path))
+    return analysistest.end(env)
+
+_libstdcxx_test = analysistest.make(_libstdcxx_impl, config_settings = {_COMPILER: "gcc"})
+
+def build_script_libstdcxx_test(name, target):
+    """Asserts a binary using the C++ build script links libstdc++ from the pinned GCC.
+
+    Args:
+        name: Name of the test.
+        target: A rust_test or rust_binary that depends on the build script.
+    """
+    _libstdcxx_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
+
 def build_script_compiler_tests(name, target):
     """Asserts the build script runs with the pinned GCC under gcc and with other tools under llvm.
 

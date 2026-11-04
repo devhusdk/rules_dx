@@ -1965,7 +1965,7 @@ fn javac_log(exit: i32, file: &str) -> String {
             r#"{{"file":"{file}","line":2,"column":22,"severity":"error","code":"compiler.err.prob.found.req","message":"incompatible types"}}"#
         )
     };
-    format!(r#"{{"version":1,"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+    format!(r#"{{"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
 }
 
 #[test]
@@ -2024,7 +2024,7 @@ fn kotlinc_log(exit: i32, file: &str) -> String {
             r#"{{"file":"{file}","line":2,"column":10,"severity":"error","code":"RETURN_TYPE_MISMATCH","message":"type mismatch"}}"#
         )
     };
-    format!(r#"{{"version":1,"tool":"kotlinc","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+    format!(r#"{{"tool":"kotlinc","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
 }
 
 #[test]
@@ -2083,7 +2083,7 @@ fn scalac_log(exit: i32, file: &str) -> String {
             r#"{{"file":"{file}","line":1,"column":24,"severity":"error","code":"scalac","message":"type mismatch"}}"#
         )
     };
-    format!(r#"{{"version":1,"tool":"scalac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+    format!(r#"{{"tool":"scalac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
 }
 
 #[test]

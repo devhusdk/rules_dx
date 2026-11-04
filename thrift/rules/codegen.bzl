@@ -19,8 +19,12 @@ ThriftCcAspectInfo = provider(
     fields = {
         "cc_info": "CcInfo of the generated code of the closure.",
         "generated": "List[File]: generated tree of this library's own schemas.",
+        "srcjar": "File: generated sources of this library's own schemas, or None.",
     },
 )
+
+def _zip_entry(f):
+    return f.tree_relative_path + "=" + f.path
 
 def _cc_aspect_impl(target, ctx):
     info = target[ThriftInfo]
@@ -28,7 +32,7 @@ def _cc_aspect_impl(target, ctx):
     dep_infos = [dep[ThriftCcAspectInfo].cc_info for dep in ctx.rule.attr.deps]
     runtime = ctx.attr._runtime[CcInfo]
     if not info.direct_srcs:
-        return [ThriftCcAspectInfo(cc_info = cc_common.merge_cc_infos(cc_infos = [runtime] + dep_infos), generated = [])]
+        return [ThriftCcAspectInfo(cc_info = cc_common.merge_cc_infos(cc_infos = [runtime] + dep_infos), generated = [], srcjar = None)]
     stage = stage_closure(ctx, "_thrift_cc_stage/" + name, info.transitive_includes.to_list(), "thrift")
     tree = ctx.actions.declare_directory("_thrift_cc/" + name)
     out_include = tree.path
@@ -46,6 +50,20 @@ def _cc_aspect_impl(target, ctx):
         arguments = [args],
         mnemonic = "ThriftCpp",
         progress_message = "thrift --gen cpp " + str(target.label),
+    )
+    srcjar = ctx.actions.declare_file("_thrift_cc/" + name + ".srcjar")
+    zip_args = ctx.actions.args()
+    zip_args.add("c")
+    zip_args.add(srcjar)
+    zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
+    ctx.actions.run(
+        executable = ctx.executable._zipper,
+        toolchain = None,
+        inputs = [tree],
+        outputs = [srcjar],
+        arguments = [zip_args],
+        mnemonic = "ThriftCppSrcjar",
+        progress_message = "Packing " + srcjar.short_path,
     )
     cc_toolchain = find_cpp_toolchain(ctx)
     feature_configuration = cc_common.configure_features(
@@ -77,6 +95,7 @@ def _cc_aspect_impl(target, ctx):
     return [ThriftCcAspectInfo(
         cc_info = cc_common.merge_cc_infos(cc_infos = [own] + dep_infos),
         generated = [tree],
+        srcjar = srcjar,
     )]
 
 _cc_aspect = aspect(
@@ -85,6 +104,7 @@ _cc_aspect = aspect(
     attrs = {
         "_runtime": attr.label(default = Label("@dx_thrift//:cpp_runtime"), providers = [CcInfo]),
         "_thrift": attr.label(default = Label("@dx_thrift//:thrift_compiler"), executable = True, cfg = "exec"),
+        "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
     } | CC_TOOLCHAIN_ATTRS,
     required_providers = [ThriftInfo],
     provides = [ThriftCcAspectInfo],
@@ -98,8 +118,10 @@ def _cc_library_impl(ctx):
     cc_info = cc_common.merge_cc_infos(
         cc_infos = [ctx.attr._runtime[CcInfo]] + [info.cc_info for info in aspect_infos],
     )
+    srcjars = [info.srcjar for info in aspect_infos if info.srcjar]
     return [
         DefaultInfo(files = depset(own)),
+        OutputGroupInfo(thrift_generated_srcs = depset(srcjars)),
         cc_info,
         dx_quality_sources([], [], str(ctx.label)),
     ]
@@ -127,9 +149,6 @@ ThriftJavaAspectInfo = provider(
 )
 
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
-
-def _zip_entry(f):
-    return f.tree_relative_path + "=" + f.path
 
 def _java_aspect_impl(target, ctx):
     info = target[ThriftInfo]
@@ -309,7 +328,7 @@ def _shard_impl(ctx):
         fail(
             "thrift_codegen_shard " + display_label(ctx.label) + ": " +
             display_label(library.label) + " has no " + THRIFT_GENERATED_SRCS_GROUP +
-            " output group (want a thrift_java_library or NAME_generated of a thrift_rust_library)",
+            " output group (want a thrift_cc_library, a thrift_java_library or NAME_generated of a thrift_rust_library)",
         )
     return codegen_bound_shard_providers(
         ctx,
@@ -322,15 +341,15 @@ def _shard_impl(ctx):
 
 thrift_codegen_shard = rule(
     implementation = _shard_impl,
-    doc = "Declares codegen plan entries for the Rust and Java files thrift generates. Every generated file needs one entry with an EXEC_PATH suffix.",
+    doc = "Declares codegen plan entries for the C++, Rust and Java files thrift generates. Every generated file needs one entry with an EXEC_PATH suffix.",
     attrs = {
         "entries": attr.string_list(
             doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
             mandatory = True,
         ),
-        "language": attr.string(doc = "rust or java.", mandatory = True),
+        "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
         "library": attr.label(
-            doc = "thrift_java_library, or the NAME_generated target of a thrift_rust_library, whose generated files the entries bind.",
+            doc = "thrift_cc_library, thrift_java_library, or the NAME_generated target of a thrift_rust_library, whose generated files the entries bind.",
             mandatory = True,
         ),
         "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),

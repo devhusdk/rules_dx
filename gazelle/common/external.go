@@ -276,7 +276,7 @@ func loadExternal(parser externalParser, abs, relPath string) (externalManifest,
 	}
 	content, err := os.ReadFile(abs)
 	if err == nil {
-		entry.manifest, entry.err = parser.Parse(content, relPath)
+		entry.manifest, entry.err = parser.Parse(StripBOM(content), relPath)
 	} else {
 		entry.err = err
 	}

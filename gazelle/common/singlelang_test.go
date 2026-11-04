@@ -1622,3 +1622,27 @@ func TestSingleLangErrorPackages(t *testing.T) {
 		t.Fatalf("error packages = %+v, want %+v", got, want)
 	}
 }
+
+func TestApparentLoadsCoreAndFamilyKinds(t *testing.T) {
+	spec := dotSpec()
+	spec.ExtraKinds = []string{"dot_binary", "dot_family"}
+	spec.KindDefs = map[string]string{"dot_family": "@rules_dx_dot//rules:defs.bzl"}
+	names := map[string]string{"rules_dx": "dx", "rules_dx_dot": "dxdot"}
+	got := NewSingleLang(spec).ApparentLoads(func(m string) string { return names[m] })
+	want := []rule.LoadInfo{
+		{Name: "@dx//dot/rules:defs.bzl", Symbols: []string{"dot_library", "dot_binary"}},
+		{Name: "@dxdot//rules:defs.bzl", Symbols: []string{"dot_family"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestApparentLoadsFallBackToModuleName(t *testing.T) {
+	spec := dotSpec()
+	spec.KindDefs = map[string]string{dotKind: "@rules_dx_dot//rules:defs.bzl"}
+	got := NewSingleLang(spec).ApparentLoads(func(string) string { return "" })
+	if len(got) != 1 || got[0].Name != "@rules_dx_dot//rules:defs.bzl" {
+		t.Fatalf("got %v", got)
+	}
+}

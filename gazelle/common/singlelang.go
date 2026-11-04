@@ -156,17 +156,27 @@ func (l *SingleLang) Fallback() []string { return l.spec.Fallback }
 
 func (l *SingleLang) Kinds() map[string]rule.KindInfo { return l.spec.Kinds }
 
-func (l *SingleLang) Loads() []rule.LoadInfo { return l.loads("rules_dx") }
+func (l *SingleLang) Loads() []rule.LoadInfo { return l.loads(func(module string) string { return module }) }
 
 func (l *SingleLang) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	repoName := moduleToApparentName("rules_dx")
-	if repoName == "" {
-		repoName = "rules_dx"
-	}
-	return l.loads(repoName)
+	return l.loads(func(module string) string {
+		if name := moduleToApparentName(module); name != "" {
+			return name
+		}
+		return module
+	})
 }
 
-func (l *SingleLang) loads(rulesRepo string) []rule.LoadInfo {
+// loadLabel turns a defs value into a load label. A value of the form
+// "@module//pkg:file.bzl" names a family module; anything else is in rules_dx.
+func loadLabel(defs string, apparentName func(string) string) string {
+	if module, rest, ok := strings.Cut(strings.TrimPrefix(defs, "@"), "//"); ok && strings.HasPrefix(defs, "@") {
+		return "@" + apparentName(module) + "//" + rest
+	}
+	return "@" + apparentName("rules_dx") + "//" + defs
+}
+
+func (l *SingleLang) loads(apparentName func(string) string) []rule.LoadInfo {
 	bySymbols := map[string][]string{}
 	for _, kind := range append([]string{l.spec.LibraryKind}, l.spec.ExtraKinds...) {
 		pkg := l.spec.DefsPackage
@@ -186,7 +196,7 @@ func (l *SingleLang) loads(rulesRepo string) []rule.LoadInfo {
 	var loads []rule.LoadInfo
 	for _, pkg := range pkgs {
 		if symbols := bySymbols[pkg]; len(symbols) > 0 {
-			loads = append(loads, rule.LoadInfo{Name: "@" + rulesRepo + "//" + pkg, Symbols: symbols})
+			loads = append(loads, rule.LoadInfo{Name: loadLabel(pkg, apparentName), Symbols: symbols})
 		}
 	}
 	return loads

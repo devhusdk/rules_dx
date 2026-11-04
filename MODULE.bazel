@@ -884,6 +884,15 @@ use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_dfmt", "dx_d_dscanner", "dx_d_i
 
 register_toolchains("@dx_d_toolchains//:all")
 
+dub = use_extension("//d/dub:extensions.bzl", "dub", dev_dependency = True)
+dub.lock(
+    name = "dub_fixture",
+    dev = True,
+    digests = "//d/tests/fixtures/dub:dub.digests.json",
+    selections = "//d/tests/fixtures/dub:dub.selections.json",
+)
+use_repo(dub, "dub_fixture")
+
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
 single_version_override(

@@ -55,6 +55,49 @@ Select `dscanner` in a `d` quality family to lint D sources. The D wrappers
 carry the pinned D-Scanner, so no flag is needed. See "D linting" in
 `docs/cli/commands/quality.md`.
 
+## DUB packages
+
+Packages come from a `dub.selections.json` that DUB wrote. Bazel fetches each
+package from `code.dlang.org` through its repository cache; DUB never runs at
+fetch time and nothing is resolved.
+
+```starlark
+dub = use_extension("@rules_dx//d/dub:extensions.bzl", "dub")
+dub.lock(
+    name = "dub_packages",
+    digests = "//:dub.digests.json",
+    selections = "//:dub.selections.json",
+)
+use_repo(dub, "dub_packages")
+```
+
+Set `dev = True` on the tag when you use the extension with `dev_dependency = True`.
+
+Each package is the label `@dub_packages//<name>`, for example
+`@dub_packages//silly`; put it in the `deps` of a `d_library`, `d_binary` or
+`d_test`. The package's own `dependencies` that appear in the selections become
+deps. `sourcePaths`, `sourceFiles`, `importPaths` and `stringImportPaths` of its `dub.json` set
+the sources and imports; without `sourcePaths` the `source` or `src` directory is
+used. `@dub_packages//:all_packages` groups every package.
+
+Only plain versions are supported: a `path` or `repository` selection fails, and
+so does a package that has a `dub.sdl` instead of a `dub.json`.
+
+`dub.digests.json` pins the archives:
+
+```json
+{
+  "packages": {
+    "silly": {
+      "version": "1.1.1",
+      "sha256": "<sha256 of https://code.dlang.org/packages/silly/1.1.1.zip>"
+    }
+  }
+}
+```
+
+A package without a matching entry fails the fetch and prints the entry to commit.
+
 ## Platforms
 
 | Host | LDC | Qualified |

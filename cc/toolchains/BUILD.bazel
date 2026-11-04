@@ -63,6 +63,21 @@ toolchain(
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 
+toolchain(
+    name = "gcc_linux_arm64",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = [":gcc_selected"],
+    toolchain = "@dx_gcc_linux_aarch64//:_cc_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
 cc_toolchain_test(
     name = "gcc_hello_test",
     compiler = "gcc",
@@ -148,6 +163,36 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
 )
 
+cc_toolchain_test(
+    name = "gcc_arm64_hello_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/hello:hello_private_header_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_hello_c_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/hello:hello_c_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_shared_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/gcc_shared:shared_test",
+)
+
 cc_gcov_coverage_env_test(
     name = "gcc_coverage_env_test",
     target = "//cc/tests/fixtures/hello:hello_c_test",
@@ -156,7 +201,9 @@ cc_gcov_coverage_env_test(
 test_suite(
     name = "all",
     tests = [
-        "//cc/tests/fixtures/hello:toolchain_action_tests",
+        ":gcc_arm64_hello_c_test",
+        ":gcc_arm64_hello_test",
+        ":gcc_arm64_shared_test",
         ":gcc_asan_test",
         ":gcc_c_test",
         ":gcc_coverage_env_test",
@@ -169,6 +216,7 @@ test_suite(
         ":identity",
         ":identity_contract",
         ":identity_gcc",
+        "//cc/tests/fixtures/hello:toolchain_action_tests",
         "//cc/tests/gcc_cross:all",
         "//cc/toolchains/msvc:msvc_layout",
         "//cc/toolchains/msvc:msvc_toolchain",

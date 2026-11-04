@@ -484,10 +484,12 @@ register_toolchains("//cc/toolchains:gcc_linux_x86_64")
 
 register_toolchains("//cc/toolchains:gcc_linux_x86_64_to_arm64")
 
+register_toolchains("//cc/toolchains:gcc_linux_arm64")
+
 register_toolchains("@llvm//toolchain:all")
 
 gcc = use_extension("//cc/toolchains:repos.bzl", "gcc")
-use_repo(gcc, "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
+use_repo(gcc, "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
 use_repo(

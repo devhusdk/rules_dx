@@ -86,7 +86,15 @@ copy_current() {
   [ -f "$state/dx$exe" ] && [ -f "$bin" ] && [ "$(wc -c <"$state/dx$exe")" = "$(wc -c <"$bin")" ] &&
     ! [ "$state/dx$exe" -nt "$bin" ] && ! [ "$state/dx$exe" -ot "$bin" ]
 }
+# A run killed before its trap ran leaves its pid's temp files behind. A pid that still answers kill -0 belongs to a live run.
+sweep_temps() {
+  for t in "$state/dx$exe".[0-9]* "$state/built".[0-9]* "$state/inputs".[0-9]*; do
+    [ -e "$t" ] || continue
+    kill -0 "${t##*.}" 2>/dev/null || rm -f "$t"
+  done
+}
 sync_copy() {
+  sweep_temps
   rm -f "$state/dx$exe".old.* 2>/dev/null || true
   if ! copy_current; then
     [ -f "$bin" ] || return 1

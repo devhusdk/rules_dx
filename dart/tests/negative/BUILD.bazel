@@ -5,7 +5,6 @@ load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETW
 # keep
 rust_test(
     name = "negative_test",
-    size = "enormous",
     srcs = ["negative_test.rs"],
     data = ["//:module_srcs"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,

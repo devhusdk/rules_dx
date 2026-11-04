@@ -30,7 +30,6 @@ ide_acquisition_test(
 
 nested_bazel_test(
     name = "init_rust_analyzer_test",
-    size = "enormous",
     srcs = ["tests/init_rust_analyzer.rs"],
     data = [
         "//:module_srcs",

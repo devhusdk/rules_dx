@@ -5,7 +5,6 @@ load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_
 # keep
 rust_test(
     name = "service_consumer_test",
-    size = "enormous",
     srcs = ["service_consumer_test.rs"],
     data = [
         "service_consumer_test.rs",
@@ -39,7 +38,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "overrides_consumer_test",
-    size = "enormous",
     srcs = ["overrides_consumer_test.rs"],
     data = [
         "overrides_consumer_test.rs",
@@ -72,7 +70,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "docs_consumer_test",
-    size = "enormous",
     srcs = ["docs_consumer_test.rs"],
     data = [
         "//:MODULE.bazel",

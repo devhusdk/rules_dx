@@ -78,7 +78,6 @@ rust_clippy_test(
 # keep
 rust_test(
     name = "renamed_consumer_test",
-    size = "enormous",
     srcs = ["renamed_consumer_test.rs"],
     data = [
         "//cli/cli:dx",

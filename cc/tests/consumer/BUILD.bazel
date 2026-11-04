@@ -4,7 +4,6 @@ load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
 nested_bazel_test(
     name = "app_consumer_test",
-    size = "enormous",
     srcs = ["app_consumer_test.rs"],
     data = [
         "app_consumer_test.rs",

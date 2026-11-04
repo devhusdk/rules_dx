@@ -4,7 +4,6 @@ load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
 nested_bazel_test(
     name = "consumer_test",
-    size = "enormous",
     srcs = ["consumer_test.rs"],
     data = [
         "//:module_srcs",

@@ -182,7 +182,6 @@ def _runner_matrix_test_impl(ctx):
         "producer": producer,
         "runner_failure": ctx.attr.runner_failure,
         "runner_key": rlocation_path(ctx, runner),
-        "schema_version": 2,
         "siblings": manifest_siblings,
         "sources": manifest_sources,
         "stages": [_request_stage(s) for s in ctx.attr.stages],

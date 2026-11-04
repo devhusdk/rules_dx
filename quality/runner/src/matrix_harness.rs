@@ -25,7 +25,6 @@ use dx_path::Resolver;
 use quality_result::{decode_validated, proto};
 
 pub const MANIFEST_ENV: &str = "MATRIX_HARNESS_MANIFEST";
-pub const MANIFEST_VERSION: u32 = 2;
 const REQUEST_SCHEMA_VERSION: u32 = 1;
 const UPDATE_ENV: &str = "UPDATE_EXPECT";
 const UNDECLARED_ENV: &str = "TEST_UNDECLARED_OUTPUTS_DIR";
@@ -127,7 +126,6 @@ pub struct ManifestPathTool {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
-    pub schema_version: u32,
     pub name: String,
     pub producer: String,
     pub capability: String,
@@ -180,15 +178,6 @@ pub fn parse_manifest(bytes: &[u8], path: &str) -> Result<Manifest, HarnessError
             path: path.to_owned(),
             detail: error.to_string(),
         })?;
-    if manifest.schema_version != MANIFEST_VERSION {
-        return Err(HarnessError::BadManifest {
-            path: path.to_owned(),
-            detail: format!(
-                "unsupported manifest schema {}: want {MANIFEST_VERSION}",
-                manifest.schema_version
-            ),
-        });
-    }
     for field in [
         ("name", &manifest.name),
         ("producer", &manifest.producer),
@@ -941,7 +930,6 @@ mod tests {
 
     fn skeleton(extra: serde_json::Value) -> Vec<u8> {
         let mut doc = serde_json::json!({
-            "schema_version": 2,
             "name": "matrix_probe",
             "producer": "//quality/testdata:matrix_probe",
             "capability": "format",
@@ -1037,20 +1025,7 @@ mod tests {
     }
 
     #[test]
-    fn manifest_version_is_pinned_and_unknown_fields_rejected() {
-        for version in [1, 3] {
-            let error = parse_manifest(
-                &skeleton(serde_json::json!({"schema_version": version})),
-                "skeleton",
-            )
-            .expect_err("other versions must fail");
-            assert!(
-                error
-                    .to_string()
-                    .contains(&format!("unsupported manifest schema {version}")),
-                "{error}"
-            );
-        }
+    fn manifest_unknown_keys_rejected() {
         for stages in [
             serde_json::json!(["rustfmt;rust;matrix/dirty.rs"]),
             serde_json::json!([{"tool": "rustfmt", "classes": ["rust"], "sources": ["matrix/dirty.rs"], "bogus": 1}]),
@@ -1062,13 +1037,15 @@ mod tests {
             );
         }
 
-        let mut raw: serde_json::Value =
-            serde_json::from_slice(&skeleton(serde_json::json!({}))).expect("decodes");
-        raw["bogus"] = serde_json::json!(true);
-        assert!(
-            parse_manifest(&serde_json::to_vec(&raw).expect("encodes"), "skeleton").is_err(),
-            "an unknown field must fail"
-        );
+        for key in ["schema_version", "bogus"] {
+            let mut raw: serde_json::Value =
+                serde_json::from_slice(&skeleton(serde_json::json!({}))).expect("decodes");
+            raw[key] = serde_json::json!(true);
+            assert!(
+                parse_manifest(&serde_json::to_vec(&raw).expect("encodes"), "skeleton").is_err(),
+                "an unknown key {key} must fail"
+            );
+        }
         assert!(
             parse_manifest(b"{not json", "skeleton").is_err(),
             "non-JSON must fail"

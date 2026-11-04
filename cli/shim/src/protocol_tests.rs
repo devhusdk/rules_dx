@@ -9,88 +9,116 @@ fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<OsString> {
     move |name: &str| map.get(name).cloned()
 }
 
-fn workspace(pin: &str) -> tempfile::TempDir {
+fn module(version: &str) -> String {
+    format!("module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"{version}\")\n")
+}
+
+fn workspace(module_text: &str, pins: Option<&str>) -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
-    std::fs::create_dir_all(dir.path().join(".dx")).expect("mkdir");
-    std::fs::write(dir.path().join(VERSION_FILE), pin).expect("pin");
+    std::fs::write(dir.path().join("MODULE.bazel"), module_text).expect("module");
+    if let Some(pins) = pins {
+        std::fs::create_dir_all(dir.path().join(".dx")).expect("mkdir");
+        std::fs::write(dir.path().join(VERSION_FILE), pins).expect("pins");
+    }
     dir
 }
 
+fn pinned(version: &str, pins: &str) -> Route {
+    Route::Module {
+        version: version.to_owned(),
+        pins: Some(pins.to_owned()),
+    }
+}
+
 #[test]
-fn resolves_from_nested_cwd_past_git() {
-    let dir = workspace("1.2.3\n");
-    let nested = dir.path().join("a/.git/b/c");
+fn resolves_the_version_from_module_bazel_in_an_ancestor() {
+    let dir = workspace(&module("1.2.3"), Some("1.2.3\r\n"));
+    let nested = dir.path().join("a/b/c");
     std::fs::create_dir_all(&nested).expect("nested");
-    std::fs::create_dir_all(dir.path().join("a/.git")).expect("git");
-    let (version, source) = resolve_version(&env(&[]), &nested).expect("resolves");
-    assert_eq!(version, "1.2.3");
-    assert_eq!(source, VersionSource::File(dir.path().join(VERSION_FILE)));
+    let route = resolve_version(&env(&[]), &nested).expect("resolves");
+    assert_eq!(route, pinned("1.2.3", "1.2.3\r\n"));
 }
 
 #[test]
-fn nearest_pin_wins() {
-    let dir = workspace("1.0.0\n");
+fn nearest_module_wins() {
+    let dir = workspace(&module("1.0.0"), None);
     let inner = dir.path().join("sub");
-    std::fs::create_dir_all(inner.join(".dx")).expect("mkdir");
-    std::fs::write(inner.join(VERSION_FILE), "2.0.0\n").expect("pin");
-    let (version, _) = resolve_version(&env(&[]), &inner.join("x")).expect("resolves");
-    assert_eq!(version, "2.0.0");
+    std::fs::create_dir_all(&inner).expect("mkdir");
+    std::fs::write(inner.join("MODULE.bazel"), module("2.0.0")).expect("module");
+    let route = resolve_version(&env(&[]), &inner).expect("resolves");
+    assert_eq!(
+        route,
+        Route::Module {
+            version: "2.0.0".into(),
+            pins: None
+        }
+    );
 }
 
 #[test]
-fn pin_strips_crlf_and_spaces() {
-    assert_eq!(parse_pin("1.2.3\r\n").as_deref(), Some("1.2.3"));
-    assert_eq!(parse_pin(" 1.2.3 \r\nignored\n").as_deref(), Some("1.2.3"));
-    assert_eq!(parse_pin("1.2.3").as_deref(), Some("1.2.3"));
-    let dir = workspace("1.2.3 \r\n");
-    let (version, _) = resolve_version(&env(&[]), dir.path()).expect("resolves");
-    assert_eq!(version, "1.2.3");
+fn unusable_modules_route_through_bazel() {
+    let dep = module("1.2.3");
+    let cases = [
+        "module(name = \"app\")\n".to_owned(),
+        "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", dev_dependency = True)\n".to_owned(),
+        "bazel_dep(name = \"rules_dx\", version = VERSION)\n".to_owned(),
+        "bazel_dep(name = \"rules_dx\", version = \"\")\n".to_owned(),
+        "bazel_dep(name = \"rules_dx\", version = \"../x\")\n".to_owned(),
+        format!("{dep}{dep}"),
+        format!("module(name=\"x\", module_name = \"rules_dx\")\n{dep}"),
+    ];
+    for text in cases {
+        let dir = workspace(&text, Some("1.2.3\n"));
+        let route = resolve_version(&env(&[]), dir.path()).expect("resolves");
+        assert_eq!(route, Route::Bazel, "{text}");
+    }
 }
 
 #[test]
-fn env_beats_file() {
-    let dir = workspace("1.2.3\n");
-    let (version, source) =
-        resolve_version(&env(&[("DX_VERSION", "4.5.6")]), dir.path()).expect("resolves");
-    assert_eq!(version, "4.5.6");
-    assert_eq!(source, VersionSource::Env);
+fn no_module_routes_through_bazel() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    if find_module_file(dir.path()).is_some() {
+        return;
+    }
+    let route = resolve_version(&env(&[]), dir.path()).expect("resolves");
+    assert_eq!(route, Route::Bazel);
+}
+
+#[test]
+fn pinned_hash_reads_the_line_for_version_and_asset() {
+    let (a, b) = ("a".repeat(64), "b".repeat(64));
+    let text = format!("1.2.3 {a} dx-linux-x86_64\r\n1.2.3 {b} dx-macos-arm64\n");
+    let hash = |version, asset| pinned_hash(&text, version, asset);
+    assert_eq!(hash("1.2.3", "dx-linux-x86_64"), Some(a));
+    assert_eq!(hash("1.2.3", "dx-macos-arm64"), Some(b));
+    assert_eq!(hash("1.2.3", "dx-windows-arm64"), None);
+    assert_eq!(hash("1.2.4", "dx-linux-x86_64"), None);
+}
+
+#[test]
+fn pinned_hash_rejects_bad_lines() {
+    let a = "a".repeat(64);
+    assert_eq!(pinned_hash("1.2.3\n", "1.2.3", "dx-linux-x86_64"), None);
+    assert_eq!(pinned_hash("1.2.3 abc dx-linux-x86_64\n", "1.2.3", "dx-linux-x86_64"), None);
+    let extra = format!("1.2.3 {a} dx-linux-x86_64 extra\n");
+    assert_eq!(pinned_hash(&extra, "1.2.3", "dx-linux-x86_64"), None);
+}
+
+#[test]
+fn env_beats_module() {
+    let dir = workspace(&module("1.2.3"), None);
+    let route = resolve_version(&env(&[("DX_VERSION", "4.5.6")]), dir.path()).expect("resolves");
+    assert_eq!(route, Route::Env("4.5.6".into()));
 }
 
 #[test]
 fn bad_env_version_is_a_usage_error() {
-    let dir = workspace("1.2.3\n");
+    let dir = workspace(&module("1.2.3"), None);
     for bad in ["v1.2.3", "1.2", "../x", "1.2.3/../../x", "latest"] {
         let err = resolve_version(&env(&[("DX_VERSION", bad)]), dir.path()).expect_err(bad);
         assert_eq!(err.code, EXIT_USAGE, "{bad}");
         assert!(err.message.contains(bad), "{}", err.message);
     }
-}
-
-#[test]
-fn bad_pin_is_refused() {
-    for bad in ["../x\n", "", "\n1.2.3\n", "v1.2.3\n"] {
-        let dir = workspace(bad);
-        let err = resolve_version(&env(&[]), dir.path()).expect_err(bad);
-        assert_eq!(err.code, EXIT_FAILURE, "{bad:?}");
-        assert!(err.message.contains(".dx"), "{}", err.message);
-    }
-}
-
-#[test]
-fn outside_a_workspace_names_cwd() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    if find_version_file(dir.path()).is_some() {
-        return;
-    }
-    let err = resolve_version(&env(&[]), dir.path()).expect_err("no workspace");
-    assert_eq!(err.code, EXIT_FAILURE);
-    assert_eq!(
-        err.to_string(),
-        format!(
-            "dx: not in a dx workspace (no .dx/pins above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
-            dir.path().display()
-        )
-    );
 }
 
 #[test]
@@ -263,7 +291,7 @@ mod non_utf8 {
 
     #[test]
     fn release_base_and_version_name_the_variable() {
-        let dir = workspace("1.2.3\n");
+        let dir = workspace(&module("1.2.3"), None);
         let err = release_base(&env_of("DX_RELEASE_BASE_URL")).expect_err("base");
         assert_eq!(err.code, EXIT_USAGE);
         assert!(
@@ -287,7 +315,7 @@ fn sysctl_with<'a>(set: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<Str
 
 #[test]
 fn rosetta_on_apple_silicon_resolves_the_arm64_asset() {
-    let dir = workspace("1.2.3\n");
+    let dir = workspace(&module("1.2.3"), None);
     let cache = tempfile::tempdir().expect("cache");
     let cache_dir = cache.path().to_str().expect("utf8");
     for set in [
@@ -296,11 +324,12 @@ fn rosetta_on_apple_silicon_resolves_the_arm64_asset() {
     ] {
         let arch = effective_arch("macos", "x86_64", &sysctl_with(set));
         let resolved = crate::run::resolve_on(
-            &env(&[("DX_CACHE_DIR", cache_dir)]),
+            &env(&[("DX_CACHE_DIR", cache_dir), ("DX_VERSION", "1.2.3")]),
             dir.path(),
             ("macos", arch),
         )
-        .expect("resolves");
+        .expect("resolves")
+        .expect("downloads");
         assert_eq!(asset_name(resolved.platform), "dx-macos-arm64");
         assert!(resolved.bin.ends_with("dx-macos-arm64"));
     }

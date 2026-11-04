@@ -39,25 +39,72 @@ impl std::error::Error for ShimError {}
 pub fn version_is_valid(version: &str) -> bool {
     !version.is_empty() && semver::Version::parse(version).is_ok()
 }
-pub fn parse_pin(text: &str) -> Option<String> {
-    let first = text.split('\n').next().unwrap_or("");
-    let pin: String = first.chars().filter(|c| *c != '\r' && *c != ' ').collect();
-    version_is_valid(&pin).then_some(pin)
+/// The sha256 on the `<version> <sha256> <asset>` line of a `.dx/pins` file.
+pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
+    text.lines().find_map(|line| {
+        let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
+        let [line_version, hash, line_asset] = fields[..] else {
+            return None;
+        };
+        let is_hash = hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit());
+        (line_version == version && line_asset == asset && is_hash).then(|| hash.to_owned())
+    })
 }
+
+/// The version of the single root `bazel_dep(name = "rules_dx", ...)` line, by the
+/// same rules as the `tools/dx` launchers. `None` sends the call through Bazel.
+pub fn module_version(text: &str) -> Option<String> {
+    let names_rules_dx = text.lines().any(|line| {
+        line.split_once("module_name")
+            .and_then(|(_, rest)| rest.trim_start().strip_prefix('='))
+            .is_some_and(|rest| rest.trim_start().starts_with("\"rules_dx\""))
+    });
+    if names_rules_dx {
+        return None;
+    }
+    let mut deps = text.lines().filter_map(|line| {
+        let rest = line.strip_prefix("bazel_dep(name = \"rules_dx\", version = \"")?;
+        let (version, tail) = rest.split_once('"')?;
+        (tail.strip_prefix(')')?.trim().is_empty()).then_some(version)
+    });
+    let version = deps.next()?;
+    let plain = !version.is_empty()
+        && !version.starts_with('.')
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'));
+    (deps.next().is_none() && plain).then(|| version.to_owned())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VersionSource {
     Env,
-    File(PathBuf),
+    ModuleBazel,
+    Bazel,
 }
 
 impl std::fmt::Display for VersionSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VersionSource::Env => f.write_str("DX_VERSION"),
-            VersionSource::File(path) => write!(f, "{}", path.display()),
-        }
+        f.write_str(match self {
+            VersionSource::Env => "DX_VERSION",
+            VersionSource::ModuleBazel => "MODULE.bazel",
+            VersionSource::Bazel => "bazel",
+        })
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Route {
+    /// `DX_VERSION` bootstrap: the checksum comes from the release sidecar.
+    Env(String),
+    /// Version from MODULE.bazel; `pins` is the raw `.dx/pins` file.
+    Module {
+        version: String,
+        pins: Option<String>,
+    },
+    Bazel,
+}
+
 pub type EnvGet<'a> = &'a dyn Fn(&str) -> Option<OsString>;
 
 fn utf8_env(env_get: EnvGet, name: &str) -> Result<Option<String>, ShimError> {
@@ -70,35 +117,34 @@ fn utf8_env(env_get: EnvGet, name: &str) -> Result<Option<String>, ShimError> {
     }
 }
 
-pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<(String, VersionSource), ShimError> {
+pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<Route, ShimError> {
     if let Some(value) = utf8_env(env_get, "DX_VERSION")? {
         if !version_is_valid(&value) {
             return Err(ShimError::usage(format!(
                 "DX_VERSION must be a plain semver such as 1.2.3, got '{value}'"
             )));
         }
-        return Ok((value, VersionSource::Env));
+        return Ok(Route::Env(value));
     }
-    let Some(file) = find_version_file(cwd) else {
-        return Err(ShimError::failure(format!(
-            "not in a dx workspace (no .dx/pins above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
-            cwd.display()
-        )));
+    let Some(module) = find_module_file(cwd) else {
+        return Ok(Route::Bazel);
     };
-    let text = std::fs::read_to_string(&file)
-        .map_err(|e| ShimError::failure(format!("cannot read {}: {e}", file.display())))?;
-    match parse_pin(&text) {
-        Some(pin) => Ok((pin, VersionSource::File(file))),
-        None => Err(ShimError::failure(format!(
-            "{} does not hold a plain semver such as 1.2.3; fix it with bazel run @rules_dx//:dx -- init --apply",
-            file.display()
-        ))),
-    }
+    let Some(version) = std::fs::read_to_string(&module)
+        .ok()
+        .and_then(|text| module_version(&text))
+    else {
+        return Ok(Route::Bazel);
+    };
+    let pins = module
+        .parent()
+        .map(|root| root.join(VERSION_FILE))
+        .and_then(|file| std::fs::read_to_string(file).ok());
+    Ok(Route::Module { version, pins })
 }
 
-pub fn find_version_file(cwd: &Path) -> Option<PathBuf> {
+pub fn find_module_file(cwd: &Path) -> Option<PathBuf> {
     cwd.ancestors()
-        .map(|dir| dir.join(VERSION_FILE))
+        .map(|dir| dir.join("MODULE.bazel"))
         .find(|candidate| candidate.is_file())
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

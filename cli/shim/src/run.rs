@@ -2,16 +2,18 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use crate::fetch::{self, ChecksumSource};
-use crate::protocol::{self, Platform, ShimError, VersionSource};
+use crate::protocol::{self, Platform, Route, ShimError, VersionSource};
 
 pub struct Resolved {
     pub version: String,
     pub source: VersionSource,
     pub platform: Platform,
     pub bin: PathBuf,
+    pub checksum: Option<ChecksumSource>,
 }
 
-pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Resolved, ShimError> {
+/// `None` means the call goes through `bazel run @rules_dx//:dx`.
+pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Option<Resolved>, ShimError> {
     resolve_on(env_get, cwd, protocol::host_platform())
 }
 
@@ -19,10 +21,18 @@ pub fn resolve_on(
     env_get: protocol::EnvGet,
     cwd: &Path,
     (os, arch): (&str, &str),
-) -> Result<Resolved, ShimError> {
-    let (version, source) = protocol::resolve_version(env_get, cwd)?;
-    let platform = protocol::platform(os, arch)
-        .ok_or_else(|| protocol::unsupported_platform(&version, os, arch))?;
+) -> Result<Option<Resolved>, ShimError> {
+    let (version, source, pins) = match protocol::resolve_version(env_get, cwd)? {
+        Route::Bazel => return Ok(None),
+        Route::Env(version) => (version, VersionSource::Env, None),
+        Route::Module { version, pins } => (version, VersionSource::ModuleBazel, Some(pins)),
+    };
+    let Some(platform) = protocol::platform(os, arch) else {
+        if pins.is_some() {
+            return Ok(None);
+        }
+        return Err(protocol::unsupported_platform(&version, os, arch));
+    };
     let windows = platform.os == "windows";
     let root = protocol::cache_root(env_get, windows).ok_or_else(|| {
         ShimError::failure(if windows {
@@ -32,18 +42,34 @@ pub fn resolve_on(
         })
     })?;
     let bin = protocol::bin_path(&root, &version, platform);
-    Ok(Resolved {
+    let checksum = match pins {
+        None => Some(ChecksumSource::Sidecar),
+        Some(pins) => {
+            let asset = protocol::asset_name(platform);
+            let hash = pins.and_then(|text| protocol::pinned_hash(&text, &version, &asset));
+            match hash {
+                Some(hash) => Some(ChecksumSource::Pinned(hash)),
+                None if bin.is_file() => None,
+                None => return Ok(None),
+            }
+        }
+    };
+    Ok(Some(Resolved {
         version,
         source,
         platform,
         bin,
-    })
+        checksum,
+    }))
 }
 
 pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, ShimError> {
     if resolved.bin.is_file() {
         return Ok(resolved.bin.clone());
     }
+    let Some(checksum) = &resolved.checksum else {
+        return Err(ShimError::failure("no pinned checksum for the download"));
+    };
     let base = protocol::release_base(env_get)?;
     let asset = protocol::asset_name(resolved.platform);
     let url = protocol::release_url(&base, &resolved.version, &asset);
@@ -52,7 +78,7 @@ pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, 
         asset: &asset,
         url: &url,
         dest: &resolved.bin,
-        checksum: &ChecksumSource::Sidecar,
+        checksum,
     })
 }
 
@@ -76,7 +102,9 @@ fn run(args: Vec<OsString>) -> Result<i32, ShimError> {
     }
     let cwd = std::env::current_dir()
         .map_err(|e| ShimError::failure(format!("cannot read the current directory: {e}")))?;
-    let resolved = resolve(&env_get, &cwd)?;
+    let Some(resolved) = resolve(&env_get, &cwd)? else {
+        return via_bazel(args);
+    };
     let bin = fetch(&env_get, &resolved)?;
     exec(&bin, args)
 }
@@ -92,7 +120,10 @@ fn shim_command(args: &[OsString]) -> Result<i32, ShimError> {
             let cwd = std::env::current_dir().map_err(|e| {
                 ShimError::failure(format!("cannot read the current directory: {e}"))
             })?;
-            let resolved = resolve(&env_get, &cwd)?;
+            let Some(resolved) = resolve(&env_get, &cwd)? else {
+                println!("source: {}", VersionSource::Bazel);
+                return Ok(0);
+            };
             println!("version: {}", resolved.version);
             println!("source: {}", resolved.source);
             println!("binary: {}", resolved.bin.display());
@@ -115,6 +146,12 @@ fn shim_command(args: &[OsString]) -> Result<i32, ShimError> {
             "dx shim needs a command: dx shim version or dx shim where",
         )),
     }
+}
+
+fn via_bazel(args: Vec<OsString>) -> Result<i32, ShimError> {
+    let mut full: Vec<OsString> = vec!["run".into(), "@rules_dx//:dx".into(), "--".into()];
+    full.extend(args);
+    exec(Path::new("bazel"), full)
 }
 
 #[cfg(unix)]

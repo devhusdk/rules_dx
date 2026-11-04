@@ -20,6 +20,10 @@ fn shim_bin() -> PathBuf {
     std::fs::canonicalize(raw).expect("shim binary")
 }
 
+fn module(version: &str) -> String {
+    format!("module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"{version}\")\n")
+}
+
 struct Fixture {
     server: Server,
     cache: tempfile::TempDir,
@@ -33,8 +37,16 @@ impl Fixture {
         let fake = fake_dx();
         server.release(VERSION, &asset, &fake, &fake);
         let workspace = tempfile::tempdir().expect("workspace");
+        std::fs::write(workspace.path().join("MODULE.bazel"), module(VERSION)).expect("module");
         std::fs::create_dir_all(workspace.path().join(".dx")).expect("mkdir");
-        std::fs::write(workspace.path().join(".dx/pins"), format!("{VERSION}\r\n")).expect("pin");
+        std::fs::write(
+            workspace.path().join(".dx/pins"),
+            format!(
+                "{VERSION} {} {asset}\r\n",
+                support::sha256_hex(&fake)
+            ),
+        )
+        .expect("pin");
         Self {
             server,
             cache: tempfile::tempdir().expect("cache"),
@@ -165,7 +177,7 @@ fn second_run_is_offline() {
 }
 
 #[test]
-fn finds_the_pin_from_a_nested_directory() {
+fn finds_module_bazel_from_a_nested_directory() {
     let fixture = Fixture::new();
     let nested = fixture.workspace.path().join("a/b/c");
     std::fs::create_dir_all(&nested).expect("nested");
@@ -182,7 +194,7 @@ fn finds_the_pin_from_a_nested_directory() {
 }
 
 #[test]
-fn dx_version_env_overrides_the_file() {
+fn dx_version_env_overrides_module_bazel() {
     let fixture = Fixture::new();
     let (asset, _) = support::host_asset();
     let fake = fake_dx();
@@ -197,27 +209,108 @@ fn dx_version_env_overrides_the_file() {
     assert!(!fixture.cache.path().join("bin").join(VERSION).exists());
 }
 
-#[test]
-fn outside_a_workspace_fails_with_exit_1() {
-    let fixture = Fixture::new();
-    let outside = tempfile::tempdir().expect("outside");
-    if dx_shim::protocol::find_version_file(outside.path()).is_some() {
-        return;
+#[cfg(unix)]
+impl Fixture {
+    fn stub_bazel(&self) -> (tempfile::TempDir, PathBuf) {
+        use std::os::unix::fs::PermissionsExt;
+        let bin = tempfile::tempdir().expect("bin");
+        let log = bin.path().join("calls");
+        let script = format!("#!/bin/sh\necho \"$@\" >> '{}'\n", log.display());
+        let path = bin.path().join("bazel");
+        std::fs::write(&path, script).expect("stub");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        (bin, log)
     }
-    let cwd = if cfg!(windows) {
-        outside.path().to_path_buf()
-    } else {
-        std::fs::canonicalize(outside.path()).expect("canonical")
-    };
-    let output = fixture.command(&cwd, &[]).output().expect("run");
-    assert_eq!(output.status.code(), Some(1));
+
+    fn run_with_bazel(&self, bin: &Path, args: &[&str]) -> Output {
+        self.command(self.workspace.path(), args)
+            .env("PATH", bin)
+            .output()
+            .expect("run shim")
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn bumping_only_the_bazel_dep_runs_bazel() {
+    let fixture = Fixture::new();
+    std::fs::write(
+        fixture.workspace.path().join("MODULE.bazel"),
+        module("1.2.4"),
+    )
+    .expect("bump");
+    let (bin, log) = fixture.stub_bazel();
+    let output = fixture.run_with_bazel(bin.path(), &["x", "y"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "");
+    assert_eq!(stderr(&output), "");
     assert_eq!(
-        stderr(&output),
-        format!(
-            "dx: not in a dx workspace (no .dx/pins above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module\n",
-            cwd.display()
-        )
+        std::fs::read_to_string(log).expect("log"),
+        "run @rules_dx//:dx -- x y\n"
     );
+    assert_eq!(fixture.server.hits(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_override_or_a_missing_hash_runs_bazel() {
+    let fixture = Fixture::new();
+    let root = fixture.workspace.path();
+    let (bin, log) = fixture.stub_bazel();
+    std::fs::write(root.join(".dx/pins"), format!("{VERSION}\n")).expect("pins");
+    assert!(fixture.run_with_bazel(bin.path(), &["a"]).status.success());
+    std::fs::write(
+        root.join("MODULE.bazel"),
+        format!(
+            "module(name = \"x\", module_name = \"rules_dx\")\n{}",
+            module(VERSION)
+        ),
+    )
+    .expect("override");
+    assert!(fixture.run_with_bazel(bin.path(), &["b"]).status.success());
+    let calls = std::fs::read_to_string(log).expect("log");
+    assert_eq!(calls, "run @rules_dx//:dx -- a\nrun @rules_dx//:dx -- b\n");
+    assert_eq!(fixture.server.hits(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_multi_line_dep_runs_bazel() {
+    let fixture = Fixture::new();
+    std::fs::write(
+        fixture.workspace.path().join("MODULE.bazel"),
+        format!("bazel_dep(\n    name = \"rules_dx\",\n    version = \"{VERSION}\",\n)\n"),
+    )
+    .expect("module");
+    let (bin, log) = fixture.stub_bazel();
+    let output = fixture.run_with_bazel(bin.path(), &["m"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stderr(&output), "");
+    assert_eq!(
+        std::fs::read_to_string(log).expect("log"),
+        "run @rules_dx//:dx -- m\n"
+    );
+    assert_eq!(fixture.server.hits(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn dx_version_env_still_uses_the_sidecar() {
+    let fixture = Fixture::new();
+    std::fs::remove_file(fixture.workspace.path().join("MODULE.bazel")).expect("rm");
+    let output = fixture
+        .command(fixture.workspace.path(), &["x"])
+        .env("DX_VERSION", VERSION)
+        .output()
+        .expect("run");
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(fixture.server.hits() >= 2);
+    let output = fixture
+        .command(fixture.workspace.path(), &["shim", "where"])
+        .env("DX_VERSION", VERSION)
+        .output()
+        .expect("run");
+    assert!(stdout(&output).contains("source: DX_VERSION\n"));
 }
 
 #[test]
@@ -296,7 +389,7 @@ fn shim_version_and_where() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let text = stdout(&output);
     assert!(
-        text.starts_with(&format!("version: {VERSION}\nsource: ")),
+        text.starts_with(&format!("version: {VERSION}\nsource: MODULE.bazel\n")),
         "{text}"
     );
     assert!(text.ends_with("cached: no\n"), "{text}");

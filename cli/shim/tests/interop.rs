@@ -19,7 +19,24 @@ fn shim_bin() -> PathBuf {
     std::fs::canonicalize(raw).expect("shim binary")
 }
 
-fn workspace() -> tempfile::TempDir {
+fn pins_text(fake: &[u8]) -> String {
+    let sha = support::sha256_hex(fake);
+    let manifest: String = [
+        "dx-linux-arm64",
+        "dx-linux-x86_64",
+        "dx-macos-arm64",
+        "dx-windows-arm64",
+        "dx-windows-x86_64",
+    ]
+    .iter()
+    .map(|asset| format!("{sha}  {asset}\n"))
+    .collect();
+    dx_adopt::LauncherPins::from_sha256sums(&manifest)
+        .expect("pins")
+        .to_lines(VERSION)
+}
+
+fn workspace(fake: &[u8]) -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("workspace");
     std::fs::create_dir_all(dir.path().join(".dx")).expect("mkdir");
     std::fs::create_dir_all(dir.path().join("tools")).expect("mkdir");
@@ -28,15 +45,16 @@ fn workspace() -> tempfile::TempDir {
         format!("bazel_dep(name = \"rules_dx\", version = \"{VERSION}\")\n"),
     )
     .expect("module");
+    let pins = pins_text(fake);
     if cfg!(windows) {
-        std::fs::write(dir.path().join(".dx/pins"), format!("{VERSION}\r\n")).expect("pin");
+        std::fs::write(dir.path().join(".dx/pins"), pins.replace('\n', "\r\n")).expect("pin");
         std::fs::write(
             dir.path().join("tools/dx.cmd"),
             dx_adopt::render_launcher_cmd(),
         )
         .expect("launcher");
     } else {
-        std::fs::write(dir.path().join(".dx/pins"), format!("{VERSION}\n")).expect("pin");
+        std::fs::write(dir.path().join(".dx/pins"), pins).expect("pin");
         std::fs::write(dir.path().join("tools/dx"), dx_adopt::render_launcher_sh())
             .expect("launcher");
     }
@@ -87,7 +105,7 @@ fn tools_dx_runs_a_binary_the_shim_downloaded() {
         checksum: &ChecksumSource::Sidecar,
     })
     .expect("shim installs");
-    let ws = workspace();
+    let ws = workspace(&fake);
     let output = tools_dx(ws.path(), &[("DX_CACHE_DIR", cache.path())]);
     assert!(
         String::from_utf8_lossy(&output.stdout).ends_with("arg=[hello]\n"),
@@ -106,17 +124,18 @@ fn tools_dx_runs_a_binary_the_shim_downloaded() {
 #[test]
 fn shim_runs_a_binary_in_the_tools_dx_layout() {
     let home = tempfile::tempdir().expect("home");
-    let (_, file) = support::host_asset();
+    let (asset, file) = support::host_asset();
+    let fake = fake_dx();
     let dir = home.path().join(".cache/dx/bin").join(VERSION);
     std::fs::create_dir_all(&dir).expect("mkdir");
     let bin = dir.join(file);
-    std::fs::write(&bin, fake_dx()).expect("seed");
+    std::fs::write(&bin, &fake).expect("seed");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     }
-    let ws = workspace();
+    let ws = workspace(&fake);
     let mut command = Command::new(shim_bin());
     command
         .arg("hello")
@@ -137,5 +156,21 @@ fn shim_runs_a_binary_in_the_tools_dx_layout() {
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn shim_reads_the_pins_adopt_writes() {
+    let (asset, _) = support::host_asset();
+    let fake = fake_dx();
+    let text = pins_text(&fake);
+    assert_eq!(
+        dx_shim::protocol::pinned_hash(&text, VERSION, &asset),
+        Some(support::sha256_hex(&fake))
+    );
+    let crlf = text.replace('\n', "\r\n");
+    assert_eq!(
+        dx_shim::protocol::pinned_hash(&crlf, VERSION, &asset),
+        Some(support::sha256_hex(&fake))
     );
 }

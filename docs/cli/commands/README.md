@@ -528,29 +528,34 @@ In CI the `DX_` variables are ignored. Flags still win. CI never implies
 The shim is a small `dx` binary for PATH, built from `//cli/shim`. It runs the
 dx version a workspace pins without Bazel and never edits the workspace.
 
-1. The version is `DX_VERSION` when set, otherwise the first line of the
-   nearest `.dx/pins` above the current directory (CR and spaces stripped).
-   Both must be plain semver.
+1. The version is `DX_VERSION` when set, otherwise the version of the single
+   one-line `bazel_dep(name = "rules_dx", version = "X")` in the nearest
+   `MODULE.bazel` above the current directory. It must be plain semver.
 2. The binary is `<cache>/bin/<version>/dx-<os>-<arch>` (`.exe` on Windows),
    the same file `tools/dx` uses. A cached binary runs with no network access.
-3. A missing binary is downloaded from the GitHub release, checked against the
-   release's `.sha256` file, and moved into place. A binary that does not match
-   is deleted and never run.
-4. The shim runs the binary with the same arguments, stdin, stdout and stderr,
+3. A missing binary is downloaded from the GitHub release and checked against
+   the `<version> <sha256> <asset>` line in the `.dx/pins` next to that
+   `MODULE.bazel`. A binary that does not match is deleted and never run.
+4. Without a pinned hash for the version (no `bazel_dep` line, a multi-line or
+   non-literal dep, any `module_name = "rules_dx"` override, no `.dx/pins`
+   line, or no `MODULE.bazel`), the shim runs `bazel run @rules_dx//:dx -- ...`
+   and prints nothing itself. It never falls back to the release `.sha256`.
+5. The shim runs the binary with the same arguments, stdin, stdout and stderr,
    and sets `DX_SHIM=1`.
 
 `dx shim version` prints `dx-shim <version>`. `dx shim where` prints the
-version, where it came from, the binary path, and whether it is cached. It
+version, where it came from (`DX_VERSION`, `MODULE.bazel` or `bazel`), the binary path, and whether it is cached. It
 never downloads. The dx binary rejects `shim` as a command name.
 
 Environment:
 
-- `DX_VERSION=<semver>`: run this version instead of the `.dx/pins` pin.
+- `DX_VERSION=<semver>`: run this version instead of the `MODULE.bazel` version. This bootstrap trusts the release
+  `.sha256` file.
 - `DX_CACHE_DIR=<dir>`: cache root. Otherwise `$XDG_CACHE_HOME/dx`, then
   `~/.cache/dx` (`%USERPROFILE%\.cache\dx` on Windows). Empty values are unset.
 - `DX_RELEASE_BASE_URL=<url>`: download from `<url>/v<version>/<asset>`
   instead of the GitHub release. Must be `https://`, or `http://` to
-  `127.0.0.1`, `[::1]` or `localhost`. The shim trusts this server and its
+  `127.0.0.1`, `[::1]` or `localhost`. With `DX_VERSION` the shim trusts this server and its
   `.sha256` files fully.
 
 Errors print one `dx: ` line on stderr. Exit codes: `0` success, `2` usage

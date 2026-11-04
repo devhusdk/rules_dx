@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -41,9 +41,9 @@ rust_binary(
     crate_name = "site_check",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
         package_name = "tools/docs/site/site_check",
+        normal = True,
     ) + [":dx_site_check"],
 )
 
@@ -63,9 +63,9 @@ rust_test(
     crate_name = "dx_site_check",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
+    deps = all_crate_deps(
         package_name = "tools/docs/site/site_check",
+        normal = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",

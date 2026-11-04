@@ -269,7 +269,7 @@ libc = "0.2"
 
 func TestLegacyCrateDepsMigrates(t *testing.T) {
 	call := crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_a", false), external: true}
-	merged := call.Merge(crateDepsFileExpr([]string{"serde_json"}, "dx/dx_a", "//x"))
+	merged := call.Merge(allCrateDepsFileExpr("dx/dx_a", "//x"))
 	if got := exprString(merged); got != `all_crate_deps(normal = True, package_name = "dx/dx_a") + ["//x"]` {
 		t.Errorf("migrated deps = %s", got)
 	}
@@ -321,10 +321,10 @@ func TestResolvePreservesCrateDeps(t *testing.T) {
 	resolveSibling(called)
 	concat, ok := called.Attr("deps").(*bzl.BinaryExpr)
 	if !ok || concat.Op != "+" {
-		t.Fatalf("concat deps = %#v, want crate_deps + labels", called.Attr("deps"))
+		t.Fatalf("concat deps = %#v, want all_crate_deps + labels", called.Attr("deps"))
 	}
 	if _, ok := concat.X.(*bzl.CallExpr); !ok {
-		t.Errorf("concat base = %T, want crate_deps call", concat.X)
+		t.Errorf("concat base = %T, want all_crate_deps call", concat.X)
 	}
 	var extra []string
 	if list, ok := concat.Y.(*bzl.ListExpr); ok {
@@ -402,9 +402,9 @@ func strListExpr(values ...string) *bzl.ListExpr {
 	return &bzl.ListExpr{List: list}
 }
 
-func crateDepsFileExpr(names []string, packageName string, tail ...string) bzl.Expr {
-	call := &bzl.CallExpr{X: &bzl.Ident{Name: "crate_deps"}, List: []bzl.Expr{
-		strListExpr(names...),
+func allCrateDepsFileExpr(packageName string, tail ...string) bzl.Expr {
+	call := &bzl.CallExpr{X: &bzl.Ident{Name: "all_crate_deps"}, List: []bzl.Expr{
+		&bzl.AssignExpr{LHS: &bzl.Ident{Name: "normal"}, Op: "=", RHS: &bzl.Ident{Name: "True"}},
 		&bzl.AssignExpr{LHS: &bzl.Ident{Name: "package_name"}, Op: "=", RHS: &bzl.StringExpr{Value: packageName}},
 	}}
 	if len(tail) == 0 {
@@ -441,8 +441,8 @@ func TestDepsMergePreservesHandLabels(t *testing.T) {
 		extra: []string{":dx_env"},
 	})
 	dst := rule.NewRule("rust_binary", "env")
-	dst.SetAttr("deps", crateDepsFileExpr(
-		[]string{"blake3", "serde", "serde_json"}, "dx/dx_env",
+	dst.SetAttr("deps", allCrateDepsFileExpr(
+		"dx/dx_env",
 		":dx_env", "@rules_rust//tools/runfiles:runfiles",
 	))
 	rule.MergeRules(src, dst, map[string]bool{"deps": true}, "BUILD.bazel")
@@ -464,7 +464,7 @@ func TestDepsMergeKeepsStaleHandLabels(t *testing.T) {
 		base:  crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_a", false), external: true}.BzlExpr(),
 		extra: []string{":dx_a"},
 	}
-	merged := src.Merge(crateDepsFileExpr([]string{"serde_json"}, "dx/dx_a", ":dx_a", ":old_lib"))
+	merged := src.Merge(allCrateDepsFileExpr("dx/dx_a", ":dx_a", ":old_lib"))
 	if got := tailStrings(t, merged); strings.Join(got, "\x00") != ":dx_a\x00:old_lib" {
 		t.Errorf("merged tail = %q, want stale :old_lib preserved", got)
 	}
@@ -479,7 +479,7 @@ func TestCrateDepsCallMerge(t *testing.T) {
 	if got := tailStrings(t, merged); strings.Join(got, "\x00") != "//env:marker_proto_rs\x00:hand" {
 		t.Errorf("merged tail = %q, want hand labels preserved", got)
 	}
-	merged = call.Merge(crateDepsFileExpr([]string{"serde_json"}, "dx/dx_a"))
+	merged = call.Merge(allCrateDepsFileExpr("dx/dx_a"))
 	if _, ok := merged.(*bzl.CallExpr); !ok {
 		t.Errorf("fully managed merge is %T, want bare *bzl.CallExpr", merged)
 	}
@@ -497,7 +497,7 @@ func TestCrateWithoutExternalDepsKeepsHandLabels(t *testing.T) {
 		t.Fatalf("deps attr = %s, want []", got)
 	}
 	none := crateDepsCall{call: cargoCall("all_crate_deps", "pkg/app", false)}
-	merged := none.Merge(crateDepsFileExpr(nil, "pkg/app", "//cli/digest:dx_digest", "//cli/process:dx_process"))
+	merged := none.Merge(allCrateDepsFileExpr("pkg/app", "//cli/digest:dx_digest", "//cli/process:dx_process"))
 	if got := exprString(merged); got != `["//cli/digest:dx_digest", "//cli/process:dx_process"]` {
 		t.Errorf("merged deps = %s, want the hand-written labels kept", got)
 	}

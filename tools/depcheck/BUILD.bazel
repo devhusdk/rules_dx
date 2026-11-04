@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -33,18 +33,9 @@ rust_library(
     crate_name = "dx_depcheck",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "pep440_rs",
-            "regex",
-            "semver",
-            "serde_json",
-            "thiserror",
-            "toml",
-            "yaml_serde",
-        ],
+    deps = all_crate_deps(
         package_name = "tools/dx_depcheck",
+        normal = True,
     ) + [
         "//cli/path:dx_path",
         "//libs/gomod:dx_gomod",
@@ -61,17 +52,9 @@ rust_binary(
     crate_name = "depcheck",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "pep440_rs",
-            "regex",
-            "semver",
-            "serde_json",
-            "thiserror",
-            "toml",
-        ],
+    deps = all_crate_deps(
         package_name = "tools/dx_depcheck",
+        normal = True,
     ) + [
         ":depcheck_lib",
         "//libs/gomod:dx_gomod",
@@ -100,17 +83,10 @@ rust_test(
         ":scala_testdata",
         ":ts_testdata",
     ],
-    deps = crate_deps(
-        [
-            "clap",
-            "pep440_rs",
-            "regex",
-            "semver",
-            "serde_json",
-            "tempfile",
-            "toml",
-        ],
+    deps = all_crate_deps(
         package_name = "tools/dx_depcheck",
+        normal = True,
+        normal_dev = True,
     ) + [
         "//libs/gomod:dx_gomod",
     ],
@@ -120,18 +96,10 @@ rust_test(
 rust_test(
     name = "depcheck_bin_test",
     crate = ":depcheck",
-    deps = crate_deps(
-        [
-            "clap",
-            "pep440_rs",
-            "regex",
-            "semver",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "toml",
-        ],
+    deps = all_crate_deps(
         package_name = "tools/dx_depcheck",
+        normal = True,
+        normal_dev = True,
     ) + [
         ":depcheck_lib",
         "//libs/gomod:dx_gomod",
@@ -211,16 +179,16 @@ rust_test(
         "testdata/prettier_lock/package.json",
         "testdata/prettier_lock/pnpm-lock.yaml",
         ":depcheck",
-        "//go/tests/fixtures/adopt-go:go.mod",
-        "//go/tests/fixtures/adopt-go:go.sum",
-        "//javascript/tests/fixtures/adopt-js-ts:package.json",
-        "//javascript/tests/fixtures/adopt-js-ts:pnpm-lock.yaml",
         "//examples/adopt-polyglot:Cargo.lock",
         "//examples/adopt-polyglot:Cargo.toml",
         "//examples/adopt-polyglot:package.json",
         "//examples/adopt-polyglot:pnpm-lock.yaml",
         "//examples/adopt-polyglot:pyproject.toml",
         "//examples/adopt-polyglot:uv.lock",
+        "//go/tests/fixtures/adopt-go:go.mod",
+        "//go/tests/fixtures/adopt-go:go.sum",
+        "//javascript/tests/fixtures/adopt-js-ts:package.json",
+        "//javascript/tests/fixtures/adopt-js-ts:pnpm-lock.yaml",
         "//python/tests/fixtures/adopt-python:pyproject.toml",
         "//python/tests/fixtures/adopt-python:uv.lock",
         "//ruby/tests/fixtures/adopt-ruby:Gemfile",

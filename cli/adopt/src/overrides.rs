@@ -285,7 +285,7 @@ fn orphaned_patches(root: &Path) -> Vec<String> {
 fn stale_files(root: &Path, owned: Option<&[String]>) -> Vec<String> {
     let mut stale: Vec<String> = render_overrides()
         .into_iter()
-        .filter(|(path, _)| owned.map_or(true, |owned| owned.contains(path)))
+        .filter(|(path, _)| owned.is_none_or(|owned| owned.contains(path)))
         .filter(|(path, content)| {
             std::fs::read(root.join(path)).map_or(true, |bytes| bytes != content.as_bytes())
         })

@@ -1159,8 +1159,7 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
         std::fs::read_to_string(workspace.join(rel))
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };
-    let modules =
-        dx_module_bazel::load_with_includes(&root, &read_include).map_err(&unsupported)?;
+    let modules = dx_module_bazel::load_with_includes(&root, &read_include).map_err(unsupported)?;
     let mut hubs = Vec::new();
     for (index, module) in modules.iter().enumerate() {
         let found = module
@@ -1204,7 +1203,7 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
     let label = hub.cargo_lockfile.ok_or_else(|| {
         unsupported("the crate.from_cargo tag needs a literal cargo_lockfile".to_owned())
     })?;
-    let cargo_lock = dx_module_bazel::label_path(label).map_err(&unsupported)?;
+    let cargo_lock = dx_module_bazel::label_path(label).map_err(unsupported)?;
     if cargo_lock != in_dir(&set.dir, CARGO_LOCK) {
         return Err(unsupported(format!(
             "cargo_lockfile {label} is not the set's {} (want {cargo_lock})",
@@ -1212,7 +1211,7 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
         )));
     }
     if let Some(label) = hub.lockfile {
-        let lock = dx_module_bazel::label_path(label).map_err(&unsupported)?;
+        let lock = dx_module_bazel::label_path(label).map_err(unsupported)?;
         if !set.locks.contains(&lock) {
             return Err(unsupported(format!(
                 "lockfile {label} is not listed in the set's locks (want {lock})"
@@ -1222,7 +1221,7 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
     let hub_manifests = hub
         .manifests
         .iter()
-        .map(|manifest| dx_module_bazel::label_path(&manifest.value).map_err(&unsupported))
+        .map(|manifest| dx_module_bazel::label_path(&manifest.value).map_err(unsupported))
         .collect::<Result<BTreeSet<_>, _>>()?;
     for manifest in &set.manifests {
         if !hub_manifests.contains(manifest) {
@@ -1257,8 +1256,7 @@ fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, Depe
         std::fs::read_to_string(workspace.join(rel))
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };
-    let modules =
-        dx_module_bazel::load_with_includes(&root, &read_include).map_err(&unsupported)?;
+    let modules = dx_module_bazel::load_with_includes(&root, &read_include).map_err(unsupported)?;
     let mut found = Vec::new();
     let mut used = false;
     for module in &modules {
@@ -1300,7 +1298,7 @@ fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, Depe
     }
     let label = lock_file
         .ok_or_else(|| unsupported("the maven.install tag needs a literal lock_file".to_owned()))?;
-    let lock = dx_module_bazel::label_path(&label).map_err(&unsupported)?;
+    let lock = dx_module_bazel::label_path(&label).map_err(unsupported)?;
     if !set.locks.contains(&lock) {
         return Err(unsupported(format!(
             "lock_file {label} is not listed in the set's locks (want {lock})"

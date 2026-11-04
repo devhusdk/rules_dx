@@ -4019,13 +4019,17 @@ fn bicep_staged_registry_file_lands_in_the_home_cache() {
         assert_eq!(argv[1], "lint");
         Ok(ChildOutput {
             code: Some(0),
-            stdout: br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"bicep"}},"results":[]}]}"#
-                .to_vec(),
+            stdout:
+                br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"bicep"}},"results":[]}]}"#
+                    .to_vec(),
             stderr: Vec::new(),
         })
     }
     let tool = RealTool {
-        tool_files: vec![("dx-bicep/home/.bicep/br/example/m$/main.json".to_owned(), b"{}".to_vec())],
+        tool_files: vec![(
+            "dx-bicep/home/.bicep/br/example/m$/main.json".to_owned(),
+            b"{}".to_vec(),
+        )],
         ..plain_tool()
     };
     let findings = backend_for("bicep", tool, cached)
@@ -5429,6 +5433,109 @@ fn latexindent_unknown_exit_fatal_and_stderr_are_never_clean() {
         backend
             .diagnose("latexindent", "format", &single("a.tex", LATEX_CLEAN))
             .expect_err("malformed output is never clean");
+    }
+}
+
+const CHKTEX_DIRTY: &str = "See \\ref{a}.\n";
+const CHKTEX_WARNING: &str = ":1:5:5:Warning:2:Non-breaking space (`~') should have been used.\n";
+
+fn chktex_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let flag = |name: &str| argv.iter().position(|arg| arg == name);
+    assert!(flag("-q").is_some() && flag("-I0").is_some());
+    assert_eq!(
+        argv[flag("-f").expect("format flag") + 1],
+        OsString::from(quality_adapter::commands::CHKTEX_FORMAT)
+    );
+    let file = PathBuf::from(argv.last().expect("one file"));
+    let dirty = std::fs::read_to_string(&file)?.contains("\\ref");
+    if !dirty {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: format!("{}{CHKTEX_WARNING}", file.display()).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn chktex_error_exit(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(3),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn chktex_unknown_exit(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(7),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn chktex_junk_output(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"not a diagnostic\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn chktex_reports_findings_by_workspace_path_per_file() {
+    let backend = backend_for("chktex", plain_tool(), chktex_tool);
+    let mut files = single("docs/a.tex", CHKTEX_DIRTY);
+    files.insert("docs/b.tex".to_owned(), LATEX_CLEAN.to_owned());
+    let findings = backend
+        .diagnose("chktex", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "chktex");
+    assert_eq!(findings[0].path, "docs/a.tex");
+}
+
+#[test]
+fn chktex_clean_file_has_no_findings() {
+    let backend = backend_for("chktex", plain_tool(), chktex_tool);
+    assert!(backend
+        .diagnose("chktex", "lint", &single("docs/b.tex", LATEX_CLEAN))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn chktex_error_exit_unknown_exit_and_junk_are_never_clean() {
+    for tool in [
+        chktex_error_exit as Spawn,
+        chktex_unknown_exit as Spawn,
+        chktex_junk_output as Spawn,
+    ] {
+        let backend = backend_for("chktex", plain_tool(), tool);
+        backend
+            .diagnose("chktex", "lint", &single("a.tex", LATEX_CLEAN))
+            .expect_err("never clean");
     }
 }
 

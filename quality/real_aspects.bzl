@@ -878,6 +878,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "latex",
     },
+    "chktex": {
+        "attr": attr.label(default = "@dx_tools//:chktex", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "latex",
+    },
     "vale": {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -2755,6 +2762,12 @@ _REAL_SHARD_SPECS = {
         "shard": "latex",
         "suffix": "-latex",
     },
+    "real_latex_lint": {
+        "capability": "lint",
+        "doc": "Additive LaTeX lint family aspect (chktex).",
+        "shard": "latex",
+        "suffix": "-latex",
+    },
     "real_cmake_format": {
         "capability": "format",
         "doc": "Additive CMake format family aspect (gersemi).",
@@ -3101,6 +3114,7 @@ real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
 real_cmake_lint_aspect = _make_real_aspect("real_cmake_lint")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
+real_latex_lint_aspect = _make_real_aspect("real_latex_lint")
 real_haskell_typecheck_aspect = _make_real_aspect("real_haskell_typecheck")
 
 real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")

@@ -59,6 +59,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_fortran_lint_aspect",
                 "quality:real_aspects.bzl%real_xml_lint_aspect",
                 "quality:real_aspects.bzl%real_haskell_lint_aspect",
+                "quality:real_aspects.bzl%real_latex_lint_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -324,6 +325,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_fortran_lint_aspect",
                 "quality:real_aspects.bzl%real_xml_lint_aspect",
                 "quality:real_aspects.bzl%real_haskell_lint_aspect",
+                "quality:real_aspects.bzl%real_latex_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);

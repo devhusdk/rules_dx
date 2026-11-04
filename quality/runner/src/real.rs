@@ -21,6 +21,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "cfn_lint",
     "checkmake",
     "checkstyle",
+    "chktex",
     "cmakelint",
     "clang_format",
     "clang_syntax",

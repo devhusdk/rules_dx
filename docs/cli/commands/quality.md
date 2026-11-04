@@ -2171,12 +2171,9 @@ error, so check a new config by formatting a file it should change.
 The [prose-docs example](https://github.com/devhusdk/rules_dx/blob/main/examples/prose-docs/README.md) uses all four
 document families in one workspace.
 
-`chktex` lint is not available yet. No pinned build of `chktex` exists on any
-platform, so a policy that selects it fails with:
-
-```text
-policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64; disable 'lint'
-```
+`chktex` lints LaTeX (lint, check only). dx runs it once per file and does not
+follow `\input`, so list every file in the family. Each warning or error is
+reported at its line and column. It has no config binding yet.
 
 ### Pkl
 

@@ -114,7 +114,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Jsonnet | `jsonnet_lint` | `jsonnetfmt` | n/a |
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` |
 | Kubernetes | `kubeconform` | `prettier` | n/a |
-| LaTeX | `chktex` unsupported (not on `linux_x86_64`: chktex has no pinned build yet; `linux_arm64`: chktex has no pinned build yet; `macos_arm64`: chktex has no pinned build yet; `windows_x86_64`: chktex has no pinned build yet; `windows_arm64`: chktex has no pinned build yet) | `latexindent` | n/a |
+| LaTeX | `chktex` | `latexindent` | n/a |
 | Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a |
 | Pkl | no | `pkl` | `pkl` |
 | Rego | `regal` | `opa` | `opa` |

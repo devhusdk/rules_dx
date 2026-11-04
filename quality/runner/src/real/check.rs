@@ -1812,6 +1812,21 @@ impl RealBackend {
                     parsers::parse_zig_fmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "chktex" => {
+                // One process per file: chktex checks a single document and never follows `\input`.
+                let mut merged = Vec::new();
+                for (name, path) in strs.iter().zip(refs.iter()) {
+                    let invocation = commands::chktex_check(&tool.binary, path);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_chktex(&out.stdout, &out.stderr, out.code, &[*name]),
+                    )
+                    .map_err(|err| in_file(err, name))?;
+                    merged.extend(found);
+                }
+                Ok(merged)
+            }
             "latexindent" => {
                 // One process per file: latexindent takes a single document. Its log and
                 // backups go to a scratch directory, never next to the source.

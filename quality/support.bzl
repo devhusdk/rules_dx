@@ -1580,24 +1580,17 @@ LATEX_LATEXINDENT_FORMAT_SUPPORT = {
 }
 
 LATEX_CHKTEX_LINT_SUPPORT = {
-    "artifact": "missing",
+    "artifact": "pinned",
     "capability": "lint",
     "classes": ["latex"],
     "context": "owned",
     "execution": "direct",
     "family": "latex",
     "fix": "check_only",
-    "platforms": [],
-    "state": "known",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
     "tool": "chktex",
     "transport": "single",
-    "unsupported": {
-        "linux_arm64": "chktex has no pinned build yet",
-        "linux_x86_64": "chktex has no pinned build yet",
-        "macos_arm64": "chktex has no pinned build yet",
-        "windows_arm64": "chktex has no pinned build yet",
-        "windows_x86_64": "chktex has no pinned build yet",
-    },
 }
 
 # Vale lints AsciiDoc through the pinned Asciidoctor.js converter the owner rule carries.

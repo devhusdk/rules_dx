@@ -415,9 +415,10 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_rego",
         },
         {
-            "case": "latex_formatted",
+            "case": "latex_checked",
             "expected_dx_results": [
                 "clean_latex-real-format-latex.pb",
+                "clean_latex-real-lint-latex.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:latex_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_latex",
@@ -694,7 +695,7 @@ test_suite(
         ":consumer_policy_cmake_linted_test",
         ":consumer_policy_make_formatted_test",
         ":consumer_policy_make_linted_test",
-        ":consumer_policy_latex_formatted_test",
+        ":consumer_policy_latex_checked_test",
         ":consumer_policy_nix_linted_test",
         ":consumer_policy_asciidoc_vale_test",
         ":consumer_policy_rst_vale_test",

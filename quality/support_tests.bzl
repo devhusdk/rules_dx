@@ -348,8 +348,8 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
-                "keep_sorted, shellcheck, latexindent, flatc, djlint, gplint and vale claims are proven",
-                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["keep_sorted", "shellcheck", "latexindent", "flatc", "djlint", "gplint", "vale"]], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                "keep_sorted, shellcheck, latexindent, chktex, flatc, djlint, gplint and vale claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["keep_sorted", "shellcheck", "latexindent", "chktex", "flatc", "djlint", "gplint", "vale"]], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],
             ),
             expect_equal(
@@ -495,7 +495,7 @@ def support_unit_tests(name):
             expect_equal(
                 "only tools with no build anywhere are unpinned",
                 [support_unpinned_tools("lint"), support_unpinned_tools("format")],
-                [{"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}, {}],
+                [{}, {}],
             ),
             expect_equal(
                 "valid unsupported platform is accepted",

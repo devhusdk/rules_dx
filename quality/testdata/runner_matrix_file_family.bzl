@@ -417,6 +417,32 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_latex_format_config_pass.expected.txt",
     },
     {
+        "name": "matrix_latex_lint_pass",
+        "generated": {
+            "matrix/latex_lint_clean.tex": "\\documentclass{article}\n\\begin{document}\nHello world.\n\\end{document}\n",
+        },
+        "capability": "lint",
+        "stages": ["chktex;latex;matrix/latex_lint_clean.tex"],
+        "tool_names": ["chktex"],
+        "tool_binaries": ["@dx_tools//:chktex"],
+        "expected_file": ":matrix/matrix_latex_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "matrix_latex_lint_fail",
+        "generated": {
+            "matrix/latex_lint_dirty.tex": "\\documentclass{article}\n\\begin{document}\nSee \\ref{a}.\n\\end{document}\n",
+        },
+        "capability": "lint",
+        "stages": ["chktex;latex;matrix/latex_lint_dirty.tex"],
+        "tool_names": ["chktex"],
+        "tool_binaries": ["@dx_tools//:chktex"],
+        "expected_file": ":matrix/matrix_latex_lint_fail.expected.txt",
+    },
+    {
         "name": "matrix_lua_format_pass",
         "generated": {
             "matrix/lua_clean.lua": "local value = 1\nprint(value)\n",

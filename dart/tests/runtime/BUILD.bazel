@@ -22,7 +22,6 @@ dart_binary(
 
 dart_test(
     name = "greet_test",
-    size = "small",
     data = ["data/name.txt"],
     main = "test/greet_test.dart",
     deps = [
@@ -34,7 +33,6 @@ dart_test(
 
 dart_test(
     name = "launcher_test",
-    size = "small",
     data = [":greet_bin"],
     main = "test/launcher_test.dart",
     deps = [

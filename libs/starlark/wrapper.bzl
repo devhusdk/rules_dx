@@ -561,6 +561,7 @@ def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     out = dict(kwargs)
     out["tags"] = dx_upstream_tags(out.get("tags", None))
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
+    out.setdefault("size", "small")
     if srcs != None:
         out["srcs"] = srcs
     return out

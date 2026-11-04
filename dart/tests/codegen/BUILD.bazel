@@ -19,7 +19,6 @@ dart_library(
 
 dart_test(
     name = "codegen_test",
-    size = "small",
     main = "test/codegen_test.dart",
     deps = [
         ":codegen",

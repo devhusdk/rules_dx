@@ -28,7 +28,6 @@ python_library(
 
 python_test(
     name = "web_server_test",
-    size = "small",
     srcs = ["web_server_test.py"],
     aspect_hints = ["//:ruff_config"],
     dep_group = "hello",

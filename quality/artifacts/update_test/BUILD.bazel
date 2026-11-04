@@ -7,7 +7,6 @@ package(default_visibility = VIS_QUALITY)
 # keep
 python_test(
     name = "update_test",
-    size = "small",
     srcs = ["update_test.py"],
     aspect_hints = ["//:ruff_config"],
     data = ["//quality/artifacts:update.py"],

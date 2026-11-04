@@ -28,7 +28,6 @@ dx_hello_output_test(
 
 fortran_test(
     name = "stats_test",
-    size = "small",
     srcs = ["stats_test.f90"],
     deps = [":stats"],
 )
@@ -41,7 +40,6 @@ cc_library(
 
 fortran_test(
     name = "calls_c_test",
-    size = "small",
     srcs = ["calls_c_test.f90"],
     deps = [":c_add"],
 )
@@ -53,7 +51,6 @@ fortran_library(
 
 cc_test(
     name = "dot_test",
-    size = "small",
     srcs = ["dot_test.c"],
     target_compatible_with = FORTRAN_COMPATIBLE_WITH,
     deps = [":dot"],
@@ -61,7 +58,6 @@ cc_test(
 
 fortran_test(
     name = "io_test",
-    size = "small",
     srcs = ["io_test.F90"],
     copts = select({"//conditions:default": ["-DDX_FORTRAN_SELECT=7"]}),
     env = {"DX_FORTRAN_PROBE": "env"},
@@ -69,7 +65,6 @@ fortran_test(
 
 fortran_test(
     name = "same_basename_test",
-    size = "small",
     srcs = ["same_basename_test.f90"],
     deps = [
         "//fortran/tests/runtime/kinds_a",

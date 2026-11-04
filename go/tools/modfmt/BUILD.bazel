@@ -16,7 +16,6 @@ go_binary(
 
 go_test(
     name = "modfmt_test",
-    size = "small",
     srcs = ["main_test.go"],
     embed = [":modfmt_lib"],
 )

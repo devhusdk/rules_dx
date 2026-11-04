@@ -29,7 +29,6 @@ avro_cc_library(
 # keep
 cc_test(
     name = "cc_roundtrip_test",
-    size = "small",
     srcs = ["cc_roundtrip_test.cc"],
     copts = ["-std=c++17"],
     deps = [":shapes_cc"],
@@ -89,7 +88,6 @@ avro_java_library(
 
 java_test(
     name = "RoundtripTest",
-    size = "small",
     srcs = ["RoundtripTest.java"],
     jvm_flags = ["-Dorg.apache.avro.SERIALIZABLE_PACKAGES=dx.test"],
     main_class = "RoundtripTest",

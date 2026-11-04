@@ -44,7 +44,6 @@ haskell_binary(
 # keep
 haskell_test(
     name = "probe_test",
-    size = "small",
     srcs = ["test/ProbeTest.hs"],
     data = ["data.txt"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,

@@ -31,7 +31,6 @@ php_binary(
 
 php_test(
     name = "request_factory_test",
-    size = "small",
     srcs = ["test/RequestFactoryTest.php"],
     deps = [":factory_deprecations"],
 )
@@ -44,7 +43,6 @@ php_binary(
 
 php_test(
     name = "cli_test",
-    size = "small",
     srcs = ["test/CliTest.php"],
     data = [
         ":autoload_a",

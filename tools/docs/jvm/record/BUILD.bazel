@@ -12,7 +12,6 @@ java_library(
 
 java_test(
     name = "api_record_writer_test",
-    size = "small",
     srcs = ["test/dx/docs/jvm/ApiRecordWriterTest.java"],
     args = [
         "execute",

@@ -378,37 +378,37 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream empty stays private",
                 dx_test_upstream_kwargs({}),
-                {"tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream keeps manual-only tags",
                 dx_test_upstream_kwargs({"tags": ["manual"]}),
-                {"tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream keeps non-manual tags",
                 dx_test_upstream_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["manual", "cpu:4"], "visibility": ["//visibility:private"]},
+                {"tags": ["manual", "cpu:4"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream adds manual",
                 dx_test_upstream_kwargs({"tags": ["cpu:4"]}),
-                {"tags": ["cpu:4", "manual"], "visibility": ["//visibility:private"]},
+                {"tags": ["cpu:4", "manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream forces private visibility",
                 dx_test_upstream_kwargs({"visibility": ["//visibility:public"]}),
-                {"tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream sets srcs when given",
                 dx_test_upstream_kwargs({}, ["hello_test.go"]),
-                {"tags": ["manual"], "visibility": ["//visibility:private"], "srcs": ["hello_test.go"]},
+                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"], "srcs": ["hello_test.go"]},
             ),
             expect_equal(
                 "test upstream keeps compiler flags",
                 dx_test_upstream_kwargs({"copts": ["-Werror"]}),
-                {"copts": ["-Werror"], "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"copts": ["-Werror"], "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream rewrites skip tags and adds manual",
@@ -421,9 +421,9 @@ def wrapper_shape_kwargs_tests(name):
                 ["manual", "dx:no-format", "no-remote-exec"],
             ),
             expect_equal(
-                "test upstream sets srcs and rewrites skip tags",
+                "test upstream sets small size, srcs and rewrites skip tags",
                 test_output,
-                {"srcs": ["b_test.go"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
+                {"size": "small", "srcs": ["b_test.go"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream leaves its input unchanged",
@@ -588,7 +588,7 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream keeps exec groups",
                 dx_test_upstream_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
-                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}, "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward leaves exec groups input unchanged",
@@ -608,12 +608,12 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream keeps exec placement",
                 dx_test_upstream_kwargs({"exec_properties": {"Pool": "gpu"}}),
-                {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream keeps env",
                 dx_test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
-                {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward defaults size to small",

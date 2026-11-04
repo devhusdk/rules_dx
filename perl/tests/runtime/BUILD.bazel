@@ -15,7 +15,6 @@ perl_binary(
 
 perl_test(
     name = "probe_test",
-    size = "small",
     srcs = ["t/probe.t"],
     data = ["data.txt"],
     env = {"DATA_FILE": "$(rlocationpath data.txt)"},
@@ -27,7 +26,6 @@ perl_test(
 
 perl_test(
     name = "launcher_test",
-    size = "small",
     srcs = ["t/launcher.t"],
     data = [":probe"],
     env = {"PROBE_BIN": "$(rlocationpath :probe)"},

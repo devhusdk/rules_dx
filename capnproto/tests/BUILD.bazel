@@ -18,7 +18,6 @@ capnp_cc_library(
 
 cc_test(
     name = "cc_roundtrip_test",
-    size = "small",
     srcs = ["cc_roundtrip_test.cc"],
     copts = ["-std=c++17"],
     deps = [":shapes_cc"],
@@ -35,7 +34,6 @@ capnp_cc_library(
 
 cc_test(
     name = "cc_both_libraries_test",
-    size = "small",
     srcs = ["cc_roundtrip_test.cc"],
     copts = ["-std=c++17"],
     deps = [
@@ -158,7 +156,6 @@ capnp_java_library(
 
 java_test(
     name = "JavaRoundtripTest",
-    size = "small",
     srcs = ["JavaRoundtripTest.java"],
     main_class = "JavaRoundtripTest",
     tags = ["no-lint"],  # no checkstyle config in this fixture package

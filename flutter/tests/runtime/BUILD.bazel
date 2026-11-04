@@ -39,7 +39,6 @@ build_test(
 flutter_test(
     name = "widget_test",
     package_name = "dx_flutter_probe",
-    size = "small",
     main = "test/widget_test.dart",
     deps = [
         ":lib",

@@ -23,7 +23,6 @@ cuda_library(
 
 cc_test(
     name = "gpu_facts_test",
-    size = "small",
     srcs = ["gpu_facts_test.cc"],
     copts = ["-std=c++17"],
     target_compatible_with = CUDA_TARGET,

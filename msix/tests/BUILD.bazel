@@ -376,7 +376,6 @@ msix_variant(
 
 pwsh_test(
     name = "pack_test",
-    size = "small",
     srcs = ["pack_test.ps1"],
     data = [
         "fixtures/NOTICE.txt",
@@ -435,7 +434,6 @@ dx_msix(
 
 pwsh_test(
     name = "tools_test",
-    size = "small",
     srcs = ["tools_test.ps1"],
     data = [
         "@dx_msix_tools//:arm64",
@@ -451,7 +449,6 @@ pwsh_test(
 
 pwsh_test(
     name = "inspect_test",
-    size = "small",
     srcs = ["inspect_test.ps1"],
     data = [
         ":app_arm64",
@@ -469,7 +466,6 @@ pwsh_test(
 
 pwsh_test(
     name = "sign_test",
-    size = "small",
     srcs = ["sign_test.ps1"],
     data = [
         ":app_arm64",

@@ -123,7 +123,7 @@ the command reference.
 | `linux_x86_64` | Supported |
 | Other cells | Not supported |
 
-The command reference covers `dx generate`. The `examples/adopt-fsharp` tree shows a full run.
+The command reference covers `dx generate`. The `fsharp/tests/fixtures/adopt-fsharp` tree shows a full run.
 
 ## Coverage
 

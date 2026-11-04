@@ -276,3 +276,43 @@ mod non_utf8 {
         assert!(err.message.contains("DX_VERSION"), "{}", err.message);
     }
 }
+
+fn sysctl_with<'a>(set: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+    move |key| {
+        set.iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, v)| (*v).to_owned())
+    }
+}
+
+#[test]
+fn rosetta_on_apple_silicon_resolves_the_arm64_asset() {
+    let dir = workspace("1.2.3\n");
+    let cache = tempfile::tempdir().expect("cache");
+    let cache_dir = cache.path().to_str().expect("utf8");
+    for set in [
+        &[("hw.optional.arm64", "1\n")][..],
+        &[("hw.optional.arm64", "0"), ("sysctl.proc_translated", "1")][..],
+    ] {
+        let arch = effective_arch("macos", "x86_64", &sysctl_with(set));
+        let resolved = crate::run::resolve_on(
+            &env(&[("DX_CACHE_DIR", cache_dir)]),
+            dir.path(),
+            ("macos", arch),
+        )
+        .expect("resolves");
+        assert_eq!(asset_name(resolved.platform), "dx-macos-arm64");
+        assert!(resolved.bin.ends_with("dx-macos-arm64"));
+    }
+}
+
+#[test]
+fn intel_mac_is_still_unsupported() {
+    for set in [
+        &[][..],
+        &[("hw.optional.arm64", "0"), ("sysctl.proc_translated", "0")][..],
+    ] {
+        let arch = effective_arch("macos", "x86_64", &sysctl_with(set));
+        assert_eq!(platform("macos", arch), None);
+    }
+}

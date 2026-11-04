@@ -12,8 +12,15 @@ pub struct Resolved {
 }
 
 pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Resolved, ShimError> {
+    resolve_on(env_get, cwd, protocol::host_platform())
+}
+
+pub fn resolve_on(
+    env_get: protocol::EnvGet,
+    cwd: &Path,
+    (os, arch): (&str, &str),
+) -> Result<Resolved, ShimError> {
     let (version, source) = protocol::resolve_version(env_get, cwd)?;
-    let (os, arch) = protocol::host_platform();
     let platform = protocol::platform(os, arch)
         .ok_or_else(|| protocol::unsupported_platform(&version, os, arch))?;
     let windows = platform.os == "windows";

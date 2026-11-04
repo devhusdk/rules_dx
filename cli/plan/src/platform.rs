@@ -74,8 +74,38 @@ pub fn refusal(os: &str, arch: &str) -> Option<String> {
     }
 }
 
+/// An x86_64 process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
+pub fn effective_arch<'a>(
+    os: &str,
+    arch: &'a str,
+    sysctl: &dyn Fn(&str) -> Option<String>,
+) -> &'a str {
+    let on_apple_silicon = ["hw.optional.arm64", "sysctl.proc_translated"]
+        .iter()
+        .any(|key| sysctl(key).is_some_and(|value| value.trim() == "1"));
+    if os == "macos" && arch == "x86_64" && on_apple_silicon {
+        "aarch64"
+    } else {
+        arch
+    }
+}
+
+fn read_sysctl(key: &str) -> Option<String> {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let mut dirs: Vec<_> = std::env::split_paths(&path).collect();
+    dirs.extend(["/usr/sbin".into(), "/sbin".into()]);
+    let output = std::process::Command::new("sysctl")
+        .args(["-n", key])
+        .env("PATH", std::env::join_paths(dirs).ok()?)
+        .output()
+        .ok()?;
+    String::from_utf8(output.stdout).ok()
+}
+
 pub fn host_refusal() -> Option<String> {
-    refusal(std::env::consts::OS, std::env::consts::ARCH)
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    refusal(os, effective_arch(os, arch, &read_sysctl))
 }
 
 #[cfg(test)]
@@ -201,11 +231,55 @@ mod tests {
         assert_eq!(platform_key("solaris", "sparc"), None);
     }
 
+    fn sysctl_with<'a>(set: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        move |key| {
+            set.iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, v)| (*v).to_owned())
+        }
+    }
+
+    #[test]
+    fn rosetta_on_apple_silicon_is_accepted() {
+        for set in [
+            &[("hw.optional.arm64", "1\n")][..],
+            &[("hw.optional.arm64", "0"), ("sysctl.proc_translated", "1")][..],
+        ] {
+            let arch = effective_arch("macos", "x86_64", &sysctl_with(set));
+            assert_eq!(arch, "aarch64");
+            assert_eq!(refusal("macos", arch), None);
+        }
+    }
+
+    #[test]
+    fn intel_mac_is_still_refused() {
+        for set in [
+            &[][..],
+            &[("hw.optional.arm64", "0"), ("sysctl.proc_translated", "0")][..],
+        ] {
+            let arch = effective_arch("macos", "x86_64", &sysctl_with(set));
+            assert_eq!(arch, "x86_64");
+            assert!(refusal("macos", arch).is_some());
+        }
+    }
+
+    #[test]
+    fn other_hosts_ignore_sysctl() {
+        let set = [("hw.optional.arm64", "1")];
+        assert_eq!(
+            effective_arch("linux", "x86_64", &sysctl_with(&set)),
+            "x86_64"
+        );
+    }
+
     #[test]
     fn host_refusal_agrees_with_host_refusal_contract() {
         assert_eq!(
             host_refusal(),
-            refusal(std::env::consts::OS, std::env::consts::ARCH)
+            refusal(
+                std::env::consts::OS,
+                effective_arch(std::env::consts::OS, std::env::consts::ARCH, &read_sysctl)
+            )
         );
     }
 }

@@ -600,6 +600,34 @@ fn cancellation_ends_without_a_failure_event() {
 }
 
 #[test]
+fn a_stopped_test_run_claims_no_results() {
+    let consumer = Consumer::new();
+    let results = consumer.workspace().join(".dx/results.json");
+    for signo in [libc::SIGINT, libc::SIGTERM] {
+        fs::create_dir_all(results.parent().expect("dir")).expect("dir");
+        fs::write(&results, "stale").expect("stale results");
+        let outcome = consumer.run_cancelled(
+            &["test", "//...", "--output=json"],
+            &[("FAKE_BUILD", "sleep")],
+            signo,
+        );
+        let context = outcome.context();
+        assert_eq!(outcome.status.signal(), Some(signo), "{context}");
+        assert_eq!(outcome.kinds(), ["command_started"], "{context}");
+        assert!(
+            outcome.bazel.iter().any(|line| line.contains(" test ")),
+            "{context}"
+        );
+        assert!(!results.exists(), "{context}");
+        let outcome =
+            consumer.run_cancelled(&["test", "//..."], &[("FAKE_BUILD", "sleep")], signo);
+        let context = outcome.context();
+        assert_eq!(outcome.status.signal(), Some(signo), "{context}");
+        assert!(!outcome.err.contains("passed"), "{context}");
+    }
+}
+
+#[test]
 fn a_closed_stdout_ends_a_failure_with_the_broken_pipe_exit() {
     let consumer = Consumer::new();
     for (flags, env) in JSON_MODES {

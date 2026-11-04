@@ -87,25 +87,6 @@ avro_cc_library = rule(
 
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 
-_COMPILE = """
-set -eu
-tool="$1"; tree="$2"; shift 2
-tmp=$(mktemp -d)
-schemas=()
-generated=()
-for f in "$@"; do
-  case "$f" in
-    *.avdl) "$tool" idl2schemata "$f" "$tmp" ;;
-    *) schemas+=("$f") ;;
-  esac
-done
-for f in "$tmp"/*.avsc; do
-  if [ -e "$f" ]; then generated+=("$f"); fi
-done
-mkdir -p "$tree"
-"$tool" compile schema "${schemas[@]}" "${generated[@]}" "$tree"
-"""
-
 def _zip_entry(f):
     return f.tree_relative_path + "=" + f.path
 
@@ -114,14 +95,28 @@ def _java_library_impl(ctx):
     if not schemas:
         fail("avro_java_library " + display_label(ctx.label) + ": deps own no schemas")
     tree = ctx.actions.declare_directory(ctx.label.name + "_avro_java")
+    inputs = []
+    for schema in schemas:
+        if schema.extension == "avsc":
+            inputs.append(schema)
+            continue
+        union = ctx.actions.declare_file("_avro_java/%s/%s.avsc" % (ctx.label.name, schema.short_path.rsplit(".", 1)[0]))
+        inputs.append(union)
+        ctx.actions.run(
+            executable = ctx.executable._avdl_union,
+            inputs = [schema],
+            outputs = [union],
+            arguments = [schema.path, union.path],
+            mnemonic = "AvroIdlUnion",
+            progress_message = "avdl union " + schema.short_path,
+        )
     args = ctx.actions.args()
-    args.add(ctx.executable._avro_tools)
+    args.add_all(["compile", "schema"])
+    args.add_all(inputs)
     args.add(tree.path)
-    args.add_all(schemas)
-    ctx.actions.run_shell(
-        command = _COMPILE,
-        tools = [ctx.executable._avro_tools],
-        inputs = schemas,
+    ctx.actions.run(
+        executable = ctx.executable._avro_tools,
+        inputs = inputs,
         outputs = [tree],
         arguments = [args],
         mnemonic = "AvroJava",
@@ -162,6 +157,7 @@ avro_java_library = rule(
     doc = "Java classes for the schemas of avro_library deps and their imports, compiled once.",
     attrs = {
         "deps": attr.label_list(providers = [AvroInfo], doc = "avro_library targets to generate Java for."),
+        "_avdl_union": attr.label(default = Label("//avro/tools/avdl_union"), executable = True, cfg = "exec"),
         "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
         "_runtime": attr.label(default = Label("//quality/tools/jvm:avro_tools_import"), providers = [JavaInfo]),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),

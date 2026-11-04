@@ -247,7 +247,8 @@ generated types. `avrogencpp` cannot resolve a reference to a type in another
 
 The avro/java pair comes from `avro_java_library(name, deps)` in
 `@rules_dx//avro/rules:codegen.bzl`. It runs the pinned `avro-tools` on the
-`.avsc` and `.avdl` schemas of the `avro_library` deps and their imports, packs
+`.avsc` schemas of the `avro_library` deps and their imports (an `.avdl` is first
+turned into one union schema without a shell, so no bash is needed), packs
 the output into `<name>.srcjar` and compiles it. Dependents get the Avro
 runtime. Reading a generated class with `SpecificDatumReader` needs
 `-Dorg.apache.avro.SERIALIZABLE_PACKAGES=<your.package>`. A schema reachable

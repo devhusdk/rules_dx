@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasi_test", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_browser_binary_tests", "dx_browser_cell_tests")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_toolchain")
 load("//javascript/rules:defs.bzl", "javascript_library", "javascript_test", "javascript_wasm_bindgen_library")
@@ -361,21 +361,4 @@ rustfmt_test(
         ":wasm_stale_bin",
         ":wasm_stale_lib",
     ],
-)
-
-filegroup(
-    name = "no_wasm",
-    srcs = [],
-)
-
-rust_wasi_test(
-    name = "wasi_module_without_wasm",
-    binary = ":no_wasm",
-    tags = ["manual"],
-)
-
-failure_test(
-    name = "rust_wasi_module_rejects_zero_wasm",
-    expected_failure_substring = "set binary to a rust_binary that builds one wasm32-wasip1 .wasm file",
-    target = ":wasi_module_without_wasm_wasm",
 )

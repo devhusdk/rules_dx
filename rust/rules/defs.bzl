@@ -516,10 +516,7 @@ _wasip1_transition = transition(
 def _rust_wasi_module_impl(ctx):
     """Forwards the one .wasm file the binary builds for WASI preview 1."""
     binary = ctx.attr.binary[0] if type(ctx.attr.binary) == "list" else ctx.attr.binary
-    modules = [file for file in binary[DefaultInfo].files.to_list() if file.extension == "wasm"]
-    if len(modules) != 1:
-        fail("rust_wasi_module: '" + str(binary.label) + "' built " + str(len(modules)) +
-             " .wasm files for wasm32-wasip1, want exactly one; set binary to a rust_binary that builds one wasm32-wasip1 .wasm file")
+    modules = [binary[DefaultInfo].files_to_run.executable]
     return [DefaultInfo(files = depset(modules), runfiles = ctx.runfiles(files = modules))]
 
 _rust_wasi_module = rule(

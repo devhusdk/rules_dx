@@ -156,6 +156,7 @@ pub fn render_consumer_caller_for(branch: &str) -> String {
 
 fn editor_settings_value() -> serde_json::Value {
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
+    let ide = format!("${{workspaceFolder}}/{}", dx_ide::IDE_DIR);
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
     let settings = serde_json::json!({
         "rust-analyzer.workspace.discoverConfig": {
@@ -183,14 +184,14 @@ fn editor_settings_value() -> serde_json::Value {
         ],
         "files.watcherExclude": excludes,
         "search.exclude": excludes,
-        "python.defaultInterpreterPath": ".dx/ide/python/python",
-        "typescript.tsdk": ".dx/ide/typescript/lib",
+        "python.defaultInterpreterPath": format!("{ide}/python/python"),
+        "typescript.tsdk": format!("{ide}/typescript/lib"),
         "go.toolsManagement.checkForUpdates": "off",
-        "clangd.path": ".dx/ide/cc/clangd",
-        "clangd.arguments": ["--compile-commands-dir=.dx/ide/cc"],
+        "clangd.path": format!("{ide}/cc/clangd"),
+        "clangd.arguments": [format!("--compile-commands-dir={ide}/cc")],
         "java.configuration.updateBuildConfiguration": "manual",
-        "java.jdt.ls.java.home": ".dx/ide/jdk/home",
-        "kotlin.java.home": ".dx/ide/jdk/home",
+        "java.jdt.ls.java.home": format!("{ide}/jdk/home"),
+        "kotlin.java.home": format!("{ide}/jdk/home"),
         "kotlin.languageServer.enabled": true,
     });
     settings
@@ -515,9 +516,10 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_init, entries, plan_init_files, render_consumer_caller, render_consumer_caller_for,
-        render_editor_settings, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
-        CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+        apply_init, editor_settings_value, entries, plan_init_files, render_consumer_caller,
+        render_consumer_caller_for, render_editor_settings, CONSUMER_WORKFLOW_OWNER,
+        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -638,11 +640,11 @@ mod tests {
             serde_json::from_str(&settings.content).expect("valid JSON");
         assert_eq!(
             parsed["clangd.path"],
-            serde_json::Value::from(".dx/ide/cc/clangd")
+            serde_json::Value::from("${workspaceFolder}/.dx/ide/cc/clangd")
         );
         assert_eq!(
             parsed["clangd.arguments"],
-            serde_json::json!(["--compile-commands-dir=.dx/ide/cc"])
+            serde_json::json!(["--compile-commands-dir=${workspaceFolder}/.dx/ide/cc"])
         );
         assert_eq!(
             parsed["java.configuration.updateBuildConfiguration"],
@@ -892,11 +894,11 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
         assert_eq!(
             parsed["python.defaultInterpreterPath"],
-            serde_json::Value::from(".dx/ide/python/python")
+            serde_json::Value::from("${workspaceFolder}/.dx/ide/python/python")
         );
         assert_eq!(
             parsed["clangd.path"],
-            serde_json::Value::from(".dx/ide/cc/clangd")
+            serde_json::Value::from("${workspaceFolder}/.dx/ide/cc/clangd")
         );
         assert!(settings.ends_with('\n'), "{settings}");
         for key in [
@@ -911,6 +913,27 @@ mod tests {
         ] {
             assert!(settings.contains(key), "lost {key}");
         }
+    }
+
+    #[test]
+    fn editor_settings_point_only_at_plugin_outputs() {
+        let value = editor_settings_value();
+        let base = format!("${{workspaceFolder}}/{}/", dx_ide::IDE_DIR);
+        for key in [
+            "python.defaultInterpreterPath",
+            "typescript.tsdk",
+            "clangd.path",
+            "java.jdt.ls.java.home",
+            "kotlin.java.home",
+        ] {
+            let path = value[key].as_str().expect(key);
+            let rel = path.strip_prefix(&base).expect(path);
+            assert!(dx_ide::OUTPUTS.contains(&rel), "{path}");
+        }
+        let arg = value["clangd.arguments"][0].as_str().expect("arguments");
+        let dir = arg.strip_prefix("--compile-commands-dir=").expect(arg);
+        let rel = dir.strip_prefix(&base).expect(dir);
+        assert!(dx_ide::OUTPUTS.contains(&rel), "{arg}");
     }
 
     #[test]

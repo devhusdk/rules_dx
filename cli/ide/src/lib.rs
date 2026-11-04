@@ -14,6 +14,14 @@ pub use link::link;
 
 pub const IDE_DIR: &str = ".dx/ide";
 pub const STATE_FILE: &str = ".dx/ide/state.json";
+/// Paths under `IDE_DIR` that the plug-ins write and editor settings point at.
+pub const OUTPUTS: [&str; 5] = [
+    "cc",
+    "cc/clangd",
+    "jdk/home",
+    "python/python",
+    "typescript/lib",
+];
 
 /// Everything one plug-in sees when it writes.
 pub struct Ctx<'a> {

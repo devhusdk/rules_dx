@@ -4,7 +4,10 @@ CC_TOOLCHAIN_TYPE = "@bazel_tools//tools/cpp:toolchain_type"
 
 def cc_toolchain_info(ctx):
     """Return the resolved C++ toolchain for the target platform."""
-    return ctx.toolchains[CC_TOOLCHAIN_TYPE]
+    info = ctx.toolchains[CC_TOOLCHAIN_TYPE]
+    if info == None:
+        return None
+    return info.cc
 
 def cc_toolchain_toolchains():
     """Toolchain types a probe rule must declare for cc_toolchain_info."""
@@ -53,8 +56,7 @@ def cc_compiler_identity(compiler, target):
 
 def cc_toolchain_identity(ctx):
     """Return the compiler identity of the resolved C++ toolchain."""
-    info = cc_toolchain_info(ctx)
-    if info == None:
+    cc_info = cc_toolchain_info(ctx)
+    if cc_info == None:
         return cc_compiler_identity("", "")
-    cc_info = info.cc if hasattr(info, "cc") else info
     return cc_compiler_identity(cc_info.compiler, cc_info.target_gnu_system_name)

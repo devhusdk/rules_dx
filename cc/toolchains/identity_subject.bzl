@@ -5,8 +5,7 @@ load(":bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchai
 load(":select.bzl", "toolchain_transition")
 
 def _cc_toolchain_identity_subject_impl(ctx):
-    info = cc_toolchain_info(ctx)
-    cc_info = info.cc if hasattr(info, "cc") else info
+    cc_info = cc_toolchain_info(ctx)
     identity = cc_toolchain_identity(ctx)
     return [
         DefaultInfo(files = depset([])),

@@ -3,8 +3,7 @@
 load("//cc/toolchains:bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchain_toolchains")
 
 def _cc_context_identity_impl(ctx):
-    info = cc_toolchain_info(ctx)
-    cc_info = info.cc if hasattr(info, "cc") else info
+    cc_info = cc_toolchain_info(ctx)
     identity = cc_toolchain_identity(ctx)
     out = ctx.actions.declare_file(ctx.label.name + ".cc_identity.json")
     ctx.actions.write(out, json.encode({

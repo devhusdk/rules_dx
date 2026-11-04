@@ -137,7 +137,8 @@ def _require_keys(record, keys, raw):
 def _harness_check_record(raw):
     """Normalizes one JSON check record into a manifest entry with string fields."""
     record = json.decode(raw)
-    kind = record["kind"] if "kind" in record else "equal"
+    _require_keys(record, ("kind",), raw)
+    kind = record["kind"]
     if kind == "equal":
         _require_keys(record, ("name", "expected", "actual"), raw)
         return {

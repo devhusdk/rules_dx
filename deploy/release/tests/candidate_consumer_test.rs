@@ -138,6 +138,15 @@ fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
     (git_dir, sha)
 }
 
+const GCC_BUILD: &str = r#"load("@my_dx//cc/rules:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "app",
+    srcs = ["main.cc"],
+    tags = ["manual"],
+)
+"#;
+
 /// Stages a registry for the archive and returns its directory.
 fn stage_registry(candidate: &Candidate, archive: &Path) -> PathBuf {
     let dir = mkscratch("candidate-registry").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -175,6 +184,11 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     write(&root.join("BUILD.bazel"), BUILD.as_bytes());
     write(&root.join("main.rs"), b"fn main() {}\n");
     write(&root.join("app_test.rs"), b"#[test]\nfn passes() {}\n");
+    write(&root.join("gcc/BUILD.bazel"), GCC_BUILD.as_bytes());
+    write(
+        &root.join("gcc/main.cc"),
+        b"#include <iostream>\n\nint main() {\n  std::cout << \"gcc consumer\\n\";\n}\n",
+    );
     case
 }
 
@@ -240,6 +254,51 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
 
     let policy = "--@my_dx//config:workspace=//:policy";
     ok(&dx(&case, "check", &["//...", "--", policy]), "dx check");
+
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    assert_gcc_consumer(&case);
+}
+
+/// Builds with the hermetic GCC toolchain while host compilers on PATH fail.
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+fn assert_gcc_consumer(case: &Case) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let shim = mkscratch("candidate-gcc-shim").unwrap_or_else(|error| panic!("scratch: {error}"));
+    for name in ["gcc", "g++", "cc", "c++"] {
+        let path = shim.join(name);
+        write(&path, b"#!/bin/sh\nexit 97\n");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+            .unwrap_or_else(|error| panic!("chmod {path:?}: {error}"));
+    }
+    let path = format!("PATH={}:/usr/bin:/bin", shim.display());
+    let repo_env = format!("--repo_env={path}");
+    let action_env = format!("--action_env={path}");
+    let flags = [
+        "--@my_dx//cc/toolchains:compiler=gcc",
+        repo_env.as_str(),
+        action_env.as_str(),
+    ];
+    let with = |head: &[&'static str]| -> Vec<&str> {
+        head.iter()
+            .copied()
+            .chain(flags)
+            .chain(["//gcc:app"])
+            .collect()
+    };
+
+    ok(&case.bazel(&with(&["build"])), "gcc build");
+    let files = case.bazel(&with(&["cquery", "--output=files"]));
+    ok(&files, "gcc cquery");
+    let root = case.bazel(&["info", "execution_root"]);
+    ok(&root, "info execution_root");
+    let rel = files.stdout.trim();
+    let binary = Path::new(root.stdout.trim()).join(rel);
+    let bytes = std::fs::read(&binary).unwrap_or_else(|error| panic!("{binary:?}: {error}"));
+    let has = |needle: &str| bytes.windows(needle.len()).any(|w| w == needle.as_bytes());
+    assert!(has("GCC: ("), "{binary:?} has no GCC comment");
+    assert!(has("16.2.0"), "{binary:?} is not GCC 16.2.0");
+    assert!(!has("clang version"), "{binary:?} was built by clang");
 }
 
 #[test]

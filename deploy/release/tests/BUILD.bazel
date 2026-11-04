@@ -20,7 +20,7 @@ rust_test(
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
-    # The consumer fetches the rust toolchain and bcr modules.
+    # The consumer fetches the rust and GCC toolchains and bcr modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [

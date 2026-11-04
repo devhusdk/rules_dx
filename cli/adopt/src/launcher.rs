@@ -206,11 +206,12 @@ fn pins_error(detail: String) -> AdoptError {
 const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
 DX_PINS=.dx/version
-args="$*"
 fail() {
   echo "dx: $1" >&2
-  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
   exit 1
+}
+via_bazel() {
+  exec bazel run @rules_dx//:dx -- "$@"
 }
 root=$(CDPATH="" cd -- "$(dirname -- "$0")/.." && pwd)
 os=
@@ -259,17 +260,22 @@ if [ "${1:-}" != worktree ] || [ "${2:-}" != hook ]; then
   fi
 fi
 pins="$root/$DX_PINS"
-[ -f "$pins" ] || fail "$DX_PINS is missing; refresh it: bazel run @rules_dx//:dx -- init --apply"
-IFS= read -r VERSION < "$pins" || true
-VERSION=$(printf %s "$VERSION" | tr -d '\r ')
+module="$root/MODULE.bazel"
+[ -f "$module" ] || via_bazel "$@"
+if grep -Eq 'module_name *= *"rules_dx"' "$module"; then
+  via_bazel "$@"
+fi
+dep='^bazel_dep\(name = "rules_dx", version = "[^"]*"\)[[:space:]]*$'
+[ "$(grep -Ec "$dep" "$module" || true)" = 1 ] || via_bazel "$@"
+VERSION=$(grep -E "$dep" "$module" | sed 's/^.*version = "\([^"]*\)".*$/\1/')
 case "$VERSION" in
-  "" | .* | *[!0-9A-Za-z.+-]*) fail "$DX_PINS has an invalid version '$VERSION'; refresh it: bazel run @rules_dx//:dx -- init --apply" ;;
+  "" | .* | *[!0-9A-Za-z.+-]*) via_bazel "$@" ;;
 esac
-[ -n "$os" ] || fail "no dx binary for $(uname -s)"
+[ -n "$os" ] || via_bazel "$@"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
   aarch64 | arm64) arch=arm64 ;;
-  *) fail "no dx binary for $(uname -m)" ;;
+  *) via_bazel "$@" ;;
 esac
 if [ "$os-$arch" = macos-x86_64 ]; then
   for key in hw.optional.arm64 sysctl.proc_translated; do
@@ -281,7 +287,7 @@ if [ "$os-$arch" = macos-x86_64 ]; then
 fi
 case "$os-$arch" in
   linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
-  *) fail "no dx binary for $os $arch" ;;
+  *) via_bazel "$@" ;;
 esac
 if [ -n "${DX_CACHE_DIR:-}" ]; then
   cache="$DX_CACHE_DIR"
@@ -322,6 +328,9 @@ if [ "$os" = linux ]; then
       ;;
   esac
 fi
+[ -f "$pins" ] || via_bazel "$@"
+IFS= read -r pinned < "$pins" || true
+[ "$(printf %s "$pinned" | tr -d '\r ')" = "$VERSION" ] || via_bazel "$@"
 cr=$(printf '\r')
 want=
 first=1
@@ -335,21 +344,25 @@ while IFS= read -r line || [ -n "$line" ]; do
     *"  dx-$os-$arch") want=${line%%  *} ;;
   esac
 done < "$pins"
-[ -n "$want" ] || fail "$DX_PINS has no sha256 for dx-$os-$arch; rerun dx init --apply"
+[ -n "$want" ] || via_bazel "$@"
 url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
 mkdir -p "$dir"
 tmp="$dir/.dx-$os-$arch.$$"
 trap 'rm -f "$tmp"' EXIT
 fetch() {
   if command -v curl > /dev/null 2>&1; then
-    curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 -o "$2" "$1" || fail "download failed: $1"
+    curl -fsSL --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 -o "$2" "$1"
   elif command -v wget > /dev/null 2>&1; then
-    wget -q --timeout=30 --tries=3 -O "$2" "$1" || fail "download failed: $1"
+    wget -q --timeout=30 --tries=3 -O "$2" "$1"
   else
-    fail "needs curl or wget to download $1"
+    return 1
   fi
 }
-fetch "$url" "$tmp"
+if ! fetch "$url" "$tmp"; then
+  rm -f "$tmp"
+  rmdir "$dir" 2> /dev/null || true
+  via_bazel "$@"
+fi
 if command -v sha256sum > /dev/null 2>&1; then
   got=$(sha256sum "$tmp" | cut -d' ' -f1)
 elif command -v shasum > /dev/null 2>&1; then
@@ -401,42 +414,37 @@ if /i not "%DX_GA%"=="%DX_GB%" goto dxdone
 "%DX_HERE%\tools\dx.cmd" %*
 exit /b %errorlevel%
 :dxdone
-if not exist "%~dp0..\%DX_PINS%" (
-  echo dx: %DX_PINS% is missing; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
-  goto bazel
-)
+set "DX_MODULE=%~dp0..\MODULE.bazel"
+if not exist "%DX_MODULE%" goto bazel
+findstr /r /c:"module_name *= *.rules_dx." "%DX_MODULE%" >nul && goto bazel
+set "DX_N=0"
 set "VERSION="
-set /p VERSION=<"%~dp0..\%DX_PINS%"
+for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*$" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
+if not "%DX_N%"=="1" goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
-if errorlevel 1 (
-  echo dx: %DX_PINS% has an invalid version; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
-  goto bazel
-)
+if errorlevel 1 goto bazel
 set "DX_CACHE=%USERPROFILE%\.cache\dx"
 if defined XDG_CACHE_HOME set "DX_CACHE=%XDG_CACHE_HOME%\dx"
 if defined DX_CACHE_DIR set "DX_CACHE=%DX_CACHE_DIR%"
 set "DIR=%DX_CACHE%\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
+set "DX_PINNED="
+if exist "%~dp0..\%DX_PINS%" set /p DX_PINNED=<"%~dp0..\%DX_PINS%"
+if not "%DX_PINNED%"=="%VERSION%" goto bazel
 set "WANT="
 for /f "usebackq skip=1 tokens=1,2" %%A in ("%~dp0..\%DX_PINS%") do if "%%B"=="dx-windows-%ARCH%" set "WANT=%%A"
-if not defined WANT (
-  echo dx: %DX_PINS% has no sha256 for dx-windows-%ARCH%; rerun dx init --apply 1>&2
-  goto bazel
-)
+if not defined WANT goto bazel
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
 mkdir "%DIR%" 2>nul
 set "DX_TAG="
 for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
-if not defined DX_TAG (
-  echo dx: download failed: %DX_URL% 1>&2
-  goto bazel
-)
+if not defined DX_TAG goto bazel
 set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
 call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -ProxyUseDefaultCredentials -Uri $env:DX_URL -OutFile $env:DX_PART"
 if errorlevel 1 (
   call :clean
-  echo dx: download failed: %DX_URL% 1>&2
+  rmdir "%DIR%" 2>nul
   goto bazel
 )
 set "GOT="
@@ -447,20 +455,20 @@ move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
 if exist "%BIN%" goto run
 echo dx: could not install %BIN% 1>&2
-goto bazel
+exit /b 1
 :run
 "%BIN%" %*
 exit /b %errorlevel%
 :mismatch
 call :clean
 echo dx: sha256 mismatch for %DX_URL%: want '%WANT%', got '%GOT%'; refusing to run it 1>&2
-goto bazel
+exit /b 1
 :clean
 del /q "%DX_PART%" 2>nul
 exit /b 0
 :bazel
-echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
-exit /b 1
+bazel run @rules_dx//:dx -- %*
+exit /b %errorlevel%
 "##;
 
 pub fn render_launcher_sh() -> String {
@@ -656,7 +664,6 @@ mod tests {
                 ".dx\\launcher",
                 "//:dx\"",
                 "build //:dx",
-                "rules_dx\",",
                 "--nohome_rc",
                 "disk_cache",
                 "cli/cli/BUILD.bazel",
@@ -671,7 +678,7 @@ mod tests {
         let msys = sh
             .find("\n    export MSYS2_ARG_CONV_EXCL\n")
             .expect("msys export");
-        let pin = sh.find("\nIFS= read -r VERSION").expect("pin check");
+        let pin = sh.find("\nVERSION=$(grep").expect("pin check");
         let handoff = sh.find("exec \"$here/tools/dx\"").expect("handoff");
         assert!(os < msys && msys < handoff && handoff < pin);
     }
@@ -1128,7 +1135,10 @@ mod tests {
                 let tools = dir.path().join("tools");
                 let missing = dx_test_scratch::link_host_tools(
                     &tools,
-                    &["dirname", "tr", "mkdir", "cut", "chmod", "mv", "rm", "cp"],
+                    &[
+                        "dirname", "tr", "mkdir", "cut", "chmod", "mv", "rm", "rmdir", "cp",
+                        "grep", "sed",
+                    ],
                 )
                 .expect("link tools");
                 assert!(missing.is_empty(), "host lacks tools: {missing:?}");
@@ -1146,6 +1156,11 @@ mod tests {
                     pinned(&pin)
                 };
                 write_version_pins(&root, "1.2.3", &pins).expect("pins");
+                std::fs::write(
+                    root.join("MODULE.bazel"),
+                    "module(name = \"consumer\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
+                )
+                .expect("module");
                 let curl = dir.path().join("stub/curl");
                 let body = if curl_ok {
                     "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
@@ -1161,7 +1176,27 @@ mod tests {
                     _guard: Box::new(dir),
                 };
                 fx.stub("uname", UNAME_LINUX);
+                fx.stub("bazel", "#!/bin/sh\necho \"$@\" >> \"$STUB_LOG.bazel\"\n");
                 fx
+            }
+
+            fn set_module(&self, text: &str) {
+                std::fs::write(self.base.join("repo/MODULE.bazel"), text).expect("module");
+            }
+
+            fn bazel_calls(&self) -> Vec<String> {
+                std::fs::read_to_string(self.base.join("calls.bazel"))
+                    .map(|text| text.lines().map(str::to_owned).collect())
+                    .unwrap_or_default()
+            }
+
+            fn assert_via_bazel(&self, args: &[&str]) {
+                let (code, out, err) = self.run(args);
+                assert_eq!(code, Some(0), "{out}{err}");
+                assert!(out.is_empty() && err.is_empty(), "{out}{err}");
+                let want = format!("run @rules_dx//:dx -- {}", args.join(" "));
+                assert_eq!(self.bazel_calls(), vec![want]);
+                assert!(self.cached().is_empty(), "{:?}", self.cached());
             }
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
@@ -1418,21 +1453,10 @@ mod tests {
         }
 
         #[test]
-        fn an_empty_sha256_pin_refuses_before_download() {
+        fn an_empty_sha256_pin_runs_through_bazel_before_download() {
             let fx = Fixture::new("dx-launcher-nosha-", true, Some(""));
-            let (code, out, err) = fx.run(&["check", "//..."]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(out.is_empty(), "{out}");
-            assert!(
-                err.contains(".dx/version has no sha256 for dx-linux-x86_64"),
-                "{err}"
-            );
-            assert!(
-                err.contains("bazel run @rules_dx//:dx -- check //..."),
-                "{err}"
-            );
+            fx.assert_via_bazel(&["check", "//..."]);
             assert_eq!(fx.downloads(), 0);
-            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
         }
 
         #[test]
@@ -1460,17 +1484,65 @@ mod tests {
         }
 
         #[test]
-        fn offline_without_a_cached_binary_prints_the_bazel_command() {
+        fn offline_without_a_cached_binary_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-offline-", false, None);
-            let (code, out, err) = fx.run(&["check", "//..."]);
-            assert_eq!(code, Some(1));
-            assert!(out.is_empty(), "{out}");
-            assert!(err.contains("download failed"), "{err}");
-            assert!(
-                err.contains("bazel run @rules_dx//:dx -- check //..."),
-                "{err}"
+            fx.assert_via_bazel(&["check", "//..."]);
+            assert_eq!(fx.downloads(), 1);
+        }
+
+        #[test]
+        fn a_module_bump_without_new_pins_runs_through_bazel() {
+            let fx = Fixture::new("dx-launcher-bump-", true, None);
+            fx.set_module("bazel_dep(name = \"rules_dx\", version = \"1.2.4\")\n");
+            fx.assert_via_bazel(&["check", "//..."]);
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn a_missing_module_file_runs_through_bazel() {
+            let fx = Fixture::new("dx-launcher-nomodule-", true, None);
+            std::fs::remove_file(fx.base.join("repo/MODULE.bazel")).expect("remove module");
+            fx.assert_via_bazel(&["check", "//..."]);
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn modules_the_launcher_cannot_read_run_through_bazel() {
+            for (i, text) in [
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nlocal_path_override(module_name = \"rules_dx\", path = \"x\")\n",
+                "bazel_dep(\n    name = \"rules_dx\",\n    version = \"1.2.3\",\n)\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3&x\")\n",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let fx = Fixture::new(&format!("dx-launcher-module{i}-"), true, None);
+                fx.set_module(text);
+                fx.assert_via_bazel(&["check", "//..."]);
+                assert_eq!(fx.downloads(), 0, "{text}");
+            }
+        }
+
+        #[test]
+        fn a_module_dep_with_trailing_cr_still_pins_the_version() {
+            let fx = Fixture::new("dx-launcher-modulecr-", true, None);
+            fx.set_module(
+                "module(name = \"c\")\r\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")  \r\n",
             );
-            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert!(fx.bazel_calls().is_empty());
+        }
+
+        #[test]
+        fn a_pins_file_for_another_version_runs_through_bazel() {
+            let fx = Fixture::new("dx-launcher-oldpins-", true, None);
+            let pin = sha_of(&fx.base.join("payload"));
+            fx.set_pin(&format!("1.2.2\n{pin}  dx-linux-x86_64\n"));
+            fx.assert_via_bazel(&["check", "//..."]);
+            assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
@@ -1569,7 +1641,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn intel_mac_still_has_no_binary() {
+        fn intel_mac_runs_through_bazel() {
             for (name, body) in [
                 ("dx-launcher-intel-mac-", sysctl_stub(None)),
                 (
@@ -1580,11 +1652,8 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 let fx = Fixture::new(name, true, None);
                 fx.stub("uname", UNAME_ROSETTA);
                 fx.stub("sysctl", &body);
-                let (code, out, err) = fx.run(&["version"]);
-                assert_eq!(code, Some(1), "{out}{err}");
-                assert!(err.contains("no dx binary for macos x86_64"), "{err}");
+                fx.assert_via_bazel(&["version"]);
                 assert_eq!(fx.downloads(), 0);
-                assert!(fx.cached().is_empty(), "{:?}", fx.cached());
             }
         }
 
@@ -1600,12 +1669,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 fx.stub("uname", UNAME_ROSETTA);
                 fx.stub("sysctl", &sysctl_stub(Some(on)));
                 fx.rewrite_launcher(from, to);
-                let (code, out, err) = fx.run(&["version"]);
-                assert_eq!(code, Some(1), "{from} -> {to}: {out}{err}");
-                assert!(
-                    err.contains("no dx binary for macos x86_64"),
-                    "{from} -> {to}: {err}"
-                );
+                fx.assert_via_bazel(&["version"]);
                 assert_eq!(fx.downloads(), 0, "{from} -> {to}");
             }
         }
@@ -1629,60 +1693,20 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             assert_eq!(fx.cached(), vec!["dx-windows-x86_64.exe"]);
         }
 
-        fn assert_clean_missing_pin(fx: &Fixture, err: &str, code: Option<i32>) {
-            assert_eq!(code, Some(1), "{err}");
-            assert_eq!(err.lines().count(), 2, "{err}");
-            assert!(err.contains(".dx/version is missing"), "{err}");
-            assert!(err.contains("init --apply"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- version"), "{err}");
-            for noise in [
-                "parameter not set",
-                "cannot open",
-                "can't open",
-                "No such file",
-            ] {
-                assert!(!err.contains(noise), "{noise}: {err}");
-            }
-            assert_eq!(fx.downloads(), 0);
-        }
-
         #[test]
-        fn a_missing_pin_is_refused_with_one_message() {
+        fn a_missing_pins_file_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-nopin-", true, None);
             std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
-            let (code, out, err) = fx.run(&["version"]);
-            assert!(out.is_empty(), "{out}");
-            assert_clean_missing_pin(&fx, &err, code);
-        }
-
-        #[test]
-        fn an_empty_version_is_refused() {
-            let fx = Fixture::new("dx-launcher-emptypin-", true, None);
-            fx.set_pin("");
-            let (code, _out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1), "{err}");
-            assert!(
-                err.contains(".dx/version has an invalid version ''"),
-                "{err}"
-            );
-            assert!(!err.contains("parameter not set"), "{err}");
+            fx.assert_via_bazel(&["version"]);
             assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
-        fn an_unsafe_version_is_refused() {
-            for bad in ["1.2.3&x", "../1", "..", "1/2", "$(id)", "1.2.3;x"] {
-                let fx = Fixture::new("dx-launcher-badversion-", true, None);
-                fx.set_pin(&format!("{bad}\n{}  dx-linux-x86_64\n", "a".repeat(64)));
-                let (code, out, err) = fx.run(&["version"]);
-                assert_eq!(code, Some(1), "{bad}: {out}{err}");
-                assert!(
-                    err.contains(".dx/version has an invalid version"),
-                    "{bad}: {err}"
-                );
-                assert_eq!(fx.downloads(), 0, "{bad}");
-                assert!(fx.cached().is_empty(), "{bad}");
-            }
+        fn an_empty_pins_file_runs_through_bazel() {
+            let fx = Fixture::new("dx-launcher-emptypin-", true, None);
+            fx.set_pin("");
+            fx.assert_via_bazel(&["version"]);
+            assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
@@ -1763,6 +1787,16 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     pinned(&want)
                 };
                 write_version_pins(&root, "1.2.3", &pins).expect("pins");
+                std::fs::write(
+                    root.join("MODULE.bazel"),
+                    "module(name = \"consumer\")\r\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\n",
+                )
+                .expect("module");
+                std::fs::write(
+                    base.join("stub/bazel.cmd"),
+                    "@echo off\r\necho %*>>\"%STUB_BAZEL%\"\r\n",
+                )
+                .expect("bazel stub");
                 write_launcher_files(&root, &mut Applied::default()).expect("launcher");
                 Self {
                     base,
@@ -1770,8 +1804,19 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 }
             }
 
-            fn set_pin(&self, text: &str) {
-                std::fs::write(self.base.join("repo/.dx/version"), text).expect("pin");
+            fn set_module(&self, text: &str) {
+                std::fs::write(self.base.join("repo/MODULE.bazel"), text).expect("module");
+            }
+
+            fn assert_via_bazel(&self, args: &[&str]) {
+                let (code, out, err) = self.run(args);
+                assert_eq!(code, Some(0), "{out}{err}");
+                assert!(out.is_empty() && err.is_empty(), "{out}{err}");
+                let calls =
+                    std::fs::read_to_string(self.base.join("bazel.log")).unwrap_or_default();
+                let want = format!("run @rules_dx//:dx -- {}", args.join(" "));
+                assert_eq!(calls.trim(), want);
+                assert!(self.cache_files().is_empty(), "{:?}", self.cache_files());
             }
 
             fn command(&self, args: &[&str]) -> Command {
@@ -1787,6 +1832,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     )
                     .env("USERPROFILE", base.join("home"))
                     .env("STUB_LOG", base.join("calls"))
+                    .env("STUB_BAZEL", base.join("bazel.log"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env("STUB_SIDECAR", base.join("sidecar"))
                     .env_remove("DX_PART")
@@ -1871,15 +1917,10 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn an_empty_sha256_pin_refuses_before_download() {
+        fn an_empty_sha256_pin_runs_through_bazel_before_download() {
             let fx = Fixture::new("dx-launcher-cmd-nosha-", true, Some(""));
-            let (code, out, err) = fx.run(&["check"]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains(".dx\\version has no sha256"), "{err}");
-            assert!(!err.contains("sha256 mismatch"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            fx.assert_via_bazel(&["check"]);
             assert_eq!(fx.downloads(), 0);
-            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
         }
 
         #[test]
@@ -1899,14 +1940,9 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn a_failing_powershell_is_a_download_failure_and_leaves_no_part_file() {
+        fn a_failing_powershell_runs_through_bazel_and_leaves_no_part_file() {
             let fx = Fixture::new("dx-launcher-cmd-offline-", false, None);
-            let (code, out, err) = fx.run(&["check"]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains("download failed"), "{err}");
-            assert!(!err.contains("sha256 mismatch"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
-            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+            fx.assert_via_bazel(&["check"]);
         }
 
         #[test]
@@ -1939,7 +1975,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn no_guid_is_a_download_failure_and_caches_nothing() {
+        fn no_guid_runs_through_bazel_and_caches_nothing() {
             let fx = Fixture::new("dx-launcher-cmd-noguid-", true, None);
             let mut cmd = fx.command(&["check"]);
             let (code, out, err) = output(
@@ -1947,39 +1983,44 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     .output()
                     .expect("launcher runs"),
             );
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains("download failed"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert_eq!(code, Some(0), "{out}{err}");
+            assert!(err.is_empty(), "{err}");
             assert_eq!(fx.downloads(), 0);
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
         }
 
         #[test]
-        fn a_missing_pin_is_refused_without_a_file_error() {
+        fn a_missing_pins_file_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-cmd-nopin-", true, None);
             std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
-            let (code, _out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1));
-            assert!(err.contains(".dx\\version is missing"), "{err}");
-            assert!(!err.contains("cannot find the file"), "{err}");
+            fx.assert_via_bazel(&["version"]);
             assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
-        fn an_unsafe_version_is_refused() {
-            for bad in ["1.2.3&x", "../1", "..", "1/2", "1.2.3;x", ""] {
-                let fx = Fixture::new("dx-launcher-cmd-badversion-", true, None);
-                fx.set_pin(&format!(
-                    "{bad}\r\n{}  dx-windows-x86_64\r\n",
-                    "a".repeat(64)
-                ));
-                let (code, out, err) = fx.run(&["version"]);
-                assert_eq!(code, Some(1), "{bad}: {out}{err}");
-                assert!(
-                    err.contains(".dx\\version has an invalid version"),
-                    "{bad}: {err}"
-                );
-                assert_eq!(fx.downloads(), 0, "{bad}");
+        fn a_module_bump_without_new_pins_runs_through_bazel() {
+            let fx = Fixture::new("dx-launcher-cmd-bump-", true, None);
+            fx.set_module("bazel_dep(name = \"rules_dx\", version = \"1.2.4\")\r\n");
+            fx.assert_via_bazel(&["check"]);
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn modules_the_launcher_cannot_read_run_through_bazel() {
+            for (i, text) in [
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\nlocal_path_override(module_name = \"rules_dx\", path = \"x\")\r\n",
+                "bazel_dep(\r\n    name = \"rules_dx\",\r\n    version = \"1.2.3\",\r\n)\r\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\r\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3&x\")\r\n",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let fx = Fixture::new(&format!("dx-launcher-cmd-module{i}-"), true, None);
+                fx.set_module(text);
+                fx.assert_via_bazel(&["check"]);
+                assert_eq!(fx.downloads(), 0, "{text}");
             }
         }
     }

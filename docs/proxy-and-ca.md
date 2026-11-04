@@ -38,7 +38,7 @@ rewrite github.com/(.*) mirror.example.com/github/$1
 
 ## tools/dx
 
-`tools/dx` downloads the pinned binary with `curl`, or `wget` when `curl` is missing. Both read `HTTPS_PROXY` and `NO_PROXY`.
+`tools/dx` downloads the pinned binary with `curl`, or `wget` when `curl` is missing. Both read `HTTPS_PROXY` and `NO_PROXY`. When the download fails, `tools/dx` runs the command through `bazel run @rules_dx//:dx` instead.
 
 Add a company CA with the tool's own setting.
 
@@ -50,7 +50,7 @@ wget reads `ca_certificate` from `~/.wgetrc`.
 
 ## tools/dx.cmd
 
-`tools/dx.cmd` downloads with PowerShell `Invoke-WebRequest`. It uses the Windows proxy settings and the Windows certificate store. Install the company CA there.
+`tools/dx.cmd` downloads with PowerShell `Invoke-WebRequest`. It uses the Windows proxy settings and the Windows certificate store. Install the company CA there. When the download fails, it runs the command through Bazel instead.
 
 When the proxy asks for authentication (NTLM or Kerberos), the download answers with the logged-in user's Windows credentials. Basic-auth proxies still need `HTTPS_PROXY` or a different route.
 

@@ -478,3 +478,61 @@ fn inspect_rejects_unsupported_formats() {
     let text = error.to_string();
     assert!(text.contains("binary format"), "{text}");
 }
+
+fn coff(machine: u16) -> Vec<u8> {
+    let mut object = vec![0u8; 20];
+    put(&mut object, 0, &machine.to_le_bytes());
+    object
+}
+
+fn import_object(machine: u16) -> Vec<u8> {
+    let mut object = vec![0u8; 20];
+    put(&mut object, 2, &0xffffu16.to_le_bytes());
+    put(&mut object, 6, &machine.to_le_bytes());
+    object
+}
+
+fn archive(members: &[(&str, Vec<u8>)]) -> Vec<u8> {
+    let mut out = b"!<arch>\n".to_vec();
+    let linker = [("/", vec![0u8; 4]), ("/", vec![0u8; 4]), ("//", Vec::new())];
+    for (name, data) in linker.iter().chain(members.iter()) {
+        out.extend_from_slice(format!("{name:<16}{:<12}{:<6}{:<6}{:<8}", 0, 0, 0, 0).as_bytes());
+        out.extend_from_slice(format!("{:<10}`\n", data.len()).as_bytes());
+        out.extend_from_slice(data);
+        if data.len() % 2 == 1 {
+            out.push(b'\n');
+        }
+    }
+    out
+}
+
+#[test]
+fn machines_names_coff_objects() {
+    assert_eq!(machines(&coff(0xaa64)).unwrap(), ["aarch64"]);
+    assert_eq!(machines(&coff(0x8664)).unwrap(), ["x86_64"]);
+}
+
+#[test]
+fn machines_names_import_objects() {
+    assert_eq!(machines(&import_object(0xaa64)).unwrap(), ["aarch64"]);
+}
+
+#[test]
+fn machines_names_every_archive_member() {
+    let both = archive(&[("a.obj/", coff(0xaa64)), ("b.obj/", coff(0xaa64))]);
+    assert_eq!(machines(&both).unwrap(), ["aarch64", "aarch64"]);
+    let mixed = archive(&[("a.obj/", coff(0xaa64)), ("b.obj/", coff(0x8664))]);
+    assert_eq!(machines(&mixed).unwrap(), ["aarch64", "x86_64"]);
+    let import = archive(&[("a.dll/", import_object(0x8664))]);
+    assert_eq!(machines(&import).unwrap(), ["x86_64"]);
+}
+
+#[test]
+fn machines_rejects_an_empty_archive() {
+    assert!(machines(&archive(&[])).is_err());
+}
+
+#[test]
+fn machines_reads_executables() {
+    assert_eq!(machines(&elf(elf::EM_AARCH64, None, &[])).unwrap(), ["aarch64"]);
+}

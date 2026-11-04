@@ -179,6 +179,56 @@ pub fn inspect(bytes: &[u8]) -> Result<Vec<Image>, Error> {
     }
 }
 
+/// Names the machine of every image in a binary, COFF object or archive member.
+///
+/// Unlike `inspect`, this accepts COFF objects, import objects and `.lib` or `.a` archives.
+pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
+    let kind = FileKind::parse(bytes).map_err(|error| fail("unknown binary format", error))?;
+    match kind {
+        FileKind::Coff => {
+            let (header, _) = object::pod::from_bytes::<pe::ImageFileHeader>(bytes)
+                .map_err(|()| Error("COFF object is shorter than its header".to_owned()))?;
+            Ok(vec![pe_machine_name(header.machine.get(LittleEndian))])
+        }
+        FileKind::CoffBig => {
+            let (header, _) = object::pod::from_bytes::<pe::AnonObjectHeaderBigobj>(bytes)
+                .map_err(|()| Error("COFF big object is shorter than its header".to_owned()))?;
+            Ok(vec![pe_machine_name(header.machine.get(LittleEndian))])
+        }
+        FileKind::CoffImport => {
+            let (header, _) = object::pod::from_bytes::<pe::ImportObjectHeader>(bytes)
+                .map_err(|()| Error("COFF import object is shorter than its header".to_owned()))?;
+            Ok(vec![pe_machine_name(header.machine.get(LittleEndian))])
+        }
+        FileKind::Archive => {
+            let archive = object::read::archive::ArchiveFile::parse(bytes)
+                .map_err(|error| fail("bad archive", error))?;
+            let mut names = Vec::new();
+            for member in archive.members() {
+                let member = member.map_err(|error| fail("bad archive member", error))?;
+                if matches!(member.name(), b"/" | b"//") {
+                    continue;
+                }
+                let data = member
+                    .data(bytes)
+                    .map_err(|error| fail("bad archive member", error))?;
+                if FileKind::parse(data).is_ok_and(|kind| kind == FileKind::Archive) {
+                    return Err(Error("archive member is another archive".to_owned()));
+                }
+                names.extend(machines(data)?);
+            }
+            if names.is_empty() {
+                return Err(Error("archive has no members".to_owned()));
+            }
+            Ok(names)
+        }
+        _ => Ok(inspect(bytes)?
+            .into_iter()
+            .map(|image| image.machine)
+            .collect()),
+    }
+}
+
 fn utf8(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }

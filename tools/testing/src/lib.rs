@@ -14,7 +14,7 @@ pub mod cli;
 pub mod fatbin;
 pub mod http;
 
-pub use dx_binfmt::machine as image_machine;
+pub use dx_binfmt::{machine as image_machine, machines as image_machines};
 
 pub use serde_json;
 

@@ -57,6 +57,12 @@ filegroup(
 )
 
 filegroup(
+    name = "flutter",
+    srcs = glob(["flutter/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "fortran",
     srcs = glob(["fortran/**"]),
     visibility = ["//visibility:public"],

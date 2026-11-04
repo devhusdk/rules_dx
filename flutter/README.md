@@ -9,6 +9,14 @@ The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one wid
 
 Consumers load the rules from `@rules_dx//flutter/rules:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
 
+Start a project:
+
+```sh
+dx init demo-app
+```
+
+Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a `pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+
 ```sh
 tools/dx test //flutter/tests/runtime/...
 ```

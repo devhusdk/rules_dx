@@ -51,6 +51,11 @@ starter_consumer_test(
 )
 
 starter_consumer_test(
+    name = "flutter",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+starter_consumer_test(
     name = "fortran",
     target_compatible_with = FORTRAN_COMPATIBLE_WITH,
 )

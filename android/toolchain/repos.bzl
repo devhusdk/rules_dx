@@ -47,7 +47,10 @@ filegroup(
     name = "compiler_files_{tuple}",
     srcs = [
         "sdk/ndk/{revision}/" + "{prebuilt}/bin/clang",
-    ] + glob(["sdk/ndk/{revision}/" + "{prebuilt}/lib/clang/{clang_version}/include/**"]),
+    ] + glob([
+        "sdk/ndk/{revision}/" + "{prebuilt}/lib/clang/{clang_version}/include/**",
+        "sdk/ndk/{revision}/" + "{prebuilt}/{sysroot}/usr/include/**",
+    ]),
 )
 
 filegroup(

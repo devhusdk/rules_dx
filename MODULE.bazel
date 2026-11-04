@@ -871,6 +871,7 @@ archive_override(
     patches = [
         "//patches/rules_py:windows_venv.patch",
         "//patches/rules_py:py_cc_toolchain_platform.patch",
+        "//patches/rules_py:native_sdist_toolchain_flags.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
@@ -1056,6 +1057,34 @@ sdist_cargo_vendor.crates(
     package = "rpds-py",
 )
 use_repo(sdist_cargo_vendor, "dx_rust_sdist_crates")
+
+# Dev-only hubs for the sdist-only package python-geohash: one builds with a
+# complete set of build tools, the other lacks setuptools.
+uv_sdist = use_extension("@rules_py//uv:extensions.bzl", "uv", dev_dependency = True)
+uv_sdist.declare_hub(hub_name = "dx_pypi_sdist")
+uv_sdist.project(
+    default_build_dependencies = [
+        "build",
+        "setuptools",
+    ],
+    hub_name = "dx_pypi_sdist",
+    lock = "//python/tests/sdist_native:uv.lock",
+    pyproject = "//python/tests/sdist_native:pyproject.toml",
+)
+uv_sdist.declare_hub(hub_name = "dx_pypi_sdist_nodeps")
+uv_sdist.project(
+    default_build_dependencies = ["build"],
+    hub_name = "dx_pypi_sdist_nodeps",
+    lock = "//python/tests/sdist_native/nodeps:uv.lock",
+    pyproject = "//python/tests/sdist_native/nodeps:pyproject.toml",
+)
+use_repo(
+    uv_sdist,
+    "dx_pypi_sdist",
+    "dx_pypi_sdist_nodeps",
+    "sdist_build__sdist_native__python_geohash__0_8_5",
+    "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
+)
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(

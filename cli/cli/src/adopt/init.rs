@@ -812,6 +812,23 @@ mod tests {
     }
 
     #[test]
+    fn init_retry_after_an_interrupted_fresh_init_writes_bazelversion() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-retry-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            dx_adopt::plan_fresh_files(dx_adopt::DEFAULT_INIT_MODULE)[0]
+                .content
+                .clone(),
+        )
+        .expect("module");
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("wrote .bazelversion\n"), "{out}");
+        assert!(root.join(".bazelversion").is_file());
+    }
+
+    #[test]
     fn init_in_a_non_empty_tree_writes_no_module() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-");
         let root = scratch.path().to_path_buf();

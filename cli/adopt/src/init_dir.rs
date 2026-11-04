@@ -98,14 +98,35 @@ pub fn init_dir_module(dir: &str) -> String {
     folded.trim_matches(['-', '_', '.']).to_owned()
 }
 
-/// Whether `root` is missing or holds nothing but `.git`: a workspace to start, not adopt.
+/// Whether `root` is missing or holds nothing but `.git` and the files a fresh init writes
+/// itself: a workspace to start, not adopt. A run cut short after `MODULE.bazel` stays fresh.
 pub fn is_fresh_dir(root: &Path) -> bool {
     match std::fs::read_dir(root) {
-        Ok(entries) => entries
-            .filter_map(Result::ok)
-            .all(|entry| entry.file_name() == ".git"),
+        Ok(entries) => entries.filter_map(Result::ok).all(|entry| {
+            let name = entry.file_name();
+            match name.to_str() {
+                Some(".git" | ".bazelversion" | ".dx") => true,
+                Some("MODULE.bazel") => is_fresh_module(&entry.path()),
+                _ => false,
+            }
+        }),
         Err(error) => error.kind() == std::io::ErrorKind::NotFound,
     }
+}
+
+/// Whether the file is exactly the `MODULE.bazel` a fresh init writes.
+fn is_fresh_module(path: &Path) -> bool {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Some(module) = text
+        .strip_prefix("module(name = \"")
+        .and_then(|rest| rest.split_once('"'))
+        .map(|(name, _)| name)
+    else {
+        return false;
+    };
+    plan_fresh_files(module)[0].content == text
 }
 
 /// The files only a fresh workspace gets: a `MODULE.bazel` that depends on rules_dx and
@@ -198,6 +219,20 @@ mod tests {
         assert!(is_fresh_dir(&root));
         std::fs::write(root.join("README.md"), "mine\n").expect("readme");
         assert!(!is_fresh_dir(&root));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn fresh_survives_an_interrupted_init_but_not_an_edited_module() {
+        let scratch = dx_test_scratch::scratch("dx-init-interrupted-");
+        let root = scratch.path();
+        let module = plan_fresh_files("demo")[0].content.clone();
+        std::fs::write(root.join("MODULE.bazel"), &module).expect("module");
+        assert!(is_fresh_dir(root));
+        std::fs::write(root.join(".bazelversion"), "9.0.0\n").expect("version");
+        assert!(is_fresh_dir(root));
+        std::fs::write(root.join("MODULE.bazel"), format!("{module}# mine\n")).expect("edit");
+        assert!(!is_fresh_dir(root));
         scratch.close().expect("cleanup");
     }
 

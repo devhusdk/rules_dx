@@ -402,20 +402,7 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
             "refused:{OVERRIDES_DIR} (rules_dx keeps its overrides in its own MODULE.bazel)"
         )]);
     }
-    let mut entries = Vec::new();
-    for (rel, content) in render_overrides() {
-        if write_file(root, &rel, &content)? {
-            entries.push(rel);
-        }
-    }
-    for rel in orphaned_patches(root) {
-        let dest = crate::scaffold::scaffold_dest_within_root(root, &rel)?;
-        std::fs::remove_file(&dest).map_err(|e| AdoptError::WriteFile {
-            path: dest.display().to_string(),
-            detail: format!("cannot remove: {e}"),
-        })?;
-        entries.push(format!("removed:{rel}"));
-    }
+    let mut entries = sync_set(root)?;
     let (Some(text), Some(observed)) = (text, observed) else {
         return Ok(entries);
     };
@@ -447,10 +434,38 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
     Ok(entries)
 }
 
-/// Rewrites stale override files, only when every generated file already exists.
+/// Writes every rendered file and removes retired patches; removals come back as `removed:<path>`.
+fn sync_set(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let mut entries = Vec::new();
+    for (rel, content) in render_overrides() {
+        if write_file(root, &rel, &content)? {
+            entries.push(rel);
+        }
+    }
+    for rel in orphaned_patches(root) {
+        let dest = crate::scaffold::scaffold_dest_within_root(root, &rel)?;
+        std::fs::remove_file(&dest).map_err(|e| AdoptError::WriteFile {
+            path: dest.display().to_string(),
+            detail: format!("cannot remove: {e}"),
+        })?;
+        entries.push(format!("removed:{rel}"));
+    }
+    Ok(entries)
+}
+
+/// Rewrites stale override files.
 ///
-/// A partial set is left alone: a new `BUILD.bazel` could point at a patch that is absent.
+/// When `MODULE.bazel` includes the set and owns none of the overrides, the whole set is
+/// synced: missing files are created and retired patches removed (`removed:<path>`).
+/// Otherwise it only runs when every generated file already exists, since a partial set
+/// could leave a new `BUILD.bazel` pointing at a patch that is absent.
 pub fn refresh_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let observed = std::fs::read_to_string(root.join("MODULE.bazel"))
+        .ok()
+        .and_then(|text| observe(root, &text).ok());
+    if observed.is_some_and(|o| o.included && o.owned.is_empty() && !o.rules_dx_module) {
+        return sync_set(root);
+    }
     let files = render_overrides();
     for (rel, _) in &files {
         let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
@@ -498,6 +513,37 @@ mod tests {
         assert!(!root.join(second).exists());
     }
     use dx_module_bazel::Value;
+
+    #[test]
+    fn refresh_syncs_the_whole_set_when_module_includes_it() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-sync-");
+        let root = scratch.path();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            format!("bazel_dep(name = \"rules_dx\", version = \"1\")\ninclude(\"{OVERRIDES_INCLUDE}\")\n"),
+        )
+        .expect("module");
+        let files = render_overrides();
+        let patch = files
+            .iter()
+            .map(|(rel, _)| rel.clone())
+            .find(|rel| rel.ends_with(".patch"))
+            .expect("a patch");
+        for (rel, content) in &files {
+            if *rel != patch {
+                let dest = root.join(rel);
+                std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
+                std::fs::write(dest, content).expect("write");
+            }
+        }
+        let orphan = "third_party/rules_dx/rules_android.rules_android.patch";
+        std::fs::write(root.join(orphan), "old\n").expect("orphan");
+        assert_eq!(
+            refresh_overrides(root).expect("refresh"),
+            vec![patch, format!("removed:{orphan}")]
+        );
+        assert!(!root.join(orphan).exists());
+    }
 
     #[test]
     fn table_matches_the_repo_module_bazel() {

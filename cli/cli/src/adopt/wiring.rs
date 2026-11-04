@@ -27,7 +27,11 @@ pub(super) fn report(
     let mut closed = None;
     if !summaries_suppressed(invocation) {
         for path in &applied.wrote {
-            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {path}")) {
+            let line = match path.strip_prefix("removed:") {
+                Some(removed) => format!("removed {removed}"),
+                None => format!("wrote {path}"),
+            };
+            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
                 closed = Some(exit);
                 break;
             }

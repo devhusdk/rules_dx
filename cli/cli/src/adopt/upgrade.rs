@@ -125,7 +125,11 @@ fn hand_off(
     let is_json = invocation.output == OutputMode::Json;
     if !is_json && !summaries_suppressed(invocation) {
         for rel in wrote {
-            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {rel}")) {
+            let line = match rel.strip_prefix("removed:") {
+                Some(path) => format!("removed {path}"),
+                None => format!("wrote {rel}"),
+            };
+            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
                 return exit;
             }
         }
@@ -288,7 +292,11 @@ pub(crate) fn execute_upgrade(
     }
     if !summaries_suppressed(invocation) {
         for rel in wrote {
-            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {rel}")) {
+            let line = match rel.strip_prefix("removed:") {
+                Some(path) => format!("removed {path}"),
+                None => format!("wrote {rel}"),
+            };
+            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
                 return exit;
             }
         }
@@ -451,6 +459,56 @@ mod tests {
             );
             assert!(out.contains(&format!("wrote {path}\n")), "{path}: {out}");
         }
+    }
+
+    fn included_override_set(prefix: &str) -> (impl Sized, PathBuf, String, String) {
+        let (scratch, root) = pinned(prefix, OLD);
+        let plan = init_files::plan(&root, "refresh", false).expect("plan");
+        let mut applied = dx_adopt::Applied::default();
+        init_files::apply(
+            &root,
+            "",
+            &plan,
+            init_files::Mode::Create,
+            &mut applied,
+            &mut Vec::new(),
+        )
+        .expect("init");
+        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
+        dx_adopt::write_version_pin(&root, OLD).expect("pin");
+        legacy_launcher(&root, OLD);
+        let patch = dx_adopt::render_overrides()
+            .into_iter()
+            .map(|(rel, _)| rel)
+            .find(|rel| rel.ends_with(".patch"))
+            .expect("a patch");
+        std::fs::remove_file(root.join(&patch)).expect("remove");
+        let orphan = "third_party/rules_dx/rules_android.rules_android.patch".to_owned();
+        std::fs::write(root.join(&orphan), "old\n").expect("orphan");
+        (scratch, root, patch, orphan)
+    }
+
+    #[test]
+    fn upgrade_refreshes_the_whole_override_set_when_included() {
+        let (_scratch, root, patch, orphan) = included_override_set("dx-adopt-upgrade-set-");
+        let include = format!("include(\"{}\")\n", dx_adopt::OVERRIDES_INCLUDE);
+        std::fs::write(root.join("MODULE.bazel"), dep(module()) + &include).expect("module");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(root.join(&patch).is_file());
+        assert!(!root.join(&orphan).exists());
+        assert!(out.contains(&format!("wrote {patch}\n")), "{out}");
+        assert!(out.contains(&format!("removed {orphan}\n")), "{out}");
+    }
+
+    #[test]
+    fn upgrade_leaves_the_override_set_alone_when_not_included() {
+        let (_scratch, root, patch, orphan) = included_override_set("dx-adopt-upgrade-noset-");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!root.join(&patch).exists());
+        assert!(root.join(&orphan).exists());
+        assert!(!out.contains("removed "), "{out}");
     }
 
     #[test]

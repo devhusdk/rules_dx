@@ -116,6 +116,14 @@ fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
     }
 }
 
+/// Prefixes an entry's path, keeping a `removed:` marker in front.
+fn prefix_entry(prefix: &str, entry: &str) -> String {
+    match entry.strip_prefix("removed:") {
+        Some(path) => format!("removed:{prefix}{path}"),
+        None => format!("{prefix}{entry}"),
+    }
+}
+
 fn adopt_message(prefix: &str, error: &AdoptError) -> String {
     match error {
         AdoptError::NotADirectory { path } => format!("{prefix}{path} is not a directory"),
@@ -199,7 +207,7 @@ pub(super) fn apply(
         {
             match entry.strip_prefix("refused:") {
                 Some(refused) => notes.push(format!("{prefix}{refused}")),
-                None => applied.wrote.push(format!("{prefix}{entry}")),
+                None => applied.wrote.push(prefix_entry(prefix, &entry)),
             }
         }
     }
@@ -257,7 +265,7 @@ fn refresh(
     let record = |applied: &mut Applied, paths: Vec<String>| {
         applied
             .wrote
-            .extend(paths.into_iter().map(|path| format!("{prefix}{path}")));
+            .extend(paths.into_iter().map(|path| prefix_entry(prefix, &path)));
     };
     if has(|kind| *kind == Kind::Launcher) {
         let wrote = dx_adopt::refresh_launcher_files(root)

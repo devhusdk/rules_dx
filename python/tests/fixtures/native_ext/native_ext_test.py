@@ -9,6 +9,27 @@ import unittest
 import dxlinked
 import dxnative
 
+WINDOWS = sys.platform == "win32"
+CRT_DLLS = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+
+
+def clean_env():
+    if WINDOWS:
+        return {"SYSTEMROOT": os.environ["SYSTEMROOT"], "PATH": ""}
+    return {}
+
+
+def crt_dlls():
+    from python.runfiles import Runfiles
+
+    runfiles = Runfiles.Create()
+    found = {}
+    for path in os.environ["DX_VC_REDIST"].split():
+        real = runfiles.Rlocation(path)
+        if real and os.path.basename(real).lower() in CRT_DLLS:
+            found[os.path.basename(real).lower()] = real
+    return found
+
 
 class NativeExtTest(unittest.TestCase):
     def test_join(self):
@@ -16,14 +37,16 @@ class NativeExtTest(unittest.TestCase):
         self.assertEqual(dxnative.join([], "-"), "")
 
     def test_built_for_running_interpreter(self):
-        major, minor, _ = dxnative.build_info()
+        major, minor, _, _ = dxnative.build_info()
         self.assertEqual((major, minor), sys.version_info[:2])
         self.assertTrue(
             dxnative.__file__.endswith(tuple(importlib.machinery.EXTENSION_SUFFIXES))
         )
-        self.assertFalse(sys.base_prefix.startswith("/usr"))
+        if not WINDOWS:
+            self.assertFalse(sys.base_prefix.startswith("/usr"))
 
     def test_compiler(self):
+        print("build_info:", dxnative.build_info())
         self.assertEqual(dxnative.build_info()[2], os.environ["DX_EXPECTED_COMPILER"])
 
     def test_relocated_extension_loads(self):
@@ -32,14 +55,21 @@ class NativeExtTest(unittest.TestCase):
             self.assertNotIn(b"execroot", f.read())
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copy(src, tmp)
-            code = (
-                "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'; "
-                "maps = open('/proc/self/maps').read(); "
-                "assert 'libstdc++.so' not in maps and 'libc++.so' not in maps"
-            )
+            if WINDOWS:
+                dlls = crt_dlls()
+                self.assertEqual(set(dlls), set(CRT_DLLS))
+                for dll in dlls.values():
+                    shutil.copy(dll, tmp)
+                code = "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'"
+            else:
+                code = (
+                    "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'; "
+                    "maps = open('/proc/self/maps').read(); "
+                    "assert 'libstdc++.so' not in maps and 'libc++.so' not in maps"
+                )
             result = subprocess.run(
                 [sys.executable, "-I", "-c", code],
-                env={},
+                env=clean_env(),
                 cwd=tmp,
                 capture_output=True,
                 text=True,
@@ -59,14 +89,17 @@ class NativeExtTest(unittest.TestCase):
             )
             result = subprocess.run(
                 [sys.executable, "-I", "-c", code],
-                env={},
+                env=clean_env(),
                 cwd=tmp,
                 capture_output=True,
                 text=True,
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("ImportError", result.stderr)
-            self.assertIn("dxhelper_shared", result.stderr)
+            if WINDOWS:
+                self.assertIn("DLL load failed", result.stderr)
+            else:
+                self.assertIn("dxhelper_shared", result.stderr)
 
 
 if __name__ == "__main__":

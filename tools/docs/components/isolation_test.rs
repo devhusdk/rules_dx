@@ -91,6 +91,18 @@ fn bad_inputs_fail_without_a_stub() {
             ],
         ),
         (
+            "missing type dependency",
+            "TS2307",
+            vec![
+                "--tsconfig",
+                "tsconfig.json",
+                "--out",
+                "out.json",
+                "--entry",
+                "src/MissingImport.vue",
+            ],
+        ),
+        (
             "no default export",
             "Export 'default' not found",
             vec![

@@ -2,9 +2,9 @@
 //!
 //! The descriptor sits beside the executable as `<stem>.launch`, one entry per line:
 //! `program=<key>`, `arg=<literal>`, `path=<key>`,
-//! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>` and `unset=<VAR>`. The
-//! user's arguments follow the listed ones; `unset` names variables removed from
-//! the child's environment.
+//! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>` and
+//! `unset=<VAR>`. The user's arguments follow the listed ones; `unset` names
+//! variables removed from the child's environment and `env` sets one.
 
 use std::ffi::OsString;
 use std::io;
@@ -35,6 +35,8 @@ pub struct Descriptor {
     pub items: Vec<Item>,
     /// Environment variables removed before the program starts.
     pub unset: Vec<String>,
+    /// Environment variables set for the program, as name and value.
+    pub env: Vec<(String, String)>,
 }
 
 /// The runfiles source a child process is told about.
@@ -63,6 +65,7 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut program: Option<String> = None;
     let mut items = Vec::new();
     let mut unset = Vec::new();
+    let mut env = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         if let Some(value) = line.strip_prefix("program=") {
             if value.is_empty() || program.is_some() {
@@ -85,6 +88,12 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
                 return Err(bad(format!("env_flag line has an empty flag: {line}")));
             }
             items.push(Item::EnvFlag(flag, var));
+        } else if let Some(value) = line.strip_prefix("env=") {
+            let (name, value) = pair(line, value)?;
+            if name.is_empty() || name.contains('=') {
+                return Err(bad(format!("env line has a bad name: {line}")));
+            }
+            env.push((name, value));
         } else if let Some(value) = line.strip_prefix("unset=") {
             if value.is_empty() || value.contains('=') || value.contains('\t') {
                 return Err(bad(format!("unset line has a bad name: {line}")));
@@ -99,6 +108,7 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         program,
         items,
         unset,
+        env,
     })
 }
 
@@ -216,10 +226,11 @@ pub fn runfiles_env(resolver: &Resolver) -> (&'static str, PathBuf) {
     }
 }
 
-/// Builds the child process: unset variables are removed, then the runfiles entry is set.
+/// Builds the child process: unset variables are removed, descriptor variables are set, then the runfiles entry is set.
 pub fn command(
     plan: &Plan,
     unset: &[String],
+    env: &[(String, String)],
     runfiles: (&str, PathBuf),
     user_args: &[String],
 ) -> Command {
@@ -228,6 +239,7 @@ pub fn command(
     for name in unset {
         command.env_remove(name);
     }
+    command.envs(env.iter().map(|(name, value)| (name, value)));
     command.env(runfiles.0, runfiles.1);
     command
 }
@@ -240,14 +252,20 @@ pub fn run(exe: &Path, user_args: &[String]) -> io::Result<i32> {
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
     let descriptor = parse(&text)?;
     let plan = plan(&resolver, &descriptor, &|name| std::env::var(name).ok())?;
-    let status = command(&plan, &descriptor.unset, runfiles_env(&resolver), user_args)
-        .status()
-        .map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!("cannot run {}: {error}", plan.program.display()),
-            )
-        })?;
+    let status = command(
+        &plan,
+        &descriptor.unset,
+        &descriptor.env,
+        runfiles_env(&resolver),
+        user_args,
+    )
+    .status()
+    .map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("cannot run {}: {error}", plan.program.display()),
+        )
+    })?;
     Ok(status.code().unwrap_or(1))
 }
 

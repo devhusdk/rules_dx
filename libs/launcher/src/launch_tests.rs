@@ -38,6 +38,9 @@ fn rejects_bad_descriptors() {
         "program=x\nenv_flag=--f\n",
         "program=x\nunset=\n",
         "program=x\nunset=A=B\n",
+        "program=x\nenv=A\n",
+        "program=x\nenv=\tv\n",
+        "program=x\nenv=A=B\tv\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");
@@ -210,7 +213,13 @@ fn command_removes_unset_names_and_sets_runfiles() {
         args: Vec::new(),
     };
     let unset = ["QT_PLUGIN_PATH".to_owned()];
-    let built = command(&plan, &unset, ("RUNFILES_DIR", PathBuf::from("/r")), &[]);
+    let built = command(
+        &plan,
+        &unset,
+        &[],
+        ("RUNFILES_DIR", PathBuf::from("/r")),
+        &[],
+    );
     let envs: Vec<_> = built.get_envs().collect();
     assert!(envs.contains(&(
         std::ffi::OsStr::new("QT_PLUGIN_PATH"),
@@ -245,4 +254,26 @@ fn run_scrubs_unset_variables() {
     unsafe { std::env::set_var("EXEC_LAUNCHER_UNSET_PROBE", "1") };
     let code = run(&dir.join("app.exe"), &[]).unwrap();
     assert_eq!(code, 0);
+}
+
+#[test]
+fn parses_env_lines_apart_from_items() {
+    let parsed = parse("program=x\nenv=MIX_HOME\tC:/a b\n").unwrap();
+    assert_eq!(parsed.env, [("MIX_HOME".to_owned(), "C:/a b".to_owned())]);
+    assert!(parsed.items.is_empty());
+}
+
+#[test]
+fn command_sets_descriptor_env() {
+    let plan = Plan {
+        program: PathBuf::from("prog"),
+        args: Vec::new(),
+    };
+    let env = [("MIX_HOME".to_owned(), "/h".to_owned())];
+    let built = command(&plan, &[], &env, ("RUNFILES_DIR", PathBuf::from("/r")), &[]);
+    let envs: Vec<_> = built.get_envs().collect();
+    assert!(envs.contains(&(
+        std::ffi::OsStr::new("MIX_HOME"),
+        Some(std::ffi::OsStr::new("/h"))
+    )));
 }

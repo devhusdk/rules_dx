@@ -22,9 +22,6 @@ ELIXIR_CELLS = _ELIXIR_CELLS
 
 ELIXIR_COMPATIBLE_WITH = otp_compatible_with(ELIXIR_CELLS)
 
-# mix_format and credo do not run on Windows yet.
-ELIXIR_TOOL_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_CELLS if not cell.startswith("windows_")])
-
 ELIXIR_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_CELLS if cell not in OTP_DIALYZER_UNPORTED_CELLS])
 
 ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]

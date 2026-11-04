@@ -693,6 +693,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_elixir_format_fail",
@@ -706,6 +708,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_format_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_elixir_format_syntax",
@@ -719,6 +723,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_format_syntax.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_elixir_lint_pass",
@@ -732,6 +738,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_elixir_lint_fail",
@@ -745,6 +753,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_lint_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_elixir_lint_syntax",
@@ -758,6 +768,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_lint_syntax.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_zig_format_pass",

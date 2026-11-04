@@ -1967,14 +1967,10 @@ ELIXIR_CREDO_LINT_SUPPORT = {
     "execution": "direct",
     "family": "elixir",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "credo",
     "transport": "batched",
-    "unsupported": {
-        "windows_arm64": "No OTP Windows cell is pinned",
-        "windows_x86_64": "No OTP Windows cell is pinned",
-    },
 }
 
 ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
@@ -1985,14 +1981,10 @@ ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "elixir",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "mix_format",
     "transport": "batched",
-    "unsupported": {
-        "windows_arm64": "No OTP Windows cell is pinned",
-        "windows_x86_64": "No OTP Windows cell is pinned",
-    },
 }
 
 ERLANG_ELVIS_LINT_SUPPORT = {
@@ -2026,8 +2018,8 @@ ERLANG_DIALYZER_TYPECHECK_SUPPORT = {
     "tool": "dialyzer",
     "transport": "batched",
     "unsupported": {
-        "windows_arm64": "No OTP Windows cell is pinned",
-        "windows_x86_64": "No OTP Windows cell is pinned",
+        "windows_arm64": "dialyzer on Windows is pending #6321",
+        "windows_x86_64": "dialyzer on Windows is pending #6008",
     },
 }
 
@@ -2044,8 +2036,8 @@ ELIXIR_DIALYZER_TYPECHECK_SUPPORT = {
     "tool": "dialyzer",
     "transport": "batched",
     "unsupported": {
-        "windows_arm64": "No OTP Windows cell is pinned",
-        "windows_x86_64": "No OTP Windows cell is pinned",
+        "windows_arm64": "dialyzer on Windows is pending #6321",
+        "windows_x86_64": "dialyzer on Windows is pending #6008",
     },
 }
 

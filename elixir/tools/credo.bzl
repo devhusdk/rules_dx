@@ -2,7 +2,8 @@
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("//erlang/rules:defs.bzl", "runfiles_path")
-load(":launcher.bzl", "launcher_preamble", "launcher_root")
+load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
+load(":launcher.bzl", "launcher_preamble", "launcher_root", "windows_descriptor")
 
 _EXEC = """PATH="$otp/bin:$elixir/bin:$PATH" exec "$elixir/bin/elixir"{paths} "$runfiles/{driver}" "$@"
 """
@@ -30,27 +31,28 @@ def _credo_impl(ctx):
             ebins.append(runfiles_path(ctx.workspace_name, beam.short_path))
             files.append(beam)
     driver = ctx.file.driver
-    launcher = ctx.actions.declare_file(ctx.label.name)
-    script = credo_script(
-        launcher_root(ctx, otp.version_file),
-        launcher_root(ctx, elixir.version_file),
-        ebins,
-        runfiles_path(ctx.workspace_name, driver.short_path),
-    )
-    ctx.actions.write(launcher, script, is_executable = True)
-    runfiles = ctx.runfiles(
-        files = [launcher, driver] + files,
+    otp_root = launcher_root(ctx, otp.version_file)
+    elixir_root = launcher_root(ctx, elixir.version_file)
+    driver_key = runfiles_path(ctx.workspace_name, driver.short_path)
+    if target_is_windows(ctx):
+        launcher, _, launcher_runfiles = write_native_launcher(ctx, windows_descriptor(otp_root, elixir_root, ebins, driver_key))
+    else:
+        launcher = ctx.actions.declare_file(ctx.label.name)
+        ctx.actions.write(launcher, credo_script(otp_root, elixir_root, ebins, driver_key), is_executable = True)
+        launcher_runfiles = ctx.runfiles([launcher])
+    runfiles = launcher_runfiles.merge(ctx.runfiles(
+        files = [driver] + files,
         transitive_files = depset(transitive = [otp.tree, elixir.tree]),
-    )
+    ))
     return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles)]
 
 credo = rule(
     implementation = _credo_impl,
     doc = "Runs the pinned Credo through its driver with no user home.",
-    attrs = {
+    attrs = dict({
         "apps": attr.label_list(providers = [ErlangAppInfo], doc = "Credo and its dependencies."),
         "driver": attr.label(allow_single_file = [".exs"], mandatory = True, doc = "Driver script."),
-    },
+    }, **NATIVE_LAUNCHER_ATTRS),
     executable = True,
     toolchains = [
         "@rules_elixir//:toolchain_type",

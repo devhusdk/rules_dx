@@ -4,6 +4,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "rust_android_apk")
 load(":metadata_tests.bzl", "android_packaging_tests")
+load(":rotation_tests.bzl", "keystore_properties_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,11 +15,37 @@ exports_files([
     "defs.bzl",
     "metadata_tests.bzl",
     "repos.bzl",
+    "rotation_tests.bzl",
     "sign_aab.sh",
     "sign_apk.sh",
 ])
 
 android_packaging_tests(name = "metadata")
+
+genrule(
+    name = "rotated_second_key",
+    srcs = ["@rules_android//tools/android:debug_keystore"],
+    outs = ["rotated_second.keystore"],
+    cmd = "cp $< $@",
+)
+
+rust_android_apk(
+    name = "rotated",
+    app_id = "com.example.rotated",
+    debug_signing_keys = [
+        "@rules_android//tools/android:debug_keystore",
+        ":rotated_second_key",
+    ],
+    debug_signing_lineage_file = "lineage.bin",
+    tags = ["manual"],
+    deps = [],
+)
+
+keystore_properties_test(
+    name = "rotated_bundle_test",
+    tags = ["manual"],
+    target_under_test = ":rotated_bundle",
+)
 
 java_import(
     name = "bundletool_jar",
@@ -320,6 +347,7 @@ real_source_target(
         "defs.bzl",
         "metadata_tests.bzl",
         "repos.bzl",
+        "rotation_tests.bzl",
     ],
     tags = ["corpus"],
 )

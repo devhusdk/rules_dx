@@ -38,33 +38,6 @@ def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
         errors.append("rust_android_apk: version_code " + str(version_code) + " must be positive")
     return errors
 
-def bundle_signing_errors(kwargs):
-    """Returns one error per android_binary attribute the App Bundle cannot honour yet.
-
-    rules_android 0.8.0 android_application reads ctx.file._bundle_keystore_properties in
-    rules/common.bzl when the base module has a signing lineage, but declares no such
-    attribute. Delete this guard once upstream ships the fix (#3739).
-    """
-    if kwargs.get("debug_signing_lineage_file") == None:
-        return []
-    return [
-        "rust_android_apk: App Bundles do not support debug_signing_lineage_file (key rotation) " +
-        "yet: rules_android android_application has no _bundle_keystore_properties template " +
-        "(rules/common.bzl); the APK targets still build. " +
-        "See https://github.com/devhusdk/rules_dx/issues/3739",
-    ]
-
-def _analysis_failure_impl(ctx):
-    fail(ctx.attr.message)
-
-_analysis_failure = rule(
-    implementation = _analysis_failure_impl,
-    doc = "Fails analysis with a fixed message; stands in for a target that cannot be built.",
-    attrs = {
-        "message": attr.string(doc = "Analysis error.", mandatory = True),
-    },
-)
-
 def apk_manifest_errors(app_id, api_level, version_code, activity):
     """Returns one error string per rejected generated-manifest selection."""
     errors = list(app_id_errors(app_id))
@@ -254,37 +227,22 @@ def rust_android_apk(
     )
     plain = not _has_select([platforms, app_id, api_level, version_code])
     invalid = plain and len(rust_android_apk_errors(name, app_id, platforms, api_level, version_code)) > 0
-    bundle_errors = bundle_signing_errors(kwargs)
-    if len(bundle_errors) > 0:
-        _analysis_failure(
-            name = name + "_bundle",
-            message = "; ".join(bundle_errors),
-            tags = ["manual"],
-            visibility = ["//visibility:private"],
-        )
-        _analysis_failure(
-            name = name + "_aab_file",
-            message = "; ".join(bundle_errors),
-            tags = ["manual"],
-            visibility = visibility,
-        )
-    else:
-        android_application(
-            name = name + "_bundle",
-            base_module = inner,
-            custom_package = package,
-            manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
-            tags = ["manual"],
-            visibility = ["//visibility:private"],
-        )
-        _aab_file(
-            name = name + "_aab_file",
-            abis = platforms,
-            src = None if invalid else ":" + name + "_bundle",
-            validation = ":" + name + "_validation",
-            tags = ["manual"],
-            visibility = visibility,
-        )
+    android_application(
+        name = name + "_bundle",
+        base_module = inner,
+        custom_package = package,
+        manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    _aab_file(
+        name = name + "_aab_file",
+        abis = platforms,
+        src = None if invalid else ":" + name + "_bundle",
+        validation = ":" + name + "_validation",
+        tags = ["manual"],
+        visibility = visibility,
+    )
     testonly = kwargs.get("testonly", False)
     android_binary(
         name = name + "_bin",

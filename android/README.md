@@ -215,9 +215,7 @@ unsigned App Bundle `<name>_bundle_unsigned.aab` from the same
 ABIs, resources, assets and native library of the APK. For the fixture,
 `:app_apk_aab_file` builds `app_apk_bundle_unsigned.aab`.
 
-There are no key-rotation (signing lineage) bundles yet. If you pass
-`debug_signing_lineage_file`, the APK still builds, but `:<name>_aab_file`
-fails analysis until upstream `rules_android` fixes it (#3739).
+Key rotation works with `debug_signing_lineage_file`; a patch carries the `rules_android` fix until upstream ships it (#3739).
 
 Check an App Bundle with a test:
 

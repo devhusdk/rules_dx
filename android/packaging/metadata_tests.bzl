@@ -1,7 +1,7 @@
 """Application packaging selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "aab_check_errors", "abi_transition_settings", "apk_manifest_errors", "apk_set_errors", "bundle_signing_errors", "release_sign_errors", "rust_android_apk_errors")
+load(":defs.bzl", "aab_check_errors", "abi_transition_settings", "apk_manifest_errors", "apk_set_errors", "release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -163,13 +163,6 @@ def _packaging_checks():
         aab_check_errors(["x86_64", "x86_64"], []),
         ["android_check: platforms holds duplicates"],
     ))
-    checks.append(expect_equal("no lineage bundle", bundle_signing_errors({"manifest_values": {}}), []))
-    checks.append(expect_equal("none lineage bundle", bundle_signing_errors({"debug_signing_lineage_file": None}), []))
-    checks.append(expect_equal("keys alone bundle", bundle_signing_errors({"debug_signing_keys": ["k.jks"]}), []))
-    lineage = bundle_signing_errors({"debug_signing_lineage_file": "lineage.bin"})
-    checks.append(expect_equal("lineage bundle count", len(lineage), 1))
-    checks.append(expect_true("lineage bundle names upstream", "_bundle_keystore_properties" in lineage[0]))
-    checks.append(expect_true("lineage bundle names attr", "debug_signing_lineage_file" in lineage[0]))
     checks.append(expect_equal("abi transition keeps both flags", abi_transition_settings([], {"//command_line_option:android_platforms": ["a"], "@rules_android//flags:android_platforms": ["b"]}), {"//command_line_option:android_platforms": ["a"], "@rules_android//flags:android_platforms": ["b"]}))
     both = abi_transition_settings(["x86_64"], {})
     checks.append(expect_equal("abi transition writes native and starlark flag", both["//command_line_option:android_platforms"], both["@rules_android//flags:android_platforms"]))

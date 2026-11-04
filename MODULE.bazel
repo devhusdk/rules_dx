@@ -242,10 +242,12 @@ single_version_override(
 )
 
 # 0.8.0 needs build-tools 35 and --tool_java_language_version=17 (#3739, #2283, #3736).
-# floor: equals tested; unpatched since 0.8.0
+# floor: equals tested; patched for key-rotation bundles (#3739)
 bazel_dep(name = "rules_android", version = "0.8.0")
 single_version_override(
     module_name = "rules_android",
+    patch_strip = 1,
+    patches = ["//patches/rules_android:bundle_keystore_properties.patch"],
     version = "0.8.0",
 )
 

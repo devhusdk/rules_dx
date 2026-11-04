@@ -68,6 +68,17 @@ pub const OVERRIDES: &[Override] = &[
         ],
     },
     Override {
+        module: "rules_android",
+        version: "0.8.0",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "bundle_keystore_properties.patch",
+            content: include_str!(
+                "../../../patches/rules_android/bundle_keystore_properties.patch"
+            ),
+        }],
+    },
+    Override {
         module: "rules_julia",
         version: "0.8.0",
         patch_strip: 1,

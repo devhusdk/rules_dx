@@ -1,17 +1,15 @@
 """Pinned CUDA Toolkit components and the archs the pinned nvcc accepts."""
 
-load(":versions.bzl", _CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
+load(":versions.bzl", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 
 CUDA_VERSION = _CUDA_VERSION
 CUDA_REDIST_VERSION = _CUDA_REDIST_VERSION
 RULES_CUDA_VERSION = _RULES_CUDA_VERSION
-TOOLCHAINS_LLVM_VERSION = _TOOLCHAINS_LLVM_VERSION
-CUDA_HOST_LLVM_VERSION = _CUDA_HOST_LLVM_VERSION
 
 # Newest clang major the pinned nvcc accepts as a host compiler (CUDA 13.4 Linux
 # install guide, supported host compilers: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html).
-# Recheck on every nvcc pin bump; #3316 can only drop cuda_host_llvm once this is
-# at least the main @llvm LLVM major.
+# Recheck on every nvcc pin bump; once this reaches the main @llvm major, drop the
+# nvcc_allow_unsupported_compiler feature from cuda/rules/defs.bzl.
 CUDA_MAX_HOST_CLANG_MAJOR = 22
 
 _REDIST = "https://developer.download.nvidia.com/compute/cuda/redist/"
@@ -283,16 +281,3 @@ CUDA_ARCHS = [
     "sm_120",
     "sm_121",
 ]
-
-CUDA_HOST_SYSROOT = {
-    "linux-x86_64": struct(
-        repo = "cuda_host_sysroot",
-        url = "https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz",
-        sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
-    ),
-    "linux-aarch64": struct(
-        repo = "cuda_host_sysroot_aarch64",
-        url = "https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_arm64_sysroot.tar.xz",
-        sha256 = "e39b700d8858d18868544c8c84922f6adfa8419f3f42471b92024ba38eff7aca",
-    ),
-}

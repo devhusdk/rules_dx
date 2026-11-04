@@ -179,14 +179,14 @@ mod tests {
             SNIPPET,
             "m",
             "my_dx",
-            "register_toolchains(\"@cuda_host_llvm//:all\")\n\n",
+            "register_toolchains(\"@x//:all\")\n\n",
             true,
             Path::new("/src"),
         )
         .unwrap();
         assert_eq!(
             module,
-            "module(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@cuda_host_llvm//:all\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n"
+            "module(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@x//:all\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n"
         );
     }
 
@@ -206,11 +206,11 @@ mod tests {
 
     #[test]
     fn module_appends_the_fragment_unchanged_without_the_flag() {
-        let fragment = "register_toolchains(\"@cuda_host_llvm//:all\")\n";
+        let fragment = "register_toolchains(\"@x//:all\")\n";
         let module =
             compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
         assert!(
-            module.find("@llvm//toolchain:all").unwrap() < module.find("@cuda_host_llvm").unwrap(),
+            module.find("@llvm//toolchain:all").unwrap() < module.find("@x").unwrap(),
             "{module}"
         );
     }

@@ -6,7 +6,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "hermetic_toolchain_test", "with_clang_compiler")
+load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "hermetic_toolchain_test", "with_clang_compiler")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -80,6 +80,12 @@ device_link_hermetic_test(
     name = "rdc_objects_device_link_hermetic_test",
     target_compatible_with = CUDA_TARGET,
     target_under_test = "//cuda/tests/fixtures/rdc:axpy_from_objects",
+)
+
+gcc_device_link_hermetic_test(
+    name = "gcc_rdc_device_link_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
 
 hermetic_toolchain_test(
@@ -184,6 +190,12 @@ dx_hello_output_test(
 
 hermetic_toolchain_test(
     name = "hermetic_toolchain_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/saxpy",
+)
+
+gcc_hermetic_toolchain_test(
+    name = "gcc_hermetic_toolchain_test",
     target_compatible_with = CUDA_TARGET,
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )

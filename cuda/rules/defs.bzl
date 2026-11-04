@@ -58,9 +58,21 @@ _cuda_library_forward = dx_library_forward_rule(
 # The upstream library only builds under cuda_host_transition; analyzed on its own (cquery
 # over //...) it would need the dynamic CUDA runtime, so it is incompatible there.
 _UPSTREAM_ONLY_UNDER_TRANSITION = select({
-    Label("//cuda/toolchain:host_compiler_enabled"): [],
+    Label("//cuda/toolchain:static_runtime_enabled"): [],
     "//conditions:default": [Label("@platforms//:incompatible")],
 })
+
+# nvcc rejects clang newer than CUDA_MAX_HOST_CLANG_MAJOR; the main @llvm is ahead of it.
+_ALLOW_UNSUPPORTED_COMPILER = select({
+    Label("//cc/toolchains:gcc_selected"): [],
+    "//conditions:default": ["nvcc_allow_unsupported_compiler"],
+})
+
+def _cuda_features(features):
+    features = features or []
+    if type(features) == "select":
+        return features + _ALLOW_UNSUPPORTED_COMPILER
+    return list(features) + _ALLOW_UNSUPPORTED_COMPILER
 
 def cuda_target_compatible_with(target_compatible_with):
     """Returns the target constraints of a dx CUDA target."""
@@ -82,6 +94,7 @@ def cuda_split_srcs(srcs):
 
 def cuda_library(name, srcs, platforms, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
     """Minimal wrapper over rules_cuda cuda_library; platforms is required and rdc enables relocatable device code."""
+    features = _cuda_features(kwargs.pop("features", None))
     compatible = cuda_target_compatible_with(target_compatible_with)
     _cuda_library(
         name = name + "_upstream",
@@ -92,6 +105,7 @@ def cuda_library(name, srcs, platforms, hdrs = None, visibility = None, tags = N
         tags = dx_upstream_tags(tags),
         target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
         visibility = ["//visibility:private"],
+        features = features,
         **kwargs
     )
     cuda_check(
@@ -121,6 +135,7 @@ def cuda_library(name, srcs, platforms, hdrs = None, visibility = None, tags = N
 
 def cuda_objects(name, srcs, platforms, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
     """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library, cuda_binary or cuda_test."""
+    features = _cuda_features(kwargs.pop("features", None))
     compatible = cuda_target_compatible_with(target_compatible_with)
     _cuda_objects(
         name = name + "_upstream",
@@ -131,6 +146,7 @@ def cuda_objects(name, srcs, platforms, hdrs = None, deps = None, visibility = N
         tags = dx_upstream_tags(tags),
         target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
         visibility = ["//visibility:private"],
+        features = features,
         **kwargs
     )
     cuda_check(

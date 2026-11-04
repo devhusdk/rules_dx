@@ -18,13 +18,13 @@ exports_files([
 ])
 
 bool_flag(
-    name = "host_compiler",
+    name = "static_runtime",
     build_setting_default = False,
 )
 
 config_setting(
-    name = "host_compiler_enabled",
-    flag_values = {":host_compiler": "True"},
+    name = "static_runtime_enabled",
+    flag_values = {":static_runtime": "True"},
 )
 
 cuda_toolkit_check(

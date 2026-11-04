@@ -94,7 +94,6 @@ single_version_override(
     version = "0.4.1",
 )
 
-bazel_dep(name = "toolchains_llvm", version = "1.12.0", dev_dependency = True)
 bazel_dep(name = "googletest", version = "1.18.0", dev_dependency = True)
 
 # floor: equals tested
@@ -443,45 +442,6 @@ osx.frameworks(names = [
     "SystemConfiguration",
 ])
 osx.libraries(names = ["libffi"])
-
-cuda_host_sysroot = use_repo_rule("@toolchains_llvm//toolchain:sysroot.bzl", "sysroot")
-
-cuda_host_sysroot(
-    name = "cuda_host_sysroot",
-    dev_dependency = True,
-    sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
-    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
-)
-
-cuda_host_sysroot(
-    name = "cuda_host_sysroot_aarch64",
-    dev_dependency = True,
-    sha256 = "e39b700d8858d18868544c8c84922f6adfa8419f3f42471b92024ba38eff7aca",
-    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_arm64_sysroot.tar.xz"],
-)
-
-cuda_host_llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)
-cuda_host_llvm.toolchain(
-    name = "cuda_host_llvm",
-    llvm_version = "22.1.8",
-    target_settings = {"": ["@@//cuda/toolchain:host_compiler_enabled"]},  # buildifier: disable=canonical-repository
-)
-cuda_host_llvm.sysroot(
-    name = "cuda_host_llvm",
-    label = "@cuda_host_sysroot//sysroot",
-    targets = ["linux-x86_64"],
-)
-cuda_host_llvm.sysroot(
-    name = "cuda_host_llvm",
-    label = "@cuda_host_sysroot_aarch64//sysroot",
-    targets = ["linux-aarch64"],
-)
-use_repo(cuda_host_llvm, "cuda_host_llvm")
-
-register_toolchains(
-    "@cuda_host_llvm//:all",
-    dev_dependency = True,
-)
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
 register_toolchains("@dx_haskell_toolchains//cc:all")

@@ -1,24 +1,18 @@
 # CUDA
 
 dx CUDA targets compile `.cu` sources with the pinned nvcc 13.4 from the
-NVIDIA redistributables. nvcc's host compiler is a pinned LLVM 22 with its
-own sysroot. The build needs no CUDA install and no GPU.
+NVIDIA redistributables. nvcc's host compiler is the main `@llvm` clang, run
+with `--allow-unsupported-compiler` because the pinned nvcc lists an older
+clang. Under the gcc toolchain the flag is off. The build needs no CUDA
+install and no GPU.
 
 ## Setup
 
-Add this to the root `MODULE.bazel`. rules_cuda and toolchains_llvm read
-these tags from the root module only, so a dependency cannot declare them
-for you.
-
-Put the stanza before `register_toolchains("@llvm//toolchain:all")`.
-Toolchains resolve in registration order, and `@cuda_host_llvm` applies only
-when `@@rules_dx+//cuda/toolchain:host_compiler_enabled` is set. If
-`@llvm//toolchain:all` comes first, nvcc gets a host compiler it does not
-support.
+Add this to the root `MODULE.bazel`. rules_cuda reads these tags from the
+root module only, so a dependency cannot declare them for you.
 
 ```python
 bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
-bazel_dep(name = "toolchains_llvm", version = "1.12.0")
 
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.redist_json(
@@ -34,47 +28,9 @@ cuda.toolkit(
 )
 use_repo(cuda, "cuda")
 
-cuda_host_sysroot = use_repo_rule("@toolchains_llvm//toolchain:sysroot.bzl", "sysroot")
-
-cuda_host_sysroot(
-    name = "cuda_host_sysroot",
-    sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
-    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
-)
-
-cuda_host_sysroot(
-    name = "cuda_host_sysroot_aarch64",
-    sha256 = "e39b700d8858d18868544c8c84922f6adfa8419f3f42471b92024ba38eff7aca",
-    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_arm64_sysroot.tar.xz"],
-)
-
-cuda_host_llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
-cuda_host_llvm.toolchain(
-    name = "cuda_host_llvm",
-    llvm_version = "22.1.8",
-    target_settings = {"": ["@@rules_dx+//cuda/toolchain:host_compiler_enabled"]},
-)
-cuda_host_llvm.sysroot(
-    name = "cuda_host_llvm",
-    label = "@cuda_host_sysroot//sysroot",
-    targets = ["linux-x86_64"],
-)
-cuda_host_llvm.sysroot(
-    name = "cuda_host_llvm",
-    label = "@cuda_host_sysroot_aarch64//sysroot",
-    targets = ["linux-aarch64"],
-)
-use_repo(cuda_host_llvm, "cuda_host_llvm")
-
-register_toolchains("@cuda_host_llvm//:all")
-
 cuda_license = use_extension("@rules_dx//cuda/toolchain:repos.bzl", "cuda_license")
 cuda_license.license(accept = ["cuda-eula"])
 ```
-
-`target_settings` takes the canonical label `@@rules_dx+//cuda/toolchain:host_compiler_enabled`.
-toolchains_llvm writes it as text into a generated repository, where the
-apparent name `@rules_dx` does not resolve.
 
 ## License
 

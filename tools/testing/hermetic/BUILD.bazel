@@ -587,7 +587,6 @@ hermetic_qualification(
         "//cuda/tests/fixtures/cuda-app/kernels:stencil.cu": "cuda/tests/fixtures/cuda-app/kernels/stencil.cu",
         "//cuda/tests/fixtures/cuda-app/kernels:vector_add.cu": "cuda/tests/fixtures/cuda-app/kernels/vector_add.cu",
     },
-    fragment_before_toolchains = True,
     languages = [
         "cpp",
         "cuda",

@@ -14,5 +14,4 @@ file cuda/tests/fixtures/cuda-app/kernels/reduce.cu
 file cuda/tests/fixtures/cuda-app/kernels/stencil.cu
 file cuda/tests/fixtures/cuda-app/kernels/vector_add.cu
 bazel_dep rules_cuda
-bazel_dep toolchains_llvm
 bazel_dep rules_shell

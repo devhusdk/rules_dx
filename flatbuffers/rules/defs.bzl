@@ -12,6 +12,9 @@ FlatBuffersInfo = provider(
 )
 
 def _flatbuffers_library_impl(ctx):
+    for f in ctx.files.srcs:
+        if f.short_path.startswith("../"):
+            fail("flatbuffers_library %s: schema %s is in another Bazel repository; cross-repo flatbuffers schemas are unsupported because includes resolve from the main workspace root" % (ctx.label, f.short_path))
     transitive = depset(
         ctx.files.srcs,
         transitive = [dep[FlatBuffersInfo].transitive_srcs for dep in ctx.attr.deps],

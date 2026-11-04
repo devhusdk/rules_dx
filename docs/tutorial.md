@@ -6,12 +6,12 @@ Go from an empty directory to a passing `dx test`. The steps are for Linux.
 
 rules_dx is not released yet. Install starts with the first BCR release.
 
-Install Bazelisk, then install `dx` from a release. Pick the tag with `gh release view`.
+Install Bazelisk, then install `dx` from the latest release.
 
 ```sh
 curl -fsSL -o bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
 chmod +x bazel
-gh release download v1.2.3 --pattern 'dx-*' --dir dx-release
+gh release download --repo devhusdk/rules_dx --pattern 'dx-linux-x86_64.tar.gz' --dir dx-release
 mkdir -p ~/.local/bin
 tar -xzf dx-release/dx-linux-x86_64.tar.gz -C ~/.local/bin dx
 ```

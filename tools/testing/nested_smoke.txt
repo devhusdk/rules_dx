@@ -7,7 +7,6 @@
 //apple/tests:macos_shared_rust_consumer_test
 //apple/tests:macos_swift_consumer_test
 //cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
-//dart/tests/negative:negative_test
 //deploy/release/tests:candidate_consumer_test
 //elixir/tests/negative:negative_test
 //fortran/tests/negative:negative_test

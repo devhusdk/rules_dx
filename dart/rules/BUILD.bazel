@@ -67,6 +67,11 @@ dx_wrapper_contract_tests(
             ["bin/main.dart"],
         ),
         expect_equal(
+            "no rules_dart sdk for windows arm64",
+            "windows_arm64" in RULES_DART_PLATFORMS,
+            False,
+        ),
+        expect_equal(
             "root library takes its own name",
             dart_root_package_name("", "tally", {}),
             "tally",

@@ -1,0 +1,8 @@
+{
+  "packages": {
+    "semver": {
+      "version": "0.8.0",
+      "sha256": "144c8c9c0e308a4e226baeebcb6e0b335ab3b92d9a868bead5d61db4029b7e43"
+    }
+  }
+}

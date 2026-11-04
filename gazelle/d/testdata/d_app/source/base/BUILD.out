@@ -1,0 +1,12 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library")
+
+d_library(
+    name = "base",
+    srcs = [
+        "banner.d",
+        "greeting.d",
+    ],
+    imports = [".."],
+    string_srcs = ["banner.txt"],
+    visibility = ["//visibility:public"],
+)

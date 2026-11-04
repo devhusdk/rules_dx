@@ -65,17 +65,31 @@ def d_quality_srcs(srcs, string_srcs = None):
     excluded = string_srcs or []
     return [s for s in (srcs or []) if s not in excluded]
 
+def _string_srcs(name, kwargs):
+    """Wraps string_srcs files in a filegroup, because rules_d takes only targets there."""
+    files = kwargs.get("string_srcs")
+    if not files:
+        return kwargs
+    native.filegroup(name = name + "_string_srcs", srcs = files, tags = ["manual"])
+    return dict(kwargs, string_srcs = [":" + name + "_string_srcs"])
+
 def d_library(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_library rule."""
-    dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs")), **kwargs)
+    quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
+    kwargs = _string_srcs(name, kwargs)
+    dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = quality_srcs, **kwargs)
 
 def d_binary(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_binary rule."""
+    quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
+    kwargs = _string_srcs(name, kwargs)
     upstream = dict(kwargs, tags = dx_upstream_tags(kwargs.get("tags", None)))
-    dx_wrap_binary(name, _d_binary, _d_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs")), **kwargs)
+    dx_wrap_binary(name, _d_binary, _d_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = quality_srcs, **kwargs)
 
 D_COVERAGE_COLLECTOR = False
 
 def d_test(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_test rule."""
-    dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs")), coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
+    quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
+    kwargs = _string_srcs(name, kwargs)
+    dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)

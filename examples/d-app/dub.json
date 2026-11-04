@@ -1,0 +1,7 @@
+{
+	"name": "d-app",
+	"targetType": "executable",
+	"dependencies": {
+		"semver": "~>0.8.0"
+	}
+}

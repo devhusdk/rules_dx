@@ -839,7 +839,7 @@ use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "rules_haske
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d/toolchain:repos.bzl", "d")
-use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_dfmt", "dx_d_dscanner", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_dfmt", "dx_d_dscanner", "dx_d_inifiled", "dx_d_ldc_linux_amd64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 
@@ -850,7 +850,17 @@ dub.lock(
     digests = "//d/tests/fixtures/dub:dub.digests.json",
     selections = "//d/tests/fixtures/dub:dub.selections.json",
 )
-use_repo(dub, "dub_fixture")
+dub.lock(
+    name = "d_app_dub",
+    dev = True,
+    digests = "//examples/d-app:dub.digests.json",
+    selections = "//examples/d-app:dub.selections.json",
+)
+use_repo(
+    dub,
+    "dub_fixture",
+    d_app_deps = "d_app_dub",
+)
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")

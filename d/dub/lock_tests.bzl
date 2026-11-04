@@ -1,7 +1,7 @@
 """Tests for the pure dub.selections.json logic."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load(":lock.bzl", "analyze", "default_source_dir", "dependency_names", "hub_root_build", "package_url", "parse_selections", "spoke_build")
+load(":lock.bzl", "analyze", "default_source_dir", "dependency_names", "hub_package_build", "hub_root_build", "package_url", "parse_selections", "spoke_build")
 
 _SHA = "a" * 64
 
@@ -45,7 +45,8 @@ def _checks():
         expect_contains("importPaths default to sourcePaths", build, "imports = [\"source\"]"),
         expect_contains("explicit importPaths win", custom, "imports = [\"inc\"]"),
         expect_contains("explicit sourcePaths win", custom, "\"lib/**/*.d\""),
-        expect_contains("sourceFiles need no source dir", files, "srcs = glob([\"a.d\"])"),
+        expect_contains("sourceFiles need no source dir", files, "srcs = glob([\"a.d\"], allow_empty = True)"),
+        expect_contains("the hub package has a short label", hub_package_build("silly", "hub__silly"), "name = \"silly\""),
         expect_contains("the hub groups packages", hub_root_build(ok.packages), "\"//a:pkg\""),
     ]
 

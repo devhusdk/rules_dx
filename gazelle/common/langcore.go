@@ -609,7 +609,7 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 			lib.SetAttr(a.Name, a.Value)
 		}
 	}
-	return dirLibrary{name: name, kind: libraryKind, rule: lib, imports: imports}, true
+	return dirLibrary{name: name, kind: lib.Kind(), rule: lib, imports: imports}, true
 }
 
 type ResolveSpec struct {

@@ -73,6 +73,6 @@ def declare(hub, selections_text, digests_text):
         )
     files = {"BUILD.bazel": hub_root_build(result.packages)}
     for name, package in result.packages.items():
-        files[name + "/BUILD.bazel"] = hub_package_build(package.spoke)
+        files[name + "/BUILD.bazel"] = hub_package_build(name, package.spoke)
     hub_repo(name = hub, files = files)
     return result

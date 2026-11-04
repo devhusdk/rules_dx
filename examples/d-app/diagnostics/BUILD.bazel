@@ -1,0 +1,57 @@
+# gazelle:exclude *.d
+
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//libs/starlark:cells.bzl", "cell_setting")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+_CELLS = [
+    "linux_amd64",
+    "linux_arm64",
+    "macos_arm64",
+]
+
+package(default_visibility = ["//examples/d-app:__subpackages__"])
+
+alias(
+    name = "ldc",
+    testonly = True,
+    actual = select(
+        {cell_setting("//d/toolchain", cell): "@dx_d_ldc_%s//:dmd" % cell for cell in _CELLS},
+        no_match_error = "the D diagnostics test runs on the pinned LDC cells",
+    ),
+)
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["diagnostics_test.rs"],
+    data = [
+        "compile_error.d",
+        "failing_unittest.d",
+        "missing_dep.d",
+        ":ldc",
+    ],
+    env = {
+        "DX_COMPILE_ERROR": "$(rootpath compile_error.d)",
+        "DX_FAILING_UNITTEST": "$(rootpath failing_unittest.d)",
+        "DX_LDC": "$(rootpath :ldc)",
+        "DX_MISSING_DEP": "$(rootpath missing_dep.d)",
+    },
+    target_compatible_with = D_COMPATIBLE_WITH + select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

@@ -118,7 +118,7 @@ package(default_visibility = ["//visibility:public"])
 
 d_library(
     name = "pkg",
-    srcs = glob({srcs}),
+    srcs = glob({srcs}, allow_empty = True),
     deps = {deps},
     imports = {imports},
 {string_attrs})
@@ -130,15 +130,13 @@ d_library(
         string_attrs = string_attrs,
     )
 
-def hub_package_build(spoke):
-    """Returns the BUILD file the hub holds for one package."""
-    return """package(default_visibility = ["//visibility:public"])
-
-alias(
-    name = "pkg",
-    actual = "@{spoke}//:pkg",
-)
-""".format(spoke = spoke)
+def hub_package_build(name, spoke):
+    """Returns the BUILD file the hub holds for one package; @hub//name is its short label."""
+    aliases = ["pkg"] if name == "pkg" else ["pkg", name]
+    return "package(default_visibility = [\"//visibility:public\"])\n" + "".join([
+        "\nalias(\n    name = \"{alias}\",\n    actual = \"@{spoke}//:pkg\",\n)\n".format(alias = alias, spoke = spoke)
+        for alias in aliases
+    ])
 
 def hub_root_build(packages):
     """Returns the hub's root BUILD file grouping every package."""

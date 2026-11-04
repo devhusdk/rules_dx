@@ -21,10 +21,12 @@ func TestCorpusSplitPreservesSiblingsAndFixtureOwnership(t *testing.T) {
 	writeFixture(t, root, ".buildifier.json", "{}")
 	writeFixture(t, root, "biome.json", "{}")
 	file := rule.EmptyFile(filepath.Join(root, "BUILD.bazel"), "")
-	legacy := rule.NewRule(corpusKind, "corpus")
-	legacy.SetAttr("markdown_siblings", []string{"sibling.md", "//other:doc", ":local", "@repo//:doc", "*.md", ""})
-	legacy.SetAttr("json_srcs", []string{"keep.json", "fixture.json", "@repo//:json", "//other:json", ":json", "*.json", ""})
-	legacy.Insert(file)
+	md := rule.NewRule(corpusKind, "corpus_markdown")
+	md.SetAttr("markdown_siblings", []string{"sibling.md", "//other:doc", ":local", "@repo//:doc", "*.md", ""})
+	md.Insert(file)
+	js := rule.NewRule(corpusKind, "corpus_json")
+	js.SetAttr("json_srcs", []string{"keep.json", "fixture.json", "@repo//:json", "//other:json", ":json", "*.json", ""})
+	js.Insert(file)
 	fixture := rule.NewRule(corpusKind, "fixture")
 	fixture.SetAttr("markdown_srcs", []string{"fixture.md", "@repo//:doc", "//other:doc", ":local", "*.md", ""})
 	fixture.SetAttr("json_srcs", []string{"fixture.json"})
@@ -51,9 +53,6 @@ func TestCorpusSplitPreservesSiblingsAndFixtureOwnership(t *testing.T) {
 	if got := byName["corpus_json"].AttrStrings("aspect_hints"); len(got) != 1 || got[0] != corpusBiomeHint {
 		t.Fatalf("biome hints: %v", got)
 	}
-	if len(plan.empty) != 1 || plan.empty[0].Name() != "corpus" {
-		t.Fatalf("legacy deletion: %v", plan.empty)
-	}
 }
 
 func TestCorpusJsonBiomeHintNeedsRootConfig(t *testing.T) {
@@ -61,7 +60,7 @@ func TestCorpusJsonBiomeHintNeedsRootConfig(t *testing.T) {
 	writeFixture(t, root, "BUILD.bazel", "")
 	writeFixture(t, root, ".buildifier.json", "{}")
 	file := rule.EmptyFile(filepath.Join(root, "BUILD.bazel"), "")
-	legacy := rule.NewRule(corpusKind, "corpus")
+	legacy := rule.NewRule(corpusKind, "corpus_json")
 	legacy.SetAttr("json_srcs", []string{"keep.json"})
 	legacy.Insert(file)
 	cfg := config.New()
@@ -88,7 +87,7 @@ func TestCorpusSkipsToolTreesAndKeepsSiblingOnlyTargets(t *testing.T) {
 		}
 	}
 	file := rule.EmptyFile(filepath.Join(root, "BUILD.bazel"), "")
-	legacy := rule.NewRule(corpusKind, "corpus")
+	legacy := rule.NewRule(corpusKind, "corpus_markdown")
 	legacy.SetAttr("markdown_siblings", []string{"//other:doc"})
 	legacy.Insert(file)
 	plan := planCorpus(language.GenerateArgs{Config: cfg, Dir: root, File: file}, false)

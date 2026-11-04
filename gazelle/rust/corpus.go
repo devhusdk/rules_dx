@@ -28,7 +28,7 @@ func parseCorpusDirective(value string) (bool, error) {
 
 func isGeneratedCorpusName(name string) bool {
 	switch name {
-	case "corpus", "corpus_markdown", "corpus_starlark", "corpus_toml", "corpus_json":
+	case "corpus_markdown", "corpus_starlark", "corpus_toml", "corpus_json":
 		return true
 	}
 	return false
@@ -92,7 +92,6 @@ func corpusLoads(rulesRepo string) rule.LoadInfo {
 
 type corpusPlan struct {
 	gen   []*rule.Rule
-	empty []*rule.Rule
 	errs  []error
 }
 
@@ -117,7 +116,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 			continue
 		}
 		name := r.Name()
-		if name == "corpus" || strings.HasPrefix(name, "corpus_") {
+		if strings.HasPrefix(name, "corpus_") {
 			continue
 		}
 		for _, attr := range []string{"javascript_srcs", "jsx_srcs", "typescript_srcs", "tsx_srcs", "json_srcs", "python_srcs", "python_stub_srcs", "rust_srcs", "starlark_srcs", "toml_srcs", "markdown_srcs"} {
@@ -130,11 +129,9 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		}
 	}
 	siblingSet := map[string]bool{}
-	for _, name := range []string{"corpus", "corpus_markdown"} {
-		if r, ok := existing[name]; ok && r.Kind() == corpusKind {
-			for _, s := range r.AttrStrings("markdown_siblings") {
-				siblingSet[s] = true
-			}
+	if r, ok := existing["corpus_markdown"]; ok && r.Kind() == corpusKind {
+		for _, s := range r.AttrStrings("markdown_siblings") {
+			siblingSet[s] = true
 		}
 	}
 	localSiblings := map[string]bool{}
@@ -213,19 +210,17 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		}
 		return nil
 	})
-	for _, name := range []string{"corpus", "corpus_json"} {
-		if r, ok := existing[name]; ok && r.Kind() == corpusKind {
-			for _, src := range r.AttrStrings("json_srcs") {
-				if src == "" || strings.Contains(src, "*") || strings.HasPrefix(src, "//") || strings.HasPrefix(src, "@") || strings.HasPrefix(src, ":") {
-					continue
-				}
-				if fixtureOwned[src] || localSiblings[src] {
-					continue
-				}
-				if !seen["json\x00"+src] {
-					seen["json\x00"+src] = true
-					collected["json"] = append(collected["json"], src)
-				}
+	if r, ok := existing["corpus_json"]; ok && r.Kind() == corpusKind {
+		for _, src := range r.AttrStrings("json_srcs") {
+			if src == "" || strings.Contains(src, "*") || strings.HasPrefix(src, "//") || strings.HasPrefix(src, "@") || strings.HasPrefix(src, ":") {
+				continue
+			}
+			if fixtureOwned[src] || localSiblings[src] {
+				continue
+			}
+			if !seen["json\x00"+src] {
+				seen["json\x00"+src] = true
+				collected["json"] = append(collected["json"], src)
 			}
 		}
 	}
@@ -282,10 +277,5 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	emit("starlark", "starlark_srcs", collected["starlark"])
 	emit("toml", "toml_srcs", collected["toml"])
 	emit("json", "json_srcs", collected["json"])
-	if _, ok := existing["corpus"]; ok {
-		if r, ok := existing["corpus"]; ok && r.Kind() == corpusKind {
-			plan.empty = append(plan.empty, rule.NewRule(corpusKind, "corpus"))
-		}
-	}
 	return plan
 }

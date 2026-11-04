@@ -418,7 +418,6 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 	}
 	merged := mergeStale(args.File, result)
 	merged.Empty = append(merged.Empty, plan.empty...)
-	merged.Empty = append(merged.Empty, corpus.empty...)
 	return merged
 }
 

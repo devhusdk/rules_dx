@@ -280,6 +280,7 @@ mod tests {
                 self.lib.clone(),
                 self.lib.join("clangd"),
                 self.lib.join("identity.cc_identity.json"),
+                self.lib.join("identity_exec.cc_identity.json"),
             ])
         }
 
@@ -316,6 +317,11 @@ mod tests {
             r#"{"configuration":"k8-fastbuild","compiler":"clang","family":"clang","driver":"gnu","abi":"itanium","target":"x86_64-linux-gnu"}"#,
         )
         .expect("identity");
+        std::fs::write(
+            runner.lib.join("identity_exec.cc_identity.json"),
+            r#"{"configuration":"k8-opt-exec-ST-0","compiler":"clang","family":"clang","driver":"gnu","abi":"itanium","target":"x86_64-linux-gnu"}"#,
+        )
+        .expect("exec identity");
         runner.aquery = AQUERY.to_owned();
         runner
     }

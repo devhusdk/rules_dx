@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
-load("//cc/context:identity.bzl", "cc_context_identity")
+load("//cc/context:identity.bzl", "cc_context_exec_identity", "cc_context_identity")
 load("//quality:fixtures.bzl", "real_source_target")
 
 # gazelle:resolve rust dx_testing //tools/testing:dx_testing
@@ -30,6 +30,12 @@ alias(
 
 cc_context_identity(
     name = "identity",
+    visibility = ["//visibility:public"],
+)
+
+cc_context_exec_identity(
+    name = "identity_exec",
+    identity = ":identity",
     visibility = ["//visibility:public"],
 )
 
@@ -104,6 +110,7 @@ rust_test(
     crate_root = "tests/context_clang_tidy.rs",
     data = [
         ":identity",
+        ":identity_exec",
         "//cc/tests/fixtures/compilation_db:.clang-tidy",
         "//cc/tests/fixtures/compilation_db:limits_h",
         "//cc/tests/fixtures/compilation_db:probe.c",
@@ -116,6 +123,7 @@ rust_test(
     env = {
         "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
         "DX_IDENTITY": "$(rootpath :identity)",
+        "DX_IDENTITY_EXEC": "$(rootpath :identity_exec)",
         "DX_GENERATED_HEADER": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
     },
     target_compatible_with = [

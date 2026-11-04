@@ -22,3 +22,21 @@ cc_context_identity = rule(
     doc = "Writes the selected C/C++ compiler identity as JSON.",
     toolchains = cc_toolchain_toolchains(),
 )
+
+def _cc_context_exec_identity_impl(ctx):
+    out = ctx.actions.declare_file(ctx.label.name + ".cc_identity.json")
+    ctx.actions.symlink(output = out, target_file = ctx.file.identity)
+    return [DefaultInfo(files = depset([out]))]
+
+cc_context_exec_identity = rule(
+    implementation = _cc_context_exec_identity_impl,
+    doc = "Builds the compiler identity in the exec configuration.",
+    attrs = {
+        "identity": attr.label(
+            doc = "The cc_context_identity target to build for exec.",
+            cfg = "exec",
+            allow_single_file = True,
+            mandatory = True,
+        ),
+    },
+)

@@ -455,6 +455,34 @@ fn each_configuration_gets_its_own_identity() {
 }
 
 #[test]
+fn target_and_exec_actions_each_get_their_identity_and_expand() {
+    let root = scratch("exec");
+    fs::write(root.join("x.rsp"), "-DX=1").expect("rsp");
+    let action = |target: u32, out: u32, config: u32, source: &str| {
+        format!(
+            r#"{{"mnemonic":"CppCompile","arguments":["gcc","-c","{source}","@x.rsp"],"inputDepSetIds":[{config}],"outputIds":[{out}],"targetId":{target},"configurationId":{config},"executionPlatform":"@@platforms//host:host","actionKey":"k{config}"}}"#
+        )
+    };
+    let text = format!(
+        r#"{{"actions":[{},{}],"artifacts":[{{"id":2,"path":"bazel-out/k8-fastbuild/bin/pkg/a.o"}},{{"id":3,"path":"pkg/a.cc"}},{{"id":4,"path":"bazel-out/k8-opt-exec-ST-0/bin/tool/t.o"}},{{"id":5,"path":"tool/t.cc"}}],"depSetOfFiles":[{{"id":1,"directArtifactIds":[3],"transitiveDepSetIds":[]}},{{"id":2,"directArtifactIds":[5],"transitiveDepSetIds":[]}}],"targets":[{{"id":1,"label":"//pkg:a"}},{{"id":2,"label":"//tool:t"}}],"configuration":[{{"id":1,"mnemonic":"k8-fastbuild","checksum":"a"}},{{"id":2,"mnemonic":"k8-opt-exec-ST-0","checksum":"b"}}]}}"#,
+        action(1, 2, 1, "pkg/a.cc"),
+        action(2, 4, 2, "tool/t.cc"),
+    );
+    let graph = AqueryGraph::parse(&text).expect("graph");
+    let identities = [gnu(), identity("k8-opt-exec-ST-0", Driver::Gnu)];
+    let commands = graph
+        .compile_commands(&root, &identities)
+        .expect("commands");
+    assert_eq!(commands.len(), 2);
+    for command in &commands {
+        assert!(command.identity.is_some());
+        assert_eq!(command.arguments.last().map(String::as_str), Some("-DX=1"));
+    }
+    assert_eq!(clang_tidy_projection(&commands), Ok(()));
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn the_clang_tidy_projection_fails_without_a_known_driver() {
     let root = scratch("projection");
     let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");

@@ -11,7 +11,11 @@ const AQUERY: &str = r#"mnemonic("CppCompile|ObjcCompile", //...)"#;
 pub const PLUGIN: Plugin = Plugin {
     name: "cc",
     extensions: &["c", "cc", "cpp", "cxx", "h", "hh", "hpp", "m", "mm"],
-    labels: &["cc/context:clangd", "cc/context:identity"],
+    labels: &[
+        "cc/context:clangd",
+        "cc/context:identity",
+        "cc/context:identity_exec",
+    ],
     write,
 };
 

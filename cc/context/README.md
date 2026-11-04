@@ -3,6 +3,8 @@
 `//cc/context:compile_db` emits a clang-tidy consumption bundle for one Bazel target.
 
 ```sh
+bazel build //cc/context:identity //cc/context:identity_exec
+bazel cquery --output=files //cc/context:identity //cc/context:identity_exec
 bazel aquery "mnemonic(CppCompile, deps(//pkg:target))" --output=jsonproto > actions.json
 bazel run //cc/context:compile_db -- \
   --aquery actions.json \
@@ -11,7 +13,8 @@ bazel run //cc/context:compile_db -- \
   --require-source pkg/target.c \
   --config pkg/.clang-tidy \
   --output out \
-  --identity bazel-bin/cc/context/identity.cc_identity.json
+  --identity <first file from cquery> \
+  --identity <second file from cquery>
 ```
 
 The output directory holds `compile_commands.json` and the bound `.clang-tidy`. Run
@@ -25,7 +28,7 @@ clang-tidy against it with `-p out`.
 - `--require-source <path>`: a source that must have a compile command; repeatable.
 - `--config <path>`: the checked-in `.clang-tidy` policy to bind; required.
 - `--output <dir>`: directory to write the bundle into.
-- `--identity <file>`: compiler identity from `bazel build //cc/context:identity`; required, repeatable, one per configuration.
+- `--identity <file>`: compiler identity from `//cc/context:identity` or `//cc/context:identity_exec`; required, repeatable, one per configuration.
 
 ## Fail-closed behaviour
 

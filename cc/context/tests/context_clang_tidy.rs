@@ -20,8 +20,12 @@ fn gnu() -> Vec<cc_context::CompilerIdentity> {
 
 #[test]
 fn the_selected_toolchain_reports_a_gnu_driver() {
-    let built = cc_context::read_identities(&[env_path("DX_IDENTITY")]).expect("identity");
-    assert_eq!(built[0].driver, cc_context::Driver::Gnu);
+    let built =
+        cc_context::read_identities(&[env_path("DX_IDENTITY"), env_path("DX_IDENTITY_EXEC")])
+            .expect("identity");
+    assert_eq!(built.len(), 2);
+    assert!(built.iter().all(|i| i.driver == cc_context::Driver::Gnu));
+    assert!(built.iter().any(|i| i.configuration.contains("-exec")));
 }
 
 fn env_path(name: &str) -> PathBuf {

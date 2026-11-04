@@ -32,6 +32,9 @@ pub struct Row {
     pub title: String,
     pub section: String,
     pub families: Vec<String>,
+    /// The API doc tool; empty when the language has none, absent when docs do not apply.
+    #[serde(default)]
+    pub doc: Option<String>,
     pub ci_tests: Vec<String>,
     pub consumer_tests: Vec<String>,
     pub workflows: Vec<String>,

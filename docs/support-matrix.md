@@ -1,6 +1,6 @@
 # Support matrix
 
-This page lists, for each language, target, and compiler, the platforms it does not support, and its lint, format, and typecheck tools.
+This page lists, for each language, target, and compiler, the platforms it does not support, and its lint, format, typecheck, and API doc tools.
 
 Everything builds and tests on every platform it supports. `none` means all five platforms are supported.
 
@@ -70,71 +70,71 @@ Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
 
 ## Quality
 
-Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool runs on every platform its row supports unless a note says otherwise.
+Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise.
 
-| Name | Lint | Format | Typecheck |
-| --- | --- | --- | --- |
-| Astro | `eslint` | `prettier` | no |
-| C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) |
-| C# | `roslyn` | `csharpier` | `csc` |
-| CUDA | `clang_tidy` | `clang_format` | `nvcc_syntax` |
-| D | `dscanner` | `dfmt` | `ldc` |
-| Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) |
-| Elixir | `credo` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `mix_format` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) |
-| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) |
-| Fortran | `fortitude` | `ffmt` | `flang` |
-| F# | `fsharplint` | `fantomas` | `fsc` |
-| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` |
-| Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists) | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` |
-| Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
-| JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` |
-| Julia | no | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` |
-| Kotlin | `ktlint` | `ktfmt` | `kotlinc` |
-| Lua | `selene` | `stylua` | `luals` |
-| MDX | `eslint` | `remark` | `tsc` |
-| OCaml | `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` |
-| Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a |
-| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) |
-| PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a |
-| Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
-| Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) |
-| Rust | `clippy` | `rustfmt` | `rustc` |
-| Scala | `scalafix` | `scalafmt` | `scalac` |
-| Svelte | `eslint` | `prettier` | `tsc` |
-| TypeScript | `biome` | `biome`, `prettier` | `tsc` |
-| Vue | `eslint` | `prettier` | `tsc` |
-| Zig | `zig_ast_check` | `zig_fmt` | `zig` |
-| Apple | `clang_tidy` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) |
-| CMake | `cmakelint` | `gersemi` | n/a |
-| Dockerfile | `hadolint` | `prettier` | n/a |
-| Make | `checkmake` | `mbake` | n/a |
-| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) |
-| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows) | `prettier` | n/a |
-| API specs | `redocly` | `prettier` | n/a |
-| AsciiDoc | `vale` | no | n/a |
-| Avro | `avro_tools` | n/a | `avro_tools` |
-| Bicep | `bicep` | `bicep` | n/a |
-| Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) |
-| CloudFormation | `cfn_lint` | no | n/a |
-| CUE | n/a | `cue` | `cue` |
-| FlatBuffers | `flatc` | n/a | `flatc` |
-| Gherkin | `gplint` | `prettier` | n/a |
-| Helm | `helm` | no | n/a |
-| HTML templates | `djlint` | `djlint` | n/a |
-| Jsonnet | `jsonnet_lint` | `jsonnetfmt` | n/a |
-| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` |
-| Kubernetes | `kubeconform` | `prettier` | n/a |
-| LaTeX | `chktex` | `latexindent` | n/a |
-| Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a |
-| Pkl | no | `pkl` | `pkl` |
-| Rego | `regal` | `opa` | `opa` |
-| reStructuredText | `vale` | no | n/a |
-| SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a |
-| Terraform | `tflint` | `terraform` | `terraform` |
-| Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) |
-| Typst | no | `typstyle` | n/a |
-| XML | `xmllint` | `prettier` | n/a |
-| YAML | `yamllint` | `yamlfmt` | n/a |
+| Name | Lint | Format | Typecheck | API docs |
+| --- | --- | --- | --- | --- |
+| Astro | `eslint` | `prettier` | no | `astro-compiler` |
+| C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | no |
+| C# | `roslyn` | `csharpier` | `csc` | `csharp doc driver` |
+| CUDA | `clang_tidy` | `clang_format` | `nvcc_syntax` | no |
+| D | `dscanner` | `dfmt` | `ldc` | no |
+| Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no |
+| Elixir | `credo` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `mix_format` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | no |
+| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | no |
+| Fortran | `fortitude` | `ffmt` | `flang` | no |
+| F# | `fsharplint` | `fantomas` | `fsc` | `fsharp doc driver` |
+| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` | `go doc` |
+| Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists) | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no |
+| Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` | `javadoc` |
+| JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` | no |
+| Julia | no | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no |
+| Kotlin | `ktlint` | `ktfmt` | `kotlinc` | `dokka` |
+| Lua | `selene` | `stylua` | `luals` | no |
+| MDX | `eslint` | `remark` | `tsc` | `mdx` |
+| OCaml | `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no |
+| Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no |
+| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no |
+| PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a | `pwsh` |
+| Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` | `griffe` |
+| Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` |
+| Rust | `clippy` | `rustfmt` | `rustc` | `rustdoc` |
+| Scala | `scalafix` | `scalafmt` | `scalac` | `scaladoc` |
+| Svelte | `eslint` | `prettier` | `tsc` | `svelte2tsx` |
+| TypeScript | `biome` | `biome`, `prettier` | `tsc` | `typedoc` |
+| Vue | `eslint` | `prettier` | `tsc` | `vue-component-meta` |
+| Zig | `zig_ast_check` | `zig_fmt` | `zig` | no |
+| Apple | `clang_tidy` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a |
+| CMake | `cmakelint` | `gersemi` | n/a | n/a |
+| Dockerfile | `hadolint` | `prettier` | n/a | n/a |
+| Make | `checkmake` | `mbake` | n/a | n/a |
+| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a |
+| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows) | `prettier` | n/a | n/a |
+| API specs | `redocly` | `prettier` | n/a | n/a |
+| AsciiDoc | `vale` | no | n/a | n/a |
+| Avro | `avro_tools` | n/a | `avro_tools` | n/a |
+| Bicep | `bicep` | `bicep` | n/a | n/a |
+| Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a |
+| CloudFormation | `cfn_lint` | no | n/a | n/a |
+| CUE | n/a | `cue` | `cue` | n/a |
+| FlatBuffers | `flatc` | n/a | `flatc` | n/a |
+| Gherkin | `gplint` | `prettier` | n/a | n/a |
+| Helm | `helm` | no | n/a | n/a |
+| HTML templates | `djlint` | `djlint` | n/a | n/a |
+| Jsonnet | `jsonnet_lint` | `jsonnetfmt` | n/a | n/a |
+| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a |
+| Kubernetes | `kubeconform` | `prettier` | n/a | n/a |
+| LaTeX | `chktex` | `latexindent` | n/a | n/a |
+| Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a |
+| Pkl | no | `pkl` | `pkl` | n/a |
+| Rego | `regal` | `opa` | `opa` | n/a |
+| reStructuredText | `vale` | no | n/a | n/a |
+| SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a | n/a |
+| Terraform | `tflint` | `terraform` | `terraform` | n/a |
+| Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a |
+| Typst | no | `typstyle` | n/a | n/a |
+| XML | `xmllint` | `prettier` | n/a | n/a |
+| YAML | `yamllint` | `yamlfmt` | n/a | n/a |
 
 ### Not applicable
 

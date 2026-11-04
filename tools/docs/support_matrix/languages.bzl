@@ -52,6 +52,40 @@ COMPUTED_CONSTRAINTS = {
     "//qt/rules:defs.bzl%QT_HOST_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
+# The API doc tool per language and the *_doc_shard macro or rule that runs it. None marks a gap.
+DOC_TOOLS = {
+    "astro": {"tool": "astro-compiler", "shard": "astro_doc_shard"},
+    "cc": None,
+    "csharp": {"tool": "csharp doc driver", "shard": "csharp_doc_shard"},
+    "cuda": None,
+    "d": None,
+    "dart": None,
+    "elixir": None,
+    "erlang": None,
+    "fortran": None,
+    "fsharp": {"tool": "fsharp doc driver", "shard": "fsharp_doc_shard"},
+    "go": {"tool": "go doc", "shard": "go_doc_shard"},
+    "haskell": None,
+    "java": {"tool": "javadoc", "shard": "java_doc_shard"},
+    "javascript": None,
+    "julia": None,
+    "kotlin": {"tool": "dokka", "shard": "kotlin_doc_shard"},
+    "lua": None,
+    "mdx": {"tool": "mdx", "shard": "mdx_doc_shard"},
+    "ocaml": None,
+    "perl": None,
+    "php": None,
+    "powershell": {"tool": "pwsh", "shard": "powershell_doc_shard"},
+    "python": {"tool": "griffe", "shard": "python_doc_shard"},
+    "ruby": {"tool": "yard", "shard": "ruby_doc_shard"},
+    "rust": {"tool": "rustdoc", "shard": "rust_doc_shard"},
+    "scala": {"tool": "scaladoc", "shard": "scala_doc_shard"},
+    "svelte": {"tool": "svelte2tsx", "shard": "svelte_doc_shard"},
+    "typescript": {"tool": "typedoc", "shard": "typescript_doc_shard"},
+    "vue": {"tool": "vue-component-meta", "shard": "vue_doc_shard"},
+    "zig": None,
+}
+
 def _hello(lang):
     return ["//" + lang + "/tests/fixtures/hello:hello_test"]
 

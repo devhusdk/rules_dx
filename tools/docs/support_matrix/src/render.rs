@@ -133,6 +133,14 @@ pub fn shows_quality(row: &Row) -> bool {
     }
 }
 
+fn doc_cell(row: &Row) -> String {
+    match row.doc.as_deref() {
+        None => "n/a".to_owned(),
+        Some("") => "no".to_owned(),
+        Some(tool) => format!("`{tool}`"),
+    }
+}
+
 fn quality_table(facts: &Facts) -> String {
     let rows: Vec<Vec<String>> = facts
         .sections
@@ -145,10 +153,11 @@ fn quality_table(facts: &Facts) -> String {
                 quality_cell(facts, row, "lint"),
                 quality_cell(facts, row, "format"),
                 quality_cell(facts, row, "typecheck"),
+                doc_cell(row),
             ]
         })
         .collect();
-    table(&["Name", "Lint", "Format", "Typecheck"], &rows)
+    table(&["Name", "Lint", "Format", "Typecheck", "API docs"], &rows)
 }
 
 /// Renders the whole page.
@@ -162,7 +171,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str("# Support matrix\n\n");
     out.push_str(
         "This page lists, for each language, target, and compiler, the platforms it does not support, \
-         and its lint, format, and typecheck tools.\n\n",
+         and its lint, format, typecheck, and API doc tools.\n\n",
     );
     out.push_str(
         "Everything builds and tests on every platform it supports. \
@@ -182,7 +191,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str(&build_table(facts, platforms, "compilers", "Compiler"));
     out.push_str("\n## Quality\n\n");
     out.push_str(
-        "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. \
+        "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. \
          A tool runs on every platform its row supports unless a note says otherwise.\n\n",
     );
     out.push_str(&quality_table(facts));

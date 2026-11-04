@@ -3,13 +3,19 @@
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPUTED_CONSTRAINTS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
+load(":languages.bzl", "COMPUTED_CONSTRAINTS", "DOC_TOOLS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
 _ROW_KEYS = ["ci_tests", "consumer_tests", "families", "name", "section", "title", "workflows"]
 
 _BUILD_KEYS = ["ci_tests", "consumer_tests", "workflows"]
+
+def _doc(name):
+    if name not in DOC_TOOLS:
+        return None
+    entry = DOC_TOOLS[name]
+    return entry["tool"] if entry else ""
 
 def _quality():
     families = {}
@@ -95,6 +101,7 @@ def support_matrix_facts_dict():
             {
                 "ci_tests": row.get("ci_tests", []),
                 "consumer_tests": row.get("consumer_tests", []),
+                "doc": _doc(row["name"]),
                 "families": row.get("families", [row["name"]]),
                 "name": row["name"],
                 "section": row["section"],

@@ -4,7 +4,48 @@ load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//quality:adapters.bzl", "NOT_APPLICABLE")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
 load(":facts.bzl", "support_matrix_facts_dict", "tool_not_applicable")
-load(":languages.bzl", "PLATFORMS")
+load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
+load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
+load("//tools/docs/go:defs.bzl", "go_doc_shard")
+load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
+load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
+load("//tools/docs/python:defs.bzl", "python_doc_shard")
+load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
+load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
+load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load(":languages.bzl", "DOC_TOOLS", "PLATFORMS")
+
+# Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
+_SHARD_RULES = {
+    "astro_doc_shard": astro_doc_shard,
+    "csharp_doc_shard": csharp_doc_shard,
+    "fsharp_doc_shard": fsharp_doc_shard,
+    "go_doc_shard": go_doc_shard,
+    "java_doc_shard": java_doc_shard,
+    "kotlin_doc_shard": kotlin_doc_shard,
+    "mdx_doc_shard": mdx_doc_shard,
+    "powershell_doc_shard": powershell_doc_shard,
+    "python_doc_shard": python_doc_shard,
+    "ruby_doc_shard": ruby_doc_shard,
+    "rust_doc_shard": rust_doc_shard,
+    "scala_doc_shard": scala_doc_shard,
+    "svelte_doc_shard": svelte_doc_shard,
+    "typescript_doc_shard": typescript_doc_shard,
+    "vue_doc_shard": vue_doc_shard,
+}
+
+def _doc_problems(facts):
+    problems = []
+    for row in facts["rows"]:
+        if row["section"] == "languages" and row["name"] not in DOC_TOOLS:
+            problems.append("missing " + row["name"])
+    row_names = [row["name"] for row in facts["rows"]]
+    for name, entry in DOC_TOOLS.items():
+        if name not in row_names:
+            problems.append("unknown row " + name)
+        elif entry and entry["shard"] not in _SHARD_RULES:
+            problems.append(name + " names missing shard " + entry["shard"])
+    return problems
 
 def _families_resolve(facts):
     return [
@@ -39,6 +80,7 @@ def support_matrix_facts_tests(name):
                 SUPPORT_PLATFORMS,
                 [platform["id"] for platform in PLATFORMS],
             ),
+            expect_equal("every language has a doc tool or a gap", _doc_problems(facts), []),
             expect_equal("every family resolves", _families_resolve(facts), []),
             expect_equal(
                 "rows are sorted by name",

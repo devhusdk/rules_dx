@@ -1,17 +1,48 @@
-diff --git a/include/avro/Config.hh b/include/avro/Config.hh
---- a/include/avro/Config.hh
-+++ b/include/avro/Config.hh
-@@ -19,6 +19,10 @@
- #ifndef avro_Config_hh
- #define avro_Config_hh
+diff --git a/impl/Stream.cc b/impl/Stream.cc
+--- a/impl/Stream.cc
++++ b/impl/Stream.cc
+@@ -17,6 +17,7 @@
+  */
  
+ #include "Stream.hh"
 +#include <iterator>
+ #include <vector>
+ 
+ namespace avro {
+diff --git a/include/avro/buffer/detail/BufferDetail.hh b/include/avro/buffer/detail/BufferDetail.hh
+--- a/include/avro/buffer/detail/BufferDetail.hh
++++ b/include/avro/buffer/detail/BufferDetail.hh
+@@ -31,6 +31,7 @@
+ #include <cassert>
+ #include <deque>
+ #include <exception>
++#include <iterator>
+ 
+ /**
+  * \file BufferDetail.hh
+diff --git a/include/avro/Layout.hh b/include/avro/Layout.hh
+--- a/include/avro/Layout.hh
++++ b/include/avro/Layout.hh
+@@ -20,6 +20,8 @@
+ #define avro_Layout_hh__
+ 
+ #include "Config.hh"
 +#include <memory>
 +#include <vector>
-+
- // Windows DLL support
+ #include <boost/noncopyable.hpp>
  
- #ifdef _WIN32
+ /// \file Layout.hh
+diff --git a/include/avro/Node.hh b/include/avro/Node.hh
+--- a/include/avro/Node.hh
++++ b/include/avro/Node.hh
+@@ -24,6 +24,7 @@
+ #include <boost/noncopyable.hpp>
+ #include <cassert>
+ #include <memory>
++#include <vector>
+ #include <utility>
+ 
+ #include "CustomAttributes.hh"
 diff --git a/include/avro/Exception.hh b/include/avro/Exception.hh
 --- a/include/avro/Exception.hh
 +++ b/include/avro/Exception.hh

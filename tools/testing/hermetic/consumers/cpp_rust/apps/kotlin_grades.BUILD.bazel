@@ -18,7 +18,7 @@ kotlin_library(
         "Student.kt",
         ":build_info",
     ],
-    resource_strip_prefix = "examples/kotlin-app",
+    resource_strip_prefix = "kotlin/tests/fixtures/kotlin-app",
     resources = ["grades.json"],
     visibility = _PUBLIC,
     deps = [
@@ -36,7 +36,7 @@ kotlin_library(
         "Student.kt",
         ":build_info",
     ],
-    resource_strip_prefix = "examples/kotlin-app",
+    resource_strip_prefix = "kotlin/tests/fixtures/kotlin-app",
     resources = ["grades.json"],
     tags = ["manual"],
     deps = ["@maven//:com_google_guava_guava"],

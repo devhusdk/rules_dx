@@ -155,8 +155,8 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude java/tests/fixtures/java-app/cli/Main.java
 # gazelle:exclude java/tests/fixtures/java-app/diagnostics
-# gazelle:exclude examples/kotlin-app/cli/Main.kt
-# gazelle:exclude examples/kotlin-app/diagnostics
+# gazelle:exclude kotlin/tests/fixtures/kotlin-app/cli/Main.kt
+# gazelle:exclude kotlin/tests/fixtures/kotlin-app/diagnostics
 # gazelle:exclude lua/tests/fixtures/lua-app
 # gazelle:exclude examples/node-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml-app

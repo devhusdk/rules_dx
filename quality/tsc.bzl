@@ -32,8 +32,9 @@ def _is_ts_project(attrs):
 
 def _tsc_js_impl(target, ctx):
     """Type-checks a js_library's JavaScript sources with checkJs through a generated tsconfig."""
-    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "mdx")]
+    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "mdx", "vue")]
     has_mdx = any([f.extension == "mdx" for f in sources])
+    has_vue = any([f.extension == "vue" for f in sources])
     if len(sources) == 0:
         return []
     tsconfig = ctx.actions.declare_file("dx_tsc/%s.tsconfig.json" % target.label.name)
@@ -67,8 +68,8 @@ def _tsc_js_impl(target, ctx):
         ctx,
         mnemonic = "TscDiagnostics",
         progress_message = "tsc diagnostics (js) %{label}",
-        executable = ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc,
-        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources]),
+        executable = ctx.executable._vue_tsc if has_vue else (ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc),
+        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + ([target[JsInfo].npm_sources] if has_vue else [])),
         outputs = [stdout, status],
         arguments = [args],
         env = {
@@ -138,6 +139,11 @@ tsc_aspect = aspect(
         ),
         "_tsc": attr.label(
             default = "@npm_typescript//:tsc",
+            executable = True,
+            cfg = "exec",
+        ),
+        "_vue_tsc": attr.label(
+            default = "//quality/tools/javascript/bin:vue_tsc",
             executable = True,
             cfg = "exec",
         ),

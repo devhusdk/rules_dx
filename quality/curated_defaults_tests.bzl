@@ -134,14 +134,14 @@ def curated_defaults_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "vue curated defaults stay Prettier format only",
+                "vue curated defaults are Prettier format plus tsc typecheck",
                 [CURATED_DEFAULTS["vue"], FORMAT_FROZEN["vue"]],
                 [
                     {
                         "audit": [],
                         "format": ["prettier"],
                         "lint": [],
-                        "typecheck": [],
+                        "typecheck": ["tsc"],
                     },
                     ["prettier"],
                 ],

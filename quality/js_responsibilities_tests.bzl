@@ -120,9 +120,9 @@ def js_responsibilities_unit_tests(name):
                 [["prettier"], ["eslint"]],
             ),
             expect_equal(
-                "vue is formatted by prettier and linted by eslint only",
-                [_claimants("format", "vue"), _claimants("lint", "vue")],
-                [["prettier"], ["eslint"]],
+                "vue is formatted by prettier, linted by eslint, and typechecked by tsc",
+                [_claimants("format", "vue"), _claimants("lint", "vue"), _claimants("typecheck", "vue")],
+                [["prettier"], ["eslint"], ["tsc"]],
             ),
             expect_equal(
                 "default format selections stay single-formatter per family",

@@ -58,6 +58,16 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_binary(
+    name = "vue_tsc",
+    data = [
+        "//quality/tools/javascript:node_modules/typescript",
+        "//quality/tools/javascript:node_modules/vue-tsc",
+    ],
+    entry_point = "vue_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
 js_test(
     name = "mdx_tsc_test",
     size = "small",

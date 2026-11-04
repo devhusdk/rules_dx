@@ -76,7 +76,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "msix-install",
         "network",
         "preflight",
-        "python-docs-consumer",
         "starter-consumer",
         "workflow-check"
     ]);

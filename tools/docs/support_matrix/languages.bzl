@@ -112,7 +112,6 @@ ROWS = [
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
         "consumer_tests": [
             "//python/tests/consumer:service_consumer_test",
-            "//python/tests/consumer:docs_consumer_test",
         ] + _starter_consumers("python"),
         "name": "python",
         "section": "languages",

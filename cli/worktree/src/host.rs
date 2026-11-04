@@ -544,8 +544,8 @@ pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
                             break;
                         }
                         if let Some(root) = token.strip_prefix("--output_user_root=") {
-                            let root = PathBuf::from(root.trim_matches('"'));
-                            if root.is_absolute() && !roots.contains(&root) {
+                            let root = workspace.join(root.trim_matches('"'));
+                            if !roots.contains(&root) {
                                 roots.push(root);
                             }
                         }
@@ -1176,7 +1176,7 @@ mod tests {
         .expect("rc");
         std::fs::write(
             dir.path().join("extra.rc"),
-            "startup --output_user_root=/mnt/other\nstartup --output_user_root=rel\n",
+            "startup --output_user_root=/mnt/other\n",
         )
         .expect("extra");
         let mut roots = rc_output_roots(vec![dir.path().join(".bazelrc")], dir.path());
@@ -1184,6 +1184,24 @@ mod tests {
         assert_eq!(
             roots,
             vec![PathBuf::from("/mnt/big/bazel"), PathBuf::from("/mnt/other")]
+        );
+    }
+
+    #[test]
+    fn rc_output_roots_join_relative_startup_roots_to_the_workspace() {
+        let dir = tempfile::tempdir().expect("dir");
+        std::fs::write(
+            dir.path().join(".bazelrc"),
+            "startup --output_user_root=cache/bazel\nstartup --output_user_root=\"cache/other\"\n",
+        )
+        .expect("rc");
+        let roots = rc_output_roots(vec![dir.path().join(".bazelrc")], dir.path());
+        assert_eq!(
+            roots,
+            vec![
+                dir.path().join("cache/bazel"),
+                dir.path().join("cache/other")
+            ]
         );
     }
 }

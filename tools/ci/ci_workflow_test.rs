@@ -3,11 +3,13 @@
 use serde_json::json;
 
 use ci_workflow::{
-    called_workflow, job, jobs, reusable_calls, run_scripts, scripts, steps, strings, text_at,
-    triggers, workflow_call,
+    called_workflow, document, job, jobs, reusable_calls, run_scripts, scripts, steps, strings,
+    text_at, triggers, workflow_call,
 };
 
 const CI: &str = ".github/workflows/ci.yml";
+
+const GATE_ACTION: &str = ".github/actions/gate/action.yml";
 
 const CONSUMER: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -157,17 +159,23 @@ fn the_network_job_selects_opted_in_consumers() {
 
 #[test]
 fn the_gate_job_raises_the_bazel_heap_before_its_first_bazel_call() {
-    let all = scripts(CI, "gate");
+    let all = document(GATE_ACTION)["runs"]["steps"]
+        .as_array()
+        .expect("gate action steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
     let heap = all
         .find("MaxRAMPercentage=50")
-        .unwrap_or_else(|| panic!("{CI} job gate must raise the Bazel heap: {all}"));
+        .unwrap_or_else(|| panic!("{GATE_ACTION} must raise the Bazel heap: {all}"));
     assert!(
         all[heap..].contains(">> user.bazelrc"),
-        "{CI} job gate must write the heap flag to user.bazelrc"
+        "{GATE_ACTION} must write the heap flag to user.bazelrc"
     );
     let first_bazel = all.find("bazel ").expect("gate calls bazel");
     assert!(
         heap < first_bazel,
-        "{CI} job gate must raise the heap before it calls bazel: {all}"
+        "{GATE_ACTION} must raise the heap before it calls bazel: {all}"
     );
 }

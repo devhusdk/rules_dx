@@ -5,6 +5,10 @@ use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
+const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
+
+const GATE_ACTION: &str = ".github/actions/gate/action.yml";
+
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const RULESET: &str = ".github/rulesets/main.json";
@@ -403,11 +407,39 @@ fn the_gate_job_can_never_be_skipped() {
 }
 
 #[test]
+fn the_gate_runs_on_pull_requests_and_merge_groups() {
+    let on = triggers(GATE_WORKFLOW);
+    assert!(
+        on.get("pull_request").is_some(),
+        "{GATE_WORKFLOW} must subscribe to pull_request: {on}"
+    );
+    assert_eq!(
+        on["merge_group"]["types"],
+        json!(["checks_requested"]),
+        "{GATE_WORKFLOW} must subscribe to merge_group checks_requested: {on}"
+    );
+}
+
+#[test]
+fn both_workflows_run_the_same_gate_action() {
+    for workflow in [CI_WORKFLOW, GATE_WORKFLOW] {
+        let document = document(workflow);
+        let job = &document["jobs"]["gate"];
+        assert_eq!(job["name"], json!("gate"), "{workflow} gate job name");
+        let steps = job["steps"].as_array().expect("gate steps");
+        assert!(
+            steps
+                .iter()
+                .any(|step| step["uses"] == json!("./.github/actions/gate")),
+            "{workflow} job gate must use ./.github/actions/gate: {steps:?}"
+        );
+    }
+}
+
+#[test]
 fn the_gate_fails_when_dx_check_fails() {
-    let document = document(CI_WORKFLOW);
-    let steps = document["jobs"]["gate"]["steps"]
-        .as_array()
-        .expect("gate steps");
+    let document = document(GATE_ACTION);
+    let steps = document["runs"]["steps"].as_array().expect("gate steps");
     let piped: Vec<_> = steps
         .iter()
         .filter(|step| {
@@ -464,7 +496,7 @@ fn no_other_workflow_job_reports_the_gate_context() {
     names.push("examples/consumer-ci/caller.yml".to_string());
     names.push("examples/docs-ci/caller.yml".to_string());
     for name in names {
-        if name == CI_WORKFLOW {
+        if name == CI_WORKFLOW || name == GATE_WORKFLOW {
             continue;
         }
         let document = document(&name);

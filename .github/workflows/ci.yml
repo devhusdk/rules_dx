@@ -743,49 +743,7 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Raise the Bazel server heap
-        shell: bash
-        run: |
-          # A hosted runner runs one job, so the server can take half the memory.
-          echo 'startup --host_jvm_args=-XX:MaxRAMPercentage=50' >> user.bazelrc
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Pin the affected base
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PUSH_BEFORE: ${{ github.event.before }}
-          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:gate_base_bin
-      - name: Check the affected targets
-        shell: bash
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- check --affected --output=json | tee "${RUNNER_TEMP:-/tmp}/gate.json"
-      - name: Verify the base dx compared against
-        run: |
-          seen="$(jq -Rr 'fromjson? | objects | .affected? | objects | .base? // empty | strings' "${RUNNER_TEMP:-/tmp}/gate.json")"
-          grep -Fxq -- "$GATE_BASE" <<<"$seen" || { echo "gate: dx compared against [$seen], expected $GATE_BASE" >&2; exit 1; }
-      - name: Summary
-        if: ${{ always() }}
-        run: echo "gate base ${GATE_BASE:-unset}" >> "$GITHUB_STEP_SUMMARY"
+      - uses: ./.github/actions/gate
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

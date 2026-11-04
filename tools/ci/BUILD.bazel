@@ -263,6 +263,7 @@ rust_test(
     name = "ci_workflow_test",
     srcs = ["ci_workflow_test.rs"],
     data = [
+        "//.github:actions",
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
     ],
@@ -304,6 +305,7 @@ rust_test(
     name = "aggregate_gates_test",
     srcs = ["aggregate_gates_test.rs"],
     data = [
+        "//.github:actions",
         "//.github:rulesets/main.json",
         "//.github:workflows",
         "//examples:consumer-ci/caller.yml",

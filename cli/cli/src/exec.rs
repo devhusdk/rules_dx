@@ -425,7 +425,7 @@ mod tests {
                 }
             }
         }
-        for meta in COMMANDS.iter().filter(|meta| meta.supports_json) {
+        for meta in COMMANDS.iter().filter(|meta| meta.command.supports_json()) {
             let listed = QUIET_ROWS
                 .iter()
                 .any(|(command, _)| *command == meta.command)

@@ -82,10 +82,6 @@ pub struct CommandMeta {
     pub scopes: &'static str,
     pub is_managed: bool,
     pub is_adoption: bool,
-    pub supports_json: bool,
-    pub supports_diff: bool,
-    pub supports_here: bool,
-    pub supports_fail_on: bool,
     pub default_release: bool,
     pub skew: SkewKind,
     pub workflow_verb: Option<WorkflowVerb>,
@@ -103,10 +99,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: dependency-set/package/target selectors; bare run audits //... (secrets plus vulnerabilities). Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Warn,
         workflow_verb: None,
@@ -122,10 +114,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: dependency-set/package/target selectors; bare run audits //.... Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Warn,
         workflow_verb: None,
@@ -141,10 +129,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: true,
-        supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -160,10 +144,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: true,
-        supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -179,10 +159,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: true,
-        supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -198,10 +174,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target; main-repository labels only), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: true,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -217,10 +189,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: Some(WorkflowVerb::Build),
@@ -236,10 +204,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: Some(WorkflowVerb::Test),
@@ -255,10 +219,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: Some(WorkflowVerb::Coverage),
@@ -274,10 +234,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Requires a scope (empty scope is a usage error); file/dir scopes need exactly one runnable.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: Some(WorkflowVerb::Run),
@@ -293,10 +249,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: exactly one main-workspace label (//pkg:target); patterns (//...), multiple labels, and file/path scopes are usage failures.",
         is_managed: false,
         is_adoption: false,
-        supports_json: false,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: true,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -312,10 +264,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs --affected; pass //... to run everything. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: true,
-        supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Warn,
         workflow_verb: None,
@@ -331,10 +279,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none (clean takes no scopes).",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -350,10 +294,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets. `<set:package> <version>` widens that one package, or adds it when missing (bazel|cargo|github-actions|go|maven|npm|nuget).",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -369,10 +309,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/env.md).",
         is_managed: true,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -388,10 +324,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: optional single directory, created by --apply when missing (defaults to the current directory); the module name is the directory name, or my_project for the current directory; Bazel labels/patterns are not scopes; extra positionals are usage failures.",
         is_managed: false,
         is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -407,10 +339,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none (repository-wide: reads and writes .dx/version, refreshes existing tools/dx launchers and an existing AGENTS.md block; --to must equal this binary's version; --to required, positional scopes rejected).",
         is_managed: false,
         is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Proceed,
         workflow_verb: None,
@@ -426,10 +354,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none (status takes no scopes).",
         is_managed: false,
         is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Proceed,
         workflow_verb: None,
@@ -445,10 +369,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check are watchable). Args after `--` reach the wrapped command as its own command-options.",
         is_managed: false,
         is_adoption: true,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -464,10 +384,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: exactly one shell (bash|zsh|fish|powershell); unknown shells fail with unknown-shell.",
         is_managed: false,
         is_adoption: true,
-        supports_json: false,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Proceed,
         workflow_verb: None,
@@ -483,10 +399,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//tools/docs/site:user_site). Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -502,10 +414,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none (worktree takes a subcommand and its arguments, not scopes).",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Proceed,
         workflow_verb: None,
@@ -521,10 +429,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none (explain compares saved execution logs, not scopes).",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Proceed,
         workflow_verb: None,
@@ -540,10 +444,6 @@ pub static COMMANDS: [CommandMeta; 24] = [
         scopes: "Scopes: none (install takes --tag and --archive, not scopes).",
         is_managed: false,
         is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
         default_release: false,
         skew: SkewKind::Proceed,
         workflow_verb: None,
@@ -593,16 +493,19 @@ impl Command {
         self.meta().is_adoption
     }
 
+    /// Whether the grammar lets `dx <command> --output` parse.
     pub fn supports_json(self) -> bool {
-        self.meta().supports_json
+        super::grammar::accepts_long(self, "output")
     }
 
+    /// Whether the grammar lets `dx <command> --diff` parse.
     pub fn supports_diff(self) -> bool {
-        self.meta().supports_diff
+        super::grammar::accepts_long(self, "diff")
     }
 
+    /// Whether `--here` applies; watch passes it to the command it wraps.
     pub fn supports_here(self) -> bool {
-        self.meta().supports_here
+        super::grammar::accepts_long(self, "here") && self != Command::Watch
     }
 
     /// Whether the grammar lets `dx <command> --apply` parse.
@@ -610,8 +513,9 @@ impl Command {
         super::grammar::accepts_long(self, "apply")
     }
 
+    /// Whether `--fail-on` applies; watch passes it to the command it wraps.
     pub fn supports_fail_on(self) -> bool {
-        self.meta().supports_fail_on
+        super::grammar::accepts_long(self, "fail-on") && self != Command::Watch
     }
 
     pub fn describe(self) -> &'static str {
@@ -681,6 +585,62 @@ pub(crate) mod owners {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn support_sets_are_pinned() {
+        use clap::ValueEnum;
+        let all = Command::value_variants();
+        let set = |pred: fn(Command) -> bool| -> Vec<Command> {
+            all.iter().copied().filter(|c| pred(*c)).collect()
+        };
+        let json: Vec<Command> = all
+            .iter()
+            .copied()
+            .filter(|c| !matches!(c, Command::Deploy | Command::Completion))
+            .collect();
+        assert_eq!(set(Command::supports_json), json);
+        let in_order = |names: &[Command]| -> Vec<Command> {
+            all.iter().copied().filter(|c| names.contains(c)).collect()
+        };
+        assert_eq!(
+            set(Command::supports_diff),
+            in_order(&[
+                Command::Lint,
+                Command::Typecheck,
+                Command::Format,
+                Command::Generate,
+                Command::Check,
+                Command::Watch
+            ])
+        );
+        assert_eq!(
+            set(Command::supports_here),
+            in_order(&[
+                Command::Security,
+                Command::License,
+                Command::Lint,
+                Command::Typecheck,
+                Command::Format,
+                Command::Generate,
+                Command::Build,
+                Command::Test,
+                Command::Coverage,
+                Command::Check,
+                Command::Docs
+            ])
+        );
+        assert_eq!(
+            set(Command::supports_fail_on),
+            in_order(&[
+                Command::Security,
+                Command::License,
+                Command::Lint,
+                Command::Typecheck,
+                Command::Format,
+                Command::Check
+            ])
+        );
+    }
 
     #[test]
     fn apply_commands_are_exactly_the_grammar_apply_owners() {

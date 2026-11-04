@@ -422,6 +422,10 @@ static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
 /// The stop signals dx forwards to a streamed child: SIGINT, SIGTERM and SIGHUP.
 pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
 
+/// Makes Ctrl-C and Ctrl-Break record a stop like SIGINT.
+#[cfg(windows)]
+pub use backend::install_console_stop;
+
 /// Maps a Windows console control event to the signal it acts as: Ctrl-C and Ctrl-Break are SIGINT.
 pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
     match ctrl_type {

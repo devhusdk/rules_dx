@@ -60,6 +60,18 @@ pub enum Error {
     UnwritableOutput { path: String, reason: String },
     #[error("compilation_db: database cannot be serialized: {reason}")]
     UnserializableDatabase { reason: String },
+    #[error("compilation_db: identity '{path}' is malformed: {reason}")]
+    MalformedIdentity { path: String, reason: String },
+    #[error("compilation_db: configuration '{configuration}' has conflicting compiler identities")]
+    ConflictingIdentity { configuration: String },
+    #[error(
+        "compilation_db: {tool} cannot run '{target}': compiler '{compiler}' has no known driver"
+    )]
+    UnsupportedProjection {
+        tool: String,
+        target: String,
+        compiler: String,
+    },
     #[error("compilation_db: {0}")]
     Usage(String),
 }
@@ -149,6 +161,31 @@ pub struct AqueryGraph {
     pub path_fragments: Vec<PathFragment>,
 }
 
+/// How a compiler driver takes its flags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Driver {
+    Gnu,
+    Msvc,
+    #[serde(other)]
+    Unknown,
+}
+
+/// The compiler Bazel selected for one configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct CompilerIdentity {
+    pub configuration: String,
+    #[serde(default)]
+    pub compiler: String,
+    #[serde(default)]
+    pub family: String,
+    pub driver: Driver,
+    #[serde(default)]
+    pub abi: String,
+    #[serde(default)]
+    pub target: String,
+}
+
 /// One configured compile action with its authoritative argv and declared inputs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompileCommand {
@@ -160,6 +197,7 @@ pub struct CompileCommand {
     pub arguments: Vec<String>,
     pub inputs: Vec<String>,
     pub outputs: Vec<String>,
+    pub identity: Option<CompilerIdentity>,
 }
 
 /// One compilation database record, in the format clang tooling consumes.
@@ -177,7 +215,11 @@ impl AqueryGraph {
     }
 
     /// Collects every configured compile action, expanding response files.
-    pub fn compile_commands(&self, execroot: &Path) -> Result<Vec<CompileCommand>, Error> {
+    pub fn compile_commands(
+        &self,
+        execroot: &Path,
+        identities: &[CompilerIdentity],
+    ) -> Result<Vec<CompileCommand>, Error> {
         let fragments: BTreeMap<i64, &PathFragment> = self
             .path_fragments
             .iter()
@@ -214,6 +256,11 @@ impl AqueryGraph {
                 )
             })
             .collect();
+        let mnemonics: BTreeMap<i64, &str> = self
+            .configuration
+            .iter()
+            .map(|config| (config.id, config.mnemonic.as_str()))
+            .collect();
         let dep_sets: BTreeMap<i64, &DepSet> = self
             .dep_sets
             .iter()
@@ -230,7 +277,18 @@ impl AqueryGraph {
                 .copied()
                 .unwrap_or("")
                 .to_string();
-            let arguments = expand_response_files(&action.arguments, execroot)?;
+            let identity = mnemonics
+                .get(&action.configuration_id)
+                .and_then(|mnemonic| {
+                    identities
+                        .iter()
+                        .find(|identity| identity.configuration == *mnemonic)
+                });
+            let driver = identity.map_or(Driver::Unknown, |identity| identity.driver);
+            let arguments = match rsp_quoting(&action.arguments, driver) {
+                Some(quoting) => expand_response_files(&action.arguments, execroot, quoting)?,
+                None => action.arguments.clone(),
+            };
             let source = source_argument(&target, &arguments)?.to_string();
             commands.push(CompileCommand {
                 configuration: configurations
@@ -243,6 +301,7 @@ impl AqueryGraph {
                 arguments,
                 inputs: resolve_inputs(action, &dep_sets, &artifacts),
                 outputs: sorted_paths(action.output_ids.as_slice(), &artifacts),
+                identity: identity.cloned(),
                 target,
             });
         }
@@ -288,34 +347,77 @@ pub enum Quoting {
     Windows,
 }
 
-/// Picks the response-file quoting the action's own driver uses.
-pub fn rsp_quoting(arguments: &[String]) -> Quoting {
+/// Picks the response-file quoting from the selected driver, or None when it is unknown.
+pub fn rsp_quoting(arguments: &[String], driver: Driver) -> Option<Quoting> {
     for argument in arguments {
         match argument.strip_prefix("--rsp-quoting=") {
-            Some("windows") => return Quoting::Windows,
-            Some("posix") => return Quoting::Gnu,
+            Some("windows") => return Some(Quoting::Windows),
+            Some("posix") => return Some(Quoting::Gnu),
             _ => {}
         }
     }
-    let driver = arguments
-        .first()
-        .and_then(|first| first.rsplit(['/', '\\']).next())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let driver = driver.strip_suffix(".exe").unwrap_or(&driver);
-    if cfg!(windows)
-        || matches!(driver, "cl" | "clang-cl")
-        || arguments.iter().any(|a| a == "--driver-mode=cl")
-    {
-        Quoting::Windows
-    } else {
-        Quoting::Gnu
+    if arguments.iter().any(|a| a == "--driver-mode=cl") {
+        return Some(Quoting::Windows);
+    }
+    match driver {
+        Driver::Gnu => Some(Quoting::Gnu),
+        Driver::Msvc => Some(Quoting::Windows),
+        Driver::Unknown => None,
     }
 }
 
+/// Reads the compiler identity files Bazel wrote, one per configuration.
+pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error> {
+    let mut identities: Vec<CompilerIdentity> = Vec::new();
+    for path in paths {
+        let malformed = |reason: String| Error::MalformedIdentity {
+            path: path.to_string_lossy().into_owned(),
+            reason,
+        };
+        let text = fs::read_to_string(path).map_err(|err| malformed(err.to_string()))?;
+        let identity: CompilerIdentity =
+            serde_json::from_str(&text).map_err(|err| malformed(err.to_string()))?;
+        match identities
+            .iter()
+            .find(|known| known.configuration == identity.configuration)
+        {
+            Some(known) if *known != identity => {
+                return Err(Error::ConflictingIdentity {
+                    configuration: identity.configuration,
+                })
+            }
+            Some(_) => {}
+            None => identities.push(identity),
+        }
+    }
+    Ok(identities)
+}
+
+/// Fails when clang-tidy would run on an action whose driver Bazel did not identify.
+pub fn clang_tidy_projection(commands: &[CompileCommand]) -> Result<(), Error> {
+    for command in commands {
+        if !matches!(&command.identity, Some(i) if i.driver != Driver::Unknown) {
+            return Err(Error::UnsupportedProjection {
+                tool: "clang-tidy".to_string(),
+                target: command.target.clone(),
+                compiler: command
+                    .identity
+                    .as_ref()
+                    .map(|i| i.compiler.clone())
+                    .or_else(|| command.arguments.first().cloned())
+                    .unwrap_or_default(),
+            });
+        }
+    }
+    Ok(())
+}
+
 /// Expands every `@response` argument against the execroot.
-pub fn expand_response_files(arguments: &[String], execroot: &Path) -> Result<Vec<String>, Error> {
-    let quoting = rsp_quoting(arguments);
+pub fn expand_response_files(
+    arguments: &[String],
+    execroot: &Path,
+    quoting: Quoting,
+) -> Result<Vec<String>, Error> {
     let mut expanded = Vec::with_capacity(arguments.len());
     let mut chain = Vec::new();
     expand_into(arguments, execroot, quoting, &mut chain, &mut expanded)?;

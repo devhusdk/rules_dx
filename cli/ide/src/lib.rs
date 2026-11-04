@@ -276,7 +276,11 @@ mod tests {
     impl Runner for Fake {
         fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
             self.calls.set(self.calls.get() + 1);
-            Ok(vec![self.lib.clone(), self.lib.join("clangd")])
+            Ok(vec![
+                self.lib.clone(),
+                self.lib.join("clangd"),
+                self.lib.join("identity.cc_identity.json"),
+            ])
         }
 
         fn aquery(&self, _expr: &str) -> Result<String, String> {
@@ -307,6 +311,11 @@ mod tests {
     fn cc_runner(root: &Path) -> Fake {
         let mut runner = fake(root);
         std::fs::write(runner.lib.join("clangd"), "").expect("clangd");
+        std::fs::write(
+            runner.lib.join("identity.cc_identity.json"),
+            r#"{"configuration":"k8-fastbuild","compiler":"clang","family":"clang","driver":"gnu","abi":"itanium","target":"x86_64-linux-gnu"}"#,
+        )
+        .expect("identity");
         runner.aquery = AQUERY.to_owned();
         runner
     }

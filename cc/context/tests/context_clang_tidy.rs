@@ -7,6 +7,23 @@ struct Env {
     tidy: PathBuf,
 }
 
+fn gnu() -> Vec<cc_context::CompilerIdentity> {
+    vec![cc_context::CompilerIdentity {
+        configuration: "k8-fastbuild".to_string(),
+        compiler: "clang".to_string(),
+        family: "clang".to_string(),
+        driver: cc_context::Driver::Gnu,
+        abi: "itanium".to_string(),
+        target: "x86_64-linux-gnu".to_string(),
+    }]
+}
+
+#[test]
+fn the_selected_toolchain_reports_a_gnu_driver() {
+    let built = cc_context::read_identities(&[env_path("DX_IDENTITY")]).expect("identity");
+    assert_eq!(built[0].driver, cc_context::Driver::Gnu);
+}
+
 fn env_path(name: &str) -> PathBuf {
     PathBuf::from(std::env::var(name).unwrap_or_else(|_| panic!("{name}")))
 }
@@ -68,7 +85,7 @@ fn produce(
 ) -> Result<(Vec<cc_context::Entry>, Vec<cc_context::CompileCommand>), String> {
     let graph = cc_context::AqueryGraph::parse(&record(name)).map_err(|err| err.to_string())?;
     let commands = graph
-        .compile_commands(&env.tree)
+        .compile_commands(&env.tree, &gnu())
         .map_err(|err| err.to_string())?;
     let sources = vec!["cc/tests/fixtures/compilation_db/probe.c".to_string()];
     let entries = cc_context::database(&commands, &env.tree, label, &sources)
@@ -205,8 +222,12 @@ fn two_configurations_of_one_source_do_not_leak_into_one_database() {
     let env = stage("leak");
     let first = cc_context::AqueryGraph::parse(&record("probe_legacy")).expect("legacy record");
     let second = cc_context::AqueryGraph::parse(&record("probe_plain")).expect("plain record");
-    let legacy = first.compile_commands(&env.tree).expect("legacy commands");
-    let plain = second.compile_commands(&env.tree).expect("plain commands");
+    let legacy = first
+        .compile_commands(&env.tree, &gnu())
+        .expect("legacy commands");
+    let plain = second
+        .compile_commands(&env.tree, &gnu())
+        .expect("plain commands");
     assert_eq!(legacy[0].source, plain[0].source);
     assert_ne!(legacy[0].arguments, plain[0].arguments);
     let mut merged = legacy;
@@ -232,7 +253,7 @@ fn two_configurations_of_one_source_do_not_leak_into_one_database() {
 fn missing_context_fails_closed_instead_of_running_with_no_flags() {
     let env = stage("missing");
     let graph = cc_context::AqueryGraph::parse(&record("probe_legacy")).expect("legacy record");
-    let commands = graph.compile_commands(&env.tree).expect("commands");
+    let commands = graph.compile_commands(&env.tree, &gnu()).expect("commands");
     let absent = cc_context::database(
         &commands,
         &env.tree,
@@ -309,7 +330,7 @@ fn a_response_file_carries_the_real_target_flags() {
         .expect("define present");
     graph.actions[0].arguments[index] =
         "@bazel-out/k8-fastbuild/bin/probe_legacy.params".to_string();
-    let commands = graph.compile_commands(&env.tree).expect("commands");
+    let commands = graph.compile_commands(&env.tree, &gnu()).expect("commands");
     assert!(
         commands[0]
             .arguments

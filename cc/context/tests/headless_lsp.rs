@@ -929,11 +929,22 @@ fn rust_malformed_project_is_explicit() {
         .expect("server must stay usable after the failure");
 }
 
+fn gnu_identity() -> cc_context::CompilerIdentity {
+    cc_context::CompilerIdentity {
+        configuration: "k8-fastbuild".to_string(),
+        compiler: "clang".to_string(),
+        family: "clang".to_string(),
+        driver: cc_context::Driver::Gnu,
+        abi: "itanium".to_string(),
+        target: "x86_64-linux-gnu".to_string(),
+    }
+}
+
 fn clangd_database(work: &Path) -> (String, PathBuf, String) {
     let record = std::fs::read_to_string(tool("DX_LSP_AQUERY")).expect("aquery record must read");
     let graph = AqueryGraph::parse(&record).expect("aquery record must parse");
     let commands = graph
-        .compile_commands(Path::new("/"))
+        .compile_commands(Path::new("/"), &[gnu_identity()])
         .expect("compile commands must decode");
     assert!(!commands.is_empty(), "record must hold a compile action");
     let target = commands[0].target.clone();

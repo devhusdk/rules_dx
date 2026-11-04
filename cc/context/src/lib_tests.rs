@@ -11,6 +11,21 @@ fn graph_json(arguments: &[&str], source: &str, target: &str) -> String {
     )
 }
 
+fn identity(configuration: &str, driver: Driver) -> CompilerIdentity {
+    CompilerIdentity {
+        configuration: configuration.to_string(),
+        compiler: "cc".to_string(),
+        family: "clang".to_string(),
+        driver,
+        abi: "itanium".to_string(),
+        target: "x86_64-linux-gnu".to_string(),
+    }
+}
+
+fn gnu() -> CompilerIdentity {
+    identity("k8-fastbuild", Driver::Gnu)
+}
+
 fn scratch(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("cc-context-{}-{tag}", std::process::id()));
     fs::create_dir_all(&dir).expect("scratch dir");
@@ -33,7 +48,7 @@ fn configured_compile_action_keeps_its_own_argv_and_inputs() {
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
     let commands = graph
-        .compile_commands(Path::new("/execroot"))
+        .compile_commands(Path::new("/execroot"), &[gnu()])
         .expect("compile command");
     assert_eq!(commands.len(), 1);
     let command = &commands[0];
@@ -76,7 +91,9 @@ fn response_file_arguments_are_expanded_in_place() {
         "//pkg:probe",
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
-    let commands = graph.compile_commands(&root).expect("compile command");
+    let commands = graph
+        .compile_commands(&root, &[gnu()])
+        .expect("compile command");
     assert_eq!(
         commands[0].arguments,
         vec![
@@ -102,7 +119,7 @@ fn an_unreadable_response_file_fails_closed() {
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
     let error = graph
-        .compile_commands(&root)
+        .compile_commands(&root, &[gnu()])
         .expect_err("missing response file");
     assert!(matches!(error, Error::ResponseFile { .. }), "{error}");
     fs::remove_dir_all(&root).ok();
@@ -129,7 +146,9 @@ fn database_entries_resolve_against_the_execroot() {
         "//pkg:probe",
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
-    let commands = graph.compile_commands(&root).expect("compile command");
+    let commands = graph
+        .compile_commands(&root, &[gnu()])
+        .expect("compile command");
     let entries = database(
         &commands,
         &root,
@@ -160,7 +179,9 @@ fn a_label_without_a_compile_action_fails_closed() {
         "//pkg:probe_upstream",
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
-    let commands = graph.compile_commands(&root).expect("compile command");
+    let commands = graph
+        .compile_commands(&root, &[gnu()])
+        .expect("compile command");
     let error = database(&commands, &root, "//pkg:absent", &[]).expect_err("no compile action");
     assert_eq!(
         error,
@@ -195,7 +216,9 @@ fn two_configurations_of_one_source_fail_closed() {
             path: artifact.path,
             path_fragment_id: artifact.path_fragment_id,
         }));
-    let commands = graph.compile_commands(&root).expect("compile commands");
+    let commands = graph
+        .compile_commands(&root, &[gnu()])
+        .expect("compile commands");
     let error = database(&commands, &root, "//pkg:alpha", &[]).expect_err("leaked context");
     assert_eq!(
         error,
@@ -216,7 +239,9 @@ fn a_missing_required_source_fails_closed() {
         "//pkg:probe",
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
-    let commands = graph.compile_commands(&root).expect("compile command");
+    let commands = graph
+        .compile_commands(&root, &[gnu()])
+        .expect("compile command");
     let error = database(
         &commands,
         &root,
@@ -242,7 +267,9 @@ fn a_relative_execroot_fails_closed() {
         "//pkg:probe",
     );
     let graph = AqueryGraph::parse(&text).expect("record decodes");
-    let commands = graph.compile_commands(&root).expect("compile command");
+    let commands = graph
+        .compile_commands(&root, &[gnu()])
+        .expect("compile command");
     let error =
         database(&commands, Path::new("relative"), "//pkg:probe", &[]).expect_err("execroot");
     assert_eq!(
@@ -259,7 +286,9 @@ fn a_compile_action_without_a_source_flag_fails_closed() {
     let root = scratch("relative_execroot");
     let text = graph_json(&["/usr/bin/gcc", "-c"], "probe.cc", "//pkg:probe");
     let graph = AqueryGraph::parse(&text).expect("record decodes");
-    let error = graph.compile_commands(&root).expect_err("source flag");
+    let error = graph
+        .compile_commands(&root, &[gnu()])
+        .expect_err("source flag");
     assert_eq!(
         error,
         Error::MissingSourceFlag {
@@ -358,24 +387,121 @@ fn gnu_quoting_handles_single_quotes() {
 }
 
 #[test]
-fn quoting_follows_the_driver() {
-    assert_eq!(rsp_quoting(&strings(&["C:\\VC\\CL.EXE"])), Quoting::Windows);
-    assert_eq!(rsp_quoting(&strings(&["/x/clang-cl"])), Quoting::Windows);
-    assert_eq!(
-        rsp_quoting(&strings(&["clang", "--driver-mode=cl"])),
-        Quoting::Windows
-    );
-    assert_eq!(
-        rsp_quoting(&strings(&["cl.exe", "--rsp-quoting=posix"])),
-        Quoting::Gnu
-    );
-    assert_eq!(
-        rsp_quoting(&strings(&["gcc", "--rsp-quoting=windows"])),
-        Quoting::Windows
-    );
-    if !cfg!(windows) {
-        assert_eq!(rsp_quoting(&strings(&["/usr/bin/gcc"])), Quoting::Gnu);
+fn quoting_follows_the_selected_driver() {
+    let cl = strings(&["cl.exe"]);
+    assert_eq!(rsp_quoting(&cl, Driver::Gnu), Some(Quoting::Gnu));
+    assert_eq!(rsp_quoting(&cl, Driver::Msvc), Some(Quoting::Windows));
+    assert_eq!(rsp_quoting(&cl, Driver::Unknown), None);
+    let mode = strings(&["clang", "--driver-mode=cl"]);
+    assert_eq!(rsp_quoting(&mode, Driver::Unknown), Some(Quoting::Windows));
+    let posix = strings(&["cl.exe", "--rsp-quoting=posix"]);
+    assert_eq!(rsp_quoting(&posix, Driver::Msvc), Some(Quoting::Gnu));
+    let windows = strings(&["gcc", "--rsp-quoting=windows"]);
+    assert_eq!(rsp_quoting(&windows, Driver::Gnu), Some(Quoting::Windows));
+}
+
+fn rsp_graph(root: &Path, rsp: &str, configuration: &str) -> AqueryGraph {
+    fs::write(root.join("x.rsp"), rsp).expect("rsp");
+    let text = graph_json(
+        &["tool", "--odd", "-c", "pkg/a.cc", "@x.rsp"],
+        "a.cc",
+        "//pkg:a",
+    )
+    .replace("k8-fastbuild\"", &format!("{configuration}\""));
+    AqueryGraph::parse(&text).expect("graph")
+}
+
+#[test]
+fn an_unknown_driver_keeps_argv_and_response_files_as_recorded() {
+    let root = scratch("unknown");
+    let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");
+    for identities in [vec![identity("k8-fastbuild", Driver::Unknown)], vec![]] {
+        let commands = graph
+            .compile_commands(&root, &identities)
+            .expect("commands");
+        assert_eq!(
+            commands[0].arguments,
+            strings(&["tool", "--odd", "-c", "pkg/a.cc", "@x.rsp"])
+        );
     }
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn an_msvc_identity_keeps_argv_zero_and_every_argument() {
+    let root = scratch("msvc");
+    let graph = rsp_graph(&root, "/DX=1 \"a b\"", "k8-fastbuild");
+    let commands = graph
+        .compile_commands(&root, &[identity("k8-fastbuild", Driver::Msvc)])
+        .expect("commands");
+    assert_eq!(
+        commands[0].arguments,
+        strings(&["tool", "--odd", "-c", "pkg/a.cc", "/DX=1", "a b"])
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn each_configuration_gets_its_own_identity() {
+    let root = scratch("configs");
+    let graph = rsp_graph(&root, "-DX=1", "arm64-opt");
+    let identities = [gnu(), identity("arm64-opt", Driver::Msvc)];
+    let commands = graph
+        .compile_commands(&root, &identities)
+        .expect("commands");
+    let found = commands[0].identity.as_ref().expect("identity");
+    assert_eq!(found.driver, Driver::Msvc);
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn the_clang_tidy_projection_fails_without_a_known_driver() {
+    let root = scratch("projection");
+    let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");
+    let known = graph.compile_commands(&root, &[gnu()]).expect("commands");
+    assert_eq!(clang_tidy_projection(&known), Ok(()));
+    for identities in [vec![identity("k8-fastbuild", Driver::Unknown)], vec![]] {
+        let commands = graph
+            .compile_commands(&root, &identities)
+            .expect("commands");
+        let error = clang_tidy_projection(&commands).expect_err("unsupported");
+        assert!(
+            matches!(error, Error::UnsupportedProjection { .. }),
+            "{error}"
+        );
+        let before = database(&commands, &root, "//pkg:a", &[]);
+        assert_eq!(before, database(&commands, &root, "//pkg:a", &[]));
+    }
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn identity_files_are_read_and_checked() {
+    let root = scratch("identity-files");
+    let write = |name: &str, text: &str| {
+        let path = root.join(name);
+        fs::write(&path, text).expect("identity");
+        path
+    };
+    let a = write("a.json", r#"{"configuration":"c","driver":"gnu"}"#);
+    let same = write("b.json", r#"{"configuration":"c","driver":"gnu"}"#);
+    let other = write("c.json", r#"{"configuration":"c","driver":"msvc"}"#);
+    let odd = write("d.json", r#"{"configuration":"d","driver":"borland"}"#);
+    let bad = write("e.json", "{");
+    assert_eq!(read_identities(&[a.clone(), same]).expect("same").len(), 1);
+    assert!(matches!(
+        read_identities(&[a, other]),
+        Err(Error::ConflictingIdentity { .. })
+    ));
+    assert_eq!(
+        read_identities(&[odd]).expect("odd")[0].driver,
+        Driver::Unknown
+    );
+    assert!(matches!(
+        read_identities(&[bad]),
+        Err(Error::MalformedIdentity { .. })
+    ));
+    fs::remove_dir_all(&root).ok();
 }
 
 #[test]
@@ -388,7 +514,7 @@ fn response_files_decode_boms_and_nest() {
     fs::write(root.join("outer.rsp"), utf16).expect("outer");
     fs::write(root.join("inner.rsp"), b"\xEF\xBB\xBF/DB=2").expect("inner");
     let args = strings(&["cl.exe", "@outer.rsp", "/Tcfoo.c"]);
-    let expanded = expand_response_files(&args, &root).expect("expands");
+    let expanded = expand_response_files(&args, &root, Quoting::Windows).expect("expands");
     assert_eq!(expanded, strings(&["cl.exe", "/DA=1", "/DB=2", "/Tcfoo.c"]));
     assert_eq!(source_argument("//p:t", &expanded), Ok("foo.c"));
     fs::remove_dir_all(&root).ok();
@@ -398,7 +524,8 @@ fn response_files_decode_boms_and_nest() {
 fn a_self_including_response_file_fails() {
     let root = scratch("cycle");
     fs::write(root.join("a.rsp"), "@a.rsp").expect("a");
-    let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root).expect_err("cycle");
+    let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root, Quoting::Gnu)
+        .expect_err("cycle");
     assert_eq!(
         error,
         Error::ResponseFileCycle {
@@ -412,7 +539,8 @@ fn a_self_including_response_file_fails() {
 fn an_invalid_utf8_response_file_fails() {
     let root = scratch("badutf8");
     fs::write(root.join("a.rsp"), b"\xFF\xFF\xFF").expect("a");
-    let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root).expect_err("bad");
+    let error =
+        expand_response_files(&strings(&["gcc", "@a.rsp"]), &root, Quoting::Gnu).expect_err("bad");
     assert!(
         matches!(error, Error::ResponseFileEncoding { .. }),
         "{error}"

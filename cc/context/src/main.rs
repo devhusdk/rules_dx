@@ -16,7 +16,7 @@ use std::process::ExitCode;
 use cc_context::{self, Error};
 
 const USAGE: &str = "Usage: compile_db --aquery <path|-> --execroot <dir> --label <label> \
---config <policy path> --output <dir> [--require-source <path>]...";
+--config <policy path> --output <dir> --identity <file>... [--require-source <path>]...";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -36,6 +36,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
     let mut named: BTreeSet<&str> = BTreeSet::new();
     let mut single: Vec<(&str, String)> = Vec::new();
     let mut sources: Vec<String> = Vec::new();
+    let mut identity_paths: Vec<PathBuf> = Vec::new();
     let mut index = 0;
     while index < args.len() {
         let flag = args[index].as_str();
@@ -47,6 +48,8 @@ fn run(args: Vec<String>) -> Result<(), Error> {
             .ok_or_else(|| Error::Usage(format!("'{flag}' needs a value")))?;
         if flag == "--require-source" {
             sources.push(value.clone());
+        } else if flag == "--identity" {
+            identity_paths.push(PathBuf::from(value));
         } else if named.insert(flag) {
             single.push((flag, value.clone()));
         } else {
@@ -75,7 +78,12 @@ fn run(args: Vec<String>) -> Result<(), Error> {
     let execroot = PathBuf::from(value("--execroot")?);
     let policy = cc_context::read_policy(&policy_path)?;
     let graph = cc_context::AqueryGraph::parse(&cc_context::read_input(&aquery)?)?;
-    let commands = graph.compile_commands(&execroot)?;
+    if identity_paths.is_empty() {
+        return Err(Error::Usage("'--identity' is required".to_string()));
+    }
+    let identities = cc_context::read_identities(&identity_paths)?;
+    let commands = graph.compile_commands(&execroot, &identities)?;
+    cc_context::clang_tidy_projection(&commands)?;
     let entries = cc_context::database(&commands, &execroot, &label, &sources)?;
     cc_context::write_bundle(&output, &entries, &policy)?;
     println!(

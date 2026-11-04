@@ -15,16 +15,20 @@ struct SourceArchiveInputs<'a> {
     tag: &'a str,
     commit: &'a str,
     out_dir: PathBuf,
+    pins: Option<PathBuf>,
 }
 
 fn parse_source_archive_args(argv: &[String]) -> Option<SourceArchiveInputs<'_>> {
-    if argv.len() != 4 {
-        return None;
-    }
+    let pins = match argv.len() {
+        4 => None,
+        6 if argv[4] == "--pins" => Some(PathBuf::from(&argv[5])),
+        _ => return None,
+    };
     Some(SourceArchiveInputs {
         tag: &argv[1],
         commit: &argv[2],
         out_dir: PathBuf::from(&argv[3]),
+        pins,
     })
 }
 
@@ -40,8 +44,19 @@ fn write_with(inputs: &SourceArchiveInputs<'_>, repo: Option<PathBuf>) -> Result
             .to_owned()
     })?;
     let candidate = dx_release_tools::release_candidate(inputs.tag, Some(inputs.commit))?;
-    let built =
-        dx_release_tools::candidate::write_release_source(&repo, &candidate, &inputs.out_dir)?;
+    let pins =
+        match &inputs.pins {
+            Some(path) => Some(std::fs::read(path).map_err(|error| {
+                format!("source_archive: cannot read {}: {error}", path.display())
+            })?),
+            None => None,
+        };
+    let built = dx_release_tools::candidate::write_release_source(
+        &repo,
+        &candidate,
+        &inputs.out_dir,
+        pins.as_deref(),
+    )?;
     Ok(format!(
         "source_archive: wrote {} sha256 {} to {}\n",
         dx_release_tools::candidate::release_source_name(&candidate),
@@ -53,7 +68,10 @@ fn write_with(inputs: &SourceArchiveInputs<'_>, repo: Option<PathBuf>) -> Result
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn run(argv: &[String]) -> i32 {
     let Some(inputs) = parse_source_archive_args(argv) else {
-        return dx_release_tools::bin_usage("source_archive", "<tag> <commit> <out-dir>");
+        return dx_release_tools::bin_usage(
+            "source_archive",
+            "<tag> <commit> <out-dir> [--pins FILE]",
+        );
     };
     let repo = workspace_dir_of(std::env::var_os("BUILD_WORKSPACE_DIRECTORY"));
     match write_with(&inputs, repo) {
@@ -85,6 +103,14 @@ mod tests {
             parse_source_archive_args(&argv_of(&["source_archive", "v1.0.0", "abc"])).is_none()
         );
         assert!(parse_source_archive_args(&argv_of(&["s", "v1", "abc", "/o", "x"])).is_none());
+        assert!(parse_source_archive_args(&argv_of(&["s", "v1", "abc", "/o", "--pins"])).is_none());
+        assert!(
+            parse_source_archive_args(&argv_of(&["s", "v1", "abc", "/o", "--x", "f"])).is_none()
+        );
+        assert!(
+            parse_source_archive_args(&argv_of(&["s", "v1", "abc", "/o", "--pins", "f", "g"]))
+                .is_none()
+        );
     }
 
     #[test]
@@ -94,6 +120,30 @@ mod tests {
         assert_eq!(parsed.tag, "v1.0.0");
         assert_eq!(parsed.commit, "abc");
         assert_eq!(parsed.out_dir, PathBuf::from("/out"));
+        assert_eq!(parsed.pins, None);
+    }
+
+    #[test]
+    fn parse_reads_the_pins_file() {
+        let argv = argv_of(&[
+            "source_archive",
+            "v1.0.0",
+            "abc",
+            "/out",
+            "--pins",
+            "/p.bzl",
+        ]);
+        let parsed = parse_source_archive_args(&argv).expect("parsed");
+        assert_eq!(parsed.pins, Some(PathBuf::from("/p.bzl")));
+    }
+
+    #[test]
+    fn write_reports_an_unreadable_pins_file() {
+        let commit = "a".repeat(40);
+        let argv = argv_of(&["s", "v1.0.0", &commit, "/out", "--pins", "/nope/p.bzl"]);
+        let parsed = parse_source_archive_args(&argv).expect("parsed");
+        let error = write_with(&parsed, Some(PathBuf::from("/ws"))).expect_err("no file");
+        assert!(error.contains("cannot read /nope/p.bzl"), "{error}");
     }
 
     #[test]

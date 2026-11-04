@@ -338,9 +338,10 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
 
     let candidate = Candidate::new(VERSION, &sha).unwrap_or_else(|error| panic!("{error}"));
     let archive = scratch.join("rules_dx.tar.gz");
-    let built = build_source_archive(&git_dir, &candidate, &archive)
+    let built = build_source_archive(&git_dir, &candidate, &archive, None)
         .unwrap_or_else(|error| panic!("{error}"));
-    source_archive_error(&archive, &git_dir, &candidate).unwrap_or_else(|error| panic!("{error}"));
+    source_archive_error(&archive, &git_dir, &candidate, None)
+        .unwrap_or_else(|error| panic!("{error}"));
 
     assert_registry_consumer(&candidate, &archive, &built.integrity);
     assert_eq!(repo_state(&root), before, "the test touched the checkout");

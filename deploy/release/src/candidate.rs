@@ -355,13 +355,26 @@ fn read_batch(
     Ok(blobs)
 }
 
+/// The one archive member a release may fill in.
+pub const PINS_PATH: &str = "cli/prebuilt/pins.bzl";
+
 /// Builds the source archive of a candidate commit from git blobs.
+///
+/// With `pins`, the archive holds those bytes for [`PINS_PATH`] instead of the commit's blob.
 pub fn build_source_archive(
     repo: &Path,
     candidate: &Candidate,
     dst: &Path,
+    pins: Option<&[u8]>,
 ) -> Result<SourceArchive, String> {
-    let files = commit_tree(repo, candidate)?;
+    let mut files = commit_tree(repo, candidate)?;
+    if let Some(pins) = pins {
+        let file = files
+            .iter_mut()
+            .find(|file| file.path == PINS_PATH)
+            .ok_or_else(|| format!("candidate: commit has no {PINS_PATH}"))?;
+        file.data = pins.to_vec();
+    }
     let prefix = candidate.strip_prefix();
     let names: Vec<String> = files
         .iter()
@@ -381,21 +394,31 @@ pub fn build_source_archive(
 }
 
 /// Checks that an archive holds exactly the candidate commit's files.
+///
+/// With `pins`, [`PINS_PATH`] must hold those bytes instead of the commit's blob.
 pub fn source_archive_error(
     archive: &Path,
     repo: &Path,
     candidate: &Candidate,
+    pins: Option<&[u8]>,
 ) -> Result<(), String> {
     let prefix = format!("{}/", candidate.strip_prefix());
     let mut want: BTreeMap<String, (u32, String)> = commit_tree(repo, candidate)?
         .into_iter()
         .map(|file| {
+            let data = match pins {
+                Some(pins) if file.path == PINS_PATH => pins,
+                _ => file.data.as_slice(),
+            };
             (
                 format!("{prefix}{}", file.path),
-                (file.mode, dx_digest::sha256_hex(&file.data)),
+                (file.mode, dx_digest::sha256_hex(data)),
             )
         })
         .collect();
+    if pins.is_some() && !want.contains_key(&format!("{prefix}{PINS_PATH}")) {
+        return Err(format!("candidate: commit has no {PINS_PATH}"));
+    }
     let listing = dx_deploy_tools::archive_listing(archive)
         .map_err(|error| format!("candidate: cannot read {}: {error}", archive.display()))?;
     for (name, mode, digest) in listing {
@@ -449,10 +472,12 @@ fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), String> {
 ///
 /// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar and `source.json`.
 /// Refuses an `out_dir` that already holds different bytes under those names.
+/// `pins` replaces [`PINS_PATH`] as in [`build_source_archive`].
 pub fn write_release_source(
     repo: &Path,
     candidate: &Candidate,
     out_dir: &Path,
+    pins: Option<&[u8]>,
 ) -> Result<SourceArchive, String> {
     if !out_dir.is_absolute() {
         return Err(format!(
@@ -465,7 +490,7 @@ pub fn write_release_source(
     let name = release_source_name(candidate);
     let staged = out_dir.join(format!(".{name}.staging"));
     let staged_json = out_dir.join(".source.json.staging");
-    let result = stage_release_source(repo, candidate, &name, &staged, &staged_json);
+    let result = stage_release_source(repo, candidate, &name, &staged, &staged_json, pins);
     let _ = std::fs::remove_file(&staged);
     let _ = std::fs::remove_file(&staged_json);
     let (built, outputs) = result?;
@@ -487,9 +512,10 @@ fn stage_release_source(
     name: &str,
     staged: &Path,
     staged_json: &Path,
+    pins: Option<&[u8]>,
 ) -> Result<StagedOutputs, String> {
-    let built = build_source_archive(repo, candidate, staged)?;
-    source_archive_error(staged, repo, candidate)?;
+    let built = build_source_archive(repo, candidate, staged, pins)?;
+    source_archive_error(staged, repo, candidate, pins)?;
     let integrity =
         write_bcr_source_for_archive(staged_json, BCR_WANT_MODULE, candidate.version(), staged)
             .map_err(|error| format!("candidate: cannot write source.json: {error}"))?;

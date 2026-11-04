@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use dx_release_tools::candidate::{
     build_source_archive, candidate_module_file, ls_remote_output, read_git_state,
-    source_archive_error, stage_local_registry, write_release_source, Candidate,
+    source_archive_error, stage_local_registry, write_release_source, Candidate, PINS_PATH,
 };
 use dx_release_tools::{
     bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run, RELEASE_REMOTE,
@@ -122,6 +122,7 @@ impl Fixture {
             &repo.join("lib/defs.bzl"),
             b"def hello():\n    return \"hello\"\n",
         );
+        write(&repo.join(PINS_PATH), b"SHA256 = {\"dx\": \"\"}\n");
         git(&repo, &["add", "-A"]);
         git(&repo, &["update-index", "--chmod=+x", "tool.sh"]);
         git(&repo, &["commit", "-q", "-m", "candidate"]);
@@ -193,7 +194,7 @@ impl Fixture {
 
     fn archive(&self, name: &str) -> PathBuf {
         let path = self.path(name);
-        build_source_archive(&self.repo, &self.candidate(), &path).expect("archive");
+        build_source_archive(&self.repo, &self.candidate(), &path, None).expect("archive");
         path
     }
 }
@@ -229,8 +230,8 @@ fn archive_builds_identical_bytes_and_digest() {
     let candidate = fixture.candidate();
     let first = fixture.path("first.tar.gz");
     let second = fixture.path("second.tar.gz");
-    let one = build_source_archive(&fixture.repo, &candidate, &first).expect("first");
-    let two = build_source_archive(&fixture.repo, &candidate, &second).expect("second");
+    let one = build_source_archive(&fixture.repo, &candidate, &first, None).expect("first");
+    let two = build_source_archive(&fixture.repo, &candidate, &second, None).expect("second");
     assert_eq!(one, two);
     assert_eq!(
         std::fs::read(&first).expect("first"),
@@ -244,7 +245,7 @@ fn archive_builds_identical_bytes_and_digest() {
         one.integrity,
         bcr_integrity_of_digest(&one.digest).expect("integrity")
     );
-    source_archive_error(&first, &fixture.repo, &candidate).expect("verifies");
+    source_archive_error(&first, &fixture.repo, &candidate, None).expect("verifies");
 }
 
 #[test]
@@ -283,6 +284,115 @@ fn archive_members_equal_the_commit_tree() {
     assert_eq!(module, MODULE.as_bytes());
 }
 
+const FILLED_PINS: &[u8] = b"SHA256 = {\"dx\": \"abc\"}\n";
+
+#[test]
+fn archive_swaps_in_only_the_pins_file() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let plain = fixture.archive("plain.tar.gz");
+    let filled = fixture.path("filled.tar.gz");
+    build_source_archive(&fixture.repo, &candidate, &filled, Some(FILLED_PINS)).expect("filled");
+    let pins_name = format!("rules_dx-{VERSION}/{PINS_PATH}");
+    let (plain, filled) = (members(&plain), members(&filled));
+    assert_eq!(plain.len(), filled.len());
+    for (one, two) in plain.iter().zip(&filled) {
+        assert_eq!((&one.0, one.2), (&two.0, two.2));
+        if one.0 == pins_name {
+            assert_eq!(two.1, FILLED_PINS);
+            assert_ne!(one.1, two.1);
+        } else {
+            assert_eq!(one.1, two.1, "{}", one.0);
+        }
+    }
+}
+
+#[test]
+fn archive_check_needs_the_same_pins() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let filled = fixture.path("filled.tar.gz");
+    build_source_archive(&fixture.repo, &candidate, &filled, Some(FILLED_PINS)).expect("filled");
+    source_archive_error(&filled, &fixture.repo, &candidate, Some(FILLED_PINS)).expect("same");
+    let name = format!("rules_dx-{VERSION}/{PINS_PATH}");
+    let differs = Err(format!(
+        "candidate: archive member {name} differs from commit {}",
+        fixture.head
+    ));
+    assert_eq!(
+        source_archive_error(&filled, &fixture.repo, &candidate, Some(b"other\n")),
+        differs
+    );
+    assert_eq!(
+        source_archive_error(&filled, &fixture.repo, &candidate, None),
+        differs
+    );
+    let plain = fixture.archive("plain.tar.gz");
+    assert_eq!(
+        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        differs
+    );
+}
+
+#[test]
+fn archive_check_with_pins_still_rejects_other_changes() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let filled = fixture.path("filled.tar.gz");
+    build_source_archive(&fixture.repo, &candidate, &filled, Some(FILLED_PINS)).expect("filled");
+    let module = format!("rules_dx-{VERSION}/MODULE.bazel");
+    let mut changed = members(&filled);
+    for member in &mut changed {
+        if member.0 == module {
+            member.1.extend_from_slice(b"# extra\n");
+        }
+    }
+    let bad = fixture.path("changed.tar.gz");
+    repack(&changed, &bad);
+    assert_eq!(
+        source_archive_error(&bad, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        Err(format!(
+            "candidate: archive member {module} differs from commit {}",
+            fixture.head
+        ))
+    );
+}
+
+#[test]
+fn pins_need_a_pins_file_in_the_commit() {
+    let fixture = Fixture::new();
+    git(&fixture.repo, &["rm", "-q", PINS_PATH]);
+    git(&fixture.repo, &["commit", "-q", "-m", "no pins"]);
+    let head = git(&fixture.repo, &["rev-parse", "HEAD"]).trim().to_owned();
+    let candidate = Candidate::new(VERSION, &head).expect("candidate");
+    let dst = fixture.path("none.tar.gz");
+    let want = Err(format!("candidate: commit has no {PINS_PATH}"));
+    assert_eq!(
+        build_source_archive(&fixture.repo, &candidate, &dst, Some(FILLED_PINS)).map(|_| ()),
+        want
+    );
+    let plain = fixture.path("plain.tar.gz");
+    build_source_archive(&fixture.repo, &candidate, &plain, None).expect("plain");
+    assert_eq!(
+        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        want
+    );
+}
+
+#[test]
+fn release_source_with_pins_verifies_and_carries_them() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let out = fixture.path("out");
+    write_release_source(&fixture.repo, &candidate, &out, Some(FILLED_PINS)).expect("release");
+    let archive = out.join(format!("rules_dx-{VERSION}.tar.gz"));
+    source_archive_error(&archive, &fixture.repo, &candidate, Some(FILLED_PINS)).expect("verifies");
+    let pins =
+        dx_deploy_tools::archive_read_member(&archive, &format!("rules_dx-{VERSION}/{PINS_PATH}"))
+            .expect("pins");
+    assert_eq!(pins, FILLED_PINS);
+}
+
 #[test]
 fn archive_rejects_a_dropped_member() {
     let fixture = Fixture::new();
@@ -294,7 +404,7 @@ fn archive_rejects_a_dropped_member() {
     let bad = fixture.path("dropped.tar.gz");
     repack(&kept, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate()),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
         Err(format!("candidate: archive drops member {dropped}"))
     );
     assert_eq!(fixture.refs(), before);
@@ -316,7 +426,7 @@ fn archive_rejects_a_changed_blob_and_mode() {
     let bad = fixture.path("changed.tar.gz");
     repack(&changed, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate()),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
         Err(format!(
             "candidate: archive member {module} differs from commit {}",
             fixture.head
@@ -331,7 +441,7 @@ fn archive_rejects_a_changed_blob_and_mode() {
     }
     repack(&moded, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate()),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
         Err(format!(
             "candidate: archive member {tool} has mode 644, want 755"
         ))
@@ -344,7 +454,7 @@ fn archive_rejects_a_changed_blob_and_mode() {
     ));
     repack(&extra, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate()),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
         Err(format!(
             "candidate: archive has extra member rules_dx-{VERSION}/extra.txt"
         ))
@@ -367,8 +477,8 @@ fn archive_rejects_a_wrong_strip_prefix() {
         .collect();
     let bad = fixture.path("prefix.tar.gz");
     repack(&renamed, &bad);
-    let error =
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate()).expect_err("wrong prefix");
+    let error = source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+        .expect_err("wrong prefix");
     assert!(
         error.contains("is outside strip prefix rules_dx-1.2.3-rc1/"),
         "{error}"
@@ -387,13 +497,14 @@ fn archive_rejects_a_foreign_sha() {
     let foreign = git(&other, &["rev-parse", "HEAD"]).trim().to_owned();
     let candidate = Candidate::new(VERSION, &foreign).expect("candidate");
     let dst = fixture.path("foreign.tar.gz");
-    let error = build_source_archive(&fixture.repo, &candidate, &dst).expect_err("foreign sha");
+    let error =
+        build_source_archive(&fixture.repo, &candidate, &dst, None).expect_err("foreign sha");
     assert!(
         error.starts_with(&format!("candidate: commit {foreign} is not in ")),
         "{error}"
     );
     assert!(!dst.exists());
-    let error = build_source_archive(&fixture.path("missing"), &fixture.candidate(), &dst)
+    let error = build_source_archive(&fixture.path("missing"), &fixture.candidate(), &dst, None)
         .expect_err("non-repo");
     assert!(error.contains("is not in"), "{error}");
 }
@@ -407,8 +518,13 @@ fn archive_rejects_symlinks() {
     git(&fixture.repo, &["commit", "-q", "-m", "link"]);
     let head = git(&fixture.repo, &["rev-parse", "HEAD"]).trim().to_owned();
     let candidate = Candidate::new(VERSION, &head).expect("candidate");
-    let error = build_source_archive(&fixture.repo, &candidate, &fixture.path("link.tar.gz"))
-        .expect_err("symlink");
+    let error = build_source_archive(
+        &fixture.repo,
+        &candidate,
+        &fixture.path("link.tar.gz"),
+        None,
+    )
+    .expect_err("symlink");
     assert_eq!(
         error,
         "candidate: link is a blob with mode 120000; only regular files are archived"
@@ -651,10 +767,11 @@ fn release_source_writes_archive_sidecar_and_source_json() {
     let fixture = Fixture::new();
     let candidate = fixture.candidate();
     let out = fixture.path("release-source");
-    let built = write_release_source(&fixture.repo, &candidate, &out).expect("release source");
+    let built =
+        write_release_source(&fixture.repo, &candidate, &out, None).expect("release source");
     let name = format!("rules_dx-{VERSION}.tar.gz");
     let archive = out.join(&name);
-    source_archive_error(&archive, &fixture.repo, &candidate).expect("verifies");
+    source_archive_error(&archive, &fixture.repo, &candidate, None).expect("verifies");
     assert_eq!(
         built.digest,
         dx_digest::sha256_file_hex(&archive).expect("digest")
@@ -692,9 +809,9 @@ fn release_source_is_idempotent_and_byte_identical() {
     let candidate = fixture.candidate();
     let one = fixture.path("one");
     let two = fixture.path("two");
-    write_release_source(&fixture.repo, &candidate, &one).expect("one");
-    write_release_source(&fixture.repo, &candidate, &two).expect("two");
-    write_release_source(&fixture.repo, &candidate, &one).expect("rerun");
+    write_release_source(&fixture.repo, &candidate, &one, None).expect("one");
+    write_release_source(&fixture.repo, &candidate, &two, None).expect("two");
+    write_release_source(&fixture.repo, &candidate, &one, None).expect("rerun");
     for file in [
         format!("rules_dx-{VERSION}.tar.gz"),
         format!("rules_dx-{VERSION}.tar.gz.sha256"),
@@ -713,7 +830,7 @@ fn release_source_rejects_unknown_commit() {
     let fixture = Fixture::new();
     let candidate = Candidate::new(VERSION, &"0".repeat(40)).expect("candidate");
     let out = fixture.path("unknown");
-    assert!(write_release_source(&fixture.repo, &candidate, &out).is_err());
+    assert!(write_release_source(&fixture.repo, &candidate, &out, None).is_err());
     assert!(!out.join("source.json").exists());
 }
 
@@ -721,12 +838,12 @@ fn release_source_rejects_unknown_commit() {
 fn release_source_rejects_relative_and_conflicting_out_dir() {
     let fixture = Fixture::new();
     let candidate = fixture.candidate();
-    let error = write_release_source(&fixture.repo, &candidate, Path::new("relative"))
+    let error = write_release_source(&fixture.repo, &candidate, Path::new("relative"), None)
         .expect_err("relative");
     assert!(error.contains("must be absolute"), "{error}");
     let out = fixture.path("conflict");
     write(&out.join("source.json"), b"{}\n");
-    let error = write_release_source(&fixture.repo, &candidate, &out).expect_err("conflict");
+    let error = write_release_source(&fixture.repo, &candidate, &out, None).expect_err("conflict");
     assert!(error.contains("different bytes"), "{error}");
     assert!(!out.join(format!("rules_dx-{VERSION}.tar.gz")).exists());
 }

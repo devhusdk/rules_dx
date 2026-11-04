@@ -34,6 +34,35 @@ rust_binary(
 )
 
 rust_test(
+    name = "dsym_test",
+    srcs = ["dsym_test.rs"],
+    data = [
+        ":dsym",
+        "//deploy/symbols/fixture:known.c",
+        "//deploy/symbols/fixture:known_dsym",
+        "//deploy/symbols/fixture:known_dsym_symbols",
+        "@llvm//tools:dsymutil",
+        "@llvm//tools:llvm-nm",
+        "@llvm//tools:llvm-symbolizer",
+    ],
+    env = {
+        "DX_DSYM": "$(rootpath :dsym)",
+        "DX_DSYMUTIL": "$(rootpath @llvm//tools:dsymutil)",
+        "DX_KNOWN_BINARY": "$(rootpath //deploy/symbols/fixture:known_dsym)",
+        "DX_KNOWN_DSYM_SYMBOLS": "$(rootpaths //deploy/symbols/fixture:known_dsym_symbols)",
+        "DX_KNOWN_SOURCE": "$(rootpath //deploy/symbols/fixture:known.c)",
+        "DX_LLVM_NM": "$(rootpath @llvm//tools:llvm-nm)",
+        "DX_LLVM_SYMBOLIZER": "$(rootpath @llvm//tools:llvm-symbolizer)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:macos"],
+    deps = [
+        ":dx_symbols",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
     name = "symbols_test",
     srcs = ["symbols_test.rs"],
     data = [

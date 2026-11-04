@@ -85,3 +85,105 @@ fn rejects_arch_mismatch() {
     let err = check_pair(&elf(X86, Some(&[1])), &elf(ARM, Some(&[1]))).unwrap_err();
     assert!(err.contains("arch mismatch"), "{err}");
 }
+
+fn macho(cputype: u32, filetype: u32, uuid: Option<[u8; 16]>) -> Vec<u8> {
+    let mut cmds = Vec::new();
+    if let Some(uuid) = uuid {
+        cmds.extend_from_slice(&0x1bu32.to_le_bytes());
+        cmds.extend_from_slice(&24u32.to_le_bytes());
+        cmds.extend_from_slice(&uuid);
+    }
+    let mut b = Vec::new();
+    b.extend_from_slice(&0xfeed_facfu32.to_le_bytes());
+    b.extend_from_slice(&cputype.to_le_bytes());
+    b.extend_from_slice(&0u32.to_le_bytes());
+    b.extend_from_slice(&filetype.to_le_bytes());
+    b.extend_from_slice(&u32::from(uuid.is_some()).to_le_bytes());
+    b.extend_from_slice(&(cmds.len() as u32).to_le_bytes());
+    b.extend_from_slice(&0u32.to_le_bytes());
+    b.extend_from_slice(&0u32.to_le_bytes());
+    b.extend_from_slice(&cmds);
+    b
+}
+
+const MH_EXECUTE: u32 = 2;
+const MH_DSYM: u32 = 0xa;
+const ARM64: u32 = 0x0100_000c;
+const X86_64: u32 = 0x0100_0007;
+
+fn scratch(name: &str) -> PathBuf {
+    let base = std::env::var_os("TEST_TMPDIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let dir = base.join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn dsym_with_same_uuid_and_arch_pairs() {
+    let uuid = [7u8; 16];
+    let pair = check_dsym(
+        &macho(ARM64, MH_EXECUTE, Some(uuid)),
+        &macho(ARM64, MH_DSYM, Some(uuid)),
+    )
+    .expect("pair");
+    assert_eq!(pair.uuid, "07".repeat(16));
+    assert_eq!(pair.arch, "aarch64");
+}
+
+#[test]
+fn stale_dsym_with_other_uuid_is_rejected() {
+    let bin = macho(ARM64, MH_EXECUTE, Some([1; 16]));
+    let err = check_dsym(&bin, &macho(ARM64, MH_DSYM, Some([2; 16]))).unwrap_err();
+    assert!(err.contains("uuid mismatch"), "{err}");
+}
+
+#[test]
+fn dsym_for_other_arch_is_rejected() {
+    let bin = macho(ARM64, MH_EXECUTE, Some([3; 16]));
+    let err = check_dsym(&bin, &macho(X86_64, MH_DSYM, Some([3; 16]))).unwrap_err();
+    assert!(err.contains("arch mismatch"), "{err}");
+}
+
+#[test]
+fn dsym_check_rejects_missing_uuid_and_non_macho() {
+    let bin = macho(ARM64, MH_EXECUTE, Some([4; 16]));
+    let err = check_dsym(&bin, &macho(ARM64, MH_DSYM, None)).unwrap_err();
+    assert!(err.contains("has no LC_UUID"), "{err}");
+    let err = check_dsym(&bin, &elf(X86, Some(&[1]))).unwrap_err();
+    assert!(err.contains("dSYM is not a"), "{err}");
+}
+
+#[test]
+fn dwarf_file_needs_exactly_one_file_in_the_bundle() {
+    let bundle = scratch("dsym-dwarf-one");
+    let err = dwarf_file(&bundle).unwrap_err();
+    assert!(err.contains("cannot read dSYM"), "{err}");
+    let dir = bundle.join("Contents/Resources/DWARF");
+    std::fs::create_dir_all(&dir).unwrap();
+    assert!(dwarf_file(&bundle).unwrap_err().contains("found 0"));
+    std::fs::write(dir.join("app"), b"x").unwrap();
+    assert_eq!(dwarf_file(&bundle).unwrap(), dir.join("app"));
+    std::fs::write(dir.join("other"), b"y").unwrap();
+    assert!(dwarf_file(&bundle).unwrap_err().contains("found 2"));
+}
+
+#[test]
+fn manifest_records_uuid_arch_digest_and_tool() {
+    let uuid = [9u8; 16];
+    let root = scratch("dsym-manifest");
+    let bin = macho(ARM64, MH_EXECUTE, Some(uuid));
+    std::fs::write(root.join("app"), &bin).unwrap();
+    let bundle = root.join("app.dSYM");
+    let dir = bundle.join("Contents/Resources/DWARF");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("app"), macho(ARM64, MH_DSYM, Some(uuid))).unwrap();
+    let json = dsym_manifest(&root.join("app"), &bundle, "LLVM version 22").unwrap();
+    assert_eq!(json["uuid"], "09".repeat(16));
+    assert_eq!(json["arch"], "aarch64");
+    assert_eq!(json["dwarf"], "Contents/Resources/DWARF/app");
+    assert_eq!(json["dsymutil"], "LLVM version 22");
+    assert_eq!(json["sha256"], format!("{:x}", Sha256::digest(&bin)));
+}

@@ -688,6 +688,39 @@ llvm-symbolizer --obj=app_split.debug 0x401136
 The build fails if the stripped binary and the debug file differ in build-id
 or arch.
 
+# dx_dsym
+
+Pairs the dSYM of a macOS `cc_binary` with that binary.
+
+```
+load("@rules_dx//deploy/rules:debug_info.bzl", "dx_dsym")
+
+dx_dsym(
+    name = "app_dsym",
+    binary = ":app",
+)
+```
+
+The `binary` is built again with `apple_generate_dsym` set, through a
+transition, so the link writes the dSYM bundle. Build the `symbols` output
+group to get the bundle and the manifest:
+
+```
+bazel build --output_groups=symbols //pkg:app_dsym
+```
+
+This writes `app_dsym.dSYM` and `app_dsym.dsym.json`. The bundle keeps its
+DWARF file under `Contents/Resources/DWARF/`. The manifest has the Mach-O UUID,
+arch, sha256 of the binary, DWARF path and `dsymutil` version. The build fails
+if the bundle has no DWARF file, or if its UUID or arch differ from the binary.
+The target is macOS only.
+
+Look up an address in the bundle with `llvm-symbolizer`:
+
+```
+llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
+```
+
 # Common behavior
 
 Except for `cloudflare_pages_deploy`, a default run writes into the

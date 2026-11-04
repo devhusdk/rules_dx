@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_binary")
-load("//deploy/rules:debug_info.bzl", "dx_split_debug_info")
+load("//deploy/rules:debug_info.bzl", "dx_dsym", "dx_split_debug_info")
 
 package(default_visibility = ["//deploy/symbols:__subpackages__"])
 
@@ -54,4 +54,27 @@ filegroup(
     name = "other_symbols",
     srcs = [":other_split"],
     output_group = "symbols",
+)
+
+cc_binary(
+    name = "known_macos",
+    srcs = ["known.c"],
+    copts = [
+        "-O2",
+        "-g",
+    ],
+    features = ["-strip_debug_symbols"],
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+dx_dsym(
+    name = "known_dsym",
+    binary = ":known_macos",
+)
+
+filegroup(
+    name = "known_dsym_symbols",
+    srcs = [":known_dsym"],
+    output_group = "symbols",
+    target_compatible_with = ["@platforms//os:macos"],
 )

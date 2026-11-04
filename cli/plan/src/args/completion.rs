@@ -256,8 +256,6 @@ impl ValueCompleter for ScopeCompleter {
 /// Whether the directory opens another workspace.
 fn is_workspace_root(dir: &Path) -> bool {
     dir.join("MODULE.bazel").is_file()
-        || dir.join("WORKSPACE").is_file()
-        || dir.join("WORKSPACE.bazel").is_file()
 }
 
 /// The ignored directory prefixes listed in the workspace `.bazelignore`.
@@ -1377,7 +1375,7 @@ mod tests {
             "pkg/BUILD.bazel",
             "nested/MODULE.bazel",
             "nested/inner/BUILD.bazel",
-            "deep/WORKSPACE.bazel",
+            "deep/MODULE.bazel",
             "deep/x/BUILD.bazel",
             "ignored/sub/BUILD.bazel",
         ] {

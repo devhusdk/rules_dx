@@ -426,8 +426,6 @@ fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
         name,
         "MODULE.bazel"
             | "MODULE.bazel.lock"
-            | "WORKSPACE"
-            | "WORKSPACE.bazel"
             | ".bazelversion"
             | ".bazeliskrc"
             | ".bazelignore"
@@ -1515,7 +1513,6 @@ mod tests {
             ".bazeliskrc",
             ".bazelignore",
             ".bazelversion",
-            "WORKSPACE.bazel",
         ] {
             let scratch = dx_test_scratch::scratch("dx-changed-workspace-");
             let workspace = scratch.path().to_path_buf();

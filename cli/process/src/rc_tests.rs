@@ -491,8 +491,8 @@ fn an_rc_resource_suppresses_only_that_resource() {
             "build \"--local_resources=cpu=HOST_CPUS-2\"\n",
             (false, true),
         ),
-        ("build --local_cpu_resources=6\n", (false, true)),
-        ("build --local_ram_resources=HOST_RAM*.4\n", (true, false)),
+        ("build --local_cpu_resources=6\n", (true, true)),
+        ("build --local_ram_resources=HOST_RAM*.4\n", (true, true)),
     ];
     for (text, want) in cases {
         let policy = Machine::local().file("/home/u/.bazelrc", text).policy();

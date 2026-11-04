@@ -505,11 +505,12 @@ pub fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<Pat
     if let Some(cache) = dx_process::user_cache_dir(env_get) {
         roots.push(cache.join("bazel").join(format!("_bazel_{user}")));
     }
-    if let Some(home) = home(env_get) {
-        roots.push(home.join(format!("_bazel_{user}")));
+    if cfg!(windows) {
+        if let Some(home) = home(env_get) {
+            roots.push(home.join(format!("_bazel_{user}")));
+        }
     }
     roots.push(PathBuf::from(format!("/private/var/tmp/_bazel_{user}")));
-    roots.push(PathBuf::from(format!("/var/tmp/_bazel_{user}")));
     roots
 }
 
@@ -752,30 +753,23 @@ mod tests {
             })
         };
         let paths = |items: &[&str]| items.iter().map(PathBuf::from).collect::<Vec<_>>();
+        let home_root: &[&str] = if cfg!(windows) { &["/h/_bazel_u"] } else { &[] };
+        let with_home = |mut head: Vec<&'static str>| {
+            head.extend_from_slice(home_root);
+            head.push("/private/var/tmp/_bazel_u");
+            paths(&head)
+        };
         assert_eq!(
             roots(&[("USER", "u"), ("XDG_CACHE_HOME", "/x"), ("HOME", "/h")]),
-            paths(&[
-                "/x/bazel/_bazel_u",
-                "/h/_bazel_u",
-                "/private/var/tmp/_bazel_u",
-                "/var/tmp/_bazel_u",
-            ])
+            with_home(vec!["/x/bazel/_bazel_u"])
         );
         assert_eq!(
             roots(&[("USER", "u"), ("HOME", "/h")])[0],
             PathBuf::from("/h/.cache/bazel/_bazel_u")
         );
         assert_eq!(
-            roots(&[("USER", "u"), ("XDG_CACHE_HOME", "/x")]),
-            paths(&[
-                "/x/bazel/_bazel_u",
-                "/private/var/tmp/_bazel_u",
-                "/var/tmp/_bazel_u",
-            ])
-        );
-        assert_eq!(
             roots(&[("USER", "u")]),
-            paths(&["/private/var/tmp/_bazel_u", "/var/tmp/_bazel_u"])
+            paths(&["/private/var/tmp/_bazel_u"])
         );
     }
 

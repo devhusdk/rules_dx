@@ -340,14 +340,6 @@ fn local_resources_value<'a>(flag: &'a str, next: Option<&'a str>) -> Option<&'a
 /// Whether a flag token, with the token after it, sets `resource`.
 fn sets_local_resource(token: &str, next: Option<&str>, resource: &str) -> bool {
     let flag = token.trim_start_matches(['"', '\'']);
-    let legacy = match resource {
-        "cpu" => Some("--local_cpu_resources"),
-        "memory" => Some("--local_ram_resources"),
-        _ => None,
-    };
-    if legacy.is_some_and(|legacy| flag.split('=').next() == Some(legacy)) {
-        return true;
-    }
     local_resources_value(flag, next)
         .and_then(|value| value.strip_prefix(resource))
         .is_some_and(|rest| rest.starts_with('='))

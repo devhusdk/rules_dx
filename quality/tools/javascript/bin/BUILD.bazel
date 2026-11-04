@@ -68,6 +68,17 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_binary(
+    name = "svelte_tsc",
+    data = [
+        "//quality/tools/javascript:node_modules/svelte",
+        "//quality/tools/javascript:node_modules/svelte-check",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "svelte_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
 js_test(
     name = "mdx_tsc_test",
     size = "small",

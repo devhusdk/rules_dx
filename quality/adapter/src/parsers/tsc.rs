@@ -37,7 +37,10 @@ fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, P
     let (rule, message) = rest
         .split_once(": ")
         .ok_or_else(|| missing(tool, "diagnostic", line))?;
-    let code = rule.strip_prefix("TS").unwrap_or_default();
+    let code = rule
+        .strip_prefix("TS")
+        .or_else(|| rule.strip_prefix("svelte/"))
+        .unwrap_or_default();
     let (Ok(line_no), Ok(column)) = (line_text.parse::<u64>(), column_text.parse::<u64>()) else {
         return Err(malformed(tool, line));
     };
@@ -45,7 +48,9 @@ fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, P
         || column < 1
         || path.is_empty()
         || code.is_empty()
-        || !code.bytes().all(|byte| byte.is_ascii_digit())
+        || !code
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
         || message.is_empty()
     {
         return Err(malformed(tool, line));
@@ -240,6 +245,21 @@ mod tests {
         let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.vue"]).expect("parsed");
         assert_eq!(found[0].file, "app/App.vue");
         assert_eq!(found[0].finding.start, TextPosition { line: 3, column: 5 });
+    }
+
+    #[test]
+    fn a_svelte_diagnostic_keeps_its_svelte_position() {
+        let line = "app/App.svelte(3,5): error TS2322: Type 'string' is not assignable.\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.svelte"]).expect("parsed");
+        assert_eq!(found[0].file, "app/App.svelte");
+        assert_eq!(found[0].finding.start, TextPosition { line: 3, column: 5 });
+    }
+
+    #[test]
+    fn a_svelte_parse_error_has_a_svelte_rule() {
+        let line = "app/App.svelte(1,1): error svelte/unclosed_element: `<div>` was left open\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/App.svelte"]).expect("parsed");
+        assert_eq!(found[0].finding.rule_id, "svelte/unclosed_element");
     }
 
     #[test]

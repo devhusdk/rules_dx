@@ -133,7 +133,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["prettier"],
         "lint": [],
-        "typecheck": [],
+        "typecheck": ["tsc"],
     },
     "text": {
         "audit": [],

@@ -121,14 +121,14 @@ def curated_defaults_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "svelte curated defaults stay Prettier format only",
+                "svelte curated defaults are Prettier format and tsc typecheck",
                 [CURATED_DEFAULTS["svelte"], FORMAT_FROZEN["svelte"]],
                 [
                     {
                         "audit": [],
                         "format": ["prettier"],
                         "lint": [],
-                        "typecheck": [],
+                        "typecheck": ["tsc"],
                     },
                     ["prettier"],
                 ],

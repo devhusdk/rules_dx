@@ -32,9 +32,10 @@ def _is_ts_project(attrs):
 
 def _tsc_js_impl(target, ctx):
     """Type-checks a js_library's JavaScript sources with checkJs through a generated tsconfig."""
-    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "mdx", "vue")]
+    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "mdx", "svelte", "vue")]
     has_mdx = any([f.extension == "mdx" for f in sources])
     has_vue = any([f.extension == "vue" for f in sources])
+    has_svelte = any([f.extension == "svelte" for f in sources])
     if len(sources) == 0:
         return []
     tsconfig = ctx.actions.declare_file("dx_tsc/%s.tsconfig.json" % target.label.name)
@@ -68,8 +69,8 @@ def _tsc_js_impl(target, ctx):
         ctx,
         mnemonic = "TscDiagnostics",
         progress_message = "tsc diagnostics (js) %{label}",
-        executable = ctx.executable._vue_tsc if has_vue else (ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc),
-        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + ([target[JsInfo].npm_sources] if has_vue else [])),
+        executable = ctx.executable._svelte_tsc if has_svelte else (ctx.executable._vue_tsc if has_vue else (ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc)),
+        inputs = depset([tsconfig], transitive = [target[JsInfo].sources, target[JsInfo].transitive_sources] + ([target[JsInfo].npm_sources] if has_vue or has_svelte else [])),
         outputs = [stdout, status],
         arguments = [args],
         env = {
@@ -134,6 +135,11 @@ tsc_aspect = aspect(
     attrs = {
         "_mdx_tsc": attr.label(
             default = "//quality/tools/javascript/bin:mdx_tsc",
+            executable = True,
+            cfg = "exec",
+        ),
+        "_svelte_tsc": attr.label(
+            default = "//quality/tools/javascript/bin:svelte_tsc",
             executable = True,
             cfg = "exec",
         ),

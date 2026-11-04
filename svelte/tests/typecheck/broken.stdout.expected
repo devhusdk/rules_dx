@@ -1,0 +1,1 @@
+svelte/tests/typecheck/broken.svelte(5,1): error svelte/element_unclosed: `<div>` was left open https://svelte.dev/e/element_unclosed

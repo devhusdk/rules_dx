@@ -220,7 +220,7 @@ workspace_policy(
 | `scala` | `scalafmt` | disabled | `scalac` |
 | `shell` | `shfmt` | `shellcheck` | disabled |
 | `starlark` | `buildifier` | `buildifier` | disabled |
-| `svelte` | `prettier` | disabled | disabled |
+| `svelte` | `prettier` | disabled | `tsc` |
 | `text` | disabled | `keep_sorted` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
 | `typescript` | `biome` | `biome` | `tsc` |
@@ -345,7 +345,7 @@ to.
 | `tflint` | lint | terraform |
 | `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
-| `tsc` | typecheck | javascript, jsx, mdx, tsx, typescript, vue |
+| `tsc` | typecheck | javascript, jsx, mdx, svelte, tsx, typescript, vue |
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
@@ -3029,9 +3029,9 @@ is reported at the start of the file. A syntax error fails the run and never
 counts as clean. dx places it at the line and column in the original file by
 matching the compiler's code frame against the file. When the frame matches no
 single place, the error is reported at line 1, column 1. `.prettierrc`,
-`.editorconfig` and other user config files are ignored. `dx check` does not run
-`svelte-check` or the Svelte compiler. See "Building and checking a Svelte app"
-below for the Bazel targets that do.
+`.editorconfig` and other user config files are ignored. `tsc` typechecks `.svelte` with
+svelte-check 4.7.7. `dx check` does not run the Svelte compiler. See "Building
+and checking a Svelte app" below for the Bazel targets that do.
 
 `eslint` lint is opt-in. Select it in the `svelte` family and bind an
 `eslint_config` to the library with `aspect_hints`.

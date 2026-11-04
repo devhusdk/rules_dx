@@ -136,7 +136,7 @@ REAL_ADAPTERS = {
     "avro_tools": {"lint": ["avro"], "typecheck": ["avro"]},
     "topiary": {"format": ["ocaml"]},
     "ty": {"typecheck": ["jupyter", "python", "python_stub"]},
-    "tsc": {"typecheck": ["javascript", "jsx", "mdx", "tsx", "typescript", "vue"]},
+    "tsc": {"typecheck": ["javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"]},
     "typstyle": {"format": ["typst"]},
     "latexindent": {"format": ["latex"]},
     "ghc": {"typecheck": ["haskell"]},

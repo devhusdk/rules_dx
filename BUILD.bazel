@@ -189,6 +189,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude mdx/tests/fixtures/hello
 # gazelle:exclude powershell/tests/fixtures
 # gazelle:exclude svelte/tests/fixtures/hello
+# gazelle:exclude svelte/tests/typecheck
 # gazelle:exclude vue/tests/fixtures/hello
 # gazelle:exclude deploy/rules
 # gazelle:exclude deploy/tests/fixtures/consumer_archive

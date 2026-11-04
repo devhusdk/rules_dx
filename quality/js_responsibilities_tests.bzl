@@ -115,9 +115,9 @@ def js_responsibilities_unit_tests(name):
                 [["remark"], ["eslint"], ["tsc"]],
             ),
             expect_equal(
-                "svelte is formatted by prettier and linted by eslint only",
-                [_claimants("format", "svelte"), _claimants("lint", "svelte")],
-                [["prettier"], ["eslint"]],
+                "svelte is formatted by prettier, linted by eslint, and typechecked by tsc",
+                [_claimants("format", "svelte"), _claimants("lint", "svelte"), _claimants("typecheck", "svelte")],
+                [["prettier"], ["eslint"], ["tsc"]],
             ),
             expect_equal(
                 "vue is formatted by prettier, linted by eslint, and typechecked by tsc",

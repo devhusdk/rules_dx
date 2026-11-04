@@ -119,7 +119,7 @@ func TestSuffixTestName(t *testing.T) {
 		{"a.test.ts", "a_test"},
 		{"a.spec.ts", "a_test"},
 		{"a_test.ts", "a_test"},
-		{"_test.ts", "test"},
+		{"_test.ts", "_test"},
 		{"my-mod.spec.tsx", "my_mod_test"},
 	}
 	for _, tc := range cases {

@@ -28,8 +28,8 @@ func Normalize(base string) (string, error) {
 		}
 		pending = true
 	}
-	out := strings.Trim(b.String(), "_")
-	if out == "" {
+	out := b.String()
+	if strings.Trim(out, "_") == "" {
 		return "", fmt.Errorf("naming: %q normalizes to an empty target name", base)
 	}
 	return out, nil

@@ -16,14 +16,20 @@ func TestNormalize(t *testing.T) {
 		{"hello", "hello"},
 		{"my-mod", "my_mod"},
 		{"UPPER123", "UPPER123"},
+		{"_utils", "_utils"},
+		{"__init__", "__init__"},
+		{"a-", "a"},
+		{"type_", "type_"},
 	}
 	for _, tc := range cases {
 		if got, err := Normalize(tc.in); err != nil || got != tc.want {
 			t.Errorf("Normalize(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
 		}
 	}
-	if _, err := Normalize("---"); err == nil {
-		t.Errorf("Normalize(%q) succeeded, want error", "---")
+	for _, in := range []string{"---", "_", "__", "-_"} {
+		if _, err := Normalize(in); err == nil {
+			t.Errorf("Normalize(%q) succeeded, want error", in)
+		}
 	}
 }
 

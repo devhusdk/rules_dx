@@ -33,6 +33,9 @@ func TestTargetName(t *testing.T) {
 		{"helper_test.py", "helper_test"},
 		{"stub.pyi", "stub"},
 		{"plain", "plain"},
+		{"_utils.py", "_utils"},
+		{"_test.py", "_test"},
+		{"__init__.py", "__init__"},
 	}
 	for _, tc := range cases {
 		if got, err := TargetName(tc.name); err != nil || got != tc.want {

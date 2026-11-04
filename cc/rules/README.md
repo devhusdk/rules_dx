@@ -40,6 +40,12 @@ bazel build --@rules_dx//cc/toolchains:compiler=gcc //pkg/...
 
 It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary.
 
+The `dynamic_libstdcxx` feature links the toolchain's `libstdc++.so.6` and `libgcc_s.so.1` instead, ships both in runfiles and sets an `$ORIGIN` rpath, so nothing loads from the host. It covers dynamically linked targets (`cc_test`, `linkstatic = False`); a statically linked `cc_binary` keeps the static runtime.
+
+```sh
+bazel test --@rules_dx//cc/toolchains:compiler=gcc --features=dynamic_libstdcxx //pkg:test
+```
+
 `cc_test` coverage works with both toolchains. GCC coverage uses the gcov that ships with the toolchain. `//cc/toolchains:gcc_coverage_env_test` checks that wiring.
 
 Sanitizers work under GCC with the `asan` and `ubsan` features. The toolchain links the runtimes statically, so nothing loads from the host. GCC's static libasan still fails its link order check at startup (#5981), so `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` under GCC unless the target's `env` sets `ASAN_OPTIONS`. A `cc_binary` run with `bazel run` still needs it set by hand. The asan command:

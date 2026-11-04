@@ -104,6 +104,17 @@ cc_toolchain_test(
 )
 
 cc_toolchain_test(
+    name = "gcc_dynamic_libstdcxx_test",
+    compiler = "gcc",
+    extra_features = ["dynamic_libstdcxx"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/gcc_shared:shared_dynamic_test",
+)
+
+cc_toolchain_test(
     name = "gcc_c_test",
     compiler = "gcc",
     target_compatible_with = [
@@ -148,6 +159,7 @@ test_suite(
         ":gcc_asan_test",
         ":gcc_c_test",
         ":gcc_coverage_env_test",
+        ":gcc_dynamic_libstdcxx_test",
         ":gcc_hello_c_test",
         ":gcc_hello_lib_test",
         ":gcc_hello_test",

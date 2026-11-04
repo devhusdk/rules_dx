@@ -12,3 +12,5 @@ const char *dx_greet_compiler(void) {
   }
   return version.c_str();
 }
+
+std::string dx_greet(const std::string &name) { return "hello " + name; }

@@ -1,0 +1,109 @@
+load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
+load("@rules_cc//cc/toolchains:feature_constraint.bzl", "cc_feature_constraint")
+load("@rules_cc//cc/toolchains:nested_args.bzl", "cc_nested_args")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+_LINK_ACTIONS = [
+    "@rules_cc//cc/toolchains/actions:cpp_link_executable",
+    "@rules_cc//cc/toolchains/actions:cpp_link_dynamic_library",
+    "@rules_cc//cc/toolchains/actions:cpp_link_nodeps_dynamic_library",
+]
+
+cc_feature(
+    name = "static_link_cpp_runtimes",
+    overrides = "@rules_cc//cc/toolchains/features:static_link_cpp_runtimes",
+)
+
+cc_feature(
+    name = "static_linking_mode",
+    overrides = "@rules_cc//cc/toolchains/features:static_linking_mode",
+)
+
+cc_feature(
+    name = "dynamic_linking_mode",
+    overrides = "@rules_cc//cc/toolchains/features:dynamic_linking_mode",
+)
+
+# Bazel's own rpath flags use $EXEC_ORIGIN for tests, which the loader ignores.
+cc_args(
+    name = "origin_rpath",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    nested = [":origin_rpath_dir"],
+    requires_not_none = "@rules_cc//cc/toolchains/variables:runtime_library_search_directories",
+)
+
+cc_nested_args(
+    name = "origin_rpath_dir",
+    args = [
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "$ORIGIN/{dir}",
+    ],
+    format = {"dir": "@rules_cc//cc/toolchains/variables:runtime_library_search_directories"},
+    iterate_over = "@rules_cc//cc/toolchains/variables:runtime_library_search_directories",
+)
+
+cc_feature(
+    name = "dynamic_libstdcxx",
+    args = [":origin_rpath"],
+    feature_name = "dynamic_libstdcxx",
+    implies = [":static_link_cpp_runtimes"],
+)
+
+cc_feature_constraint(
+    name = "static_cxx_runtime_wanted",
+    none_of = [":dynamic_libstdcxx"],
+)
+
+cc_feature_constraint(
+    name = "static_mode",
+    all_of = [":static_linking_mode"],
+)
+
+cc_feature_constraint(
+    name = "shared_libgcc_wanted",
+    all_of = [
+        ":dynamic_libstdcxx",
+        ":dynamic_linking_mode",
+    ],
+)
+
+cc_args(
+    name = "static_cxx_runtime",
+    actions = _LINK_ACTIONS,
+    args = [
+        "-static-libgcc",
+        "-l:libstdc++.a",
+    ],
+    requires_any_of = [
+        ":static_cxx_runtime_wanted",
+        ":static_mode",
+    ],
+)
+
+cc_args(
+    name = "shared_libgcc",
+    actions = _LINK_ACTIONS,
+    args = ["-shared-libgcc"],
+    requires_any_of = [":shared_libgcc_wanted"],
+)
+
+cc_feature(
+    name = "dx_static_cxx_runtime",
+    args = [
+        ":static_cxx_runtime",
+        ":shared_libgcc",
+    ],
+    feature_name = "dx_static_cxx_runtime",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

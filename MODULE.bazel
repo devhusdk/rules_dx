@@ -54,7 +54,10 @@ bazel_dep(name = "gcc_toolchain", version = "0.13.0")
 single_version_override(
     module_name = "gcc_toolchain",
     patch_strip = 1,
-    patches = ["//patches/gcc_toolchain:sanitizer_spec.patch"],
+    patches = [
+        "//patches/gcc_toolchain:sanitizer_spec.patch",
+        "//patches/gcc_toolchain:runtime_libs.patch",
+    ],
     version = "0.13.0",
 )
 

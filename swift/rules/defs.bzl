@@ -1,0 +1,67 @@
+"""Swift wrappers that build for the Swift Linux platform."""
+
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_swift//swift:providers.bzl", "SwiftInfo")
+load("@rules_swift//swift:swift_binary.bzl", _swift_binary = "swift_binary")
+load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
+load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//swift/platforms:transition.bzl", "swift_linux_platform", "swift_linux_transition")
+
+_PLATFORM_ATTR = {"swift_platform": attr.string(doc = "Swift platform to build for.")}
+_STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
+_SPECS = []
+
+_swift_library_forward = dx_library_forward_rule(
+    provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo],
+    required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
+    quality_specs = _SPECS,
+    what = "swift_*",
+    allow_files = True,
+    upstream_providers = [[SwiftInfo]],
+    extra_attrs = _PLATFORM_ATTR,
+    runtime = "besteffort",
+    upstream_cfg = swift_linux_transition,
+)
+
+_swift_binary_forward = dx_executable_forward_rule(
+    kind = "executable",
+    provides = DX_EXEC_PROVIDES,
+    required_providers = [],
+    quality_specs = _SPECS,
+    what = "swift_*",
+    allow_files = True,
+    upstream_providers = None,
+    extra_attrs = _PLATFORM_ATTR,
+    runtime = "besteffort",
+    upstream_cfg = swift_linux_transition,
+)
+
+_swift_forward_test = dx_executable_forward_rule(
+    kind = "test",
+    provides = DX_EXEC_PROVIDES,
+    required_providers = [],
+    quality_specs = _SPECS,
+    what = "swift_*",
+    allow_files = True,
+    upstream_providers = None,
+    extra_attrs = _PLATFORM_ATTR,
+    runtime = "besteffort",
+    upstream_cfg = swift_linux_transition,
+)
+
+def _forward():
+    return {"swift_platform": swift_linux_platform()}
+
+def swift_library(name, srcs = None, visibility = None, **kwargs):
+    """Wraps swift_library and builds it for the Swift Linux platform."""
+    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = [], extra_forward_kwargs = _forward(), **kwargs)
+
+def swift_binary(name, srcs = None, visibility = None, **kwargs):
+    """Wraps swift_binary and builds it for the Swift Linux platform."""
+    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = [], extra_forward_kwargs = _forward(), **kwargs)
+
+def swift_test(name, srcs = None, visibility = None, **kwargs):
+    """Wraps swift_test and builds it for the Swift Linux platform."""
+    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC), quality_srcs = [], extra_forward_kwargs = _forward(), **kwargs)

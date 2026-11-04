@@ -5,7 +5,6 @@ real_source_target(
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
-        "forward.bzl",
         "BUILD.bazel",
     ],
     tags = ["corpus"],

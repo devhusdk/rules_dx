@@ -1144,6 +1144,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["modfmt"],
         "tool_binaries": ["//go/tools/modfmt:dx_modfmt"],
         "expected_file": ":matrix/matrix_go_module_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_go_module_format_fail",
@@ -1155,6 +1159,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["modfmt"],
         "tool_binaries": ["//go/tools/modfmt:dx_modfmt"],
         "expected_file": ":matrix/matrix_go_module_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_format_pass",

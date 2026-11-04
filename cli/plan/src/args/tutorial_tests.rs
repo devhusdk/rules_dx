@@ -31,3 +31,11 @@ fn tutorial_commands_parse_or_use_allowed_programs() {
         }
     }
 }
+
+#[test]
+fn tutorial_python_imports_name_the_module() {
+    for line in TUTORIAL.lines().filter(|line| line.starts_with("from ")) {
+        let module = line.split_whitespace().nth(1).unwrap();
+        assert!(module.contains('.'), "ambiguous import: {line}");
+    }
+}

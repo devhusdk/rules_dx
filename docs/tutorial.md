@@ -54,7 +54,7 @@ Create `hello/hello_test.py`.
 
 import unittest
 
-from hello import greet
+from hello.hello import greet
 
 
 class GreetTest(unittest.TestCase):
@@ -103,7 +103,7 @@ Create `greeter/greeter.py`.
 ```python
 """Greets everyone."""
 
-from hello import greet
+from hello.hello import greet
 
 
 def greet_all(names):
@@ -118,7 +118,7 @@ Create `greeter/greeter_test.py`.
 
 import unittest
 
-from greeter import greet_all
+from greeter.greeter import greet_all
 
 
 class GreeterTest(unittest.TestCase):

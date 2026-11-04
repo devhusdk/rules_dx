@@ -10,7 +10,8 @@ bazel run //cc/context:compile_db -- \
   --label //pkg:target \
   --require-source pkg/target.c \
   --config pkg/.clang-tidy \
-  --output out
+  --output out \
+  --identity bazel-bin/cc/context/identity.cc_identity.json
 ```
 
 The output directory holds `compile_commands.json` and the bound `.clang-tidy`. Run
@@ -24,16 +25,18 @@ clang-tidy against it with `-p out`.
 - `--require-source <path>`: a source that must have a compile command; repeatable.
 - `--config <path>`: the checked-in `.clang-tidy` policy to bind; required.
 - `--output <dir>`: directory to write the bundle into.
+- `--identity <file>`: compiler identity from `bazel build //cc/context:identity`; required, repeatable, one per configuration.
 
 ## Fail-closed behaviour
 
 The command exits non-zero and writes no bundle when the record has no compile action for
 `--label`, a `--require-source` has no compile command, one source has two conflicting
-compile commands, `--execroot` is relative, or `--config` is missing, empty or not named
-`.clang-tidy`.
+compile commands, `--execroot` is relative, `--config` is missing, empty or not named
+`.clang-tidy`, no `--identity` is given, or an action's configuration has no identity or an unknown driver.
 
 Every recorded argument reaches `compile_commands.json` unchanged, including the
-compiler, its sysroot and include flags, the macros and any `@response` file. A flag the
+compiler, its sysroot and include flags and the macros. `@response` files expand with
+the quoting of the selected driver. A flag the
 clang driver does not know is a clang-tidy error, never a run without flags.
 
 ## Fixture records

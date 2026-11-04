@@ -89,3 +89,28 @@ func TestSymlinkedSrcKeepsErlangApp(t *testing.T) {
 		t.Fatalf("srcs = %v, want [src/demo.erl]", got)
 	}
 }
+
+func TestGenerateAppInGlobCharDir(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "app[1]", "demo")
+	for name, content := range map[string]string{
+		"src/demo.app.src": "{application, demo, []}.\n",
+		"src/demo.erl":     "-module(demo).\n",
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config: &config.Config{RepoRoot: filepath.Join(root, "app[1]")},
+		Dir:    dir,
+		Rel:    "demo",
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != AppKind {
+		t.Fatalf("GenerateRules gave %d rules, want one %s", len(result.Gen), AppKind)
+	}
+}

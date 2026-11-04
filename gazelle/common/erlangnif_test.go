@@ -39,3 +39,26 @@ func TestIsErlangNifDir(t *testing.T) {
 		}
 	}
 }
+
+func TestErlangAppWithGlobCharsInRoot(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"app[1]", "a*b"} {
+		dir := filepath.Join(root, name)
+		for _, rel := range []string{"demo/src/demo.app.src", "demo/c_src/a.c"} {
+			p := filepath.Join(dir, rel)
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if !IsErlangNifDir(dir, "demo/c_src") {
+			t.Errorf("%s: IsErlangNifDir(demo/c_src) = false, want true", name)
+		}
+		want := filepath.Join(dir, "demo", "src", "demo.app.src")
+		if got := AppSrcFile(filepath.Join(dir, "demo")); got != want {
+			t.Errorf("%s: AppSrcFile = %q, want %q", name, got, want)
+		}
+	}
+}

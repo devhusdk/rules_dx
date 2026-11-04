@@ -137,17 +137,8 @@ func inBuildOutput(root, rel string) bool {
 	return false
 }
 
-func appSrcFile(dir string) string {
-	matches, _ := filepath.Glob(filepath.Join(dir, SrcDir, "*.app.src"))
-	sort.Strings(matches)
-	if len(matches) == 0 {
-		return ""
-	}
-	return matches[0]
-}
-
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	appSrcPath := appSrcFile(args.Dir)
+	appSrcPath := common.AppSrcFile(args.Dir)
 	if (appSrcPath == "" && !slices.Contains(args.RegularFiles, RebarConfig)) || inBuildOutput(args.Config.RepoRoot, args.Rel) {
 		return language.GenerateResult{}
 	}

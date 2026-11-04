@@ -21,9 +21,22 @@ func IsErlangNifDir(root, rel string) bool {
 		if _, err := os.Stat(filepath.Join(parent, "rebar.config")); err == nil {
 			return true
 		}
-		if m, _ := filepath.Glob(filepath.Join(parent, "src", "*.app.src")); len(m) > 0 {
+		if AppSrcFile(parent) != "" {
 			return true
 		}
 	}
 	return false
+}
+
+// AppSrcFile returns the first src/*.app.src under dir in name order, or "" if
+// there is none. It lists the directory instead of globbing it, so glob
+// characters in dir, such as "app[1]", are matched literally.
+func AppSrcFile(dir string) string {
+	entries, _ := os.ReadDir(filepath.Join(dir, "src"))
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".app.src") {
+			return filepath.Join(dir, "src", e.Name())
+		}
+	}
+	return ""
 }

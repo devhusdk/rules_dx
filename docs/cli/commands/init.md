@@ -124,7 +124,7 @@ match the running dx.
 | Path | Owner | What `dx init --apply` updates |
 | --- | --- | --- |
 | `.dx/version` | dx | Generated. Line 1 is the version, then one sha256 line per release binary. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
-| `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. |
+| `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
 | `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
 | `.bazelrc` | you | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |

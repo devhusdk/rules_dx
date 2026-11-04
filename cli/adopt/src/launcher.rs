@@ -277,6 +277,24 @@ bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi
+if [ "$os" = linux ]; then
+  libc=$(getconf GNU_LIBC_VERSION 2> /dev/null || true)
+  case "$libc" in
+    "glibc "*)
+      glibc=${libc#glibc }
+      case "$glibc" in
+        [01].* | 2.[0-9] | 2.[0-9].* | 2.1[0-9] | 2.1[0-9].* | 2.2[0-7] | 2.2[0-7].*)
+          fail "dx needs glibc 2.28 or newer on Linux; this host uses glibc $glibc"
+          ;;
+      esac
+      ;;
+    *)
+      case "$(ldd --version 2>&1 || true)" in
+        *musl*) fail "dx needs glibc 2.28 or newer on Linux; this host uses musl" ;;
+      esac
+      ;;
+  esac
+fi
 cr=$(printf '\r')
 want=
 first=1
@@ -1246,6 +1264,37 @@ mod tests {
             fx.stub("mv", "#!/bin/sh\nexit 1\n");
             let (code, _, _) = fx.run(&["a"]);
             assert_ne!(code, Some(0));
+        }
+
+        #[test]
+        fn musl_and_old_glibc_hosts_fail_before_downloading() {
+            let fx = Fixture::new("sh-musl", true, None);
+            fx.stub("getconf", "#!/bin/sh\nexit 1\n");
+            fx.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            let (code, _, err) = fx.run(&["status"]);
+            assert_eq!(code, Some(1), "{err}");
+            assert!(
+                err.contains("glibc 2.28 or newer") && err.contains("musl"),
+                "{err}"
+            );
+            assert_eq!(fx.downloads(), 0);
+            fx.stub("getconf", "#!/bin/sh\necho 'glibc 2.17'\n");
+            let (code, _, err) = fx.run(&["status"]);
+            assert_eq!(code, Some(1), "{err}");
+            assert!(err.contains("glibc 2.28 or newer"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn new_glibc_and_unknown_hosts_proceed() {
+            let fx = Fixture::new("sh-glibc-ok", true, None);
+            fx.stub("getconf", "#!/bin/sh\necho 'glibc 2.31'\n");
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            let fx = Fixture::new("sh-glibc-unknown", true, None);
+            fx.stub("getconf", "#!/bin/sh\nexit 1\n");
+            let (code, _, err) = fx.run(&["status"]);
+            assert_eq!(code, Some(0), "{err}");
         }
 
         #[test]

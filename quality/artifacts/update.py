@@ -8,6 +8,7 @@ import lzma
 import os
 import pathlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -2067,10 +2068,9 @@ TOOLS: dict[str, dict[str, Any]] = {
 
 
 def _require_tool(name):
-    for directory in os.environ.get("PATH", "").split(os.pathsep):
-        candidate = os.path.join(directory, name)
-        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
+    found = shutil.which(name)
+    if found is not None:
+        return found
     sys.exit("update: required maintainer tool %r not found on PATH" % name)
 
 

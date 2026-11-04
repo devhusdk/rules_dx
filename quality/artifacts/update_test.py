@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -194,6 +195,39 @@ class ArgsTest(unittest.TestCase):
             update._parse_args(["--tool"])
         with self.assertRaises(SystemExit):
             update._parse_args(["--tool", "nope"])
+
+
+class RequireToolTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        env = mock.patch.dict(os.environ, {"PATH": self.tmp.name, "PATHEXT": ".EXE"})
+        env.start()
+        self.addCleanup(env.stop)
+
+    def make_tool(self, filename):
+        path = os.path.join(self.tmp.name, filename)
+        with open(path, "w") as f:
+            f.write("")
+        os.chmod(path, 0o755)
+        return path
+
+    def test_finds_executable_on_path(self):
+        path = self.make_tool("tool")
+        self.assertEqual(update._require_tool("tool"), path)
+
+    @unittest.skipUnless(sys.platform == "win32", "PATHEXT applies only on Windows")
+    def test_finds_windows_executable_through_pathext(self):
+        path = self.make_tool("tool.exe")
+        self.assertTrue(os.path.samefile(update._require_tool("tool"), path))
+
+    def test_missing_tool_exits_with_the_same_message(self):
+        with self.assertRaises(SystemExit) as caught:
+            update._require_tool("missing-tool")
+        self.assertEqual(
+            caught.exception.code,
+            "update: required maintainer tool 'missing-tool' not found on PATH",
+        )
 
 
 class EmitTest(unittest.TestCase):

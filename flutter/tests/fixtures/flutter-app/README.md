@@ -49,6 +49,6 @@ bazel build //flutter/tests/fixtures/flutter-app:ios_app --config=ios_sim
 bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test --config=ios_sim
 ```
 
-`--config=ios_sim` in `.bazelrc` sets `-c dbg --ios_multi_cpus=sim_arm64`, so evidence.yml can pass it. `:ios_app` builds on the `macos_arm64` runner. The smoke test sets `DX_SIMCTL_DEVICE`, `DX_SIMCTL_APP` and `DX_SIMCTL_BUNDLE_ID` itself, because a launcher's own `env` only applies under `bazel run`.
+`--config=ios_sim` in `.bazelrc` sets `-c dbg --ios_multi_cpus=sim_arm64`, so evidence.yml can pass it. `:ios_app` builds on the `macos_arm64` runner. The smoke test picks the first available `iPhone 16` by UDID because several runtimes carry one, and sets `DX_SIMCTL_DEVICE`, `DX_SIMCTL_APP` and `DX_SIMCTL_BUNDLE_ID` itself, because a launcher's own `env` only applies under `bazel run`.
 
 The macOS, Xcode, simulator runtime and device model go here once a macOS run passes.

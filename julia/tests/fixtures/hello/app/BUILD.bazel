@@ -9,7 +9,6 @@ julia_library(
     name = "HelloApp",
     srcs = ["src/HelloApp.jl"],
     data = ["Project.toml"],
-    precompile = False,
     deps = ["//julia/tests/fixtures/hello:Greet"],
 )
 

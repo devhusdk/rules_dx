@@ -44,7 +44,7 @@ func bindingKinds() map[string]rule.KindInfo {
 		attrs := map[string]bool{"deps": true, "visibility": true, "testonly": true}
 		attr := "deps"
 		if b.kind == goKind {
-			attrs = map[string]bool{"proto": true, "importpath": true, "deps": true, "testonly": true}
+			attrs = map[string]bool{"proto": true, "importpath": true, "compilers": true, "deps": true, "testonly": true}
 			attr = "proto"
 		}
 		info := rule.KindInfo{
@@ -114,6 +114,9 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 				}
 				r.SetAttr("proto", ":"+lib.Name())
 				r.SetAttr("importpath", path)
+				if hasService(args.Dir, lib.AttrStrings("srcs")) {
+					r.SetAttr("compilers", goGRPCCompilers)
+				}
 				imp = common.WrapImportSet(libImports(result, lib))
 			} else {
 				r.SetAttr("deps", []string{":" + lib.Name()})
@@ -149,6 +152,18 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 		}
 	}
 	return result
+}
+
+var goGRPCCompilers = []string{"@rules_go//proto:go_proto", "@rules_go//proto:go_grpc_v2"}
+
+func hasService(dir string, srcs []string) bool {
+	for _, src := range srcs {
+		content, err := os.ReadFile(filepath.Join(dir, src))
+		if err == nil && HasService(content) {
+			return true
+		}
+	}
+	return false
 }
 
 func goImportPath(dir string, srcs []string) string {

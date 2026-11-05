@@ -28,6 +28,13 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
+var serviceDecl = regexp.MustCompile(`(?m)^\s*service\s+[A-Za-z_][A-Za-z0-9_]*\s*\{`)
+
+// HasService reports whether a .proto file declares a service block.
+func HasService(content []byte) bool {
+	return serviceDecl.Match(stripComments(content))
+}
+
 // stripComments blanks comments and keeps line breaks.
 func stripComments(content []byte) []byte {
 	return comments.ReplaceAllFunc(content, func(m []byte) []byte {

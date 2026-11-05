@@ -22,3 +22,18 @@ message M { string s = 1; }
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
 }
+
+func TestHasService(t *testing.T) {
+	cases := map[string]bool{
+		"service Greeter {\n  rpc Hi(A) returns (B);\n}": true,
+		"  service Greeter{}":                               true,
+		"// service Greeter {}":                             false,
+		"/* service Greeter {} */":                          false,
+		"message Service { string service = 1; }":           false,
+	}
+	for in, want := range cases {
+		if got := HasService([]byte(in)); got != want {
+			t.Errorf("HasService(%q) = %v, want %v", in, got, want)
+		}
+	}
+}

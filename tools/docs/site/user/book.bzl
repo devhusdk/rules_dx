@@ -55,8 +55,8 @@ USER_BOOK = [
     ),
     mdbook_page(
         "Check, Fix, Clean",
-        "docs/cli/commands/check-fix-clean.md",
-        "//docs:cli/commands/check-fix-clean.md",
+        "docs/cli/commands/check-clean.md",
+        "//docs:cli/commands/check-clean.md",
     ),
     mdbook_page(
         "Generate",

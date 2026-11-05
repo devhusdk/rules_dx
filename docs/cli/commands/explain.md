@@ -1,65 +1,54 @@
 # `dx explain`
 
+Lists the actions that missed the cache by comparing two Bazel execution logs. It never runs Bazel and changes no files.
+
+```sh
+dx build --explain //app:lib
+dx explain
+dx explain --old=/path/to/other/worktree/.dx/explain/3.binpb.zst
+dx explain --output=json
+```
+
 ```text
 dx explain [--old=<log>] [--new=<log>]
 ```
 
-Explains why actions missed the cache. It compares two Bazel execution logs
-and lists each action in the newer log that ran without a cache hit. It never
-runs Bazel and changes no files.
+Save a log with `--explain` on `dx build`, `dx test`, `dx coverage`, or `dx check`. Each run writes `.dx/explain/<n>.binpb.zst` and keeps the two newest.
 
-Save a log with `dx build --explain`, `dx test --explain` or `dx check --explain`. Each run writes
-`.dx/explain/<n>.binpb.zst` and keeps the two newest logs.
+| Flag | What it does |
+| --- | --- |
+| `--old=<log>` | The older log. Default: the second newest saved log. |
+| `--new=<log>` | The newer log. Default: the newest saved log. |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
 
-Flags:
-
-- `--old=<log>`: the older log. Default: the second newest saved log.
-- `--new=<log>`: the newer log. Default: the newest saved log.
-
-With only one flag, the other log is the newest saved log that is not the
-same file. Relative paths resolve against the workspace root, so a log from
-another worktree works with an absolute path.
+With one flag, the other log is the newest saved log that is not the same file. Relative paths resolve against the workspace root.
 
 Scopes: none. Targets and `-- bazel-options` are usage errors.
 
-Output: `--output text|json`. Text prints one line per action,
-`<mnemonic> <target> <primary output>`, then one indented line per change,
-then `<n> actions ran`. A change line is `<kind> <change> <subject>`:
+## Output
 
-- `input added|removed|modified <path>`
-- `env added|removed|modified <name>`. Values are never shown.
-- `arg added|removed <value>`, or `arg order_changed`.
-- `platform added|removed|modified <name>`
-- `not_in_old_log`: no action in the older log has the same primary output
-  or the same target and mnemonic.
-- `not_cacheable`: the action is marked no-cache.
+Text prints one line per action, `<mnemonic> <target> <primary output>`, then one indented line per change, then `<n> actions ran`. Each action shows at most 20 changes, then `... <n> more changes`.
 
-Each action shows at most 20 changes, then `... <n> more changes`.
+| Change | Meaning |
+| --- | --- |
+| `input added\|removed\|modified <path>` | An input changed. |
+| `env added\|removed\|modified <name>` | An environment variable changed. Values are never shown. |
+| `arg added\|removed <value>`, `arg order_changed` | The arguments changed. |
+| `platform added\|removed\|modified <name>` | An execution platform property changed. |
+| `not_in_old_log` | The older log has no action with this output, or this target and mnemonic. |
+| `not_cacheable` | The action is marked no-cache. |
 
-`json` emits `command_started`, one `cache_miss` event per action, and
-`command_finished`. A `cache_miss` event has `mnemonic`, `target`,
-`primary_output`, and `changes`. Each change has `kind`, plus `change` and
-`path`, `name`, or `value` for the kinds above. `changes_omitted` appears
-when changes were cut.
+JSON emits `command_started`, one `cache_miss` event per action with `mnemonic`, `target`, `primary_output`, and `changes`, then `command_finished`.
 
-Actions the local action cache skips are not in a log. When such an action
-runs later, it shows `not_in_old_log`.
-
-With `--explain`, a Bazel option after `--` that sets another execution log
-is refused before Bazel runs. Bazel rejects the run when `.bazelrc` sets
-`--execution_log_binary_file` or `--execution_log_json_file`.
+With `--explain`, a Bazel option after `--` that sets another execution log is refused before Bazel runs.
 
 Reports: none.
 
-Exit codes: `0` success, even when actions missed the cache. `2` usage
-errors. `1` `explain_log_missing` when fewer than two logs exist or a named
-log does not exist, and `explain_log_unreadable` when a log is not a valid
-compact execution log.
+## Exit codes
 
-```sh
-bazel run @rules_dx//:dx -- build --explain //app:lib
-bazel run @rules_dx//:dx -- build --explain //app:lib
-bazel run @rules_dx//:dx -- explain
-bazel run @rules_dx//:dx -- explain --old=/path/to/other/worktree/.dx/explain/3.binpb.zst
-bazel run @rules_dx//:dx -- explain --output=json
-```
+| Code | Meaning |
+| --- | --- |
+| `0` | Success, even when actions missed the cache. |
+| `1` | `explain_log_missing`: fewer than two logs exist or a named log is missing. `explain_log_unreadable`: a log is not a valid execution log. |
+| `2` | Usage error. |

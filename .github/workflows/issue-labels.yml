@@ -70,6 +70,9 @@ jobs:
       issues: write
       pull-requests: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Check that blocked issues name a blocker, and unblock closed ones
         env:
           GH_TOKEN: ${{ github.token }}
@@ -88,19 +91,17 @@ jobs:
               fi
               continue
             fi
-            refs=$(printf '%s\n' "$line" | grep -oE "https://github\.com/${GH_REPO}/pull/[0-9]+|#[0-9]+" || true)
+            refs=$(printf '%s\n' "$line" | tools/ci/blocker_refs.sh "$GH_REPO")
             [ -n "$refs" ] || continue
             done_all=true
-            for ref in $refs; do
-              num=${ref##*[#/]}
-              case "$ref" in
-                http*) state=$(gh pr view "$num" --json state --jq .state 2>/dev/null || echo UNKNOWN); want=MERGED ;;
-                *) state=$(gh issue view "$num" --json state --jq .state 2>/dev/null || echo UNKNOWN); want=CLOSED ;;
-              esac
-              [ "$state" = "$want" ] || done_all=false
-            done
+            written=
+            while read -r repo num ref; do
+              written="${written:+$written, }$ref"
+              state=$(gh api "repos/$repo/issues/$num" --jq 'if .pull_request then (.pull_request.merged_at != null) else (.state == "closed") end' 2>/dev/null || echo unknown)
+              [ "$state" = true ] || done_all=false
+            done <<< "$refs"
             if [ "$done_all" = true ]; then
-              gh issue comment "$n" --body "Unblocked: $(echo $refs | sed 's/ /, /g') closed"
+              gh issue comment "$n" --body "Unblocked: $written closed"
               gh issue edit "$n" --remove-label blocked
             fi
           done

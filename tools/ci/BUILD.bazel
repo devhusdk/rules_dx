@@ -429,6 +429,14 @@ rust_test(
 
 # keep
 rust_test(
+    name = "blocker_refs_test",
+    srcs = ["blocker_refs_test.rs"],
+    data = ["blocker_refs.sh"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "review_paths_test",
     srcs = ["review_paths_test.rs"],
     data = [
@@ -949,6 +957,7 @@ rustfmt_test(
         ":bcr_outdated_test",
         ":dx_update_workflow_test",
         ":pr_check_test",
+        ":blocker_refs_test",
         ":review_paths_test",
         ":ci_workflow",
         ":ci_workflow_test",

@@ -2848,7 +2848,14 @@ fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
         "/scratch/a:b.jar"
     };
     let java = Path::new("/scratch/src/Hello.java");
-    assert!(spotbugs_check(Path::new(BIN), &[java], &[Path::new(bad)], "default", "medium").is_err());
+    assert!(spotbugs_check(
+        Path::new(BIN),
+        &[java],
+        &[Path::new(bad)],
+        "default",
+        "medium"
+    )
+    .is_err());
     let colon_target = Path::new("/scratch/src/He:llo.java");
     assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[], "default", "medium").is_ok());
 }

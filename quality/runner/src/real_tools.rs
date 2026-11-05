@@ -7370,3 +7370,33 @@ fn scalafmt_hinted_config_wins() {
         .iter()
         .all(|mirror| mirror.mirror_rel != Path::new(SCALAFMT_DEFAULTS_REL)));
 }
+
+fn dscanner_staged(tool: &RealTool) -> Vec<u8> {
+    let mirrors = RealBackend::mirror_tool_files("dscanner", tool, &[], Path::new("/s"));
+    let staged = mirrors
+        .iter()
+        .find(|mirror| mirror.mirror_rel == Path::new(commands::DSCANNER_CONFIG_REL))
+        .expect("dscanner config is staged");
+    match &staged.contents {
+        MirrorContents::Bytes(bytes) => bytes.clone(),
+        MirrorContents::Link(_) => panic!("dscanner config is staged as bytes"),
+    }
+}
+
+#[test]
+fn dscanner_stages_the_default_when_nothing_is_bound() {
+    assert_eq!(dscanner_staged(&plain_tool()), DSCANNER_DEFAULTS_BYTES);
+}
+
+#[test]
+fn dscanner_bound_config_replaces_the_default() {
+    let tool = RealTool {
+        config_rel: Some("cfg/dscanner.ini".to_owned()),
+        tool_files: vec![(
+            "cfg/dscanner.ini".to_owned(),
+            b"[analysis.config]\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    assert_eq!(dscanner_staged(&tool), b"[analysis.config]\n");
+}

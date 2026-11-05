@@ -820,6 +820,7 @@ TOOLS = [
     tool(
         id = "dscanner",
         adapters = {"lint": ["d"]},
+        config_suffix = [".ini"],
         support = [
             row(
                 capability = "lint",
@@ -1243,6 +1244,7 @@ TOOLS = [
     tool(
         id = "hlint",
         adapters = {"lint": ["haskell"]},
+        config_suffix = [".yaml"],
         support = [
             row(
                 capability = "lint",

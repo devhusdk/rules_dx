@@ -125,6 +125,32 @@ const TABLE: &[Entry] = &[
         standard: include_str!("../templates/config/psscriptanalyzer/standard.psd1"),
         strict: include_str!("../templates/config/psscriptanalyzer/strict.psd1"),
     },
+    Entry {
+        tool: "hlint",
+        family: "haskell",
+        ext: "yaml",
+        root: ".hlint.yaml",
+        root_template: "",
+        comment: Some("#"),
+        mode: Mode::Copy,
+        configured: &[".hlint.yaml"],
+        pyproject_table: None,
+        standard: include_str!("../templates/config/hlint/standard.yaml"),
+        strict: include_str!("../templates/config/hlint/strict.yaml"),
+    },
+    Entry {
+        tool: "dscanner",
+        family: "d",
+        ext: "ini",
+        root: "dscanner.ini",
+        root_template: "",
+        comment: Some(";"),
+        mode: Mode::Copy,
+        configured: &["dscanner.ini"],
+        pyproject_table: None,
+        standard: include_str!("../templates/config/dscanner/standard.ini"),
+        strict: include_str!("../templates/config/dscanner/strict.ini"),
+    },
 ];
 
 impl Entry {

@@ -228,9 +228,17 @@ impl RealBackend {
             });
         }
         if tool_id == "dscanner" {
+            let bound = tool.config_rel.as_deref().and_then(|rel| {
+                tool.tool_files
+                    .iter()
+                    .find(|(file, _)| file == rel)
+                    .map(|(_, bytes)| bytes.clone())
+            });
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(commands::DSCANNER_CONFIG_REL),
-                contents: MirrorContents::Bytes(DSCANNER_DEFAULTS_BYTES.to_vec()),
+                contents: MirrorContents::Bytes(
+                    bound.unwrap_or_else(|| DSCANNER_DEFAULTS_BYTES.to_vec()),
+                ),
             });
         }
         if tool_id == "statix" && tool.config_rel.is_none() {

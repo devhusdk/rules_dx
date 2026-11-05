@@ -23,7 +23,7 @@ pub struct ChangedAccount {
     pub uncovered: Vec<ChangedLine>,
     /// Changed production sources an instrumented target owns that the report never saw.
     pub uninstrumented: Vec<String>,
-    /// Sources whose LCOV_EXCL markers could not be read or parsed.
+    /// Sources whose coverage exclusion markers could not be read or parsed.
     pub errors: Vec<String>,
 }
 

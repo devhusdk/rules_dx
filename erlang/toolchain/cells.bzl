@@ -1,5 +1,6 @@
 """Per-cell OTP platform settings and compatibility selects."""
 
+load("//libs/starlark:cells.bzl", "unsupported_constraint")
 load(":pins.bzl", "CELLS")
 
 _INCOMPATIBLE = Label("@platforms//:incompatible")
@@ -15,7 +16,7 @@ def unknown_cells(cells):
 def cell_cases(cells):
     """Returns the select cases that accept only the given OTP cells."""
     cases = {cell_setting(cell): [] for cell in sorted(cells)}
-    cases["//conditions:default"] = [_INCOMPATIBLE]
+    cases["//conditions:default"] = [_INCOMPATIBLE, unsupported_constraint("//erlang/toolchain")]
     return cases
 
 def otp_compatible_with(cells):

@@ -61,3 +61,46 @@ jobs:
           while IFS= read -r name; do
             echo "::warning title=Missing label::label $name is documented or used by an issue template but does not exist"
           done < missing.txt
+
+  blocked-issues:
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Check that blocked issues name a blocker, and unblock closed ones
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          marker='<!-- blocked-on-missing -->'
+          for n in $(gh issue list --label blocked --state open --limit 1000 --json number --jq '.[].number'); do
+            body=$(gh issue view "$n" --json body --jq .body)
+            line=$(printf '%s\n' "$body" | tr -d '\r' | grep -m1 -i '^Blocked on:' || true)
+            if [ -z "$line" ]; then
+              echo "::warning title=Blocked without blocker::#$n has the blocked label but no 'Blocked on:' line"
+              if ! gh issue view "$n" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+                gh issue comment "$n" --body "$marker
+          This issue has the \`blocked\` label but no \`Blocked on:\` line in its body. Add one naming the blocking issue (\`#N\`), a pull request URL, or the owner action. See CONTRIBUTING.md."
+              fi
+              continue
+            fi
+            refs=$(printf '%s\n' "$line" | grep -oE "https://github\.com/${GH_REPO}/pull/[0-9]+|#[0-9]+" || true)
+            [ -n "$refs" ] || continue
+            done_all=true
+            for ref in $refs; do
+              num=${ref##*[#/]}
+              case "$ref" in
+                http*) state=$(gh pr view "$num" --json state --jq .state 2>/dev/null || echo UNKNOWN); want=MERGED ;;
+                *) state=$(gh issue view "$num" --json state --jq .state 2>/dev/null || echo UNKNOWN); want=CLOSED ;;
+              esac
+              [ "$state" = "$want" ] || done_all=false
+            done
+            if [ "$done_all" = true ]; then
+              gh issue comment "$n" --body "Unblocked: $(echo $refs | sed 's/ /, /g') closed"
+              gh issue edit "$n" --remove-label blocked
+            fi
+          done

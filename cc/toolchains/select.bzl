@@ -47,7 +47,11 @@ def _test_impl(ctx):
     else:
         exe = dx_symlink_executable(ctx, inner)
     dlls = []
+    seen = {}
     for f in dll_srcs:
+        if f.basename in seen:
+            continue
+        seen[f.basename] = True
         dll = ctx.actions.declare_file(f.basename, sibling = exe)
         ctx.actions.symlink(output = dll, target_file = f)
         dlls.append(dll)

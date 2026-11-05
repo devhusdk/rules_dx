@@ -1,20 +1,28 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_test")
+load("@rules_dx//quality:native_config.bzl", "biome_config")
 load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_check", "svelte_library")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["package.json"])
 
+biome_config(
+    name = "biome_config",
+    src = "biome.json",
+)
+
 npm_link_all_packages(name = "node_modules")
 
 svelte_library(
     name = "components",
+    aspect_hints = [":biome_config"],
     srcs = glob(["src/**/*.svelte"]),
 )
 
 svelte_build(
     name = "site",
+    aspect_hints = [":biome_config"],
     srcs = glob(["src/**"]) + ["index.html"],
     config = "vite.config.mjs",
     node_modules = ":node_modules",
@@ -26,6 +34,7 @@ svelte_build(
 
 svelte_check(
     name = "check",
+    aspect_hints = [":biome_config"],
     srcs = glob(["src/**"]),
     node_modules = ":node_modules",
     package_json = "package.json",
@@ -35,6 +44,7 @@ svelte_check(
 
 javascript_test(
     name = "site_ssr_test",
+    aspect_hints = [":biome_config"],
     srcs = ["site_ssr.test.js"],
     data = [
         ":node_modules/clsx",
@@ -48,6 +58,7 @@ javascript_test(
 
 javascript_test(
     name = "site_client_test",
+    aspect_hints = [":biome_config"],
     srcs = ["site_client.test.js"],
     data = [
         ":node_modules/jest-environment-jsdom",

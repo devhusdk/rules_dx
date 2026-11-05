@@ -30,7 +30,8 @@ use_repo(npm, "npm")
 MAVEN_BLOCK
 "#;
 
-const FILES: [&str; 14] = [
+const FILES: [&str; 15] = [
+    "biome.json",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",

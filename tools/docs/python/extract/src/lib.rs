@@ -88,7 +88,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let sources = parse_sources(&manifest)?;
     let root = options.root.trim_end_matches('/');
     let shard = convert_mapped(&json, &options.package, &|file| {
-        let staged = format!("{root}/{file}");
+        let staged = staged_path(root, file);
         sources
             .get(&staged)
             .cloned()
@@ -97,6 +97,11 @@ pub fn run(options: &Options) -> Result<(), String> {
     let bytes = documentation_ir::encode_shard(&shard)
         .map_err(|error| format!("cannot encode IR: {error:?}"))?;
     fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+}
+
+/// Joins the staged root and a griffe file path, which uses backslashes on Windows.
+fn staged_path(root: &str, file: &str) -> String {
+    format!("{root}/{}", file.replace('\\', "/"))
 }
 
 /// Parses a srcs manifest into staged path -> (repo-relative path, generated).

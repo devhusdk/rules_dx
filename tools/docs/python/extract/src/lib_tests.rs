@@ -311,3 +311,11 @@ fn malformed_manifest_lines_are_rejected() {
     assert!(parse_sources("a\t../b\t0\n").is_err());
     assert!(parse_sources("a\t/b\t0\n").is_err());
 }
+
+#[test]
+fn windows_separators_in_griffe_paths_find_the_staged_source() {
+    assert_eq!(
+        staged_path("bin/p.pyroot", "mylib\\sub\\__init__.py"),
+        "bin/p.pyroot/mylib/sub/__init__.py"
+    );
+}

@@ -84,5 +84,4 @@ real_source_target(
         "profile.bzl",
     ],
     tags = ["corpus"],
-    visibility = ["//examples:__pkg__"],
 )

@@ -10,7 +10,6 @@ package(default_visibility = _PUBLIC)
 exports_files(
     glob(["*"]) + ["styles/House/Todo.yml"],
     visibility = [
-        "//examples:__pkg__",
         "//tools/testing/hermetic:__pkg__",
     ],
 )

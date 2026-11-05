@@ -5,11 +5,11 @@
 `dx security` checks secrets and dependency vulnerabilities. `dx license` checks dependency licenses. Neither changes files.
 
 ```sh
-bazel run @rules_dx//:dx -- security
-bazel run @rules_dx//:dx -- security --affected
-bazel run @rules_dx//:dx -- security --offline --fail-on warning
-bazel run @rules_dx//:dx -- license --fail-on error //...
-bazel run @rules_dx//:dx -- security --report sarif=security.sarif quality/tools/python
+tools/dx security
+tools/dx security --affected
+tools/dx security --offline --fail-on warning
+tools/dx license --fail-on error //...
+tools/dx security --report sarif=security.sarif quality/tools/python
 ```
 
 ```text
@@ -204,12 +204,12 @@ A failure prints `tool_resolve_failed: <reason>` and exports nothing. Exit `0` s
 Updates dependencies per set. Checks by default; `--apply` writes.
 
 ```sh
-bazel run @rules_dx//:dx -- update
-bazel run @rules_dx//:dx -- update --apply go
-bazel run @rules_dx//:dx -- update --apply dx_pypi-python dx_pypi-tooling
-bazel run @rules_dx//:dx -- update --outdated
-bazel run @rules_dx//:dx -- update --pr --group=package dx_crates
-bazel run @rules_dx//:dx -- update --apply dx_crates:anyhow 1.0.100
+tools/dx update
+tools/dx update --apply go
+tools/dx update --apply dx_pypi-python dx_pypi-tooling
+tools/dx update --outdated
+tools/dx update --pr --group=package dx_crates
+tools/dx update --apply dx_crates:anyhow 1.0.100
 ```
 
 ```text
@@ -268,9 +268,9 @@ Text prints `dx: <code>: <message>` on stderr per failure, then a count of updat
 ### Outdated
 
 ```sh
-bazel run @rules_dx//:dx -- update --outdated
-bazel run @rules_dx//:dx -- update --outdated dx_crates
-bazel run @rules_dx//:dx -- update --outdated github-actions bazel:.bazelversion
+tools/dx update --outdated
+tools/dx update --outdated dx_crates
+tools/dx update --outdated github-actions bazel:.bazelversion
 ```
 
 It reads registries, writes nothing and starts no Bazel. Yanked versions and prereleases are ignored. Path, git, workspace and renamed entries are skipped, as are `workspace:`, `file:`, `link:`, `portal:`, `catalog:`, `npm:`, `git`, `github:` and `http` npm specs, `owner/repo` shorthands, and PyPI direct references or requirements without a version specifier.
@@ -303,9 +303,9 @@ Text prints one line per package: declared version, newest version, publish time
 ### Pull Requests
 
 ```sh
-bazel run @rules_dx//:dx -- update --pr
-bazel run @rules_dx//:dx -- update --pr --group=package --labels=dependencies dx_crates
-bazel run @rules_dx//:dx -- update --pr --automerge=none --ignore=cargo:serde --max-prs=2
+tools/dx update --pr
+tools/dx update --pr --group=package --labels=dependencies dx_crates
+tools/dx update --pr --automerge=none --ignore=cargo:serde --max-prs=2
 ```
 
 Needs `git`, an authenticated `gh`, a clean working tree and a checked-out branch. That branch is the pull request base. Covers the same sets as `--outdated`, including GitHub Actions pins (branch `dx-update/github-actions`) and `.bazelversion`.
@@ -347,11 +347,11 @@ After the groups, dx closes open `dx-update/` pull requests on the base branch t
 ### Widen Or Add One Package
 
 ```sh
-bazel run @rules_dx//:dx -- update --apply dx_crates:anyhow 1.0.100
-bazel run @rules_dx//:dx -- update --apply go:github.com/google/go-cmp 0.7.0
-bazel run @rules_dx//:dx -- update --apply bazel-modules:rules_cc 0.3.0
-bazel run @rules_dx//:dx -- update --apply --floor --reason "needs 0.3 API" bazel-modules:rules_cc 0.3.0
-bazel run @rules_dx//:dx -- update --apply npm:vue 3.5.42
+tools/dx update --apply dx_crates:anyhow 1.0.100
+tools/dx update --apply go:github.com/google/go-cmp 0.7.0
+tools/dx update --apply bazel-modules:rules_cc 0.3.0
+tools/dx update --apply --floor --reason "needs 0.3 API" bazel-modules:rules_cc 0.3.0
+tools/dx update --apply npm:vue 3.5.42
 ```
 
 One `set:package` and one version widen that requirement, or declare it when missing. A version starts with a digit, `v` plus a digit, or is a commit SHA. The set is a [dependency set](#dependency-sets) or the built-in `bazel` or `github-actions`. Any other set exits `2` and lists valid names.

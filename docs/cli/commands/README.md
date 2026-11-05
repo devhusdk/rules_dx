@@ -3,8 +3,8 @@
 Put `dx` flags after the command, Bazel flags after `--`.
 
 ```sh
-bazel run @rules_dx//:dx -- build //...
-bazel run @rules_dx//:dx -- lint //... -- --jobs=4
+tools/dx build //...
+tools/dx lint //... -- --jobs=4
 ```
 
 - [`dx build`](build-test-coverage.md): build targets.
@@ -73,7 +73,7 @@ and `minor`. The stream starts with `command_started` and ends with
 [`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json).
 
 ```sh
-bazel run @rules_dx//:dx -- lint //... --output=json
+tools/dx lint //... --output=json
 ```
 
 When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI` or
@@ -99,7 +99,7 @@ The count is the machine memory, or the cgroup limit if lower, divided by 3 GiB.
 It is at least 1 and at most 16.
 
 ```sh
-bazel run @rules_dx//:dx -- build //... --build-slots 4
+tools/dx build //... --build-slots 4
 ```
 
 - `auto`: the memory-based count. This is the default inside a
@@ -128,7 +128,7 @@ base, the temp dir and the home dir. Under 1 GiB free, it prints a `disk_low`
 line to stderr and keeps going. Free space with:
 
 ```sh
-bazel run @rules_dx//:dx -- worktree prune --apply
+tools/dx worktree prune --apply
 ```
 
 ## Environment

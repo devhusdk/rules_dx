@@ -22,7 +22,7 @@
 5. Run `dx` on existing targets:
 
    ```sh
-   bazel run @rules_dx//:dx -- build //pkg/...
+   tools/dx build //pkg/...
    ```
 
 6. Move one package. Change the `load()`.

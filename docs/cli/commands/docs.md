@@ -3,13 +3,13 @@
 Builds the documentation sites, doc shards and API references in scope.
 
 ```sh
-bazel run @rules_dx//:dx -- docs
-bazel run @rules_dx//:dx -- docs //lib:site
-bazel run @rules_dx//:dx -- docs --here
-bazel run @rules_dx//:dx -- docs --serve --port 8080
-bazel run @rules_dx//:dx -- docs --serve --host 0.0.0.0 --open //tools/docs/site:user_site
-bazel run @rules_dx//:dx -- docs --output=json
-bazel run @rules_dx//:dx -- docs -- --config=ci
+tools/dx docs
+tools/dx docs //lib:site
+tools/dx docs --here
+tools/dx docs --serve --port 8080
+tools/dx docs --serve --host 0.0.0.0 --open //tools/docs/site:user_site
+tools/dx docs --output=json
+tools/dx docs -- --config=ci
 ```
 
 ```text
@@ -77,7 +77,7 @@ docs_site(
 ```
 
 ```sh
-bazel run @rules_dx//:dx -- docs //lib:site
+tools/dx docs //lib:site
 ```
 
 | Language | Load | Rule | Attributes |

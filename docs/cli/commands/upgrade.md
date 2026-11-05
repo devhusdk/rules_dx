@@ -3,10 +3,10 @@
 Moves `rules_dx` and the pin in `.dx/pins` to a version, newer or older. Checks by default; `--apply` writes.
 
 ```sh
-bazel run @rules_dx//:dx -- upgrade --to 2.0.0
-bazel run @rules_dx//:dx -- upgrade --to 2.0.0 --apply
-bazel run @rules_dx//:dx -- upgrade --to 1.2.0 --apply
-bazel run @rules_dx//:dx -- upgrade --to 2.0.0 --apply --output json
+tools/dx upgrade --to 2.0.0
+tools/dx upgrade --to 2.0.0 --apply
+tools/dx upgrade --to 1.2.0 --apply
+tools/dx upgrade --to 2.0.0 --apply --output json
 ```
 
 ```text

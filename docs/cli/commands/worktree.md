@@ -136,7 +136,7 @@ The main checkout and every slot share one Bazel disk cache at
 `CI=true` and inside Bazel tests no disk cache is added. Turn it off for one run:
 
 ```sh
-bazel run @rules_dx//:dx -- build //... -- --disk_cache=
+tools/dx build //... -- --disk_cache=
 ```
 
 dx also adds `--experimental_disk_cache_gc_max_size=20G` and

@@ -3,10 +3,10 @@
 Reports workspace health. Reads only; it downloads, installs and repairs nothing.
 
 ```sh
-bazel run @rules_dx//:dx -- status
-bazel run @rules_dx//:dx -- status --output json
-bazel run @rules_dx//:dx -- status --capabilities
-bazel run @rules_dx//:dx -- --version
+tools/dx status
+tools/dx status --output json
+tools/dx status --capabilities
+tools/dx --version
 ```
 
 ```text

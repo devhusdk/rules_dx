@@ -294,7 +294,7 @@ dx does not install or manage Git hooks. For a commit or push hook, write a
 plain hook or use a hook tool, and have it run:
 
 ```sh
-bazel run @rules_dx//:dx -- check //...
+tools/dx check //...
 ```
 
 Enforce the same check in CI. See [GitHub CI](../../github-ci.md).

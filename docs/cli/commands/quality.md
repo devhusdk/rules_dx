@@ -3,11 +3,11 @@
 `dx lint` runs linters, `dx typecheck` runs type checkers and compilers in check mode, and `dx format` checks formatting. Each reports drift without writing files.
 
 ```sh
-bazel run @rules_dx//:dx -- lint //...
-bazel run @rules_dx//:dx -- lint --affected
-bazel run @rules_dx//:dx -- typecheck --fail-on error //cli/...
-bazel run @rules_dx//:dx -- format --here
-bazel run @rules_dx//:dx -- format --apply //cli/...
+tools/dx lint //...
+tools/dx lint --affected
+tools/dx typecheck --fail-on error //cli/...
+tools/dx format --here
+tools/dx format --apply //cli/...
 ```
 
 ```text
@@ -91,7 +91,7 @@ Several targets that fix the same file apply identical fixes once. Fixes that di
 The commands check with the policy named by `--@rules_dx//config:workspace`. Default: `@rules_dx//quality:default_workspace_policy`.
 
 ```sh
-bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:workspace=//quality:my_policy
+tools/dx lint -- --@rules_dx//config:workspace=//quality:my_policy
 ```
 
 To set it once, add to `.bazelrc`:
@@ -170,7 +170,7 @@ The `Not on` column lists platforms where the tool does not run. Empty means all
 Every tool runs from a managed executable. To use your own build, pass its target after `--`. The tool ID stays the same, so findings read the same.
 
 ```sh
-bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_<name>=//tools:my_tool
+tools/dx lint -- --@rules_dx//config:tool_<name>=//tools:my_tool
 ```
 
 Tools with an override flag: `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `julialint`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
@@ -358,7 +358,7 @@ flatbuffers_library(
 ```
 
 ```sh
-bazel run @rules_dx//:dx -- lint //api/...
+tools/dx lint //api/...
 ```
 
 List the package files in `srcs` and the libraries they include in `deps`. An include that is not a declared input fails with `include '<path>' is outside the declared inputs of <schema>`. An include `flatc` cannot find reports `unable to load include file`. Warnings fail the lint.
@@ -418,7 +418,7 @@ Bind a config with the `*_config` rule from `@rules_dx//quality:native_config.bz
 A baseline keeps known findings while new ones fail. Pass the file with `--baseline` to `dx lint`, `dx typecheck`, `dx format`, `dx check` or `dx watch`.
 
 ```sh
-bazel run @rules_dx//:dx -- lint --baseline quality/baseline.json //...
+tools/dx lint --baseline quality/baseline.json //...
 ```
 
 The path is workspace-relative, stays inside the workspace, and names a `.json` file. Any other path exits `2`. A missing file fails checks. Pass `--apply` once to write it, then commit it.

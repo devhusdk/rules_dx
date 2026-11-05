@@ -58,6 +58,7 @@ filegroup(
         ":compiler_files_{tuple}",
         ":linker_files_{tuple}",
         ":ar_files",
+        ":strip_files",
     ],
 )
 
@@ -83,7 +84,7 @@ cc_toolchain(
     dwp_files = ":empty",
     linker_files = ":linker_files_{tuple}",
     objcopy_files = ":empty",
-    strip_files = ":empty",
+    strip_files = ":strip_files",
     supports_param_files = False,
     toolchain_config = ":config_{tuple}",
     toolchain_identifier = "ndk-{tuple}-android",
@@ -109,6 +110,11 @@ filegroup(
 filegroup(
     name = "llvm_readelf",
     srcs = ["{ndk}:llvm_readelf"],
+)
+
+filegroup(
+    name = "strip_files",
+    srcs = ["{ndk}:llvm_strip"],
 )
 """
 

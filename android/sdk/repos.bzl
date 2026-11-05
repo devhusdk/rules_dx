@@ -439,7 +439,7 @@ def ndk_toolchain_build(root):
     """Returns the filegroups a cc toolchain needs from the NDK unpacked under root."""
     prebuilt = root + "/" + NDK_PREBUILT
     lines = []
-    for name, tool in [("clang", "clang"), ("ld_lld", "ld.lld"), ("llvm_ar", "llvm-ar"), ("llvm_readelf", "llvm-readelf")]:
+    for name, tool in [("clang", "clang"), ("ld_lld", "ld.lld"), ("llvm_ar", "llvm-ar"), ("llvm_readelf", "llvm-readelf"), ("llvm_strip", "llvm-strip")]:
         lines.extend([
             "filegroup(",
             '    name = "%s",' % name,

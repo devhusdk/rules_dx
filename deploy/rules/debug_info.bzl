@@ -120,6 +120,7 @@ _dsym_pair = rule(
         ),
         "_dsymutil": attr.label(
             default = Label("@llvm//tools:dsymutil"),
+            allow_single_file = True,
             executable = True,
             cfg = "exec",
         ),

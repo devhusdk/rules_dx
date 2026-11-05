@@ -473,7 +473,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 22] = [
+const FAMILY_FILES: [&str; 26] = [
     "ansible",
     "bicep",
     "cloudformation",
@@ -483,13 +483,17 @@ const FAMILY_FILES: [&str; 22] = [
     "dockerfile",
     "html_template",
     "jsonnet",
+    "kubernetes",
     "latex",
+    "lua",
     "make",
     "nix",
     "perl",
+    "php",
     "pkl",
     "rego",
     "shell",
+    "sql",
     "swift",
     "terraform",
     "text",

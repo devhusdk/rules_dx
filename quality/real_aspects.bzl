@@ -18,11 +18,8 @@ load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
-load("//helm/rules:providers.bzl", "HelmChartInfo")
-load("//lua/private:providers.bzl", "LuaInfo")
 load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
 load("//php/rules:php.bzl", "staged_path")
-load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stubs")
@@ -51,6 +48,10 @@ load("//quality:families/jsonnet.bzl", _real_jsonnet_format_aspect = "real_jsonn
 load("//quality:families/rego.bzl", _real_rego_format_aspect = "real_rego_format_aspect", _real_rego_lint_aspect = "real_rego_lint_aspect", _real_rego_typecheck_aspect = "real_rego_typecheck_aspect", _REGO_HOOKS = "HOOKS", _REGO_SHARD_SPECS = "SHARD_SPECS", _REGO_TOOLS = "TOOLS")
 load("//quality:families/bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect", _BICEP_HOOKS = "HOOKS", _BICEP_SHARD_SPECS = "SHARD_SPECS", _BICEP_TOOLS = "TOOLS")
 load("//quality:families/terraform.bzl", _real_terraform_format_aspect = "real_terraform_format_aspect", _real_terraform_lint_aspect = "real_terraform_lint_aspect", _real_terraform_typecheck_aspect = "real_terraform_typecheck_aspect", _TERRAFORM_HOOKS = "HOOKS", _TERRAFORM_SHARD_SPECS = "SHARD_SPECS", _TERRAFORM_TOOLS = "TOOLS")
+load("//quality:families/lua.bzl", _real_lua_format_aspect = "real_lua_format_aspect", _real_lua_lint_aspect = "real_lua_lint_aspect", _real_lua_typecheck_aspect = "real_lua_typecheck_aspect", _LUA_HOOKS = "HOOKS", _LUA_SHARD_SPECS = "SHARD_SPECS", _LUA_TOOLS = "TOOLS")
+load("//quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _PHP_HOOKS = "HOOKS", _PHP_SHARD_SPECS = "SHARD_SPECS", _PHP_TOOLS = "TOOLS")
+load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _KUBERNETES_HOOKS = "HOOKS", _KUBERNETES_SHARD_SPECS = "SHARD_SPECS", _KUBERNETES_TOOLS = "TOOLS")
+load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _without = "without")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
@@ -149,14 +150,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "erlang",
     },
-    "phpcs": {
-        "attr": attr.label(default = "//config:tool_phpcs", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "fallback": "=@rules_dx//php/tools:phpcs",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "php",
-    },
     "jet": {
         "attr": attr.label(default = "//config:tool_jet", allow_files = True, cfg = "exec"),
         "capabilities": ["typecheck"],
@@ -164,22 +157,6 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "heavy",
         "shard": "julia",
-    },
-    "luals": {
-        "attr": attr.label(default = "//config:tool_luals", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
-        "fallback": "=@rules_dx//lua/tools:luals",
-        "kind": "setting",
-        "resources": "heavy",
-        "shard": "lua",
-    },
-    "phpstan": {
-        "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
-        "fallback": "=@rules_dx//php/tools:phpstan",
-        "kind": "setting",
-        "resources": "heavy",
-        "shard": "php",
     },
     "sorbet": {
         "attr": attr.label(default = "//config:tool_sorbet", allow_files = True, cfg = "exec"),
@@ -342,20 +319,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "js",
-    },
-    "helm": {
-        "attr": attr.label(default = "//config:tool_helm", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "kubernetes",
-    },
-    "kubeconform": {
-        "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "kubernetes",
     },
     "ffmt": {
         "attr": attr.label(default = "@dx_tools//:ffmt", allow_single_file = True, cfg = "exec"),
@@ -591,27 +554,12 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "scala",
     },
-    "selene": {
-        "attr": attr.label(default = "//quality/tools/rust:selene", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "light",
-        "shard": "lua",
-    },
     "spotbugs": {
         "attr": attr.label(default = "//quality/tools/jvm:spotbugs", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
-    },
-    "sqlfluff": {
-        "attr": attr.label(default = "//quality/tools/python:sqlfluff", cfg = "exec", executable = True),
-        "capabilities": ["format", "lint"],
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "sql",
     },
     "staticcheck": {
         "capabilities": ["lint"],
@@ -634,13 +582,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",
-    },
-    "stylua": {
-        "attr": attr.label(default = "//config:tool_stylua", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "lua",
     },
     "topiary": {
         "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
@@ -926,24 +867,6 @@ def _jet_staging(target, ctx, path_to_file):
     )
     return (staged, config)
 
-def _helm_context(target, ctx, what):
-    """Returns the chart context file for one helm_chart target."""
-    if HelmChartInfo not in target:
-        fail(what + ": helm needs a helm_chart target")
-    chart = target[HelmChartInfo]
-    context = ctx.actions.declare_file(target.label.name + "-helm-context.json")
-    ctx.actions.write(
-        output = context,
-        content = json.encode({
-            "chart_root": chart.chart_root,
-            "namespace": chart.namespace,
-            "release": chart.release_name,
-            "schema_version": 1,
-            "values": [f.short_path for f in chart.values],
-        }),
-    )
-    return context
-
 _DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
 _DART_OPTIONS_REL = "analysis_options.yaml"
 
@@ -1068,29 +991,11 @@ _REAL_SHARD_SPECS = {
         "shard": "elixir",
         "suffix": "-elixir",
     },
-    "real_php_lint": {
-        "capability": "lint",
-        "doc": "Additive PHP lint family aspect (phpcs).",
-        "shard": "php",
-        "suffix": "-php",
-    },
-    "real_php_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive PHP typecheck family aspect (phpstan).",
-        "shard": "php",
-        "suffix": "-php",
-    },
     "real_julia_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Julia typecheck family aspect (JET).",
         "shard": "julia",
         "suffix": "-julia",
-    },
-    "real_lua_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Lua typecheck family aspect (lua-language-server).",
-        "shard": "lua",
-        "suffix": "-lua",
     },
     "real_ruby_typecheck": {
         "capability": "typecheck",
@@ -1356,24 +1261,6 @@ _REAL_SHARD_SPECS = {
         "shard": "scala",
         "suffix": "-scala",
     },
-    "real_sql_format": {
-        "capability": "format",
-        "doc": "Additive SQL format family aspect (sqlfluff).",
-        "shard": "sql",
-        "suffix": "-sql",
-    },
-    "real_sql_lint": {
-        "capability": "lint",
-        "doc": "Additive SQL lint family aspect (sqlfluff).",
-        "shard": "sql",
-        "suffix": "-sql",
-    },
-    "real_kubernetes_lint": {
-        "capability": "lint",
-        "doc": "Additive Kubernetes lint family aspect (kubeconform, helm).",
-        "shard": "kubernetes",
-        "suffix": "-kubernetes",
-    },
     "real_fortran_format": {
         "capability": "format",
         "doc": "Additive Fortran format family aspect (ffmt).",
@@ -1392,18 +1279,6 @@ _REAL_SHARD_SPECS = {
         "requires": [compile_check_aspect],
         "shard": "fortran",
         "suffix": "-fortran",
-    },
-    "real_lua_lint": {
-        "capability": "lint",
-        "doc": "Additive Lua lint family aspect (selene).",
-        "shard": "lua",
-        "suffix": "-lua",
-    },
-    "real_lua_format": {
-        "capability": "format",
-        "doc": "Additive Lua format family aspect (stylua).",
-        "shard": "lua",
-        "suffix": "-lua",
     },
     "real_haskell_format": {
         "capability": "format",
@@ -1544,43 +1419,6 @@ def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
     env = [real_request_tool_env("OCAMLLIB", stdlib[0].dirname)] if len(stdlib) > 0 else []
     return real_context(tool_files = tool_files, inputs = inputs, env = env)
 
-def _luals_hook(target, ctx, _resolved, _capability, _what, shared):
-    # Dependency modules become the library, one file per module name; the owned sources
-    # are checked in place, so they stay out of the library. Libraries carry LuaInfo; a
-    # lua_binary or lua_test has none, so its deps provide the modules.
-    owned_paths = {f.path: True for f in shared.path_to_file.values()}
-    infos = [target[LuaInfo]] if LuaInfo in target else [dep[LuaInfo] for dep in getattr(ctx.rule.attr, "deps", []) if LuaInfo in dep]
-    tool_files = []
-    inputs = []
-    seen_modules = {}
-    for info in infos:
-        for (module, module_file) in sorted(info.modules.to_list(), key = lambda m: m[0]):
-            if module_file.path not in owned_paths and module not in seen_modules:
-                seen_modules[module] = True
-                _stage(tool_files, inputs, "dx-luals/mod/" + module.replace(".", "/") + ".lua", module_file)
-    return real_context(tool_files = tool_files, inputs = inputs)
-
-def _phpstan_hook(target, _ctx, resolved, _capability, _what, shared):
-    if PhpInfo not in target:
-        return _without(resolved, "phpstan")
-
-    # Dependencies are scanned for their symbols, never analysed or run; the owned
-    # sources are the CLI paths, so they stay out of the scan set.
-    owned_paths = {f.path: True for f in shared.path_to_file.values()}
-    info = target[PhpInfo]
-    tool_files = []
-    inputs = []
-    seen_scan = {}
-    for scan_file in sorted(info.transitive_srcs.to_list() + info.autoload_files.to_list(), key = lambda f: f.path):
-        if scan_file.path not in owned_paths and scan_file.path not in seen_scan:
-            seen_scan[scan_file.path] = True
-            _stage(tool_files, inputs, "dx-phpstan/scan/" + staged_path(scan_file), scan_file)
-    for pkg_file in sorted(info.package_files.to_list(), key = lambda f: f.path):
-        if pkg_file.path.endswith(".php") and pkg_file.path not in owned_paths and pkg_file.path not in seen_scan:
-            seen_scan[pkg_file.path] = True
-            _stage(tool_files, inputs, "dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file)
-    return real_context(tool_files = tool_files, inputs = inputs)
-
 def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
     # Dependency sources are only read for the constants they define; the owned sources
     # are the CLI paths, so they stay out of the dependency set. A target without
@@ -1626,26 +1464,6 @@ def _jet_hook(target, ctx, resolved, _capability, _what, shared):
             _stage(tool_files, inputs, rel, staged_file)
         _stage(tool_files, inputs, "dx-jet/config.toml", config)
     return real_context(tool_files = tool_files, inputs = inputs)
-
-def _helm_hook(target, ctx, _resolved, _capability, what, _shared):
-    context = _helm_context(target, ctx, what)
-    tool_files = []
-    inputs = []
-    _stage(tool_files, inputs, "dx-helm/context.json", context)
-    inputs.append(ctx.file._kubeconform)
-    pairs = []
-    if HelmChartInfo in target:
-        for f in target[HelmChartInfo].dependencies:
-            ws_path = f.short_path
-            if ".." in ws_path.split("/") or ws_path.startswith("../"):
-                continue
-            pairs.append((ws_path, f, False))
-    return real_context(
-        tool_files = tool_files,
-        inputs = inputs,
-        resolve_pairs = pairs,
-        options = {"path_tools": [("kubeconform", ctx.file._kubeconform)]},
-    )
 
 def _dart_hook(target, ctx, _resolved, capability, what, _shared):
     config_packages = []
@@ -1970,13 +1788,10 @@ _HOOK_ORDER = [
     "spotbugs",
     "dialyzer",
     "zanuda",
-    "luals",
-    "phpstan",
     "sorbet",
     "scalafix",
     "fsharplint",
     "jet",
-    "helm",
     "dart",
 ] + _JVM_CHECK_TOOLS + _GO_ANALYSIS_TOOLS + COMPILE_CHECK_TOOLS + [
     "tsc",
@@ -2014,13 +1829,10 @@ _CONTEXT_HOOKS = {
     "spotbugs": _spotbugs_hook,
     "dialyzer": _dialyzer_hook,
     "zanuda": _zanuda_hook,
-    "luals": _luals_hook,
-    "phpstan": _phpstan_hook,
     "sorbet": _sorbet_hook,
     "scalafix": _scalafix_hook,
     "fsharplint": _fsharplint_hook,
     "jet": _jet_hook,
-    "helm": _helm_hook,
     "dart": _dart_hook,
     "tsc": _tsc_hook,
     "roslyn": _roslyn_hook,
@@ -2039,7 +1851,7 @@ _CONTEXT_HOOKS = {
     "buf": _buf_hook,
     "psscriptanalyzer": _psscriptanalyzer_hook,
     "gofumpt": _gofumpt_hook,
-} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -2051,8 +1863,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -2159,13 +1971,7 @@ real_zig_lint_aspect = _make_real_aspect("real_zig_lint")
 
 real_julia_lint_aspect = _make_real_aspect("real_julia_lint")
 
-real_php_lint_aspect = _make_real_aspect("real_php_lint")
-
-real_php_typecheck_aspect = _make_real_aspect("real_php_typecheck")
-
 real_julia_typecheck_aspect = _make_real_aspect("real_julia_typecheck")
-
-real_lua_typecheck_aspect = _make_real_aspect("real_lua_typecheck")
 
 real_ruby_typecheck_aspect = _make_real_aspect("real_ruby_typecheck")
 
@@ -2224,15 +2030,9 @@ real_ocaml_typecheck_aspect = _make_real_aspect("real_ocaml_typecheck")
 
 real_ocaml_lint_aspect = _make_real_aspect("real_ocaml_lint")
 
-real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
-
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 
 real_cloudformation_lint_aspect = _real_cloudformation_lint_aspect
-
-real_sql_format_aspect = _make_real_aspect("real_sql_format")
-
-real_sql_lint_aspect = _make_real_aspect("real_sql_lint")
 
 real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 
@@ -2267,9 +2067,6 @@ real_typst_lint_aspect = _real_typst_lint_aspect
 
 real_latex_format_aspect = _real_latex_format_aspect
 
-real_lua_format_aspect = _make_real_aspect("real_lua_format")
-
-real_lua_lint_aspect = _make_real_aspect("real_lua_lint")
 real_cmake_format_aspect = _real_cmake_format_aspect
 
 real_cmake_lint_aspect = _real_cmake_lint_aspect
@@ -2382,3 +2179,19 @@ real_terraform_format_aspect = _real_terraform_format_aspect
 real_terraform_lint_aspect = _real_terraform_lint_aspect
 
 real_terraform_typecheck_aspect = _real_terraform_typecheck_aspect
+
+real_lua_format_aspect = _real_lua_format_aspect
+
+real_lua_lint_aspect = _real_lua_lint_aspect
+
+real_lua_typecheck_aspect = _real_lua_typecheck_aspect
+
+real_php_lint_aspect = _real_php_lint_aspect
+
+real_php_typecheck_aspect = _real_php_typecheck_aspect
+
+real_kubernetes_lint_aspect = _real_kubernetes_lint_aspect
+
+real_sql_format_aspect = _real_sql_format_aspect
+
+real_sql_lint_aspect = _real_sql_lint_aspect

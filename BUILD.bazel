@@ -238,6 +238,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude julia/tests/fixtures/hello
 # gazelle:exclude lua/tests
 # gazelle:exclude d/tests/fixtures/hello
+# gazelle:exclude d/tests/fixtures/cc_interop
 # gazelle:exclude rust/tests/fixtures/bindgen
 # gazelle:exclude cc/tests/fixtures/googletest
 # gazelle:exclude cc/tests/fixtures/lcov_accounting

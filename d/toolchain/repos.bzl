@@ -59,7 +59,7 @@ export LD_LIBRARY_PATH
 exec "$bin/ldmd2" "$@"
 """
 
-LDC_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_import")
+LDC_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
 load("@rules_d//d:toolchain.bzl", "d_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -80,9 +80,14 @@ filegroup(
 )
 
 cc_import(
-    name = "druntime",
+    name = "druntime_import",
     linkopts = _RUNTIME_LINKOPTS,
     static_library = "{druntime}",
+)
+
+cc_library(
+    name = "druntime",
+    deps = [":druntime_import"] + {runtime_deps},
 )
 
 cc_import(
@@ -341,6 +346,7 @@ def ldc_build(cell, wrapper):
         ldc = cell.ldc,
         linkopts = repr(cell.linkopts),
         phobos = cell.phobos,
+        runtime_deps = repr([str(Label(dep)) for dep in cell.runtime_deps]),
         version_file = VERSION_FILE,
         wrapper = wrapper,
     )

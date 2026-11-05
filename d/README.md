@@ -42,6 +42,9 @@ d_test(
   Windows x86_64 and Windows arm64. windows_arm64 runs the x64 LDC under emulation. Both Windows
   cells constrain on the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime
   is MSVC-ABI.
+- On Windows, D stdio uses ISO wide specifiers, matching cc. `//d/toolchain:msvc_iso_stdio` defines the
+  stdio functions druntime would otherwise take from `legacy_stdio_definitions.lib`; hermetic-llvm has
+  no legacy mode (hermeticbuild/hermetic-llvm#871). D links the dynamic CRT (`-mscrtlib=msvcrt`).
 
 ## Generate
 

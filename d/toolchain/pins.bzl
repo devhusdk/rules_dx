@@ -19,8 +19,8 @@ _WINDOWS_ARCHIVE = "ldc2-" + LDC_VERSION + "-windows-x64.7z"
 
 _WINDOWS_SHA256 = "60ae3d5e34287aa25433c7550520060a52f9f212e3d5ff6472a9067d8d17e47e"
 
-# druntime links legacy_stdio_definitions.lib, which conflicts with the toolchain default iso_stdio_wide_specifiers.lib.
-_WINDOWS_LINKOPTS = ["/link", "/nodefaultlib:iso_stdio_wide_specifiers.lib"]
+# druntime links legacy_stdio_definitions.lib; drop it and use //d/toolchain:msvc_iso_stdio instead (#6948).
+_WINDOWS_LINKOPTS = ["/NODEFAULTLIB:legacy_stdio_definitions.lib"]
 
 _WINDOWS_ADDON = struct(
     archive = "ldc2-" + LDC_VERSION + "-addon-windows.tar.xz",
@@ -42,6 +42,7 @@ LDC_CELLS = {
         linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
         phobos = "lib/libphobos2-ldc.a",
         runtime = ["gcc-12-base", "libgcc-s1", "zlib1g"],
+        runtime_deps = [],
         sha256 = "35805db60f47fd1a162b2035da84d96beec37e6d1e7b1edf60498a90acfaedce",
         strip_prefix = "ldc2-" + LDC_VERSION + "-linux-x86_64",
         wrapper = True,
@@ -59,6 +60,7 @@ LDC_CELLS = {
         linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
         phobos = "lib/libphobos2-ldc.a",
         runtime = ["gcc-12-base", "libgcc-s1", "zlib1g"],
+        runtime_deps = [],
         sha256 = "f2b24edc254d4b9944234f641de3c4b3a36d5752639ec30cb2bbe122931b2283",
         strip_prefix = "ldc2-" + LDC_VERSION + "-linux-aarch64",
         wrapper = True,
@@ -76,6 +78,7 @@ LDC_CELLS = {
         linkopts = ["-ldl", "-lm", "-lpthread"],
         phobos = "lib/libphobos2-ldc.a",
         runtime = [],
+        runtime_deps = [],
         sha256 = "5e332349c784d4e0b1c4622284803880f89d97ef1ef97c6b25aa4d6b094c5fed",
         strip_prefix = "ldc2-" + LDC_VERSION + "-osx-arm64",
         wrapper = True,
@@ -84,7 +87,7 @@ LDC_CELLS = {
         addon = _WINDOWS_ADDON,
         archive = _WINDOWS_ARCHIVE,
         compiler = "bin/ldmd2.exe",
-        compiler_flags = ["-mscrtlib=libcmt", "-mtriple=aarch64-windows-msvc"],
+        compiler_flags = ["-mscrtlib=msvcrt", "-mtriple=aarch64-windows-msvc"],
         data_globs = ["bin/*.dll", "lib-windows-arm64/*.dll"],
         druntime = "lib-windows-arm64/druntime-ldc.lib",
         dub = "bin/dub.exe",
@@ -93,6 +96,7 @@ LDC_CELLS = {
         linkopts = _WINDOWS_LINKOPTS,
         phobos = "lib-windows-arm64/phobos2-ldc.lib",
         runtime = [],
+        runtime_deps = ["//d/toolchain:msvc_iso_stdio"],
         sha256 = _WINDOWS_SHA256,
         strip_prefix = "ldc2-" + LDC_VERSION + "-windows-x64",
         wrapper = False,
@@ -101,7 +105,7 @@ LDC_CELLS = {
         addon = None,
         archive = _WINDOWS_ARCHIVE,
         compiler = "bin/ldmd2.exe",
-        compiler_flags = ["-mscrtlib=libcmt"],
+        compiler_flags = ["-mscrtlib=msvcrt"],
         data_globs = ["bin/*.dll"],
         druntime = "lib/druntime-ldc.lib",
         dub = "bin/dub.exe",
@@ -110,6 +114,7 @@ LDC_CELLS = {
         linkopts = _WINDOWS_LINKOPTS,
         phobos = "lib/phobos2-ldc.lib",
         runtime = [],
+        runtime_deps = ["//d/toolchain:msvc_iso_stdio"],
         sha256 = _WINDOWS_SHA256,
         strip_prefix = "ldc2-" + LDC_VERSION + "-windows-x64",
         wrapper = False,

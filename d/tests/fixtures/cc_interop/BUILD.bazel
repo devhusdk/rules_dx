@@ -1,0 +1,28 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_binary")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "add",
+    srcs = ["add.c"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+d_binary(
+    name = "cc_interop",
+    srcs = ["main.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+    deps = [":add"],
+)
+
+dx_hello_output_test(
+    name = "cc_interop_output_test",
+    binary = ":cc_interop",
+    expected = "5",
+    target_compatible_with = D_COMPATIBLE_WITH,
+)

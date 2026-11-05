@@ -3662,6 +3662,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_pkl_lint_fail",
@@ -3679,6 +3680,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_pkl_lint_syntax_error",
@@ -3696,6 +3698,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_pkl_lint_module",
@@ -3714,6 +3717,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_helm_lint_pass",

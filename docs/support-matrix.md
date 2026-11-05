@@ -137,7 +137,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a | n/a |
 | Nix | `deadnix`, `statix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
 | OCI images | no | no | no | n/a | n/a | n/a |
-| Pkl | `pkl_lsp` (not on `windows_arm64`: pkl-lsp exits at start under the hermetic runner (#7292)), `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
+| Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
 | reStructuredText | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
 | Shell | `shellcheck`, `typos` | `shfmt` | no | n/a | n/a | `shellcheck SC2034` |

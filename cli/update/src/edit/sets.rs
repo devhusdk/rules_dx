@@ -9,11 +9,12 @@ pub enum UpdateSet {
     Maven,
     Npm,
     NuGet,
+    Pub,
     Ruby,
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 10] = [
+    pub const ALL: [UpdateSet; 11] = [
         UpdateSet::Bazel,
         UpdateSet::Cargo,
         UpdateSet::Containers,
@@ -23,6 +24,7 @@ impl UpdateSet {
         UpdateSet::Maven,
         UpdateSet::Npm,
         UpdateSet::NuGet,
+        UpdateSet::Pub,
         UpdateSet::Ruby,
     ];
 
@@ -47,6 +49,7 @@ impl UpdateSet {
             UpdateSet::Maven => "maven",
             UpdateSet::Npm => "npm",
             UpdateSet::NuGet => "nuget",
+            UpdateSet::Pub => "pub",
             UpdateSet::Ruby => "ruby",
         }
     }
@@ -62,6 +65,7 @@ impl UpdateSet {
             "maven" => Some(UpdateSet::Maven),
             "npm" => Some(UpdateSet::Npm),
             "nuget" => Some(UpdateSet::NuGet),
+            "pub" => Some(UpdateSet::Pub),
             "ruby" => Some(UpdateSet::Ruby),
             _ => None,
         }
@@ -100,7 +104,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 10);
+        assert_eq!(seen.len(), 11);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -136,6 +140,7 @@ mod tests {
                 "maven",
                 "npm",
                 "nuget",
+                "pub",
                 "ruby"
             ]
         );
@@ -171,6 +176,7 @@ mod tests {
         assert!(UpdateSet::NuGet.needs_update_refresh());
         assert!(UpdateSet::Ruby.needs_update_refresh());
         assert!(UpdateSet::Cpan.needs_update_refresh());
+        assert!(UpdateSet::Pub.needs_update_refresh());
     }
 
     #[test]

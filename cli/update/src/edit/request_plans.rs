@@ -555,6 +555,104 @@ pub(super) fn plan_cpanfile(
     Ok(edited)
 }
 
+/// Rewrites the constraint of one scalar `package: <constraint>` entry in the
+/// `dependencies` or `dev_dependencies` of a pubspec.yaml, keeping its `^` or range form.
+pub(super) fn plan_pubspec(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Semver(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected exact semver".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let mut section = "";
+    let mut offset = 0;
+    let mut hits = Vec::new();
+    for line in content.split_inclusive('\n') {
+        let text = line.trim_end_matches(['\n', '\r']);
+        let trimmed = text.trim_start();
+        if !trimmed.is_empty() && !trimmed.starts_with('#') {
+            if text.len() == trimmed.len() {
+                section = trimmed.split(':').next().unwrap_or("").trim();
+            } else if matches!(section, "dependencies" | "dev_dependencies") {
+                let entry = trimmed
+                    .strip_prefix(package)
+                    .and_then(|rest| rest.strip_prefix(':'));
+                if let Some(value) = entry {
+                    hits.push((offset + text.len() - value.len(), value));
+                }
+            }
+        }
+        offset += line.len();
+    }
+    let (at, value) = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [hit] => *hit,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let constraint = match value.find(" #") {
+        Some(cut) => &value[..cut],
+        None => value,
+    };
+    let lead = constraint.len() - constraint.trim_start().len();
+    let body = constraint.trim();
+    let (quote, inner) = match body.chars().next() {
+        Some(q @ ('"' | '\'')) if body.len() >= 2 && body.ends_with(q) => {
+            (q.to_string(), &body[1..body.len() - 1])
+        }
+        _ => (String::new(), body),
+    };
+    let replaced = if let Some(plain) = inner.strip_prefix('^') {
+        plain
+            .chars()
+            .next()
+            .filter(char::is_ascii_digit)
+            .map(|_| format!("^{new}"))
+    } else if inner.starts_with(|c: char| c.is_ascii_digit()) && !inner.contains(' ') {
+        Some(new.to_string())
+    } else if let Some(range) = inner.strip_prefix(">=") {
+        let upper = range.split_once(' ').map_or("", |(_, upper)| upper);
+        Some(if upper.is_empty() {
+            format!(">={new}")
+        } else {
+            format!(">={new} {upper}")
+        })
+    } else {
+        None
+    };
+    let Some(replaced) = replaced else {
+        return Err(unsupported(
+            "the dependency needs a scalar `^x.y.z`, `x.y.z` or `>=x.y.z <a.b.c` constraint",
+        ));
+    };
+    let mut edited = content.to_owned();
+    let start = at + lead;
+    edited.replace_range(
+        start..start + body.len(),
+        &format!("{quote}{replaced}{quote}"),
+    );
+    Ok(edited)
+}
+
 pub(super) fn plan_maven_module_bazel(
     manifest: &str,
     content: &str,
@@ -952,6 +1050,18 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("cpan module names are words joined by '::'")
+            }
+        }
+        UpdateSet::Pub => {
+            if !package.is_empty()
+                && package.starts_with(|c: char| c.is_ascii_lowercase())
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            {
+                Ok(())
+            } else {
+                Err("pub package names use lowercase letters, digits and '_'")
             }
         }
         UpdateSet::Containers => {

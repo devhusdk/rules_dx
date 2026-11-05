@@ -155,6 +155,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit the Gemfile and run `bundle lock`",
             }),
+            UpdateSet::Pub => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit pubspec.yaml and run `dart pub get`",
+            }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",

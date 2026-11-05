@@ -1765,6 +1765,76 @@ fn cpan_selectors_split_at_the_first_colon_only() {
     assert!(cpan_request("Text:CSV", "1.0").is_err());
 }
 
+fn pub_request(package: &str, version: &str) -> Result<UpdateRequest, EditError> {
+    configured(
+        ConfiguredKind::Pub,
+        &["app/pubspec.yaml"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )
+}
+
+fn pub_edit(package: &str, version: &str) -> Result<String, EditError> {
+    pub_request(package, version)?.plan_edit(PUBSPEC)
+}
+
+const PUBSPEC: &str = "name: app
+dependencies:
+  http: ^1.2.0
+  path: \">=1.8.0 <2.0.0\"
+  yaml: 3.1.0  # pinned
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  lints: ^4.0.0
+dependency_overrides:
+  http: ^0.13.0
+";
+
+#[test]
+fn pub_edit_keeps_the_caret_range_quotes_and_comment() {
+    let request = pub_request("http", "1.3.0").expect("pub");
+    assert_eq!(request.set, UpdateSet::Pub);
+    assert_eq!(request.target().refresh_selector(), "set:http");
+    assert_eq!(
+        pub_edit("http", "1.3.0").expect("caret"),
+        PUBSPEC.replace("http: ^1.2.0", "http: ^1.3.0")
+    );
+    assert_eq!(
+        pub_edit("path", "1.9.0").expect("range"),
+        PUBSPEC.replace("\">=1.8.0 <2.0.0\"", "\">=1.9.0 <2.0.0\"")
+    );
+    assert_eq!(
+        pub_edit("yaml", "3.2.0").expect("exact"),
+        PUBSPEC.replace("yaml: 3.1.0 ", "yaml: 3.2.0 ")
+    );
+}
+
+#[test]
+fn pub_edit_reaches_dev_dependencies_but_not_overrides() {
+    assert_eq!(
+        pub_edit("lints", "5.0.0").expect("dev"),
+        PUBSPEC.replace("lints: ^4.0.0", "lints: ^5.0.0")
+    );
+}
+
+#[test]
+fn pub_refuses_undeclared_sdk_and_bad_versions() {
+    assert!(matches!(
+        pub_edit("other", "1.0.0"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        pub_edit("flutter", "1.0.0"),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
+    for bad in ["^1.0.0", "1.0", "latest"] {
+        assert!(pub_request("http", bad).is_err(), "{bad}");
+    }
+    assert!(pub_request("Http", "1.0.0").is_err());
+}
+
 const OCI_MODULE: &str = "oci.pull(
     name = \"distroless_static\",
     digest = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\",

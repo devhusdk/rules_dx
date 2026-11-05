@@ -60,6 +60,7 @@ real_source_target(
         "editors.md",
         "github-ci.md",
         "licenses.md",
+        "own-cc-toolchain.md",
         "remote-cache.md",
         "remote-execution.md",
         "support-matrix.md",

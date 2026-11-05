@@ -98,9 +98,10 @@ exports_files(
 )
 
 # keep
+# size: medium, Firefox docs-site run, measured 87.8s linux_x86_64 2026-11-05
 rust_test(
     name = "browser_test",
-    size = "large",
+    size = "medium",
     srcs = [
         "browser_test.rs",
         "preview_server.rs",
@@ -118,6 +119,8 @@ rust_test(
     tags = [
         "no-coverage",
         "no-remote-exec",
+        "resources:cpu:2",
+        "resources:memory:2048",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -131,7 +134,6 @@ rust_test(
 # keep
 rust_test(
     name = "deploy_smoke_test",
-    size = "large",
     srcs = [
         "deploy_smoke_test.rs",
         "preview_server.rs",
@@ -149,6 +151,8 @@ rust_test(
     tags = [
         "no-coverage",
         "no-remote-exec",
+        "resources:cpu:2",
+        "resources:memory:2048",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [

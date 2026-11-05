@@ -1,13 +1,27 @@
-//! Generates the matrix from the real facts, so a `ci_tests` label the reader does not understand fails here.
+//! Generates the matrix from the real facts. A `ci_tests` label the reader does not understand fails here, and so does a committed page that is out of date.
 
 use support_matrix::runfiles_source::RunfilesSource;
-use support_matrix::{generate, Source};
+use support_matrix::{diff, generate, Source, MATRIX_PATH, UPDATE_COMMAND};
 
-#[test]
-fn every_ci_test_label_is_understood() {
+fn generated() -> (String, RunfilesSource) {
     let source = RunfilesSource::create().expect("runfiles");
     let facts = source
         .read("tools/docs/support_matrix/facts.json")
         .expect("facts");
-    generate(&facts, &source).expect("generator understands every ci_tests label");
+    let matrix = generate(&facts, &source).expect("generator understands every ci_tests label");
+    (matrix, source)
+}
+
+#[test]
+fn every_ci_test_label_is_understood() {
+    generated();
+}
+
+#[test]
+fn committed_page_matches_the_source_data() {
+    let (matrix, source) = generated();
+    let committed = source.read(MATRIX_PATH).expect("committed page");
+    if let Some(changes) = diff(&committed, &matrix) {
+        panic!("{MATRIX_PATH} is out of date (-committed, +generated):\n{changes}\nrun `{UPDATE_COMMAND}`");
+    }
 }

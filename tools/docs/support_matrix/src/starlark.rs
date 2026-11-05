@@ -763,7 +763,12 @@ fn select_key_matches(key: &str, platform: &Platform) -> Result<bool, String> {
     if let Some(cpu) = key.strip_prefix("@platforms//cpu:") {
         return Ok(cpu_alias(cpu) == cpu_alias(&platform.cpu));
     }
-    Err(format!("select() key {key} is not an @platforms os or cpu"))
+    if let Some(cell) = key.strip_prefix("@dx_qt//:") {
+        return Ok(cell == platform.id);
+    }
+    Err(format!(
+        "select() key {key} is not an @platforms os or cpu or an @dx_qt cell"
+    ))
 }
 
 fn constraint_holds(constraint: &str, platform: &Platform) -> bool {
@@ -1114,7 +1119,7 @@ mod tests {
     #[test]
     fn fails_closed_on_an_unknown_select_key() {
         let found = facts(
-            "rust_test(name = \"t\", target_compatible_with = select({\"@dx_qt//:linux\": [], \"//conditions:default\": []}))\n",
+            "rust_test(name = \"t\", target_compatible_with = select({\"@other//:linux\": [], \"//conditions:default\": []}))\n",
             "t",
         )
         .expect("facts");

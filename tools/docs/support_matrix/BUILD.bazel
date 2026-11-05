@@ -53,7 +53,10 @@ rust_test(
 rust_test(
     name = "generate_test",
     srcs = ["src/generate_test.rs"],
-    data = [":inputs"],
+    data = [
+        ":inputs",
+        "//docs:support-matrix.md",
+    ],
     edition = "2021",
     deps = [
         ":support_matrix",

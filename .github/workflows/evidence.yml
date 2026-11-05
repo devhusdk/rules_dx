@@ -55,16 +55,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-      - name: Use the BuildBuddy remote cache
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          [ -n "$BUILDBUDDY_API_KEY" ] || exit 0
-          {
-            echo "common --config=ci"
-            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
-          } >> user.bazelrc
       - name: Validate workflow inputs
         id: inputs
         env:
@@ -73,7 +63,7 @@ jobs:
           DX_PLATFORMS: ${{ inputs.platforms }}
           DX_DISPLAYS: ${{ inputs.displays }}
           DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
-        run: bazel run --noshow_progress //tools/ci:evidence_inputs_bin
+        run: bash tools/ci/evidence_inputs.sh
 
   evidence:
     name: evidence (${{ matrix.platform }})
@@ -102,14 +92,12 @@ jobs:
       - name: Use the BuildBuddy remote cache
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-          DX_PLATFORM: ${{ matrix.platform }}
         run: |
           [ -n "$BUILDBUDDY_API_KEY" ] || exit 0
           {
             echo "common --config=ci"
             echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
           } >> user.bazelrc
-          [ "$DX_PLATFORM" != linux_x86_64 ] || echo "common --config=rbe" >> user.bazelrc
       - name: Record the Apple executor
         if: ${{ matrix.platform == 'macos_arm64' }}
         run: |

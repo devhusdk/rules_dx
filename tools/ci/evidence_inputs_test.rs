@@ -25,7 +25,10 @@ fn accepts_whitespace_separated_patterns() {
             "//cli/process/... //tools/testing/process_probe/...",
         ),
         ("//a/...\t//b:t\n//c:*", "//a/... //b:t //c:*"),
-        ("@rules_dx_apple//ios/... //a:t", "@rules_dx_apple//ios/... //a:t"),
+        (
+            "@rules_dx_apple//ios/... //a:t",
+            "@rules_dx_apple//ios/... //a:t",
+        ),
     ];
     for (scope, expected) in cases {
         let outputs = run(scope, OK, "600").unwrap_or_else(|e| panic!("{scope:?}: {e}"));
@@ -121,4 +124,108 @@ fn accepts_the_coverage_task() {
         .to_string()
     });
     assert!(done.is_ok());
+}
+
+fn through_script(env: &[(&str, &str)]) -> Result<String, String> {
+    let output = std::path::Path::new(&std::env::var("TEST_TMPDIR").unwrap()).join("github_output");
+    let _ = std::fs::remove_file(&output);
+    let result = std::process::Command::new("bash")
+        .arg(std::env::var("DX_EVIDENCE_INPUTS_SH").unwrap())
+        .env_clear()
+        .env("PATH", "/usr/local/bin:/usr/bin:/bin")
+        .env("GITHUB_OUTPUT", &output)
+        .envs(env.iter().copied())
+        .output()
+        .unwrap();
+    if result.status.success() {
+        Ok(std::fs::read_to_string(&output).unwrap())
+    } else {
+        Err(String::from_utf8_lossy(&[result.stdout, result.stderr].concat()).into_owned())
+    }
+}
+
+#[test]
+fn the_bash_script_agrees_with_the_rust_validator() {
+    let scopes = [
+        "//cli/cli/...",
+        "//a/... //b:t\n//c:*",
+        "@rules_dx_apple//ios/... //a:t",
+        "@rules_dx_a/b//x",
+        "",
+        " \t\n",
+        "b/...",
+        "//$(id)",
+        "//a;id",
+        "@other//a",
+        "@rules_dx_x",
+        "-//a",
+        "//a:",
+        "//a:b:c",
+        "//a:*",
+        "//",
+        "//a/... //$(id)",
+    ];
+    let platforms = [
+        r#"["linux_x86_64"]"#,
+        r#"["windows_x86_64","linux_arm64","macos_arm64","windows_arm64"]"#,
+        r#"["linux_x86_64","linux_x86_64"]"#,
+        "[1]",
+        r#"[["linux_x86_64"]]"#,
+        "{}",
+        r#""x""#,
+        "[]",
+        r#"["plan9_x86_64"]"#,
+        "[linux",
+        "",
+        r#"["linux_x86_64"] ["linux_arm64"]"#,
+        "null",
+    ];
+    let tasks = ["test", "build", "coverage", "deploy", ""];
+    let displays = ["", "xcb", "wayland", "xcb,wayland", "wayland,xcb", "mir"];
+    let timeouts = ["600", "0", "", "1.5", "10s", "$(id)", "-1"];
+    let mut cases: Vec<[&str; 5]> = Vec::new();
+    for scope in scopes {
+        cases.push([scope, "test", OK, "", "600"]);
+    }
+    for list in platforms {
+        cases.push(["//a/...", "test", list, "", "600"]);
+    }
+    for task in tasks {
+        cases.push(["//a/...", task, OK, "", "600"]);
+    }
+    for shown in displays {
+        cases.push(["//a/...", "test", OK, shown, "600"]);
+    }
+    for timeout in timeouts {
+        cases.push(["//a/...", "test", OK, "", timeout]);
+    }
+    for [scope, task, list, shown, timeout] in cases {
+        let env = [
+            ("DX_SCOPE", scope),
+            ("DX_TASK", task),
+            ("DX_PLATFORMS", list),
+            ("DX_DISPLAYS", shown),
+            ("DX_TEST_TIMEOUT", timeout),
+        ];
+        let expected = validate(|name| {
+            env.iter()
+                .find(|(key, _)| *key == name)
+                .map_or(String::new(), |(_, value)| value.to_string())
+        });
+        let actual = through_script(&env);
+        match (expected, actual) {
+            (Ok(done), Ok(text)) => {
+                let want: String = done
+                    .outputs
+                    .iter()
+                    .map(|(key, value)| format!("{key}={value}\n"))
+                    .collect();
+                assert_eq!(text, want, "{env:?}");
+            }
+            (Err(_), Err(text)) => assert!(text.contains("evidence input rejected"), "{env:?}"),
+            (expected, actual) => {
+                panic!("{env:?}: rust ok {}, script {actual:?}", expected.is_ok())
+            }
+        }
+    }
 }

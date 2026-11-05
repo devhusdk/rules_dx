@@ -3,7 +3,7 @@ use std::path::Path;
 
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use dx_plan::plan::OUTPUT_GROUP;
-use quality_result::{decode_validated, proto};
+use quality_result::{build_deps, decode_validated, proto};
 
 use super::common::{collect_output_account, FileChange};
 use super::quality_reconcile::{reconcile, Conflict, Producer};
@@ -65,12 +65,12 @@ impl Unstable {
 }
 
 /// Decodes one result artifact into the collected shape, or None when it is not one.
-fn stage_artifact(bytes: &[u8]) -> Option<Staged> {
-    stage_result(&decode_validated(bytes).ok()?)
+fn stage_artifact(bytes: &[u8], workspace: &Path) -> Option<Staged> {
+    stage_result(&decode_validated(bytes).ok()?, workspace)
 }
 
 /// Maps one decoded result, or None when a field is outside what the report can carry.
-fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
+fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Staged> {
     let mut staged = Staged::default();
     for stage in &result.stages {
         staged.tools.push(stage.tool_id.clone());
@@ -102,12 +102,12 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
         configuration: None,
     };
     for diagnostic in &result.initial_diagnostics {
-        let mut mapped = map_diagnostic(diagnostic, Snapshot::Initial)?;
+        let mut mapped = map_diagnostic(diagnostic, Snapshot::Initial, workspace)?;
         mapped.origins.push(origin.clone());
         staged.initial.push(mapped);
     }
     for diagnostic in &result.terminal_diagnostics {
-        let mut mapped = map_diagnostic(diagnostic, Snapshot::Terminal)?;
+        let mut mapped = map_diagnostic(diagnostic, Snapshot::Terminal, workspace)?;
         mapped.origins.push(origin.clone());
         staged.terminal.push(mapped);
     }
@@ -152,13 +152,40 @@ fn map_severity(value: i32) -> Option<Severity> {
     }
 }
 
-fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<DiagnosticEvent> {
-    let range = match (diagnostic.start_byte, diagnostic.end_byte) {
+/// Finds the `deps` entry of an unused dependency in the package's BUILD file.
+fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (u64, u64))> {
+    for name in ["BUILD.bazel", "BUILD"] {
+        let relative = if dep.package.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{}/{name}", dep.package)
+        };
+        let Ok(text) = std::fs::read_to_string(workspace.join(&relative)) else {
+            continue;
+        };
+        let (start, end) = build_deps::locate(&text, &dep.target, &dep.dependency)?;
+        return Some((relative, (start as u64, end as u64)));
+    }
+    None
+}
+
+fn map_diagnostic(
+    diagnostic: &proto::Diagnostic,
+    snapshot: Snapshot,
+    workspace: &Path,
+) -> Option<DiagnosticEvent> {
+    let mut range = match (diagnostic.start_byte, diagnostic.end_byte) {
         (Some(start), Some(end)) => Some((start, end)),
         (None, None) => None,
         _ => return None,
     };
-    let path = (!diagnostic.path.is_empty()).then(|| diagnostic.path.clone());
+    let mut path = (!diagnostic.path.is_empty()).then(|| diagnostic.path.clone());
+    if let (None, Some(dep)) = (&path, &diagnostic.build_dep) {
+        if let Some((found, at)) = place_build_dep(dep, workspace) {
+            path = Some(found);
+            range = Some(at);
+        }
+    }
     if path.is_none() && range.is_some() {
         return None;
     }
@@ -257,7 +284,7 @@ pub(crate) fn collect_results_in(
             if !seen.insert(artifact.exec_path.clone()) {
                 continue;
             }
-            let Some(part) = stage_artifact(&artifact.bytes) else {
+            let Some(part) = stage_artifact(&artifact.bytes, workspace) else {
                 staged_ok = false;
                 break;
             };
@@ -364,15 +391,40 @@ mod tests {
         let base = Harness::diagnostic("m", false);
         let mut partial = base.clone();
         partial.end_byte = None;
-        assert!(map_diagnostic(&partial, Snapshot::Initial).is_none());
+        assert!(map_diagnostic(&partial, Snapshot::Initial, Path::new(".")).is_none());
         let mut pathless = base.clone();
         pathless.path = String::new();
-        assert!(map_diagnostic(&pathless, Snapshot::Initial).is_none());
-        assert!(map_diagnostic(&pathless, Snapshot::Terminal).is_none());
+        assert!(map_diagnostic(&pathless, Snapshot::Initial, Path::new(".")).is_none());
+        assert!(map_diagnostic(&pathless, Snapshot::Terminal, Path::new(".")).is_none());
         let mut bare = pathless.clone();
         bare.start_byte = None;
         bare.end_byte = None;
-        assert!(map_diagnostic(&bare, Snapshot::Terminal).is_some());
+        assert!(map_diagnostic(&bare, Snapshot::Terminal, Path::new(".")).is_some());
+    }
+
+    #[test]
+    fn unused_dependency_is_placed_on_its_build_line() {
+        let root = tempfile::tempdir().expect("workspace");
+        std::fs::create_dir(root.path().join("p")).expect("package");
+        let build = "rust_library(\n    name = \"lib\",\n    deps = [\"//a:a\"],\n)\n";
+        std::fs::write(root.path().join("p/BUILD.bazel"), build).expect("build");
+        let mut diagnostic = Harness::diagnostic("unused", false);
+        diagnostic.path = String::new();
+        diagnostic.start_byte = None;
+        diagnostic.end_byte = None;
+        diagnostic.build_dep = Some(proto::BuildDep {
+            package: "p".to_owned(),
+            target: "lib".to_owned(),
+            dependency: "a".to_owned(),
+        });
+        let placed = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");
+        let (start, end) = placed.range.expect("range");
+        assert_eq!(placed.path.as_deref(), Some("p/BUILD.bazel"));
+        assert_eq!(&build[start as usize..end as usize], "\"//a:a\"");
+
+        std::fs::remove_file(root.path().join("p/BUILD.bazel")).expect("remove");
+        let kept = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");
+        assert!(kept.path.is_none() && kept.range.is_none());
     }
 
     #[test]
@@ -385,9 +437,15 @@ mod tests {
         );
         let mut result = decode_validated(&bytes).expect("valid result");
         result.terminal_diagnostics = result.initial_diagnostics.clone();
-        assert!(stage_artifact(&bytes).is_some(), "a valid artifact stages");
-        assert!(stage_result(&result).is_some(), "a valid result stages");
-        assert!(stage_artifact(b"not-a-validated-result").is_none());
+        assert!(
+            stage_artifact(&bytes, Path::new(".")).is_some(),
+            "a valid artifact stages"
+        );
+        assert!(
+            stage_result(&result, Path::new(".")).is_some(),
+            "a valid result stages"
+        );
+        assert!(stage_artifact(b"not-a-validated-result", Path::new(".")).is_none());
 
         let mut short_snapshot = result.clone();
         short_snapshot.terminal_snapshot[0].digest.pop();
@@ -398,7 +456,7 @@ mod tests {
         let mut short_original = result.clone();
         short_original.replacements[0].original_digest.pop();
         for broken in [short_snapshot, no_severity, no_end, short_original] {
-            assert!(stage_result(&broken).is_none());
+            assert!(stage_result(&broken, Path::new(".")).is_none());
             assert!(
                 encode_validated(&broken).is_err(),
                 "a producer cannot send what staging rejects"
@@ -414,7 +472,7 @@ mod tests {
         let mut result = decode_validated(&bytes).expect("valid result");
         result.replacements[0].edits[0].replacement = vec![0xFF];
         assert!(
-            stage_result(&result).is_none(),
+            stage_result(&result, Path::new(".")).is_none(),
             "a change whose replacement is not text never reaches the report"
         );
         assert!(

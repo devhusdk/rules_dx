@@ -1,5 +1,7 @@
 use quality_adapter::parsers::{self, jvm_unused_deps, rust_unused_deps, FileFinding};
 
+use quality_result::proto::{BuildDep, Diagnostic, Severity};
+
 use super::check::ToolDef;
 use super::*;
 
@@ -176,12 +178,42 @@ enum ReplayParser {
 type CompileLogParser =
     fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
 
-/// Finds the `deps` entries rustc reports as unused in the BUILD files next to the sources.
-fn unused_dependency_findings(
+/// The unused `deps` entries the tool's upstream diagnostics name, as findings without a path.
+/// The CLI places them on the BUILD file line, which the runner never sees.
+pub(super) fn build_dep_diagnostics(
     tool_id: &str,
     tool: &RealTool,
-    pairs: &[(String, PathBuf)],
-) -> Result<Vec<FileFinding>, RunnerError> {
+) -> Result<Vec<Diagnostic>, RunnerError> {
+    let (rule_id, unused) = match tool_id {
+        "clippy" | "rustc" => (rust_unused_deps::RULE_ID, rust_unused(tool_id, tool)?),
+        "javac" | "kotlinc" => (jvm_unused_deps::RULE_ID, jvm_unused(tool_id, tool)?),
+        "roslyn" => (
+            parsers::UNUSED_REFERENCE_RULE,
+            csharp_unused(tool_id, tool)?,
+        ),
+        _ => return Ok(Vec::new()),
+    };
+    Ok(unused
+        .into_iter()
+        .map(|item| Diagnostic {
+            severity: Severity::Warning as i32,
+            message: item.message(),
+            tool_id: tool_id.to_owned(),
+            rule_id: rule_id.to_owned(),
+            build_dep: Some(BuildDep {
+                package: item.package,
+                target: item.target,
+                dependency: item.dependency,
+            }),
+            ..Default::default()
+        })
+        .collect())
+}
+
+fn rust_unused(
+    tool_id: &str,
+    tool: &RealTool,
+) -> Result<Vec<rust_unused_deps::UnusedDependency>, RunnerError> {
     let mut stream = Vec::new();
     for path in &tool.upstream_diagnostics {
         stream.extend(
@@ -190,50 +222,21 @@ fn unused_dependency_findings(
         );
         stream.push(b'\n');
     }
-    let unused = parsed(
+    parsed(
         tool_id,
         rust_unused_deps::parse_unused_dependencies(&stream),
-    )?;
-    let Some(root) = pairs.iter().find_map(|(workspace, absolute)| {
-        let mut root = absolute.clone();
-        workspace
-            .split('/')
-            .try_for_each(|_| root.pop().then_some(()))?;
-        Some(root)
-    }) else {
-        return Ok(Vec::new());
-    };
-    let mut findings = Vec::new();
-    for item in &unused {
-        for name in ["BUILD.bazel", "BUILD"] {
-            let relative = if item.package.is_empty() {
-                name.to_owned()
-            } else {
-                format!("{}/{name}", item.package)
-            };
-            let absolute = root.join(&relative);
-            let Ok(text) = std::fs::read_to_string(&absolute) else {
-                continue;
-            };
-            if let Some(mut found) =
-                rust_unused_deps::place_unused_dependency(item, &relative, &text)
-            {
-                found.file = absolute.to_string_lossy().into_owned();
-                findings.push(found);
-            }
-            break;
-        }
-    }
-    Ok(findings)
+    )
 }
 
-/// Finds the `deps` entries the Java or Kotlin compiler never read, in the BUILD files.
-fn jvm_unused_dependency_findings(
+fn jvm_unused(
     tool_id: &str,
-    name: &'static str,
     tool: &RealTool,
-    pairs: &[(String, PathBuf)],
-) -> Result<Vec<FileFinding>, RunnerError> {
+) -> Result<Vec<rust_unused_deps::UnusedDependency>, RunnerError> {
+    let name = if tool_id == "javac" {
+        "javac"
+    } else {
+        "kotlinc"
+    };
     let find = |suffix: &str| {
         tool.upstream_diagnostics
             .iter()
@@ -246,64 +249,17 @@ fn jvm_unused_dependency_findings(
         std::fs::read(path)
             .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))
     };
-    let unused = parsed(
+    parsed(
         tool_id,
         jvm_unused_deps::parse_unused_dependencies(name, &read(map)?, &read(jdeps)?),
-    )?;
-    Ok(place_in_build_files(
-        tool_id,
-        jvm_unused_deps::RULE_ID,
-        &unused,
-        pairs,
-    ))
+    )
 }
 
-/// Places each unused dependency on its `deps` entry in the BUILD file next to the sources.
-fn place_in_build_files(
-    tool_id: &str,
-    rule_id: &str,
-    unused: &[rust_unused_deps::UnusedDependency],
-    pairs: &[(String, PathBuf)],
-) -> Vec<FileFinding> {
-    let Some(root) = pairs.iter().find_map(|(workspace, absolute)| {
-        let mut root = absolute.clone();
-        workspace
-            .split('/')
-            .try_for_each(|_| root.pop().then_some(()))?;
-        Some(root)
-    }) else {
-        return Vec::new();
-    };
-    let mut findings = Vec::new();
-    for item in unused {
-        for build in ["BUILD.bazel", "BUILD"] {
-            let relative = if item.package.is_empty() {
-                build.to_owned()
-            } else {
-                format!("{}/{build}", item.package)
-            };
-            let absolute = root.join(&relative);
-            let Ok(text) = std::fs::read_to_string(&absolute) else {
-                continue;
-            };
-            if let Some(mut found) =
-                rust_unused_deps::place_dependency_finding(item, &relative, &text, tool_id, rule_id)
-            {
-                found.file = absolute.to_string_lossy().into_owned();
-                findings.push(found);
-            }
-            break;
-        }
-    }
-    findings
-}
-
-/// Finds the C# `deps` entries that ReferenceTrimmer reports as unused in every target framework.
-fn unused_reference_findings(
+/// The C# `deps` entries that ReferenceTrimmer reports as unused in every target framework.
+fn csharp_unused(
     tool_id: &str,
     tool: &RealTool,
-    pairs: &[(String, PathBuf)],
-) -> Result<Vec<FileFinding>, RunnerError> {
+) -> Result<Vec<rust_unused_deps::UnusedDependency>, RunnerError> {
     let mut common: Option<Vec<rust_unused_deps::UnusedDependency>> = None;
     for path in &tool.upstream_diagnostics {
         let Some(tfm) = path.file_stem().and_then(|stem| stem.to_str()) else {
@@ -324,12 +280,7 @@ fn unused_reference_findings(
                 .collect(),
         });
     }
-    Ok(place_in_build_files(
-        tool_id,
-        parsers::UNUSED_REFERENCE_RULE,
-        &common.unwrap_or_default(),
-        pairs,
-    ))
+    Ok(common.unwrap_or_default())
 }
 
 impl RealBackend {
@@ -356,7 +307,6 @@ impl RealBackend {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
         }
-        findings.extend(unused_dependency_findings(tool_id, tool, pairs)?);
         Ok(findings)
     }
 
@@ -383,7 +333,6 @@ impl RealBackend {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
         }
-        findings.extend(unused_dependency_findings(tool_id, tool, pairs)?);
         Ok(findings)
     }
 
@@ -393,14 +342,12 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
-        let mut findings = self.check_dotnet_log(
+        self.check_dotnet_log(
             tool_id,
             tool,
             pairs,
             &DotnetLog::csc_sarif(parsers::parse_roslyn),
-        )?;
-        findings.extend(unused_reference_findings(tool_id, tool, pairs)?);
-        Ok(findings)
+        )
     }
 
     pub(super) fn check_csc_delegated(
@@ -554,7 +501,6 @@ impl RealBackend {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
         }
-        findings.extend(jvm_unused_dependency_findings(tool_id, name, tool, pairs)?);
         Ok(findings)
     }
 

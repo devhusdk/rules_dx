@@ -301,6 +301,7 @@ pub fn place_finding_with<'t>(
         end_byte: Some(end),
         fixable: false,
         unfixable_reason: String::new(),
+        build_dep: None,
         related,
     })
 }

@@ -2365,3 +2365,31 @@ fn go_lint_tools_fail_closed_without_exactly_one_report() {
         );
     }
 }
+
+#[test]
+fn rustc_unused_dependency_is_a_diagnostic_without_a_path() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let stream = concat!(
+        r#"{"$message_type":"dx_crate_deps","package":"p","target":"lib","crate":"lib","deps":{"serde":"serde"}}"#,
+        "\n",
+        r#"{"$message_type":"diagnostic","message":"external crate `serde` unused in `lib`: remove the dependency or add `use serde as _;`","code":{"code":"unused_crate_dependencies"},"level":"warning","spans":[],"children":[]}"#,
+    );
+    let path = scratch.path().join("rustc.json");
+    std::fs::write(&path, stream).expect("write");
+    let tool = delegated_tool(path);
+    for tool_id in ["rustc", "clippy"] {
+        let found = delegated::build_dep_diagnostics(tool_id, &tool).expect("diagnostics");
+        assert_eq!(found.len(), 1);
+        assert!(found[0].path.is_empty());
+        assert_eq!(found[0].tool_id, tool_id);
+        assert_eq!(found[0].rule_id, "unused_crate_dependencies");
+        let dep = found[0].build_dep.as_ref().expect("build dep");
+        assert_eq!(
+            (&*dep.package, &*dep.target, &*dep.dependency),
+            ("p", "lib", "serde")
+        );
+    }
+    assert!(delegated::build_dep_diagnostics("shellcheck", &tool)
+        .expect("diagnostics")
+        .is_empty());
+}

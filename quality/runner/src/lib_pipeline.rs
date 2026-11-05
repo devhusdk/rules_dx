@@ -477,6 +477,7 @@ fn diagnostics_sort_deterministically_under_shuffled_arrival() {
             end_byte: Some(start + 1),
             fixable: false,
             unfixable_reason: String::new(),
+            build_dep: None,
             related: Vec::new(),
             ..Default::default()
         }
@@ -524,6 +525,7 @@ fn diagnostics_tiebreak_deterministically_across_tool_and_message() {
             end_byte: Some(4),
             fixable: false,
             unfixable_reason: String::new(),
+            build_dep: None,
             related: Vec::new(),
             ..Default::default()
         }
@@ -690,6 +692,7 @@ fn diagnostics_sort_includes_severity_and_rule() {
             end_byte: Some(4),
             fixable: false,
             unfixable_reason: String::new(),
+            build_dep: None,
             related: Vec::new(),
             ..Default::default()
         }

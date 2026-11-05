@@ -8,6 +8,8 @@
     )
 )]
 
+pub mod build_deps;
+
 use proto::{
     Capability, Convergence, Diagnostic, Edit, FileEdits, FileSnapshot, QualityResult, Severity,
     Stage,
@@ -63,6 +65,8 @@ pub enum Error {
     EmptyDiagnosticToolId { index: usize },
     #[error("range without path at diagnostic[{index}]: ranges require a path")]
     RangeWithoutPath { index: usize },
+    #[error("build dependency with path at diagnostic[{index}]: the CLI sets the path")]
+    BuildDepWithPath { index: usize },
     #[error("missing range at diagnostic[{index}]: path diagnostics require a byte range")]
     MissingRange { index: usize },
     #[error("inverted range at diagnostic[{index}]: start must not exceed end")]
@@ -186,6 +190,9 @@ fn check_diagnostic(diagnostic: &Diagnostic, index: usize) -> Result<(), Error> 
     }
     if diagnostic.tool_id.is_empty() {
         return Err(Error::EmptyDiagnosticToolId { index });
+    }
+    if diagnostic.build_dep.is_some() && !diagnostic.path.is_empty() {
+        return Err(Error::BuildDepWithPath { index });
     }
     if diagnostic.path.is_empty() {
         if diagnostic.start_byte.is_some() || diagnostic.end_byte.is_some() {
@@ -731,6 +738,18 @@ mod tests {
         let mut result = sample();
         result.terminal_diagnostics = vec![valid()];
         assert!(validate(&result).is_ok());
+
+        let mut diagnostic = valid();
+        diagnostic.build_dep = Some(proto::BuildDep::default());
+        let mut result = sample();
+        result.terminal_diagnostics = vec![diagnostic.clone()];
+        assert!(validate(&result).is_ok());
+        diagnostic.path = "p/BUILD.bazel".to_owned();
+        diagnostic.start_byte = Some(0);
+        diagnostic.end_byte = Some(1);
+        let mut result = sample();
+        result.terminal_diagnostics = vec![diagnostic];
+        assert_eq!(validate(&result), Err(Error::BuildDepWithPath { index: 0 }));
 
         let mut diagnostic = valid();
         diagnostic.tool_id.clear();

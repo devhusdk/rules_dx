@@ -86,6 +86,7 @@ impl RealBackend {
                 })?,
             );
         }
+        diagnostics.extend(delegated::build_dep_diagnostics(tool_id, tool)?);
         cleaned(tool_id, scratch, diagnostics)
     }
 }

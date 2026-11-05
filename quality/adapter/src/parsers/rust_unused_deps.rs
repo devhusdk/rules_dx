@@ -7,8 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-use super::{FileFinding, ParseError};
-use crate::{ColumnEncoding, Finding, Suggestion, TextPosition, ToolSeverity};
+use super::ParseError;
 
 pub const RULE_ID: &str = "unused_crate_dependencies";
 
@@ -41,6 +40,15 @@ pub struct UnusedDependency {
     pub target: String,
     pub dependency: String,
     pub crate_name: String,
+}
+
+impl UnusedDependency {
+    pub fn message(&self) -> String {
+        format!(
+            "`{}` is in deps of `{}` but no source uses it",
+            self.crate_name, self.target
+        )
+    }
 }
 
 /// Reads the diagnostics and `dx_crate_deps` lines and names every unused dependency once.
@@ -113,144 +121,9 @@ fn unused_names(message: &str) -> Option<(String, String)> {
     Some((extern_crate.to_owned(), in_crate.to_owned()))
 }
 
-/// Finds the `deps` entry of the unused dependency in the BUILD file text and offers its removal.
-pub fn place_unused_dependency(
-    unused: &UnusedDependency,
-    build_file: &str,
-    text: &str,
-) -> Option<FileFinding> {
-    place_dependency_finding(unused, build_file, text, "rustc", RULE_ID)
-}
-
-/// Like `place_unused_dependency`, reported by `tool_id` under `rule_id`.
-pub fn place_dependency_finding(
-    unused: &UnusedDependency,
-    build_file: &str,
-    text: &str,
-    tool_id: &str,
-    rule_id: &str,
-) -> Option<FileFinding> {
-    let (start, end) = dep_literal(text, &unused.target, &unused.dependency)?;
-    let (cut_start, cut_end) = removal(text, start, end);
-    let message = format!(
-        "`{}` is in deps of `{}` but no source uses it",
-        unused.crate_name, unused.target
-    );
-    Some(FileFinding {
-        file: build_file.to_owned(),
-        finding: Finding {
-            tool_id: tool_id.to_owned(),
-            rule_id: rule_id.to_owned(),
-            message,
-            severity: ToolSeverity::Warning,
-            start: position(text, start),
-            end: Some(position(text, end)),
-            suggestions: vec![Suggestion {
-                start: cut_start as u64,
-                end: cut_end as u64,
-                replacement: Vec::new(),
-            }],
-            encoding: ColumnEncoding::Scalars,
-            related: Vec::new(),
-        },
-    })
-}
-
-/// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
-fn dep_literal(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
-    let rule = text.find(&format!("name = \"{target}\""))?;
-    let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
-    let mut from = rule;
-    while let Some(at) = text[from..rule_end].find("deps = [") {
-        let key = from + at;
-        from = key + "deps = [".len();
-        let before = text[..key].chars().next_back();
-        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
-            continue;
-        }
-        let list_end = text[from..rule_end].find(']').map_or(rule_end, |at| from + at);
-        return literals(&text[from..list_end], from)
-            .into_iter()
-            .find(|(start, end)| target_name(&text[start + 1..end - 1]) == dependency);
-    }
-    None
-}
-
-/// The quoted strings of a list body, as byte ranges including the quotes.
-fn literals(body: &str, offset: usize) -> Vec<(usize, usize)> {
-    let mut out = Vec::new();
-    let mut open: Option<usize> = None;
-    let mut comment = false;
-    for (at, c) in body.char_indices() {
-        match (open, c) {
-            (Some(start), '"') => {
-                out.push((offset + start, offset + at + 1));
-                open = None;
-            }
-            (Some(_), _) => {}
-            (None, '\n') => comment = false,
-            (None, '#') => comment = true,
-            (None, '"') if !comment => open = Some(at),
-            _ => {}
-        }
-    }
-    out
-}
-
-fn target_name(label: &str) -> &str {
-    match label.rsplit_once(':') {
-        Some((_, name)) => name,
-        None => label.rsplit('/').next().unwrap_or(label).trim_start_matches('@'),
-    }
-}
-
-/// The bytes to delete: the whole line when the entry is alone on it, else the entry and its comma.
-fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
-    let mut cut_end = end;
-    if text[cut_end..].starts_with(',') {
-        cut_end += 1;
-    }
-    let line_start = text[..start].rfind('\n').map_or(0, |at| at + 1);
-    let line_end = text[cut_end..]
-        .find('\n')
-        .map_or(text.len(), |at| cut_end + at + 1);
-    let alone = text[line_start..start].trim().is_empty()
-        && text[cut_end..line_end].trim().is_empty();
-    if alone {
-        return (line_start, line_end);
-    }
-    let spaces = text[cut_end..]
-        .chars()
-        .take_while(|c| *c == ' ')
-        .count();
-    (start, cut_end + spaces)
-}
-
-fn position(text: &str, at: usize) -> TextPosition {
-    let before = &text[..at];
-    let line = before.matches('\n').count() as u64 + 1;
-    let column = before
-        .rsplit('\n')
-        .next()
-        .map_or(0, |tail| tail.chars().count()) as u64
-        + 1;
-    TextPosition { line, column }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const BUILD: &str = concat!(
-        "rust_library(\n",
-        "    name = \"lib\",\n",
-        "    srcs = [\"lib.rs\"],\n",
-        "    deps = [\n",
-        "        \"//util:used\",\n",
-        "        \"@crates//:serde\",\n",
-        "    ],\n",
-        ")\n",
-    );
 
     fn stream(extern_crate: &str) -> String {
         format!(
@@ -281,46 +154,5 @@ mod tests {
     fn ignores_crates_without_a_dep_entry() {
         let found = parse_unused_dependencies(stream("other").as_bytes()).expect("parsed");
         assert!(found.is_empty());
-    }
-
-    #[test]
-    fn places_the_finding_on_the_deps_line_and_removes_the_line() {
-        let unused = parse_unused_dependencies(stream("serde").as_bytes()).expect("parsed")[0].clone();
-        let placed = place_unused_dependency(&unused, "p/BUILD.bazel", BUILD).expect("placed");
-        assert_eq!(placed.file, "p/BUILD.bazel");
-        assert_eq!(placed.finding.start, TextPosition { line: 6, column: 9 });
-        let cut = &placed.finding.suggestions[0];
-        let mut fixed = BUILD.to_owned();
-        fixed.replace_range(cut.start as usize..cut.end as usize, "");
-        assert!(!fixed.contains("serde"));
-        assert!(fixed.contains("\"//util:used\",\n    ],"));
-    }
-
-    #[test]
-    fn removes_an_inline_entry_with_its_comma() {
-        let build = "rust_library(name = \"lib\", deps = [\"//a:a\", \"//b:b\"])\n";
-        let unused = UnusedDependency {
-            package: "p".into(),
-            target: "lib".into(),
-            dependency: "a".into(),
-            crate_name: "a".into(),
-        };
-        let placed = place_unused_dependency(&unused, "BUILD", build).expect("placed");
-        let cut = &placed.finding.suggestions[0];
-        let mut fixed = build.to_owned();
-        fixed.replace_range(cut.start as usize..cut.end as usize, "");
-        assert_eq!(fixed, "rust_library(name = \"lib\", deps = [\"//b:b\"])\n");
-    }
-
-    #[test]
-    fn leaves_proc_macro_deps_alone() {
-        let build = "rust_library(name = \"lib\", proc_macro_deps = [\"//a:a\"])\n";
-        let unused = UnusedDependency {
-            package: "p".into(),
-            target: "lib".into(),
-            dependency: "a".into(),
-            crate_name: "a".into(),
-        };
-        assert!(place_unused_dependency(&unused, "BUILD", build).is_none());
     }
 }

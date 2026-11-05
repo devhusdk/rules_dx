@@ -787,3 +787,20 @@ fn qualify_rejects_missing_param_file() {
         Err(Error::Unqualified { .. })
     ));
 }
+
+#[test]
+fn retain_owned_drops_compile_actions_of_other_targets() {
+    let text = r#"{"actions":[
+        {"mnemonic":"CppCompile","targetId":1},
+        {"mnemonic":"CppCompile","targetId":2},
+        {"mnemonic":"Other","targetId":2}],
+      "targets":[{"id":1,"label":"//pkg:probe_upstream"},{"id":2,"label":"@@llvm+//tools:tool"}]}"#;
+    let mut graph = AqueryGraph::parse(text).expect("graph");
+    graph.retain_owned(&["//pkg:probe".to_string()]);
+    let ids: Vec<(&str, i64)> = graph
+        .actions
+        .iter()
+        .map(|a| (a.mnemonic.as_str(), a.target_id))
+        .collect();
+    assert_eq!(ids, [("CppCompile", 1), ("Other", 2)]);
+}

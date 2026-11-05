@@ -134,7 +134,8 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         .trim()
         .to_string();
 
-    let graph = AqueryGraph::parse(&record)?;
+    let mut graph = AqueryGraph::parse(&record)?;
+    graph.retain_owned(&targets);
     let identities = cc_context::read_identities(&identity_paths)?;
     let commands = graph.compile_commands(&PathBuf::from(&execroot), &identities)?;
     if commands.is_empty() {

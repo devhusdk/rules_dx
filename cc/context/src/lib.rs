@@ -239,6 +239,23 @@ impl AqueryGraph {
         serde_json::from_str(text).map_err(|err| Error::Malformed(err.to_string()))
     }
 
+    /// Drops compile actions that belong to none of `labels`, such as toolchain tools
+    /// pulled in by `deps()`.
+    pub fn retain_owned(&mut self, labels: &[String]) {
+        let targets: BTreeMap<i64, &str> = self
+            .targets
+            .iter()
+            .map(|target| (target.id, target.label.as_str()))
+            .collect();
+        let owned: BTreeSet<i64> = targets
+            .iter()
+            .filter(|(_, target)| labels.iter().any(|label| owns_label(target, label)))
+            .map(|(id, _)| *id)
+            .collect();
+        self.actions
+            .retain(|a| a.mnemonic != COMPILE_MNEMONIC || owned.contains(&a.target_id));
+    }
+
     /// Collects every configured compile action, expanding response files.
     pub fn compile_commands(
         &self,

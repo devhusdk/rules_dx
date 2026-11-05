@@ -7155,3 +7155,27 @@ fn lychee_reports_broken_links_with_scratch_free_messages() {
         .expect("diagnosed")
         .is_empty());
 }
+
+fn lychee_online_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(!argv.iter().any(|arg| arg == "--offline"), "{argv:?}");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"{\"error_map\":{},\"timeout_map\":{}}".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn lychee_goes_online_when_the_request_sets_the_env() {
+    let mut tool = plain_tool();
+    tool.extra_env = vec![("DX_LINT_ONLINE".to_owned(), "1".to_owned())];
+    let backend = backend_for("lychee", tool, lychee_online_fake);
+    assert!(backend
+        .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
+        .expect("diagnosed")
+        .is_empty());
+}

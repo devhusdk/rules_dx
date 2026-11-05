@@ -1,5 +1,6 @@
 """The real aspect engine: request building and shard aspects. Families reach it through hooks."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
@@ -137,6 +138,7 @@ _REAL_BASE_ATTRS = {
         default = "//config:workspace",
         providers = [QualityPolicyInfo],
     ),
+    "_online": attr.label(default = "//config:lint_online"),
     "_runner": attr.label(
         default = "//quality/runner:quality_runner",
         executable = True,
@@ -434,6 +436,10 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         if len(found.env) > 0:
             tool_env_entries.setdefault(tool, []).extend(found.env)
         run_tools = run_tools + found.run_tools
+    requirements = dict(dx_stage_execution_requirements(stage_tools, capability))
+    if "lychee" in stage_tools and hasattr(ctx.attr, "_online") and ctx.attr._online[BuildSettingInfo].value:
+        tool_env_entries.setdefault("lychee", []).append(["DX_LINT_ONLINE", "1"])
+        requirements["requires-network"] = "1"
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
@@ -510,7 +516,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         tools = run_tools,
         outputs = [out],
         arguments = [args],
-        execution_requirements = dx_stage_execution_requirements(stage_tools, capability),
+        execution_requirements = requirements,
         mnemonic = "DxRealQuality" + capability.capitalize(),
         resource_set = real_quality_resource_set(cfg, sorted(tool_binaries.keys())),
         progress_message = "Dx real quality " + capability + " (" + shard_name + ") %{label}",

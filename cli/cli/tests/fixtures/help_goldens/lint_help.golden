@@ -1,6 +1,6 @@
 run lint analysis over resolved scopes (check by default; --apply writes fixes)
 
-Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]
+Usage: dx lint|typecheck|format [--apply] [--online] [--here] [--affected] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -47,6 +47,9 @@ Options:
 
       --apply
           Apply the changes instead of only showing them
+
+      --online
+          Check external links too (lychee, needs network)
 
       --fail-on <FAIL_ON>
           Fail on this severity

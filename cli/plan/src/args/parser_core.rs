@@ -806,3 +806,11 @@ fn fail_on_no_collector_is_a_coverage_option() {
     assert!(parse(&strings(&["test", "--fail-on=no-collector"])).is_err());
     assert!(parse(&strings(&["lint", "--fail-on=no-collector"])).is_err());
 }
+
+#[test]
+fn lint_online_sets_the_lychee_build_flag() {
+    let got = parse(&strings(&["lint", "--online"])).expect("parse");
+    assert_eq!(got.bazel_options[0], "--//config:lint_online=true");
+    let plain = parse(&strings(&["lint"])).expect("parse");
+    assert!(plain.bazel_options.is_empty());
+}

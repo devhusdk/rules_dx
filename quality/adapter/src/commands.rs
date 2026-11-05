@@ -566,10 +566,16 @@ pub fn vale_check(binary: &Path, ini: &Path, files: &[&Path], ini_dir_rel: &str)
     assemble(binary, head, files, ini_dir_rel)
 }
 
-/// Offline only: local paths and `#anchors`. Root-relative links resolve against `root`.
-pub fn lychee_check(binary: &Path, files: &[&Path], root: &Path) -> Invocation {
+/// Offline checks local paths and `#anchors`; online adds external links.
+/// Root-relative links resolve against `root`.
+pub fn lychee_check(binary: &Path, files: &[&Path], root: &Path, online: bool) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
-    head.extend(LYCHEE_FIXED.iter().map(OsString::from));
+    head.extend(
+        LYCHEE_FIXED
+            .iter()
+            .filter(|flag| !online || **flag != "--offline")
+            .map(OsString::from),
+    );
     head.push(OsString::from("--root-dir"));
     head.push(root.as_os_str().to_owned());
     assemble(binary, head, files, "")

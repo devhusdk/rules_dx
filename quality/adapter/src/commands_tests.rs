@@ -192,8 +192,26 @@ fn vale_check_never_passes_no_exit() {
 }
 
 #[test]
+fn lychee_check_online_drops_the_offline_flag() {
+    let invocation = lychee_check(
+        Path::new(BIN),
+        &[Path::new(FILE)],
+        Path::new("/scratch"),
+        true,
+    );
+    let argv = argv_strings(&invocation);
+    assert!(!argv.iter().any(|arg| arg == "--offline"));
+    assert!(argv.iter().any(|arg| arg == "--include-fragments"));
+}
+
+#[test]
 fn lychee_check_is_offline_and_rooted_in_the_scratch() {
-    let invocation = lychee_check(Path::new(BIN), &[Path::new(FILE)], Path::new("/scratch"));
+    let invocation = lychee_check(
+        Path::new(BIN),
+        &[Path::new(FILE)],
+        Path::new("/scratch"),
+        false,
+    );
     assert_eq!(
         argv_strings(&invocation),
         vec![

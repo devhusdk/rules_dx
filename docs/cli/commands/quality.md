@@ -21,6 +21,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Write validated fixes and refresh the `--baseline` file. Text output prints `Applied: <path>` per file, then `Applied N file(s).` |
+| `--online` | `lint` only. Check external links too: `lychee` drops `--offline`. Needs network. |
 | `--diff` | Print a unified patch of the proposed fixes instead of findings. |
 | `--fail-on info\|warning\|error` | Severity that fails the run. Default `warning`. |
 | `--baseline <file>` | Suppress findings already in this workspace-relative `.json` file. See [Baselines](#baselines). |
@@ -335,7 +336,7 @@ Schema languages have no formatter, so `--apply` has nothing to fix for them.
 
 | Tool | Checks | Not on |
 | --- | --- | --- |
-| `lychee` | Check links in Markdown, MDX, reStructuredText, AsciiDoc and HTML; local paths and `#anchors` only | |
+| `lychee` | Check links in Markdown, MDX, reStructuredText, AsciiDoc and HTML; local paths and `#anchors`, and with `dx lint --online` external links too | |
 | `markdown_check` | Lint Markdown | |
 | `vale` | Lint Markdown, AsciiDoc, reStructuredText prose | |
 | `typstyle` | Format Typst | |

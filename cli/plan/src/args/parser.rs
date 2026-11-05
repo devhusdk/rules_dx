@@ -313,6 +313,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         min_coverage,
         min_changed_line_coverage,
         apply,
+        online,
         debug,
         release,
         prune_unobserved,
@@ -477,11 +478,14 @@ fn parse_inner<S: AsRef<OsStr>>(
     if !passthrough.is_empty() && !grammar::advertises_passthrough(command) {
         return Err(unsupported(command, "--"));
     }
-    let (bazel_options, app_args) = if grammar::takes_app_args(command) {
+    let (mut bazel_options, app_args) = if grammar::takes_app_args(command) {
         (option_tokens, passthrough)
     } else {
         (passthrough, Vec::new())
     };
+    if online {
+        bazel_options.insert(0, "--//config:lint_online=true".to_owned());
+    }
     if command.is_managed() {
         if let Err(error) = dx_setup::resolve_scope(&targets) {
             return Err(match error {

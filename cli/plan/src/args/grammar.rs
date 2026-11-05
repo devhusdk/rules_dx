@@ -130,6 +130,7 @@ pub(crate) struct Flags {
     pub(crate) min_coverage: Option<u32>,
     pub(crate) min_changed_line_coverage: Option<u32>,
     pub(crate) apply: bool,
+    pub(crate) online: bool,
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
@@ -459,6 +460,14 @@ flag_group! {
     ApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
+    }
+}
+
+flag_group! {
+    /// Check external links too (lychee, needs network).
+    OnlineFlag, {
+        #[arg(long, overrides_with = "online")]
+        online: bool,
     }
 }
 
@@ -1027,6 +1036,7 @@ command_args! {
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
+        online: OnlineFlag,
         fail_on: FailOnFlag,
         baseline: BaselineFlag,
         report: ReportFlag,

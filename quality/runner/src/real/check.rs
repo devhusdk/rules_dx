@@ -2342,12 +2342,16 @@ impl RealBackend {
             ),
             "lychee" => {
                 let root = scratch.root();
+                let online = tool
+                    .extra_env
+                    .iter()
+                    .any(|(name, value)| name == "DX_LINT_ONLINE" && value == "1");
                 let reported = self.check_files(
                     tool_id,
                     tool,
                     scratch,
                     pairs,
-                    |files| Ok(commands::lychee_check(&tool.binary, files, root)),
+                    |files| Ok(commands::lychee_check(&tool.binary, files, root, online)),
                     |out, names| {
                         parsed(
                             tool_id,

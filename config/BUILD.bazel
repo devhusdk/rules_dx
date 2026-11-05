@@ -16,6 +16,11 @@ bool_flag(
     build_setting_default = True,
 )
 
+bool_flag(
+    name = "lint_online",
+    build_setting_default = False,
+)
+
 config_setting(
     name = "warnings_as_errors_on",
     flag_values = {":warnings_as_errors": "true"},

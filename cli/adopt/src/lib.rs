@@ -67,7 +67,7 @@ pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent
 pub use version::{
     local_path_overrides, module_dependency_status, module_rules_dx_version, pin_is_valid,
     pin_rewrite_hint, read_module_dependency, read_version_pin, read_version_pins,
-    render_module_dependency, version_pin_matches_module, write_version_pin, write_version_pins,
-    DX_VERSION, MODULE_VERSION,
+    refresh_stale_pins, refresh_stale_pins_from_env, render_module_dependency,
+    version_pin_matches_module, write_version_pin, write_version_pins, DX_VERSION, MODULE_VERSION,
 };
 pub use watch::{plan_watch, WATCHABLE_COMMANDS};

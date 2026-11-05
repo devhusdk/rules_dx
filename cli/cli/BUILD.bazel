@@ -153,6 +153,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_cli",
+        "//cli/adopt:dx_adopt",
         "//cli/output:dx_output",
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",

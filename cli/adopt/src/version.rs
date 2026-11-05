@@ -66,6 +66,40 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
     write_version_pins(root, version, &crate::release_pins(version)?)
 }
 
+/// Under `bazel run`, rewrites a stale `.dx/pins` to `module_version` so the next
+/// launcher call skips Bazel. Does nothing when the file is missing, current, or
+/// when `pins` lacks a hash for any release asset. Errors are ignored.
+pub fn refresh_stale_pins(
+    workspace: Option<&Path>,
+    module_version: &str,
+    pins: impl FnOnce() -> Result<crate::LauncherPins, AdoptError>,
+) {
+    let Some(root) = workspace else { return };
+    let Ok(current) = read_version_pin(root) else {
+        return;
+    };
+    if current == module_version {
+        return;
+    }
+    let Ok(pins) = pins() else { return };
+    if crate::launcher::RELEASE_ASSETS
+        .iter()
+        .any(|asset| pins.get(asset).is_none_or(str::is_empty))
+    {
+        return;
+    }
+    let _ = write_version_pins(root, module_version, &pins);
+}
+
+/// `refresh_stale_pins` for the running binary: the `BUILD_WORKSPACE_DIRECTORY`
+/// tree and this module's release pins.
+pub fn refresh_stale_pins_from_env() {
+    let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").map(std::path::PathBuf::from);
+    refresh_stale_pins(workspace.as_deref(), MODULE_VERSION, || {
+        crate::release_pins(MODULE_VERSION)
+    });
+}
+
 pub fn write_version_pins(
     root: &Path,
     version: &str,
@@ -369,6 +403,50 @@ pub(crate) mod consumer_setup {
 mod tests {
     use super::consumer_setup::parse_consumer_setup;
     use super::*;
+
+    fn full_pins() -> crate::LauncherPins {
+        let text: String = crate::launcher::RELEASE_ASSETS
+            .iter()
+            .map(|asset| format!("{}  {asset}\n", "a".repeat(64)))
+            .collect();
+        crate::LauncherPins::from_sha256sums(&text).expect("pins")
+    }
+
+    fn pins_dir(content: Option<&str>) -> dx_test_scratch::TempDir {
+        let dir = dx_test_scratch::scratch("refresh-pins");
+        if let Some(content) = content {
+            dx_test_scratch::write(dir.path(), ".dx/pins", content);
+        }
+        dir
+    }
+
+    fn pins_text(dir: &dx_test_scratch::TempDir) -> Option<String> {
+        std::fs::read_to_string(dir.path().join(".dx/pins")).ok()
+    }
+
+    #[test]
+    fn refresh_rewrites_a_stale_pin_file() {
+        let dir = pins_dir(Some("1.0.0\n"));
+        refresh_stale_pins(Some(dir.path()), "2.0.0", || Ok(full_pins()));
+        assert_eq!(pins_text(&dir).unwrap(), full_pins().to_lines("2.0.0"));
+    }
+
+    #[test]
+    fn refresh_leaves_the_tree_alone_when_it_cannot_help() {
+        let dir = pins_dir(Some("1.0.0\n"));
+        refresh_stale_pins(Some(dir.path()), "2.0.0", || {
+            Ok(crate::LauncherPins::unreleased())
+        });
+        refresh_stale_pins(Some(dir.path()), "2.0.0", || Err(AdoptError::EmptyVersion));
+        refresh_stale_pins(None, "2.0.0", || Ok(full_pins()));
+        assert_eq!(pins_text(&dir).unwrap(), "1.0.0\n");
+        let missing = pins_dir(None);
+        refresh_stale_pins(Some(missing.path()), "2.0.0", || Ok(full_pins()));
+        assert_eq!(pins_text(&missing), None);
+        let current = pins_dir(Some("2.0.0\n"));
+        refresh_stale_pins(Some(current.path()), "2.0.0", || Ok(full_pins()));
+        assert_eq!(pins_text(&current).unwrap(), "2.0.0\n");
+    }
 
     #[test]
     fn pin_holds_only_on_equal_nonempty_versions() {

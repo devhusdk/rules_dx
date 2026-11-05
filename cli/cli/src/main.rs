@@ -227,6 +227,7 @@ fn run() -> i32 {
         }
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+    dx_adopt::refresh_stale_pins_from_env();
     dx_cli::exec::set_usage_command(invocation.command);
     if invocation.output == OutputMode::Json {
         dx_cli::exec::install_panic_events();

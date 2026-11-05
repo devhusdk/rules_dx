@@ -158,7 +158,8 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::Nuget
             | dx_adopt::dependency_sets::Ecosystem::Go
             | dx_adopt::dependency_sets::Ecosystem::Cpan
-            | dx_adopt::dependency_sets::Ecosystem::Pub,
+            | dx_adopt::dependency_sets::Ecosystem::Pub
+            | dx_adopt::dependency_sets::Ecosystem::Conan,
             _,
         ) => Err(operational(
             invocation,

@@ -23,8 +23,10 @@ pub const ECOSYSTEM_CPAN: &str = "cpan";
 
 pub const ECOSYSTEM_PUB: &str = "pub";
 
+pub const ECOSYSTEM_CONAN: &str = "conan";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -43,6 +45,10 @@ pub const CPANFILE_SNAPSHOT: &str = "cpanfile.snapshot";
 pub const PUBSPEC_YAML: &str = "pubspec.yaml";
 
 pub const PUBSPEC_LOCK: &str = "pubspec.lock";
+
+const CONANFILES: [&str; 2] = ["conanfile.txt", "conanfile.py"];
+
+pub const CONAN_LOCK: &str = "conan.lock";
 
 pub const PAKET_LOCK: &str = "paket.lock";
 
@@ -69,6 +75,7 @@ pub enum Ecosystem {
     Go,
     Cpan,
     Pub,
+    Conan,
 }
 
 impl Ecosystem {
@@ -85,6 +92,7 @@ impl Ecosystem {
             Ecosystem::Go => ECOSYSTEM_GO,
             Ecosystem::Cpan => ECOSYSTEM_CPAN,
             Ecosystem::Pub => ECOSYSTEM_PUB,
+            Ecosystem::Conan => ECOSYSTEM_CONAN,
         }
     }
 
@@ -101,6 +109,7 @@ impl Ecosystem {
             ECOSYSTEM_GO => Some(Ecosystem::Go),
             ECOSYSTEM_CPAN => Some(Ecosystem::Cpan),
             ECOSYSTEM_PUB => Some(Ecosystem::Pub),
+            ECOSYSTEM_CONAN => Some(Ecosystem::Conan),
             _ => None,
         }
     }
@@ -117,7 +126,8 @@ impl Ecosystem {
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
             | Ecosystem::Cpan
-            | Ecosystem::Pub => "pinned",
+            | Ecosystem::Pub
+            | Ecosystem::Conan => "pinned",
         }
     }
 
@@ -133,7 +143,8 @@ impl Ecosystem {
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
             | Ecosystem::Cpan
-            | Ecosystem::Pub => "pinned",
+            | Ecosystem::Pub
+            | Ecosystem::Conan => "pinned",
         }
     }
 
@@ -163,7 +174,8 @@ impl Ecosystem {
             | Ecosystem::Nuget
             | Ecosystem::Go
             | Ecosystem::Cpan
-            | Ecosystem::Pub => "audit",
+            | Ecosystem::Pub
+            | Ecosystem::Conan => "audit",
         }
     }
 
@@ -179,7 +191,7 @@ impl Ecosystem {
             Ecosystem::Go => Some("go"),
             Ecosystem::Cpan => Some("cpan"),
             Ecosystem::Pub => Some("pub"),
-            Ecosystem::Bazel | Ecosystem::PowerShell => None,
+            Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
     }
 
@@ -197,6 +209,7 @@ impl Ecosystem {
             Ecosystem::Go => GO_MOD,
             Ecosystem::Cpan => CPANFILE,
             Ecosystem::Pub => PUBSPEC_YAML,
+            Ecosystem::Conan => "conanfile.txt",
         }
     }
 
@@ -212,7 +225,8 @@ impl Ecosystem {
             | Ecosystem::Nuget
             | Ecosystem::Go
             | Ecosystem::Cpan
-            | Ecosystem::Pub => false,
+            | Ecosystem::Pub
+            | Ecosystem::Conan => false,
         }
     }
 }
@@ -494,6 +508,26 @@ pub fn discover(
                 vec![in_dir(&dir, PUBSPEC_LOCK)],
             )?);
         }
+        for label in module.conan_extensions() {
+            let bzl = dx_module_bazel::label_path(label)
+                .map_err(|detail| DependencySetsError::Module { detail })?;
+            let dir = manifest_dir(std::slice::from_ref(&bzl));
+            let parent = manifest_dir(std::slice::from_ref(&dir));
+            let found = [&dir, &parent].into_iter().find_map(|folder| {
+                CONANFILES
+                    .iter()
+                    .map(|file| in_dir(folder, file))
+                    .find(|candidate| read(candidate).is_ok())
+            });
+            let manifest = found.unwrap_or_else(|| in_dir(&dir, CONANFILES[0]));
+            let lock = in_dir(&manifest_dir(std::slice::from_ref(&manifest)), CONAN_LOCK);
+            sets.push(hub_set(
+                ECOSYSTEM_CONAN,
+                Ecosystem::Conan,
+                vec![manifest],
+                vec![lock],
+            )?);
+        }
         let mut groups = BTreeSet::new();
         for label in module.paket_extensions() {
             groups.extend(paket_groups(label, read)?);
@@ -599,7 +633,8 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
     }
     for manifest in &set.manifests {
         let file = manifest.rsplit('/').next().unwrap_or(manifest);
-        if file != set.ecosystem.manifest_name() {
+        let allowed = set.ecosystem == Ecosystem::Conan && CONANFILES.contains(&file);
+        if file != set.ecosystem.manifest_name() && !allowed {
             return Err(DependencySetsError::InvalidManifest {
                 name: name.clone(),
                 path: manifest.clone(),
@@ -798,6 +833,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::PowerShell
         | Ecosystem::Cpan
         | Ecosystem::Pub
+        | Ecosystem::Conan
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1183,6 +1219,7 @@ pub fn check_backend_settings(
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cpan => check_pinned_lock(set, CPANFILE_SNAPSHOT),
         Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
+        Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1898,6 +1935,22 @@ mod tests {
     }
 
     #[test]
+    fn conan_extensions_become_conan_sets() {
+        let module = "conan = use_extension(\"//build/conan:conan_deps_module_extension.bzl\", \"conan_extension\")\n";
+        let read = |path: &str| match path {
+            "build/conanfile.py" => Ok(String::new()),
+            _ => Err("none".to_owned()),
+        };
+        let registry = discover(module, &read)
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("conan").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Conan);
+        assert_eq!(set.manifests, ["build/conanfile.py"]);
+        assert_eq!(set.locks, ["build/conan.lock"]);
+    }
+
+    #[test]
     fn bundle_fetches_become_ruby_sets() {
         let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
         let registry = found(module, &[]);
@@ -2429,7 +2482,8 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, conan"
         );
     }
 

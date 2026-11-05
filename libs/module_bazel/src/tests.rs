@@ -1170,6 +1170,15 @@ fn paket_extensions_are_main_repository_paket_loaders() {
     );
 }
 
+#[test]
+fn conan_extensions_are_main_repository_bazeldeps_loaders() {
+    let file = parse("conan = use_extension(\"//build:conan_deps_module_extension.bzl\", \"conan_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:conan_deps_module_extension.bzl\", \"conan_extension\")\n");
+    assert_eq!(
+        file.conan_extensions(),
+        ["//build:conan_deps_module_extension.bzl"]
+    );
+}
+
 const DX_DEP: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"my_dx\")\n";
 
 fn missing(label: &str) -> Result<String, String> {

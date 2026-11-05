@@ -561,7 +561,25 @@ fn publishing_runs_the_consumer_against_the_prebuilt_download() {
     assert!(text.contains("types: [published]"));
     assert!(text.contains("permissions:\n  contents: read\n"));
     assert!(text.contains("@rules_dx//:dx -- --version"));
-    assert!(text.contains("dx_prebuilt_"));
+    assert!(text.contains("dx_prebuilt/$KEY/dx"));
+    assert!(!text.contains("dx_prebuilt_"));
+}
+
+#[test]
+fn the_consumer_matrix_keys_match_the_hub_outputs() {
+    let text = read_runfiles(CONSUMER);
+    for (cell, key) in [
+        ("dx-linux-x86_64", "linux_x86_64"),
+        ("dx-linux-arm64", "linux_aarch64"),
+        ("dx-macos-arm64", "macos_aarch64"),
+        ("dx-windows-x86_64", "windows_x86_64"),
+        ("dx-windows-arm64", "windows_aarch64"),
+    ] {
+        assert!(
+            text.contains(&format!("- name: {cell}\n            key: {key}\n")),
+            "{cell} must map to {key}"
+        );
+    }
 }
 
 fn consumer_job(name: &str) -> String {

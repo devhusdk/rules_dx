@@ -20,14 +20,19 @@ jobs:
       matrix:
         include:
           - name: dx-linux-x86_64
+            key: linux_x86_64
             runner: ubuntu-latest
           - name: dx-linux-arm64
+            key: linux_aarch64
             runner: ubuntu-24.04-arm
           - name: dx-macos-arm64
+            key: macos_aarch64
             runner: macos-15
           - name: dx-windows-x86_64
+            key: windows_x86_64
             runner: windows-latest
           - name: dx-windows-arm64
+            key: windows_aarch64
             runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
@@ -39,6 +44,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag || github.event.release.tag_name }}
       CELL: ${{ matrix.name }}
+      KEY: ${{ matrix.key }}
     steps:
       - name: Write the quickstart consumer from the published source.json
         run: |
@@ -70,12 +76,11 @@ jobs:
             *"$version"*) ;;
             *) echo "dx printed '$printed', want $version" >&2; exit 1 ;;
           esac
-          repo="dx_prebuilt_$(echo "${CELL#dx-}" | tr -c 'A-Za-z0-9\n' '_')"
           files="$(bazel cquery --output=files @rules_dx//:dx)"
           echo "$files"
           case "$files" in
-            *"$repo"*) ;;
-            *) echo "@rules_dx//:dx is not the $repo download" >&2; exit 1 ;;
+            *"dx_prebuilt/$KEY/dx"*) ;;
+            *) echo "@rules_dx//:dx is not the dx_prebuilt/$KEY/dx download" >&2; exit 1 ;;
           esac
           {
             echo "### $CELL"

@@ -47,7 +47,8 @@ pub fn collect_bytes_received(reader: impl BufRead) -> Option<u64> {
         let Ok(event) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
-        if let Some(bytes) = event.pointer("/buildMetrics/networkMetrics/systemNetworkStats/bytesRecv")
+        if let Some(bytes) =
+            event.pointer("/buildMetrics/networkMetrics/systemNetworkStats/bytesRecv")
         {
             found = Some(count_of(Some(bytes)));
         }
@@ -112,7 +113,11 @@ fn parse_totals(metrics: &Value) -> BuildTotals {
                 .collect()
         })
         .unwrap_or_default();
-    mnemonics.sort_by(|a, b| b.cpu_ms.cmp(&a.cpu_ms).then_with(|| a.mnemonic.cmp(&b.mnemonic)));
+    mnemonics.sort_by(|a, b| {
+        b.cpu_ms
+            .cmp(&a.cpu_ms)
+            .then_with(|| a.mnemonic.cmp(&b.mnemonic))
+    });
     BuildTotals {
         wall_ms: present("/timingMetrics/wallTimeInMs"),
         peak_heap_bytes: present("/memoryMetrics/peakPostGcHeapSize"),
@@ -193,7 +198,10 @@ mod tests {
         assert_eq!(totals.mnemonics[0].executed, 7);
         assert_eq!(totals.mnemonics[0].cpu_ms, 1000);
         assert_eq!(totals.mnemonics[1].cpu_ms, 15);
-        assert_eq!(collect_build_totals(r#"{"id":{"started":{}}}"#.as_bytes()), None);
+        assert_eq!(
+            collect_build_totals(r#"{"id":{"started":{}}}"#.as_bytes()),
+            None
+        );
     }
 
     #[test]

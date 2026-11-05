@@ -891,7 +891,11 @@ use_repo(cpan, perl_cpan = "perl_app_cpan")
 perl_tools_cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
 perl_tools_cpan.install(
     name = "dx_perl_cpan",
-    bins = {"Perl-Tidy": ["bin/perltidy"]},
+    bins = {
+        "Carton": ["bin/carton"],
+        "Perl-Tidy": ["bin/perltidy"],
+        "cpan-outdated": ["bin/cpan-outdated"],
+    },
     lock = "//perl/tools:cpanfile.snapshot.lock.json",
 )
 use_repo(perl_tools_cpan, "dx_perl_cpan")

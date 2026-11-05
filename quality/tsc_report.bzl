@@ -10,7 +10,7 @@ def _tsc_report_impl(ctx):
     ctx.actions.run_shell(
         inputs = [info.stdout],
         outputs = [out],
-        command = "tr '\\\\' / < \"$1\" > \"$2\"",
+        command = "tr -d '\\r' < \"$1\" | tr '\\\\' / > \"$2\"",
         arguments = [info.stdout.path, out.path],
         mnemonic = "TscReportNormalize",
     )
@@ -18,7 +18,7 @@ def _tsc_report_impl(ctx):
 
 tsc_report = rule(
     implementation = _tsc_report_impl,
-    doc = "Exposes the tsc stdout, with backslash path separators normalized to slashes, or the exit status file of a target.",
+    doc = "Exposes the tsc stdout, with CRs removed and backslashes turned into slashes, or the exit status file of a target.",
     attrs = {
         "kind": attr.string(values = ["stdout", "exit"], mandatory = True),
         "target": attr.label(mandatory = True, aspects = [tsc_aspect]),

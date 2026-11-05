@@ -81,6 +81,7 @@ REAL_ADAPTERS = {
     "typos": {"lint": ["text"]},
     "kotlinc": {"typecheck": ["kotlin"]},
     "ktfmt": {"format": ["kotlin"]},
+    "detekt": {"lint": ["kotlin"]},
     "ktlint": {"lint": ["kotlin"]},
     "kubeconform": {"lint": ["kubernetes"]},
     "markdown_check": {"lint": ["markdown"]},

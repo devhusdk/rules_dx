@@ -2073,6 +2073,7 @@ use_repo(
     "dx_yamlfmt_windows_x86_64",
     "jvm_avro_tools",
     "jvm_checkstyle",
+    "jvm_detekt",
     "jvm_google_java_format",
     "jvm_ktfmt",
     "jvm_ktlint",

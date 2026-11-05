@@ -167,6 +167,13 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
+    "detekt": {
+        "attr": attr.label(default = "//quality/tools/jvm:detekt", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "heavy",
+        "shard": "jvm",
+    },
     "ktfmt": {
         "attr": attr.label(default = "//quality/tools/jvm:ktfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],

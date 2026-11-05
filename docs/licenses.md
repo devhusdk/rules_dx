@@ -20,6 +20,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | chktex | 2025 | GPL-2.0-or-later, LGPL-2.1-or-later |
 | cppcheck | 2.21.0 | GPL-3.0-or-later |
 | cue | 0.17.1 | Apache-2.0 |
+| detekt | 1.23.8 | Apache-2.0 |
 | ffmt | 0.4.5 | MIT |
 | fortitude | 0.10.0 | MIT |
 | gersemi | 0.29.2 | MPL-2.0 |

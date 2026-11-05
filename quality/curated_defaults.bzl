@@ -77,7 +77,7 @@ CURATED_DEFAULTS = {
     "kotlin": {
         "audit": [],
         "format": ["ktfmt"],
-        "lint": ["ktlint"],
+        "lint": ["detekt", "ktlint"],
         "typecheck": ["kotlinc"],
     },
     "helm": {

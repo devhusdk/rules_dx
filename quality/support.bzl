@@ -312,6 +312,18 @@ KOTLIN_KTFMT_SUPPORT = support(
     transport = "batched",
 )
 
+KOTLIN_DETEKT_SUPPORT = support(
+    capability = "lint",
+    classes = ["kotlin"],
+    context = "owned",
+    family = "kotlin",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "detekt",
+    transport = "batched",
+)
+
 KOTLIN_KTLINT_SUPPORT = support(
     capability = "lint",
     classes = ["kotlin"],
@@ -2099,6 +2111,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     JAVA_SPOTBUGS_SUPPORT,
     KOTLIN_KOTLINC_SUPPORT,
     KOTLIN_KTFMT_SUPPORT,
+    KOTLIN_DETEKT_SUPPORT,
     KOTLIN_KTLINT_SUPPORT,
     CSHARP_CSHARPIER_SUPPORT,
     CSHARP_CSC_SUPPORT,

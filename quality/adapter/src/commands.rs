@@ -1234,6 +1234,31 @@ pub fn phpstan_neon(
     out
 }
 
+/// `--config` replaces detekt's own defaults; the XML report is the only write.
+pub fn detekt_check(binary: &Path, files: &[&Path], config: &Path, report: &Path) -> Invocation {
+    let mut report_arg = OsString::from("xml:");
+    report_arg.push(report);
+    let mut input = OsString::new();
+    for (index, file) in files.iter().enumerate() {
+        if index > 0 {
+            input.push(",");
+        }
+        input.push(file);
+    }
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            OsString::from("--config"),
+            config.as_os_str().to_owned(),
+            OsString::from("--report"),
+            report_arg,
+            OsString::from("--input"),
+            input,
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,

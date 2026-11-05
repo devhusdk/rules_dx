@@ -806,6 +806,24 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "/scratch/src/Hello.java"
         ]
     );
+    let detekt = detekt_check(
+        Path::new(BIN),
+        &[Path::new("/scratch/A.kt"), Path::new("/scratch/B.kt")],
+        Path::new("/scratch/dx-detekt-default/detekt.yml"),
+        Path::new("/scratch/.dx-detekt/report.xml"),
+    );
+    assert_eq!(
+        argv_strings(&detekt),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/dx-detekt-default/detekt.yml",
+            "--report",
+            "xml:/scratch/.dx-detekt/report.xml",
+            "--input",
+            "/scratch/A.kt,/scratch/B.kt"
+        ]
+    );
     let kt = Path::new("/scratch/src/Hello.kt");
     let editorconfig = Path::new("/scratch/dx-ktlint-default/.editorconfig");
     let check = ktlint_check(Path::new(BIN), &[kt], Some(editorconfig));

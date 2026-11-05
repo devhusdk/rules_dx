@@ -27,6 +27,7 @@ load("//quality/artifacts:jsonnet_lint.bzl", _jsonnet_lint = "ARTIFACTS")
 load("//quality/artifacts:jsonnetfmt.bzl", _jsonnetfmt = "ARTIFACTS")
 load("//quality/artifacts:keep_sorted.bzl", _keep_sorted = "ARTIFACTS")
 load("//quality/artifacts:ktfmt.bzl", _ktfmt = "SOURCE")
+load("//quality/artifacts:detekt.bzl", _detekt = "SOURCE")
 load("//quality/artifacts:ktlint.bzl", _ktlint = "SOURCE")
 load("//quality/artifacts:kubeconform.bzl", _kubeconform = "ARTIFACTS")
 load("//quality/artifacts:latexindent.bzl", _latexindent = "ARTIFACTS")
@@ -112,6 +113,7 @@ TOOL_SOURCES = [
     _avro_tools,
     _checkstyle,
     _cppcheck,
+    _detekt,
     _google_java_format,
     _ktfmt,
     _ktlint,

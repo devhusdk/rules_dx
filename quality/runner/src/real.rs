@@ -34,6 +34,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "cue",
     "dart",
     "deadnix",
+    "detekt",
     "dfmt",
     "dialyzer",
     "dscanner",
@@ -153,6 +154,26 @@ ij_kotlin_imports_layout = *
 ktlint_standard_function-signature = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
+";
+const DETEKT_DEFAULTS_REL: &str = "dx-detekt-default/detekt.yml";
+/// Only the unused and unreachable rules, reported as info.
+const DETEKT_DEFAULTS_BYTES: &[u8] = b"style:
+  UnusedImports:
+    active: true
+    severity: info
+  UnusedParameter:
+    active: true
+    severity: info
+  UnusedPrivateMember:
+    active: true
+    severity: info
+  UnusedPrivateProperty:
+    active: true
+    severity: info
+potential-bugs:
+  UnreachableCode:
+    active: true
+    severity: info
 ";
 const TFLINT_DEFAULTS_REL: &str = "dx-tflint-default/.tflint.hcl";
 /// Only the bundled terraform ruleset, recommended preset; module calls stay off.

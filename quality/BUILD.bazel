@@ -294,7 +294,10 @@ quality_family(
     name = "default_kotlin_family",
     family_id = "kotlin",
     format = ["ktfmt"],
-    lint = ["ktlint"],
+    lint = [
+        "detekt",
+        "ktlint",
+    ],
     typecheck = ["kotlinc"],
 )
 

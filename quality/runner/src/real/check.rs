@@ -1049,6 +1049,31 @@ impl RealBackend {
                 // Sorbet prints its errors on stderr.
                 parsed(tool_id, parsers::parse_sorbet(&out.stderr, out.code, &strs))
             }
+            "detekt" => {
+                let Some(cfg) = config.as_deref() else {
+                    return Err(execution(tool_id, "detekt needs a config path".to_owned()));
+                };
+                let work = scratch.root().join(".dx-detekt");
+                std::fs::create_dir_all(&work)
+                    .map_err(|err| execution(tool_id, format!("stage detekt work dir: {err}")))?;
+                let report = work.join("report.xml");
+                let invocation = commands::detekt_check(&tool.binary, &refs, cfg, &report);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let body = std::fs::read(&report).map_err(|err| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "no report (exit {:?}): {err}: {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr)
+                                .lines()
+                                .next()
+                                .unwrap_or("")
+                        ),
+                    )
+                })?;
+                parsed(tool_id, parsers::parse_detekt(&body, out.code, &strs))
+            }
             "ktlint" => {
                 let invocation = commands::ktlint_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

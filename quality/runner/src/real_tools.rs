@@ -5565,6 +5565,69 @@ fn chktex_error_exit_unknown_exit_and_junk_are_never_clean() {
     }
 }
 
+fn detekt_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let value = |flag: &str| {
+        argv.windows(2)
+            .find(|pair| pair[0] == flag)
+            .map(|pair| pair[1].to_string_lossy().into_owned())
+            .unwrap_or_else(|| panic!("detekt passes {flag}"))
+    };
+    let config = value("--config");
+    assert!(
+        Path::new(&config).ends_with("dx-detekt-default/detekt.yml"),
+        "unbound detekt uses the scratch default, got {config:?}"
+    );
+    let defaults = std::fs::read_to_string(&config).expect("defaults file is materialized");
+    assert!(defaults.contains("UnusedPrivateMember"));
+    let report = value("--report");
+    let report = report.strip_prefix("xml:").expect("xml report");
+    let input = value("--input");
+    let unused = std::fs::read_to_string(&input)
+        .expect("read staged file")
+        .contains("private fun unused");
+    let body = if unused {
+        format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<checkstyle version=\"4.3\">\n<file name=\"{input}\">\n\t<error line=\"2\" column=\"13\" severity=\"info\" message=\"Private function `unused` is unused.\" source=\"detekt.UnusedPrivateMember\" />\n</file>\n</checkstyle>\n"
+        )
+    } else {
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<checkstyle version=\"4.3\">\n</checkstyle>\n"
+            .to_owned()
+    };
+    std::fs::write(report, body).expect("write report");
+    Ok(ChildOutput {
+        code: Some(if unused { 2 } else { 0 }),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn detekt_reports_an_unused_private_function_as_info() {
+    let backend = backend_for("detekt", plain_tool(), detekt_fake);
+    let findings = backend
+        .diagnose(
+            "detekt",
+            "lint",
+            &single("src/A.kt", "package a\nprivate fun unused() {}\n"),
+        )
+        .expect("detekt diagnose");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "UnusedPrivateMember");
+    assert_eq!(
+        findings[0].severity,
+        quality_result::proto::Severity::Info as i32
+    );
+    let clean = backend
+        .diagnose("detekt", "lint", &single("src/A.kt", "package a\n"))
+        .expect("detekt clean");
+    assert!(clean.is_empty());
+}
+
 fn credo_fake(
     argv: &[OsString],
     cwd: &Path,

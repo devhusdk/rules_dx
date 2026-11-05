@@ -77,6 +77,17 @@ java_binary(
 )
 
 java_import(
+    name = "detekt_import",
+    jars = ["@jvm_detekt//file"],
+)
+
+java_binary(
+    name = "detekt",
+    main_class = "io.gitlab.arturbosch.detekt.cli.Main",
+    runtime_deps = [":detekt_import"],
+)
+
+java_import(
     name = "ktlint_import",
     jars = ["@jvm_ktlint//file"],
 )

@@ -396,7 +396,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "gotype" | "jet" | "julialint" | "luals" | "phpcs" | "phpstan" | "regal" | "sorbet"
         | "tsc" | "javac" | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc" | "ocaml" | "zig"
         | "zig_ast_check" | "swift_lint" | "xmllint" | "selene" | "zanuda" | "thrift"
-        | "avro_tools" | "tinymist" => Ok(Route::Keep),
+        | "avro_tools" | "tinymist" | "detekt" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

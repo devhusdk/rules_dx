@@ -22,6 +22,7 @@ pub mod cue;
 pub mod dart_analyze;
 pub mod dart_format;
 pub mod deadnix;
+pub mod detekt;
 pub mod dfmt;
 pub mod dialyzer;
 pub mod djlint;
@@ -153,6 +154,7 @@ pub use cue::{parse_cue, parse_cue_vet};
 pub use dart_analyze::{parse_dart_analyze, DartAnalyzeView};
 pub use dart_format::parse_dart_format;
 pub use deadnix::parse_deadnix;
+pub use detekt::parse_detekt;
 pub use dfmt::parse_dfmt;
 pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
@@ -2256,6 +2258,14 @@ mod tests {
         )
     }
 
+    fn fuzz_detekt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::detekt::parse_detekt(input, code, files)
+    }
+
     fn fuzz_dscanner(
         input: &[u8],
         code: Option<i32>,
@@ -2947,6 +2957,7 @@ mod tests {
         ("cue_vet", fuzz_cue_vet),
         ("deadnix", fuzz_deadnix),
         ("dfmt", fuzz_dfmt),
+        ("detekt", fuzz_detekt),
         ("dscanner", fuzz_dscanner),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
@@ -3093,6 +3104,7 @@ mod tests {
         ("cue", include_str!("cue.rs")),
         ("deadnix", include_str!("deadnix.rs")),
         ("dfmt", include_str!("dfmt.rs")),
+        ("detekt", include_str!("detekt.rs")),
         ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("dialyzer", include_str!("dialyzer.rs")),

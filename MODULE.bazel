@@ -695,6 +695,14 @@ dart.toolchain(dart_version = "3.13.7")
 # floor: equals tested
 bazel_dep(name = "rules_flutter", version = "0.0.8")
 
+# Fail on a fonts_json font that font_files lacks; drop once aran/rules_flutter#5 is released.
+single_version_override(
+    module_name = "rules_flutter",
+    patch_strip = 1,
+    patches = ["//patches/rules_flutter:missing_font.patch"],
+    version = "0.0.8",
+)
+
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.8")
 use_repo(flutter, "flutter_toolchains", "flutter_web_sdk")

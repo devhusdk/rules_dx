@@ -71,12 +71,15 @@ fn resign(dir: &std::path::Path) {
     let mut files = Vec::new();
     collect(dir, &mut files);
     for file in files {
-        let status = std::process::Command::new("codesign")
+        let mut mode = std::fs::metadata(&file).expect("metadata").permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut mode, 0o755);
+        std::fs::set_permissions(&file, mode).expect("chmod");
+        let out = std::process::Command::new("codesign")
             .args(["--force", "--sign", "-"])
             .arg(&file)
-            .status()
+            .output()
             .expect("run codesign");
-        assert!(status.success(), "codesign {}", file.display());
+        assert!(out.status.success(), "codesign {}: {out:?}", file.display());
     }
 }
 

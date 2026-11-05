@@ -1231,6 +1231,7 @@ command_args! {
     /// The flags `dx release` accepts.
     Release => 26, NoScopeTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         own: ToFlag,
     };
 }

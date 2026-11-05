@@ -1,20 +1,22 @@
 # `dx release`
 
-Works out the next version from conventional commits since the last tag and lists every manifest that carries a version. It changes no files.
+Works out the next version from conventional commits since the last tag and lists every manifest that carries a version. With `--apply` it also writes the version into every manifest, commits and tags. Without it, no files change.
 
 ```sh
 dx release
 dx release --check
-dx release --to 2.0.0
+dx release --apply
+dx release --to 2.0.0 --apply
 ```
 
 ```text
-dx release [--check] [--to <x.y.z>]
+dx release [--check | --apply] [--to <x.y.z>]
 ```
 
 | Flag | What it does |
 | --- | --- |
 | `--check` | Report only. This is the default. |
+| `--apply` | Set the version in every manifest, commit them as `release: <tag>` and create the tag. Refuses a dirty working tree, an existing tag, or no version to release. Cannot be combined with `--check`. |
 | `--to <x.y.z>` | Use this version instead of the derived one, for teams that do not use conventional commits. |
 | `--workspace`, `-q`, `-v`, `--color` | Global flags. |
 

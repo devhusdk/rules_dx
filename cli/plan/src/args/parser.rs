@@ -353,7 +353,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         time,
         jobs,
         fail_survived,
-        check: _,
+        check,
         baseline,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
@@ -507,6 +507,9 @@ fn parse_inner<S: AsRef<OsStr>>(
                 | dx_setup::ScopeError::NotTargetLabel { value } => scope_error(&value),
             });
         }
+    }
+    if command == Command::Release && check && apply {
+        return Err(unsupported(command, "--check with --apply"));
     }
     if command == Command::Update && outdated {
         let culprit = if apply {

@@ -466,8 +466,8 @@ pub static COMMANDS: [CommandMeta; 27] = [
         command: Command::Release,
         name: "release",
         scope_policy: "reject",
-        describe: "derive the next version from conventional commits and list the manifests that carry the version (check only)",
-        usage: "Usage: dx release [--check] [--to <x.y.z>]",
+        describe: "derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag",
+        usage: "Usage: dx release [--check | --apply] [--to <x.y.z>]",
         scopes: "Scopes: none; positionals are usage failures. The last tag is the base; the version comes from conventional commits since it, or from --to.",
         is_managed: false,
         is_adoption: false,
@@ -599,9 +599,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 13] = [
+    pub(crate) const APPLY_COMMANDS: [Command; 14] = [
         Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Env, Init, Upgrade, Watch,
-        Worktree,
+        Worktree, Release,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [

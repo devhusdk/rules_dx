@@ -201,3 +201,17 @@ fn the_families_job_runs_every_module_before_it_fails() {
         "{CI} job families must record a failed module and exit non-zero after the loop: {all}"
     );
 }
+
+#[test]
+fn consumer_jobs_write_the_preset_layers_before_the_first_bazel_call() {
+    let writer = "@rules_dx//:dx -- completion bash";
+    for (id, script) in run_scripts(CONSUMER) {
+        let Some(first) = script.lines().find(|line| line.contains("bazel ")) else {
+            continue;
+        };
+        assert!(
+            first.contains(writer),
+            "{CONSUMER} job {id} must write the preset layers with `bazel run {writer}` before any other bazel call, not `{first}`"
+        );
+    }
+}

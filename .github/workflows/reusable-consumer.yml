@@ -90,6 +90,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Write the Bazel preset layers
+        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
+        # none until dx runs. Any dx command that reaches the workspace writes them.
+        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash
@@ -166,6 +170,10 @@ jobs:
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
           disk-cache: ${{ inputs.remote_cache == '' && secrets.BUILDBUDDY_API_KEY == '' && format('checks-{0}', matrix.platform) || 'false' }}
+      - name: Write the Bazel preset layers
+        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
+        # none until dx runs. Any dx command that reaches the workspace writes them.
+        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash
@@ -452,6 +460,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Write the Bazel preset layers
+        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
+        # none until dx runs. Any dx command that reaches the workspace writes them.
+        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash
@@ -512,6 +524,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Write the Bazel preset layers
+        # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
+        # none until dx runs. Any dx command that reaches the workspace writes them.
+        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash

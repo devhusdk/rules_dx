@@ -6,6 +6,7 @@ import sys
 import unittest
 
 import rst2html_main
+import tool_bootstrap
 
 VALE_ARGV = [
     "rst2html",
@@ -23,10 +24,15 @@ VALE_ARGV = [
 class Rst2HtmlTest(unittest.TestCase):
     """Feeds Vale's exact argv and checks the HTML."""
 
+    def import_path(self) -> list:
+        """Returns this process's import roots plus the wheels the runfiles carry."""
+        wheels = [str(site) for site in tool_bootstrap.site_packages()]
+        return [path for path in sys.path if path] + wheels
+
     def run_main(self, body: bytes) -> str:
         """Converts one body through stdin in a child process and returns stdout.
 
-        The child hands on this process's import path because on Windows the
+        The child gets this process's import path and the runfiles wheels because on Windows the
         interpreter does not find the venv from its own location.
         """
         main = os.path.join(os.path.dirname(os.path.abspath(rst2html_main.__file__)), "rst2html_main.py")
@@ -34,7 +40,7 @@ class Rst2HtmlTest(unittest.TestCase):
             [sys.executable, main] + VALE_ARGV[1:],
             input=body,
             capture_output=True,
-            env=dict(os.environ, PYTHONPATH=os.pathsep.join(path for path in sys.path if path)),
+            env=dict(os.environ, PYTHONPATH=os.pathsep.join(self.import_path())),
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode())

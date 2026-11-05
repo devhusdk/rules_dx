@@ -88,6 +88,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "perlcritic",
     "perltidy",
     "pkl",
+    "pkl_lsp",
     "phpcs",
     "phpstan",
     "pmd",

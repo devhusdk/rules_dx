@@ -826,6 +826,43 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "pkl_lsp" => {
+                let companion = |name: &str| {
+                    tool.path_tools
+                        .iter()
+                        .find(|(helper, _)| helper == name)
+                        .map(|(_, path)| path.clone())
+                        .ok_or_else(|| {
+                            execution(
+                                tool_id,
+                                format!("pkl_lsp needs the {name} companion; the aspect did not supply it"),
+                            )
+                        })
+                };
+                let java = companion("java")?;
+                let jar = companion("pkl-lsp.jar")?;
+                let home = scratch.root().join(".dx-pkl-lsp").join("home");
+                std::fs::create_dir_all(&home)
+                    .map_err(|err| execution(tool_id, format!("stage pkl-lsp home: {err}")))?;
+                let invocation = commands::pkl_lsp_check(&tool.binary, &java, &jar, &home, &refs);
+                // The companions are named by absolute path, so the child needs no PATH shims.
+                let bare = RealTool {
+                    binary: tool.binary.clone(),
+                    extra_env: tool.extra_env.clone(),
+                    config_rel: None,
+                    edition: None,
+                    dialect: None,
+                    tool_files: Vec::new(),
+                    upstream_diagnostics: Vec::new(),
+                    search_paths: Vec::new(),
+                    path_tools: Vec::new(),
+                };
+                let out = self.run(tool_id, &bare, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_pkl_lsp(&out.stdout, out.code, &strs),
+                )
+            }
             "julialint" => {
                 let work = scratch.root().join(".dx-julialint");
                 std::fs::create_dir_all(&work).map_err(|err| {

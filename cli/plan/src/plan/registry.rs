@@ -70,6 +70,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_swift_lint_aspect",
                 "quality:real_aspects.bzl%real_zig_lint_aspect",
                 "quality:real_aspects.bzl%real_julia_lint_aspect",
+                "quality:real_aspects.bzl%real_pkl_lint_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -362,6 +363,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_swift_lint_aspect",
                 "quality:real_aspects.bzl%real_zig_lint_aspect",
                 "quality:real_aspects.bzl%real_julia_lint_aspect",
+                "quality:real_aspects.bzl%real_pkl_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);

@@ -1772,6 +1772,20 @@ PKL_TYPECHECK_SUPPORT = {
     "transport": "single",
 }
 
+PKL_PKL_LSP_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["pkl"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "pkl",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "pkl_lsp",
+    "transport": "batched",
+}
+
 LUA_SELENE_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2423,6 +2437,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     RST_VALE_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     PKL_TYPECHECK_SUPPORT,
+    PKL_PKL_LSP_LINT_SUPPORT,
     LUA_SELENE_LINT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,

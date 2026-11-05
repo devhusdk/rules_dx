@@ -1,5 +1,6 @@
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality/tools/jvm:jar_lsp_tool.bzl", "jar_lsp_tool")
 load("//quality/tools/jvm:java_runtime_pin.bzl", "pinned_java_runtime")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
@@ -89,6 +90,25 @@ java_binary(
 pinned_java_runtime(
     name = "jdk25",
     version = "25",
+)
+
+jar_lsp_tool(
+    name = "pkl_lsp",
+    driver = "//quality/lsp_check",
+    jar = "@jvm_pkl_lsp//file",
+    runtime = ":jdk25",
+)
+
+filegroup(
+    name = "pkl_lsp_java",
+    srcs = [":pkl_lsp"],
+    output_group = "java",
+)
+
+filegroup(
+    name = "pkl_lsp_jar",
+    srcs = [":pkl_lsp"],
+    output_group = "jar",
 )
 
 rust_test(

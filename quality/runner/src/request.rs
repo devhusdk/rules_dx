@@ -26,6 +26,7 @@ pub struct RequestTool {
 pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("vale", &["rst2html", "asciidoctor"]),
     ("helm", &["kubeconform"]),
+    ("pkl_lsp", &["java", "pkl-lsp.jar"]),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

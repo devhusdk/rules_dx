@@ -722,6 +722,77 @@ pub(super) fn julialint_maps_findings_and_never_trusts_a_failed_run() {
     );
 }
 
+fn pkl_lsp_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let dashes = text.iter().position(|a| a == "--").expect("java separator");
+    assert_eq!(text[dashes + 1], "/fake/jdk/bin/java");
+    assert!(text[dashes + 2].starts_with("-Duser.home="));
+    assert!(text[dashes + 2].contains(".dx-pkl-lsp"));
+    assert_eq!(text[dashes + 3], "-jar");
+    assert_eq!(text[dashes + 4], "/fake/pkl-lsp.jar");
+    let file = last_file(argv);
+    let source = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if source.contains("crash") {
+        (2, String::new())
+    } else if source.contains("unused") {
+        let line = format!(
+            r#"{{"file":"{file}","line":1,"col":7,"severity":2,"code":"unused","message":"Unused local"}}"#
+        );
+        (1, format!("{line}\n"))
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn pkl_lsp_maps_findings_and_needs_both_companions() {
+    let companions = vec![
+        ("java".to_owned(), PathBuf::from("/fake/jdk/bin/java")),
+        ("pkl-lsp.jar".to_owned(), PathBuf::from("/fake/pkl-lsp.jar")),
+    ];
+    let tool = RealTool {
+        path_tools: companions.clone(),
+        ..plain_tool()
+    };
+    let backend = backend_for("pkl_lsp", tool, pkl_lsp_behavior);
+    let lint = |text: &str| backend.diagnose("pkl_lsp", "lint", &single("a.pkl", text));
+    assert!(lint("x = 1\n").expect("check").is_empty());
+    let found = lint("local unused = 1\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "a.pkl");
+    assert_eq!(found[0].rule_id, "unused");
+    assert!(lint("crash\n").is_err());
+    for kept in 0..companions.len() {
+        let partial = RealTool {
+            path_tools: vec![companions[kept].clone()],
+            ..plain_tool()
+        };
+        let backend = backend_for("pkl_lsp", partial, pkl_lsp_behavior);
+        assert!(backend
+            .diagnose("pkl_lsp", "lint", &single("a.pkl", "x = 1\n"))
+            .is_err());
+    }
+    assert_eq!(
+        backend
+            .apply_fix("pkl_lsp", "a.pkl", "x = 1\n", "lint")
+            .expect("check-only"),
+        "x = 1\n"
+    );
+}
+
 fn dart_behavior(
     argv: &[OsString],
     _cwd: &Path,

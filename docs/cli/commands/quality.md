@@ -308,6 +308,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `regal` | Lint Rego | |
 | `cue` | Format and typecheck CUE | |
 | `pkl` | Format and typecheck Pkl | |
+| `pkl_lsp` | Lint Pkl | |
 | `jsonnetfmt`, `jsonnet_lint` | Format and lint Jsonnet | |
 | `redocly` | Lint OpenAPI and AsyncAPI | |
 | `gplint` | Lint Gherkin | |

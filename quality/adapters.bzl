@@ -95,6 +95,7 @@ REAL_ADAPTERS = {
     "perlcritic": {"lint": ["perl"]},
     "perltidy": {"format": ["perl"]},
     "pkl": {"format": ["pkl"], "typecheck": ["pkl"]},
+    "pkl_lsp": {"lint": ["pkl"]},
     "regal": {"lint": ["rego"]},
     "luals": {"typecheck": ["lua"]},
     "phpcs": {"lint": ["php"]},

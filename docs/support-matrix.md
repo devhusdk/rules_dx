@@ -129,7 +129,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Kubernetes | `kubeconform` | `prettier` | n/a | n/a |
 | LaTeX | `chktex` | `latexindent` | n/a | n/a |
 | Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a |
-| Pkl | no | `pkl` | `pkl` | n/a |
+| Pkl | `pkl_lsp` | `pkl` | `pkl` | n/a |
 | Rego | `regal` | `opa` | `opa` | n/a |
 | reStructuredText | `vale` | no | n/a | n/a |
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a | n/a |

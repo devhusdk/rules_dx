@@ -1251,6 +1251,27 @@ pub(crate) fn two_file_replacements(name: &str) -> Harness {
     harness
 }
 
+/// A BUILD file whose `:used` and `:clean` deps are both listed, with an unused-dependency finding for `:clean`.
+pub(crate) fn unused_build_dep(name: &str) -> Harness {
+    let mut harness = Harness::new(name);
+    harness.write_source(
+        "p/BUILD.bazel",
+        "rust_library(\n    name = \"unused_dep\",\n    deps = [\n        \":clean\",\n        \":used\",\n    ],\n)\n",
+    );
+    let mut diagnostic = Harness::diagnostic("unused_crate_dependencies", false);
+    diagnostic.path = String::new();
+    diagnostic.start_byte = None;
+    diagnostic.end_byte = None;
+    diagnostic.build_dep = Some(proto::BuildDep {
+        package: "p".to_owned(),
+        target: "unused_dep".to_owned(),
+        dependency: "clean".to_owned(),
+    });
+    let result = harness.result_full(vec![diagnostic.clone()], vec![diagnostic], vec![], vec![]);
+    harness.results.insert("//test:corpus".to_owned(), result);
+    harness
+}
+
 /// Rendered rustc E0308 output with ANSI colour codes.
 pub(crate) const RENDERED_E0308: &str =
     "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror[E0308]\u{1b}[0m\u{1b}[1m: mismatched types\u{1b}[0m

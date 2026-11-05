@@ -291,8 +291,8 @@ alias(
 )
 
 alias(
-    name = "extra_rustc_flags",
-    actual = "@rules_rust//rust/settings:extra_rustc_flags",
+    name = "extra_rustc_flag",
+    actual = "@rules_rust//rust/settings:extra_rustc_flag",
 )
 
 alias(

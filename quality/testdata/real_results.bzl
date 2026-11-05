@@ -16,6 +16,7 @@ def _policy_transition_impl(settings, attr):
         "//config:workspace": attr.policy,
         "@rules_rust//rust/settings:clippy_output_diagnostics": True,
         "@rules_rust//rust/settings:extra_rustc_flags": [],
+        "@rules_rust//rust/settings:extra_rustc_flag": attr.rustc_flags,
         "@rules_rust//rust/settings:rustc_output_diagnostics": True,
     }
 
@@ -29,6 +30,7 @@ _policy_transition = transition(
         "//config:workspace",
         "@rules_rust//rust/settings:clippy_output_diagnostics",
         "@rules_rust//rust/settings:extra_rustc_flags",
+        "@rules_rust//rust/settings:extra_rustc_flag",
         "@rules_rust//rust/settings:rustc_output_diagnostics",
     ],
 )
@@ -42,19 +44,21 @@ _results = rule(
     attrs = {
         "compiler": attr.string(),
         "policy": attr.string(mandatory = True),
+        "rustc_flags": attr.string_list(),
         "tool_dialyzer": attr.label(default = "//erlang/tools:dialyzer"),
         "tool_govet": attr.label(default = "//go/tools/analysis/cmd/dx_govet"),
         "subject": attr.label(mandatory = True, cfg = _policy_transition),
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, rustc_flags = [], target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
         compiler = compiler,
+        rustc_flags = rustc_flags,
         policy = str(native.package_relative_label(policy)),
         tool_dialyzer = tool_dialyzer or "//erlang/tools:dialyzer",
         tool_govet = tool_govet or "//go/tools/analysis/cmd/dx_govet",

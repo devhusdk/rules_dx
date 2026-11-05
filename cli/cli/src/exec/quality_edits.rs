@@ -711,3 +711,29 @@ fn json_apply_removes_unused_build_deps() {
         "{out}"
     );
 }
+
+#[test]
+fn unused_dep_is_reported_on_its_build_line_and_apply_removes_it() {
+    let harness = unused_build_dep("unused-dep-line");
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let finding = json_events(&out)
+        .into_iter()
+        .find(|event| event["event"] == serde_json::json!("diagnostic"))
+        .expect("diagnostic event");
+    assert_eq!(finding["path"], serde_json::json!("p/BUILD.bazel"), "{out}");
+    assert_eq!(
+        finding["range"]["start_line"],
+        serde_json::json!(4),
+        "{out}"
+    );
+
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert!(
+        !after.contains(":clean") && after.contains(":used"),
+        "{after}"
+    );
+}

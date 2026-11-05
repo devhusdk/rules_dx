@@ -161,11 +161,11 @@ pub struct Selection<'a> {
     pub installed_modules: Option<&'a [String]>,
 }
 
-/// Makes rustc report unused crate dependencies in lint builds. `--force-warn` keeps the lint a warning under `--deny=warnings`.
+/// Makes clippy (which reads only the repeatable flag) report unused crate dependencies in lint builds. `--force-warn` keeps the lint a warning under `--deny=warnings`.
 fn unused_dependencies_flag() -> String {
     format!(
         "--{}=--force-warn=unused_crate_dependencies",
-        rules_dx_label("config:extra_rustc_flags")
+        rules_dx_label("config:extra_rustc_flag")
     )
 }
 
@@ -691,7 +691,7 @@ mod tests {
 
     #[test]
     fn only_lint_builds_report_unused_crate_dependencies() {
-        let flag = "--@rules_dx//config:extra_rustc_flags=--force-warn=unused_crate_dependencies";
+        let flag = "--@rules_dx//config:extra_rustc_flag=--force-warn=unused_crate_dependencies";
         for (command, expected) in [
             (Command::Lint, true),
             (Command::Format, false),
@@ -786,7 +786,7 @@ mod tests {
                 "--keep_going",
                 "--build_event_json_file=/tmp/bep.json",
                 "--build_event_json_file_path_conversion=false",
-                "--@rules_dx//config:extra_rustc_flags=--force-warn=unused_crate_dependencies",
+                "--@rules_dx//config:extra_rustc_flag=--force-warn=unused_crate_dependencies",
                 "//...",
             ]
         );

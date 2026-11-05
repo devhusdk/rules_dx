@@ -30,3 +30,10 @@ rust_library(
     srcs = ["dirty.rs"],
     edition = "2021",
 )
+
+rust_library(
+    name = "unused_dep",
+    srcs = ["unused_dep.rs"],
+    edition = "2021",
+    deps = [":clean"],
+)

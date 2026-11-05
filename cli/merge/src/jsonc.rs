@@ -52,6 +52,46 @@ pub fn append_missing(text: &str, path: &[&str], value: Value) -> Result<String,
     })
 }
 
+/// The text with the first key under `parents` that `matches` renamed to `new_name`, keeping its
+/// value and position.
+pub fn rename_key(
+    text: &str,
+    parents: &[&str],
+    matches: impl Fn(&str) -> bool,
+    new_name: &str,
+) -> Result<String, Error> {
+    edit(text, |root| {
+        let object = match walk_existing(root.clone(), parents) {
+            Some(object) => object,
+            None => return Ok(()),
+        };
+        let found = object
+            .properties()
+            .into_iter()
+            .enumerate()
+            .find(|(_, prop)| {
+                prop.decoded_name()
+                    .is_some_and(|name| name != new_name && matches(&name))
+            });
+        if let Some((_, prop)) = found {
+            if object.get(new_name).is_some() {
+                return Ok(());
+            }
+            if let Some(name) = prop.name().and_then(|name| name.as_string_lit()) {
+                name.set_raw_value(serde_json::to_string(new_name).unwrap_or_default());
+            }
+        }
+        Ok(())
+    })
+}
+
+fn walk_existing(mut object: CstObject, parents: &[&str]) -> Option<CstObject> {
+    for name in parents {
+        object = object.get(name)?.value()?.as_object()?;
+    }
+    Some(object)
+}
+
 /// The value of JSONC text, with comments and trailing commas dropped.
 pub fn parse(text: &str) -> Result<Value, Error> {
     let body = text.strip_prefix(BOM).unwrap_or(text);
@@ -129,6 +169,15 @@ mod tests {
     fn parse_ignores_comments_and_trailing_commas() {
         assert_eq!(parse(USER).unwrap()["nest"], json!({ "x": 1 }));
         assert_eq!(parse("").unwrap(), Value::Null);
+    }
+
+    #[test]
+    fn rename_key_keeps_value_and_order() {
+        let text = "{\n  \"f\": {\n    \"a:1\": {\"x\": 1}, // c\n    \"b\": {}\n  }\n}\n";
+        let out = rename_key(text, &["f"], |name| name.starts_with("a:"), "a:2").unwrap();
+        assert_eq!(out, text.replace("a:1", "a:2"));
+        let none = rename_key(text, &["g"], |_| true, "z").unwrap();
+        assert_eq!(none, text);
     }
 
     #[test]

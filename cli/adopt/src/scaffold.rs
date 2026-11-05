@@ -12,6 +12,9 @@ pub enum FileKind {
     VscodeRecommendations,
     /// Repins the `uses:` ref of the reusable workflow at this path.
     CiPin(&'static str),
+    /// Refreshes the devcontainer `image` digest and bazel feature version while they still name
+    /// what dx wrote; any other image or feature is left alone.
+    DevcontainerPins,
     /// Rewritten whenever it differs from the planned content.
     Generated,
 }
@@ -325,12 +328,35 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
             let wanted = dx_merge::jsonc::parse(generated)?;
             let mut text = existing.to_owned();
             for id in wanted["recommendations"].as_array().into_iter().flatten() {
-                let skipped = unwanted
-                    .iter()
-                    .any(|other| other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase));
+                let skipped = unwanted.iter().any(|other| {
+                    other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase)
+                });
                 if !skipped {
-                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
+                    text =
+                        dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
                 }
+            }
+            Ok(text)
+        }
+        FileKind::DevcontainerPins => {
+            let wanted = dx_merge::jsonc::parse(generated)?;
+            let current = dx_merge::jsonc::parse(existing)?;
+            let mut text = existing.to_owned();
+            let image = wanted["image"].as_str().unwrap_or_default();
+            if current["image"]
+                .as_str()
+                .is_some_and(|old| old != image && image_repository(old) == image_repository(image))
+            {
+                text = dx_merge::jsonc::set_keys(&text, &[(&["image"], image.into())])?;
+            }
+            for (feature, _) in wanted["features"].as_object().into_iter().flatten() {
+                let base = feature_base(feature);
+                text = dx_merge::jsonc::rename_key(
+                    &text,
+                    &["features"],
+                    |name| feature_base(name) == base,
+                    feature,
+                )?;
             }
             Ok(text)
         }
@@ -343,6 +369,21 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .filter(|line| !line.trim_start().starts_with("rules_dx_version:"))
                 .collect())
         }
+    }
+}
+
+fn image_repository(image: &str) -> &str {
+    let name = image.split_once('@').map_or(image, |(name, _)| name);
+    match name.rsplit_once(':') {
+        Some((repository, tag)) if !tag.contains('/') => repository,
+        _ => name,
+    }
+}
+
+fn feature_base(feature: &str) -> &str {
+    match feature.rsplit_once(':') {
+        Some((base, tag)) if !tag.contains('/') => base,
+        _ => feature,
     }
 }
 
@@ -435,7 +476,7 @@ fn plan_init_files_full(
         ScaffoldFile {
             path: ".devcontainer/devcontainer.json".to_owned(),
             content: DEVCONTAINER_JSON.to_owned(),
-            kind: FileKind::WriteOnce,
+            kind: FileKind::DevcontainerPins,
         },
         ScaffoldFile {
             path: ".bazelignore".to_owned(),
@@ -1465,6 +1506,45 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     }
 
     #[test]
+    fn devcontainer_refresh_changes_only_the_pins() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-devcontainer-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".devcontainer")).expect("dir");
+        let path = root.join(".devcontainer/devcontainer.json");
+        let old = DEVCONTAINER_JSON
+            .replace(
+                &"b1e3b08610ae0b2599f57c3a492eebc93d1d26dbaefb4a0bad0caa7149e4ec95",
+                &"0".repeat(64),
+            )
+            .replace("bazel:1.2.2", "bazel:1.0.0")
+            .replace(
+                "  \"mounts\"",
+                "  // mine\n  \"customizations\": {\"vscode\": {}},\n  \"mounts\"",
+            );
+        std::fs::write(&path, &old).expect("write");
+        refreshed(root);
+        let expected = DEVCONTAINER_JSON.replace(
+            "  \"mounts\"",
+            "  // mine\n  \"customizations\": {\"vscode\": {}},\n  \"mounts\"",
+        );
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), expected);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn devcontainer_refresh_leaves_other_images_alone() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-devcontainer-other-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".devcontainer")).expect("dir");
+        let path = root.join(".devcontainer/devcontainer.json");
+        let mine = "{\n  \"image\": \"example.com/mine:1@sha256:abc\",\n  \"features\": {}\n}\n";
+        std::fs::write(&path, mine).expect("write");
+        refreshed(root);
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), mine);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn recommendations_gain_detected_ids_and_respect_unwanted() {
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-recs-");
         let root = scratch.path();
@@ -1481,7 +1561,12 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let ids = dx_merge::jsonc::parse(&text).expect("json")["recommendations"].clone();
         assert_eq!(
             ids,
-            serde_json::json!(["me.mine", "ms-python.python", "bazelbuild.vscode-bazel", "golang.go"])
+            serde_json::json!([
+                "me.mine",
+                "ms-python.python",
+                "bazelbuild.vscode-bazel",
+                "golang.go"
+            ])
         );
         scratch.close().expect("cleanup");
     }

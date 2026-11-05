@@ -132,7 +132,6 @@ rust_test(
         ["*_consumer_test.rs"],
         allow_empty = True,
     ) + [
-        "//python/tests/consumer:service_consumer_test.rs",
         "//svelte/tests/consumer:app_consumer_test.rs",
     ],
     env = {"DX_GUARD_FILES": " ".join([
@@ -141,7 +140,6 @@ rust_test(
             ["*_consumer_test.rs"],
             allow_empty = True,
         ) + [
-            "//python/tests/consumer:service_consumer_test.rs",
             "//svelte/tests/consumer:app_consumer_test.rs",
         ]
     ])},

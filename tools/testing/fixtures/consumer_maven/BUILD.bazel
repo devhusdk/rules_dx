@@ -3,7 +3,6 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files(
     ["maven_install.json"],
     visibility = [
-        "//python/tests/consumer:__pkg__",
         "//quality/tests:__pkg__",
         "//svelte/tests/consumer:__pkg__",
         "//tools/testing:__pkg__",

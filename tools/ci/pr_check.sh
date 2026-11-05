@@ -24,16 +24,18 @@ preflight() {
   bazel build --nobuild --lockfile_mode=error "$@" $PREFLIGHT_TARGETS
 }
 
-# Toolchain resolution for windows_arm64 only shows up when that platform is the target.
-# The labels in WINDOWS_ARM64_BLOCKED are left out; pr_check_test fails when a preflight label is in neither place.
-# #7384: no rust toolchain for windows_arm64 from linux
 # shellcheck disable=SC2034
-WINDOWS_ARM64_BLOCKED='//cli/cli:dx //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //deploy/rules:pypi_probe_verify //zig/tests/fixtures/hello:all //zig/tests/fixtures/zig-app/... //julia/tests/fixtures/hello:all //quality/testdata:runner_matrix_windows_arm64'
+# The labels in WINDOWS_ARM64_BLOCKED are left out; pr_check_test fails when a preflight label is in neither place.
+# Toolchain resolution for windows_arm64 only shows up when that platform is the target.
+# #7384: runner_matrix_windows_arm64 still fails: no erlang toolchain for windows_arm64 (//erlang/tools:dialyzer_bin)
+WINDOWS_ARM64_BLOCKED='//quality/testdata:runner_matrix_windows_arm64'
 preflight-windows-arm64() {
   bazel build --nobuild --skip_incompatible_explicit_targets --lockfile_mode=error "$@" \
     --platforms=//msix/platforms:windows_arm64 \
     //cc/tests/fixtures/hello:hello //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test \
     //dart/tests/fixtures/dart-app/... //dart/tests/runtime:all //dart/tools:all \
+    //cli/cli:dx //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //deploy/rules:pypi_probe_verify \
+    //zig/tests/fixtures/hello:all //zig/tests/fixtures/zig-app/... //julia/tests/fixtures/hello:all \
     //julia/tests/fixtures/julia-app/... //julia/tools/...
 }
 

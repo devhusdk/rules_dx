@@ -274,7 +274,7 @@ index 66d079f..19ad674 100644
  def _filter_package_env(flags):
      # Strips out -package-env from the command-line flags.  Consumers of these output
 diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
-index 0fa4fd9..32bacef 100644
+index 0fa4fd9..28cd3d1 100644
 --- a/haskell/private/actions/link.bzl
 +++ b/haskell/private/actions/link.bzl
 @@ -90,17 +90,15 @@ def darwin_flags_for_linking_indirect_cc_deps(hs, cc, posix, basename, dynamic):
@@ -298,7 +298,14 @@ index 0fa4fd9..32bacef 100644
              solibs = " ".join(["\"" + lib.path + "\"" for lib in cc_dynamic_libs]),
              out = linker_flags_file.path,
          ),
-@@ -135,11 +133,9 @@ def link_binary(
+@@ -131,15 +129,16 @@ def link_binary(
+ 
+     args = hs.actions.args()
+     args.add_all(cc.linker_flags, format_each = "-optl%s")
++    if hs.toolchain.is_darwin:
++        # GHC compiles a C stub while linking and needs the SDK sysroot.
++        args.add_all(cc.compiler_flags, format_each = "-optc%s")
+     if with_profiling:
          args.add("-prof")
  
      if hs.toolchain.is_darwin:
@@ -313,7 +320,15 @@ index 0fa4fd9..32bacef 100644
  
      args.add_all(hs.toolchain.ghcopts)
      args.add_all(compiler_flags)
-@@ -323,7 +319,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
+@@ -248,6 +247,7 @@ def link_binary(
+             depset(input_files, transitive = [extra_objects]),
+             pkg_info_inputs,
+             depset(static_libs + dynamic_libs),
++            cc.files,
+         ]),
+         outputs = [executable],
+         mnemonic = "HaskellLinkBinary",
+@@ -323,7 +323,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
              "lib{0}.a".format(pkg_id.library_name(hs, my_pkg_id, prof_suffix = with_profiling)),
          ),
      )
@@ -322,7 +337,7 @@ index 0fa4fd9..32bacef 100644
      args = hs.actions.args()
  
      # On Windows, any of the object files might actually be static archives already
-@@ -335,6 +331,8 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
+@@ -335,6 +335,8 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
      # See https://github.com/tweag/rules_haskell/issues/2299
      if hs.toolchain.is_windows:
          args.add_all(["qcL", static_library])
@@ -331,7 +346,7 @@ index 0fa4fd9..32bacef 100644
      else:
          args.add_all(["qc", static_library])
      args.add_all(object_files)
-@@ -388,11 +386,9 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
+@@ -388,11 +390,9 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
      args.add_all(["-shared", "-dynamic"])
  
      if hs.toolchain.is_darwin:

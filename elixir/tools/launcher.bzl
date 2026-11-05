@@ -7,6 +7,9 @@ MIX_HOME = "/nonexistent/dx_mix_format"
 # A drive path that does not exist and is valid on Windows.
 WINDOWS_MIX_HOME = "C:/dx_nonexistent/dx_mix_format"
 
+# The runner clears PATH and erl.exe refuses to start without one.
+WINDOWS_PATH = "C:/Windows/System32;C:/Windows"
+
 def _mix_env(home):
     return {
         "ELIXIR_ERL_OPTIONS": "-elixir ansi_enabled false",
@@ -63,5 +66,6 @@ def windows_descriptor(otp, elixir, ebins, script, script_args = []):
         lines += ["arg=-pa", "path=" + ebin]
     lines += ["arg=+pc", "arg=unicode", "arg=-s", "arg=elixir", "arg=start_cli", "arg=-extra", "path=" + script]
     lines += ["arg=" + arg for arg in script_args]
-    lines += ["env={}\t{}".format(key, value) for key, value in sorted(_mix_env(WINDOWS_MIX_HOME).items())]
+    env = _mix_env(WINDOWS_MIX_HOME) | {"PATH": WINDOWS_PATH}
+    lines += ["env={}\t{}".format(key, value) for key, value in sorted(env.items())]
     return "\n".join(lines) + "\n"

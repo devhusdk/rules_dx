@@ -4,6 +4,7 @@ pub const PLUGIN: Plugin = Plugin {
     name: "jdk",
     extensions: &["java", "kt", "kts"],
     labels: &["java/ide:java_tool"],
+    outputs: &["home"],
     write,
 };
 

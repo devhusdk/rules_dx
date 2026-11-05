@@ -16,6 +16,7 @@ pub const PLUGIN: Plugin = Plugin {
         "cc/context:identity",
         "cc/context:identity_exec",
     ],
+    outputs: &["compile_commands.json", "clangd"],
     write,
 };
 

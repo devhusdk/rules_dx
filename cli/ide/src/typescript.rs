@@ -4,6 +4,7 @@ pub const PLUGIN: Plugin = Plugin {
     name: "typescript",
     extensions: &["ts", "tsx", "mts", "cts"],
     labels: &["typescript/ide:tsdk"],
+    outputs: &["lib"],
     write,
 };
 

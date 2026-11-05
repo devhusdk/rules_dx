@@ -4,6 +4,7 @@ pub const PLUGIN: Plugin = Plugin {
     name: "python",
     extensions: &["py"],
     labels: &["python/ide:python_tool"],
+    outputs: &["python"],
     write,
 };
 

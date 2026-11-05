@@ -7,6 +7,11 @@ pub const PLUGIN: Plugin = Plugin {
     name: "rust_analyzer",
     extensions: &["rs"],
     labels: &["rust/ide:flycheck", "rust/ide:discover"],
+    outputs: &[
+        "flycheck.exe",
+        "discover_bazel_rust_project.exe",
+        "user_config.json",
+    ],
     write,
 };
 

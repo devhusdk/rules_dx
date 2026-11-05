@@ -39,6 +39,8 @@ pub struct Plugin {
     pub name: &'static str,
     pub extensions: &'static [&'static str],
     pub labels: &'static [&'static str],
+    /// Paths the plug-in writes, relative to `.dx/ide/<name>`.
+    pub outputs: &'static [&'static str],
     pub write: fn(&Ctx<'_>) -> Result<(), String>,
 }
 
@@ -107,7 +109,10 @@ fn refresh_with(
     let digest = inputs_digest(workspace, &active);
     let state_path = workspace.join(STATE_FILE);
     if let Some(old) = read_state(&state_path) {
-        if old.digest == digest && old.errors.is_empty() {
+        let complete = active
+            .iter()
+            .all(|plugin| missing_outputs_of(workspace, plugin).is_empty());
+        if old.digest == digest && old.errors.is_empty() && complete {
             return Ok(Report::default());
         }
     }
@@ -216,20 +221,25 @@ fn inputs_digest(workspace: &Path, active: &[&Plugin]) -> String {
 struct State {
     digest: String,
     errors: Vec<String>,
+    ok: Vec<String>,
 }
 
 fn read_state(path: &Path) -> Option<State> {
     let value: serde_json::Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
     let digest = value.get("digest")?.as_str()?.to_owned();
-    let errors = value
-        .get("plugins")?
-        .as_object()?
+    let plugins = value.get("plugins")?.as_object()?;
+    let errors = plugins
         .values()
         .filter_map(|v| v.as_str())
         .filter(|v| *v != "ok")
         .map(str::to_owned)
         .collect();
-    Some(State { digest, errors })
+    let ok = plugins
+        .iter()
+        .filter(|(_, v)| v.as_str() == Some("ok"))
+        .map(|(name, _)| name.clone())
+        .collect();
+    Some(State { digest, errors, ok })
 }
 
 fn write_state(
@@ -264,6 +274,27 @@ pub fn failed_plugins(workspace: &Path) -> Option<Vec<(String, String)>> {
             .filter(|(_, v)| v != "ok")
             .collect(),
     )
+}
+
+fn missing_outputs_of(workspace: &Path, plugin: &Plugin) -> Vec<String> {
+    plugin
+        .outputs
+        .iter()
+        .map(|output| format!("{IDE_DIR}/{}/{output}", plugin.name))
+        .filter(|path| std::fs::symlink_metadata(workspace.join(path)).is_err())
+        .collect()
+}
+
+/// Output files of plug-ins that last ran fine but are gone now, as workspace-relative paths.
+pub fn missing_outputs(workspace: &Path) -> Vec<String> {
+    let Some(state) = read_state(&workspace.join(STATE_FILE)) else {
+        return Vec::new();
+    };
+    PLUGINS
+        .iter()
+        .filter(|plugin| state.ok.iter().any(|name| name == plugin.name))
+        .flat_map(|plugin| missing_outputs_of(workspace, plugin))
+        .collect()
 }
 
 #[cfg(test)]
@@ -395,6 +426,7 @@ mod tests {
             name: "bad",
             extensions: &["bad"],
             labels: &[],
+            outputs: &[],
             write: fail,
         };
         let report = refresh_with(root, &runner, &[&bad, &typescript::PLUGIN]).expect("ok");
@@ -410,6 +442,22 @@ mod tests {
                 .expect("retry")
                 .ran
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_deleted_output_reruns_the_refresh_and_is_reported() {
+        let scratch = dx_test_scratch::scratch("dx-ide-missing-");
+        let root = scratch.path();
+        std::fs::write(root.join("a.ts"), "").expect("ts");
+        let runner = fake(root);
+        refresh(root, &runner).expect("first");
+        assert_eq!(missing_outputs(root), Vec::<String>::new());
+        std::fs::remove_file(root.join(".dx/ide/typescript/lib")).expect("delete");
+        assert_eq!(missing_outputs(root), [".dx/ide/typescript/lib"]);
+        assert!(refresh(root, &runner).expect("second").ran);
+        assert_eq!(missing_outputs(root), Vec::<String>::new());
         scratch.close().expect("cleanup");
     }
 

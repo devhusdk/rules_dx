@@ -5,6 +5,7 @@ pub const PLUGIN: Plugin = Plugin {
     name: "go",
     extensions: &["go"],
     labels: &["go/ide:gopackagesdriver"],
+    outputs: &["gopackagesdriver"],
     write,
 };
 

@@ -423,6 +423,19 @@ fn init_plan_check(root: &Path) -> StatusCheck {
 
 fn ide_check(root: &Path) -> Option<StatusCheck> {
     let failed = dx_ide::failed_plugins(root)?;
+    let missing = dx_ide::missing_outputs(root);
+    if failed.is_empty() && !missing.is_empty() {
+        let list: Vec<String> = missing
+            .iter()
+            .map(|path| format!("missing {path}"))
+            .collect();
+        return Some(check(
+            "ide",
+            "error",
+            list.join("; "),
+            "tools/dx env --apply",
+        ));
+    }
     if failed.is_empty() {
         return Some(check(
             "ide",
@@ -483,6 +496,14 @@ mod tests {
         let state =
             |text: &str| std::fs::write(root.join(".dx/ide/state.json"), text).expect("state");
         state(r#"{"digest":"d","plugins":{"typescript":"ok"}}"#);
+        let gone = super::ide_check(root).expect("missing");
+        assert_eq!(gone.status, "error");
+        assert!(
+            gone.detail.contains("missing .dx/ide/typescript/lib"),
+            "{}",
+            gone.detail
+        );
+        std::fs::create_dir_all(root.join(".dx/ide/typescript/lib")).expect("lib");
         assert_eq!(super::ide_check(root).expect("ok").status, "ok");
         state(r#"{"digest":"d","plugins":{"typescript":"boom"}}"#);
         let bad = super::ide_check(root).expect("error");

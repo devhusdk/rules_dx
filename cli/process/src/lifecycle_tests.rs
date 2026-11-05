@@ -253,7 +253,7 @@ fn a_tight_budget_bounds_a_blocked_child() {
 fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-descendant");
     let lock = scratch.path().join("descendant.alive");
-    let spec = controlled_spec(
+    let mut spec = controlled_spec(
         probe_argv(&[
             "--stdout-text=//pkg:one",
             "--detached-descendant",
@@ -262,6 +262,7 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
         ]),
         Duration::from_millis(500),
     );
+    spec.descendants = Descendants::Detachable;
     let started = Instant::now();
     assert_eq!(
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
@@ -377,6 +378,27 @@ fn an_owned_run_kills_a_detached_server() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-server");
     let lock = scratch.path().join("server.alive");
     let spec = daemon_probe(&lock, 0, Descendants::Owned);
+    match run_within(&spec, INTERACTIVE).expect("probe runs") {
+        ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
+        outcome => panic!("the probe must finish, got {outcome:?}"),
+    }
+    assert_released(&lock);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_owned_run_ends_an_attached_descendant_after_a_clean_exit() {
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-attached");
+    let lock = scratch.path().join("descendant.alive");
+    let mut spec = controlled_spec(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-sleep-ms=30000",
+            &format!("--descendant-alive-lock={}", lock.display()),
+        ]),
+        Duration::from_secs(10),
+    );
+    spec.descendants = Descendants::Owned;
     match run_within(&spec, INTERACTIVE).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
         outcome => panic!("the probe must finish, got {outcome:?}"),

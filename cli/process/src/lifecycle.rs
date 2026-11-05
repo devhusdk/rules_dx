@@ -228,6 +228,7 @@ pub fn run_command_until(
     }
     match status {
         Some(exit) => {
+            backend::end_owned_descendants(&mut owned);
             let stdout = collect(&stdout_rx, hard);
             let stderr = collect(&stderr_rx, hard);
             match (stdout, stderr) {
@@ -755,6 +756,7 @@ mod backend {
 
         pub struct OwnedChild {
             child: std::process::Child,
+            descendants: Descendants,
         }
 
         impl OwnedChild {
@@ -796,14 +798,22 @@ mod backend {
 
         pub fn spawn_owned(
             command: &mut Command,
-            _descendants: Descendants,
+            descendants: Descendants,
         ) -> io::Result<OwnedChild> {
             use std::os::unix::process::CommandExt;
             command.process_group(0);
             stop_with_parent(command);
             Ok(OwnedChild {
                 child: command.spawn()?,
+                descendants,
             })
+        }
+
+        /// Ends what an owned run left in the child's group once the child has exited.
+        pub fn end_owned_descendants(owned: &mut OwnedChild) {
+            if owned.descendants == Descendants::Owned {
+                signal_group(owned, SIGKILL);
+            }
         }
 
         fn signal_group(owned: &mut OwnedChild, signo: i32) {
@@ -1336,7 +1346,7 @@ mod backend {
 
     #[cfg(unix)]
     pub use unix::{
-        force_stream, send, send_kill, spawn_owned, spawn_streamed, stream_target,
+        end_owned_descendants, force_stream, send, send_kill, spawn_owned, spawn_streamed, stream_target,
         terminal_foreground, terminate_forced, terminate_graceful, termination_signal, tree_alive,
         OwnedChild,
     };
@@ -1411,6 +1421,9 @@ mod backend {
         allow_background_tty_writes, force_stream, send, send_kill, stream_target,
         terminal_foreground, tree_alive, TerminalJob,
     };
+    #[cfg(not(unix))]
+    pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
+
     #[cfg(windows)]
     #[allow(unused_imports)]
     pub use windows::{

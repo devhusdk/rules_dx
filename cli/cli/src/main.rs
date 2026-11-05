@@ -287,6 +287,9 @@ fn run() -> i32 {
     };
     dx_process::configure_real(&workspace);
     dx_plan::plan::set_rules_dx_repo(&workspace);
+    if let Some(note) = dx_plan::args::bare_scope_note(&invocation, &workspace, &cwd) {
+        eprintln!("{note}");
+    }
     if invocation.here {
         match dx_plan::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,

@@ -590,6 +590,28 @@ pub fn apply_here(
     Ok(next)
 }
 
+/// One stderr line for a bare scoped command run below the workspace root.
+pub fn bare_scope_note(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    cwd: &std::path::Path,
+) -> Option<String> {
+    if invocation.here || !invocation.chatty() {
+        return None;
+    }
+    let (owner, at) = here_owner(invocation);
+    if !owner.supports_here() || invocation.targets.len() > at {
+        return None;
+    }
+    let dir = here_scope(workspace, cwd)
+        .ok()
+        .filter(|dir| dir != "//...")?;
+    Some(format!(
+        "dx: {} //... (cwd is {dir}; pass --here for //{dir}/...)",
+        owner.name()
+    ))
+}
+
 /// The command that owns `--here` and the index where its scopes start.
 fn here_owner(invocation: &Invocation) -> (Command, usize) {
     if invocation.command == Command::Watch {
@@ -902,6 +924,31 @@ mod tests {
         let resolved = apply_here(&plain, workspace, subdir).expect("passthrough");
         assert!(resolved.targets.is_empty());
         assert!(!resolved.here);
+    }
+
+    #[test]
+    fn bare_scope_note_only_below_the_root() {
+        let workspace = std::path::Path::new("/ws");
+        let sub = std::path::Path::new("/ws/services/api");
+        let mut bare = invocation_for(Command::Test, &[]);
+        bare.here = false;
+        assert_eq!(
+            bare_scope_note(&bare, workspace, sub).as_deref(),
+            Some("dx: test //... (cwd is services/api; pass --here for //services/api/...)")
+        );
+        assert_eq!(bare_scope_note(&bare, workspace, workspace), None);
+        let mut targeted = invocation_for(Command::Test, &["//a:one"]);
+        targeted.here = false;
+        assert_eq!(bare_scope_note(&targeted, workspace, sub), None);
+        let mut quiet = bare.clone();
+        quiet.quiet = true;
+        assert_eq!(bare_scope_note(&quiet, workspace, sub), None);
+        let mut json = bare.clone();
+        json.output = OutputMode::Json;
+        assert_eq!(bare_scope_note(&json, workspace, sub), None);
+        let mut here = bare.clone();
+        here.here = true;
+        assert_eq!(bare_scope_note(&here, workspace, sub), None);
     }
 
     #[test]

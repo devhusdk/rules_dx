@@ -32,3 +32,20 @@ def starter_consumer_test(name, fixture = None, target_compatible_with = []):
             "//tools/testing:dx_testing",
         ],
     )
+
+def starter_goldens_test(name):
+    """Checks that every starter_consumer_test declared in this package has a golden listing, and the reverse."""
+    declared = [
+        test
+        for test, attrs in native.existing_rules().items()
+        if "starter-consumer" in attrs.get("tags", []) and not test.endswith("_upstream")
+    ]
+    goldens = [g[len("golden/"):-len(".txt")] for g in native.glob(["golden/*.txt"])]
+    rust_test(
+        name = name,
+        srcs = ["//tools/testing/starters:starter_goldens_test.rs"],
+        env = {
+            "DX_DECLARED": " ".join(sorted(declared)),
+            "DX_GOLDENS": " ".join(sorted(goldens)),
+        },
+    )

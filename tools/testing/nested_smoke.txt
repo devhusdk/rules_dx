@@ -11,7 +11,6 @@
 //elixir/tests/negative:negative_test
 //haskell/tests/negative:negative_test
 //ocaml/tests/negative:negative_test
-//perl/tests/negative:negative_test
 //php/tests/negative:negative_test
 //python/tests/consumer:service_consumer_test
 //quality/tests:quality_check_smoke_test

@@ -1,7 +1,8 @@
 """Minimal NDK clang toolchain configuration for one Android tuple."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@rules_cc//cc:cc_toolchain_config_lib.bzl", "feature", "flag_group", "flag_set", "tool_path")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+load("@rules_cc//cc:cc_toolchain_config_lib.bzl", "action_config", "feature", "flag_group", "flag_set", "tool", "variable_with_value")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 NdkToolchainLevelInfo = provider(
@@ -10,20 +11,29 @@ NdkToolchainLevelInfo = provider(
 )
 
 def _ndk_cc_toolchain_config_impl(ctx):
-    prebuilt = ctx.attr.tool_prebuilt
     selected = ctx.attr._api_level[BuildSettingInfo].value
     api_level = selected if selected != 0 else ctx.attr.api_level
     target = ctx.attr.rust_triple + str(api_level) if selected != 0 else ctx.attr.clang_target
     toolchain_identifier = "ndk-" + ctx.attr.tuple + "-android"
-    tool_paths = [
-        tool_path(name = "gcc", path = prebuilt + "/bin/clang"),
-        tool_path(name = "ld", path = prebuilt + "/bin/ld.lld"),
-        tool_path(name = "ar", path = prebuilt + "/bin/llvm-ar"),
-        tool_path(name = "cpp", path = prebuilt + "/bin/clang++"),
-        tool_path(name = "gcov", path = prebuilt + "/bin/llvm-cov"),
-        tool_path(name = "nm", path = prebuilt + "/bin/llvm-nm"),
-        tool_path(name = "objdump", path = prebuilt + "/bin/llvm-objdump"),
-        tool_path(name = "strip", path = prebuilt + "/bin/llvm-strip"),
+    clang = tool(tool = ctx.file.clang)
+    action_configs = [
+        action_config(action_name = name, enabled = True, tools = [clang])
+        for name in [
+            ACTION_NAMES.c_compile,
+            ACTION_NAMES.cpp_compile,
+            ACTION_NAMES.assemble,
+            ACTION_NAMES.preprocess_assemble,
+            ACTION_NAMES.cpp_header_parsing,
+            ACTION_NAMES.cpp_module_compile,
+            ACTION_NAMES.cpp_module_codegen,
+            ACTION_NAMES.linkstamp_compile,
+            ACTION_NAMES.cpp_link_executable,
+            ACTION_NAMES.cpp_link_dynamic_library,
+            ACTION_NAMES.cpp_link_nodeps_dynamic_library,
+        ]
+    ] + [
+        action_config(action_name = ACTION_NAMES.cpp_link_static_library, enabled = True, tools = [tool(tool = ctx.file.ar)]),
+        action_config(action_name = ACTION_NAMES.strip, enabled = True, tools = [tool(tool = ctx.file.strip)]),
     ]
     resource_dir = ctx.attr.clang_resource_dir.removesuffix("/include")
     compile_flags = ["--target=" + target, "-resource-dir=" + resource_dir]
@@ -35,6 +45,34 @@ def _ndk_cc_toolchain_config_impl(ctx):
     else:
         link_flags.append("-nostdlib++")
     features = [
+        feature(
+            name = "archiver_flags",
+            enabled = True,
+            flag_sets = [
+                flag_set(
+                    actions = [ACTION_NAMES.cpp_link_static_library],
+                    flag_groups = [
+                        flag_group(flags = ["rcsD"]),
+                        flag_group(flags = ["%{output_execpath}"], expand_if_available = "output_execpath"),
+                        flag_group(
+                            iterate_over = "libraries_to_link",
+                            flag_groups = [
+                                flag_group(
+                                    flags = ["%{libraries_to_link.name}"],
+                                    expand_if_equal = variable_with_value(name = "libraries_to_link.type", value = "object_file"),
+                                ),
+                                flag_group(
+                                    iterate_over = "libraries_to_link.object_files",
+                                    flags = ["%{libraries_to_link.object_files}"],
+                                    expand_if_equal = variable_with_value(name = "libraries_to_link.type", value = "object_file_group"),
+                                ),
+                            ],
+                            expand_if_available = "libraries_to_link",
+                        ),
+                    ],
+                ),
+            ],
+        ),
         feature(
             name = "default_compile_flags",
             enabled = True,
@@ -83,7 +121,8 @@ def _ndk_cc_toolchain_config_impl(ctx):
         compiler = "clang",
         abi_version = "android",
         abi_libc_version = str(api_level),
-        tool_paths = tool_paths,
+        tool_paths = [],
+        action_configs = action_configs,
         cxx_builtin_include_directories = cxx_builtin_include_directories,
         features = features,
         builtin_sysroot = sysroot,
@@ -94,12 +133,24 @@ ndk_cc_toolchain_config = rule(
     implementation = _ndk_cc_toolchain_config_impl,
     doc = "NDK clang toolchain configuration for one Android tuple.",
     attrs = {
+        "ar": attr.label(
+            doc = "NDK llvm-ar used to archive static libraries.",
+            allow_single_file = True,
+            cfg = "exec",
+            mandatory = True,
+        ),
         "api_level": attr.int(
             doc = "Android API level used when no target selects one.",
             mandatory = True,
         ),
         "_api_level": attr.label(
             default = Label("//platforms:api_level"),
+        ),
+        "clang": attr.label(
+            doc = "NDK clang used to compile, assemble and link.",
+            allow_single_file = True,
+            cfg = "exec",
+            mandatory = True,
         ),
         "clang_resource_dir": attr.string(
             doc = "Clang resource directory added to builtin include paths.",
@@ -118,10 +169,6 @@ ndk_cc_toolchain_config = rule(
             doc = "C++ runtime linkage, shared or static; any other value disables it.",
             mandatory = True,
         ),
-        "ndk_prebuilt": attr.string(
-            doc = "NDK prebuilt toolchain directory holding clang and LLVM tools.",
-            mandatory = True,
-        ),
         "ndk_sysroot": attr.string(
             doc = "NDK sysroot directory used as the builtin sysroot.",
             mandatory = True,
@@ -130,8 +177,10 @@ ndk_cc_toolchain_config = rule(
             doc = "Rust target triple used in the sysroot include path.",
             mandatory = True,
         ),
-        "tool_prebuilt": attr.string(
-            doc = "Package-relative NDK prebuilt directory the tool paths resolve against.",
+        "strip": attr.label(
+            doc = "NDK llvm-strip used to strip binaries.",
+            allow_single_file = True,
+            cfg = "exec",
             mandatory = True,
         ),
         "tuple": attr.string(

@@ -15,16 +15,17 @@ android_toolchain_tests(name = "metadata")
 ndk_cc_toolchain_config(
     name = "fake_config",
     api_level = 31,
+    ar = ":cc_toolchain_config.bzl",
+    clang = ":cc_toolchain_config.bzl",
     clang_resource_dir = "/fake/clang",
     clang_target = "aarch64-linux-android31",
     cpu = "aarch64",
     cxx_include_dir = "/fake/c++",
     cxx_runtime = "shared",
-    ndk_prebuilt = "/fake/prebuilt",
     ndk_sysroot = "/fake/sysroot",
     rust_triple = "aarch64-linux-android",
+    strip = ":cc_toolchain_config.bzl",
     tags = ["manual"],
-    tool_prebuilt = "fake/prebuilt",
     tuple = "device",
 )
 

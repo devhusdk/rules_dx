@@ -65,15 +65,16 @@ filegroup(
 ndk_cc_toolchain_config(
     name = "config_{tuple}",
     api_level = {api_level},
+    ar = "{ndk}:llvm_ar",
+    clang = "{ndk}:clang",
     clang_resource_dir = "{resource_dir}",
     clang_target = "{clang_target}",
     cpu = "{cpu}",
     cxx_include_dir = "{cxx_include_dir}",
     cxx_runtime = "{cxx_runtime}",
-    ndk_prebuilt = "{prebuilt}",
-    tool_prebuilt = "{tool_prebuilt}",
     ndk_sysroot = "{ndk_sysroot}",
     rust_triple = "{triple}",
+    strip = "{ndk}:llvm_strip",
     tuple = "{tuple}",
 )
 
@@ -131,11 +132,10 @@ _TUPLE_CONSTRAINTS = {
     for name in ["device", "emulator"]
 }
 
-def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "", tool_root = ""):
+def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = ""):
     """Returns the BUILD text declaring both NDK cc toolchains."""
     prebuilt = exec_root + "/" + NDK_PREBUILT
     sysroot = prebuilt + "/sysroot"
-    tool_prebuilt = (tool_root or local_root) + "/" + NDK_PREBUILT
     chunks = [
         'load("' + str(Label("@rules_cc//cc:defs.bzl")) + '", "cc_toolchain")',
         'load("' + str(Label("//toolchain:cc_toolchain_config.bzl")) + '", "ndk_cc_toolchain_config")',
@@ -146,17 +146,12 @@ def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "
     ]
     if local_root != "":
         chunks.append(ndk_toolchain_build(local_root))
-    if tool_root != "":
-        chunks.append('filegroup(name = "native_tools", srcs = glob(["' + tool_prebuilt + '/bin/**"]))')
-    else:
-        chunks.append('filegroup(name = "native_tools", srcs = [])')
+    chunks.append('filegroup(name = "native_tools", srcs = [])')
     for name in ["device", "emulator"]:
         triple = _TUPLE_TRIPLE[name]
         chunks.append(_TUPLE_BUILD.format(
             ndk = ndk_label,
             tuple = name,
-            prebuilt = prebuilt,
-            tool_prebuilt = tool_prebuilt,
             api_level = api_level,
             clang_target = triple + str(api_level),
             cpu = _TUPLE_CPU[name],
@@ -182,8 +177,6 @@ def _android_ndk_toolchain_repo_impl(ctx):
             ndk.workspace_root + "/extracted",
             api_level,
             ctx.attr.cxx_runtime,
-            "",
-            "ndk",
         ))
         return
     revision = ctx.attr.ndk_revision or ANDROID_NDK_REVISION

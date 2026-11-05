@@ -42,15 +42,16 @@ def _toolchain_checks():
     checks.append(expect_contains("clang is required", str(required), "toolchains/llvm/prebuilt/linux-x86_64/bin/clang"))
     checks.append(expect_contains("device sysroot is required", str(required), "sysroot/usr/lib/aarch64-linux-android"))
     checks.append(expect_contains("emulator sysroot is required", str(required), "sysroot/usr/lib/x86_64-linux-android"))
-    pinned = toolchain_build("@ndk_repo//", "external/ndk_repo/extracted", 31, "static", "", "ndk")
+    pinned = toolchain_build("@ndk_repo//", "external/ndk_repo/extracted", 31, "static")
     checks.append(expect_contains("pinned tools are labels", pinned, '"@ndk_repo//:clang", "@ndk_repo//:compiler_files"'))
     checks.append(expect_contains("device linker files", pinned, "@ndk_repo//:linker_files_aarch64-linux-android"))
     checks.append(expect_contains("emulator linker files", pinned, "@ndk_repo//:linker_files_x86_64-linux-android"))
     checks.append(expect_contains("clang version constant", pinned, 'clang_resource_dir = "external/ndk_repo/extracted/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/include"'))
-    checks.append(expect_contains("pinned tools are globbed in the package", pinned, 'glob(["ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/**"])'))
-    checks.append(expect_contains("pinned tool paths are package-relative", pinned, 'tool_prebuilt = "ndk/toolchains/llvm/prebuilt/linux-x86_64"'))
+    checks.append(expect_contains("pinned clang is a label", pinned, 'clang = "@ndk_repo//:clang"'))
+    checks.append(expect_true("pinned has no parent paths", "../" not in pinned))
     local = toolchain_build("", "external/t/sdk/ndk/27", 31, "static", "sdk/ndk/27")
     checks.append(expect_contains("local tools are in the repository", local, '"sdk/ndk/27/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"'))
+    checks.append(expect_contains("local clang is a label", local, 'clang = ":clang"'))
     return checks
 
 def android_toolchain_tests(name):

@@ -1,5 +1,6 @@
 # Bazel outputs and local configuration
 /bazel-*
+/families/*/bazel-*
 user.bazelrc
 **/user.bazelrc
 

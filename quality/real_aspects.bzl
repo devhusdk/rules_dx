@@ -32,7 +32,19 @@ load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_ana
 load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//quality:families/ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _ANSIBLE_SHARD_SPECS = "SHARD_SPECS", _ANSIBLE_TOOLS = "TOOLS")
 load("//quality:families/cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS")
+load("//quality:families/cmake.bzl", _real_cmake_format_aspect = "real_cmake_format_aspect", _real_cmake_lint_aspect = "real_cmake_lint_aspect", _CMAKE_SHARD_SPECS = "SHARD_SPECS", _CMAKE_TOOLS = "TOOLS")
+load("//quality:families/dockerfile.bzl", _real_dockerfile_lint_aspect = "real_dockerfile_lint_aspect", _DOCKERFILE_SHARD_SPECS = "SHARD_SPECS", _DOCKERFILE_TOOLS = "TOOLS")
+load("//quality:families/html_template.bzl", _real_html_template_format_aspect = "real_html_template_format_aspect", _real_html_template_lint_aspect = "real_html_template_lint_aspect", _HTML_TEMPLATE_SHARD_SPECS = "SHARD_SPECS", _HTML_TEMPLATE_TOOLS = "TOOLS")
+load("//quality:families/latex.bzl", _real_latex_format_aspect = "real_latex_format_aspect", _real_latex_lint_aspect = "real_latex_lint_aspect", _LATEX_SHARD_SPECS = "SHARD_SPECS", _LATEX_TOOLS = "TOOLS")
 load("//quality:families/make.bzl", _real_make_lint_aspect = "real_make_lint_aspect", _real_make_format_aspect = "real_make_format_aspect", _MAKE_SHARD_SPECS = "SHARD_SPECS", _MAKE_TOOLS = "TOOLS")
+load("//quality:families/nix.bzl", _real_nix_format_aspect = "real_nix_format_aspect", _real_nix_lint_aspect = "real_nix_lint_aspect", _NIX_SHARD_SPECS = "SHARD_SPECS", _NIX_TOOLS = "TOOLS")
+load("//quality:families/perl.bzl", _real_perl_format_aspect = "real_perl_format_aspect", _real_perl_lint_aspect = "real_perl_lint_aspect", _PERL_SHARD_SPECS = "SHARD_SPECS", _PERL_TOOLS = "TOOLS")
+load("//quality:families/shell.bzl", _real_shell_lint_aspect = "real_shell_lint_aspect", _real_shell_format_aspect = "real_shell_format_aspect", _SHELL_SHARD_SPECS = "SHARD_SPECS", _SHELL_TOOLS = "TOOLS")
+load("//quality:families/swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _SWIFT_SHARD_SPECS = "SHARD_SPECS", _SWIFT_TOOLS = "TOOLS")
+load("//quality:families/text.bzl", _real_text_lint_aspect = "real_text_lint_aspect", _TEXT_SHARD_SPECS = "SHARD_SPECS", _TEXT_TOOLS = "TOOLS")
+load("//quality:families/typst.bzl", _real_typst_format_aspect = "real_typst_format_aspect", _real_typst_lint_aspect = "real_typst_lint_aspect", _TYPST_SHARD_SPECS = "SHARD_SPECS", _TYPST_TOOLS = "TOOLS")
+load("//quality:families/xml.bzl", _real_xml_lint_aspect = "real_xml_lint_aspect", _XML_SHARD_SPECS = "SHARD_SPECS", _XML_TOOLS = "TOOLS")
+load("//quality:families/yaml.bzl", _real_yaml_format_aspect = "real_yaml_format_aspect", _real_yaml_lint_aspect = "real_yaml_lint_aspect", _YAML_SHARD_SPECS = "SHARD_SPECS", _YAML_TOOLS = "TOOLS")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "generated_source_paths", "prune_tool_generated_sources", "real_request_tool_env")
@@ -231,13 +243,6 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "erlang",
     },
-    "deadnix": {
-        "attr": attr.label(default = "//quality/tools/rust:deadnix", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "light",
-        "shard": "nix",
-    },
     "dart": {
         "attr": attr.label(default = "//config:tool_dart", allow_files = True, cfg = "exec"),
         "capabilities": ["format", "lint", "typecheck"],
@@ -261,14 +266,6 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "d",
         "target_tool": True,
-    },
-    "djlint": {
-        "attr": attr.label(default = "//quality/tools/python:djlint", cfg = "exec", executable = True),
-        "capabilities": ["format", "lint"],
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "html_template",
     },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
@@ -384,21 +381,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
-    "hadolint": {
-        "attr": attr.label(default = "//config:tool_hadolint", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "dockerfile",
-    },
-    "cmakelint": {
-        "attr": attr.label(default = "//quality/tools/python:cmakelint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "light",
-        "runfiles_env": True,
-        "shard": "cmake",
-    },
     "helm": {
         "attr": attr.label(default = "//config:tool_helm", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -441,13 +423,6 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "jsonnet",
     },
-    "keep_sorted": {
-        "attr": attr.label(default = "@dx_tools//:keep_sorted", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "text",
-    },
     "ktfmt": {
         "attr": attr.label(default = "//quality/tools/jvm:ktfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -477,14 +452,6 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "elixir",
     },
-    "nixfmt": {
-        "attr": attr.label(default = "//config:tool_nixfmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "fallback": "=<label of a nixfmt executable>",
-        "kind": "file",
-        "resources": "light",
-        "shard": "nix",
-    },
     "notebook_outputs": {
         "attr": attr.label(default = "//quality/notebook:quality_notebook", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -513,22 +480,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "medium",
         "shard": "haskell",
-    },
-    "perlcritic": {
-        "attr": attr.label(default = "//config:tool_perlcritic", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "perl",
-        "target_tool": True,
-    },
-    "perltidy": {
-        "attr": attr.label(default = "//config:tool_perltidy", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "perl",
-        "target_tool": True,
     },
     "pkl": {
         "attr": attr.label(default = "//config:tool_pkl", allow_single_file = True, cfg = "exec"),
@@ -720,20 +671,6 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "lua",
     },
-    "shellcheck": {
-        "attr": attr.label(default = "@dx_tools//:shellcheck", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "shell",
-    },
-    "shfmt": {
-        "attr": attr.label(default = "@dx_tools//:shfmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "shell",
-    },
     "spotbugs": {
         "attr": attr.label(default = "//quality/tools/jvm:spotbugs", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -755,13 +692,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "go",
     },
-    "statix": {
-        "attr": attr.label(default = "//quality/tools/rust:statix", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "light",
-        "shard": "nix",
-    },
     "stylelint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:stylelint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -777,13 +707,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",
-    },
-    "gersemi": {
-        "attr": attr.label(default = "//config:tool_gersemi", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "cmake",
     },
     "stylua": {
         "attr": attr.label(default = "//config:tool_stylua", allow_single_file = True, cfg = "exec"),
@@ -829,62 +752,12 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "py",
     },
-    "tinymist": {
-        "attr": attr.label(default = "@dx_tools//:tinymist", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "typst",
-    },
-    "typstyle": {
-        "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "typst",
-    },
-    "latexindent": {
-        "attr": attr.label(default = "@dx_tools//:latexindent", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "latex",
-    },
-    "chktex": {
-        "attr": attr.label(default = "@dx_tools//:chktex", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "latex",
-    },
     "vale": {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
-    },
-    "xmllint": {
-        "attr": attr.label(default = "//quality/tools/xml:xmllint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "light",
-        "shard": "xml",
-    },
-    "yamlfmt": {
-        "attr": attr.label(default = "@dx_tools//:yamlfmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "yaml",
-    },
-    "yamllint": {
-        "attr": attr.label(default = "//quality/tools/python:yamllint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "medium",
-        "runfiles_env": True,
-        "shard": "yaml",
     },
     "ocaml": {
         "capabilities": ["typecheck"],
@@ -905,22 +778,6 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "medium",
         "shard": "julia",
-        "target_tool": True,
-    },
-    "swift_format": {
-        "attr": attr.label(default = "//config:tool_swift_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "swift",
-        "target_tool": True,
-    },
-    "swift_lint": {
-        "attr": attr.label(default = "//config:tool_swift_lint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "swift",
         "target_tool": True,
     },
     "zig": {
@@ -1388,36 +1245,6 @@ _REAL_SHARD_SPECS = {
         "suffix": "-go",
         "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
     },
-    "real_html_template_format": {
-        "capability": "format",
-        "doc": "Additive HTML template format family aspect (djLint).",
-        "shard": "html_template",
-        "suffix": "-html-template",
-    },
-    "real_html_template_lint": {
-        "capability": "lint",
-        "doc": "Additive HTML template lint family aspect (djLint).",
-        "shard": "html_template",
-        "suffix": "-html-template",
-    },
-    "real_xml_lint": {
-        "capability": "lint",
-        "doc": "Additive XML lint family aspect (xmllint, built from the BCR libxml2 module).",
-        "shard": "xml",
-        "suffix": "-xml",
-    },
-    "real_yaml_format": {
-        "capability": "format",
-        "doc": "Additive YAML format family aspect (yamlfmt).",
-        "shard": "yaml",
-        "suffix": "-yaml",
-    },
-    "real_yaml_lint": {
-        "capability": "lint",
-        "doc": "Additive YAML lint family aspect (yamllint).",
-        "shard": "yaml",
-        "suffix": "-yaml",
-    },
     "real_dart_format": {
         "capability": "format",
         "doc": "Additive Dart format family aspect (dart format).",
@@ -1448,18 +1275,6 @@ _REAL_SHARD_SPECS = {
         "shard": "d",
         "suffix": "-d",
     },
-    "real_perl_format": {
-        "capability": "format",
-        "doc": "Additive Perl format family aspect (perltidy).",
-        "shard": "perl",
-        "suffix": "-perl",
-    },
-    "real_perl_lint": {
-        "capability": "lint",
-        "doc": "Additive Perl lint family aspect (perlcritic).",
-        "shard": "perl",
-        "suffix": "-perl",
-    },
     "real_python_format": {
         "capability": "format",
         "doc": "Additive Python format family aspect (ruff format).",
@@ -1477,18 +1292,6 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive Julia format family aspect (JuliaFormatter).",
         "shard": "julia",
         "suffix": "-julia",
-    },
-    "real_swift_format": {
-        "capability": "format",
-        "doc": "Additive Swift format family aspect (swift-format).",
-        "shard": "swift",
-        "suffix": "-swift",
-    },
-    "real_swift_lint": {
-        "capability": "lint",
-        "doc": "Additive Swift lint family aspect (swift-lint).",
-        "shard": "swift",
-        "suffix": "-swift",
     },
     "real_zig_format": {
         "capability": "format",
@@ -1673,36 +1476,6 @@ _REAL_SHARD_SPECS = {
         "shard": "scala",
         "suffix": "-scala",
     },
-    "real_shell_lint": {
-        "capability": "lint",
-        "doc": "Additive shell lint family aspect (ShellCheck).",
-        "shard": "shell",
-        "suffix": "-shell",
-    },
-    "real_shell_format": {
-        "capability": "format",
-        "doc": "Additive shell format family aspect (shfmt).",
-        "shard": "shell",
-        "suffix": "-shell",
-    },
-    "real_dockerfile_lint": {
-        "capability": "lint",
-        "doc": "Additive Dockerfile lint family aspect (hadolint).",
-        "shard": "dockerfile",
-        "suffix": "-dockerfile",
-    },
-    "real_nix_format": {
-        "capability": "format",
-        "doc": "Additive Nix format family aspect (nixfmt).",
-        "shard": "nix",
-        "suffix": "-nix",
-    },
-    "real_nix_lint": {
-        "capability": "lint",
-        "doc": "Additive Nix lint family aspect (statix, deadnix).",
-        "shard": "nix",
-        "suffix": "-nix",
-    },
     "real_sql_format": {
         "capability": "format",
         "doc": "Additive SQL format family aspect (sqlfluff).",
@@ -1794,42 +1567,6 @@ _REAL_SHARD_SPECS = {
         "shard": "jsonnet",
         "suffix": "-jsonnet",
     },
-    "real_typst_format": {
-        "capability": "format",
-        "doc": "Additive Typst format family aspect (typstyle).",
-        "shard": "typst",
-        "suffix": "-typst",
-    },
-    "real_typst_lint": {
-        "capability": "lint",
-        "doc": "Additive Typst lint family aspect (tinymist).",
-        "shard": "typst",
-        "suffix": "-typst",
-    },
-    "real_latex_format": {
-        "capability": "format",
-        "doc": "Additive LaTeX format family aspect (latexindent).",
-        "shard": "latex",
-        "suffix": "-latex",
-    },
-    "real_latex_lint": {
-        "capability": "lint",
-        "doc": "Additive LaTeX lint family aspect (chktex).",
-        "shard": "latex",
-        "suffix": "-latex",
-    },
-    "real_cmake_format": {
-        "capability": "format",
-        "doc": "Additive CMake format family aspect (gersemi).",
-        "shard": "cmake",
-        "suffix": "-cmake",
-    },
-    "real_cmake_lint": {
-        "capability": "lint",
-        "doc": "Additive CMake lint family aspect (cmakelint).",
-        "shard": "cmake",
-        "suffix": "-cmake",
-    },
     "real_lua_lint": {
         "capability": "lint",
         "doc": "Additive Lua lint family aspect (selene).",
@@ -1916,12 +1653,6 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive Terraform typecheck family aspect (terraform init and validate, offline).",
         "shard": "terraform",
         "suffix": "-terraform",
-    },
-    "real_text_lint": {
-        "capability": "lint",
-        "doc": "Additive text lint family aspect (keep-sorted).",
-        "shard": "text",
-        "suffix": "-text",
     },
     "real_zig_typecheck": {
         "capability": "typecheck",
@@ -2623,8 +2354,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -2711,9 +2442,9 @@ real_d_format_aspect = _make_real_aspect("real_d_format")
 
 real_d_lint_aspect = _make_real_aspect("real_d_lint")
 
-real_perl_format_aspect = _make_real_aspect("real_perl_format")
+real_perl_format_aspect = _real_perl_format_aspect
 
-real_perl_lint_aspect = _make_real_aspect("real_perl_lint")
+real_perl_lint_aspect = _real_perl_lint_aspect
 
 real_python_format_aspect = _make_real_aspect("real_python_format")
 
@@ -2721,9 +2452,9 @@ real_python_typecheck_aspect = _make_real_aspect("real_python_typecheck")
 
 real_julia_format_aspect = _make_real_aspect("real_julia_format")
 
-real_swift_format_aspect = _make_real_aspect("real_swift_format")
+real_swift_format_aspect = _real_swift_format_aspect
 
-real_swift_lint_aspect = _make_real_aspect("real_swift_lint")
+real_swift_lint_aspect = _real_swift_lint_aspect
 
 real_zig_format_aspect = _make_real_aspect("real_zig_format")
 
@@ -2743,15 +2474,15 @@ real_ruby_format_aspect = _make_real_aspect("real_ruby_format")
 
 real_ruby_lint_aspect = _make_real_aspect("real_ruby_lint")
 
-real_html_template_format_aspect = _make_real_aspect("real_html_template_format")
+real_html_template_format_aspect = _real_html_template_format_aspect
 
-real_html_template_lint_aspect = _make_real_aspect("real_html_template_lint")
+real_html_template_lint_aspect = _real_html_template_lint_aspect
 
-real_xml_lint_aspect = _make_real_aspect("real_xml_lint")
+real_xml_lint_aspect = _real_xml_lint_aspect
 
-real_yaml_format_aspect = _make_real_aspect("real_yaml_format")
+real_yaml_format_aspect = _real_yaml_format_aspect
 
-real_yaml_lint_aspect = _make_real_aspect("real_yaml_lint")
+real_yaml_lint_aspect = _real_yaml_lint_aspect
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 
@@ -2776,17 +2507,17 @@ real_scala_format_aspect = _make_real_aspect("real_scala_format")
 
 real_scala_lint_aspect = _make_real_aspect("real_scala_lint")
 
-real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
+real_shell_lint_aspect = _real_shell_lint_aspect
 
-real_shell_format_aspect = _make_real_aspect("real_shell_format")
+real_shell_format_aspect = _real_shell_format_aspect
 
-real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+real_dockerfile_lint_aspect = _real_dockerfile_lint_aspect
 real_make_format_aspect = _real_make_format_aspect
 real_make_lint_aspect = _real_make_lint_aspect
 
-real_nix_format_aspect = _make_real_aspect("real_nix_format")
+real_nix_format_aspect = _real_nix_format_aspect
 
-real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
+real_nix_lint_aspect = _real_nix_lint_aspect
 
 real_ocaml_format_aspect = _make_real_aspect("real_ocaml_format")
 
@@ -2841,21 +2572,21 @@ real_fortran_lint_aspect = _make_real_aspect("real_fortran_lint")
 
 real_fortran_typecheck_aspect = _make_real_aspect("real_fortran_typecheck")
 
-real_typst_format_aspect = _make_real_aspect("real_typst_format")
+real_typst_format_aspect = _real_typst_format_aspect
 
-real_typst_lint_aspect = _make_real_aspect("real_typst_lint")
+real_typst_lint_aspect = _real_typst_lint_aspect
 
-real_latex_format_aspect = _make_real_aspect("real_latex_format")
+real_latex_format_aspect = _real_latex_format_aspect
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 
 real_lua_lint_aspect = _make_real_aspect("real_lua_lint")
-real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
+real_cmake_format_aspect = _real_cmake_format_aspect
 
-real_cmake_lint_aspect = _make_real_aspect("real_cmake_lint")
+real_cmake_lint_aspect = _real_cmake_lint_aspect
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
-real_latex_lint_aspect = _make_real_aspect("real_latex_lint")
+real_latex_lint_aspect = _real_latex_lint_aspect
 real_haskell_typecheck_aspect = _make_real_aspect("real_haskell_typecheck")
 
 real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")
@@ -2873,7 +2604,7 @@ real_rego_lint_aspect = _make_real_aspect("real_rego_lint")
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 real_pkl_typecheck_aspect = _make_real_aspect("real_pkl_typecheck")
 
-real_text_lint_aspect = _make_real_aspect("real_text_lint")
+real_text_lint_aspect = _real_text_lint_aspect
 
 real_lint_probe_aspect = _make_real_probe_aspect("lint")
 

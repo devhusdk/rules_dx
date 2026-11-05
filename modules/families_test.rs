@@ -460,7 +460,23 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 3] = ["ansible", "cloudformation", "make"];
+const FAMILY_FILES: [&str; 15] = [
+    "ansible",
+    "cloudformation",
+    "cmake",
+    "dockerfile",
+    "html_template",
+    "latex",
+    "make",
+    "nix",
+    "perl",
+    "shell",
+    "swift",
+    "text",
+    "typst",
+    "xml",
+    "yaml",
+];
 
 #[test]
 fn family_files_define_aspects_listed_in_families_json() {

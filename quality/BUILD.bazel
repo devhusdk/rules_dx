@@ -46,6 +46,7 @@ exports_files([
     "real_aspects.bzl",
     "real_core.bzl",
     "registry.bzl",
+    "roslyn_default.globalconfig",
     "roslyn_status.bat",
     "result.proto",
     "sources.bzl",

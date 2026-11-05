@@ -8,6 +8,9 @@ const TOOL: &str = "roslyn";
 
 const EXEC_ROOT: &str = "/execroot/_main/";
 
+// Unused-code rules: the default analyzer config makes them warnings, dx reports them as info.
+const UNUSED_CODE_RULES: [&str; 4] = ["IDE0005", "IDE0051", "IDE0052", "IDE0060"];
+
 fn exec_relative(spelled: &str) -> Option<&str> {
     spelled
         .rfind(EXEC_ROOT)
@@ -234,6 +237,9 @@ fn parse_scoped(
                 }
                 continue;
             }
+            if UNUSED_CODE_RULES.contains(&rule) {
+                result["level"] = Value::String("note".to_owned());
+            }
             if keep_locations(&mut result, files) {
                 map_related_locations(&mut result, files);
                 kept.push(result);
@@ -328,6 +334,16 @@ mod tests {
     }
 
     const EXECROOT: &str = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CA1016","level":"note","message":{"text":"Mark assemblies"}},{"ruleId":"CA1822","level":"note","message":{"text":"static"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/sandbox/1/execroot/_main/core/Greeter.cs"},"region":{"startLine":6,"startColumn":19}}}]},{"ruleId":"CS8019","level":"warning","message":{"text":"generated"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/sandbox/1/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
+
+    #[test]
+    fn roslyn_reports_unused_members_as_info() {
+        let log = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"IDE0051","level":"warning","message":{"text":"Private member 'Unused' is unused"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"csharp/tests/fixtures/roslyn/Sample.cs"},"region":{"startLine":5,"startColumn":24,"endLine":5,"endColumn":30}}}]}]}]}"#;
+        let findings = parse_exit_zero(log.as_bytes(), &["csharp/tests/fixtures/roslyn/Sample.cs"])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.rule_id, "IDE0051");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+    }
 
     #[test]
     fn roslyn_maps_execroot_paths_to_owned_files_and_skips_the_rest() {

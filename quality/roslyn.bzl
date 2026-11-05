@@ -121,6 +121,7 @@ def _roslyn_impl(target, ctx):
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.NetAnalyzers.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/build/config/analysislevel_" + level + "_default.globalconfig", format = "/analyzerconfig:%s")
+    args.add(ctx.file._default_config, format = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.analyzer_configs, format_each = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.additionalfiles, format_each = "/additionalfile:%s")
     args.add("/warnaserror-")
@@ -132,7 +133,7 @@ def _roslyn_impl(target, ctx):
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc],
+        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, ctx.file._default_config],
         transitive = [
             refs,
             analyzers,
@@ -178,6 +179,11 @@ roslyn_aspect = aspect(
             allow_single_file = True,
             default = "//quality:roslyn_status.bat",
             doc = "Windows launcher that records the csc exit code.",
+        ),
+        "_default_config": attr.label(
+            allow_single_file = True,
+            default = "//quality:roslyn_default.globalconfig",
+            doc = "Default analyzer config. Consumer .editorconfig entries override it.",
         ),
     },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],

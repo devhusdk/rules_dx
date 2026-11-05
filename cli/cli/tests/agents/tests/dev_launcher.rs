@@ -1613,6 +1613,41 @@ mod cmd {
     }
 
     #[test]
+    fn cmd_launcher_sweeps_guid_temps_older_than_a_day() {
+        let repo = source_repo("dx-launcher-cmd-sweep-");
+        let state = repo.root().join(".dx/launcher");
+        std::fs::create_dir_all(&state).expect("state dir");
+        let guid = "0f8fad5b-d9cb-469f-a165-70867728950e";
+        let recent = "1f8fad5b-d9cb-469f-a165-70867728950e";
+        let age = |name: &str, hours: u64| {
+            let path = state.join(name);
+            std::fs::write(&path, "").expect("temp");
+            let file = std::fs::File::options()
+                .write(true)
+                .open(&path)
+                .expect("open temp");
+            file.set_modified(
+                std::time::SystemTime::now() - std::time::Duration::from_secs(hours * 3600),
+            )
+            .expect("backdate");
+        };
+        let stale = ["dx.exe", "built", "inputs", "query", "dc"].map(|p| format!("{p}.{guid}"));
+        for name in &stale {
+            age(name, 25);
+        }
+        age(&format!("built.{recent}"), 1);
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        for name in &stale {
+            assert!(!state.join(name).exists(), "{name} is older than a day");
+        }
+        assert!(
+            state.join(format!("built.{recent}")).exists(),
+            "a recent temp is kept"
+        );
+    }
+
+    #[test]
     fn cmd_a_launcher_run_from_bazel_bin_runs_its_checkout_dx() {
         let repo = source_repo("dx-launcher-cmd-execroot-");
         let slot = repo.base.join("slot");

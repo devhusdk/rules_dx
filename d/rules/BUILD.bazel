@@ -10,13 +10,18 @@ exports_files([
     "defs.bzl",
 ])
 
+config_setting(
+    name = "coverage",
+    values = {"collect_code_coverage": "true"},
+)
+
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
         expect_equal(
-            "d tests have no coverage collector yet",
+            "d tests have a coverage collector",
             D_COVERAGE_COLLECTOR,
-            False,
+            True,
         ),
         expect_equal(
             "wrappers carry dfmt and dscanner",
@@ -68,6 +73,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

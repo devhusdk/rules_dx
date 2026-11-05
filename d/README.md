@@ -69,6 +69,10 @@ Select `dscanner` in a `d` quality family to lint D sources. The D wrappers
 carry the pinned D-Scanner, so no flag is needed. See "D linting" in
 `docs/cli/commands/quality.md`.
 
+## Coverage
+
+`bazel coverage` and `dx coverage` build D libraries and tests with `-cov`, run each test under a small launcher, and convert the `.lst` files ldc writes into LCOV. Coverage covers the sources of targets that match `--instrumentation_filter`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.
+
 ## DUB packages
 
 Packages come from a `dub.selections.json` that DUB wrote. Bazel fetches each

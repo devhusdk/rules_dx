@@ -1,0 +1,36 @@
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_library", "d_test")
+load("//d/rules:wrapper_tests.bzl", "d_coverage_env_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+d_library(
+    name = "adder",
+    srcs = ["adder.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+d_test(
+    name = "adder_test",
+    srcs = ["adder_test.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+    deps = [":adder"],
+)
+
+d_coverage_env_test(
+    name = "adder_coverage_env_test",
+    target = ":adder_test",
+    target_compatible_with = D_COMPATIBLE_WITH,
+    upstream = "adder_test_upstream",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1,0 +1,48 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_binary(
+    name = "d_coverage_launcher",
+    srcs = [
+        "src/lst.rs",
+        "src/main.rs",
+    ],
+    crate_name = "d_coverage_launcher",
+    crate_root = "src/main.rs",
+    visibility = VIS_TOOLS_PUBLIC,
+)
+
+rust_test(
+    name = "d_coverage_launcher_test",
+    srcs = [
+        "src/lst.rs",
+        "src/main.rs",
+    ],
+    crate_root = "src/main.rs",
+)
+
+rustfmt_test(
+    name = "d_coverage_launcher_fmt_test",
+    targets = [
+        ":d_coverage_launcher",
+        ":d_coverage_launcher_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "d_coverage_launcher_clippy_test",
+    targets = [
+        ":d_coverage_launcher",
+        ":d_coverage_launcher_test",
+    ],
+)

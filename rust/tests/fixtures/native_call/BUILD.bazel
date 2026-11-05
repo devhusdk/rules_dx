@@ -169,6 +169,14 @@ rust_binary(
 )
 
 rust_test(
+    name = "native_call_bin_test",
+    srcs = ["native_call_bin_test.rs"],
+    data = [":native_call_bin"],
+    edition = "2021",
+    env = {"NATIVE_CALL_BIN": "$(rootpath :native_call_bin)"},
+)
+
+rust_test(
     name = "native_call_test",
     crate = ":native_call",
     link_deps = [":native_c"],
@@ -224,6 +232,7 @@ rustfmt_test(
     name = "native_call_fmt_test",
     targets = [
         ":native_call",
+        ":native_call_bin_test",
         ":native_call_build_script_",
         ":native_call_test",
         ":native_cc",

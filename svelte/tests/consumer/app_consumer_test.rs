@@ -194,7 +194,14 @@ fn dx_check_leaves_the_consumer_sources_unchanged() {
         &["check", "--apply", "--workspace", &workspace, "//:all"],
         &[],
     );
-    assert_eq!(run.status.code(), Some(0), "{}", run.combined());
+    let seen = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
+    let files: Vec<_> = own.iter().map(|(path, _)| path.exists()).collect();
+    assert_eq!(
+        run.status.code(),
+        Some(0),
+        "{}\nBUILD.bazel:\n{seen}\nsources present: {files:?}",
+        run.combined()
+    );
     for (path, bytes) in own {
         assert_eq!(read(&path), bytes, "{path:?} changed");
     }

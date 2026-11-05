@@ -90,6 +90,16 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "rules_dart",
+        version: "0.8.1",
+        patch_strip: 1,
+        archive: None,
+        patches: &[OverridePatch {
+            file: "coverage.patch",
+            content: include_str!("../../../patches/rules_dart/coverage.patch"),
+        }],
+    },
+    Override {
         module: "rules_julia",
         version: "0.8.0",
         patch_strip: 1,

@@ -35,6 +35,7 @@ dx_rust_crate(
         "//.github:workflows/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//modules:consumer_graph.json",
+        "//patches/rules_dart:coverage.patch",
         "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",

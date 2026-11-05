@@ -1,0 +1,84 @@
+diff -ruN a/dart/private/tools/test_runner.dart b/dart/private/tools/test_runner.dart
+--- a/dart/private/tools/test_runner.dart
++++ b/dart/private/tools/test_runner.dart
+@@ -146,6 +146,8 @@
+   final xmlOutput = env['XML_OUTPUT_FILE'];
+   final shardStatus = env['TEST_SHARD_STATUS_FILE'];
+   final report = _join(tmp.path, 'results.json');
++  final coverageOutput = env['COVERAGE_OUTPUT_FILE'];
++  final coverageDir = File(_join(tmp.path, 'coverage/raw')).parent.path;
+ 
+   // Touched before the run, as Bazel asks: it is how a test runner says it
+   // supports sharding at all.
+@@ -165,6 +167,7 @@
+       // timeout a test states on its own case, and that one is the author's.
+       '--timeout=${_suiteTimeout(env)}',
+       '--file-reporter=json:$report',
++      if (coverageOutput != null) '--coverage=$coverageDir',
+       if (filter != null && filter.isNotEmpty) ...['--name', filter],
+       if (totalShards != null && shardIndex != null) ...[
+         '--total-shards',
+@@ -196,6 +199,15 @@
+     code = 0;
+   }
+ 
++  if (coverageOutput != null) {
++    final documents = <String>[
++      for (final entity in Directory(coverageDir).listSync(recursive: true))
++        if (entity is File && entity.path.endsWith('.json'))
++          entity.readAsStringSync(),
++    ];
++    File(coverageOutput).writeAsStringSync(lcovFromCoverage(documents));
++  }
++
+   if (xmlOutput != null) {
+     final reportFile = File(report);
+     if (reportFile.existsSync()) {
+@@ -207,6 +219,47 @@
+   return code;
+ }
+ 
++/// Converts the VM service coverage `package:test --coverage` writes into LCOV.
++///
++/// Sources are reported as the VM names them: `org-dartlang-root:///<path>` for
++/// files of the workspace and `package:<name>/<path>` for libraries. The `dart:`
++/// core libraries and the test bootstrap are left out.
++String lcovFromCoverage(List<String> documents) {
++  final hits = <String, Map<int, int>>{};
++  for (final document in documents) {
++    final decoded = jsonDecode(document);
++    if (decoded is! Map<String, dynamic>) continue;
++    for (final entry in (decoded['coverage'] as List? ?? const [])) {
++      final source = (entry as Map<String, dynamic>)['source'] as String;
++      final reportable =
++          source.startsWith('org-dartlang-root:///') ||
++          source.startsWith('package:');
++      if (!reportable || source.endsWith('.vm_test.dart')) continue;
++      final lines = hits.putIfAbsent(source, () => {});
++      final pairs = (entry['hits'] as List).cast<int>();
++      for (var i = 0; i + 1 < pairs.length; i += 2) {
++        if (pairs[i + 1] > (lines[pairs[i]] ?? -1)) {
++          lines[pairs[i]] = pairs[i + 1];
++        }
++      }
++    }
++  }
++  final out = StringBuffer();
++  for (final source in hits.keys.toList()..sort()) {
++    final lines = hits[source]!;
++    final numbers = lines.keys.toList()..sort();
++    out.writeln('SF:$source');
++    for (final line in numbers) {
++      out.writeln('DA:$line,${lines[line]}');
++    }
++    out
++      ..writeln('LF:${numbers.length}')
++      ..writeln('LH:${numbers.where((line) => lines[line]! > 0).length}')
++      ..writeln('end_of_record');
++  }
++  return out.toString();
++}
++
+ /// Lays out `workspace`'s runfiles under [into] from the lines of a runfiles
+ /// manifest, each `<runfiles path> <real path>`.
+ ///

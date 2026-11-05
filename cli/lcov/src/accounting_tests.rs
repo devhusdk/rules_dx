@@ -607,3 +607,18 @@ fn unreadable_source_is_an_error_for_reported_and_absent_files() {
         result.errors
     );
 }
+
+#[test]
+fn dart_runner_uris_resolve_to_owned_paths_and_drop_pub_packages() {
+    let parsed = manifest(
+        "v1 cell linux_x86_64\ntest source app/test/a_test.dart\nprod source app/lib/main.dart\n",
+    );
+    let report = [
+        lcov("org-dartlang-root:///app/test/a_test.dart", &[(4, 1)]),
+        lcov("package:app/main.dart", &[(3, 1)]),
+        lcov("package:other/none.dart", &[(1, 1)]),
+    ]
+    .concat();
+    let result = account(&[parsed], &[report], &blank_sources());
+    assert_eq!(result.errors, Vec::<String>::new());
+}

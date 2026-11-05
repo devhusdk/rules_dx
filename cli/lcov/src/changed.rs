@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::accounting::{count_lines, source_key};
+use crate::accounting::{count_lines, resolve_dart_uris, source_key};
 use crate::{find_ignores, merge_lcov_reports, CellAccount, Disposition, FileHits, LcovError};
 
 /// The added lines of every file a diff touches, keyed by the new path.
@@ -213,7 +213,12 @@ pub fn changed_account(
         .iter()
         .map(|(path, lines)| (source_key(path), lines))
         .collect();
-    let report: BTreeMap<String, FileHits> = merge_lcov_reports(lcov_documents)
+    let owned_keys: BTreeSet<String> = account.files.keys().map(|path| source_key(path)).collect();
+    let lcov_documents: Vec<String> = lcov_documents
+        .iter()
+        .map(|document| resolve_dart_uris(document, &owned_keys))
+        .collect();
+    let report: BTreeMap<String, FileHits> = merge_lcov_reports(&lcov_documents)
         .unwrap_or_default()
         .into_iter()
         .map(|(path, hits)| (source_key(&path), hits))

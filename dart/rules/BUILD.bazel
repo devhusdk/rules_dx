@@ -3,7 +3,7 @@ load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "DART_COVERAGE_COLLECTOR", "DART_SOURCE_SPECS", "dart_entry_sources", "dart_main_candidates", "dart_root_package_name")
+load(":defs.bzl", "DART_SOURCE_SPECS", "dart_entry_sources", "dart_main_candidates", "dart_root_package_name")
 load(":platforms.bzl", "RULES_DART_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
@@ -19,11 +19,6 @@ exports_files([
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
-        expect_equal(
-            "dart tests have no coverage collector yet",
-            DART_COVERAGE_COLLECTOR,
-            False,
-        ),
         expect_equal(
             "dart rules own dart sources",
             DART_SOURCE_SPECS,

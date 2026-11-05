@@ -33,6 +33,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `rules_cuda` | 0.4.0-beta1 | `redist_cccl_key.patch` | CUDA 13.3+ redist manifests key CCCL as `cccl` instead of `cuda_cccl`; the helper accepts both |
 | `protobuf` | 36.2 | `no_crate_universe.patch` | Drops protobuf's own `crate_universe` use so it does not clash with `dx_crates` |
 | `rules_julia` | 0.8.0 | `package_name.patch`, `portable_cpu_target.patch` | Julia `package_name` attribute for the wrapper targets (periareon/rules_julia#42); package precompiles target portable CPUs so a cache built on one host loads on another (#6580) |
+| `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report |
 | `rules_py` | 2.0.0-alpha.11 | `py_cc_toolchain_platform.patch` | `py_cc_toolchain` picks the cc toolchain for the target platform |
 | `rules_py` | 2.0.0-alpha.11 | `native_sdist_toolchain_flags.patch` | Native sdist builds get the cc toolchain flags (aspect-build/rules_py#1664) |
 | `rules_py` | 2.0.0-alpha.11 | `pep517_msvc.patch` | PEP 517 builds find the MSVC toolchain on Windows (aspect-build/rules_py#1662) |
@@ -52,7 +53,7 @@ graph. If another dependency of yours needs a newer version of one of these
 modules, Bazel still resolves the version above. Move the `rules_dx` pin
 instead, or drop the `include()` and own the override yourself.
 
-## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml, rules_powershell, rules_ruby
+## elvis, rules_d, rules_dotnet, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml, rules_powershell, rules_ruby
 
 No action. `rules_dx` applies these patches in its own repository rules.
 

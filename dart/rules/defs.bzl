@@ -111,10 +111,8 @@ def dart_binary(name, main = None, srcs = None, visibility = None, target = "nat
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, _dart_binary, _dart_binary_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
 
-DART_COVERAGE_COLLECTOR = False
-
 def dart_test(name, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_test."""
     main = _dart_main("dart_test", name, main, srcs, True)
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
-    dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), coverage_collector = DART_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)

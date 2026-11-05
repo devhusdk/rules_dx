@@ -195,7 +195,16 @@ fn dx_check_leaves_the_consumer_sources_unchanged() {
         &[],
     );
     let seen = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
-    let files: Vec<_> = own.iter().map(|(path, _)| path.exists()).collect();
+    let files: Vec<_> = ["src", "src/components", "src/assets"]
+        .iter()
+        .map(|dir| {
+            let mut names: Vec<_> = std::fs::read_dir(case.root().join(dir))
+                .map(|entries| entries.flatten().map(|e| e.file_name()).collect())
+                .unwrap_or_default();
+            names.sort();
+            (dir, names)
+        })
+        .collect();
     assert_eq!(
         run.status.code(),
         Some(0),

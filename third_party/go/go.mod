@@ -8,9 +8,9 @@ require (
 	github.com/odvcencio/gotreesitter v0.56.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/yuin/goldmark v1.8.6
-	golang.org/x/mod v0.41.0
-	golang.org/x/net v0.59.0
+	github.com/yuin/goldmark v1.8.7
+	golang.org/x/mod v0.42.0
+	golang.org/x/net v0.62.0
 	mvdan.cc/gofumpt v0.12.0
 )
 

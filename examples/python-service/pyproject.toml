@@ -2,4 +2,4 @@
 name = "ledger"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["click==8.1.8", "coverage==7.16.0", "pytest==8.3.4"]
+dependencies = ["click>=8.5.0", "coverage>=7.17.2", "pytest==8.3.4"]

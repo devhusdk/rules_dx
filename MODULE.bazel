@@ -46,7 +46,8 @@ single_version_override(
 )
 
 # xmllint comes from the BCR source build; the overlay carries its own cc_binary (#4618)
-bazel_dep(name = "libxml2", version = "2.15.3")
+# floor: equals tested
+bazel_dep(name = "libxml2", version = "2.15.4")
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#5905)
 bazel_dep(name = "gcc_toolchain", version = "0.13.0")
@@ -122,7 +123,7 @@ single_version_override(
     version = "0.4.1",
 )
 
-bazel_dep(name = "googletest", version = "1.18.0", dev_dependency = True)
+bazel_dep(name = "googletest", version = "1.18.0.bcr.1", dev_dependency = True)
 
 # floor: equals tested
 bazel_dep(name = "rules_python", version = "2.4.6")
@@ -153,17 +154,17 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "apple_support", version = "2.10.1")
+bazel_dep(name = "apple_support", version = "2.11.0")
 single_version_override(
     module_name = "apple_support",
-    version = "2.10.1",
+    version = "2.11.0",
 )
 
 # floor: equals tested
-bazel_dep(name = "rules_apple", version = "5.3.1")
+bazel_dep(name = "rules_apple", version = "5.4.0")
 single_version_override(
     module_name = "rules_apple",
-    version = "5.3.1",
+    version = "5.4.0",
 )
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
@@ -292,10 +293,10 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "rules_scala", version = "7.4.0")
+bazel_dep(name = "rules_scala", version = "7.4.1")
 single_version_override(
     module_name = "rules_scala",
-    version = "7.4.0",
+    version = "7.4.1",
 )
 
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
@@ -698,7 +699,8 @@ flutter_dev.pub(
 )
 use_repo(flutter_dev, "dx_flutter_app_deps", "dx_flutter_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_ios_engine")
 
-bazel_dep(name = "tar.bzl", version = "0.10.4")
+# floor: equals tested
+bazel_dep(name = "tar.bzl", version = "0.10.9")
 # needed: @dx_rules_dart_pub (root dart_tools extension) loads @yaml.bzl
 bazel_dep(name = "yaml.bzl", version = "0.1.2")
 
@@ -1161,8 +1163,8 @@ use_repo(
     uv_sdist,
     "dx_pypi_sdist",
     "dx_pypi_sdist_nodeps",
-    "sdist_build__sdist_native__python_geohash__0_8_5",
-    "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
+    "sdist_build__sdist_native__python_geohash__0_9_2",
+    "sdist_build__sdist_native_nodeps__python_geohash__0_9_2",
 )
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")

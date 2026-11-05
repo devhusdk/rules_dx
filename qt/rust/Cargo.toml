@@ -9,8 +9,8 @@ name = "qt_rust_bridge"
 path = "src/main.rs"
 
 [dependencies]
-cxx = "=1.0.202"
-cxx-gen = "=0.7.202"
+cxx = "1.0.205"
+cxx-gen = "0.7.205"
 cxx-qt = "=0.10.0"
 cxx-qt-gen = "=0.10.0"
 proc-macro2 = { version = "1", features = ["span-locations"] }

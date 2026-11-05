@@ -1,5 +1,5 @@
 {
-  "checksum": "ca634a869daecae98591dd74faa7cbc51acb3bd2175e67f9a539c362650684c6",
+  "checksum": "4b710345f5047d57ff1f5a8140f29bbf88a3fa00bcc6fe0670bab7bb5af2caf1",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1980,7 +1980,7 @@
         },
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           }
         ],
@@ -2659,7 +2659,7 @@
       ],
       "version": "0.11.1"
     },
-    "cc 1.4.5": {
+    "cc 1.11.0": {
       "common_attrs": {
         "crate_features": [
           "parallel"
@@ -2667,7 +2667,7 @@
         "deps": {
           "common": [
             {
-              "id": "find-msvc-tools 0.1.12",
+              "id": "find-msvc-tools 0.1.15",
               "target": "find_msvc_tools"
             },
             {
@@ -2719,8 +2719,8 @@
       "package_url": "https://github.com/rust-lang/cc-rs",
       "repository": {
         "Http": {
-          "sha256": "005ec2760ca554fae18df7a11195552ec576cd665632a881bc011d5bb2fd4d80",
-          "url": "https://static.crates.io/crates/cc/1.4.5/download"
+          "sha256": "375989decec1a0fa424442bed520fa12ede43a48475ce8c7417d2c69b32b5f6b",
+          "url": "https://static.crates.io/crates/cc/1.11.0/download"
         }
       },
       "targets": [
@@ -2731,7 +2731,7 @@
           }
         }
       ],
-      "version": "1.4.5"
+      "version": "1.11.0"
     },
     "cc_context 0.0.0": {
       "common_attrs": {
@@ -2909,11 +2909,11 @@
             ],
             "wasm32-unknown-unknown": [
               {
-                "id": "js-sys 0.3.105",
+                "id": "js-sys 0.3.107",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.128",
+                "id": "wasm-bindgen 0.2.130",
                 "target": "wasm_bindgen"
               }
             ],
@@ -4800,7 +4800,7 @@
       ],
       "version": "0.1.1"
     },
-    "cxx 1.0.202": {
+    "cxx 1.0.205": {
       "additive_build_file_content": "load(\"@rules_cc//cc:defs.bzl\", \"cc_library\")\ncc_library(\n    name = \"cxx_cc\",\n    srcs = [\"src/cxx.cc\"],\n    hdrs = [\"include/cxx.h\"],\n    include_prefix = \"rust\",\n    includes = [\"include\"],\n    linkstatic = True,\n    strip_include_prefix = \"include\",\n    visibility = [\"//visibility:public\"],\n)\n",
       "common_attrs": {
         "crate_features": [
@@ -4824,7 +4824,7 @@
         ],
         "proc_macro_deps": [
           {
-            "id": "cxxbridge-macro 1.0.202",
+            "id": "cxxbridge-macro 1.0.205",
             "target": "cxxbridge_macro"
           }
         ]
@@ -4843,8 +4843,8 @@
       "package_url": "https://github.com/dtolnay/cxx",
       "repository": {
         "Http": {
-          "sha256": "13f6de320895f42e6e081abb5c7983bedcf0b6d0ff9323de0d33f620c8ac1199",
-          "url": "https://static.crates.io/crates/cxx/1.0.202/download"
+          "sha256": "c8a02bfeba9074b2bbb39492c9b0908ec854f455a3cccdcde7a1de55e2315e40",
+          "url": "https://static.crates.io/crates/cxx/1.0.205/download"
         }
       },
       "targets": [
@@ -4855,13 +4855,13 @@
           }
         }
       ],
-      "version": "1.0.202"
+      "version": "1.0.205"
     },
-    "cxx-build 1.0.202": {
+    "cxx-build 1.0.205": {
       "common_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           },
           {
@@ -4902,8 +4902,8 @@
       "package_url": "https://github.com/dtolnay/cxx",
       "repository": {
         "Http": {
-          "sha256": "4fde53ca86b9704a943fef0f1e1d836239a6aedca5de3c65fa9f97ec0bd46d39",
-          "url": "https://static.crates.io/crates/cxx-build/1.0.202/download"
+          "sha256": "bbc2ac76997619d2d888b58ad79488f1c835de41ca4dd3dd7082acf4ecb0a50f",
+          "url": "https://static.crates.io/crates/cxx-build/1.0.205/download"
         }
       },
       "targets": [
@@ -4914,9 +4914,9 @@
           }
         }
       ],
-      "version": "1.0.202"
+      "version": "1.0.205"
     },
-    "cxx-gen 0.7.202": {
+    "cxx-gen 0.7.205": {
       "common_attrs": {
         "deps": [
           {
@@ -4953,8 +4953,8 @@
       "package_url": "https://github.com/dtolnay/cxx",
       "repository": {
         "Http": {
-          "sha256": "5010d4044b4ac8b18aca2341f3a6227aaf332ec8f5e38fcb93cba53451f2dc92",
-          "url": "https://static.crates.io/crates/cxx-gen/0.7.202/download"
+          "sha256": "157db3fc21feec4fc9917861635d04fd7a3c4ae9ee3957bb0dc2a96b678e7b87",
+          "url": "https://static.crates.io/crates/cxx-gen/0.7.205/download"
         }
       },
       "targets": [
@@ -4965,14 +4965,14 @@
           }
         }
       ],
-      "version": "0.7.202"
+      "version": "0.7.205"
     },
     "cxx-qt 0.10.0": {
       "additive_build_file_content": "filegroup(\n    name = \"cxx_qt_runtime_files\",\n    srcs = glob([\"include/*.h\"]) + [\n        \"src/connection.cpp\",\n        \"src/connection.rs\",\n        \"src/qobject.rs\",\n    ],\n    visibility = [\"//visibility:public\"],\n)\n",
       "common_attrs": {
         "deps": [
           {
-            "id": "cxx 1.0.202",
+            "id": "cxx 1.0.205",
             "target": "cxx"
           },
           {
@@ -5023,7 +5023,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           },
           {
@@ -5031,7 +5031,7 @@
             "target": "codespan_reporting"
           },
           {
-            "id": "cxx-gen 0.7.202",
+            "id": "cxx-gen 0.7.205",
             "target": "cxx_gen"
           },
           {
@@ -5097,7 +5097,7 @@
             "target": "convert_case"
           },
           {
-            "id": "cxx-gen 0.7.202",
+            "id": "cxx-gen 0.7.205",
             "target": "cxx_gen"
           },
           {
@@ -5191,7 +5191,7 @@
       ],
       "version": "0.10.0"
     },
-    "cxxbridge-flags 1.0.202": {
+    "cxxbridge-flags 1.0.205": {
       "common_attrs": {
         "crate_features": [
           "default"
@@ -5209,8 +5209,8 @@
       "package_url": "https://github.com/dtolnay/cxx",
       "repository": {
         "Http": {
-          "sha256": "49045042e5fced01b80742aba5508de82aa4f13677ed3fa2b4cda709c40c5918",
-          "url": "https://static.crates.io/crates/cxxbridge-flags/1.0.202/download"
+          "sha256": "c72569be94e2283764d334cd285980b747dbe221e27e315484eb6bcd93fa808a",
+          "url": "https://static.crates.io/crates/cxxbridge-flags/1.0.205/download"
         }
       },
       "targets": [
@@ -5221,9 +5221,9 @@
           }
         }
       ],
-      "version": "1.0.202"
+      "version": "1.0.205"
     },
-    "cxxbridge-macro 1.0.202": {
+    "cxxbridge-macro 1.0.205": {
       "common_attrs": {
         "deps": [
           {
@@ -5256,8 +5256,8 @@
       "package_url": "https://github.com/dtolnay/cxx",
       "repository": {
         "Http": {
-          "sha256": "b181252e2e3d3b5d183afbdc033a3958b445eb3e1a0ae65fc3d4f5259f5da6fd",
-          "url": "https://static.crates.io/crates/cxxbridge-macro/1.0.202/download"
+          "sha256": "423e795284a7f7b3f843c956a5322c4bc497b60c2dd1a6339da10313cb18d575",
+          "url": "https://static.crates.io/crates/cxxbridge-macro/1.0.205/download"
         }
       },
       "targets": [
@@ -5268,7 +5268,7 @@
           }
         }
       ],
-      "version": "1.0.202"
+      "version": "1.0.205"
     },
     "darling 0.20.11": {
       "common_attrs": {
@@ -9364,7 +9364,7 @@
       ],
       "version": "0.2.29"
     },
-    "find-msvc-tools 0.1.12": {
+    "find-msvc-tools 0.1.15": {
       "common_attrs": {
         "edition": "2021"
       },
@@ -9379,8 +9379,8 @@
       "package_url": "https://github.com/rust-lang/cc-rs",
       "repository": {
         "Http": {
-          "sha256": "3e0f1c7c3a72c66fd80abe965175f7523475c0489a87d3ff9d6e8c87d87a9d2d",
-          "url": "https://static.crates.io/crates/find-msvc-tools/0.1.12/download"
+          "sha256": "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48",
+          "url": "https://static.crates.io/crates/find-msvc-tools/0.1.15/download"
         }
       },
       "targets": [
@@ -9391,7 +9391,7 @@
           }
         }
       ],
-      "version": "0.1.12"
+      "version": "0.1.15"
     },
     "flate2 1.1.10": {
       "common_attrs": {
@@ -10130,7 +10130,7 @@
             ],
             "wasm32-unknown-unknown": [
               {
-                "id": "wasm-bindgen 0.2.128",
+                "id": "wasm-bindgen 0.2.130",
                 "target": "wasm_bindgen"
               }
             ]
@@ -10262,7 +10262,7 @@
             ],
             "wasm32-unknown-unknown": [
               {
-                "id": "wasm-bindgen 0.2.128",
+                "id": "wasm-bindgen 0.2.130",
                 "target": "wasm_bindgen"
               }
             ]
@@ -10810,7 +10810,7 @@
             "target": "anyhow"
           },
           {
-            "id": "wasm-bindgen 0.2.128",
+            "id": "wasm-bindgen 0.2.130",
             "target": "wasm_bindgen"
           }
         ],
@@ -11066,7 +11066,7 @@
           "selects": {
             "cfg(all(target_arch = \"wasm32\", target_os = \"unknown\"))": [
               {
-                "id": "js-sys 0.3.105",
+                "id": "js-sys 0.3.107",
                 "target": "js_sys"
               },
               {
@@ -11074,7 +11074,7 @@
                 "target": "log"
               },
               {
-                "id": "wasm-bindgen 0.2.128",
+                "id": "wasm-bindgen 0.2.130",
                 "target": "wasm_bindgen"
               }
             ],
@@ -11135,7 +11135,7 @@
       "build_script_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           }
         ]
@@ -12465,7 +12465,7 @@
       ],
       "version": "0.1.35"
     },
-    "js-sys 0.3.105": {
+    "js-sys 0.3.107": {
       "common_attrs": {
         "crate_features": [
           "default",
@@ -12482,7 +12482,7 @@
             "target": "futures_util"
           },
           {
-            "id": "wasm-bindgen 0.2.128",
+            "id": "wasm-bindgen 0.2.130",
             "target": "wasm_bindgen"
           }
         ],
@@ -12499,8 +12499,8 @@
       "package_url": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys",
       "repository": {
         "Http": {
-          "sha256": "ce57d20d1ea864ce2ac172ab472d409214f4fd359f0b2a2775abdf522e2af99e",
-          "url": "https://static.crates.io/crates/js-sys/0.3.105/download"
+          "sha256": "8dc09d2154098bbf4ef54eab6b117a3c24cbbffe94046b16ee6d6d4510584d3a",
+          "url": "https://static.crates.io/crates/js-sys/0.3.107/download"
         }
       },
       "targets": [
@@ -12511,7 +12511,7 @@
           }
         }
       ],
-      "version": "0.3.105"
+      "version": "0.3.107"
     },
     "jsonc-parser 0.34.0": {
       "common_attrs": {
@@ -13290,7 +13290,7 @@
       "build_script_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           },
           {
@@ -13383,7 +13383,7 @@
       "build_script_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           }
         ],
@@ -14165,7 +14165,7 @@
       "build_script_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           }
         ]
@@ -17447,7 +17447,7 @@
             "target": "anyhow"
           },
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           },
           {
@@ -17497,11 +17497,11 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "cxx 1.0.202",
+            "id": "cxx 1.0.205",
             "target": "cxx"
           },
           {
-            "id": "cxx-gen 0.7.202",
+            "id": "cxx-gen 0.7.205",
             "target": "cxx_gen"
           },
           {
@@ -18987,7 +18987,7 @@
       "build_script_attrs": {
         "deps": [
           {
-            "id": "cc 1.4.5",
+            "id": "cc 1.11.0",
             "target": "cc"
           }
         ],
@@ -25564,11 +25564,11 @@
       ],
       "version": "1.0.4+wasi-0.2.12"
     },
-    "wasm-bindgen 0.2.128": {
+    "wasm-bindgen 0.2.130": {
       "build_script_attrs": {
         "link_deps": [
           {
-            "id": "wasm-bindgen-shared 0.2.128",
+            "id": "wasm-bindgen-shared 0.2.130",
             "target": "wasm_bindgen_shared"
           }
         ],
@@ -25591,11 +25591,7 @@
             "target": "cfg_if"
           },
           {
-            "id": "once_cell 1.21.4",
-            "target": "once_cell"
-          },
-          {
-            "id": "wasm-bindgen-shared 0.2.128",
+            "id": "wasm-bindgen-shared 0.2.130",
             "target": "wasm_bindgen_shared"
           }
         ],
@@ -25605,7 +25601,7 @@
         ],
         "proc_macro_deps": [
           {
-            "id": "wasm-bindgen-macro 0.2.128",
+            "id": "wasm-bindgen-macro 0.2.130",
             "target": "wasm_bindgen_macro"
           }
         ]
@@ -25621,8 +25617,8 @@
       "package_url": "https://github.com/wasm-bindgen/wasm-bindgen",
       "repository": {
         "Http": {
-          "sha256": "aecb87a33d3b0c5e3b7aa46336eaf486cffafbd281b195e4c8b80d50df2351bf",
-          "url": "https://static.crates.io/crates/wasm-bindgen/0.2.128/download"
+          "sha256": "a0181c14ddd6c7b8b0b0132a5f1ea2f32be0d893cd3ea97b6e3b28886b8a3d1c",
+          "url": "https://static.crates.io/crates/wasm-bindgen/0.2.130/download"
         }
       },
       "targets": [
@@ -25639,9 +25635,9 @@
           }
         }
       ],
-      "version": "0.2.128"
+      "version": "0.2.130"
     },
-    "wasm-bindgen-macro 0.2.128": {
+    "wasm-bindgen-macro 0.2.130": {
       "common_attrs": {
         "deps": [
           {
@@ -25649,7 +25645,7 @@
             "target": "quote"
           },
           {
-            "id": "wasm-bindgen-macro-support 0.2.128",
+            "id": "wasm-bindgen-macro-support 0.2.130",
             "target": "wasm_bindgen_macro_support"
           }
         ],
@@ -25666,8 +25662,8 @@
       "package_url": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro",
       "repository": {
         "Http": {
-          "sha256": "a690d511e3c1a8b3a55e33511e3c2c00c78415cd23650f32b808627f5696b9ed",
-          "url": "https://static.crates.io/crates/wasm-bindgen-macro/0.2.128/download"
+          "sha256": "6e931a02a39abdbf66966fc35902b5ed58344750a70885bed4ebb3d8eaf28ed9",
+          "url": "https://static.crates.io/crates/wasm-bindgen-macro/0.2.130/download"
         }
       },
       "targets": [
@@ -25678,9 +25674,9 @@
           }
         }
       ],
-      "version": "0.2.128"
+      "version": "0.2.130"
     },
-    "wasm-bindgen-macro-support 0.2.128": {
+    "wasm-bindgen-macro-support 0.2.130": {
       "common_attrs": {
         "deps": [
           {
@@ -25700,7 +25696,7 @@
             "target": "syn"
           },
           {
-            "id": "wasm-bindgen-shared 0.2.128",
+            "id": "wasm-bindgen-shared 0.2.130",
             "target": "wasm_bindgen_shared"
           }
         ],
@@ -25717,8 +25713,8 @@
       "package_url": "https://github.com/wasm-bindgen/wasm-bindgen/tree/main/crates/macro-support",
       "repository": {
         "Http": {
-          "sha256": "411e4887f0071ef2d2164a9d5fdf2d20efbef78fccd3a78b0c10a1dc5295e48a",
-          "url": "https://static.crates.io/crates/wasm-bindgen-macro-support/0.2.128/download"
+          "sha256": "2ca4b54280e455bd831e33a6b8e734baf432fe63fbc35c42ac14ce67a043a53a",
+          "url": "https://static.crates.io/crates/wasm-bindgen-macro-support/0.2.130/download"
         }
       },
       "targets": [
@@ -25729,9 +25725,9 @@
           }
         }
       ],
-      "version": "0.2.128"
+      "version": "0.2.130"
     },
-    "wasm-bindgen-shared 0.2.128": {
+    "wasm-bindgen-shared 0.2.130": {
       "build_script_attrs": {
         "links": "wasm_bindgen"
       },
@@ -25758,8 +25754,8 @@
       "package_url": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared",
       "repository": {
         "Http": {
-          "sha256": "81941cd78d0c92026c33e5e01312845a4cb1e9af3407f9134b100dd03144103e",
-          "url": "https://static.crates.io/crates/wasm-bindgen-shared/0.2.128/download"
+          "sha256": "3b1f9c3798725016c6ee5f2f57869ec0831e8bbc0ab0310a86e787e97f41389e",
+          "url": "https://static.crates.io/crates/wasm-bindgen-shared/0.2.130/download"
         }
       },
       "targets": [
@@ -25776,7 +25772,7 @@
           }
         }
       ],
-      "version": "0.2.128"
+      "version": "0.2.130"
     },
     "webpki-root-certs 1.0.11": {
       "common_attrs": {
@@ -27664,7 +27660,7 @@
     "base64 0.22.1",
     "blake3 1.8.7",
     "cargo-lock 11.1.0",
-    "cc 1.4.5",
+    "cc 1.11.0",
     "chrono 0.4.45",
     "clap 4.6.7",
     "clap_complete 4.6.11",
@@ -27672,8 +27668,8 @@
     "clap_mangen 0.2.33",
     "console 0.16.6",
     "crc32fast 1.5.2",
-    "cxx 1.0.202",
-    "cxx-gen 0.7.202",
+    "cxx 1.0.205",
+    "cxx-gen 0.7.205",
     "cxx-qt 0.10.0",
     "cxx-qt-gen 0.10.0",
     "flate2 1.1.10",
@@ -27729,7 +27725,7 @@
     "ureq 3.5.0",
     "url 2.5.8",
     "walkdir 2.5.0",
-    "wasm-bindgen 0.2.128",
+    "wasm-bindgen 0.2.130",
     "windows-sys 0.61.2",
     "yaml_serde 0.10.7",
     "yarn-lock-parser 0.14.0",

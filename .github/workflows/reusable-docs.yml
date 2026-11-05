@@ -90,7 +90,7 @@ jobs:
               exit 1
             fi
           done
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
@@ -165,7 +165,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
@@ -223,12 +223,12 @@ jobs:
           done <<< "$DX_DOCS_FORBID"
           bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" "${check[@]}"
       - name: Upload rendered site as Pages artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ${{ env.PAGES_STAGE }}
       - name: Deploy to GitHub Pages
         id: deploy
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
       - name: Smoke-test the deployed site
         env:
           PAGES_URL: ${{ steps.deploy.outputs.page_url }}

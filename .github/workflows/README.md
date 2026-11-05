@@ -2,7 +2,7 @@
 
 - `reusable-consumer.yml`: nine checks plus the `dx-ci (aggregate)` gate.
 - `reusable-docs.yml`: `docs-check` plus `docs-publish` (GitHub Pages).
-- `gate.yml`: the `gate` check (`dx check --affected`) on `merge_group` and by dispatch, required on main by `.github/rulesets/main.json`. Its steps live in `.github/actions/gate`, which `ci.yml` also calls.
+- `gate.yml`: the `gate` check (`dx check --affected`) on `merge_group` and by dispatch, required on main by `.github/rulesets/main.json`. Each workflow raises the Bazel heap and runs `setup-bazel` itself, then calls `.github/actions/gate`, which `ci.yml` also calls.
 - `pr-check.yml`: dispatch-only analysis job on `ubuntu-latest` for `tools/ci/pr_check.sh`, one step per set (`workflow`, `preflight`, `starter`, `hermetic`, `docs`, `families`, `cli`) so the run shows each set's duration. Run one locally with `tools/ci/pr_check.sh <set>`. The owner decides whether it moves to `pull_request` or `merge_group` (#7172).
 - `ci.yml`: this repository's own `ci` gate. A failed Windows preflight build uploads `rmeta-diagnostics-<platform>` (#4850).
 - `issue-labels.yml`: daily warning for open issues older than one day, except pinned ones, that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.

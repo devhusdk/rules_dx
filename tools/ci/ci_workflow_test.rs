@@ -3,13 +3,13 @@
 use serde_json::json;
 
 use ci_workflow::{
-    called_workflow, document, job, jobs, reusable_calls, run_scripts, scripts, steps, strings,
-    text_at, triggers, workflow_call,
+    called_workflow, job, jobs, reusable_calls, run_scripts, scripts, steps, strings, text_at,
+    triggers, workflow_call,
 };
 
 const CI: &str = ".github/workflows/ci.yml";
 
-const GATE_ACTION: &str = ".github/actions/gate/action.yml";
+const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
 
 const CONSUMER: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -169,24 +169,22 @@ fn the_gate_job_has_a_bounded_timeout() {
 }
 
 #[test]
-fn the_gate_job_raises_the_bazel_heap_before_its_first_bazel_call() {
-    let all = document(GATE_ACTION)["runs"]["steps"]
-        .as_array()
-        .expect("gate action steps")
-        .iter()
-        .filter_map(|step| step["run"].as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
-    let heap = all
-        .find("MaxRAMPercentage=50")
-        .unwrap_or_else(|| panic!("{GATE_ACTION} must raise the Bazel heap: {all}"));
-    assert!(
-        all[heap..].contains(">> user.bazelrc"),
-        "{GATE_ACTION} must write the heap flag to user.bazelrc"
-    );
-    let first_bazel = all.find("bazel ").expect("gate calls bazel");
-    assert!(
-        heap < first_bazel,
-        "{GATE_ACTION} must raise the heap before it calls bazel: {all}"
-    );
+fn the_gate_jobs_raise_the_bazel_heap_before_setup_bazel_calls_bazel() {
+    for workflow in [CI, GATE_WORKFLOW] {
+        let gate = steps(workflow, "gate");
+        let heap = gate.iter().position(|step| {
+            step["run"].as_str().is_some_and(|run| {
+                run.contains("MaxRAMPercentage=50") && run.contains(">> user.bazelrc")
+            })
+        });
+        let setup = gate
+            .iter()
+            .position(|step| step["uses"].as_str() == Some("./.github/actions/setup-bazel"));
+        let heap = heap.unwrap_or_else(|| panic!("{workflow} job gate must raise the Bazel heap"));
+        let setup = setup.unwrap_or_else(|| panic!("{workflow} job gate must run setup-bazel"));
+        assert!(
+            heap < setup,
+            "{workflow} job gate must raise the heap before setup-bazel calls bazel"
+        );
+    }
 }

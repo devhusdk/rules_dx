@@ -792,6 +792,13 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
+      - name: Raise the Bazel server heap
+        run: |
+          # A hosted runner runs one job, so the server can take half the memory.
+          echo 'startup --host_jvm_args=-XX:MaxRAMPercentage=50' >> user.bazelrc
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
       - uses: ./.github/actions/gate
   ci:
     name: ci

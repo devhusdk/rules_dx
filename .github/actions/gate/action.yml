@@ -3,14 +3,6 @@ description: Run dx check --affected against the pinned base.
 runs:
   using: composite
   steps:
-    - name: Raise the Bazel server heap
-      shell: bash
-      run: |
-        # A hosted runner runs one job, so the server can take half the memory.
-        echo 'startup --host_jvm_args=-XX:MaxRAMPercentage=50' >> user.bazelrc
-    - uses: ./.github/actions/setup-bazel
-      with:
-        cache-save: ${{ github.event_name != 'pull_request' }}
     - name: Pin the affected base
       env:
         EVENT_NAME: ${{ github.event_name }}

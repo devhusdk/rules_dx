@@ -1,6 +1,6 @@
 """Target-scoped real capability aspects over real adapters."""
 
-load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
+load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "compile_check_hook")
 load("//quality:families/cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_unused_aspect = "real_cc_unused_aspect", _CC_HOOKS = "HOOKS", _CC_RECOGNIZER = "RECOGNIZER", _CC_SHARD_SPECS = "SHARD_SPECS", _CC_TOOLS = "TOOLS")
 load("//quality:families/core.bzl", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load("//quality:families/ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _ANSIBLE_SHARD_SPECS = "SHARD_SPECS", _ANSIBLE_TOOLS = "TOOLS")
@@ -67,28 +67,12 @@ load("//quality:families/rust.bzl", _real_rust_format_probe_aspect = "real_rust_
 load("//quality:families/swift.bzl", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect")
 load("//quality:families/zig.bzl", _real_zig_format_probe_aspect = "real_zig_format_probe_aspect", _real_zig_lint_probe_aspect = "real_zig_lint_probe_aspect", _real_zig_typecheck_probe_aspect = "real_zig_typecheck_probe_aspect")
 load("//quality:families/core_probe.bzl", _real_core_format_probe_aspect = "real_core_format_probe_aspect", _real_core_lint_probe_aspect = "real_core_lint_probe_aspect", _real_core_typecheck_probe_aspect = "real_core_typecheck_probe_aspect")
-load("//quality:family_hooks.bzl", _stage = "stage", _without = "without")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_skip_notes = "real_skip_notes", _real_tool_table_error = "real_tool_table_error", _real_unavailable_tools = "real_unavailable_tools", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
 load("//quality:sources.bzl", "QualityToolsInfo")
 load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
 
 _JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
-
-def _compile_check_hook(tool):
-    def _hook(target, _ctx, resolved, _capability, _what, _shared):
-        if CompileCheckInfo not in target or target[CompileCheckInfo].tool != tool:
-            return _without(resolved, tool)
-        info = target[CompileCheckInfo]
-        tool_files = []
-        inputs = []
-        for i in range(len(info.diagnostics)):
-            inputs.append(info.diagnostics[i])
-            stem = info.diagnostics[i].basename.rpartition(".")[0]
-            _stage(tool_files, inputs, "dx-compile-check/" + stem + "/exit", info.statuses[i])
-        return real_context(upstream = info.diagnostics, late_tool_files = tool_files, late_inputs = inputs)
-
-    return _hook
 
 # The core runs the hooks in this order and no other.
 _HOOK_ORDER = [
@@ -129,7 +113,7 @@ _HOOK_ORDER = [
 ]
 
 _CONTEXT_HOOKS = _JS_HOOKS | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _BEAM_HOOKS | _GO_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | _CC_HOOKS | _DOTNET_HOOKS | _RUST_HOOKS | _JVM_HOOKS | {
-    tool: _compile_check_hook(tool)
+    tool: compile_check_hook(tool)
     for tool in COMPILE_CHECK_TOOLS
 }
 

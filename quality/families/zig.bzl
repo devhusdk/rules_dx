@@ -1,6 +1,6 @@
 """Zig real quality aspects."""
 
-load("//quality:compile_check.bzl", "compile_check_aspect")
+load("//quality:compile_check.bzl", "compile_check_aspect", "compile_check_hook")
 load("//quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
@@ -50,8 +50,8 @@ SHARD_SPECS = {
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
+    hook_order = ["zig"],
+    context_hooks = {"zig": compile_check_hook("zig")},
     source_recognizers = [],
     harness_sources = lambda _target, _capability, direct_sources: direct_sources,
     toolchain = None,

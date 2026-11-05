@@ -1,7 +1,7 @@
 """OCaml real quality aspects."""
 
 load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
-load("//quality:compile_check.bzl", "compile_check_aspect")
+load("//quality:compile_check.bzl", "compile_check_aspect", "compile_check_hook")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:pipeline.bzl", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -84,9 +84,9 @@ def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
     env = [real_request_tool_env("OCAMLLIB", stdlib[0].dirname)] if len(stdlib) > 0 else []
     return real_context(tool_files = tool_files, inputs = inputs, env = env)
 
-HOOK_ORDER = ["zanuda"]
+HOOK_ORDER = ["ocaml", "zanuda"]
 
-HOOKS = {"zanuda": _zanuda_hook}
+HOOKS = {"ocaml": compile_check_hook("ocaml"), "zanuda": _zanuda_hook}
 
 _CFG = real_config(
     tools = TOOLS,

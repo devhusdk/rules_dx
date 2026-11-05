@@ -4,6 +4,8 @@ load(":real_results.bzl", "real_result_test")
 
 _ZANUDA_POLICY = "//quality/testdata/zanuda_owned:policy"
 _RUST_POLICY = "//quality/testdata/rust_owned:policy"
+_HASKELL_POLICY = "//quality/testdata/haskell_owned:policy"
+_OCAML_POLICY = "//quality/testdata/ocaml_owned:policy"
 
 _DIALYZER = "//erlang/tools:dialyzer"
 
@@ -125,6 +127,46 @@ REAL_RESULT_CASES = [
         "capability": "lint",
         "class": "ocaml",
         "contains": ["quality/testdata/zanuda_owned/dirty.ml", "if_bool", "list_length_comparisons"],
+        "absent": [],
+    },
+    {
+        "name": "real_result_ocaml_clean",
+        "target": "//quality/testdata/ocaml_owned:clean",
+        "policy": _OCAML_POLICY,
+        "tool": "ocaml",
+        "capability": "typecheck",
+        "class": "ocaml",
+        "contains": ["quality/testdata/ocaml_owned/clean.ml"],
+        "absent": ["unused variable", "Fatal error"],
+    },
+    {
+        "name": "real_result_ocaml_dirty",
+        "target": "//quality/testdata/ocaml_owned:dirty",
+        "policy": _OCAML_POLICY,
+        "tool": "ocaml",
+        "capability": "typecheck",
+        "class": "ocaml",
+        "contains": ["quality/testdata/ocaml_owned/dirty.ml", "unused variable unused"],
+        "absent": [],
+    },
+    {
+        "name": "real_result_ghc_clean",
+        "target": "//quality/testdata/haskell_owned:clean",
+        "policy": _HASKELL_POLICY,
+        "tool": "ghc",
+        "capability": "typecheck",
+        "class": "haskell",
+        "contains": ["quality/testdata/haskell_owned/Clean.hs"],
+        "absent": ["Defined but not used", "Fatal error"],
+    },
+    {
+        "name": "real_result_ghc_dirty",
+        "target": "//quality/testdata/haskell_owned:dirty",
+        "policy": _HASKELL_POLICY,
+        "tool": "ghc",
+        "capability": "typecheck",
+        "class": "haskell",
+        "contains": ["quality/testdata/haskell_owned/Dirty.hs", "GHC-40910", "Defined but not used"],
         "absent": [],
     },
     _go_case("errcheck", "lint", "clean", "//go/tests/fixtures/errcheck:clean", ["errcheck"], ["unchecked error"]),

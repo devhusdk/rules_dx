@@ -7,6 +7,8 @@ a sandboxed action that records stderr and the exit code. The runner only parses
 
 load("//fortran/toolchain:toolchain.bzl", "MODULE_FLAG_FORMAT")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//quality:family_hooks.bzl", "stage", "without")
+load("//quality:real_core.bzl", "real_context")
 
 CompileCheckInfo = provider(
     doc = "Check-only replays of the compile actions of one target.",
@@ -399,3 +401,19 @@ compile_check_aspect = aspect(
         ),
     },
 )
+
+def compile_check_hook(tool):
+    """Returns the context hook that hands the replay logs of the tool to the runner."""
+    def _hook(target, _ctx, resolved, _capability, _what, _shared):
+        if CompileCheckInfo not in target or target[CompileCheckInfo].tool != tool:
+            return without(resolved, tool)
+        info = target[CompileCheckInfo]
+        tool_files = []
+        inputs = []
+        for i in range(len(info.diagnostics)):
+            inputs.append(info.diagnostics[i])
+            stem = info.diagnostics[i].basename.rpartition(".")[0]
+            stage(tool_files, inputs, "dx-compile-check/" + stem + "/exit", info.statuses[i])
+        return real_context(upstream = info.diagnostics, late_tool_files = tool_files, late_inputs = inputs)
+
+    return _hook

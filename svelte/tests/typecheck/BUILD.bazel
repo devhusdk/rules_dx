@@ -50,3 +50,10 @@ svelte_library(
     for case in ["bad", "broken", "clean"]
     for kind in ["stdout", "exit"]
 ]
+
+sh_test(
+    name = "dbg_test",
+    srcs = ["dbg.sh"],
+    data = [":bad_stdout_report", ":broken_stdout_report", "bad.stdout.expected"],
+    args = ["$(rootpath :bad_stdout_report)", "$(rootpath :broken_stdout_report)"],
+)

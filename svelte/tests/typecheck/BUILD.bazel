@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//javascript/rules:defs.bzl", "javascript_library")
 load("//svelte/rules:defs.bzl", "svelte_library")

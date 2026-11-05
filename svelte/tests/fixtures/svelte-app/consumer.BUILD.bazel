@@ -14,12 +14,14 @@ biome_config(
 
 npm_link_all_packages(name = "node_modules")
 
+# keep
 svelte_library(
     name = "components",
     aspect_hints = [":biome_config"],
     srcs = glob(["src/**/*.svelte"]),
 )
 
+# keep
 svelte_build(
     name = "site",
     aspect_hints = [":biome_config"],
@@ -32,6 +34,7 @@ svelte_build(
     deps = [":node_modules/clsx"],
 )
 
+# keep
 svelte_check(
     name = "check",
     aspect_hints = [":biome_config"],
@@ -42,6 +45,7 @@ svelte_check(
     deps = [":node_modules/clsx"],
 )
 
+# keep
 javascript_test(
     name = "site_ssr_test",
     aspect_hints = [":biome_config"],
@@ -56,6 +60,7 @@ javascript_test(
     package_json = "package.json",
 )
 
+# keep
 javascript_test(
     name = "site_client_test",
     aspect_hints = [":biome_config"],

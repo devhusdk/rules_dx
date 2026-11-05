@@ -313,7 +313,7 @@ def rust_benchmark(
         crate_features = crate_features + ["dx_bench"],
         tags = ["manual"],
         visibility = ["//visibility:private"],
-        **kwargs
+        **(dict(use_libtest_harness = False) | kwargs)
     )
     native_test(
         name = name,

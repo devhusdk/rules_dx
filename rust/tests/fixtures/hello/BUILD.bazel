@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_benchmark", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
 load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
 load("//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -223,6 +223,13 @@ rust_test(
 )
 
 # keep
+rust_benchmark(
+    name = "hello_bench",
+    srcs = ["src/bench.rs"],
+    crate_root = "src/bench.rs",
+    edition = "2021",
+)
+
 rust_test(
     name = "native_data_test",
     testonly = True,

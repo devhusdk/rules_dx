@@ -42,8 +42,9 @@ rust_test(
 `dx_bench` feature and tagged `dx-bench` and `manual`. It runs the binary with
 `--bench --output-format bencher`, sets `CRITERION_HOME` under the undeclared
 outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
-`dx-bench.json`. `dx bench` runs it. Criterion benches need `harness = false`
-and `criterion` built with `--output-format bencher` support.
+`dx-bench.json`. `dx bench` runs it. The test is built without the libtest harness
+(`use_libtest_harness = False`), so criterion's own `main` runs; pass
+`use_libtest_harness = True` for nightly `#[bench]` functions.
 
 ## Native
 

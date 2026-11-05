@@ -1,8 +1,7 @@
-diff --git a/windows/private/extensions/msvc_runtime.BUILD.bazel b/windows/private/extensions/msvc_runtime.BUILD.bazel
-index 6d05080..d3a261b 100644
+diff -ruN a/windows/private/extensions/msvc_runtime.BUILD.bazel b/windows/private/extensions/msvc_runtime.BUILD.bazel
 --- a/windows/private/extensions/msvc_runtime.BUILD.bazel
 +++ b/windows/private/extensions/msvc_runtime.BUILD.bazel
-@@ -130,6 +130,18 @@ alias(
+@@ -130,6 +130,18 @@
      }),
  )
  
@@ -21,11 +20,29 @@ index 6d05080..d3a261b 100644
  filegroup(
      name = "all_files",
      srcs = glob(
-diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
-index 0d1476c..286ca9b 100644
+diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
 --- a/windows/private/extensions/msvc_runtime.bzl
 +++ b/windows/private/extensions/msvc_runtime.bzl
-@@ -241,7 +241,7 @@ def _discover_redist_version(repository_ctx, sysroot_dir):
+@@ -204,6 +204,18 @@
+             continue
+         repository_ctx.delete(entry)
+ 
++def _keep_only_children_ignoring_case(repository_ctx, directory, child_names):
++    # Payloads spell one directory both Hostx64 and HostX64; a case-insensitive extract keeps whichever came first.
++    entries = {_basename(entry): entry for entry in directory.readdir()}
++    keep = {}
++    for name in child_names:
++        for actual in entries:
++            if actual == name or (actual.lower() == name.lower() and name not in entries):
++                keep[actual] = True
++    for actual, entry in entries.items():
++        if not keep.get(actual, False):
++            repository_ctx.delete(entry)
++
+ def _is_dotted_version(name):
+     parts = name.split(".")
+     for part in parts:
+@@ -241,7 +253,7 @@
  def _redist_architectures(architectures):
      return [arch for arch in architectures if _ARCH_TO_REDIST_PACKAGE.get(arch)]
  
@@ -34,7 +51,7 @@ index 0d1476c..286ca9b 100644
      sysroot_path = repository_ctx.path(sysroot_dir)
      contents_dir = repository_ctx.path("{}/Contents".format(sysroot_dir))
      vc_dir = repository_ctx.path("{}/Contents/VC".format(sysroot_dir))
-@@ -256,13 +256,18 @@ def _keep_exposed_runtime_files(repository_ctx, sysroot_dir, msvc_version, archi
+@@ -256,13 +268,18 @@
      _keep_only_children(
          repository_ctx,
          repository_ctx.path("{}/Contents/VC/Tools/MSVC/{}".format(sysroot_dir, msvc_version)),
@@ -48,13 +65,13 @@ index 0d1476c..286ca9b 100644
      )
 +    if host_tools:
 +        bin_dir = "{}/Contents/VC/Tools/MSVC/{}/bin".format(sysroot_dir, msvc_version)
-+        _keep_only_children(repository_ctx, repository_ctx.path(bin_dir), ["Host" + host for host in host_tools])
++        _keep_only_children_ignoring_case(repository_ctx, repository_ctx.path(bin_dir), ["Host" + host for host in host_tools])
 +        for host in host_tools:
 +            _keep_only_children(repository_ctx, repository_ctx.path("{}/Host{}".format(bin_dir, host)), architectures)
  
      if redist_version:
          redist_architectures = _redist_architectures(architectures)
-@@ -348,7 +353,7 @@ def _msvc_runtime_repository_impl(repository_ctx):
+@@ -348,7 +365,7 @@
      redist_architectures = _redist_architectures(architectures)
      if redist_architectures and not redist_version:
          fail("failed to find Contents/VC/Redist/MSVC/<version> in extracted MSVC payloads for architectures {}".format(redist_architectures))
@@ -63,7 +80,7 @@ index 0d1476c..286ca9b 100644
  
      repository_ctx.file(
          "versions.bzl",
-@@ -394,6 +399,8 @@ VC_REDIST_VERSION = {vc_redist_version}
+@@ -394,6 +411,8 @@
              ),
          )
  
@@ -72,7 +89,7 @@ index 0d1476c..286ca9b 100644
  _MSVC_RUNTIME_ATTR = {
      "architectures": attr.string_list(
          default = _DEFAULT_ARCHITECTURES,
-@@ -414,6 +421,9 @@ _MSVC_RUNTIME_ATTR = {
+@@ -414,6 +433,9 @@
  }
  
  _MSVC_RUNTIME_REPOSITORY_ATTRS = _MSVC_RUNTIME_ATTR | {
@@ -82,7 +99,7 @@ index 0d1476c..286ca9b 100644
      "_build_file": attr.label(
          allow_single_file = True,
          default = ":msvc_runtime.BUILD.bazel",
-@@ -447,8 +457,20 @@ def _read_configure_tag(module_ctx):
+@@ -447,8 +469,20 @@
  
      fail("Missing msvc_runtime.configure(...): set msvc_runtime.configure(...) in your MODULE.bazel")
  
@@ -103,7 +120,7 @@ index 0d1476c..286ca9b 100644
  
      installer_manifest = _resolve_installer_manifest_from_module_facts(
          module_ctx,
-@@ -463,6 +485,7 @@ def _msvc_runtime_extension_impl(module_ctx):
+@@ -463,6 +497,7 @@
          name = repository_name,
          msvc_version = config.msvc_version,
          architectures = config.architectures,
@@ -111,7 +128,7 @@ index 0d1476c..286ca9b 100644
          installer_manifest_url = installer_manifest["url"],
          installer_manifest_integrity = installer_manifest["integrity"],
      )
-@@ -496,6 +519,15 @@ msvc_runtime = module_extension(
+@@ -496,6 +531,15 @@
                  doc = "Optional SRI integrity for the downloaded Visual Studio installer manifest.",
              ),
          }),
@@ -127,11 +144,10 @@ index 0d1476c..286ca9b 100644
      },
      doc = "MSVC runtime extension.",
  )
-diff --git a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/private/extensions/windows_sdk.BUILD.bazel
-index 4b4c626..100562e 100644
+diff -ruN a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/private/extensions/windows_sdk.BUILD.bazel
 --- a/windows/private/extensions/windows_sdk.BUILD.bazel
 +++ b/windows/private/extensions/windows_sdk.BUILD.bazel
-@@ -189,3 +189,14 @@ filegroup(
+@@ -189,3 +189,14 @@
          allow_empty = True,
      ),
  )
@@ -146,11 +162,10 @@ index 4b4c626..100562e 100644
 +    )
 +    for host in ("x64", "arm64")
 +]
-diff --git a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
-index 70f2c7b..01f9648 100644
+diff -ruN a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
 --- a/windows/private/extensions/windows_sdk.bzl
 +++ b/windows/private/extensions/windows_sdk.bzl
-@@ -28,10 +28,13 @@ def _keep_only_children(repository_ctx, directory, child_names):
+@@ -28,10 +28,13 @@
              continue
          repository_ctx.delete(entry)
  
@@ -166,7 +181,7 @@ index 70f2c7b..01f9648 100644
      _keep_only_children(repository_ctx, repository_ctx.path("{}/base/c/Include".format(sysroot_dir)), [include_version])
      _keep_only_children(
          repository_ctx,
-@@ -226,7 +229,7 @@ def _windows_sdk_repository_impl(repository_ctx):
+@@ -226,7 +229,7 @@
      )
  
      _apply_transformations(repository_ctx)
@@ -175,7 +190,7 @@ index 70f2c7b..01f9648 100644
  
      repository_ctx.file(
          "versions.bzl",
-@@ -263,6 +266,8 @@ WINDOWS_SDK_INCLUDE_VERSION = {windows_sdk_include_version}
+@@ -263,6 +266,8 @@
          ),
      )
  
@@ -184,7 +199,7 @@ index 70f2c7b..01f9648 100644
  _WINDOWS_SDK_ATTR = {
      "architectures": attr.string_list(
          default = _DEFAULT_ARCHITECTURES,
-@@ -299,6 +304,9 @@ _WINDOWS_SDK_ATTR = {
+@@ -299,6 +304,9 @@
  }
  
  _WINDOWS_SDK_REPOSITORY_ATTRS = _WINDOWS_SDK_ATTR | {
@@ -194,7 +209,7 @@ index 70f2c7b..01f9648 100644
      "_build_file": attr.label(
          allow_single_file = True,
          default = ":windows_sdk.BUILD.bazel",
-@@ -331,6 +339,17 @@ def _read_configure_tag(module_ctx):
+@@ -331,6 +339,17 @@
  
      fail("Missing windows_sdk.configure(...): set windows_sdk.configure(...) in your MODULE.bazel")
  
@@ -212,7 +227,7 @@ index 70f2c7b..01f9648 100644
  def _windows_sdk_extension_impl(module_ctx):
      config = _read_configure_tag(module_ctx)
  
-@@ -341,6 +360,7 @@ def _windows_sdk_extension_impl(module_ctx):
+@@ -341,6 +360,7 @@
          windows_sdk_integrity = config.windows_sdk_integrity,
          transformations = config.transformations,
          architectures = config.architectures,
@@ -220,7 +235,7 @@ index 70f2c7b..01f9648 100644
      )
  
      if module_ctx.root_module_has_non_dev_dependency:
-@@ -358,6 +378,15 @@ windows_sdk = module_extension(
+@@ -358,6 +378,15 @@
      implementation = _windows_sdk_extension_impl,
      tag_classes = {
          "configure": tag_class(attrs = _WINDOWS_SDK_ATTR),

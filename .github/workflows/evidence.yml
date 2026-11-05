@@ -374,7 +374,7 @@ jobs:
           sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
           sleep 2
-          adb -s emulator-5554 shell input keyevent KEYCODE_BACK
+          adb -s emulator-5554 shell input keyevent KEYCODE_HOME
           sleep 2
           adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
           sh rust/tests/fixtures/shared-rust-checks/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"

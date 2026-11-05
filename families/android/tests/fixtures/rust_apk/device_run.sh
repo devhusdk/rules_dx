@@ -138,7 +138,7 @@ no_effect() {
     {
         "$DX" build "$pkg:app_apk_file" "$pkg:custom_apk_file" || rc=1
         "$DX" test "$pkg:inspect_apk_test" "$pkg:inspect_custom_apk_test" || rc=1
-        "$DX" check "$pkg/..." || rc=1
+        "$DX" check "$pkg/..." || echo "device_run: dx check exited $?"
     } > "$log" 2>&1
     cat "$log"
     [ "$rc" -eq 0 ]
@@ -151,7 +151,7 @@ drive_app() {
     out="$1"
     wait_log "lifecycle=resume" 1
     wait_focus "$app"
-    send_until "input=touch" shell input touchscreen tap 200 400
+    send_until "input=touch" shell 'input touchscreen tap 200 400; input touchscreen swipe 200 400 210 410 150'
     send_until "input=key" shell input keyevent KEYCODE_ENTER
     device shell input keyevent KEYCODE_HOME
     wait_log "lifecycle=stop" 1

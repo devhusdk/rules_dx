@@ -41,6 +41,9 @@ common --incompatible_strict_action_env
 # On Windows, give tests a runfiles directory instead of only a manifest.
 build:windows --enable_runfiles
 
+# On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.
+build:windows --@rules_dx//config:toolchain_linker_preference=rust
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 

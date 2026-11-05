@@ -2300,6 +2300,31 @@ fn delegated_scalac_is_clean_and_reports_owned_errors() {
 }
 
 #[test]
+fn delegated_scalac_reports_every_scala3_unused_warning() {
+    let log = r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"s/A.scala","line":1,"column":33,"severity":"warning","code":"scalac","message":"unused import"},{"file":"s/A.scala","line":5,"column":9,"severity":"warning","code":"scalac","message":"unused local definition"}]}"#;
+    let log = upstream_file("scalac", log);
+    let source = "import scala.collection.mutable.ListBuffer\n\n\n\n    val spare = n\n";
+    let findings = backend_for(
+        "scalac",
+        delegated_tool(log.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", source))
+    .expect("findings");
+    let found: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (&*f.rule_id, &*f.message))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("scalac", "unused import"),
+            ("scalac", "unused local definition")
+        ]
+    );
+}
+
+#[test]
 fn delegated_scalac_never_reports_a_failing_target_clean() {
     let generated = upstream_file("scalac", &scalac_log(1, "bazel-out/k8/bin/s/Gen.scala"));
     let result = backend_for(

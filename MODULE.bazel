@@ -330,7 +330,13 @@ single_version_override(
 )
 
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
-scala_config.settings(scala_version = "2.13.18")
+scala_config.settings(
+    scala_version = "2.13.18",
+    scala_versions = [
+        "2.13.18",
+        "3.3.9",
+    ],
+)
 use_repo(scala_config, "rules_scala_config")
 
 scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_deps")
@@ -340,6 +346,7 @@ scala_deps.scalatest()
 register_toolchains(
     "//kotlin/toolchain:unused_deps",
     "//scala/toolchain:semanticdb",
+    "//scala/toolchain:semanticdb_scala3",
     dev_dependency = True,
 )
 

@@ -18,7 +18,23 @@ scala_toolchain(
 
 toolchain(
     name = "semanticdb",
+    target_settings = ["@rules_scala_config//:scala_version_2_13_18"],
     toolchain = ":semanticdb_impl",
+    toolchain_type = "@rules_scala//scala:toolchain_type",
+)
+
+scala_toolchain(
+    name = "semanticdb_scala3_impl",
+    enable_semanticdb = True,
+    scalacopts = ["-Wunused:all"],
+    semanticdb_bundle_in_jar = True,
+    use_argument_file_in_runner = True,
+)
+
+toolchain(
+    name = "semanticdb_scala3",
+    target_settings = ["@rules_scala_config//:scala_version_3_3_9"],
+    toolchain = ":semanticdb_scala3_impl",
     toolchain_type = "@rules_scala//scala:toolchain_type",
 )
 

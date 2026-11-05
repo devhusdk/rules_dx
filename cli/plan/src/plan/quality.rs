@@ -674,7 +674,7 @@ mod tests {
             select_aspects(lint.aspects.to_vec(), Some(&rust)),
             vec![
                 "quality:real_aspects.bzl%real_lint_aspect",
-                "quality:real_aspects.bzl%real_rust_lint_aspect",
+                "quality:families/rust.bzl%real_rust_lint_aspect",
             ]
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
@@ -720,7 +720,7 @@ mod tests {
         )
         .expect("plan");
         assert!(plan.argv.contains(
-            &"--aspects=@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect".to_owned()
+            &"--aspects=@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect".to_owned()
         ));
     }
 
@@ -775,7 +775,7 @@ mod tests {
                 "--jobs=4",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_make_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cmake_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_terraform_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_capnp_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_thrift_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_avro_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_go_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_nix_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lua_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ocaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_kubernetes_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ansible_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cloudformation_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_bicep_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_sql_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rego_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jsonnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_fortran_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_typst_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_xml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_haskell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_latex_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_erlang_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_elixir_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_php_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dart_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_d_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_perl_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_swift_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_zig_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_julia_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_pkl_lint_aspect",
+                "--aspects=@rules_dx//quality:families/cc.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_make_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cmake_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_terraform_lint_aspect,@rules_dx//quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_go_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:families/js.bzl%real_js_lint_aspect,@rules_dx//quality:families/python.bzl%real_python_lint_aspect,@rules_dx//quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//quality:families/powershell.bzl%real_powershell_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//quality:families/ruby.bzl%real_ruby_lint_aspect,@rules_dx//quality:families/rust.bzl%real_rust_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_nix_lint_aspect,@rules_dx//quality:families/lua.bzl%real_lua_lint_aspect,@rules_dx//quality:families/ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_kubernetes_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ansible_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_cloudformation_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_bicep_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_sql_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rego_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jsonnet_lint_aspect,@rules_dx//quality:families/fortran.bzl%real_fortran_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_typst_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_xml_lint_aspect,@rules_dx//quality:families/haskell.bzl%real_haskell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_latex_lint_aspect,@rules_dx//quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//quality:families/php.bzl%real_php_lint_aspect,@rules_dx//quality:families/dart.bzl%real_dart_lint_aspect,@rules_dx//quality:families/d.bzl%real_d_lint_aspect,@rules_dx//quality:families/perl.bzl%real_perl_lint_aspect,@rules_dx//quality:families/swift.bzl%real_swift_lint_aspect,@rules_dx//quality:families/zig.bzl%real_zig_lint_aspect,@rules_dx//quality:families/julia.bzl%real_julia_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_pkl_lint_aspect",
                 "--output_groups=dx_results",
                 "--remote_download_outputs=toplevel",
             ]
@@ -896,18 +896,18 @@ mod tests {
         assert!(
             plan.argv.iter().any(|arg| arg
                 .contains("@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:families/rust.bzl%real_rust_typecheck_aspect")
                 && arg
-                    .contains("@rules_dx//quality:real_aspects.bzl%real_dotnet_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_js_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_jvm_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_d_typecheck_aspect")
+                    .contains("@rules_dx//quality:families/dotnet.bzl%real_dotnet_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:families/js.bzl%real_js_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:families/jvm.bzl%real_jvm_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:families/d.bzl%real_d_typecheck_aspect")
                 && arg
-                    .contains("@rules_dx//quality:real_aspects.bzl%real_fortran_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_zig_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_ocaml_typecheck_aspect")
+                    .contains("@rules_dx//quality:families/fortran.bzl%real_fortran_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:families/zig.bzl%real_zig_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")
                 && arg
-                    .contains("@rules_dx//quality:real_aspects.bzl%real_haskell_typecheck_aspect")),
+                    .contains("@rules_dx//quality:families/haskell.bzl%real_haskell_typecheck_aspect")),
             "typecheck selects the real typecheck aspects: {plan:?}"
         );
         assert_eq!(plan.summary, "Running typecheck analysis for //...");

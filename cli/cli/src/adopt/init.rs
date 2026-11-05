@@ -36,8 +36,8 @@ struct Target {
     /// What reported paths start with: `<dir>/`, or nothing.
     prefix: String,
     module: String,
-    /// Missing or empty apart from `.git`: init starts a workspace there.
-    fresh: bool,
+    /// The entry that makes the directory an existing tree; `None` when it is fresh.
+    blocker: Option<String>,
     agents: Vec<Agent>,
 }
 
@@ -66,20 +66,25 @@ impl Target {
         } else {
             format!("{dir}/")
         };
-        let fresh = dx_adopt::is_fresh_dir(&root);
+        let blocker = dx_adopt::fresh_blocker(&root);
         Ok(Self {
             dir,
             root,
             prefix,
             module,
-            fresh,
+            blocker,
             agents: invocation.agents.clone(),
         })
     }
 
     /// The files this run plans, relative to `root`.
     fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
-        super::init_files::plan(&self.root, &self.module, self.fresh, &self.agents)
+        super::init_files::plan(
+            &self.root,
+            &self.module,
+            self.blocker.is_none(),
+            &self.agents,
+        )
     }
 
     /// The command that fixes drift in this directory.
@@ -132,6 +137,14 @@ pub(crate) fn execute_init(
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut notes = Vec::new();
+    if let Some(blocker) = &target.blocker {
+        if !root.join("MODULE.bazel").exists() {
+            notes.push(format!(
+                "{}{blocker} exists, treating this as an existing repo; create MODULE.bazel first or run in an empty directory",
+                target.prefix
+            ));
+        }
+    }
     if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
         .ok()
         .map(|setup| dx_adopt::preflight(root, &setup))
@@ -877,12 +890,31 @@ mod tests {
     fn init_in_a_non_empty_tree_writes_no_module() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-");
         let root = scratch.path().to_path_buf();
-        std::fs::write(root.join("README.md"), "mine\n").expect("readme");
+        std::fs::create_dir(root.join("src")).expect("src");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("dx: src/ exists, treating this as an existing repo; create MODULE.bazel first or run in an empty directory\n"),
+            "{err}"
+        );
         assert!(!out.contains("wrote MODULE.bazel\n"), "{out}");
         assert!(!root.join("MODULE.bazel").exists());
         assert!(!root.join(".bazelversion").exists());
+    }
+
+    #[test]
+    fn init_writes_the_module_into_a_repo_with_only_readme_license_and_gitignore() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-repo-files-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("README.md"), "mine\n").expect("readme");
+        std::fs::write(root.join("LICENSE"), "license\n").expect("license");
+        std::fs::write(root.join(".gitignore"), "target/\n").expect("ignore");
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("wrote MODULE.bazel\n"), "{out}");
+        assert!(root.join("MODULE.bazel").is_file());
+        assert!(root.join(".bazelversion").is_file());
+        assert!(!err.contains("treating this as an existing repo"), "{err}");
     }
 
     #[test]

@@ -101,20 +101,48 @@ pub fn init_dir_module(dir: &str) -> String {
     folded.trim_matches(['-', '_', '.']).to_owned()
 }
 
-/// Whether `root` is missing or holds nothing but `.git` and the files a fresh init writes
-/// itself: a workspace to start, not adopt. A run cut short after `MODULE.bazel` stays fresh.
+/// Whether `root` is missing or holds nothing but `.git`, repository files and the files a
+/// fresh init writes itself: a workspace to start, not adopt. A run cut short after
+/// `MODULE.bazel` stays fresh.
 pub fn is_fresh_dir(root: &Path) -> bool {
+    fresh_blocker(root).is_none()
+}
+
+/// The first entry in `root` that makes it an existing tree rather than a fresh workspace, with
+/// a trailing `/` for a directory. `None` when `root` is fresh.
+pub fn fresh_blocker(root: &Path) -> Option<String> {
     match std::fs::read_dir(root) {
-        Ok(entries) => entries.filter_map(Result::ok).all(|entry| {
-            let name = entry.file_name();
-            match name.to_str() {
-                Some(".git" | ".bazelversion" | ".dx") => true,
-                Some("MODULE.bazel") => is_fresh_module(&entry.path()),
-                _ => false,
-            }
-        }),
-        Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        Ok(entries) => entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let blocks = match name.as_str() {
+                    ".git" | ".bazelversion" | ".dx" => false,
+                    "MODULE.bazel" => !is_fresh_module(&entry.path()),
+                    _ => !is_repo_file(&name),
+                };
+                blocks.then(|| {
+                    if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                        format!("{name}/")
+                    } else {
+                        name
+                    }
+                })
+            })
+            .min(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => Some(".".to_owned()),
     }
+}
+
+/// Files GitHub or an editor adds when a repository is created; they do not make a tree an adopt.
+fn is_repo_file(name: &str) -> bool {
+    name.starts_with("README")
+        || name.starts_with("LICENSE")
+        || matches!(
+            name,
+            ".gitignore" | ".gitattributes" | ".editorconfig" | ".github"
+        )
 }
 
 /// Whether the file is exactly the `MODULE.bazel` a fresh init writes.
@@ -220,8 +248,30 @@ mod tests {
         assert!(is_fresh_dir(&root));
         std::fs::create_dir_all(root.join(".git")).expect("git");
         assert!(is_fresh_dir(&root));
-        std::fs::write(root.join("README.md"), "mine\n").expect("readme");
+        std::fs::create_dir(root.join("src")).expect("src");
         assert!(!is_fresh_dir(&root));
+        assert_eq!(fresh_blocker(&root).as_deref(), Some("src/"));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn repository_files_do_not_make_a_directory_an_adopt() {
+        let scratch = dx_test_scratch::scratch("dx-init-repo-files-");
+        let root = scratch.path();
+        for name in [
+            "README.md",
+            "LICENSE",
+            ".gitignore",
+            ".gitattributes",
+            ".editorconfig",
+        ] {
+            std::fs::write(root.join(name), "x\n").expect(name);
+        }
+        std::fs::create_dir(root.join(".github")).expect("github");
+        assert!(is_fresh_dir(root));
+        std::fs::write(root.join("notes.txt"), "mine\n").expect("notes");
+        assert!(!is_fresh_dir(root));
+        assert_eq!(fresh_blocker(root).as_deref(), Some("notes.txt"));
         scratch.close().expect("cleanup");
     }
 

@@ -37,8 +37,8 @@ pub use git_changes::{
     GitChange, DEFAULT_BRANCH_CANDIDATES,
 };
 pub use init_dir::{
-    init_dir_module, is_fresh_dir, plan_fresh_files, validate_init_dir, DEFAULT_INIT_MODULE,
-    FRESH_BAZEL_VERSION,
+    fresh_blocker, init_dir_module, is_fresh_dir, plan_fresh_files, validate_init_dir,
+    DEFAULT_INIT_MODULE, FRESH_BAZEL_VERSION,
 };
 pub use launcher::{
     launcher_state, plan_launcher_files, refresh_launcher_files, release_pins, render_launcher_cmd,

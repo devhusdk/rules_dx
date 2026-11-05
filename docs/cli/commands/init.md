@@ -30,9 +30,12 @@ dx init [--apply] [--agents=<list>] [dir]
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
 default; `--apply` scaffolds. Takes an optional directory, relative to the
 workspace and defaulting to the current one. `--apply` creates the directory
-when it is missing. A directory that is missing or holds only `.git` is fresh:
-init also writes a `MODULE.bazel` that depends on `rules_dx` and a
-`.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
+when it is missing. A directory is fresh when it is missing or holds only `.git`,
+`README*`, `LICENSE*`, `.gitignore`, `.gitattributes`, `.editorconfig` or
+`.github/`: init then also writes a `MODULE.bazel` that depends on `rules_dx`
+and a `.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
+If such a tree has no `MODULE.bazel`, `--apply` names the entry that made it an
+existing tree, for example `dx: src/ exists, treating this as an existing repo`.
 `init --apply` also adds the `rules_dx_<family>` dep for each language family found in the tree, once that module is published.
 Nothing language-specific is chosen up front; languages are wired when their
 sources appear.

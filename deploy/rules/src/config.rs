@@ -137,6 +137,8 @@ pub struct CratesConfig {
     pub version: String,
     pub api_compat: String,
     pub api_baseline: String,
+    #[serde(default)]
+    pub semver_checks_rloc: String,
 }
 
 /// Pins one Hex publish: the package files, name, version and build tool.
@@ -364,6 +366,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &crates.version,
             &crates.api_compat,
             &crates.api_baseline,
+            &crates.semver_checks_rloc,
             argv,
         ),
         DeployConfig::Pub(pub_config) => crate::pub_main(
@@ -571,6 +574,7 @@ mod tests {
                 version: "1.0.0".to_owned(),
                 api_compat: "fail".to_owned(),
                 api_baseline: "registry".to_owned(),
+                semver_checks_rloc: String::new(),
             }))
         );
         assert_eq!(
@@ -848,6 +852,7 @@ mod tests {
                 version: "1.0.0".to_owned(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
+                semver_checks_rloc: String::new(),
             }),
             DeployConfig::Rubygems(RubygemsConfig {
                 gem_rlocs: vec!["a".to_owned()],

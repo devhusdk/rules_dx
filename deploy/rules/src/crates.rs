@@ -404,7 +404,7 @@ pub fn crates_main(
     version: &str,
     argv: &[String],
 ) -> i32 {
-    crates_main_checked(crate_rlocs, crate_name, version, "off", "registry", argv)
+    crates_main_checked(crate_rlocs, crate_name, version, "off", "registry", "", argv)
 }
 
 /// Runs the crates deploy tool.
@@ -414,6 +414,7 @@ pub fn crates_main_checked(
     version: &str,
     api_compat: &str,
     api_baseline: &str,
+    semver_checks_rloc: &str,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -499,12 +500,17 @@ pub fn crates_main_checked(
         eprintln!("crates_deploy: invalid api_compat '{api_compat}'");
         return 1;
     };
+    let semver_checks = if semver_checks_rloc.is_empty() {
+        which_on_path("cargo-semver-checks")
+    } else {
+        run.resolve(semver_checks_rloc)
+    };
     let checked = crates_package_paths(&files)
         .map_err(|error| format!("crates_deploy: {error}"))
         .and_then(|mapped| {
             crates_package_check(which_on_path("cargo").as_deref(), &mapped)?;
             crates_api_check(
-                which_on_path("cargo-semver-checks").as_deref(),
+                semver_checks.as_deref(),
                 &mapped,
                 version,
                 crate_name,

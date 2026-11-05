@@ -35,6 +35,8 @@ def _crates_config_impl(ctx):
         fail("crates_deploy " + str(ctx.label) + ": crate " +
              str(ctx.attr.crate.label) + " provides no files, want at least one source file")
     rlocs = [rlocation_path(ctx, f) for f in crate_files]
+    semver_files = ctx.attr._semver_checks[DefaultInfo].files.to_list()
+    semver_rloc = rlocation_path(ctx, semver_files[0]) if semver_files else ""
 
     return deploy_config(
         ctx,
@@ -44,9 +46,10 @@ def _crates_config_impl(ctx):
             "api_baseline": ctx.attr.api_baseline,
             "api_compat": ctx.attr.api_compat,
             "crate_rlocs": rlocs,
+            "semver_checks_rloc": semver_rloc,
             "version": ctx.attr.version,
         },
-        ctx.runfiles(files = crate_files).merge(ctx.attr.crate[DefaultInfo].default_runfiles),
+        ctx.runfiles(files = crate_files + semver_files).merge(ctx.attr.crate[DefaultInfo].default_runfiles),
     )
 
 _crates_config = rule(
@@ -67,6 +70,10 @@ _crates_config = rule(
             doc = "Crate target whose files are published by the deployment.",
             allow_files = True,
             mandatory = True,
+        ),
+        "_semver_checks": attr.label(
+            default = Label("//deploy/rules/pins:cargo_semver_checks"),
+            allow_files = True,
         ),
         "crate_name": attr.string(
             doc = "Name the crate is published under on crates.io.",

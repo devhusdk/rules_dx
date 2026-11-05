@@ -1,4 +1,4 @@
-use quality_adapter::parsers::{self, rust_unused_deps, FileFinding};
+use quality_adapter::parsers::{self, jvm_unused_deps, rust_unused_deps, FileFinding};
 
 use super::*;
 
@@ -72,6 +72,66 @@ fn unused_dependency_findings(
             if let Some(mut found) =
                 rust_unused_deps::place_unused_dependency(item, &relative, &text)
             {
+                found.file = absolute.to_string_lossy().into_owned();
+                findings.push(found);
+            }
+            break;
+        }
+    }
+    Ok(findings)
+}
+
+/// Finds the `deps` entries the Java or Kotlin compiler never read, in the BUILD files.
+fn jvm_unused_dependency_findings(
+    tool_id: &str,
+    name: &'static str,
+    tool: &RealTool,
+    pairs: &[(String, PathBuf)],
+) -> Result<Vec<FileFinding>, RunnerError> {
+    let find = |suffix: &str| {
+        tool.upstream_diagnostics
+            .iter()
+            .find(|path| path.to_string_lossy().ends_with(suffix))
+    };
+    let (Some(map), Some(jdeps)) = (find(".unused_deps.json"), find(".jdeps")) else {
+        return Ok(Vec::new());
+    };
+    let read = |path: &PathBuf| {
+        std::fs::read(path)
+            .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))
+    };
+    let unused = parsed(
+        tool_id,
+        jvm_unused_deps::parse_unused_dependencies(name, &read(map)?, &read(jdeps)?),
+    )?;
+    let Some(root) = pairs.iter().find_map(|(workspace, absolute)| {
+        let mut root = absolute.clone();
+        workspace
+            .split('/')
+            .try_for_each(|_| root.pop().then_some(()))?;
+        Some(root)
+    }) else {
+        return Ok(Vec::new());
+    };
+    let mut findings = Vec::new();
+    for item in &unused {
+        for build in ["BUILD.bazel", "BUILD"] {
+            let relative = if item.package.is_empty() {
+                build.to_owned()
+            } else {
+                format!("{}/{build}", item.package)
+            };
+            let absolute = root.join(&relative);
+            let Ok(text) = std::fs::read_to_string(&absolute) else {
+                continue;
+            };
+            if let Some(mut found) = rust_unused_deps::place_dependency_finding(
+                item,
+                &relative,
+                &text,
+                tool_id,
+                jvm_unused_deps::RULE_ID,
+            ) {
                 found.file = absolute.to_string_lossy().into_owned();
                 findings.push(found);
             }
@@ -274,7 +334,16 @@ impl RealBackend {
                 ));
             }
         };
-        let [path] = tool.upstream_diagnostics.as_slice() else {
+        let is_extra = |path: &&PathBuf| {
+            let name = path.to_string_lossy();
+            name.ends_with(".unused_deps.json") || name.ends_with(".jdeps")
+        };
+        let logs: Vec<&PathBuf> = tool
+            .upstream_diagnostics
+            .iter()
+            .filter(|path| !is_extra(path))
+            .collect();
+        let [path] = logs.as_slice() else {
             return Err(execution(
                 tool_id,
                 format!(
@@ -292,6 +361,7 @@ impl RealBackend {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
         }
+        findings.extend(jvm_unused_dependency_findings(tool_id, name, tool, pairs)?);
         Ok(findings)
     }
 

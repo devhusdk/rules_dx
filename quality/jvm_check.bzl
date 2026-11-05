@@ -30,6 +30,7 @@ JvmCheckInfo = provider(
     fields = {
         "log": "File: JSON log with the tool, its exit status and its diagnostics.",
         "tool": "string: the registry tool id that produced the log.",
+        "unused_deps": "[File]: the direct dependency map and the compiler's jdeps file, or empty when the target has no jdeps.",
     },
 )
 
@@ -49,6 +50,23 @@ def javac_options(tokens):
         [str] the options javac itself accepts.
     """
     return [t for t in tokens if not any([t.startswith(p) for p in _JAVABUILDER_ONLY_PREFIXES])]
+
+def _unused_deps_files(target, ctx, attrs):
+    """Files the runner reads to find direct deps whose jars the compiler never used."""
+    jdeps = [o.jdeps for o in target[JavaInfo].java_outputs if o.jdeps]
+    if not jdeps:
+        return []
+    deps = []
+    for dep in getattr(attrs, "deps", []):
+        if JavaInfo not in dep:
+            continue
+        jars = [j.path for j in dep[JavaInfo].compile_jars.to_list()]
+        if jars:
+            deps.append({"label": str(dep.label), "jars": jars})
+    name = target.label.name.removesuffix("_upstream")
+    out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.json" % target.label.name)
+    ctx.actions.write(out, json.encode({"package": target.label.package, "target": name, "deps": deps}))
+    return [out, jdeps[0]]
 
 def _depset(value):
     return value if type(value) == "depset" else depset(value)
@@ -156,7 +174,7 @@ def _kotlinc_check(target, ctx, attrs):
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    return [JvmCheckInfo(log = log, tool = "kotlinc")]
+    return [JvmCheckInfo(log = log, tool = "kotlinc", unused_deps = _unused_deps_files(target, ctx, attrs))]
 
 def _deps_info(toolchain, deps_id):
     for provider in getattr(toolchain, "dep_providers", []):
@@ -232,7 +250,7 @@ def _scalac_check(target, ctx, attrs):
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    return [JvmCheckInfo(log = log, tool = "scalac")]
+    return [JvmCheckInfo(log = log, tool = "scalac", unused_deps = [])]
 
 def _jvm_check_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -282,7 +300,7 @@ def _jvm_check_impl(target, ctx):
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    return [JvmCheckInfo(log = log, tool = "javac")]
+    return [JvmCheckInfo(log = log, tool = "javac", unused_deps = _unused_deps_files(target, ctx, attrs))]
 
 jvm_check_aspect = aspect(
     implementation = _jvm_check_impl,

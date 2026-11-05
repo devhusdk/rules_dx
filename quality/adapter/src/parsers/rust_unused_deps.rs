@@ -119,6 +119,17 @@ pub fn place_unused_dependency(
     build_file: &str,
     text: &str,
 ) -> Option<FileFinding> {
+    place_dependency_finding(unused, build_file, text, "rustc", RULE_ID)
+}
+
+/// Like `place_unused_dependency`, reported by `tool_id` under `rule_id`.
+pub fn place_dependency_finding(
+    unused: &UnusedDependency,
+    build_file: &str,
+    text: &str,
+    tool_id: &str,
+    rule_id: &str,
+) -> Option<FileFinding> {
     let (start, end) = dep_literal(text, &unused.target, &unused.dependency)?;
     let (cut_start, cut_end) = removal(text, start, end);
     let message = format!(
@@ -128,8 +139,8 @@ pub fn place_unused_dependency(
     Some(FileFinding {
         file: build_file.to_owned(),
         finding: Finding {
-            tool_id: "rustc".to_owned(),
-            rule_id: RULE_ID.to_owned(),
+            tool_id: tool_id.to_owned(),
+            rule_id: rule_id.to_owned(),
             message,
             severity: ToolSeverity::Warning,
             start: position(text, start),

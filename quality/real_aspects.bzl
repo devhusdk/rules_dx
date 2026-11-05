@@ -426,8 +426,8 @@ def _jvm_check_hook(tool):
     def _hook(target, _ctx, resolved, _capability, _what, _shared):
         if JvmCheckInfo not in target or target[JvmCheckInfo].tool != tool:
             return _without(resolved, tool)
-        log = target[JvmCheckInfo].log
-        return real_context(upstream = [log], late_inputs = [log])
+        files = [target[JvmCheckInfo].log] + target[JvmCheckInfo].unused_deps
+        return real_context(upstream = files, late_inputs = files)
 
     return _hook
 

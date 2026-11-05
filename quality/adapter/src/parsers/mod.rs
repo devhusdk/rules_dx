@@ -55,6 +55,7 @@ pub mod jsonnetfmt;
 pub mod julia_format;
 pub mod julialint;
 pub mod jvm_diagnostics;
+pub mod jvm_unused_deps;
 pub mod keep_sorted;
 pub mod knip;
 pub mod ktfmt;

@@ -487,8 +487,7 @@ register_toolchains("//cc/toolchains:msvc_windows_x86_64")
 # The guard must stay last among the MSVC entries.
 register_toolchains("//cc/toolchains:msvc_unsupported")
 
-register_toolchains("@llvm//toolchain:all")
-
+# before @llvm so rules_swift sees a versioned Apple triple on macOS
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension", dev_dependency = True)
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
 
@@ -496,6 +495,8 @@ register_toolchains(
     "@local_config_apple_cc_toolchains//:all",
     dev_dependency = True,
 )
+
+register_toolchains("@llvm//toolchain:all")
 
 # A consumer-declared GCC distribution by url and sha256, written the way a consumer would.
 # It reuses the pinned archive and is selected only through --extra_toolchains in tests.

@@ -507,3 +507,42 @@ fn family_files_define_aspects_listed_in_families_json() {
         }
     }
 }
+
+/// The source-check targets every moved family declares in its own `BUILD.bazel`.
+const FAMILY_CHECK_TARGETS: [&str; 1] = ["corpus_starlark"];
+
+fn missing_check_targets(family: &str, build_file: Option<&str>) -> Vec<String> {
+    let Some(text) = build_file else {
+        return vec![format!("{family}: no BUILD.bazel at the family root")];
+    };
+    FAMILY_CHECK_TARGETS
+        .iter()
+        .filter(|name| !text.contains(&format!("name = \"{name}\"")))
+        .map(|name| format!("{family}: BUILD.bazel has no {name} target"))
+        .collect()
+}
+
+#[test]
+fn moved_families_declare_the_source_check_targets() {
+    let root = dx_testing::rules_dx_source();
+    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let mut problems = Vec::new();
+    for (family, path) in &paths {
+        let text = std::fs::read_to_string(root.join(path).join("BUILD.bazel")).ok();
+        problems.extend(missing_check_targets(family, text.as_deref()));
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn a_family_without_a_build_file_or_target_is_reported() {
+    assert_eq!(
+        missing_check_targets("x", None),
+        ["x: no BUILD.bazel at the family root"]
+    );
+    assert_eq!(
+        missing_check_targets("x", Some("")),
+        ["x: BUILD.bazel has no corpus_starlark target"]
+    );
+    assert!(missing_check_targets("x", Some("name = \"corpus_starlark\"")).is_empty());
+}

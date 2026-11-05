@@ -274,7 +274,7 @@ index 66d079f..19ad674 100644
  def _filter_package_env(flags):
      # Strips out -package-env from the command-line flags.  Consumers of these output
 diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
-index 0fa4fd9..eba5803 100644
+index 0fa4fd9..32bacef 100644
 --- a/haskell/private/actions/link.bzl
 +++ b/haskell/private/actions/link.bzl
 @@ -90,17 +90,15 @@ def darwin_flags_for_linking_indirect_cc_deps(hs, cc, posix, basename, dynamic):
@@ -292,24 +292,28 @@ index 0fa4fd9..eba5803 100644
          done
          """.format(
 -            nm = cc.tools.nm,
-+            nm = cc.tools.nm or "/usr/bin/nm",
 -            head = posix.commands["head"],
 -            sed = posix.commands["sed"],
++            nm = cc.tools.nm or "/usr/bin/nm",
              solibs = " ".join(["\"" + lib.path + "\"" for lib in cc_dynamic_libs]),
              out = linker_flags_file.path,
          ),
-@@ -138,8 +136,8 @@ def link_binary(
-         # assume `otool` and `install_name_tool` are available at the same location as `ar`
-         ar_bindir = paths.dirname(cc.tools.ar)
+@@ -135,11 +133,9 @@ def link_binary(
+         args.add("-prof")
  
+     if hs.toolchain.is_darwin:
+-        # assume `otool` and `install_name_tool` are available at the same location as `ar`
+-        ar_bindir = paths.dirname(cc.tools.ar)
+-
 -        args.add(paths.join(ar_bindir, "otool"), format = "-pgmotool=%s")
 -        args.add(paths.join(ar_bindir, "install_name_tool"), format = "-pgminstall_name_tool=%s")
-+        args.add(paths.join(ar_bindir, "llvm-otool"), format = "-pgmotool=%s")
-+        args.add(paths.join(ar_bindir, "llvm-install-name-tool"), format = "-pgminstall_name_tool=%s")
++        # The hermetic llvm toolchain does not ship these files to the sandbox.
++        args.add("/usr/bin/otool", format = "-pgmotool=%s")
++        args.add("/usr/bin/install_name_tool", format = "-pgminstall_name_tool=%s")
  
      args.add_all(hs.toolchain.ghcopts)
      args.add_all(compiler_flags)
-@@ -323,7 +321,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
+@@ -323,7 +319,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
              "lib{0}.a".format(pkg_id.library_name(hs, my_pkg_id, prof_suffix = with_profiling)),
          ),
      )
@@ -318,14 +322,27 @@ index 0fa4fd9..eba5803 100644
      args = hs.actions.args()
  
      # On Windows, any of the object files might actually be static archives already
-@@ -391,8 +389,8 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
-         # assume `otool` and `install_name_tool` are available at the same location as `ar`
-         ar_bindir = paths.dirname(cc.tools.ar)
+@@ -335,6 +331,8 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
+     # See https://github.com/tweag/rules_haskell/issues/2299
+     if hs.toolchain.is_windows:
+         args.add_all(["qcL", static_library])
++    elif hs.toolchain.is_darwin:
++        args.add_all(["-static", "-o", static_library])
+     else:
+         args.add_all(["qc", static_library])
+     args.add_all(object_files)
+@@ -388,11 +386,9 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
+     args.add_all(["-shared", "-dynamic"])
  
+     if hs.toolchain.is_darwin:
+-        # assume `otool` and `install_name_tool` are available at the same location as `ar`
+-        ar_bindir = paths.dirname(cc.tools.ar)
+-
 -        args.add(paths.join(ar_bindir, "otool"), format = "-pgmotool=%s")
 -        args.add(paths.join(ar_bindir, "install_name_tool"), format = "-pgminstall_name_tool=%s")
-+        args.add(paths.join(ar_bindir, "llvm-otool"), format = "-pgmotool=%s")
-+        args.add(paths.join(ar_bindir, "llvm-install-name-tool"), format = "-pgminstall_name_tool=%s")
++        # The hermetic llvm toolchain does not ship these files to the sandbox.
++        args.add("/usr/bin/otool", format = "-pgmotool=%s")
++        args.add("/usr/bin/install_name_tool", format = "-pgminstall_name_tool=%s")
  
      args.add_all(hs.toolchain.ghcopts)
      args.add_all(compiler_flags)
@@ -422,7 +439,7 @@ index 0d3ea2f..0d338db 100644
          **kwargs
      )
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
-index be9fceb..860e665 100644
+index be9fceb..a3ccd1f 100644
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
 @@ -83,10 +83,10 @@ WORKSPACE = "{:workspace:}"
@@ -430,11 +447,11 @@ index be9fceb..860e665 100644
  PLATFORM = os.environ.get("CC_WRAPPER_PLATFORM", "{:platform:}")
  CPU = os.environ.get("CC_WRAPPER_CPU", "{:cpu:}")
 -INSTALL_NAME_TOOL = "{:bindir:}/install_name_tool"
-+INSTALL_NAME_TOOL = "{:bindir:}/llvm-install-name-tool"
++INSTALL_NAME_TOOL = "/usr/bin/install_name_tool"
  CODESIGN = "{:bindir:}/codesign"
  CODESIGN_ALLOCATE = "{:bindir:}/codesign_allocate"
 -OTOOL = "{:bindir:}/otool"
-+OTOOL = "{:bindir:}/llvm-otool"
++OTOOL = "/usr/bin/otool"
  
  
  def main():

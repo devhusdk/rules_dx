@@ -303,6 +303,7 @@ fn whole_file_excluded(path: &str, source: &str) -> bool {
     let marker = match line_comment_syntax(path) {
         Some(LineComment::Hash) => "#",
         Some(LineComment::Percent) => "%",
+        Some(LineComment::DashDash) => "--",
         _ => "//",
     };
     source.lines().enumerate().all(|(index, line)| {

@@ -118,7 +118,7 @@ Tests in these languages fail with `no_coverage_collector`: Fortran and OCaml. T
 
 Zig tests run under kcov, which runs on Linux only. On macOS and Windows a Zig test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources under `--instrument_test_targets`.
 
-Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, PHP, Zig, and C/C++. Use `#` in Python, Ruby, Perl, PowerShell, Julia, and Elixir. Use `%` in Erlang. A marker that covers no instrumented line, or that excludes every instrumented line of a file, fails `--min-coverage`.
+Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, PHP, Zig, and C/C++. Use `#` in Python, Ruby, Perl, PowerShell, Julia, and Elixir. Use `%` in Erlang. Use `--` in Haskell. A marker that covers no instrumented line, or that excludes every instrumented line of a file, fails `--min-coverage`.
 
 ## `dx run`
 

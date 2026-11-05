@@ -75,6 +75,7 @@ fn every_covered_language_is_scanned_with_its_own_comment_marker() {
             LineComment::SlashSlash => "//",
             LineComment::Hash => "#",
             LineComment::Percent => "%",
+            LineComment::DashDash => "--",
         }
     }
     for (extension, syntax) in COVERED_LANGUAGES {

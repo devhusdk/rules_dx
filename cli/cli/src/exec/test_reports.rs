@@ -1924,6 +1924,19 @@ mod tests {
     }
 
     #[test]
+    fn coverage_merges_the_lcov_a_haskell_test_writes() {
+        let lcov = "SF:tools/coverage/haskell/fixture/Greeter.hs\nDA:4,1\nDA:7,0\nLF:2\nLH:1\nend_of_record\n";
+        let harness = coverage_harness("cov-haskell-hpc", lcov.as_bytes());
+        let harness = with_sources(
+            harness,
+            "v1 cell linux_x86_64\nprod source tools/coverage/haskell/fixture/Greeter.hs\n",
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=50"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("50.00% (1/2 lines) meets minimum 50%"), "{err}");
+    }
+
+    #[test]
     fn coverage_min_coverage_fails_below_threshold() {
         let harness = coverage_harness("cov-threshold-low", HALF_LCOV.as_bytes());
         let harness = with_sources(harness, PY_SOURCES);

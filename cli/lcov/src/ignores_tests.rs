@@ -289,6 +289,18 @@ fn hash_range_excludes_boundaries_for_python() {
 }
 
 #[test]
+fn dash_comment_markers_are_honored_for_haskell() {
+    let source = file_lines(&[
+        "f = 1".to_string(),
+        format!("g = 2 -- {} - reason: fixture, issue: 1055.", marker("_LINE")),
+        "h = \"--\"".to_string(),
+    ]);
+    let ignores = find_ignores("t.hs", &source).unwrap();
+    assert!(ignores.singles.contains_key(&2));
+    assert!(!is_ignored(&ignores, 3));
+}
+
+#[test]
 fn percent_comment_markers_are_honored_for_erlang() {
     for (path, prefix) in [("t.erl", "%"), ("t.erl", "%%"), ("t.hrl", "%")] {
         let source = file_lines(&[

@@ -4,6 +4,7 @@ pub(crate) enum LineComment {
     SlashSlash,
     Hash,
     Percent,
+    DashDash,
 }
 
 /// Extensions the gate counts executable lines for, each with its line-comment syntax.
@@ -21,6 +22,7 @@ pub(crate) const COVERED_LANGUAGES: &[(&str, LineComment)] = &[
     (".jl", LineComment::Hash),
     (".erl", LineComment::Percent),
     (".hrl", LineComment::Percent),
+    (".hs", LineComment::DashDash),
     (".js", LineComment::SlashSlash),
     (".jsx", LineComment::SlashSlash),
     (".mjs", LineComment::SlashSlash),

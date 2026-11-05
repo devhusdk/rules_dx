@@ -1,6 +1,147 @@
 use quality_adapter::parsers::{self, jvm_unused_deps, rust_unused_deps, FileFinding};
 
+use super::check::ToolDef;
 use super::*;
+
+/// Tools that only replay what their compiler already reported.
+pub(super) const TOOLS: &[ToolDef] = &[
+    ToolDef {
+        id: "clippy",
+        run: |backend, call| {
+            backend.check_clippy_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "rustc",
+        run: |backend, call| {
+            backend.check_rustc_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "roslyn",
+        run: |backend, call| {
+            backend.check_roslyn_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "csc",
+        run: |backend, call| {
+            backend.check_csc_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "fsc",
+        run: |backend, call| {
+            backend.check_fsc_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "clang_syntax",
+        run: |backend, call| {
+            backend.check_clang_syntax_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "flang",
+        run: |backend, call| {
+            backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "ghc",
+        run: |backend, call| {
+            backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "ldc",
+        run: |backend, call| {
+            backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "ocaml",
+        run: |backend, call| {
+            backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "zig",
+        run: |backend, call| {
+            backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "javac",
+        run: |backend, call| {
+            backend.check_jvm_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "kotlinc",
+        run: |backend, call| {
+            backend.check_jvm_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "scalac",
+        run: |backend, call| {
+            backend.check_jvm_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "nvcc_syntax",
+        run: |backend, call| {
+            backend.check_nvcc_syntax_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "errcheck",
+        run: |backend, call| {
+            backend.check_go_analysis_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "gotype",
+        run: |backend, call| {
+            backend.check_go_analysis_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "govet",
+        run: |backend, call| {
+            backend.check_go_analysis_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "tsc",
+        run: |backend, call| {
+            backend.check_tsc_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
+        id: "zanuda",
+        run: |backend, call| {
+            backend.check_zanuda(
+                call.tool_id,
+                call.tool,
+                &call.staged.scratch,
+                &call.staged.pairs,
+            )
+        },
+    },
+    ToolDef {
+        id: "knip",
+        run: |backend, call| {
+            backend.check_knip(
+                call.tool_id,
+                call.tool,
+                &call.staged.scratch,
+                &call.staged.pairs,
+            )
+        },
+    },
+];
 
 type LogParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
 

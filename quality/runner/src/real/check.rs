@@ -61,7 +61,12 @@ impl RealBackend {
         let strs: Vec<&str> = names.iter().map(String::as_str).collect();
         let config = self.config_abs(tool_id, tool, scratch)?;
         let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
-        if let Some(def) = TOOL_DEFS.iter().find(|def| def.id == tool_id) {
+        if let Some(def) = TOOL_DEFS
+            .iter()
+            .copied()
+            .chain(super::delegated::TOOLS.iter())
+            .find(|def| def.id == tool_id)
+        {
             let call = CheckCall {
                 tool_id,
                 tool,
@@ -99,8 +104,6 @@ impl RealBackend {
                 }
                 Ok(kept)
             }
-            "clippy" => self.check_clippy_delegated(tool_id, tool, pairs),
-            "rustc" => self.check_rustc_delegated(tool_id, tool, pairs),
             "markdown_check" => {
                 let specs: Vec<(&str, &Path)> = pairs
                     .iter()
@@ -627,19 +630,6 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
-            "roslyn" => self.check_roslyn_delegated(tool_id, tool, pairs),
-            "csc" => self.check_csc_delegated(tool_id, tool, pairs),
-            "fsc" => self.check_fsc_delegated(tool_id, tool, pairs),
-            "clang_syntax" => self.check_clang_syntax_delegated(tool_id, tool, pairs),
-            "flang" | "ghc" | "ldc" | "ocaml" | "zig" => {
-                self.check_compile_log_delegated(tool_id, tool, pairs)
-            }
-            "javac" | "kotlinc" | "scalac" => self.check_jvm_log_delegated(tool_id, tool, pairs),
-            "nvcc_syntax" => self.check_nvcc_syntax_delegated(tool_id, tool, pairs),
-            "errcheck" | "gotype" | "govet" => {
-                self.check_go_analysis_delegated(tool_id, tool, pairs)
-            }
-            "tsc" => self.check_tsc_delegated(tool_id, tool, pairs),
             "fsharplint" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_fsharplint_delegated(tool_id, tool, pairs)
@@ -787,7 +777,6 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
-            "zanuda" => self.check_zanuda(tool_id, tool, scratch, pairs),
             "phpcs" => {
                 // phpcs reports the paths it was given, resolved; pass and match canonical ones.
                 let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
@@ -2340,7 +2329,6 @@ impl RealBackend {
                 |files| Ok(commands::typos_check(&tool.binary, files)),
                 |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
             ),
-            "knip" => self.check_knip(tool_id, tool, scratch, pairs),
             "lychee" => {
                 let root = scratch.root();
                 let online = tool
@@ -2396,7 +2384,7 @@ impl RealBackend {
 
     /// Knip analyses a whole package, so it runs once in each package root: the nearest
     /// directory at or above a staged file that holds a `package.json`.
-    fn check_knip(
+    pub(super) fn check_knip(
         &self,
         tool_id: &str,
         tool: &RealTool,
@@ -2459,7 +2447,7 @@ impl RealBackend {
     /// `.cmt`/`.cmti` as `dx-zanuda/{impl,intf}/<source workspace path>.cmt[i]`. This batch lints
     /// the entries whose source is in `pairs` and fails when an owned source has none, so a
     /// target built with `-no-bin-annot` never reads as clean.
-    fn check_zanuda(
+    pub(super) fn check_zanuda(
         &self,
         tool_id: &str,
         tool: &RealTool,

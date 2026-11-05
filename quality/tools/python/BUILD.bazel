@@ -177,6 +177,18 @@ py_binary(
 )
 
 py_binary(
+    name = "openapi_python_client",
+    srcs = [
+        "openapi_python_client_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "openapi_python_client_main.py",
+    visibility = ["//api_spec/rules:__pkg__"],
+    deps = ["@pypi//openapi_python_client"],
+)
+
+py_binary(
     name = "ansible_lint",
     srcs = [
         "ansible_lint_main.py",

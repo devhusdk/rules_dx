@@ -61,6 +61,11 @@ def codegen_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "codegen admits the openapi/python pair that openapi_python_client feeds",
+                codegen_pair_error("openapi", "python"),
+                "",
+            ),
+            expect_equal(
                 "codegen admits the flatbuffers cpp, rust and java pairs (#2316) and defers other languages",
                 [
                     codegen_pair_error("flatbuffers", "cpp") == "",

@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_go_client", "openapi_typescript_client")
+load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_typescript_client")
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go/rules:defs.bzl", "go_library")
@@ -108,6 +108,47 @@ go_library(
     deps = ["@com_github_oapi_codegen_runtime//:runtime"],
 )
 
+openapi_python_client(
+    name = "petstore_py",
+    spec = ":petstore",
+)
+
+openapi_codegen_shard(
+    name = "petstore_py_shard",
+    client = ":petstore_py",
+    entries = ["gen/petstore|gen|petstore|api_spec/tests/petstore_py"],
+    language = "python",
+)
+
+codegen_shard_argv_test(
+    name = "petstore_py_shard_argv_test",
+    expected = [
+        "--producer",
+        "//api_spec/tests:petstore_py_shard",
+        "--language",
+        "python",
+        "--entry",
+        "gen/petstore|gen|petstore|api_spec/tests/petstore_py",
+        "--output",
+    ],
+    output = "api_spec/tests/petstore_py_shard.dxcodegen.pb",
+    target_under_test = ":petstore_py_shard",
+)
+
+genrule(
+    name = "petstore_py_check",
+    testonly = True,
+    srcs = [":petstore_py"],
+    outs = ["petstore_py_check.txt"],
+    cmd = "$(PYTHON3) -m compileall -q $(location :petstore_py) && test -f $(location :petstore_py)/client.py && grep -rq list_pets $(location :petstore_py)/api && echo ok > $@",
+    toolchains = ["@rules_python//python:current_py_toolchain"],
+)
+
+build_test(
+    name = "petstore_py_check_test",
+    targets = [":petstore_py_check"],
+)
+
 openapi_codegen_shard(
     name = "unmatched_shard",
     client = ":client",
@@ -117,10 +158,10 @@ openapi_codegen_shard(
 )
 
 openapi_codegen_shard(
-    name = "python_shard",
+    name = "ruby_shard",
     client = ":client",
-    entries = ["gen/shop/client.py|gen|shop|api_spec/tests/client.ts"],
-    language = "python",
+    entries = ["gen/shop/client.rb|gen|shop|api_spec/tests/client.ts"],
+    language = "ruby",
     tags = ["manual"],
 )
 
@@ -139,8 +180,8 @@ openapi_codegen_failure_test(
 
 openapi_codegen_failure_test(
     name = "non_admitted_pair_test",
-    message = "unsupported codegen pair ('openapi', 'python')",
-    target_under_test = ":python_shard",
+    message = "unsupported codegen pair ('openapi', 'ruby')",
+    target_under_test = ":ruby_shard",
 )
 
 openapi_codegen_failure_test(

@@ -38,6 +38,7 @@ DX_CODEGEN_ADMITTED_PAIRS = (
     ("protobuf", "rust"),
     ("openapi", "typescript"),
     ("openapi", "go"),
+    ("openapi", "python"),
     ("flatbuffers", "cpp"),
     ("flatbuffers", "rust"),
     ("flatbuffers", "java"),

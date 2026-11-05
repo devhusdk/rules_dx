@@ -363,6 +363,7 @@ const STATIX_FIX_PREFIX: &[&str] = &["fix"];
 const END_OF_FLAGS: &[&str] = &["--"];
 const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
+const DEBRIDE_ARGS: &[&str] = &["--rails", "--json"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const TYPOS_CHECK_ARGS: &[&str] = &["--format", "json", "--"];
@@ -2567,6 +2568,10 @@ pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DEADNIX_FIX_ARGS, files, "")
+}
+
+pub fn debride_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DEBRIDE_ARGS, files, "")
 }
 
 /// The suffix of a kubeconform config file.

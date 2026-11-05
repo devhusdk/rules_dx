@@ -3458,6 +3458,72 @@ fn deadnix_reports_and_removes_dead_code() {
     );
 }
 
+const DEBRIDE_DIRTY: &str = "class Foo\n  def bar\n  end\nend\n";
+
+fn debride_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(argv.iter().any(|arg| arg == "--json"));
+    let mut bars = Vec::new();
+    for arg in argv
+        .iter()
+        .filter(|arg| arg.to_string_lossy().ends_with(".rb"))
+    {
+        let file = arg.to_string_lossy().into_owned();
+        let body = std::fs::read_to_string(&file).expect("read staged ruby file");
+        if body.contains("def bar") {
+            bars.push(serde_json::json!(["bar", format!("{file}:2-3")]));
+        }
+    }
+    let missing = if bars.is_empty() {
+        serde_json::json!({})
+    } else {
+        serde_json::json!({"Foo": bars})
+    };
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: serde_json::json!({"missing": missing})
+            .to_string()
+            .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn debride_garbage(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"Foo\n  bar lib/foo.rb:2\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn debride_reports_one_uncalled_method() {
+    let backend = backend_for("debride", plain_tool(), debride_tool);
+    let findings = backend
+        .diagnose("debride", "lint", &single("lib/foo.rb", DEBRIDE_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "debride");
+    assert_eq!(findings[0].rule_id, "uncalled_method");
+    assert_eq!(findings[0].path, "lib/foo.rb");
+}
+
+#[test]
+fn debride_garbage_fails_the_action() {
+    let backend = backend_for("debride", plain_tool(), debride_garbage);
+    backend
+        .diagnose("debride", "lint", &single("lib/foo.rb", DEBRIDE_DIRTY))
+        .expect_err("garbage is never clean");
+}
+
 #[test]
 fn deadnix_garbage_fails_the_action() {
     let backend = backend_for("deadnix", plain_tool(), deadnix_garbage);

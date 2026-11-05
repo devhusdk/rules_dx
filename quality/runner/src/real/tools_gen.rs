@@ -24,6 +24,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "cue",
     "dart",
     "deadnix",
+    "debride",
     "detekt",
     "dfmt",
     "dialyzer",

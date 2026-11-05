@@ -81,8 +81,9 @@ ruby_test(
 
 ## Formatting and linting
 
-`standardrb` formats and `rubocop` lints. Both run from the gems of a bundle
-you declare, and you point them at it in `.bazelrc`. See
+`standardrb` formats, `rubocop` lints, and `debride` reports methods nothing
+calls as info. All three run from the gems of a bundle you declare, and you
+point them at it in `.bazelrc`. See
 the Quality page of the command reference for the bundle, the flags and the
 family setup.
 

@@ -14,6 +14,13 @@ TOOLS = {
         "resources": "heavy",
         "shard": "ruby",
     },
+    "debride": {
+        "attr": attr.label(default = "//quality/tools/ruby:debride", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "medium",
+        "shard": "ruby",
+    },
     "rubocop": {
         "attr": attr.label(default = "//quality/tools/ruby:rubocop", cfg = "exec", executable = True),
         "capabilities": ["lint"],

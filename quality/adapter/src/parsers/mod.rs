@@ -22,6 +22,7 @@ pub mod cue;
 pub mod dart_analyze;
 pub mod dart_format;
 pub mod deadnix;
+pub mod debride;
 pub mod detekt;
 pub mod dfmt;
 pub mod dialyzer;
@@ -158,6 +159,7 @@ pub use cue::{parse_cue, parse_cue_vet};
 pub use dart_analyze::{parse_dart_analyze, DartAnalyzeView};
 pub use dart_format::parse_dart_format;
 pub use deadnix::parse_deadnix;
+pub use debride::parse_debride;
 pub use detekt::parse_detekt;
 pub use dfmt::parse_dfmt;
 pub use dialyzer::parse_dialyzer;
@@ -2497,6 +2499,14 @@ mod tests {
         super::deadnix::parse_deadnix(input, input, code, files)
     }
 
+    fn fuzz_debride(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::debride::parse_debride(input, input, code, files)
+    }
+
     fn fuzz_statix(
         input: &[u8],
         code: Option<i32>,
@@ -2987,6 +2997,7 @@ mod tests {
         ("cue", fuzz_cue),
         ("cue_vet", fuzz_cue_vet),
         ("deadnix", fuzz_deadnix),
+        ("debride", fuzz_debride),
         ("dfmt", fuzz_dfmt),
         ("detekt", fuzz_detekt),
         ("dscanner", fuzz_dscanner),
@@ -3137,6 +3148,7 @@ mod tests {
         ("credo", include_str!("credo.rs")),
         ("cue", include_str!("cue.rs")),
         ("deadnix", include_str!("deadnix.rs")),
+        ("debride", include_str!("debride.rs")),
         ("dfmt", include_str!("dfmt.rs")),
         ("detekt", include_str!("detekt.rs")),
         ("dscanner", include_str!("dscanner.rs")),

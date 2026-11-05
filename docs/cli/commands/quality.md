@@ -241,6 +241,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `flake8`, `pylint`, `pydoclint` | Lint Python | |
 | `ty` | Typecheck Python and Jupyter | |
 | `rubocop` | Lint Ruby | `windows_x86_64`, `windows_arm64` |
+| `debride` | Report Ruby methods nothing calls (info) | `windows_x86_64`, `windows_arm64` |
 | `standardrb` | Format Ruby | `windows_x86_64`, `windows_arm64` |
 | `sorbet` | Typecheck Ruby | `windows_x86_64`, `windows_arm64` |
 | `phpcs` | Lint PHP | `windows_arm64` |

@@ -2227,6 +2227,19 @@ impl RealBackend {
                     },
                 )
             }
+            "debride" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::debride_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_debride(&out.stdout, &out.stderr, out.code, names),
+                    )
+                },
+            ),
             "nixfmt" => self.check_files(
                 tool_id,
                 tool,

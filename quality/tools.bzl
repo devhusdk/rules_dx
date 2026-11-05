@@ -661,6 +661,26 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "debride",
+        adapters = {"lint": ["ruby"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["ruby"],
+                context = "owned",
+                family = "ruby",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+                    "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+                },
+            ),
+        ],
+    ),
+    tool(
         id = "detekt",
         adapters = {"lint": ["kotlin"]},
         config_suffix = [".yml", ".yaml"],

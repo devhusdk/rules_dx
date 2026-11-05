@@ -109,6 +109,7 @@ pub(crate) fn execute_update_outdated(invocation: &Invocation, env: Env<'_>) -> 
 fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     let Env {
         workspace,
+        query_runner,
         out,
         err,
         ..
@@ -149,7 +150,12 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         ecosystems,
         ..
     } = collect(workspace, &resolved, &builtins, false, fetch);
-    let unused = update_unused::find(workspace, &resolved);
+    let unused = update_unused::find(
+        workspace,
+        &resolved,
+        query_runner,
+        &invocation.bazel_startup_options,
+    );
     let missing = update_unused::find_missing(workspace, &resolved);
     let findings_fail = invocation.fail_on_unused && !(unused.is_empty() && missing.is_empty());
     let exit = i32::from(!found.errors.is_empty() || findings_fail);

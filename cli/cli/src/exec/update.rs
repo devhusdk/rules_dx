@@ -29,7 +29,13 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     } {
         if invocation.prune {
-            if let Err(code) = prune_unused(invocation, env.workspace, &registry, env.err) {
+            if let Err(code) = prune_unused(
+                invocation,
+                env.workspace,
+                env.query_runner,
+                &registry,
+                env.err,
+            ) {
                 return code;
             }
         }
@@ -41,6 +47,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
 fn prune_unused(
     invocation: &Invocation,
     workspace: &std::path::Path,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
     registry: &dx_adopt::dependency_sets::Registry,
     err: &mut dyn std::io::Write,
 ) -> Result<(), i32> {
@@ -56,7 +63,12 @@ fn prune_unused(
         Ok(resolved) => resolved,
         Err(error) => return fail(&error.to_string()),
     };
-    let unused = update_unused::find(workspace, &resolved);
+    let unused = update_unused::find(
+        workspace,
+        &resolved,
+        query_runner,
+        &invocation.bazel_startup_options,
+    );
     match update_prune::prune(workspace, &unused) {
         Ok(removed) => {
             for item in removed {

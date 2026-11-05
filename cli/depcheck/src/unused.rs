@@ -55,6 +55,58 @@ pub fn parse_set_exceptions(path: &Path) -> Result<Vec<SetException>, DepcheckEr
     Ok(out)
 }
 
+/// A dependency declared in a manifest, as the Bazel graph would name it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclaredDep {
+    pub name: String,
+    /// The lock name when the entry is renamed, else the declared name.
+    pub hub: String,
+    /// One-based line of the declaration in the manifest, 0 when it cannot be found.
+    pub line: usize,
+}
+
+fn declaration_line(text: &str, raw: &str) -> usize {
+    text.lines()
+        .position(|line| line.contains(raw))
+        .map_or(0, |at| at + 1)
+}
+
+fn kept(text: &str, line: usize) -> bool {
+    line > 0
+        && text
+            .lines()
+            .nth(line - 1)
+            .and_then(|l| l.split_once('#'))
+            .is_some_and(|(_, comment)| comment.trim_start().starts_with("dx-keep"))
+}
+
+/// Declared dependencies of `manifest` without JS peers and `# dx-keep` lines.
+pub fn declared(eco: Ecosystem, manifest: &Path) -> Result<Vec<DeclaredDep>, DepcheckError> {
+    let mut deps = crate::consistency::load_manifest(eco, manifest)?;
+    if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
+        deps.retain(|_, v| !v.peer);
+    }
+    let text = std::fs::read_to_string(manifest).unwrap_or_default();
+    let mut out = Vec::new();
+    for info in deps.values() {
+        let line = declaration_line(&text, &info.raw);
+        if kept(&text, line) {
+            continue;
+        }
+        let hub = if info.package.is_empty() {
+            info.raw.clone()
+        } else {
+            info.package.clone()
+        };
+        out.push(DeclaredDep {
+            name: info.raw.clone(),
+            hub,
+            line,
+        });
+    }
+    Ok(out)
+}
+
 /// Declared dependencies of `manifest` that nothing under `sources` uses, minus `excepted`.
 pub fn find_unused(
     eco: Ecosystem,
@@ -79,10 +131,10 @@ pub fn find_unused(
         if usage.src || usage.test || usage.build || excepted.contains(key) {
             continue;
         }
-        let line = text
-            .lines()
-            .position(|line| line.contains(info.raw.as_str()))
-            .map_or(0, |at| at + 1);
+        let line = declaration_line(&text, &info.raw);
+        if kept(&text, line) {
+            continue;
+        }
         out.push(UnusedDep {
             name: info.raw.clone(),
             line,
@@ -122,6 +174,25 @@ mod tests {
         let found = find_unused(Ecosystem::Rust, &manifest, dir.path(), &["regex".into()])
             .expect("find unused");
         assert!(found.is_empty());
+    }
+
+    #[test]
+    fn declared_uses_the_lock_name_and_skips_dx_keep() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        write(
+            dir.path(),
+            "Cargo.toml",
+            "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nre = { package = \"regex\", version = \"1\" }\ncc = \"1\" # dx-keep\n",
+        );
+        let manifest = dir.path().join("Cargo.toml");
+        let got = declared(Ecosystem::Rust, &manifest).expect("declared");
+        let hubs: Vec<(&str, &str)> = got
+            .iter()
+            .map(|d| (d.name.as_str(), d.hub.as_str()))
+            .collect();
+        assert_eq!(hubs, vec![("re", "regex"), ("serde", "serde")]);
+        let found = find_unused(Ecosystem::Rust, &manifest, dir.path(), &[]).expect("unused");
+        assert!(found.iter().all(|d| d.name != "cc"));
     }
 
     #[test]

@@ -4,6 +4,7 @@ exports_files([
     "native_sdist_toolchain_flags.patch",
     "pep517_msvc.patch",
     "py_cc_toolchain_platform.patch",
+    "venv_bin_files.patch",
 ])
 
 real_source_target(

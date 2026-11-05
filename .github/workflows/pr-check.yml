@@ -36,6 +36,10 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           tools/ci/pr_check.sh preflight $BAZEL_CONFIG $BB_ARGS
+      - name: preflight-windows-arm64
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh preflight-windows-arm64 $BAZEL_CONFIG $BB_ARGS
       - name: starter
         run: |
           # shellcheck disable=SC2086

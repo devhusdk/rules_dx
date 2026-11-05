@@ -4,9 +4,10 @@ use dx_testing::read_runfiles;
 const CI: &str = ".github/workflows/ci.yml";
 const WORKFLOW: &str = ".github/workflows/pr-check.yml";
 const SCRIPT: &str = "tools/ci/pr_check.sh";
-const SETS: [&str; 7] = [
+const SETS: [&str; 8] = [
     "workflow",
     "preflight",
+    "preflight-windows-arm64",
     "starter",
     "hermetic",
     "docs",
@@ -68,6 +69,19 @@ fn starter_set_runs_the_golden_presence_test() {
         starter.contains("bazel test \"$@\" //tools/testing/starters:starter_goldens_test"),
         "starter set does not run starter_goldens_test: {starter}"
     );
+}
+
+#[test]
+fn windows_arm64_set_targets_the_platform() {
+    let script = read_runfiles(SCRIPT);
+    let start = script
+        .find("preflight-windows-arm64() {")
+        .expect("windows_arm64 set");
+    let body = &script[start..];
+    let body = &body[..body.find("\n}\n").expect("end of set")];
+    assert!(body.contains("--platforms=//msix/platforms:windows_arm64"));
+    assert!(body.contains("--skip_incompatible_explicit_targets"));
+    assert!(body.contains("//dart/tools:all"));
 }
 
 #[test]

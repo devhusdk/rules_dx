@@ -43,8 +43,9 @@ dx lint
 ## macOS arm64
 
 On macOS the same rules build with the Xcode installed on the host. Install
-Xcode first; no Swift toolchain is downloaded. Binaries link the system Swift
-runtime dynamically.
+Xcode first; no Swift toolchain is downloaded. Swift targets use the Xcode
+C/C++ toolchain automatically, so `MODULE.bazel` needs no edits. Binaries link
+the system Swift runtime dynamically.
 
 ```sh
 dx build //app:hello

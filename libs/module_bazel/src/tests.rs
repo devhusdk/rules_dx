@@ -1129,6 +1129,24 @@ fn bundle_fetches_follow_the_rules_ruby_extension() {
 }
 
 #[test]
+fn pub_locks_follow_the_rules_dart_and_rules_flutter_extensions() {
+    let file = parse("pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nother = use_extension(\"//dart:extensions.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\n");
+    let found: Vec<_> = file
+        .pub_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("deps", "//dart:pubspec.lock"),
+            ("app", "//app:pubspec.lock")
+        ]
+    );
+}
+
+#[test]
 fn cpan_installs_follow_the_rules_perl_extension() {
     let file = parse("cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n");
     let found: Vec<_> = file

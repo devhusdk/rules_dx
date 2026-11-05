@@ -19,6 +19,8 @@ mod locks_paket;
 mod locks_pnpm;
 #[path = "locks_ruby.rs"]
 mod locks_ruby;
+#[path = "locks_pub.rs"]
+mod locks_pub;
 #[path = "locks_uv.rs"]
 mod locks_uv;
 
@@ -31,6 +33,7 @@ pub use locks_npm::*;
 pub use locks_paket::*;
 pub use locks_pnpm::*;
 pub use locks_ruby::*;
+pub use locks_pub::*;
 pub use locks_uv::*;
 
 /// Reads the Go packages a `go.mod` pins, with its `replace` directives applied.

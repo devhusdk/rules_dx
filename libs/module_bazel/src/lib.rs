@@ -251,6 +251,14 @@ pub struct CpanInstall<'a> {
     pub line: usize,
 }
 
+/// One `pub.from_lock` tag of rules_dart or `flutter.pub` tag of rules_flutter.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PubLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// A parsed MODULE.bazel with its top-level calls in source order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleFile {
@@ -265,6 +273,8 @@ const PY_MODULE: &str = "rules_py";
 const GAZELLE_MODULE: &str = "gazelle";
 const RUBY_MODULE: &str = "rules_dx";
 const PERL_MODULE: &str = "rules_perl";
+const DART_MODULE: &str = "rules_dart";
+const FLUTTER_MODULE: &str = "rules_flutter";
 
 fn dialect() -> Dialect {
     Dialect {
@@ -763,6 +773,26 @@ impl ModuleFile {
                     name: literal(call, TAG, "name")?.unwrap_or("bundle"),
                     gemfile: required(call, TAG, "gemfile")?,
                     gemfile_lock: required(call, TAG, "gemfile_lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `pub.from_lock` tag of rules_dart and `flutter.pub` tag of rules_flutter, in source
+    /// order within each extension.
+    pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
+        let dart = self
+            .tags(DART_MODULE, "dart/pub:extensions.bzl", "pub", "from_lock")
+            .map(|call| ("pub.from_lock", call));
+        let flutter = self
+            .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")
+            .map(|call| ("flutter.pub", call));
+        dart.chain(flutter)
+            .map(|(tag, call)| {
+                Ok(PubLock {
+                    name: required(call, tag, "name")?,
+                    lock: required(call, tag, "lock")?,
                     line: call.line,
                 })
             })

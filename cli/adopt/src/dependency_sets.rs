@@ -21,8 +21,10 @@ pub const ECOSYSTEM_GO: &str = "go";
 
 pub const ECOSYSTEM_CPAN: &str = "cpan";
 
+pub const ECOSYSTEM_PUB: &str = "pub";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -37,6 +39,10 @@ pub const GO_SUM: &str = "go.sum";
 pub const CPANFILE: &str = "cpanfile";
 
 pub const CPANFILE_SNAPSHOT: &str = "cpanfile.snapshot";
+
+pub const PUBSPEC_YAML: &str = "pubspec.yaml";
+
+pub const PUBSPEC_LOCK: &str = "pubspec.lock";
 
 pub const PAKET_LOCK: &str = "paket.lock";
 
@@ -62,6 +68,7 @@ pub enum Ecosystem {
     Nuget,
     Go,
     Cpan,
+    Pub,
 }
 
 impl Ecosystem {
@@ -77,6 +84,7 @@ impl Ecosystem {
             Ecosystem::Nuget => ECOSYSTEM_NUGET,
             Ecosystem::Go => ECOSYSTEM_GO,
             Ecosystem::Cpan => ECOSYSTEM_CPAN,
+            Ecosystem::Pub => ECOSYSTEM_PUB,
         }
     }
 
@@ -92,6 +100,7 @@ impl Ecosystem {
             ECOSYSTEM_NUGET => Some(Ecosystem::Nuget),
             ECOSYSTEM_GO => Some(Ecosystem::Go),
             ECOSYSTEM_CPAN => Some(Ecosystem::Cpan),
+            ECOSYSTEM_PUB => Some(Ecosystem::Pub),
             _ => None,
         }
     }
@@ -104,9 +113,11 @@ impl Ecosystem {
             | Ecosystem::Maven
             | Ecosystem::Nuget
             | Ecosystem::Go => "check",
-            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan => {
-                "pinned"
-            }
+            Ecosystem::Bazel
+            | Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Cpan
+            | Ecosystem::Pub => "pinned",
         }
     }
 
@@ -118,9 +129,11 @@ impl Ecosystem {
             | Ecosystem::Maven
             | Ecosystem::Nuget
             | Ecosystem::Go => "update",
-            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan => {
-                "pinned"
-            }
+            Ecosystem::Bazel
+            | Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Cpan
+            | Ecosystem::Pub => "pinned",
         }
     }
 
@@ -149,7 +162,8 @@ impl Ecosystem {
             | Ecosystem::Maven
             | Ecosystem::Nuget
             | Ecosystem::Go
-            | Ecosystem::Cpan => "audit",
+            | Ecosystem::Cpan
+            | Ecosystem::Pub => "audit",
         }
     }
 
@@ -164,6 +178,7 @@ impl Ecosystem {
             Ecosystem::Nuget => Some("nuget"),
             Ecosystem::Go => Some("go"),
             Ecosystem::Cpan => Some("cpan"),
+            Ecosystem::Pub => Some("pub"),
             Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
@@ -181,6 +196,7 @@ impl Ecosystem {
             Ecosystem::Nuget => "paket.dependencies",
             Ecosystem::Go => GO_MOD,
             Ecosystem::Cpan => CPANFILE,
+            Ecosystem::Pub => PUBSPEC_YAML,
         }
     }
 
@@ -195,7 +211,8 @@ impl Ecosystem {
             | Ecosystem::PowerShell
             | Ecosystem::Nuget
             | Ecosystem::Go
-            | Ecosystem::Cpan => false,
+            | Ecosystem::Cpan
+            | Ecosystem::Pub => false,
         }
     }
 }
@@ -466,6 +483,15 @@ pub fn discover(
                 Ecosystem::Cpan,
                 vec![in_dir(&dir, CPANFILE)],
                 vec![in_dir(&dir, CPANFILE_SNAPSHOT)],
+            )?);
+        }
+        for pub_lock in module.pub_locks().map_err(hub)? {
+            let dir = manifest_dir(std::slice::from_ref(&path(pub_lock.lock)?));
+            sets.push(hub_set(
+                pub_lock.name,
+                Ecosystem::Pub,
+                vec![in_dir(&dir, PUBSPEC_YAML)],
+                vec![in_dir(&dir, PUBSPEC_LOCK)],
             )?);
         }
         let mut groups = BTreeSet::new();
@@ -771,6 +797,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Ruby
         | Ecosystem::PowerShell
         | Ecosystem::Cpan
+        | Ecosystem::Pub
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1155,6 +1182,7 @@ pub fn check_backend_settings(
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cpan => check_pinned_lock(set, CPANFILE_SNAPSHOT),
+        Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1858,6 +1886,18 @@ mod tests {
     }
 
     #[test]
+    fn pub_locks_become_pub_sets() {
+        let module = "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("dart_deps").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Pub);
+        assert_eq!(set.manifests, ["third_party/dart/pubspec.yaml"]);
+        assert_eq!(set.locks, ["third_party/dart/pubspec.lock"]);
+    }
+
+    #[test]
     fn bundle_fetches_become_ruby_sets() {
         let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
         let registry = found(module, &[]);
@@ -2389,7 +2429,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub"
         );
     }
 

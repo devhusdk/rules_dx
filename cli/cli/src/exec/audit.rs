@@ -496,6 +496,7 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Cpan => {
                 dx_audit::locks::parse_cpanfile_snapshot(text)
             }
+            dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::PowerShell => {
                 dx_audit::locks::parse_psgallery_lock(text)
             }

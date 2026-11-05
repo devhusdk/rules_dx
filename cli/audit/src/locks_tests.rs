@@ -1565,3 +1565,14 @@ fn cpanfile_snapshot_lists_distribution_names_and_versions() {
     assert!(packages.iter().all(|package| package.set == "cpan"));
     assert!(parse_cpanfile_snapshot("").is_err());
 }
+
+#[test]
+fn pubspec_lock_lists_hosted_packages() {
+    let text = "packages:\n  async:\n    dependency: \"direct main\"\n    description:\n      name: async\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"2.11.0\"\n  flutter:\n    dependency: \"direct main\"\n    description: flutter\n    source: sdk\n    version: \"0.0.0\"\n  local:\n    dependency: transitive\n    description:\n      path: ../local\n    source: path\n    version: \"1.0.0\"\nsdks:\n  dart: \">=3.0.0 <4.0.0\"\n";
+    let packages = parse_pubspec_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].set, "pub");
+    assert_eq!(packages[0].name, "async");
+    assert_eq!(packages[0].version, "2.11.0");
+    assert!(parse_pubspec_lock("sdks: {}\n").is_err());
+}

@@ -1324,7 +1324,7 @@ mod tests {
 
     fn setting_args(argv: &[String]) -> std::collections::BTreeSet<String> {
         argv.iter()
-            .filter(|arg| arg.starts_with("--@"))
+            .filter(|arg| arg.starts_with("--@") && !arg.contains("config:extra_rustc_flags"))
             .cloned()
             .collect()
     }

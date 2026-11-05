@@ -281,6 +281,11 @@ alias(
 )
 
 alias(
+    name = "extra_rustc_flags",
+    actual = "@rules_rust//rust/settings:extra_rustc_flags",
+)
+
+alias(
     name = "rustc_output_diagnostics",
     actual = "@rules_rust//rust/settings:rustc_output_diagnostics",
 )

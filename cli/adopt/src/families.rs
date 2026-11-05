@@ -102,6 +102,7 @@ pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
     let paths = git_files(root).unwrap_or_else(|| walk(root));
     paths
         .iter()
+        .filter(|path| *path != ".dx" && !path.starts_with(".dx/"))
         .filter(|path| {
             !ignored.iter().any(|dir| {
                 path.strip_prefix(dir.as_str())
@@ -245,6 +246,14 @@ mod tests {
             )
         );
         assert!(deps.notes.is_empty());
+    }
+
+    #[test]
+    fn dx_directory_files_are_not_sources() {
+        let dir = workspace(MODULE, &["a.py", ".dx/config/ruff/strict.toml"], true);
+        let extensions = file_extensions(dir.path());
+        assert!(extensions.contains(".py"));
+        assert!(!extensions.contains(".toml"));
     }
 
     #[test]

@@ -39,9 +39,9 @@ pub fn should_watch_path(relative: &Path) -> bool {
         .components()
         .map(|component| component.as_os_str().to_string_lossy().into_owned())
         .collect();
-    let root_ignored = names
-        .first()
-        .is_some_and(|name| name == ".dx" || name.starts_with("bazel-"));
+    let root_ignored = names.first().is_some_and(|name| name.starts_with("bazel-"))
+        || (names.first().is_some_and(|name| name == ".dx")
+            && names.get(1).is_none_or(|name| name != "config"));
     let probe = names
         .last()
         .is_some_and(|name| name.to_lowercase().starts_with(".dx-case-probe-"));
@@ -470,6 +470,7 @@ mod tests {
         assert!(!should_watch_path(Path::new("tools/.git/index")));
         assert!(!should_watch_path(Path::new("bazel-out/x")));
         assert!(!should_watch_path(Path::new(".dx/current")));
+        assert!(should_watch_path(Path::new(".dx/config/ruff/strict.toml")));
     }
 
     #[test]

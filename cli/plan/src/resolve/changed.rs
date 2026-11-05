@@ -3133,6 +3133,21 @@ mod tests {
     }
 
     #[test]
+    fn untracked_dx_config_is_a_change() {
+        let scratch = dx_test_scratch::scratch("dx-changed-untracked-config-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(Vec::new()),
+            FakeQuery::raw(Vec::new()),
+            FakeQuery::raw(b".dx/config/ruff/strict.toml\0.dx/pins\0".to_vec()),
+        ]);
+        let changes =
+            collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
+        let paths: Vec<&str> = changes.iter().map(|change| change.path.as_str()).collect();
+        assert_eq!(paths, vec![".dx/config/ruff/strict.toml"]);
+    }
+
+    #[test]
     fn untracked_dx_state_is_not_a_change() {
         let scratch = dx_test_scratch::scratch("dx-changed-untracked-state-");
         let workspace = scratch.path().to_path_buf();

@@ -34,8 +34,8 @@ pub use defaults::join_quality_baseline;
 pub use error::AdoptError;
 pub use families::{plan_family_deps, FamilyDeps};
 pub use git_changes::{
-    dedupe_changes, is_dx_state, nearest_package_pattern, parse_name_status_nul, ChangeKind,
-    GitChange, DEFAULT_BRANCH_CANDIDATES,
+    dedupe_changes, dx_config_git_ignored, is_dx_state, nearest_package_pattern,
+    parse_name_status_nul, ChangeKind, GitChange, DEFAULT_BRANCH_CANDIDATES, DX_CONFIG_DIR,
 };
 pub use init_dir::{
     fresh_blocker, init_dir_module, is_fresh_dir, plan_fresh_files, validate_init_dir,
@@ -60,9 +60,9 @@ pub use preset::{
 };
 pub use profiles::{infer_profile, plan_profile_files, profile_notes, Profile};
 pub use scaffold::{
-    bazelignore_covers_dx, owned_file_drift, plan_init_files, plan_init_files_at,
-    preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,
-    with_overrides_include, Applied, FileKind, CONSUMER_WORKFLOW_PIN,
+    bazelignore_covers_dx, bazelignore_has_bare_dx, owned_file_drift, plan_init_files,
+    plan_init_files_at, preflight_destinations, refresh_scaffold, render_consumer_caller,
+    render_consumer_module_setup, with_overrides_include, Applied, FileKind, CONSUMER_WORKFLOW_PIN,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent};

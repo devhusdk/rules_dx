@@ -673,20 +673,65 @@ mod tests {
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
         assert!(
-            err.contains("dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base"),
+            err.contains(
+                "dx: .bazelignore lacks .dx/ide; add the dx lines so Bazel skips dx state"
+            ),
             "{err}"
         );
         assert_eq!(
             std::fs::read_to_string(root.join(".bazelignore")).expect("read"),
             "node_modules\n"
         );
-        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx/\n").expect("seed");
+        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx/ide\n").expect("seed");
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
         assert!(!err.contains("lacks .dx"), "{err}");
         assert_eq!(
             std::fs::read_to_string(root.join(".bazelignore")).expect("read"),
-            "node_modules\n.dx/\n"
+            "node_modules\n.dx/ide\n"
+        );
+    }
+
+    #[test]
+    fn init_migrates_a_bare_dx_bazelignore_line() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-bare-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx\n").expect("edit");
+        let (code, _out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("stale .bazelignore"), "{err}");
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        let text = std::fs::read_to_string(root.join(".bazelignore")).expect("read");
+        assert_eq!(
+            text,
+            format!(
+                "node_modules\n{}",
+                dx_adopt::scaffold::bazelignore_content()
+            )
+        );
+        assert_eq!(run(&invocation(&["init"]), &root).0, 0);
+    }
+
+    #[test]
+    fn init_notes_a_gitignore_that_hides_dx_config() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-gitignore-config-");
+        let root = scratch.path().to_path_buf();
+        let git = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["init", "-q"])
+            .status()
+            .expect("git");
+        assert!(git.success());
+        std::fs::write(root.join(".gitignore"), ".dx/\n").expect("seed");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains(
+                ".gitignore hides .dx/config; ignore /.dx/* instead of .dx/ and add !/.dx/config/"
+            ),
+            "{err}"
         );
     }
 

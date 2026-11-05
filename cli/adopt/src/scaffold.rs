@@ -17,6 +17,8 @@ pub enum FileKind {
     DevcontainerPins,
     /// Rewritten whenever it differs from the planned content.
     Generated,
+    /// A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays.
+    Bazelignore,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -59,19 +61,55 @@ pub const RUST_DISCOVER_LABEL: &str =
 /// Public rules_rust target that runs the rust-analyzer check.
 pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck";
 
-/// Content `dx init` writes to a new `.bazelignore`: each `.dx` scratch directory, but not
-/// `.dx/config`, which holds the profile bases Bazel stages.
-pub const BAZELIGNORE_CONTENT: &str = concat!(
-    ".dx/ide\n",
-    ".dx/bazelrc\n",
-    ".dx/docs\n",
-    ".dx/explain\n",
-    ".dx/profile\n",
-    ".dx/fuzz\n",
-    ".dx/mutate\n",
-    ".dx/advisory\n",
-    ".dx/bench\n",
-);
+/// The `.dx` subdirectories Bazel must skip, one per line in a new `.bazelignore`.
+///
+/// `.dx/ide` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`).
+/// `.dx/setups`, `.dx/environments` and `.dx/generated` hold symlink trees into setup artifacts,
+/// which can ship BUILD files. The other entries are scratch output dx writes. Everything else
+/// under `.dx` holds only dx files, and `.dx/config` is checked-in source Bazel stages.
+/// A new `.dx` writer that can hold BUILD files or an output base must be added here.
+pub const BAZELIGNORE_LINES: [&str; 12] = [
+    ".dx/ide",
+    ".dx/setups",
+    ".dx/environments",
+    ".dx/generated",
+    ".dx/bazelrc",
+    ".dx/docs",
+    ".dx/explain",
+    ".dx/profile",
+    ".dx/fuzz",
+    ".dx/mutate",
+    ".dx/advisory",
+    ".dx/bench",
+];
+
+/// Content `dx init` writes to a new `.bazelignore`.
+pub fn bazelignore_content() -> String {
+    format!("{}\n", BAZELIGNORE_LINES.join("\n"))
+}
+
+fn is_bare_dx_line(line: &str) -> bool {
+    matches!(line.trim(), ".dx" | ".dx/" | "./.dx" | "/.dx")
+}
+
+/// Whether a `.bazelignore` still has a bare `.dx` line that init replaces with the list.
+pub fn bazelignore_has_bare_dx(text: &str) -> bool {
+    text.lines().any(is_bare_dx_line)
+}
+
+fn merge_bazelignore(existing: &str, generated: &str) -> String {
+    let mut out = String::new();
+    let mut replaced = false;
+    for line in existing.split_inclusive('\n') {
+        if !is_bare_dx_line(line) {
+            out.push_str(line);
+        } else if !replaced {
+            replaced = true;
+            out.push_str(generated);
+        }
+    }
+    out
+}
 
 /// Content `dx init` writes to a new `.editorconfig`.
 const EDITORCONFIG_CONTENT: &str = concat!(
@@ -311,6 +349,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
     match kind {
         FileKind::WriteOnce => Ok(existing.to_owned()),
         FileKind::Generated => Ok(generated.to_owned()),
+        FileKind::Bazelignore => Ok(merge_bazelignore(existing, generated)),
         FileKind::VscodeKeys => {
             let value = editor_settings_value();
             let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
@@ -496,8 +535,8 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".bazelignore".to_owned(),
-            content: BAZELIGNORE_CONTENT.to_owned(),
-            kind: FileKind::WriteOnce,
+            content: bazelignore_content(),
+            kind: FileKind::Bazelignore,
         },
         ScaffoldFile {
             path: ".editorconfig".to_owned(),
@@ -1404,6 +1443,18 @@ mod tests {
     }
 
     #[test]
+    fn bazelignore_bare_dx_becomes_the_list_and_stays_put() {
+        let content = super::bazelignore_content();
+        let merged = super::merge_bazelignore(".dx\n", &content);
+        assert_eq!(merged, content);
+        let mixed = super::merge_bazelignore("node_modules\n/.dx\n# x\n.dx/\n", &content);
+        assert_eq!(mixed, format!("node_modules\n{content}# x\n"));
+        assert_eq!(super::merge_bazelignore(&mixed, &content), mixed);
+        assert!(super::bazelignore_has_bare_dx("a\n./.dx\n"));
+        assert!(!super::bazelignore_has_bare_dx(&content));
+    }
+
+    #[test]
     fn bazelignore_covers_dx_table() {
         for (text, covered) in [
             ("", false),
@@ -1420,8 +1471,9 @@ mod tests {
         ] {
             assert_eq!(super::bazelignore_covers_dx(text), covered, "{text:?}");
         }
-        assert!(super::bazelignore_covers_dx(super::BAZELIGNORE_CONTENT));
-        let listed: Vec<&str> = super::BAZELIGNORE_CONTENT.lines().collect();
+        let content = super::bazelignore_content();
+        assert!(super::bazelignore_covers_dx(&content));
+        let listed: Vec<&str> = content.lines().collect();
         for line in crate::build_output::IGNORE_LINES {
             if let Some(dir) = line
                 .strip_prefix("/.dx/")

@@ -255,12 +255,16 @@ pub(super) fn apply(
         .collect();
     let mut own = Applied::default();
     let written = dx_adopt::scaffold::apply_scaffold(root, &scaffold, &mut own);
-    if own.refused.iter().any(|path| path == ".bazelignore")
-        && !std::fs::read_to_string(root.join(".bazelignore"))
-            .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
+    if std::fs::read_to_string(root.join(".bazelignore"))
+        .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
     {
         notes.push(format!(
-            "{prefix}.bazelignore lacks .dx; add it so Bazel skips the IDE output base"
+            "{prefix}.bazelignore lacks .dx/ide; add the dx lines so Bazel skips dx state"
+        ));
+    }
+    if dx_adopt::dx_config_git_ignored(root) {
+        notes.push(format!(
+            "{prefix}.gitignore hides .dx/config; ignore /.dx/* instead of .dx/ and add !/.dx/config/"
         ));
     }
     applied.wrote.extend(prefixed(own.wrote));
@@ -437,6 +441,9 @@ pub(super) fn refreshable(root: &Path, file: &InitFile) -> bool {
         && file.kind != Kind::Scaffold(FileKind::WriteOnce)
         && file.path != "MODULE.bazel"
         && file.path != ".dx/pins"
+        && (file.path != ".bazelignore"
+            || std::fs::read_to_string(root.join(".bazelignore"))
+                .is_ok_and(|text| dx_adopt::bazelignore_has_bare_dx(&text)))
 }
 
 /// What a workspace lacks against what init writes.

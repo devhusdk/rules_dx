@@ -4,7 +4,18 @@ javascript/tests/fixtures/node-app/node_modules
 javascript/tests/fixtures/node-app/registry/node_modules
 .opencode/
 .claude/
-.dx/
+.dx/ide
+.dx/setups
+.dx/environments
+.dx/generated
+.dx/bazelrc
+.dx/docs
+.dx/explain
+.dx/profile
+.dx/fuzz
+.dx/mutate
+.dx/advisory
+.dx/bench
 # Disposable trees, also in .gitignore.
 .cache
 .direnv

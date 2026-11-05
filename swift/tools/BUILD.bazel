@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":swift_tool.bzl", "swift_format_tool")
 
@@ -9,6 +10,11 @@ swift_format_tool(
         "@platforms//cpu:aarch64": ["@dx_swift_linux_aarch64//:files"],
         "//conditions:default": ["@dx_swift_linux_x86_64//:files"],
     }),
+)
+
+sh_binary(
+    name = "swift",
+    srcs = ["@dx_swift_host//:swift"],
 )
 
 real_source_target(

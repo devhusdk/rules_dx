@@ -12,6 +12,7 @@ pub mod nuget;
 pub mod pub_dev;
 pub mod pypi;
 pub mod ruby;
+pub mod swiftpm;
 
 /// Reads one registry URL and returns the response body.
 pub trait Fetch {
@@ -95,6 +96,7 @@ pub enum Registry {
     Nuget,
     Rubygems,
     Metacpan,
+    SwiftUrl,
     PubDev,
     GitHub,
     BazelReleases,
@@ -118,6 +120,7 @@ impl Registry {
             Registry::Nuget => format!("https://www.nuget.org/packages/{package}"),
             Registry::Rubygems => format!("https://rubygems.org/gems/{package}"),
             Registry::Metacpan => format!("https://metacpan.org/pod/{package}"),
+            Registry::SwiftUrl => format!("https://{package}/tags"),
             Registry::PubDev => format!("https://pub.dev/packages/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),
             Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),

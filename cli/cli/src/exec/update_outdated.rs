@@ -7,7 +7,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi, ruby, Candidate,
+    bcr, cargo, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi, ruby, swiftpm, Candidate,
     Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
@@ -291,6 +291,21 @@ pub(super) fn collect(
                 merge(
                     &mut found,
                     cpan::outdated(name, &texts, only, prereleases, cpan::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::SwiftPm => {
+                registries.insert(name.to_owned(), Registry::SwiftUrl);
+                let texts = read_texts(workspace, &target.set.locks);
+                merge(
+                    &mut found,
+                    swiftpm::outdated(
+                        name,
+                        &texts,
+                        only,
+                        prereleases,
+                        swiftpm::DEFAULT_BASE,
+                        fetch,
+                    ),
                 );
             }
             Ecosystem::Pub => {

@@ -77,6 +77,16 @@ cc_toolchain_test(
     test = ":native_ext_test",
 )
 
+cc_toolchain_test(
+    name = "native_ext_msvc_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_ext_test",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

@@ -335,14 +335,14 @@ qt_cc_binary(
     name = "plain_app",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_cc_test(
     name = "plain_test",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_cc_library(

@@ -4,7 +4,7 @@ use dx_testing::{image_machine, resolve_runfiles};
 fn gcc_arm64_artifacts_target_aarch64_glibc() {
     let paths = std::env::var("GCC_ARM64").expect("GCC_ARM64");
     let paths: Vec<&str> = paths.split_whitespace().collect();
-    assert_eq!(paths.len(), 2, "expected two artifacts, got {paths:?}");
+    assert_eq!(paths.len(), 3, "expected three artifacts, got {paths:?}");
     for rel in paths {
         let path = resolve_runfiles(rel);
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));

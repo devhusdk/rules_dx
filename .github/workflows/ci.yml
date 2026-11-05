@@ -249,7 +249,7 @@ jobs:
             cp "$file" "$RUNNER_TEMP/gcc-arm64/"
           done
           ls "$RUNNER_TEMP/gcc-arm64"
-          test "$(ls "$RUNNER_TEMP/gcc-arm64" | wc -l)" -eq 2
+          test "$(ls "$RUNNER_TEMP/gcc-arm64" | wc -l)" -eq 3
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gcc-arm64-fixtures
@@ -273,9 +273,10 @@ jobs:
           set -eu
           test "$(uname -m)" = aarch64
           cd "$RUNNER_TEMP/gcc-arm64"
-          chmod +x hello hello_c
+          chmod +x hello hello_c native_call_bin
           test "$(./hello)" = "hello 42"
           test "$(./hello_c)" = "hello from c"
+          test "$(./native_call_bin)" = "5"
   network:
     name: network (requires-network nested consumer tests)
     timeout-minutes: 75

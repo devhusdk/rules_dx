@@ -765,6 +765,92 @@ fn pypi_native_case() {
     );
 }
 
+fn readelf_dynamic(library: &Path) -> String {
+    let output = std::process::Command::new("readelf")
+        .arg("-d")
+        .arg(library)
+        .output()
+        .expect("readelf must execute");
+    assert!(output.status.success());
+    String::from_utf8_lossy(&output.stdout).to_string()
+}
+
+fn linked_import(target: &Path, code: &str) -> std::process::Output {
+    let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
+    kept_env(&mut command);
+    command
+        .env_remove("LD_LIBRARY_PATH")
+        .env("PYTHONPATH", target)
+        .args(["-c", code]);
+    command.output().expect("python must execute")
+}
+
+fn pypi_native_linked_case() {
+    let call = "from dx_native_probe import _linked; print(_linked.add(2, 3))";
+    let house = stage(
+        "DX_LINKED_PROG",
+        "DX_LINKED_CONFIG",
+        "native_probe_linked-wheelhouse",
+        "dx-native-probe",
+        "native_probe_linked",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_native_probe");
+    let package = target.join("dx_native_probe");
+    let mut found = Vec::new();
+    native_files(&package, &mut found);
+    let ext: Vec<&PathBuf> = found
+        .iter()
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("_linked") && name.ends_with(".so"))
+        })
+        .collect();
+    assert_eq!(ext.len(), 1, "{found:?}");
+    assert!(package.join("libdx_probe_helper.so").is_file(), "{found:?}");
+    let dynamic = readelf_dynamic(ext[0]);
+    println!("{dynamic}");
+    assert!(dynamic.contains("libdx_probe_helper.so"), "{dynamic}");
+    let runpath: Vec<&str> = dynamic
+        .lines()
+        .filter(|line| line.contains("RUNPATH") || line.contains("RPATH"))
+        .collect();
+    assert!(!runpath.is_empty(), "{dynamic}");
+    for line in &runpath {
+        assert!(line.contains("$ORIGIN"), "{line}");
+        assert!(!line.contains("bazel-out") && !line.contains("[/"), "{line}");
+    }
+
+    let moved = target.with_file_name("moved-linked-target");
+    std::fs::rename(&target, &moved).expect("move install dir");
+    let output = linked_import(&moved, call);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5");
+
+    let house = stage(
+        "DX_NOLIB_PROG",
+        "DX_NOLIB_CONFIG",
+        "native_probe_nolib-wheelhouse",
+        "dx-native-probe",
+        "native_probe_nolib",
+    );
+    let (url, _log) = serve(house);
+    let target = install(&url, "dx_native_probe");
+    assert!(!target.join("dx_native_probe/libdx_probe_helper.so").exists());
+    let output = linked_import(&target, call);
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("libdx_probe_helper.so"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 #[test]
 fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
@@ -775,6 +861,7 @@ fn deploy_verify() {
         "oci" => oci_case(),
         "pypi" => pypi_case(),
         "pypi_native" => pypi_native_case(),
+        "pypi_native_linked" => pypi_native_linked_case(),
         "resources" => resources_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),
     }

@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
 load("//deploy/rules:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -8,6 +10,41 @@ py_extension(
     name = "_core",
     srcs = ["_core.cc"],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
+)
+
+cc_library(
+    name = "helper",
+    srcs = ["_helper.cc"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+cc_shared_library(
+    name = "dx_probe_helper",
+    deps = [":helper"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+py_extension(
+    name = "_linked",
+    srcs = ["_linked.cc"],
+    dynamic_deps = [":dx_probe_helper"],
+    linkopts = ["-Wl,-rpath,$$ORIGIN"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+filegroup(
+    name = "linked_srcs",
+    srcs = [
+        ":_linked",
+        ":dx_probe_helper",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 filegroup(
@@ -32,7 +69,11 @@ real_source_target(
     name = "corpus_cpp",
     testonly = True,
     aspect_hints = ["//:clang_format_config"],
-    cpp_srcs = ["_core.cc"],
+    cpp_srcs = [
+        "_core.cc",
+        "_helper.cc",
+        "_linked.cc",
+    ],
     tags = ["corpus"],
 )
 

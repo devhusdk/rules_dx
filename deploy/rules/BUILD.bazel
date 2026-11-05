@@ -738,6 +738,7 @@ test_suite(
         ":promotion_analysis",
         ":promotion_unit",
         ":pypi_analysis",
+        ":pypi_native_linked_verify",
         ":pypi_native_verify",
         ":pypi_probe_verify",
         ":pypi_unit",
@@ -1033,6 +1034,84 @@ rust_test(
         "no-coverage",
     ],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+py_wheel_rule(
+    name = "native_probe_linked_wheel",
+    abi = "cp312",
+    distribution = "dx_native_probe",
+    platform = "linux_x86_64",
+    python_tag = "cp312",
+    strip_path_prefixes = ["deploy/rules/native_probe/"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    version = "1.2",
+    deps = [
+        "//deploy/rules/native_probe/dx_native_probe:srcs",
+        "//deploy/rules/native_probe/dx_native_probe:linked_srcs",
+    ],
+)
+
+pypi_deploy(
+    name = "native_probe_linked",
+    wheel = ":native_probe_linked_wheel",
+)
+
+py_wheel_rule(
+    name = "native_probe_nolib_wheel",
+    abi = "cp312",
+    distribution = "dx_native_probe",
+    platform = "linux_x86_64",
+    python_tag = "cp312",
+    strip_path_prefixes = ["deploy/rules/native_probe/"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    version = "1.3",
+    deps = [
+        "//deploy/rules/native_probe/dx_native_probe:srcs",
+        "//deploy/rules/native_probe/dx_native_probe:_linked",
+    ],
+)
+
+pypi_deploy(
+    name = "native_probe_nolib",
+    wheel = ":native_probe_nolib_wheel",
+)
+
+rust_test(
+    name = "pypi_native_linked_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":native_probe_linked",
+        ":native_probe_linked_config",
+        ":native_probe_nolib",
+        ":native_probe_nolib_config",
+        "//cli/update:python_files",
+        "//cli/update:python_interpreter",
+        "@dx_tools//:uv",
+    ],
+    env = {
+        "DX_LINKED_CONFIG": "$(rootpath :native_probe_linked_config)",
+        "DX_LINKED_PROG": "$(rootpath :native_probe_linked)",
+        "DX_NOLIB_CONFIG": "$(rootpath :native_probe_nolib_config)",
+        "DX_NOLIB_PROG": "$(rootpath :native_probe_nolib)",
+        "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
+        "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
+        "DX_VERIFY_MODE": "pypi_native_linked",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     deps = ["//tools/testing:dx_testing"],
 )
 

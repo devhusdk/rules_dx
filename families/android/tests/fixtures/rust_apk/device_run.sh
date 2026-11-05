@@ -191,7 +191,7 @@ versions() {
         record os-release cat /etc/os-release
         record bazel "$BAZEL" version
         record adb "$ADB" version
-        record emulator "${EMULATOR:-emulator}" -version
+        record emulator sed -n 's/^Pkg.Revision=//p' "${ANDROID_HOME:-}/emulator/source.properties"
         record sdkmanager "${SDKMANAGER:-sdkmanager}" --list_installed
         for prop in ro.build.version.release ro.build.version.sdk ro.product.cpu.abi ro.build.fingerprint; do
             record "$prop" device shell getprop "$prop"

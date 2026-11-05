@@ -275,10 +275,12 @@ jobs:
           adb -s emulator-5554 shell settings put global animator_duration_scale 0
           adb -s emulator-5554 shell input keyevent KEYCODE_WAKEUP
           adb -s emulator-5554 shell wm dismiss-keyguard
+          # Version probes must not fail the boot step.
+          set +e
           {
             lsb_release -d
             uname -m
-            "$EMULATOR" -version | head -n 1
+            sed -n 's/^Pkg.Revision=/emulator /p' "$ANDROID_HOME/emulator/source.properties"
             adb version
             "$SDKMANAGER" --list_installed
             for prop in ro.build.version.sdk ro.product.cpu.abi ro.product.cpu.abilist; do

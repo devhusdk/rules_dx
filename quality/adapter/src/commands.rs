@@ -156,7 +156,6 @@ const PHPSTAN_ARGS: &[&str] = &[
     "--no-interaction",
     "--error-format=json",
 ];
-const SPOTBUGS_ARGS: &[&str] = &["-textui", "-effort:default", "-sarif"];
 const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
 const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
 const BUF_LINT_ARGS: &[&str] = &["lint", "--error-format=json"];
@@ -1114,9 +1113,16 @@ pub fn spotbugs_check(
     binary: &Path,
     files: &[&Path],
     auxiliary: &[&Path],
+    effort: &str,
+    threshold: &str,
 ) -> Result<Invocation, std::env::JoinPathsError> {
     let mut argv = vec![binary.as_os_str().to_owned()];
-    argv.extend(SPOTBUGS_ARGS.iter().map(OsString::from));
+    argv.push(OsString::from("-textui"));
+    argv.push(OsString::from(format!("-effort:{effort}")));
+    if threshold != "medium" {
+        argv.push(OsString::from(format!("-{threshold}")));
+    }
+    argv.push(OsString::from("-sarif"));
     if !auxiliary.is_empty() {
         let joined = std::env::join_paths(auxiliary)?;
         argv.push(OsString::from("-auxclasspath"));

@@ -399,7 +399,7 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | --- | --- | --- | --- | --- |
 | `biome` | lint only | `biome.json` | | `biome_config` |
 | `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
-| `checkstyle` | yes | `checkstyle.xml` | | `checkstyle_config` |
+| `checkstyle` | yes | `checkstyle.xml`; bases `standard.xml` (Google checks, warnings) and `strict.xml` (errors plus `MagicNumber`) in `cli/adopt/templates/config/checkstyle/` | | `checkstyle_config` |
 | `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
 | `graphql-eslint` | yes | `graphql_lint.json` | | `graphql_eslint_config` |
 | `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |
@@ -409,7 +409,8 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | `scalafmt` | no | `.scalafmt.conf`, default `version = 3.11.4` and `runner.dialect = scala213` (`quality/tools/jvm/scalafmt_default.conf`) | | `scalafmt_config` |
 | `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
 | `vale` | yes | `.vale.ini` | | `vale_config` |
-| `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`) | | `pmd_config` |
+| `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`); bases `standard.xml` (quickstart plus unused code) and `strict.xml` (adds the bestpractices, errorprone, multithreading and performance categories) in `cli/adopt/templates/config/pmd/` | | `pmd_config` |
+| `spotbugs` | no | No file. Set `--//config:spotbugs_effort` (`min`, `less`, `default`, `more`, `max`) and `--//config:spotbugs_threshold` (`high`, `medium`, `low`); strict means `max` and `low` | | `--//config:...` flags |
 | `clang-format` | no | `.clang-format` | | `clang_format_config` |
 | `djlint` | no | `djlint.toml` or `.djlintrc` | Workspace configs | `djlint_config` |
 | `latexindent` | no | YAML settings file | `localSettings.yaml` | `latexindent_config` |

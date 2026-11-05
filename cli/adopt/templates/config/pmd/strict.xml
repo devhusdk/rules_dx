@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset name="dx-pmd-strict"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>PMD standard plus the bestpractices, errorprone, multithreading and performance categories.</description>
+  <rule ref="rulesets/java/quickstart.xml"/>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateField">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedLocalVariable">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedFormalParameter">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedAssignment">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml">
+    <exclude name="UnusedPrivateMethod"/>
+    <exclude name="UnusedPrivateField"/>
+    <exclude name="UnusedLocalVariable"/>
+    <exclude name="UnusedFormalParameter"/>
+    <exclude name="UnusedAssignment"/>
+    <exclude name="SystemPrintln"/>
+    <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+    <exclude name="UnitTestContainsTooManyAsserts"/>
+    <exclude name="GuardLogStatement"/>
+  </rule>
+  <rule ref="category/java/errorprone.xml">
+    <exclude name="AvoidLiteralsInIfCondition"/>
+    <exclude name="AvoidDuplicateLiterals"/>
+    <exclude name="NullAssignment"/>
+    <exclude name="AvoidFieldNameMatchingMethodName"/>
+    <exclude name="AvoidFieldNameMatchingTypeName"/>
+  </rule>
+  <rule ref="category/java/multithreading.xml">
+    <exclude name="DoNotUseThreads"/>
+    <exclude name="UseConcurrentHashMap"/>
+    <exclude name="AvoidSynchronizedAtMethodLevel"/>
+  </rule>
+  <rule ref="category/java/performance.xml">
+    <exclude name="AvoidInstantiatingObjectsInLoops"/>
+  </rule>
+</ruleset>

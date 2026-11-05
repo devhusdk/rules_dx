@@ -1,5 +1,6 @@
 """JVM and Scala real quality aspects."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
@@ -106,6 +107,8 @@ SHARD_SPECS = {
                 providers = [JavaInfo],
                 doc = "JaCoCo runtime SpotBugs needs to resolve coverage-instrumented classes.",
             ),
+            "_spotbugs_effort": attr.label(default = "//config:spotbugs_effort"),
+            "_spotbugs_threshold": attr.label(default = "//config:spotbugs_threshold"),
         },
         "shard": "jvm",
         "suffix": "-jvm",
@@ -209,7 +212,14 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
         stage(tool_files, inputs, "dx-spotbugs/owned/" + jar.short_path, jar)
     for index, jar in enumerate(sorted(auxiliary.values(), key = lambda f: f.short_path)):
         stage(tool_files, inputs, "dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar)
-    return real_context(tool_files = tool_files, inputs = inputs)
+    # The runner request has no spotbugs fields: effort travels as the edition, threshold as the dialect.
+    options = {}
+    if hasattr(ctx.attr, "_spotbugs_effort"):
+        options = {
+            "dialect": ctx.attr._spotbugs_threshold[BuildSettingInfo].value,
+            "edition": ctx.attr._spotbugs_effort[BuildSettingInfo].value,
+        }
+    return real_context(tool_files = tool_files, inputs = inputs, options = options)
 
 def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):
     (owned, aux) = _scalafix_context(target, what)

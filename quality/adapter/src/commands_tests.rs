@@ -836,7 +836,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "/scratch/pmd.xml"
         ]
     );
-    let spot = spotbugs_check(Path::new(BIN), &[java], &[]).expect("spot");
+    let spot = spotbugs_check(Path::new(BIN), &[java], &[], "default", "medium").expect("spot");
     assert_eq!(
         argv_strings(&spot),
         vec![
@@ -847,10 +847,24 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "/scratch/src/Hello.java"
         ]
     );
+    let strict = spotbugs_check(Path::new(BIN), &[java], &[], "max", "low").expect("strict");
+    assert_eq!(
+        argv_strings(&strict),
+        vec![
+            BIN,
+            "-textui",
+            "-effort:max",
+            "-low",
+            "-sarif",
+            "/scratch/src/Hello.java"
+        ]
+    );
     let with_aux = spotbugs_check(
         Path::new(BIN),
         &[java],
         &[Path::new("/scratch/a.jar"), Path::new("/scratch/b.jar")],
+        "default",
+        "medium",
     )
     .expect("with_aux");
     let joined_aux = std::env::join_paths(["/scratch/a.jar", "/scratch/b.jar"]).expect("join");
@@ -2834,9 +2848,9 @@ fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
         "/scratch/a:b.jar"
     };
     let java = Path::new("/scratch/src/Hello.java");
-    assert!(spotbugs_check(Path::new(BIN), &[java], &[Path::new(bad)]).is_err());
+    assert!(spotbugs_check(Path::new(BIN), &[java], &[Path::new(bad)], "default", "medium").is_err());
     let colon_target = Path::new("/scratch/src/He:llo.java");
-    assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[]).is_ok());
+    assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[], "default", "medium").is_ok());
 }
 
 fn infallible(invocation: Invocation) -> Result<Invocation, std::convert::Infallible> {

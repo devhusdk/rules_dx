@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:policy_subject.bzl", "policy_subject")
 load(":settings_tests.bzl", "settings_tests", "workspace_policy_tests")
@@ -19,6 +19,28 @@ bool_flag(
 bool_flag(
     name = "lint_online",
     build_setting_default = False,
+)
+
+string_flag(
+    name = "spotbugs_effort",
+    build_setting_default = "default",
+    values = [
+        "min",
+        "less",
+        "default",
+        "more",
+        "max",
+    ],
+)
+
+string_flag(
+    name = "spotbugs_threshold",
+    build_setting_default = "medium",
+    values = [
+        "high",
+        "medium",
+        "low",
+    ],
 )
 
 config_setting(

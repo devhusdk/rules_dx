@@ -1,0 +1,16 @@
+exports_files(
+    [
+        "standard.xml",
+        "strict.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "files",
+    srcs = [
+        "standard.xml",
+        "strict.xml",
+    ],
+    visibility = ["//visibility:public"],
+)

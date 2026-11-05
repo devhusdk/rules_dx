@@ -41,6 +41,10 @@ def missing_error(paths):
     """Returns the error for tools missing from the assembled layout."""
     return "dx_msvc: incomplete MSVC payload; missing " + ", ".join(paths)
 
+def has_child_exact(names, name):
+    """Returns whether name is in names, matching letter case exactly."""
+    return name in names
+
 def cell_name(host, target):
     """Returns the hub target name for a host and target architecture."""
     return "cc_toolchain_{}_{}".format(host, target)
@@ -86,6 +90,14 @@ def _only_child(rctx, root):
         fail("dx_msvc: expected one version under {}, found {}".format(root, ", ".join(sorted([str(n) for n in names])) or "none"))
     return names[0]
 
+def _exists_exact(rctx, rel):
+    cur = rctx.path("")
+    for part in rel.split("/"):
+        if not cur.exists or not has_child_exact([c.basename for c in cur.readdir()], part):
+            return False
+        cur = cur.get_child(part)
+    return True
+
 def _layout_repo_impl(rctx):
     vc_root = rctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname
     sdk_root = rctx.path(Label("@windows_sdk//:BUILD.bazel")).dirname
@@ -104,13 +116,14 @@ def _layout_repo_impl(rctx):
     unavailable = {}
     for host, target in SUPPORTED_CELLS:
         layout = msvc_layout(msvc_version, sdk_version, host, target)
-        missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml] if p and not rctx.path(p).exists]
+        missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml] if p and not _exists_exact(rctx, p)]
         if missing:
             unavailable[cell_name(host, target)] = missing_error(missing)
     rctx.file("NOTICE", "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, msvc_version, sdk_version))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable, redist_version))
-    return rctx.repo_metadata(reproducible = True)
+    # The hub links by absolute path into other repos, so a cached copy has broken links.
+    return rctx.repo_metadata(reproducible = False)
 
 _layout_repo = repository_rule(
     implementation = _layout_repo_impl,

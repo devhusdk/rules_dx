@@ -213,7 +213,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  ) -> dict[str, str]:
      env = dict(os.environ)
      if execroot_marker:
-@@ -629,6 +649,16 @@
+@@ -629,6 +649,17 @@
      # helper still runs there; bare tool names deliberately remain on PATH.
      _absolutize_tool_paths(env)
  
@@ -225,6 +225,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +        env["DISTUTILS_USE_SDK"] = "1"
 +        env["MSSdk"] = "1"
 +        _add_cargo_and_ant(env, tmpdir)
++        print('DIAG exe', len(sys.executable), sys.executable, 'tmp', len(tmpdir), 'env', sum(len(k) + len(v) + 2 for k, v in env.items()), file=sys.stderr)
 +        return env
 +
      cc_path = _resolve_compiler_path(env, "CC", "cc")

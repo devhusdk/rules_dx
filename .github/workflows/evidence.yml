@@ -102,12 +102,14 @@ jobs:
       - name: Use the BuildBuddy remote cache
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          DX_PLATFORM: ${{ matrix.platform }}
         run: |
           [ -n "$BUILDBUDDY_API_KEY" ] || exit 0
           {
             echo "common --config=ci"
             echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
           } >> user.bazelrc
+          [ "$DX_PLATFORM" != linux_x86_64 ] || echo "common --config=rbe" >> user.bazelrc
       - name: Record the Apple executor
         if: ${{ matrix.platform == 'macos_arm64' }}
         run: |

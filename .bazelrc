@@ -78,6 +78,14 @@ common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
 common:ci-pr --noremote_upload_local_results
 
+common:rbe --remote_executor=grpcs://remote.buildbuddy.io
+common:rbe --remote_default_exec_properties=OSFamily=Linux
+common:rbe --remote_default_exec_properties=Arch=amd64
+common:rbe --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu24-04:latest
+common:rbe --remote_default_exec_properties=dockerUser=nobody
+common:rbe --remote_local_fallback
+common:rbe --strategy=TestRunner=remote,sandboxed,local
+
 # Fixture for consumer --config passthrough checks.
 build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
 

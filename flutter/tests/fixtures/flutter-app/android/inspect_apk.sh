@@ -16,8 +16,8 @@ x86_64) other=arm64-v8a ;;
 *) other=x86_64 ;;
 esac
 list="$(unzip -l "$apk")"
-for want in "lib/$abi/libflutter.so" "lib/$abi/libapp.so" classes.dex flutter_assets/assets/items.json DxSquare.ttf; do
-    echo "$list" | grep -q "$want" || { echo "apk misses $want"; echo "$list" | grep -i "asset\|ttf\|json"; exit 1; }
+for want in "lib/$abi/libflutter.so" "lib/$abi/libapp.so" classes.dex flutter_assets/packages/flutter_app/assets/items.json DxSquare.ttf; do
+    echo "$list" | grep -q "$want" || { echo "apk misses $want"; exit 1; }
 done
 if echo "$list" | grep -q "lib/$other/"; then
     echo "apk has lib/$other/"

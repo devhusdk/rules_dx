@@ -40,6 +40,7 @@ rust_library(
     crate_name = "dx_testing",
     crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -49,7 +50,6 @@ rust_library(
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
     ],
-    visibility = VIS_TOOLS_PUBLIC,
 )
 
 rust_test(
@@ -87,6 +87,7 @@ rust_library(
     crate_name = "dx_nested",
     crate_root = "src/nested.rs",
     edition = "2021",
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [
         ":dx_testing",
         "//cli/path:dx_path",
@@ -96,7 +97,6 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ),
-    visibility = VIS_TOOLS_PUBLIC,
 )
 
 # keep
@@ -203,8 +203,8 @@ rust_binary(
     testonly = True,
     srcs = ["nested_bazel_shim.rs"],
     edition = "2021",
-    deps = [":dx_nested"],
     visibility = VIS_TOOLS_PUBLIC,
+    deps = [":dx_nested"],
 )
 
 # keep

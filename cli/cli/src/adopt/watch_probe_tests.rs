@@ -305,42 +305,43 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     assert!(stdout.ends_with("stopped\n"), "{stdout}");
 }
 
-#[test]
-fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
-    let mut probe = Probe::start("dx-watch-probe-idle-", &["watch", "build", "//..."], &[]);
+fn reruns_once_after(prefix: &str, step: impl Fn(&Path)) {
+    let mut probe = Probe::start(prefix, &["watch", "build", "//..."], &[]);
     probe.idle(1);
-    let workspace = probe.workspace.clone();
-    #[allow(clippy::type_complexity)]
-    let steps: [(&str, Box<dyn Fn()>); 4] = [
-        (
-            "edit",
-            Box::new(|| fs::write(workspace.join("src/main.rs"), "fn main() { }\n").expect("edit")),
-        ),
-        (
-            "rename",
-            Box::new(|| {
-                fs::rename(workspace.join("src/main.rs"), workspace.join("src/app.rs"))
-                    .expect("rename")
-            }),
-        ),
-        (
-            "delete",
-            Box::new(|| fs::remove_file(workspace.join("src/app.rs")).expect("delete")),
-        ),
-        (
-            "config",
-            Box::new(|| fs::write(workspace.join(".bazelrc"), "\n").expect("config")),
-        ),
-    ];
-    for (round, (what, step)) in steps.iter().enumerate() {
-        step();
-        let want = round + 2;
-        probe.until(what, |probe| probe.count("end ") >= want);
-        probe.idle(want);
-    }
+    step(&probe.workspace);
+    probe.until("the rerun", |probe| probe.count("end ") >= 2);
+    probe.idle(2);
     probe.settle();
-    assert_eq!(probe.count("start "), 5, "{}", probe.log());
+    assert_eq!(probe.count("start "), 2, "{}", probe.log());
     assert_eq!(probe.stop().code(), Some(130));
+}
+
+#[test]
+fn an_idle_edit_reruns() {
+    reruns_once_after("dx-watch-probe-edit-", |workspace| {
+        fs::write(workspace.join("src/main.rs"), "fn main() { }\n").expect("edit");
+    });
+}
+
+#[test]
+fn an_idle_rename_reruns() {
+    reruns_once_after("dx-watch-probe-rename-", |workspace| {
+        fs::rename(workspace.join("src/main.rs"), workspace.join("src/app.rs")).expect("rename");
+    });
+}
+
+#[test]
+fn an_idle_delete_reruns() {
+    reruns_once_after("dx-watch-probe-delete-", |workspace| {
+        fs::remove_file(workspace.join("src/main.rs")).expect("delete");
+    });
+}
+
+#[test]
+fn an_idle_config_change_reruns() {
+    reruns_once_after("dx-watch-probe-config-", |workspace| {
+        fs::write(workspace.join(".bazelrc"), "\n").expect("config");
+    });
 }
 
 #[test]

@@ -117,7 +117,7 @@ retry_crash() {
   "$@" && return 0 || ec=$?
   case $ec in 33 | 37) ;; *) return "$ec" ;; esac
   echo "dx: the Bazel server crashed (exit $ec); trying //:dx again" >&2
-  sleep 2
+  sleep "${DX_RESTART_WAIT:-2}"
   "$@" && return 0 || return $?
 }
 build_dx() {

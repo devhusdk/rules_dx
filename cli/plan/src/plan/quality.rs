@@ -5,7 +5,7 @@ use dx_process::{
 use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
-    registry::{aspects_for, spec},
+    registry::{aspects_for, probes_for, spec},
     rules_dx_label, BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP,
     DOCS_TOOLS_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
     SKIP_INCOMPATIBLE_FLAG,
@@ -227,15 +227,19 @@ pub fn plan_docs(
 }
 
 /// Plans the shard probe; its argv matches `plan_build`'s apart from the aspects, output group and event file.
+/// `installed_modules` of `None` passes the facade probe; otherwise the core probe and the installed families' probes.
 pub fn plan_probe(
     command: Command,
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
+    installed_modules: Option<&[String]>,
 ) -> Result<Option<BuildPlan>, ForwardError> {
-    let Some(probe) = spec(command).probe else {
-        return Ok(None);
+    let probes = match (spec(command).probes, installed_modules) {
+        ([], _) => return Ok(None),
+        ([facade, ..], None) => vec![*facade],
+        (_, Some(modules)) => probes_for(command, modules),
     };
     shaped_plan(
         command,
@@ -243,7 +247,7 @@ pub fn plan_probe(
         bazel_options,
         startup_options,
         &shaped_options(
-            &rules_dx_label(probe),
+            &joined_labels(probes.iter().copied()),
             SHARD_OUTPUT_GROUP,
             bazel_options,
             bep_path,
@@ -622,7 +626,7 @@ mod tests {
             let mut build =
                 plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
             build.argv.retain(|arg| !arg.contains("extra_rustc_flags"));
-            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup)
+            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup, None)
                 .expect("probe")
                 .expect("quality commands carry a probe");
             assert_eq!(build.argv.len(), probe.argv.len());
@@ -632,7 +636,7 @@ mod tests {
                 .zip(&probe.argv)
                 .filter(|(left, right)| left != right)
                 .collect();
-            let probe_label = rules_dx_label(spec(command).probe.expect("probe label"));
+            let probe_label = rules_dx_label(spec(command).probes[0]);
             assert_eq!(
                 differing,
                 vec![
@@ -655,11 +659,56 @@ mod tests {
                 "{command:?}"
             );
         }
-        assert!(
-            plan_probe(Command::Build, &resolved(&[]), &[], "/tmp/p.json", &[])
-                .expect("plan")
-                .is_none()
-        );
+        assert!(plan_probe(
+            Command::Build,
+            &resolved(&[]),
+            &[],
+            "/tmp/p.json",
+            &[],
+            None
+        )
+        .expect("plan")
+        .is_none());
+    }
+
+    #[test]
+    fn installed_modules_pass_the_core_and_family_probes() {
+        let scope = resolved(&["//pkg:lib"]);
+        let modules = strings(&["rules_python"]);
+        let plan = plan_probe(
+            Command::Lint,
+            &scope,
+            &[],
+            "/tmp/p.json",
+            &[],
+            Some(&modules),
+        )
+        .expect("plan")
+        .expect("probe");
+        let aspects = plan
+            .argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--aspects="))
+            .expect("aspects");
+        assert!(aspects.contains("families/core_probe.bzl%real_core_lint_probe_aspect"));
+        assert!(aspects.contains("families/python.bzl%real_python_lint_probe_aspect"));
+        assert!(!aspects.contains("real_aspects.bzl%real_lint_probe_aspect"));
+        assert!(!aspects.contains("real_dotnet_lint_probe_aspect"));
+        let modules = strings(&["rules_dx_dotnet"]);
+        let plan = plan_probe(
+            Command::Lint,
+            &scope,
+            &[],
+            "/tmp/p.json",
+            &[],
+            Some(&modules),
+        )
+        .expect("plan")
+        .expect("probe");
+        assert!(plan
+            .argv
+            .iter()
+            .any(|arg| arg.contains("families/dotnet.bzl%real_dotnet_lint_probe_aspect")));
     }
 
     #[test]

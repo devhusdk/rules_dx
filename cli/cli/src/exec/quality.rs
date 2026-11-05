@@ -226,6 +226,7 @@ fn probe_shards(
     nonce: u64,
     actions: &ActionTally,
     probe_counts: &mut Option<ActionCounts>,
+    installed: Option<&[String]>,
 ) -> Result<Option<BTreeSet<String>>, ProbeStop> {
     let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
     let Some(bep_text) = bep.to_str() else {
@@ -237,6 +238,7 @@ fn probe_shards(
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
+        installed,
     ) {
         Ok(Some(plan)) => plan,
         Ok(None) | Err(_) => return Ok(None),
@@ -378,6 +380,7 @@ fn run_quality_request(
         nonce,
         actions,
         &mut probe_counts,
+        installed.as_deref(),
     ) {
         Ok(Some(shards)) => {
             if let Ok(narrowed) = plan_build_with(

@@ -6,8 +6,9 @@ use crate::reports::StandardFormat;
 pub struct CommandSpec {
     pub command: Command,
     pub aspects: &'static [&'static str],
-    /// The cheap aspect that names the shards each target needs; see `select_aspects`.
-    pub probe: Option<&'static str>,
+    /// The cheap aspects that name the shards each target needs; see `select_aspects`. The first
+    /// is the facade probe; the rest are the core probe and one per family.
+    pub probes: &'static [&'static str],
     pub reports: &'static [StandardFormat],
 }
 
@@ -72,7 +73,31 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_julia_lint_aspect",
                 "quality:real_aspects.bzl%real_pkl_lint_aspect",
             ],
-            probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
+            probes: &[
+                "quality:real_aspects.bzl%real_lint_probe_aspect",
+                "quality:families/core_probe.bzl%real_core_lint_probe_aspect",
+                "quality:families/beam.bzl%real_beam_lint_probe_aspect",
+                "quality:families/cc.bzl%real_cc_lint_probe_aspect",
+                "quality:families/d.bzl%real_d_lint_probe_aspect",
+                "quality:families/dart.bzl%real_dart_lint_probe_aspect",
+                "quality:families/dotnet.bzl%real_dotnet_lint_probe_aspect",
+                "quality:families/fortran.bzl%real_fortran_lint_probe_aspect",
+                "quality:families/generation.bzl%real_generation_lint_probe_aspect",
+                "quality:families/haskell.bzl%real_haskell_lint_probe_aspect",
+                "quality:families/js.bzl%real_js_lint_probe_aspect",
+                "quality:families/julia.bzl%real_julia_lint_probe_aspect",
+                "quality:families/jvm.bzl%real_jvm_lint_probe_aspect",
+                "quality:families/lua.bzl%real_lua_lint_probe_aspect",
+                "quality:families/ocaml.bzl%real_ocaml_lint_probe_aspect",
+                "quality:families/perl.bzl%real_perl_lint_probe_aspect",
+                "quality:families/php.bzl%real_php_lint_probe_aspect",
+                "quality:families/powershell.bzl%real_powershell_lint_probe_aspect",
+                "quality:families/python.bzl%real_python_lint_probe_aspect",
+                "quality:families/ruby.bzl%real_ruby_lint_probe_aspect",
+                "quality:families/rust.bzl%real_rust_lint_probe_aspect",
+                "quality:families/swift.bzl%real_swift_lint_probe_aspect",
+                "quality:families/zig.bzl%real_zig_lint_probe_aspect",
+            ],
             reports: &[StandardFormat::Sarif],
         },
         Command::Unused => CommandSpec {
@@ -84,7 +109,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_erlang_unused_aspect",
                 "quality:real_aspects.bzl%real_elixir_unused_aspect",
             ],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Typecheck => CommandSpec {
@@ -118,7 +143,28 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_dart_typecheck_aspect",
                 "quality:real_aspects.bzl%real_python_typecheck_aspect",
             ],
-            probe: Some("quality:real_aspects.bzl%real_typecheck_probe_aspect"),
+            probes: &[
+                "quality:real_aspects.bzl%real_typecheck_probe_aspect",
+                "quality:families/core_probe.bzl%real_core_typecheck_probe_aspect",
+                "quality:families/beam.bzl%real_beam_typecheck_probe_aspect",
+                "quality:families/cc.bzl%real_cc_typecheck_probe_aspect",
+                "quality:families/d.bzl%real_d_typecheck_probe_aspect",
+                "quality:families/dart.bzl%real_dart_typecheck_probe_aspect",
+                "quality:families/dotnet.bzl%real_dotnet_typecheck_probe_aspect",
+                "quality:families/fortran.bzl%real_fortran_typecheck_probe_aspect",
+                "quality:families/generation.bzl%real_generation_typecheck_probe_aspect",
+                "quality:families/haskell.bzl%real_haskell_typecheck_probe_aspect",
+                "quality:families/js.bzl%real_js_typecheck_probe_aspect",
+                "quality:families/julia.bzl%real_julia_typecheck_probe_aspect",
+                "quality:families/jvm.bzl%real_jvm_typecheck_probe_aspect",
+                "quality:families/lua.bzl%real_lua_typecheck_probe_aspect",
+                "quality:families/ocaml.bzl%real_ocaml_typecheck_probe_aspect",
+                "quality:families/php.bzl%real_php_typecheck_probe_aspect",
+                "quality:families/python.bzl%real_python_typecheck_probe_aspect",
+                "quality:families/ruby.bzl%real_ruby_typecheck_probe_aspect",
+                "quality:families/rust.bzl%real_rust_typecheck_probe_aspect",
+                "quality:families/zig.bzl%real_zig_typecheck_probe_aspect",
+            ],
             reports: &[StandardFormat::Sarif],
         },
         Command::Format => CommandSpec {
@@ -164,25 +210,48 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_swift_format_aspect",
                 "quality:real_aspects.bzl%real_zig_format_aspect",
             ],
-            probe: Some("quality:real_aspects.bzl%real_format_probe_aspect"),
+            probes: &[
+                "quality:real_aspects.bzl%real_format_probe_aspect",
+                "quality:families/core_probe.bzl%real_core_format_probe_aspect",
+                "quality:families/beam.bzl%real_beam_format_probe_aspect",
+                "quality:families/cc.bzl%real_cc_format_probe_aspect",
+                "quality:families/d.bzl%real_d_format_probe_aspect",
+                "quality:families/dart.bzl%real_dart_format_probe_aspect",
+                "quality:families/dotnet.bzl%real_dotnet_format_probe_aspect",
+                "quality:families/fortran.bzl%real_fortran_format_probe_aspect",
+                "quality:families/generation.bzl%real_generation_format_probe_aspect",
+                "quality:families/haskell.bzl%real_haskell_format_probe_aspect",
+                "quality:families/js.bzl%real_js_format_probe_aspect",
+                "quality:families/julia.bzl%real_julia_format_probe_aspect",
+                "quality:families/jvm.bzl%real_jvm_format_probe_aspect",
+                "quality:families/lua.bzl%real_lua_format_probe_aspect",
+                "quality:families/ocaml.bzl%real_ocaml_format_probe_aspect",
+                "quality:families/perl.bzl%real_perl_format_probe_aspect",
+                "quality:families/powershell.bzl%real_powershell_format_probe_aspect",
+                "quality:families/python.bzl%real_python_format_probe_aspect",
+                "quality:families/ruby.bzl%real_ruby_format_probe_aspect",
+                "quality:families/rust.bzl%real_rust_format_probe_aspect",
+                "quality:families/swift.bzl%real_swift_format_probe_aspect",
+                "quality:families/zig.bzl%real_zig_format_probe_aspect",
+            ],
             reports: &[],
         },
         Command::Generate => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Build => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[StandardFormat::Failures],
         },
         Command::Test => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[
                 StandardFormat::Junit,
                 StandardFormat::Failures,
@@ -192,7 +261,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Coverage => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[
                 StandardFormat::Lcov,
                 StandardFormat::Sources,
@@ -203,31 +272,31 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Run => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Deploy => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Check => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[StandardFormat::Sarif],
         },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Env => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Bench
@@ -243,44 +312,67 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Completion => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Security => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[StandardFormat::Sarif],
         },
         Command::License => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[StandardFormat::Sarif],
         },
         Command::Update => CommandSpec {
             command,
             aspects: &[],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
         Command::Docs => CommandSpec {
             command,
             aspects: &["quality:real_aspects.bzl%real_docs_aspect"],
-            probe: None,
+            probes: &[],
             reports: &[],
         },
     }
 }
 
 /// The aspects of `command` whose family module the consumer has. A family without a `module`
-/// is always kept; the probe is not filtered.
+/// is always kept; the facade probe is not filtered.
 pub fn aspects_for(command: Command, installed_modules: &[String]) -> Vec<&'static str> {
     aspects_for_families(command, dx_families::families(), installed_modules)
 }
 
 fn aspects_for_families(
     command: Command,
+    families: &[dx_families::Family],
+    installed_modules: &[String],
+) -> Vec<&'static str> {
+    keep_installed(spec(command).aspects, families, installed_modules)
+}
+
+/// The probes of `command` for a consumer with `installed_modules`: the core probe and the probes
+/// of the installed families. Without the facade probe.
+pub fn probes_for(command: Command, installed_modules: &[String]) -> Vec<&'static str> {
+    probes_for_families(command, dx_families::families(), installed_modules)
+}
+
+fn probes_for_families(
+    command: Command,
+    families: &[dx_families::Family],
+    installed_modules: &[String],
+) -> Vec<&'static str> {
+    let probes = spec(command).probes;
+    keep_installed(probes.get(1..).unwrap_or(&[]), families, installed_modules)
+}
+
+fn keep_installed(
+    labels: &[&'static str],
     families: &[dx_families::Family],
     installed_modules: &[String],
 ) -> Vec<&'static str> {
@@ -294,8 +386,7 @@ fn aspects_for_families(
         })
         .flat_map(|family| family.aspects.iter().map(String::as_str))
         .collect();
-    spec(command)
-        .aspects
+    labels
         .iter()
         .copied()
         .filter(|aspect| {
@@ -312,7 +403,7 @@ pub fn all_aspect_labels() -> Vec<String> {
         .iter()
         .flat_map(|command| {
             let entry = spec(*command);
-            entry.aspects.iter().copied().chain(entry.probe)
+            entry.aspects.iter().chain(entry.probes).copied()
         })
         .map(rules_dx_label)
         .collect();
@@ -387,11 +478,41 @@ mod tests {
     }
 
     #[test]
+    fn every_family_with_shard_aspects_has_a_probe() {
+        for command in [Command::Lint, Command::Format, Command::Typecheck] {
+            let capability = format!("{command:?}").to_lowercase();
+            let shard_suffix = format!("_{capability}_aspect");
+            let probe_suffix = format!("_{capability}_probe_aspect");
+            let probes: Vec<&str> = spec(command)
+                .probes
+                .iter()
+                .map(|probe| probe.rsplit_once('%').map_or(*probe, |(_, name)| name))
+                .collect();
+            for family in dx_families::families() {
+                let has_shards = family
+                    .aspects
+                    .iter()
+                    .any(|name| name.ends_with(&shard_suffix) && !name.ends_with("_probe_aspect"));
+                let probe = family
+                    .aspects
+                    .iter()
+                    .find(|name| name.ends_with(&probe_suffix));
+                if has_shards {
+                    let probe = probe.unwrap_or_else(|| {
+                        panic!("{command:?}: {} has shards but no probe", family.name)
+                    });
+                    assert!(probes.contains(&probe.as_str()), "{command:?}: {probe}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn registry_aspects_are_relative_to_rules_dx() {
         use clap::ValueEnum;
         for command in Command::value_variants() {
             let entry = spec(*command);
-            for aspect in entry.aspects.iter().copied().chain(entry.probe) {
+            for aspect in entry.aspects.iter().chain(entry.probes).copied() {
                 assert!(!aspect.starts_with('@'), "{command:?}: {aspect}");
             }
         }
@@ -559,7 +680,7 @@ mod tests {
         );
         let docs = spec(Command::Docs);
         assert_eq!(docs.aspects, &["quality:real_aspects.bzl%real_docs_aspect"]);
-        assert!(docs.probe.is_none());
+        assert!(docs.probes.is_empty());
         assert!(docs.reports.is_empty());
         let run = spec(Command::Run);
         assert!(run.aspects.is_empty());

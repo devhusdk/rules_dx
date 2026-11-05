@@ -669,6 +669,52 @@ mod tests {
     }
 
     #[test]
+    fn profile_reports_json_and_text_from_the_trace() {
+        let harness = Harness::new("build-profile-report");
+        let dir = harness.workspace.join(".dx").join("profile");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let trace = dir.join("1.json.gz");
+        let json = r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#;
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        std::io::Write::write_all(&mut gz, json.as_bytes()).expect("gzip");
+        std::fs::write(&trace, gz.finish().expect("finish")).expect("trace");
+        let trace = trace.to_str().expect("utf8");
+        let bep = harness.workspace.join("missing-bep.json");
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let inv = invocation(&["build", "--profile", "--output=json"]);
+        super::announce_profile(
+            &inv,
+            &harness.workspace,
+            &mut out,
+            &mut err,
+            trace,
+            &bep,
+            None,
+        )
+        .expect("announce");
+        let notice: serde_json::Value = serde_json::from_slice(&out).expect("json");
+        assert_eq!(notice["code"], "profile_report");
+        assert_eq!(notice["path"], dir.join("report.json").display().to_string());
+        assert!(notice["message"].as_str().expect("message").contains("slow"));
+        assert!(dir.join("report.json").is_file());
+        let mut err = Vec::new();
+        let inv = invocation(&["build", "--profile"]);
+        super::announce_profile(
+            &inv,
+            &harness.workspace,
+            &mut Vec::new(),
+            &mut err,
+            trace,
+            &bep,
+            None,
+        )
+        .expect("announce");
+        let err = String::from_utf8(err).expect("utf8");
+        assert!(err.contains("dx: profile, wall time 2.0s"), "{err}");
+    }
+
+    #[test]
     fn explain_saves_the_execution_log_and_keeps_two() {
         let harness = Harness::new("build-explain");
         let store = harness.workspace.join(".dx").join("explain");

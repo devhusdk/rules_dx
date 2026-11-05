@@ -689,7 +689,7 @@ _check_selection = rule(
     },
 )
 
-def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, visibility = None):
+def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, target_compatible_with = None, visibility = None):
     """Declares a test that the package is an unsigned APK or a valid App Bundle."""
     _check_selection(
         name = name + "_selection",
@@ -697,6 +697,7 @@ def android_check(name, package, platforms = [], resources = [], size = "small",
         abis = platforms,
         resources = resources,
         tags = ["manual"],
+        target_compatible_with = target_compatible_with,
         visibility = ["//visibility:private"],
     )
     args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + package + ")"]
@@ -711,6 +712,7 @@ def android_check(name, package, platforms = [], resources = [], size = "small",
         data = [package, _BUNDLETOOL, ":" + name + "_selection"],
         size = size,
         tags = tags,
+        target_compatible_with = target_compatible_with,
         visibility = visibility,
     )
 

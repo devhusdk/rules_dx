@@ -7,14 +7,12 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "helm": {
         "attr": attr.label(default = "//config:tool_helm", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "kubernetes",
     },
     "kubeconform": {
         "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "kubernetes",

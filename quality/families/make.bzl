@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "checkmake": {
         "attr": attr.label(default = "@dx_tools//:checkmake", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "make",
     },
     "mbake": {
         "attr": attr.label(default = "//quality/tools/python:mbake", cfg = "exec", executable = True),
-        "capabilities": ["format"],
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,

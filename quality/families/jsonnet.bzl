@@ -6,14 +6,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "jsonnetfmt": {
         "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "jsonnet",
     },
     "jsonnet_lint": {
         "attr": attr.label(default = "@dx_tools//:jsonnet_lint", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "jsonnet",

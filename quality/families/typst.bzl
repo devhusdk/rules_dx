@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "tinymist": {
         "attr": attr.label(default = "@dx_tools//:tinymist", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "typst",
     },
     "typstyle": {
         "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "typst",

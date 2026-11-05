@@ -5,7 +5,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "xmllint": {
         "attr": attr.label(default = "//quality/tools/xml:xmllint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",
         "shard": "xml",

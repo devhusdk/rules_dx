@@ -6,14 +6,12 @@ load("//rego/rules:providers.bzl", "RegoInfo")
 TOOLS = {
     "opa": {
         "attr": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
         "kind": "file",
         "resources": "light",
         "shard": "rego",
     },
     "regal": {
         "attr": attr.label(default = "//config:tool_regal", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "env": [["REGAL_DISABLE_VERSION_CHECK", "1"]],
         "kind": "file",
         "resources": "light",

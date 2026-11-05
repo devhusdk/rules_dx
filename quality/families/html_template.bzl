@@ -5,7 +5,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "djlint": {
         "attr": attr.label(default = "//quality/tools/python:djlint", cfg = "exec", executable = True),
-        "capabilities": ["format", "lint"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,

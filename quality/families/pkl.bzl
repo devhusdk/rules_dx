@@ -7,14 +7,12 @@ load("//quality/tools/jvm:jar_lsp_tool.bzl", "PklLspToolInfo")
 TOOLS = {
     "pkl": {
         "attr": attr.label(default = "//config:tool_pkl", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
         "kind": "file",
         "resources": "medium",
         "shard": "pkl",
     },
     "pkl_lsp": {
         "attr": attr.label(default = "//quality/tools/jvm:pkl_lsp", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "extra": "runfiles",
         "kind": "executable",
         "resources": "heavy",

@@ -6,20 +6,17 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "ffmt": {
         "attr": attr.label(default = "@dx_tools//:ffmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "fortran",
     },
     "flang": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "fortran",
     },
     "fortitude": {
         "attr": attr.label(default = "@dx_tools//:fortitude", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "fortran",

@@ -11,7 +11,6 @@ load("//thrift/rules:defs.bzl", "ThriftInfo")
 TOOLS = {
     "buf": {
         "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
         "env": [["PATH", "/usr/bin:/bin"]],
         "kind": "file",
         "resources": "light",
@@ -19,7 +18,6 @@ TOOLS = {
     },
     "capnp": {
         "attr": attr.label(default = "//config:tool_capnp", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["lint", "typecheck"],
         "fallback": " to a capnp binary",
         "kind": "setting",
         "resources": "light",
@@ -27,7 +25,6 @@ TOOLS = {
     },
     "flatc": {
         "attr": attr.label(default = "//config:tool_flatc", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["lint", "typecheck"],
         "fallback": " to a flatc binary",
         "kind": "setting",
         "resources": "light",
@@ -35,7 +32,6 @@ TOOLS = {
     },
     "avro_tools": {
         "attr": attr.label(default = "//config:tool_avro", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["lint", "typecheck"],
         "fallback": " to an avro-tools binary",
         "kind": "setting",
         "resources": "light",
@@ -43,7 +39,6 @@ TOOLS = {
     },
     "thrift": {
         "attr": attr.label(default = "//config:tool_thrift", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["lint", "typecheck"],
         "fallback": " to a thrift binary",
         "kind": "setting",
         "resources": "light",

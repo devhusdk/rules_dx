@@ -6,42 +6,36 @@ load("//quality:sources.bzl", "QualityToolsInfo")
 TOOLS = {
     "biome": {
         "attr": attr.label(default = "@dx_tools//:biome", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "buildifier": {
         "attr": attr.label(default = "@dx_tools//:buildifier", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "markdown_check": {
         "attr": attr.label(default = "//quality/markdown:quality_markdown", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "notebook_outputs": {
         "attr": attr.label(default = "//quality/notebook:quality_notebook", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "taplo": {
         "attr": attr.label(default = "@dx_tools//:taplo", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "vale": {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",

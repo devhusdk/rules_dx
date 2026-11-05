@@ -6,7 +6,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "dfmt": {
         "attr": attr.label(default = "//config:tool_dfmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
         "shard": "d",
@@ -14,14 +13,12 @@ TOOLS = {
     },
     "dscanner": {
         "attr": attr.label(default = "//config:tool_dscanner", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "setting",
         "resources": "medium",
         "shard": "d",
         "target_tool": True,
     },
     "ldc": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "d",

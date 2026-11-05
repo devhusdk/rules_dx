@@ -41,26 +41,22 @@ _qml_context_aspect = aspect(
 TOOLS = {
     "clang_format": {
         "attr": attr.label(default = "@llvm//tools:clang-format", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "cc",
     },
     "clang_syntax": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "cc",
     },
     "clang_tidy": {
-        "capabilities": ["lint"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "cc",
     },
     "cppcheck": {
         "attr": attr.label(default = "//quality/tools/cc:cppcheck", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "extra": "runfiles",
         "kind": "executable",
         "resources": "heavy",
@@ -68,14 +64,12 @@ TOOLS = {
         "shard": "cc",
     },
     "nvcc_syntax": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "cc",
     },
     "qmlformat": {
         "attr": attr.label(default = "//config:tool_qmlformat", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "fallback": "=@dx_qt//:qmlformat",
         "kind": "setting",
         "resources": "light",
@@ -83,7 +77,6 @@ TOOLS = {
     },
     "qmllint": {
         "attr": attr.label(default = "//config:tool_qmllint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint", "typecheck"],
         "fallback": "=@dx_qt//:qmllint",
         "kind": "setting",
         "resources": "medium",

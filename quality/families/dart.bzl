@@ -9,7 +9,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "dart": {
         "attr": attr.label(default = "//config:tool_dart", allow_files = True, cfg = "exec"),
-        "capabilities": ["format", "lint", "typecheck"],
         "kind": "setting",
         "resources": "medium",
         "shard": "dart",

@@ -5,7 +5,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "cfn_lint": {
         "attr": attr.label(default = "//quality/tools/python:cfn_lint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,

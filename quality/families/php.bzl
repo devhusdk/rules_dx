@@ -8,7 +8,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "phpcs": {
         "attr": attr.label(default = "//config:tool_phpcs", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "fallback": "=@rules_dx//php/tools:phpcs",
         "kind": "setting",
         "resources": "medium",
@@ -16,7 +15,6 @@ TOOLS = {
     },
     "phpstan": {
         "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//php/tools:phpstan",
         "kind": "setting",
         "resources": "heavy",

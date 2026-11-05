@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "latexindent": {
         "attr": attr.label(default = "@dx_tools//:latexindent", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "latex",
     },
     "chktex": {
         "attr": attr.label(default = "@dx_tools//:chktex", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "latex",

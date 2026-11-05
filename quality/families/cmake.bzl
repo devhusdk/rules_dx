@@ -5,7 +5,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "cmakelint": {
         "attr": attr.label(default = "//quality/tools/python:cmakelint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,
@@ -13,7 +12,6 @@ TOOLS = {
     },
     "gersemi": {
         "attr": attr.label(default = "//config:tool_gersemi", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "cmake",

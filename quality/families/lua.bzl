@@ -7,7 +7,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "luals": {
         "attr": attr.label(default = "//config:tool_luals", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//lua/tools:luals",
         "kind": "setting",
         "resources": "heavy",
@@ -15,14 +14,12 @@ TOOLS = {
     },
     "selene": {
         "attr": attr.label(default = "//quality/tools/rust:selene", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",
         "shard": "lua",
     },
     "stylua": {
         "attr": attr.label(default = "//config:tool_stylua", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
         "shard": "lua",

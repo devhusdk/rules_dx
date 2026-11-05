@@ -5,7 +5,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "perlcritic": {
         "attr": attr.label(default = "//config:tool_perlcritic", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "setting",
         "resources": "light",
         "shard": "perl",
@@ -13,7 +12,6 @@ TOOLS = {
     },
     "perltidy": {
         "attr": attr.label(default = "//config:tool_perltidy", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
         "shard": "perl",

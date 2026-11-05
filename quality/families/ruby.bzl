@@ -8,7 +8,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "sorbet": {
         "attr": attr.label(default = "//config:tool_sorbet", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//ruby/tools:sorbet",
         "kind": "setting",
         "resources": "heavy",
@@ -16,14 +15,12 @@ TOOLS = {
     },
     "rubocop": {
         "attr": attr.label(default = "//quality/tools/ruby:rubocop", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",
     },
     "standardrb": {
         "attr": attr.label(default = "//quality/tools/ruby:standardrb", cfg = "exec", executable = True),
-        "capabilities": ["format"],
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",

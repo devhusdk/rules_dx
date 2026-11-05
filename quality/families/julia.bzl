@@ -7,7 +7,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "jet": {
         "attr": attr.label(default = "//config:tool_jet", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//julia/tools/jet:jet",
         "kind": "setting",
         "resources": "heavy",
@@ -15,7 +14,6 @@ TOOLS = {
     },
     "julialint": {
         "attr": attr.label(default = "//config:tool_julialint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "fallback": "=@rules_dx//julia/tools/lint:julialint",
         "kind": "setting",
         "resources": "medium",
@@ -23,7 +21,6 @@ TOOLS = {
     },
     "julia_format": {
         "attr": attr.label(default = "//config:tool_julia_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "setting",
         "resources": "medium",
         "shard": "julia",

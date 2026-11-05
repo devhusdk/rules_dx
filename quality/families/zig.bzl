@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "zig": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "zig",
     },
     "zig_ast_check": {
         "attr": attr.label(default = "//config:tool_zig_ast_check", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "setting",
         "resources": "light",
         "shard": "zig",
@@ -20,7 +18,6 @@ TOOLS = {
     },
     "zig_fmt": {
         "attr": attr.label(default = "//config:tool_zig_fmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
         "shard": "zig",

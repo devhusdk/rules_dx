@@ -8,21 +8,18 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 
 TOOLS = {
     "ocaml": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "ocaml",
     },
     "zanuda": {
         "attr": attr.label(default = "//quality/tools/ocaml:zanuda_tool", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",
     },
     "topiary": {
         "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
-        "capabilities": ["format"],
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",

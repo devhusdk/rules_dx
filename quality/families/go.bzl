@@ -7,41 +7,35 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 
 TOOLS = {
     "errcheck": {
-        "capabilities": ["lint"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "go",
     },
     "gofumpt": {
         "attr": attr.label(default = "//config:tool_gofumpt", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["format"],
         "fallback": " to a gofumpt binary",
         "kind": "setting",
         "resources": "light",
         "shard": "go",
     },
     "gotype": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "go",
     },
     "govet": {
-        "capabilities": ["lint"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "go",
     },
     "modfmt": {
         "attr": attr.label(default = "//config:tool_modfmt", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["format"],
         "fallback": " to a modfmt binary",
         "kind": "setting",
         "resources": "light",
         "shard": "go",
     },
     "staticcheck": {
-        "capabilities": ["lint"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "go",

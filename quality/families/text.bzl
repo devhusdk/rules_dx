@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "keep_sorted": {
         "attr": attr.label(default = "@dx_tools//:keep_sorted", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "text",
     },
     "typos": {
         "attr": attr.label(default = "@dx_tools//:typos", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "text",

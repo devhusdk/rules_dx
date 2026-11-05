@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "deadnix": {
         "attr": attr.label(default = "//quality/tools/rust:deadnix", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",
         "shard": "nix",
     },
     "nixfmt": {
         "attr": attr.label(default = "//config:tool_nixfmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "fallback": "=<label of a nixfmt executable>",
         "kind": "file",
         "resources": "light",
@@ -20,7 +18,6 @@ TOOLS = {
     },
     "statix": {
         "attr": attr.label(default = "//quality/tools/rust:statix", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",
         "shard": "nix",

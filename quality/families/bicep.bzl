@@ -7,7 +7,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "bicep": {
         "attr": attr.label(default = "@dx_tools//:bicep", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
         "kind": "file",
         "resources": "medium",
         "shard": "bicep",

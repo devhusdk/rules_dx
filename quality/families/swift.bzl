@@ -5,7 +5,6 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 TOOLS = {
     "swift_format": {
         "attr": attr.label(default = "//config:tool_swift_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "kind": "setting",
         "resources": "light",
         "shard": "swift",
@@ -13,7 +12,6 @@ TOOLS = {
     },
     "swift_lint": {
         "attr": attr.label(default = "//config:tool_swift_lint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "kind": "setting",
         "resources": "light",
         "shard": "swift",

@@ -8,7 +8,6 @@ load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
 TOOLS = {
     "terraform": {
         "attr": attr.label(default = "//config:tool_terraform", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
         "env": [["CHECKPOINT_DISABLE", "1"], ["TF_IN_AUTOMATION", "1"], ["TF_INPUT", "0"]],
         "kind": "file",
         "resources": "light",
@@ -16,7 +15,6 @@ TOOLS = {
     },
     "tflint": {
         "attr": attr.label(default = "@dx_tools//:tflint", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "env": [["CHECKPOINT_DISABLE", "1"]],
         "kind": "file",
         "resources": "light",

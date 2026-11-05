@@ -6,7 +6,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "flake8": {
         "attr": attr.label(default = "//quality/tools/python:flake8", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -14,7 +13,6 @@ TOOLS = {
     },
     "pydoclint": {
         "attr": attr.label(default = "//quality/tools/python:pydoclint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -22,7 +20,6 @@ TOOLS = {
     },
     "pylint": {
         "attr": attr.label(default = "//quality/tools/python:pylint", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -37,7 +34,6 @@ TOOLS = {
     },
     "ty": {
         "attr": attr.label(default = "@dx_tools//:ty", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
         "kind": "file",
         "resources": "medium",
         "shard": "py",

@@ -5,14 +5,12 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "ghc": {
-        "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "haskell",
     },
     "hlint": {
         "attr": attr.label(default = "//config:tool_hlint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "fallback": "=<label of an hlint executable>",
         "kind": "file",
         "resources": "medium",
@@ -20,7 +18,6 @@ TOOLS = {
     },
     "ormolu": {
         "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "fallback": "=<label of an ormolu executable>",
         "kind": "file",
         "resources": "medium",

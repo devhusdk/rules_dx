@@ -214,9 +214,14 @@ def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizer
     struct(files, error). harness_sources is f(target, capability, direct_sources) returning
     the direct sources with any test-harness sources added. toolchain is
     struct(type, file) where file(ctx, name) returns one toolchain file.
+    A tool spec without capabilities runs every capability tools.bzl lists for it.
     check_policy is False for a family file whose table lacks the other families' tools; the
     combined config validates the workspace policy.
     """
+    tools = {
+        tool: spec if "capabilities" in spec else spec | {"capabilities": sorted(REAL_ADAPTERS[tool].keys())}
+        for tool, spec in tools.items()
+    }
     return struct(
         tools = tools,
         shards = {name: _expand_shard(tools, spec) for name, spec in shard_specs.items()},

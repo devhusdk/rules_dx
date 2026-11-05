@@ -7,7 +7,6 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "credo": {
         "attr": attr.label(default = "//config:tool_credo", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "fallback": "=@rules_dx//elixir/tools:credo",
         "kind": "setting",
         "resources": "medium",
@@ -15,7 +14,6 @@ TOOLS = {
     },
     "dialyzer": {
         "attr": attr.label(default = "//config:tool_dialyzer", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//erlang/tools:dialyzer",
         "kind": "setting",
         "resources": "heavy",
@@ -23,7 +21,6 @@ TOOLS = {
     },
     "elvis": {
         "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
         "fallback": "=@rules_dx//erlang/tools:elvis",
         "kind": "setting",
         "resources": "medium",
@@ -31,7 +28,6 @@ TOOLS = {
     },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "fallback": "=@rules_dx//erlang/tools:erlfmt",
         "kind": "setting",
         "resources": "medium",
@@ -39,7 +35,6 @@ TOOLS = {
     },
     "mix_format": {
         "attr": attr.label(default = "//config:tool_mix_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
         "fallback": "=@rules_dx//elixir/tools:mix_format",
         "kind": "setting",
         "resources": "medium",

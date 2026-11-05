@@ -120,7 +120,7 @@ fn uncovered_changed_lines_fail_with_locations() {
     ]);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains("dx: changed_line_coverage_below_minimum: changed-line coverage 50.00% (1/2 lines) below minimum 80% against merge-base abc123"),
+        err.contains("dx: changed-line coverage 50.00% (1/2 lines) below minimum 80% against merge-base abc123 (changed_line_coverage_below_minimum)"),
         "{err}"
     );
     assert!(
@@ -194,7 +194,7 @@ fn changed_file_missing_from_report_is_incomplete() {
         harness.run(&["coverage", "--output=text", "--min-changed-line-coverage=0"]);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains("dx: changed_line_coverage_incomplete: changed sources absent from the coverage report against merge-base abc123: src/b.py"),
+        err.contains("dx: changed sources absent from the coverage report against merge-base abc123: src/b.py (changed_line_coverage_incomplete)"),
         "{err}"
     );
 }
@@ -266,7 +266,7 @@ fn shallow_clone_merge_base_failure_is_unavailable() {
     ]);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains("dx: changed_line_coverage_unavailable: git history is shallow"),
+        err.contains("dx: git history is shallow"),
         "{err}"
     );
 }
@@ -284,7 +284,7 @@ fn diff_failure_is_unavailable() {
     ]);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains("dx: changed_line_coverage_unavailable: git diff failed"),
+        err.contains("dx: git diff failed"),
         "{err}"
     );
 }

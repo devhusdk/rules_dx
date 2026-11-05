@@ -8,6 +8,7 @@ load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_applica
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
 load("//dart/rules:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS", "dart_entry_sources")
+load("//libs/starlark:cells.bzl", "unsupported_constraint")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -17,7 +18,10 @@ FLUTTER_SOURCE_EXTS = [".dart"]
 
 FLUTTER_DEFERRED_SKIP_TAGS = []
 
-FLUTTER_COMPATIBLE_WITH = ["@platforms//os:linux"]
+FLUTTER_COMPATIBLE_WITH = select({
+    Label("//flutter/rules:rules_flutter_platform"): [],
+    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//flutter/rules")],
+})
 
 FLUTTER_COVERAGE_COLLECTOR = False
 

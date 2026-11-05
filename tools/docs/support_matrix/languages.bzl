@@ -4,6 +4,7 @@ load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
+load("//flutter/rules:platforms.bzl", "FLUTTER_PLATFORMS")
 load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
 load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
@@ -40,8 +41,7 @@ COMPUTED_CONSTRAINTS = {
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
-    # Mirrors FLUTTER_COMPATIBLE_WITH in //flutter/rules:defs.bzl.
-    "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": [["@platforms//os:linux"]],
+    "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
     # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
@@ -345,6 +345,9 @@ PLATFORM_NOT_APPLICABLE = {
     },
     "dart": {
         "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK",
+    },
+    "flutter": {
+        "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)",
     },
     "fortran": {
         "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build",

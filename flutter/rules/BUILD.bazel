@@ -1,11 +1,19 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "FLUTTER_DEFERRED_SKIP_TAGS")
+load(":platforms.bzl", "FLUTTER_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["defs.bzl"])
+unsupported_value("unsupported")
+
+exports_files([
+    "defs.bzl",
+    "platforms.bzl",
+])
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
@@ -24,12 +32,29 @@ dx_wrapper_contract_tests(
     },
 )
 
+[
+    config_setting(
+        name = name,
+        constraint_values = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
+    )
+    for name, (os, cpu) in FLUTTER_PLATFORMS.items()
+]
+
+selects.config_setting_group(
+    name = "rules_flutter_platform",
+    match_any = [":" + name for name in FLUTTER_PLATFORMS],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "platforms.bzl",
     ],
     tags = ["corpus"],
 )

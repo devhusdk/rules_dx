@@ -351,6 +351,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         new_log,
         time,
         jobs,
+        check: _,
         baseline,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
@@ -582,7 +583,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
-    if command == Command::Explain {
+    if matches!(command, Command::Explain | Command::Release) {
         if let Some(scope) = targets.first() {
             return Err(extra_positional(command, scope));
         }

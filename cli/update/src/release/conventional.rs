@@ -52,6 +52,17 @@ pub enum Bump {
     Major,
 }
 
+impl Bump {
+    pub fn name(self) -> &'static str {
+        match self {
+            Bump::None => "none",
+            Bump::Patch => "patch",
+            Bump::Minor => "minor",
+            Bump::Major => "major",
+        }
+    }
+}
+
 /// Kinds in the order `notes` lists them, with their headings.
 pub const DEFAULT_GROUPS: &[(Kind, &str)] = &[
     (Kind::Feat, "Features"),
@@ -179,9 +190,9 @@ fn section(out: &mut String, heading: &str, commits: &[&Commit]) {
 mod tests {
     use super::*;
 
-    const MINOR: &str = include_str!("../testdata/minor.log");
-    const MAJOR: &str = include_str!("../testdata/major.log");
-    const QUIET: &str = include_str!("../testdata/quiet.log");
+    const MINOR: &str = include_str!("../../testdata/minor.log");
+    const MAJOR: &str = include_str!("../../testdata/major.log");
+    const QUIET: &str = include_str!("../../testdata/quiet.log");
 
     #[test]
     fn parses_scope_and_kind() {

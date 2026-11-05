@@ -224,6 +224,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Worktree
         | Command::Explain
         | Command::Fuzz
+        | Command::Release
         | Command::Status
         | Command::Watch
         | Command::Completion => CommandSpec {

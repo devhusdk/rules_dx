@@ -26,6 +26,7 @@ tools/dx lint //... -- --jobs=4
 - [`dx docs`](docs.md): build and serve the docs site.
 - [`dx explain`](explain.md): explain cache misses.
 - [`dx fuzz`](fuzz.md): run fuzz targets for a time budget.
+- [`dx release`](release.md): derive the next version from commits.
 - [`dx init`](init.md): set up a workspace.
 - [`dx status`](status.md): report workspace status.
 - [`dx completion`](completion.md): print shell completions.

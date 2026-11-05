@@ -167,6 +167,7 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::Init
             | Command::Worktree
             | Command::Explain
+            | Command::Release
     )
 }
 
@@ -286,6 +287,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         Command::Fuzz,
         &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
     ),
+    (Command::Release, &["release", "release --to 2.0.0"]),
 ];
 
 fn examples_text(command: Command) -> String {

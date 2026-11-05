@@ -25,6 +25,7 @@ pub enum Command {
     Worktree,
     Explain,
     Fuzz,
+    Release,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,7 +96,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 25] = [
+pub static COMMANDS: [CommandMeta; 26] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -446,6 +447,20 @@ pub static COMMANDS: [CommandMeta; 25] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
     },
+    CommandMeta {
+        command: Command::Release,
+        name: "release",
+        scope_policy: "reject",
+        describe: "derive the next version from conventional commits and list the manifests that carry the version (check only)",
+        usage: "Usage: dx release [--check] [--to <x.y.z>]",
+        scopes: "Scopes: none; positionals are usage failures. The last tag is the base; the version comes from conventional commits since it, or from --to.",
+        is_managed: false,
+        is_adoption: false,
+        default_release: false,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+    },
 ];
 
 impl Command {
@@ -592,7 +607,7 @@ mod tests {
         let json: Vec<Command> = all
             .iter()
             .copied()
-            .filter(|c| !matches!(c, Command::Deploy | Command::Completion | Command::Fuzz))
+            .filter(|c| !matches!(c, Command::Deploy | Command::Completion | Command::Fuzz | Command::Release))
             .collect();
         assert_eq!(set(Command::supports_json), json);
         let in_order = |names: &[Command]| -> Vec<Command> {
@@ -713,6 +728,7 @@ mod tests {
             Command::Worktree,
             Command::Explain,
             Command::Fuzz,
+            Command::Release,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -802,7 +818,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|release",
             "pipe_list order must match declaration order"
         );
     }

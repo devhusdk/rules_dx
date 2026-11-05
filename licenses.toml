@@ -100,6 +100,22 @@ reason = "The crate ships no license file; its NOTICE entry names the declared l
 expires = "2027-10-27"
 
 [[exception]]
+package = "objc2-core-foundation"
+set = "cargo"
+license = "Zlib OR Apache-2.0 OR MIT"
+versions = "=0.3.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "objc2-core-services"
+set = "cargo"
+license = "Zlib OR Apache-2.0 OR MIT"
+versions = "=0.3.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
 package = "pagable"
 set = "cargo"
 license = "Apache-2.0"

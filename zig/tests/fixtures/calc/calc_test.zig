@@ -8,3 +8,7 @@ test "clamp raises values below the range" {
 test "clamp keeps values inside the range" {
     try std.testing.expectEqual(@as(i32, 4), calc.clamp(4, 0, 10));
 }
+
+test "clamp lowers values above the range" {
+    try std.testing.expectEqual(@as(i32, 10), calc.clamp(42, 0, 10));
+}

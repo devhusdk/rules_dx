@@ -847,7 +847,14 @@ impl Session {
             "verdict": if checked.is_ok() { "ok" } else { "wrong" },
             "detail": checked.as_ref().err().cloned().unwrap_or_default(),
         }));
-        checked.map_err(|err| format!("probe {name} {err}; see {}", log_path.display()))?;
+        checked.map_err(|err| {
+            let module = std::fs::read_to_string(self.workspace.join("MODULE.bazel"))
+                .unwrap_or_default();
+            format!(
+                "probe {name} {err}; see {}\nconsumer MODULE.bazel:\n{module}",
+                log_path.display()
+            )
+        })?;
         Ok(outcome)
     }
     // LCOV_EXCL_STOP - reason: end isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md

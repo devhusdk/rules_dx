@@ -72,6 +72,7 @@ platform(
 platform(
     name = "windows_arm64",
     constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
         "@platforms//cpu:arm64",
         "@platforms//os:windows",
     ],

@@ -397,7 +397,7 @@ newer on x86_64, 2.39 or newer on arm64.
 | `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `macos_arm64` | Not qualified |
-| `windows_arm64` | Not qualified |
+| `windows_arm64` | Wired for cl.exe (`--//cc/toolchains:compiler=msvc`); not proven on a host (#6544, #6159) |
 | `windows_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, built with cl.exe (`--//cc/toolchains:compiler=msvc`; Qt's msvc2022 DLLs export Microsoft STL types, which LLVM's libc++ cannot link). Without the flag, Qt targets are incompatible on Windows and skipped; `qt_test` builds its probes with cl.exe through `cc_toolchain_binary`. Not qualified: `gui_test` and `qt_bundle` archives (#6520), a real display, GPU rendering |
 
 Other platforms fail analysis and list the qualified cells. Fetching needs a

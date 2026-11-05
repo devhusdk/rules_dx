@@ -145,7 +145,7 @@ def _pin_checks():
         expect_equal("library license", QT_LIBRARY_LICENSE, "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"),
         expect_equal("tool license", QT_TOOL_LICENSE, "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0"),
         expect_equal("pin errors", pin_errors(), []),
-        expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("blocked cells pass the pin checks", [cell for cell in CELLS if CELLS[cell].blocker != "" and cell_errors(cell, CELLS[cell]) != []], []),
         expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
@@ -434,6 +434,7 @@ def _build_checks():
     tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     macos = cell_build("macos_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     macos_full = cell_build("macos_arm64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    blocked_cells = dict(CELLS, windows_arm64 = struct(**dict({field: getattr(CELLS["windows_arm64"], field) for field in dir(CELLS["windows_arm64"])}, blocker = "pending (#6544)")))
     windows = cell_build("windows_x86_64", ["qtbase", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", tool = "//qt/sdk:tool.bzl")
     all_modules = sorted(MODULES.keys())
     return [
@@ -497,10 +498,11 @@ def _build_checks():
         expect_contains("arm64 core closure links zlib-ng", arm64, '"lib/libz.so.1"'),
         expect_false("arm64 core closure skips pcre", '"lib/libpcre.so.1"' in arm64),
         expect_contains("hub guards other platforms", hub, no_match_error()),
-        expect_contains("no-match names the arm64 blocker", no_match_error(), "windows_arm64 (MSVC arm64 toolchain"),
+        expect_contains("no-match names a blocked cell", no_match_error(blocked_cells), "not qualified: windows_arm64 (pending (#6544))"),
         expect_true("windows arm64 archives resolve under their cell", "/windows_arm64/desktop/" in url_for("windows_arm64", "qtbase")),
         expect_equal("windows arm64 cell passes the pin checks", cell_errors("windows_arm64", CELLS["windows_arm64"]), []),
-        expect_contains("no-match names the qualified cells", no_match_error(), "qualified: linux_arm64, linux_x86_64, macos_arm64, windows_x86_64;"),
+        expect_equal("a blocked cell leaves the qualified list", qualified_cells(blocked_cells), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_contains("no-match names the qualified cells", no_match_error(), "qualified: linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64;"),
         expect_contains("windows cell imports core", windows, '    interface_library = "lib/Qt6Core.lib",\n    shared_library = "bin/Qt6Core.dll",'),
         expect_contains("windows core depends on its import", windows, '    deps = [":core_import"'),
         expect_contains("windows cell launches moc", windows, 'qt_tool(\n    name = "moc",\n    program = "bin/moc.exe",'),
@@ -680,9 +682,8 @@ def _consumer_checks():
         expect_equal("consumer cells are declared once", consumer_cells([_tag(_spec()), _tag(_spec())])[1], ["cell 'custom' is declared twice"]),
         expect_equal("consumer constraints set the cell apart", consumer_cells([_tag(_spec(), constraints = pinned)])[1], ["cell 'custom' constraints match cell 'linux_x86_64'; add a constraint that sets it apart"]),
         expect_equal("a consumer cell replaces its pinned namesake", consumer_cells([_tag(_spec(), "linux_x86_64", ["@platforms//os:linux", "@platforms//cpu:x86_64"])])[1], []),
-        expect_equal("an override qualifies a blocked cell", qualified_cells(windows), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
-        expect_false("an override leaves the blocked list", "windows_x86_64 (" in no_match_error(windows)),
-        expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("an override qualifies a blocked cell", qualified_cells(windows), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
+        expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_contains("hub routes the consumer cell", hub, '":custom_x86_64": "@dx_qt_custom_x86_64//:core"'),
         expect_contains("hub matches the consumer constraint", hub, '        "%s",\n' % str(Label("//qt/sdk:custom"))),
         expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),

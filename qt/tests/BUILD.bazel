@@ -24,6 +24,11 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
+_WINDOWS_ARM64 = [
+    "@platforms//os:windows",
+    "@platforms//cpu:arm64",
+]
+
 _WINDOWS_X86_64 = [
     "@platforms//os:windows",
     "@platforms//cpu:x86_64",
@@ -87,12 +92,22 @@ cc_toolchain_binary(
     target_compatible_with = _WINDOWS_X86_64,
 )
 
+cc_toolchain_binary(
+    name = "probe_windows_arm64",
+    binary = ":probe",
+    compiler = "msvc",
+    platforms = ["//qt/platforms:windows_arm64"],
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_ARM64,
+)
+
 alias(
     name = "probe_native",
     actual = select({
         "@dx_qt//:linux_arm64": ":probe_linux_arm64",
         "@dx_qt//:linux_x86_64": ":probe_linux_x86_64",
         "@dx_qt//:macos_arm64": ":probe_macos_arm64",
+        "@dx_qt//:windows_arm64": ":probe_windows_arm64",
         "@dx_qt//:windows_x86_64": ":probe_windows_x86_64",
     }),
     tags = ["manual"],
@@ -171,6 +186,7 @@ rust_test(
         "@dx_qt//:linux_arm64": [],
         "@dx_qt//:linux_x86_64": [],
         "@dx_qt//:macos_arm64": [],
+        "@dx_qt//:windows_arm64": [],
         "@dx_qt//:windows_x86_64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
@@ -262,6 +278,16 @@ cc_toolchain_binary(
     target_compatible_with = _WINDOWS_X86_64,
 )
 
+cc_toolchain_binary(
+    name = "gui_check_windows_arm64",
+    testonly = True,
+    binary = ":gui_check",
+    compiler = "msvc",
+    platforms = ["//qt/platforms:windows_arm64"],
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_ARM64,
+)
+
 alias(
     name = "gui_check_native",
     testonly = True,
@@ -269,6 +295,7 @@ alias(
         "@dx_qt//:linux_arm64": ":gui_check_linux_arm64",
         "@dx_qt//:linux_x86_64": ":gui_check_linux_x86_64",
         "@dx_qt//:macos_arm64": ":gui_check_macos_arm64",
+        "@dx_qt//:windows_arm64": ":gui_check_windows_arm64",
         "@dx_qt//:windows_x86_64": ":gui_check_windows_x86_64",
     }),
     tags = ["manual"],

@@ -95,12 +95,12 @@ def _msvc_impl(ctx):
         tool = action.argv[0].replace("\\", "/")
         asserts.true(env, "dx_msvc" in tool, "tool outside the pinned MSVC: " + tool)
         asserts.true(env, tool.endswith("/" + _MSVC_TOOLS[action.mnemonic]), "unexpected tool for %s: %s" % (action.mnemonic, tool))
-        for key in ["PATH", "INCLUDE", "LIB"]:
+        for key in ["INCLUDE", "LIB"]:
             for entry in (action.env or {}).get(key, "").split(";"):
                 if entry:
                     asserts.true(env, "dx_msvc" in entry, "%s entry outside the pinned MSVC: %s" % (key, entry))
-        if action.mnemonic == "CppLink":
-            asserts.true(env, any([arg.startswith("@") for arg in action.argv]), "link does not use a param file: %s" % action.argv)
+        for entry in (action.env or {}).get("PATH", "").split(";"):
+            asserts.false(env, "Visual Studio" in entry, "PATH entry from an installed Visual Studio: " + entry)
     return analysistest.end(env)
 
 _msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})

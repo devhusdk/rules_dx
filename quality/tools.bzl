@@ -1649,6 +1649,28 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "periphery",
+        adapters = {"lint": ["swift"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["swift"],
+                context = "target_coupled",
+                family = "swift",
+                fix = "check_only",
+                platforms = ["macos_arm64"],
+                state = "supported",
+                transport = "single",
+                unsupported = {
+                    "linux_arm64": "periphery publishes no Linux binary (see #7872)",
+                    "linux_x86_64": "periphery publishes no Linux binary (see #7872)",
+                    "windows_arm64": "not applicable: periphery has no Windows build",
+                    "windows_x86_64": "not applicable: periphery has no Windows build",
+                },
+            ),
+        ],
+    ),
+    tool(
         id = "perlcritic",
         adapters = {"lint": ["perl"]},
         support = [

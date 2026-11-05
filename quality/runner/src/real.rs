@@ -62,6 +62,7 @@ const BICEP_DEFAULTS_BYTES: &[u8] = b"{}\n";
 /// Home of the Bicep child: its module cache is `$HOME/.bicep`, so it starts empty and no `br:`
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
+const PERIPHERY_HOME_REL: &str = "dx-periphery/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 /// The request env key naming the provider mirror roots, joined with `|`.
@@ -723,6 +724,13 @@ impl RealBackend {
                 env.push((OsString::from(key), OsString::from(value)));
             }
         }
+        if tool_id == "periphery" {
+            let home = scratch.root().join(PERIPHERY_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("periphery home: {err}")))?;
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("HOME"));
+            env.push((OsString::from("HOME"), home.into_os_string()));
+        }
         if tool_id == "pkl_lsp" {
             // The JVM on Windows reads its profile directories from the environment, which the
             // hermetic launch leaves empty. Point them at the scratch home the server writes to.
@@ -859,6 +867,7 @@ mod delegated;
 mod helm;
 mod kubeconform;
 mod native;
+mod periphery;
 mod pipeline;
 mod redocly;
 mod rustfmt;
@@ -888,6 +897,9 @@ mod real_fixtures;
 #[cfg(test)]
 #[path = "real_helm.rs"]
 mod real_helm;
+#[cfg(test)]
+#[path = "real_periphery.rs"]
+mod real_periphery;
 #[cfg(test)]
 #[path = "real_tools.rs"]
 mod real_tools;

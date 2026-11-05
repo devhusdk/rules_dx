@@ -80,6 +80,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "ocaml",
     "opa",
     "ormolu",
+    "periphery",
     "perlcritic",
     "perltidy",
     "phpcs",

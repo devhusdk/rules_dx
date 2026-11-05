@@ -46,7 +46,16 @@ ARTIFACTS = {
         "linkage": "dynamic",
         "needed_shared_libraries": [],
         "os": "macos",
-        "runtime_files": [],
+        "runtime_files": [
+            {
+                "format": "zip",
+                "member": "libIndexStore.dylib",
+                "member_sha256": "a63498e8847b0656697ff4aa0153c061732ca818f7d153ef7c6f0e9f7377fbbc",
+                "path": "libIndexStore.dylib",
+                "sha256": "07d4e286e31dd79164df39097e0b59f533c94badbe18158464a455ea88a166d7",
+                "url": "https://github.com/peripheryapp/periphery/releases/download/3.8.0/periphery-3.8.0.zip",
+            },
+        ],
         "sha256": "07d4e286e31dd79164df39097e0b59f533c94badbe18158464a455ea88a166d7",
         "size": 8773347,
         "tool": "periphery",

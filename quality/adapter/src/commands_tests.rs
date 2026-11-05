@@ -345,6 +345,9 @@ fn periphery_check_scans_the_index_store_without_building() {
             "--skip-build",
             "--format",
             "json",
+            "--disable-update-check",
+            "--quiet",
+            "--retain-public",
             "--index-store-path",
             "/scratch/index"
         ]

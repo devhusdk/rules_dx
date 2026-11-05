@@ -1868,6 +1868,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/peripheryapp/periphery/releases/download/3.8.0/periphery-3.8.0.zip",
                 "kind": "zip",
                 "executable": "periphery",
+                "runtime": [
+                    {
+                        "kind": "zip",
+                        "asset": "periphery-3.8.0.zip",
+                        "url": "https://github.com/peripheryapp/periphery/releases/download/3.8.0/periphery-3.8.0.zip",
+                        "path": "libIndexStore.dylib",
+                        "member": "libIndexStore.dylib",
+                    }
+                ],
             },
         },
     },
@@ -2751,6 +2760,23 @@ def _check_tlpdb(asset, package, path, workdir):
         )
 
 
+def _zip_runtime_file(entry, workdir):
+    """Returns the runtime file taken from a zip the tool itself ships in."""
+    archive_path = os.path.join(workdir, entry["asset"])
+    if not os.path.exists(archive_path):
+        _download(entry["url"], archive_path)
+    with zipfile.ZipFile(archive_path) as archive_file:
+        member_digest = hashlib.sha256(archive_file.read(entry["member"])).hexdigest()
+    return {
+        "path": entry["path"],
+        "url": entry["url"],
+        "sha256": _sha256(archive_path),
+        "format": "zip",
+        "member": entry["member"],
+        "member_sha256": member_digest,
+    }
+
+
 def _runtime_files(spec, workdir):
     """Returns the extra files one tool needs next to its executable."""
     files = []
@@ -2763,6 +2789,9 @@ def _runtime_files(spec, workdir):
                     "sha256": hashlib.sha256(entry["content"].encode()).hexdigest(),
                 }
             )
+            continue
+        if entry["kind"] == "zip":
+            files.append(_zip_runtime_file(entry, workdir))
             continue
         archive_path = os.path.join(workdir, "runtime-" + entry["asset"])
         if not os.path.exists(archive_path):

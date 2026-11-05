@@ -54,6 +54,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_periphery",
+    build_setting_default = "@dx_tools//:periphery",
+)
+
+label_flag(
     name = "tool_hlint",
     build_setting_default = "@dx_tools//:hlint",
 )

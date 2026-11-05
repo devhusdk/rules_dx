@@ -32,6 +32,7 @@ pub(super) const TOOL_DEFS: &[&ToolDef] = &[
     &super::cmakelint::TOOL,
     &super::helm::TOOL,
     &super::kubeconform::TOOL,
+    &super::periphery::TOOL,
     &super::redocly::TOOL,
     &super::rustfmt::TOOL,
     &super::sqlfluff::TOOL,

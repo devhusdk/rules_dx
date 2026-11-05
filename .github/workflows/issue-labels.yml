@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo bug enhancement needs-host tracking dogfood P0 P1 P2 P3 | tr ' ' '\n'
+            echo bug enhancement needs-host tracking needs-review dogfood P0 P1 P2 P3 | tr ' ' '\n'
             for f in .github/ISSUE_TEMPLATE/*.md; do
               awk '/^---$/ { n++; next } n == 1 && /^labels:/ { sub(/^labels:/, ""); print; f = 1; next } n == 1 && f && /^[[:space:]]*-/ { sub(/^[[:space:]]*-/, ""); print; next } n == 1 { f = 0 }' "$f" |
                 tr ',' '\n' | tr -d "[]\"' " | sed '/^$/d'
@@ -102,5 +102,37 @@ jobs:
             if [ "$done_all" = true ]; then
               gh issue comment "$n" --body "Unblocked: $(echo $refs | sed 's/ /, /g') closed"
               gh issue edit "$n" --remove-label blocked
+            fi
+          done
+
+  unreviewed-merges:
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Warn about merged pull requests on review paths without a Review comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          marker='<!-- unreviewed-merge -->'
+          since=$(date -u -d '2 days ago' +%Y-%m-%d)
+          for n in $(gh pr list --state merged --search "merged:>=$since" --limit 200 --json number --jq '.[].number'); do
+            paths=$(gh pr view "$n" --json files --jq '.files[].path' | tools/ci/review_paths.sh)
+            [ -n "$paths" ] || continue
+            if gh pr view "$n" --json comments,reviews --jq '[.comments[].body, .reviews[].body] | .[]' | grep -q '^Review:'; then
+              continue
+            fi
+            echo "::warning title=Unreviewed merge::#$n touched review paths and has no Review: comment"
+            if ! gh pr view "$n" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+              gh pr comment "$n" --body "$marker
+          This pull request touched paths in \`.github/review-paths.txt\` and was merged without a \`Review:\` comment. See CONTRIBUTING.md."
             fi
           done

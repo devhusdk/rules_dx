@@ -12,6 +12,7 @@ This repository uses Bazel.
 - Write plain and human. Short sentences. Commands first. No filler, no essays, no AI tone. If a paragraph explains why something exists, delete it, except the "What rules_dx replaces" section in `README.md`.
 - Don't wait on upstream. Patch it here, or fetch the fixed rule set in rules_dx's own module extension, so consumers get the fix now. Then fix it upstream too: open an upstream issue first, then a small PR that follows that repo's contributing guide and style and includes a regression test. Link both from the rules_dx issue. Delete our patch once a release carries the fix.
 - No `actions: write`? Comment `/evidence platforms=["macos_arm64"] task=test scope=//pkg/...` on the issue or PR. It dispatches `evidence.yml` and replies with the run URL.
+- A PR that touches `.github/review-paths.txt` paths gets `needs-review` and a second-session `Review:` comment before merge. See CONTRIBUTING.md.
 
 <!-- dx:begin -->
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.

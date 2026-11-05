@@ -22,6 +22,7 @@ filegroup(
 
 exports_files([
     "actionlint.yaml",
+    "review-paths.txt",
     "rulesets/main.json",
     "workflows/README.md",
 ] + glob(

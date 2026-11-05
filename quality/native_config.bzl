@@ -46,7 +46,7 @@ CONFIG_REQUIRED_TOOLS = {
     "vale": struct(name = "Vale", src = ".vale.ini"),
 }
 
-CONFIG_TOOL_ALIASES = {"helm": "kubeconform"}
+CONFIG_TOOL_ALIASES = {"helm": "kubeconform", "swift_lint": "swift_format"}
 
 _NATIVE_CONFIG_SUFFIXES = {tool.id: tool.config_suffix for tool in TOOLS if tool.config_suffix}
 
@@ -293,6 +293,8 @@ cmakelint_config = _make_native_config_rule("cmakelint")
 ffmt_config = _make_native_config_rule("ffmt")
 mbake_config = _make_native_config_rule("mbake")
 tflint_config = _make_native_config_rule("tflint")
+fortitude_config = _make_native_config_rule("fortitude")
+swift_format_config = _make_native_config_rule("swift_format")
 credo_config = _make_native_config_rule("credo")
 detekt_config = _make_native_config_rule("detekt")
 ktlint_config = _make_native_config_rule("ktlint")

@@ -1443,7 +1443,8 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     assert_eq!(
         argv_strings(&fortitude_check(
             Path::new(BIN),
-            &[Path::new("/scratch/a.f90"), Path::new("/scratch/b.F90")]
+            &[Path::new("/scratch/a.f90"), Path::new("/scratch/b.F90")],
+            None
         )),
         vec![
             BIN,
@@ -1456,6 +1457,25 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "json",
             "/scratch/a.f90",
             "/scratch/b.F90"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&fortitude_check(
+            Path::new(BIN),
+            &[Path::new("/scratch/a.f90")],
+            Some(Path::new("/scratch/cfg/fortitude.toml"))
+        )),
+        vec![
+            BIN,
+            "check",
+            "--config",
+            "/scratch/cfg/fortitude.toml",
+            "--no-respect-gitignore",
+            "--progress-bar",
+            "off",
+            "--output-format",
+            "json",
+            "/scratch/a.f90"
         ]
     );
     assert_eq!(
@@ -1707,16 +1727,49 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let swift = Path::new("/scratch/sample.swift");
     assert_eq!(
-        argv_strings(&swift_format_check(Path::new(BIN), swift)),
+        argv_strings(&swift_format_check(Path::new(BIN), swift, None)),
         vec![BIN, "format", "/scratch/sample.swift"]
     );
     assert_eq!(
-        argv_strings(&swift_format_fix(Path::new(BIN), &[swift])),
+        argv_strings(&swift_format_fix(Path::new(BIN), &[swift], None)),
         vec![BIN, "format", "--in-place", "/scratch/sample.swift"]
     );
     assert_eq!(
-        argv_strings(&swift_lint(Path::new(BIN), &[swift])),
+        argv_strings(&swift_lint(Path::new(BIN), &[swift], None)),
         vec![BIN, "lint", "--strict", "/scratch/sample.swift"]
+    );
+    let swift_config = Some(Path::new("/scratch/.swift-format"));
+    assert_eq!(
+        argv_strings(&swift_format_check(Path::new(BIN), swift, swift_config)),
+        vec![
+            BIN,
+            "format",
+            "--configuration",
+            "/scratch/.swift-format",
+            "/scratch/sample.swift"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&swift_format_fix(Path::new(BIN), &[swift], swift_config)),
+        vec![
+            BIN,
+            "format",
+            "--in-place",
+            "--configuration",
+            "/scratch/.swift-format",
+            "/scratch/sample.swift"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&swift_lint(Path::new(BIN), &[swift], swift_config)),
+        vec![
+            BIN,
+            "lint",
+            "--strict",
+            "--configuration",
+            "/scratch/.swift-format",
+            "/scratch/sample.swift"
+        ]
     );
     let erl = Path::new("/scratch/sample.erl");
     assert_eq!(

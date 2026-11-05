@@ -1003,6 +1003,7 @@ TOOLS = [
     tool(
         id = "fortitude",
         adapters = {"lint": ["fortran"]},
+        config_suffix = [".toml"],
         support = [
             row(
                 capability = "lint",
@@ -2437,6 +2438,7 @@ TOOLS = [
     tool(
         id = "swift_format",
         adapters = {"format": ["swift"]},
+        config_suffix = [".swift-format", ".json"],
         support = [
             row(
                 capability = "format",

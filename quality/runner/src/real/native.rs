@@ -329,7 +329,9 @@ pub(super) const TOOLS: &[ToolDef] = &[
             if free_form.is_empty() {
                 return Ok(Vec::new());
             }
-            let invocation = commands::fortitude_check(&call.tool.binary, &free_form);
+            let config = backend.config_abs(call.tool_id, call.tool, &call.staged.scratch)?;
+            let invocation =
+                commands::fortitude_check(&call.tool.binary, &free_form, config.as_deref());
             let out = run(backend, call, &invocation)?;
             let free_strs: Vec<&str> = free_form.iter().filter_map(|p| p.to_str()).collect();
             parsed(
@@ -383,10 +385,14 @@ pub(super) const TOOLS: &[ToolDef] = &[
         id: "swift_format",
         run: |backend, call| {
             // One process per file: the check prints the formatted text of one file.
+            let config = backend.config_abs(call.tool_id, call.tool, &call.staged.scratch)?;
             let mut findings = Vec::new();
             for (workspace, absolute) in &call.staged.pairs {
-                let invocation =
-                    commands::swift_format_check(&call.tool.binary, absolute.as_path());
+                let invocation = commands::swift_format_check(
+                    &call.tool.binary,
+                    absolute.as_path(),
+                    config.as_deref(),
+                );
                 let out = run(backend, call, &invocation)?;
                 let input = std::fs::read(absolute)
                     .map_err(|err| execution(call.tool_id, format!("read {workspace}: {err}")))?;
@@ -404,10 +410,11 @@ pub(super) const TOOLS: &[ToolDef] = &[
         run: |backend, call| {
             let (refs, names) = paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
+            let config = backend.config_abs(call.tool_id, call.tool, &call.staged.scratch)?;
             let out = run(
                 backend,
                 call,
-                &commands::swift_lint(&call.tool.binary, &refs),
+                &commands::swift_lint(&call.tool.binary, &refs, config.as_deref()),
             )?;
             parsed(
                 call.tool_id,

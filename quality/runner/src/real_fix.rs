@@ -358,6 +358,7 @@ pub(super) enum Route {
     Scalafix,
     AnsibleLint,
     Sqlfluff,
+    SwiftFormat,
     Rewrite(fn(&Path, &[&Path]) -> Invocation),
 }
 
@@ -435,7 +436,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
-        "swift_format" => Ok(Route::Rewrite(commands::swift_format_fix)),
+        "swift_format" => Ok(Route::SwiftFormat),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
         "keep_sorted" => {
             if tool.upstream_diagnostics.is_empty() {
@@ -457,6 +458,7 @@ impl Route {
             | Route::Scalafix
             | Route::AnsibleLint
             | Route::Sqlfluff
+            | Route::SwiftFormat
             | Route::Rewrite(_) => &[],
         }
     }
@@ -861,6 +863,14 @@ impl super::RealBackend {
                 };
                 Ok(commands::sqlfluff_format_fix(&tool.binary, refs, &config))
             }
+            Route::SwiftFormat => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                Ok(commands::swift_format_fix(
+                    &tool.binary,
+                    refs,
+                    config.as_deref(),
+                ))
+            }
             Route::Rewrite(fix) => Ok(fix(&tool.binary, refs)),
         }
     }
@@ -966,7 +976,14 @@ impl super::RealBackend {
                     ))
                 }
             }
-            Route::Rewrite(_) if tool_id == "perltidy" || tool_id == "swift_format" => {
+            Route::SwiftFormat => {
+                if out.code == Some(0) {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Kept
+                }
+            }
+            Route::Rewrite(_) if tool_id == "perltidy" => {
                 if out.code == Some(0) {
                     Outcome::Fixed
                 } else {

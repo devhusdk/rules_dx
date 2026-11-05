@@ -48,9 +48,7 @@ const RUFF_FORMAT_CHECK_TAIL: &[&str] = &["--check", "--output-format", "json"];
 /// Config discovery, the git ignore rules and the default excludes are all off, and
 /// `--force-exclude` stays off: with it an explicit file under a directory such as `build/` is
 /// skipped and reported clean.
-const FORTITUDE_CHECK_ARGS: &[&str] = &[
-    "check",
-    "--isolated",
+const FORTITUDE_CHECK_TAIL: &[&str] = &[
     "--no-respect-gitignore",
     "--progress-bar",
     "off",
@@ -304,6 +302,7 @@ const CHKTEX_CHECK_ARGS: &[&str] = &["-q", "-I0", "-f", CHKTEX_FORMAT];
 const SWIFT_FORMAT_CHECK_ARGS: &[&str] = &["format"];
 const SWIFT_FORMAT_FIX_ARGS: &[&str] = &["format", "--in-place"];
 const SWIFT_LINT_ARGS: &[&str] = &["lint", "--strict"];
+const SWIFT_CONFIG_FLAG: &str = "--configuration";
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -1575,8 +1574,23 @@ pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 /// One batched lint over explicit free-form files. It prints `[]` when every file is clean.
-pub fn fortitude_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, FORTITUDE_CHECK_ARGS, files, "")
+/// Without a bound config `--isolated` keeps fortitude from reading any; fortitude rejects the
+/// two flags together.
+pub fn fortitude_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    let prefix: &[&str] = if config.is_some() {
+        &["check"]
+    } else {
+        &["check", "--isolated"]
+    };
+    optional_flag(
+        binary,
+        prefix,
+        "--config",
+        config,
+        FORTITUDE_CHECK_TAIL,
+        files,
+        "",
+    )
 }
 
 /// `ffmt --check` prints one unformatted path per line and exits 1; `config_dir_rel` is the
@@ -1723,17 +1737,41 @@ pub fn zig_ast_check(binary: &Path, file: &Path) -> Invocation {
 }
 
 /// `swift-format format` takes one file here and writes the formatted text to stdout.
-pub fn swift_format_check(binary: &Path, file: &Path) -> Invocation {
-    fixed(binary, SWIFT_FORMAT_CHECK_ARGS, &[file], "")
+pub fn swift_format_check(binary: &Path, file: &Path, config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        SWIFT_FORMAT_CHECK_ARGS,
+        SWIFT_CONFIG_FLAG,
+        config,
+        &[],
+        &[file],
+        "",
+    )
 }
 
-pub fn swift_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, SWIFT_FORMAT_FIX_ARGS, files, "")
+pub fn swift_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        SWIFT_FORMAT_FIX_ARGS,
+        SWIFT_CONFIG_FLAG,
+        config,
+        &[],
+        files,
+        "",
+    )
 }
 
 /// One batched lint; `--strict` makes every finding exit 1.
-pub fn swift_lint(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, SWIFT_LINT_ARGS, files, "")
+pub fn swift_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        SWIFT_LINT_ARGS,
+        SWIFT_CONFIG_FLAG,
+        config,
+        &[],
+        files,
+        "",
+    )
 }
 
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {

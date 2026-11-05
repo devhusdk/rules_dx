@@ -1,0 +1,20 @@
+load("//deploy/rules:image.bzl", "oci_image_from_binary")
+load("//deploy/rules:oci.bzl", "oci_deploy")
+load("//rust/rules:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "hello",
+    srcs = ["hello.rs"],
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image",
+    binary = ":hello",
+)
+
+oci_deploy(
+    name = "publish",
+    image_tar = ":image",
+    platform = "linux/amd64",
+)

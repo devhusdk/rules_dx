@@ -714,6 +714,36 @@ This runs `luarocks upload <rockspec> --api-key=...`, which packs the source
 rock and uploads it, so the key is visible in the `luarocks` command line while
 it runs. A live run refuses upstream version `0.0.0`.
 
+# oci_image_from_binary
+
+Builds an OCI image from one binary, with no Dockerfile.
+
+```starlark
+load("@rules_dx//deploy/rules:image.bzl", "oci_image_from_binary")
+load("@rules_dx//deploy/rules:oci.bzl", "oci_deploy")
+
+oci_image_from_binary(
+    name = "image",
+    binary = ":hello",
+)
+
+oci_deploy(
+    name = "publish",
+    image_tar = ":image",
+    platform = "linux/amd64",
+)
+```
+
+- `binary`: required. A `rust_binary`, `go_binary`, `cc_binary` or zig binary.
+  The binary and its runfiles go in one layer under `/app`, and the
+  entrypoint is `/app/<binary name>`.
+- `base`: `static` (default) or `cc`, the pinned distroless images from the
+  `containers` family.
+- `platforms`: defaults to `["linux/amd64"]`. One platform gives an
+  `oci_image` and an `<name>_load` target that `dx run` loads into a local
+  runtime. Several platforms give an `oci_image_index` that builds the binary
+  once per platform; `oci_deploy` takes one `platform` of it.
+
 # oci_deploy
 
 Stages one image as a local OCI layout and pushes it to a registry.

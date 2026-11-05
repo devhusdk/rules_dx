@@ -33,6 +33,7 @@ load(":npm.bzl", "npm_deploy")
 load(":npm_tests.bzl", "npm_unit_tests")
 load(":nuget.bzl", "nuget_deploy")
 load(":nuget_tests.bzl", "nuget_unit_tests")
+load(":image_tests.bzl", "image_unit_tests")
 load(":oci.bzl", "oci_deploy")
 load(":oci_tests.bzl", "oci_layout_fixture", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
@@ -87,6 +88,8 @@ exports_files([
     "npm_tests.bzl",
     "nuget.bzl",
     "nuget_tests.bzl",
+    "image.bzl",
+    "image_tests.bzl",
     "oci.bzl",
     "oci_tests.bzl",
     "octopus.bzl",
@@ -836,6 +839,7 @@ test_suite(
         ":homebrew_analysis",
         ":homebrew_demo_verify",
         ":homebrew_unit",
+        ":image_unit",
         ":linux_package_demo_verify",
         ":linux_package_unit",
         ":luarocks_analysis",
@@ -1756,6 +1760,7 @@ oci_deploy(
     platform = "linux/amd64",
 )
 
+image_unit_tests(name = "image_unit")
 oci_unit_tests(name = "oci_unit")
 
 deploy_analysis_test(

@@ -54,17 +54,21 @@ dx_wrapper_contract_tests(
             ],
         ),
         expect_equal(
-            "only linux x86_64 is qualified",
+            "linux cells are qualified",
             cuda_qualified_cells(),
-            ["linux_x86_64"],
+            [
+                "linux_x86_64",
+                "linux_arm64",
+            ],
         ),
         expect_true(
             "windows x86_64 is blocked",
             len(CUDA_CELLS["windows_x86_64"].blocker) > 0,
         ),
-        expect_true(
-            "linux arm64 is blocked",
-            len(CUDA_CELLS["linux_arm64"].blocker) > 0,
+        expect_equal(
+            "linux arm64 is qualified",
+            CUDA_CELLS["linux_arm64"].blocker,
+            "",
         ),
         expect_equal(
             "linux arm64 pins the linux x86_64 component versions",

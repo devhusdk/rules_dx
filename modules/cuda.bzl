@@ -240,7 +240,7 @@ CUDA_CELLS = {
     ),
     "linux_arm64": struct(
         rules_cuda_platform = "linux-sbsa",
-        blocker = "needs per-platform rules_cuda wiring (#5975) and an arm64 run (#3315)",
+        blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         components = _LINUX_ARM64_COMPONENTS,

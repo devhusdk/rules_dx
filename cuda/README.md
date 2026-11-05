@@ -18,7 +18,7 @@ cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.redist_json(
     name = "cuda_redist",
     components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],
-    platforms = ["linux-x86_64"],
+    platforms = ["linux-x86_64", "linux-sbsa"],
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     version = "13.4.2",
 )
@@ -83,13 +83,12 @@ The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 
 ## Platforms
 
-Linux x86_64 is qualified. CUDA targets are incompatible on other platforms,
+Linux x86_64 and Linux arm64 (sbsa) are qualified. CUDA targets are incompatible on other platforms,
 so `bazel build //...` skips them.
 
 Windows x86_64 archives (CUDA 13.4.2 redist) are pinned in `modules/cuda.bzl`
 but blocked until nvcc has an MSVC host compiler (#4815) and a Windows run
-(#4704). Linux arm64 (sbsa) 13.4.2 archives are pinned but blocked on
-per-platform rules_cuda wiring (#5975). Windows arm64 13.4.2 archives are pinned but blocked on
+(#4704). Windows arm64 13.4.2 archives are pinned but blocked on
 rules_cuda platform support (#5969) and an MSVC ARM64 host compiler (#4822).
 
 ## Errors

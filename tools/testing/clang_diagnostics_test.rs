@@ -102,3 +102,28 @@ fn default_policy_reports_unused_function_and_parameter() {
     assert!(out.contains("misc-unused-parameters"), "{out}");
     assert!(out.contains("clang-diagnostic-unused-function"), "{out}");
 }
+
+fn profile_output(profile: &str) -> String {
+    let tool = file("DX_CLANG_TIDY");
+    let policy = file(profile).to_string_lossy().into_owned();
+    let config = format!("--config-file={policy}");
+    let std_flag = text("DX_STD");
+    let path = file("DX_MODERNIZE").to_string_lossy().into_owned();
+    dx_testing::run(
+        &tool,
+        &[config.as_str(), path.as_str(), "--", std_flag.as_str()],
+        &[],
+    )
+    .expect("clang-tidy runs")
+    .combined()
+}
+
+#[test]
+fn strict_profile_reports_modernize_and_standard_does_not() {
+    let strict = profile_output("DX_STRICT");
+    assert!(strict.contains("modernize-use-using"), "{strict}");
+    assert!(strict.contains("misc-unused-parameters"), "{strict}");
+    let standard = profile_output("DX_STANDARD");
+    assert!(!standard.contains("modernize-use-using"), "{standard}");
+    assert!(standard.contains("misc-unused-parameters"), "{standard}");
+}

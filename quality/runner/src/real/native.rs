@@ -251,8 +251,13 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let (refs, names) = paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
             let unused = call.capability == "unused";
-            let invocation =
-                commands::cppcheck_check(&call.tool.binary, &refs, call.config, unused);
+            let invocation = commands::cppcheck_check(
+                &call.tool.binary,
+                &refs,
+                call.config,
+                unused,
+                &call.tool.args,
+            );
             let out = run(backend, call, &invocation)?;
             let found = parsed(
                 call.tool_id,

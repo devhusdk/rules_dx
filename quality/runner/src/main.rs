@@ -110,6 +110,7 @@ fn real_tool(
         config_rel: entry.config_rel.clone(),
         edition: entry.edition.clone(),
         dialect: entry.dialect.clone(),
+        args: entry.args.clone(),
         tool_files,
         upstream_diagnostics: entry
             .upstream
@@ -351,6 +352,7 @@ mod tests {
             config_rel: None,
             edition: None,
             dialect: None,
+            args: Vec::new(),
             files: vec![
                 ("owned/0/ebin".to_owned(), tree.display().to_string()),
                 ("owned/1/empty".to_owned(), empty.display().to_string()),
@@ -385,6 +387,7 @@ mod tests {
             config_rel: Some("ruff.toml".to_owned()),
             edition: Some("3.9".to_owned()),
             dialect: None,
+            args: Vec::new(),
             files: vec![("ruff.toml".to_owned(), file.display().to_string())],
             env: vec![
                 ("B".to_owned(), "2".to_owned()),
@@ -419,6 +422,7 @@ mod tests {
             config_rel: None,
             edition: None,
             dialect: None,
+            args: Vec::new(),
             files: Vec::new(),
             env: Vec::new(),
             upstream: vec![PathBuf::from("/abs/ty.diag")],

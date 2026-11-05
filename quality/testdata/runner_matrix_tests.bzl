@@ -95,6 +95,10 @@ def _runner_matrix_test_impl(ctx):
     for i, tool in enumerate(ctx.attr.dialect_tools):
         dialects[tool] = ctx.attr.dialect_values[i]
 
+    args = {}
+    if ctx.attr.args_tool:
+        args[ctx.attr.args_tool] = ctx.attr.args_values
+
     upstream = []
     upstream_src_targets = ctx.attr.upstream_srcs
     for i, tool in enumerate(ctx.attr.upstream_tools):
@@ -149,6 +153,10 @@ def _runner_matrix_test_impl(ctx):
         if tool not in manifest_tools:
             manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
         manifest_tools[tool]["dialect"] = dialect
+    for tool, values in args.items():
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["args"] = values
 
     for i, name in enumerate(ctx.attr.path_tool_names):
         owner = ctx.attr.path_tool_owners[i]
@@ -312,6 +320,8 @@ _runner_matrix_test = rule(
         "edition_values": attr.string_list(),
         "dialect_tools": attr.string_list(),
         "dialect_values": attr.string_list(),
+        "args_tool": attr.string(),
+        "args_values": attr.string_list(),
         "tool_env": attr.string_list(),
         "upstream_tools": attr.string_list(),
         "upstream_srcs": attr.label_list(
@@ -439,6 +449,8 @@ def runner_matrix_suite(name, cases, extra_cases = []):
             edition_values = case.get("edition_values", []),
             dialect_tools = case.get("dialect_tools", []),
             dialect_values = case.get("dialect_values", []),
+            args_tool = case.get("args_tool", ""),
+            args_values = case.get("args_values", []),
             tool_env = case.get("tool_env", []),
             upstream_tools = case.get("upstream_tools", []),
             upstream_srcs = case.get("upstream_srcs", []),

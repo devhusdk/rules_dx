@@ -259,6 +259,7 @@ pub struct RealTool {
     pub config_rel: Option<String>,
     pub edition: Option<String>,
     pub dialect: Option<String>,
+    pub args: Vec<String>,
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,

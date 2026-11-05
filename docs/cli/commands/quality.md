@@ -217,6 +217,10 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `clang_tidy` uses a dx default `.clang-tidy` when no `clang_tidy_config` is bound. It enables `misc-unused-parameters`, `misc-unused-using-decls` and `readability-redundant-declaration`. `cppcheck` runs with `--enable=unusedFunction`. Findings from these checks are reported as info. cppcheck sees only the files of one target, so a function used only from another target is reported as unused.
 
+`standard` and `strict` clang-tidy profiles live in `cli/adopt/templates/config/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a profile is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
+
+`cppcheck` takes extra check sets from `--//config:cppcheck_enable=warning,performance,portability`, merged into one `--enable=`. The default is empty. Allowed values are `warning`, `style`, `performance`, `portability` and `information`; `unusedFunction` and `all` are rejected, use `dx unused`. The standard profile uses `warning,performance,portability` and strict adds `style`.
+
 ### JVM and .NET
 
 | Tool | Checks | Not on |

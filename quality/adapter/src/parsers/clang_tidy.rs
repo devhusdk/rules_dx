@@ -47,6 +47,10 @@ pub fn parse_clang_tidy(
                 });
             };
             let (message, rule_id) = split_rule(message.trim());
+            let rule_id = rule_id
+                .strip_suffix(",-warnings-as-errors")
+                .map(str::to_owned)
+                .unwrap_or(rule_id);
             if message.is_empty() {
                 return Err(missing(TOOL, "message", line));
             }
@@ -133,6 +137,14 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
         assert_eq!(findings[1].finding.severity, ToolSeverity::Info);
         assert_eq!(findings[2].finding.severity, ToolSeverity::Warning);
+    }
+
+    #[test]
+    fn clang_tidy_drops_the_warnings_as_errors_marker_from_the_rule() {
+        let text = "a.c:1:14: error: parameter 'x' is unused [misc-unused-parameters,-warnings-as-errors]\n";
+        let findings = parse_clang_tidy(text.as_bytes(), Some(1), &["a.c"]).expect("parsed");
+        assert_eq!(findings[0].finding.rule_id, "misc-unused-parameters");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
     }
 
     #[test]

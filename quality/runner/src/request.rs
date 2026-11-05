@@ -14,6 +14,8 @@ pub struct RequestTool {
     pub config_rel: Option<String>,
     pub edition: Option<String>,
     pub dialect: Option<String>,
+    /// Extra tool arguments from build settings; each tool decides which it accepts.
+    pub args: Vec<String>,
     pub files: Vec<(String, String)>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
@@ -128,6 +130,8 @@ struct ToolDoc {
     edition: Option<String>,
     #[serde(default)]
     dialect: Option<String>,
+    #[serde(default)]
+    args: Vec<String>,
     #[serde(default)]
     files: Vec<ToolFileDoc>,
     #[serde(default)]
@@ -323,6 +327,7 @@ fn check_tool(
         config_rel: doc.config.clone(),
         edition: doc.edition.clone(),
         dialect: doc.dialect.clone(),
+        args: doc.args.clone(),
         files,
         env,
         upstream,
@@ -839,6 +844,37 @@ mod tests {
             Some("postgresql")
         );
         assert!(parse_real_request(&doc("")).is_err());
+    }
+
+    #[test]
+    fn tools_carry_args() {
+        let doc = |tool: serde_json::Value| {
+            serde_json::to_vec(&json!({
+                "schema_version": 1,
+                "producer": "//pkg:target",
+                "capability": "lint",
+                "stages": [{"tool": "cppcheck", "classes": ["c"], "sources": ["a.c"]}],
+                "sources": [{"workspace": "a.c", "exec": "exec/a.c"}],
+                "siblings": [],
+                "resolves": [],
+                "tools": {"cppcheck": tool},
+            }))
+            .expect("encodes")
+        };
+        let with = doc(
+            json!({"binary": "bin/cppcheck", "args": ["warning", "style"], "files": [], "env": [], "upstream": []}),
+        );
+        assert_eq!(
+            parse_real_request(&with).expect("parses").tools["cppcheck"].args,
+            ["warning", "style"]
+        );
+        let without =
+            doc(json!({"binary": "bin/cppcheck", "files": [], "env": [], "upstream": []}));
+        assert!(
+            parse_real_request(&without).expect("parses").tools["cppcheck"]
+                .args
+                .is_empty()
+        );
     }
 
     #[test]

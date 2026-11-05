@@ -250,6 +250,23 @@ NATIVE_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_cpp_cppcheck_style",
+        "generated": {
+            "matrix/cppcheck_style.cpp": "// Seed C++ cppcheck fixture.\n\nint check(int value) {\n  int result;\n  if (value > 0) {\n    result = 1;\n    return result;\n  }\n  return 0;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["cppcheck;cpp;matrix/cppcheck_style.cpp"],
+        "tool_names": ["cppcheck"],
+        "tool_binaries": ["//quality/tools/cc:cppcheck"],
+        "args_tool": "cppcheck",
+        "args_values": ["warning", "performance", "portability", "style"],
+        "expected_file": ":matrix/matrix_cpp_cppcheck_style.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
         "name": "matrix_cpp_cppcheck_suppressed",
         "generated": {
             "matrix/cppcheck_suppressed.cpp": "// Seed C++ cppcheck fixture.\n\nint check() {\n  int *slot = nullptr;\n  return *slot;\n}\n",

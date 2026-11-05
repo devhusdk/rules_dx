@@ -1,10 +1,13 @@
 """C, C++, Objective-C, CUDA and QML real quality aspects."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+
+_CPPCHECK_ENABLE = ["warning", "style", "performance", "portability", "information"]
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
@@ -94,6 +97,9 @@ SHARD_SPECS = {
     "real_cc_lint": {
         "capability": "lint",
         "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).",
+        "extra_attrs": {
+            "_cppcheck_enable": attr.label(default = "//config:cppcheck_enable"),
+        },
         "requires": [clang_syntax_aspect, _qml_context_aspect],
         "shard": "cc",
         "suffix": "-cc",
@@ -145,6 +151,17 @@ def _nvcc_syntax_hook(target, _ctx, _resolved, _capability, what, _shared):
         stage(tool_files, inputs, "dx-nvcc-syntax/" + stem + "/exit", info.statuses[i])
     return real_context(upstream = info.diagnostics, late_tool_files = tool_files, late_inputs = inputs)
 
+def _cppcheck_hook(_target, ctx, _resolved, _capability, what, _shared):
+    enable = []
+    if hasattr(ctx.attr, "_cppcheck_enable"):
+        enable = ctx.attr._cppcheck_enable[BuildSettingInfo].value
+    for check in enable:
+        if check in ("unusedFunction", "all"):
+            fail("%s: --//config:cppcheck_enable=%s is not allowed; use dx unused for unused code" % (what, check))
+        if check not in _CPPCHECK_ENABLE:
+            fail("%s: --//config:cppcheck_enable=%s must be one of %s" % (what, check, ", ".join(_CPPCHECK_ENABLE)))
+    return real_context(options = {"args": enable} if enable else {})
+
 def _qmllint_hook(target, _ctx, _resolved, _capability, _what, _shared):
     context_files = list(target[DefaultInfo].files.to_list())
     if QmlContextInfo in target:
@@ -177,11 +194,12 @@ def _cc_sources(target, ctx):
 
 RECOGNIZER = _cc_sources
 
-HOOK_ORDER = ["clang_syntax", "clang_tidy", "nvcc_syntax", "qmllint"]
+HOOK_ORDER = ["clang_syntax", "clang_tidy", "cppcheck", "nvcc_syntax", "qmllint"]
 
 HOOKS = {
     "clang_syntax": _clang_syntax_hook,
     "clang_tidy": _clang_tidy_hook,
+    "cppcheck": _cppcheck_hook,
     "nvcc_syntax": _nvcc_syntax_hook,
     "qmllint": _qmllint_hook,
 }

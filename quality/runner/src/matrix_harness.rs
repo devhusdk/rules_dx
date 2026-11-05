@@ -108,6 +108,8 @@ pub struct ManifestTool {
     #[serde(default)]
     pub dialect: Option<String>,
     #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default)]
     pub env: Vec<EnvEntry>,
     #[serde(default)]
     pub upstream_keys: Vec<String>,
@@ -296,6 +298,8 @@ struct RequestTool {
     edition: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     dialect: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    args: Vec<String>,
     files: Vec<RequestToolFile>,
     env: Vec<RequestEnv>,
     upstream: Vec<String>,
@@ -344,6 +348,7 @@ pub fn build_request(
                 config: entry.config.clone(),
                 edition: entry.edition.clone(),
                 dialect: entry.dialect.clone(),
+                args: entry.args.clone(),
                 files: paths
                     .map(|paths| paths.files.as_slice())
                     .unwrap_or_default()

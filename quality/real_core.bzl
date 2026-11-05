@@ -193,7 +193,7 @@ def real_context(
     stay unstaged. tool_files are (relative path, File) pairs, upstream the Files whose results the tool reads,
     and inputs the Files the action needs besides them; the late_ lists come after the native config. with_config is called
     with the tool's native config hint (or None) and its relative path, and returns a struct of
-    tool_files and inputs. options may hold edition, dialect, search_paths and path_tools.
+    tool_files and inputs. options may hold edition, dialect, args, search_paths and path_tools.
     """
     return struct(
         resolved = resolved,
@@ -516,6 +516,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
             config_rel = config_rel,
             edition = options.get("edition"),
             dialect = options.get("dialect"),
+            args = options.get("args", []),
             files = [real_request_tool_file(rel, f.path) for (rel, f) in tool_files],
             env = tool_env_entries.get(tool, []),
             upstream = [f.path for f in (found.upstream if found != None else [])],

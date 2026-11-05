@@ -1,0 +1,29 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "clang_tidy_config")
+
+exports_files(
+    [
+        "standard.clang-tidy",
+        "strict.clang-tidy",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+clang_tidy_config(
+    name = "standard",
+    src = "standard.clang-tidy",
+    visibility = ["//visibility:public"],
+)
+
+clang_tidy_config(
+    name = "strict",
+    src = "strict.clang-tidy",
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

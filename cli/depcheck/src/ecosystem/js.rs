@@ -113,6 +113,11 @@ impl PnpmLock {
         self.importers.keys().map(String::as_str).collect()
     }
 
+    /// Package names the lock lists, without versions.
+    pub fn package_names(&self) -> BTreeSet<String> {
+        self.packages.iter().map(|(name, _)| name.clone()).collect()
+    }
+
     pub fn has_package(&self, name: &str, version: &str) -> bool {
         self.packages
             .contains(&(normalize_lower(name), version.to_owned()))

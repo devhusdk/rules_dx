@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{DepcheckError, Ecosystem};
 
-fn collect_sources(root: &Path) -> Vec<PathBuf> {
+fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
@@ -20,6 +20,7 @@ fn collect_sources(root: &Path) -> Vec<PathBuf> {
             if child.is_dir() {
                 if !matches!(name, ".git" | "node_modules" | "target")
                     && !name.starts_with("bazel-")
+                    && !nested.is_some_and(|file| child.join(file).is_file())
                 {
                     stack.push(child);
                 }
@@ -140,6 +141,29 @@ impl DepPatterns {
     }
 }
 
+impl DepPatterns {
+    /// Byte offset of the first import, honouring the same shadow rule as `is_match`.
+    fn first_match(&self, text: &str) -> Option<usize> {
+        let first = |patterns: &[regex::Regex]| {
+            patterns
+                .iter()
+                .filter_map(|re| re.find(text))
+                .map(|found| {
+                    let lead = found.as_str().len() - found.as_str().trim_start().len();
+                    found.start() + lead
+                })
+                .min()
+        };
+        if let Some(at) = first(&self.strong) {
+            return Some(at);
+        }
+        if self.shadow.as_ref().is_some_and(|re| re.is_match(text)) {
+            return None;
+        }
+        first(&self.weak)
+    }
+}
+
 fn compile(eco: Ecosystem, patterns: Vec<String>) -> Result<Vec<regex::Regex>, DepcheckError> {
     patterns
         .into_iter()
@@ -241,6 +265,55 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
     })
 }
 
+/// First `file:line` under `root` that imports each of `names`. Directories holding their own
+/// `nested` manifest are not entered.
+pub(crate) fn find_first_imports(
+    eco: Ecosystem,
+    root: &Path,
+    nested: &str,
+    names: &[String],
+) -> Result<BTreeMap<String, (String, usize)>, DepcheckError> {
+    let skips = skip_names();
+    let suffixes = source_suffixes();
+    let mut texts: Vec<(String, String)> = Vec::new();
+    for file in collect_sources(root, Some(nested)) {
+        let Some(fname) = file.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if skips.contains(fname) || !suffixes.iter().any(|s| fname.ends_with(s)) {
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(&file) else {
+            continue;
+        };
+        let rel = file.strip_prefix(root).unwrap_or(&file);
+        texts.push((
+            dx_path::posix(rel),
+            String::from_utf8_lossy(&bytes).into_owned(),
+        ));
+    }
+    let mut out = BTreeMap::new();
+    for name in names {
+        let forms = [name.clone(), name.replace('-', "_"), name.replace('_', "-")];
+        let hits: Vec<&(String, String)> = texts
+            .iter()
+            .filter(|(_, text)| forms.iter().any(|form| text.contains(form.as_str())))
+            .collect();
+        if hits.is_empty() {
+            continue;
+        }
+        let patterns = dep_patterns(eco, name)?;
+        for (rel, text) in hits {
+            if let Some(at) = patterns.first_match(text) {
+                let line = text[..at].matches('\n').count() + 1;
+                out.insert(name.clone(), (rel.clone(), line));
+                break;
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub fn find_usages(
     eco: Ecosystem,
     sources_root: &Path,
@@ -250,7 +323,7 @@ pub fn find_usages(
         .iter()
         .map(|k| (k.clone(), crate::Usage::default()))
         .collect();
-    let files = collect_sources(sources_root);
+    let files = collect_sources(sources_root, None);
     let skips = skip_names();
     let suffixes = source_suffixes();
     let cfg_test =

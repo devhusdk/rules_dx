@@ -151,13 +151,33 @@ pub(super) fn find(
     out
 }
 
-/// Imports under the manifest's directory that no declared dependency covers; Go sets only.
+fn lock_file_name(ecosystem: Ecosystem) -> &'static str {
+    match ecosystem {
+        Ecosystem::Cargo => "Cargo.lock",
+        Ecosystem::Npm => "pnpm-lock.yaml",
+        Ecosystem::Uv => "uv.lock",
+        _ => "Gemfile.lock",
+    }
+}
+
+/// Imports under the manifest's directory that no declared dependency covers. Go reads
+/// `go.mod`; the other sets compare their lock's packages with the manifest.
 pub(super) fn find_missing(workspace: &Path, resolved: &[ResolvedTarget]) -> Vec<Missing> {
     let exceptions =
         dx_depcheck::parse_set_exceptions(&workspace.join(EXCEPTIONS_FILE)).unwrap_or_default();
     let mut out = Vec::new();
     for target in resolved {
-        if target.set.ecosystem != Ecosystem::Go || target.request != Selection::Full {
+        let Some(eco) = depcheck_ecosystem(target.set.ecosystem) else {
+            continue;
+        };
+        let ecosystem = target.set.ecosystem;
+        let lock = target.set.locks.iter().find(|lock| {
+            Path::new(lock.as_str())
+                .file_name()
+                .and_then(|n| n.to_str())
+                == Some(lock_file_name(ecosystem))
+        });
+        if ecosystem != Ecosystem::Go && lock.is_none() {
             continue;
         }
         let set = target.set.name.as_str();
@@ -169,11 +189,24 @@ pub(super) fn find_missing(workspace: &Path, resolved: &[ResolvedTarget]) -> Vec
         for manifest in &target.set.manifests {
             let path = workspace.join(manifest);
             let root = path.parent().unwrap_or(workspace);
-            let Ok(found) = dx_depcheck::find_missing_go(&path, root, &excepted) else {
+            let found = match lock {
+                Some(lock) if ecosystem != Ecosystem::Go => {
+                    dx_depcheck::find_missing(eco, &path, &workspace.join(lock), root, &excepted)
+                }
+                _ => dx_depcheck::find_missing_go(&path, root, &excepted),
+            };
+            let Ok(found) = found else {
                 continue;
             };
             let dir = Path::new(manifest).parent().unwrap_or(Path::new(""));
             for dep in found {
+                let wanted = match &target.request {
+                    Selection::Full => true,
+                    Selection::Packages(names) => names.contains(&dep.name),
+                };
+                if !wanted {
+                    continue;
+                }
                 out.push(Missing {
                     set: set.to_owned(),
                     name: dep.name,

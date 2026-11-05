@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -34,6 +35,7 @@ public final class ScalacCheckTest {
     typeError(dir);
     deprecation(dir);
     werror(dir);
+    unused(dir);
     srcjar(dir);
     javaSource(dir);
     malformed();
@@ -103,6 +105,24 @@ public final class ScalacCheckTest {
     expect(log.contains("\"exit\":1"), "werror exits 1", log);
     expect(log.contains("\"severity\":\"warning\""), "warning kept", log);
     expect(log.contains("\"code\":\"" + ScalacCheck.WERROR_CODE + "\""), "werror sentinel", log);
+  }
+
+  private static final String UNUSED =
+      "import scala.collection.mutable\nobject U {\n  private val n: Int = 1\n"
+          + "  def f: Int = 2\n}\n";
+
+  private static void unused(Path dir) throws IOException {
+    Path a = write(dir, "unused/U.scala", UNUSED);
+    String log = check(List.of("source=" + a, "scalacopt=-Wunused:_"));
+    expect(log.contains("\"exit\":0"), "unused code does not fail", log);
+    String warning = "\"severity\":\"warning\"";
+    expect(occurrences(log, warning) == 2, "one import and one private val", log);
+    expect(log.contains("Unused import"), "unused import reported", log);
+    expect(log.contains("is never used"), "unused private val reported", log);
+  }
+
+  private static int occurrences(String text, String what) {
+    return text.split(Pattern.quote(what), -1).length - 1;
   }
 
   private static void srcjar(Path dir) throws IOException {

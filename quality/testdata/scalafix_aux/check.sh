@@ -13,3 +13,7 @@ check() {
 }
 check uses_api UsesApi.scala Api
 check core_test CoreTest.scala Box
+
+result="$dir/unused_lib-real-lint-scala.pb"
+grep -aq "$dir/Unused.scala" "$result" || { echo "unused_lib: Unused.scala result missing"; exit 1; }
+grep -aq "Patch" "$result" || { echo "unused_lib: patch missing"; exit 1; }

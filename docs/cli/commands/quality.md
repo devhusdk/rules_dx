@@ -402,7 +402,7 @@ Bind a config with the `*_config` rule from `@rules_dx//quality:native_config.bz
 | `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |
 | `helm` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas`, shared with `kubeconform` |
 | `ruff` | yes | `ruff.toml` | | `ruff_config` |
-| `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]` | | `scalafix_config` |
+| `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]`; `RemoveUnused` needs the `@rules_dx//scala/toolchain:semanticdb` toolchain, which sets `-Wunused` and `-Wconf:cat=unused:info` | | `scalafix_config` |
 | `scalafmt` | yes | `.scalafmt.conf` | | `scalafmt_config` |
 | `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
 | `vale` | yes | `.vale.ini` | | `vale_config` |

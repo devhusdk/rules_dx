@@ -658,6 +658,8 @@ fn scalafix_check_and_fix_carry_the_semantic_context() {
             "/scratch",
             "--classpath",
             joined.to_str().expect("utf8"),
+            "--scalac-options",
+            "-Wunused",
             "/scratch/Sample.scala",
         ]
     );

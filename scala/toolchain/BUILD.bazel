@@ -7,6 +7,10 @@ scala_toolchain(
     name = "semanticdb_impl",
     dependency_tracking_method = "ast",
     enable_semanticdb = True,
+    scalacopts = [
+        "-Wunused:imports,privates,locals,implicits",
+        "-Wconf:cat=unused:info",
+    ],
     semanticdb_bundle_in_jar = True,
     unused_dependency_checker_mode = "warn",
     use_argument_file_in_runner = True,

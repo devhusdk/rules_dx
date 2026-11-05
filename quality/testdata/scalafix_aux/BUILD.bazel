@@ -41,6 +41,18 @@ scala_library(
     deps = [":api"],
 )
 
+scalafix_config(
+    name = "unused",
+    src = "unused.scalafix.conf",
+)
+
+scala_library(
+    name = "unused_lib",
+    srcs = ["Unused.scala"],
+    aspect_hints = [":unused"],
+    tags = ["manual"],
+)
+
 scala_library(
     name = "core",
     srcs = ["Core.scala"],
@@ -70,11 +82,17 @@ scalafix_results(
     target = ":core_test",
 )
 
+scalafix_results(
+    name = "unused_lib_results",
+    target = ":unused_lib",
+)
+
 sh_test(
     name = "scalafix_aux_test",
     srcs = ["check.sh"],
     data = [
         ":core_test_results",
+        ":unused_lib_results",
         ":uses_api_results",
     ],
 )

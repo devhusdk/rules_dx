@@ -221,6 +221,9 @@ def _scalac_check(target, ctx, attrs):
         return []
     options = ["-Wunused:_"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
 
+    # The semanticdb toolchain demotes unused warnings to info for scalafix; the last -Wconf wins, so this restores them.
+    options.append("-Wconf:cat=unused:w")
+
     # Make variables and $(location) in scalacopts are not expanded here, so the options would be wrong.
     if [o for o in options if "$(" in o]:
         return []

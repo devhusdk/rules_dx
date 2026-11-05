@@ -36,6 +36,7 @@ public final class ScalacCheckTest {
     deprecation(dir);
     werror(dir);
     unused(dir);
+    unusedOverridesInfo(dir);
     srcjar(dir);
     javaSource(dir);
     malformed();
@@ -119,6 +120,18 @@ public final class ScalacCheckTest {
     expect(occurrences(log, warning) == 2, "one import and one private val", log);
     expect(log.contains("Unused import"), "unused import reported", log);
     expect(log.contains("is never used"), "unused private val reported", log);
+  }
+
+  private static void unusedOverridesInfo(Path dir) throws IOException {
+    Path a = write(dir, "unused_info/U.scala", UNUSED);
+    String log =
+        check(
+            List.of(
+                "source=" + a,
+                "scalacopt=-Wunused:_",
+                "scalacopt=-Wconf:cat=unused:info",
+                "scalacopt=-Wconf:cat=unused:w"));
+    expect(occurrences(log, "\"severity\":\"warning\"") == 2, "last -Wconf keeps warnings", log);
   }
 
   private static int occurrences(String text, String what) {

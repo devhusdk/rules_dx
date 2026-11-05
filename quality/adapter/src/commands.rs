@@ -889,6 +889,9 @@ fn scalafix_invocation(
     head.push(context.sourceroot.as_os_str().to_owned());
     head.push(OsString::from("--classpath"));
     head.push(std::env::join_paths(context.classpath)?);
+    // RemoveUnused refuses to run without a scalac option naming the unused warnings.
+    head.push(OsString::from("--scalac-options"));
+    head.push(OsString::from("-Wunused"));
     Ok(assemble(binary, head, files, ""))
 }
 

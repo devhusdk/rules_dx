@@ -58,6 +58,7 @@ COMPUTED_CONSTRAINTS = {
 # The API doc tool per language and the *_doc_shard macro or rule that runs it (docs_site for Rust, which takes the crate itself). None marks a gap.
 DOC_TOOLS = {
     "astro": {"tool": "astro-compiler", "shard": "astro_doc_shard"},
+    "avro": None,
     "cc": None,
     "csharp": {"tool": "csharp doc driver", "shard": "csharp_doc_shard"},
     "cuda": None,

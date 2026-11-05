@@ -1,4 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_binary")
+load("//cc/toolchains:pins.bzl", "MSVC_CL_BUILD")
 load("//cc/toolchains:select.bzl", "cc_toolchain_binary")
 load("//deploy/rules:archive.bzl", "consumer_archive")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -77,11 +78,28 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "producer_test",
+    srcs = ["producer_test.rs"],
+    data = [":hello_msvc"],
+    env = {
+        "APP": "$(rootpath :hello_msvc)",
+        "PRODUCER": "msvc 261." + MSVC_CL_BUILD,
+    },
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_X64,
+    deps = [
+        "//cli/binfmt:dx_binfmt",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 rustfmt_test(
     name = "fmt_test",
     targets = [
         ":archive_test",
         ":imports_test",
+        ":producer_test",
     ],
 )
 
@@ -90,6 +108,7 @@ rust_clippy_test(
     targets = [
         ":archive_test",
         ":imports_test",
+        ":producer_test",
     ],
 )
 
@@ -107,5 +126,6 @@ test_suite(
         ":clippy_test",
         ":fmt_test",
         ":imports_test",
+        ":producer_test",
     ],
 )

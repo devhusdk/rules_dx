@@ -13,6 +13,8 @@ pub struct HookFile {
     pub hooks: &'static [(HookKind, &'static str, Option<&'static str>)],
     /// Whether the file carries the Claude Code `permissions.allow` rules.
     allow: bool,
+    /// Whether an entry is the hook itself (`bash` key) instead of a group holding a `hooks` list.
+    flat: bool,
 }
 
 /// Claude Code reads this file, and Cursor imports it by default.
@@ -25,6 +27,7 @@ pub const CLAUDE: HookFile = HookFile {
         (HookKind::Guard, "PreToolUse", Some("Bash")),
     ],
     allow: true,
+    flat: false,
 };
 
 /// The Claude Code settings file.
@@ -35,6 +38,7 @@ pub const CODEX: HookFile = HookFile {
     path: ".codex/hooks.json",
     hooks: &[(HookKind::Guard, "PreToolUse", Some("Bash"))],
     allow: false,
+    flat: false,
 };
 
 /// Gemini CLI reads the hooks in this file in trusted folders.
@@ -42,10 +46,20 @@ pub const GEMINI: HookFile = HookFile {
     path: ".gemini/settings.json",
     hooks: &[(HookKind::Guard, "BeforeTool", Some("run_shell_command"))],
     allow: false,
+    flat: false,
+};
+
+/// Copilot reads every `.github/hooks/*.json` file. The `PreToolUse` spelling selects the
+/// Claude Code payload, so the guard reads it as it reads Claude's.
+pub const COPILOT: HookFile = HookFile {
+    path: ".github/hooks/dx.json",
+    hooks: &[(HookKind::Guard, "PreToolUse", Some("Bash"))],
+    allow: false,
+    flat: true,
 };
 
 /// Every agent hooks file dx writes.
-pub const HOOK_FILES: [&HookFile; 3] = [&CLAUDE, &CODEX, &GEMINI];
+pub const HOOK_FILES: [&HookFile; 4] = [&CLAUDE, &CODEX, &GEMINI, &COPILOT];
 
 fn hook_command(kind: HookKind) -> String {
     format!(
@@ -61,7 +75,14 @@ fn entries(file: &HookFile) -> Vec<(&'static str, Option<&'static str>, String)>
         .collect()
 }
 
-fn entry_value(matcher: Option<&str>, command: &str) -> Value {
+fn entry_value(file: &HookFile, matcher: Option<&str>, command: &str) -> Value {
+    if file.flat {
+        let mut entry = json!({ "type": "command", "bash": command });
+        if let Some(matcher) = matcher {
+            entry["matcher"] = json!(matcher);
+        }
+        return entry;
+    }
     let hooks = json!([{ "type": "command", "command": command }]);
     match matcher {
         Some(matcher) => json!({ "matcher": matcher, "hooks": hooks }),
@@ -114,9 +135,15 @@ pub fn missing_allow(existing: &str) -> Vec<String> {
 pub fn settings_text(file: &HookFile) -> String {
     let mut hooks = serde_json::Map::new();
     for (event, matcher, command) in entries(file) {
-        hooks.insert(event.to_owned(), json!([entry_value(matcher, &command)]));
+        hooks.insert(
+            event.to_owned(),
+            json!([entry_value(file, matcher, &command)]),
+        );
     }
     let mut settings = json!({ "hooks": hooks });
+    if file.flat {
+        settings["version"] = json!(1);
+    }
     if file.allow {
         settings["permissions"] = json!({ "allow": allow_rules() });
     }
@@ -124,20 +151,23 @@ pub fn settings_text(file: &HookFile) -> String {
     format!("{text}\n")
 }
 
-fn has_command(existing: &Value, event: &str, command: &str) -> bool {
+fn has_command(file: &HookFile, existing: &Value, event: &str, command: &str) -> bool {
+    let key = if file.flat { "bash" } else { "command" };
     existing
         .get("hooks")
         .and_then(|hooks| hooks.get(event))
         .and_then(Value::as_array)
         .is_some_and(|groups| {
             groups.iter().any(|group| {
+                if file.flat {
+                    return group.get(key).and_then(Value::as_str) == Some(command);
+                }
                 group
                     .get("hooks")
                     .and_then(Value::as_array)
                     .is_some_and(|list| {
-                        list.iter().any(|hook| {
-                            hook.get("command").and_then(Value::as_str) == Some(command)
-                        })
+                        list.iter()
+                            .any(|hook| hook.get(key).and_then(Value::as_str) == Some(command))
                     })
             })
         })
@@ -148,7 +178,7 @@ pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
     let parsed = parse(existing);
     entries(file)
         .into_iter()
-        .filter(|(event, _, command)| !has_command(&parsed, event, command))
+        .filter(|(event, _, command)| !has_command(file, &parsed, event, command))
         .map(|(event, matcher, command)| match matcher {
             Some(matcher) => format!("{event} ({matcher}): {command}"),
             None => format!("{event}: {command}"),
@@ -201,11 +231,11 @@ fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
     let parsed = parse(existing);
     let mut text = existing.to_owned();
     for (event, matcher, command) in entries(file) {
-        if !has_command(&parsed, event, &command) {
+        if !has_command(file, &parsed, event, &command) {
             text = dx_merge::jsonc::append_missing(
                 &text,
                 &["hooks", event],
-                entry_value(matcher, &command),
+                entry_value(file, matcher, &command),
             )?;
         }
     }
@@ -276,10 +306,11 @@ mod tests {
 
     use dx_test_scratch::scratch;
 
-    const ALL: [&str; 3] = [
+    const ALL: [&str; 4] = [
         ".claude/settings.json",
         ".codex/hooks.json",
         ".gemini/settings.json",
+        ".github/hooks/dx.json",
     ];
 
     #[test]
@@ -291,7 +322,8 @@ mod tests {
             vec![
                 ".claude/settings.json",
                 ".codex/hooks.json",
-                ".gemini/settings.json"
+                ".gemini/settings.json",
+                ".github/hooks/dx.json"
             ]
         );
         for file in HOOK_FILES {
@@ -387,6 +419,31 @@ mod tests {
     }
 
     #[test]
+    fn the_copilot_file_is_flat_and_merges_into_a_users_hooks() {
+        let dir = scratch("dx-worktree-setup-copilot-");
+        let fresh = settings_text(&COPILOT);
+        let parsed = parse(&fresh);
+        assert_eq!(parsed["version"], 1);
+        let entry = &parsed["hooks"]["PreToolUse"][0];
+        assert_eq!(entry["matcher"], "Bash");
+        assert!(entry["bash"]
+            .as_str()
+            .expect("bash")
+            .ends_with("worktree hook guard"));
+        std::fs::create_dir_all(dir.path().join(".github/hooks")).expect("dir");
+        let own = "{\"version\": 1, \"hooks\": {\"PreToolUse\": [{\"bash\": \"mine\"}]}}\n";
+        std::fs::write(dir.path().join(COPILOT.path), own).expect("hooks");
+        apply(dir.path(), &ALL).expect("apply");
+        let text = std::fs::read_to_string(dir.path().join(COPILOT.path)).expect("read");
+        assert!(text.contains("\"mine\""));
+        assert!(missing_entries(&COPILOT, &text).is_empty());
+        assert_eq!(
+            parse(&text)["hooks"]["PreToolUse"].as_array().map(Vec::len),
+            Some(2)
+        );
+    }
+
+    #[test]
     fn an_unparsable_file_is_left_alone_and_reported() {
         let dir = scratch("dx-worktree-setup-broken-");
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
@@ -442,8 +499,16 @@ mod tests {
             .as_array()
             .into_iter()
             .flatten()
-            .flat_map(|group| group["hooks"].as_array().into_iter().flatten())
-            .filter_map(|hook| hook["command"].as_str().map(str::to_owned))
+            .flat_map(|group| match group["hooks"].as_array() {
+                Some(list) => list.clone(),
+                None => vec![group.clone()],
+            })
+            .filter_map(|hook| {
+                hook["command"]
+                    .as_str()
+                    .or(hook["bash"].as_str())
+                    .map(str::to_owned)
+            })
             .collect()
     }
 

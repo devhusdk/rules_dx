@@ -1796,8 +1796,18 @@ mod tests {
                 .expect("hooks object")
                 .values()
                 .flat_map(|groups| groups.as_array().into_iter().flatten())
-                .flat_map(|group| group["hooks"].as_array().into_iter().flatten())
-                .filter_map(|hook| hook["command"].as_str())
+                .flat_map(|group| match group["hooks"].as_array() {
+                    Some(list) => list.clone(),
+                    None => vec![group.clone()],
+                })
+                .filter_map(|hook| {
+                    hook["command"]
+                        .as_str()
+                        .or(hook["bash"].as_str())
+                        .map(str::to_owned)
+                })
+                .collect::<Vec<_>>()
+                .iter()
                 .map(|command| {
                     let argv: Vec<&str> = command
                         .strip_prefix(LAUNCHER)
@@ -1838,6 +1848,15 @@ mod tests {
             dir.path(),
         );
         assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
+    }
+
+    #[test]
+    fn copilot_pre_tool_use_payload_is_blocked_like_claudes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let payload = r#"{"hook_event_name":"PreToolUse","session_id":"c1","timestamp":"2026-11-05T00:00:00.000Z","cwd":"/r","tool_name":"Bash","tool_input":{"command":"git worktree remove ../x"}}"#;
+        let (code, _, err) = hook(HookKind::Guard, payload, dir.path());
+        assert_eq!(code, 2, "{err}");
+        assert!(!err.is_empty());
     }
 
     #[test]

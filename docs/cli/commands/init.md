@@ -55,7 +55,7 @@ Init writes agent tool files only for the agents you name with `--agents=claude,
 | Cursor | `.claude/settings.json`, through Third-Party Imports | all four |
 | Codex (`codex`) | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
 | Gemini CLI (`gemini`) | `.gemini/settings.json` | `guard`, in a trusted folder |
-| GitHub Copilot (`copilot`) | `.github/copilot-instructions.md` | none; Copilot has no hooks file dx writes |
+| GitHub Copilot (`copilot`) | `.github/copilot-instructions.md`, and `.github/hooks/dx.json` | `guard` |
 
 See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). With `--agents=claude` it writes `CLAUDE.md` with an
@@ -136,6 +136,7 @@ match the running dx.
 | `.github/workflows/release.yml` | you | Written when missing. Never rewritten. Calls `reusable-release.yml` on `v*` tags. |
 | `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
 | `CLAUDE.md` | you | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
+| `.github/hooks/dx.json` | you | Created when missing and `--agents=copilot` is given; missing hook entries are merged in place. |
 | `.github/copilot-instructions.md` | you | Created when missing and `--agents=copilot` is given. A line pointing at `AGENTS.md` is added when the file does not mention it. |
 | `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
 | `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |

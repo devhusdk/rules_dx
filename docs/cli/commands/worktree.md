@@ -194,6 +194,9 @@ Codex and Gemini CLI get only the guard: `.codex/hooks.json` with event
 `PreToolUse` and matcher `Bash`, and `.gemini/settings.json` with event
 `BeforeTool` and matcher `run_shell_command`. Codex runs project hooks after
 you trust them with `/hooks`. Gemini CLI runs them in a trusted folder.
+GitHub Copilot gets `.github/hooks/dx.json` with version 1 and event
+`PreToolUse` (the Claude Code spelling, so Copilot sends the Claude payload)
+and matcher `Bash`; a hook that exits 2 denies the command.
 
 | Agent | Hooks file | Session |
 | --- | --- | --- |
@@ -201,7 +204,7 @@ you trust them with `/hooks`. Gemini CLI runs them in a trusted folder.
 | Codex | `.codex/hooks.json` | `CODEX_THREAD_ID` |
 | Cursor | `.claude/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 | Gemini CLI | `.gemini/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
-| GitHub Copilot | `.github/copilot-instructions.md` (no hooks) | none |
+| GitHub Copilot | `.github/hooks/dx.json` | none |
 
 `dx init --apply --agents=<list>` writes the file of each named agent when it
 is absent and never overwrites one. If a file exists, it prints the missing

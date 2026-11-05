@@ -50,7 +50,7 @@ fn agent_paths(agent: Agent) -> &'static [&'static str] {
         Agent::Claude => &[setup::SETTINGS, claude_md::FILE],
         Agent::Codex => &[setup::CODEX.path],
         Agent::Gemini => &[setup::GEMINI.path],
-        Agent::Copilot => &[copilot_md::FILE],
+        Agent::Copilot => &[copilot_md::FILE, setup::COPILOT.path],
     }
 }
 

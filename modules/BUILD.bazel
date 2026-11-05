@@ -78,6 +78,7 @@ rust_test(
         "//quality:families/nix.bzl",
         "//quality:families/perl.bzl",
         "//quality:families/php.bzl",
+        "//quality:families/powershell.bzl",
         "//quality:families/pkl.bzl",
         "//quality:families/rego.bzl",
         "//quality:families/shell.bzl",

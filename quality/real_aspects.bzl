@@ -7,7 +7,6 @@ load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_go//go:def.bzl", "GoArchive")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
-load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
@@ -51,6 +50,7 @@ load("//quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect
 load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _KUBERNETES_HOOKS = "HOOKS", _KUBERNETES_SHARD_SPECS = "SHARD_SPECS", _KUBERNETES_TOOLS = "TOOLS")
 load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
 load("//quality:families/dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _DART_HOOKS = "HOOKS", _DART_SHARD_SPECS = "SHARD_SPECS", _DART_TOOLS = "TOOLS")
+load("//quality:families/powershell.bzl", _real_powershell_format_aspect = "real_powershell_format_aspect", _real_powershell_lint_aspect = "real_powershell_lint_aspect", _POWERSHELL_HOOKS = "HOOKS", _POWERSHELL_SHARD_SPECS = "SHARD_SPECS", _POWERSHELL_TOOLS = "TOOLS")
 load("//quality:families/d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _D_SHARD_SPECS = "SHARD_SPECS", _D_TOOLS = "TOOLS")
 load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _FORTRAN_SHARD_SPECS = "SHARD_SPECS", _FORTRAN_TOOLS = "TOOLS")
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
@@ -314,14 +314,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
-    },
-    "psscriptanalyzer": {
-        "attr": attr.label(default = "//quality/tools/powershell:psscriptanalyzer", cfg = "exec", executable = True),
-        "capabilities": ["format", "lint"],
-        "env": [["DOTNET_CLI_TELEMETRY_OPTOUT", "1"], ["POWERSHELL_TELEMETRY_OPTOUT", "1"], ["POWERSHELL_UPDATECHECK", "Off"]],
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "powershell",
     },
     "prettier": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:prettier", cfg = "exec", executable = True),
@@ -972,18 +964,6 @@ _REAL_SHARD_SPECS = {
         "shard": "jvm",
         "suffix": "-jvm",
     },
-    "real_powershell_format": {
-        "capability": "format",
-        "doc": "Additive PowerShell format family aspect (PSScriptAnalyzer Invoke-Formatter).",
-        "shard": "powershell",
-        "suffix": "-powershell",
-    },
-    "real_powershell_lint": {
-        "capability": "lint",
-        "doc": "Additive PowerShell lint family aspect (PSScriptAnalyzer).",
-        "shard": "powershell",
-        "suffix": "-powershell",
-    },
     "real_capnp_lint": {
         "capability": "lint",
         "doc": "Additive Cap'n Proto lint family aspect (capnp).",
@@ -1437,30 +1417,6 @@ def _buf_hook(target, _ctx, _resolved, _capability, _what, _shared):
         pairs.append((ws_path, f, False))
     return real_context(resolve_pairs = pairs)
 
-def _psscriptanalyzer_hook(target, ctx, _resolved, _capability, _what, _shared):
-    context_files = list(target[DefaultInfo].files.to_list())
-    upstream = getattr(ctx.rule.attr, "upstream", None)
-    if type(upstream) == "Target" and _PwshInfo in upstream:
-        context_files.extend(upstream[DefaultInfo].default_runfiles.files.to_list())
-    pairs = []
-    module_roots = {}
-    for f in context_files:
-        ws_path = f.short_path
-        if f.extension not in ["ps1", "psd1", "psm1"]:
-            continue
-        if ws_path.startswith("../"):
-            if "_toolchains__" in ws_path.split("/")[1]:
-                continue
-            ws_path = "external/" + ws_path[3:]
-        if ".." in ws_path.split("/"):
-            continue
-        if f.extension in ["psd1", "psm1"]:
-            module_dir = ws_path.rpartition("/")[0]
-            module_roots[module_dir.rpartition("/")[0] or "."] = True
-        pairs.append((ws_path, f, False))
-    env = [real_request_tool_env("DX_PWSH_MODULE_ROOTS", "|".join(sorted(module_roots.keys())))]
-    return real_context(resolve_pairs = pairs, env = env)
-
 def _gofumpt_hook(_target, ctx, _resolved, _capability, what, _shared):
     return real_context(options = {"edition": _gofumpt_lang(ctx, what)})
 
@@ -1577,9 +1533,8 @@ _CONTEXT_HOOKS = {
     "qmllint": _qmllint_hook,
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
     "buf": _buf_hook,
-    "psscriptanalyzer": _psscriptanalyzer_hook,
     "gofumpt": _gofumpt_hook,
-} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _POWERSHELL_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -1591,8 +1546,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _POWERSHELL_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _POWERSHELL_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -1762,9 +1717,9 @@ real_ansible_lint_aspect = _real_ansible_lint_aspect
 
 real_cloudformation_lint_aspect = _real_cloudformation_lint_aspect
 
-real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
+real_powershell_format_aspect = _real_powershell_format_aspect
 
-real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
+real_powershell_lint_aspect = _real_powershell_lint_aspect
 
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 

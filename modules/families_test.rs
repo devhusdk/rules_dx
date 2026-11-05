@@ -473,7 +473,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 31] = [
+const FAMILY_FILES: [&str; 32] = [
     "ansible",
     "bicep",
     "cloudformation",
@@ -494,6 +494,7 @@ const FAMILY_FILES: [&str; 31] = [
     "nix",
     "perl",
     "php",
+    "powershell",
     "pkl",
     "rego",
     "shell",

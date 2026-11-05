@@ -545,7 +545,7 @@ fn installed_checks(
             .and_then(|_| version_check(runner, &exe, &install, &inputs.version)),
     );
     let moved = inputs.work.join(MOVED_DIR);
-    let renamed = std::fs::rename(&install, &moved)
+    let renamed = rename_with_retry(&install, &moved, RENAME_ATTEMPTS, RENAME_BACKOFF)
         .map_err(|error| format!("cannot move the install: {error}"));
     let home = if renamed.is_ok() { moved } else { install };
     let moved_exe = home.join(&cell.exe);
@@ -571,6 +571,31 @@ fn installed_checks(
                 })
         }),
     );
+}
+
+const RENAME_ATTEMPTS: u32 = 8;
+const RENAME_BACKOFF: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// Renames `from` to `to`, retrying with a doubling backoff. On Windows a lingering image
+/// handle or a virus scan can make the rename fail briefly with "Access is denied".
+fn rename_with_retry(
+    from: &Path,
+    to: &Path,
+    attempts: u32,
+    first_backoff: std::time::Duration,
+) -> std::io::Result<()> {
+    let mut backoff = first_backoff;
+    let mut attempt = 1;
+    loop {
+        match std::fs::rename(from, to) {
+            Err(_) if attempt < attempts => {
+                std::thread::sleep(backoff);
+                backoff = backoff.saturating_mul(2);
+                attempt += 1;
+            }
+            result => return result,
+        }
+    }
 }
 
 /// Names the members that differ between the archive and its rebuild.

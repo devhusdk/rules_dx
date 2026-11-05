@@ -90,6 +90,7 @@ jobs:
           rebuild_root="$(bazel --output_base="$rebuild_base" info --config=dx_release execution_root)"
           rebuilt="$rebuild_root/$(bazel --output_base="$rebuild_base" cquery --config=dx_release --output=files //deploy/release:dx_host_cell)"
           cp "$rebuilt" "$RUNNER_TEMP/rebuilt-$archive_name"
+          bazel --output_base="$rebuild_base" shutdown
           status=0
           "$tool" qualify \
             --matrix "$matrix" \

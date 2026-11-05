@@ -1292,3 +1292,15 @@ fn parse_qualify_args_needs_consumer_and_checkout_together() {
         );
     }
 }
+
+#[test]
+fn rename_with_retry_moves_and_gives_up() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let from = dir.path().join("from");
+    let to = dir.path().join("to");
+    let none = std::time::Duration::ZERO;
+    assert!(rename_with_retry(&from, &to, 3, none).is_err());
+    std::fs::create_dir(&from).expect("mkdir");
+    rename_with_retry(&from, &to, 3, none).expect("rename");
+    assert!(to.is_dir() && !from.exists());
+}

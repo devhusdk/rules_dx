@@ -16,7 +16,7 @@ use dx_output::{
     NoticeEvent, OutputMode, Severity,
 };
 use dx_plan::args::{Command, Invocation, QualityRequest};
-use dx_plan::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
+use dx_plan::plan::{bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP};
 use dx_plan::reports::{plan_reports, BaselineReport, Destination};
 use dx_plan::resolve::resolve;
 use std::collections::BTreeSet;
@@ -333,13 +333,19 @@ fn run_quality_request(
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
+    // An unreadable MODULE.bazel gives no deps; then every family's aspects stay.
+    let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
+    let installed = (!deps.is_empty()).then_some(deps);
     let mut build = match plan_build_with(
         request.command,
         &resolved,
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
-        None,
+        Selection {
+            shards: None,
+            installed_modules: installed.as_deref(),
+        },
         request.exec_log.as_deref(),
     )
     .map_err(|error| format!("{error}"))
@@ -379,7 +385,10 @@ fn run_quality_request(
                 &request.bazel_options,
                 bep_text,
                 &request.bazel_startup_options,
-                Some(&shards),
+                Selection {
+                    shards: Some(&shards),
+                    installed_modules: installed.as_deref(),
+                },
                 request.exec_log.as_deref(),
             ) {
                 build = narrowed;

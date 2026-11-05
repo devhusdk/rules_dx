@@ -5,7 +5,7 @@ use dx_process::{
 use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
-    registry::{spec, CommandSpec},
+    registry::{aspects_for, spec},
     rules_dx_label, BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP,
     DOCS_TOOLS_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
     SKIP_INCOMPATIBLE_FLAG,
@@ -23,7 +23,11 @@ fn joined_labels<'a>(aspects: impl IntoIterator<Item = &'a str>) -> String {
 }
 
 #[cfg(test)]
-fn required_options(entry: &CommandSpec, bazel_options: &[String], bep_path: &str) -> Vec<String> {
+fn required_options(
+    entry: &super::registry::CommandSpec,
+    bazel_options: &[String],
+    bep_path: &str,
+) -> Vec<String> {
     shaped_options(
         &joined_labels(entry.aspects.iter().copied()),
         OUTPUT_GROUP,
@@ -59,11 +63,12 @@ fn shard_name(aspect: &str) -> &str {
 const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
 
 /// The registry aspects to pass: all of them, or the core ones plus the shards the probe named.
-pub fn select_aspects(entry: &CommandSpec, shards: Option<&BTreeSet<String>>) -> Vec<&'static str> {
-    entry
-        .aspects
-        .iter()
-        .copied()
+pub fn select_aspects(
+    aspects: Vec<&'static str>,
+    shards: Option<&BTreeSet<String>>,
+) -> Vec<&'static str> {
+    aspects
+        .into_iter()
         .filter(|aspect| {
             let name = shard_name(aspect);
             shards.is_none_or(|shards| CORE_SHARDS.contains(&name) || shards.contains(name))
@@ -142,23 +147,35 @@ pub fn plan_build(
         bazel_options,
         bep_path,
         startup_options,
-        None,
+        Selection::default(),
         None,
     )
 }
 
-/// Plans the quality build over the shards the probe named; `None` passes every shard.
+/// Which aspects a quality build passes; the default passes all of them.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Selection<'a> {
+    /// The shards the probe named; `None` passes every shard.
+    pub shards: Option<&'a BTreeSet<String>>,
+    /// The consumer's `bazel_dep` names; `None` keeps every family's aspects.
+    pub installed_modules: Option<&'a [String]>,
+}
+
+/// Plans the quality build over the aspects `selection` keeps.
 pub fn plan_build_with(
     command: Command,
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-    shards: Option<&BTreeSet<String>>,
+    selection: Selection,
     exec_log: Option<&str>,
 ) -> Result<BuildPlan, ForwardError> {
-    let entry = spec(command);
-    let aspects = joined_labels(select_aspects(&entry, shards));
+    let aspects = match selection.installed_modules {
+        Some(modules) => aspects_for(command, modules),
+        None => spec(command).aspects.to_vec(),
+    };
+    let aspects = joined_labels(select_aspects(aspects, selection.shards));
     let mut required = shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path);
     if let Some(path) = exec_log {
         required.extend(exec_log_options(path));
@@ -636,10 +653,13 @@ mod tests {
     #[test]
     fn select_aspects_keeps_core_shards_and_the_probed_ones() {
         let lint = spec(Command::Lint);
-        assert_eq!(select_aspects(&lint, None), lint.aspects.to_vec());
+        assert_eq!(
+            select_aspects(lint.aspects.to_vec(), None),
+            lint.aspects.to_vec()
+        );
         let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
         assert_eq!(
-            select_aspects(&lint, Some(&rust)),
+            select_aspects(lint.aspects.to_vec(), Some(&rust)),
             vec![
                 "quality:real_aspects.bzl%real_lint_aspect",
                 "quality:real_aspects.bzl%real_rust_lint_aspect",
@@ -647,12 +667,12 @@ mod tests {
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
-            select_aspects(&lint, Some(&unknown)),
+            select_aspects(lint.aspects.to_vec(), Some(&unknown)),
             vec!["quality:real_aspects.bzl%real_lint_aspect"]
         );
         let format = spec(Command::Format);
         assert_eq!(
-            select_aspects(&format, Some(&BTreeSet::new())),
+            select_aspects(format.aspects.to_vec(), Some(&BTreeSet::new())),
             vec!["quality:real_aspects.bzl%real_format_aspect"]
         );
     }
@@ -666,7 +686,10 @@ mod tests {
             &[],
             "/tmp/bep.json",
             &[],
-            Some(&rust),
+            Selection {
+                shards: Some(&rust),
+                installed_modules: None,
+            },
             None,
         )
         .expect("plan");

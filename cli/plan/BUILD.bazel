@@ -84,6 +84,7 @@ dx_rust_crate(
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//generation/result:generation_result",
+        "//libs/families:dx_families",
         "//libs/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],

@@ -257,6 +257,38 @@ pub fn spec(command: Command) -> CommandSpec {
     }
 }
 
+/// The aspects of `command` whose family module the consumer has. A family without a `module`
+/// is always kept; the probe is not filtered.
+pub fn aspects_for(command: Command, installed_modules: &[String]) -> Vec<&'static str> {
+    aspects_for_families(command, dx_families::families(), installed_modules)
+}
+
+fn aspects_for_families(
+    command: Command,
+    families: &[dx_families::Family],
+    installed_modules: &[String],
+) -> Vec<&'static str> {
+    let missing: Vec<&str> = families
+        .iter()
+        .filter(|family| {
+            family
+                .module
+                .as_ref()
+                .is_some_and(|module| !installed_modules.contains(module))
+        })
+        .flat_map(|family| family.aspects.iter().map(String::as_str))
+        .collect();
+    spec(command)
+        .aspects
+        .iter()
+        .copied()
+        .filter(|aspect| {
+            let name = aspect.rsplit_once('%').map_or(*aspect, |(_, name)| name);
+            !missing.contains(&name)
+        })
+        .collect()
+}
+
 /// Every aspect label dx passes to Bazel.
 pub fn all_aspect_labels() -> Vec<String> {
     use clap::ValueEnum;
@@ -296,6 +328,46 @@ mod tests {
         sorted.sort();
         sorted.dedup();
         assert_eq!(labels, sorted);
+    }
+
+    fn families_json(python_module: &str) -> Vec<dx_families::Family> {
+        let python_module = if python_module.is_empty() {
+            String::new()
+        } else {
+            format!(r#""module": "{python_module}","#)
+        };
+        dx_families::parse(&format!(
+            r#"{{"families": {{
+                "python": {{{python_module} "aspects": ["real_python_lint_aspect"]}},
+                "jvm": {{"module": "rules_dx_jvm", "aspects": ["real_jvm_lint_aspect"]}},
+                "rust": {{"module": "rules_dx_rust", "aspects": ["real_rust_lint_aspect"]}},
+                "core": {{"aspects": ["real_lint_aspect"]}}
+            }}}}"#
+        ))
+        .expect("families")
+    }
+
+    #[test]
+    fn aspects_for_drops_aspects_of_families_that_are_not_installed() {
+        let installed = ["rules_dx_python".to_owned()];
+        let lint =
+            aspects_for_families(Command::Lint, &families_json("rules_dx_python"), &installed);
+        let has = |name: &str| {
+            lint.iter()
+                .any(|aspect| aspect.ends_with(&format!("%{name}")))
+        };
+        assert!(has("real_lint_aspect"));
+        assert!(has("real_python_lint_aspect"));
+        assert!(has("real_cc_lint_aspect"));
+        assert!(!has("real_jvm_lint_aspect"));
+        assert!(!has("real_rust_lint_aspect"));
+    }
+
+    #[test]
+    fn aspects_for_keeps_families_without_a_module() {
+        let lint = aspects_for_families(Command::Lint, &families_json(""), &[]);
+        assert!(lint.contains(&"quality:real_aspects.bzl%real_python_lint_aspect"));
+        assert!(!lint.contains(&"quality:real_aspects.bzl%real_jvm_lint_aspect"));
     }
 
     #[test]

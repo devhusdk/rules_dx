@@ -397,7 +397,7 @@ newer on x86_64, 2.39 or newer on arm64.
 | `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `macos_arm64` | Not qualified |
 | `windows_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
+| `windows_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, built with the LLVM clang-cl toolchain (MSVC ABI). Not qualified: `qt_bundle` archives, cl.exe, a real display, GPU rendering |
 
 Other platforms fail analysis and list the qualified cells. Fetching needs a
 Linux x86_64 or Linux arm64 host.

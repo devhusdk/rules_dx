@@ -7,6 +7,7 @@
 #include <QUrl>
 #include <QtGlobal>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -19,6 +20,10 @@
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
+#elif defined(_WIN32)
+#include <windows.h>
+// psapi.h must follow windows.h.
+#include <psapi.h>
 #endif
 
 namespace {
@@ -36,7 +41,14 @@ const std::vector<std::string> kHostGlibc = {
     "librt.so.1",
 };
 
-#if defined(__APPLE__)
+#if defined(_WIN32)
+const std::vector<std::string> kHostPrefixes = {"C:/Qt/", "C:/msys64/",
+                                                "C:/vcpkg/"};
+
+const std::vector<std::string> kRequired = {
+    "Qt6Core", "Qt6Qml", "qmlplugin.dll",
+};
+#elif defined(__APPLE__)
 const std::vector<std::string> kHostPrefixes = {"/usr/local/", "/opt/",
                                                 "/Library/Frameworks/"};
 
@@ -95,7 +107,31 @@ bool IsHostGlibc(const std::string &name) {
   return false;
 }
 
-#if defined(__APPLE__)
+#if defined(_WIN32)
+std::set<std::string> MappedObjects() {
+  std::set<std::string> objects;
+  std::vector<HMODULE> modules(1024);
+  DWORD needed = 0;
+  if (!K32EnumProcessModules(GetCurrentProcess(), modules.data(),
+                             static_cast<DWORD>(modules.size() * sizeof(HMODULE)),
+                             &needed)) {
+    return objects;
+  }
+  const size_t count = std::min<size_t>(needed / sizeof(HMODULE), modules.size());
+  for (size_t index = 0; index < count; ++index) {
+    wchar_t buffer[32768];
+    const DWORD length = GetModuleFileNameW(modules[index], buffer, 32768);
+    if (length == 0 || length >= 32768) {
+      continue;
+    }
+    const QString path = QString::fromWCharArray(buffer, length);
+    objects.insert(path.replace(QLatin1Char('\\'), QLatin1Char('/'))
+                       .toUtf8()
+                       .toStdString());
+  }
+  return objects;
+}
+#elif defined(__APPLE__)
 std::set<std::string> MappedObjects() {
   std::set<std::string> objects;
   for (uint32_t index = 0; index < _dyld_image_count(); ++index) {

@@ -23,13 +23,22 @@
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
+#elif defined(_WIN32)
+#include <windows.h>
+// psapi.h must follow windows.h.
+#include <psapi.h>
+
+#include <cstdio>
+#include <vector>
 #endif
 
 #include "ui_dialog.h"
 
 namespace {
 
-#if defined(__APPLE__)
+#if defined(_WIN32)
+const QStringList kHostPrefixes = {"C:/Qt/", "C:/msys64/", "C:/vcpkg/"};
+#elif defined(__APPLE__)
 const QStringList kHostPrefixes = {"/usr/local/", "/opt/",
                                    "/Library/Frameworks/"};
 #else
@@ -48,7 +57,36 @@ const QStringList kHostRuntime = {
     "libstdc++.so.6",
 };
 
-#if defined(__APPLE__)
+#if defined(_WIN32)
+QSet<QString> MappedObjects() {
+  QSet<QString> paths;
+  std::vector<HMODULE> modules(1024);
+  DWORD needed = 0;
+  if (!K32EnumProcessModules(GetCurrentProcess(), modules.data(),
+                             static_cast<DWORD>(modules.size() * sizeof(HMODULE)),
+                             &needed)) {
+    return paths;
+  }
+  const size_t count =
+      std::min<size_t>(needed / sizeof(HMODULE), modules.size());
+  for (size_t index = 0; index < count; ++index) {
+    wchar_t buffer[32768];
+    const DWORD length = GetModuleFileNameW(modules[index], buffer, 32768);
+    if (length == 0 || length >= 32768) {
+      continue;
+    }
+    paths.insert(QString::fromWCharArray(buffer, length)
+                     .replace(QLatin1Char('\\'), QLatin1Char('/')));
+  }
+  return paths;
+}
+
+QString Soname(const QString &path) {
+  return path.section(QLatin1Char('/'), -1);
+}
+
+QString PinnedFont() { return QFontInfo(QFont()).family(); }
+#elif defined(__APPLE__)
 QStringList LoadedImages() {
   QStringList paths;
   for (uint32_t index = 0; index < _dyld_image_count(); ++index) {
@@ -108,7 +146,7 @@ void GuiTest::runsOnTheOffscreenPlatform() {
 }
 
 void GuiTest::seesOnlyThePinnedFonts() {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
   QVERIFY(!PinnedFont().isEmpty());
   QVERIFY2(QFontDatabase::families().contains(PinnedFont()),
            qPrintable(PinnedFont()));
@@ -182,7 +220,17 @@ void GuiTest::loadsOnlyPinnedLibraries() {
     }
   }
   QVERIFY2(leaks.isEmpty(), qPrintable(leaks.join(QLatin1Char('\n'))));
-#if defined(__APPLE__)
+#if defined(_WIN32)
+  // qt_test reads the module list from stderr when asked to.
+  if (qEnvironmentVariableIsSet("DX_QT_TRACE_MODULES")) {
+    for (const QString &path : MappedObjects()) {
+      std::fprintf(stderr, "dx-module: %s\n", path.toUtf8().constData());
+    }
+  }
+  for (const char *name : {"Qt6Core.dll", "Qt6Qml.dll", "Qt6Quick.dll"}) {
+    QVERIFY2(names.contains(QLatin1String(name)), name);
+  }
+#elif defined(__APPLE__)
   QStringList frameworks;
   for (const QString &path : LoadedImages()) {
     if (IsQtFramework(path)) {

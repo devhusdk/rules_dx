@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_COMPATIBLE_WITH", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -12,6 +12,8 @@ _LINUX = select({
     "@platforms//cpu:x86_64": ["@platforms//os:linux"],
     "//conditions:default": ["@platforms//:incompatible"],
 })
+
+_MACOS_ARM64 = ["@platforms//os:macos", "@platforms//cpu:arm64"]
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
@@ -449,10 +451,13 @@ _lrelease_test = analysistest.make(_lrelease_test_impl)
 def _runpath_test_impl(ctx):
     env = analysistest.begin(ctx)
     argv = _argv(env, "CppLink")
-    asserts.equals(env, ctx.attr.bundled, "-Wl,--disable-new-dtags,-rpath,$ORIGIN/resources/lib" in argv, str(argv))
+    asserts.equals(env, ctx.attr.bundled, ctx.attr.flag in argv, str(argv))
     return analysistest.end(env)
 
-_runpath_test = analysistest.make(_runpath_test_impl, attrs = {"bundled": attr.bool(mandatory = True)})
+_runpath_test = analysistest.make(_runpath_test_impl, attrs = {
+    "bundled": attr.bool(mandatory = True),
+    "flag": attr.string(mandatory = True),
+})
 
 def _frameworks_test_impl(ctx):
     env = analysistest.begin(ctx)
@@ -484,6 +489,20 @@ def _bundle_test_impl(ctx):
     return analysistest.end(env)
 
 _bundle_test = analysistest.make(_bundle_test_impl)
+
+def _macos_bundle_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    prefix = "qt/tests/fixtures/qt-tasks/app/" + target.label.name + "/"
+    members = [f.short_path[len(prefix):] for f in target[DefaultInfo].files.to_list()]
+    for want in ["lib/QtCore.framework/Versions/A/QtCore", "lib/QtQml.framework/Versions/A/QtQml", "qml/QtQml/libqmlplugin.dylib"]:
+        asserts.true(env, want in members, "missing " + want)
+    asserts.equals(env, [], [m for m in members if "/Headers/" in m or "/Headers" == m[-8:]], "headers staged")
+    for unwanted in ["Gui", "Quick", "Widgets"]:
+        asserts.equals(env, [], [m for m in members if m.startswith("lib/Qt" + unwanted + ".framework")], unwanted + " is staged")
+    return analysistest.end(env)
+
+_macos_bundle_test = analysistest.make(_macos_bundle_test_impl)
 
 def _failure_test_impl(ctx):
     env = analysistest.begin(ctx)
@@ -536,14 +555,30 @@ def qt_rules_tests(name):
     _runpath_test(
         name = name + "_runpath",
         bundled = True,
+        flag = "-Wl,--disable-new-dtags,-rpath,$ORIGIN/resources/lib",
         target_under_test = ":plain_app_upstream",
         target_compatible_with = _LINUX,
     )
     _runpath_test(
+        name = name + "_macos_runpath",
+        bundled = True,
+        flag = QT_BUNDLE_MACOS_RUNPATH,
+        target_under_test = ":plain_app_upstream",
+        target_compatible_with = _MACOS_ARM64,
+    )
+    _runpath_test(
         name = name + "_test_runpath",
         bundled = False,
+        flag = "-Wl,--disable-new-dtags,-rpath,$ORIGIN/resources/lib",
         target_under_test = ":plain_test_upstream",
         target_compatible_with = _LINUX,
+    )
+    _runpath_test(
+        name = name + "_macos_test_runpath",
+        bundled = False,
+        flag = QT_BUNDLE_MACOS_RUNPATH,
+        target_under_test = ":plain_test_upstream",
+        target_compatible_with = _MACOS_ARM64,
     )
     _frameworks_test(
         name = name + "_frameworks",
@@ -560,6 +595,11 @@ def qt_rules_tests(name):
         name = name + "_bundle",
         target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
         target_compatible_with = _LINUX,
+    )
+    _macos_bundle_test(
+        name = name + "_macos_bundle",
+        target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
+        target_compatible_with = _MACOS_ARM64,
     )
     _bundle_test(
         name = name + "_bundle_unset",
@@ -595,5 +635,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset", "macos_runpath", "macos_test_runpath", "macos_bundle"] + sorted(failures.keys())],
     )

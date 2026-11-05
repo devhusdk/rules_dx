@@ -1,8 +1,10 @@
 package staticcheck
 
-import "fmt"
+func double(n int) int {
+	return n * 2
+}
 
 func Greet(name string) string {
-	fmt.Sprintf("hello %s", name)
+	double(len(name))
 	return "hello " + name
 }

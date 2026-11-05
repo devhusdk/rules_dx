@@ -2,8 +2,10 @@
 
 package golint
 
-import "fmt"
+func double(n int) int {
+	return n * 2
+}
 
 func Tagged(name string) {
-	fmt.Sprintf("hello %s", name)
+	double(len(name))
 }

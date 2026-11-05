@@ -424,7 +424,26 @@ pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error
     Ok(identities)
 }
 
+/// Argv flags that mean an MSVC action already carries its own CRT and SDK includes.
+const MSVC_ARGV_INCLUDE_FLAGS: [&str; 4] = ["/imsvc", "-imsvc", "/winsysroot", "-winsysroot"];
+
+/// Argv0 and arguments of the version probe for a recorded compiler, with a relative
+/// argv0 resolved against the execroot. `cl` takes no flag and prints its banner on stderr.
+pub fn version_probe(execroot: &Path, argv0: &str) -> (PathBuf, Vec<String>) {
+    let path = execroot.join(argv0);
+    let is_cl = path
+        .file_stem()
+        .is_some_and(|stem| stem.eq_ignore_ascii_case("cl"));
+    let args = if is_cl {
+        Vec::new()
+    } else {
+        vec!["--version".to_string()]
+    };
+    (path, args)
+}
+
 /// Turns the hermetic MSVC action env into the flags clang-cl needs, right after argv0.
+/// An action with no `INCLUDE` in its env but include flags in argv is kept unchanged.
 fn msvc_context_arguments(
     target: &str,
     action: &Action,
@@ -449,7 +468,15 @@ fn msvc_context_arguments(
         .map(|dir| format!("/imsvc{}", dir.replace('\\', "/")))
         .collect();
     if flags.is_empty() {
-        return Err(missing("INCLUDE in the action env"));
+        let in_argv = arguments.iter().any(|argument| {
+            MSVC_ARGV_INCLUDE_FLAGS
+                .iter()
+                .any(|flag| argument.starts_with(flag))
+        });
+        if in_argv {
+            return Ok(arguments);
+        }
+        return Err(missing("INCLUDE in the action env or /imsvc in argv"));
     }
     flags.push("/X".to_string());
     let has_target = arguments

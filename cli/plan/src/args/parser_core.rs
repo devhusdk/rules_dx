@@ -779,3 +779,17 @@ fn startup_options_reject_missing_and_unqualified_tokens() {
         );
     }
 }
+
+#[test]
+fn fail_on_uncovered_is_a_security_option() {
+    let got = parse(&strings(&["security", "--fail-on=uncovered"])).expect("security parses");
+    assert!(got.fail_on_uncovered);
+    assert_eq!(got.fail_on, Threshold::Warning);
+    assert!(
+        !parse(&strings(&["security"]))
+            .expect("plain")
+            .fail_on_uncovered
+    );
+    assert!(parse(&strings(&["license", "--fail-on=uncovered"])).is_err());
+    assert!(parse(&strings(&["lint", "--fail-on=uncovered"])).is_err());
+}

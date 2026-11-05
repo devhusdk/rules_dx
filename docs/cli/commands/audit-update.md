@@ -13,7 +13,7 @@ tools/dx security --report sarif=security.sarif quality/tools/python
 ```
 
 ```text
-dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error|uncovered] [--report sarif=<dest>] [scope...]
 dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
 ```
 
@@ -24,6 +24,7 @@ dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning
 | `--offline` | Uses pinned cached snapshots. Fails with `offline_required` when missing. |
 | `--frozen` | Forbids manifest and lock resolution changes. |
 | `--fail-on info\|warning\|error` | Fails at this severity. |
+| `--fail-on uncovered` | `dx security` only: also fails when a known lock file (`mix.lock`, `pubspec.lock`, `poetry.lock` and others) has no dependency set. Without it, each such file prints one warning line. An `[[uncovered]]` entry whose `set` is the file path silences it. |
 | `--report sarif=<dest>` | Writes SARIF. Repeatable. `-` is stdout. |
 | `--output text\|json` | Sets the output format. |
 

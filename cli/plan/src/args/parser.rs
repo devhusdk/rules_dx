@@ -426,9 +426,19 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(scope_error(scope));
         }
     }
-    let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
-        value: fail_on_name.clone(),
-    })?;
+    let fail_on_uncovered = fail_on_name == "uncovered" && command == Command::Security;
+    if fail_on_name == "uncovered" && !fail_on_uncovered && fail_on_from_flag {
+        return Err(ArgsError::BadFailOn {
+            value: fail_on_name,
+        });
+    }
+    let mut fail_on = if fail_on_name == "uncovered" {
+        Threshold::Warning
+    } else {
+        Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
+            value: fail_on_name.clone(),
+        })?
+    };
     if fail_on_name != "warning" && command != Command::Watch && !command.supports_fail_on() {
         if fail_on_from_flag {
             return Err(unsupported(command, "--fail-on"));
@@ -626,6 +636,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
+        fail_on_uncovered,
         build_slots,
         baseline,
         include_edits,

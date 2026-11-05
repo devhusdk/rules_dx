@@ -1018,6 +1018,8 @@ struct SecurityInputs<'a> {
     nonce: u64,
     sets: &'a [AuditTarget<'a>],
     fail_on: Threshold,
+    fail_on_uncovered: bool,
+    unowned: &'a [audit_uncovered::UnownedLock],
     today: &'a str,
     offline: bool,
     query_runner: &'a dyn QueryRunner,
@@ -1117,6 +1119,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         nonce,
         sets,
         fail_on,
+        fail_on_uncovered,
+        unowned,
         today,
         offline,
         query_runner,
@@ -1283,6 +1287,19 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         vuln_findings_all.extend(unexempted);
         unassessed_all.extend(unassessed);
     }
+    let mut unowned_count = 0;
+    for lock in unowned {
+        if accepted_uncovered.contains(&lock.path.as_str()) {
+            continue;
+        }
+        unowned_count += 1;
+        diagnostics.push(DiagnosticEvent {
+            rule: Some(format!("{}/unowned-lock", dx_audit::vuln::VULN_RULE_PREFIX)),
+            path: Some(lock.path.clone()),
+            ..DiagnosticEvent::new(Severity::Warning, "vuln", lock.message())
+        });
+    }
+    let failing_unowned = fail_on_uncovered && unowned_count > 0;
     let failing_secrets = !secret_findings.is_empty();
     let failing_vuln = vuln_findings_all
         .iter()
@@ -1290,7 +1307,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let has_incomplete = incomplete.is_some() || !unassessed_all.is_empty();
     let status = if has_incomplete {
         dx_audit::outcome::FamilyStatus::Incomplete
-    } else if failing_secrets || failing_vuln {
+    } else if failing_secrets || failing_vuln || failing_unowned {
         dx_audit::outcome::FamilyStatus::Findings
     } else {
         dx_audit::outcome::FamilyStatus::Clean
@@ -1299,14 +1316,15 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         incomplete
             .clone()
             .unwrap_or_else(|| "incomplete assessment".to_owned())
-    } else if failing_secrets || failing_vuln {
+    } else if failing_secrets || failing_vuln || failing_unowned {
         format!(
-            "{} secret findings, {} vulnerability findings",
+            "{} secret findings, {} vulnerability findings, {} lock files without a dependency set",
             secret_findings.len(),
             vuln_findings_all
                 .iter()
                 .filter(|finding| meets_audit_threshold(finding.level, fail_on))
-                .count()
+                .count(),
+            if failing_unowned { unowned_count } else { 0 }
         )
     } else {
         "clean".to_owned()
@@ -1415,6 +1433,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     let today = today_utc(audit_today);
+    let owned: Vec<&str> = registry
+        .sets
+        .iter()
+        .flat_map(|set| set.locks.iter().chain(&set.manifests))
+        .map(String::as_str)
+        .collect();
+    let unowned = if invocation.command == Command::Security {
+        audit_uncovered::find_unowned(workspace, &owned)
+    } else {
+        Vec::new()
+    };
     let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();
@@ -1432,6 +1461,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     nonce,
                     sets: &sets,
                     fail_on: invocation.fail_on,
+                    fail_on_uncovered: invocation.fail_on_uncovered,
+                    unowned: &unowned,
                     today: &today,
                     offline: invocation.offline,
                     query_runner,
@@ -1702,6 +1733,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[path = "audit_license.rs"]
 mod audit_license;
 use audit_license::*;
+#[path = "audit_uncovered.rs"]
+mod audit_uncovered;
 
 #[cfg(test)]
 #[path = "audit_consumer.rs"]

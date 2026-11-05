@@ -241,6 +241,8 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
+    /// `dx security --fail-on=uncovered`: lock files without a dependency set fail the run.
+    pub fail_on_uncovered: bool,
     /// How many build slots this process sizes its gate with; `None` when neither flag nor env set it.
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
     pub baseline: Option<String>,
@@ -665,6 +667,7 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
+            fail_on_uncovered: false,
             build_slots: None,
             baseline: None,
             include_edits: false,

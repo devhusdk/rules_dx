@@ -334,6 +334,19 @@ flag_group! {
 }
 
 flag_group! {
+    /// Fail on this severity, or on lock files without a dependency set.
+    SecurityFailOnFlag, {
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "fail_on",
+            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "uncovered"])
+        )]
+        fail_on: Option<String>,
+    }
+}
+
+flag_group! {
     /// Suppress findings already in this workspace-relative JSON baseline.
     BaselineFlag, {
         #[arg(
@@ -876,7 +889,7 @@ command_args! {
         output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
-        fail_on: FailOnFlag,
+        fail_on: SecurityFailOnFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

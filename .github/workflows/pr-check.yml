@@ -1,0 +1,58 @@
+name: pr-check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci' || '' }}
+  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: analysis (PR-time checks on linux_x86_64)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: workflow
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh workflow $BAZEL_CONFIG $BB_ARGS
+      - name: preflight
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh preflight $BAZEL_CONFIG $BB_ARGS
+      - name: starter
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh starter $BAZEL_CONFIG $BB_ARGS
+      - name: hermetic
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh hermetic $BAZEL_CONFIG $BB_ARGS
+      - name: docs
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh docs $BAZEL_CONFIG $BB_ARGS
+      - name: families
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh families $BAZEL_CONFIG $BB_ARGS
+      - name: cli
+        run: |
+          # shellcheck disable=SC2086
+          tools/ci/pr_check.sh cli $BAZEL_CONFIG $BB_ARGS

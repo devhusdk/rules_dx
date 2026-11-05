@@ -413,6 +413,21 @@ rust_test(
 
 # keep
 rust_test(
+    name = "pr_check_test",
+    srcs = ["pr_check_test.rs"],
+    data = [
+        "pr_check.sh",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/pr-check.yml",
+    ],
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+rust_test(
     name = "setup_bazel_test",
     srcs = ["setup_bazel_test.rs"],
     data = [
@@ -917,6 +932,7 @@ rustfmt_test(
         ":artifact_writes_test",
         ":bcr_outdated_test",
         ":dx_update_workflow_test",
+        ":pr_check_test",
         ":ci_workflow",
         ":ci_workflow_test",
         ":config_consistency_test",

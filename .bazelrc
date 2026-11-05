@@ -22,6 +22,7 @@ common --check_direct_dependencies=error
 startup:macos --host_jvm_args=-XX:MaxRAMPercentage=50
 common:macos --local_resources=nested_bazel=1
 build:macos --macos_minimum_os=14.0
+build:macos --host_macos_minimum_os=14.0
 
 startup:windows --output_user_root=C:/bz
 startup:windows --windows_enable_symlinks

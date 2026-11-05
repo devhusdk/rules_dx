@@ -50,10 +50,6 @@ type token struct {
 // manifest is set (a .psd1). Literal names and paths to .psm1/.psd1 files
 // count; variables and other expressions are skipped. Comments, strings and
 // here-strings never yield imports.
-//
-// The grammar cannot parse unquoted comma lists (Import-Module A,B) and then
-// loses the rest of the file; when the tree has a real error the legacy
-// scanner results are added too.
 func ParseImports(content []byte, manifest bool) []string {
 	set := make(map[string]bool)
 	add := func(names []string) {
@@ -61,9 +57,7 @@ func ParseImports(content []byte, manifest bool) []string {
 			set[name] = true
 		}
 	}
-	if treeImports(content, manifest, add) {
-		add(legacyImports(content, manifest))
-	}
+	treeImports(content, manifest, add)
 	out := make([]string, 0, len(set))
 	for name := range set {
 		out = append(out, name)
@@ -72,23 +66,19 @@ func ParseImports(content []byte, manifest bool) []string {
 	return out
 }
 
-// treeImports reports the imports found in the syntax tree through add, and
-// whether the tree held a real parse error.
-func treeImports(content []byte, manifest bool, add func([]string)) bool {
+// treeImports reports the imports found in the syntax tree through add.
+func treeImports(content []byte, manifest bool, add func([]string)) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
 	if tree.Root == nil {
-		return true
+		return
 	}
-	bad := hasRealError(tree)
 	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
 		switch tree.Type(n) {
 		case "command":
 			collectCommand(tree, n, add)
 		case "comment":
-			if collectRequires(tree, content, n, add) {
-				bad = true
-			}
+			collectRequires(tree, content, n, add)
 		case "hash_entry":
 			if manifest && strings.EqualFold(entryKey(tree, n), "requiredmodules") {
 				add(valueList(entryValue(tree, n), 0))
@@ -96,26 +86,6 @@ func treeImports(content []byte, manifest bool, add func([]string)) bool {
 		}
 		return true
 	})
-	return bad
-}
-
-// hasRealError reports an ERROR or MISSING node. The grammar adds a
-// whitespace-only ERROR for empty and comment-only files, which does not count.
-func hasRealError(tree *treesitter.Tree) bool {
-	if !tree.HasError {
-		return false
-	}
-	bad := false
-	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
-		if bad {
-			return false
-		}
-		if n.IsMissing() || (n.IsError() && strings.TrimSpace(tree.Text(n)) != "") {
-			bad = true
-		}
-		return !bad
-	})
-	return bad
 }
 
 func children(tree *treesitter.Tree, n *treesitter.Node, typ string) []*treesitter.Node {
@@ -161,27 +131,27 @@ func collectCommand(tree *treesitter.Tree, n *treesitter.Node, add func([]string
 }
 
 // collectRequires handles a #Requires comment, which counts only as the first
-// text on its line. It reports whether the comment's own parse had an error.
-func collectRequires(tree *treesitter.Tree, src []byte, n *treesitter.Node, add func([]string)) bool {
+// text on its line.
+func collectRequires(tree *treesitter.Tree, src []byte, n *treesitter.Node, add func([]string)) {
 	text := tree.Text(n)
 	trimmed := strings.TrimLeft(text, " \t\r\n")
 	if !requiresRE.MatchString(trimmed) {
-		return false
+		return
 	}
 	start := min(int(n.StartByte())+len(text)-len(trimmed), len(src))
 	lineStart := bytes.LastIndexByte(src[:start], '\n') + 1
 	if len(bytes.TrimSpace(src[lineStart:start])) != 0 {
-		return false
+		return
 	}
 	line, _, _ := strings.Cut(trimmed, "\n")
 	line = strings.TrimRight(line, "\r")
 	if !strings.Contains(strings.ToLower(line), "-modules") {
-		return false
+		return
 	}
 	sub := treesitter.Parse(grammar(), []byte(line[1:]))
 	defer sub.Release()
 	if sub.Root == nil {
-		return true
+		return
 	}
 	done := false
 	sub.Walk(sub.Root, func(c *treesitter.Node) bool {
@@ -202,7 +172,6 @@ func collectRequires(tree *treesitter.Tree, src []byte, n *treesitter.Node, add 
 		}
 		return !done
 	})
-	return hasRealError(sub)
 }
 
 // commandTokens turns the children of a command_elements node into tokens.

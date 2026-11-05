@@ -181,6 +181,7 @@ gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 # directly. It embeds grammars/grammar_blobs/go.bin from a sibling package, which
 # Gazelle cannot express; the patch adds that file to the root library's embedsrcs.
 # map_kind makes the generated loads use rules_go's name in this module.
+# Return to a version once a gotreesitter release carries odvcencio/gotreesitter#1574.
 go_repository = use_repo_rule("@gazelle//internal:go_repository.bzl", "go_repository")
 
 go_repository(
@@ -193,8 +194,9 @@ go_repository(
     importpath = "github.com/odvcencio/gotreesitter",
     patch_args = ["-p1"],
     patches = ["//third_party/go:gotreesitter_embed.patch"],
-    sum = "h1:2cyxAbG9yAMs1d8xTAxq3HWrKh8m7mi7pAjRBZd1Pp8=",
-    version = "v0.56.0",
+    sha256 = "6c915c29ff5db03bcb2f2db690caed293c689c32bf445d48b5c0e2f5997a7a4a",
+    strip_prefix = "gotreesitter-a8d5183f93260b8c3743375f70f4dee5b1778569",
+    urls = ["https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4dee5b1778569.tar.gz"],
 )
 
 use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")

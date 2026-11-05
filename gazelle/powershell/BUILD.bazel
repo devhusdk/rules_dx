@@ -9,7 +9,6 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
-        "legacy.go",
         "naming.go",
         "parser.go",
         "stdlib.go",

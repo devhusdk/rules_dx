@@ -3,7 +3,7 @@ set -euo pipefail
 
 list="tools/testing/nested_smoke.txt"
 query='attr(tags, "resources:nested_bazel", tests(//...)) except attr(name, ".*_upstream$", tests(//...))'
-cap=22
+cap=21
 
 listed="$(grep -v '^#' "$list" | grep -v '^$' | LC_ALL=C sort -u)"
 queried="$(bazel query --noshow_progress --output=label "$@" "$query" | LC_ALL=C sort -u)"

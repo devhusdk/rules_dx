@@ -9,7 +9,6 @@
 //cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
 //deploy/release/tests:candidate_consumer_test
 //elixir/tests/negative:negative_test
-//fortran/tests/negative:negative_test
 //haskell/tests/negative:negative_test
 //ocaml/tests/negative:negative_test
 //perl/tests/negative:negative_test

@@ -9,12 +9,13 @@ NativeRuntimeInfo = provider(
         "name": "String: runtime name.",
         "notice": "File or None: license notice shipped with app_local files.",
         "redistribution": "String: app_local, os_supplied or build_only.",
+        "provides": "List of String: library names the OS supplies for this runtime; a trailing * is a prefix.",
         "source": "String: where the runtime comes from.",
         "version": "String: runtime version.",
     },
 )
 
-def native_runtime_error(version, source, redistribution, file_count, has_notice):
+def native_runtime_error(version, source, redistribution, file_count, has_notice, provides_count = 0):
     """Returns the reason a native runtime declaration is invalid, or empty."""
     if version == "":
         return "native_runtime: version must not be empty"
@@ -29,6 +30,8 @@ def native_runtime_error(version, source, redistribution, file_count, has_notice
         return "native_runtime: app_local needs a notice"
     if redistribution == "os_supplied" and file_count != 0:
         return "native_runtime: os_supplied must not ship files"
+    if provides_count != 0 and redistribution != "os_supplied":
+        return "native_runtime: only os_supplied may set provides"
     return ""
 
 def _native_runtime_impl(ctx):
@@ -39,6 +42,7 @@ def _native_runtime_impl(ctx):
         ctx.attr.redistribution,
         len(files),
         ctx.file.notice != None,
+        len(ctx.attr.provides),
     )
     if error != "":
         fail(error + " (in " + str(ctx.label) + ")")
@@ -51,6 +55,7 @@ def _native_runtime_impl(ctx):
             redistribution = ctx.attr.redistribution,
             files = files,
             notice = ctx.file.notice,
+            provides = ctx.attr.provides,
         ),
     ]
 
@@ -61,6 +66,9 @@ native_runtime = rule(
         "notice": attr.label(
             doc = "License notice shipped with app_local files.",
             allow_single_file = True,
+        ),
+        "provides": attr.string_list(
+            doc = "os_supplied only: imported library names the OS supplies; a trailing * matches a prefix.",
         ),
         "redistribution": attr.string(
             doc = "app_local ships the files, os_supplied ships nothing, build_only cannot ship.",

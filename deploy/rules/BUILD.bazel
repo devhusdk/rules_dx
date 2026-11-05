@@ -83,6 +83,7 @@ exports_files([
     "src/crates.rs",
     "src/github.rs",
     "src/http.rs",
+    "src/imports.rs",
     "src/lib.rs",
     "src/maven.rs",
     "src/npm.rs",
@@ -109,6 +110,7 @@ rust_library(
         "src/crates.rs",
         "src/github.rs",
         "src/http.rs",
+        "src/imports.rs",
         "src/lib.rs",
         "src/maven.rs",
         "src/npm.rs",
@@ -135,6 +137,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "@rules_rust//rust/runfiles",

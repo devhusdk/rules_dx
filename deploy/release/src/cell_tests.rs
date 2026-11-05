@@ -667,40 +667,6 @@ fn qualify_marks_a_missing_consumer_skipped_and_not_ok() {
     assert_eq!(record.result, Verdict::Failed);
 }
 
-#[test]
-fn import_allowed_matches_system_lists_runtime_and_windows_case() {
-    let runtime = vec!["VCRUNTIME140.dll".to_owned()];
-    assert!(import_allowed("windows", "KERNEL32.dll", &[]));
-    assert!(import_allowed(
-        "windows",
-        "api-ms-win-crt-runtime-l1-1-0.dll",
-        &[]
-    ));
-    assert!(import_allowed("windows", "vcruntime140.dll", &runtime));
-    assert!(!import_allowed("windows", "vcruntime140.dll", &[]));
-    assert!(import_allowed("macos", "/usr/lib/libSystem.B.dylib", &[]));
-    assert!(import_allowed(
-        "macos",
-        "/System/Library/Frameworks/Security.framework/Versions/A/Security",
-        &[]
-    ));
-    assert!(import_allowed(
-        "macos",
-        "@rpath/libfoo.dylib",
-        &["libfoo.dylib".to_owned()]
-    ));
-    assert!(!import_allowed(
-        "macos",
-        "/opt/homebrew/lib/libfoo.dylib",
-        &[]
-    ));
-    assert!(import_allowed("linux", "libc.so.6", &[]));
-    assert!(import_allowed("linux", "libgcc_s.so.1", &[]));
-    assert!(!import_allowed("linux", "LIBC.so.6", &[]));
-    assert!(!import_allowed("linux", "libssl.so.3", &[]));
-    assert!(!import_allowed("solaris", "libc.so.6", &[]));
-}
-
 pub(crate) fn matrix_json(cells: &[Cell]) -> String {
     serde_json::json!({"schema": MATRIX_SCHEMA, "cells": cells}).to_string()
 }

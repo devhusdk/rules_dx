@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use dx_deploy_tools::import_allowed;
 use serde::{Deserialize, Serialize};
 
 pub const MATRIX_SCHEMA: &str = "release-matrix/v1";
@@ -40,59 +41,6 @@ pub const CHECKS: [&str; 12] = [
 const OSES: [&str; 3] = ["linux", "macos", "windows"];
 const MACHINES: [&str; 2] = ["x86_64", "aarch64"];
 const FORMATS: [&str; 2] = ["tar.gz", "zip"];
-
-/// System libraries a shipped binary may import without shipping them; a trailing '*' is a prefix.
-pub const SYSTEM_IMPORTS: [(&str, &[&str]); 3] = [
-    (
-        "linux",
-        &[
-            "ld-linux-aarch64.so.1",
-            "ld-linux-x86-64.so.2",
-            "libc.so.6",
-            "libdl.so.2",
-            "libgcc_s.so.1",
-            "libm.so.6",
-            "libpthread.so.0",
-            "librt.so.1",
-        ],
-    ),
-    (
-        "macos",
-        &[
-            "/System/Library/Frameworks/*",
-            "/usr/lib/libSystem.B.dylib",
-            "/usr/lib/libc++.1.dylib",
-            "/usr/lib/libiconv.2.dylib",
-            "/usr/lib/libobjc.A.dylib",
-            "/usr/lib/libresolv.9.dylib",
-        ],
-    ),
-    (
-        "windows",
-        &[
-            "advapi32.dll",
-            "api-ms-win-*",
-            "bcrypt.dll",
-            "bcryptprimitives.dll",
-            "crypt32.dll",
-            "dbghelp.dll",
-            "iphlpapi.dll",
-            "kernel32.dll",
-            "ncrypt.dll",
-            "ntdll.dll",
-            "ole32.dll",
-            "oleaut32.dll",
-            "psapi.dll",
-            "secur32.dll",
-            "shell32.dll",
-            "synchronization.dll",
-            "ucrtbase.dll",
-            "user32.dll",
-            "userenv.dll",
-            "ws2_32.dll",
-        ],
-    ),
-];
 
 /// One release cell from release-matrix/v1.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -335,30 +283,6 @@ fn container_for(os: &str) -> &'static str {
         "macos" => "macho",
         _ => "pe",
     }
-}
-
-/// Returns whether `needed` is a system import on `os` or one of the shipped runtime members.
-pub fn import_allowed(os: &str, needed: &str, runtime: &[String]) -> bool {
-    let fold = |text: &str| {
-        if os == "windows" {
-            text.to_ascii_lowercase()
-        } else {
-            text.to_owned()
-        }
-    };
-    let needed = fold(needed);
-    let base = needed.rsplit('/').next().unwrap_or_default();
-    if runtime.iter().any(|member| fold(member) == base) {
-        return true;
-    }
-    SYSTEM_IMPORTS
-        .iter()
-        .filter(|(system, _)| *system == os)
-        .flat_map(|(_, names)| names.iter())
-        .any(|pattern| match pattern.strip_suffix('*') {
-            Some(prefix) => needed.starts_with(prefix),
-            None => needed == *pattern,
-        })
 }
 
 fn ran(runner: &dyn Runner, program: &Path, args: &[&str], cwd: &Path) -> Result<String, String> {

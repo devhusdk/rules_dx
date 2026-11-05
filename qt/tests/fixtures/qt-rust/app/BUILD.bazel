@@ -49,6 +49,7 @@ consumer_archive(
     notice = "NOTICE",
     os = QT_CONSUMER_OS,
     resources = [":runtime"],
+    check_imports = False,
 )
 
 real_source_target(

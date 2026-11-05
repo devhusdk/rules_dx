@@ -230,6 +230,7 @@ def _consumer_stage_impl(ctx):
     reserved = [exe.basename, "LICENSE", "NOTICE", "IDENTITY.txt"]
     runtime = []
     runtime_records = []
+    provides = []
     for target in ctx.attr.runtime:
         members = {}
         if NativeRuntimeInfo in target:
@@ -238,6 +239,7 @@ def _consumer_stage_impl(ctx):
                 fail("consumer_archive " + str(ctx.label) + ": " +
                      display_label(target.label) + " is a compiler/SDK build-only input and cannot ship")
             runtime_records.append(" ".join([info.name, info.version, info.redistribution]))
+            provides.extend(info.provides)
             if info.redistribution == "os_supplied":
                 continue
             members["notices/" + info.name] = info.notice
@@ -310,8 +312,31 @@ def _consumer_stage_impl(ctx):
         ),
     )
     by_member["IDENTITY.txt"] = identity_out
+    groups = {}
+    if ctx.attr.check_imports:
+        checked = [exe.basename] + runtime
+        stamp = ctx.actions.declare_file(ctx.label.name + "/imports.ok")
+        args = ctx.actions.args()
+        args.add("--imports")
+        args.add(stamp.path)
+        for member in checked:
+            args.add("--check", member)
+        for name in provides:
+            args.add("--provides", name)
+        for member in checked:
+            args.add(member + "=" + by_member[member].path)
+        ctx.actions.run(
+            executable = ctx.executable._archiver,
+            arguments = [args],
+            inputs = depset([by_member[member] for member in checked]),
+            outputs = [stamp],
+            mnemonic = "DxConsumerImports",
+            progress_message = "Dx check imports %{label}",
+        )
+        groups["_validation"] = depset([stamp])
     return [
         DefaultInfo(files = depset(by_member.values())),
+        OutputGroupInfo(**groups),
         _ConsumerStageInfo(executable = exe.basename, members = by_member, runtime = runtime),
     ]
 
@@ -330,6 +355,10 @@ _consumer_stage = rule(
         "archive_name": attr.string(
             doc = "Archive name recorded in IDENTITY.txt.",
             mandatory = True,
+        ),
+        "check_imports": attr.bool(
+            doc = "Fail the build when the app or a runtime member imports a library that is neither shipped, a system import nor provided by an os_supplied runtime.",
+            default = True,
         ),
         "format": attr.string(doc = "Archive format, tar.gz or zip.", default = "tar.gz"),
         "license_file": attr.label(
@@ -359,6 +388,11 @@ _consumer_stage = rule(
         "runtime": attr.label_list(
             doc = "Runtime library targets packaged beside the app executable.",
             allow_files = True,
+        ),
+        "_archiver": attr.label(
+            cfg = "exec",
+            default = _ARCHIVER,
+            executable = True,
         ),
     },
 )
@@ -408,7 +442,7 @@ _consumer_tarball = rule(
     },
 )
 
-def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, format = "tar.gz", tags = None, target_compatible_with = None):
+def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, check_imports = True, format = "tar.gz", tags = None, target_compatible_with = None):
     """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file."""
     (tarball, checksum) = archive_filenames(name, format)
     stage_target = name + "_stage"
@@ -420,6 +454,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         app = app,
         arch = arch,
         archive_name = name,
+        check_imports = check_imports,
         format = format,
         linkage = linkage,
         min_runtime = min_runtime,

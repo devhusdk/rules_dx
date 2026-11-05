@@ -321,6 +321,18 @@ native_runtime(
   inputs cannot ship.
 - `version` and `source`: required and non-empty.
 - `notice`: required for `app_local`.
+- `provides`: only for `os_supplied`. Library names the OS supplies for this
+  runtime, such as `libGL.so.1`. A trailing `*` matches any name with that
+  prefix.
+
+`consumer_archive` checks the import closure of the app and of each shipped
+runtime file as a validation action (`archiver --imports`). Every imported
+library (ELF `DT_NEEDED`, Mach-O load command, PE import) must be a shipped
+member's basename, a system import for that format (the `SYSTEM_IMPORTS` list
+in `deploy/rules/src/imports.rs`, also used by release cells), or listed in an
+`os_supplied` runtime's `provides`. Otherwise the build fails with
+`<member>: not shipped and not a system import: [...]`. Files that are not
+binary images are skipped. Set `check_imports = False` to opt out.
 
 `//cc/toolchains:gcc_linux_libstdcxx` is an `app_local` runtime with the
 pinned GCC's `libstdc++.so.6` and `libgcc_s.so.1` and the GCC Runtime Library

@@ -37,6 +37,27 @@ fn run(argv: &[String]) -> i32 {
             Err(error) => dx_deploy_tools::bin_cannot("archiver", "archive", dst, error),
         };
     }
+    if argv.len() >= 2 && argv[1] == "--imports" {
+        // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        if argv.len() < 4 {
+            return dx_deploy_tools::bin_usage(
+                "archiver",
+                "--imports <out> [--check <member>]... [--provides <name>]... <member=path>...",
+            );
+        }
+        let dst = Path::new(&argv[2]);
+        // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        return match dx_deploy_tools::check_imports(&argv[3..]) {
+            Ok(()) => match std::fs::write(dst, b"") {
+                Ok(()) => 0,
+                Err(error) => dx_deploy_tools::bin_cannot("archiver", "write", dst, error),
+            },
+            Err(error) => {
+                eprintln!("archiver: {error}");
+                1
+            }
+        };
+    }
     if argv.len() >= 2 && argv[1] == "--oci-layout" {
         // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         if argv.len() != 6 {

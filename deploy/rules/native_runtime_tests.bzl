@@ -53,5 +53,15 @@ def native_runtime_unit_tests(name):
                 native_runtime_error("2.17", "glibc", "os_supplied", 1, False),
                 "native_runtime: os_supplied must not ship files",
             ),
+            expect_equal(
+                "native_runtime_error accepts os_supplied with provides",
+                native_runtime_error("2.17", "glibc", "os_supplied", 0, False, 1),
+                "",
+            ),
+            expect_equal(
+                "native_runtime_error rejects provides on app_local",
+                native_runtime_error("14.3", "msvc", "app_local", 1, True, 1),
+                "native_runtime: only os_supplied may set provides",
+            ),
         ],
     )

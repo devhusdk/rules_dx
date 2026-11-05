@@ -9,7 +9,8 @@ defmodule DxRuntimeProbeTest do
   test "loads the app from its compiled ebin" do
     assert Application.load(:dx_runtime_probe) == :ok
     assert Application.spec(:dx_runtime_probe, :modules) == [DxRuntimeProbe]
-    assert :code.which(DxRuntimeProbe) |> to_string() |> String.ends_with?("/ebin/Elixir.DxRuntimeProbe.beam")
+    ebin = Application.app_dir(:dx_runtime_probe, "ebin")
+    assert File.exists?(Path.join(ebin, "Elixir.DxRuntimeProbe.beam"))
   end
 
   test "runs Elixir from the declared runtime, not the host" do

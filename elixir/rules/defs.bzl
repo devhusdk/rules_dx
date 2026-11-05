@@ -2,19 +2,15 @@
 
 load("@rules_elixir//:elixir_app.bzl", _elixir_app = "elixir_app")
 load("@rules_elixir//:ex_unit_test.bzl", _ex_unit_test = "ex_unit_test")
-load("@rules_erlang//:erlang_app_info.bzl", _ErlangAppInfo = "ErlangAppInfo")
+load("@rules_erlang//:erlang_app_info.bzl", "flat_deps", _ErlangAppInfo = "ErlangAppInfo")
 load("//elixir/toolchain:pins.bzl", _ELIXIR_CELLS = "ELIXIR_CELLS")
 load("//erlang/rules:beam.bzl", "beam_info")
-load("//erlang/rules:defs.bzl", _escript_archive = "escript_archive")
+load("//erlang/rules:defs.bzl", "runfiles_path", _escript_archive = "escript_archive")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-
-# False while elixir tests write empty LCOV under `bazel coverage`; the public
-# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308).
-ELIXIR_COVERAGE_COLLECTOR = False
 
 ErlangAppInfo = _ErlangAppInfo
 
@@ -72,6 +68,40 @@ _elixir_app_forward = dx_library_forward_rule(
     runtime = "besteffort",
 )
 
+def cover_sources(apps):
+    """Returns the app names and `.ex` paths of the workspace apps a test covers."""
+    names = {}
+    paths = {}
+    for app in apps + flat_deps(apps):
+        for f in app[_ErlangAppInfo].srcs:
+            if f.path.endswith(".ex") and f.owner != None and f.owner.repo_name == "":
+                names[app[_ErlangAppInfo].app_name] = True
+                paths[f.short_path] = True
+    return sorted(names.keys()), sorted(paths.keys())
+
+def _ex_unit_test_coverage(ctx, upstream):
+    """Returns the coverage providers that cover-compile the apps of one test and write LCOV."""
+    script = ctx.file._cover_script
+    names, paths = cover_sources(ctx.attr.apps)
+    env = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
+    if paths:
+        env["DX_ELIXIR_COVER_APPS"] = ",".join(names)
+        env["DX_ELIXIR_COVER_SOURCES"] = ",".join(paths)
+        env["DX_ELIXIR_COVER_SCRIPT"] = runfiles_path(ctx.workspace_name, script.short_path)
+    return struct(
+        instrumented = coverage_common.instrumented_files_info(
+            ctx,
+            source_attributes = ["srcs"],
+            dependency_attributes = ["upstream", "apps"],
+        ),
+        env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
+        runfiles = ctx.runfiles(files = [script]),
+    )
+
 _ex_unit_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = [DefaultInfo, QualitySourcesInfo],
@@ -80,8 +110,15 @@ _ex_unit_forward_test = dx_executable_forward_rule(
     what = "ex_unit_test",
     allow_files = _EXTS,
     upstream_providers = None,
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | {
+        "apps": attr.label_list(
+            doc = "Elixir app targets whose sources feed test coverage.",
+            providers = [_ErlangAppInfo],
+        ),
+        "_cover_script": attr.label(default = "//elixir/coverage:dx_cover.exs", allow_single_file = True),
+    },
     runtime = "besteffort",
+    coverage_providers = _ex_unit_test_coverage,
 )
 
 def app_sources(kwargs, glob = None):
@@ -145,6 +182,21 @@ def helper_first(srcs):
     helpers = [src for src in srcs if src.split("/")[-1].split(":")[-1] == "test_helper.exs"]
     return helpers + [src for src in srcs if src not in helpers]
 
+COVER_LOAD = "if path = System.get_env(~s(DX_ELIXIR_COVER_SCRIPT)), do: Code.require_file(path, System.fetch_env!(~s(TEST_SRCDIR)))"
+
+def cover_opts(opts):
+    """Returns the elixir options that load the coverage script when a coverage run names one.
+
+    The Windows launcher passes options unquoted, so there the code is wrapped in double quotes.
+    """
+    load_script = select({
+        "@platforms//os:windows": ["-e", '"' + COVER_LOAD + '"'],
+        "//conditions:default": ["-e", COVER_LOAD],
+    })
+    return load_script + (opts or [])
+
 def ex_unit_test(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_elixir ex_unit_test rule."""
-    dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, coverage_collector = ELIXIR_COVERAGE_COLLECTOR, **kwargs)
+    upstream = dict(kwargs, elixir_opts = cover_opts(kwargs.get("elixir_opts")))
+    apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None
+    dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = apps, **kwargs)

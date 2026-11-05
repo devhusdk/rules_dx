@@ -176,4 +176,4 @@ On other platforms Elixir targets fail toolchain resolution.
 
 ## Coverage
 
-Elixir tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.
+`ex_unit_test` writes LCOV under `dx coverage`. A script cover-compiles the workspace apps in the test's `deps` and writes their line hits when the VM exits. Apps from other repositories are not counted. Tag a test `no-coverage` to skip it.

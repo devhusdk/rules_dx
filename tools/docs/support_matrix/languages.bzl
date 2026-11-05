@@ -95,6 +95,7 @@ DOC_TOOLS = {
 COVERAGE_COLLECTORS = {
     "cc": ["gcov", "llvm-cov"],
     "csharp": ["coverlet"],
+    "elixir": ["cover"],
     "erlang": ["cover"],
     "fsharp": ["coverlet"],
     "go": ["go cover"],
@@ -117,7 +118,6 @@ NO_COVERAGE = {
     "cuda": "cuda_test has no dx coverage wiring",
     "d": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "dart": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
-    "elixir": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "flutter": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "fortran": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "haskell": "no collector yet; tests carry dx-no-coverage-collector (#2308)",

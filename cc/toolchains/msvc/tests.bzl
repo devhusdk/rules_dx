@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":layout.bzl", "msvc_layout")
 load(":subject.bzl", "msvc_toolchain_subject")
+load(":toolchains.bzl", "msvc_toolchain_cells")
 
 _ROOT = "cc\\tests\\fixtures\\msvc_layout\\"
 _VC = "VC\\Tools\\MSVC\\14.44.35207\\"
@@ -120,6 +121,19 @@ def msvc_toolchain_tests(name):
             expect_equal("cross bin dirs", cross.bin_dirs, [vc + "Hostx64/arm64", vc + "Hostx64/x64", "Windows Kits/10/bin/10.0.26100.0/x64"]),
             expect_equal("native cl", native.cl, vc + "Hostarm64/arm64/cl.exe"),
             expect_equal("native bin dirs", native.bin_dirs, [vc + "Hostarm64/arm64", "Windows Kits/10/bin/10.0.26100.0/arm64"]),
+        ],
+    )
+    x64 = "@platforms//cpu:x86_64"
+    arm64 = "@platforms//cpu:arm64"
+    starlark_test(
+        name = name + "_toolchain_cells",
+        mode = "load",
+        checks = [
+            expect_equal("cells", msvc_toolchain_cells(), [
+                ("msvc_windows_x86_64", x64, x64),
+                ("msvc_windows_x86_64_to_arm64", x64, arm64),
+                ("msvc_windows_arm64", arm64, arm64),
+            ]),
         ],
     )
     for cell in CELLS:

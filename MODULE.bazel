@@ -485,6 +485,10 @@ register_toolchains("//cc/toolchains:gcc_unsupported")
 
 register_toolchains("//cc/toolchains:msvc_windows_x86_64")
 
+register_toolchains("//cc/toolchains:msvc_windows_x86_64_to_arm64")
+
+register_toolchains("//cc/toolchains:msvc_windows_arm64")
+
 # The guard must stay last among the MSVC entries.
 register_toolchains("//cc/toolchains:msvc_unsupported")
 

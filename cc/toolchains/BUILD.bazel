@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//cc/rules:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
 load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//cc/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
 load(":bindings.bzl", "CC_COMPILERS")
 load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
@@ -96,20 +97,7 @@ toolchain(
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 
-toolchain(
-    name = "msvc_windows_x86_64",
-    exec_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-    target_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-    target_settings = [":msvc_selected"],
-    toolchain = "@dx_msvc//:cc_toolchain_x64_x64",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
+msvc_toolchains(name = "msvc")
 
 toolchain(
     name = "msvc_unsupported",

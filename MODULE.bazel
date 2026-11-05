@@ -1946,6 +1946,19 @@ _http_jar(
     urls = ["https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar"],
 )
 
+# Jazzer 0.30.0 from Maven Central: the libFuzzer driver for java_fuzz_test.
+_http_jar(
+    name = "dx_jazzer",
+    sha256 = "8bdeac017bcd3d9473c9772fac62111c4df830188571def1d001a1b743a62b2f",
+    urls = ["https://repo1.maven.org/maven2/com/code-intelligence/jazzer/0.30.0/jazzer-0.30.0.jar"],
+)
+
+_http_jar(
+    name = "dx_jazzer_api",
+    sha256 = "d36a725cfedcb7f3590206866cc2836f84d12afccf7c98912f5c720e4d2208d7",
+    urls = ["https://repo1.maven.org/maven2/com/code-intelligence/jazzer-api/0.30.0/jazzer-api-0.30.0.jar"],
+)
+
 # Rust runtime from the same archive (same sha256, so one download) and its bitflags dep.
 _http_archive(
     name = "dx_flatbuffers_rust",

@@ -9,6 +9,7 @@ _ON = {"treat_warnings_as_errors": True}
 
 exports_files([
     "defs.bzl",
+    "fuzz_run.sh",
 ])
 
 dx_wrapper_contract_tests(

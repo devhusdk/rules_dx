@@ -3,6 +3,7 @@
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -108,3 +109,37 @@ def java_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test."""
     upstream_kwargs = java_entry_kwargs(name, srcs, native.package_name(), java_javacopts_with_werror(kwargs), "test_class")
     dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
+
+def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, tags = None, deps = None, **kwargs):
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
+
+    `target_class` defaults to the class `java_binary` would infer for `name`.
+    """
+    target_class = target_class or java_entry_class(name, srcs, native.package_name())
+    if target_class == None:
+        fail("java_fuzz_test %s needs target_class" % name)
+    java_library(
+        name = name + "_lib",
+        srcs = srcs,
+        deps = deps,
+        testonly = True,
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+        **kwargs
+    )
+    _java_binary(
+        name = name,
+        main_class = "com.code_intelligence.jazzer.Jazzer",
+        runtime_deps = [":" + name + "_lib", Label("@dx_jazzer//jar"), Label("@dx_jazzer_api//jar")],
+        testonly = True,
+        tags = (tags or []) + ["dx-fuzz", "manual"],
+        visibility = visibility,
+    )
+    sh_binary(
+        name = name + "_run",
+        srcs = [Label("//java/rules:fuzz_run.sh")],
+        args = ["$(rootpath :" + name + ")", target_class],
+        data = [":" + name],
+        testonly = True,
+        visibility = visibility,
+    )

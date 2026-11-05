@@ -647,7 +647,7 @@ fn unquote_line(line: &str) -> String {
         .strip_prefix('"')
         .and_then(|rest| rest.strip_suffix('"'))
     {
-        Some(inner) => inner.to_string(),
+        Some(inner) => inner.replace("\\\"", "\""),
         None => line.to_string(),
     }
 }

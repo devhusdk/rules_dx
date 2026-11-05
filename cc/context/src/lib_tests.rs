@@ -828,3 +828,12 @@ fn qualify_reads_an_unlisted_param_file_from_the_execroot() {
     ));
     fs::remove_dir_all(&root).ok();
 }
+
+#[test]
+fn unquote_line_unescapes_quotes_in_quoted_lines() {
+    assert_eq!(
+        unquote_line(r#""/D__DATE__=\"redacted\"""#),
+        r#"/D__DATE__="redacted""#
+    );
+    assert_eq!(unquote_line("/c"), "/c");
+}

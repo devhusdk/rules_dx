@@ -27,6 +27,7 @@ def _tool_inputs_test_impl(ctx):
 build_script_tool_inputs_test = analysistest.make(_tool_inputs_test_impl)
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
+_LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
 
 def _run_action(env):
     actions = [
@@ -252,8 +253,32 @@ def _link_llvm_impl(ctx):
     asserts.false(env, "dx_gcc" in linker, "linker is GCC under llvm: {}".format(linker))
     return analysistest.end(env)
 
+def _link_windows_impl(ctx):
+    env = analysistest.begin(ctx)
+    linker, _ = _link_args(_rustc_action(env))
+    name = linker.replace("\\", "/").split("/")[-1]
+    asserts.true(env, name.startswith("rust-lld"), "linker is not rust-lld: {}".format(linker))
+    asserts.false(env, "clang-cl" in linker, "linker is clang-cl: {}".format(linker))
+    return analysistest.end(env)
+
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"})
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
+
+_link_windows_test = analysistest.make(_link_windows_impl, config_settings = {_COMPILER: "llvm", _LINKER_PREFERENCE: "rust"})
+
+def rust_link_windows_test(name, target):
+    """Asserts the Rust link step uses rust-lld and not clang-cl on Windows x64.
+
+    Args:
+        name: Name of the test.
+        target: A rust_test or rust_binary that links native code.
+    """
+    _link_windows_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
 
 def rust_link_compiler_tests(name, target):
     """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm.

@@ -4,7 +4,7 @@ load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_
 
 # keep
 rust_test(
-    name = "service_consumer_test",
+    name = "python_init_adopt_smoke_test",
     srcs = ["service_consumer_test.rs"],
     data = [
         "service_consumer_test.rs",
@@ -29,12 +29,12 @@ rust_test(
 
 rustfmt_test(
     name = "service_consumer_fmt_test",
-    targets = [":service_consumer_test"],
+    targets = [":python_init_adopt_smoke_test"],
 )
 
 rust_clippy_test(
     name = "service_consumer_clippy_test",
-    targets = [":service_consumer_test"],
+    targets = [":python_init_adopt_smoke_test"],
 )
 
 real_source_target(

@@ -9,7 +9,7 @@ package(
 
 # keep
 rust_test(
-    name = "candidate_consumer_test",
+    name = "release_candidate_smoke_test",
     srcs = ["candidate_consumer_test.rs"],
     data = [
         "//cli/cli:dx",
@@ -32,7 +32,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "quickstart_consumer_test",
+    name = "readme_quickstart_smoke_test",
     srcs = ["quickstart_consumer_test.rs"],
     data = [
         "//:README.md",
@@ -59,22 +59,22 @@ rust_test(
 
 rustfmt_test(
     name = "quickstart_consumer_fmt_test",
-    targets = [":quickstart_consumer_test"],
+    targets = [":readme_quickstart_smoke_test"],
 )
 
 rust_clippy_test(
     name = "quickstart_consumer_clippy_test",
-    targets = [":quickstart_consumer_test"],
+    targets = [":readme_quickstart_smoke_test"],
 )
 
 rustfmt_test(
     name = "candidate_consumer_fmt_test",
-    targets = [":candidate_consumer_test"],
+    targets = [":release_candidate_smoke_test"],
 )
 
 rust_clippy_test(
     name = "candidate_consumer_clippy_test",
-    targets = [":candidate_consumer_test"],
+    targets = [":release_candidate_smoke_test"],
 )
 
 real_source_target(

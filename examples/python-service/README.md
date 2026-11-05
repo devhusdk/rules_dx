@@ -23,5 +23,5 @@ Tests use both runners: `catalog_test`, `server_test`, `cli_test` and `broken_te
 Refresh the lock with `uv lock --directory examples/python-service`.
 
 ```sh
-bazel test //python/tests/consumer:service_consumer_test
+bazel test //python/tests/consumer:python_init_adopt_smoke_test
 ```

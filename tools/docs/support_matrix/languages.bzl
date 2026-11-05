@@ -180,7 +180,7 @@ ROWS = [
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
         "consumer_tests": [
-            "//python/tests/consumer:service_consumer_test",
+            "//python/tests/consumer:python_init_adopt_smoke_test",
         ] + _starter_consumers("python"),
         "name": "python",
         "section": "languages",
@@ -222,14 +222,14 @@ ROWS = [
         "ci_tests": [
             "//apple/tests:linux_consumer_test",
             "//apple/tests:macos_consumer_test",
-            "//apple/tests:macos_app_consumer_test",
+            "//apple/tests:macos_app_sign_smoke_test",
             "//apple/tests/fixtures/swift_app:ledger_ipa_test",
             "//swift/tests/fixtures/hello:xctest",
         ],
         "consumer_tests": [
             "//apple/tests:linux_consumer_test",
             "//apple/tests:macos_consumer_test",
-            "//apple/tests:macos_app_consumer_test",
+            "//apple/tests:macos_app_sign_smoke_test",
         ],
         "families": ["objc"],
         "name": "apple",

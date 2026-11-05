@@ -27,6 +27,7 @@ dx_rust_crate(
         "src/edit/add_plans.rs",
         "src/edit/gha.rs",
         "src/edit/mod.rs",
+        "src/edit/own_version.rs",
         "src/edit/request.rs",
         "src/edit/request_cargo.rs",
         "src/edit/request_plans.rs",
@@ -60,6 +61,7 @@ dx_rust_crate(
     ],
     test_srcs = [
         "src/edit/add_tests.rs",
+        "src/edit/own_version_tests.rs",
         "src/edit/request_tests.rs",
     ],
     deps = [

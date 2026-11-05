@@ -1217,8 +1217,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     const OLD_SHA: &str = "0000000000000000000000000000000000000000";
 
     fn old_ci() -> String {
-        render_consumer_caller()
-            .replace(super::CONSUMER_WORKFLOW_PIN, OLD_SHA)
+        render_consumer_caller().replace(super::CONSUMER_WORKFLOW_PIN, OLD_SHA)
     }
 
     fn refreshed(root: &std::path::Path) -> Vec<String> {
@@ -1287,7 +1286,10 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-legacy-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
-        let legacy = old_ci().replace("    secrets:", "    with:\n      rules_dx_version: \"0.0.1\"\n    secrets:");
+        let legacy = old_ci().replace(
+            "    secrets:",
+            "    with:\n      rules_dx_version: \"0.0.1\"\n    secrets:",
+        );
         std::fs::write(root.join(".github/workflows/ci.yml"), legacy).expect("write");
         refreshed(root);
         let new = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read");

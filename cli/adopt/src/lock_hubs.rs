@@ -271,7 +271,12 @@ impl Planner<'_> {
                     || name.starts_with("bazel-")
                     || matches!(
                         name.as_str(),
-                        "node_modules" | "target" | "testdata" | "fixtures" | "fixture"
+                        "node_modules"
+                            | "target"
+                            | "testdata"
+                            | "fixtures"
+                            | "fixture"
+                            | "examples"
                     );
                 if !skip && entry.file_type().is_ok_and(|t| t.is_dir()) {
                     pending.push(if dir.is_empty() {
@@ -555,8 +560,14 @@ mod tests {
         assert!(text.contains("lock = \"//:uv.lock\""), "{text}");
         assert_eq!(text.matches("declare_hub").count(), 1, "{text}");
         assert!(text.contains("name = \"npm_web_app\""), "{text}");
-        assert!(text.contains("pnpm_lock = \"//web/app:pnpm-lock.yaml\""), "{text}");
-        assert!(text.contains("use_repo(npm, \"npm\", \"npm_web_app\")"), "{text}");
+        assert!(
+            text.contains("pnpm_lock = \"//web/app:pnpm-lock.yaml\""),
+            "{text}"
+        );
+        assert!(
+            text.contains("use_repo(npm, \"npm\", \"npm_web_app\")"),
+            "{text}"
+        );
         assert!(!text.contains("node_modules"), "{text}");
     }
 
@@ -576,12 +587,14 @@ mod tests {
     }
 
     #[test]
-    fn fixture_and_testdata_locks_are_ignored() {
+    fn fixture_testdata_and_example_locks_are_ignored() {
         let hubs = plan(&[
             ("a/testdata/uv.lock", ""),
             ("a/testdata/pyproject.toml", ""),
             ("fixtures/x/pnpm-lock.yaml", ""),
             ("fixtures/x/package.json", "{}"),
+            ("examples/app/pnpm-lock.yaml", ""),
+            ("examples/app/package.json", "{}"),
         ]);
         assert_eq!(hubs, LockHubs::default());
     }
@@ -591,6 +604,10 @@ mod tests {
         let hubs = plan(&[("tools/Cargo.lock", ""), ("tools/Cargo.toml", "")]);
         assert_eq!(hubs.edit, None);
         assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
-        assert!(hubs.notes[0].contains("tools/Cargo.lock"), "{:?}", hubs.notes);
+        assert!(
+            hubs.notes[0].contains("tools/Cargo.lock"),
+            "{:?}",
+            hubs.notes
+        );
     }
 }

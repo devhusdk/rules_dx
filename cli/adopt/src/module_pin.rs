@@ -147,8 +147,8 @@ mod tests {
     #[test]
     fn refuses_the_dep_in_an_included_file() {
         let root = "include(\"//tools:dx.MODULE.bazel\")\n";
-        let err = plan(&[("MODULE.bazel", root), ("tools/dx.MODULE.bazel", DEP)])
-            .expect_err("refused");
+        let err =
+            plan(&[("MODULE.bazel", root), ("tools/dx.MODULE.bazel", DEP)]).expect_err("refused");
         assert!(err.to_string().contains("MODULE.bazel itself"), "{err}");
     }
 

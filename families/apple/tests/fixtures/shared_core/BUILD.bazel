@@ -64,3 +64,27 @@ build_test(
         ":core_framework",
     ],
 )
+
+rust_static_library(
+    name = "plain_rust",
+    srcs = ["plain.rs"],
+    edition = "2021",
+    tags = ["manual"],
+    target_compatible_with = APPLE_HOSTS,
+)
+
+apple_macos_app(
+    name = "plain_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.plain",
+    deployment = "14.0",
+    library = ":plain_rust",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+build_test(
+    name = "plain_build_test",
+    target_compatible_with = _MACOS_ARM64,
+    targets = [":plain_app"],
+)

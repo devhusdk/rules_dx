@@ -1145,11 +1145,20 @@ fn git(source: &Path, args: &[&str]) -> Result<String, String> {
 fn native(path: &Path) -> bool {
     use std::io::Read;
     let mut head = [0u8; 20];
-    std::fs::File::open(path)
+    if std::fs::File::open(path)
         .and_then(|mut file| file.read_exact(&mut head))
-        .is_ok()
-        && head.starts_with(b"\x7fELF")
-        && dx_binfmt::machine(&head).is_some()
+        .is_err()
+    {
+        return false;
+    }
+    let mach_o = [
+        b"\xcf\xfa\xed\xfe".as_slice(),
+        b"\xfe\xed\xfa\xcf",
+        b"\xca\xfe\xba\xbe",
+    ]
+    .iter()
+    .any(|magic| head.starts_with(magic));
+    mach_o || (head.starts_with(b"\x7fELF") && dx_binfmt::machine(&head).is_some())
 }
 
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {

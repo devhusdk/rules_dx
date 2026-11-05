@@ -931,6 +931,18 @@ fn bazelisk_refuses_wrapper_scripts() {
     );
     let path = dir.path().to_string_lossy().into_owned();
     assert!(find_bazelisk(None, &path).is_err());
+    let mach_o = dir.path().join("mach-o");
+    std::fs::write(
+        &mach_o,
+        [
+            0xcf, 0xfa, 0xed, 0xfe, 12, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        find_bazelisk(Some(&mach_o.to_string_lossy()), "").unwrap(),
+        mach_o
+    );
     let missing = dir.path().join("missing");
     assert!(find_bazelisk(Some(&missing.to_string_lossy()), "").is_err());
     let real = dir.path().join("real").join("bazel");

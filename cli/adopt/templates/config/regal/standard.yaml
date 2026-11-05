@@ -1,0 +1,4 @@
+rules:
+  style:
+    default:
+      level: ignore

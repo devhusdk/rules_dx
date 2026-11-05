@@ -432,7 +432,7 @@ pub(crate) fn lock_busy(file: &std::fs::File) -> Option<bool> {
     if status != 0 {
         return None;
     }
-    Some(libc::c_int::from(lock.l_type) != libc::F_UNLCK)
+    Some(lock.l_type != libc::F_UNLCK as libc::c_short)
 }
 
 /// Whether the output base's lock file is free; `None` when it is missing or owned by another user.

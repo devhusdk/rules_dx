@@ -922,6 +922,7 @@ mod backend {
     }
 
     #[cfg(windows)]
+    #[cfg_attr(test, allow(dead_code))] // the console handler is installed by the dx binary, not the unit tests
     mod windows {
         use super::super::{Command, Descendants, ExitStatus};
         use std::ffi::c_void;
@@ -1411,6 +1412,7 @@ mod backend {
         terminal_foreground, tree_alive, TerminalJob,
     };
     #[cfg(windows)]
+    #[cfg_attr(test, allow(unused_imports))]
     pub use windows::{
         install_console_stop, spawn_owned, spawn_streamed, terminate_forced, terminate_graceful,
         termination_signal, OwnedChild,

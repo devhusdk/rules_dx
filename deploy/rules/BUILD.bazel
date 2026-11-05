@@ -99,6 +99,7 @@ exports_files([
     "pypi_tests.bzl",
     "rubygems.bzl",
     "rubygems_tests.bzl",
+    "src/api_compat.rs",
     "src/archive.rs",
     "src/bin_archiver.rs",
     "src/bin_cloudflare_verify.rs",
@@ -138,6 +139,7 @@ exports_files([
 rust_library(
     name = "dx_deploy_tools",
     srcs = [
+        "src/api_compat.rs",
         "src/archive.rs",
         "src/cloudflare.rs",
         "src/config.rs",

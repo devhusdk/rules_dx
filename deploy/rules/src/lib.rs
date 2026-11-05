@@ -8,6 +8,7 @@
     )
 )]
 
+mod api_compat;
 mod archive;
 mod cloudflare;
 mod config;
@@ -35,6 +36,7 @@ mod stage;
 #[cfg(test)]
 pub(crate) mod test_support;
 
+pub use api_compat::*;
 pub use archive::*;
 pub use cloudflare::*;
 pub use config::*;
@@ -850,9 +852,8 @@ mod tests {
         let npm_pack: fn(&[String]) -> i32 = crate::npm_pack_main;
         let pages: fn(&crate::PagesLaunch<'_>, &[String]) -> i32 = crate::cloudflare_pages_main;
         let _ = (
-            archive, pypi, nuget, crates, rubygems, github, homebrew, maven, oci,
-            promotion, octopus,
-            npm_deploy, npm_pack, pages,
+            archive, pypi, nuget, crates, rubygems, github, homebrew, maven, oci, promotion,
+            octopus, npm_deploy, npm_pack, pages,
         );
         let _ = crate::MavenLaunch {
             jar_rloc: "",

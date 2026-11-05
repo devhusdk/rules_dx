@@ -135,6 +135,8 @@ pub struct CratesConfig {
     pub crate_rlocs: Vec<String>,
     pub crate_name: String,
     pub version: String,
+    pub api_compat: String,
+    pub api_baseline: String,
 }
 
 /// Pins one Hex publish: the package files, name, version and build tool.
@@ -356,10 +358,12 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &luarocks.version,
             argv,
         ),
-        DeployConfig::Crates(crates) => crate::crates_main(
+        DeployConfig::Crates(crates) => crate::crates_main_checked(
             &crates.crate_rlocs,
             &crates.crate_name,
             &crates.version,
+            &crates.api_compat,
+            &crates.api_baseline,
             argv,
         ),
         DeployConfig::Pub(pub_config) => crate::pub_main(
@@ -559,12 +563,14 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"crates","config":{"crate_rlocs":["a;b","c,d"],"crate_name":"c","version":"1.0.0"}}"#
+                r#"{"kind":"crates","config":{"crate_rlocs":["a;b","c,d"],"crate_name":"c","version":"1.0.0","api_compat":"fail","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Crates(CratesConfig {
                 crate_rlocs: vec!["a;b".to_owned(), "c,d".to_owned()],
                 crate_name: "c".to_owned(),
                 version: "1.0.0".to_owned(),
+                api_compat: "fail".to_owned(),
+                api_baseline: "registry".to_owned(),
             }))
         );
         assert_eq!(
@@ -840,6 +846,8 @@ mod tests {
                 crate_rlocs: vec!["a".to_owned()],
                 crate_name: "demo".to_owned(),
                 version: "1.0.0".to_owned(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
             }),
             DeployConfig::Rubygems(RubygemsConfig {
                 gem_rlocs: vec!["a".to_owned()],

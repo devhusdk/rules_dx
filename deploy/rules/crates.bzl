@@ -41,6 +41,8 @@ def _crates_config_impl(ctx):
         "crates",
         {
             "crate_name": ctx.attr.crate_name,
+            "api_baseline": ctx.attr.api_baseline,
+            "api_compat": ctx.attr.api_compat,
             "crate_rlocs": rlocs,
             "version": ctx.attr.version,
         },
@@ -51,6 +53,16 @@ _crates_config = rule(
     implementation = _crates_config_impl,
     doc = "Writes the deploy config for one crates.io deployment.",
     attrs = {
+        "api_baseline": attr.string(
+            doc = "Where the previous release comes from: registry or git.",
+            values = ["registry", "git"],
+            default = "registry",
+        ),
+        "api_compat": attr.string(
+            doc = "Public API check against the last release: off, warn or fail.",
+            values = ["off", "warn", "fail"],
+            default = "fail",
+        ),
         "crate": attr.label(
             doc = "Crate target whose files are published by the deployment.",
             allow_files = True,
@@ -67,8 +79,14 @@ _crates_config = rule(
     },
 )
 
-def crates_deploy(name, crate, version = "0.0.0", profile = "release"):
-    """Publishes staged crate sources as a local-first crates.io deployment."""
+def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compat = "fail", api_baseline = "registry"):
+    """Publishes staged crate sources as a local-first crates.io deployment.
+
+    api_compat runs cargo-semver-checks against the last release (off, warn,
+    fail); a breaking change fails unless the version bump is major.
+    api_baseline picks that release from the registry or from the previous
+    v<version> git tag.
+    """
     name_error = crates_name_error(name)
     if name_error != "":
         fail(name_error + " (in " + native.package_name() + ":" + name + ")")
@@ -82,6 +100,8 @@ def crates_deploy(name, crate, version = "0.0.0", profile = "release"):
         crate = crate,
         crate_name = name,
         version = version,
+        api_compat = api_compat,
+        api_baseline = api_baseline,
     )
 
     dx_deployment(

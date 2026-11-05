@@ -1,5 +1,8 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
+use crate::api_compat::{
+    breaking_refusal, latest_published, previous_tag, required_bump, ApiCompatMode,
+};
 use crate::run::{
     deploy_profile, env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
     PUBLISH_CHILD_ENV_KEEP,
@@ -249,11 +252,168 @@ fn cargo_package_list(program: &Path, manifest: &Path) -> Result<(), String> {
     Err(message)
 }
 
-/// Runs the crates deploy tool.
+/// Where the sparse index entry of a crate lives.
+fn index_path(name: &str) -> String {
+    let name = name.to_ascii_lowercase();
+    match name.len() {
+        1 => format!("1/{name}"),
+        2 => format!("2/{name}"),
+        3 => format!("3/{}/{name}", &name[..1]),
+        _ => format!("{}/{}/{name}", &name[..2], &name[2..4]),
+    }
+}
+
+/// Returns the newest published version; None when the crate is not on crates.io yet.
+fn published_version(crate_name: &str) -> Result<Option<String>, String> {
+    let url = format!("https://index.crates.io/{}", index_path(crate_name));
+    match crate::http::publish_agent().get(&url).call() {
+        Ok(response) => {
+            let body = response
+                .into_body()
+                .read_to_string()
+                .map_err(|error| format!("cannot read {url}: {error}"))?;
+            Ok(latest_published(&body))
+        }
+        Err(ureq::Error::StatusCode(404)) => Ok(None),
+        Err(error) => Err(format!("cannot query {url}: {error}")),
+    }
+}
+
+/// Returns the highest `v<version>` tag below `version` in the workspace repository.
+fn previous_git_tag(version: &str) -> Result<Option<String>, String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(["tag", "--list", "v*"]);
+    if let Ok(dir) = std::env::var("BUILD_WORKSPACE_DIRECTORY") {
+        cmd.current_dir(dir);
+    }
+    let output = cmd.output().map_err(|error| format!("git: {error}"))?;
+    if !output.status.success() {
+        return Err("git tag --list failed".to_owned());
+    }
+    Ok(previous_tag(
+        &String::from_utf8_lossy(&output.stdout),
+        version,
+    ))
+}
+
+/// Counts the failed checks in cargo-semver-checks output.
+fn count_breaking(output: &str) -> usize {
+    output
+        .lines()
+        .filter(|line| line.trim_start().starts_with("--- failure"))
+        .count()
+}
+
+/// Compares the public API with the last release; a missing tool or baseline skips with a note.
+fn crates_api_check(
+    semver_checks: Option<&Path>,
+    mapped: &[(std::path::PathBuf, String)],
+    version: &str,
+    crate_name: &str,
+    mode: ApiCompatMode,
+    baseline: &str,
+) -> Result<(), String> {
+    if mode == ApiCompatMode::Off {
+        return Ok(());
+    }
+    let Some(program) = semver_checks else {
+        println!("api compat: cargo-semver-checks not found on PATH; skipped");
+        return Ok(());
+    };
+    let (previous, baseline_args) = if baseline == "git" {
+        match previous_git_tag(version) {
+            Ok(Some(tag)) => (
+                tag.trim_start_matches('v').to_owned(),
+                vec!["--baseline-rev".to_owned(), tag],
+            ),
+            Ok(None) => {
+                println!("api compat: no earlier v<version> tag; skipped (first release)");
+                return Ok(());
+            }
+            Err(error) => return Err(format!("crates_deploy: api compat: {error}")),
+        }
+    } else {
+        match published_version(crate_name) {
+            Ok(Some(published)) => (
+                published.clone(),
+                vec!["--baseline-version".to_owned(), published],
+            ),
+            Ok(None) => {
+                println!("api compat: {crate_name} is not published yet; skipped (first release)");
+                return Ok(());
+            }
+            Err(error) => {
+                println!("api compat: {error}; skipped");
+                return Ok(());
+            }
+        }
+    };
+    let staging =
+        tempfile_stage_dir("crates-api-").map_err(|error| format!("crates_deploy: {error}"))?;
+    let ran = crates_stage(mapped, &staging)
+        .map_err(|error| format!("crates_deploy: {error}"))
+        .and_then(|()| {
+            let mut cmd = scrubbed_command(
+                program,
+                &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
+                &[],
+            );
+            cmd.args(["semver-checks", "check-release", "--manifest-path"])
+                .arg(staging.join("Cargo.toml"))
+                .args(&baseline_args);
+            cmd.output()
+                .map_err(|error| format!("crates_deploy: {error}"))
+        });
+    let _ = std::fs::remove_dir_all(&staging);
+    let output = ran?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let breaking = if output.status.success() {
+        0
+    } else {
+        count_breaking(&text).max(1)
+    };
+    println!("api compat: {breaking} breaking changes against {previous}");
+    if breaking > 0 {
+        for line in text
+            .lines()
+            .rev()
+            .take(CARGO_FAILURE_LINES)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+        {
+            println!("cargo-semver-checks: {line}");
+        }
+    }
+    match breaking_refusal(mode, required_bump(&previous, version), breaking) {
+        Some(reason) => Err(format!(
+            "crates_deploy: api compat: {reason} ({previous} -> {version})"
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Runs the crates deploy tool without an API compatibility check.
 pub fn crates_main(
     crate_rlocs: &[String],
     crate_name: &str,
     version: &str,
+    argv: &[String],
+) -> i32 {
+    crates_main_checked(crate_rlocs, crate_name, version, "off", "registry", argv)
+}
+
+/// Runs the crates deploy tool.
+pub fn crates_main_checked(
+    crate_rlocs: &[String],
+    crate_name: &str,
+    version: &str,
+    api_compat: &str,
+    api_baseline: &str,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -335,9 +495,23 @@ pub fn crates_main(
             }
         }
     }
+    let Some(mode) = ApiCompatMode::parse(api_compat) else {
+        eprintln!("crates_deploy: invalid api_compat '{api_compat}'");
+        return 1;
+    };
     let checked = crates_package_paths(&files)
         .map_err(|error| format!("crates_deploy: {error}"))
-        .and_then(|mapped| crates_package_check(which_on_path("cargo").as_deref(), &mapped));
+        .and_then(|mapped| {
+            crates_package_check(which_on_path("cargo").as_deref(), &mapped)?;
+            crates_api_check(
+                which_on_path("cargo-semver-checks").as_deref(),
+                &mapped,
+                version,
+                crate_name,
+                mode,
+                api_baseline,
+            )
+        });
     if let Err(message) = checked {
         eprintln!("{message}");
         return 1;

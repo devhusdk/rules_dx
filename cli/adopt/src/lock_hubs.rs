@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use dx_module_bazel::{Arg, ModuleError, ModuleFile, NewTag};
+use dx_module_bazel::{Arg, ModuleError, ModuleFile, NewTag, Value};
 
 use crate::module_pin::ModuleEdit;
 use crate::AdoptError;
@@ -56,6 +56,22 @@ const NPM: Ecosystem = Ecosystem {
     binding: "npm",
     hub: "npm",
 };
+
+fn binds_name(file: &ModuleFile, eco: &Ecosystem) -> bool {
+    let bindings: Vec<&str> = file
+        .extension_bindings(eco.bzl, eco.ext)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    file.calls_named("use_repo").any(|call| {
+        matches!(call.positional.first(), Some(Value::Ident(v)) if bindings.contains(&v.as_str()))
+            && (call.named.iter().any(|(alias, _)| alias == eco.hub)
+                || call
+                    .positional
+                    .iter()
+                    .any(|v| matches!(v, Value::Str(s) if s.value == eco.hub)))
+    })
+}
 
 fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     AdoptError::ModulePin {
@@ -253,7 +269,10 @@ impl Planner<'_> {
                 let name = entry.file_name().to_string_lossy().into_owned();
                 let skip = name.starts_with('.')
                     || name.starts_with("bazel-")
-                    || matches!(name.as_str(), "node_modules" | "target");
+                    || matches!(
+                        name.as_str(),
+                        "node_modules" | "target" | "testdata" | "fixtures" | "fixture"
+                    );
                 if !skip && entry.file_type().is_ok_and(|t| t.is_dir()) {
                     pending.push(if dir.is_empty() {
                         name
@@ -275,6 +294,9 @@ impl Planner<'_> {
         let mut named: Vec<String> = Vec::new();
         let mut declared = false;
         for file in self.files {
+            if binds_name(file, &UV) {
+                return Ok(());
+            }
             let Ok(projects) = file.uv_projects() else {
                 self.notes
                     .push("a uv.project has computed arguments; uv.lock not wired".into());
@@ -536,6 +558,32 @@ mod tests {
         assert!(text.contains("pnpm_lock = \"//web/app:pnpm-lock.yaml\""), "{text}");
         assert!(text.contains("use_repo(npm, \"npm\", \"npm_web_app\")"), "{text}");
         assert!(!text.contains("node_modules"), "{text}");
+    }
+
+    #[test]
+    fn an_aliased_pypi_hub_is_left_alone() {
+        let module = format!(
+            "{MODULE}\nuv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuse_repo(uv, pypi = \"dx_pypi\")\n"
+        );
+        let dir = scratch("lock_hubs_alias");
+        write(dir.path(), MODULE_FILE, &module);
+        write(dir.path(), "uv.lock", "");
+        write(dir.path(), "pyproject.toml", "");
+        assert_eq!(
+            plan_lock_hubs(dir.path()).expect("plan"),
+            LockHubs::default()
+        );
+    }
+
+    #[test]
+    fn fixture_and_testdata_locks_are_ignored() {
+        let hubs = plan(&[
+            ("a/testdata/uv.lock", ""),
+            ("a/testdata/pyproject.toml", ""),
+            ("fixtures/x/pnpm-lock.yaml", ""),
+            ("fixtures/x/package.json", "{}"),
+        ]);
+        assert_eq!(hubs, LockHubs::default());
     }
 
     #[test]

@@ -8,6 +8,7 @@
     )
 )]
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -216,6 +217,8 @@ pub struct Manifest {
     pub families: Vec<String>,
     pub compiler: Option<(String, String)>,
     pub platform: String,
+    pub profile: String,
+    pub lint_findings: Vec<(String, u64)>,
     pub dx: PathBuf,
     pub module_file: PathBuf,
     pub bazelversion: PathBuf,
@@ -325,6 +328,35 @@ fn parse_coverage(
     Ok((coverage, covered))
 }
 
+fn parse_lint_findings(value: &Value) -> Result<Vec<(String, u64)>, String> {
+    let Some(map) = value["lint_findings"].as_object() else {
+        return Ok(Vec::new());
+    };
+    let mut findings = Vec::new();
+    for (key, count) in map {
+        if !key.contains(':') {
+            return Err(format!("lint_findings key {key} must be tool:rule"));
+        }
+        let count = count
+            .as_str()
+            .and_then(|text| text.parse::<u64>().ok())
+            .ok_or_else(|| format!("lint_findings count for {key} must be a whole number"))?;
+        findings.push((key.clone(), count));
+    }
+    findings.sort();
+    Ok(findings)
+}
+
+fn parse_profile(value: &Value) -> Result<String, String> {
+    let profile = value["profile"].as_str().unwrap_or("");
+    if !["", "standard", "strict"].contains(&profile) {
+        return Err(format!(
+            "manifest profile {profile} must be standard or strict"
+        ));
+    }
+    Ok(profile.to_owned())
+}
+
 /// Parses the manifest a qualification target writes, resolving paths against `base`.
 pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let value: Value =
@@ -394,6 +426,8 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         families,
         compiler,
         platform: value["platform"].as_str().unwrap_or("").to_owned(),
+        profile: parse_profile(&value)?,
+        lint_findings: parse_lint_findings(&value)?,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -410,6 +444,8 @@ pub fn leaks_build(tool: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expect {
     Pass,
+    /// Exit 0, or exit 1 when the linter reported findings.
+    Findings,
     Fail(String),
 }
 
@@ -418,6 +454,8 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
     match expect {
         Expect::Pass if exit == 0 => Ok(()),
         Expect::Pass => Err(format!("exited {exit}, want 0")),
+        Expect::Findings if exit == 0 || exit == 1 => Ok(()),
+        Expect::Findings => Err(format!("exited {exit}, want 0 or 1")),
         Expect::Fail(_) if exit == 0 => Err("succeeded, want a failure".to_owned()),
         Expect::Fail(marker) if log.contains(marker.as_str()) => Ok(()),
         Expect::Fail(marker) => Err(format!("exited {exit} without {marker:?}")),
@@ -760,18 +798,22 @@ impl Session {
         Ok(dir)
     }
 
-    /// Runs the dx binary on the manifest coverage patterns with `bazel` on its PATH.
+    /// Runs the dx binary on `targets` with `bazel` on its PATH.
     pub fn run_dx(
         &mut self,
         name: &str,
         command: &str,
+        targets: &[String],
         home: &Path,
         output_root: &Path,
         repos: &Path,
     ) -> Result<Outcome, String> {
         let bin = self.bazel_bin(output_root)?;
         let mut args = vec![command.to_owned()];
-        args.extend(self.manifest.coverage.iter().cloned());
+        args.extend(targets.iter().cloned());
+        if command == "lint" {
+            args.extend(["--output".to_owned(), "json".to_owned()]);
+        }
         args.extend([
             "--".to_owned(),
             format!("--repository_cache={}", repos.display()),
@@ -794,7 +836,13 @@ impl Session {
         ];
         argv.extend(args);
         let recorded = argv[9..].to_vec();
-        self.execute(name, Net::Denied, home, &argv, recorded, &Expect::Pass)
+        // Lint exits 1 when it reports findings, which the manifest then compares.
+        let expect = if command == "lint" {
+            Expect::Findings
+        } else {
+            Expect::Pass
+        };
+        self.execute(name, Net::Denied, home, &argv, recorded, &expect)
     }
 
     /// Runs one probe, logs it and records its verdict.
@@ -831,7 +879,7 @@ impl Session {
             .map_err(|err| format!("cannot write {}: {err}", log_path.display()))?;
         let checked = verdict(expect, outcome.exit, &log);
         let (expected, marker) = match expect {
-            Expect::Pass => ("pass", ""),
+            Expect::Pass | Expect::Findings => ("pass", ""),
             Expect::Fail(marker) => ("fail", marker.as_str()),
         };
         self.probes.push(json!({
@@ -1026,6 +1074,39 @@ pub fn check_coverage(sources: &[CoveredSource], manifest: &Manifest) -> Result<
     Ok(())
 }
 
+/// Counts the `tool:rule` pairs of the diagnostic events in `dx lint --output json` stdout.
+pub fn lint_counts(stdout: &str) -> BTreeMap<String, u64> {
+    let mut counts = BTreeMap::new();
+    for event in stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+    {
+        if event["event"] != "diagnostic" {
+            continue;
+        }
+        if let (Some(tool), Some(rule)) = (event["tool"].as_str(), event["rule"].as_str()) {
+            *counts.entry(format!("{tool}:{rule}")).or_insert(0) += 1;
+        }
+    }
+    counts
+}
+
+fn check_lint(recorded: &Value, want: &[(String, u64)]) -> Result<(), String> {
+    let mut got: Vec<(String, u64)> = recorded
+        .as_object()
+        .map(|map| {
+            map.iter()
+                .map(|(key, count)| (key.clone(), count.as_u64().unwrap_or(u64::MAX)))
+                .collect()
+        })
+        .unwrap_or_default();
+    got.sort();
+    if got != want {
+        return Err(format!("lint findings {got:?} disagree with {want:?}"));
+    }
+    Ok(())
+}
+
 fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
     let mut required: Vec<(String, &str, &str, Net)> = REQUIRED_PROBES
         .iter()
@@ -1045,6 +1126,9 @@ fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
         for name in DX_PROBES {
             required.push(((*name).to_owned(), "pass", "", Net::Denied));
         }
+    }
+    if !manifest.lint_findings.is_empty() {
+        required.push(("dx_lint".to_owned(), "pass", "", Net::Denied));
     }
     for (label, marker) in &manifest.failures {
         required.push((failure_probe_name(label), "fail", marker, Net::Denied));
@@ -1136,6 +1220,9 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
             &sources_from_json(&evidence["coverage"]["sources"])?,
             manifest,
         )?;
+    }
+    if !manifest.lint_findings.is_empty() {
+        check_lint(&evidence["lint"], &manifest.lint_findings)?;
     }
     let artifacts = evidence["artifacts"]
         .as_array()
@@ -1300,14 +1387,19 @@ fn executable(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot mark {} executable: {err}", path.display()))
 }
 
+/// Builds the dx init arguments, adding the profile only when the manifest names one.
+pub fn init_args<'a>(manifest: &'a Manifest, workspace: &'a str) -> Vec<&'a str> {
+    let mut args = vec!["init", "--apply", "--workspace", workspace];
+    if !manifest.profile.is_empty() {
+        args.extend(["--profile", manifest.profile.as_str()]);
+    }
+    args
+}
+
 fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
-    let init = dx_testing::run(
-        &manifest.dx,
-        &["init", "--apply", "--workspace", &workspace_text],
-        &[],
-    )
-    .map_err(|err| format!("cannot run dx init: {err}"))?;
+    let init = dx_testing::run(&manifest.dx, &init_args(manifest, &workspace_text), &[])
+        .map_err(|err| format!("cannot run dx init: {err}"))?;
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
     }
@@ -1656,8 +1748,28 @@ fn run_all(
                 .collect::<Vec<_>>(),
         });
         check_coverage(&sources, &session.manifest)?;
-        session.run_dx("dx_generate_check", "generate", &clean_home, &warm, &repos)?;
-        session.run_dx("dx_coverage", "coverage", &clean_home, &warm, &repos)?;
+        let coverage_targets = session.manifest.coverage.clone();
+        for (name, command) in [
+            ("dx_generate_check", "generate"),
+            ("dx_coverage", "coverage"),
+        ] {
+            session.run_dx(name, command, &coverage_targets, &clean_home, &warm, &repos)?;
+        }
+    }
+    if !session.manifest.lint_findings.is_empty() {
+        let lint = session.run_dx(
+            "dx_lint",
+            "lint",
+            &["//...".to_owned()],
+            &clean_home,
+            &warm,
+            &repos,
+        )?;
+        let counts = lint_counts(&lint.stdout);
+        if lint.exit == 1 && counts.is_empty() {
+            return Err("dx lint exited 1 without reporting a finding".to_owned());
+        }
+        evidence["lint"] = json!(counts);
     }
     for (label, marker) in failures {
         session.run(Probe {

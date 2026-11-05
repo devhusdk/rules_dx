@@ -19,6 +19,8 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         families: Vec::new(),
         compiler: None,
         platform: String::new(),
+        profile: String::new(),
+        lint_findings: Vec::new(),
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),
         bazelversion: PathBuf::from(".bazelversion"),
@@ -1459,4 +1461,105 @@ fn platform_is_passed_to_bazel_only_when_the_manifest_sets_it() {
         .position(|arg| arg == "--platforms=//:qt_linux_arm64")
         .unwrap();
     assert!(flag < args.iter().position(|arg| arg == "--").unwrap());
+}
+
+fn lint_manifest() -> Manifest {
+    let mut json = probe_manifest_json();
+    json["profile"] = json!("strict");
+    json["lint_findings"] = json!({"ruff:ARG001": "1", "typos:typo": "2"});
+    parse_manifest(&json.to_string(), Path::new("/")).unwrap()
+}
+
+fn lint_evidence(manifest: &Manifest) -> Value {
+    let mut evidence = probe_evidence(manifest);
+    evidence["probes"]
+        .as_array_mut()
+        .unwrap()
+        .push(probe_record("dx_lint", "pass", "", "denied", &[]));
+    evidence["lint"] = json!({"ruff:ARG001": 1, "typos:typo": 2});
+    evidence
+}
+
+#[test]
+fn manifest_parses_profile_and_lint_findings() {
+    let absent = probe_manifest();
+    assert_eq!(absent.profile, "");
+    assert!(absent.lint_findings.is_empty());
+    let manifest = lint_manifest();
+    assert_eq!(manifest.profile, "strict");
+    assert_eq!(
+        manifest.lint_findings,
+        vec![("ruff:ARG001".to_owned(), 1), ("typos:typo".to_owned(), 2)]
+    );
+    let parse = |key: &str, value: Value| {
+        let mut json = probe_manifest_json();
+        json[key] = value;
+        parse_manifest(&json.to_string(), Path::new("/")).unwrap_err()
+    };
+    assert!(parse("profile", json!("loose")).contains("must be standard or strict"));
+    assert!(parse("lint_findings", json!({"ruff": "1"})).contains("must be tool:rule"));
+    assert!(parse("lint_findings", json!({"ruff:X": "many"})).contains("whole number"));
+}
+
+#[test]
+fn init_passes_profile_only_when_set() {
+    assert_eq!(
+        init_args(&probe_manifest(), "/w"),
+        vec!["init", "--apply", "--workspace", "/w"]
+    );
+    assert_eq!(
+        init_args(&lint_manifest(), "/w"),
+        vec![
+            "init",
+            "--apply",
+            "--workspace",
+            "/w",
+            "--profile",
+            "strict"
+        ]
+    );
+}
+
+#[test]
+fn lint_counts_group_diagnostics_by_tool_and_rule() {
+    let stdout = "{\"event\":\"diagnostic\",\"tool\":\"ruff\",\"rule\":\"ARG001\"}\nnot json\n{\"event\":\"diagnostic\",\"tool\":\"ruff\",\"rule\":\"ARG001\"}\n{\"event\":\"diagnostic\",\"tool\":\"ruff\"}\n{\"event\":\"summary\",\"tool\":\"x\",\"rule\":\"y\"}\n";
+    let counts = lint_counts(stdout);
+    assert_eq!(counts.len(), 1);
+    assert_eq!(counts["ruff:ARG001"], 2);
+    assert!(verdict(&Expect::Findings, 1, "").is_ok());
+    assert!(verdict(&Expect::Findings, 2, "").is_err());
+}
+
+#[test]
+fn verify_requires_dx_lint_only_with_lint_findings() {
+    let names = |manifest: &Manifest| -> Vec<String> {
+        required_probes(manifest)
+            .into_iter()
+            .map(|(name, ..)| name)
+            .collect()
+    };
+    assert!(!names(&probe_manifest()).contains(&"dx_lint".to_owned()));
+    let manifest = lint_manifest();
+    assert!(names(&manifest).contains(&"dx_lint".to_owned()));
+    let evidence = lint_evidence(&manifest);
+    verify_evidence(&evidence, "abc123", &manifest).unwrap();
+    let err =
+        verify_evidence(&without_probe(&evidence, "dx_lint"), "abc123", &manifest).unwrap_err();
+    assert!(err.contains("missing required probe dx_lint"), "{err}");
+}
+
+#[test]
+fn verify_compares_lint_counts() {
+    let manifest = lint_manifest();
+    for lint in [
+        json!({"ruff:ARG001": 1}),
+        json!({"ruff:ARG001": 1, "typos:typo": 2, "ruff:E501": 1}),
+        json!({"ruff:ARG001": 1, "typos:typo": 3}),
+        json!(null),
+    ] {
+        let mut evidence = lint_evidence(&manifest);
+        evidence["lint"] = lint;
+        let err = verify_evidence(&evidence, "abc123", &manifest).unwrap_err();
+        assert!(err.contains("lint findings"), "{err}");
+    }
 }

@@ -17,6 +17,8 @@ def _hermetic_manifest_impl(ctx):
     compiler = ctx.attr.compiler
     if compiler and compiler not in COMPILER_PRODUCERS:
         fail("%s: unknown compiler %r, want one of %s" % (ctx.label, compiler, sorted(COMPILER_PRODUCERS)))
+    if ctx.attr.profile not in ["", "standard", "strict"]:
+        fail("%s: unknown profile %r, want standard or strict" % (ctx.label, ctx.attr.profile))
     files = []
     for target, dest in ctx.attr.files.items():
         srcs = target.files.to_list()
@@ -34,12 +36,14 @@ def _hermetic_manifest_impl(ctx):
         "families": ctx.attr.families,
         "files": files,
         "label": ctx.attr.qualification,
+        "lint_findings": ctx.attr.lint_findings,
         "languages": ctx.attr.languages,
         "module": ctx.attr.module,
         "module_file": ctx.file._module.short_path,
         "module_fragment": ctx.file.module_fragment.short_path if ctx.file.module_fragment else "",
         "patterns": ctx.attr.patterns,
         "platform": ctx.attr.platform,
+        "profile": ctx.attr.profile,
         "repo_name": ctx.attr.repo_name,
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
@@ -62,6 +66,7 @@ hermetic_manifest = rule(
             doc = "Consumer files mapped to their workspace-relative paths.",
         ),
         "languages": attr.string_list(mandatory = True, doc = "Languages this consumer qualifies."),
+        "lint_findings": attr.string_dict(doc = "Findings dx lint must report, as tool:rule mapped to a decimal count; empty skips the lint probe."),
         "module": attr.string(mandatory = True, doc = "Consumer module name."),
         "module_fragment": attr.label(
             allow_single_file = True,
@@ -69,6 +74,7 @@ hermetic_manifest = rule(
         ),
         "patterns": attr.string_list(mandatory = True, doc = "Consumer target patterns to fetch, build and test."),
         "platform": attr.string(doc = "Platform label passed to every consumer bazel command as --platforms; empty leaves the consumer default."),
+        "profile": attr.string(doc = "Profile dx init writes (standard or strict); empty leaves the init default."),
         "qualification": attr.string(mandatory = True, doc = "Label of the qualification test."),
         "repo_name": attr.string(mandatory = True, doc = "Repository name the consumer gives rules_dx."),
         "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
@@ -111,8 +117,10 @@ def hermetic_qualification(
         compiler = "",
         failures = {},
         families = [],
+        lint_findings = {},
         module = "hermetic_consumer",
         platform = "",
+        profile = "",
         repo_name = "my_dx",
         srcs = [],
         smoke = False,
@@ -130,10 +138,12 @@ def hermetic_qualification(
         families = families,
         files = files,
         languages = languages,
+        lint_findings = lint_findings,
         module = module,
         module_fragment = module_fragment,
         patterns = patterns,
         platform = platform,
+        profile = profile,
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
         srcs = srcs,

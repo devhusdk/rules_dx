@@ -644,6 +644,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_python_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_ruby_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/ruby/fixture/_dx_docs/geometry.ir.pb
+field dx_docs_sites=(none)
+field dx_results=geometry.ir.pb
+field label=//tools/docs/ruby/fixture:geometry
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_ruby_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_rust_library_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/rust/fixture/_dx_docs/docs_fixture.ir.pb

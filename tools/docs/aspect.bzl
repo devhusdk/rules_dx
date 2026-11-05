@@ -2,6 +2,7 @@
 
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
+load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
@@ -14,10 +15,12 @@ load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TO
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
+load("//tools/docs/ruby:defs.bzl", "ruby_shard_action")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
 _RUST_DOCS_TOOLCHAIN = str(Label("@rules_rust//rust:toolchain_type"))
+_RUBY_TOOLCHAIN = "@rules_ruby//ruby:toolchain_type"
 _CC_DOCS_TOOLCHAIN = "@bazel_tools//tools/cpp:toolchain_type"
 
 def _rust_docs_shard(target, ctx):
@@ -91,6 +94,17 @@ def _powershell_docs_shard(target, ctx):
     package = manifests[0].basename[:-len(".psd1")] if manifests else ctx.label.name
     pwsh = ctx.attr._pwsh[platform_common.ToolchainInfo]
     return powershell_shard_action(ctx, sources, manifests[0] if manifests else None, package, "", "_dx_docs/" + ctx.label.name, pwsh, ctx.file._pwsh_script, ctx.executable._pwsh_extract).shard
+
+def _ruby_docs_shard(target, ctx):
+    if _RubyFilesInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension == "rb"]
+    if not own or ctx.toolchains[_RUBY_TOOLCHAIN] == None:
+        return None
+    yard = ctx.attr._ruby_yard[DefaultInfo].files.to_list()
+    return ruby_shard_action(ctx, own, target[_RubyFilesInfo].transitive_srcs.to_list(), [], ctx.label.name, "_dx_docs/" + ctx.label.name, yard, ctx.file._ruby_driver, ctx.executable._ruby_extract).shard
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
@@ -173,6 +187,9 @@ def _real_docs_aspect_impl(target, ctx):
     pwsh_shard = _powershell_docs_shard(target, ctx)
     if pwsh_shard:
         parts.append({"dx_results": [pwsh_shard], "dx_docs_shards": [pwsh_shard]})
+    ruby_shard = _ruby_docs_shard(target, ctx)
+    if ruby_shard:
+        parts.append({"dx_results": [ruby_shard], "dx_docs_shards": [ruby_shard]})
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
@@ -186,7 +203,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell and TypeScript library shards go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell, Ruby and TypeScript library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_csharp_driver": attr.label(
             cfg = "exec",
@@ -267,6 +284,18 @@ real_docs_aspect = aspect(
             default = Label("//tools/docs/jvm/scaladoc:scaladoc_extract"),
             executable = True,
         ),
+        "_ruby_driver": attr.label(
+            allow_single_file = True,
+            default = Label("//tools/docs/ruby:yard_dump.rb"),
+        ),
+        "_ruby_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/ruby/extract:ruby_extract"),
+            executable = True,
+        ),
+        "_ruby_yard": attr.label(
+            default = Label("@dx_yard//:lib"),
+        ),
         "_ts_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/typescript/extract:typescript_extract"),
@@ -283,6 +312,7 @@ real_docs_aspect = aspect(
     toolchains = [
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(_RUBY_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUST_DOCS_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_CC_DOCS_TOOLCHAIN, mandatory = False),
     ],

@@ -30,34 +30,47 @@ _direct_srcs_aspect = aspect(
 def _where(ctx):
     return "ruby_doc_shard " + str(ctx.label)
 
-def _manifest(ctx, suffix, files):
-    manifest = ctx.actions.declare_file(ctx.label.name + suffix)
+def _manifest(ctx, stem, suffix, files):
+    manifest = ctx.actions.declare_file(stem + suffix)
     lines = [srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in files]
     ctx.actions.write(manifest, "".join(sorted(lines)))
     return manifest
 
-def _yard_lib_dir(ctx):
-    for f in ctx.files._yard:
+def _yard_lib_dir(ctx, yard_files):
+    for f in yard_files:
         if f.path.endswith("/lib/yard.rb"):
             return f.dirname
     fail(_where(ctx) + ": @dx_yard holds no lib/yard.rb")
 
-def _ruby_doc_shard_impl(ctx):
-    lib = ctx.attr.lib
-    own = sorted(lib[_RubyDirectSrcsInfo].srcs, key = lambda f: f.path)
+def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_files, driver, extract_tool):
+    """Runs YARD and the extractor for one Ruby library.
+
+    Args:
+      ctx: The rule or aspect context; it must carry the Ruby toolchain.
+      own: The .rb files the library lists in its own srcs.
+      transitive_srcs: Every file the library reaches, for context.
+      dep_infos: The shard infos of the shards this one depends on.
+      package: Package segment of the shard's symbol ids.
+      stem: Output name prefix, relative to the target's package.
+      yard_files: The files of the pinned YARD.
+      driver: The yard_dump.rb file.
+      extract_tool: The DocIr extractor executable.
+
+    Returns:
+      A struct with the DocIr `shard`, the `yard_json` and the `manifest`.
+    """
+    own = sorted(own, key = lambda f: f.path)
     if not own:
-        fail(_where(ctx) + ": lib " + str(lib.label) + " lists no .rb srcs")
-    package = ctx.attr.package or lib.label.name
+        fail(_where(ctx) + ": lib lists no .rb srcs")
     own_paths = {f.path: True for f in own}
     context = {}
-    for f in lib[RubyFilesInfo].transitive_srcs.to_list():
+    for f in transitive_srcs:
         if f.extension == "rb" and f.path not in own_paths:
             context[f.path] = f
     dep_lines = []
-    for dep in ctx.attr.deps:
-        info = dep[_RubyDocShardInfo]
+    for info in dep_infos:
         if info.package == package:
-            fail(_where(ctx) + ": dep " + str(dep.label) + " uses the same package '" + package + "'")
+            fail(_where(ctx) + ": a dep uses the same package '" + package + "'")
         for f in info.files:
             if f.path in own_paths:
                 continue
@@ -65,23 +78,23 @@ def _ruby_doc_shard_impl(ctx):
             dep_lines.append(info.package + "\t" + f.path + "\n")
     context_files = [context[path] for path in sorted(context.keys())]
 
-    own_manifest = _manifest(ctx, ".srcs.tsv", own)
-    context_manifest = _manifest(ctx, ".context.tsv", context_files)
-    deps_manifest = ctx.actions.declare_file(ctx.label.name + ".deps.tsv")
+    own_manifest = _manifest(ctx, stem, ".srcs.tsv", own)
+    context_manifest = _manifest(ctx, stem, ".context.tsv", context_files)
+    deps_manifest = ctx.actions.declare_file(stem + ".deps.tsv")
     ctx.actions.write(deps_manifest, "".join(sorted(dep_lines)))
 
     toolchain = ctx.toolchains[_RUBY_TOOLCHAIN]
-    yard_json = ctx.actions.declare_file(ctx.label.name + ".yard.json")
-    home = ctx.actions.declare_directory(ctx.label.name + ".yard_home")
-    driver = ctx.actions.args()
-    driver.add("--disable-gems")
-    driver.add("-I", _yard_lib_dir(ctx))
-    driver.add(ctx.file._driver)
-    driver.add("--own", own_manifest)
-    driver.add("--srcs", context_manifest)
-    driver.add("--deps", deps_manifest)
-    driver.add("--scratch", home.path)
-    driver.add("--out", yard_json)
+    yard_json = ctx.actions.declare_file(stem + ".yard.json")
+    home = ctx.actions.declare_directory(stem + ".yard_home")
+    args = ctx.actions.args()
+    args.add("--disable-gems")
+    args.add("-I", _yard_lib_dir(ctx, yard_files))
+    args.add(driver)
+    args.add("--own", own_manifest)
+    args.add("--srcs", context_manifest)
+    args.add("--deps", deps_manifest)
+    args.add("--scratch", home.path)
+    args.add("--out", yard_json)
     env = dict(toolchain.env)
     env.update({
         "GEM_HOME": "",
@@ -93,10 +106,10 @@ def _ruby_doc_shard_impl(ctx):
     })
     ctx.actions.run(
         executable = toolchain.ruby,
-        arguments = [driver],
+        arguments = [args],
         inputs = depset(
-            own + context_files + [own_manifest, context_manifest, deps_manifest, ctx.file._driver],
-            transitive = [depset(ctx.files._yard)],
+            own + context_files + [own_manifest, context_manifest, deps_manifest, driver],
+            transitive = [depset(yard_files)],
         ),
         tools = toolchain.files,
         outputs = [yard_json, home],
@@ -107,13 +120,13 @@ def _ruby_doc_shard_impl(ctx):
         env = env,
     )
 
-    shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
+    shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
     extract.add("--json", yard_json)
     extract.add("--package", package)
     extract.add("--out", shard)
     ctx.actions.run(
-        executable = ctx.executable._extract,
+        executable = extract_tool,
         arguments = [extract],
         inputs = [yard_json],
         outputs = [shard],
@@ -121,6 +134,26 @@ def _ruby_doc_shard_impl(ctx):
         toolchain = None,
         progress_message = "Extracting Ruby API docs for %{label}",
     )
+    return struct(shard = shard, yard_json = yard_json, manifest = own_manifest, own = own)
+
+def _ruby_doc_shard_impl(ctx):
+    lib = ctx.attr.lib
+    package = ctx.attr.package or lib.label.name
+    action = ruby_shard_action(
+        ctx,
+        lib[_RubyDirectSrcsInfo].srcs,
+        lib[RubyFilesInfo].transitive_srcs.to_list(),
+        [dep[_RubyDocShardInfo] for dep in ctx.attr.deps],
+        package,
+        ctx.label.name,
+        ctx.files._yard,
+        ctx.file._driver,
+        ctx.executable._extract,
+    )
+    shard = action.shard
+    own = action.own
+    own_manifest = action.manifest
+    yard_json = action.yard_json
     return [
         DefaultInfo(files = depset([shard])),
         OutputGroupInfo(

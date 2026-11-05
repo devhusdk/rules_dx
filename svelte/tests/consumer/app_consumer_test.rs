@@ -20,6 +20,16 @@ archive_override(
     urls = ["https://github.com/aspect-build/rules_py/releases/download/vRULES_PY/rules_py-vRULES_PY.tar.gz"],
 )
 
+single_version_override(
+    module_name = "rules_julia",
+    patch_strip = 1,
+    patches = [
+        "//patches:package_name.patch",
+        "//patches:portable_cpu_target.patch",
+    ],
+    version = "RULES_JULIA",
+)
+
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
@@ -88,6 +98,9 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
         .find("module_name = \"rules_py\"")
         .expect("rules_py override")..];
     let rules_py_integrity = pin(rules_py, "integrity");
+    let rules_julia = &module[module
+        .find("module_name = \"rules_julia\"")
+        .expect("rules_julia override")..];
     let case = nested::case("svelte-consumer");
     let root = case.root().to_path_buf();
     write(
@@ -100,6 +113,7 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
             .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
             .replace("RULES_DX", &rules.display().to_string())
             .replace("RULES_PY_INTEGRITY", &rules_py_integrity)
+            .replace("RULES_JULIA", &pin(rules_julia, "version"))
             .replace("RULES_PY", &pin(&versions, "RULES_PY_VERSION"))
             .replace(
                 "ASPECT_RULES_JS",
@@ -107,6 +121,11 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
             )
             .as_bytes(),
     );
+    write(&root.join("patches/BUILD.bazel"), b"exports_files(glob([\"*.patch\"]))\n");
+    for patch in ["package_name.patch", "portable_cpu_target.patch"] {
+        let bytes = read(&rules.join("patches/rules_julia").join(patch));
+        write(&root.join("patches").join(patch), &bytes);
+    }
     nested::seed_rules_dx_lock(&root, &rules);
     write(
         &root.join(".bazelrc"),

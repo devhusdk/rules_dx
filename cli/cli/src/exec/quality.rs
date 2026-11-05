@@ -9,6 +9,7 @@ use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
     verified_snapshots, write_standard_reports, Snapshots, StandardReports,
 };
+use super::quality_unused::{keep_agreed_findings, top_level_targets};
 use super::results::collect_results;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
@@ -324,7 +325,7 @@ fn run_quality_request(
             &crate::startup::temp_path_not_utf8(),
         );
     };
-    let resolved = match resolve(
+    let mut resolved = match resolve(
         &request.targets,
         workspace,
         query_runner,
@@ -333,6 +334,21 @@ fn run_quality_request(
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
+    if request.command == Command::Unused {
+        match top_level_targets(
+            &resolved.targets,
+            workspace,
+            query_runner,
+            &request.bazel_startup_options,
+        ) {
+            Ok(targets) if !targets.is_empty() => {
+                resolved.scope = dx_process::Scope::Labels(targets.clone());
+                resolved.targets = targets;
+            }
+            Ok(_) => {}
+            Err(error) => return resolve_failed(request.common.output, out, err, &error),
+        }
+    }
     // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family;
     // in both cases every family's aspects stay.
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
@@ -492,6 +508,9 @@ fn run_quality_request(
         }
     }
     collected.complete = collected.complete && bazel_code == 0;
+    if request.command == Command::Unused {
+        keep_agreed_findings(&mut collected);
+    }
     dx_output::sort_diagnostics(&mut collected.initial);
     dx_output::sort_diagnostics(&mut collected.terminal);
     collected

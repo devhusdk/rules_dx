@@ -42,6 +42,7 @@ mod quality_emit;
 mod quality_patch;
 mod quality_reconcile;
 mod quality_reports;
+mod quality_unused;
 mod release;
 mod results;
 mod run;
@@ -374,7 +375,7 @@ mod tests {
         let mut inv = super::test_support::invocation(&words);
         inv.agent = agent;
         let harness = Harness::new(&format!("agent-quiet-{}", words[0]));
-        if words[0] == "bench" {
+        if words[0] == "bench" || words[0] == "unused" {
             harness.query.script_stdout("//app:bench\n");
         }
         let run = harness.probe_with(&inv, &[Some(0)]);

@@ -656,6 +656,16 @@ bcr_check(
     version = "0.0.0",
 )
 
+[
+    bcr_check(
+        name = "bcr_demo_" + family,
+        inputs = [":sbom_demo_spdx"],
+        module_name = "rules_dx_" + family,
+        version = "0.0.0",
+    )
+    for family in ["android", "apple"]
+]
+
 notice_file_tests(
     name = "notice_demo_contains_words",
     notice = ":notice_demo_notice",

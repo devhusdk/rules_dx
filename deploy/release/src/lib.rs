@@ -215,10 +215,26 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
 }
 
 pub fn render_bcr_source(module: &str, version: &str) -> String {
+    let (strip_prefix, url) = match module.strip_prefix("rules_dx_") {
+        Some(family) => (
+            bcr_module_strip_prefix(
+                &modules::ReleaseModule {
+                    name: module.to_owned(),
+                    root: format!("families/{family}"),
+                },
+                version,
+            ),
+            bcr_source_url(BCR_WANT_MODULE, version),
+        ),
+        None => (
+            bcr_strip_prefix(module, version),
+            bcr_source_url(module, version),
+        ),
+    };
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
-        "strip_prefix": bcr_strip_prefix(module, version),
-        "url": bcr_source_url(module, version),
+        "strip_prefix": strip_prefix,
+        "url": url,
     }))
 }
 
@@ -1500,6 +1516,15 @@ mod tests {
         assert_eq!(
             text,
             "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
+        );
+    }
+
+    #[test]
+    fn bcr_family_source_points_at_the_core_archive() {
+        let text = render_bcr_source("rules_dx_android", "1.2.3");
+        assert_eq!(
+            text,
+            "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3/families/android\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
         );
     }
 

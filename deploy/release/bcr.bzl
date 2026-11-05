@@ -58,7 +58,7 @@ _bcr_config = rule(
             mandatory = True,
         ),
         "module_name": attr.string(
-            doc = "Bazel module name being submitted, which must be rules_dx.",
+            doc = "Bazel module name being submitted: rules_dx or rules_dx_<family>.",
             mandatory = True,
         ),
         "version": attr.string(

@@ -72,7 +72,7 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
     let release_artifacts = get("--release-artifacts");
     let draft_log = get("--draft-log");
     let signing_log = get("--signing-log");
-    let bcr_log = get("--bcr-log");
+    let bcr_logs = get("--bcr-log");
     let human_run_log = get("--human-run-log");
     let release_tests_log = get("--release-tests-log");
     let module_bazel = get("--module-bazel");
@@ -104,7 +104,7 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
             release_artifacts_list: PathBuf::from(release_artifacts),
             draft_log: PathBuf::from(draft_log),
             signing_log: PathBuf::from(signing_log),
-            bcr_log: PathBuf::from(bcr_log),
+            bcr_logs: bcr_logs.split(':').map(PathBuf::from).collect(),
             human_run_log: PathBuf::from(human_run_log),
             release_tests_log: PathBuf::from(release_tests_log),
             module_bazel: PathBuf::from(module_bazel),
@@ -195,7 +195,7 @@ mod tests {
             ("--release-artifacts", "artifacts"),
             ("--draft-log", "draft"),
             ("--signing-log", "signing"),
-            ("--bcr-log", "bcr"),
+            ("--bcr-log", "bcr:bcr-android"),
             ("--human-run-log", "human"),
             ("--release-tests-log", "tests"),
             ("--module-bazel", "module"),
@@ -283,6 +283,10 @@ mod tests {
         assert_eq!(parsed.inputs.expected.version, "version");
         assert_eq!(parsed.inputs.expected.workflow_ref, "ref");
         assert!(parsed.inputs.approve);
+        assert_eq!(
+            parsed.inputs.bcr_logs,
+            vec![PathBuf::from("bcr"), PathBuf::from("bcr-android")]
+        );
         assert_eq!(
             parsed.inputs.notice_texts,
             vec![PathBuf::from("a"), PathBuf::from("b")]

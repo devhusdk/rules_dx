@@ -21,7 +21,7 @@ pub struct PublishDryRunInputs {
     pub release_artifacts_list: PathBuf,
     pub draft_log: PathBuf,
     pub signing_log: PathBuf,
-    pub bcr_log: PathBuf,
+    pub bcr_logs: Vec<PathBuf>,
     pub human_run_log: PathBuf,
     pub release_tests_log: PathBuf,
     pub module_bazel: PathBuf,
@@ -175,12 +175,17 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         "signing dry-run log",
     )?;
     require_contains(&signing_log, "notice_demo.NOTICE", "signing dry-run log")?;
-    let bcr_log = read_text(&inputs.bcr_log, "BCR dry-run log")?;
-    require_contains(
-        &bcr_log,
-        "would submit, submitting nothing",
-        "BCR dry-run log",
-    )?;
+    if inputs.bcr_logs.is_empty() {
+        return Err("publish dry-run: no BCR dry-run log".to_owned());
+    }
+    for path in &inputs.bcr_logs {
+        let bcr_log = read_text(path, "BCR dry-run log")?;
+        require_contains(
+            &bcr_log,
+            "would submit, submitting nothing",
+            "BCR dry-run log",
+        )?;
+    }
     let human_run_log = read_text(&inputs.human_run_log, "release driver dry-run log")?;
     require_contains(
         &human_run_log,
@@ -410,6 +415,11 @@ mod tests {
             "https://tuf-repo-cdn.sigstore.dev\ncosign sign-blob\nsbom_demo.spdx.json\nsbom_demo.provenance.json\nnotice_demo.NOTICE\n",
         );
         let bcr_log = write_text(dir, "bcr-dry-run.log", "would submit, submitting nothing\n");
+        let bcr_family_log = write_text(
+            dir,
+            "bcr-dry-run-android.log",
+            "would submit, submitting nothing\n",
+        );
         let human_run_log = write_text(
             dir,
             "human-run-dry-run.log",
@@ -440,7 +450,7 @@ mod tests {
             release_artifacts_list,
             draft_log,
             signing_log,
-            bcr_log,
+            bcr_logs: vec![bcr_log, bcr_family_log],
             human_run_log,
             release_tests_log,
             module_bazel,
@@ -711,6 +721,27 @@ mod tests {
         );
         let error = publish_dry_run_check(&inputs).expect_err("short list must fail");
         assert!(error.contains("release artifacts list"), "got {error}");
+    }
+
+    #[test]
+    fn family_bcr_log_without_dry_run_marker_fails() {
+        let dir = scratch();
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
+        let submitted = write_text(dir.path(), "bcr-apple.log", "submitted\n");
+        inputs.bcr_logs.push(submitted);
+        let error = publish_dry_run_check(&inputs).expect_err("unmarked BCR log must fail");
+        assert!(error.contains("BCR dry-run log"), "got {error}");
+    }
+
+    #[test]
+    fn no_bcr_log_fails() {
+        let dir = scratch();
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
+        inputs.bcr_logs.clear();
+        let error = publish_dry_run_check(&inputs).expect_err("no BCR log must fail");
+        assert!(error.contains("no BCR dry-run log"), "got {error}");
     }
 
     #[test]

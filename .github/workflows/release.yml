@@ -201,6 +201,11 @@ jobs:
           run release_tests bazel test //deploy/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
           RELEASE_SIGN_DRY_RUN=1 run signing_demo bazel run //deploy/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
           BCR_DRY_RUN=1 run bcr_demo bazel run //deploy/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
+          bcr_logs="$stage/bcr-dry-run.log"
+          for family in android apple; do
+            BCR_DRY_RUN=1 run "bcr_demo_$family" bazel run "//deploy/release:bcr_demo_$family" > "$stage/bcr-dry-run-$family.log" 2>&1
+            bcr_logs="$bcr_logs:$stage/bcr-dry-run-$family.log"
+          done
           run release_driver bazel run //deploy/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
           echo "install verifier refusal proof (no network, publishes nothing):"
           run verify_help bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
@@ -225,7 +230,7 @@ jobs:
             --release-artifacts "$stage/release-artifacts.txt" \
             --draft-log "$stage/draft-dry-run.log" \
             --signing-log "$stage/signing-dry-run.log" \
-            --bcr-log "$stage/bcr-dry-run.log" \
+            --bcr-log "$bcr_logs" \
             --human-run-log "$stage/human-run-dry-run.log" \
             --release-tests-log "$stage/release-tests.log" \
             --module-bazel "$GITHUB_WORKSPACE/MODULE.bazel" \
@@ -245,7 +250,7 @@ jobs:
             echo "- SBOM: \`//deploy/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
             echo "- NOTICE: \`//deploy/release:notice_demo\` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)"
             echo "- signing dry-run: \`//deploy/release:signing_demo\` \`RELEASE_SIGN_DRY_RUN=1\` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)"
-            echo "- BCR shape: \`rules_dx\` at \`0.0.0\` via \`//deploy/release:bcr_demo\` checked, not submitted"
+            echo "- BCR shape: \`rules_dx\` and \`rules_dx_<family>\` at \`0.0.0\` via \`//deploy/release:bcr_demo\` and \`//deploy/release:bcr_demo_<family>\` checked, not submitted"
             echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
             echo "- operations (all \`not-authorized\`, none executed):"
             echo '```'

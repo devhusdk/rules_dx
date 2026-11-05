@@ -1,0 +1,75 @@
+load("//java/rules:defs.bzl", "java_library")
+load("//kotlin/rules:defs.bzl", "kotlin_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "java_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "java",
+    typecheck = ["javac"],
+)
+
+quality_family(
+    name = "kotlin_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "kotlin",
+    typecheck = ["kotlinc"],
+)
+
+workspace_policy(
+    name = "java_policy",
+    families = [":java_family"],
+)
+
+workspace_policy(
+    name = "kotlin_policy",
+    families = [":kotlin_family"],
+)
+
+java_library(
+    name = "kept_helper",
+    srcs = ["KeptHelper.java"],
+)
+
+java_library(
+    name = "dropped_helper",
+    srcs = ["DroppedHelper.java"],
+)
+
+java_library(
+    name = "java_unused_dep",
+    srcs = ["JavaUnusedDep.java"],
+    deps = [
+        ":kept_helper",
+        "//quality/testdata/jvm_owned:dropped_helper",
+    ],
+)
+
+kotlin_library(
+    name = "kt_kept_helper",
+    srcs = ["KtKeptHelper.kt"],
+)
+
+kotlin_library(
+    name = "kt_dropped_helper",
+    srcs = ["KtDroppedHelper.kt"],
+)
+
+kotlin_library(
+    name = "kotlin_unused_dep",
+    srcs = ["KotlinUnusedDep.kt"],
+    deps = [
+        ":kt_kept_helper",
+        ":kt_dropped_helper",
+    ],
+)

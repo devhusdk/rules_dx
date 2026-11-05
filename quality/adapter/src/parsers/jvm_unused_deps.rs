@@ -53,8 +53,9 @@ pub fn parse_unused_dependencies(
 }
 
 /// Reads the `Dependencies` message of a jdeps file and returns the paths not marked unused.
+/// Kotlin marks an idle jar UNUSED (2) where JavaBuilder writes 3.
 fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
-    const UNUSED: u64 = 3;
+    const NOT_USED: [u64; 2] = [2, 3];
     let mut used = BTreeSet::new();
     let mut rest = bytes;
     while !rest.is_empty() {
@@ -73,7 +74,7 @@ fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
                 _ => {}
             }
         }
-        if let Some(path) = path.filter(|_| kind != UNUSED) {
+        if let Some(path) = path.filter(|_| !NOT_USED.contains(&kind)) {
             used.insert(path);
         }
     }
@@ -148,6 +149,15 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].dependency, "idle");
         assert_eq!(found[0].target, "lib");
+    }
+
+    #[test]
+    fn kotlin_marks_the_idle_jar_with_kind_two() {
+        let mut jdeps = dependency("a.jar", 0);
+        jdeps.extend(dependency("b.jar", 2));
+        let found = parse_unused_dependencies("kotlinc", MAP.as_bytes(), &jdeps).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].dependency, "idle");
     }
 
     #[test]

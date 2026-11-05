@@ -119,4 +119,22 @@ mod tests {
         let build = "rust_library(name = \"lib\", proc_macro_deps = [\"//a:a\"])\n";
         assert!(locate(build, "lib", "a").is_none());
     }
+
+    #[test]
+    fn matches_a_full_label_and_not_a_short_one() {
+        let build = concat!(
+            "java_library(\n",
+            "    name = \"user\",\n",
+            "    deps = [\n",
+            "        \":kept_helper\",\n",
+            "        \"//quality/testdata/jvm_owned:dropped_helper\",\n",
+            "    ],\n",
+            ")\n",
+        );
+        let (start, end) = locate(build, "user", "dropped_helper").expect("located");
+        assert_eq!(&build[start..end], "\"//quality/testdata/jvm_owned:dropped_helper\"");
+        let fixed = cut(build, "user", "dropped_helper").expect("cut");
+        assert!(!fixed.contains("dropped_helper"));
+        assert!(fixed.contains(":kept_helper"));
+    }
 }

@@ -277,6 +277,30 @@ REAL_RESULT_CASES = [
         "windows_x86_64": True,
         "windows_arm64": True,
     },
+    {
+        "name": "real_result_javac_unused_dep",
+        "target": "//quality/testdata/jvm_owned:java_unused_dep",
+        "policy": "//quality/testdata/jvm_owned:java_policy",
+        "tool": "javac",
+        "capability": "typecheck",
+        "class": "java",
+        "contains": ["unused_deps", "dropped_helper"],
+        "absent": ["kept_helper", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
+        "name": "real_result_kotlinc_unused_dep",
+        "target": "//quality/testdata/jvm_owned:kotlin_unused_dep",
+        "policy": "//quality/testdata/jvm_owned:kotlin_policy",
+        "tool": "kotlinc",
+        "capability": "typecheck",
+        "class": "kotlin",
+        "contains": ["unused_deps", "kt_dropped_helper"],
+        "absent": ["kt_kept_helper", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
 ]
 
 def real_result_evidence(case):

@@ -353,6 +353,8 @@ const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
+const TYPOS_CHECK_ARGS: &[&str] = &["--format", "json", "--"];
+const TYPOS_FIX_ARGS: &[&str] = &["--write-changes", "--format", "silent", "--"];
 const NOTEBOOK_OUTPUTS_CHECK_ARGS: &[&str] = &["outputs"];
 const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -2705,6 +2707,14 @@ pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
 }
 
+pub fn typos_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TYPOS_CHECK_ARGS, files, "")
+}
+
+pub fn typos_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TYPOS_FIX_ARGS, files, "")
+}
+
 pub fn notebook_outputs_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, NOTEBOOK_OUTPUTS_CHECK_ARGS, files, "")
 }
@@ -2742,8 +2752,10 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
-        | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => ArgTransport::Batched,
+        "keep_sorted" | "typos" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint"
+        | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
+            ArgTransport::Batched
+        }
         _ => ArgTransport::Single,
     }
 }

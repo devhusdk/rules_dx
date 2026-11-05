@@ -143,7 +143,7 @@ CURATED_DEFAULTS = {
     "text": {
         "audit": [],
         "format": [],
-        "lint": ["keep_sorted"],
+        "lint": ["keep_sorted", "typos"],
         "typecheck": [],
     },
     "toml": {

@@ -50,6 +50,7 @@ load("//quality/artifacts:terraform.bzl", _terraform = "ARTIFACTS")
 load("//quality/artifacts:tflint.bzl", _tflint = "ARTIFACTS")
 load("//quality/artifacts:tinymist.bzl", _tinymist = "ARTIFACTS")
 load("//quality/artifacts:ty.bzl", _ty = "ARTIFACTS")
+load("//quality/artifacts:typos.bzl", _typos = "ARTIFACTS")
 load("//quality/artifacts:typstyle.bzl", _typstyle = "ARTIFACTS")
 load("//quality/artifacts:uv.bzl", _uv = "ARTIFACTS")
 load("//quality/artifacts:vale.bzl", _vale = "ARTIFACTS")
@@ -97,6 +98,7 @@ _ARTIFACTS = [
         _tflint,
         _tinymist,
         _ty,
+        _typos,
         _typstyle,
         _uv,
         _vale,

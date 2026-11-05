@@ -2254,6 +2254,14 @@ impl RealBackend {
             },
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "helm" => self.check_helm(tool_id, tool, staged, config.as_deref()),
+            "typos" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::typos_check(&tool.binary, files)),
+                |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
+            ),
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)

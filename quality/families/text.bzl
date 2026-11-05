@@ -10,12 +10,19 @@ TOOLS = {
         "resources": "light",
         "shard": "text",
     },
+    "typos": {
+        "attr": attr.label(default = "@dx_tools//:typos", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "text",
+    },
 }
 
 SHARD_SPECS = {
     "real_text_lint": {
         "capability": "lint",
-        "doc": "Additive text lint family aspect (keep-sorted).",
+        "doc": "Additive text lint family aspect (keep-sorted, typos).",
         "shard": "text",
         "suffix": "-text",
     },

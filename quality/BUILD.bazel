@@ -323,7 +323,10 @@ quality_family(
         "typecheck",
     ],
     family_id = "text",
-    lint = ["keep_sorted"],
+    lint = [
+        "keep_sorted",
+        "typos",
+    ],
 )
 
 workspace_policy(

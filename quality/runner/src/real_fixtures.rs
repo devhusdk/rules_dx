@@ -1698,3 +1698,37 @@ fn scratch_home_checker_rejects_home_outside_tmpdir() {
 fn scratch_home_checker_accepts_home_under_tmpdir() {
     assert_hermetic_scratch_home(&hermetic_env(Some("/scratch/t/home")));
 }
+
+pub(super) fn typos_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("checked file is materialized");
+    if argv.iter().any(|arg| arg == "--write-changes") {
+        std::fs::write(&file, text.replace("teh", "the")).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    let Some(offset) = text.find("teh") else {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    };
+    let stdout = format!(
+        "{{\"type\":\"typo\",\"path\":\"{}\",\"line_num\":1,\"byte_offset\":{offset},\"typo\":\"teh\",\"corrections\":[\"the\"]}}\n",
+        json_escape(&file),
+    );
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}

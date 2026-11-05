@@ -6861,3 +6861,23 @@ fn cue_typecheck_vets_per_package_from_the_module_root() {
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].path, "app/main.cue");
 }
+
+#[test]
+fn typos_lint_reports_and_fix_corrects() {
+    let backend = backend_for("typos", plain_tool(), typos_behavior);
+    let findings = backend
+        .diagnose("typos", "lint", &single("notes.txt", "say teh word\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "typos");
+    assert_eq!(findings[0].message, "`teh` should be `the`");
+    assert_eq!(findings[0].path, "notes.txt");
+    assert!(backend
+        .diagnose("typos", "lint", &single("notes.txt", "say the word\n"))
+        .expect("diagnosed")
+        .is_empty());
+    let fixed = backend
+        .apply_fix("typos", "notes.txt", "say teh word\n", "lint")
+        .expect("fixed");
+    assert_eq!(fixed, "say the word\n");
+}

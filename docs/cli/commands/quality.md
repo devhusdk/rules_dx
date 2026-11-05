@@ -154,7 +154,7 @@ These fail: `disabled` without `extends`, a disabled ID the base lacks, a family
 | `shell` | `shfmt` | `shellcheck` | disabled |
 | `starlark` | `buildifier` | `buildifier` | disabled |
 | `svelte` | `prettier` | disabled | disabled |
-| `text` | disabled | `keep_sorted` | disabled |
+| `text` | disabled | `keep_sorted`, `typos` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
 | `typescript` | `biome` | `biome` | `tsc` |
 | `vue` | `prettier` | disabled | disabled |
@@ -314,6 +314,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `gplint` | Lint Gherkin | |
 | `notebook_outputs` | Lint Jupyter notebooks for stored outputs | |
 | `keep_sorted` | Lint `keep-sorted` blocks in text | |
+| `typos` | Spell check text and fix with `--fix` | |
 
 ### Schema languages
 

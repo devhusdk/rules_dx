@@ -130,6 +130,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "topiary",
     "tsc",
     "ty",
+    "typos",
     "typstyle",
     "vale",
     "yamlfmt",

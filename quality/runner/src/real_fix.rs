@@ -327,6 +327,12 @@ const FIX_SPECS: &[FixSpec] = &[
         keep_exit_one: false,
         crash_stderr: None,
     },
+    FixSpec {
+        tool: "typos",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
 ];
 
 fn fix_spec(tool_id: &str, format: bool) -> Option<&'static FixSpec> {
@@ -1160,6 +1166,7 @@ impl super::RealBackend {
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
                 "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
+                "typos" => Ok(commands::typos_fix(&tool.binary, refs)),
                 "deadnix" => Ok(commands::deadnix_fix(&tool.binary, refs)),
                 _ => Err(execution(
                     tool_id,

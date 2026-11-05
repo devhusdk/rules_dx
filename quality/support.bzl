@@ -25,6 +25,18 @@ TEXT_KEEP_SORTED_SUPPORT = support(
     transport = "batched",
 )
 
+TEXT_TYPOS_SUPPORT = support(
+    capability = "lint",
+    classes = ["text"],
+    context = "owned",
+    family = "text",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "typos",
+    transport = "batched",
+)
+
 SHELL_SHELLCHECK_SUPPORT = support(
     capability = "lint",
     classes = ["shell"],
@@ -2059,6 +2071,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
+    TEXT_TYPOS_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
     DOCKERFILE_HADOLINT_SUPPORT,

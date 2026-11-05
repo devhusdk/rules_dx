@@ -78,6 +78,7 @@ REAL_ADAPTERS = {
     "julia_format": {"format": ["julia"]},
     "julialint": {"lint": ["julia"]},
     "keep_sorted": {"lint": ["text"]},
+    "typos": {"lint": ["text"]},
     "kotlinc": {"typecheck": ["kotlin"]},
     "ktfmt": {"format": ["kotlin"]},
     "ktlint": {"lint": ["kotlin"]},

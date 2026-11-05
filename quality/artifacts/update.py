@@ -1437,6 +1437,62 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "typos": {
+        "upstream_version": "1.52.0",
+        "release_page": "https://github.com/crate-ci/typos/releases/tag/v1.52.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/crate-ci/typos/blob/v1.52.0/LICENSE-APACHE",
+            },
+            {
+                "name": "MIT",
+                "source": "https://github.com/crate-ci/typos/blob/v1.52.0/LICENSE-MIT",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "typos-v1.52.0-x86_64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-x86_64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "typos",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "typos-v1.52.0-aarch64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-aarch64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "typos",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "typos-v1.52.0-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "typos",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "typos-v1.52.0-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "typos.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "typos-v1.52.0-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/crate-ci/typos/releases/download/v1.52.0/typos-v1.52.0-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "typos.exe",
+            },
+        },
+    },
     "tinymist": {
         "upstream_version": "0.15.12",
         "release_page": "https://github.com/Myriad-Dreamin/tinymist/releases/tag/v0.15.12",
@@ -2432,6 +2488,7 @@ def _native_bounds(tool, spec):
         "kubeconform",
         "shfmt",
         "terraform",
+        "typos",
     ):
         linkage = "static"
     else:

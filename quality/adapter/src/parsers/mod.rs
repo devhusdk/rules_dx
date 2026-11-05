@@ -116,6 +116,7 @@ pub mod tinymist;
 pub mod topiary;
 pub mod tsc;
 pub mod ty;
+pub mod typos;
 pub mod typstyle;
 pub mod vale;
 pub mod xmllint;
@@ -242,6 +243,7 @@ pub use tinymist::parse_tinymist;
 pub use topiary::parse_topiary;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
+pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
 pub use xmllint::parse_xmllint;
@@ -2844,6 +2846,14 @@ mod tests {
         super::tinymist::parse_tinymist(input, input, code, files)
     }
 
+    fn fuzz_typos(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::typos::parse_typos(input, code, files)
+    }
+
     fn fuzz_typstyle(
         input: &[u8],
         code: Option<i32>,
@@ -3018,6 +3028,7 @@ mod tests {
         ("tinymist", fuzz_tinymist),
         ("tsc", fuzz_tsc),
         ("ty", fuzz_ty),
+        ("typos", fuzz_typos),
         ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
         ("xmllint", fuzz_xmllint),
@@ -3148,6 +3159,7 @@ mod tests {
         ("terraform_validate", include_str!("terraform_validate.rs")),
         ("tsc", include_str!("tsc.rs")),
         ("ty", include_str!("ty.rs")),
+        ("typos", include_str!("typos.rs")),
         ("tinymist", include_str!("tinymist.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),

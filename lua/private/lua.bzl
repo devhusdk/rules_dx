@@ -120,7 +120,7 @@ def _validation(ctx, srcs):
     return outputs
 
 def _collect(ctx, srcs):
-    deps = ctx.attr.deps
+    deps = ctx.attr.deps + getattr(ctx.attr, "_coverage", [])
     own = _own_modules(ctx, srcs)
     modules = depset(own, transitive = [d[LuaInfo].modules for d in deps])
     _module_map(modules.to_list(), str(ctx.label))
@@ -221,6 +221,11 @@ LUA_EXECUTABLE_ATTRS = LUA_LIBRARY_ATTRS | {
 }
 
 LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
+    "_coverage": attr.label_list(
+        default = [Label("//lua/coverage:libs")],
+        providers = [LuaInfo],
+        doc = "luacov and its LCOV reporter, present only under bazel coverage.",
+    ),
     "_lcov_merger": attr.label(
         default = configuration_field(fragment = "coverage", name = "output_generator"),
         executable = True,

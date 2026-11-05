@@ -1,5 +1,7 @@
 """Hermetic LuaLS acquisition: one repository holding the release tree of the host cell."""
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("//lua/coverage:pins.bzl", "LUACOV_BUILD", "LUACOV_PINS")
 load(":pins.bzl", "LUALS_CELLS")
 
 _BUILD = """package(default_visibility = ["//visibility:public"])
@@ -45,9 +47,17 @@ _luals = repository_rule(
 
 def _lua_impl(mctx):
     _luals(name = "dx_luals")
+    for pin in LUACOV_PINS:
+        http_archive(
+            name = pin.name,
+            build_file_content = LUACOV_BUILD.format(root = "src/" if pin.name == "dx_luacov" else ""),
+            sha256 = pin.sha256,
+            strip_prefix = pin.strip_prefix,
+            urls = pin.urls,
+        )
     return mctx.extension_metadata(reproducible = True)
 
 lua = module_extension(
     implementation = _lua_impl,
-    doc = "Creates the pinned LuaLS repository.",
+    doc = "Creates the pinned LuaLS, luacov and luacov-reporter-lcov repositories.",
 )

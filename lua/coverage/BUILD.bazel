@@ -1,0 +1,59 @@
+load("//lua/private:lua.bzl", raw_lua_library = "lua_library")
+load("//lua/rules:defs.bzl", "lua_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["pins.bzl"])
+
+config_setting(
+    name = "coverage_on",
+    values = {"collect_code_coverage": "true"},
+)
+
+raw_lua_library(
+    name = "luacov",
+    srcs = ["@dx_luacov//:sources"],
+    strip_import_prefix = "/src",
+)
+
+raw_lua_library(
+    name = "lcov",
+    srcs = ["@dx_luacov_reporter_lcov//:sources"],
+)
+
+lua_library(
+    name = "dx",
+    srcs = ["dx_coverage.lua"],
+    strip_import_prefix = "/lua/coverage",
+)
+
+raw_lua_library(
+    name = "enabled",
+    deps = [
+        ":dx",
+        ":lcov",
+        ":luacov",
+    ],
+)
+
+raw_lua_library(name = "none")
+
+# luacov under `bazel coverage`, nothing otherwise, so `bazel test` never fetches it.
+alias(
+    name = "libs",
+    actual = select({
+        ":coverage_on": ":enabled",
+        "//conditions:default": ":none",
+    }),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "pins.bzl",
+    ],
+    tags = ["corpus"],
+)

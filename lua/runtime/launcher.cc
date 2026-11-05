@@ -20,6 +20,7 @@ using rules_cc::cc::runfiles::Runfiles;
 
 constexpr char kEntrySuffix[] = ".luaentry";
 constexpr char kModulesKey[] = "dx.lua.modules";
+constexpr char kCoverageModule[] = "dx_coverage";
 
 struct Entry {
   std::string main;
@@ -208,6 +209,14 @@ void SetArgs(lua_State *L, int argc, char **argv, const std::string &script) {
   lua_setglobal(L, "arg");
 }
 
+bool StartCoverage(lua_State *L) {
+  lua_getglobal(L, "require");
+  lua_pushstring(L, kCoverageModule);
+  if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+    return false;
+  return true;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -233,6 +242,11 @@ int main(int argc, char **argv) {
   luaL_openlibs(L);
   ConfigurePackage(L, entry);
   SetArgs(L, argc, argv, script);
+  if (entry.modules.count(kCoverageModule) != 0 && !StartCoverage(L)) {
+    std::fprintf(stderr, "lua: %s\n", lua_tostring(L, -1));
+    lua_close(L);
+    return 1;
+  }
 
   lua_pushcfunction(L, MessageHandler);
   int handler = lua_gettop(L);

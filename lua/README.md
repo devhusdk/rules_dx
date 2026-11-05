@@ -167,6 +167,15 @@ reported; only the sources of the target are. Bind a `luals_config` from
 set globals or diagnostics. The runtime version, the library, `libraryFiles` and
 the output paths are always set by dx. Only `linux_x86_64` is qualified.
 
+## Coverage
+
+Lua tests write LCOV under `bazel coverage` and `dx coverage` through luacov.
+rules_dx brings pinned luacov 0.17.0 and luacov-reporter-lcov 0.2 and adds them to
+a `lua_test` only under coverage, so `bazel test` never fetches them. Records
+name each file by its path from the repository root.
+
+Tag a test `no-coverage` to skip it under coverage.
+
 ## Platforms
 
 | Cell | Status |

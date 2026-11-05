@@ -295,6 +295,7 @@ mbake_config = _make_native_config_rule("mbake")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
 detekt_config = _make_native_config_rule("detekt")
+ktlint_config = _make_native_config_rule("ktlint")
 
 elvis_config = _make_native_config_rule("elvis")
 

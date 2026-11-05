@@ -44,6 +44,21 @@ fn is_pattern(text: &str) -> bool {
         && target.is_none_or(|t| t == "*" || (!t.is_empty() && t.chars().all(name_char)))
 }
 
+fn is_flag(text: &str) -> bool {
+    if let Some(name) = text.strip_prefix("--config=") {
+        return !name.is_empty() && name.chars().all(name_char);
+    }
+    match text.strip_prefix("--//").and_then(|rest| rest.split_once('=')) {
+        Some((label, value)) => {
+            !label.is_empty()
+                && label.chars().all(|c| name_char(c) || c == ':')
+                && !value.is_empty()
+                && value.chars().all(name_char)
+        }
+        None => false,
+    }
+}
+
 fn json_type(value: &Value) -> &'static str {
     match value {
         Value::Null => "null",
@@ -142,6 +157,16 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
             "test_timeout must be whole seconds, got '{timeout}'"
         ));
     }
+    let flags_text = get("DX_FLAGS");
+    let flag_list: Vec<&str> = flags_text.split_whitespace().collect();
+    for flag in &flag_list {
+        if !is_flag(flag) {
+            return Err(format!(
+                "flags holds '{flag}'; only --//label=value and --config=name are accepted"
+            ));
+        }
+    }
+    let flags = flag_list.join(" ");
     let runners: serde_json::Map<String, Value> = PLATFORMS
         .iter()
         .map(|(name, runner)| (name.to_string(), json!(runner)))
@@ -154,6 +179,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
             ("platforms".into(), platforms_json.clone()),
             ("runners".into(), Value::Object(runners).to_string()),
             ("test_timeout".into(), timeout),
+            ("flags".into(), flags),
         ],
         summary: format!("evidence inputs accepted: {task} {scope} on {platforms_json}"),
     })

@@ -32,7 +32,7 @@ fn accepts_whitespace_separated_patterns() {
         let keys: Vec<&str> = outputs.iter().map(|(key, _)| key.as_str()).collect();
         assert_eq!(
             keys,
-            ["scope", "task", "platforms", "runners", "test_timeout"]
+            ["scope", "task", "platforms", "runners", "test_timeout", "flags"]
         );
         assert_eq!(outputs[0].1, expected);
     }
@@ -121,4 +121,41 @@ fn accepts_the_coverage_task() {
         .to_string()
     });
     assert!(done.is_ok());
+}
+
+fn with_flags(flags: &str) -> Result<Vec<(String, String)>, String> {
+    validate(|name| {
+        match name {
+            "DX_SCOPE" => "//a:t",
+            "DX_TASK" => "test",
+            "DX_PLATFORMS" => OK,
+            "DX_TEST_TIMEOUT" => "600",
+            "DX_FLAGS" => flags,
+            _ => "",
+        }
+        .to_string()
+    })
+    .map(|done| done.outputs)
+}
+
+#[test]
+fn accepts_label_and_config_flags() {
+    let outputs = with_flags("--//cc/toolchains:compiler=msvc  --config=ci").unwrap();
+    let flags = outputs.iter().find(|(key, _)| key == "flags").unwrap();
+    assert_eq!(flags.1, "--//cc/toolchains:compiler=msvc --config=ci");
+}
+
+#[test]
+fn rejects_other_flags() {
+    for flag in [
+        "--output_base=x",
+        "--//a:b",
+        "--//a:b=",
+        "--config=",
+        "--//a:b=$(id)",
+        "-c",
+    ] {
+        let error = with_flags(flag).unwrap_err();
+        assert!(error.contains("flags holds"), "{flag}: {error}");
+    }
 }

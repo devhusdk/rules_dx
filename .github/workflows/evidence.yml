@@ -27,6 +27,10 @@ on:
         type: boolean
         required: false
         default: false
+      flags:
+        description: "Extra Bazel flags, only --//label=value and --config=name, such as --//cc/toolchains:compiler=msvc."
+        required: false
+        default: ""
       qualify:
         description: "windows_x86_64 only: run //cc/context:qualify for llvm and msvc."
         type: boolean
@@ -56,6 +60,7 @@ jobs:
       scope: ${{ steps.inputs.outputs.scope }}
       task: ${{ steps.inputs.outputs.task }}
       test_timeout: ${{ steps.inputs.outputs.test_timeout }}
+      flags: ${{ steps.inputs.outputs.flags }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -78,6 +83,7 @@ jobs:
           DX_PLATFORMS: ${{ inputs.platforms }}
           DX_DISPLAYS: ${{ inputs.displays }}
           DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
+          DX_FLAGS: ${{ inputs.flags }}
         run: bazel run --noshow_progress //tools/ci:evidence_inputs_bin
 
   evidence:
@@ -210,17 +216,19 @@ jobs:
           DX_SCOPE: ${{ needs.validate.outputs.scope }}
           DX_TASK: ${{ needs.validate.outputs.task }}
           DX_TEST_TIMEOUT: ${{ needs.validate.outputs.test_timeout }}
+          DX_FLAGS: ${{ needs.validate.outputs.flags }}
         run: |
           set -o pipefail
           read -ra patterns <<< "$DX_SCOPE"
+          read -ra flags <<< "$DX_FLAGS"
           DX_HERMETIC_BAZELISK="$(command -v bazel)"
           export DX_HERMETIC_BAZELISK
           if [ "$DX_TASK" = "build" ]; then
-            bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
+            bazel build --noshow_progress "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
           elif [ "$DX_TASK" = "coverage" ]; then
-            bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" 2>&1 | tee evidence.log
+            bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
           else
-            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${patterns[@]}" 2>&1 | tee evidence.log
+            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
           fi
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}

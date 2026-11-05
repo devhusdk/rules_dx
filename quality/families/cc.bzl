@@ -4,7 +4,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
@@ -204,3 +204,17 @@ real_cc_lint_aspect = real_make_aspect(_CFG, "real_cc_lint")
 real_cc_typecheck_aspect = real_make_aspect(_CFG, "real_cc_typecheck")
 
 real_cc_unused_aspect = real_make_aspect(_CFG, "real_cc_unused")
+
+CcShardProbeInfo = provider(
+    doc = "Shard names the cc shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_cc_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "cc", CcShardProbeInfo)
+
+real_cc_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "cc", CcShardProbeInfo)
+
+real_cc_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "cc", CcShardProbeInfo)

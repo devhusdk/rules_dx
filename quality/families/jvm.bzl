@@ -5,7 +5,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "checkstyle": {
@@ -270,3 +270,17 @@ real_jvm_typecheck_aspect = real_make_aspect(_CFG, "real_jvm_typecheck")
 real_scala_format_aspect = real_make_aspect(_CFG, "real_scala_format")
 
 real_scala_lint_aspect = real_make_aspect(_CFG, "real_scala_lint")
+
+JvmShardProbeInfo = provider(
+    doc = "Shard names the jvm shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_jvm_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "jvm", JvmShardProbeInfo)
+
+real_jvm_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "jvm", JvmShardProbeInfo)
+
+real_jvm_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "jvm", JvmShardProbeInfo)

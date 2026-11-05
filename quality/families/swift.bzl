@@ -1,6 +1,6 @@
 """Swift real quality aspects."""
 
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 INDEX_STORE_REL = "periphery.indexstore"
 
@@ -66,3 +66,15 @@ _CFG = real_config(
 real_swift_format_aspect = real_make_aspect(_CFG, "real_swift_format")
 
 real_swift_lint_aspect = real_make_aspect(_CFG, "real_swift_lint")
+
+SwiftShardProbeInfo = provider(
+    doc = "Shard names the swift shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_swift_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "swift", SwiftShardProbeInfo)
+
+real_swift_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "swift", SwiftShardProbeInfo)

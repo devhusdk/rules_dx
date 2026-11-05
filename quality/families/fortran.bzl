@@ -1,7 +1,7 @@
 """Fortran real quality aspects."""
 
 load("//quality:compile_check.bzl", "compile_check_aspect")
-load("//quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "ffmt": {
@@ -61,3 +61,17 @@ real_fortran_format_aspect = real_make_aspect(_CFG, "real_fortran_format")
 real_fortran_lint_aspect = real_make_aspect(_CFG, "real_fortran_lint")
 
 real_fortran_typecheck_aspect = real_make_aspect(_CFG, "real_fortran_typecheck")
+
+FortranShardProbeInfo = provider(
+    doc = "Shard names the fortran shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_fortran_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "fortran", FortranShardProbeInfo)
+
+real_fortran_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "fortran", FortranShardProbeInfo)
+
+real_fortran_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "fortran", FortranShardProbeInfo)

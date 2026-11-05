@@ -1,7 +1,7 @@
 """Python real quality aspects."""
 
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:unused_roots.bzl", "DxUnusedRootsInfo", "unused_roots_aspect")
 
 TOOLS = {
@@ -140,3 +140,17 @@ real_python_lint_aspect = real_make_aspect(_CFG, "real_python_lint")
 real_python_unused_aspect = real_make_aspect(_CFG, "real_python_unused")
 
 real_python_typecheck_aspect = real_make_aspect(_CFG, "real_python_typecheck")
+
+PythonShardProbeInfo = provider(
+    doc = "Shard names the python shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_python_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "python", PythonShardProbeInfo)
+
+real_python_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "python", PythonShardProbeInfo)
+
+real_python_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "python", PythonShardProbeInfo)

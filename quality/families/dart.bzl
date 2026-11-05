@@ -4,7 +4,7 @@ load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stubs")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "dart": {
@@ -140,3 +140,17 @@ real_dart_format_aspect = real_make_aspect(_CFG, "real_dart_format")
 real_dart_lint_aspect = real_make_aspect(_CFG, "real_dart_lint")
 
 real_dart_typecheck_aspect = real_make_aspect(_CFG, "real_dart_typecheck")
+
+DartShardProbeInfo = provider(
+    doc = "Shard names the dart shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_dart_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "dart", DartShardProbeInfo)
+
+real_dart_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "dart", DartShardProbeInfo)
+
+real_dart_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "dart", DartShardProbeInfo)

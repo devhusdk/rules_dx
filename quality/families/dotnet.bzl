@@ -5,7 +5,7 @@ load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("//dotnet:symbols.bzl", "fsharp_compile_defines")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 
 TOOLS = {
@@ -152,3 +152,17 @@ real_dotnet_format_aspect = real_make_aspect(_CFG, "real_dotnet_format")
 real_dotnet_lint_aspect = real_make_aspect(_CFG, "real_dotnet_lint")
 
 real_dotnet_typecheck_aspect = real_make_aspect(_CFG, "real_dotnet_typecheck")
+
+DotnetShardProbeInfo = provider(
+    doc = "Shard names the dotnet shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_dotnet_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "dotnet", DotnetShardProbeInfo)
+
+real_dotnet_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "dotnet", DotnetShardProbeInfo)
+
+real_dotnet_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "dotnet", DotnetShardProbeInfo)

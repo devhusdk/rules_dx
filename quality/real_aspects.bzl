@@ -45,6 +45,28 @@ load("//quality:families/beam.bzl", _real_elixir_format_aspect = "real_elixir_fo
 load("//quality:families/go.bzl", _real_go_format_aspect = "real_go_format_aspect", _real_go_lint_aspect = "real_go_lint_aspect", _real_go_typecheck_aspect = "real_go_typecheck_aspect", _real_go_unused_aspect = "real_go_unused_aspect", _GO_HOOKS = "HOOKS", _GO_SHARD_SPECS = "SHARD_SPECS", _GO_TOOLS = "TOOLS")
 load("//quality:families/rust.bzl", _real_rust_format_aspect = "real_rust_format_aspect", _real_rust_lint_aspect = "real_rust_lint_aspect", _real_rust_typecheck_aspect = "real_rust_typecheck_aspect", _RUST_HARNESS_SOURCES = "harness_sources", _RUST_HOOKS = "HOOKS", _RUST_RECOGNIZER = "RECOGNIZER", _RUST_SHARD_SPECS = "SHARD_SPECS", _RUST_TOOLCHAIN = "TOOLCHAIN", _RUST_TOOLS = "TOOLS", _inherits_test_crate_sources = "inherits_test_crate_sources", _merge_inherited_sources = "merge_inherited_sources", _rustc_diagnostics_group = "rustc_diagnostics_group")
 load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _OCAML_HOOKS = "HOOKS", _OCAML_SHARD_SPECS = "SHARD_SPECS", _OCAML_TOOLS = "TOOLS")
+load("//quality:families/beam.bzl", _real_beam_format_probe_aspect = "real_beam_format_probe_aspect", _real_beam_lint_probe_aspect = "real_beam_lint_probe_aspect", _real_beam_typecheck_probe_aspect = "real_beam_typecheck_probe_aspect")
+load("//quality:families/cc.bzl", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
+load("//quality:families/d.bzl", _real_d_format_probe_aspect = "real_d_format_probe_aspect", _real_d_lint_probe_aspect = "real_d_lint_probe_aspect", _real_d_typecheck_probe_aspect = "real_d_typecheck_probe_aspect")
+load("//quality:families/dart.bzl", _real_dart_format_probe_aspect = "real_dart_format_probe_aspect", _real_dart_lint_probe_aspect = "real_dart_lint_probe_aspect", _real_dart_typecheck_probe_aspect = "real_dart_typecheck_probe_aspect")
+load("//quality:families/dotnet.bzl", _real_dotnet_format_probe_aspect = "real_dotnet_format_probe_aspect", _real_dotnet_lint_probe_aspect = "real_dotnet_lint_probe_aspect", _real_dotnet_typecheck_probe_aspect = "real_dotnet_typecheck_probe_aspect")
+load("//quality:families/fortran.bzl", _real_fortran_format_probe_aspect = "real_fortran_format_probe_aspect", _real_fortran_lint_probe_aspect = "real_fortran_lint_probe_aspect", _real_fortran_typecheck_probe_aspect = "real_fortran_typecheck_probe_aspect")
+load("//quality:families/generation.bzl", _real_generation_format_probe_aspect = "real_generation_format_probe_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect")
+load("//quality:families/haskell.bzl", _real_haskell_format_probe_aspect = "real_haskell_format_probe_aspect", _real_haskell_lint_probe_aspect = "real_haskell_lint_probe_aspect", _real_haskell_typecheck_probe_aspect = "real_haskell_typecheck_probe_aspect")
+load("//quality:families/js.bzl", _real_js_format_probe_aspect = "real_js_format_probe_aspect", _real_js_lint_probe_aspect = "real_js_lint_probe_aspect", _real_js_typecheck_probe_aspect = "real_js_typecheck_probe_aspect")
+load("//quality:families/julia.bzl", _real_julia_format_probe_aspect = "real_julia_format_probe_aspect", _real_julia_lint_probe_aspect = "real_julia_lint_probe_aspect", _real_julia_typecheck_probe_aspect = "real_julia_typecheck_probe_aspect")
+load("//quality:families/jvm.bzl", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect")
+load("//quality:families/lua.bzl", _real_lua_format_probe_aspect = "real_lua_format_probe_aspect", _real_lua_lint_probe_aspect = "real_lua_lint_probe_aspect", _real_lua_typecheck_probe_aspect = "real_lua_typecheck_probe_aspect")
+load("//quality:families/ocaml.bzl", _real_ocaml_format_probe_aspect = "real_ocaml_format_probe_aspect", _real_ocaml_lint_probe_aspect = "real_ocaml_lint_probe_aspect", _real_ocaml_typecheck_probe_aspect = "real_ocaml_typecheck_probe_aspect")
+load("//quality:families/perl.bzl", _real_perl_format_probe_aspect = "real_perl_format_probe_aspect", _real_perl_lint_probe_aspect = "real_perl_lint_probe_aspect")
+load("//quality:families/php.bzl", _real_php_lint_probe_aspect = "real_php_lint_probe_aspect", _real_php_typecheck_probe_aspect = "real_php_typecheck_probe_aspect")
+load("//quality:families/powershell.bzl", _real_powershell_format_probe_aspect = "real_powershell_format_probe_aspect", _real_powershell_lint_probe_aspect = "real_powershell_lint_probe_aspect")
+load("//quality:families/python.bzl", _real_python_format_probe_aspect = "real_python_format_probe_aspect", _real_python_lint_probe_aspect = "real_python_lint_probe_aspect", _real_python_typecheck_probe_aspect = "real_python_typecheck_probe_aspect")
+load("//quality:families/ruby.bzl", _real_ruby_format_probe_aspect = "real_ruby_format_probe_aspect", _real_ruby_lint_probe_aspect = "real_ruby_lint_probe_aspect", _real_ruby_typecheck_probe_aspect = "real_ruby_typecheck_probe_aspect")
+load("//quality:families/rust.bzl", _real_rust_format_probe_aspect = "real_rust_format_probe_aspect", _real_rust_lint_probe_aspect = "real_rust_lint_probe_aspect", _real_rust_typecheck_probe_aspect = "real_rust_typecheck_probe_aspect")
+load("//quality:families/swift.bzl", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect")
+load("//quality:families/zig.bzl", _real_zig_format_probe_aspect = "real_zig_format_probe_aspect", _real_zig_lint_probe_aspect = "real_zig_lint_probe_aspect", _real_zig_typecheck_probe_aspect = "real_zig_typecheck_probe_aspect")
+load("//quality:families/core_probe.bzl", _real_core_format_probe_aspect = "real_core_format_probe_aspect", _real_core_lint_probe_aspect = "real_core_lint_probe_aspect", _real_core_typecheck_probe_aspect = "real_core_typecheck_probe_aspect")
 load("//quality:family_hooks.bzl", _stage = "stage", _without = "without")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_skip_notes = "real_skip_notes", _real_tool_table_error = "real_tool_table_error", _real_unavailable_tools = "real_unavailable_tools", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
@@ -403,3 +425,127 @@ real_kubernetes_lint_aspect = _real_kubernetes_lint_aspect
 real_sql_format_aspect = _real_sql_format_aspect
 
 real_sql_lint_aspect = _real_sql_lint_aspect
+
+real_beam_format_probe_aspect = _real_beam_format_probe_aspect
+
+real_beam_lint_probe_aspect = _real_beam_lint_probe_aspect
+
+real_beam_typecheck_probe_aspect = _real_beam_typecheck_probe_aspect
+
+real_cc_format_probe_aspect = _real_cc_format_probe_aspect
+
+real_cc_lint_probe_aspect = _real_cc_lint_probe_aspect
+
+real_cc_typecheck_probe_aspect = _real_cc_typecheck_probe_aspect
+
+real_d_format_probe_aspect = _real_d_format_probe_aspect
+
+real_d_lint_probe_aspect = _real_d_lint_probe_aspect
+
+real_d_typecheck_probe_aspect = _real_d_typecheck_probe_aspect
+
+real_dart_format_probe_aspect = _real_dart_format_probe_aspect
+
+real_dart_lint_probe_aspect = _real_dart_lint_probe_aspect
+
+real_dart_typecheck_probe_aspect = _real_dart_typecheck_probe_aspect
+
+real_dotnet_format_probe_aspect = _real_dotnet_format_probe_aspect
+
+real_dotnet_lint_probe_aspect = _real_dotnet_lint_probe_aspect
+
+real_dotnet_typecheck_probe_aspect = _real_dotnet_typecheck_probe_aspect
+
+real_fortran_format_probe_aspect = _real_fortran_format_probe_aspect
+
+real_fortran_lint_probe_aspect = _real_fortran_lint_probe_aspect
+
+real_fortran_typecheck_probe_aspect = _real_fortran_typecheck_probe_aspect
+
+real_generation_format_probe_aspect = _real_generation_format_probe_aspect
+
+real_generation_lint_probe_aspect = _real_generation_lint_probe_aspect
+
+real_generation_typecheck_probe_aspect = _real_generation_typecheck_probe_aspect
+
+real_haskell_format_probe_aspect = _real_haskell_format_probe_aspect
+
+real_haskell_lint_probe_aspect = _real_haskell_lint_probe_aspect
+
+real_haskell_typecheck_probe_aspect = _real_haskell_typecheck_probe_aspect
+
+real_js_format_probe_aspect = _real_js_format_probe_aspect
+
+real_js_lint_probe_aspect = _real_js_lint_probe_aspect
+
+real_js_typecheck_probe_aspect = _real_js_typecheck_probe_aspect
+
+real_julia_format_probe_aspect = _real_julia_format_probe_aspect
+
+real_julia_lint_probe_aspect = _real_julia_lint_probe_aspect
+
+real_julia_typecheck_probe_aspect = _real_julia_typecheck_probe_aspect
+
+real_jvm_format_probe_aspect = _real_jvm_format_probe_aspect
+
+real_jvm_lint_probe_aspect = _real_jvm_lint_probe_aspect
+
+real_jvm_typecheck_probe_aspect = _real_jvm_typecheck_probe_aspect
+
+real_lua_format_probe_aspect = _real_lua_format_probe_aspect
+
+real_lua_lint_probe_aspect = _real_lua_lint_probe_aspect
+
+real_lua_typecheck_probe_aspect = _real_lua_typecheck_probe_aspect
+
+real_ocaml_format_probe_aspect = _real_ocaml_format_probe_aspect
+
+real_ocaml_lint_probe_aspect = _real_ocaml_lint_probe_aspect
+
+real_ocaml_typecheck_probe_aspect = _real_ocaml_typecheck_probe_aspect
+
+real_perl_format_probe_aspect = _real_perl_format_probe_aspect
+
+real_perl_lint_probe_aspect = _real_perl_lint_probe_aspect
+
+real_php_lint_probe_aspect = _real_php_lint_probe_aspect
+
+real_php_typecheck_probe_aspect = _real_php_typecheck_probe_aspect
+
+real_powershell_format_probe_aspect = _real_powershell_format_probe_aspect
+
+real_powershell_lint_probe_aspect = _real_powershell_lint_probe_aspect
+
+real_python_format_probe_aspect = _real_python_format_probe_aspect
+
+real_python_lint_probe_aspect = _real_python_lint_probe_aspect
+
+real_python_typecheck_probe_aspect = _real_python_typecheck_probe_aspect
+
+real_ruby_format_probe_aspect = _real_ruby_format_probe_aspect
+
+real_ruby_lint_probe_aspect = _real_ruby_lint_probe_aspect
+
+real_ruby_typecheck_probe_aspect = _real_ruby_typecheck_probe_aspect
+
+real_rust_format_probe_aspect = _real_rust_format_probe_aspect
+
+real_rust_lint_probe_aspect = _real_rust_lint_probe_aspect
+
+real_rust_typecheck_probe_aspect = _real_rust_typecheck_probe_aspect
+
+real_swift_format_probe_aspect = _real_swift_format_probe_aspect
+
+real_swift_lint_probe_aspect = _real_swift_lint_probe_aspect
+
+real_zig_format_probe_aspect = _real_zig_format_probe_aspect
+
+real_zig_lint_probe_aspect = _real_zig_lint_probe_aspect
+
+real_zig_typecheck_probe_aspect = _real_zig_typecheck_probe_aspect
+
+real_core_format_probe_aspect = _real_core_format_probe_aspect
+
+real_core_lint_probe_aspect = _real_core_lint_probe_aspect
+
+real_core_typecheck_probe_aspect = _real_core_typecheck_probe_aspect

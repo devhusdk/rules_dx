@@ -4,7 +4,7 @@ load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
 load("//quality:compile_check.bzl", "compile_check_aspect")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:pipeline.bzl", "real_request_tool_env")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "ocaml": {
@@ -104,3 +104,17 @@ real_ocaml_format_aspect = real_make_aspect(_CFG, "real_ocaml_format")
 real_ocaml_lint_aspect = real_make_aspect(_CFG, "real_ocaml_lint")
 
 real_ocaml_typecheck_aspect = real_make_aspect(_CFG, "real_ocaml_typecheck")
+
+OcamlShardProbeInfo = provider(
+    doc = "Shard names the ocaml shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_ocaml_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "ocaml", OcamlShardProbeInfo)
+
+real_ocaml_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ocaml", OcamlShardProbeInfo)
+
+real_ocaml_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "ocaml", OcamlShardProbeInfo)

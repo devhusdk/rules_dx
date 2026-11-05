@@ -1,7 +1,7 @@
 """JavaScript and TypeScript real quality aspects."""
 
 load("//quality:family_hooks.bzl", "default_files_hook", "without")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 
@@ -142,3 +142,17 @@ real_js_lint_aspect = real_make_aspect(_CFG, "real_js_lint")
 real_js_unused_aspect = real_make_aspect(_CFG, "real_js_unused")
 
 real_js_typecheck_aspect = real_make_aspect(_CFG, "real_js_typecheck")
+
+JsShardProbeInfo = provider(
+    doc = "Shard names the js shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_js_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "js", JsShardProbeInfo)
+
+real_js_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "js", JsShardProbeInfo)
+
+real_js_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "js", JsShardProbeInfo)

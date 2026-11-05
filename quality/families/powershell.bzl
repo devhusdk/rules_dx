@@ -2,7 +2,7 @@
 
 load("@rules_powershell//powershell:defs.bzl", "PwshInfo")
 load("//quality:pipeline.bzl", "real_request_tool_env")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "psscriptanalyzer": {
@@ -71,3 +71,15 @@ _CFG = real_config(
 real_powershell_format_aspect = real_make_aspect(_CFG, "real_powershell_format")
 
 real_powershell_lint_aspect = real_make_aspect(_CFG, "real_powershell_lint")
+
+PowershellShardProbeInfo = provider(
+    doc = "Shard names the powershell shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_powershell_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "powershell", PowershellShardProbeInfo)
+
+real_powershell_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "powershell", PowershellShardProbeInfo)

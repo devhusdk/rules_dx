@@ -2,7 +2,7 @@
 
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "jet": {
@@ -118,3 +118,17 @@ real_julia_format_aspect = real_make_aspect(_CFG, "real_julia_format")
 real_julia_lint_aspect = real_make_aspect(_CFG, "real_julia_lint")
 
 real_julia_typecheck_aspect = real_make_aspect(_CFG, "real_julia_typecheck")
+
+JuliaShardProbeInfo = provider(
+    doc = "Shard names the julia shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_julia_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "julia", JuliaShardProbeInfo)
+
+real_julia_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "julia", JuliaShardProbeInfo)
+
+real_julia_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "julia", JuliaShardProbeInfo)

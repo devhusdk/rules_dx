@@ -2,7 +2,7 @@
 
 load("//lua/private:providers.bzl", "LuaInfo")
 load("//quality:family_hooks.bzl", "stage")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "luals": {
@@ -83,3 +83,17 @@ real_lua_typecheck_aspect = real_make_aspect(_CFG, "real_lua_typecheck")
 real_lua_lint_aspect = real_make_aspect(_CFG, "real_lua_lint")
 
 real_lua_format_aspect = real_make_aspect(_CFG, "real_lua_format")
+
+LuaShardProbeInfo = provider(
+    doc = "Shard names the lua shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_lua_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "lua", LuaShardProbeInfo)
+
+real_lua_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "lua", LuaShardProbeInfo)
+
+real_lua_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "lua", LuaShardProbeInfo)

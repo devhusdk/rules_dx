@@ -639,8 +639,12 @@ def _probe_shards(cfg, resolved, capability):
             shards.append(shard_name)
     return shards
 
-def real_make_probe_aspect(cfg, capability):
-    """Builds the tool-free shard probe aspect for one capability."""
+def real_make_probe_aspect(cfg, capability, family = "", info = RealShardProbeInfo):
+    """Builds the tool-free shard probe aspect for one capability.
+
+    A family probe passes its name and the provider its file declares, so two
+    probes on one target neither share an output file nor a provider.
+    """
 
     def _impl(target, ctx):
         what = "real_aspect (" + str(target.label) + ")"
@@ -648,17 +652,17 @@ def real_make_probe_aspect(cfg, capability):
         crate_shards = []
         if capability == "format":
             crate = getattr(ctx.rule.attr, "crate", None)
-            if type(crate) == "Target" and crate.label.repo_name == "" and RealShardProbeInfo in crate:
-                crate_shards = list(crate[RealShardProbeInfo].shards)
+            if type(crate) == "Target" and crate.label.repo_name == "" and info in crate:
+                crate_shards = list(crate[info].shards)
         shards = _probe_shards(cfg, resolved, capability) if len(resolved) > 0 else []
         shards = sorted({name: True for name in shards + crate_shards}.keys())
         if len(shards) == 0:
             return []
-        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ".json")
+        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ("-" + family if family else "") + ".json")
         ctx.actions.write(out, json.encode({"shards": shards}))
         return [
             OutputGroupInfo(dx_shards = depset([out])),
-            RealShardProbeInfo(capability = capability, shards = shards),
+            info(capability = capability, shards = shards),
         ]
 
     return aspect(

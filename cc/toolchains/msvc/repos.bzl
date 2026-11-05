@@ -107,6 +107,8 @@ def _layout_repo_impl(rctx):
         missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml] if p and not rctx.path(p).exists]
         if missing:
             unavailable[cell_name(host, target)] = missing_error(missing)
+    bindir = rctx.path("VC/Tools/MSVC/" + msvc_version + "/bin")
+    print("DIAG bin", [(c.basename, [(g.basename, [h.basename for h in g.readdir()][:12]) for g in c.readdir()]) for c in bindir.readdir()])
     rctx.file("NOTICE", "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, msvc_version, sdk_version))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable, redist_version))

@@ -92,6 +92,12 @@ aspect_field has_subject=True
 aspect_field subject_label=//cc/toolchains:identity_under_test_msvc
 aspect_field transitive_count=0"""
 
+EXPECTED_MSVC_ARM64_IDENTITY_OBSERVATIONS = (
+    EXPECTED_MSVC_IDENTITY_OBSERVATIONS
+        .replace("identity_under_test_msvc", "identity_under_test_msvc_arm64")
+        .replace("cc.target=x86_64-pc-windows-msvc", "cc.target=aarch64-pc-windows-msvc")
+)
+
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
 def cc_toolchain_identity_tests(name):
@@ -196,4 +202,11 @@ def cc_toolchain_identity_tests(name):
         subjects = [":identity_under_test_msvc"],
         expected_observations = EXPECTED_MSVC_IDENTITY_OBSERVATIONS,
         target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+    )
+    starlark_test(
+        name = name + "_msvc_arm64",
+        mode = "analysis",
+        subjects = [":identity_under_test_msvc_arm64"],
+        expected_observations = EXPECTED_MSVC_ARM64_IDENTITY_OBSERVATIONS,
+        target_compatible_with = ["@platforms//os:windows"],
     )

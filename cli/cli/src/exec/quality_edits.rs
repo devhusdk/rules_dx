@@ -689,6 +689,7 @@ fn json_apply_removes_unused_build_deps() {
                 package: "p".to_owned(),
                 target: (*target).to_owned(),
                 dependency: (*dependency).to_owned(),
+                ..Default::default()
             });
             diagnostic
         })
@@ -735,5 +736,55 @@ fn unused_dep_is_reported_on_its_build_line_and_apply_removes_it() {
     assert!(
         !after.contains(":clean") && after.contains(":used"),
         "{after}"
+    );
+}
+
+#[test]
+fn missing_dep_is_reported_on_the_deps_line_and_apply_adds_it() {
+    let mut harness = Harness::new("missing-dep-line");
+    harness.write_source(
+        "p/BUILD.bazel",
+        "rust_library(\n    name = \"both\",\n    deps = [\n        \":clean\",\n    ],\n)\n",
+    );
+    let found: Vec<proto::Diagnostic> = [(true, "needed"), (false, "clean")]
+        .iter()
+        .map(|(missing, dependency)| {
+            let mut diagnostic = Harness::diagnostic("unused_crate_dependencies", false);
+            diagnostic.path = String::new();
+            diagnostic.start_byte = None;
+            diagnostic.end_byte = None;
+            diagnostic.build_dep = Some(proto::BuildDep {
+                package: "p".to_owned(),
+                target: "both".to_owned(),
+                dependency: (*dependency).to_owned(),
+                missing: *missing,
+                label: if *missing {
+                    "@@//q:needed".to_owned()
+                } else {
+                    String::new()
+                },
+            });
+            diagnostic
+        })
+        .collect();
+    let result = harness.result_full(found.clone(), found, vec![], vec![]);
+    harness.results.insert("//test:corpus".to_owned(), result);
+
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let lines: Vec<serde_json::Value> = json_events(&out)
+        .into_iter()
+        .filter(|event| event["event"] == serde_json::json!("diagnostic"))
+        .map(|event| event["range"]["start_line"].clone())
+        .collect();
+    assert!(lines.contains(&serde_json::json!(3)), "{out}");
+
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert_eq!(
+        after,
+        "rust_library(\n    name = \"both\",\n    deps = [\n        \"//q:needed\",\n    ],\n)\n"
     );
 }

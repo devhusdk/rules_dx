@@ -70,12 +70,16 @@ message Diagnostic {
   BuildDep build_dep = 17;
 }
 
-// A `deps` entry of a build target that no source uses. `dependency` is the
-// target name of the entry, not its full label.
+// A `deps` entry of a build target that no source uses, or with `missing` a
+// direct dependency the target uses and does not list. `dependency` is the
+// target name, not its full label; `label` is the full label the compiler saw
+// and is set for a missing dependency.
 message BuildDep {
   string package = 1;
   string target = 2;
   string dependency = 3;
+  bool missing = 4;
+  string label = 5;
 }
 
 // One explanatory item attached to a diagnostic. `role` is the native

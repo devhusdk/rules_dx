@@ -153,6 +153,11 @@ pub(crate) fn execute_init(
                 .map(|note| format!("{}{note}", target.prefix)),
         );
     }
+    notes.extend(
+        dx_adopt::kept_config_notes(root)
+            .into_iter()
+            .map(|note| format!("{}{note}", target.prefix)),
+    );
     if let Some(blocker) = &target.blocker {
         if !root.join("MODULE.bazel").exists() {
             notes.push(format!(

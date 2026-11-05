@@ -407,3 +407,11 @@ fn strict_non_utf8_argv_fails_as_invalid_scope() {
     ];
     assert_eq!(parse(&argv), Err(ArgsError::InvalidScope { scope: lossy }));
 }
+
+#[test]
+fn init_takes_a_known_config_profile_only() {
+    let invocation = parse(&strings(&["init", "--profile=strict"])).expect("strict is accepted");
+    assert_eq!(invocation.command, Command::Init);
+    assert_eq!(invocation.profile, Some(crate::args::ProfileArg::Strict));
+    assert!(parse(&strings(&["init", "--profile=loose"])).is_err());
+}

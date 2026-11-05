@@ -58,10 +58,10 @@ pub use ownership::Ownership;
 pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{
     inspect_preset, inspect_preset_as, layer_profile, preflight_preset, preset_drift, preset_files,
-    preset_paths, read_profile, refresh_preset, sync_preset, write_preset, PresetDrift,
-    PresetState, WERROR_NOTE,
+    preset_paths, read_profile, refresh_preset, resolve_profile, sync_preset, write_preset,
+    PresetDrift, PresetState, WERROR_NOTE,
 };
-pub use profiles::{infer_profile, plan_profile_files, profile_notes, Profile};
+pub use profiles::{infer_profile, kept_config_notes, plan_profile_files, profile_notes, Profile};
 pub use scaffold::{
     bazelignore_covers_dx, bazelignore_has_bare_dx, owned_file_drift, plan_init_files,
     plan_init_files_at, preflight_destinations, refresh_scaffold, render_consumer_caller,

@@ -468,52 +468,9 @@ pub fn plan_init_files_at(
     };
     let mut files = plan_init_files_full(module_name, &branch, &extensions)?;
     if root.is_dir() {
-        let wants_ruff_file = needs_empty_ruff_config(root);
-        files.extend(
-            plan_profile_files(root, &extensions, profile)
-                .into_iter()
-                .filter(|file| file.kind == FileKind::Generated || wants_ruff_file),
-        );
+        files.extend(plan_profile_files(root, &extensions, profile));
     }
     Ok(files)
-}
-
-/// Whether `root` has Python sources and no ruff config anywhere.
-fn needs_empty_ruff_config(root: &Path) -> bool {
-    let mut python = false;
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            let Ok(kind) = entry.file_type() else {
-                continue;
-            };
-            if kind.is_dir() {
-                let skip = name.starts_with('.')
-                    || name.starts_with("bazel-")
-                    || matches!(name.as_str(), "node_modules" | "target" | "site-packages");
-                if !skip {
-                    pending.push(entry.path());
-                }
-            } else if name == ".ruff.toml" || name == "ruff.toml" {
-                return false;
-            } else if name == "pyproject.toml" {
-                let text = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                let has_ruff = text
-                    .parse::<toml::Table>()
-                    .is_ok_and(|table| table.get("tool").and_then(|t| t.get("ruff")).is_some());
-                if has_ruff {
-                    return false;
-                }
-            } else if name.ends_with(".py") {
-                python = true;
-            }
-        }
-    }
-    python
 }
 
 fn plan_init_files_full(
@@ -1268,28 +1225,6 @@ mod tests {
             assert_eq!(super::detect_default_branch(&dir), "trunk");
         }
         let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn empty_ruff_config_only_when_python_has_none() {
-        let root = std::env::temp_dir().join(format!("dx-adopt-ruff-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join("src")).expect("temp dir");
-        assert!(!super::needs_empty_ruff_config(&root));
-        std::fs::write(root.join("src/app.py"), "").expect("source");
-        assert!(super::needs_empty_ruff_config(&root));
-        std::fs::write(root.join("pyproject.toml"), "[project]\nname = \"a\"\n").expect("toml");
-        assert!(super::needs_empty_ruff_config(&root));
-        std::fs::write(
-            root.join("pyproject.toml"),
-            "[tool.ruff]\nline-length = 100\n",
-        )
-        .expect("toml");
-        assert!(!super::needs_empty_ruff_config(&root));
-        std::fs::remove_file(root.join("pyproject.toml")).expect("remove");
-        std::fs::write(root.join("src/.ruff.toml"), "").expect("ruff");
-        assert!(!super::needs_empty_ruff_config(&root));
-        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

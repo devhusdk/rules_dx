@@ -185,6 +185,17 @@ pub fn read_profile(root: &Path) -> Profile {
     layer_profile(&text.unwrap_or_default())
 }
 
+/// The profile to plan with: the flag, else what the correctness layer records, else what the root files pick.
+pub fn resolve_profile(root: &Path, flag: Option<Profile>) -> Profile {
+    if let Some(profile) = flag {
+        return profile;
+    }
+    if root.join(layer_rel(Layer::Correctness)).is_file() {
+        return read_profile(root);
+    }
+    crate::profiles::infer_profile(root, &crate::families::file_extensions(root))
+}
+
 /// The `warnings_as_errors` pin for `layer`; only the correctness layer has one.
 fn pin(layer: Layer, profile: Profile) -> Option<bool> {
     (layer == Layer::Correctness).then_some(profile == Profile::Strict)

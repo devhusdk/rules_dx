@@ -96,6 +96,7 @@ pub(super) fn plan_with_profile(
     agents: &[Agent],
     profile: Option<dx_adopt::Profile>,
 ) -> Result<Vec<InitFile>, AdoptError> {
+    let profile = Some(dx_adopt::resolve_profile(root, profile));
     let selected: Vec<&str> = agents
         .iter()
         .flat_map(|agent| agent_paths(*agent).iter().copied())

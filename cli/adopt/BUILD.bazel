@@ -131,8 +131,6 @@ exports_files([
     "src/launcher.rs",
     "src/lib.rs",
     "src/version.rs",
-    "templates/config/biome/standard.json",
-    "templates/config/biome/strict.json",
 ])
 
 real_source_target(

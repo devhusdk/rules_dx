@@ -101,6 +101,7 @@ rust_test(
         "//quality:families/julia.bzl",
         "//quality:families/powershell.bzl",
         "//quality:families/python.bzl",
+        "//quality:families/cc.bzl",
         "//quality:families/ruby.bzl",
         "//quality:families/pkl.bzl",
         "//quality:families/rego.bzl",

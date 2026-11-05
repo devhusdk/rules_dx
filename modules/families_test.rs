@@ -521,9 +521,10 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 39] = [
+const FAMILY_FILES: [&str; 40] = [
     "ansible",
     "beam",
+    "cc",
     "bicep",
     "cloudformation",
     "cmake",
@@ -583,7 +584,9 @@ fn family_files_define_aspects_listed_in_families_json() {
         let defined = source
             .lines()
             .filter_map(|line| line.split_once(" = "))
-            .filter(|(name, value)| name.ends_with("_aspect") && !value.starts_with('_'))
+            .filter(|(name, value)| {
+                name.ends_with("_aspect") && !name.starts_with('_') && !value.starts_with('_')
+            })
             .map(|(name, _)| name)
             .collect::<Vec<_>>();
         assert!(!defined.is_empty(), "{family}.bzl defines no aspect");

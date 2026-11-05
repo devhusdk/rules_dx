@@ -20,6 +20,7 @@ pub mod load_graph;
 pub mod lock_hubs;
 pub mod module_pin;
 pub mod overrides;
+pub mod ownership;
 pub mod preflight;
 pub mod preset;
 pub mod preset_fragment;
@@ -53,6 +54,7 @@ pub use overrides::{
     apply_overrides, check_overrides, check_overrides_in, is_rules_dx_root, module_deps,
     preflight_overrides, refresh_overrides, render_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
+pub use ownership::Ownership;
 pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{
     inspect_preset, inspect_preset_as, layer_profile, preflight_preset, preset_drift, preset_files,

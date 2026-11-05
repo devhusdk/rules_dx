@@ -171,6 +171,7 @@ pub(crate) struct Flags {
     pub(crate) disk: bool,
     pub(crate) bases: bool,
     pub(crate) capabilities: bool,
+    pub(crate) files: bool,
     pub(crate) explain: bool,
     pub(crate) build_profile: bool,
     pub(crate) old_log: Option<String>,
@@ -792,6 +793,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// Add one record per file dx init writes (status only).
+    FilesFlag, {
+        #[arg(long, overrides_with = "files")]
+        files: bool,
+    }
+}
+
+flag_group! {
     /// Add one capability record per command (status only).
     CapabilitiesFlag, {
         #[arg(long, overrides_with = "capabilities")]
@@ -1220,6 +1229,7 @@ command_args! {
     Status => 18, NoScopeTail, {
         output: OutputFlag,
         capabilities: CapabilitiesFlag,
+        files: FilesFlag,
     };
     /// The flags `dx watch` accepts.
     Watch => 19, BazelTail, {

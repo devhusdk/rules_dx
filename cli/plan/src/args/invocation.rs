@@ -309,6 +309,8 @@ pub struct Invocation {
     pub bases: bool,
     /// `dx status --capabilities`: add capability records.
     pub capabilities: bool,
+    /// `dx status --files`: add one record per file dx init writes.
+    pub files: bool,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
     /// `build`/`test`/`coverage --profile`: print where build time went.
@@ -727,6 +729,7 @@ mod tests {
             disk: false,
             bases: false,
             capabilities: false,
+            files: false,
             explain: false,
             build_profile: false,
             exec_log: None,

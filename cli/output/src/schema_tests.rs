@@ -298,6 +298,12 @@ fn samples() -> Vec<Value> {
         notice_event(&NoticeEvent::warning("code", "message")).expect("notice"),
         notice_value(&notice),
         operation_event("check", "lint", None).expect("operation"),
+        owned_file_event(&OwnedFileEvent {
+            path: ".gitignore".to_owned(),
+            owns: "lines".to_owned(),
+            state: "current".to_owned(),
+        })
+        .expect("owned file"),
         operation_event("check", "lint", Some(&["//a".to_owned()])).expect("operation"),
         phase(started()),
         phase(finished()),

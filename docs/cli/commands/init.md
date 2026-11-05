@@ -116,35 +116,48 @@ failed, `141` apply wrote every file but stdout closed early.
 
 ## Fixed file set
 
-`dx init --apply` writes these paths. Owner `you` means you edit the file and
-dx adds only the lines named here. Owner `dx` means dx rewrites the file to
-match the running dx.
+`dx init --apply` writes these paths. The `dx owns` column says what dx still
+touches after you edit the file:
 
-| Path | Owner | What `dx init --apply` updates |
+- `whole`: dx rewrites the whole file to match the running dx. Do not edit it.
+- `extends`: the file is yours and extends a base dx owns. Only the base is rewritten.
+- `keys`: the file is yours. dx sets only its own keys; comments, other keys and order stay.
+- `block`: the file is yours. dx rewrites only its marked block.
+- `lines`: the file is yours. dx adds its missing lines and leaves the rest.
+- `pin`: the file is yours, except the rules_dx pin dx keeps current.
+- `once`: dx writes the file when it is missing and never rewrites it.
+
+`dx status --files` lists every planned file with its label and state.
+
+| Path | dx owns | What `dx init --apply` updates |
 | --- | --- | --- |
-| `.dx/pins` | dx | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx upgrade --apply` deletes the old `.dx/version`. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
-| `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
-| `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
-| `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
-| `.bazelrc` | you | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists, and `try-import %workspace%/user.bazelrc` at the bottom when no line names it. Other lines stay. |
-| `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
-| `.bazelversion` | you | Written in a fresh directory only. |
-| `.gitignore` | you | Written when missing. An existing file gets each line of the list above that no line covers appended. |
-| `.bazelignore`, `.envrc`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
-| `.devcontainer/devcontainer.json` | you, and dx for the pins | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
-| `.editorconfig`, `.gitattributes` | you | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
-| `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
-| `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
-| `.github/workflows/dx-update.yml` | you | Written when missing. Never rewritten. |
-| `.github/workflows/release.yml` | you | Written when missing. Never rewritten. Calls `reusable-release.yml` on `v*` tags. |
-| `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
-| `CLAUDE.md` | you | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
-| `.github/hooks/dx.json` | you | Created when missing and `--agents=copilot` is given; missing hook entries are merged in place. |
-| `.github/copilot-instructions.md` | you | Created when missing and `--agents=copilot` is given. A line pointing at `AGENTS.md` is added when the file does not mention it. |
-| `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
-| `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |
+| `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx upgrade --apply` deletes the old `.dx/version`. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
+| `tools/dx`, `tools/dx.cmd` | whole | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
+| `third_party/rules_dx/` | whole | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
+| `.dx/bazelrc/correctness.bazelrc`, `.dx/bazelrc/performance.bazelrc`, `.dx/bazelrc/resources.bazelrc` | whole | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
+| `.bazelrc` | lines | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists, and `try-import %workspace%/user.bazelrc` at the bottom when no line names it. Other lines stay. |
+| `MODULE.bazel` | lines | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
+| `.bazelversion` | once | Written in a fresh directory only. |
+| `.gitignore` | lines | Written when missing. An existing file gets each line of the list above that no line covers appended. |
+| `.bazelignore` | lines | Written when missing. A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays. |
+| `.envrc` | once | Written when missing. Never rewritten. |
+| `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added; existing ids stay in order. |
+| `.dx/config/ruff/standard.toml`, `.dx/config/ruff/strict.toml` | whole | Generated. Written when the tree has Python files. Rewritten when it differs. |
+| `ruff.toml` | once | Written when missing and the tree has Python files. Its `extend` line picks the base. Never rewritten. |
+| `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
+| `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
+| `.vscode/settings.json` | keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
+| `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
+| `.github/workflows/dx-update.yml` | once | Written when missing. Never rewritten. |
+| `.github/workflows/release.yml` | pin | Written when missing. Only the `uses:` pin is updated. Calls `reusable-release.yml` on `v*` tags. |
+| `AGENTS.md` | block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
+| `CLAUDE.md` | lines | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
+| `.github/hooks/dx.json` | keys | Created when missing and `--agents=copilot` is given; missing hook entries are merged in place. |
+| `.github/copilot-instructions.md` | lines | Created when missing and `--agents=copilot` is given. A line pointing at `AGENTS.md` is added when the file does not mention it. |
+| `.claude/settings.json` | keys | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
+| `.codex/hooks.json`, `.gemini/settings.json` | keys | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |
 
-`.vscode/extensions.json` recommends the Bazel extension, plus the editor extension for each language with files in the tree (Python for `.py`, Go for `.go`, and so on). Edit the file to change the list. `dx init` never rewrites it.
+`.vscode/extensions.json` recommends the Bazel extension, plus the editor extension for each language with files in the tree (Python for `.py`, Go for `.go`, and so on). Edit the file to change the list. `dx init` only adds missing ids.
 
 Check reports a missing essential path or a stale path as drift, and exits `1`. It reports any other missing planned path as absent and exits `0`. An old dx key in `.vscode/settings.json`, or an old pin in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. `dx init --apply` recreates an absent path. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).

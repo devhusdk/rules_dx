@@ -4,8 +4,8 @@ use clap::ValueEnum;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
-    capability_event, command_finished, command_started, status_event, CapabilityEvent,
-    FinishedCounts, OutputMode, StatusEvent,
+    capability_event, command_finished, command_started, owned_file_event, status_event,
+    CapabilityEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent,
 };
 use dx_plan::args::grammar::advertises_passthrough;
 use dx_plan::args::{Command, Invocation};
@@ -157,6 +157,44 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     }
 }
 
+/// One file dx init writes, its ownership label and whether it is in step with this dx.
+fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, String> {
+    let files =
+        super::init_files::plan(workspace, "refresh", dx_adopt::is_fresh_dir(workspace), &[])
+            .map_err(|error| error.to_string())?;
+    let drift = super::init_files::drift(workspace, &files);
+    let named = |list: &[String], path: &str| {
+        list.iter().any(|entry| {
+            entry == path
+                || entry
+                    .strip_prefix(path)
+                    .is_some_and(|rest| rest.starts_with(' '))
+        })
+    };
+    Ok(files
+        .iter()
+        .map(|file| {
+            let owns = file.ownership();
+            let state = if named(&drift.missing, &file.path) {
+                "missing"
+            } else if named(&drift.absent, &file.path) {
+                "absent"
+            } else if named(&drift.stale, &file.path) {
+                "stale"
+            } else if owns == dx_adopt::Ownership::Once {
+                "yours"
+            } else {
+                "current"
+            };
+            OwnedFileEvent {
+                path: file.path.clone(),
+                owns: owns.label().to_owned(),
+                state: state.to_owned(),
+            }
+        })
+        .collect())
+}
+
 fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
     let (path, record) = dx_worktree::lease_for_workspace(workspace)?;
     let detail = match (record.holder(true), &record.branch) {
@@ -221,6 +259,14 @@ pub(crate) fn execute_status(
     } else {
         Vec::new()
     };
+    let owned = if invocation.files {
+        match owned_files(workspace) {
+            Ok(files) => files,
+            Err(message) => return operational(invocation, out, err, "init_failed", &message),
+        }
+    } else {
+        Vec::new()
+    };
     let mut checks =
         dx_adopt::observed_status_checks(workspace, dx_adopt::read_version_pin(workspace), tools);
     checks.push(init_check(workspace));
@@ -263,6 +309,18 @@ pub(crate) fn execute_status(
                 }
             }
         }
+        for file in &owned {
+            match owned_file_event(file) {
+                Ok(event) => {
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
+                }
+                Err(error) => {
+                    return operational(invocation, out, err, "invalid_result", &error.to_string());
+                }
+            }
+        }
         if let Some((code, message)) = failure(&checks) {
             return operational(invocation, out, err, code, &message);
         }
@@ -278,6 +336,15 @@ pub(crate) fn execute_status(
     }
     for capability in &records {
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", capability_line(capability))) {
+            return exit;
+        }
+    }
+    for file in &owned {
+        if let Err(exit) = check_stdout_write(writeln!(
+            out,
+            "file {} {} {}",
+            file.path, file.owns, file.state
+        )) {
             return exit;
         }
     }
@@ -598,6 +665,72 @@ mod tests {
             out.contains("capability workspace:tools:") && out.contains("availability: unknown"),
             "{out}"
         );
+    }
+
+    fn state_of(out: &str, path: &str) -> String {
+        out.lines()
+            .find_map(|line| {
+                let words: Vec<&str> = line.split(' ').collect();
+                (words.len() == 4 && words[0] == "file" && words[1] == path)
+                    .then(|| format!("{} {}", words[2], words[3]))
+            })
+            .unwrap_or_else(|| panic!("no file line for {path}: {out}"))
+    }
+
+    #[test]
+    fn status_files_lists_every_planned_file_and_flags_a_stale_dx_key() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-files-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let (code, out, err) = run(&invocation(&["status", "--files"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let planned = crate::adopt::init_files::plan(&root, "refresh", false, &[]).expect("plan");
+        for file in &planned {
+            let state = state_of(&out, &file.path);
+            let expected = if file.ownership() == dx_adopt::Ownership::Once {
+                "yours"
+            } else {
+                "current"
+            };
+            assert_eq!(
+                state,
+                format!("{} {expected}", file.ownership().label()),
+                "{}",
+                file.path
+            );
+        }
+        let settings = root.join(".vscode/settings.json");
+        let mut value: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&settings).expect("settings"))
+                .expect("json");
+        let key = value
+            .as_object()
+            .and_then(|map| map.keys().next().cloned())
+            .expect("a dx key");
+        value[key.as_str()] = serde_json::json!(7);
+        std::fs::write(&settings, value.to_string()).expect("edit");
+        let (_code, out, _err) = run(&invocation(&["status", "--files"]), &root);
+        assert_eq!(state_of(&out, ".vscode/settings.json"), "keys stale");
+        let (_code, out, _err) = run(&invocation(&["status", "--files", "--output=json"]), &root);
+        let events = json_events(&out);
+        let owned = crate::adopt::test_support::events_of_kind(&events, "owned_file");
+        assert_eq!(owned.len(), planned.len());
+        assert!(owned.iter().any(|event| {
+            event["path"] == ".vscode/settings.json"
+                && event["owns"] == "keys"
+                && event["state"] == "stale"
+        }));
+    }
+
+    #[test]
+    fn status_default_output_omits_file_records() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-nofiles-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let (_code, out, _err) = run(&invocation(&["status"]), &root);
+        assert!(!out.contains("\nfile "), "{out}");
     }
 
     #[test]

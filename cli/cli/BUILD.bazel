@@ -326,7 +326,10 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-    compile_data = ["src/exec/unsupported.json"],
+    compile_data = [
+        "src/exec/unsupported.json",
+        "//docs:cli/commands/init.md",
+    ],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
     data = glob(["src/**/*.rs"]) + [

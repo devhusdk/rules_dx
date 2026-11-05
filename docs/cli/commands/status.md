@@ -10,12 +10,13 @@ tools/dx --version
 ```
 
 ```text
-dx status [--capabilities] [--output text|json]
+dx status [--capabilities] [--files] [--output text|json]
 ```
 
 | Flag | What it does |
 | --- | --- |
 | `--capabilities` | Adds one capability record per command and one for `workspace:tools`. |
+| `--files` | Adds one record per file `dx init` writes: its path, what dx owns (`whole`, `extends`, `keys`, `block`, `lines`, `pin` or `once`) and its state. |
 | `--output text\|json` | Sets the output format. |
 
 Scopes: none.
@@ -50,7 +51,11 @@ toolchain: ok (available: rust 1.99.1 via rules_rust 0.75.0 declared in MODULE.b
 
 With `--capabilities`, text adds one `capability <name>` line per command.
 
+With `--files`, text adds one `file <path> <owns> <state>` line per file `dx init` writes. `state` is `current`, `stale` (a dx-owned value is out of date), `missing` (an essential file is gone), `absent` (an optional file is gone) or `yours` (a `once` file that exists, which dx never rewrites). `docs/cli/commands/init.md` lists the labels.
+
 JSON streams `command_started`, one `status` event per check (`name`, `status`, `detail`, `hint`), then `command_finished`. With `--capabilities` it adds one `capability` event per command (`name`, `source`, `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`, `effect`, `passthrough`). `source` is `cli-grammar` or `workspace-record`. `availability` is `available`, `unavailable` or `unknown`.
+
+With `--files` JSON adds one `owned_file` event per file (`path`, `owns`, `state`).
 
 A failed check emits `status_check_failed` naming the checks.
 

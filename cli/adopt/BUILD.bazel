@@ -21,6 +21,7 @@ dx_rust_crate(
         "src/lock_hubs.rs",
         "src/module_pin.rs",
         "src/overrides.rs",
+        "src/ownership.rs",
         "src/preflight.rs",
         "src/preset.rs",
         "src/preset_fragment.rs",

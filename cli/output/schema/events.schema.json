@@ -43,6 +43,9 @@
       "$ref": "#/$defs/operation"
     },
     {
+      "$ref": "#/$defs/owned_file"
+    },
+    {
       "$ref": "#/$defs/phase_finished"
     },
     {
@@ -1277,6 +1280,51 @@
         "event",
         "command",
         "phase"
+      ],
+      "additionalProperties": false
+    },
+    "owned_file": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "event": {
+          "const": "owned_file"
+        },
+        "correlation": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "owns": {
+          "enum": [
+            "whole",
+            "extends",
+            "keys",
+            "block",
+            "lines",
+            "pin",
+            "once"
+          ]
+        },
+        "state": {
+          "enum": [
+            "current",
+            "stale",
+            "missing",
+            "absent",
+            "yours"
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "event",
+        "path",
+        "owns",
+        "state"
       ],
       "additionalProperties": false
     },

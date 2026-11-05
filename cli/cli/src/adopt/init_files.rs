@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use dx_adopt::scaffold::ScaffoldFile;
-use dx_adopt::{AdoptError, Applied, FileKind};
+use dx_adopt::{AdoptError, Applied, FileKind, Ownership};
 use dx_plan::args::Agent;
 use dx_worktree::setup;
 
@@ -42,6 +42,30 @@ pub(super) struct InitFile {
     pub(super) content: String,
     pub(super) kind: Kind,
     pub(super) essential: bool,
+}
+
+impl InitFile {
+    /// What dx does to this file once you have edited it.
+    pub(super) fn ownership(&self) -> Ownership {
+        match self.kind {
+            Kind::Scaffold(kind) => match kind {
+                FileKind::WriteOnce if self.path == "MODULE.bazel" => Ownership::Lines,
+                FileKind::WriteOnce => Ownership::Once,
+                FileKind::VscodeKeys => Ownership::Keys,
+                FileKind::VscodeRecommendations | FileKind::Bazelignore => Ownership::Lines,
+                FileKind::CiPin(_) | FileKind::DevcontainerPins => Ownership::Pin,
+                FileKind::Generated => Ownership::Whole,
+            },
+            Kind::Launcher | Kind::Override => Ownership::Whole,
+            Kind::Preset if self.path == ".bazelrc" || self.path == ".gitignore" => {
+                Ownership::Lines
+            }
+            Kind::Preset => Ownership::Whole,
+            Kind::Hooks => Ownership::Keys,
+            Kind::AgentsBlock => Ownership::Block,
+            Kind::ClaudeImport | Kind::CopilotInstructions => Ownership::Lines,
+        }
+    }
 }
 
 /// The files each agent tool owns; the one place that maps an agent to its files.
@@ -583,6 +607,76 @@ mod tests {
             assert!(accounted, "{}", file.path);
         }
         scratch.close().expect("cleanup");
+    }
+
+    const INIT_DOC: &str = include_str!("../../../../docs/cli/commands/init.md");
+
+    /// The `(paths, label)` of each row in the "Fixed file set" table.
+    fn doc_rows() -> Vec<(Vec<String>, String)> {
+        let table = INIT_DOC
+            .split("## Fixed file set")
+            .nth(1)
+            .and_then(|rest| rest.split("\n## ").next())
+            .expect("fixed file set section");
+        table
+            .lines()
+            .filter(|line| line.starts_with("| `"))
+            .map(|line| {
+                let cells: Vec<&str> = line.split('|').map(str::trim).collect();
+                let paths = cells[1]
+                    .split('`')
+                    .skip(1)
+                    .step_by(2)
+                    .map(str::to_owned)
+                    .collect();
+                (paths, cells[2].to_owned())
+            })
+            .collect()
+    }
+
+    #[test]
+    fn init_doc_has_one_row_per_planned_file_with_the_ownership_label() {
+        let scratch = dx_test_scratch::scratch("dx-init-doc-rows-");
+        let root = scratch.path();
+        std::fs::write(root.join("app.py"), "print(1)\n").expect("source");
+        let rows = doc_rows();
+        let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
+        for file in &files {
+            let matching: Vec<&String> = rows
+                .iter()
+                .filter(|(paths, _)| {
+                    paths.iter().any(|path| {
+                        *path == file.path
+                            || (path.ends_with('/') && file.path.starts_with(path.as_str()))
+                    })
+                })
+                .map(|(_, label)| label)
+                .collect();
+            assert_eq!(matching.len(), 1, "{}: rows {matching:?}", file.path);
+            assert_eq!(
+                matching[0].as_str(),
+                file.ownership().label(),
+                "{}",
+                file.path
+            );
+        }
+        for (paths, _) in &rows {
+            for path in paths {
+                assert!(
+                    files.iter().any(|file| file.path == *path
+                        || (path.ends_with('/') && file.path.starts_with(path.as_str()))),
+                    "row {path} is not planned"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn init_doc_describes_every_ownership_label() {
+        for ownership in dx_adopt::Ownership::ALL {
+            let entry = format!("- `{}`: ", ownership.label());
+            assert!(INIT_DOC.contains(&entry), "{}", ownership.label());
+        }
     }
 
     #[test]

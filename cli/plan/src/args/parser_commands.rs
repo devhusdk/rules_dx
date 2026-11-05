@@ -1021,6 +1021,10 @@ fn worktree_subcommands_parse_with_their_flags() {
             option: "--capabilities".to_owned(),
         })
     );
+    let got = parse(&strings(&["status", "--files"])).expect("status --files");
+    assert!(got.files);
+    assert!(!parse(&strings(&["status"])).expect("status").files);
+    assert!(parse(&strings(&["lint", "--files"])).is_err());
     let got = parse(&strings(&["worktree", "list", "--disk"])).expect("list --disk");
     assert!(got.disk);
     let got = parse(&strings(&["worktree", "--disk"])).expect("bare --disk");

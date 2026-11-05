@@ -6,6 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "cli/commands/README.md",
+    "cli/commands/init.md",
     "tutorial.md",
 ])
 

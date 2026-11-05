@@ -18,6 +18,7 @@ pub const EVENTS: &[&str] = &[
     "init_plan",
     "notice",
     "operation",
+    "owned_file",
     "phase_finished",
     "phase_started",
     "report",
@@ -205,6 +206,25 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     map.insert("status".to_owned(), Value::String(check.status.clone()));
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
+    Ok(Value::Object(map))
+}
+
+/// One file `dx init` writes, who owns it, and whether it is in step with the running dx.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwnedFileEvent {
+    pub path: String,
+    pub owns: String,
+    pub state: String,
+}
+
+pub fn owned_file_event(file: &OwnedFileEvent) -> Result<Value, OutputError> {
+    nonempty("path", &file.path)?;
+    nonempty("owns", &file.owns)?;
+    nonempty("state", &file.state)?;
+    let mut map = base("owned_file");
+    map.insert("path".to_owned(), Value::String(file.path.clone()));
+    map.insert("owns".to_owned(), Value::String(file.owns.clone()));
+    map.insert("state".to_owned(), Value::String(file.state.clone()));
     Ok(Value::Object(map))
 }
 
@@ -1556,6 +1576,23 @@ mod tests {
         let mut bad = miss;
         bad.changes[3].change = "added".to_owned();
         assert!(cache_miss_event(&bad).is_err());
+    }
+
+    #[test]
+    fn owned_file_event_shape() {
+        let file = OwnedFileEvent {
+            path: ".gitignore".to_owned(),
+            owns: "lines".to_owned(),
+            state: "current".to_owned(),
+        };
+        let event = owned_file_event(&file).expect("owned file");
+        assert_eq!(event["event"], "owned_file");
+        assert_eq!(event["path"], ".gitignore");
+        assert_eq!(event["owns"], "lines");
+        assert_eq!(event["state"], "current");
+        let mut bad = file.clone();
+        bad.state.clear();
+        assert!(owned_file_event(&bad).is_err());
     }
 
     #[test]

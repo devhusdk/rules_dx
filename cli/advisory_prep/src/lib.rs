@@ -20,8 +20,7 @@ use std::process::Command as Process;
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::{
     convert_entries, cpan_snapshot, fetch_plan, identity_bytes, needed_families,
-    split_cpansa_output, FetchLimits, PrepError, CPANSA_URL,
-    DEFAULT_LIMITS,
+    split_cpansa_output, FetchLimits, PrepError, CPANSA_URL, DEFAULT_LIMITS,
 };
 
 pub const DEFAULT_OUT: &str = ".dx/advisory";
@@ -200,11 +199,13 @@ fn prepare_cpan(
     options: &PrepareOptions,
 ) -> Result<dx_audit::advisory_prep::PreparedSnapshot, PrepError> {
     let output = match (&options.cpansa_output, &options.cpansa_dump) {
-        (Some(path), _) => std::fs::read_to_string(path).map_err(|error| PrepError::ArchiveRead {
-            family: "cpan".to_owned(),
-            path: path.display().to_string(),
-            detail: error.to_string(),
-        })?,
+        (Some(path), _) => {
+            std::fs::read_to_string(path).map_err(|error| PrepError::ArchiveRead {
+                family: "cpan".to_owned(),
+                path: path.display().to_string(),
+                detail: error.to_string(),
+            })?
+        }
         (None, Some(binary)) => run_cpansa_dump(binary)?,
         (None, None) => {
             return Err(PrepError::Usage {

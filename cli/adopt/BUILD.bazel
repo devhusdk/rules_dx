@@ -45,6 +45,7 @@ dx_rust_crate(
         "//patches/gcc_toolchain:sanitizer_spec.patch",
         "//patches/gcc_toolchain:target_identity_config.patch",
         "//patches/gcc_toolchain:target_identity_defs.patch",
+        "//patches/gcc_toolchain:target_identity_extension.patch",
         "//patches/protobuf:no_crate_universe.patch",
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_cuda:redist_cccl_key.patch",

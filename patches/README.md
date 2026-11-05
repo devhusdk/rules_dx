@@ -34,6 +34,8 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `rules_julia` | 0.8.0 | `package_name.patch`, `portable_cpu_target.patch` | Julia `package_name` attribute for the wrapper targets (periareon/rules_julia#42); package precompiles target portable CPUs so a cache built on one host loads on another (#6580) |
 | `rules_py` | 2.0.0-alpha.11 | `windows_venv.patch` | Python venvs on Windows |
 | `rules_py` | 2.0.0-alpha.11 | `py_cc_toolchain_platform.patch` | `py_cc_toolchain` picks the cc toolchain for the target platform |
+| `rules_py` | 2.0.0-alpha.11 | `native_sdist_toolchain_flags.patch` | Native sdist builds get the cc toolchain flags |
+| `rules_py` | 2.0.0-alpha.11 | `pep517_msvc.patch` | PEP 517 builds find the MSVC toolchain on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir (aspect-build/rules_ts#1001) |
 | `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes (`<iterator>`, `<memory>`, `<vector>`) with libc++, added to the headers that use them; `Exception.hh` includes `fmt/format.h` for fmt 12 |
 | `fmt` | 12.2.0.bcr.1 | none | Raises avro-cpp's fmt to a release with the libc++ include fix |
@@ -41,6 +43,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `gcc_toolchain` | 0.13.0 | `runtime_libs.patch` | Exposes the GCC runtime libraries (libstdc++, libgcc) to link actions |
 | `gcc_toolchain` | 0.13.0 | `target_identity_config.patch` | `cc_toolchain_config` takes `target_libc` and `target_system_name` and reports them instead of `local` |
 | `gcc_toolchain` | 0.13.0 | `target_identity_defs.patch` | Repository rule passes `target_libc` and `<arch>-linux-gnu` into the generated toolchain |
+| `gcc_toolchain` | 0.13.0 | `target_identity_extension.patch` | Module extension forwards `target_libc` and the target system name to the repository rule |
 | `windows_support` | 0.4.1 | `host_tools.patch` | Opt-in `host_tools` tag keeps the MSVC compiler tools and Windows SDK `bin` (hermeticbuild/windows_support#19) |
 | `windows_support` | 0.4.1 | `rules_dx_hosts.patch` | `host_tools` is on by default under `rules_dx`, so `@dx_msvc` has `cl.exe` |
 

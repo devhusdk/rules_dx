@@ -187,6 +187,12 @@ pub const OVERRIDES: &[Override] = &[
                 file: "target_identity_defs.patch",
                 content: include_str!("../../../patches/gcc_toolchain/target_identity_defs.patch"),
             },
+            OverridePatch {
+                file: "target_identity_extension.patch",
+                content: include_str!(
+                    "../../../patches/gcc_toolchain/target_identity_extension.patch"
+                ),
+            },
         ],
     },
     Override {
@@ -879,7 +885,7 @@ archive_override(
         };
         vec![
             family("rust", Some("rules_dx_rust"), "rules_rust"),
-            family("python", None, "aspect_rules_py"),
+            family("python", None, "rules_py"),
         ]
     }
 
@@ -900,7 +906,7 @@ archive_override(
         assert!(!paths(&files).iter().any(|p| p.contains("rules_rust.")));
         let module = &files[0].1;
         assert!(!module.contains("rules_rust"));
-        assert!(module.contains("aspect_rules_py"));
+        assert!(module.contains("rules_py"));
         assert!(module.contains("module_name = \"fmt\""));
         assert_eq!(files, render_in(&families(), &BTreeSet::new()));
     }

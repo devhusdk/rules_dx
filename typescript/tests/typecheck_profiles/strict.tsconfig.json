@@ -1,0 +1,4 @@
+{
+  "extends": "./.dx/config/tsconfig/strict.json",
+  "compilerOptions": {"module": "ESNext", "moduleResolution": "Bundler", "target": "ES2022"}
+}

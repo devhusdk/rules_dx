@@ -131,6 +131,8 @@ exports_files([
     "src/launcher.rs",
     "src/lib.rs",
     "src/version.rs",
+    "templates/config/tsconfig/standard.json",
+    "templates/config/tsconfig/strict.json",
 ])
 
 real_source_target(

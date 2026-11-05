@@ -1,0 +1,64 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("//quality:tsc_report.bzl", "tsc_report")
+load("//typescript/rules:defs.bzl", "typescript_project")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:private"],
+)
+
+[
+    copy_file(
+        name = "%s_base" % profile,
+        src = "//cli/adopt:templates/config/tsconfig/%s.json" % profile,
+        out = ".dx/config/tsconfig/%s.json" % profile,
+    )
+    for profile in ["standard", "strict"]
+]
+
+ts_config(
+    name = "standard_config",
+    src = "standard.tsconfig.json",
+    deps = [":standard_base"],
+)
+
+ts_config(
+    name = "strict_config",
+    src = "strict.tsconfig.json",
+    deps = [
+        ":standard_base",
+        ":strict_base",
+    ],
+)
+
+[
+    typescript_project(
+        name = profile,
+        srcs = ["src/main.ts"],
+        tsconfig = ":%s_config" % profile,
+        isolated_typecheck = False,
+        out_dir = profile,
+        transpiler = "tsc",
+    )
+    for profile in ["standard", "strict"]
+]
+
+[
+    tsc_report(
+        name = "%s_report" % profile,
+        kind = "stdout",
+        target = ":" + profile,
+    )
+    for profile in ["standard", "strict"]
+]
+
+[
+    diff_test(
+        name = "%s_test" % profile,
+        file1 = "%s.stdout.expected" % profile,
+        file2 = ":%s_report" % profile,
+    )
+    for profile in ["standard", "strict"]
+]

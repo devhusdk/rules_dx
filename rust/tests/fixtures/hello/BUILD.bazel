@@ -96,6 +96,11 @@ rust_static_library(
     crate_root = "src/staticlib.rs",
 )
 
+rust_test(
+    name = "hello_staticlib_test",
+    crate = ":hello_staticlib",
+)
+
 rustfmt_test(
     name = "hello_flavors_fmt_test",
     targets = [

@@ -162,7 +162,7 @@ _rust_forward_test = dx_executable_forward_rule(
     extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | dx_native_coverage_attrs() | {
         "crate": attr.label(
             doc = "The crate under test, so format checks reach its files.",
-            providers = [[_rust_common.crate_info]],
+            providers = [[_rust_common.crate_info], [_rust_common.test_crate_info]],
         ),
     },
     upstream_cfg = _cpp_runtime_transition,

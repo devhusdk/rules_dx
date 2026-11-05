@@ -18,7 +18,13 @@ python_test(
     dep_group = "sdist-native",
     main = "geohash_test.py",
     runner = "plain",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "//conditions:default": [
+            "@platforms//os:macos",
+            "@platforms//cpu:aarch64",
+        ],
+    }),
     deps = ["@dx_pypi_sdist//python_geohash"],
 )
 

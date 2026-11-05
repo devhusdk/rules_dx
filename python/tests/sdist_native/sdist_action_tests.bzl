@@ -17,7 +17,7 @@ def _host_paths(value):
         path = token.split("=")[-1]
         for prefix in ("-I", "-L", "-isystem"):
             path = path.removeprefix(prefix)
-        if path.startswith("/usr/") or path.startswith("/lib"):
+        if path.startswith("/usr/") or path.startswith("/lib") or path.startswith("/Library/Developer"):
             paths.append(path)
     return paths
 
@@ -63,13 +63,15 @@ def sdist_action_tests(name, target):
         target: The pep517_native_whl target of an sdist-only package.
     """
     tests = []
-    for compiler, rule in [("llvm", _llvm_test), ("gcc", _gcc_test)]:
+    linux = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+    macos = ["@platforms//os:macos", "@platforms//cpu:aarch64"]
+    for compiler, rule, constraints in [("llvm", _llvm_test, linux), ("gcc", _gcc_test, linux), ("llvm_macos", _llvm_test, macos)]:
         test = "%s_%s" % (name, compiler)
         rule(
             name = test,
             size = "small",
             testonly = True,
-            target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+            target_compatible_with = constraints,
             target_under_test = target,
         )
         tests.append(test)

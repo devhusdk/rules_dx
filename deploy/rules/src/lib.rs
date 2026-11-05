@@ -76,7 +76,7 @@ mod tests {
             space_default: "",
             url_default: "https://octopus.example.invalid",
         };
-        assert_eq!(archive_main("a", "b", "c", &argv), 1);
+        assert_eq!(archive_main("a", "b", "c", 0, &argv), 1);
         assert_eq!(pypi_main("a", "b", "c", "https://pypi.invalid", &argv), 1);
         assert_eq!(
             nuget_main("a", "b", "", "", "https://nuget.invalid", &argv),
@@ -107,6 +107,7 @@ mod tests {
                 "demo/app",
                 "1.0.0",
                 "linux/amd64",
+                0,
                 &argv
             ),
             1
@@ -133,7 +134,7 @@ mod tests {
             ],
             || {
                 let missing = "dx-absent-pinned-input-xyz";
-                assert_eq!(archive_main(missing, missing, missing, &argv), 1);
+                assert_eq!(archive_main(missing, missing, missing, 0, &argv), 1);
                 assert_eq!(
                     pypi_main(missing, missing, "demo", "https://pypi.invalid", &argv),
                     1
@@ -173,6 +174,7 @@ mod tests {
                         "demo/app",
                         "1.0.0",
                         "linux/amd64",
+                        0,
                         &argv
                     ),
                     1
@@ -374,6 +376,7 @@ mod tests {
                         "demo/app",
                         "0.0.0",
                         "linux/amd64",
+                        0,
                         &argv
                     ),
                     1
@@ -482,6 +485,7 @@ mod tests {
                         "app_name.txt",
                         "release_demo.tar.gz",
                         "release_demo.tar.gz.sha256",
+                        0,
                         &argv
                     ),
                     0
@@ -635,6 +639,7 @@ mod tests {
                         "demo/app",
                         "1.0.0",
                         "linux/amd64",
+                        0,
                         &argv
                     ),
                     0
@@ -810,16 +815,15 @@ mod tests {
     /// module (and later crate) split cannot silently change the facade.
     #[test]
     fn crate_root_keeps_launcher_entry_points() {
-        type Main3 = fn(&str, &str, &str, &[String]) -> i32;
         type Main4 = fn(&str, &str, &str, &str, &[String]) -> i32;
         type Main5 = fn(&str, &str, &str, &str, &str, &[String]) -> i32;
-        let archive: Main3 = crate::archive_main;
+        let archive: fn(&str, &str, &str, u64, &[String]) -> i32 = crate::archive_main;
         let pypi: Main4 = crate::pypi_main;
         let nuget: Main5 = crate::nuget_main;
         let crates: fn(&[String], &str, &str, &[String]) -> i32 = crate::crates_main;
         let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
         let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;
-        let oci: Main5 = crate::oci_main;
+        let oci: fn(&str, &str, &str, &str, &str, u64, &[String]) -> i32 = crate::oci_main;
         let promotion: Main5 = crate::promotion_main;
         let octopus: fn(&crate::OctopusLaunch<'_>, &[String]) -> i32 = crate::octopus_main;
         let npm_deploy: fn(&[String], &str, &str) -> i32 = crate::npm_deploy_main;

@@ -5,6 +5,7 @@ load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":resources.bzl", "resource_path_error")
+load(":validate.bzl", "size_budget_bytes", "size_budget_error")
 
 _ARCHIVER = Label("//deploy/rules:archiver")
 _HASHER = str(Label("//deploy/rules:hasher"))
@@ -70,6 +71,7 @@ def _archive_config_impl(ctx):
         {
             "app_rloc": rlocation_path(ctx, app),
             "checksum_rloc": rlocation_path(ctx, checksum),
+            "size_budget_bytes": ctx.attr.size_budget_bytes,
             "tarball_rloc": rlocation_path(ctx, tarball),
         },
         ctx.runfiles(files = [app, tarball, checksum]),
@@ -81,6 +83,7 @@ _archive_config = rule(
     attrs = {
         "app_name": attr.label(mandatory = True, doc = "Text file with the app basename."),
         "checksum": attr.label(mandatory = True, doc = "Tarball sha256 file."),
+        "size_budget_bytes": attr.int(doc = "Largest allowed tarball size in bytes, 0 for no budget.", default = 0),
         "tarball": attr.label(mandatory = True, doc = "Release tarball."),
     },
 )
@@ -89,8 +92,11 @@ def archive_filenames(name, format = "tar.gz"):
     """Returns the deterministic (archive, checksum) output names."""
     return (name + "." + format, name + "." + format + ".sha256")
 
-def archive_deploy(name, app, profile = "release"):
-    """Packages one executable as a deployable tarball and sha256 file."""
+def archive_deploy(name, app, profile = "release", size_budget = ""):
+    """Packages one executable as a deployable tarball and sha256 file, optionally failing above size_budget such as '25MB'."""
+    budget_error = size_budget_error(size_budget)
+    if budget_error != "":
+        fail(budget_error + " (in " + native.package_name() + ":" + name + ")")
     (tarball, checksum) = archive_filenames(name)
     archive_target = name + "_archive"
     checksum_target = name + "_checksum"
@@ -128,6 +134,7 @@ def archive_deploy(name, app, profile = "release"):
         name = config_target,
         app_name = ":" + app_name_target,
         checksum = ":" + checksum_target,
+        size_budget_bytes = size_budget_bytes(size_budget),
         tarball = ":" + archive_target,
     )
 

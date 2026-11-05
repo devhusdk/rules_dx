@@ -212,6 +212,36 @@ pub fn deploy_profile() -> String {
     std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned())
 }
 
+/// Returns the bytes in one file, or the total bytes of every file under one directory.
+pub(crate) fn tree_bytes(path: &Path) -> std::io::Result<u64> {
+    let meta = std::fs::metadata(path)?;
+    if !meta.is_dir() {
+        return Ok(meta.len());
+    }
+    let mut total = 0;
+    for entry in std::fs::read_dir(path)? {
+        total += tree_bytes(&entry?.path())?;
+    }
+    Ok(total)
+}
+
+/// Fails when one deployable is larger than its size budget, naming both sizes in bytes.
+///
+/// A budget of 0 means no budget.
+pub(crate) fn check_size_budget(
+    tool: &str,
+    what: &str,
+    bytes: u64,
+    budget: u64,
+) -> Result<(), String> {
+    if budget == 0 || bytes <= budget {
+        return Ok(());
+    }
+    Err(format!(
+        "{tool}: {what} is {bytes} bytes, over the size_budget of {budget} bytes"
+    ))
+}
+
 /// One deploy launcher run: its name and its output directory.
 pub struct DeployRun {
     tool: &'static str,
@@ -522,5 +552,41 @@ mod tests {
         with_env(&[("DX_PROFILE", Some("release"))], || {
             assert_eq!(deploy_profile(), "release");
         });
+    }
+}
+
+#[cfg(test)]
+mod size_budget_tests {
+    use super::*;
+    use crate::test_support::scratch_dir;
+
+    #[test]
+    fn check_size_budget_names_both_sizes() {
+        assert_eq!(
+            check_size_budget("archive_deploy", "tarball", 2_000_000, 1_000_000),
+            Err(
+                "archive_deploy: tarball is 2000000 bytes, over the size_budget of 1000000 bytes"
+                    .to_owned()
+            )
+        );
+        assert_eq!(
+            check_size_budget("archive_deploy", "tarball", 1_000_000, 1_000_000),
+            Ok(())
+        );
+        assert_eq!(
+            check_size_budget("oci_deploy", "image", 2_000_000, 0),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn tree_bytes_sums_a_directory_tree() {
+        let scratch = scratch_dir();
+        let layout = scratch.path().join("layout");
+        std::fs::create_dir_all(layout.join("blobs")).expect("layout");
+        std::fs::write(layout.join("blobs/a"), [0u8; 3]).expect("blob");
+        std::fs::write(layout.join("index.json"), [0u8; 5]).expect("index");
+        assert_eq!(tree_bytes(&layout).expect("tree"), 8);
+        assert_eq!(tree_bytes(&layout.join("index.json")).expect("file"), 5);
     }
 }

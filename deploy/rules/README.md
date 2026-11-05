@@ -242,6 +242,9 @@ archive_deploy(
 
 - `app`: required. One executable target. It is the only tarball member.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `size_budget`: optional, such as `25MB`. A decimal `B`, `KB`, `MB` or `GB`
+  amount. The run fails before copying when the tarball is larger, and
+  prints both sizes in bytes. Empty means no budget.
 
 For an app built with GCC on Linux, `@rules_dx//cc/toolchains:gcc_linux_glibc`
 is a reviewed `os_supplied` runtime that records the pinned glibc floor.
@@ -480,6 +483,10 @@ oci_deploy(
 - `repository`: lowercase OCI path segments. Defaults to `name`, so a
   mixed-case target needs `repository` set.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+- `size_budget`: optional, such as `500MB`. A decimal `B`, `KB`, `MB` or `GB`
+  amount. The run fails before staging or pushing when the image (the
+  archive file, or the layout directory tree) is larger, and prints both
+  sizes in bytes. Empty means no budget.
 
 Default run stages `<repository>-oci-layout/` with an `index.json`. No
 credentials needed.

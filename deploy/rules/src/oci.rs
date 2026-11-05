@@ -2,7 +2,10 @@
 
 use crate::archive::*;
 use crate::registry;
-use crate::run::{deploy_profile, env_or_empty, placeholder_refusal, DeployRun, OwnerGate};
+use crate::run::{
+    check_size_budget, deploy_profile, env_or_empty, placeholder_refusal, tree_bytes, DeployRun,
+    OwnerGate,
+};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
@@ -1067,6 +1070,7 @@ pub fn oci_main(
     repository: &str,
     tag: &str,
     platform: &str,
+    size_budget: u64,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -1080,6 +1084,17 @@ pub fn oci_main(
     let Some(image) = run.resolve_anchored(image_rloc, "index.json") else {
         return 1;
     };
+    let bytes = match tree_bytes(&image) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            eprintln!("oci_deploy: cannot measure {}: {error}", image.display());
+            return 1;
+        }
+    };
+    if let Err(error) = check_size_budget("oci_deploy", "image", bytes, size_budget) {
+        eprintln!("{error}");
+        return 1;
+    }
     if OCI_GATE.requested(env_or_empty) {
         if let Some(error) = placeholder_refusal("oci_deploy", tag) {
             eprintln!("{error}");

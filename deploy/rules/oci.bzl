@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars")
+load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars", "size_budget_bytes", "size_budget_error")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
@@ -131,6 +131,7 @@ def _oci_config_impl(ctx):
             "platform": ctx.attr.platform,
             "registry": ctx.attr.registry,
             "repository": ctx.attr.repository,
+            "size_budget_bytes": ctx.attr.size_budget_bytes,
             "tag": ctx.attr.tag,
         },
         ctx.runfiles(files = [tar_file]),
@@ -144,6 +145,10 @@ _oci_config = rule(
             doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed, gzip, or zstd layers.",
             allow_single_file = True,
             mandatory = True,
+        ),
+        "size_budget_bytes": attr.int(
+            doc = "Largest allowed image size in bytes, 0 for no budget.",
+            default = 0,
         ),
         "registry": attr.string(
             doc = "Container registry host the image is pushed to.",
@@ -164,9 +169,12 @@ _oci_config = rule(
     },
 )
 
-def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release"):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment."""
+def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release", size_budget = ""):
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB'."""
     effective_repo = repository if repository != "" else name
+    budget_error = size_budget_error(size_budget)
+    if budget_error != "":
+        fail(budget_error + " (in " + native.package_name() + ":" + name + ")")
     platform_error = oci_platform_error(platform)
     if platform_error != "":
         fail(platform_error + " (in " + native.package_name() + ":" + name + ")")
@@ -186,6 +194,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
         image_tar = image_tar,
         registry = registry,
         repository = effective_repo,
+        size_budget_bytes = size_budget_bytes(size_budget),
         tag = tag,
         platform = platform,
     )

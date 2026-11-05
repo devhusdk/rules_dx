@@ -27,7 +27,7 @@ load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_with_tag", "dx_wrap_forward_kwargs")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":providers.bzl", "OCamlCmtInfo", "bin_annot_opts", "cmt_entries")
+load(":providers.bzl", "OCamlCmtInfo", "bin_annot_opts", "cmt_entries", "unused_warning_opts")
 
 ocamllex = _ocamllex
 
@@ -285,12 +285,12 @@ def ocaml_module(name, struct, sig = None, visibility = None, **kwargs):
         module_name = default_module_name(name, sig)
         if module_name != None:
             kwargs["module_name"] = module_name
-    kwargs["opts"] = bin_annot_opts(kwargs.get("opts"))
+    kwargs["opts"] = unused_warning_opts(bin_annot_opts(kwargs.get("opts")))
     _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct))
 
 def ocaml_signature(name, src, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_signature rule."""
-    kwargs["opts"] = bin_annot_opts(kwargs.get("opts"))
+    kwargs["opts"] = unused_warning_opts(bin_annot_opts(kwargs.get("opts")))
     _library_shape(name, _ocaml_signature, _signature_forward, owned_sources(src), visibility, dict(kwargs, src = src))
 
 def ocaml_library(name, visibility = None, **kwargs):

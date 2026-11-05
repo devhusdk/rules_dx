@@ -2,7 +2,7 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "binary_forward_kwargs", "binary_upstream_kwargs", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
-load(":providers.bzl", "bin_annot_opts", "cmt_entries")
+load(":providers.bzl", "bin_annot_opts", "cmt_entries", "unused_warning_opts")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -199,6 +199,16 @@ dx_wrapper_contract_tests(
             "-no-bin-annot opts out",
             bin_annot_opts(["-no-bin-annot"]),
             ["-no-bin-annot"],
+        ),
+        expect_equal(
+            "modules get the unused-code warnings",
+            unused_warning_opts(bin_annot_opts(None)),
+            ["-bin-annot", "-w", "+26+27+32..39"],
+        ),
+        expect_equal(
+            "a target's own -w replaces the unused-code warnings",
+            unused_warning_opts(["-w", "-27"]),
+            ["-w", "-27"],
         ),
         expect_equal(
             "a struct and sig expose both",

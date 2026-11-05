@@ -80,6 +80,8 @@ ocaml_test(
   `-no-bin-annot`) and expose their `.cmt` and `.cmti` files through
   `OCamlCmtInfo` (`//ocaml/rules:providers.bzl`) and the `cmt` and `cmti`
   output groups.
+- Modules and signatures warn on unused variables and values (`-w +26+27+32..39`)
+  unless their opts set `-w`.
 - Data files of a binary or test are in its runfiles.
 
 ## Native code

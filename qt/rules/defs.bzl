@@ -615,6 +615,13 @@ def _no_object_linkopts():
         "//conditions:default": [],
     })
 
+def _link_static(static):
+    # A Windows DLL cannot carry the main of an executable, so the library goes into the binary.
+    return True if static else select({
+        "@platforms//os:windows": True,
+        "//conditions:default": False,
+    })
+
 def _pic_copts():
     return select({
         "@platforms//os:windows": [],
@@ -692,7 +699,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
         copts = copts + _include_copts(name),
         deps = effective_deps,
         alwayslink = True,
-        linkstatic = static,
+        linkstatic = _link_static(static),
         linkopts = upstream_linkopts,
         tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],

@@ -1199,7 +1199,7 @@ fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
     std::fs::create_dir_all(work.join(CONSUMER_DIR)).expect("stale");
     std::fs::write(work.join(CONSUMER_DIR).join("stale"), "x").expect("stale file");
     let runner = FakeRunner::new();
-    let dir = stage_consumer(&consumer, Path::new("dx"), work, &runner).expect("stage");
+    let dir = stage_consumer(&consumer, Path::new("dx"), work, false, &runner).expect("stage");
     assert_eq!(dir, work.join(CONSUMER_DIR));
     assert!(!dir.join("stale").exists());
     assert_eq!(
@@ -1220,6 +1220,19 @@ fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
         consumer_module(SNIPPET, &consumer.checkout).expect("module")
     );
     assert_eq!(runner.calls.borrow().len(), 1);
+    assert!(!dir.join(".bazelrc").exists());
+}
+
+#[test]
+fn stage_consumer_writes_the_windows_flags_after_the_init_bazelrc() {
+    let fixture = synthetic("tar.gz", |_| {});
+    let consumer = consumer_of(&fixture);
+    let work = &fixture.inputs.work;
+    let runner = FakeRunner::new();
+    let dir = stage_consumer(&consumer, Path::new("dx"), work, true, &runner).expect("stage");
+    let rc = std::fs::read_to_string(dir.join(".bazelrc")).expect("rc");
+    assert!(rc.contains("startup --output_user_root=C:/bz\n"));
+    assert!(rc.contains("common --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n"));
 }
 
 #[test]
@@ -1227,7 +1240,7 @@ fn stage_consumer_reports_each_stage_that_fails() {
     let fixture = synthetic("tar.gz", |_| {});
     let work = &fixture.inputs.work;
     let run = |consumer: &Consumer, runner: &FakeRunner| {
-        stage_consumer(consumer, Path::new("dx"), work, runner).expect_err("stage fails")
+        stage_consumer(consumer, Path::new("dx"), work, false, runner).expect_err("stage fails")
     };
     let good = consumer_of(&fixture);
     let missing = Consumer {

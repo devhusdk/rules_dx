@@ -22,6 +22,13 @@ pub const CONSUMER_FILES: [(&str, &str); 2] = [
     ("lib.rs", "src/lib.rs"),
 ];
 
+/// The Windows flags the repository `.bazelrc` sets: a short output root, symlinks and the MSVC EULAs.
+const WINDOWS_BAZELRC: &str = "startup --output_user_root=C:/bz
+startup --windows_enable_symlinks
+common --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
+common --repo_env=BAZEL_WINDOWS_SDK_EULA=1
+";
+
 /// Every check `qualify` records, in run order.
 pub const CHECKS: [&str; 12] = [
     "format",
@@ -351,6 +358,7 @@ pub fn stage_consumer(
     consumer: &Consumer,
     exe: &Path,
     work: &Path,
+    windows: bool,
     runner: &dyn Runner,
 ) -> Result<PathBuf, String> {
     let dir = work.join(CONSUMER_DIR);
@@ -395,6 +403,16 @@ pub fn stage_consumer(
         copy(consumer.template.join(source), dest)?;
     }
     copy(consumer.checkout.join(".bazelversion"), ".bazelversion")?;
+    if windows {
+        let rc = dir.join(".bazelrc");
+        let mut text = std::fs::read_to_string(&rc).unwrap_or_default();
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str(WINDOWS_BAZELRC);
+        std::fs::write(&rc, text)
+            .map_err(|error| format!("stage: cannot write .bazelrc: {error}"))?;
+    }
     Ok(dir)
 }
 
@@ -563,7 +581,13 @@ fn installed_checks(
     };
     verdicts.note(
         "consumer",
-        stage_consumer(consumer, &moved_exe, &inputs.work, runner).and_then(|dir| {
+        stage_consumer(
+            consumer,
+            &moved_exe,
+            &inputs.work,
+            cell.os == "windows",
+            runner,
+        ).and_then(|dir| {
             ["build", "test", "check"]
                 .into_iter()
                 .try_for_each(|command| {

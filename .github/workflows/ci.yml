@@ -441,7 +441,8 @@ jobs:
           : > "$RUNNER_TEMP/starter-skipped"
           for label in $targets; do
             path="${label#//}"
-            if [ -f "${testlogs}/${path/:/\/}/test.xml" ]; then
+            path="$(printf %s "$path" | tr : /)"
+            if [ -f "${testlogs}/${path}/test.xml" ]; then
               ran=$((ran + 1))
               echo "$label" >> "$RUNNER_TEMP/starter-ran"
             else

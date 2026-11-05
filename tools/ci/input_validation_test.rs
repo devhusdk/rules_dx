@@ -435,3 +435,31 @@ fn callers_request_only_mapped_platforms() {
         }
     }
 }
+
+#[test]
+fn deployables_accept_empty_and_label_lists() {
+    use input_validation::validate_deployables;
+    assert_eq!(validate_deployables("").unwrap(), Vec::<String>::new());
+    assert_eq!(
+        validate_deployables(r#"["//pkg:npm", "@repo//pkg:github"]"#).unwrap(),
+        vec!["//pkg:npm".to_string(), "@repo//pkg:github".to_string()]
+    );
+}
+
+#[test]
+fn deployables_reject_bad_input() {
+    use input_validation::validate_deployables;
+    for (text, says) in [
+        ("[]", "empty array"),
+        ("{}", "not an array"),
+        ("//pkg:npm", "not a JSON array"),
+        ("[1]", "not a label string"),
+        (r#"["pkg:npm"]"#, "not a Bazel label"),
+        (r#"["//pkg"]"#, "not a Bazel label"),
+        (r#"["//pkg:a b"]"#, "not a Bazel label"),
+        (r#"["//pkg:a","//pkg:a"]"#, "twice"),
+    ] {
+        let error = validate_deployables(text).unwrap_err();
+        assert!(error.contains(says), "{text}: {error}");
+    }
+}

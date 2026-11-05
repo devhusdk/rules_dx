@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 pub const PLATFORMS_ENV: &str = "DX_PLATFORMS";
+pub const DEPLOYABLES_ENV: &str = "DX_DEPLOYABLES";
 pub const DISABLED_ENV: &str = "DX_DISABLED_CHECKS";
 pub const MIN_COVERAGE_ENV: &str = "DX_MIN_COVERAGE";
 pub const MIN_CHANGED_ENV: &str = "DX_MIN_CHANGED_LINE_COVERAGE";
@@ -365,6 +366,68 @@ pub fn validate_platforms(text: &str) -> Result<Vec<String>, String> {
                 "{PLATFORMS_ENV} lists '{label}' twice. List every platform once."
             ));
         }
+    }
+    Ok(labels)
+}
+
+/// Validates the release workflow `deployables` input: empty, or a non-empty JSON array of Bazel labels.
+pub fn validate_deployables(text: &str) -> Result<Vec<String>, String> {
+    if text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let hint = "Pass a JSON array of labels such as [\"//pkg:npm\"], or leave it empty to publish every dx_deployment tagged release.";
+    let parsed = parse_json(text)
+        .map_err(|error| format!("{DEPLOYABLES_ENV} is not a JSON array: {error}. {hint}"))?;
+    let Json::Array(items) = parsed else {
+        return Err(format!(
+            "{DEPLOYABLES_ENV} is a JSON {}, not an array. {hint}",
+            parsed.type_name()
+        ));
+    };
+    if items.is_empty() {
+        return Err(format!("{DEPLOYABLES_ENV} is an empty array. {hint}"));
+    }
+    let mut labels: Vec<String> = Vec::new();
+    for item in &items {
+        let Json::Str(label) = item else {
+            return Err(format!(
+                "{DEPLOYABLES_ENV} holds a JSON {}, not a label string. {hint}",
+                item.type_name()
+            ));
+        };
+        let (repo, rest) = match label.find("//") {
+            Some(at) => label.split_at(at),
+            None => ("", label.as_str()),
+        };
+        let repo_ok = repo.is_empty()
+            || repo
+                .strip_prefix('@')
+                .map(|name| name.trim_start_matches('@'))
+                .is_some_and(|name| {
+                    name.chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "_.~+-".contains(c))
+                });
+        let target_ok = rest
+            .strip_prefix("//")
+            .and_then(|r| r.split_once(':'))
+            .is_some_and(|(package, name)| {
+                !name.is_empty()
+                    && package
+                        .chars()
+                        .chain(name.chars())
+                        .all(|c| c.is_ascii_alphanumeric() || "_./+-".contains(c))
+            });
+        if !repo_ok || !target_ok {
+            return Err(format!(
+                "{DEPLOYABLES_ENV} holds '{label}', which is not a Bazel label like //pkg:name. {hint}"
+            ));
+        }
+        if labels.contains(label) {
+            return Err(format!(
+                "{DEPLOYABLES_ENV} lists '{label}' twice. List every deployable once."
+            ));
+        }
+        labels.push(label.clone());
     }
     Ok(labels)
 }

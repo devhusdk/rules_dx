@@ -7,6 +7,52 @@ load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
 load(":proto.bzl", "csharp_proto_srcs")
 
+_BENCHMARKDOTNET = [
+    Label("@paket.main//azure.core"),
+    Label("@paket.main//azure.identity"),
+    Label("@paket.main//benchmarkdotnet"),
+    Label("@paket.main//benchmarkdotnet.annotations"),
+    Label("@paket.main//commandlineparser"),
+    Label("@paket.main//gee.external.capstone"),
+    Label("@paket.main//iced"),
+    Label("@paket.main//microsoft.bcl.asyncinterfaces"),
+    Label("@paket.main//microsoft.codeanalysis.analyzers"),
+    Label("@paket.main//microsoft.codeanalysis.csharp"),
+    Label("@paket.main//microsoft.codeanalysis.common"),
+    Label("@paket.main//microsoft.diagnostics.netcore.client"),
+    Label("@paket.main//microsoft.diagnostics.runtime"),
+    Label("@paket.main//microsoft.diagnostics.tracing.traceevent"),
+    Label("@paket.main//microsoft.dotnet.platformabstractions"),
+    Label("@paket.main//microsoft.extensions.configuration.abstractions"),
+    Label("@paket.main//microsoft.extensions.dependencyinjection.abstractions"),
+    Label("@paket.main//microsoft.extensions.diagnostics.abstractions"),
+    Label("@paket.main//microsoft.extensions.fileproviders.abstractions"),
+    Label("@paket.main//microsoft.extensions.hosting.abstractions"),
+    Label("@paket.main//microsoft.extensions.logging.abstractions"),
+    Label("@paket.main//microsoft.extensions.options"),
+    Label("@paket.main//microsoft.extensions.primitives"),
+    Label("@paket.main//microsoft.identity.client"),
+    Label("@paket.main//microsoft.identity.client.extensions.msal"),
+    Label("@paket.main//microsoft.identitymodel.abstractions"),
+    Label("@paket.main//microsoft.security.antissrf"),
+    Label("@paket.main//microsoft.win32.registry"),
+    Label("@paket.main//perfolizer"),
+    Label("@paket.main//pragmastat"),
+    Label("@paket.main//system.clientmodel"),
+    Label("@paket.main//system.codedom"),
+    Label("@paket.main//system.collections.immutable"),
+    Label("@paket.main//system.diagnostics.diagnosticsource"),
+    Label("@paket.main//system.management"),
+    Label("@paket.main//system.memory.data"),
+    Label("@paket.main//system.reflection.metadata"),
+    Label("@paket.main//system.reflection.typeextensions"),
+    Label("@paket.main//system.runtime.compilerservices.unsafe"),
+    Label("@paket.main//system.security.accesscontrol"),
+    Label("@paket.main//system.security.cryptography.protecteddata"),
+    Label("@paket.main//system.security.principal.windows"),
+    Label("@paket.main//system.text.json"),
+]
+
 # Set False to tag csharp tests dx-no-coverage-collector instead of running coverlet.
 CSHARP_COVERAGE_COLLECTOR = True
 
@@ -126,3 +172,13 @@ def csharp_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over csharp_test; target_frameworks defaults to net10.0 and warnings are errors."""
     upstream = csharp_tfm_with_defaults(kwargs)
     dx_wrap_test(name, _csharp_test, _csharp_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), coverage_collector = CSHARP_COVERAGE_COLLECTOR, **kwargs)
+
+def csharp_benchmark(name, srcs, deps = None, tags = None, **kwargs):
+    """A csharp_test that runs the [Benchmark] classes in srcs with BenchmarkDotNet and writes dx-bench.json."""
+    csharp_test(
+        name = name,
+        srcs = srcs + [Label("//csharp/rules:BenchMain.cs")],
+        deps = (deps or []) + _BENCHMARKDOTNET,
+        tags = (tags or []) + ["dx-bench", "manual"],
+        **kwargs
+    )

@@ -7,6 +7,7 @@ load(":proto.bzl", "pascal_case")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "BenchMain.cs",
     "coverage_check.bzl",
     "defs.bzl",
     "proto.bzl",
@@ -103,7 +104,8 @@ real_source_target(
     aspect_hints = ["@rules_dx//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "coverage_check.bzl",
+        "BenchMain.cs",
+    "coverage_check.bzl",
         "defs.bzl",
     ],
     tags = ["corpus"],

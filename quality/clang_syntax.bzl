@@ -30,6 +30,7 @@ _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 # Flags that produce build outputs and are not wanted for a syntax-only run.
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
 _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
+_GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
 _MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
 
 def _msvc_dropped(arg):
@@ -170,6 +171,8 @@ def clang_tidy_argv(tidy, argv, src, identity, config = ""):
     dropped_src = False
     for arg in rewritten.argv[1:]:
         if arg == "-fsyntax-only":
+            continue
+        if identity.family == "gcc" and arg in _GCC_ONLY:
             continue
         if arg == src and not dropped_src:
             dropped_src = True

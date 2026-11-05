@@ -41,6 +41,11 @@ def clang_syntax_unit_tests(name):
                 ["tidy", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],
             ),
             expect_equal(
+                "clang-tidy drops gcc-only flags under gcc",
+                clang_tidy_argv("tidy", ["/usr/bin/gcc", "-fno-canonical-system-headers", "-DX=1", "-c", "a.c"], "a.c", _GCC).argv,
+                ["tidy", "a.c", "--", "-DX=1", "-c"],
+            ),
+            expect_equal(
                 "clang-tidy keeps Apple placeholders for the runner and Objective-C flags",
                 clang_tidy_argv("tidy", ["wrapped_clang", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m", _LLVM).argv[:6],
                 ["tidy", "pkg/a.m", "--", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc"],

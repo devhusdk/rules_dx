@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
-for launcher in "$@"; do
-  "$launcher"
+while [ "$#" -gt 0 ]; do
+  DX_SIMCTL_OP="$1" "$2"
+  shift 2
 done

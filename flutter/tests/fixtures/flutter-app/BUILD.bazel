@@ -50,15 +50,24 @@ sh_test(
     size = "small",
     srcs = ["ios/simulator_smoke.sh"],
     args = [
+        "boot",
         "$(rootpath :ios_boot)",
+        "install",
         "$(rootpath :ios_install)",
+        "launch",
         "$(rootpath :ios_launch)",
     ],
     data = [
         ":ios_boot",
         ":ios_install",
+        ":ios_install_app",
         ":ios_launch",
     ],
+    env = {
+        "DX_SIMCTL_APP": "$(rootpath :ios_install_app)",
+        "DX_SIMCTL_BUNDLE_ID": "dk.devhus.flutterapp",
+        "DX_SIMCTL_DEVICE": "iPhone 16",
+    },
     tags = [
         "exclusive",
         "local",

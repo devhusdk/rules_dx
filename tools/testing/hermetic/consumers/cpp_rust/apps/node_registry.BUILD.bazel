@@ -1,7 +1,10 @@
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm_consumer_app//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
 
 _PUBLIC = ["//visibility:public"]
+
+npm_link_all_packages(name = "node_modules")
 
 genrule(
     name = "build_info",
@@ -23,7 +26,7 @@ typescript_project(
     visibility = _PUBLIC,
     deps = [
         "//javascript/tests/fixtures/node-app:node_modules/@types/semver",
-        "//javascript/tests/fixtures/node-app:node_modules/semver",
+        ":node_modules/semver",
     ],
 )
 

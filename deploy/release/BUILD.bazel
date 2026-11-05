@@ -510,6 +510,17 @@ notice_bundle(
 )
 
 notice_bundle(
+    name = "notice_runtime_demo",
+    inventory = ":notice_demo_inventory.txt",
+    root = "//deploy/release:notice_runtime_demo",
+    runtimes = ":runtime_inventory_test_inventory_runtimes",
+    texts = [
+        ":notice_demo_a.txt",
+        ":notice_demo_b.txt",
+    ],
+)
+
+notice_bundle(
     name = "notice_shared_demo",
     inventory = ":notice_shared_inventory.txt",
     root = "//deploy/release:notice_shared_demo",
@@ -592,6 +603,12 @@ notice_file_tests(
 )
 
 notice_file_tests(
+    name = "notice_runtime_demo_lists_runtime",
+    notice = ":notice_runtime_demo_notice",
+    want = "=== native runtimes ===\n=== runtime_inventory_test_runtime 1.2 (app_local) [runtime] ===\nruntime notice words",
+)
+
+notice_file_tests(
     name = "notice_shared_demo_contains_words",
     notice = ":notice_shared_demo_notice",
     want = "=== shared 1.0.0 (MIT) [cargo] ===\nFixture license words for shared (cargo).\n=== shared 1.0.0 (MIT) [npm] ===\nFixture license words for shared (npm).",
@@ -608,6 +625,7 @@ test_suite(
         ":inventory_unit",
         ":matrix_unit",
         ":notice_demo_contains_words",
+        ":notice_runtime_demo_lists_runtime",
         ":notice_shared_demo_contains_words",
         ":notice_unit",
         ":release_artifacts_verify",

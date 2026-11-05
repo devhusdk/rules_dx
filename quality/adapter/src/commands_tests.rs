@@ -3518,3 +3518,30 @@ fn terraform_validate_chdirs_before_the_subcommand() {
         ]
     );
 }
+
+#[test]
+fn trivy_config_runs_offline_against_the_cache_dir() {
+    let invocation = trivy_config_check(
+        Path::new(BIN),
+        Path::new("/scratch/Dockerfile"),
+        Path::new("/cache/trivy"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "config",
+            "--format",
+            "json",
+            "--exit-code",
+            "0",
+            "--quiet",
+            "--skip-check-update",
+            "--disable-telemetry",
+            "--cache-dir",
+            "/cache/trivy",
+            "--",
+            "/scratch/Dockerfile",
+        ]
+    );
+}

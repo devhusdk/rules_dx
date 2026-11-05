@@ -374,6 +374,16 @@ const ZIZMOR_PREFIX: &[&str] = &[
 const KNIP_PREFIX: &[&str] = &["--reporter", "json", "--no-progress"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
+const TRIVY_CONFIG_PREFIX: &[&str] = &[
+    "config",
+    "--format",
+    "json",
+    "--exit-code",
+    "0",
+    "--quiet",
+    "--skip-check-update",
+    "--disable-telemetry",
+];
 const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
 const STATIX_FIX_PREFIX: &[&str] = &["fix"];
 const END_OF_FLAGS: &[&str] = &["--"];
@@ -2584,6 +2594,20 @@ pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
         Some(config),
         HADOLINT_TAIL,
         files,
+        "",
+    )
+}
+
+/// Reads the checks bundle from `--cache-dir <cache>` and never touches the network.
+/// trivy config scans one target per call.
+pub fn trivy_config_check(binary: &Path, file: &Path, cache_dir: &Path) -> Invocation {
+    required_flag(
+        binary,
+        TRIVY_CONFIG_PREFIX,
+        "--cache-dir",
+        cache_dir,
+        END_OF_FLAGS,
+        &[file],
         "",
     )
 }

@@ -122,6 +122,7 @@ pub mod tflint;
 pub mod thrift;
 pub mod tinymist;
 pub mod topiary;
+pub mod trivy_config;
 pub mod tsc;
 pub mod ty;
 pub mod typos;
@@ -258,6 +259,7 @@ pub use tflint::parse_tflint;
 pub use thrift::{parse_thrift, ThriftReport};
 pub use tinymist::parse_tinymist;
 pub use topiary::parse_topiary;
+pub use trivy_config::parse_trivy_config;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
 pub use typos::parse_typos;
@@ -2625,6 +2627,14 @@ mod tests {
         super::gersemi::parse_gersemi(input, input, code, files)
     }
 
+    fn fuzz_trivy_config(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::trivy_config::parse_trivy_config(input, input, code, files)
+    }
+
     fn fuzz_tflint(
         input: &[u8],
         code: Option<i32>,
@@ -3006,6 +3016,7 @@ mod tests {
         ("checkstyle", fuzz_checkstyle),
         ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
+        ("trivy_config", fuzz_trivy_config),
         ("thrift", fuzz_thrift),
         ("avro", fuzz_avro),
         ("topiary", fuzz_topiary),
@@ -3160,6 +3171,7 @@ mod tests {
         ("checkstyle", include_str!("checkstyle.rs")),
         ("cmakelint", include_str!("cmakelint.rs")),
         ("tflint", include_str!("tflint.rs")),
+        ("trivy_config", include_str!("trivy_config.rs")),
         ("thrift", include_str!("thrift.rs")),
         ("avro", include_str!("avro.rs")),
         ("topiary", include_str!("topiary.rs")),

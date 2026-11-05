@@ -186,7 +186,9 @@ pub(crate) fn interval_to_scope(
         .map(|value| value.trim())
         .filter(|value| !value.is_empty());
     match set {
-        "cargo" | "npm" | "go" | "ruby" | "uv" => range_scope(lower, upper, upper_inclusive),
+        "cargo" | "npm" | "go" | "ruby" | "uv" | "cpan" => {
+            range_scope(lower, upper, upper_inclusive)
+        }
         _ if is_version_family(set) => range_scope(lower, upper, upper_inclusive),
         "maven" | "nuget" => match (lower, upper) {
             (None, None) => Some("[0,)".to_owned()),

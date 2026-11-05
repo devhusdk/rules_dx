@@ -22,6 +22,7 @@ pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
             ruby_assess(scope, bare, platform)
         }
         "uv" => pypi_assess(scope, version),
+        "cpan" => family_assess("cpan", scope, version),
         family if is_version_family(family) => family_assess(family, scope, version),
         _ => {
             if !scope.trim().is_empty() && scope.trim() == version.trim() {

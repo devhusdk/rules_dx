@@ -24,6 +24,7 @@ pub fn family_assess(set: &str, scope: &str, version: &str) -> VersionScope {
         "packagist" => assess_with(scope, version, composer_key),
         "hackage" | "cran" => assess_with(scope, version, dotted_key),
         "opam" => assess_with(scope, version, |text| Some(Debian(text.to_owned()))),
+        "cpan" => assess_with(scope, version, cpan_key),
         _ => VersionScope::Incomplete,
     }
 }
@@ -99,6 +100,33 @@ fn dotted_key(text: &str) -> Option<Vec<u64>> {
         .split(['.', '-'])
         .map(|part| part.parse::<u64>().ok())
         .collect::<Option<Vec<_>>>()?;
+    Some(trim_zeros(parts))
+}
+
+/// CPAN order: `v1.2.3` is dotted, `1.23` is decimal read as `1.230`.
+fn cpan_key(text: &str) -> Option<Vec<u64>> {
+    let text = text.replace('_', "");
+    let dotted = text.starts_with(['v', 'V']) || text.matches('.').count() > 1;
+    let text = strip_v(&text);
+    if dotted {
+        return text
+            .split('.')
+            .map(|part| part.parse::<u64>().ok())
+            .collect::<Option<Vec<_>>>()
+            .map(trim_zeros);
+    }
+    let (whole, fraction) = text.split_once('.').unwrap_or((text, ""));
+    let mut parts = vec![whole.parse::<u64>().ok()?];
+    if !fraction.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    for chunk in fraction.as_bytes().chunks(3) {
+        let mut padded = String::from_utf8_lossy(chunk).into_owned();
+        while padded.len() < 3 {
+            padded.push('0');
+        }
+        parts.push(padded.parse().ok()?);
+    }
     Some(trim_zeros(parts))
 }
 

@@ -265,6 +265,65 @@ pub fn fetch_plan(
         argv,
     })
 }
+/// Turns the CPAN::Audit advisory database, keyed by distribution, into the cpan snapshot payload.
+pub fn cpan_audit_payload(text: &str) -> Result<Vec<u8>, PrepError> {
+    let bad = |detail: String| PrepError::BadEntryJson {
+        family: "cpan".to_owned(),
+        name: "cpan-audit".to_owned(),
+        detail,
+    };
+    let database: std::collections::BTreeMap<String, CpanDistribution> =
+        serde_json::from_str(text).map_err(|error| bad(error.to_string()))?;
+    let mut found = Vec::new();
+    for (name, distribution) in database {
+        for item in distribution.advisories {
+            for versions in item.affected_versions {
+                found.push(crate::vuln::Advisory {
+                    id: item.id.clone(),
+                    package: name.clone(),
+                    versions: cpan_scope(&versions),
+                    severity: item.severity.clone().unwrap_or_default(),
+                    fixed: item
+                        .fixed_versions
+                        .iter()
+                        .map(|v| v.trim_start_matches(['>', '=', ' ']).to_owned())
+                        .collect(),
+                    set: "cpan".to_owned(),
+                });
+            }
+        }
+    }
+    if found.is_empty() {
+        return Err(PrepError::NoAdvisories {
+            family: "cpan".to_owned(),
+        });
+    }
+    serde_json::to_vec(&found).map_err(|error| bad(error.to_string()))
+}
+
+#[derive(Deserialize)]
+struct CpanDistribution {
+    #[serde(default)]
+    advisories: Vec<CpanAdvisory>,
+}
+
+#[derive(Deserialize)]
+struct CpanAdvisory {
+    id: String,
+    #[serde(default)]
+    affected_versions: Vec<String>,
+    #[serde(default)]
+    fixed_versions: Vec<String>,
+    severity: Option<String>,
+}
+
+fn cpan_scope(text: &str) -> String {
+    text.split(',')
+        .map(str::trim)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 #[cfg(test)]
 #[path = "advisory_prep_tests.rs"]
 mod advisory_prep_tests;

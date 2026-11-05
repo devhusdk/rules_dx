@@ -42,6 +42,7 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
         "go" => Some("go"),
         "ruby" | "rubygems" => Some("rubygems"),
         PYPI_FAMILY => Some(PYPI_FAMILY),
+        "cpan" => Some("cpan"),
         _ => crate::vuln::VERSION_FAMILIES
             .iter()
             .copied()
@@ -329,6 +330,8 @@ mod tests {
             None,
             "sets must map to a family first"
         );
+        assert_eq!(advisory_family("cpan"), Some("cpan"));
+        assert_eq!(advisory_source("cpan"), None);
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
     }

@@ -337,3 +337,27 @@ fn every_audited_set_names_locks_and_one_advisory_family() {
         "one cargo lock asks for the cargo snapshot alone"
     );
 }
+
+#[test]
+fn cpan_audit_database_becomes_cpan_advisories() {
+    let text = r#"{"Mojolicious":{"distribution":"Mojolicious","advisories":[{"id":"CPANSA-Mojolicious-2018-03","affected_versions":[">=7.0,<7.58","<=1.5"],"fixed_versions":[">=7.58"],"severity":"high"}]}}"#;
+    let payload = cpan_audit_payload(text).expect("converts");
+    let advisories = parse_snapshot(&String::from_utf8(payload).expect("utf-8")).expect("reads");
+    assert_eq!(advisories.len(), 2);
+    assert_eq!(advisories[0].set, "cpan");
+    assert_eq!(advisories[0].versions, ">=7.0, <7.58");
+    let (findings, _) = crate::vuln::match_packages(
+        &[
+            crate::vuln::LockedPackage::new("cpan", "Mojolicious", "7.57"),
+            crate::vuln::LockedPackage::new("cpan", "Mojolicious", "7.58"),
+            crate::vuln::LockedPackage::new("cpan", "Mojolicious", "v7.9.1"),
+        ],
+        &advisories,
+    );
+    let hit: Vec<_> = findings
+        .iter()
+        .map(|found| found.version.as_str())
+        .collect();
+    assert_eq!(hit, ["7.57", "v7.9.1"]);
+    assert!(cpan_audit_payload("{}").is_err());
+}

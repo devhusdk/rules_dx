@@ -89,21 +89,37 @@ def cc_action_tests(name, compile_target, link_target):
 
 _MSVC_TOOLS = {"CppCompile": "cl.exe", "CppLink": "link.exe", "CppArchive": "lib.exe"}
 
-def _msvc_impl(ctx):
-    env = analysistest.begin(ctx)
-    for action in _actions(env, _MSVC_TOOLS.keys()):
+def _check_msvc(env, mnemonics, bin_dir, lib_suffix):
+    for action in _actions(env, mnemonics):
         tool = action.argv[0].replace("\\", "/")
         asserts.true(env, "dx_msvc" in tool, "tool outside the pinned MSVC: " + tool)
+        asserts.true(env, bin_dir in tool, "tool not under %s: %s" % (bin_dir, tool))
         asserts.true(env, tool.endswith("/" + _MSVC_TOOLS[action.mnemonic]), "unexpected tool for %s: %s" % (action.mnemonic, tool))
         for key in ["INCLUDE", "LIB"]:
             for entry in (action.env or {}).get(key, "").split(";"):
                 if entry:
+                    entry = entry.replace("\\", "/")
                     asserts.true(env, "dx_msvc" in entry, "%s entry outside the pinned MSVC: %s" % (key, entry))
+                    if key == "LIB":
+                        asserts.true(env, entry.endswith(lib_suffix), "LIB entry not for %s: %s" % (lib_suffix, entry))
         for entry in (action.env or {}).get("PATH", "").split(";"):
-            asserts.false(env, "Visual Studio" in entry, "PATH entry from an installed Visual Studio: " + entry)
+            asserts.false(env, "Visual Studio" in entry or "Program Files" in entry, "PATH entry from an installed Visual Studio: " + entry)
+
+def _msvc_impl(ctx):
+    env = analysistest.begin(ctx)
+    _check_msvc(env, _MSVC_TOOLS.keys(), "/bin/Hostx64/x64/", "/x64")
+    return analysistest.end(env)
+
+def _msvc_arm64_impl(ctx):
+    env = analysistest.begin(ctx)
+    _check_msvc(env, _MSVC_TOOLS.keys(), "/bin/Hostx64/arm64/", "/arm64")
     return analysistest.end(env)
 
 _msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})
+_msvc_arm64_test = analysistest.make(
+    _msvc_arm64_impl,
+    config_settings = {_COMPILER: "msvc", "//command_line_option:platforms": [str(Label("//cc/tests/msvc_cross:windows_arm64"))]},
+)
 
 def cc_msvc_action_tests(name, compile_target, link_target):
     """Asserts compile, archive and link actions use the pinned MSVC tools under msvc.
@@ -117,6 +133,27 @@ def cc_msvc_action_tests(name, compile_target, link_target):
     for kind, target in [("compile", compile_target), ("link", link_target)]:
         test = "%s_%s_msvc" % (name, kind)
         _msvc_test(
+            name = test,
+            size = "small",
+            testonly = True,
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+        tests.append(test)
+    native.test_suite(name = name, tests = tests, testonly = True)
+
+def cc_msvc_arm64_action_tests(name, compile_target, link_target):
+    """Asserts compile, archive and link actions cross to arm64 with the pinned MSVC tools.
+
+    Args:
+        name: Name of the test suite.
+        compile_target: A cc_library with C sources.
+        link_target: A cc_binary or cc_test.
+    """
+    tests = []
+    for kind, target in [("compile", compile_target), ("link", link_target)]:
+        test = "%s_%s_msvc_arm64" % (name, kind)
+        _msvc_arm64_test(
             name = test,
             size = "small",
             testonly = True,

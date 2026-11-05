@@ -233,7 +233,7 @@ workspace_policy(
 | `astro` | `prettier` | disabled | `tsc` |
 | `cc` | `clang_format` | disabled | disabled |
 | `dockerfile` | disabled | `hadolint` | disabled |
-| `go` | `gofumpt` | disabled | `gotype` |
+| `go` | `gofumpt` | `govet`, `staticcheck` | `gotype` |
 | `graphql` | `prettier` | disabled | disabled |
 | `html` | `prettier` | disabled | disabled |
 | `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | `javac` |

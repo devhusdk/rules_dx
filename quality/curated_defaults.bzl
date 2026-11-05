@@ -35,7 +35,7 @@ CURATED_DEFAULTS = {
     "go": {
         "audit": [],
         "format": ["gofumpt"],
-        "lint": [],
+        "lint": ["govet", "staticcheck"],
         "typecheck": ["gotype"],
     },
     "graphql": {

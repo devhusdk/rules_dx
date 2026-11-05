@@ -88,11 +88,14 @@
       "additionalProperties": false,
       "properties": {
         "blocked": {
-          "default": [],
+          "default": null,
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": [
+            "array",
+            "null"
+          ]
         },
         "distributed": {
           "$ref": "#/definitions/PolicyLists"
@@ -110,25 +113,34 @@
       "additionalProperties": false,
       "properties": {
         "allow": {
-          "default": [],
+          "default": null,
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": [
+            "array",
+            "null"
+          ]
         },
         "deny": {
-          "default": [],
+          "default": null,
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": [
+            "array",
+            "null"
+          ]
         },
         "review": {
-          "default": [],
+          "default": null,
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": [
+            "array",
+            "null"
+          ]
         }
       },
       "type": "object"
@@ -149,13 +161,27 @@
   },
   "properties": {
     "distribution": {
-      "$ref": "#/definitions/Distribution"
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Distribution"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "exception": {
       "items": {
         "$ref": "#/definitions/LicenseException"
       },
       "type": "array"
+    },
+    "extends": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "inventory": {
       "items": {

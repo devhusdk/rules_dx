@@ -612,6 +612,22 @@ expires = "2099-01-01"
     }
 
     #[test]
+    fn licenses_toml_with_an_extends_line_still_approves_exceptions() {
+        let policy = r#"extends = ".dx/config/licenses/standard.toml"
+
+[[exception]]
+package = "beta"
+set = "cargo"
+license = "MIT"
+versions = "=2.0.0"
+reason = "upstream ships no LICENSE file"
+expires = "2099-01-01"
+"#;
+        let joined = join(&[shipped("beta", "2.0.0", vec![])], LOCK, policy).expect("approved");
+        assert!(joined[0].words.contains("declared license: MIT"));
+    }
+
+    #[test]
     fn write_inventory_reports_io_and_join_errors() {
         let dir = tempfile::tempdir().expect("tempdir");
         let missing = dir.path().join("missing.json");

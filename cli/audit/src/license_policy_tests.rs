@@ -717,3 +717,121 @@ expires = \"2000-01-01\"
         ]
     );
 }
+
+fn base_reader(text: &'static str) -> impl Fn(&str) -> std::io::Result<String> {
+    move |_| Ok(text.to_owned())
+}
+
+fn base(profile: crate::profile_base::Profile) -> &'static str {
+    crate::profile_base::base_text("licenses", profile).expect("base")
+}
+
+#[test]
+fn a_root_list_replaces_that_list_and_inherits_the_rest() {
+    use crate::profile_base::Profile;
+    let root = "extends = \".dx/config/licenses/standard.toml\"\n[policy.distributed]\nreview = [\"Zlib\"]\n";
+    let policy = load_licenses(root, base_reader(base(Profile::Standard))).expect("merged");
+    let standard = standard_policy().expect("standard");
+    assert_eq!(policy.tables.review, ["Zlib".to_owned()].into());
+    assert_eq!(policy.tables.allow, standard.tables.allow);
+    assert_eq!(policy.tables.deny, standard.tables.deny);
+    assert_eq!(policy.tables.blocked, standard.tables.blocked);
+}
+
+#[test]
+fn a_root_file_without_extends_does_not_read_a_base() {
+    let policy = load_licenses("[policy]\nblocked = [\"X\"]\n", |_| {
+        panic!("no base is read")
+    })
+    .expect("single file");
+    assert!(policy.tables.allow.is_empty());
+}
+
+#[test]
+fn the_strict_base_denies_what_the_standard_base_only_reviews() {
+    use crate::profile_base::Profile;
+    let standard = load_licenses_toml(base(Profile::Standard)).expect("standard");
+    let strict = load_licenses_toml(base(Profile::Strict)).expect("strict");
+    for id in ["LGPL-3.0-only", "MPL-2.0", "EPL-2.0", "CDDL-1.0"] {
+        assert!(standard.tables.review.contains(id));
+        assert!(strict.tables.deny.contains(id));
+    }
+    assert!(strict.tables.review.is_empty());
+}
+
+#[test]
+fn a_base_with_exceptions_inventory_or_extends_is_rejected() {
+    for body in [
+        "[[exception]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"*\"\nreason = \"r\"\nexpires = \"2999-01-01\"\n",
+        "[[inventory]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"*\"\n",
+        "extends = \"other.toml\"\n",
+    ] {
+        let error = load_licenses("extends = \"b/base.toml\"\n", |_| Ok(body.to_owned()))
+            .expect_err("rejected")
+            .to_string();
+        assert!(error.contains("extends b/base.toml"), "{error}");
+    }
+}
+
+#[test]
+fn a_missing_base_names_the_path_and_the_fix() {
+    let error = load_licenses("extends = \"b/base.toml\"\n", |_| {
+        Err(std::io::ErrorKind::NotFound.into())
+    })
+    .expect_err("missing")
+    .to_string();
+    assert_eq!(
+        error,
+        "invalid licenses.toml: extends b/base.toml: not found; run dx init --apply"
+    );
+}
+
+#[test]
+fn an_extends_path_must_stay_inside_the_workspace() {
+    for path in ["../base.toml", "/etc/base.toml", "a\\\\b.toml", ""] {
+        let root = format!("extends = {path:?}\n");
+        let error = load_licenses(&root, |_| panic!("not read"))
+            .expect_err("outside")
+            .to_string();
+        assert!(error.contains("inside the workspace"), "{error}");
+    }
+}
+
+#[test]
+fn merged_tables_are_validated_and_exceptions_keep_root_lines() {
+    use crate::profile_base::Profile;
+    let clash = "extends = \"b.toml\"\n[policy.distributed]\nallow = [\"MPL-2.0\"]\n";
+    assert!(matches!(
+        load_licenses(clash, base_reader(base(Profile::Standard))),
+        Err(PolicyProblem::MultiListed { .. })
+    ));
+    let root = "extends = \"b.toml\"\n\n[[exception]]\npackage = \"a\"\nset = \"cargo\"\nlicense = \"MPL-2.0\"\nversions = \"*\"\nreason = \"r\"\nexpires = \"2999-01-01\"\n";
+    let policy = load_licenses(root, base_reader(base(Profile::Standard))).expect("merged");
+    assert_eq!(policy.exceptions[0].line, 3);
+}
+
+#[test]
+fn the_no_file_policy_is_the_standard_base() {
+    use crate::profile_base::Profile;
+    assert_eq!(
+        standard_policy().expect("standard"),
+        load_licenses_toml(base(Profile::Standard)).expect("standard")
+    );
+}
+
+#[test]
+fn a_set_override_and_the_distribution_replace_the_base_entries() {
+    let base_text = "[policy.sets.cargo]\nreview = [\"Zlib\"]\n[policy.sets.npm]\nreview = [\"Zlib\"]\n[distribution]\ninternal = [\"//a/...\"]\n";
+    let root = "extends = \"b.toml\"\n[policy.sets.cargo]\nreview = [\"BSL-1.0\"]\n[distribution]\ninternal = [\"//b/...\"]\n";
+    let policy = load_licenses(root, |_| Ok(base_text.to_owned())).expect("merged");
+    let review = |set: &str| {
+        policy
+            .sets
+            .iter()
+            .find(|entry| entry.set == set)
+            .map(|entry| entry.review.clone())
+    };
+    assert_eq!(review("cargo"), Some(["BSL-1.0".to_owned()].into()));
+    assert_eq!(review("npm"), Some(["Zlib".to_owned()].into()));
+    assert_eq!(policy.distribution.internal, ["//b/...".to_owned()].into());
+}

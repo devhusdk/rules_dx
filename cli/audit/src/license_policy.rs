@@ -340,7 +340,7 @@ pub fn validate_license_inventory(entry: &LicenseInventory) -> Result<(), Policy
     Ok(())
 }
 
-pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
+fn parse_file(text: &str) -> Result<LicensesFile, PolicyProblem> {
     let file: LicensesFile =
         toml::from_str(text).map_err(|error| PolicyProblem::InvalidLicensesToml {
             message: match error.span() {
@@ -360,23 +360,90 @@ pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
             ),
         });
     }
+    Ok(file)
+}
+
+/// Parses one file. An `extends` line is accepted and not followed.
+pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
+    build_policy(text, parse_file(text)?, None)
+}
+
+/// The policy of the standard base, used when a workspace has no licenses.toml.
+pub fn standard_policy() -> Result<LicensePolicy, PolicyProblem> {
+    let text = crate::profile_base::base_text("licenses", crate::profile_base::Profile::Standard)
+        .ok_or_else(|| PolicyProblem::InvalidLicensesToml {
+        message: "the standard base is missing".to_owned(),
+    })?;
+    load_licenses_toml(text)
+}
+
+/// Parses `root_text` and merges it over the base named by its `extends`.
+/// `read` returns the text of a workspace-relative path.
+pub fn load_licenses(
+    root_text: &str,
+    read: impl Fn(&str) -> std::io::Result<String>,
+) -> Result<LicensePolicy, PolicyProblem> {
+    let root = parse_file(root_text)?;
+    let Some(path) = root.extends.clone() else {
+        return build_policy(root_text, root, None);
+    };
+    let invalid = |message: String| PolicyProblem::InvalidLicensesToml { message };
+    let inside = !path.is_empty()
+        && std::path::Path::new(&path)
+            .components()
+            .all(|part| matches!(part, std::path::Component::Normal(_)))
+        && !path.contains('\\');
+    if !inside {
+        return Err(invalid(format!(
+            "extends {path}: must be a relative path inside the workspace"
+        )));
+    }
+    let base_text = read(&path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            invalid(format!("extends {path}: not found; run dx init --apply"))
+        } else {
+            invalid(format!("extends {path}: {error}"))
+        }
+    })?;
+    let base =
+        parse_file(&base_text).map_err(|error| invalid(format!("extends {path}: {error}")))?;
+    if base.extends.is_some() || !base.exception.is_empty() || !base.inventory.is_empty() {
+        return Err(invalid(format!(
+            "extends {path}: a base may not have extends, [[exception]] or [[inventory]]"
+        )));
+    }
+    build_policy(root_text, root, Some(base))
+}
+
+fn build_policy(
+    text: &str,
+    file: LicensesFile,
+    base: Option<LicensesFile>,
+) -> Result<LicensePolicy, PolicyProblem> {
+    let base = base.unwrap_or_default();
+    let list = |own: Option<Vec<String>>, inherited: Option<Vec<String>>| -> BTreeSet<String> {
+        own.or(inherited).unwrap_or_default().into_iter().collect()
+    };
+    let mut sets = base.policy.sets;
+    sets.extend(file.policy.sets);
     let policy = LicensePolicy {
         tables: PolicyTables {
-            blocked: file.policy.blocked.into_iter().collect(),
-            allow: file.policy.distributed.allow.into_iter().collect(),
-            review: file.policy.distributed.review.into_iter().collect(),
-            deny: file.policy.distributed.deny.into_iter().collect(),
+            blocked: list(file.policy.blocked, base.policy.blocked),
+            allow: list(file.policy.distributed.allow, base.policy.distributed.allow),
+            review: list(
+                file.policy.distributed.review,
+                base.policy.distributed.review,
+            ),
+            deny: list(file.policy.distributed.deny, base.policy.distributed.deny),
         },
-        sets: file
-            .policy
-            .sets
+        sets: sets
             .into_iter()
             .map(|(set, adjustment)| SetAdjustment {
                 set,
                 review: adjustment.review.into_iter().collect(),
             })
             .collect(),
-        distribution: file.distribution,
+        distribution: file.distribution.or(base.distribution).unwrap_or_default(),
         exceptions: file
             .exception
             .into_iter()
@@ -400,15 +467,17 @@ pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
     Ok(policy)
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LicensesFile {
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
+    extends: Option<String>,
+    #[serde(default)]
     policy: PolicyFile,
     #[serde(default)]
-    distribution: Distribution,
+    distribution: Option<Distribution>,
     #[serde(default)]
     #[schemars(with = "Vec<LicenseException>")]
     exception: Vec<toml::Spanned<LicenseException>>,
@@ -420,7 +489,7 @@ pub(crate) struct LicensesFile {
 #[serde(deny_unknown_fields)]
 pub(crate) struct PolicyFile {
     #[serde(default)]
-    blocked: Vec<String>,
+    blocked: Option<Vec<String>>,
     #[serde(default)]
     distributed: PolicyLists,
     #[serde(default)]
@@ -431,11 +500,11 @@ pub(crate) struct PolicyFile {
 #[serde(deny_unknown_fields)]
 pub(crate) struct PolicyLists {
     #[serde(default)]
-    allow: Vec<String>,
+    allow: Option<Vec<String>>,
     #[serde(default)]
-    review: Vec<String>,
+    review: Option<Vec<String>>,
     #[serde(default)]
-    deny: Vec<String>,
+    deny: Option<Vec<String>>,
 }
 
 #[derive(Default, Deserialize, JsonSchema)]
@@ -489,6 +558,7 @@ impl LicensesFile {
     pub(crate) fn key_names() -> Vec<&'static str> {
         key_names!(Self {
             schema_version,
+            extends,
             policy,
             distribution,
             exception,

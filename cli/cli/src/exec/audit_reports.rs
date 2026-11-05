@@ -135,6 +135,39 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 }
 
 #[test]
+fn the_strict_base_fails_a_license_the_standard_base_only_reviews() {
+    let internal = "[distribution]\ninternal = [\"//rust/tests/fixtures/hello:internal\"]\n";
+    for (profile, code) in [("standard", 0), ("strict", 1)] {
+        let (seen, out, err) = run_with(
+            &[
+                "license",
+                "//rust/tests/fixtures/hello:internal",
+                "--report=sarif=-",
+            ],
+            &AuditRunner::clean(),
+            &|harness| {
+                write_demo_license(harness, "MPL-2.0");
+                let base = dx_audit::profile_base::base_rel("licenses", profile_of(profile));
+                let text = dx_audit::profile_base::base_text("licenses", profile_of(profile));
+                harness.write_source(&base, text.expect("base"));
+                harness.write_source(
+                    "licenses.toml",
+                    &format!("extends = \"{base}\"\n{internal}"),
+                );
+            },
+        );
+        assert_eq!(seen, code, "MPL-2.0 under {profile}: {out}{err}");
+    }
+}
+
+fn profile_of(name: &str) -> dx_audit::profile_base::Profile {
+    match name {
+        "strict" => dx_audit::profile_base::Profile::Strict,
+        _ => dx_audit::profile_base::Profile::Standard,
+    }
+}
+
+#[test]
 fn an_internal_license_scope_skips_the_review_and_notice_tables() {
     let policy = "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//rust/tests/fixtures/hello:internal\"]\n";
     for (license, code) in [("Zlib", 0), ("ISC", 0), ("MIT", 0), ("AGPL-3.0-only", 1)] {

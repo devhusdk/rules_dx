@@ -48,6 +48,7 @@ Used by `dx license`. See [Audit, Update](audit-update.md).
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `schema_version` | integer | `1` | Must be `1` when set. |
+| `extends` | string | none | Workspace-relative path of a base, such as `.dx/config/licenses/standard.toml`. A key this file sets replaces the base's key; a key it leaves out is inherited. `policy.sets.<set>` replaces per set, `distribution.internal` replaces, and `exception` and `inventory` entries are added to the base's. A base may not have `extends`, `exception` or `inventory`. A missing base fails; run `dx init --apply`. |
 | `policy` | table | empty | License tiers. |
 | `distribution` | table | empty | Which scopes are internal. |
 | `exception` | array of tables | none | Accepted license findings. |

@@ -671,60 +671,31 @@ fn package_ref(
     })
 }
 
-fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
-    use std::collections::BTreeSet;
-    let list =
-        |items: &[&str]| -> BTreeSet<String> { items.iter().copied().map(str::to_owned).collect() };
-    dx_audit::license_policy::LicensePolicy {
-        tables: dx_audit::license_policy::PolicyTables {
-            blocked: list(&["AGPL-3.0-only", "AGPL-3.0-or-later", "SSPL-1.0"]),
-            allow: list(&[
-                "MIT",
-                "Apache-2.0",
-                "BSD-2-Clause",
-                "BSD-3-Clause",
-                "ISC",
-                "Unlicense",
-            ]),
-            review: list(&[
-                "LGPL-2.1-only",
-                "LGPL-2.1-or-later",
-                "LGPL-3.0-only",
-                "LGPL-3.0-or-later",
-                "MPL-2.0",
-                "EPL-2.0",
-                "CDDL-1.0",
-            ]),
-            deny: list(&[
-                "GPL-2.0-only",
-                "GPL-2.0-or-later",
-                "GPL-3.0-only",
-                "GPL-3.0-or-later",
-            ]),
-        },
-        sets: Vec::new(),
-        distribution: dx_audit::license_policy::Distribution::default(),
-        exceptions: Vec::new(),
-        inventory: Vec::new(),
-    }
-}
-
 fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
     let rel = "licenses.toml";
     let text = match read_workspace_text(workspace, rel) {
         Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(default_license_policy());
+            return dx_audit::license_policy::standard_policy()
+                .map_err(|error| AuditError::LicenseInvalid { error });
         }
         Err(other) => return Err(other),
         Ok(text) => text,
     };
     if text.trim().is_empty() {
-        return Ok(default_license_policy());
+        return dx_audit::license_policy::standard_policy()
+            .map_err(|error| AuditError::LicenseInvalid { error });
     }
-    dx_audit::license_policy::load_licenses_toml(&text)
-        .map_err(|error| AuditError::LicenseInvalid { error })
+    dx_audit::license_policy::load_licenses(&text, |rel| {
+        dx_path::workspace::resolve_in_workspace(workspace, rel)
+            .and_then(std::fs::read)
+            .and_then(|bytes| {
+                String::from_utf8(bytes)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+            })
+    })
+    .map_err(|error| AuditError::LicenseInvalid { error })
 }
 
 fn load_security_policy(

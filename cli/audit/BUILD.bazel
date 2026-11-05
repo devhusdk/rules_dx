@@ -41,6 +41,7 @@ dx_rust_crate(
         "src/locks_uv.rs",
         "src/notice_manifest.rs",
         "src/outcome.rs",
+        "src/profile_base.rs",
         "src/secrets.rs",
         "src/vuln.rs",
         "src/vuln_go.rs",
@@ -54,6 +55,8 @@ dx_rust_crate(
         "src/vuln_versions.rs",
     ],
     compile_data = [
+        "profiles/licenses/standard.toml",
+        "profiles/licenses/strict.toml",
         "schema/licenses.schema.json",
         "schema/security.schema.json",
         "//:licenses.toml",

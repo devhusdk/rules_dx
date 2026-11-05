@@ -121,8 +121,8 @@ cc_binary(
 
 cc_msvc_action_tests(
     name = "toolchain_action_tests",
-    compile_target = ":add_c",
-    link_target = ":shared_test",
+    compile_target = ":add_c_upstream",
+    link_target = ":shared_test_upstream",
 )
 
 real_source_target(

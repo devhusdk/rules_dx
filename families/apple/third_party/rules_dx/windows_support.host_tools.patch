@@ -23,7 +23,17 @@ diff -ruN a/windows/private/extensions/msvc_runtime.BUILD.bazel b/windows/privat
 diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
 --- a/windows/private/extensions/msvc_runtime.bzl
 +++ b/windows/private/extensions/msvc_runtime.bzl
-@@ -204,6 +204,18 @@
+@@ -138,6 +138,9 @@
+ def _collect_vctools_packages(installer_manifest, architectures):
+     packages_by_id = {}
+     for pkg in installer_manifest.get("packages", []):
++        # Resource packages repeat per language; without this the last one (zh-TW) wins and the tools print Chinese.
++        if pkg.get("language", "neutral").lower() not in ["neutral", "en-us"]:
++            continue
+         packages_by_id[pkg.get("id", "").lower()] = pkg
+ 
+     pending = []
+@@ -204,6 +207,18 @@
              continue
          repository_ctx.delete(entry)
  
@@ -42,7 +52,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
  def _is_dotted_version(name):
      parts = name.split(".")
      for part in parts:
-@@ -241,7 +253,7 @@
+@@ -241,7 +256,7 @@
  def _redist_architectures(architectures):
      return [arch for arch in architectures if _ARCH_TO_REDIST_PACKAGE.get(arch)]
  
@@ -51,7 +61,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
      sysroot_path = repository_ctx.path(sysroot_dir)
      contents_dir = repository_ctx.path("{}/Contents".format(sysroot_dir))
      vc_dir = repository_ctx.path("{}/Contents/VC".format(sysroot_dir))
-@@ -256,13 +268,18 @@
+@@ -256,13 +271,18 @@
      _keep_only_children(
          repository_ctx,
          repository_ctx.path("{}/Contents/VC/Tools/MSVC/{}".format(sysroot_dir, msvc_version)),
@@ -71,7 +81,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
  
      if redist_version:
          redist_architectures = _redist_architectures(architectures)
-@@ -348,7 +365,7 @@
+@@ -348,7 +368,7 @@
      redist_architectures = _redist_architectures(architectures)
      if redist_architectures and not redist_version:
          fail("failed to find Contents/VC/Redist/MSVC/<version> in extracted MSVC payloads for architectures {}".format(redist_architectures))
@@ -80,7 +90,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
  
      repository_ctx.file(
          "versions.bzl",
-@@ -394,6 +411,8 @@
+@@ -394,6 +414,8 @@
              ),
          )
  
@@ -89,7 +99,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
  _MSVC_RUNTIME_ATTR = {
      "architectures": attr.string_list(
          default = _DEFAULT_ARCHITECTURES,
-@@ -414,6 +433,9 @@
+@@ -414,6 +436,9 @@
  }
  
  _MSVC_RUNTIME_REPOSITORY_ATTRS = _MSVC_RUNTIME_ATTR | {
@@ -99,7 +109,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
      "_build_file": attr.label(
          allow_single_file = True,
          default = ":msvc_runtime.BUILD.bazel",
-@@ -447,8 +469,20 @@
+@@ -447,8 +472,20 @@
  
      fail("Missing msvc_runtime.configure(...): set msvc_runtime.configure(...) in your MODULE.bazel")
  
@@ -120,7 +130,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
  
      installer_manifest = _resolve_installer_manifest_from_module_facts(
          module_ctx,
-@@ -463,6 +497,7 @@
+@@ -463,6 +500,7 @@
          name = repository_name,
          msvc_version = config.msvc_version,
          architectures = config.architectures,
@@ -128,7 +138,7 @@ diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extens
          installer_manifest_url = installer_manifest["url"],
          installer_manifest_integrity = installer_manifest["integrity"],
      )
-@@ -496,6 +531,15 @@
+@@ -496,6 +534,15 @@
                  doc = "Optional SRI integrity for the downloaded Visual Studio installer manifest.",
              ),
          }),

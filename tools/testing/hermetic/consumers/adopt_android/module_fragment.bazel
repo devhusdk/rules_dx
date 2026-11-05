@@ -1,5 +1,6 @@
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_android", version = "0.8.0")
 
 android_ndk_toolchain_repo = use_repo_rule("@rules_dx_android//toolchain:repos.bzl", "android_ndk_toolchain_repo")
 
@@ -8,6 +9,18 @@ android_ndk_toolchain_repo(
     api_level = 33,
     cxx_runtime = "static",
 )
+
+register_toolchains(
+    "@android_ndk_toolchain//:ndk_cc_toolchain_device",
+    "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
+)
+
+android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
+android_sdk.configure(accept_licenses = ["android-sdk-license"])
+use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
+
+android_sdk_repository = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
+override_repo(android_sdk_repository, androidsdk = "dx_androidsdk")
 
 bazel_dep(name = "rules_rust", version = "0.75.0")
 

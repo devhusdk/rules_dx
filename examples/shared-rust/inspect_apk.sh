@@ -9,9 +9,10 @@ min_sdk="$6"
 label="$7"
 board="$8"
 notes="$9"
-sdk="${ANDROID_HOME:?inspect_apk: ANDROID_HOME names the installed SDK}"
-build_tools="$(ls -d "$sdk"/build-tools/* | sort -V | tail -n 1)"
-badging="$("$build_tools/aapt" dump badging "$apk")"
+aapt="${DX_AAPT:?inspect_apk: DX_AAPT names the aapt binary}"
+apksigner_jar="${DX_APKSIGNER_JAR:?inspect_apk: DX_APKSIGNER_JAR names apksigner.jar}"
+java="${DX_JAVA:?inspect_apk: DX_JAVA names the java binary}"
+badging="$("$aapt" dump badging "$apk")"
 for want in "package: name='$app_id'" "sdkVersion:'$min_sdk'" "application-label:'$label'" "launchable-activity: name='android.app.NativeActivity'"; do
     echo "$badging" | grep -qF "$want" || { echo "badging misses $want"; exit 1; }
 done
@@ -36,5 +37,5 @@ for other in arm64-v8a x86_64; do
         *) unzip -l "$apk" | grep -q "lib/$other/" && { echo "apk packages unrequested abi $other"; exit 1; } ;;
     esac
 done
-"$build_tools/apksigner" verify "$apk" || { echo "apksigner rejects $apk"; exit 1; }
+"$java" -jar "$apksigner_jar" verify "$apk" || { echo "apksigner rejects $apk"; exit 1; }
 echo "inspect_apk: $apk installs $app_id with lib$lib.so for $abis"

@@ -424,6 +424,8 @@ def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = 
     lines.append("")
     _hub_target(lines, "aapt", build_tools_repos, "aapt", build_tools_no_match_error())
     lines.append("")
+    _hub_target(lines, "dexdump", build_tools_repos, "dexdump", build_tools_no_match_error())
+    lines.append("")
     _hub_target(lines, "apksigner_jar", build_tools_repos, "apksigner_jar", build_tools_no_match_error())
     lines.append("")
     _hub_alias(lines, "bundletool_jar", "@%s//file" % bundletool_repo)
@@ -507,6 +509,16 @@ def build_tools_build(anchor):
         "filegroup(",
         '    name = "aapt",',
         '    srcs = ["extracted/aapt"],',
+        "    data = [",
+        '        "extracted/lib64/libc++.so",',
+        '        "extracted/lib64/libc++.so.1",',
+        "    ],",
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "dexdump",',
+        '    srcs = ["extracted/dexdump"],',
         "    data = [",
         '        "extracted/lib64/libc++.so",',
         '        "extracted/lib64/libc++.so.1",',
@@ -651,6 +663,20 @@ def _android_sdk_local_repo_impl(ctx):
         "filegroup(",
         '    name = "zipalign",',
         '    srcs = glob(["' + tools + 'zipalign"], allow_empty = True),',
+        '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "aapt",',
+        '    srcs = glob(["' + tools + 'aapt"], allow_empty = True),',
+        '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "dexdump",',
+        '    srcs = glob(["' + tools + 'dexdump"], allow_empty = True),',
         '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
         '    visibility = ["//visibility:public"],',
         ")",

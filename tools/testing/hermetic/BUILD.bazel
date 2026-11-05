@@ -809,6 +809,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "adopt_android",
+    families = ["android"],
     files = {
         "@rules_dx_android//tests/fixtures/adopt-android/app:BUILD.bazel": "android/tests/fixtures/adopt-android/app/BUILD.bazel",
         "@rules_dx_android//tests/fixtures/adopt-android/app:inspect_apk.sh": "android/tests/fixtures/adopt-android/app/inspect_apk.sh",
@@ -828,7 +829,6 @@ hermetic_qualification(
         "@rules_dx_android//tests/fixtures/adopt-android:BUILD.bazel": "android/tests/fixtures/adopt-android/BUILD.bazel",
         "consumers/adopt_android/consumer.bazelrc": ".bazelrc",
     },
-    families = ["android"],
     languages = [
         "cpp",
         "java",
@@ -837,6 +837,7 @@ hermetic_qualification(
     module_fragment = "consumers/adopt_android/module_fragment.bazel",
     patterns = [
         "//android/tests/fixtures/adopt-android/native/...",
+        "//android/tests/fixtures/adopt-android/app:inspect_apk_test",
         "//android/tests/fixtures/adopt-android/app:log",
         "//android/tests/fixtures/adopt-android/app:report",
         "//android/tests/fixtures/adopt-android/app:report_test",

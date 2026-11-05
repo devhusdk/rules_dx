@@ -14,7 +14,13 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
-const languageName = "protobuf"
+const (
+	languageName = "protobuf"
+	rustKind     = "rust_prost_library"
+	rustSuffix   = "_rs"
+	rustModule   = "rules_rust_prost"
+	rustDefs     = "@rules_rust_prost//:defs.bzl"
+)
 
 var kinds = withBindings(map[string]rule.KindInfo{
 	LibraryKind: {
@@ -27,6 +33,11 @@ var kinds = withBindings(map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+	rustKind: {
+		MatchAttrs:     []string{"proto"},
+		NonEmptyAttrs:  map[string]bool{"proto": true},
+		MergeableAttrs: map[string]bool{"proto": true},
+	},
 })
 
 func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
@@ -34,6 +45,17 @@ func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
 		kinds[kind] = info
 	}
 	return kinds
+}
+
+// extraKinds are the kinds generated next to proto_library.
+func extraKinds() []string {
+	return append(bindingExtraKinds(), rustKind)
+}
+
+func extraKindDefs() map[string]string {
+	defs := bindingKindDefs()
+	defs[rustKind] = rustDefs
+	return defs
 }
 
 type protoLang struct {
@@ -46,8 +68,8 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          kinds,
 		DefsPackage:    "@protobuf//bazel:proto_library.bzl",
-		ExtraKinds:     bindingExtraKinds(),
-		KindDefs:       bindingKindDefs(),
+		ExtraKinds:     extraKinds(),
+		KindDefs:       extraKindDefs(),
 		ImportAttr:     "srcs",
 		Identity:       func(name string) string { return name },
 		PathIdentity:   true,
@@ -79,9 +101,12 @@ func (l *protoLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Rem
 	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
 
-// Imports indexes proto_library by its files and bindings by the code they
-// generate.
+// Imports indexes proto_library by its files, bindings by the code they
+// generate, and a rust_prost_library under its crate name.
 func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+	if r.Kind() == rustKind {
+		return []resolve.ImportSpec{{Lang: "rust", Imp: r.Name()}}
+	}
 	for _, b := range bindings {
 		if r.Kind() == b.kind {
 			return bindingImports(c, r, f)
@@ -151,7 +176,31 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		},
 		Wrap: common.WrapImportSet,
 	}, rep)
+	result = addRustLibraries(args, result)
 	return addBindings(args, result)
+}
+
+// addRustLibraries adds a rust_prost_library next to each proto_library when
+// the root MODULE.bazel depends on rules_rust_prost.
+func addRustLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
+	if !common.ModuleDeps(args.Config.RepoRoot)[rustModule] {
+		return result
+	}
+	for _, lib := range result.Gen {
+		prost := rule.NewRule(rustKind, lib.Name()+rustSuffix)
+		prost.SetAttr("proto", ":"+lib.Name())
+		if common.ShouldSetVisibility(args) {
+			prost.SetAttr("visibility", []string{"//visibility:public"})
+		}
+		result.Gen = append(result.Gen, prost)
+		result.Imports = append(result.Imports, nil)
+	}
+	for _, r := range result.Empty {
+		if r.Kind() == LibraryKind {
+			result.Empty = append(result.Empty, rule.NewRule(rustKind, r.Name()+rustSuffix))
+		}
+	}
+	return result
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

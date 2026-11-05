@@ -264,8 +264,12 @@ func bindingImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.Impo
 }
 
 // CrossResolve lets Go, Python, Java and C++ imports of generated proto code
-// find the binding rule that produces it.
+// find the binding rule that produces it, and lets Rust imports of a prost
+// crate find its rust_prost_library.
 func (l *protoLang) CrossResolve(c *config.Config, ix *resolve.RuleIndex, imp resolve.ImportSpec, lang string) []resolve.FindResult {
+	if imp.Lang == "rust" && lang == "rust" {
+		return ix.FindRulesByImport(imp, languageName)
+	}
 	key, ok := crossKeys[imp.Lang]
 	if !ok {
 		return nil

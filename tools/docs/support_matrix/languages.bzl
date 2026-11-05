@@ -347,7 +347,7 @@ ROWS = [
     {"name": "toml", "section": "formats", "title": "TOML"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
-    {"families": ["avro"], "name": "avro", "section": "formats", "title": "Avro"},
+    {"ci_tests": ["//avro/tests:cc_roundtrip_test", "//avro/tests:RoundtripTest"], "families": ["avro"], "name": "avro", "section": "languages", "title": "Avro"},
     {"families": ["capnp"], "name": "capnproto", "section": "formats", "title": "Cap'n Proto"},
     {"name": "bicep", "section": "formats", "title": "Bicep"},
     {"name": "cloudformation", "section": "formats", "title": "CloudFormation"},
@@ -376,6 +376,7 @@ ROWS = [
 ]
 
 NOT_LANGUAGES = [
+    "containers",
     "swift",
     "bcr_test_module",
     "ci",

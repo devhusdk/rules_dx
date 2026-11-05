@@ -55,13 +55,14 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain(PLATFORM_JOBS.iter().map(|name| (*name).to_owned()))
         .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
+        .chain(std::iter::once("mutate".to_owned()))
         .collect();
     wanted.sort();
     assert_eq!(
         job_names(),
         wanted,
         "{WORKFLOW} must name the validate job, the checks job, security-audit, the \
-shared advisory preparation and the aggregate"
+shared advisory preparation, the aggregate and mutate"
     );
 }
 
@@ -413,6 +414,19 @@ fn link_check_online_is_off_by_default_and_never_runs_on_pull_requests() {
     }
     let script = text_at(&matrix_step("Run the checks")["run"], "checks run step");
     assert!(script.contains("args+=(--online)"), "{script}");
+}
+
+#[test]
+fn mutate_is_off_by_default_and_runs_only_on_the_default_branch_schedule() {
+    let doc = document(WORKFLOW);
+    let input = &doc["on"]["workflow_call"]["inputs"]["mutate"];
+    assert_eq!(input["type"], json!("boolean"), "{WORKFLOW} type");
+    assert_eq!(input["default"], json!(false), "{WORKFLOW} default");
+    let condition = scope_text(&job(WORKFLOW, "mutate")["if"]);
+    for needle in ["inputs.mutate", "'schedule'", "default_branch"] {
+        assert!(condition.contains(needle), "mutate if: {condition}");
+    }
+    assert!(!condition.contains("pull_request"), "mutate if: {condition}");
 }
 
 #[test]

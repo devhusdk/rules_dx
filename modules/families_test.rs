@@ -521,7 +521,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 38] = [
+const FAMILY_FILES: [&str; 39] = [
     "ansible",
     "beam",
     "bicep",
@@ -534,6 +534,7 @@ const FAMILY_FILES: [&str; 38] = [
     "dockerfile",
     "fortran",
     "generation",
+    "go",
     "haskell",
     "html_template",
     "jsonnet",

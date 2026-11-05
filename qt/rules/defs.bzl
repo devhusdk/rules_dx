@@ -15,9 +15,10 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
+load("//deploy/rules:native_runtime.bzl", "NativeRuntimeInfo")
 load("//libs/starlark:cells.bzl", "unsupported_constraint")
 load("//qt/sdk:needs.bzl", "QtNeedsInfo")
-load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "RUNTIME_PLUGINS")
+load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "QT_VERSION", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -1116,6 +1117,12 @@ def qt_os_supplied_libraries(library):
                 names[name] = True
     return sorted(names)
 
+QT_CONF = "[Paths]\nPrefix = resources\n"
+
+def qt_runtime_members(members):
+    """Returns the bundle members that sit next to the executable: the Windows DLLs."""
+    return [member for member in members if member.startswith("bin/") and member.endswith(".dll")]
+
 def qt_bundle_members(runfiles, licenses, modules, needs):
     """Returns the sorted (member, short path) pairs one bundle stages.
 
@@ -1211,6 +1218,31 @@ def _qt_bundle_impl(ctx):
         staged.append(out)
     return [DefaultInfo(files = depset(staged))]
 
+def _qt_bundle_runtime_impl(ctx):
+    prefix = "/" + ctx.attr.bundle.label.name + "/"
+    dlls = [f for f in ctx.attr.bundle[DefaultInfo].files.to_list() if qt_runtime_members([f.path.rpartition(prefix)[2]])]
+    if len(dlls) == 0:
+        return [
+            DefaultInfo(),
+            NativeRuntimeInfo(name = ctx.label.name, version = QT_VERSION, source = "Qt", redistribution = "os_supplied", files = [], notice = None, provides = []),
+        ]
+    conf = ctx.actions.declare_file(ctx.label.name + "/qt.conf")
+    ctx.actions.write(conf, QT_CONF)
+    files = dlls + [conf]
+    return [
+        DefaultInfo(files = depset(files)),
+        NativeRuntimeInfo(name = ctx.label.name, version = QT_VERSION, source = "Qt", redistribution = "app_local", files = files, notice = ctx.files.license_files[0], provides = []),
+    ]
+
+_qt_bundle_runtime = rule(
+    implementation = _qt_bundle_runtime_impl,
+    doc = "The Qt DLLs of a qt_bundle and a qt.conf for consumer_archive runtime; empty where the bundle has no DLLs.",
+    attrs = {
+        "bundle": attr.label(mandatory = True, providers = [DefaultInfo], doc = "qt_bundle to read the DLLs from."),
+        "license_files": attr.label_list(allow_files = True, doc = "License texts, the first is the notice."),
+    },
+)
+
 _qt_bundle = rule(
     implementation = _qt_bundle_impl,
     doc = "Stages the linked shared libraries (Windows DLLs under bin/), their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
@@ -1226,7 +1258,10 @@ _qt_bundle = rule(
 )
 
 def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
-    """Stages a qt_cc_binary runtime for consumer_archive resources."""
+    """Stages a qt_cc_binary runtime for consumer_archive resources.
+
+    <name>_runtime holds the Windows DLLs and qt.conf for consumer_archive runtime.
+    """
     for platform in display:
         if platform not in ["wayland", "xcb"]:
             fail("qt_bundle: display '" + platform + "' is not one of wayland, xcb")
@@ -1248,4 +1283,11 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plu
         qml_modules_set = qml_modules != None,
         runtime_plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
         **kwargs
+    )
+    _qt_bundle_runtime(
+        name = name + "_runtime",
+        bundle = name,
+        license_files = [qt + "//:licenses"],
+        target_compatible_with = kwargs["target_compatible_with"],
+        visibility = kwargs.get("visibility"),
     )

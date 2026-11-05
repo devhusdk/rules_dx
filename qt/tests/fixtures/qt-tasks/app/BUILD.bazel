@@ -93,7 +93,7 @@ consumer_archive(
     notice = "NOTICE",
     os = QT_CONSUMER_OS,
     resources = [":runtime"],
-    runtime = QT_CONSUMER_RUNTIME,
+    runtime = QT_CONSUMER_RUNTIME + [":runtime_runtime"],
 )
 
 qt_bundle(

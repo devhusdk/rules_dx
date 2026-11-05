@@ -335,8 +335,13 @@ consumer_archive(
     notice = "NOTICE",
     os = QT_CONSUMER_OS,
     resources = [":runtime"],
+    runtime = [":runtime_runtime"],
 )
 ```
+
+`<name>_runtime` holds the Windows DLLs and a `qt.conf` that points Qt at
+`resources/`, so `consumer_archive` puts them next to the executable. It ships
+nothing on cells without DLLs.
 
 `QT_CONSUMER_ARCH`, `QT_CONSUMER_OS` and `QT_CONSUMER_MIN_RUNTIME` select the
 archive identity of the targeted cell: `x86_64`, `linux` and `glibc-2.34` on

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QT_CONF", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_runtime_members", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -220,6 +220,12 @@ def _unit_checks():
                 ("plugins/platforms/qoffscreen.dll", "../qt/plugins/platforms/qoffscreen.dll"),
             ],
         ),
+        expect_equal(
+            "runtime members of a windows bundle",
+            qt_runtime_members(["bin/Qt6Core.dll", "plugins/platforms/qoffscreen.dll", "lib/libQt6Core.so.6", "resources/bin/x.dll"]),
+            ["bin/Qt6Core.dll"],
+        ),
+        expect_equal("qt.conf points at resources", QT_CONF, "[Paths]\nPrefix = resources\n"),
         expect_equal(
             "bundle without linked windows dlls",
             qt_bundle_members(["app/tool.exe", "../qt/bin/Qt6Core.dll", "../qt/bin/Qt6Gui.dll"], [], None, struct(library = {}, plugin = {}, runtime_plugin = {})),

@@ -649,7 +649,7 @@ def apple_ios_app(
 
 def _test_selection_impl(ctx):
     failures = test_errors(ctx.attr.device_type, ctx.attr.os_version, ctx.attr.deployment)
-    failures.extend(test_source_errors(ctx.attr.srcs, ctx.attr.deps))
+    failures.extend(test_source_errors(ctx.attr.srcs, ctx.attr.dep_labels))
     if len(failures) > 0:
         fail("; ".join(failures))
     return [CcInfo()]
@@ -666,7 +666,7 @@ _test_selection = rule(
             doc = "Simulator device type to run tests on, such as iPhone 16.",
             mandatory = True,
         ),
-        "deps": attr.string_list(
+        "dep_labels": attr.string_list(
             doc = "Label texts of test modules.",
             mandatory = True,
         ),
@@ -699,7 +699,7 @@ def apple_ios_app_test(
         device_type = device_type,
         os_version = os_version,
         srcs = [label_text(src) for src in srcs],
-        deps = [label_text(dep) for dep in deps],
+        dep_labels = [label_text(dep) for dep in deps],
         tags = ["manual"],
         testonly = True,
         visibility = ["//visibility:private"],

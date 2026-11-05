@@ -102,6 +102,7 @@ rust_library(
         package_name = "cli/dx_cli",
         normal = True,
     ),
+    compile_data = ["src/exec/unsupported.json"],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
     edition = "2021",
@@ -323,6 +324,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    compile_data = ["src/exec/unsupported.json"],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
     data = glob(["src/**/*.rs"]) + [

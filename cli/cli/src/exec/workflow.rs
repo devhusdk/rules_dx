@@ -5,7 +5,7 @@ use super::explain_store;
 use super::failure_reports::write_failure_reports;
 use super::profile_report;
 use super::run::execute_run;
-use super::skipped_targets::{count_skipped, skipped_notice};
+use super::skipped_targets::{group_skipped, read_skipped, skipped_notice};
 use super::test_reports::{execute_test_reports, TestReportsRequest};
 use dx_output::{
     command_finished, notice_event, ActionCounts, FinishedCounts, NoticeEvent, OutputMode,
@@ -304,7 +304,8 @@ fn execute_checked(
                 return kept_child(err, bazel_code, exit);
             }
         }
-        if let Err(exit) = skipped_notice(invocation.output, out, err, count_skipped(&bep)) {
+        let groups = group_skipped(&read_skipped(&bep), invocation, workspace, query_runner);
+        if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
             let _ = std::fs::remove_file(&bep);
             return kept_child(err, bazel_code, exit);
         }

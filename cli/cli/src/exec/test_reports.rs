@@ -3,7 +3,7 @@ use super::common::*;
 use super::coverage_candidate::{candidate, tracked_orphans, Candidate, Unavailable};
 use super::failure::CODE_NO_TESTS;
 use super::failure_reports::write_failure_reports;
-use super::skipped_targets::skipped_notice;
+use super::skipped_targets::{group_skipped, skipped_notice};
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
@@ -1419,7 +1419,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         Ok(counts) => counts,
         Err(exit) => return kept_child(err, bazel_code, exit),
     };
-    if let Err(exit) = skipped_notice(invocation.output, out, err, events.skipped.len()) {
+    let groups = group_skipped(&events.skipped, invocation, workspace, query_runner);
+    if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
         return kept_child(err, bazel_code, exit);
     }
     let mut reports_ok = failure_reports_ok;

@@ -42,7 +42,7 @@ load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haske
 load("//quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect", _GENERATION_HOOKS = "HOOKS", _GENERATION_RECOGNIZERS = "RECOGNIZERS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS")
 load("//quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _ZIG_SHARD_SPECS = "SHARD_SPECS", _ZIG_TOOLS = "TOOLS")
 load("//quality:families/beam.bzl", _real_elixir_format_aspect = "real_elixir_format_aspect", _real_elixir_lint_aspect = "real_elixir_lint_aspect", _real_elixir_unused_aspect = "real_elixir_unused_aspect", _real_erlang_format_aspect = "real_erlang_format_aspect", _real_erlang_lint_aspect = "real_erlang_lint_aspect", _real_erlang_unused_aspect = "real_erlang_unused_aspect", _real_erlang_typecheck_aspect = "real_erlang_typecheck_aspect", _BEAM_HOOKS = "HOOKS", _BEAM_SHARD_SPECS = "SHARD_SPECS", _BEAM_TOOLS = "TOOLS")
-load("//quality:families/go.bzl", _real_go_format_aspect = "real_go_format_aspect", _real_go_lint_aspect = "real_go_lint_aspect", _real_go_typecheck_aspect = "real_go_typecheck_aspect", _GO_HOOKS = "HOOKS", _GO_SHARD_SPECS = "SHARD_SPECS", _GO_TOOLS = "TOOLS")
+load("//quality:families/go.bzl", _real_go_format_aspect = "real_go_format_aspect", _real_go_lint_aspect = "real_go_lint_aspect", _real_go_typecheck_aspect = "real_go_typecheck_aspect", _real_go_unused_aspect = "real_go_unused_aspect", _GO_HOOKS = "HOOKS", _GO_SHARD_SPECS = "SHARD_SPECS", _GO_TOOLS = "TOOLS")
 load("//quality:families/rust.bzl", _real_rust_format_aspect = "real_rust_format_aspect", _real_rust_lint_aspect = "real_rust_lint_aspect", _real_rust_typecheck_aspect = "real_rust_typecheck_aspect", _RUST_HARNESS_SOURCES = "harness_sources", _RUST_HOOKS = "HOOKS", _RUST_RECOGNIZER = "RECOGNIZER", _RUST_SHARD_SPECS = "SHARD_SPECS", _RUST_TOOLCHAIN = "TOOLCHAIN", _RUST_TOOLS = "TOOLS", _inherits_test_crate_sources = "inherits_test_crate_sources", _merge_inherited_sources = "merge_inherited_sources", _rustc_diagnostics_group = "rustc_diagnostics_group")
 load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _OCAML_HOOKS = "HOOKS", _OCAML_SHARD_SPECS = "SHARD_SPECS", _OCAML_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _stage = "stage", _without = "without")
@@ -322,6 +322,8 @@ real_go_format_aspect = _real_go_format_aspect
 real_go_lint_aspect = _real_go_lint_aspect
 
 real_go_typecheck_aspect = _real_go_typecheck_aspect
+
+real_go_unused_aspect = _real_go_unused_aspect
 
 real_fortran_format_aspect = _real_fortran_format_aspect
 real_fortran_lint_aspect = _real_fortran_lint_aspect

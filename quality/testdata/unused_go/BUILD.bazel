@@ -1,0 +1,51 @@
+load("//go/rules:defs.bzl", "go_binary", "go_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "go_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "go",
+    unused = ["deadcode"],
+)
+
+workspace_policy(
+    name = "go_policy",
+    families = [":go_family"],
+)
+
+go_library(
+    name = "private_lib",
+    srcs = ["private.go"],
+    importpath = "rules_dx/quality/testdata/unused_go/private",
+)
+
+go_library(
+    name = "public_lib",
+    srcs = ["public.go"],
+    importpath = "rules_dx/quality/testdata/unused_go/public",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "keep_lib",
+    srcs = ["keep.go"],
+    importpath = "rules_dx/quality/testdata/unused_go/keep",
+    tags = ["dx-keep"],
+)
+
+go_binary(
+    name = "app",
+    srcs = ["app.go"],
+    deps = [
+        ":keep_lib",
+        ":private_lib",
+        ":public_lib",
+    ],
+)

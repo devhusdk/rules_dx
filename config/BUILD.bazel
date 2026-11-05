@@ -144,6 +144,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_deadcode",
+    build_setting_default = "@org_golang_x_tools//cmd/deadcode",
+)
+
+label_flag(
     name = "tool_modfmt",
     build_setting_default = "//go/tools/modfmt:dx_modfmt",
 )

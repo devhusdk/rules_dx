@@ -387,7 +387,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         }
     };
     match tool_id {
-        "vale" | "vulture" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8"
+        "vale" | "vulture" | "deadcode" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8"
         | "pylint" | "clippy" | "roslyn" | "csc" | "fsc" | "fsharplint" | "checkstyle"
         | "dscanner" | "fortitude" | "pkl_lsp" | "perlcritic" | "jsonnet_lint" | "pmd"
         | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"

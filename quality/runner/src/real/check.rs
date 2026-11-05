@@ -278,6 +278,33 @@ impl RealBackend {
                     },
                 )
             }
+            "deadcode" => {
+                let workspace: Vec<(String, PathBuf)> = pairs
+                    .iter()
+                    .map(|(name, _)| (name.clone(), PathBuf::from(name)))
+                    .collect();
+                let roots = unused_roots(tool_id, tool, &workspace)?;
+                let Some((_, deadcode)) =
+                    tool.path_tools.iter().find(|(name, _)| name == "deadcode")
+                else {
+                    return Err(execution(
+                        tool_id,
+                        "deadcode binary is not staged".to_owned(),
+                    ));
+                };
+                let invocation = commands::deadcode_check(&tool.binary, deadcode);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let names: Vec<&str> = pairs.iter().map(|(name, _)| name.as_str()).collect();
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_deadcode(&out.stdout, out.code, &names, &roots),
+                )?;
+                for found in &mut findings {
+                    let absolute = reanchor(tool_id, pairs, &found.file)?;
+                    found.file = absolute.to_string_lossy().into_owned();
+                }
+                Ok(findings)
+            }
             "flake8" => self.check_files(
                 tool_id,
                 tool,

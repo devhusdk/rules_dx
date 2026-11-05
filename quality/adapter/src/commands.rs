@@ -688,6 +688,18 @@ pub fn vulture_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, VULTURE_ARGS, files, "")
 }
 
+/// `dx_deadcode` runs the given deadcode binary with the package list and file map from
+/// `dx-deadcode/config.json`.
+pub fn deadcode_check(binary: &Path, deadcode: &Path) -> Invocation {
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            deadcode.as_os_str().to_owned(),
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 /// Periphery scans the whole index store, so the command takes no file arguments.
 pub fn periphery_check(binary: &Path, index_store: &Path) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];

@@ -21,6 +21,7 @@ pub mod csharpier;
 pub mod cue;
 pub mod dart_analyze;
 pub mod dart_format;
+pub mod deadcode;
 pub mod deadnix;
 pub mod debride;
 pub mod detekt;
@@ -265,6 +266,7 @@ pub use ty::parse_ty;
 pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
+pub use deadcode::parse_deadcode;
 pub use vulture::{parse_vulture, parse_vulture_unused, UnusedRoots};
 pub use xmllint::parse_xmllint;
 pub use xref::parse_xref;
@@ -2966,6 +2968,14 @@ mod tests {
         super::vale::parse_vale(input, code, files)
     }
 
+    fn fuzz_deadcode(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::deadcode::parse_deadcode(input, code, files, &super::UnusedRoots::default())
+    }
+
     fn fuzz_vulture(
         input: &[u8],
         code: Option<i32>,
@@ -3151,6 +3161,7 @@ mod tests {
         ("typos", fuzz_typos),
         ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
+        ("deadcode", fuzz_deadcode),
         ("vulture", fuzz_vulture),
         ("xmllint", fuzz_xmllint),
         ("xref", fuzz_xref),
@@ -3293,6 +3304,7 @@ mod tests {
         ("tinymist", include_str!("tinymist.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),
+        ("deadcode", include_str!("deadcode.rs")),
         ("vulture", include_str!("vulture.rs")),
         ("xmllint", include_str!("xmllint.rs")),
         ("xref", include_str!("xref.rs")),

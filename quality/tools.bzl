@@ -673,6 +673,22 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "deadcode",
+        adapters = {"unused": ["go"]},
+        support = [
+            row(
+                capability = "unused",
+                classes = ["go"],
+                context = "owned",
+                family = "go",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "qualified",
+                transport = "single",
+            ),
+        ],
+    ),
+    tool(
         id = "deadnix",
         adapters = {"lint": ["nix"]},
         support = [

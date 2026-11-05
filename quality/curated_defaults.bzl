@@ -57,7 +57,7 @@ CURATED_DEFAULTS = {
         "format": ["gofumpt"],
         "lint": ["govet", "staticcheck", "typos"],
         "typecheck": ["gotype"],
-        "unused": [],
+        "unused": ["deadcode"],
     },
     "go_module": {
         "audit": [],

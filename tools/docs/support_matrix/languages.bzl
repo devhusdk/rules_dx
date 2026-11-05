@@ -100,7 +100,7 @@ DEAD_CODE = {
     "d": ["dscanner unused_variable_check, unused_parameter_check"],
     "dart": ["dart unused_element"],
     "fortran": ["fortitude C191 unreachable-statement"],
-    "go": ["staticcheck U1000"],
+    "go": ["staticcheck U1000 (dx lint)", "deadcode (dx unused)"],
     "javascript": ["knip (dx unused)", "eslint no-unused-vars"],
     "julia": ["none"],
     "kotlin": ["detekt"],

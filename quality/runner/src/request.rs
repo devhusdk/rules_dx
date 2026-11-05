@@ -25,6 +25,7 @@ pub struct RequestTool {
 /// Helper names each tool may be given on its `PATH`. One row per tool that shells out.
 pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("vale", &["rst2html", "asciidoctor"]),
+    ("deadcode", &["go", "deadcode"]),
     ("helm", &["kubeconform"]),
     ("pkl_lsp", &["java", "pkl-lsp.jar"]),
 ];

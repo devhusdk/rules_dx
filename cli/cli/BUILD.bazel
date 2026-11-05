@@ -145,6 +145,7 @@ rust_binary(
     ),
     crate_name = "dx",
     crate_root = "src/main.rs",
+    data = ["//cli/prebuilt:pins.bzl"],
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(

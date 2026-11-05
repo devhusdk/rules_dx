@@ -129,10 +129,17 @@ impl LauncherPins {
 
 /// The sha256 pins for dx `version`'s release assets.
 ///
-/// Read from the embedded `cli/prebuilt/pins.bzl`. A release binary is built from the
+/// Read from the `cli/prebuilt/pins.bzl` in the running binary's runfiles, which under
+/// `bazel run` is the resolved module's copy, then from the embedded copy. A release binary is built from the
 /// tag, where the embedded pins are empty, so it falls back to the `dx-sha256sums.txt`
 /// that sits next to the running executable. Unreleased (empty) when neither has pins.
 pub fn release_pins(version: &str) -> Result<LauncherPins, AdoptError> {
+    if let Some(text) = runfiles_pins_bzl() {
+        let pins = pins_from_bzl(&text, version)?;
+        if pins != LauncherPins::unreleased() {
+            return Ok(pins);
+        }
+    }
     let embedded = pins_from_bzl(include_str!("../../prebuilt/pins.bzl"), version)?;
     if embedded != LauncherPins::unreleased() {
         return Ok(embedded);
@@ -144,6 +151,19 @@ pub fn release_pins(version: &str) -> Result<LauncherPins, AdoptError> {
         return Ok(embedded);
     };
     pins_from_manifest_dir(&dir)
+}
+
+fn runfiles_pins_bzl() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let runfiles = dx_path::Resolver::for_binary(&exe).ok()?;
+    ["rules_dx", "_main"]
+        .iter()
+        .find_map(|repo| {
+            runfiles
+                .lookup(&format!("{repo}/cli/prebuilt/pins.bzl"))
+                .ok()
+        })
+        .and_then(|path| std::fs::read_to_string(path).ok())
 }
 
 /// Pins from `dir/dx-sha256sums.txt`; unreleased when the file is absent.
@@ -1460,7 +1480,10 @@ mod tests {
             assert!(out.is_empty(), "{out}");
             assert!(err.contains("noexec mount"), "{err}");
             assert!(err.contains("DX_CACHE_DIR"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- <your arguments>"), "{err}");
+            assert!(
+                err.contains("bazel run @rules_dx//:dx -- <your arguments>"),
+                "{err}"
+            );
             assert_eq!(fx.downloads(), 0);
         }
 

@@ -92,7 +92,7 @@ fn collect(dir: &std::path::Path, files: &mut Vec<PathBuf>) {
         } else if kind.is_file() {
             let name = path.file_name().unwrap().to_string_lossy().into_owned();
             let in_framework = path.to_string_lossy().contains(".framework/Versions/");
-            if name.ends_with(".dylib") || in_framework || name == "ledger" {
+            if name.ends_with(".dylib") || in_framework {
                 files.push(path);
             }
         }

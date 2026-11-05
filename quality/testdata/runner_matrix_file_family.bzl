@@ -1831,6 +1831,34 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_api_spec_prettier_pass",
+        "generated": {
+            "matrix/api_spec_prettier_clean.yaml": "openapi: 3.0.0\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;api_spec;matrix/api_spec_prettier_clean.yaml"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_api_spec_prettier_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "matrix_api_spec_prettier_fail",
+        "generated": {
+            "matrix/api_spec_prettier_dirty.yaml": "openapi:   3.0.0\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;api_spec;matrix/api_spec_prettier_dirty.yaml"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_api_spec_prettier_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "matrix_sql_format_pass",
         "generated": {
             "matrix/prettier_sql_clean.sql": "SELECT 1;\n",

@@ -748,6 +748,19 @@ workspace_policy(
     families = [":api_spec_family"],
 )
 
+quality_family(
+    name = "api_spec_format_family",
+    disabled = ["typecheck"],
+    family_id = "api_spec",
+    format = ["prettier"],
+    lint = ["redocly"],
+)
+
+workspace_policy(
+    name = "api_spec_format_policy",
+    families = [":api_spec_format_family"],
+)
+
 filegroup(
     name = "api_spec_module",
     srcs = ["api_spec_module/clean.yaml"],

@@ -632,6 +632,15 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_api_spec",
         },
         {
+            "case": "api_spec_formatted",
+            "expected_dx_results": [
+                "clean_api_spec-real-format-js.pb",
+                "clean_api_spec-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:api_spec_format_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_api_spec",
+        },
+        {
             "case": "toml_format_off",
             "expected_dx_results": [
                 "clean_toml-real-lint.pb",
@@ -718,6 +727,7 @@ test_suite(
     name = "all",
     tests = [
         ":consumer_policy_ansible_linted_test",
+        ":consumer_policy_api_spec_formatted_test",
         ":consumer_policy_api_spec_linted_test",
         ":clang_tidy_run_test",
         ":compile_check_exec_test",

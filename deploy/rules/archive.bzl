@@ -323,12 +323,12 @@ def _consumer_stage_impl(ctx):
             args.add("--check", member)
         for name in provides:
             args.add("--provides", name)
-        for member in checked:
-            args.add(member + "=" + by_member[member].path)
+        for member, out in by_member.items():
+            args.add(member + "=" + out.path)
         ctx.actions.run(
             executable = ctx.executable._archiver,
             arguments = [args],
-            inputs = depset([by_member[member] for member in checked]),
+            inputs = depset(by_member.values()),
             outputs = [stamp],
             mnemonic = "DxConsumerImports",
             progress_message = "Dx check imports %{label}",

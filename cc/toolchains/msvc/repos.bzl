@@ -131,6 +131,14 @@ def _link_toolset(rctx, source, dst):
         else:
             rctx.symlink(entry, "{}/{}".format(dst, entry.basename))
 
+def _present(rctx, path):
+    parent = path
+    for _ in range(path.count("/") + 1):
+        parent = parent.rpartition("/")[0]
+        if rctx.path(parent).exists:
+            return "; under {} found {}".format(parent or ".", ", ".join(sorted([str(c.basename) for c in rctx.path(parent).readdir()])) or "nothing")
+    return ""
+
 def _layout_repo_impl(rctx):
     vc_root = rctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname
     sdk_root = rctx.path(Label("@windows_sdk//:BUILD.bazel")).dirname
@@ -154,7 +162,7 @@ def _layout_repo_impl(rctx):
         layout = msvc_layout(msvc_version, sdk_version, host, target)
         missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml] if p and not _exists_exact(rctx, p)]
         if missing:
-            unavailable[cell_name(host, target)] = missing_error(missing)
+            unavailable[cell_name(host, target)] = missing_error(missing) + _present(rctx, missing[0])
     rctx.file("NOTICE", "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, msvc_version, sdk_version))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable, redist_version))

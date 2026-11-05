@@ -1055,6 +1055,18 @@ fn structured_checks_encode_pinned_shapes() {
         ]
     );
     assert_eq!(lint.cwd_rel, "");
+    let breaking = buf_breaking_check(Path::new(BIN), Path::new("/tmp/base.binpb"), root, None);
+    assert_eq!(
+        argv_strings(&breaking),
+        vec![
+            BIN,
+            "breaking",
+            "--error-format=json",
+            "--against",
+            "/tmp/base.binpb",
+            "/scratch"
+        ]
+    );
     let config = Path::new("/scratch/buf.yaml");
     let check = buf_format_check(Path::new(BIN), &[proto], root, Some(config));
     assert_eq!(

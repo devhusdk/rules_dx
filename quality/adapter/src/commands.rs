@@ -159,6 +159,8 @@ const PHPSTAN_ARGS: &[&str] = &[
 const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
 const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
 const BUF_LINT_ARGS: &[&str] = &["lint", "--error-format=json"];
+const BUF_BREAKING_ARGS: &[&str] = &["breaking", "--error-format=json"];
+const BUF_AGAINST_FLAG: &str = "--against";
 const BUF_FORMAT_CHECK_ARGS: &[&str] = &["format"];
 const BUF_FORMAT_FIX_ARGS: &[&str] = &["format", "--write"];
 const BUF_PATH_FLAG: &str = "--path";
@@ -1513,6 +1515,23 @@ pub fn buf_lint_check(
     config: Option<&Path>,
 ) -> Invocation {
     buf(binary, BUF_LINT_ARGS, config, root, files)
+}
+
+/// Runs `buf breaking` on `root` against a base image built with
+/// `buf build '.git#ref=<sha>' -o <image>`.
+pub fn buf_breaking_check(
+    binary: &Path,
+    against: &Path,
+    root: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    let mut invocation = buf(binary, BUF_BREAKING_ARGS, config, root, &[]);
+    let at = invocation.argv.len() - 1;
+    invocation.argv.insert(at, OsString::from(BUF_AGAINST_FLAG));
+    invocation
+        .argv
+        .insert(at + 1, against.as_os_str().to_owned());
+    invocation
 }
 
 pub fn buf_format_check(

@@ -197,6 +197,16 @@ mod tests {
         assert!(parse_buf_lint(&[0xff], Some(100), &["x"], &[]).is_err());
     }
 
+    #[test]
+    fn buf_breaking_records_parse_like_lint() {
+        let record = "{\"path\": \"proto/hello.proto\", \"start_line\": 6, \"start_column\": 1, \"end_line\": 6, \"end_column\": 2, \"type\": \"FIELD_NO_DELETE\", \"message\": \"Previously present field \\\"2\\\" with name \\\"name\\\" on message \\\"Hello\\\" was deleted.\"}\n";
+        let findings = parse_buf_lint(record.as_bytes(), Some(100), &["proto/hello.proto"], &[])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.rule_id, "FIELD_NO_DELETE");
+        assert!(findings[0].finding.message.contains("was deleted"));
+    }
+
     const BROKEN: &str = "{\"path\": \"/s/item/v1/item.proto\", \"start_line\": 5, \"start_column\": 19, \"type\": \"COMPILE\", \"message\": \"syntax error: unexpected '{'\"}\n";
 
     #[test]

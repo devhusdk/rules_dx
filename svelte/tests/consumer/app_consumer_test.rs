@@ -121,7 +121,10 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
             )
             .as_bytes(),
     );
-    write(&root.join("patches/BUILD.bazel"), b"exports_files(glob([\"*.patch\"]))\n");
+    write(
+        &root.join("patches/BUILD.bazel"),
+        b"exports_files(glob([\"*.patch\"]))\n",
+    );
     for patch in ["package_name.patch", "portable_cpu_target.patch"] {
         let bytes = read(&rules.join("patches/rules_julia").join(patch));
         write(&root.join("patches").join(patch), &bytes);

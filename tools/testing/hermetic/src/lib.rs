@@ -1322,7 +1322,12 @@ pub fn remove_root(root: &Path) {
 // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
 /// Confirms this host can create the namespaces the qualification needs.
 pub fn preflight(isolation: &Isolation) -> Result<(), String> {
-    let outcome = capture(isolation.command(Net::Denied, &["/bin/true".to_owned()]))?;
+    let true_bin = if cfg!(target_os = "macos") {
+        "/usr/bin/true"
+    } else {
+        "/bin/true"
+    };
+    let outcome = capture(isolation.command(Net::Denied, &[true_bin.to_owned()]))?;
     if outcome.exit != 0 {
         return Err(format!(
             "namespace isolation is unavailable on this host (exit {}): {}; unprivileged user, mount and network namespaces are required, and Ubuntu 24.04 needs kernel.apparmor_restrict_unprivileged_userns=0",

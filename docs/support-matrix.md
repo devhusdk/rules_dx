@@ -66,7 +66,7 @@ Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
 
 | Compiler | Driver | Coverage | Not supported on |
 | --- | --- | --- | --- |
-| GCC 16.2.0 (`gcc`) | gnu | gcov | `linux_arm64`: not tested yet; `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
+| GCC 16.2.0 (`gcc`) | gnu | gcov | `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
 | LLVM 23.1.2 (`llvm`, default) | gnu | llvm | none |
 
 Pending `msvc`: Not qualified until the clean Windows x64 run in #5954; row tracked in #6093

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dx-helm-demo
+description: Fixture chart for helm_chart_deploy.
+type: application
+version: 1.2.3
+appVersion: "1.2.3"

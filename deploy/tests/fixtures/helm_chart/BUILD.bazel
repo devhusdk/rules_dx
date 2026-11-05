@@ -1,0 +1,20 @@
+load("//deploy/rules:helm.bzl", "helm_chart_deploy")
+load("//helm/rules:defs.bzl", "helm_chart")
+
+package(default_visibility = ["//visibility:public"])
+
+helm_chart(
+    name = "chart",
+    srcs = [
+        "Chart.yaml",
+        "templates/configmap.yaml",
+    ],
+    values = ["values.yaml"],
+)
+
+helm_chart_deploy(
+    name = "helm_demo",
+    chart = ":chart",
+    registry = "registry.invalid/charts",
+    version = "1.2.3",
+)

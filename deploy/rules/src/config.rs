@@ -67,6 +67,18 @@ pub struct PypiConfig {
     pub repository_url: String,
 }
 
+/// Pins one Helm chart push: the chart files, the pinned helm and the target.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HelmChartConfig {
+    pub deploy_name: String,
+    pub version: String,
+    pub registry: String,
+    pub repository: String,
+    pub helm_rloc: String,
+    pub files: Vec<crate::HelmFile>,
+}
+
 /// Pins one npm publish: the packed feed and tarball.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -193,6 +205,7 @@ pub enum DeployConfig {
     HomebrewTap(HomebrewTapConfig),
     CloudflarePages(CloudflarePagesConfig),
     Pypi(PypiConfig),
+    HelmChart(HelmChartConfig),
     Npm(NpmConfig),
     Nuget(NugetConfig),
     Hackage(HackageConfig),
@@ -286,6 +299,17 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             pypi.sdist_rloc.as_deref().unwrap_or(""),
             &pypi.dist_name,
             &pypi.repository_url,
+            argv,
+        ),
+        DeployConfig::HelmChart(helm) => crate::helm_main(
+            &crate::HelmLaunch {
+                deploy_name: &helm.deploy_name,
+                version: &helm.version,
+                registry: &helm.registry,
+                repository: &helm.repository,
+                helm_rloc: &helm.helm_rloc,
+                files: &helm.files,
+            },
             argv,
         ),
         DeployConfig::Npm(npm) => crate::npm_deploy_main(argv, &npm.feed_rloc, &npm.tarball_rloc),
@@ -736,6 +760,14 @@ mod tests {
                 sdist_rloc: None,
                 dist_name: "demo".to_owned(),
                 repository_url: "https://pypi.invalid".to_owned(),
+            }),
+            DeployConfig::HelmChart(HelmChartConfig {
+                deploy_name: "demo".to_owned(),
+                version: "1.0.0".to_owned(),
+                registry: "registry.invalid".to_owned(),
+                repository: String::new(),
+                helm_rloc: "helm".to_owned(),
+                files: Vec::new(),
             }),
             DeployConfig::Npm(NpmConfig {
                 feed_rloc: "a".to_owned(),

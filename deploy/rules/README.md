@@ -880,6 +880,40 @@ Exit codes:
 - `1`: invalid file names or mismatched sdist, a refused live run, or a
   failed `twine` upload.
 
+# helm_chart_deploy
+
+Packages a `helm_chart` with the pinned `helm` and pushes it to an OCI registry.
+
+```starlark
+load("@rules_dx//deploy/rules:helm.bzl", "helm_chart_deploy")
+
+helm_chart_deploy(
+    name = "helm_demo",
+    chart = ":chart",
+    registry = "ghcr.io/acme/charts",
+    version = "1.2.3",
+)
+```
+
+- `chart`: a `helm_chart` target. Its files are copied to a staging directory.
+- `version`: must equal `version` in `Chart.yaml`, or the run fails.
+- `registry`: host plus optional path. `repository` adds a path below it.
+- `helm`: defaults to the pinned helm from `//config:tool_helm`.
+
+A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.
+A live run uses the OCI credentials: `OCI_PUBLISH_LIVE=1`,
+`OCI_PUBLISH_APPROVED=1`, `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`. It logs
+in with `helm registry login` into a throwaway registry config, runs
+`helm push <chart>.tgz oci://<registry>/<repository>`, and removes the config.
+Placeholder versions (`0.0.0`) are refused. `helm` runs with a cleared
+environment.
+
+Exit codes:
+
+- `0`: the chart is packaged, or pushed.
+- `1`: a version mismatch, a lint or package failure, a refused live run, or a
+  failed push.
+
 # dx_split_debug_info
 
 Splits the debug info out of a Linux `cc_binary`.

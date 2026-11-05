@@ -349,6 +349,24 @@ fn resources_case() {
     );
 }
 
+fn helm_case() {
+    let outdir = dx_testing::mkscratch("helm-demo").expect("scratch");
+    let run = run_deploy(
+        &data("DX_HELM_PROG"),
+        "DX_HELM_CONFIG",
+        &[outdir.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("helm_chart_deploy must execute");
+    let out = run.combined();
+    assert!(run.status.success(), "helm_chart_deploy failed\n{out}");
+    let package = outdir
+        .join("helm_demo-package")
+        .join("dx-helm-demo-1.2.3.tgz");
+    assert!(package.is_file(), "{out}");
+    assert!(out.contains("staged dx-helm-demo-1.2.3.tgz"), "{out}");
+}
+
 fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
     let outdir = dx_testing::mkscratch(name).expect("scratch");
     let run = run_deploy(prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
@@ -1021,6 +1039,7 @@ fn deploy_verify() {
         "archive" => archive_case(),
         "cloudflare" => cloudflare_case(),
         "github" => github_case(),
+        "helm" => helm_case(),
         "homebrew" => homebrew_case(),
         "linux_package" => linux_package_case(),
         "oci" => oci_case(),

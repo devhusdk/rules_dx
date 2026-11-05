@@ -18,6 +18,7 @@ load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":hackage.bzl", "hackage_deploy")
 load(":hackage_tests.bzl", "hackage_unit_tests")
+load(":helm_tests.bzl", "helm_unit_tests")
 load(":homebrew.bzl", "homebrew_tap_deploy")
 load(":homebrew_tests.bzl", "homebrew_unit_tests")
 load(":linux_package_tests.bzl", "linux_package_unit_tests")
@@ -63,6 +64,8 @@ exports_files([
     "github_tests.bzl",
     "hackage.bzl",
     "hackage_tests.bzl",
+    "helm.bzl",
+    "helm_tests.bzl",
     "homebrew.bzl",
     "homebrew_tests.bzl",
     "linux_package.bzl",
@@ -99,6 +102,7 @@ exports_files([
     "src/crates.rs",
     "src/github.rs",
     "src/hackage.rs",
+    "src/helm.rs",
     "src/homebrew.rs",
     "src/http.rs",
     "src/imports.rs",
@@ -130,6 +134,7 @@ rust_library(
         "src/crates.rs",
         "src/github.rs",
         "src/hackage.rs",
+        "src/helm.rs",
         "src/homebrew.rs",
         "src/http.rs",
         "src/imports.rs",
@@ -647,6 +652,29 @@ deploy_analysis_test(
 
 # keep
 rust_test(
+    name = "helm_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        "//config:tool_helm",
+        "//deploy/tests/fixtures/helm_chart:helm_demo",
+        "//deploy/tests/fixtures/helm_chart:helm_demo_config",
+    ],
+    env = {
+        "DX_HELM_CONFIG": "$(rootpath //deploy/tests/fixtures/helm_chart:helm_demo_config)",
+        "DX_HELM_PROG": "$(rootpath //deploy/tests/fixtures/helm_chart:helm_demo)",
+        "DX_VERIFY_MODE": "helm",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+helm_unit_tests(name = "helm_unit")
+
+# keep
+rust_test(
     name = "oci_demo_verify",
     srcs = ["verify_test.rs"],
     data = [
@@ -755,6 +783,8 @@ test_suite(
         ":github_unit",
         ":hackage_analysis",
         ":hackage_unit",
+        ":helm_demo_verify",
+        ":helm_unit",
         ":homebrew_analysis",
         ":homebrew_demo_verify",
         ":homebrew_unit",
@@ -1701,6 +1731,8 @@ real_source_target(
         "deploy_tests.bzl",
         "github.bzl",
         "github_tests.bzl",
+        "helm.bzl",
+        "helm_tests.bzl",
         "homebrew.bzl",
         "homebrew_tests.bzl",
         "maven.bzl",

@@ -20,6 +20,9 @@ const (
 	pyKind   = "py_proto_library"
 	javaKind = "java_proto_library"
 	ccKind   = "cc_proto_library"
+
+	javaGRPCKind = "java_grpc_library"
+	javaGRPCDefs = "@grpc-java//:java_grpc_library.bzl"
 )
 
 // binding is a language rule that wraps a proto_library. It is generated when
@@ -57,11 +60,16 @@ func bindingKinds() map[string]rule.KindInfo {
 		}
 		kinds[b.kind] = info
 	}
+	kinds[javaGRPCKind] = rule.KindInfo{
+		MatchAttrs:     []string{"srcs"},
+		NonEmptyAttrs:  map[string]bool{"srcs": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "visibility": true, "testonly": true},
+	}
 	return kinds
 }
 
 func bindingKindDefs() map[string]string {
-	defs := map[string]string{}
+	defs := map[string]string{javaGRPCKind: javaGRPCDefs}
 	for _, b := range bindings {
 		defs[b.kind] = b.defs
 	}
@@ -69,7 +77,7 @@ func bindingKindDefs() map[string]string {
 }
 
 func bindingExtraKinds() []string {
-	var kinds []string
+	kinds := []string{javaGRPCKind}
 	for _, b := range bindings {
 		kinds = append(kinds, b.kind)
 	}
@@ -128,6 +136,18 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 			gen = append(gen, r)
 			imports = append(imports, imp)
 			desired[r.Kind()+"\x00"+r.Name()] = true
+			if b.kind == javaKind && deps["grpc-java"] && hasService(args.Dir, lib.AttrStrings("srcs")) {
+				g := rule.NewRule(javaGRPCKind, base+"_java_grpc")
+				g.SetAttr("srcs", []string{":" + lib.Name()})
+				g.SetAttr("deps", []string{":" + r.Name()})
+				if lib.AttrBool("testonly") {
+					g.SetAttr("testonly", true)
+				}
+				g.SetAttr("visibility", []string{"//visibility:public"})
+				gen = append(gen, g)
+				imports = append(imports, nil)
+				desired[javaGRPCKind+"\x00"+g.Name()] = true
+			}
 		}
 	}
 	result.Gen, result.Imports = gen, imports
@@ -140,6 +160,13 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 		}
 	}
 	for _, existing := range args.File.Rules {
+		if existing.Kind() == javaGRPCKind && !desired[javaGRPCKind+"\x00"+existing.Name()] {
+			for _, base := range names {
+				if existing.Name() == base+"_java_grpc" {
+					result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
+				}
+			}
+		}
 		for _, b := range bindings {
 			if existing.Kind() != b.kind || desired[b.kind+"\x00"+existing.Name()] {
 				continue

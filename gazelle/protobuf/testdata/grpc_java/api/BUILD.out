@@ -1,0 +1,23 @@
+load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+
+proto_library(
+    name = "api_proto",
+    srcs = ["greeter.proto"],
+    strip_import_prefix = "/",
+    visibility = ["//visibility:public"],
+)
+
+java_proto_library(
+    name = "api_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":api_proto"],
+)
+
+java_grpc_library(
+    name = "api_java_grpc",
+    srcs = [":api_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":api_java_proto"],
+)

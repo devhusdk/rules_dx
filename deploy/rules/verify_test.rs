@@ -434,7 +434,7 @@ fn kept_env(command: &mut std::process::Command) {
     }
 }
 
-fn install(url: &str, spelling: &str) -> PathBuf {
+fn install_output(url: &str, spelling: &str) -> (std::process::Output, PathBuf) {
     let uv = data("DX_PYPI_UV");
     let python = data("DX_PYPI_PYTHON");
     let cache = dx_testing::mkscratch("pypi-uv-cache").expect("scratch cache");
@@ -462,6 +462,11 @@ fn install(url: &str, spelling: &str) -> PathBuf {
         .arg(&target)
         .arg(spelling);
     let output = command.output().expect("uv must execute");
+    (output, target)
+}
+
+fn install(url: &str, spelling: &str) -> PathBuf {
+    let (output, target) = install_output(url, spelling);
     assert!(
         output.status.success(),
         "uv pip install {spelling} failed\n{}{}",
@@ -607,6 +612,145 @@ fn typed_case() {
     );
 }
 
+fn probe(python: &Path, code: &str) -> String {
+    let output = std::process::Command::new(python)
+        .args(["-I", "-c", code])
+        .output()
+        .expect("python must execute");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn import_from(target: &Path, cwd: &Path) -> std::process::Output {
+    let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
+    kept_env(&mut command);
+    command.current_dir(cwd).env("PYTHONPATH", target).args([
+        "-c",
+        "import dx_native_probe; print(dx_native_probe.greet())",
+    ]);
+    command.output().expect("python must execute")
+}
+
+fn native_files(root: &Path, found: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(root).expect("read dir").flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            native_files(&path, found);
+        } else {
+            found.push(path);
+        }
+    }
+}
+
+fn pypi_native_case() {
+    let python = data("DX_PYPI_PYTHON");
+    let version = probe(
+        &python,
+        "import sys; print('cp%d%d' % sys.version_info[:2])",
+    );
+    let suffix = probe(
+        &python,
+        "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))",
+    );
+    assert_eq!(version, "cp312", "native probe wheel is built for cp312");
+    let wheel = format!("dx_native_probe-1.0-{version}-{version}-linux_x86_64.whl");
+    let house = stage(
+        "DX_NATIVE_PROG",
+        "DX_NATIVE_CONFIG",
+        "dx_native_probe-wheelhouse",
+        "dx-native-probe",
+        "dx_native_probe",
+    );
+    assert!(house.join(&wheel).is_file(), "{}", house.display());
+    let (url, _log) = serve(house.clone());
+    let target = install(&url, "dx_native_probe");
+
+    let mut files = Vec::new();
+    native_files(&target, &mut files);
+    let ext: Vec<&PathBuf> = files
+        .iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "so"))
+        .collect();
+    assert_eq!(ext.len(), 1, "{files:?}");
+    assert_eq!(
+        ext[0],
+        &target
+            .join("dx_native_probe")
+            .join(format!("_core{suffix}"))
+    );
+    for path in &files {
+        let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+        assert!(!["h", "a", "o"].contains(&extension), "{path:?}");
+    }
+
+    let cwd = dx_testing::mkscratch("pypi-native-cwd").expect("scratch cwd");
+    let output = import_from(&target, &cwd);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "dx-native-probe native"
+    );
+    let moved = target.with_file_name(format!(
+        "{}-moved",
+        target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("t")
+    ));
+    std::fs::rename(&target, &moved).expect("rename install dir");
+    let output = import_from(&moved, &cwd);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    check_module(&moved, "dx_native_probe", "dx-native-probe native");
+
+    let digest = dx_testing::sha256_file(&house.join(&wheel)).expect("hash wheel");
+    println!("python {version} wheel {wheel} sha256 {digest}");
+
+    let house = stage(
+        "DX_NATIVE_WRONGABI_PROG",
+        "DX_NATIVE_WRONGABI_CONFIG",
+        "native_probe_wrongabi-wheelhouse",
+        "dx-native-probe",
+        "native_probe_wrongabi",
+    );
+    let (url, _log) = serve(house);
+    let (output, _target) = install_output(&url, "dx_native_probe");
+    assert!(!output.status.success(), "cp311 wheel must not install");
+
+    let house = stage(
+        "DX_NATIVE_NOCORE_PROG",
+        "DX_NATIVE_NOCORE_CONFIG",
+        "native_probe_nocore-wheelhouse",
+        "dx-native-probe",
+        "native_probe_nocore",
+    );
+    let (url, _log) = serve(house);
+    let (output, target) = install_output(&url, "dx_native_probe");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = import_from(&target, &cwd);
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("_core"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 #[test]
 fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
@@ -616,6 +760,7 @@ fn deploy_verify() {
         "github" => github_case(),
         "oci" => oci_case(),
         "pypi" => pypi_case(),
+        "pypi_native" => pypi_native_case(),
         "resources" => resources_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),
     }

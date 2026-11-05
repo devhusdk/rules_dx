@@ -1,0 +1,50 @@
+load("@rules_python//python/cc:py_extension.bzl", "py_extension")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//deploy/rules:__pkg__"])
+
+py_extension(
+    name = "_core",
+    srcs = ["_core.cc"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+filegroup(
+    name = "nocore_srcs",
+    srcs = [
+        "__init__.py",
+        "__init__.pyi",
+        "__main__.py",
+        "py.typed",
+    ],
+)
+
+filegroup(
+    name = "srcs",
+    srcs = [
+        ":_core",
+        ":nocore_srcs",
+    ],
+)
+
+real_source_target(
+    name = "corpus_cpp",
+    testonly = True,
+    aspect_hints = ["//:clang_format_config"],
+    cpp_srcs = ["_core.cc"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_python",
+    testonly = True,
+    aspect_hints = ["//:ruff_config"],
+    python_srcs = [
+        "__init__.py",
+        "__main__.py",
+    ],
+    tags = ["corpus"],
+)

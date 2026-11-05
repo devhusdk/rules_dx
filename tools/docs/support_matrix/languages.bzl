@@ -359,6 +359,7 @@ ROWS = [
     {"name": "rego", "section": "formats", "title": "Rego"},
     {"name": "cue", "section": "formats", "title": "CUE"},
     {"name": "gherkin", "section": "formats", "title": "Gherkin"},
+    {"families": ["core"], "name": "github_workflow", "section": "formats", "title": "GitHub workflows"},
     {"name": "html_template", "section": "formats", "title": "HTML templates"},
     {"name": "jsonnet", "section": "formats", "title": "Jsonnet"},
     {"name": "latex", "section": "formats", "title": "LaTeX"},

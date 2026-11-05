@@ -48,6 +48,7 @@ REAL_CLASS_TO_FAMILY = {
     "fortran": "fortran",
     "fsharp": "fsharp",
     "gherkin": "gherkin",
+    "github_workflow": "core",
     "go": "go",
     "go_module": "go_module",
     "graphql": "graphql",

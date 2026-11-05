@@ -53,6 +53,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "github_workflow",
     "ansible",
     "api_spec",
     "api_spec_ref",
@@ -196,6 +197,27 @@ def named_source_class_error(class_id, basename):
     row = NAMED_SOURCE_CLASSES[class_id]
     accepted = row["names"] + ["*" + s for s in row["suffixes"]]
     return "'" + basename + "' is not a " + class_id + " file name; accepted names: " + ", ".join(accepted)
+
+# Classes recognised by directory and extension. These are checked before the
+# extension table, so a workflow file leaves the `yaml` class for lint.
+PATH_SOURCE_CLASSES = {
+    "github_workflow": {
+        "dirs": [".github/workflows"],
+        "extensions": [".yml", ".yaml"],
+    },
+}
+
+def path_source_class(path):
+    """Returns the path-matched class for a workspace-relative path, or ""."""
+    for class_id in sorted(PATH_SOURCE_CLASSES.keys()):
+        row = PATH_SOURCE_CLASSES[class_id]
+        for d in row["dirs"]:
+            if not path.startswith(d + "/"):
+                continue
+            for ext in row["extensions"]:
+                if path.endswith(ext) and len(path) > len(d) + 1 + len(ext):
+                    return class_id
+    return ""
 
 def is_known_semantic_class(class_id):
     """Reports whether a class ID is in the registry."""

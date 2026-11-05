@@ -1,7 +1,7 @@
 """Versioned semantic-class registry tests (freeze)."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "sources_schema_error", "upstream_source_class")
+load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "path_source_class", "sources_schema_error", "upstream_source_class")
 
 FROZEN_SEMANTIC_FILE_CLASSES = [
     "julia",
@@ -39,6 +39,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "github_workflow",
     "ansible",
     "api_spec",
     "api_spec_ref",
@@ -201,6 +202,19 @@ def sources_registry_tests(name):
                 "cmake name error lists the accepted names",
                 [named_source_class_error("cmake", "CMakeLists.txt"), named_source_class_error("cmake", "CMakeLists.txt.in")],
                 ["", "'CMakeLists.txt.in' is not a cmake file name; accepted names: CMakeLists.txt, *.cmake"],
+            ),
+            expect_equal(
+                "workflow files match by path and other yaml stays yaml",
+                [
+                    path_source_class(".github/workflows/ci.yml"),
+                    path_source_class(".github/workflows/release.yaml"),
+                    path_source_class(".github/workflows/.yml"),
+                    path_source_class(".github/workflows/sub/ci.yml"),
+                    path_source_class(".github/dependabot.yml"),
+                    path_source_class("x/.github/workflows/ci.yml"),
+                    path_source_class(".github/workflows/ci.json"),
+                ],
+                ["github_workflow", "github_workflow", "", "github_workflow", "", "", ""],
             ),
             expect_equal(
                 "upstream unknown extension maps to empty",

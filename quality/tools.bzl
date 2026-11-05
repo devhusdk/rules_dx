@@ -2552,7 +2552,7 @@ TOOLS = [
     ),
     tool(
         id = "yamlfmt",
-        adapters = {"format": ["yaml"]},
+        adapters = {"format": ["github_workflow", "yaml"]},
         config_suffix = [".yaml", ".yml", ".yamlfmt"],
         support = [
             row(
@@ -2560,6 +2560,15 @@ TOOLS = [
                 classes = ["yaml"],
                 context = "owned",
                 family = "yaml",
+                fix = "supported",
+                state = "supported",
+                transport = "batched",
+            ),
+            row(
+                capability = "format",
+                classes = ["github_workflow"],
+                context = "owned",
+                family = "core",
                 fix = "supported",
                 state = "supported",
                 transport = "batched",

@@ -14,6 +14,7 @@ local_path_override(
 # floor: equals tested
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "protobuf", version = "36.2")
 bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "rules_rust", version = "0.75.0", dev_dependency = True)
 bazel_dep(name = "rules_shell", version = "0.8.0")

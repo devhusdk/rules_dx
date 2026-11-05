@@ -37,6 +37,7 @@ DX_CODEGEN_SHARD_SUFFIX = ".dxcodegen.pb"
 DX_CODEGEN_ADMITTED_PAIRS = (
     ("protobuf", "rust"),
     ("openapi", "typescript"),
+    ("openapi", "go"),
     ("flatbuffers", "cpp"),
     ("flatbuffers", "rust"),
     ("flatbuffers", "java"),

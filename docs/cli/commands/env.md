@@ -69,6 +69,7 @@ Each pair has a library rule and a shard rule. The shard rule binds a plan entry
 | --- | --- | --- |
 | protobuf/rust | `rust_prost_library` | `prost_codegen_shard` in `@rules_dx//generation:codegen.bzl` |
 | openapi/typescript | `openapi_typescript_client` in `@rules_dx//api_spec/rules:codegen.bzl` | `openapi_codegen_shard` |
+| openapi/go | `openapi_go_client` in `@rules_dx//api_spec/rules:codegen.bzl` | `openapi_codegen_shard` |
 | flatbuffers | `flatbuffers_cc_library`, `flatbuffers_rust_library`, `flatbuffers_java_library` in `@rules_dx//flatbuffers/rules:codegen.bzl` | `flatbuffers_codegen_shard` |
 | capnp | `capnp_cc_library`, `capnp_rust_library`, `capnp_java_library` in `@rules_dx//capnproto/rules:codegen.bzl` | `capnp_codegen_shard` |
 | thrift | `thrift_cc_library`, `thrift_rust_library`, `thrift_java_library` in `@rules_dx//thrift/rules:codegen.bzl` | `thrift_codegen_shard` |

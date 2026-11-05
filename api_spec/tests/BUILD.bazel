@@ -1,7 +1,8 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_typescript_client")
+load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_go_client", "openapi_typescript_client")
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//go/rules:defs.bzl", "go_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//typescript/rules:defs.bzl", "typescript_project")
 load(":failure_tests.bzl", "openapi_codegen_failure_test")
@@ -62,6 +63,48 @@ genrule(
 build_test(
     name = "client_content_test",
     targets = [":client_content"],
+)
+
+api_spec_library(
+    name = "petstore",
+    srcs = ["petstore.yaml"],
+)
+
+openapi_go_client(
+    name = "petstore_go",
+    out = "petstore.go",
+    package = "petstore",
+    spec = ":petstore",
+)
+
+openapi_codegen_shard(
+    name = "petstore_go_shard",
+    client = ":petstore_go",
+    entries = ["gen/petstore/petstore.go|gen|petstore|api_spec/tests/petstore.go"],
+    language = "go",
+)
+
+codegen_shard_argv_test(
+    name = "petstore_go_shard_argv_test",
+    expected = [
+        "--producer",
+        "//api_spec/tests:petstore_go_shard",
+        "--language",
+        "go",
+        "--entry",
+        "gen/petstore/petstore.go|gen|petstore|api_spec/tests/petstore.go",
+        "--output",
+    ],
+    output = "api_spec/tests/petstore_go_shard.dxcodegen.pb",
+    target_under_test = ":petstore_go_shard",
+)
+
+go_library(
+    name = "petstore_go_lib",
+    testonly = True,
+    srcs = [":petstore_go"],
+    importpath = "example.com/petstore",
+    deps = ["@com_github_oapi_codegen_runtime//:runtime"],
 )
 
 openapi_codegen_shard(

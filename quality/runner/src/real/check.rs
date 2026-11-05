@@ -862,6 +862,7 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_pkl_lsp(&out.stdout, out.code, &strs),
                 )
+                .map_err(|err| with_stderr(err, &out.stderr))
             }
             "julialint" => {
                 let work = scratch.root().join(".dx-julialint");

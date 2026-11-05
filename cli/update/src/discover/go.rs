@@ -1,6 +1,6 @@
 //! Lists Go modules whose newest release on the module proxy is newer than the go.mod requirement.
 
-use super::{wanted, Candidate, Fetch, Findings, LookupError};
+use super::{github_repo, wanted, Candidate, Fetch, Findings, LookupError};
 use semver::Version;
 
 pub const DEFAULT_BASE: &str = "https://proxy.golang.org";
@@ -58,6 +58,10 @@ pub fn outdated(
                 .ok()
                 .and_then(|body| serde_json::from_str::<serde_json::Value>(&body).ok())
                 .and_then(|info| info["Time"].as_str().map(str::to_owned));
+            let (repo, tags) = match tags(module, current, &latest.1) {
+                Some((repo, tags)) => (Some(repo), Some(tags)),
+                None => (None, None),
+            };
             found.candidates.push(Candidate {
                 set: set.to_owned(),
                 package: module.to_owned(),
@@ -65,11 +69,50 @@ pub fn outdated(
                 latest: latest.1,
                 published,
                 prerelease: !latest.0.pre.is_empty(),
-                repo: None,
+                repo,
+                tags,
             });
         }
     }
     found
+}
+
+/// The GitHub repository of a module and its old and new tags.
+fn tags(module: &str, current: &str, latest: &str) -> Option<(String, (String, String))> {
+    let rest = module.strip_prefix("github.com/")?;
+    let repo = github_repo(module)?;
+    let mut parts: Vec<&str> = rest.split('/').skip(2).collect();
+    if parts.last().is_some_and(|last| is_major_suffix(last)) {
+        parts.pop();
+    }
+    let prefix = if parts.is_empty() {
+        String::new()
+    } else {
+        format!("{}/", parts.join("/"))
+    };
+    let strip = |version: &str| version.trim_end_matches("+incompatible").to_owned();
+    let old = match pseudo_hash(current) {
+        Some(hash) => hash.to_owned(),
+        None => format!("{prefix}v{}", strip(current)),
+    };
+    Some((repo, (old, format!("{prefix}v{}", strip(latest)))))
+}
+
+fn is_major_suffix(part: &str) -> bool {
+    part.strip_prefix('v').is_some_and(|n| {
+        n.len() > 0 && n.bytes().all(|b| b.is_ascii_digit()) && n != "0" && n != "1"
+    })
+}
+
+/// The commit hash of a pseudo-version such as `0.0.0-20240101120000-abcdef123456`.
+fn pseudo_hash(version: &str) -> Option<&str> {
+    let (rest, hash) = version.rsplit_once('-')?;
+    let (_, stamp) = rest.rsplit_once('-')?;
+    let ok = stamp.len() == 14
+        && stamp.bytes().all(|b| b.is_ascii_digit())
+        && hash.len() == 12
+        && hash.bytes().all(|b| b.is_ascii_hexdigit());
+    ok.then_some(hash)
 }
 
 fn escape(module: &str) -> String {
@@ -168,9 +211,45 @@ mod tests {
                 latest: "1.1.0".into(),
                 published: Some("2026-02-03T00:00:00Z".into()),
                 prerelease: false,
-                repo: None,
+                repo: Some("Foo/bar".into()),
+                tags: Some(("v1.0.0".into(), "v1.1.0".into())),
             })
         );
+    }
+
+    #[test]
+    fn tags_follow_the_module_path() {
+        let t = |m, c, l| tags(m, c, l).map(|(r, t)| (r, t.0, t.1));
+        let s = |r: &str, a: &str, b: &str| Some((r.to_owned(), a.to_owned(), b.to_owned()));
+        assert_eq!(
+            t("github.com/o/r/v2", "2.0.0", "2.1.0"),
+            s("o/r", "v2.0.0", "v2.1.0")
+        );
+        assert_eq!(
+            t("github.com/o/r/sub", "1.0.0", "1.1.0"),
+            s("o/r", "sub/v1.0.0", "sub/v1.1.0")
+        );
+        assert_eq!(
+            t("github.com/o/r/sub/v3", "3.0.0", "3.1.0"),
+            s("o/r", "sub/v3.0.0", "sub/v3.1.0")
+        );
+        assert_eq!(
+            t("github.com/o/r", "2.0.0+incompatible", "2.1.0+incompatible"),
+            s("o/r", "v2.0.0", "v2.1.0")
+        );
+        assert_eq!(
+            t(
+                "github.com/o/r",
+                "0.0.0-20240101120000-abcdef123456",
+                "1.0.0"
+            ),
+            s("o/r", "abcdef123456", "v1.0.0")
+        );
+        assert_eq!(
+            t("github.com/o/r", "1.0.0-20240101120000-xyz", "1.0.1"),
+            s("o/r", "v1.0.0-20240101120000-xyz", "v1.0.1")
+        );
+        assert_eq!(t("golang.org/x/net", "1.0.0", "1.1.0"), None);
     }
 
     #[test]

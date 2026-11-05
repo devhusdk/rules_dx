@@ -88,6 +88,7 @@ pub fn outdated(
                     published: published.clone(),
                     prerelease: version.is_prerelease(),
                     repo: repo.clone(),
+                    tags: None,
                 });
             }
         }
@@ -231,6 +232,7 @@ mod tests {
             published: Some("2026-01-02T00:00:00.000Z".into()),
             prerelease: false,
             repo: None,
+            tags: None,
         }));
     }
 

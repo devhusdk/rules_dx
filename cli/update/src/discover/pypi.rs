@@ -81,6 +81,7 @@ pub fn outdated(
                     published: release.1.clone(),
                     prerelease: release.0.any_prerelease(),
                     repo: repo.clone(),
+                    tags: None,
                 });
             }
         }
@@ -277,6 +278,7 @@ test = ["grouped<3", { include-group = "dev" }]
             published: Some("2026-01-02T00:00:00Z".into()),
             prerelease: false,
             repo: None,
+            tags: None,
         }));
         assert!(names(&found).contains(&"grouped"));
     }

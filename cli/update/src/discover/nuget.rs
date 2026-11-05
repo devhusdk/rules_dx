@@ -54,6 +54,7 @@ pub fn outdated(
                     published: None,
                     prerelease: latest.contains('-'),
                     repo: None,
+                    tags: None,
                 });
             }
         }
@@ -158,6 +159,7 @@ mod tests {
                 published: None,
                 prerelease: false,
                 repo: None,
+                tags: None,
             }]
         );
     }

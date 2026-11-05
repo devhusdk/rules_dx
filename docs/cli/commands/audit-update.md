@@ -543,18 +543,19 @@ For each group, `dx update --pr` does this:
 7. Turns auto-merge on or off by `--automerge`.
 
 `--pr` covers the same sets as `--outdated`, including GitHub Actions pins
-(branch `dx-update/github-actions`) and `.bazelversion`. A package in a `ruby`
-set, or in a set with no registry link, is printed as `skipped <set>:<package>
-...: <reason>` and gets no pull request.
+(branch `dx-update/github-actions`) and `.bazelversion`. A package in a set
+with no registry link is printed as `skipped <set>:<package> ...: <reason>`
+and gets no pull request.
 
 The body lists each package as `old -> new` with its registry link, marks
 prerelease versions with `prerelease`, then the
 lock files changed with added and removed line counts.
 
 When the registry names a GitHub repository, the line also links the compare view
-and the release for the new version. npm, PyPI, the Bazel registry, GitHub
+and the release for the new version. npm, PyPI, the Bazel registry, Go modules on github.com, GitHub
 actions and the `.bazelversion` pin do this; crates.io's index does not name a repository, so cargo lines
-keep the registry link only.
+keep the registry link only. Go links use the `v` tags, with the
+subdirectory as a prefix for modules inside a repository.
 
 After the groups, `dx update --pr` closes open `dx-update/` pull requests on the
 base branch that this run covers but no longer has updates for. It deletes the

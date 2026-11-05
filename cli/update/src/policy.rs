@@ -137,6 +137,7 @@ mod tests {
             published: published.map(str::to_owned),
             prerelease: false,
             repo: None,
+            tags: None,
         }
     }
 

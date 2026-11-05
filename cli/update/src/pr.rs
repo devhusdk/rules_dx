@@ -148,10 +148,13 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
             item.registry.url(&c.package)
         );
         if let Some(repo) = &c.repo {
+            let (old, new) = c
+                .tags
+                .clone()
+                .unwrap_or_else(|| (c.current.clone(), c.latest.clone()));
             let _ = write!(
                 text,
-                ": [compare](https://github.com/{repo}/compare/{}...{}), [release](https://github.com/{repo}/releases/tag/{})",
-                c.current, c.latest, c.latest
+                ": [compare](https://github.com/{repo}/compare/{old}...{new}), [release](https://github.com/{repo}/releases/tag/{new})"
             );
         }
         text.push('\n');
@@ -233,6 +236,7 @@ mod tests {
                 published: None,
                 prerelease: false,
                 repo: None,
+                tags: None,
             },
             registry,
         }
@@ -307,6 +311,19 @@ mod tests {
             Group::All,
         );
         assert!(!body(&plain[0], &[]).contains("compare"));
+    }
+
+    #[test]
+    fn body_uses_the_tags_when_set() {
+        let mut one = plan(
+            &[item("go", "github.com/o/r/sub", "2.0.0", Registry::Npm)],
+            Group::All,
+        );
+        one[0].items[0].candidate.repo = Some("o/r".into());
+        one[0].items[0].candidate.tags = Some(("sub/v1.0.0".into(), "sub/v2.0.0".into()));
+        assert!(body(&one[0], &[]).contains(
+            "[compare](https://github.com/o/r/compare/sub/v1.0.0...sub/v2.0.0), [release](https://github.com/o/r/releases/tag/sub/v2.0.0)\n"
+        ));
     }
 
     #[test]

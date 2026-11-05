@@ -732,6 +732,7 @@ mod tests {
                     published: None,
                     prerelease: false,
                     repo: None,
+                    tags: None,
                 },
                 registry: Registry::Crates,
             }],
@@ -1326,6 +1327,7 @@ mod tests {
                 published: None,
                 prerelease: false,
                 repo: None,
+                tags: None,
             },
             registry: Registry::Crates,
         };

@@ -56,6 +56,7 @@ pub fn outdated(
                         published: None,
                         prerelease,
                         repo: None,
+                        tags: None,
                     });
                 }
             }
@@ -157,6 +158,7 @@ mod tests {
                 published: None,
                 prerelease: false,
                 repo: None,
+                tags: None,
             })
         );
         let lang = found

@@ -33,6 +33,8 @@ pub struct Candidate {
     pub prerelease: bool,
     /// The GitHub repository as `owner/name`, when the registry names one.
     pub repo: Option<String>,
+    /// The exact old and new tag names in `repo`, when they are not the bare versions.
+    pub tags: Option<(String, String)>,
 }
 
 /// One package that could not be looked up.

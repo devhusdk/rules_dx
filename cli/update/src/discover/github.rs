@@ -161,6 +161,7 @@ fn judge(
             published: release.published.clone(),
             prerelease: false,
             repo: super::github_repo(&format!("github.com/{package}")),
+            tags: None,
         });
     }
 }

@@ -55,6 +55,7 @@ pub fn outdated(
                         published: None,
                         prerelease,
                         repo,
+                        tags: None,
                     });
                 }
             }
@@ -154,6 +155,7 @@ mod tests {
                 published: None,
                 prerelease: false,
                 repo: None,
+                tags: None,
             }]
         );
         assert!(found.errors.is_empty());

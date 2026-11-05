@@ -49,8 +49,8 @@ pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
 pub use lock_hubs::{plan_lock_hubs, LockHubs};
 pub use module_pin::{plan_rules_dx_version, write_module_edit, ModuleEdit};
 pub use overrides::{
-    apply_overrides, check_overrides, check_overrides_in, module_deps, preflight_overrides,
-    refresh_overrides, render_overrides, OverridesState, OVERRIDES_INCLUDE,
+    apply_overrides, check_overrides, check_overrides_in, is_rules_dx_root, module_deps,
+    preflight_overrides, refresh_overrides, render_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
 pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{

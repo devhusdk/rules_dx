@@ -435,6 +435,15 @@ fn observe(root: &Path, text: &str) -> Result<Observed, String> {
 /// The `bazel_dep` names of the consumer's `MODULE.bazel`, includes followed. Empty when it
 /// cannot be read.
 pub fn module_deps(root: &Path) -> BTreeSet<String> {
+    load_calls(root, "bazel_dep")
+}
+
+/// Whether the workspace at `root` is the `rules_dx` module itself, which carries every family.
+pub fn is_rules_dx_root(root: &Path) -> bool {
+    load_calls(root, "module").contains("rules_dx")
+}
+
+fn load_calls(root: &Path, call_name: &str) -> BTreeSet<String> {
     let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
         return BTreeSet::new();
     };
@@ -452,7 +461,7 @@ pub fn module_deps(root: &Path) -> BTreeSet<String> {
     modules
         .iter()
         .flat_map(|module| module.calls())
-        .filter(|call| call.name == "bazel_dep")
+        .filter(|call| call.name == call_name)
         .filter_map(|call| call.str("name").map(str::to_owned))
         .collect()
 }
@@ -984,6 +993,14 @@ archive_override(
         let scratch = consumer(&dep_module());
         let deps = module_deps(scratch.path());
         assert!(deps.contains("rules_dx") && deps.contains("rules_cc"));
+    }
+
+    #[test]
+    fn is_rules_dx_root_reads_the_module_name() {
+        let own = consumer("module(name = \"rules_dx\")\n");
+        assert!(is_rules_dx_root(own.path()));
+        let other = consumer(&dep_module());
+        assert!(!is_rules_dx_root(other.path()));
     }
 
     fn consumer(module: &str) -> dx_test_scratch::TempDir {

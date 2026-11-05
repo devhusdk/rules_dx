@@ -162,6 +162,8 @@ def _pdb_pair_impl(ctx):
         fail("%s did not produce one pdb_file; the dx_pdb binary must be a Windows cc_binary" % target.label)
     pdb = pdbs.to_list()[0]
     manifest = ctx.actions.declare_file(ctx.label.name + ".pdb.json")
+    exe = ctx.actions.declare_file(ctx.label.name + ".exe")
+    ctx.actions.symlink(output = exe, target_file = binary, is_executable = True)
     ctx.actions.run(
         executable = ctx.executable._pdb,
         arguments = [
@@ -178,7 +180,11 @@ def _pdb_pair_impl(ctx):
         progress_message = "Pairing the PDB of %{label}",
     )
     return [
-        target[DefaultInfo],
+        DefaultInfo(
+            executable = exe,
+            files = depset([exe]),
+            runfiles = target[DefaultInfo].default_runfiles,
+        ),
         OutputGroupInfo(symbols = depset([pdb, manifest])),
     ]
 

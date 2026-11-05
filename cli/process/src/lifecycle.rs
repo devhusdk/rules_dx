@@ -1042,6 +1042,8 @@ mod backend {
         pub fn install_console_stop() {
             // SAFETY: registers a static function that only records the stop.
             unsafe {
+                // A parent that started dx with Ctrl-C disabled passes that on; dx wants the event.
+                SetConsoleCtrlHandler(None, 0);
                 SetConsoleCtrlHandler(Some(console_stop), 1);
             }
         }

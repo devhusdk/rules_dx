@@ -790,7 +790,7 @@ source = { registry = "https://pypi.org/simple" }
             .any(|arg| arg.contains("repository_disable")));
         let launched = runner.calls.borrow();
         assert_eq!(launched.len(), 2, "{launched:?}");
-        let uv = base.path().join("external/x/uv");
+        let uv = base.path().join("external").join("x").join("uv");
         assert_eq!(launched[0][0], uv.to_string_lossy());
         assert_eq!(launched[1][0], uv.to_string_lossy());
     }

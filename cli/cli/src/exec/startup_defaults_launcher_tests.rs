@@ -306,7 +306,12 @@ fn bazel_run_relative_workspace_uses_the_working_directory() {
 fn init_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();
-    let (code, out, err) = run_dx(root, &["init", "--apply", "demo"], &[]);
+    let start = root.to_string_lossy();
+    let (code, out, err) = run_dx(
+        root,
+        &["init", "--workspace", start.as_ref(), "--apply", "demo"],
+        &[],
+    );
     assert_eq!(
         code,
         Some(0),

@@ -181,6 +181,7 @@ mod tests {
     fn aggregate_gets_every_shard_once_in_order() {
         let shards = [PathBuf::from("/w/a/a.shard"), PathBuf::from("/w/b/b.shard")];
         let argv = aggregate_argv(Path::new("/t/agg"), &shards, Path::new("/w/.dx/docs/work"));
+        let argv: Vec<String> = argv.iter().map(|arg| arg.replace('\\', "/")).collect();
         assert_eq!(argv[0], "/t/agg");
         assert_eq!(
             argv[1..5],
@@ -200,7 +201,7 @@ mod tests {
             site_build: PathBuf::from("/t/site_build"),
         };
         let argv = site_build_argv(&tools, Path::new("/w/work"), Path::new("/w/index"));
-        let joined = argv.join(" ");
+        let joined = argv.join(" ").replace('\\', "/");
         assert!(
             joined.starts_with("/t/site_build --mdbook /t/mdbook"),
             "{joined}"

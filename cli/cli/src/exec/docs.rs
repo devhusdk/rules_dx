@@ -425,7 +425,7 @@ mod tests {
             "{err}"
         );
         let runs = tool_runs(&harness);
-        let aggregate = runs[0].join(" ");
+        let aggregate = runs[0].join(" ").replace('\\', "/");
         assert!(
             aggregate.contains("--shard ") && aggregate.contains("/a/a.shard"),
             "{aggregate}"

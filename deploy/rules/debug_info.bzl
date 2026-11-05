@@ -104,8 +104,14 @@ def _dsym_pair_impl(ctx):
         mnemonic = "DxDsym",
         progress_message = "Pairing the dSYM of %{label}",
     )
+    executable = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.symlink(output = executable, target_file = binary, is_executable = True)
     return [
-        binary_target[DefaultInfo],
+        DefaultInfo(
+            files = depset([executable]),
+            executable = executable,
+            runfiles = binary_target[DefaultInfo].default_runfiles,
+        ),
         OutputGroupInfo(symbols = depset([bundle, manifest])),
     ]
 

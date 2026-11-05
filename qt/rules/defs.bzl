@@ -608,6 +608,13 @@ def _dynamic_lookup_linkopts():
         "//conditions:default": [],
     })
 
+def _no_object_linkopts():
+    # Executables that only wrap an alwayslink library link no object files of their own.
+    return select({
+        "@platforms//os:windows": ["/IGNORE:4001"],
+        "//conditions:default": [],
+    })
+
 def _pic_copts():
     return select({
         "@platforms//os:windows": [],
@@ -764,8 +771,9 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
     # Windows has no executable-to-DLL main lookup: a source-less test links its library's main from the static archive.
     upstream_kwargs.setdefault("linkstatic", select({"@platforms//os:windows": True, "//conditions:default": False}))
+    upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + _no_object_linkopts()
     if not test:
-        upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + _bundle_runpath()
+        upstream_kwargs["linkopts"] = upstream_kwargs["linkopts"] + _bundle_runpath()
     qt_frameworks(
         name = name + "_qt_frameworks",
         deps = effective_deps,

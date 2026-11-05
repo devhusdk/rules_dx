@@ -2,7 +2,7 @@ load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//swift/rules:defs.bzl", "swift_interop_hint")
 
-package(default_visibility = ["//examples/swift-app:__subpackages__"])
+package(default_visibility = ["//swift/tests/fixtures/swift-app:__subpackages__"])
 
 swift_interop_hint(
     name = "cdigest_hint",

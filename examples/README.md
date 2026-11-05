@@ -7,4 +7,3 @@ listing its commands with expected output.
 - [docs-ci](docs-ci/) GitHub Actions caller for the docs workflow.
 - [gitlab-ci](gitlab-ci/) GitLab CI starter pipeline, without the GitHub workflow features listed in its README.
 - [adopt-polyglot](adopt-polyglot/) a Python, Rust, JS/TS and C++ tree adopted with `dx generate`.
-- [swift-app](swift-app/) a Swift command line on Linux with a pinned package, a C module and tests.

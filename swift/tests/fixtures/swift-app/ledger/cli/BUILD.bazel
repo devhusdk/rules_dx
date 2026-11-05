@@ -6,7 +6,7 @@ load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
-    default_visibility = ["//examples/swift-app:__subpackages__"],
+    default_visibility = ["//swift/tests/fixtures/swift-app:__subpackages__"],
 )
 
 _LINUX = ["@platforms//os:linux"]
@@ -18,7 +18,7 @@ swift_binary(
     copts = ["-DLEDGER_STRICT"],
     target_compatible_with = _LINUX,
     deps = [
-        "//examples/swift-app/ledger/core",
+        "//swift/tests/fixtures/swift-app/ledger/core",
         "@swift_app_argument_parser//:ArgumentParser",
     ],
 )

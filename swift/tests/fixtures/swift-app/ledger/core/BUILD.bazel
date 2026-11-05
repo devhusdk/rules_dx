@@ -5,7 +5,7 @@ load("//swift/rules:tests.bzl", "swift_library_provider_test")
 
 package(
     default_testonly = True,
-    default_visibility = ["//examples/swift-app:__subpackages__"],
+    default_visibility = ["//swift/tests/fixtures/swift-app:__subpackages__"],
 )
 
 _LINUX = ["@platforms//os:linux"]
@@ -16,7 +16,7 @@ swift_library(
     srcs = ["ledger.swift"],
     module_name = "LedgerCore",
     target_compatible_with = _LINUX,
-    deps = ["//examples/swift-app/ledger/cdigest"],
+    deps = ["//swift/tests/fixtures/swift-app/ledger/cdigest"],
 )
 
 swift_test(

@@ -11,9 +11,9 @@ as a Swift module, and the Swift test frameworks.
 ## Commands
 
 ```sh
-tools/dx build //examples/swift-app/ledger/cli:ledger
-tools/dx run //examples/swift-app/ledger/cli:ledger -- tea=250 milk=120
-tools/dx test //examples/swift-app/...
+tools/dx build //swift/tests/fixtures/swift-app/ledger/cli:ledger
+tools/dx run //swift/tests/fixtures/swift-app/ledger/cli:ledger -- tea=250 milk=120
+tools/dx test //swift/tests/fixtures/swift-app/...
 ```
 
 The run prints:

@@ -83,7 +83,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | D | `dscanner` | `dfmt` | `ldc` | no |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no |
 | Elixir | `credo` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no |
-| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no |
+| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` (not on `windows_arm64`: dialyzer on Windows is pending #6321) | no |
 | Fortran | `fortitude` | `ffmt` | `flang` | no |
 | F# | `fsharplint` | `fantomas` | `fsc` | `fsharp doc driver` |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` | `go doc` |

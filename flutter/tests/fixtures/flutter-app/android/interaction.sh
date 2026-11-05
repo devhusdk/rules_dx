@@ -3,14 +3,15 @@ set -eu
 serial="$1"
 app_id="$2"
 activity="$3"
+shift 3
 apk=""
-for f in $4; do
+for f in "$@"; do
     case "$f" in
     *_unsigned.apk) ;;
     *.apk) apk="$f" ;;
     esac
 done
-[ -n "$apk" ] || { echo "no signed apk in: $4"; exit 1; }
+[ -n "$apk" ] || { echo "no signed apk in: $*"; exit 1; }
 command -v adb >/dev/null || { echo "interaction: adb is not on PATH"; exit 1; }
 adb -s "$serial" get-state >/dev/null 2>&1 || { echo "interaction: no emulator $serial"; exit 1; }
 adb -s "$serial" install -r "$apk" >/dev/null

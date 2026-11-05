@@ -80,9 +80,9 @@ sh_test(
     size = "small",
     srcs = ["inspect_apk.sh"],
     args = [
-        "$(locations :apk)",
         "dk.devhus.flutterapp",
         "x86_64",
+        "$(locations :apk)",
     ],
     data = [":apk"],
     tags = ["block-network"],
@@ -94,9 +94,9 @@ sh_test(
     size = "small",
     srcs = ["inspect_apk.sh"],
     args = [
-        "$(locations :apk_arm64)",
         "dk.devhus.flutterapp",
         "arm64-v8a",
+        "$(locations :apk_arm64)",
     ],
     data = [":apk_arm64"],
     tags = ["block-network"],

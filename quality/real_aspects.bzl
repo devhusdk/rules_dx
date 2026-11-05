@@ -52,6 +52,10 @@ load("//quality:families/lua.bzl", _real_lua_format_aspect = "real_lua_format_as
 load("//quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _PHP_HOOKS = "HOOKS", _PHP_SHARD_SPECS = "SHARD_SPECS", _PHP_TOOLS = "TOOLS")
 load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _KUBERNETES_HOOKS = "HOOKS", _KUBERNETES_SHARD_SPECS = "SHARD_SPECS", _KUBERNETES_TOOLS = "TOOLS")
 load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
+load("//quality:families/d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _D_SHARD_SPECS = "SHARD_SPECS", _D_TOOLS = "TOOLS")
+load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _FORTRAN_SHARD_SPECS = "SHARD_SPECS", _FORTRAN_TOOLS = "TOOLS")
+load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
+load("//quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _ZIG_SHARD_SPECS = "SHARD_SPECS", _ZIG_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _without = "without")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
@@ -190,22 +194,6 @@ _REAL_TOOL_TABLE = {
         "shard": "dart",
         "target_tool": True,
     },
-    "dfmt": {
-        "attr": attr.label(default = "//config:tool_dfmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "d",
-        "target_tool": True,
-    },
-    "dscanner": {
-        "attr": attr.label(default = "//config:tool_dscanner", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "d",
-        "target_tool": True,
-    },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -229,24 +217,6 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "runfiles_env": True,
         "shard": "py",
-    },
-    "flang": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "fortran",
-    },
-    "ghc": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "haskell",
-    },
-    "ldc": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "d",
     },
     "flatc": {
         "attr": attr.label(default = "//config:tool_flatc", allow_files = True, cfg = "exec", executable = True),
@@ -320,20 +290,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
-    "ffmt": {
-        "attr": attr.label(default = "@dx_tools//:ffmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "fortran",
-    },
-    "fortitude": {
-        "attr": attr.label(default = "@dx_tools//:fortitude", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "fortran",
-    },
     "ktfmt": {
         "attr": attr.label(default = "//quality/tools/jvm:ktfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -356,27 +312,11 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "elixir",
     },
-    "hlint": {
-        "attr": attr.label(default = "//config:tool_hlint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "fallback": "=<label of an hlint executable>",
-        "kind": "file",
-        "resources": "medium",
-        "shard": "haskell",
-    },
     "nvcc_syntax": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "cc",
-    },
-    "ormolu": {
-        "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "fallback": "=<label of an ormolu executable>",
-        "kind": "file",
-        "resources": "medium",
-        "shard": "haskell",
     },
     "pmd": {
         "attr": attr.label(default = "//quality/tools/jvm:pmd", cfg = "exec", executable = True),
@@ -624,28 +564,6 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "medium",
         "shard": "julia",
-        "target_tool": True,
-    },
-    "zig": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "zig",
-    },
-    "zig_ast_check": {
-        "attr": attr.label(default = "//config:tool_zig_ast_check", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "zig",
-        "target_tool": True,
-    },
-    "zig_fmt": {
-        "attr": attr.label(default = "//config:tool_zig_fmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "setting",
-        "resources": "light",
-        "shard": "zig",
         "target_tool": True,
     },
 }
@@ -934,13 +852,6 @@ _REAL_SHARD_SPECS = {
         "shard": "cc",
         "suffix": "-cc",
     },
-    "real_d_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive D typecheck family aspect (ldc replay of the compile action).",
-        "requires": [compile_check_aspect],
-        "shard": "d",
-        "suffix": "-d",
-    },
     "real_dotnet_format": {
         "capability": "format",
         "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).",
@@ -1056,18 +967,6 @@ _REAL_SHARD_SPECS = {
         "shard": "dart",
         "suffix": "-dart",
     },
-    "real_d_format": {
-        "capability": "format",
-        "doc": "Additive D format family aspect (dfmt).",
-        "shard": "d",
-        "suffix": "-d",
-    },
-    "real_d_lint": {
-        "capability": "lint",
-        "doc": "Additive D lint family aspect (D-Scanner).",
-        "shard": "d",
-        "suffix": "-d",
-    },
     "real_python_format": {
         "capability": "format",
         "doc": "Additive Python format family aspect (ruff format).",
@@ -1086,23 +985,11 @@ _REAL_SHARD_SPECS = {
         "shard": "julia",
         "suffix": "-julia",
     },
-    "real_zig_format": {
-        "capability": "format",
-        "doc": "Additive Zig format family aspect (zig fmt).",
-        "shard": "zig",
-        "suffix": "-zig",
-    },
     "real_julia_lint": {
         "capability": "lint",
         "doc": "Additive Julia lint family aspect (JuliaWorkspaces).",
         "shard": "julia",
         "suffix": "-julia",
-    },
-    "real_zig_lint": {
-        "capability": "lint",
-        "doc": "Additive Zig lint family aspect (zig ast-check).",
-        "shard": "zig",
-        "suffix": "-zig",
     },
     "real_js_format": {
         "capability": "format",
@@ -1261,44 +1148,6 @@ _REAL_SHARD_SPECS = {
         "shard": "scala",
         "suffix": "-scala",
     },
-    "real_fortran_format": {
-        "capability": "format",
-        "doc": "Additive Fortran format family aspect (ffmt).",
-        "shard": "fortran",
-        "suffix": "-fortran",
-    },
-    "real_fortran_lint": {
-        "capability": "lint",
-        "doc": "Additive Fortran lint family aspect (fortitude).",
-        "shard": "fortran",
-        "suffix": "-fortran",
-    },
-    "real_fortran_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Fortran typecheck family aspect (flang replay of the compile action).",
-        "requires": [compile_check_aspect],
-        "shard": "fortran",
-        "suffix": "-fortran",
-    },
-    "real_haskell_format": {
-        "capability": "format",
-        "doc": "Additive Haskell format family aspect (ormolu).",
-        "shard": "haskell",
-        "suffix": "-haskell",
-    },
-    "real_haskell_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Haskell typecheck family aspect (ghc -fno-code replay of the compile action).",
-        "requires": [compile_check_aspect],
-        "shard": "haskell",
-        "suffix": "-haskell",
-    },
-    "real_haskell_lint": {
-        "capability": "lint",
-        "doc": "Additive Haskell lint family aspect (hlint).",
-        "shard": "haskell",
-        "suffix": "-haskell",
-    },
     "real_ocaml_lint": {
         "capability": "lint",
         "doc": "Additive OCaml lint family aspect (zanuda; target-coupled via OCamlCmtInfo).",
@@ -1324,13 +1173,6 @@ _REAL_SHARD_SPECS = {
         "requires": [compile_check_aspect],
         "shard": "ocaml",
         "suffix": "-ocaml",
-    },
-    "real_zig_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Zig typecheck family aspect (zig -fno-emit-bin replay of the compile action).",
-        "requires": [compile_check_aspect],
-        "shard": "zig",
-        "suffix": "-zig",
     },
 }
 
@@ -1863,8 +1705,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -1915,7 +1757,7 @@ real_format_aspect = _real_format_aspect
 
 real_typecheck_aspect = _real_typecheck_aspect
 
-real_zig_typecheck_aspect = _make_real_aspect("real_zig_typecheck")
+real_zig_typecheck_aspect = _real_zig_typecheck_aspect
 
 real_cc_format_aspect = _make_real_aspect("real_cc_format")
 
@@ -1923,7 +1765,7 @@ real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 
 real_cc_typecheck_aspect = _make_real_aspect("real_cc_typecheck")
 
-real_d_typecheck_aspect = _make_real_aspect("real_d_typecheck")
+real_d_typecheck_aspect = _real_d_typecheck_aspect
 
 real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 
@@ -1947,9 +1789,9 @@ real_dart_lint_aspect = _make_real_aspect("real_dart_lint")
 
 real_dart_typecheck_aspect = _make_real_aspect("real_dart_typecheck")
 
-real_d_format_aspect = _make_real_aspect("real_d_format")
+real_d_format_aspect = _real_d_format_aspect
 
-real_d_lint_aspect = _make_real_aspect("real_d_lint")
+real_d_lint_aspect = _real_d_lint_aspect
 
 real_perl_format_aspect = _real_perl_format_aspect
 
@@ -1965,9 +1807,9 @@ real_swift_format_aspect = _real_swift_format_aspect
 
 real_swift_lint_aspect = _real_swift_lint_aspect
 
-real_zig_format_aspect = _make_real_aspect("real_zig_format")
+real_zig_format_aspect = _real_zig_format_aspect
 
-real_zig_lint_aspect = _make_real_aspect("real_zig_lint")
+real_zig_lint_aspect = _real_zig_lint_aspect
 
 real_julia_lint_aspect = _make_real_aspect("real_julia_lint")
 
@@ -2056,10 +1898,10 @@ real_go_lint_aspect = _make_real_aspect("real_go_lint")
 
 real_go_typecheck_aspect = _make_real_aspect("real_go_typecheck")
 
-real_fortran_format_aspect = _make_real_aspect("real_fortran_format")
-real_fortran_lint_aspect = _make_real_aspect("real_fortran_lint")
+real_fortran_format_aspect = _real_fortran_format_aspect
+real_fortran_lint_aspect = _real_fortran_lint_aspect
 
-real_fortran_typecheck_aspect = _make_real_aspect("real_fortran_typecheck")
+real_fortran_typecheck_aspect = _real_fortran_typecheck_aspect
 
 real_typst_format_aspect = _real_typst_format_aspect
 
@@ -2070,10 +1912,10 @@ real_latex_format_aspect = _real_latex_format_aspect
 real_cmake_format_aspect = _real_cmake_format_aspect
 
 real_cmake_lint_aspect = _real_cmake_lint_aspect
-real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
-real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
+real_haskell_format_aspect = _real_haskell_format_aspect
+real_haskell_lint_aspect = _real_haskell_lint_aspect
 real_latex_lint_aspect = _real_latex_lint_aspect
-real_haskell_typecheck_aspect = _make_real_aspect("real_haskell_typecheck")
+real_haskell_typecheck_aspect = _real_haskell_typecheck_aspect
 
 real_text_lint_aspect = _real_text_lint_aspect
 

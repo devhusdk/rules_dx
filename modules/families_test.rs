@@ -473,14 +473,17 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 26] = [
+const FAMILY_FILES: [&str; 30] = [
     "ansible",
     "bicep",
     "cloudformation",
     "cmake",
     "core",
     "cue",
+    "d",
     "dockerfile",
+    "fortran",
+    "haskell",
     "html_template",
     "jsonnet",
     "kubernetes",
@@ -500,6 +503,7 @@ const FAMILY_FILES: [&str; 26] = [
     "typst",
     "xml",
     "yaml",
+    "zig",
 ];
 
 #[test]

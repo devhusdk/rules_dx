@@ -27,6 +27,11 @@ on:
         type: boolean
         required: false
         default: false
+      qualify:
+        description: "windows_x86_64 only: run //cc/context:qualify for llvm and msvc."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -212,6 +217,18 @@ jobs:
           else
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
+      - name: Qualify cc/context exports
+        if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          "C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -format json > "$RUNNER_TEMP/evidence/msvc-vswhere.json"
+          bazel_bin="$(cygpath -w "$(command -v bazel)")"
+          failed=0
+          for c in llvm msvc; do
+            bazel run --noshow_progress //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --compiler "$c" --bazel "$bazel_bin" --output "$(cygpath -w "$RUNNER_TEMP/evidence/qualify-$c.json")" 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-$c.log"
+            [ "${PIPESTATUS[0]}" -eq 0 ] || failed=1
+          done
+          exit "$failed"
       - name: Build the APKs for the inspect tests
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -363,6 +380,11 @@ jobs:
                 grep -E 'coverage sources|coverage_sources_incomplete' evidence.log | tail -n 40
               fi
             fi
+            for log in "$RUNNER_TEMP"/evidence/qualify-*.log; do
+              [ -f "$log" ] || continue
+              printf '\n%s: ' "$(basename "$log")"
+              tail -n 1 "$log"
+            done
             if [ -f "$RUNNER_TEMP/evidence/android-versions.txt" ]; then
               printf '\n```\n'
               cat "$RUNNER_TEMP/evidence/android-versions.txt"

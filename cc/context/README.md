@@ -65,7 +65,8 @@ git SHA, Bazel version, compiler banner, every command run and every qualified e
 
 The qualifier builds and its unit tests pass on `linux_x86_64` and `windows_x86_64` CI
 (evidence run 41989006621). The Windows MSVC and LLVM runs of the qualifier itself are
-not recorded yet.
+not recorded yet. Dispatch `evidence.yml` with `qualify: true` on `windows_x86_64` to
+run them; the artifact holds `qualify-llvm.json`, `qualify-msvc.json` and `msvc-vswhere.json`.
 
 ## Fixture records
 

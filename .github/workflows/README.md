@@ -6,7 +6,7 @@
 - `ci.yml`: this repository's own `ci` gate. A failed Windows preflight build uploads `rmeta-diagnostics-<platform>` (#4850).
 - `issue-labels.yml`: daily warning for open issues older than one day, except pinned ones, that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
   A second job warns about labels named in `CONTRIBUTING.md` or issue template front matter that do not exist in the repository (#6643).
-- `evidence.yml`: native evidence on hosted runners, dispatched per run. The `evidence-<platform>` artifact holds `evidence.log` and each test's log, XML and undeclared outputs. Set `platforms` to `["macos_arm64"]` for Apple runs. Set `android` to boot an emulator and run the Rust Android device scenarios on `linux_x86_64`.
+- `evidence.yml`: native evidence on hosted runners, dispatched per run. The `evidence-<platform>` artifact holds `evidence.log` and each test's log, XML and undeclared outputs. Set `platforms` to `["macos_arm64"]` for Apple runs. Set `android` to boot an emulator and run the Rust Android device scenarios on `linux_x86_64`. Set `qualify` on `windows_x86_64` to run `//cc/context:qualify` for llvm and msvc.
 - `dx-update.yml`: weekly `tools/dx update --pr` for dependency updates. `dx init` writes the same file.
 - `verify-pins.yml`: weekly `//quality/artifacts:update -- --verify-only`. It fails naming each stale record.
 - `ghcr.yml`: prebuilt devcontainer images.

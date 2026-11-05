@@ -148,7 +148,7 @@ pub fn dsym_manifest(
         "uuid": pair.uuid,
         "arch": pair.arch,
         "sha256": format!("{:x}", Sha256::digest(&bin)),
-        "dwarf": rel.to_string_lossy(),
+        "dwarf": rel.to_string_lossy().replace('\\', "/"),
         "dsymutil": tool,
     }))
 }

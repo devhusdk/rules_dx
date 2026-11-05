@@ -19,6 +19,10 @@ def clean_env():
     return {}
 
 
+def interpreter():
+    return sys._base_executable if WINDOWS else sys.executable
+
+
 def crt_dlls():
     from python.runfiles import Runfiles
 
@@ -68,7 +72,7 @@ class NativeExtTest(unittest.TestCase):
                     "assert 'libstdc++.so' not in maps and 'libc++.so' not in maps"
                 )
             result = subprocess.run(
-                [sys.executable, "-I", "-c", code],
+                [interpreter(), "-I", "-c", code],
                 env=clean_env(),
                 cwd=tmp,
                 capture_output=True,
@@ -88,7 +92,7 @@ class NativeExtTest(unittest.TestCase):
                 "s.loader.exec_module(u.module_from_spec(s))"
             )
             result = subprocess.run(
-                [sys.executable, "-I", "-c", code],
+                [interpreter(), "-I", "-c", code],
                 env=clean_env(),
                 cwd=tmp,
                 capture_output=True,

@@ -542,6 +542,7 @@
     "julia": {
       "aspects": [
         "real_julia_format_aspect",
+        "real_julia_lint_aspect",
         "real_julia_typecheck_aspect"
       ],
       "bazel_deps": [

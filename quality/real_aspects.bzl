@@ -6,9 +6,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
-load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
-load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//avro/rules:defs.bzl", "AvroInfo")
@@ -17,7 +15,6 @@ load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
-load("//php/rules:php.bzl", "staged_path")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
@@ -51,6 +48,8 @@ load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_k
 load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
 load("//quality:families/dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _DART_HOOKS = "HOOKS", _DART_SHARD_SPECS = "SHARD_SPECS", _DART_TOOLS = "TOOLS")
 load("//quality:families/powershell.bzl", _real_powershell_format_aspect = "real_powershell_format_aspect", _real_powershell_lint_aspect = "real_powershell_lint_aspect", _POWERSHELL_HOOKS = "HOOKS", _POWERSHELL_SHARD_SPECS = "SHARD_SPECS", _POWERSHELL_TOOLS = "TOOLS")
+load("//quality:families/ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _RUBY_HOOKS = "HOOKS", _RUBY_SHARD_SPECS = "SHARD_SPECS", _RUBY_TOOLS = "TOOLS")
+load("//quality:families/julia.bzl", _real_julia_format_aspect = "real_julia_format_aspect", _real_julia_lint_aspect = "real_julia_lint_aspect", _real_julia_typecheck_aspect = "real_julia_typecheck_aspect", _JULIA_HOOKS = "HOOKS", _JULIA_SHARD_SPECS = "SHARD_SPECS", _JULIA_TOOLS = "TOOLS")
 load("//quality:families/d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _D_SHARD_SPECS = "SHARD_SPECS", _D_TOOLS = "TOOLS")
 load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _FORTRAN_SHARD_SPECS = "SHARD_SPECS", _FORTRAN_TOOLS = "TOOLS")
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
@@ -152,22 +151,6 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "heavy",
         "shard": "erlang",
-    },
-    "jet": {
-        "attr": attr.label(default = "//config:tool_jet", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
-        "fallback": "=@rules_dx//julia/tools/jet:jet",
-        "kind": "setting",
-        "resources": "heavy",
-        "shard": "julia",
-    },
-    "sorbet": {
-        "attr": attr.label(default = "//config:tool_sorbet", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
-        "fallback": "=@rules_dx//ruby/tools:sorbet",
-        "kind": "setting",
-        "resources": "heavy",
-        "shard": "ruby",
     },
     "elvis": {
         "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
@@ -375,13 +358,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
-    "rubocop": {
-        "attr": attr.label(default = "//quality/tools/ruby:rubocop", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "medium",
-        "shard": "ruby",
-    },
     "csc": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
@@ -499,13 +475,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
-    "standardrb": {
-        "attr": attr.label(default = "//quality/tools/ruby:standardrb", cfg = "exec", executable = True),
-        "capabilities": ["format"],
-        "kind": "executable",
-        "resources": "medium",
-        "shard": "ruby",
-    },
     "topiary": {
         "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -532,22 +501,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",
-    },
-    "julialint": {
-        "attr": attr.label(default = "//config:tool_julialint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "fallback": "=@rules_dx//julia/tools/lint:julialint",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "julia",
-    },
-    "julia_format": {
-        "attr": attr.label(default = "//config:tool_julia_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "julia",
-        "target_tool": True,
     },
 }
 
@@ -732,42 +685,6 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
-def _runfiles_path(ctx, file):
-    """Returns the runfiles-relative path of one file."""
-    if file.short_path.startswith("../"):
-        return file.short_path[3:]
-    return ctx.workspace_name + "/" + file.short_path
-
-def _jet_staging(target, ctx, path_to_file):
-    """Returns the staged dependency sources and the analysis config of one Julia target."""
-    info = target[JuliaInfo]
-    owned = {f.path: ws for (ws, f) in path_to_file.items()}
-    main = getattr(ctx.rule.attr, "main", None)
-    main_files = main.files.to_list() if main != None else []
-    if info.entry != None and info.entry.path in owned:
-        roots = [owned[info.entry.path]]
-    elif len(main_files) == 1 and main_files[0].path in owned:
-        roots = [owned[main_files[0].path]]
-    else:
-        roots = sorted(owned.values())
-    staged = []
-    seen = {}
-    candidates = info.transitive_srcs.to_list() + [f for f in info.runfiles.files.to_list() if f.basename in ("Project.toml", "JuliaProject.toml") and "/share/julia/" not in f.short_path]
-    for f in sorted(candidates, key = lambda f: f.path):
-        if f.is_directory or f.path in seen:
-            continue
-        seen[f.path] = True
-        staged.append(("dx-jet/rf/" + _runfiles_path(ctx, f), f))
-    config = ctx.actions.declare_file(target.label.name + "-jet-config.toml")
-    ctx.actions.write(
-        output = config,
-        content = "includes = %s\nroots = %s\n" % (
-            json.encode(sorted(info.includes.to_list())),
-            json.encode(roots),
-        ),
-    )
-    return (staged, config)
-
 # Converters Vale shells out to, by source class: (tool name, owner rule, defs.bzl).
 # The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
 # never load Python or Node.
@@ -849,30 +766,6 @@ _REAL_SHARD_SPECS = {
         "shard": "elixir",
         "suffix": "-elixir",
     },
-    "real_julia_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Julia typecheck family aspect (JET).",
-        "shard": "julia",
-        "suffix": "-julia",
-    },
-    "real_ruby_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Ruby typecheck family aspect (Sorbet).",
-        "shard": "ruby",
-        "suffix": "-ruby",
-    },
-    "real_ruby_format": {
-        "capability": "format",
-        "doc": "Additive Ruby format family aspect (Standard).",
-        "shard": "ruby",
-        "suffix": "-ruby",
-    },
-    "real_ruby_lint": {
-        "capability": "lint",
-        "doc": "Additive Ruby lint family aspect (RuboCop).",
-        "shard": "ruby",
-        "suffix": "-ruby",
-    },
     "real_go_lint": {
         "capability": "lint",
         "doc": "Additive Go lint family aspect (delegated dx_govet, dx_errcheck and dx_staticcheck over rules_go packages).",
@@ -907,18 +800,6 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive Python typecheck family aspect (ty).",
         "shard": "py",
         "suffix": "-py",
-    },
-    "real_julia_format": {
-        "capability": "format",
-        "doc": "Additive Julia format family aspect (JuliaFormatter).",
-        "shard": "julia",
-        "suffix": "-julia",
-    },
-    "real_julia_lint": {
-        "capability": "lint",
-        "doc": "Additive Julia lint family aspect (JuliaWorkspaces).",
-        "shard": "julia",
-        "suffix": "-julia",
     },
     "real_js_format": {
         "capability": "format",
@@ -1178,21 +1059,6 @@ def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
     env = [real_request_tool_env("OCAMLLIB", stdlib[0].dirname)] if len(stdlib) > 0 else []
     return real_context(tool_files = tool_files, inputs = inputs, env = env)
 
-def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
-    # Dependency sources are only read for the constants they define; the owned sources
-    # are the CLI paths, so they stay out of the dependency set. A target without
-    # RubyFilesInfo has no dependencies to stage.
-    owned_paths = {f.path: True for f in shared.path_to_file.values()}
-    tool_files = []
-    inputs = []
-    if RubyFilesInfo in target:
-        seen_deps = {}
-        for dep_file in sorted(target[RubyFilesInfo].transitive_srcs.to_list(), key = lambda f: f.path):
-            if dep_file.path.endswith((".rb", ".rbi")) and dep_file.path not in owned_paths and dep_file.path not in seen_deps:
-                seen_deps[dep_file.path] = True
-                _stage(tool_files, inputs, "dx-sorbet/dep/" + staged_path(dep_file), dep_file)
-    return real_context(tool_files = tool_files, inputs = inputs)
-
 def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):
     (owned, aux) = _scalafix_context(target, what)
     tool_files = []
@@ -1210,18 +1076,6 @@ def _fsharplint_hook(target, ctx, _resolved, _capability, what, _shared):
     for index, lib in enumerate(refs):
         _stage(tool_files, inputs, "dx-fsharplint/ref/%d-%s" % (index, lib.basename), lib)
     _stage(tool_files, inputs, "dx-fsharplint/context.json", context)
-    return real_context(tool_files = tool_files, inputs = inputs)
-
-def _jet_hook(target, ctx, resolved, _capability, _what, shared):
-    if JuliaInfo not in target:
-        return _without(resolved, "jet")
-    (staged, config) = _jet_staging(target, ctx, shared.path_to_file)
-    tool_files = []
-    inputs = []
-    if config != None:
-        for (rel, staged_file) in staged:
-            _stage(tool_files, inputs, rel, staged_file)
-        _stage(tool_files, inputs, "dx-jet/config.toml", config)
     return real_context(tool_files = tool_files, inputs = inputs)
 
 def _jvm_check_hook(tool):
@@ -1515,10 +1369,8 @@ _CONTEXT_HOOKS = {
     "spotbugs": _spotbugs_hook,
     "dialyzer": _dialyzer_hook,
     "zanuda": _zanuda_hook,
-    "sorbet": _sorbet_hook,
     "scalafix": _scalafix_hook,
     "fsharplint": _fsharplint_hook,
-    "jet": _jet_hook,
     "tsc": _tsc_hook,
     "roslyn": _roslyn_hook,
     "csc": _roslyn_hook,
@@ -1535,7 +1387,7 @@ _CONTEXT_HOOKS = {
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
     "buf": _buf_hook,
     "gofumpt": _gofumpt_hook,
-} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _POWERSHELL_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -1547,8 +1399,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _POWERSHELL_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _POWERSHELL_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -1643,7 +1495,7 @@ real_python_format_aspect = _make_real_aspect("real_python_format")
 
 real_python_typecheck_aspect = _make_real_aspect("real_python_typecheck")
 
-real_julia_format_aspect = _make_real_aspect("real_julia_format")
+real_julia_format_aspect = _real_julia_format_aspect
 
 real_swift_format_aspect = _real_swift_format_aspect
 
@@ -1653,15 +1505,15 @@ real_zig_format_aspect = _real_zig_format_aspect
 
 real_zig_lint_aspect = _real_zig_lint_aspect
 
-real_julia_lint_aspect = _make_real_aspect("real_julia_lint")
+real_julia_lint_aspect = _real_julia_lint_aspect
 
-real_julia_typecheck_aspect = _make_real_aspect("real_julia_typecheck")
+real_julia_typecheck_aspect = _real_julia_typecheck_aspect
 
-real_ruby_typecheck_aspect = _make_real_aspect("real_ruby_typecheck")
+real_ruby_typecheck_aspect = _real_ruby_typecheck_aspect
 
-real_ruby_format_aspect = _make_real_aspect("real_ruby_format")
+real_ruby_format_aspect = _real_ruby_format_aspect
 
-real_ruby_lint_aspect = _make_real_aspect("real_ruby_lint")
+real_ruby_lint_aspect = _real_ruby_lint_aspect
 
 real_html_template_format_aspect = _real_html_template_format_aspect
 

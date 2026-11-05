@@ -35,3 +35,29 @@ jobs:
           while IFS= read -r line; do
             echo "::warning title=Unlabelled issue::$line needs a P0 to P3 label"
           done < unlabelled.txt
+
+  missing-labels:
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Warn about documented labels missing from the repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          {
+            echo bug enhancement needs-host tracking dogfood P0 P1 P2 P3 | tr ' ' '\n'
+            for f in .github/ISSUE_TEMPLATE/*.md; do
+              awk '/^---$/ { n++; next } n == 1 && /^labels:/ { sub(/^labels:/, ""); print; f = 1; next } n == 1 && f && /^[[:space:]]*-/ { sub(/^[[:space:]]*-/, ""); print; next } n == 1 { f = 0 }' "$f" |
+                tr ',' '\n' | tr -d "[]\"' " | sed '/^$/d'
+            done
+          } | sort -u > wanted.txt
+          gh label list --limit 500 --json name --jq '.[].name' | sort -u > present.txt
+          grep -vxFf present.txt wanted.txt > missing.txt || true
+          while IFS= read -r name; do
+            echo "::warning title=Missing label::label $name is documented or used by an issue template but does not exist"
+          done < missing.txt

@@ -30,7 +30,7 @@ Each issue except pinned guides gets one priority label:
 - `P2`: improve and finish existing features.
 - `P3`: new languages, platforms and features, last.
 
-Other labels: `bug`, `enhancement`, `needs-host` (needs macOS, Windows, GPU, or signing secrets), `tracking`.
+Other labels: `bug`, `enhancement`, `needs-host` (needs macOS, Windows, GPU, or signing secrets), `tracking`, `blocked` (waiting on something only the owner can do). The `model:haiku`, `model:sonnet`, `model:opus` and `model:human` labels pick which agent lane handles an issue.
 `dogfood` is an extra label, never the only one.
 
 Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+-label%3Adogfood), [dogfood issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+label%3Adogfood).

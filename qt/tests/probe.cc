@@ -124,10 +124,9 @@ std::set<std::string> MappedObjects() {
     if (length == 0 || length >= 32768) {
       continue;
     }
-    const QString path = QString::fromWCharArray(buffer, length);
-    objects.insert(path.replace(QLatin1Char('\\'), QLatin1Char('/'))
-                       .toUtf8()
-                       .toStdString());
+    QString path = QString::fromWCharArray(buffer, length);
+    path.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    objects.insert(path.toUtf8().toStdString());
   }
   return objects;
 }

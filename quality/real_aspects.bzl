@@ -10,7 +10,6 @@ load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_co
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
-load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
@@ -51,6 +50,7 @@ load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortr
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
 load("//quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect", _GENERATION_HOOKS = "HOOKS", _GENERATION_RECOGNIZERS = "RECOGNIZERS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS")
 load("//quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _ZIG_SHARD_SPECS = "SHARD_SPECS", _ZIG_TOOLS = "TOOLS")
+load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _OCAML_HOOKS = "HOOKS", _OCAML_SHARD_SPECS = "SHARD_SPECS", _OCAML_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _upstream_files = "upstream_files", _without = "without")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "generated_source_paths", "prune_tool_generated_sources", "real_request_tool_env")
@@ -432,32 +432,12 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
-    "topiary": {
-        "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
-        "capabilities": ["format"],
-        "kind": "executable",
-        "resources": "light",
-        "shard": "ocaml",
-    },
     "ty": {
         "attr": attr.label(default = "@dx_tools//:ty", allow_single_file = True, cfg = "exec"),
         "capabilities": ["typecheck"],
         "kind": "file",
         "resources": "medium",
         "shard": "py",
-    },
-    "ocaml": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "ocaml",
-    },
-    "zanuda": {
-        "attr": attr.label(default = "//quality/tools/ocaml:zanuda_tool", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "light",
-        "shard": "ocaml",
     },
 }
 
@@ -812,32 +792,6 @@ _REAL_SHARD_SPECS = {
         "shard": "scala",
         "suffix": "-scala",
     },
-    "real_ocaml_lint": {
-        "capability": "lint",
-        "doc": "Additive OCaml lint family aspect (zanuda; target-coupled via OCamlCmtInfo).",
-        "extra_attrs": {
-            "_ocaml_stdlib": attr.label(
-                default = "@dx_ocaml_toolchains//:stdlib_cmis",
-                cfg = "exec",
-                doc = "The compiler's standard library interfaces, which zanuda type checks against.",
-            ),
-        },
-        "shard": "ocaml",
-        "suffix": "-ocaml",
-    },
-    "real_ocaml_format": {
-        "capability": "format",
-        "doc": "Additive OCaml format family aspect (topiary).",
-        "shard": "ocaml",
-        "suffix": "-ocaml",
-    },
-    "real_ocaml_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive OCaml typecheck family aspect (ocamlc -stop-after typing replay of the compile action).",
-        "requires": [compile_check_aspect],
-        "shard": "ocaml",
-        "suffix": "-ocaml",
-    },
 }
 
 def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
@@ -895,35 +849,6 @@ def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
         seen_aux[beam.path] = True
         _stage(tool_files, inputs, "dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam)
     return real_context(tool_files = tool_files, inputs = inputs)
-
-def _zanuda_hook(target, ctx, resolved, _capability, what, _shared):
-    # zanuda reads the typed trees the compile wrote. A target that owns OCaml sources but
-    # carries no OCamlCmtInfo, or one that owns a source with no tree, would otherwise lint
-    # nothing and look clean, so both fail the analysis.
-    if OCamlCmtInfo not in target:
-        fail(what + ": zanuda needs OCamlCmtInfo, which only the dx ocaml_module and ocaml_signature rules provide")
-    listed = {}
-    for entry in target[OCamlCmtInfo].owned:
-        if entry.cmt and entry.source:
-            listed[entry.source.short_path] = ("impl", entry.cmt)
-        if entry.cmti and entry.signature:
-            listed[entry.signature.short_path] = ("intf", entry.cmti)
-    tool_files = []
-    inputs = []
-    for stage in resolved:
-        if stage["tool"] != "zanuda":
-            continue
-        for ws_path in stage["sources"]:
-            if ws_path not in listed:
-                fail(what + ": zanuda has no .cmt or .cmti for " + ws_path + "; was the target compiled with -no-bin-annot?")
-            (kind, tree) = listed[ws_path]
-            _stage(tool_files, inputs, "dx-zanuda/%s/%s.%s" % (kind, ws_path, tree.extension), tree)
-    stdlib = ctx.files._ocaml_stdlib
-    inputs.extend(stdlib)
-
-    # Relative to the execution root, like the binary; the runner makes it absolute.
-    env = [real_request_tool_env("OCAMLLIB", stdlib[0].dirname)] if len(stdlib) > 0 else []
-    return real_context(tool_files = tool_files, inputs = inputs, env = env)
 
 def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):
     (owned, aux) = _scalafix_context(target, what)
@@ -1158,7 +1083,6 @@ def _rust_toolchain_file(ctx, name):
 _HOOK_ORDER = [
     "spotbugs",
     "dialyzer",
-    "zanuda",
     "sorbet",
     "scalafix",
     "fsharplint",
@@ -1198,7 +1122,6 @@ _HOOK_ORDER = [
 _CONTEXT_HOOKS = {
     "spotbugs": _spotbugs_hook,
     "dialyzer": _dialyzer_hook,
-    "zanuda": _zanuda_hook,
     "scalafix": _scalafix_hook,
     "fsharplint": _fsharplint_hook,
     "tsc": _tsc_hook,
@@ -1216,7 +1139,7 @@ _CONTEXT_HOOKS = {
     "qmllint": _qmllint_hook,
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
     "gofumpt": _gofumpt_hook,
-} | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -1225,8 +1148,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = _GENERATION_RECOGNIZERS + [_rust_sources, _cc_sources],
@@ -1386,11 +1309,11 @@ real_nix_format_aspect = _real_nix_format_aspect
 
 real_nix_lint_aspect = _real_nix_lint_aspect
 
-real_ocaml_format_aspect = _make_real_aspect("real_ocaml_format")
+real_ocaml_format_aspect = _real_ocaml_format_aspect
 
-real_ocaml_typecheck_aspect = _make_real_aspect("real_ocaml_typecheck")
+real_ocaml_typecheck_aspect = _real_ocaml_typecheck_aspect
 
-real_ocaml_lint_aspect = _make_real_aspect("real_ocaml_lint")
+real_ocaml_lint_aspect = _real_ocaml_lint_aspect
 
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 

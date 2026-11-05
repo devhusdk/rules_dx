@@ -63,7 +63,7 @@ def clang_syntax_unit_tests(name):
             expect_equal(
                 "gcc gets the gcc diagnostic flags",
                 _rewrite(["/usr/bin/gcc", "-c", "a.c", "-o", "a.o"], "a.c", _GCC).argv,
-                ["/usr/bin/gcc", "-fsyntax-only", "a.c", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"],
+                ["/usr/bin/gcc", "-fsyntax-only", "-c", "a.c", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"],
             ),
             expect_equal(
                 "a header with -x replays as given",

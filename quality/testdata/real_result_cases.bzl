@@ -24,6 +24,19 @@ _OBJC_POLICY = "//quality/testdata/clang_syntax:objc_policy"
 _CC_TIDY_POLICY = "//quality/testdata/clang_syntax:cc_tidy_policy"
 _MACOS_ONLY = ["@platforms//os:macos"]
 
+def _gcc_case(tool, capability, name, target, contains, absent, policy = _CC_POLICY):
+    return {
+        "name": "real_result_" + tool + "_cc_gcc_" + name,
+        "target": "//quality/testdata/clang_syntax:" + target,
+        "policy": policy,
+        "tool": tool,
+        "capability": capability,
+        "class": "c",
+        "compiler": "gcc",
+        "contains": contains,
+        "absent": absent,
+    }
+
 def _cc_case(tool, capability, name, target, contains, absent, policy = _CC_POLICY):
     return {
         "name": "real_result_" + tool + "_cc_" + name,
@@ -89,6 +102,8 @@ REAL_RESULT_CASES = [
     _cc_case("clang_syntax", "typecheck", "dirty", "dirty", ["undeclared identifier 'undeclared_name'"], []),
     _cc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
     _cc_case("clang_tidy", "lint", "dirty", "tidy_dirty", ["readability-else-after-return"], [], _CC_TIDY_POLICY),
+    _gcc_case("clang_syntax", "typecheck", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["undeclared_name", "Fatal error"]),
+    _gcc_case("clang_syntax", "typecheck", "dirty", "dirty", ["'undeclared_name' undeclared"], []),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     {
@@ -260,6 +275,7 @@ def real_result_cases():
             absent = case["absent"],
             tool_dialyzer = case.get("tool_dialyzer"),
             tool_govet = case.get("tool_govet"),
+            compiler = case.get("compiler", ""),
             typecheck_subject = case.get("typecheck_subject", False),
             target_compatible_with = case.get("target_compatible_with"),
             linux_arm64 = case.get("linux_arm64", False),

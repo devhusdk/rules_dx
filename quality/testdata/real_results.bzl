@@ -5,9 +5,12 @@ load("//quality/testdata:real_aspect_subject.bzl", "real_aspect_subject")
 load("//quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
 load("//quality/testdata:runner_matrix_tests.bzl", "compatible")
 
-def _policy_transition_impl(_settings, attr):
-    """Selects the workspace policy named by the policy attr."""
+_COMPILER = str(Label("//cc/toolchains:compiler"))
+
+def _policy_transition_impl(settings, attr):
+    """Selects the workspace policy and, when set, the C++ compiler."""
     return {
+        _COMPILER: attr.compiler or settings[_COMPILER],
         "//config:tool_dialyzer": str(attr.tool_dialyzer),
         "//config:tool_govet": str(attr.tool_govet),
         "//config:workspace": attr.policy,
@@ -18,8 +21,9 @@ def _policy_transition_impl(_settings, attr):
 
 _policy_transition = transition(
     implementation = _policy_transition_impl,
-    inputs = [],
+    inputs = [_COMPILER],
     outputs = [
+        _COMPILER,
         "//config:tool_dialyzer",
         "//config:tool_govet",
         "//config:workspace",
@@ -36,6 +40,7 @@ def _results_impl(ctx):
 _results = rule(
     implementation = _results_impl,
     attrs = {
+        "compiler": attr.string(),
         "policy": attr.string(mandatory = True),
         "tool_dialyzer": attr.label(default = "//erlang/tools:dialyzer"),
         "tool_govet": attr.label(default = "//go/tools/analysis/cmd/dx_govet"),
@@ -43,12 +48,13 @@ _results = rule(
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, typecheck_subject = False, target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
+        compiler = compiler,
         policy = str(native.package_relative_label(policy)),
         tool_dialyzer = tool_dialyzer or "//erlang/tools:dialyzer",
         tool_govet = tool_govet or "//go/tools/analysis/cmd/dx_govet",

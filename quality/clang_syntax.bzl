@@ -91,6 +91,8 @@ def clang_syntax_argv(argv, src, identity):
         if arg == "-c":
             compiles += 1
             out.append("-fsyntax-only")
+            if identity.family == "gcc":
+                out.append("-c")
         elif arg in _DROP_WITH_VALUE:
             skip = True
         elif arg in _DROP:

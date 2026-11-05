@@ -370,7 +370,11 @@ fn helm_case() {
 fn rubygems_case() {
     let ruby = data("DX_RUBYGEMS_RUBY");
     let bin = ruby.parent().expect("ruby bin dir");
-    assert!(bin.join("gem").is_file(), "no gem next to {}", ruby.display());
+    assert!(
+        bin.join("gem").is_file(),
+        "no gem next to {}",
+        ruby.display()
+    );
     let path = format!("{}:/usr/bin:/bin", bin.display());
     let outdir = dx_testing::mkscratch("rubygems-demo").expect("scratch");
     let run = run_deploy(
@@ -994,7 +998,11 @@ fn tar_listing(bytes: &[u8], name: &str) -> Vec<String> {
         &[],
     )
     .expect("tar must execute");
-    assert!(run.status.success(), "cannot list {name}\n{}", run.combined());
+    assert!(
+        run.status.success(),
+        "cannot list {name}\n{}",
+        run.combined()
+    );
     let mut names: Vec<String> = run
         .stdout
         .lines()
@@ -1046,7 +1054,8 @@ fn linux_package_case() {
     for path in &want {
         let base = path.rsplit('/').next().unwrap_or(path);
         assert!(
-            rpm.windows(base.len()).any(|window| window == base.as_bytes()),
+            rpm.windows(base.len())
+                .any(|window| window == base.as_bytes()),
             "rpm does not list {base}"
         );
     }

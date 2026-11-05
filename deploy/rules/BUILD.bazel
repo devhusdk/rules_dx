@@ -37,6 +37,8 @@ load(":octopus_tests.bzl", "octopus_unit_tests")
 load(":promotion.bzl", "promotion_deploy")
 load(":promotion_tests.bzl", "promotion_unit_tests")
 load(":native_probe.bzl", "NATIVE_PROBE_COMPATIBLE", "NATIVE_PROBE_PLATFORM")
+load(":pub.bzl", "pub_deploy")
+load(":pub_tests.bzl", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_unit_tests")
 load(":resources.bzl", "dx_resources")
@@ -82,6 +84,8 @@ exports_files([
     "octopus_tests.bzl",
     "promotion.bzl",
     "promotion_tests.bzl",
+    "pub.bzl",
+    "pub_tests.bzl",
     "pypi.bzl",
     "pypi_tests.bzl",
     "src/archive.rs",
@@ -106,6 +110,7 @@ exports_files([
     "src/oci.rs",
     "src/octopus.rs",
     "src/promotion.rs",
+    "src/pub_dev.rs",
     "src/pypi.rs",
     "src/registry.rs",
     "src/run.rs",
@@ -136,6 +141,7 @@ rust_library(
         "src/oci.rs",
         "src/octopus.rs",
         "src/promotion.rs",
+        "src/pub_dev.rs",
         "src/pypi.rs",
         "src/registry.rs",
         "src/run.rs",
@@ -426,6 +432,10 @@ config_runfiles_tests(
         "oci_demo": ["oci_demo.tar"],
         "octopus_demo": ["release_demo.tar.gz"],
         "promotion_demo": ["release_demo.tar.gz"],
+        "pub_demo": [
+            "pubspec.yaml",
+            "CHANGELOG.md",
+        ],
         "pypi.dotted_demo": ["pypi_demo-0.0.0-py3-none-any.whl"],
         "pypi_demo": [
             "pypi_demo-0.0.0-py3-none-any.whl",
@@ -767,6 +777,8 @@ test_suite(
         ":octopus_unit",
         ":promotion_analysis",
         ":promotion_unit",
+        ":pub_analysis",
+        ":pub_unit",
         ":pypi_analysis",
         ":pypi_native_linked_verify",
         ":pypi_native_verify",
@@ -1403,6 +1415,39 @@ crates_deploy(
     version = "0.0.0",
 )
 
+genrule(
+    name = "pub_demo_pubspec",
+    outs = ["pub_demo_package/pubspec.yaml"],
+    cmd = "printf 'name: pub_demo\\nversion: 0.0.0\\n' > $@",
+)
+
+genrule(
+    name = "pub_demo_changelog",
+    outs = ["pub_demo_package/CHANGELOG.md"],
+    cmd = "printf '## 0.0.0\\n\\n- Placeholder.\\n' > $@",
+)
+
+filegroup(
+    name = "pub_demo_package",
+    srcs = [
+        ":pub_demo_changelog",
+        ":pub_demo_pubspec",
+    ],
+)
+
+pub_deploy(
+    name = "pub_demo",
+    package = ":pub_demo_package",
+    version = "0.0.0",
+)
+
+pub_unit_tests(name = "pub_unit")
+
+deploy_analysis_test(
+    name = "pub_analysis",
+    subject = "pub_demo",
+)
+
 crates_unit_tests(name = "crates_unit")
 
 deploy_analysis_test(
@@ -1670,6 +1715,8 @@ real_source_target(
         "octopus_tests.bzl",
         "promotion.bzl",
         "promotion_tests.bzl",
+        "pub.bzl",
+        "pub_tests.bzl",
         "pypi.bzl",
         "pypi_tests.bzl",
         "native_probe.bzl",

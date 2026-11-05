@@ -1,0 +1,22 @@
+load("//deploy/rules:deploy_tests.bzl", "deploy_analysis_test")
+load("//deploy/rules:pub.bzl", "pub_deploy")
+
+filegroup(
+    name = "package",
+    srcs = [
+        "CHANGELOG.md",
+        "lib/dx_pub_fixture.dart",
+        "pubspec.yaml",
+    ],
+)
+
+pub_deploy(
+    name = "dx_pub_fixture",
+    package = ":package",
+    version = "1.0.0",
+)
+
+deploy_analysis_test(
+    name = "pub_fixture_analysis",
+    subject = "dx_pub_fixture",
+)

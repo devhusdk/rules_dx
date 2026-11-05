@@ -106,6 +106,16 @@ pub struct LuarocksConfig {
     pub version: String,
 }
 
+/// Pins one pub.dev publish: the package files, name, version and server.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PubConfig {
+    pub package_rlocs: Vec<String>,
+    pub package_name: String,
+    pub version: String,
+    pub hosted_url: String,
+}
+
 /// Pins one crates.io publish: the crate files, name and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -188,6 +198,7 @@ pub enum DeployConfig {
     Hackage(HackageConfig),
     Luarocks(LuarocksConfig),
     Crates(CratesConfig),
+    Pub(PubConfig),
     Maven(MavenConfig),
     Oci(OciConfig),
     Octopus(OctopusConfig),
@@ -304,6 +315,13 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &crates.crate_rlocs,
             &crates.crate_name,
             &crates.version,
+            argv,
+        ),
+        DeployConfig::Pub(pub_config) => crate::pub_main(
+            &pub_config.package_rlocs,
+            &pub_config.package_name,
+            &pub_config.version,
+            &pub_config.hosted_url,
             argv,
         ),
         DeployConfig::Maven(maven) => crate::maven_main(

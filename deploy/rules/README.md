@@ -488,6 +488,44 @@ packages like `github_deploy`, and the live run (`GH_RELEASE_LIVE=1
 GH_RELEASE_APPROVED=1`) attaches them to the draft release. `nfpm` runs on
 Linux x86_64, Linux arm64 and macOS arm64 hosts.
 
+# pub_deploy
+
+Stages a Dart or Flutter package and publishes it to pub.dev.
+
+```starlark
+load("@rules_dx//deploy/rules:pub.bzl", "pub_deploy")
+
+pub_deploy(
+    name = "pub_demo",
+    package = ":pub_demo_package",
+    version = "0.0.0",
+)
+```
+
+- `name`: the package name, lowercase letters, digits and `_`.
+- `package`: required. The package files, including `pubspec.yaml` and
+  `CHANGELOG.md`.
+- `version`: defaults to `0.0.0`. Must equal the `pubspec.yaml` version and
+  have a heading in `CHANGELOG.md`.
+- `hosted_url`: defaults to `https://pub.dev`.
+- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+
+Default run checks `pubspec.yaml` and `CHANGELOG.md`, runs
+`dart pub publish --dry-run` on a copy, and stages `<name>-package/`. A package
+with a top-level `flutter:` section uses `flutter` instead of `dart`. Without
+the tool on `PATH` the run prints a skip line. No credentials needed.
+
+Publish with `dart` (or `flutter`) on `PATH`:
+
+```
+PUB_PUBLISH_LIVE=1 PUB_PUBLISH_APPROVED=1 PUB_TOKEN=... \
+dx deploy --apply //pkg:pub_demo
+```
+
+A live run refuses version `0.0.0`, repeats the dry run, then runs
+`pub publish --force`. The token reaches `dart pub token add --env-var` and
+lands only in a temporary `PUB_CACHE` that is removed afterwards.
+
 # nuget_deploy
 
 Stages one nupkg as a local folder feed and pushes it to a NuGet source.

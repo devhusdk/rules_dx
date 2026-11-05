@@ -31,6 +31,8 @@ _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
 _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
 _GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
+# bash on Windows rewrites /I-style arguments and INCLUDE-style variables as paths.
+_MSYS_NO_CONVERSION = {"MSYS_NO_PATHCONV": "1", "MSYS2_ARG_CONV_EXCL": "*", "MSYS2_ENV_CONV_EXCL": "*"}
 _MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
 
 def _msvc_dropped(arg):
@@ -354,6 +356,9 @@ def _clang_syntax_impl(target, ctx):
         capture = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"'
         if identity.driver == "msvc":
             capture = 'log="$1"; status="$2"; shift 2; "$@" > "$log" 2>&1; echo "$?" > "$status"'
+        syntax_env = dict(action.env)
+        if identity.driver == "msvc":
+            syntax_env.update(_MSYS_NO_CONVERSION)
         ctx.actions.run_shell(
             mnemonic = "ClangSyntax",
             progress_message = "Syntax check %{label}: " + src,
@@ -361,7 +366,7 @@ def _clang_syntax_impl(target, ctx):
             arguments = [log.path, status.path] + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
-            env = action.env,
+            env = syntax_env,
             execution_requirements = requirements,
             resource_set = dx_heavy_resources,
         )

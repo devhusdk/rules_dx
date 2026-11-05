@@ -212,11 +212,16 @@ jobs:
           else
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
+      - name: Build the APKs for the inspect tests
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          set -o pipefail
+          bazel build --noshow_progress //examples/shared-rust:tasks_apk_file @shared_consumer//:consumer_apk_file 2>&1 | tail -n 60
       - name: Run the APK inspect tests
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
           set -o pipefail
-          bazel test --noshow_progress --test_output=errors //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test 2>&1 | tail -n 120
+          bazel test --noshow_progress --test_output=errors --test_timeout=120 //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test 2>&1 | tail -n 120
       - name: Wait for the emulator to boot
         id: boot
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}

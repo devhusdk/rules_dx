@@ -69,7 +69,7 @@ fn number<T: std::str::FromStr>(attrs: &str, key: &str) -> Result<T, LcovError> 
         .ok_or_else(|| clover_error(&format!("line element without a numeric {key}")))
 }
 
-fn attribute(attrs: &str, key: &str) -> Option<String> {
+pub(crate) fn attribute(attrs: &str, key: &str) -> Option<String> {
     let mut rest = attrs;
     while let Some(eq) = rest.find('=') {
         let name = rest[..eq].trim();

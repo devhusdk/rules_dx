@@ -11,6 +11,7 @@
 pub mod accounting;
 pub mod changed;
 mod clover;
+mod cobertura;
 pub mod ignores;
 mod lang;
 pub mod parse;
@@ -24,6 +25,7 @@ pub use changed::{
     ChangedResult,
 };
 pub use clover::clover_to_lcov;
+pub use cobertura::cobertura_to_lcov;
 pub use ignores::{find_ignores, is_ignored, Ignores};
 pub use lang::is_covered_language;
 pub use parse::{merge_lcov_reports, parse_lcov, validate_lcov_report, FileHits};

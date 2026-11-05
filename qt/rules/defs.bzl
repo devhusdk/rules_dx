@@ -475,7 +475,7 @@ def _links_gui(upstream):
 
 def _directory(files, stem):
     for f in files:
-        if qt_library_stem(f.basename) == stem:
+        if f.basename == stem or qt_library_stem(f.basename) == stem:
             return f.short_path.rpartition("/")[0]
     fail("no " + stem + " in " + str([f.short_path for f in files]))
 

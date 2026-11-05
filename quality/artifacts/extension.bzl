@@ -62,6 +62,7 @@ load("//quality/artifacts:vale.bzl", _vale = "ARTIFACTS")
 load("//quality/artifacts:wasmtime.bzl", _wasmtime = "ARTIFACTS")
 load("//quality/artifacts:yamlfmt.bzl", _yamlfmt = "ARTIFACTS")
 load("//quality/artifacts:zanuda.bzl", _zanuda = "SOURCE")
+load("//quality/artifacts:zizmor.bzl", _zizmor = "ARTIFACTS")
 load("//quality/tools/ocaml:repos.bzl", "dx_ocaml_duniverse")
 
 _ARTIFACTS = [
@@ -112,6 +113,7 @@ _ARTIFACTS = [
         _vale,
         _wasmtime,
         _yamlfmt,
+        _zizmor,
     ]
     for artifact in tool.values()
 ]

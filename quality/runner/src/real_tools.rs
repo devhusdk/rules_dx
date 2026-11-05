@@ -7318,6 +7318,51 @@ fn actionlint_reports_an_undefined_context_property() {
         .is_empty());
 }
 
+fn zizmor_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(argv.iter().any(|arg| arg == "--offline"), "{argv:?}");
+    let file = argv.last().expect("file");
+    let text = std::fs::read_to_string(file).expect("checked file is materialized");
+    let name = file.to_string_lossy().replace('\\', "/");
+    if text.contains("actions/checkout@v4") {
+        return Ok(ChildOutput {
+            code: Some(11),
+            stdout: format!(
+                "[{{\"ident\":\"unpinned-uses\",\"desc\":\"unpinned action reference\",\"url\":\"u\",\"determinations\":{{\"confidence\":\"High\",\"severity\":\"Medium\"}},\"locations\":[{{\"symbolic\":{{\"key\":{{\"Local\":{{\"prefix\":\"/w\",\"given_path\":\"{name}\"}}}},\"annotation\":\"a\",\"kind\":\"Primary\"}},\"concrete\":{{\"location\":{{\"start_point\":{{\"row\":6,\"column\":14}},\"end_point\":{{\"row\":6,\"column\":35}}}},\"feature\":\"f\",\"comments\":[]}}}}],\"ignored\":false}}]"
+            )
+            .into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"[]".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn zizmor_reports_an_unpinned_action() {
+    let backend = backend_for("zizmor", plain_tool(), zizmor_fake);
+    let path = ".github/workflows/ci.yml";
+    let dirty = "name: ci\non: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n";
+    let findings = backend
+        .diagnose("zizmor", "lint", &single(path, dirty))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].tool_id, "zizmor");
+    assert_eq!(findings[0].path, path);
+    assert_eq!(findings[0].rule_id, "unpinned-uses");
+    assert!(backend
+        .diagnose("zizmor", "lint", &single(path, "name: ci\n"))
+        .expect("diagnosed")
+        .is_empty());
+}
+
 fn lychee_online_fake(
     argv: &[OsString],
     _cwd: &Path,

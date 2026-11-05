@@ -53,6 +53,12 @@ TOOLS = {
         "resources": "light",
         "shard": "core",
     },
+    "zizmor": {
+        "attr": attr.label(default = "@dx_tools//:zizmor", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "core",
+    },
 }
 
 SHARD_SPECS = {

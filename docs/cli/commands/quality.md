@@ -305,6 +305,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `checkmake`, `mbake` | Lint and format Make | |
 | `hadolint` | Lint Dockerfiles | |
 | `actionlint` | Lint GitHub workflows | |
+| `zizmor` | Lint GitHub workflows | |
 | `ansible_lint` | Lint Ansible | `windows_x86_64`, `windows_arm64` |
 | `kubeconform` | Validate Kubernetes manifests | |
 | `helm` | Lint Helm charts and validate rendered manifests | |

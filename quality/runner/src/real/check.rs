@@ -406,6 +406,14 @@ impl RealBackend {
                 |files| Ok(commands::typos_check(&tool.binary, files)),
                 |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
             ),
+            "zizmor" => {
+                let invocation = commands::zizmor_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_zizmor(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "actionlint" => self.check_files(
                 tool_id,
                 tool,

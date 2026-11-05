@@ -139,4 +139,5 @@ pub const REAL_TOOLS: &[&str] = &[
     "zig",
     "zig_ast_check",
     "zig_fmt",
+    "zizmor",
 ];

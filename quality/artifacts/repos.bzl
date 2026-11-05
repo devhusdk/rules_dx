@@ -198,6 +198,10 @@ DX_TOOL_REPOS = [
     "dx_yamlfmt_macos_arm64",
     "dx_yamlfmt_windows_arm64",
     "dx_yamlfmt_windows_x86_64",
+    "dx_zizmor_linux_arm64",
+    "dx_zizmor_linux_x86_64",
+    "dx_zizmor_macos_arm64",
+    "dx_zizmor_windows_x86_64",
 ]
 
 DX_TOOL_HUB = "dx_tools"

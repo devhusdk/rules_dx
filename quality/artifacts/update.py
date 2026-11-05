@@ -517,6 +517,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "zizmor": {
+        "upstream_version": "1.32.0",
+        "release_page": "https://github.com/zizmorcore/zizmor/releases/tag/v1.32.0",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/zizmorcore/zizmor/blob/v1.32.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "zizmor-x86_64-unknown-linux-gnu.tar.gz",
+                "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-x86_64-unknown-linux-gnu.tar.gz",
+                "kind": "tar.gz",
+                "executable": "zizmor",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "zizmor-aarch64-unknown-linux-gnu.tar.gz",
+                "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-aarch64-unknown-linux-gnu.tar.gz",
+                "kind": "tar.gz",
+                "executable": "zizmor",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "zizmor-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "zizmor",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "zizmor-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "zizmor.exe",
+            },
+        },
+    },
     "shellcheck": {
         "upstream_version": "0.11.0",
         "release_page": "https://github.com/koalaman/shellcheck/releases/tag/v0.11.0",

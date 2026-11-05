@@ -2932,6 +2932,21 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "zizmor",
+        adapters = {"lint": ["github_workflow"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["github_workflow"],
+                context = "owned",
+                family = "core",
+                fix = "check_only",
+                state = "supported",
+                transport = "single",
+            ),
+        ],
+    ),
+    tool(
         id = "zig",
         adapters = {"typecheck": ["zig"]},
     ),

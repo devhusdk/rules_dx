@@ -126,7 +126,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
 | FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
 | Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| GitHub workflows | `actionlint` | `yamlfmt` | no | n/a | n/a | n/a |
+| GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | no | n/a | n/a | n/a |
 | GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a | n/a |
 | Helm | `helm`, `typos` | no | n/a | n/a | n/a | n/a |
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |

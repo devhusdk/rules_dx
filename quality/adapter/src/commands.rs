@@ -80,6 +80,13 @@ const TY_BASE: &[&str] = &[
 const PYDOCLINT_ARGS: &[&str] = &["--quiet"];
 /// Vulture scores unused functions and variables at 60%, so the floor must stay at 60.
 const VULTURE_ARGS: &[&str] = &["--min-confidence", "60"];
+const PERIPHERY_ARGS: &[&str] = &[
+    "scan",
+    "--skip-build",
+    "--format",
+    "json",
+    "--index-store-path",
+];
 const FLAKE8_ARGS: &[&str] = &[
     "--isolated",
     "--color=never",
@@ -663,6 +670,17 @@ pub fn pydoclint_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn vulture_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, VULTURE_ARGS, files, "")
+}
+
+/// Periphery scans the whole index store, so the command takes no file arguments.
+pub fn periphery_check(binary: &Path, index_store: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(PERIPHERY_ARGS.iter().map(OsString::from));
+    argv.push(index_store.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn flake8_check(binary: &Path, files: &[&Path]) -> Invocation {

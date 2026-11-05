@@ -335,6 +335,24 @@ fn pydoclint_check_is_quiet() {
 }
 
 #[test]
+fn periphery_check_scans_the_index_store_without_building() {
+    let invocation = periphery_check(Path::new(BIN), Path::new("/scratch/index"));
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "scan",
+            "--skip-build",
+            "--format",
+            "json",
+            "--index-store-path",
+            "/scratch/index"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}
+
+#[test]
 fn vulture_check_reports_unused_code_at_its_floor() {
     let files = [Path::new("/scratch/a.py"), Path::new("/scratch/b.py")];
     let invocation = vulture_check(Path::new(BIN), &files);

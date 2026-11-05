@@ -19,6 +19,9 @@ _WINDOWS_ARCHIVE = "ldc2-" + LDC_VERSION + "-windows-x64.7z"
 
 _WINDOWS_SHA256 = "60ae3d5e34287aa25433c7550520060a52f9f212e3d5ff6472a9067d8d17e47e"
 
+# druntime links legacy_stdio_definitions.lib, which conflicts with the toolchain default iso_stdio_wide_specifiers.lib.
+_WINDOWS_LINKOPTS = ["-Wl,/nodefaultlib:iso_stdio_wide_specifiers.lib"]
+
 _WINDOWS_ADDON = struct(
     archive = "ldc2-" + LDC_VERSION + "-addon-windows.tar.xz",
     keep = ["etc/ldc2.conf/55-target-windows-arm64.conf", "lib-windows-arm64"],
@@ -87,7 +90,7 @@ LDC_CELLS = {
         dub = "bin/dub.exe",
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", _MSVC_ABI],
         ldc = "bin/ldc2.exe",
-        linkopts = [],
+        linkopts = _WINDOWS_LINKOPTS,
         phobos = "lib-windows-arm64/phobos2-ldc.lib",
         runtime = [],
         sha256 = _WINDOWS_SHA256,
@@ -104,7 +107,7 @@ LDC_CELLS = {
         dub = "bin/dub.exe",
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", _MSVC_ABI],
         ldc = "bin/ldc2.exe",
-        linkopts = [],
+        linkopts = _WINDOWS_LINKOPTS,
         phobos = "lib/phobos2-ldc.lib",
         runtime = [],
         sha256 = _WINDOWS_SHA256,

@@ -284,7 +284,10 @@ def ldc_runtime(cell):
     return packages
 
 def _extract_7z(rctx, cell):
-    """Unpacks a .7z LDC archive with the pinned 7-Zip, leaving no extractor or scratch archive behind."""
+    """Unpacks a .7z LDC archive with the pinned 7-Zip and drops the scratch archive.
+
+    The extractor stays in SEVEN_ZIP_DIR: Windows arm64 keeps the emulated 7zr.exe locked, so deleting it fails the fetch.
+    """
     seven_zip = seven_zip_fetch(rctx, SEVEN_ZIP_DIR)
     archive = SCRATCH_DIR + "/" + cell.archive
     rctx.download(url = LDC_RELEASES + cell.archive, output = archive, sha256 = cell.sha256)
@@ -293,7 +296,6 @@ def _extract_7z(rctx, cell):
     for child in rctx.path(SCRATCH_DIR + "/out/" + cell.strip_prefix).readdir():
         rctx.rename(child, rctx.path(child.basename))
     rctx.delete(SCRATCH_DIR)
-    rctx.delete(SEVEN_ZIP_DIR)
 
 def _overlay_addon(rctx, addon):
     """Overlays the kept paths of an LDC addon package onto the repository root."""

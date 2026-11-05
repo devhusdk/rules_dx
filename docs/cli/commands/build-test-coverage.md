@@ -114,9 +114,11 @@ The `failures` file has `record_version`, `exit_code`, `complete`, `truncated`, 
 
 A whole-repository run (`//...`) also fails on a tracked source no Bazel target owns. Add the file to a rule or delete it.
 
+The correctness preset sets `coverage --instrument_test_targets`, so sources a test compiles itself are counted. Test-only sources count as support, not as eligible lines.
+
 Tests in these languages fail with `no_coverage_collector`: Perl. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
-Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources under `--instrument_test_targets`.
+Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources (the preset instruments test targets).
 
 Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, PHP, Zig, and C/C++. Use `#` in Python, Ruby, Perl, PowerShell, Julia, and Elixir. Use `%` in Erlang. Use `--` in Haskell. A marker that covers no instrumented line, or that excludes every instrumented line of a file, fails `--min-coverage`.
 

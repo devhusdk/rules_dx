@@ -43,6 +43,7 @@ fn preset_parity() {
             "coverage --test_tag_filters=-no-coverage",
             "coverage --enable_runfiles",
             "coverage --instrumentation_filter=^//",
+            "coverage --instrument_test_targets",
             "build --host_compilation_mode=fastbuild",
             "build:dx_debug --compilation_mode=dbg",
             "build:dx_dev --compilation_mode=fastbuild",

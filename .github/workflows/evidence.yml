@@ -201,6 +201,8 @@ jobs:
         id: boot
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
+          command -v adb || { echo "android: adb is not on PATH: $PATH"; ls -la "$ANDROID_HOME/platform-tools"; exit 1; }
           timeout 600 adb -s emulator-5554 wait-for-device
           waited=0
           until [ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do

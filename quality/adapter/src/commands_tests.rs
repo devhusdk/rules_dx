@@ -2250,6 +2250,31 @@ fn file_family_lint_checks_are_check_only() {
             "/s/A.hs"
         ]
     );
+    let workflow = Path::new("/scratch/.github/workflows/ci.yml");
+    assert_eq!(
+        argv_strings(&actionlint_check(Path::new(BIN), &[workflow])),
+        vec![
+            BIN,
+            "-no-color",
+            "-format",
+            "{{json .}}",
+            "--",
+            "/scratch/.github/workflows/ci.yml"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&zizmor_check(Path::new(BIN), &[workflow])),
+        vec![
+            BIN,
+            "--format",
+            "json",
+            "--offline",
+            "--no-progress",
+            "--no-config",
+            "--",
+            "/scratch/.github/workflows/ci.yml"
+        ]
+    );
     let dockerfile = Path::new("/scratch/Dockerfile");
     assert_eq!(
         argv_strings(&hadolint_check(

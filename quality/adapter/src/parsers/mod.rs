@@ -1,3 +1,4 @@
+pub mod actionlint;
 pub mod ansible_lint;
 pub mod avro;
 pub mod bicep;
@@ -121,11 +122,13 @@ pub mod vale;
 pub mod xmllint;
 pub mod yamlfmt;
 pub mod yamllint;
+pub mod zizmor;
 pub mod zanuda;
 pub mod zig_ast_check;
 pub mod zig_compile;
 pub mod zig_fmt;
 
+pub use actionlint::parse_actionlint;
 pub use ansible_lint::parse_ansible_lint;
 pub use avro::{avdl_imports, parse_avro};
 pub use bicep::{bicep_syntax_error, parse_bicep_format, parse_bicep_lint};
@@ -247,6 +250,7 @@ pub use vale::parse_vale;
 pub use xmllint::parse_xmllint;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
+pub use zizmor::parse_zizmor;
 pub use zanuda::parse_zanuda;
 pub use zig_ast_check::parse_zig_ast_check;
 pub use zig_compile::parse_zig_compile;
@@ -2561,6 +2565,22 @@ mod tests {
         super::tflint::parse_tflint(input, code, files)
     }
 
+    fn fuzz_actionlint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::actionlint::parse_actionlint(input, input, code, files)
+    }
+
+    fn fuzz_zizmor(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::zizmor::parse_zizmor(input, input, code, files)
+    }
+
     fn fuzz_hadolint(
         input: &[u8],
         code: Option<i32>,
@@ -2930,6 +2950,8 @@ mod tests {
         ("google_java_format", fuzz_google_java_format),
         ("graphql_eslint", fuzz_graphql_eslint),
         ("gplint", fuzz_gplint),
+        ("actionlint", fuzz_actionlint),
+        ("zizmor", fuzz_zizmor),
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
         ("hlint", fuzz_hlint),
@@ -3071,6 +3093,8 @@ mod tests {
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("gplint", include_str!("gplint.rs")),
+        ("actionlint", include_str!("actionlint.rs")),
+        ("zizmor", include_str!("zizmor.rs")),
         ("hadolint", include_str!("hadolint.rs")),
         ("helm", include_str!("helm.rs")),
         ("hlint", include_str!("hlint.rs")),

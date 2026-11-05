@@ -344,6 +344,15 @@ const REGAL_LINT_PREFIX: &[&str] = &[
     "--fail-level",
     "warning",
 ];
+const ACTIONLINT_PREFIX: &[&str] = &["-no-color", "-format", "{{json .}}", "--"];
+const ZIZMOR_PREFIX: &[&str] = &[
+    "--format",
+    "json",
+    "--offline",
+    "--no-progress",
+    "--no-config",
+    "--",
+];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
@@ -2435,6 +2444,15 @@ pub fn hlint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
         OsString::from("--"),
     ];
     assemble(binary, head, files, "")
+}
+
+pub fn actionlint_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ACTIONLINT_PREFIX, files, "")
+}
+
+/// `--offline` keeps the audits that would call the GitHub API out of the run.
+pub fn zizmor_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ZIZMOR_PREFIX, files, "")
 }
 
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.

@@ -353,6 +353,7 @@ const ZIZMOR_PREFIX: &[&str] = &[
     "--no-config",
     "--",
 ];
+const KNIP_PREFIX: &[&str] = &["--reporter", "json", "--no-progress"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
@@ -2480,6 +2481,11 @@ pub fn actionlint_check(binary: &Path, files: &[&Path]) -> Invocation {
 /// `--offline` keeps the audits that would call the GitHub API out of the run.
 pub fn zizmor_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIZMOR_PREFIX, files, "")
+}
+
+/// Knip analyses the package it starts in, so the run happens in the package root.
+pub fn knip_check(binary: &Path, root_rel: &str) -> Invocation {
+    fixed(binary, KNIP_PREFIX, &[], root_rel)
 }
 
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.

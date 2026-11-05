@@ -55,6 +55,7 @@ pub mod julia_format;
 pub mod julialint;
 pub mod jvm_diagnostics;
 pub mod keep_sorted;
+pub mod knip;
 pub mod ktfmt;
 pub mod ktlint;
 pub mod kubeconform;
@@ -187,6 +188,7 @@ pub use julia_format::parse_julia_format;
 pub use julialint::parse_julialint;
 pub use jvm_diagnostics::parse_jvm_diagnostics;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
+pub use knip::parse_knip;
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use kubeconform::{parse_kubeconform, KubeconformTarget};
@@ -1996,6 +1998,14 @@ mod tests {
         super::ktfmt::parse_ktfmt(input, code, files)
     }
 
+    fn fuzz_knip(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::knip::parse_knip(input, input, code, files)
+    }
+
     fn fuzz_ktlint(
         input: &[u8],
         code: Option<i32>,
@@ -3013,6 +3023,7 @@ mod tests {
         ("chktex", fuzz_chktex),
         ("latexindent", fuzz_latexindent),
         ("mbake", fuzz_mbake),
+        ("knip", fuzz_knip),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("luals", fuzz_luals),
@@ -3156,6 +3167,7 @@ mod tests {
         ("kubeconform", include_str!("kubeconform.rs")),
         ("chktex", include_str!("chktex.rs")),
         ("latexindent", include_str!("latexindent.rs")),
+        ("knip", include_str!("knip.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("luals", include_str!("luals.rs")),

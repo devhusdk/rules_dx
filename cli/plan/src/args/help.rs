@@ -167,6 +167,7 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::Init
             | Command::Worktree
             | Command::Explain
+            | Command::Release
     )
 }
 
@@ -293,6 +294,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
             "mutate --time 5m --fail-on=survived:20 //pkg/...",
         ],
     ),
+    (Command::Release, &["release", "release --to 2.0.0"]),
 ];
 
 fn examples_text(command: Command) -> String {

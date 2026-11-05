@@ -39,6 +39,7 @@ Find your task.
 - [Explain](cli/commands/explain.md)
 - [Fuzz](cli/commands/fuzz.md)
 - [Mutate](cli/commands/mutate.md)
+- [Release](cli/commands/release.md)
 - [Init](cli/commands/init.md)
 - [Status](cli/commands/status.md)
 - [Completion](cli/commands/completion.md)

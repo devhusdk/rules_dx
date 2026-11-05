@@ -35,6 +35,7 @@ Commands:
   explain     explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)
   fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/fuzz
   mutate      run dx-mutate targets for a time budget and report surviving mutants
+  release     derive the next version from conventional commits and list the manifests that carry the version (check only)
 
 Options:
   -h, --help

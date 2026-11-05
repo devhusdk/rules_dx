@@ -27,6 +27,7 @@ tools/dx lint //... -- --jobs=4
 - [`dx explain`](explain.md): explain cache misses.
 - [`dx fuzz`](fuzz.md): run fuzz targets for a time budget.
 - [`dx mutate`](mutate.md): find mutants your tests miss.
+- [`dx release`](release.md): derive the next version from commits.
 - [`dx init`](init.md): set up a workspace.
 - [`dx status`](status.md): report workspace status.
 - [`dx completion`](completion.md): print shell completions.

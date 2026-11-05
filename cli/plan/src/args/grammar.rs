@@ -168,6 +168,7 @@ pub(crate) struct Flags {
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
     pub(crate) time: Option<String>,
+    pub(crate) check: bool,
     pub(crate) jobs: Option<u16>,
     pub(crate) fail_survived: Option<u32>,
     pub(crate) bazel_startup_options: Vec<String>,
@@ -517,7 +518,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Version to pin; must equal this binary.
+    /// Version to pin; must equal this binary. For `dx release`, the version to use instead of the derived one.
     ToFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
         to: Option<String>,
@@ -877,6 +878,14 @@ composite_group! {
     }
 }
 
+flag_group! {
+    /// Report only; this is the default.
+    CheckFlag, {
+        #[arg(long, overrides_with = "check")]
+        check: bool,
+    }
+}
+
 /// Scopes and the Bazel passthrough.
 #[derive(Args)]
 pub(crate) struct BazelTail {
@@ -1219,6 +1228,11 @@ command_args! {
     Fuzz => 24, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
     /// The flags `dx mutate` accepts.
     Mutate => 25, NoPassthroughTail, { own: MutateArgs, here: HereFlag, };
+    /// The flags `dx release` accepts.
+    Release => 26, NoScopeTail, {
+        check: CheckFlag,
+        own: ToFlag,
+    };
 }
 
 #[derive(Parser)]

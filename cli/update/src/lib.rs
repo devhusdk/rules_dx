@@ -15,6 +15,7 @@ pub mod outcome;
 pub mod policy;
 pub mod pr;
 pub mod recovery;
+pub mod release;
 pub mod report;
 #[cfg(test)]
 mod root_sets_tests;

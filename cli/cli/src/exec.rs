@@ -22,6 +22,7 @@ mod profile_report;
 pub mod first_run;
 mod fuzz;
 mod mutate;
+mod release;
 mod generate;
 mod guidance;
 #[cfg(test)]
@@ -285,6 +286,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Explain => explain::execute_explain(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
         Command::Mutate => mutate::execute_mutate(invocation, env),
+        Command::Release => release::execute_release(invocation, env),
     }
 }
 

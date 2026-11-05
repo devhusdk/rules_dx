@@ -40,11 +40,13 @@ dx_rust_crate(
         "src/policy.rs",
         "src/pr.rs",
         "src/recovery.rs",
+        "src/release/conventional.rs",
+        "src/release/mod.rs",
         "src/report.rs",
         "src/root_sets_tests.rs",
     ],
     # Root files read through `include_str!` by src/root_sets_tests.rs.
-    compile_data = [
+    compile_data = glob(["testdata/*.log"]) + [
         "//:MODULE.bazel",
         "//third_party/dotnet:extension.bzl",
         "//third_party/dotnet:paket.dependencies",
@@ -64,6 +66,7 @@ dx_rust_crate(
         "src/edit/add_tests.rs",
         "src/edit/own_version_tests.rs",
         "src/edit/request_tests.rs",
+        "src/release/tests.rs",
     ],
     deps = [
         "mvn_version",

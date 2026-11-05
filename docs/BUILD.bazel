@@ -51,6 +51,7 @@ real_source_target(
         "cli/commands/explain.md",
         "cli/commands/fuzz.md",
         "cli/commands/mutate.md",
+        "cli/commands/release.md",
         "cli/commands/init.md",
         "cli/commands/upgrade.md",
         "cli/commands/offline-bundle.md",

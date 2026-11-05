@@ -213,7 +213,8 @@ jobs:
         run: |
           set -o pipefail
           read -ra patterns <<< "$DX_SCOPE"
-          export DX_HERMETIC_BAZELISK="$(command -v bazel)"
+          DX_HERMETIC_BAZELISK="$(command -v bazel)"
+          export DX_HERMETIC_BAZELISK
           if [ "$DX_TASK" = "build" ]; then
             bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
           elif [ "$DX_TASK" = "coverage" ]; then

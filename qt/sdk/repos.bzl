@@ -600,10 +600,15 @@ def _library(name, spec, layout, closures):
         link = []
         deps = [":" + name + "_import"] + deps
     elif layout.link == "framework":
-        link = [
-            '    additional_linker_inputs = ["%s"],' % library,
-            '    linkopts = ["$(execpath %s)"],' % library,
-        ]
+        lines.extend([
+            "cc_import(",
+            '    name = "%s_import",' % name,
+            '    shared_library = "framework_links/Qt%s.dylib",' % spec.name,
+            ")",
+            "",
+        ])
+        link = ['    additional_linker_inputs = ["%s"],' % library]
+        deps = [":" + name + "_import"] + deps
     else:
         link = ['    srcs = ["%s"],' % library]
     return lines + [
@@ -819,6 +824,7 @@ def _normalize_frameworks(ctx):
         _move_real(ctx, "lib/" + framework.basename + "/Versions/A/Headers", "include/" + name)
         for link in ["Headers", "Resources", name, "Versions/Current"]:
             ctx.delete("lib/" + framework.basename + "/" + link)
+        ctx.symlink("lib/" + framework.basename + "/Versions/A/" + name, "framework_links/" + name + ".dylib")
 
 def _check_module(ctx, name):
     path = ctx.path("modules/" + name + ".json")

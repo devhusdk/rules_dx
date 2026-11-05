@@ -484,6 +484,17 @@ _runpath_test = analysistest.make(_runpath_test_impl, attrs = {
     "flag": attr.string(mandatory = True),
 })
 
+def _dylib_link_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "CppLink"]
+    asserts.equals(env, 1, len(actions))
+    asserts.false(env, "dynamic_lookup" in " ".join(actions[0].argv), str(actions[0].argv))
+    inputs = [f.basename for f in actions[0].inputs.to_list()]
+    asserts.true(env, "QtGui.dylib" in inputs, "QtGui is not a link input: " + str(inputs))
+    return analysistest.end(env)
+
+_dylib_link_test = analysistest.make(_dylib_link_test_impl)
+
 def _frameworks_test_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
@@ -591,6 +602,11 @@ def qt_rules_tests(name):
         target_under_test = ":plain_app_upstream",
         target_compatible_with = _MACOS_ARM64,
     )
+    _dylib_link_test(
+        name = name + "_macos_dylib_link",
+        target_under_test = ":gui_upstream",
+        target_compatible_with = _MACOS_ARM64,
+    )
     _runpath_test(
         name = name + "_test_runpath",
         bundled = False,
@@ -660,5 +676,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset", "macos_runpath", "macos_test_runpath", "macos_bundle"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset", "macos_runpath", "macos_dylib_link", "macos_test_runpath", "macos_bundle"] + sorted(failures.keys())],
     )

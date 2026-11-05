@@ -444,7 +444,8 @@ def _build_checks():
             for target in hub_targets()
             if ('    name = "%s",' % target) not in cell_build(cell, all_modules, "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
         ], []),
-        expect_contains("macos core links the framework binary", macos, '    additional_linker_inputs = ["lib/QtCore.framework/Versions/A/QtCore"],\n    linkopts = ["$(execpath lib/QtCore.framework/Versions/A/QtCore)"],'),
+        expect_contains("macos core stages the framework binary", macos, '    additional_linker_inputs = ["lib/QtCore.framework/Versions/A/QtCore"],'),
+        expect_contains("macos core links the framework through cc_import", macos, 'cc_import(\n    name = "core_import",\n    shared_library = "framework_links/QtCore.dylib",'),
         expect_false("macos cell links no srcs", 'srcs = ["lib/' in macos),
         expect_false("macos cell has no closure", 'name = "closure"' in macos or ":gui_closure" in macos),
         expect_contains("macos cell ships no fonts", macos, 'name = "fonts",\n    srcs = [],'),

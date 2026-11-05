@@ -459,9 +459,9 @@ fn moved_families_vendor_the_overrides_dx_renders() {
     }
 }
 
-/// Packages of the family at `dir` whose BUILD.bazel has no `:corpus_starlark`, as paths below `dir`.
-fn without_corpus(dir: &std::path::Path) -> Vec<String> {
-    let mut missing = Vec::new();
+/// Non-exempt packages of the family at `dir` with their BUILD.bazel text, as paths below `dir`.
+fn checked_packages(dir: &std::path::Path) -> Vec<(String, String)> {
+    let mut found = Vec::new();
     let mut pending = vec![dir.to_path_buf()];
     while let Some(current) = pending.pop() {
         let mut subdirs = Vec::new();
@@ -483,14 +483,23 @@ fn without_corpus(dir: &std::path::Path) -> Vec<String> {
                     .any(|part| part.as_os_str() == "fixtures")
                 || (current != dir && current.join("MODULE.bazel").exists());
             let relative = current.strip_prefix(dir).unwrap_or(&current);
-            if !exempt && !text.contains("corpus_starlark") {
-                missing.push(relative.display().to_string());
+            if !exempt {
+                found.push((relative.display().to_string(), text));
             }
         }
         pending.extend(subdirs);
     }
-    missing.sort();
-    missing
+    found.sort();
+    found
+}
+
+/// Packages of the family at `dir` whose BUILD.bazel has no `:corpus_starlark`, as paths below `dir`.
+fn without_corpus(dir: &std::path::Path) -> Vec<String> {
+    checked_packages(dir)
+        .into_iter()
+        .filter(|(_, text)| !text.contains("corpus_starlark"))
+        .map(|(package, _)| package)
+        .collect()
 }
 
 #[test]
@@ -663,4 +672,78 @@ fn a_family_without_a_build_file_or_target_is_reported() {
         .collect::<Vec<_>>()
         .join(" ");
     assert!(missing_check_targets("x", Some(&both)).is_empty());
+}
+
+/// The comma-separated packages the family root `build_file` lists under the env key `name`.
+fn listed_packages(build_file: &str, name: &str) -> Vec<String> {
+    let key = format!("\"{name}\":");
+    let Some((_, rest)) = build_file.split_once(&key) else {
+        return Vec::new();
+    };
+    let value = rest.trim_start().strip_prefix('"').unwrap_or("");
+    let value = value.split('"').next().unwrap_or("");
+    value
+        .split(',')
+        .filter(|package| !package.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Problems with the package lists in a family root `build_file`, given its non-exempt `packages`.
+fn package_list_problems(family: &str, build_file: &str, packages: &[String]) -> Vec<String> {
+    let docs = listed_packages(build_file, "STARLARK_DOCS_PACKAGES");
+    let rustfmt = listed_packages(build_file, "RUSTFMT_COVERAGE_PACKAGES");
+    let mut problems = Vec::new();
+    for package in packages.iter().filter(|package| !package.is_empty()) {
+        if !docs.contains(package) && !rustfmt.contains(package) {
+            problems.push(format!(
+                "{family}: package {package} is in neither STARLARK_DOCS_PACKAGES nor RUSTFMT_COVERAGE_PACKAGES"
+            ));
+        }
+    }
+    for package in docs.iter().chain(&rustfmt) {
+        if !build_file.contains(&format!("\"//{package}:corpus_starlark\"")) {
+            problems.push(format!(
+                "{family}: //{package}:corpus_starlark is listed but missing from data"
+            ));
+        }
+    }
+    problems
+}
+
+#[test]
+fn moved_families_list_every_package_in_the_source_checks() {
+    let root = dx_testing::rules_dx_source();
+    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let mut problems = Vec::new();
+    for (family, path) in &paths {
+        let dir = root.join(path);
+        let Ok(build_file) = std::fs::read_to_string(dir.join("BUILD.bazel")) else {
+            continue;
+        };
+        let packages: Vec<String> = checked_packages(&dir)
+            .into_iter()
+            .map(|(package, _)| package)
+            .collect();
+        problems.extend(package_list_problems(family, &build_file, &packages));
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn an_unlisted_package_or_missing_data_label_is_reported() {
+    let build = concat!(
+        "data = [\"//rules:corpus_starlark\"],\n",
+        "env = {\"STARLARK_DOCS_PACKAGES\": \"rules,sdk\"},\n",
+        "env = {\"RUSTFMT_COVERAGE_PACKAGES\": \"tests\"},\n",
+    );
+    let packages = ["", "rules", "sdk", "tests", "extra"].map(str::to_owned);
+    assert_eq!(
+        package_list_problems("x", build, &packages),
+        [
+            "x: package extra is in neither STARLARK_DOCS_PACKAGES nor RUSTFMT_COVERAGE_PACKAGES",
+            "x: //sdk:corpus_starlark is listed but missing from data",
+            "x: //tests:corpus_starlark is listed but missing from data",
+        ]
+    );
 }

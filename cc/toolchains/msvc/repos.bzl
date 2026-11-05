@@ -114,6 +114,23 @@ def _exists_exact(rctx, rel):
         cur = cur.get_child(part)
     return True
 
+def host_dir_name(name):
+    """Returns the canonical spelling of a bin host directory; payloads spell Hostx64 and HostX64 both."""
+    if name.lower().startswith("host"):
+        return "Host" + name[4:].lower()
+    return name
+
+def _link_toolset(rctx, source, dst):
+    """Links the toolset entry by entry so bin gets canonical host directory names."""
+    for entry in source.readdir():
+        if entry.basename == "bin":
+            for host in entry.readdir():
+                target = "{}/bin/{}".format(dst, host_dir_name(host.basename))
+                if not rctx.path(target).exists:
+                    rctx.symlink(host, target)
+        else:
+            rctx.symlink(entry, "{}/{}".format(dst, entry.basename))
+
 def _layout_repo_impl(rctx):
     vc_root = rctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname
     sdk_root = rctx.path(Label("@windows_sdk//:BUILD.bazel")).dirname
@@ -123,7 +140,9 @@ def _layout_repo_impl(rctx):
     for link in layout_links(msvc_version, sdk_version):
         source = roots[link.repo].get_child(link.src)
         source = source.dirname.get_child(match_name(source.dirname, source.basename))
-        if source.exists:
+        if source.exists and link.repo == "msvc_runtime":
+            _link_toolset(rctx, source, link.dst)
+        elif source.exists:
             rctx.symlink(source, link.dst)
     redist = rctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC")
     redist_version = ""

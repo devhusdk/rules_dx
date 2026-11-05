@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
-load(":repos.bzl", "HUB_NAME", "LICENSE", "NO_REDIST", "UNACCEPTED", "has_child_exact", "hub_build", "layout_links", "missing_error")
+load(":repos.bzl", "HUB_NAME", "LICENSE", "NO_REDIST", "UNACCEPTED", "has_child_exact", "hub_build", "host_dir_name", "layout_links", "missing_error")
 load(":unavailable.bzl", "UNSUPPORTED")
 
 def _checks():
@@ -45,6 +45,7 @@ def _checks():
         expect_true("every link feeds the layout", all([any([p == k.dst or p.startswith(k.dst + "/") for p in layout_paths]) for k in links])),
         expect_true("exact case mismatch is missing", not has_child_exact(["HostX64"], "Hostx64")),
         expect_true("exact case match is found", has_child_exact(["Hostx64"], "Hostx64")),
+        expect_equal("host dir spellings", [host_dir_name(n) for n in ["HostX64", "Hostx64", "hostarm64", "Hostx86", "x64"]], ["Hostx64", "Hostx64", "Hostarm64", "Hostx86", "x64"]),
         expect_equal("missing text", missing_error(["a/cl.exe", "b/link.exe"]), "dx_msvc: incomplete MSVC payload; missing a/cl.exe, b/link.exe"),
         expect_equal(
             "unaccepted text",

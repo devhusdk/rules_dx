@@ -30,6 +30,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cp
         fail("msvc_cc_toolchain does not support exec_cpu = %r, target_cpu = %r" % (exec_cpu, target_cpu))
     layout = msvc_layout(msvc_version, sdk_version, exec_cpu, target_cpu)
     system_name = _SYSTEM_NAMES[target_cpu]
+    identifier = name + "-" + msvc_version
     machine = "/MACHINE:" + target_cpu.upper()
     root = native.repository_name().removeprefix("@")
     root = ("external/" + root + "/" if root else "") + native.package_name()
@@ -47,7 +48,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cp
         target_libc = "ucrt",
         abi_version = "local",
         abi_libc_version = "local",
-        toolchain_identifier = name,
+        toolchain_identifier = identifier,
         msvc_env_tmp = tmp,
         msvc_env_path = exec_paths(layout.bin_dirs),
         msvc_env_include = exec_paths(layout.include_dirs),
@@ -79,7 +80,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cp
     cc_toolchain(
         name = name,
         toolchain_config = ":" + name + "_config",
-        toolchain_identifier = name,
+        toolchain_identifier = identifier,
         all_files = ":" + name + "_files",
         ar_files = ":" + name + "_files",
         as_files = ":" + name + "_files",

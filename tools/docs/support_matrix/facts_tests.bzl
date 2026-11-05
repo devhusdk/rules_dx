@@ -123,7 +123,7 @@ def support_matrix_facts_tests(name):
                 {
                     "cc_gcc": {"compiler": "gcc", "coverage": "gcov", "driver": "gnu", "probe": "//cc/toolchains:identity_gcc", "version": GCC_VERSION},
                     "cc_llvm": {"compiler": "llvm", "coverage": "llvm", "driver": "gnu", "probe": "//cc/toolchains:identity", "version": LLVM_CLANG_VERSION},
-                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "probe": "", "version": ""},
+                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "probe": "//cc/toolchains:identity_msvc", "version": ""},
                 },
             ),
             expect_equal("pending compilers", sorted(facts["pending_compilers"].keys()), []),

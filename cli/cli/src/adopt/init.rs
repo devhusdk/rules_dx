@@ -131,8 +131,36 @@ pub(crate) fn execute_init(
     if let Err(message) = super::init_files::preflight(root, &target.prefix, &planned) {
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
-    let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
+    if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
+        .ok()
+        .map(|setup| dx_adopt::preflight(root, &setup))
+        .filter(|plan| plan.applicable)
+    {
+        let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
+        if !hard.is_empty() {
+            let _ = write!(err, "{}", dx_adopt::render_plan_text(&target.module, &plan));
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_INIT_FAILED,
+                &format!(
+                    "init plan: {} hard conflicts ({}); next: resolve {} hard conflict(s), then run `{}`",
+                    hard.len(),
+                    hard.join(", "),
+                    hard.len(),
+                    target.apply_command()
+                ),
+            );
+        }
+        notes.extend(
+            plan.findings
+                .iter()
+                .map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
+        );
+    }
+    let mut applied = dx_adopt::Applied::default();
     let result = super::init_files::apply(
         root,
         &target.prefix,
@@ -360,6 +388,24 @@ mod tests {
         assert_eq!(code, 1);
         assert!(err.contains("missing .codex/hooks.json"), "{err}");
         assert!(err.contains("dx init --apply --agents=codex"), "{err}");
+    }
+
+    #[test]
+    fn init_apply_with_a_hard_plan_conflict_writes_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-hard-plan-");
+        let root = scratch.path().to_path_buf();
+        let module = "module(name = \"app\")\nsingle_version_override(module_name = \"rules_rust\", version = \"0.1.0\")\n";
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(out.is_empty(), "{out}");
+        assert!(err.contains("hard conflict"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("MODULE.bazel")).expect("read"),
+            module
+        );
+        assert!(!root.join("AGENTS.md").exists());
+        assert_eq!(run(&invocation(&["init"]), &root).0, 1);
     }
 
     #[test]

@@ -16,9 +16,7 @@
         ".aidl"
       ],
       "gazelle": [],
-      "repo_rules": [
-        "//android/toolchain:repos.bzl%android_ndk_toolchain_repo"
-      ],
+      "repo_rules": [],
       "toolchains": []
     },
     "appimage": {
@@ -130,6 +128,8 @@
       "toolchains": [
         "//cc/toolchains:gcc_linux_x86_64",
         "//cc/toolchains:gcc_linux_x86_64_to_arm64",
+        "//cc/toolchains:gcc_linux_arm64",
+        "//cc/toolchains:gcc_unsupported",
         "//cc/toolchains:msvc_windows_x86_64",
         "//cc/toolchains:msvc_unsupported",
         "@llvm//toolchain:all"
@@ -146,6 +146,7 @@
         "real_cue_format_aspect",
         "real_cue_typecheck_aspect",
         "real_dockerfile_lint_aspect",
+        "real_docs_aspect",
         "real_format_aspect",
         "real_format_probe_aspect",
         "real_go_format_aspect",
@@ -180,6 +181,7 @@
         "real_typecheck_aspect",
         "real_typecheck_probe_aspect",
         "real_typst_format_aspect",
+        "real_typst_lint_aspect",
         "real_xml_lint_aspect",
         "real_yaml_format_aspect",
         "real_yaml_lint_aspect"
@@ -270,7 +272,8 @@
       "repo_rules": [
         "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
-        "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar"
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar",
+        "@gazelle//internal:go_repository.bzl%go_repository"
       ],
       "toolchains": [
         "//tools/platforms:protoc_windows_arm64"
@@ -541,6 +544,7 @@
         "scala"
       ],
       "extensions": [
+        "@rules_java//java:extensions.bzl%toolchains",
         "@rules_jvm_external//:extensions.bzl%maven",
         "@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions",
         "@rules_scala//scala/extensions:config.bzl%scala_config",
@@ -679,7 +683,9 @@
         "real_powershell_format_aspect",
         "real_powershell_lint_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "rules_batch"
+      ],
       "dirs": [
         "powershell"
       ],

@@ -1,3 +1,4 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//rust/rules:mutate.bzl", "rust_mutate")
 
@@ -10,7 +11,15 @@ rust_mutate(name = "fixture_mutate")
 
 sh_test(
     name = "mutate_run_test",
+    timeout = "short",
     srcs = ["run_test.sh"],
     data = ["//rust/rules:mutate_run.sh"],
-    timeout = "short",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

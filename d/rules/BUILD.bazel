@@ -18,9 +18,21 @@ config_setting(
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
-        expect_equal("d guard is a select by default", type(d_kwargs({})["target_compatible_with"]), "select"),
-        expect_equal("d guard stays with a user list", type(d_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
-        expect_equal("d keeps user tags", d_kwargs({"tags": ["t"]})["tags"], ["t"]),
+        expect_equal(
+            "d guard is a select by default",
+            type(d_kwargs({})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "d guard stays with a user list",
+            type(d_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "d keeps user tags",
+            d_kwargs({"tags": ["t"]})["tags"],
+            ["t"],
+        ),
         expect_equal(
             "d tests have a coverage collector",
             D_COVERAGE_COLLECTOR,

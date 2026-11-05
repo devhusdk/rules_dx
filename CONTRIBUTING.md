@@ -6,6 +6,7 @@
 tools/dx worktree add <branch>
 tools/dx check --apply --affected
 tools/dx test --affected
+bazel run //dx:generate_check
 tools/dx worktree release
 ```
 

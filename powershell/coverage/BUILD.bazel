@@ -1,3 +1,6 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+# gazelle:exclude DxCoverage
 load("//powershell/rules:defs.bzl", "pwsh_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -6,4 +9,11 @@ pwsh_library(
     name = "dx_coverage",
     srcs = ["DxCoverage/DxCoverage.psm1"],
     deps = ["//powershell/gallery:pester"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

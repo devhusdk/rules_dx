@@ -32,6 +32,7 @@ perl_library(
     name = "dx_lcov",
     srcs = ["DxLcov.pm"],
     tags = ["manual"],
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

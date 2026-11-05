@@ -1,3 +1,4 @@
+# gazelle:ignore
 # Quality tools built from Rust source through the dx_quality_crates hub.
 
 package(default_visibility = ["//visibility:public"])

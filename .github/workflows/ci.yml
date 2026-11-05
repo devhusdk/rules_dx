@@ -802,6 +802,11 @@ jobs:
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
       - uses: ./.github/actions/gate
+      - name: Check generated BUILD files
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //dx:generate_check
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

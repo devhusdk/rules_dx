@@ -5,11 +5,14 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
 
-exports_files([
-    "schema/licenses.schema.json",
-    "schema/security.schema.json",
-    "src/lib.rs",
-], visibility = ["//visibility:public"])
+exports_files(
+    [
+        "schema/licenses.schema.json",
+        "schema/security.schema.json",
+        "src/lib.rs",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 dx_rust_crate(
     name = "dx_audit",
@@ -30,12 +33,12 @@ dx_rust_crate(
         "src/locks.rs",
         "src/locks_bazel.rs",
         "src/locks_cargo.rs",
+        "src/locks_conan.rs",
+        "src/locks_cpan.rs",
         "src/locks_licenses.rs",
         "src/locks_npm.rs",
         "src/locks_paket.rs",
         "src/locks_pnpm.rs",
-        "src/locks_conan.rs",
-        "src/locks_cpan.rs",
         "src/locks_pub.rs",
         "src/locks_ruby.rs",
         "src/locks_uv.rs",
@@ -104,6 +107,7 @@ dx_rust_crate(
     ],
 )
 
+# keep
 rust_binary(
     name = "config_schemas",
     srcs = ["src/bin_config_schemas.rs"],

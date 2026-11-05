@@ -391,7 +391,6 @@ real_source_target(
         "SECURITY.md",
         "d/README.md",
         "elixir/README.md",
-        "//dart:README.md",
         "fortran/README.md",
         "go/README.md",
         "javascript/README.md",
@@ -399,11 +398,9 @@ real_source_target(
         "ocaml/README.md",
         "perl/README.md",
         "php/README.md",
-        "//haskell:README.md",
         "patches/README.md",
         "powershell/README.md",
         "python/README.md",
-        "//ruby:README.md",
         "java/README.md",
         "kotlin/README.md",
         "scala/README.md",
@@ -413,6 +410,9 @@ real_source_target(
         "zig/README.md",
         "cuda/README.md",
         "CLAUDE.md",
+        "RELEASING.md",
+        "containers/README.md",
+        "flutter/README.md",
     ],
     tags = ["corpus"],
 )
@@ -451,7 +451,7 @@ json_schemas(
 
 real_source_target(
     name = "corpus_toml",
-    aspect_hints = [":json_schemas"],
+    aspect_hints = [":json_schemas"],  # keep
     tags = ["corpus"],
     toml_srcs = [
         "clippy.toml",

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("//typescript/rules:defs.bzl", "ts_proto_library")
 

@@ -6,6 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 zig_library(
     name = "calc",
+    testonly = True,
     main = "calc.zig",
 )
 

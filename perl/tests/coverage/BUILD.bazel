@@ -4,6 +4,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 # A child run of hello.pl under the collector must write LCOV that names the
 # script by its workspace path and counts its hits (#7324).
+# keep
 perl_test(
     name = "coverage_probe_test",
     srcs = ["probe.t"],
@@ -17,6 +18,7 @@ perl_coverage_env_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],

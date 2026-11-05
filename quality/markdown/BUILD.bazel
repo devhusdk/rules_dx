@@ -26,6 +26,7 @@ rust_library(
     ) + [
         "//cli/fingerprint:dx_fingerprint",
         "//cli/output:dx_output",
+        "@crates//:serde",
     ],
 )
 
@@ -95,6 +96,7 @@ rust_test(
     ) + [
         "//cli/fingerprint:dx_fingerprint",
         "//cli/output:dx_output",
+        "@crates//:serde",
     ],
 )
 

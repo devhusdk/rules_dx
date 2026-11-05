@@ -5,15 +5,18 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "Cargo.toml",
-    "src/convert.rs",
-    "src/exports.rs",
-    "src/lib.rs",
-    "src/lib_tests.rs",
-    "src/main.rs",
-    "src/types.rs",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "Cargo.toml",
+        "src/convert.rs",
+        "src/exports.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/main.rs",
+        "src/types.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 rust_library(
     name = "dx_docs_powershell_extract",
@@ -33,7 +36,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,
-    ) + ["//tools/docs/ir/ir:documentation_ir"],
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde",
+    ],
 )
 
 rust_binary(
@@ -73,7 +79,11 @@ rust_test(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/docs/ir/ir:documentation_ir"],
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
 )
 
 rustfmt_test(

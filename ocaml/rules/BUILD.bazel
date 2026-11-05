@@ -203,12 +203,22 @@ dx_wrapper_contract_tests(
         expect_equal(
             "modules get the unused-code warnings",
             unused_warning_opts(bin_annot_opts(None)),
-            ["-bin-annot", "-w", "+26+27+32..39"],
+            [
+                "-bin-annot",
+                "-w",
+                "+26+27+32..39",
+            ],
         ),
         expect_equal(
             "a target's own -w replaces the unused-code warnings",
-            unused_warning_opts(["-w", "-27"]),
-            ["-w", "-27"],
+            unused_warning_opts([
+                "-w",
+                "-27",
+            ]),
+            [
+                "-w",
+                "-27",
+            ],
         ),
         expect_equal(
             "a struct and sig expose both",

@@ -41,6 +41,7 @@ dx_rust_crate(
     ],
 )
 
+# keep
 rust_binary(
     name = "to_lcov",
     srcs = ["src/to_lcov.rs"],
@@ -49,6 +50,7 @@ rust_binary(
     deps = [":dx_lcov"],
 )
 
+# keep
 rust_test(
     name = "to_lcov_test",
     crate = ":to_lcov",

@@ -90,9 +90,21 @@ dx_wrapper_contract_tests(
             type(HASKELL_COMPATIBLE_WITH),
             "select",
         ),
-        expect_equal("haskell guard is a select by default", type(haskell_kwargs({})["target_compatible_with"]), "select"),
-        expect_equal("haskell guard stays with a user list", type(haskell_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
-        expect_equal("haskell keeps user tags", haskell_kwargs({"tags": ["t"]})["tags"], ["t"]),
+        expect_equal(
+            "haskell guard is a select by default",
+            type(haskell_kwargs({})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "haskell guard stays with a user list",
+            type(haskell_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "haskell keeps user tags",
+            haskell_kwargs({"tags": ["t"]})["tags"],
+            ["t"],
+        ),
     ],
     file_classes = ["haskell"],
 )

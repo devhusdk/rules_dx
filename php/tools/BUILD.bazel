@@ -1,3 +1,4 @@
+load("@rules_dx//php/rules:defs.bzl", "php_library")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":phpcs.bzl", "phpcs_tool")
@@ -30,4 +31,9 @@ real_source_target(
         "phpstan.bzl",
     ],
     tags = ["corpus"],
+)
+
+php_library(
+    name = "tools",
+    srcs = ["phpstan_autoload.php"],
 )

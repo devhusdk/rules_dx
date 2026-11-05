@@ -9,6 +9,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 const READ_TIMEOUT: Duration = Duration::from_secs(5);
+const ACCEPT_POLL: Duration = Duration::from_millis(50);
 
 /// A bound listener that serves one site directory under a base path.
 pub struct Site {
@@ -45,13 +46,19 @@ impl Site {
         self.listener.local_addr()
     }
 
-    /// Serves until the process ends.
-    pub fn serve_forever(self) -> io::Result<()> {
+    /// Serves until `stop` returns true, checked between accepts.
+    pub fn serve_until(self, stop: &dyn Fn() -> bool) -> io::Result<()> {
         let root: Arc<Path> = Arc::from(self.root);
         let prefix: Arc<str> = Arc::from(self.prefix);
-        for stream in self.listener.incoming() {
-            let Ok(stream) = stream else { continue };
-            spawn_connection(stream, &root, &prefix);
+        self.listener.set_nonblocking(true)?;
+        while !stop() {
+            match self.listener.accept() {
+                Ok((stream, _)) => {
+                    let _ = stream.set_nonblocking(false);
+                    spawn_connection(stream, &root, &prefix);
+                }
+                Err(_) => thread::sleep(ACCEPT_POLL),
+            }
         }
         Ok(())
     }
@@ -390,6 +397,25 @@ mod tests {
         let addr = server.local_addr();
         drop(server);
         assert!(TcpStream::connect(addr).is_err());
+    }
+
+    #[test]
+    fn serving_stops_once_asked() {
+        let dir = fixture();
+        let site = Site::bind("127.0.0.1", 0, dir.as_ref().to_path_buf(), "").expect("bind");
+        let addr = site.local_addr().expect("addr");
+        let stop = AtomicBool::new(false);
+        let flag = &stop;
+        thread::scope(|scope| {
+            let server = scope.spawn(move || site.serve_until(&|| flag.load(Ordering::SeqCst)));
+            let mut stream = TcpStream::connect(addr).expect("connect");
+            write!(stream, "GET / HTTP/1.1\r\nHost: x\r\n\r\n").expect("send");
+            let mut raw = String::new();
+            stream.read_to_string(&mut raw).expect("read");
+            assert!(raw.ends_with("<h1>home</h1>"), "{raw}");
+            stop.store(true, Ordering::SeqCst);
+            server.join().expect("server thread").expect("serve");
+        });
     }
 
     #[test]

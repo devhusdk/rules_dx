@@ -55,10 +55,11 @@ explicit scope, `--diff`, and `--report`, and scope errors
 preview failure, including `query_launch_failed` (the scope query cannot be
 launched), `launch_failed` (Bazel cannot be launched),
 `serve_failed` (no single site tree, a missing `index.html`, or a preview that
-fails to launch) and a signalled preview. Bazel failures keep Bazel's code.
+fails to launch). Bazel failures keep Bazel's code.
 `disk_full` keeps exit `36`: Bazel exited 36 and a disk it writes to has under
 1 GiB free. dx then suggests `dx worktree prune --apply`. Under `--serve` the
-preview server's code is the exit code.
+preview server's code is the exit code. Ctrl-C, `SIGHUP`, or `SIGTERM` stops
+the preview and exits `130`, `129`, or `143`.
 
 ```sh
 bazel run @rules_dx//:dx -- docs

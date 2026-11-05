@@ -54,7 +54,7 @@ impl PreviewServer for StdPreview {
 
 impl RunningPreview for StdRunning {
     fn run(self: Box<Self>) -> std::io::Result<()> {
-        self.0.serve_forever()
+        self.0.serve_until(&|| dx_process::interrupted().is_some())
     }
 }
 
@@ -268,12 +268,13 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
             &format!("docs preview at {url} stopped: {error}"),
         );
     }
+    let code = dx_process::interrupted().map_or(0, dx_process::interrupted_code);
     if json {
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
             return exit;
         }
     }
-    0
+    code
 }
 
 #[cfg(test)]

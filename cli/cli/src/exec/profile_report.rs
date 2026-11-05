@@ -70,13 +70,31 @@ struct Event {
     ts: Option<u64>,
     #[serde(default)]
     dur: Option<u64>,
+    #[serde(default)]
+    args: Option<EventArgs>,
+}
+
+#[derive(Deserialize)]
+struct EventArgs {
+    #[serde(default)]
+    mnemonic: Option<String>,
 }
 
 /// One timed item, in microseconds as Bazel records it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Timed {
     pub(crate) name: String,
+    pub(crate) mnemonic: Option<String>,
     pub(crate) micros: u64,
+}
+
+impl Timed {
+    fn label(&self) -> String {
+        match &self.mnemonic {
+            Some(mnemonic) => format!("[{mnemonic}] {}", self.name),
+            None => self.name.clone(),
+        }
+    }
 }
 
 /// What the cache did for the run's actions.
@@ -125,6 +143,11 @@ pub(crate) fn build(
         report.wall_micros = report.wall_micros.max(end);
         let timed = || Timed {
             name: event.name.clone().unwrap_or_default(),
+            mnemonic: event
+                .args
+                .as_ref()
+                .and_then(|args| args.mnemonic.clone())
+                .filter(|mnemonic| !mnemonic.is_empty()),
             micros,
         };
         match cat {
@@ -184,7 +207,7 @@ impl Report {
             seconds(self.critical_micros)
         ));
         for item in &self.critical {
-            lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.name));
+            lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.label()));
         }
         match &self.cache {
             Some(cache) => lines.push(format!(
@@ -203,7 +226,7 @@ impl Report {
         }
         lines.push("dx: slowest actions".to_owned());
         for item in &self.slowest {
-            lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.name));
+            lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.label()));
         }
         lines.push(format!(
             "dx: repository fetches {} in {}",
@@ -217,7 +240,7 @@ impl Report {
         let timed = |items: &[Timed]| -> Vec<Value> {
             items
                 .iter()
-                .map(|item| json!({ "name": item.name, "micros": item.micros }))
+                .map(|item| json!({ "name": item.name, "mnemonic": item.mnemonic, "micros": item.micros }))
                 .collect()
         };
         let cache = self.cache.map(|cache| {
@@ -248,7 +271,7 @@ mod tests {
     use super::*;
 
     const TRACE: &str = r#"{"otherData":{},"traceEvents":[
-        {"cat":"critical path component","name":"action 'A'","ph":"X","ts":0,"dur":3000000},
+        {"cat":"critical path component","name":"action 'A'","ph":"X","ts":0,"dur":3000000,"args":{"mnemonic":"CppCompile"}},
         {"cat":"critical path component","name":"action 'B'","ph":"X","ts":3000000,"dur":1000000},
         {"cat":"action processing","name":"slow","ph":"X","ts":10,"dur":2500000},
         {"cat":"action processing","name":"fast","ph":"X","ts":20,"dur":5},
@@ -309,6 +332,8 @@ mod tests {
         assert_eq!(report.wall_micros, 4_000_000);
         assert_eq!(report.critical_micros, 4_000_000);
         assert_eq!(report.critical[0].name, "action 'A'");
+        assert_eq!(report.critical[0].mnemonic.as_deref(), Some("CppCompile"));
+        assert_eq!(report.critical[1].mnemonic, None);
         assert_eq!(report.slowest[0].name, "slow");
         assert_eq!((report.fetches, report.fetch_micros), (2, 750_000));
     }
@@ -319,6 +344,7 @@ mod tests {
             .expect("report")
             .text();
         assert!(text.contains("wall time 4.0s"), "{text}");
+        assert!(text.contains("[CppCompile] action 'A'"), "{text}");
         assert!(
             text.contains("cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"),
             "{text}"
@@ -333,6 +359,7 @@ mod tests {
         assert_eq!(value["cache"]["hit_percent"], 75);
         assert_eq!(value["bytes_downloaded"], Value::Null);
         assert_eq!(value["slowest_actions"][0]["micros"], 2_500_000);
+        assert_eq!(value["critical_path"][0]["mnemonic"], "CppCompile");
     }
 
     #[test]

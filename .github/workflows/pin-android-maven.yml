@@ -24,24 +24,11 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false
-      - name: Add the install and pin it
-        run: |
-          set -euo pipefail
-          if ! grep -q 'name = "rules_android_maven"' MODULE.bazel; then
-            touch third_party/jvm/rules_android_maven_install.json
-            sed -i '/^maven_tools = use_extension/a\
-          maven_tools.install(\
-              name = "rules_android_maven",\
-              lock_file = "//third_party/jvm:rules_android_maven_install.json",\
-              known_contributing_modules = ["rules_android", "rules_flutter"],\
-          )' MODULE.bazel
-          fi
-          REPIN=1 bazel run --noshow_progress @rules_android_maven//:pin
-          git diff MODULE.bazel > third_party/jvm/rules_android_maven_install.patch
+      - name: Pin
+        run: REPIN=1 bazel run --noshow_progress @rules_android_maven//:pin
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rules_android_maven_install
           path: |
             third_party/jvm/rules_android_maven_install.json
-            third_party/jvm/rules_android_maven_install.patch
           if-no-files-found: error

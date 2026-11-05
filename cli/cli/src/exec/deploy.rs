@@ -87,6 +87,13 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
             return build_code;
         }
         if !invocation.quiet {
+            if !info.size_budget.is_empty() {
+                let _ = writeln!(
+                    err,
+                    "Size of {label}: {}",
+                    size_line(workspace, &info.size_stamp, &info.size_budget)
+                );
+            }
             let mut words = vec!["dx".to_owned(), "deploy".to_owned(), "--apply".to_owned()];
             if invocation.debug {
                 words.push("--debug".to_owned());
@@ -151,6 +158,16 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Ok(app) => app.code,
         Err(exit) => exit,
+    }
+}
+
+fn size_line(workspace: &std::path::Path, stamp: &str, budget: &str) -> String {
+    let checked = (!stamp.is_empty())
+        .then(|| std::fs::read_to_string(workspace.join(stamp)).ok())
+        .flatten();
+    match checked {
+        Some(text) => format!("{} (size_budget {budget})", text.trim()),
+        None => format!("size_budget {budget}"),
     }
 }
 
@@ -375,5 +392,26 @@ mod tests {
             .collect();
         let err = parse(&args).expect_err("deploy json must fail parse");
         assert!(err.to_string().contains("--output"), "{err:?}");
+    }
+
+    #[test]
+    fn deploy_check_prints_the_size_and_budget() {
+        let harness = harness_with_deploy(
+            "deploy-check-size",
+            "True|release|None|True|1MB|bazel-out/bin/deploy/prod.size_budget",
+        );
+        harness.write_source(
+            "bazel-out/bin/deploy/prod.size_budget",
+            "2000000 of 1000000 bytes\n",
+        );
+        let (code, _, err) = harness.run(&["deploy", "//deploy:prod"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("Size of //deploy:prod: 2000000 of 1000000 bytes (size_budget 1MB)"),
+            "{err}"
+        );
+        let harness = harness_with_deploy("deploy-check-nosize", "True|release|None|True");
+        let (_, _, err) = harness.run(&["deploy", "//deploy:prod"]);
+        assert!(!err.contains("Size of"), "{err}");
     }
 }

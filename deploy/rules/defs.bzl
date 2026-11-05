@@ -10,6 +10,8 @@ DxDeployInfo = provider(
     fields = {
         "app": "Label or None: the deployed app target when distinct from the deploy target.",
         "artifacts": "List of Labels: declared app artifact targets staged for the deploy tool.",
+        "size_budget": "String: the size_budget attribute, empty when unset.",
+        "size_stamp": "String: exec path of the file holding the checked size, empty without a budget.",
         "profile": "String or None: default profile ('debug', 'dev', 'release'); None means the command default applies.",
     },
 )
@@ -57,6 +59,7 @@ def _dx_deployment_impl(ctx):
         app_label = ctx.attr.app.label
         app_text = display_label(app_label)
     validation = []
+    size_stamp = ""
     if ctx.attr.size_budget and artifact_files:
         stamp = ctx.actions.declare_file(ctx.label.name + ".size_budget")
         args = ctx.actions.args()
@@ -72,6 +75,7 @@ def _dx_deployment_impl(ctx):
             progress_message = "Checking size_budget of " + str(ctx.label),
         )
         validation.append(stamp)
+        size_stamp = stamp.path
     return [
         OutputGroupInfo(_validation = depset(validation)),
         DefaultInfo(
@@ -83,6 +87,8 @@ def _dx_deployment_impl(ctx):
             app = app_label,
             artifacts = [target.label for target in ctx.attr.artifacts],
             profile = ctx.attr.profile,
+            size_budget = ctx.attr.size_budget,
+            size_stamp = size_stamp,
         ),
         DxSubjectInfo(fields = {
             "app": app_text,

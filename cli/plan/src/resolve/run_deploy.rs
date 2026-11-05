@@ -191,6 +191,8 @@ pub struct DeployInfo {
     pub profile_raw: String,
     pub app_raw: String,
     pub executable: bool,
+    pub size_budget: String,
+    pub size_stamp: String,
 }
 
 fn deploy_starlark_expr() -> String {
@@ -199,7 +201,9 @@ fn deploy_starlark_expr() -> String {
         "(str(providers(target).get('{PROVIDER}', None) != None)) + '|' + \
          ((str(providers(target).get('{PROVIDER}', None).profile) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \
          ((str(providers(target).get('{PROVIDER}', None).app) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \
-         str(target.files_to_run.executable != None)"
+         str(target.files_to_run.executable != None) + '|' + \
+         ((providers(target).get('{PROVIDER}', None).size_budget if providers(target).get('{PROVIDER}', None) != None else '')) + '|' + \
+         ((providers(target).get('{PROVIDER}', None).size_stamp if providers(target).get('{PROVIDER}', None) != None else ''))"
     )
 }
 
@@ -249,13 +253,17 @@ pub fn check_deployable(
         parts.next(),
         parts.next(),
         parts.next(),
-        parts.next(),
     ) {
-        (Some(has), Some(profile), Some(app), Some(exe), None) => (has, profile, app, exe),
+        (Some(has), Some(profile), Some(app), Some(exe)) => (has, profile, app, exe),
         _ => {
             return Err(malformed("cquery returned a malformed deploy observation"));
         }
     };
+    let size_budget = parts.next().unwrap_or("").to_owned();
+    let size_stamp = parts.next().unwrap_or("").to_owned();
+    if parts.next().is_some() {
+        return Err(malformed("cquery returned a malformed deploy observation"));
+    }
     let has_provider = match has {
         "True" => true,
         "False" => false,
@@ -281,6 +289,8 @@ pub fn check_deployable(
         profile_raw: profile_raw.to_owned(),
         app_raw: app_raw.to_owned(),
         executable,
+        size_budget,
+        size_stamp,
     })
 }
 

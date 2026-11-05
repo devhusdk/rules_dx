@@ -114,7 +114,6 @@ rust_test(
 
 hermetic_qualification(
     name = "cpp_rust",
-    compatible_with = select({"@platforms//os:linux": [], "@platforms//os:macos": [], "//conditions:default": ["@platforms//:incompatible"]}),
     coverage = [
         "//java/tests/fixtures/java-app/...",
         "//kotlin/tests/fixtures/kotlin-app/...",

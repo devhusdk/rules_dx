@@ -569,6 +569,36 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
 
+    const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//apps/php:composer.lock\", digests = \"//apps/php:composer.digests.json\")\n";
+
+    const COMPOSER_LOCK: &str = r#"{"packages": [{"name": "psr/http-message", "version": "v2.0", "dist": {"reference": "402d35bc"}}], "packages-dev": []}"#;
+
+    const COMPOSER_ADVISORY: &str = r#"[{
+        "id": "GHSA-psr-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Packagist", "name": "psr/http-message"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": "2.1.0"}]}]
+        }]
+    }]"#;
+
+    #[test]
+    fn consumer_composer_set_reads_its_composer_lock_and_the_packagist_snapshot() {
+        let harness = consumer_harness("composer-vuln", COMPOSER_MODULE, false);
+        harness.write_source("apps/php/composer.lock", COMPOSER_LOCK);
+        harness.write_source(
+            "apps/php/composer.digests.json",
+            r#"{"packages": {"psr/http-message": {"reference": "402d35bc", "sha256": "00"}}}"#,
+        );
+        write_advisory(&harness, "packagist", COMPOSER_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "vendor"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-psr-0001"), "{out}");
+        assert!(out.contains("apps/php/composer.lock"), "{out}");
+    }
+
     #[test]
     fn consumer_ruby_missing_snapshot_fails_and_is_never_clean() {
         for extra in [None, Some("--offline")] {

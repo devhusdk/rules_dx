@@ -84,7 +84,7 @@ _SOURCES_BUILD = """package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "files",
-    srcs = glob(["src/**", "config/**"]),
+    srcs = glob(["src/**", "config/**"], allow_empty = True),
 )
 """
 

@@ -3154,6 +3154,7 @@ fn phpstan_check_passes_the_config_and_puts_paths_after_the_separator() {
     let invocation = phpstan_check(
         Path::new(BIN),
         Path::new("/s/phpstan.neon"),
+        Some(Path::new("/s/ext/autoload.php")),
         &[Path::new("/s/a.php"), Path::new("/s/b.php")],
     );
     assert_eq!(
@@ -3166,6 +3167,8 @@ fn phpstan_check_passes_the_config_and_puts_paths_after_the_separator() {
             "--error-format=json",
             "-c",
             "/s/phpstan.neon",
+            "-a",
+            "/s/ext/autoload.php",
             "--",
             "/s/a.php",
             "/s/b.php"
@@ -3209,10 +3212,7 @@ fn phpstan_neon_adds_unused_public_only_without_a_consumer_config() {
         neon.starts_with("includes:\n    - \"/s/ext/unused-public/config/extension.neon\"\n"),
         "{neon}"
     );
-    assert!(
-        neon.contains("bootstrapFiles:\n        - \"/s/ext/autoload.php\""),
-        "{neon}"
-    );
+    assert!(!neon.contains("bootstrapFiles"), "{neon}");
     assert!(
         neon.contains("unused_public:\n        methods: true"),
         "{neon}"

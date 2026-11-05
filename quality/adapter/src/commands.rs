@@ -1262,11 +1262,20 @@ pub fn sorbet_check(binary: &Path, paths: &[&Path]) -> Invocation {
 }
 
 /// `phpstan analyse` over the owned sources with a generated config, JSON on stdout.
-pub fn phpstan_check(binary: &Path, neon: &Path, paths: &[&Path]) -> Invocation {
+pub fn phpstan_check(
+    binary: &Path,
+    neon: &Path,
+    autoload: Option<&Path>,
+    paths: &[&Path],
+) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.extend(PHPSTAN_ARGS.iter().map(OsString::from));
     argv.push(OsString::from("-c"));
     argv.push(neon.as_os_str().to_owned());
+    if let Some(autoload) = autoload {
+        argv.push(OsString::from("-a"));
+        argv.push(autoload.as_os_str().to_owned());
+    }
     argv.push(OsString::from("--"));
     argv.extend(paths.iter().map(|p| p.as_os_str().to_owned()));
     Invocation {
@@ -1309,10 +1318,8 @@ pub fn phpstan_neon(
         out.push('\n');
     }
     out.push_str("parameters:\n");
-    if let Some(dir) = extension {
-        out.push_str("    bootstrapFiles:\n        - ");
-        out.push_str(&quote(&dir.join("autoload.php")));
-        out.push_str("\n    unused_public:\n        methods: true\n        constants: true\n        properties: true\n");
+    if extension.is_some() {
+        out.push_str("    unused_public:\n        methods: true\n        constants: true\n        properties: true\n");
     }
     if consumer.is_none() {
         out.push_str(&format!("    level: {level}\n"));

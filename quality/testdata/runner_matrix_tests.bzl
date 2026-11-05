@@ -79,6 +79,9 @@ def _runner_matrix_test_impl(ctx):
         if i < len(ctx.attr.toolfile_rels) and ctx.attr.toolfile_rels[i]:
             rel = ctx.attr.toolfile_rels[i]
         tool_files.append((tool, rel, f))
+    for i, tool in enumerate(ctx.attr.toolfile_group_tools):
+        for f in ctx.attr.toolfile_group_srcs[i].files.to_list():
+            tool_files.append((tool, ctx.attr.toolfile_group_prefixes[i] + f.short_path.split("/", 2)[2], f))
     configs = {}
     for i, tool in enumerate(ctx.attr.config_tools):
         configs[tool] = _single_file(ctx.attr.config_files[i]).short_path
@@ -235,6 +238,7 @@ def _runner_matrix_test_impl(ctx):
         ctx.attr.tool_binaries +
         ctx.attr.path_tool_binaries +
         ctx.attr.toolfile_srcs +
+        ctx.attr.toolfile_group_srcs +
         ctx.attr.config_files +
         ctx.attr.upstream_srcs +
         [ctx.attr._runner, ctx.attr._printer, ctx.attr._harness]
@@ -287,6 +291,13 @@ _runner_matrix_test = rule(
         ),
         "toolfile_srcs": attr.label_list(
             allow_files = True,
+        ),
+        "toolfile_group_tools": attr.string_list(),
+        "toolfile_group_prefixes": attr.string_list(
+            doc = "Mirror-relative prefix per toolfile_group_srcs entry; each file keeps its path below the repository directory.",
+        ),
+        "toolfile_group_srcs": attr.label_list(
+            doc = "External repository file groups staged whole as tool files.",
         ),
         "config_tools": attr.string_list(),
         "config_files": attr.label_list(
@@ -413,6 +424,9 @@ def runner_matrix_suite(name, cases, extra_cases = []):
             toolfile_tools = case.get("toolfile_tools", []),
             toolfile_srcs = case.get("toolfile_srcs", []),
             toolfile_rels = case.get("toolfile_rels", []),
+            toolfile_group_tools = case.get("toolfile_group_tools", []),
+            toolfile_group_prefixes = case.get("toolfile_group_prefixes", []),
+            toolfile_group_srcs = case.get("toolfile_group_srcs", []),
             config_tools = case.get("config_tools", []),
             config_files = case.get("config_files", []),
             edition_tools = case.get("edition_tools", []),

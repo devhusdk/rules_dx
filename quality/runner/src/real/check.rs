@@ -1084,6 +1084,7 @@ impl RealBackend {
                     .iter()
                     .any(|(rel, _)| rel.starts_with("dx-phpstan/ext/"))
                     .then(|| root.join("dx-phpstan/ext"));
+                let autoload = extension.as_ref().map(|dir| dir.join("autoload.php"));
                 let neon = work.join("dx.neon");
                 std::fs::write(
                     &neon,
@@ -1097,7 +1098,12 @@ impl RealBackend {
                 )
                 .map_err(|err| execution(tool_id, format!("write phpstan config: {err}")))?;
                 let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
-                let invocation = commands::phpstan_check(&tool.binary, &neon, &path_refs);
+                let invocation = commands::phpstan_check(
+                    &tool.binary,
+                    &neon,
+                    autoload.as_deref(),
+                    &path_refs,
+                );
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 let real_names: Vec<String> = owned
                     .iter()

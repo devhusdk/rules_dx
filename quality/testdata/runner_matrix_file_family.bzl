@@ -2244,6 +2244,26 @@ FILE_FAMILY_CASES = [
         "windows_x86_64": True,
     },
     {
+        "name": "matrix_php_typecheck_unused_public",
+        "generated": {
+            "matrix/phpstan_unused_public.php": "<?php\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nfinal class Calc\n{\n    public function add(int $a, int $b): int\n    {\n        return $a + $b;\n    }\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["phpstan;php;matrix/phpstan_unused_public.php"],
+        "tool_names": ["phpstan"],
+        "tool_binaries": ["//php/tools:phpstan"],
+        "toolfile_tools": ["phpstan"],
+        "toolfile_srcs": ["//php/tools:phpstan_autoload.php"],
+        "toolfile_rels": ["dx-phpstan/ext/autoload.php"],
+        "toolfile_group_tools": ["phpstan", "phpstan"],
+        "toolfile_group_prefixes": ["dx-phpstan/ext/unused-public/", "dx-phpstan/ext/assert/"],
+        "toolfile_group_srcs": ["@dx_unused_public//:files", "@dx_webmozart_assert//:files"],
+        "expected_file": ":matrix/matrix_php_typecheck_unused_public.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "matrix_powershell_format_pass",
         "tags": ["no-remote-exec"],
         "generated": {

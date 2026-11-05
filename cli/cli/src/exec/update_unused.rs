@@ -34,53 +34,165 @@ fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
         Ecosystem::Uv => Some(dx_depcheck::Ecosystem::Python),
         Ecosystem::Go => Some(dx_depcheck::Ecosystem::Go),
         Ecosystem::Ruby => Some(dx_depcheck::Ecosystem::Ruby),
+        Ecosystem::Maven => Some(dx_depcheck::Ecosystem::Java),
+        Ecosystem::Nuget => Some(dx_depcheck::Ecosystem::Csharp),
         _ => None,
     }
 }
 
-/// Hub names that some target in the workspace depends on, or `None` when the set has no hub
-/// to ask or the query fails.
-fn used_hubs(
+/// Maven and nuget packages are not imported by name, so only the Bazel graph can tell.
+fn graph_only(ecosystem: Ecosystem) -> bool {
+    matches!(ecosystem, Ecosystem::Maven | Ecosystem::Nuget)
+}
+
+/// The hub of the `uv.project` whose pyproject is `manifest`.
+fn uv_hub(workspace: &Path, manifest: &str) -> Option<String> {
+    let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).ok()?;
+    let module = dx_module_bazel::ModuleFile::parse(&text).ok()?;
+    let projects = module.uv_projects().ok()?;
+    let project = projects.iter().find(|project| {
+        dx_module_bazel::label_path(project.pyproject).is_ok_and(|p| p == manifest)
+    })?;
+    Some(project.hub_name.to_owned())
+}
+
+/// The `@paket.<group>` repositories of the generated `paket.<group>.bzl` locks.
+fn paket_hubs(locks: &[String]) -> Vec<String> {
+    locks
+        .iter()
+        .filter_map(|lock| lock.rsplit('/').next())
+        .filter_map(|file| file.strip_suffix(".bzl"))
+        .filter(|name| name.starts_with("paket."))
+        .map(|name| format!("@{name}"))
+        .collect()
+}
+
+/// Labels without repository and without a target that repeats the last package segment, so
+/// `@pypi//numpy:numpy` and `@pypi//numpy` agree.
+fn label_key(label: &str) -> Option<String> {
+    let (_, rest) = label.split_once("//")?;
+    let (package, name) = match rest.split_once(':') {
+        Some(parts) => parts,
+        None => (rest, rest.rsplit('/').next().unwrap_or(rest)),
+    };
+    if package.is_empty() {
+        return Some(format!(":{name}"));
+    }
+    if package.rsplit('/').next() == Some(name) {
+        return Some(package.to_owned());
+    }
+    Some(format!("{package}:{name}"))
+}
+
+fn manifest_dir(manifest: &str) -> &str {
+    manifest.rsplit_once('/').map_or("", |(dir, _)| dir)
+}
+
+/// Keys of the labels that some target in the workspace depends on, or `None` when the set has
+/// no hub to ask or the query fails.
+fn used_labels(
     target: &ResolvedTarget,
+    manifest: &str,
     workspace: &Path,
     query: &dyn QueryRunner,
     startup: &[String],
 ) -> Option<BTreeSet<String>> {
-    match target.set.ecosystem {
-        Ecosystem::Cargo => {
-            let repository = target.set.repository.as_deref()?;
-            let expression = format!("deps(//..., 1) intersect @{repository}//:*");
-            let labels =
-                run_label_query_file(&expression, &expression, workspace, query, startup).ok()?;
-            Some(
-                labels
-                    .iter()
-                    .filter_map(|label| label.split_once("//:"))
-                    .map(|(_, name)| name.to_owned())
-                    .collect(),
-            )
+    let scope = match target.set.ecosystem {
+        Ecosystem::Cargo | Ecosystem::Maven => {
+            format!("@{}//:*", target.set.repository.as_deref()?)
         }
-        _ => None,
-    }
+        Ecosystem::Uv => format!("@{}//...", uv_hub(workspace, manifest)?),
+        Ecosystem::Npm => format!("//{}:*", manifest_dir(manifest)),
+        Ecosystem::Nuget => {
+            let hubs = paket_hubs(&target.set.locks);
+            if hubs.is_empty() {
+                return None;
+            }
+            hubs.iter()
+                .map(|hub| format!("{hub}//..."))
+                .collect::<Vec<_>>()
+                .join(" + ")
+        }
+        _ => return None,
+    };
+    let expression = format!("deps(//..., 1) intersect ({scope})");
+    let labels = run_label_query_file(&expression, &expression, workspace, query, startup).ok()?;
+    Some(labels.iter().filter_map(|label| label_key(label)).collect())
 }
 
-fn hub_matches(used: &BTreeSet<String>, hub: &str) -> bool {
-    used.contains(hub)
-        || used.contains(&hub.replace('-', "_"))
-        || used.contains(&hub.replace('_', "-"))
+fn maven_declared(workspace: &Path, repository: &str) -> Option<Vec<dx_depcheck::DeclaredDep>> {
+    let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).ok()?;
+    let module = dx_module_bazel::ModuleFile::parse(&text).ok()?;
+    let mut out = Vec::new();
+    for artifact in module.maven_artifacts_of(repository).ok()? {
+        let mut parts = artifact.value.split(':');
+        let (Some(group), Some(name)) = (parts.next(), parts.next()) else {
+            continue;
+        };
+        let line = text[..artifact.span.start].matches('\n').count() + 1;
+        if text
+            .lines()
+            .nth(line - 1)
+            .is_some_and(|l| l.contains("# dx-keep"))
+        {
+            continue;
+        }
+        let coordinate = format!("{group}:{name}");
+        out.push(dx_depcheck::DeclaredDep {
+            name: coordinate.clone(),
+            hub: coordinate,
+            line,
+        });
+    }
+    Some(out)
+}
+
+fn underscored(text: &str) -> String {
+    text.chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect()
+}
+
+/// The label keys under which the Bazel graph would show `dep`.
+fn dep_keys(ecosystem: Ecosystem, dir: &str, dep: &dx_depcheck::DeclaredDep) -> Vec<String> {
+    match ecosystem {
+        Ecosystem::Cargo => vec![
+            format!(":{}", dep.hub),
+            format!(":{}", dep.hub.replace('-', "_")),
+            format!(":{}", dep.hub.replace('_', "-")),
+        ],
+        Ecosystem::Uv => vec![dx_depcheck::normalize_py(&dep.hub)],
+        Ecosystem::Npm => vec![format!("{dir}:node_modules/{}", dep.hub)],
+        Ecosystem::Maven => vec![format!(":{}", underscored(&dep.hub))],
+        Ecosystem::Nuget => vec![dep.hub.to_lowercase()],
+        _ => Vec::new(),
+    }
 }
 
 /// Declared dependencies no BUILD target depends on, read from the Bazel graph.
 fn find_unused_in_graph(
+    target: &ResolvedTarget,
     eco: dx_depcheck::Ecosystem,
+    manifest: &str,
     path: &Path,
+    workspace: &Path,
     used: &BTreeSet<String>,
 ) -> Option<Vec<dx_depcheck::UnusedDep>> {
-    let declared = dx_depcheck::declared(eco, path).ok()?;
+    let ecosystem = target.set.ecosystem;
+    let declared = if ecosystem == Ecosystem::Maven {
+        maven_declared(workspace, target.set.repository.as_deref()?)?
+    } else {
+        dx_depcheck::declared(eco, path).ok()?
+    };
+    let dir = manifest_dir(manifest);
     Some(
         declared
             .into_iter()
-            .filter(|dep| !hub_matches(used, &dep.hub))
+            .filter(|dep| {
+                !dep_keys(ecosystem, dir, dep)
+                    .iter()
+                    .any(|key| used.contains(key))
+            })
             .map(|dep| dx_depcheck::UnusedDep {
                 name: dep.name,
                 line: dep.line,
@@ -110,13 +222,13 @@ pub(super) fn find(
             .filter(|exception| exception.set == set)
             .map(|exception| exception.name.clone())
             .collect();
-        let hubs = used_hubs(target, workspace, query, startup);
         for manifest in &target.set.manifests {
             let path = workspace.join(manifest);
             let root = path.parent().unwrap_or(workspace);
-            let from_graph = hubs
-                .as_ref()
-                .and_then(|used| find_unused_in_graph(eco, &path, used))
+            let from_graph = used_labels(target, manifest, workspace, query, startup)
+                .and_then(|used| {
+                    find_unused_in_graph(target, eco, manifest, &path, workspace, &used)
+                })
                 .map(|found| {
                     found
                         .into_iter()
@@ -125,6 +237,7 @@ pub(super) fn find(
                 });
             let found = match from_graph {
                 Some(found) => found,
+                None if graph_only(target.set.ecosystem) => continue,
                 None => match dx_depcheck::find_unused(eco, &path, root, &excepted) {
                     Ok(found) => found,
                     Err(_) => continue,
@@ -315,6 +428,99 @@ mod tests {
         let kept = manifest.replace("regex = \"1\"", "regex = \"1\" # dx-keep");
         let resolved = cargo_set(root, &kept);
         assert!(find(root, &resolved, &query, &[]).is_empty());
+    }
+
+    fn unused_names(root: &Path, resolved: &[ResolvedTarget], labels: &'static str) -> Vec<String> {
+        find(root, resolved, &Labels(labels), &[])
+            .into_iter()
+            .map(|u| u.name)
+            .collect()
+    }
+
+    #[test]
+    fn uv_set_asks_its_pip_hub() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//py:uv.lock\", pyproject = \"//py:pyproject.toml\")\n",
+        );
+        write(
+            root,
+            "py/pyproject.toml",
+            "[project]\nname = \"x\"\nversion = \"1\"\ndependencies = [\"numpy>=1\", \"Requests\"]\n",
+        );
+        let resolved = [target("pypi", Ecosystem::Uv, "py/pyproject.toml")];
+        assert_eq!(
+            unused_names(root, &resolved, "@@pypi//numpy:numpy\n"),
+            ["Requests"]
+        );
+    }
+
+    #[test]
+    fn npm_set_asks_its_manifest_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(
+            root,
+            "web/package.json",
+            "{\n  \"dependencies\": {\n    \"left-pad\": \"1.0.0\",\n    \"react\": \"18.0.0\"\n  }\n}\n",
+        );
+        let resolved = [target("web", Ecosystem::Npm, "web/package.json")];
+        assert_eq!(
+            unused_names(root, &resolved, "//web:node_modules/react\n"),
+            ["left-pad"]
+        );
+    }
+
+    #[test]
+    fn maven_set_reads_artifacts_and_asks_its_repository() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    name = \"maven\",\n    artifacts = [\n        \"com.google.guava:guava:33.0.0\",\n        \"org.slf4j:slf4j-api:2.0.0\",\n    ],\n)\n",
+        );
+        let mut resolved = [target("maven", Ecosystem::Maven, "MODULE.bazel")];
+        resolved[0].set.repository = Some("maven".to_owned());
+        let found = find(
+            root,
+            &resolved,
+            &Labels("@maven//:com_google_guava_guava\n"),
+            &[],
+        );
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            (found[0].name.as_str(), found[0].line),
+            ("org.slf4j:slf4j-api", 6)
+        );
+        assert!(find(root, &resolved, &NoQuery, &[]).is_empty());
+    }
+
+    #[test]
+    fn nuget_set_asks_its_paket_hubs() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write(
+            root,
+            "dn/paket.dependencies",
+            "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json 13.0.1\nnuget Serilog 3.0.0\n",
+        );
+        let mut resolved = [target("nuget", Ecosystem::Nuget, "dn/paket.dependencies")];
+        resolved[0].set.locks = vec![
+            "dn/paket.lock".to_owned(),
+            "dn/deps/paket.main.bzl".to_owned(),
+        ];
+        assert_eq!(
+            unused_names(
+                root,
+                &resolved,
+                "@paket.main//newtonsoft.json:newtonsoft.json\n"
+            ),
+            ["Serilog"]
+        );
     }
 
     #[test]

@@ -64,7 +64,11 @@ static int drain_input(int fd, int events, void *data) {
       continue;
     }
     int type = AInputEvent_getType(event);
-    if (type == AINPUT_EVENT_TYPE_MOTION &&
+    int handled = 1;
+    if (type == AINPUT_EVENT_TYPE_KEY &&
+        AKeyEvent_getKeyCode(event) == AKEYCODE_BACK) {
+      handled = 0;
+    } else if (type == AINPUT_EVENT_TYPE_MOTION &&
         (AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK) ==
             AMOTION_EVENT_ACTION_UP) {
       run("add Touch task", "touch");
@@ -72,7 +76,7 @@ static int drain_input(int fd, int events, void *data) {
                AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {
       run("done 2", "key");
     }
-    AInputQueue_finishEvent(queue, event, 1);
+    AInputQueue_finishEvent(queue, event, handled);
   }
   return 1;
 }

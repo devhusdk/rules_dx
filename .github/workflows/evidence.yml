@@ -369,6 +369,9 @@ jobs:
           bazel run --noshow_progress //examples/shared-rust:start
           sleep 5
           adb -s emulator-5554 shell input tap 200 400
+          sleep 2
+          adb -s emulator-5554 shell input tap 200 400
+          sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
           sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_BACK

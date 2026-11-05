@@ -146,7 +146,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude mdx/tests/typecheck
 # gazelle:exclude vue/tests/typecheck
 # gazelle:exclude examples/shared-rust
-# gazelle:exclude examples/python-service
+# gazelle:exclude python/tests/fixtures/python-service
 # gazelle:exclude swift/tests/fixtures/swift-app
 # gazelle:exclude cc/tests/fixtures/c-app
 # gazelle:exclude cc/tests/fixtures/cpp-app

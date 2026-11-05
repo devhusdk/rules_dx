@@ -5,14 +5,14 @@ load("//modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_HUB = 
 load("//modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 
 _UV_PROJECTS_BLOCK = """UV_PROJECTS = [
-    "//examples/python-service:pyproject.toml",
     "//python/tests/fixtures/hello:pyproject.toml",
+    "//python/tests/fixtures/python-service:pyproject.toml",
     "//quality/tools/python:pyproject.toml",
 ]"""
 
 _UV_LOCKS_BLOCK = """UV_LOCKS = [
-    "//examples/python-service:uv.lock",
     "//python/tests/fixtures/hello:uv.lock",
+    "//python/tests/fixtures/python-service:uv.lock",
     "//quality/tools/python:uv.lock",
 ]"""
 
@@ -61,8 +61,8 @@ def python_runtime_unit_tests(name):
                 "wheel projects stay hello and ledger",
                 _MOD_PY_PROJECTS,
                 [
-                    "//examples/python-service:pyproject.toml",
                     "//python/tests/fixtures/hello:pyproject.toml",
+                    "//python/tests/fixtures/python-service:pyproject.toml",
                     "//quality/tools/python:pyproject.toml",
                 ],
             ),
@@ -70,8 +70,8 @@ def python_runtime_unit_tests(name):
                 "wheel locks stay hello and ledger",
                 _MOD_PY_LOCKS,
                 [
-                    "//examples/python-service:uv.lock",
                     "//python/tests/fixtures/hello:uv.lock",
+                    "//python/tests/fixtures/python-service:uv.lock",
                     "//quality/tools/python:uv.lock",
                 ],
             ),
@@ -79,8 +79,8 @@ def python_runtime_unit_tests(name):
                 "repin dirs stay hello and ledger",
                 _MOD_PY_REPIN,
                 [
-                    "examples/python-service",
                     "python/tests/fixtures/hello",
+                    "python/tests/fixtures/python-service",
                     "quality/tools/python",
                 ],
             ),

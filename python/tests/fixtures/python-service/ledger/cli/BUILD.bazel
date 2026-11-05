@@ -1,7 +1,7 @@
 load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//examples/python-service:__subpackages__"])
+package(default_visibility = ["//python/tests/fixtures/python-service:__subpackages__"])
 
 python_library(
     name = "cli",
@@ -12,8 +12,8 @@ python_library(
     aspect_hints = ["//:ruff_config"],
     imports = ["../.."],
     deps = [
-        "//examples/python-service/ledger/core",
-        "//examples/python-service/ledger/service",
+        "//python/tests/fixtures/python-service/ledger/core",
+        "//python/tests/fixtures/python-service/ledger/service",
         "@pypi//click",
     ],
 )
@@ -49,7 +49,7 @@ python_test(
     imports = ["../.."],
     deps = [
         ":cli",
-        "//examples/python-service/ledger/core",
+        "//python/tests/fixtures/python-service/ledger/core",
         "@pypi//coverage",
         "@pypi//pytest",
     ],

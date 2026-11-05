@@ -31,7 +31,7 @@ class BuildInfoTest(unittest.TestCase):
         self.assertIsNone(getattr(ledger, "__file__", None))
 
     def test_dependency_comes_from_the_locked_hub(self):
-        self.assertEqual(click.__version__, "8.1.8")
+        self.assertEqual(click.__version__, "8.5.0")
         self.assertIn("site-packages", click.__file__)
         self.assertFalse(
             any(

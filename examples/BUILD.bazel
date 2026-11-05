@@ -43,7 +43,7 @@ real_source_target(
         "//ocaml/tests/fixtures/ocaml-app:README.md",
         "//perl/tests/fixtures/perl-app:README.md",
         "//quality/tests/fixtures/prose-docs:README.md",
-        "//examples/python-service:README.md",
+        "//python/tests/fixtures/python-service:README.md",
         "//qt/tests/fixtures/qt-app:README.md",
         "//qt/tests/fixtures/qt-rust:README.md",
         "//qt/tests/fixtures/qt-tasks:README.md",

@@ -141,7 +141,14 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
             if unsupported {
                 cell.push_str(" unsupported");
             }
-            if let Some(declared) = facts.tool_not_applicable.get(tool) {
+            let declared = row.families.iter().find_map(|family| {
+                facts
+                    .tool_not_applicable
+                    .get(family)
+                    .and_then(|by_capability| by_capability.get(capability))
+                    .and_then(|by_tool| by_tool.get(tool))
+            });
+            if let Some(declared) = declared {
                 let notes: Vec<String> = facts
                     .platforms
                     .iter()
@@ -275,7 +282,7 @@ mod tests {
       "quality": {"go": {"lint": ["govet"], "format": ["gofumpt"], "typecheck": []},
                   "yaml": {"lint": ["yamllint"], "format": [], "typecheck": []}},
       "support": [{"family": "yaml", "capability": "lint", "tool": "yamllint", "platforms": ["linux_x86_64"]}],
-      "tool_not_applicable": {"yamllint": {"macos_arm64": "no build"}},
+      "tool_not_applicable": {"yaml": {"lint": {"yamllint": {"macos_arm64": "no build"}}}},
       "deferred_families": [],
       "not_applicable": {"typecheck": {"yaml": "data format"}},
       "not_languages": [],
@@ -316,7 +323,9 @@ mod tests {
             "{page}"
         );
         assert!(
-            page.contains("| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a |\n"),
+            page.contains(
+                "| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a | n/a |\n"
+            ),
             "{page}"
         );
         assert!(!page.to_lowercase().contains("experimental"));

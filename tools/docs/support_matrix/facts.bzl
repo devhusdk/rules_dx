@@ -40,13 +40,15 @@ def _identity(row):
     return {"coverage": identity.coverage, "driver": identity.driver}
 
 def tool_not_applicable(records):
-    """Merges the unsupported platforms of the records into one reason table per tool."""
+    """Merges the unsupported platforms of the records into reasons per family, capability and tool."""
     merged = {}
     for record in records:
         for platform, reason in record.get("unsupported", {}).items():
-            reasons = merged.setdefault(record["tool"], {})
+            key = record["family"] + "/" + record["capability"] + "/" + record["tool"]
+            by_tool = merged.setdefault(record["family"], {}).setdefault(record["capability"], {})
+            reasons = by_tool.setdefault(record["tool"], {})
             if reasons.setdefault(platform, reason) != reason:
-                fail("support matrix: " + record["tool"] + " gives two reasons for " + platform)
+                fail("support matrix: " + key + " gives two reasons for " + platform)
     return merged
 
 def support_matrix_facts_dict():
@@ -94,7 +96,11 @@ def support_matrix_facts_dict():
     row_names = {row["name"]: True for row in ROWS}
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
     tool_na = tool_not_applicable(SUPPORT_RECORDS)
-    for name, declared in PLATFORM_NOT_APPLICABLE.items() + tool_na.items():
+    declared_tables = PLATFORM_NOT_APPLICABLE.items()
+    for family, by_capability in tool_na.items():
+        for capability, by_tool in by_capability.items():
+            declared_tables += [(family + "/" + capability + "/" + tool, reasons) for tool, reasons in by_tool.items()]
+    for name, declared in declared_tables:
         for platform, reason in declared.items():
             if platform not in platform_ids or not reason:
                 fail("support matrix: " + name + " needs a known platform and a reason, got " + platform)

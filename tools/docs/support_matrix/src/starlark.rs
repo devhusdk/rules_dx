@@ -558,6 +558,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         Constraint::Appended("//cuda/rules:defs.bzl", "CUDA_TARGET"),
     ),
     ("d_test", Constraint::AsWritten),
+    ("dx_hello_output_test", Constraint::AsWritten),
     ("dx_wasi_test_tests", Constraint::AsWritten),
     ("eunit", Constraint::AsWritten),
     (

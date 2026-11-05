@@ -76,8 +76,8 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 
 | Name | Lint | Format | Typecheck | API docs |
 | --- | --- | --- | --- | --- |
-| Astro | `eslint` | `prettier` | no | `astro-compiler` |
-| C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | no |
+| Astro | `eslint` | `prettier` | `tsc` | `astro-compiler` |
+| C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` | no |
 | C# | `roslyn` | `csharpier` | `csc` | `csharp doc driver` |
 | CUDA | `clang_tidy` | `clang_format` | `nvcc_syntax` | no |
 | D | `dscanner` | `dfmt` | `ldc` | no |

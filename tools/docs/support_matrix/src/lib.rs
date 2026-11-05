@@ -68,9 +68,9 @@ pub struct Facts {
     /// Row name, then platform, then the reason the row cannot support that platform.
     #[serde(default)]
     pub platform_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
-    /// Tool, then platform, then the reason the tool cannot run on that platform.
+    /// Family, capability, tool, then platform, then the reason the tool cannot run there.
     #[serde(default)]
-    pub tool_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
+    pub tool_not_applicable: ToolNotApplicable,
     pub not_languages: Vec<String>,
     pub computed_constraints: BTreeMap<String, Vec<Vec<String>>>,
 }
@@ -87,6 +87,10 @@ pub struct RowPlatforms {
     pub consumer: Vec<String>,
 }
 
+/// Family, then capability, then tool, then platform, to the reason.
+pub type ToolNotApplicable =
+    BTreeMap<String, BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>>;
+
 /// Parses the facts JSON.
 pub fn parse_facts(text: &str) -> Result<Facts, String> {
     serde_json::from_str(text).map_err(|error| format!("facts JSON is invalid: {error}"))
@@ -99,7 +103,10 @@ struct BuildLoader<'a> {
 }
 
 fn bzl_path(package: &str, label: &str) -> Result<String, String> {
-    let (pkg, file) = if let Some(rest) = label.strip_prefix("//") {
+    let (pkg, file) = if let Some(rest) = label
+        .strip_prefix("@rules_dx//")
+        .or_else(|| label.strip_prefix("//"))
+    {
         rest.split_once(':')
             .ok_or_else(|| format!("load label {label} has no `:`"))?
     } else if let Some(file) = label.strip_prefix(':') {
@@ -121,6 +128,7 @@ impl starlark::Loader for BuildLoader<'_> {
     }
 
     fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
+        let label = label.strip_prefix("@rules_dx").unwrap_or(label);
         self.computed.get(&format!("{label}%{symbol}")).cloned()
     }
 }
@@ -312,6 +320,10 @@ mod tests {
             "tools/testing/nested_bazel.bzl"
         );
         assert_eq!(bzl_path("a/b", ":x.bzl").expect("path"), "a/b/x.bzl");
+        assert_eq!(
+            bzl_path("a", "@rules_dx//tools/testing:x.bzl").expect("path"),
+            "tools/testing/x.bzl"
+        );
         assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
     }
 

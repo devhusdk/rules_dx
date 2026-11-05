@@ -50,6 +50,17 @@ rust_test(
     crate = ":support_matrix",
 )
 
+rust_test(
+    name = "generate_test",
+    srcs = ["src/generate_test.rs"],
+    data = [":inputs"],
+    edition = "2021",
+    deps = [
+        ":support_matrix",
+        "@rules_rust//rust/runfiles",
+    ],
+)
+
 # keep
 rust_binary(
     name = "update",
@@ -64,6 +75,7 @@ rust_binary(
 rustfmt_test(
     name = "support_matrix_fmt_test",
     targets = [
+        ":generate_test",
         ":support_matrix",
         ":update",
     ],
@@ -72,6 +84,7 @@ rustfmt_test(
 rust_clippy_test(
     name = "support_matrix_clippy_test",
     targets = [
+        ":generate_test",
         ":support_matrix",
         ":update",
     ],

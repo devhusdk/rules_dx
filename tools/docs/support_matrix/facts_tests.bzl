@@ -94,13 +94,17 @@ def support_matrix_facts_tests(name):
                 ["ansible", "api_spec", "asciidoc", "bicep", "cloudformation", "cmake", "dockerfile", "gherkin", "helm", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "rst", "sql", "typst", "xml", "yaml"],
             ),
             expect_equal(
-                "records merge per tool",
+                "records merge per family, capability and tool",
                 tool_not_applicable([
-                    {"tool": "a", "unsupported": {"windows_arm64": "x"}},
-                    {"tool": "a", "unsupported": {"windows_arm64": "x", "windows_x86_64": "y"}},
-                    {"tool": "b"},
+                    {"family": "f", "capability": "lint", "tool": "a", "unsupported": {"windows_arm64": "x"}},
+                    {"family": "f", "capability": "lint", "tool": "a", "unsupported": {"windows_arm64": "x", "windows_x86_64": "y"}},
+                    {"family": "f", "capability": "lint", "tool": "b"},
+                    {"family": "g", "capability": "typecheck", "tool": "a", "unsupported": {"windows_arm64": "z"}},
                 ]),
-                {"a": {"windows_arm64": "x", "windows_x86_64": "y"}},
+                {
+                    "f": {"lint": {"a": {"windows_arm64": "x", "windows_x86_64": "y"}}},
+                    "g": {"typecheck": {"a": {"windows_arm64": "z"}}},
+                },
             ),
             expect_equal(
                 "compiler rows have no families",

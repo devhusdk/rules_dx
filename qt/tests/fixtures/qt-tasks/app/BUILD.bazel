@@ -4,12 +4,6 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# The macOS cell has no wayland or xcb display plugins for the board bundle.
-_NO_MACOS = select({
-    "@platforms//os:macos": ["@platforms//:incompatible"],
-    "//conditions:default": [],
-})
-
 qt_cc_binary(
     name = "tasks",
     srcs = ["main.cc"],
@@ -116,7 +110,7 @@ qt_bundle(
         "QtQml",
         "QtQuick",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH + _NO_MACOS,
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 consumer_archive(
@@ -128,7 +122,6 @@ consumer_archive(
     os = QT_CONSUMER_OS,
     resources = [":board_runtime"],
     runtime = QT_CONSUMER_RUNTIME,
-    target_compatible_with = _NO_MACOS,
 )
 
 real_source_target(

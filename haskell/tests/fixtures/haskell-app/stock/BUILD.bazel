@@ -42,7 +42,7 @@ haskell_library(
     deps = [
         ":checksum",
         "@dx_haskell_toolchains//:base",
-        "@haskell_app_split//:split",
+        "@haskell_app_hackage//:split",
     ],
 )
 

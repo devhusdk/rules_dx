@@ -8,7 +8,7 @@ _PROJECT = [
     "third_party.cabal",
 ]
 
-exports_files(_PROJECT)
+exports_files(_PROJECT + ["haskell_deps.json"])
 
 haskell_deps_resolve(
     name = "resolve",

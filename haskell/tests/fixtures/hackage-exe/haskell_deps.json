@@ -1,0 +1,48 @@
+{
+  "packages": [
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [],
+      "name": "base",
+      "source": "ghc",
+      "version": "4.20.2.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [],
+      "name": "directory",
+      "source": "ghc",
+      "version": "1.3.8.5"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [],
+      "name": "filepath",
+      "source": "ghc",
+      "version": "1.5.4.0"
+    },
+    {
+      "cabal_revision": 0,
+      "components": [
+        "lib",
+        "exe:hspec-discover"
+      ],
+      "dependencies": [
+        "base",
+        "directory",
+        "filepath"
+      ],
+      "name": "hspec-discover",
+      "sdist_sha256": "97faa38ee295ca0c958b8c30a6a264d79e51857d724cf11304c0b942bc7e9b10",
+      "source": "hackage",
+      "version": "2.11.12"
+    }
+  ],
+  "version": 1
+}

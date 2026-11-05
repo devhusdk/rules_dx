@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "metadata_tests.bzl",
+    "packages.bzl",
     "pins.bzl",
     "repos.bzl",
     "transition.bzl",
@@ -74,6 +75,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "metadata_tests.bzl",
+        "packages.bzl",
         "pins.bzl",
         "repos.bzl",
         "transition.bzl",

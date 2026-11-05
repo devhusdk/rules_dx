@@ -118,6 +118,18 @@ haskell_deps_resolve_test(name = "resolve_test", srcs = ["cabal.project", "app.c
 
 The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC names none.
 
+## Building Hackage packages
+
+The `haskell.packages` tag turns a `haskell_deps.json` into a hub repository:
+
+```starlark
+haskell = use_extension("@rules_dx//haskell/toolchain:repos.bzl", "haskell")
+haskell.packages(name = "hackage", deps = "//third_party:haskell_deps.json")
+use_repo(haskell, "hackage")
+```
+
+Each Hackage package becomes one repository fetched from its sdist with the sidecar sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.
+
 ## Example
 
 See [haskell-app](tests/fixtures/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

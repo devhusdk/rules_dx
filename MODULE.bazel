@@ -1006,7 +1006,15 @@ composer.lock(
 use_repo(composer, php_fixture_vendor = "php_composer_fixture")
 
 haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
-use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "rules_haskell")
+haskell.packages(
+    name = "haskell_app_hackage",
+    deps = "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json",
+)
+haskell.packages(
+    name = "haskell_exe_hackage",
+    deps = "//haskell/tests/fixtures/hackage-exe:haskell_deps.json",
+)
+use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_exe_hackage", "rules_haskell")
 
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
@@ -1861,14 +1869,6 @@ _http_archive(
     sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
     strip_prefix = "thoas-1.2.1",
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
-)
-
-_http_archive(
-    name = "haskell_app_split",
-    build_file = "//haskell/tests/fixtures/haskell-app:split.BUILD.bazel",
-    sha256 = "18adb60f7f12d08601c382d47c2bacbbd4de4b9233f09683889d15b64b6420d6",
-    strip_prefix = "split-0.2.5.1",
-    urls = ["https://hackage.haskell.org/package/split-0.2.5.1/split-0.2.5.1.tar.gz"],
 )
 
 _http_archive(

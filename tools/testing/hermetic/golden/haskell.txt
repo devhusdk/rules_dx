@@ -9,7 +9,7 @@ file haskell/tests/fixtures/haskell-app/stock/BUILD.bazel
 file haskell/tests/fixtures/haskell-app/stock/VERSION
 file haskell/tests/fixtures/haskell-app/stock/cbits/checksum.c
 file haskell/tests/fixtures/haskell-app/stock/cbits/checksum.h
-file haskell/tests/fixtures/haskell-app/stock/split.BUILD.bazel
+file haskell/tests/fixtures/haskell-app/stock/haskell_deps.json
 file haskell/tests/fixtures/haskell-app/stock/src/Stock.hs
 file haskell/tests/fixtures/haskell-app/stock/test/StockTest.hs
 failure //haskell/tests/fixtures/haskell-app/cli:report_without_split

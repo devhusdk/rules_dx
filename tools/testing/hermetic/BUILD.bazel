@@ -417,7 +417,7 @@ hermetic_qualification(
     name = "haskell",
     failures = {"//haskell/tests/fixtures/haskell-app/cli:report_without_split": "Could not find module"},
     files = {
-        "//haskell/tests/fixtures/haskell-app:split.BUILD.bazel": "haskell/tests/fixtures/haskell-app/stock/split.BUILD.bazel",
+        "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json": "haskell/tests/fixtures/haskell-app/stock/haskell_deps.json",
         "//haskell/tests/fixtures/haskell-app/stock:BUILD.bazel": "haskell/tests/fixtures/haskell-app/stock/BUILD.bazel",
         "//haskell/tests/fixtures/haskell-app/stock:VERSION": "haskell/tests/fixtures/haskell-app/stock/VERSION",
         "//haskell/tests/fixtures/haskell-app/stock:cbits/checksum.c": "haskell/tests/fixtures/haskell-app/stock/cbits/checksum.c",

@@ -2,6 +2,7 @@
 
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load(":packages.bzl", "declare_packages")
 load(
     ":pins.bzl",
     "CELLS",
@@ -141,20 +142,15 @@ DROPPED_PATHS = [
     "haskell/c2hs",
     "haskell/c2hs.bzl",
     "haskell/cabal",
-    "haskell/cabal.bzl",
-    "haskell/cabal_wrapper.bzl",
     "haskell/doctest.bzl",
     "haskell/gen_ghc_bindist.py",
     "haskell/ghc.bzl",
     "haskell/ghc_bindist.bzl",
-    "haskell/haddock.bzl",
     "haskell/nixpkgs.bzl",
-    "haskell/private/cabal_wrapper.py",
     "haskell/private/ghc_bindist_generated.json",
     "haskell/private/ghc_ci.bzl",
     "haskell/private/pkgdb_to_bzl.bzl",
     "haskell/private/stack_snapshot_pin.sh.tpl",
-    "haskell/private/workspace_utils.bzl",
     "haskell/protobuf.bzl",
     "haskell/repositories.bzl",
     "logo",
@@ -570,6 +566,7 @@ def _haskell_impl(mctx):
         patches = [
             Label("//patches/rules_haskell:coverage_wrapper_no_report.patch"),
             Label("//patches/rules_haskell:hermetic_haskell.patch"),
+            Label("//patches/rules_haskell:cabal_rules.patch"),
             Label("//patches/rules_haskell:toolchain_type_alias.patch"),
         ],
         sha256 = RULES_HASKELL_SHA256,
@@ -583,9 +580,21 @@ def _haskell_impl(mctx):
             python = Label(CELLS[cell].python),
         )
     hub_repo(name = HUB_NAME, files = hub_files())
+    for module in mctx.modules:
+        for tag in module.tags.packages:
+            declare_packages(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
+
+_packages = tag_class(
+    doc = "Builds the Hackage packages of a haskell_deps.json sidecar and exposes them through a hub repository.",
+    attrs = {
+        "deps": attr.label(mandatory = True, allow_single_file = True, doc = "The haskell_deps.json written by haskell_deps_resolve."),
+        "name": attr.string(mandatory = True, doc = "Name of the hub repository, which has one alias per package and per executable."),
+    },
+)
 
 haskell = module_extension(
     implementation = _haskell_impl,
-    doc = "Creates rules_haskell, the pinned GHC bindists and the toolchain hub.",
+    tag_classes = {"packages": _packages},
+    doc = "Creates rules_haskell, the pinned GHC bindists, the toolchain hub and the Hackage package hubs.",
 )

@@ -40,11 +40,31 @@ MODULE
 
 dx() { bazel run @rules_dx//:dx -- "$@"; }
 
+expect_like_fresh() {
+  local fresh="$work/fresh-$1"
+  rm -rf "$fresh"
+  mkdir -p "$fresh"
+  cp "$repo_root/.bazelversion" "$fresh/.bazelversion"
+  printf 'module(name = "upgrade_e2e")\n\nbazel_dep(name = "rules_dx", version = "%s")\n' "$1" >"$fresh/MODULE.bazel"
+  (cd "$fresh" && dx init)
+  local path
+  for path in .github/workflows/ci.yml tools/dx tools/dx.cmd; do
+    diff "$fresh/$path" "$path" || { echo "$path differs from a fresh init at $1"; exit 1; }
+  done
+  if [ -e "$fresh/third_party/rules_dx" ] || [ -e third_party/rules_dx ]; then
+    diff -r "$fresh/third_party/rules_dx" third_party/rules_dx || { echo "third_party/rules_dx differs from a fresh init at $1"; exit 1; }
+  fi
+  if [ -f third_party/rules_dx/rules_dx.MODULE.bazel ]; then
+    grep -q "//third_party/rules_dx:rules_dx.MODULE.bazel" MODULE.bazel || { echo "MODULE.bazel does not include the rules_dx overrides"; exit 1; }
+  fi
+}
+
 expect_version() {
   grep -q "version = \"$1\"" MODULE.bazel || { echo "MODULE.bazel is not at $1"; exit 1; }
   grep -q "$1" .dx/pins || { echo ".dx/pins is not at $1"; exit 1; }
   grep -q "uses: .*rules_dx" .github/workflows/ci.yml || { echo "ci.yml has no rules_dx uses: ref"; exit 1; }
   [ -f tools/dx ] || { echo "tools/dx is missing"; exit 1; }
+  expect_like_fresh "$1"
   dx upgrade --to "$1" || { echo "dx upgrade --to $1 still reports stale files"; exit 1; }
 }
 

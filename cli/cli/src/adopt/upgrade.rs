@@ -55,15 +55,12 @@ fn fail(
 
 const LOCKFILE: &str = "MODULE.bazel.lock";
 
-fn planned_lines(edit: &dx_adopt::ModuleEdit, to: &str) -> Vec<String> {
-    vec![
-        format!(
-            "{}: rules_dx {} -> {to}",
-            edit.path,
-            current_version(&edit.old)
-        ),
-        format!("then: {REFRESH}"),
-    ]
+fn module_lines(edit: &dx_adopt::ModuleEdit, to: &str) -> Vec<String> {
+    vec![format!(
+        "{}: rules_dx {} -> {to}",
+        edit.path,
+        current_version(&edit.old)
+    )]
 }
 
 const REFRESH: &str = "bazel mod deps --lockfile_mode=update";
@@ -191,8 +188,48 @@ pub(crate) fn execute_upgrade(
             Ok(files) => files,
             Err(error) => return refuse(out, err, &error.to_string()),
         };
-        let stale = init_files::drift(workspace, &files).stale;
-        if rerun && !edits_module && stale.is_empty() {
+        let mut lines = Vec::new();
+        if edits_module {
+            lines.extend(module_lines(&edit, to));
+        }
+        if !rerun {
+            lines.push(format!(".dx/pins: {pin} -> {to}"));
+        }
+        let mut counted = 0;
+        let mut notes = Vec::new();
+        if dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
+            for entry in init_files::drift(workspace, &files).stale {
+                let path = entry.split(" (").next().unwrap_or(&entry);
+                if path == ".dx/pins" {
+                    if rerun {
+                        lines.push(format!("{path}: refresh"));
+                        counted += 1;
+                    }
+                } else if path == "MODULE.bazel" {
+                } else if files
+                    .iter()
+                    .any(|file| file.path == path && init_files::refreshable(workspace, file))
+                {
+                    lines.push(format!("{entry}: refresh"));
+                    counted += 1;
+                } else {
+                    notes.push(format!("note: {entry}: fix by hand"));
+                }
+            }
+        } else {
+            for file in files
+                .iter()
+                .filter(|file| init_files::refreshable(workspace, file))
+            {
+                lines.push(format!("{}: refreshed by rules_dx {to}", file.path));
+                counted += 1;
+            }
+        }
+        if edits_module {
+            lines.push(format!("then: {REFRESH}"));
+        }
+        lines.extend(notes);
+        if rerun && !edits_module && counted == 0 {
             if is_json {
                 return json_pin(invocation, out, "check", to, None)
                     .map_or_else(|exit| exit, |()| 0);
@@ -200,6 +237,11 @@ pub(crate) fn execute_upgrade(
             if !summaries_suppressed(invocation) {
                 if let Err(exit) = check_stdout_write(writeln!(out, "upgrade current: {to}")) {
                     return exit;
+                }
+                if !lines.is_empty() {
+                    if let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n"))) {
+                        return exit;
+                    }
                 }
             }
             return 0;
@@ -218,15 +260,10 @@ pub(crate) fn execute_upgrade(
         } else {
             format!("pin {pin} can move to {to} (run `{retry}`)")
         };
-        let mut plan = Vec::new();
-        if edits_module {
-            plan = planned_lines(&edit, to);
-        }
-        plan.extend(stale.iter().map(|path| format!("{path}: refresh")));
-        if !plan.is_empty() {
+        if !lines.is_empty() {
             if is_json {
-                message = format!("{message}; {}", plan.join("; "));
-            } else if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.join("\n"))) {
+                message = format!("{message}; {}", lines.join("; "));
+            } else if let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n"))) {
                 return exit;
             }
         }
@@ -462,6 +499,9 @@ mod tests {
             );
             assert!(out.contains(&format!("wrote {path}\n")), "{path}: {out}");
         }
+        let (code, out, err) = run(&upgrade(&[]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.starts_with("upgrade current"), "{out}");
     }
 
     fn included_override_set(prefix: &str) -> (impl Sized, PathBuf, String, String) {
@@ -616,6 +656,32 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert_eq!(out, "tools/dx: refresh\n");
         assert!(err.contains(CODE_UPGRADE_PENDING), "{err}");
+    }
+
+    #[test]
+    fn check_for_another_binary_lists_existing_refreshable_files() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-other-", module());
+        legacy_launcher(&root, OLD);
+        let before = snapshot(&root);
+        let (code, out, err) = run(&upgrade(&["--to=9.9.9"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(out.contains(".dx/pins: "), "{out}");
+        assert!(
+            out.contains("tools/dx: refreshed by rules_dx 9.9.9\n"),
+            "{out}"
+        );
+        assert!(!out.contains("tools/dx.cmd"), "absent file listed: {out}");
+        assert_eq!(snapshot(&root), before);
+    }
+
+    #[test]
+    fn check_does_not_stay_pending_on_a_bazelignore_without_dx() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-ignore-", module());
+        std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("ignore");
+        let (code, out, err) = run(&upgrade(&[]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("note: .bazelignore: fix by hand"), "{out}");
+        assert!(out.contains("upgrade current"), "{out}");
     }
 
     #[test]
@@ -805,7 +871,8 @@ mod tests {
         assert_eq!(
             out,
             format!(
-                "MODULE.bazel: rules_dx {OLD} -> {}\nthen: bazel mod deps --lockfile_mode=update\n.dx/pins: refresh\n",
+                "MODULE.bazel: rules_dx {OLD} -> {}\n.dx/pins: {OLD} -> {}\nthen: bazel mod deps --lockfile_mode=update\n",
+                module(),
                 module()
             )
         );

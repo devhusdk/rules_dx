@@ -43,8 +43,19 @@ The check prints `upgrade current: <to>` and exits `0` when the pin and `rules_d
 
 ```text
 MODULE.bazel: rules_dx <old> -> <to>
+.dx/pins: <pin> -> <to>
 then: bazel mod deps --lockfile_mode=update
 ```
+
+The `.dx/pins` line appears only when the pin moves. After that come the files a refresh would rewrite:
+
+```text
+<path>: refresh
+<path>: refreshed by rules_dx <to>
+note: <entry>: fix by hand
+```
+
+`<path>: refresh` names a stale file when this binary is `<to>`. When `--to` is another version, that version's binary writes the files and this one cannot compare them, so it lists every existing file the refresh may rewrite as `refreshed by rules_dx <to>`, and the check stays pending. `note:` lines (for example a `.bazelignore` without `.dx`) are files refresh never rewrites; they do not keep the check pending.
 
 Then:
 

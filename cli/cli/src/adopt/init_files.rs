@@ -419,6 +419,15 @@ fn refresh(
     Ok(())
 }
 
+/// Whether `refresh` rewrites this planned file: it exists, init may overwrite it, and it is not
+/// the module or pin file, which upgrade handles itself. Keep this the one list of what refresh touches.
+pub(super) fn refreshable(root: &Path, file: &InitFile) -> bool {
+    root.join(&file.path).exists()
+        && file.kind != Kind::Scaffold(FileKind::WriteOnce)
+        && file.path != "MODULE.bazel"
+        && file.path != ".dx/pins"
+}
+
 /// What a workspace lacks against what init writes.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(super) struct Drift {

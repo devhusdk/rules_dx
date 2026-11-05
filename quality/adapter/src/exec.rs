@@ -1,5 +1,5 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
-use dx_process::lifecycle::{CapturePolicy, ChildOutcome, Descendants, EnvPolicy, SpawnSpec};
+use dx_process::lifecycle::{CapturePolicy, CleanupBudget, ChildOutcome, Descendants, EnvPolicy, SpawnSpec};
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::io;
@@ -287,6 +287,16 @@ pub fn spawn_with_timeout(
     env: &[(OsString, OsString)],
     timeout: Duration,
 ) -> io::Result<ChildOutput> {
+    spawn_within(argv, cwd, env, timeout, CleanupBudget::STANDARD)
+}
+
+fn spawn_within(
+    argv: &[impl AsRef<OsStr>],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+    timeout: Duration,
+    cleanup: CleanupBudget,
+) -> io::Result<ChildOutput> {
     let spec = SpawnSpec {
         argv: argv.iter().map(|arg| arg.as_ref().to_owned()).collect(),
         cwd: cwd.to_path_buf(),
@@ -297,7 +307,7 @@ pub fn spawn_with_timeout(
         timeout,
         descendants: Descendants::Owned,
     };
-    match dx_process::lifecycle::run(&spec)? {
+    match dx_process::lifecycle::run_within(&spec, cleanup)? {
         ChildOutcome::Finished {
             exit,
             stdout,
@@ -1066,19 +1076,29 @@ mod tests {
             OsString::from("--exit-code=0"),
             OsString::from("--spawn-descendant"),
             OsString::from("--detached-descendant"),
-            OsString::from("--descendant-sleep-ms=11000"),
+            OsString::from("--descendant-sleep-ms=3000"),
             OsString::from(format!("--descendant-marker={}", marker.display())),
         ];
         let started = std::time::Instant::now();
-        let err = spawn_with_timeout(&argv, &cwd, &env, Duration::from_millis(500))
+        let err = spawn_within(
+            &argv,
+            &cwd,
+            &env,
+            Duration::from_millis(500),
+            CleanupBudget {
+                graceful: Duration::from_millis(200),
+                forced: Duration::from_millis(200),
+                drain: Duration::from_secs(1),
+            },
+        )
             .expect_err("a tree that escapes its owner is never success");
         assert_eq!(err.kind(), io::ErrorKind::TimedOut);
         let elapsed = started.elapsed();
         assert!(
-            elapsed < Duration::from_secs(25),
+            elapsed < Duration::from_secs(10),
             "the runner returns on its own bound: {elapsed:?}"
         );
-        let deadline = started + Duration::from_millis(11600);
+        let deadline = started + Duration::from_millis(3600);
         loop {
             assert!(
                 !marker.exists(),

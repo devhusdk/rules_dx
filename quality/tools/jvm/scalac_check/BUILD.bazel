@@ -1,16 +1,25 @@
 load("//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
-load(":jars.bzl", "scalac_toolchain_jars_rule")
+load(":jars.bzl", "runtime_jars_rule", "scalac_toolchain_jars_rule")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
 # The compiler jars the driver loads at run time; the aspect passes the consumer toolchain's own.
 scalac_toolchain_jars_rule(name = "compiler_jars")
 
+# A Scala 3 compiler for the dotc frontend test; the repo's own toolchain stays Scala 2.13.
+runtime_jars_rule(
+    name = "scala3_compiler_jars",
+    deps = ["@dx_scala3_test//:org_scala_lang_scala3_compiler_3"],
+)
+
 java_library(
     name = "scalac_check_lib",
-    srcs = ["src/dx/quality/scalac/ScalacCheck.java"],
+    srcs = [
+        "src/dx/quality/scalac/Scala3Frontend.java",
+        "src/dx/quality/scalac/ScalacCheck.java",
+    ],
     aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
@@ -29,6 +38,17 @@ java_test(
     aspect_hints = ["//quality:corpus_checkstyle_config"],
     data = [":compiler_jars"],
     main_class = "dx.quality.scalac.ScalacCheckTest",
+    use_testrunner = False,
+    deps = [":scalac_check_lib"],
+)
+
+java_test(
+    name = "scala3_check_test",
+    srcs = ["test/dx/quality/scalac/Scala3CheckTest.java"],
+    args = ["$(rlocationpaths :scala3_compiler_jars)"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    data = [":scala3_compiler_jars"],
+    main_class = "dx.quality.scalac.Scala3CheckTest",
     use_testrunner = False,
     deps = [":scalac_check_lib"],
 )

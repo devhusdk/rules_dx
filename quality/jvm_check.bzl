@@ -11,8 +11,12 @@ load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
 
-# The only Scala line the scalac driver supports; targets on other versions get no result.
+# The scalac driver supports Scala 2.13 and Scala 3.3 or newer (-Wunused does not exist before 3.3); targets on other versions get no result.
 _SCALAC_VERSION_PREFIX = "2.13."
+
+def _is_scala3(version):
+    parts = version.split(".")
+    return len(parts) >= 2 and parts[0] == "3" and parts[1].isdigit() and int(parts[1]) >= 3
 
 # The jars of the Kotlin compiler distribution the kotlinc driver loads, in the toolchain's kotlin_home.
 _KOTLINC_JARS = [
@@ -229,10 +233,14 @@ def scalac_toolchain_jars(toolchain):
         toolchain: the resolved `@rules_scala//scala:toolchain_type` ToolchainInfo, or None.
 
     Returns:
-        None when the toolchain is absent, not Scala 2.13 or lacks a classpath; otherwise a struct
-        with `compiler` (runtime jars of the compiler, never ijars) and `library` (compile jars).
+        None when the toolchain is absent, not Scala 2.13 or 3.3+, or lacks a classpath; otherwise a
+        struct with `compiler` (runtime jars of the compiler, never ijars), `library` (compile jars)
+        and `scala3` (whether the toolchain is Scala 3).
     """
-    if toolchain == None or not toolchain.scala_version.startswith(_SCALAC_VERSION_PREFIX):
+    if toolchain == None:
+        return None
+    scala3 = _is_scala3(toolchain.scala_version)
+    if not scala3 and not toolchain.scala_version.startswith(_SCALAC_VERSION_PREFIX):
         return None
     compile_deps = _deps_info(toolchain, "scala_compile_classpath")
     library_deps = _deps_info(toolchain, "scala_library_classpath")
@@ -245,6 +253,7 @@ def scalac_toolchain_jars(toolchain):
     return struct(
         compiler = depset(transitive = [i.transitive_runtime_jars for i in compile_infos]),
         library = depset(transitive = [i.transitive_compile_time_jars for i in library_infos]),
+        scala3 = scala3,
     )
 
 def _scala_plugin_jars(targets):
@@ -259,7 +268,7 @@ def _scalac_check(target, ctx, attrs):
     srcjars = [f for f in ctx.rule.files.srcs if f.extension == "srcjar"]
     if not [f for f in sources if f.extension == "scala"] and not srcjars:
         return []
-    options = ["-Wunused:_"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
+    options = ["-Wunused:all" if jars.scala3 else "-Wunused:_"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
 
     # The semanticdb toolchain demotes unused warnings to info for scalafix; the last -Wconf wins, so this restores them.
     options.append("-Wconf:cat=unused:w")
@@ -272,7 +281,8 @@ def _scalac_check(target, ctx, attrs):
     plugin_targets = list(toolchain.plugins) + list(getattr(attrs, "plugins", []))
     plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
 
-    analyzer = _analyzer(target, ctx, attrs)
+    # The dependency analyzer is a Scala 2 compiler plugin.
+    analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs)
     analyzer_jars = []
     if analyzer:
         options = options + analyzer.options
@@ -355,7 +365,7 @@ def _jvm_check_impl(target, ctx):
 
 jvm_check_aspect = aspect(
     implementation = _jvm_check_impl,
-    doc = "Runs javac (rules_java), kotlinc (rules_kotlin) or scalac (rules_scala, 2.13 only) without emitting classes over a target's sources and records the diagnostics without failing the build.",
+    doc = "Runs javac (rules_java), kotlinc (rules_kotlin) or scalac (rules_scala, Scala 2.13 and 3.3+) without emitting classes over a target's sources and records the diagnostics without failing the build.",
     attr_aspects = ["upstream"],
     toolchains = [
         config_common.toolchain_type(_KT_TOOLCHAIN_TYPE, mandatory = False),

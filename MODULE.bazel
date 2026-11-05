@@ -470,7 +470,18 @@ maven.install(
     ],
 )
 # Bumping rules_android or rules_flutter needs a new lock: run pin-android-maven.yml.
-use_repo(maven, "maven", "rules_android_maven")
+# The Scala 3 compiler for scalac_check_test only; 3.3 is the LTS line rules_scala defaults to.
+maven.install(
+    name = "dx_scala3_test",
+    artifacts = ["org.scala-lang:scala3-compiler_3:3.3.9"],
+    fail_if_repin_required = True,
+    lock_file = "//third_party/jvm:scala3_test_install.json",
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(maven, "dx_scala3_test", "maven", "rules_android_maven")
 
 maven_tools = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven_tools.install(

@@ -23,8 +23,9 @@ import java.util.zip.ZipFile;
  * Runs scalac on a target's sources without keeping classes and renders a JSON log.
  *
  * <p>The driver is never built against scala-compiler. It loads the consumer toolchain's own
- * compiler jars in an isolated class loader and talks to {@code Global} and {@code StoreReporter}
- * by reflection, so it follows whichever Scala 2.13 version the consumer uses.
+ * compiler jars in an isolated class loader and talks to the compiler by reflection, so it follows
+ * whichever version the consumer uses: {@code Global} and {@code StoreReporter} for Scala 2.13, or
+ * dotc's {@code Driver} for Scala 3 (see {@link Scala3Frontend}).
  */
 public final class ScalacCheck {
 
@@ -225,7 +226,10 @@ public final class ScalacCheck {
     ClassLoader previous = thread.getContextClassLoader();
     try (URLClassLoader loader = new URLClassLoader(urls, ClassLoader.getPlatformClassLoader())) {
       thread.setContextClassLoader(loader);
-      // Only the Scala 2 frontend exists today; a Scala 3 one would be chosen here by class.
+      if (Scala3Frontend.present(loader)) {
+        Scala3Frontend.compile(loader, args, inputs, entries, names);
+        return settle(entries);
+      }
       Class<?> settingsClass = loader.loadClass("scala.tools.nsc.Settings");
       Class<?> reporterClass = loader.loadClass("scala.tools.nsc.reporters.Reporter");
       Class<?> storeClass = loader.loadClass("scala.tools.nsc.reporters.StoreReporter");
@@ -260,7 +264,7 @@ public final class ScalacCheck {
     } catch (InvocationTargetException err) {
       throw new IOException("scalac failed: " + err.getCause(), err.getCause());
     } catch (ReflectiveOperationException err) {
-      throw new IOException("the compiler jars do not look like scalac 2.13: " + err, err);
+      throw new IOException("the compiler jars do not look like scalac 2.13 or dotc: " + err, err);
     } finally {
       thread.setContextClassLoader(previous);
     }
@@ -351,13 +355,13 @@ public final class ScalacCheck {
   /**
    * scalac reports the paths it was given; the runner matches the working-directory-relative ones.
    */
-  private static String relative(String path) {
+  static String relative(String path) {
     String cwd = Path.of("").toAbsolutePath().toString() + File.separator;
     return path.startsWith(cwd) ? path.substring(cwd.length()) : path;
   }
 
   /** Replaces temp extraction paths with their stable srcjar names. */
-  private static String stable(String message, Map<String, String> names) {
+  static String stable(String message, Map<String, String> names) {
     String result = message;
     for (Map.Entry<String, String> name : names.entrySet()) {
       result = result.replace(name.getKey(), name.getValue());

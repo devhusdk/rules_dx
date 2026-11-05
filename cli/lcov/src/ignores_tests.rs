@@ -292,7 +292,10 @@ fn hash_range_excludes_boundaries_for_python() {
 fn dash_comment_markers_are_honored_for_haskell() {
     let source = file_lines(&[
         "f = 1".to_string(),
-        format!("g = 2 -- {} - reason: fixture, issue: 1055.", marker("_LINE")),
+        format!(
+            "g = 2 -- {} - reason: fixture, issue: 1055.",
+            marker("_LINE")
+        ),
         "h = \"--\"".to_string(),
     ]);
     let ignores = find_ignores("t.hs", &source).unwrap();

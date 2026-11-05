@@ -317,6 +317,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "buf claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "buf"], RUNNER_MATRIX_CASES),
+                [],
+            ),
+            expect_equal(
                 "zanuda claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "zanuda"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],

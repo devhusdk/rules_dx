@@ -12,6 +12,10 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_tools//:buf"],
         "tool_env": ["buf=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_protobuf_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_protobuf_format_fail",
@@ -24,6 +28,10 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_tools//:buf"],
         "tool_env": ["buf=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_protobuf_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_protobuf_lint_pass",
@@ -36,6 +44,10 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_tools//:buf"],
         "tool_env": ["buf=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_protobuf_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_protobuf_lint_fail",
@@ -48,6 +60,10 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_tools//:buf"],
         "tool_env": ["buf=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_protobuf_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_flatbuffers_lint_pass",

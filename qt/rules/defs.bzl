@@ -596,7 +596,7 @@ qt_frameworks = rule(
 
 def _bundle_runpath():
     return select({
-        "@platforms//os:macos": [],
+        "@platforms//os:macos": [QT_BUNDLE_MACOS_RUNPATH],
         "@platforms//os:windows": [],
         "//conditions:default": [QT_BUNDLE_RUNPATH],
     })

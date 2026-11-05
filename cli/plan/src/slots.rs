@@ -424,7 +424,7 @@ fn kept_workspaces(dir: &Path, indices: impl Iterator<Item = usize>, own: &str) 
     let waiters = tickets(dir)
         .into_iter()
         .filter(|(_, path)| waiting(path))
-        .filter_map(|(_, path)| read(&path));
+        .filter_map(|(_, path)| read(&label_path(&path)).or_else(|| read(&path)));
     let mut kept: Vec<PathBuf> = Vec::new();
     for label in std::iter::once(own.to_owned())
         .chain(holders)
@@ -472,6 +472,7 @@ impl Ticket {
     fn leave(&mut self, between: impl FnOnce()) {
         if let Some(file) = self.file.take() {
             let _ = std::fs::remove_file(want_path(&self.path));
+            let _ = std::fs::remove_file(label_path(&self.path));
             between();
             let _ = std::fs::remove_file(&self.path);
             drop(file);
@@ -599,6 +600,11 @@ fn want_path(ticket: &Path) -> PathBuf {
     ticket.with_extension("want")
 }
 
+/// The waiter's label, readable while the ticket itself is locked.
+fn label_path(ticket: &Path) -> PathBuf {
+    ticket.with_extension("label")
+}
+
 fn is_forbidden(forbidden: &[Range<usize>], index: usize) -> bool {
     forbidden.iter().any(|range| range.contains(&index))
 }
@@ -635,6 +641,7 @@ fn enqueue_wanting(dir: &Path, label: &str, want: &Want) -> io::Result<Ticket> {
     sweep_orphan_wants(dir);
     let path = queue_dir(dir).join(format!("ticket-{next:020}.lock"));
     let _ = std::fs::write(want_path(&path), want.render());
+    let _ = std::fs::write(label_path(&path), label);
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -658,7 +665,9 @@ fn sweep_orphan_wants(dir: &Path) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().is_some_and(|ext| ext == "want")
+        if path
+            .extension()
+            .is_some_and(|ext| ext == "want" || ext == "label")
             && !path.with_extension("lock").exists()
         {
             let _ = std::fs::remove_file(&path);
@@ -3618,6 +3627,25 @@ mod tests {
         drop(ticket);
         assert!(!path.exists());
         let orphan = queue_dir(&dir).join("ticket-00000000000000000099.want");
+        std::fs::write(&orphan, "x").expect("orphan");
+        drop(enqueue(&dir, "").expect("ticket"));
+        assert!(!orphan.exists());
+    }
+
+    #[test]
+    fn a_waiters_label_is_kept_from_its_sidecar_and_swept_with_the_ticket() {
+        let scratch = dx_test_scratch::scratch("dx-slots-label-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(queue_dir(&dir)).expect("queue");
+        let ticket = enqueue(&dir, "/ws/waiter").expect("ticket");
+        let label = label_path(&ticket.path);
+        std::fs::write(&label, "/ws/sidecar").expect("sidecar");
+        let kept = kept_workspaces(&dir, 0..0, "/ws/own");
+        assert!(kept.contains(&PathBuf::from("/ws/sidecar")));
+        assert!(label.exists());
+        drop(ticket);
+        assert!(!label.exists());
+        let orphan = queue_dir(&dir).join("ticket-00000000000000000099.label");
         std::fs::write(&orphan, "x").expect("orphan");
         drop(enqueue(&dir, "").expect("ticket"));
         assert!(!orphan.exists());

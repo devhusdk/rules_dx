@@ -1,6 +1,6 @@
 use quality_adapter::{commands, parsers};
 
-use super::check::ToolDef;
+use super::check::{unused_roots, ToolDef};
 use super::*;
 
 /// Python linters, formatters and notebook checks.

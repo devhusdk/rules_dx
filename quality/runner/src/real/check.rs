@@ -59,6 +59,8 @@ impl RealBackend {
             .copied()
             .chain(super::delegated::TOOLS.iter())
             .chain(super::native::TOOLS.iter())
+            .chain(super::python::TOOLS.iter())
+            .chain(super::jvm::TOOLS.iter())
             .chain(super::schema::TOOLS.iter())
             .chain(super::scripting::TOOLS.iter())
             .chain(super::single_run::TOOLS.iter())
@@ -101,6 +103,11 @@ impl RealBackend {
                     found.file = absolute.to_string_lossy().into_owned();
                 }
                 Ok(findings)
+            }
+            "cue" if capability == "typecheck" => self.check_cue_vet(tool_id, tool, staged),
+            "pkl" if capability == "typecheck" => self.check_pkl_eval(tool_id, tool, staged),
+            "terraform" if capability == "typecheck" => {
+                self.check_terraform_validate(tool_id, tool, staged)
             }
             "cue" => {
                 let invocation = commands::cue_check(&tool.binary, &refs);
@@ -889,45 +896,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    fn read_notebooks(
-        tool_id: &str,
-        pairs: &[(String, PathBuf)],
-    ) -> Result<Vec<(String, String)>, RunnerError> {
-        Self::read_notebooks_with(tool_id, pairs, quality_notebook::preflight)
-    }
-
-    /// Like `read_notebooks`, for tools that accept any kernel language.
-    fn read_notebooks_any(
-        tool_id: &str,
-        pairs: &[(String, PathBuf)],
-    ) -> Result<Vec<(String, String)>, RunnerError> {
-        Self::read_notebooks_with(tool_id, pairs, quality_notebook::validate)
-    }
-
-    fn read_notebooks_with(
-        tool_id: &str,
-        pairs: &[(String, PathBuf)],
-        validate: fn(&str) -> Result<quality_notebook::Info, quality_notebook::NotebookError>,
-    ) -> Result<Vec<(String, String)>, RunnerError> {
-        let mut notebooks = Vec::new();
-        for (workspace, absolute) in pairs {
-            if absolute.extension().and_then(|ext| ext.to_str()) != Some("ipynb") {
-                continue;
-            }
-            let bytes = std::fs::read(absolute)
-                .map_err(|err| execution(tool_id, format!("{workspace}: read notebook: {err}")))?;
-            let text = String::from_utf8(bytes).map_err(|err| {
-                execution(
-                    tool_id,
-                    format!("{workspace}: notebook is not UTF-8: {err}"),
-                )
-            })?;
-            validate(&text).map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?;
-            notebooks.push((absolute.to_string_lossy().into_owned(), text));
-        }
-        Ok(notebooks)
-    }
-
     pub(super) fn check_files(
         &self,
         tool_id: &str,
@@ -986,7 +954,7 @@ impl RealBackend {
 }
 
 /// Reads the roots file the unused shard stages; without one nothing is kept alive.
-fn unused_roots(
+pub(super) fn unused_roots(
     tool_id: &str,
     tool: &RealTool,
     pairs: &[(String, PathBuf)],

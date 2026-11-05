@@ -79,9 +79,12 @@ _dsym_transition = transition(
 
 def _dsym_pair_impl(ctx):
     binary = ctx.executable.binary
-    dsyms = getattr(ctx.attr.binary[OutputGroupInfo], "dsyms", None)
+    target = ctx.attr.binary
+    if type(target) == "list":
+        target = target[0]
+    dsyms = getattr(target[OutputGroupInfo], "dsyms", None)
     if dsyms == None or len(dsyms.to_list()) != 1:
-        fail("%s did not produce one dSYM bundle; the dx_dsym binary must be a macOS cc_binary" % ctx.attr.binary.label)
+        fail("%s did not produce one dSYM bundle; the dx_dsym binary must be a macOS cc_binary" % target.label)
     bundle = dsyms.to_list()[0]
     dsymutil = ctx.file._dsymutil
     manifest = ctx.actions.declare_file(ctx.label.name + ".dsym.json")
@@ -104,7 +107,7 @@ def _dsym_pair_impl(ctx):
         progress_message = "Pairing the dSYM of %{label}",
     )
     return [
-        ctx.attr.binary[DefaultInfo],
+        target[DefaultInfo],
         OutputGroupInfo(symbols = depset([bundle, manifest])),
     ]
 
@@ -132,7 +135,6 @@ _dsym_pair = rule(
             default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
         ),
     },
-    executable = True,
 )
 
 def dx_dsym(name, binary, **kwargs):
@@ -203,7 +205,6 @@ _pdb_pair = rule(
             default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"),
         ),
     },
-    executable = True,
 )
 
 def dx_pdb(name, binary, **kwargs):

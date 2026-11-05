@@ -24,6 +24,7 @@ python_test(
     name = "update_unit_test",
     srcs = ["update_test.py"],
     aspect_hints = ["//:ruff_config"],
+    data = ["trivy.bzl"],
     dep_group = "hello",
     imports = ["."],
     deps = [

@@ -46,6 +46,7 @@ _NATIVE_WINDOWS_ARM64 = sorted([
 
 _UNQUALIFIED_ALLOWLIST = dict(
     {tool: ["windows_arm64"] for tool in _NATIVE_WINDOWS_ARM64},
+    trivy = ["macos_x86_64"],
     wasmtime = ["macos_x86_64", "windows_arm64"],
 )
 

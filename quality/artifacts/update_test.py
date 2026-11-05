@@ -1,5 +1,6 @@
 """Unit tests for the hadolint/ShellCheck pin guard in update.py (no network)."""
 
+import ast
 import os
 import struct
 import sys
@@ -103,6 +104,65 @@ class HelmPinTest(unittest.TestCase):
         for platform in spec["platforms"].values():
             self.assertEqual(platform["checksums_url"], platform["url"] + ".sha256sum")
             self.assertIn("/helm-v%s-" % spec["upstream_version"], platform["url"])
+
+
+TRIVY_CHECKSUMS = """\
+bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  trivy_0.76.2_Linux-64bit.tar.gz
+ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3  trivy_0.76.2_Linux-ARM64.tar.gz
+e08bb9ea449ecf66c6bfb03cbb8697c503ff33d35fc585c9747e3eaeb7ed4c7b  trivy_0.76.2_macOS-64bit.tar.gz
+ae7ea358326960406b703c77b2ac490190797d80b306b5b50c2a27221da0a5b8  trivy_0.76.2_macOS-ARM64.tar.gz
+691f737a7e5566a673c3a74dab9160552ec32101e953b659e5c77443d16dddb6  trivy_0.76.2_windows-64bit.zip
+"""
+
+
+def _pinned_artifacts(path):
+    with open(path, encoding="utf-8") as handle:
+        module = ast.parse(handle.read())
+    for node in module.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "ARTIFACTS"
+            for target in node.targets
+        ):
+            return ast.literal_eval(node.value)
+    raise AssertionError("no ARTIFACTS in %s" % path)
+
+
+class TrivyPinTest(unittest.TestCase):
+    def test_every_platform_uses_the_upstream_checksums_file(self):
+        spec = update.TOOLS["trivy"]
+        self.assertEqual(
+            sorted(spec["platforms"]),
+            [
+                "linux_arm64",
+                "linux_x86_64",
+                "macos_arm64",
+                "macos_x86_64",
+                "windows_x86_64",
+            ],
+        )
+        version = spec["upstream_version"]
+        checksums_url = (
+            "https://github.com/aquasecurity/trivy/releases/download/v%s/trivy_%s_checksums.txt"
+            % (version, version)
+        )
+        for platform in spec["platforms"].values():
+            self.assertEqual(platform["checksums_url"], checksums_url)
+            self.assertIn("/v%s/" % version, platform["url"])
+
+    def test_pinned_sha256_matches_the_release_checksum_file(self):
+        spec = update.TOOLS["trivy"]
+        published = {
+            name: digest
+            for digest, name in (line.split() for line in TRIVY_CHECKSUMS.splitlines())
+        }
+        pinned = _pinned_artifacts(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "trivy.bzl")
+        )
+        self.assertEqual(sorted(pinned), sorted(spec["platforms"]))
+        for platform, artifact in pinned.items():
+            asset = spec["platforms"][platform]["asset"]
+            self.assertEqual(artifact["url"], spec["platforms"][platform]["url"])
+            self.assertEqual(artifact["sha256"], published[asset], asset)
 
 
 def _pe(machine, path):

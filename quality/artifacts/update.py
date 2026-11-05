@@ -1437,6 +1437,63 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "trivy": {
+        "upstream_version": "0.76.2",
+        "release_page": "https://github.com/aquasecurity/trivy/releases/tag/v0.76.2",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/aquasecurity/trivy/blob/v0.76.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "trivy_0.76.2_Linux-64bit.tar.gz",
+                "url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz",
+                "kind": "tar.gz",
+                "executable": "trivy",
+                "checksums_url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "trivy_0.76.2_Linux-ARM64.tar.gz",
+                "url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-ARM64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "trivy",
+                "checksums_url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_checksums.txt",
+            },
+            "macos_x86_64": {
+                "os": "macos",
+                "cpu": "x86_64",
+                "asset": "trivy_0.76.2_macOS-64bit.tar.gz",
+                "url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_macOS-64bit.tar.gz",
+                "kind": "tar.gz",
+                "executable": "trivy",
+                "checksums_url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "trivy_0.76.2_macOS-ARM64.tar.gz",
+                "url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_macOS-ARM64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "trivy",
+                "checksums_url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "trivy_0.76.2_windows-64bit.zip",
+                "url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_windows-64bit.zip",
+                "kind": "zip",
+                "executable": "trivy.exe",
+                "checksums_url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_checksums.txt",
+            },
+        },
+    },
     "typos": {
         "upstream_version": "1.52.0",
         "release_page": "https://github.com/crate-ci/typos/releases/tag/v1.52.0",

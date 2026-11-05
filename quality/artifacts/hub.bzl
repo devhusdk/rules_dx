@@ -52,6 +52,7 @@ EMULATED_TOOLS = {
         "shfmt",
         "stylua",
         "tflint",
+        "trivy",
     ],
 }
 

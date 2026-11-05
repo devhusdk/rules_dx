@@ -1,6 +1,9 @@
 load("//cc/toolchains/msvc:toolchain.bzl", "msvc_cc_toolchain")
 
-package(default_visibility = ["//cc/toolchains:__subpackages__"])
+package(default_visibility = [
+    "//cc/toolchains:__subpackages__",
+    "//python/tests/sdist_native/msvc:__pkg__",
+])
 
 msvc_cc_toolchain(
     name = "toolchain",

@@ -38,6 +38,7 @@ dx_rust_crate(
         "//patches/rules_py:windows_venv.patch",
         "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
+        "//patches/rules_py:pep517_msvc.patch",
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
         "//patches/avro-cpp:iterator.patch",
         "//patches/gcc_toolchain:runtime_libs.patch",

@@ -137,6 +137,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "native_sdist_toolchain_flags.patch",
                 content: include_str!("../../../patches/rules_py/native_sdist_toolchain_flags.patch"),
             },
+            OverridePatch {
+                file: "pep517_msvc.patch",
+                content: include_str!("../../../patches/rules_py/pep517_msvc.patch"),
+            },
         ],
     },
     Override {
@@ -809,6 +813,7 @@ archive_override(
         "//third_party/rules_dx:rules_py.windows_venv.patch",
         "//third_party/rules_dx:rules_py.py_cc_toolchain_platform.patch",
         "//third_party/rules_dx:rules_py.native_sdist_toolchain_flags.patch",
+        "//third_party/rules_dx:rules_py.pep517_msvc.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],

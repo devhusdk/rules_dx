@@ -51,7 +51,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `gcc_toolchain` | 0.13.0 | `target_identity_extension.patch` | Module extension forwards `target_libc` and the target system name to the repository rule |
 | `llvm` | 0.8.26 | `libunwind_copy.patch` | `libunwind.a` is a real copy of the runtime archive, not a symlink that dangles when the archive is gone from a reused output base (#7781) |
 | `windows_support` | 0.4.1 | `host_tools.patch` | Opt-in `host_tools` tag keeps the MSVC compiler tools and Windows SDK `bin` (hermeticbuild/windows_support#19) |
-| `windows_support` | 0.4.1 | `rules_dx_hosts.patch` | `host_tools` is on by default under `rules_dx`, so `@dx_msvc` has `cl.exe` |
+| `windows_support` | 0.4.1 | `rules_dx_hosts.patch` | `host_tools` is on by default under `rules_dx`, so `@dx_msvc` has `cl.exe`; child names match case-insensitively, since payload directory case differs from `Hostx64` |
 
 The trade-off: a `single_version_override` pins the module for the whole
 graph. If another dependency of yours needs a newer version of one of these

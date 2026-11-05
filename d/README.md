@@ -62,14 +62,14 @@ An import resolves to `@dub//<package>` when its first segment is the name of a 
 
 ## Formatting
 
-Select `dfmt` in a `d` quality family to check and fix D formatting. The D
-wrappers carry the pinned dfmt, so no flag is needed. See "D formatting" in
+`dfmt` checks and fixes D formatting by default. The D wrappers carry the
+pinned dfmt, so no flag is needed. See "D formatting" in
 `docs/cli/commands/quality.md`.
 
 ## Linting
 
-Select `dscanner` in a `d` quality family to lint D sources. The D wrappers
-carry the pinned D-Scanner, so no flag is needed. See "D linting" in
+`dscanner` lints D sources by default. The D wrappers carry the pinned
+D-Scanner, so no flag is needed. See "D linting" in
 `docs/cli/commands/quality.md`.
 
 ## Coverage

@@ -131,7 +131,8 @@ of a package, so the hub name must differ from `ext_pub_deps`.
 
 ## Quality
 
-Dart sources form the `dart` class, so `dx check` sees them. `dart format` is the
+Dart sources form the `dart` class, so `dx check` sees them. Format, lint and
+typecheck are on by default. `dart format` is the
 real formatter: it runs the `dart` binary of the resolved SDK (nothing is
 fetched until a Dart target is analysed), formats each file at the language
 version of its package, and `dx format` fixes what it reports. Formatter options

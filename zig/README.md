@@ -33,8 +33,7 @@ Start a project with `dx init --apply demo` and add sources.
 
 ## Formatting
 
-`dx format` runs `zig fmt` when a `zig` family selects `zig_fmt`. No flag is
-needed. The Zig SDK is fetched only for Zig targets:
+`dx format` runs `zig fmt` by default. No flag is needed. The Zig SDK is fetched only for Zig targets:
 
 ```sh
 dx format --apply
@@ -49,8 +48,7 @@ checked on its own.
 
 ## Linting
 
-`dx lint` runs `zig ast-check` when a `zig` family selects `zig_ast_check`. No
-flag is needed. It runs once per file and reports syntax and AST-level errors:
+`dx lint` runs `zig ast-check` by default. No flag is needed. It runs once per file and reports syntax and AST-level errors:
 
 ```sh
 dx lint

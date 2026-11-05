@@ -1,6 +1,7 @@
 """Curated quality defaults."""
 
 
+# Not curated yet: haskell, ocaml, fortran, swift and powershell (#8045, #8047), julia (#8048).
 CURATED_DEFAULTS = {
     "astro": {
         "audit": [],
@@ -28,6 +29,20 @@ CURATED_DEFAULTS = {
         "format": [],
         "lint": ["cfn_lint", "typos"],
         "typecheck": [],
+        "unused": [],
+    },
+    "d": {
+        "audit": [],
+        "format": ["dfmt"],
+        "lint": ["dscanner", "typos"],
+        "typecheck": [],
+        "unused": [],
+    },
+    "dart": {
+        "audit": [],
+        "format": ["dart"],
+        "lint": ["dart", "typos"],
+        "typecheck": ["dart"],
         "unused": [],
     },
     "dockerfile": {
@@ -121,6 +136,14 @@ CURATED_DEFAULTS = {
         "typecheck": ["tsc"],
         "unused": [],
     },
+    # nixfmt is pinned for linux_x86_64 only, so nix has no formatter (#8045).
+    "nix": {
+        "audit": [],
+        "format": [],
+        "lint": ["deadnix", "statix", "typos"],
+        "typecheck": [],
+        "unused": [],
+    },
     "python": {
         "audit": [],
         "format": ["ruff"],
@@ -189,6 +212,13 @@ CURATED_DEFAULTS = {
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
+        "unused": [],
+    },
+    "zig": {
+        "audit": [],
+        "format": ["zig_fmt"],
+        "lint": ["typos", "zig_ast_check"],
+        "typecheck": [],
         "unused": [],
     },
 }

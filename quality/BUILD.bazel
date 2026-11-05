@@ -130,6 +130,28 @@ quality_family(
 )
 
 quality_family(
+    name = "default_d_family",
+    disabled = ["typecheck"],
+    family_id = "d",
+    format = ["dfmt"],
+    lint = [
+        "dscanner",
+        "typos",
+    ],
+)
+
+quality_family(
+    name = "default_dart_family",
+    family_id = "dart",
+    format = ["dart"],
+    lint = [
+        "dart",
+        "typos",
+    ],
+    typecheck = ["dart"],
+)
+
+quality_family(
     name = "default_go_family",
     family_id = "go",
     format = ["gofumpt"],
@@ -334,6 +356,20 @@ quality_family(
 )
 
 quality_family(
+    name = "default_nix_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "nix",
+    lint = [
+        "deadnix",
+        "statix",
+        "typos",
+    ],
+)
+
+quality_family(
     name = "default_text_family",
     disabled = [
         "format",
@@ -346,11 +382,24 @@ quality_family(
     ],
 )
 
+quality_family(
+    name = "default_zig_family",
+    disabled = ["typecheck"],
+    family_id = "zig",
+    format = ["zig_fmt"],
+    lint = [
+        "typos",
+        "zig_ast_check",
+    ],
+)
+
 workspace_policy(
     name = "default_workspace_policy",
     families = [
         ":default_astro_family",
         ":default_cc_family",
+        ":default_d_family",
+        ":default_dart_family",
         ":default_dockerfile_family",
         ":default_go_family",
         ":default_graphql_family",
@@ -361,6 +410,7 @@ workspace_policy(
         ":default_json_family",
         ":default_markdown_family",
         ":default_mdx_family",
+        ":default_nix_family",
         ":default_python_family",
         ":default_rust_family",
         ":default_scala_family",
@@ -371,6 +421,7 @@ workspace_policy(
         ":default_toml_family",
         ":default_typescript_family",
         ":default_vue_family",
+        ":default_zig_family",
     ],
 )
 
@@ -427,6 +478,46 @@ policy_config_tests(name = "policy_config")
 consumer_policy_tests(
     name = "consumer_policy",
     cases = [
+        {
+            "case": "default_d",
+            "expected_dx_results": [
+                "greet-real-format-d.pb",
+                "greet-real-lint-d.pb",
+                "greet-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//d/tests/fixtures/hello:greet",
+        },
+        {
+            "case": "default_dart",
+            "expected_dx_results": [
+                "inventory_cli-real-format-dart.pb",
+                "inventory_cli-real-lint-dart.pb",
+                "inventory_cli-real-lint-text.pb",
+                "inventory_cli-real-typecheck-dart.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//dart/tests/fixtures/dart-app/cli:inventory_cli",
+        },
+        {
+            "case": "default_nix",
+            "expected_dx_results": [
+                "clean_nix-real-lint-nix.pb",
+                "clean_nix-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_nix",
+        },
+        {
+            "case": "default_zig",
+            "expected_dx_results": [
+                "greet-real-format-zig.pb",
+                "greet-real-lint-text.pb",
+                "greet-real-lint-zig.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//zig/tests/fixtures/hello:greet",
+        },
         {
             "case": "toml_formatted",
             "expected_dx_results": [

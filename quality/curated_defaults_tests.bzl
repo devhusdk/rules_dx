@@ -145,5 +145,49 @@ def curated_defaults_unit_tests(name):
                     "unused": [],
                 },
             ),
+            expect_equal(
+                "d curated defaults are dfmt + D-Scanner",
+                CURATED_DEFAULTS["d"],
+                {
+                    "audit": [],
+                    "format": ["dfmt"],
+                    "lint": ["dscanner", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
+                "dart curated defaults are dart format + analyze",
+                CURATED_DEFAULTS["dart"],
+                {
+                    "audit": [],
+                    "format": ["dart"],
+                    "lint": ["dart", "typos"],
+                    "typecheck": ["dart"],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
+                "nix curated defaults are lint only until nixfmt is multi-platform",
+                CURATED_DEFAULTS["nix"],
+                {
+                    "audit": [],
+                    "format": [],
+                    "lint": ["deadnix", "statix", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
+                "zig curated defaults are zig fmt + ast-check",
+                CURATED_DEFAULTS["zig"],
+                {
+                    "audit": [],
+                    "format": ["zig_fmt"],
+                    "lint": ["typos", "zig_ast_check"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
         ],
     )

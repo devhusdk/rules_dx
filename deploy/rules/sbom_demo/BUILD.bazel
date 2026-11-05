@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//deploy/rules:github.bzl", "github_deploy")
+load("//deploy/rules:oci.bzl", "oci_deploy")
 load("//deploy/rules:sbom.bzl", "dx_sbom")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library")
 
@@ -34,4 +35,19 @@ sh_test(
     srcs = ["check.sh"],
     args = ["$(rootpath :app_sbom)"],
     data = [":app_sbom"],
+)
+
+oci_deploy(
+    name = "app_image",
+    image_tar = "image.tar",
+    platform = "linux/amd64",
+    sbom = ":app_sbom",
+)
+
+sh_test(
+    name = "oci_sbom_test",
+    size = "small",
+    srcs = ["oci_check.sh"],
+    args = ["$(rootpath :app_image_config)"],
+    data = [":app_image_config"],
 )

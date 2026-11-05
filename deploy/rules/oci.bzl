@@ -123,19 +123,19 @@ def _oci_config_impl(ctx):
     if tar_error != "":
         fail(tar_error + " (in " + str(ctx.label) + ")")
 
-    return deploy_config(
-        ctx,
-        "oci",
-        {
-            "image_rloc": rlocation_path(ctx, tar_file),
-            "platform": ctx.attr.platform,
-            "registry": ctx.attr.registry,
-            "repository": ctx.attr.repository,
-            "size_budget_bytes": ctx.attr.size_budget_bytes,
-            "tag": ctx.attr.tag,
-        },
-        ctx.runfiles(files = [tar_file]),
-    )
+    files = [tar_file]
+    fields = {
+        "image_rloc": rlocation_path(ctx, tar_file),
+        "platform": ctx.attr.platform,
+        "registry": ctx.attr.registry,
+        "repository": ctx.attr.repository,
+        "size_budget_bytes": ctx.attr.size_budget_bytes,
+        "tag": ctx.attr.tag,
+    }
+    if ctx.file.sbom:
+        files.append(ctx.file.sbom)
+        fields["sbom_rloc"] = rlocation_path(ctx, ctx.file.sbom)
+    return deploy_config(ctx, "oci", fields, ctx.runfiles(files = files))
 
 _oci_config = rule(
     implementation = _oci_config_impl,
@@ -166,11 +166,15 @@ _oci_config = rule(
             doc = "Image platform, one of the supported OCI platforms.",
             mandatory = True,
         ),
+        "sbom": attr.label(
+            doc = "Optional dx_sbom target kept with the deployment for the cosign attestation.",
+            allow_single_file = True,
+        ),
     },
 )
 
-def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release", size_budget = ""):
-    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB'."""
+def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release", size_budget = "", sbom = None):
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment, optionally failing above size_budget such as '500MB', carrying a dx_sbom target as `sbom`."""
     effective_repo = repository if repository != "" else name
     budget_error = size_budget_error(size_budget)
     if budget_error != "":
@@ -197,6 +201,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
         size_budget_bytes = size_budget_bytes(size_budget),
         tag = tag,
         platform = platform,
+        sbom = sbom,
     )
 
     dx_deployment(

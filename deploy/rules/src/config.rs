@@ -187,6 +187,8 @@ pub struct OciConfig {
     pub platform: String,
     #[serde(default)]
     pub size_budget_bytes: u64,
+    #[serde(default)]
+    pub sbom_rloc: String,
 }
 
 /// Pins one Octopus release: the package, project and target environments.
@@ -499,6 +501,25 @@ mod tests {
     }
 
     #[test]
+    fn an_oci_config_carries_the_sbom() {
+        let config = parse(
+            r#"{"kind":"oci","config":{"image_rloc":"i","registry":"r","repository":"p","tag":"t","platform":"linux/amd64","sbom_rloc":"_main/s.spdx.json"}}"#,
+        );
+        assert_eq!(
+            config,
+            Ok(DeployConfig::Oci(OciConfig {
+                image_rloc: "i".to_owned(),
+                registry: "r".to_owned(),
+                repository: "p".to_owned(),
+                tag: "t".to_owned(),
+                platform: "linux/amd64".to_owned(),
+                size_budget_bytes: 0,
+                sbom_rloc: "_main/s.spdx.json".to_owned(),
+            }))
+        );
+    }
+
+    #[test]
     fn a_github_config_round_trips() {
         let config = parse(
             r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":["_main/a","x;y"]},"kind":"github"}"#,
@@ -613,6 +634,7 @@ mod tests {
                 tag: "t".to_owned(),
                 platform: "linux/amd64".to_owned(),
                 size_budget_bytes: 0,
+                sbom_rloc: String::new(),
             }))
         );
         assert_eq!(
@@ -876,6 +898,7 @@ mod tests {
                 tag: "latest".to_owned(),
                 platform: "linux/amd64".to_owned(),
                 size_budget_bytes: 0,
+                sbom_rloc: String::new(),
             }),
             DeployConfig::Octopus(OctopusConfig {
                 package_rloc: "a".to_owned(),

@@ -366,12 +366,24 @@ fn ran(runner: &dyn Runner, program: &Path, args: &[&str], cwd: &Path) -> Result
     if out.success {
         return Ok(out.stdout);
     }
-    Err(format!(
+    // `dx check` prints its findings on stdout and only the progress log on stderr.
+    let stdout = out.stdout.trim();
+    let mut start = stdout.len().saturating_sub(4000);
+    while !stdout.is_char_boundary(start) {
+        start += 1;
+    }
+    let stdout_tail = &stdout[start..];
+    let mut message = format!(
         "{} {} failed: {}",
         program.display(),
         args.join(" "),
         out.stderr.trim()
-    ))
+    );
+    if !stdout_tail.is_empty() {
+        message.push_str("\nstdout: ");
+        message.push_str(stdout_tail);
+    }
+    Err(message)
 }
 
 fn starlark_string(text: &str) -> String {

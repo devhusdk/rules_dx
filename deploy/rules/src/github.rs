@@ -100,6 +100,73 @@ const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "DBUS_SESSION_BUS_ADDRESS",
 ];
 
+/// The jq program for `gh release view`: the tag, then each asset's name and size, tab-separated.
+const PREVIOUS_RELEASE_JQ: &str =
+    r#""tag\t\(.tagName)", (.assets[] | "asset\t\(.name)\t\(.size)")"#;
+
+/// Reads the latest published release with `gh release view`: its tag and each asset's size.
+fn previous_release(
+    workspace: Option<std::ffi::OsString>,
+) -> Result<(String, Vec<(String, u64)>), String> {
+    let mut cmd = scrubbed_command(
+        Path::new("gh"),
+        &[PUBLISH_CHILD_ENV_KEEP, GH_CHILD_ENV_EXTRA],
+        &[],
+    );
+    cmd.args([
+        "release",
+        "view",
+        "--json",
+        "tagName,assets",
+        "--jq",
+        PREVIOUS_RELEASE_JQ,
+    ]);
+    if let Some(dir) = workspace {
+        cmd.current_dir(dir);
+    }
+    let out = cmd.output().map_err(|error| error.to_string())?;
+    if !out.status.success() {
+        return Err(format!("gh release view failed with {}", out.status));
+    }
+    let mut tag = None;
+    let mut assets = Vec::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        match line.split('\t').collect::<Vec<_>>().as_slice() {
+            ["tag", value] => tag = Some((*value).to_owned()),
+            ["asset", name, size] => {
+                let size = size
+                    .parse()
+                    .map_err(|error| format!("asset {name} size: {error}"))?;
+                assets.push(((*name).to_owned(), size));
+            }
+            _ => return Err(format!("unexpected gh output: {line}")),
+        }
+    }
+    let tag = tag.ok_or_else(|| "gh returned no release".to_owned())?;
+    Ok((tag, assets))
+}
+
+/// Describes each asset's size in the latest published release, for a dry run.
+///
+/// Says why the release is unavailable instead of failing, so a dry run works offline.
+fn previous_release_lines(bases: &[String]) -> Vec<String> {
+    let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty());
+    let (tag, assets) = match previous_release(workspace) {
+        Ok(found) => found,
+        Err(reason) => return vec![format!("  previous release: unavailable ({reason})")],
+    };
+    let mut lines = vec![format!("  previous release: {tag}")];
+    for base in bases {
+        match assets.iter().find(|(name, _)| name == base) {
+            Some((_, size)) => {
+                lines.push(format!("  previous asset: {base} {size} bytes in {tag}"))
+            }
+            None => lines.push(format!("  previous asset: {base} not in {tag}")),
+        }
+    }
+    lines
+}
+
 /// Runs the GitHub deploy tool.
 pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
@@ -195,6 +262,9 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
             println!("  command: {}", github_release_command(tag, &bases));
             println!("  staging: {}", staging.display());
             println!("  manifest: {}", staging.join("would-run.txt").display());
+            for line in previous_release_lines(&bases) {
+                println!("{line}");
+            }
             0
         }
         Err(error) => {
@@ -336,5 +406,65 @@ mod tests {
         let lines = github_asset_lines(&[&a], &["a.tar.gz".to_owned()]).expect("lines");
         let digest = dx_digest::sha256_file_hex(&a).expect("digest");
         assert_eq!(lines, [format!("  asset: a.tar.gz sha256:{digest}")]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn github_dry_run_reports_previous_release_asset_sizes() {
+        use std::os::unix::fs::PermissionsExt as _;
+        if env_test_in_child("github::tests::github_dry_run_reports_previous_release_asset_sizes") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("bin");
+        let gh = bin.join("gh");
+        std::fs::write(
+            &gh,
+            "#!/bin/sh\nprintf 'tag\\tv1.2.2\\nasset\\tapp.tar.gz\\t1234\\n'\n",
+        )
+        .expect("write gh");
+        std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let bases = ["app.tar.gz".to_owned(), "new.tar.gz".to_owned()];
+        let lines = with_env(
+            &[
+                ("PATH", Some(bin.to_string_lossy().as_ref())),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+            ],
+            || previous_release_lines(&bases),
+        );
+        assert_eq!(
+            lines,
+            [
+                "  previous release: v1.2.2",
+                "  previous asset: app.tar.gz 1234 bytes in v1.2.2",
+                "  previous asset: new.tar.gz not in v1.2.2",
+            ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn github_dry_run_says_when_previous_release_is_unavailable() {
+        if env_test_in_child(
+            "github::tests::github_dry_run_says_when_previous_release_is_unavailable",
+        ) {
+            return;
+        }
+        let scratch = scratch_dir();
+        let empty = scratch.path().join("empty");
+        std::fs::create_dir_all(&empty).expect("empty");
+        let lines = with_env(
+            &[
+                ("PATH", Some(empty.to_string_lossy().as_ref())),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+            ],
+            || previous_release_lines(&["app.tar.gz".to_owned()]),
+        );
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(
+            lines[0].starts_with("  previous release: unavailable ("),
+            "{lines:?}"
+        );
     }
 }

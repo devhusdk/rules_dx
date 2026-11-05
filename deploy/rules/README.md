@@ -494,6 +494,9 @@ Default run stages `<name>-release/` with the assets (none for a notes-only draf
 holding their sha256 and the `gh release create` command. Nothing is
 published.
 
+The run also prints each asset's size in the latest published release, read with `gh release view`,
+so a budget can be set from it. Without `gh` or network, it prints why that release is unavailable and still succeeds.
+
 Create the draft with `gh` on `PATH` and logged in:
 
 ```

@@ -276,6 +276,18 @@ REAL_RESULT_CASES = [
         "absent": [],
     },
     {
+        "name": "real_result_periphery_unused",
+        "target": "//quality/testdata/swift_unused:unused",
+        "policy": "//quality/testdata/swift_unused:policy",
+        "tool": "periphery",
+        "capability": "lint",
+        "class": "swift",
+        "contains": ["quality/testdata/swift_unused/unused.swift", "function.free", "unusedHelper"],
+        "absent": [],
+        "target_compatible_with": _MACOS_ONLY,
+        "macos_arm64": True,
+    },
+    {
         "name": "real_result_clippy_clean",
         "target": "//quality/testdata/rust_owned:clean",
         "policy": _RUST_POLICY,

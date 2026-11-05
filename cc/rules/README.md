@@ -26,6 +26,29 @@ cc_test(
 
 `objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.
 
+## CMake dependencies
+
+`cmake_library` from `@rules_dx//cmake/rules:defs.bzl` only formats and lints CMake files. It never builds them.
+
+To build a CMake project, use the rules_foreign_cc `cmake` rule and register `tools.explicit()` with a pinned cmake and ninja, so no host cmake is used.
+
+```starlark
+cmake(
+    name = "zlib_static",
+    generate_args = ["-GNinja"],
+    lib_source = "@zlib//:all_srcs",
+    out_static_libs = ["libz.a"],
+)
+
+cc_binary(
+    name = "app",
+    srcs = ["main.c"],
+    deps = [":zlib_static"],
+)
+```
+
+This is tested on Linux x86_64 with LLVM and GCC, and with LLVM cross-compiling to Linux arm64. `bash` is the only host tool.
+
 ## Options
 
 `copts`, `defines`, `features`, `includes` and `linkopts` reach the upstream rule exactly as written. A `select()` value stays a `select()` value. The requested language standard is never translated: `-std=c++23` compiles as C++23.

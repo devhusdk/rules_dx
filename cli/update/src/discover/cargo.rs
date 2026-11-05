@@ -78,6 +78,12 @@ pub fn outdated(
     found
 }
 
+/// The newest stable version of crate `name` in the sparse index at `base`.
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+    let body = fetch.get(&format!("{base}/{}", index_path(name)))?;
+    newest(&body, false).map(|release| release.version.to_string())
+}
+
 fn repository(api: &str, name: &str, fetch: &dyn Fetch) -> Option<String> {
     let body = fetch.get(&format!("{api}/api/v1/crates/{name}")).ok()?;
     let json: serde_json::Value = serde_json::from_str(&body).ok()?;

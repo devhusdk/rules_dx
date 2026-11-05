@@ -331,6 +331,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         frozen,
         outdated,
         prune,
+        add_missing,
         pr,
         push,
         group,
@@ -562,11 +563,25 @@ fn parse_inner<S: AsRef<OsStr>>(
             },
         ));
     }
+    if command == Command::Update && add_missing && (!apply || frozen || offline) {
+        return Err(unsupported(
+            command,
+            if !apply {
+                "--add-missing without --apply"
+            } else if frozen {
+                "--add-missing with --frozen"
+            } else {
+                "--add-missing with --offline"
+            },
+        ));
+    }
     if command == Command::Update && pr {
         let culprit = if outdated {
             Some("--outdated")
         } else if prune {
             Some("--prune")
+        } else if add_missing {
+            Some("--add-missing")
         } else if apply {
             Some("--apply")
         } else if floor {
@@ -739,6 +754,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         frozen,
         outdated,
         prune,
+        add_missing,
         pr,
         push,
         group,

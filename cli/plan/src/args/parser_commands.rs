@@ -1280,6 +1280,26 @@ fn update_prune_needs_apply() {
 }
 
 #[test]
+fn update_add_missing_needs_apply_and_network() {
+    let got = parse(&strings(&["update", "--apply", "--add-missing", "cargo"])).expect("add");
+    assert!(got.add_missing && got.apply);
+    assert!(
+        !parse(&strings(&["update", "--apply"]))
+            .expect("apply")
+            .add_missing
+    );
+    for words in [
+        vec!["update", "--add-missing"],
+        vec!["update", "--apply", "--add-missing", "--frozen"],
+        vec!["update", "--apply", "--add-missing", "--offline"],
+        vec!["update", "--pr", "--apply", "--add-missing"],
+        vec!["build", "--add-missing"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
+}
+
+#[test]
 fn release_push_needs_apply() {
     assert!(parse(&strings(&["release", "--push"])).is_err());
     assert!(parse(&strings(&["release", "--apply", "--push"])).is_ok());

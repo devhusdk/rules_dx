@@ -15,6 +15,8 @@ fn parse(selector: &str, version: &str) -> UpdateRequest {
             ConfiguredKind::Nuget,
             "third_party/dotnet/paket.dependencies",
         ),
+        "uv" => (ConfiguredKind::Uv, "pyproject.toml"),
+        "ruby" => (ConfiguredKind::Ruby, "Gemfile"),
         _ => return UpdateRequest::parse_grammar(selector, version).expect("update request"),
     };
     UpdateRequest::parse_configured_set(kind, head, &[manifest.to_owned()], None, selector, version)
@@ -379,4 +381,47 @@ fn configured_maven_adds_to_the_named_repository_install() {
     .expect("request")
     .plan_insert(&content);
     assert!(matches!(missing, Err(AddError::UnsupportedManifest { .. })));
+}
+
+#[test]
+fn uv_inserts_a_lower_bound_requirement() {
+    let before = "[project]\nname = \"demo\"\ndependencies = [\"requests>=2\"]\n";
+    let after = add("uv:numpy", "1.26.4", before).expect("insert");
+    assert_eq!(
+        after,
+        "[project]\nname = \"demo\"\ndependencies = [\"requests>=2\", \"numpy>=1.26.4\"]\n"
+    );
+    assert_declared("uv:numpy", &after, "pyproject.toml");
+}
+
+#[test]
+fn uv_keeps_a_multiline_array_and_creates_a_missing_one() {
+    let before = "[project]\nname = \"demo\"\ndependencies = [\n    \"requests>=2\",\n]\n";
+    let after = add("uv:numpy", "1.26.4", before).expect("insert");
+    assert_eq!(
+        after,
+        "[project]\nname = \"demo\"\ndependencies = [\n    \"requests>=2\",\n    \"numpy>=1.26.4\",\n]\n"
+    );
+    let created = add("uv:numpy", "1.26.4", "[project]\nname = \"demo\"\n").expect("create");
+    assert!(created.contains("dependencies = [\"numpy>=1.26.4\"]"), "{created}");
+}
+
+#[test]
+fn ruby_inserts_after_the_last_top_level_gem() {
+    let before = "source \"https://rubygems.org\"\ngem \"rake\", \"~> 13.0\"\n\ngroup :test do\n  gem \"rspec\", \"~> 3.0\"\nend\n";
+    let after = add("ruby:rails", "7.0.8.1", before).expect("insert");
+    assert_eq!(
+        after,
+        "source \"https://rubygems.org\"\ngem \"rake\", \"~> 13.0\"\ngem \"rails\", \"~> 7.0\"\n\ngroup :test do\n  gem \"rspec\", \"~> 3.0\"\nend\n"
+    );
+    assert_declared("ruby:rails", &after, "Gemfile");
+}
+
+#[test]
+fn ruby_appends_when_no_gem_exists() {
+    let after = add("ruby:rails", "7", "source \"https://rubygems.org\"").expect("insert");
+    assert_eq!(
+        after,
+        "source \"https://rubygems.org\"\ngem \"rails\", \"~> 7\"\n"
+    );
 }

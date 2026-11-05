@@ -32,11 +32,7 @@ pub(super) fn add_missing(
         out,
         err,
     } = io;
-    let unsupported = update.set == dx_update::edit::UpdateSet::GithubActions
-        || update
-            .configured_kind()
-            .is_some_and(|kind| kind == dx_update::edit::ConfiguredKind::Uv);
-    if unsupported {
+    if update.set == dx_update::edit::UpdateSet::GithubActions {
         return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, missing);
     }
     let request = dx_update::edit::AddRequest::from_request(update);

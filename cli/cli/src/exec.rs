@@ -57,6 +57,7 @@ mod test_reports;
 pub(crate) mod test_support;
 mod umbrella;
 mod update;
+mod update_add_missing;
 mod update_outdated;
 mod update_pr;
 mod update_prune;

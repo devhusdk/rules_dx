@@ -214,7 +214,7 @@ tools/dx update --apply dx_crates:anyhow 1.0.100
 ```
 
 ```text
-dx update [--apply [--prune]] [--offline] [--frozen] [selector ...]
+dx update [--apply [--prune] [--add-missing]] [--offline] [--frozen] [selector ...]
 dx update --outdated [selector ...]
 dx update --pr [--group=package|set|all] [--labels=<a,b>] [--automerge=none|patch|minor|all]
   [--min-age=<days>] [--ignore=<set:package>] [--allow-major] [--prereleases]
@@ -226,6 +226,7 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 | --- | --- |
 | `--apply` | Writes updates. |
 | `--prune` | With `--apply`: deletes the one-line declarations of unused dependencies (the entries `--outdated` lists as `unused:`) from `cargo`, `npm`, `uv`, `go` and `ruby` manifests, then refreshes the locks as usual. Each removal prints `dx: update_pruned: <set>: <name> (removed from <manifest>:<line>)` on stderr. Multi-line and table declarations are left in place. Does not combine with `--frozen`. |
+| `--add-missing` | With `--apply`: declares the imports `--outdated` lists as `missing:` for `cargo`, `npm`, `uv` and `ruby` sets, at the latest stable version from the registry, then refreshes the locks once. Each addition prints `dx: update_added: <set>: <name> <version> (added to <manifest>)` on stderr. Does not combine with `--frozen`, `--offline` or `--pr`. |
 | `--outdated` | Lists packages whose newest stable version is outside the declared range. |
 | `--pr` | Opens or refreshes one pull request per group. |
 | `--offline` | Uses pinned cached snapshots. Fails with `offline_required` when missing. |
@@ -362,7 +363,7 @@ tools/dx update --apply npm:vue 3.5.42
 
 One `set:package` and one version widen that requirement, or declare it when missing. A version starts with a digit, `v` plus a digit, or is a commit SHA. The set is a [dependency set](#dependency-sets) or the built-in `bazel`, `containers` or `github-actions`. Any other set exits `2` and lists valid names.
 
-Without `--apply` it exits `0` when the manifest already declares the version, and `1` with `update drift` (widen) or `update pending` (add). `github-actions`, `bazel:.bazelversion` and `uv` sets cannot add.
+Without `--apply` it exits `0` when the manifest already declares the version, and `1` with `update drift` (widen) or `update pending` (add). `github-actions` and `bazel:.bazelversion` cannot add.
 
 | Set | Edit |
 | --- | --- |
@@ -376,7 +377,7 @@ Without `--apply` it exits `0` when the manifest already declares the version, a
 | `nuget` | `paket.dependencies` only. Run `paket update`, then `dx update <set>`. |
 | `ruby` | Literal requirement on the gem's Gemfile line, then `bundle lock --update <gem> --conservative` with `@ruby//:bundle` in the Gemfile directory. |
 
-A missing package is inserted in the same manifest and shape: a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line, a `maven.install` coordinate, a `dependencies` entry in `package.json`, or a `nuget` line.
+A missing package is inserted in the same manifest and shape: a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line, a `maven.install` coordinate, a `dependencies` entry in `package.json`, a `nuget` line, a `[project].dependencies` requirement `name>=version` in `pyproject.toml` for configured `uv` sets, or a `gem "name", "~> <major>.<minor>"` line after the last top-level `gem` in the `Gemfile` for `ruby` sets.
 
 `--floor` is refused with exit `2` and writes nothing when:
 

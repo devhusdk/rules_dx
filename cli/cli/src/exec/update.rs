@@ -1,5 +1,5 @@
 use super::common::*;
-use super::{update_prune, update_unused};
+use super::{update_add_missing, update_outdated, update_prune, update_unused};
 use dx_output::{
     command_finished, error_event, notice_event, with_correlation, FinishedCounts, NoticeEvent,
     OutputMode,
@@ -36,6 +36,11 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
                 &registry,
                 env.err,
             ) {
+                return code;
+            }
+        }
+        if invocation.add_missing {
+            if let Err(code) = add_missing(invocation, env.workspace, &registry, env.err) {
                 return code;
             }
         }
@@ -76,6 +81,40 @@ fn prune_unused(
                     err,
                     "dx: update_pruned: {}: {} (removed from {}:{})",
                     item.set, item.name, item.manifest, item.line
+                );
+            }
+            Ok(())
+        }
+        Err(message) => fail(&message),
+    }
+}
+
+fn add_missing(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    registry: &dx_adopt::dependency_sets::Registry,
+    err: &mut dyn std::io::Write,
+) -> Result<(), i32> {
+    let mut fail = |message: &str| {
+        Err(pre_exec(
+            invocation.output,
+            &mut std::io::sink(),
+            err,
+            message,
+        ))
+    };
+    let resolved = match dx_adopt::dependency_sets::resolve(registry, &invocation.targets) {
+        Ok(resolved) => resolved,
+        Err(error) => return fail(&error.to_string()),
+    };
+    let fetch = update_outdated::registry_fetch();
+    match update_add_missing::add_missing(workspace, &resolved, fetch.as_ref()) {
+        Ok(added) => {
+            for item in added {
+                let _ = writeln!(
+                    err,
+                    "dx: update_added: {}: {} {} (added to {})",
+                    item.set, item.name, item.version, item.manifest
                 );
             }
             Ok(())

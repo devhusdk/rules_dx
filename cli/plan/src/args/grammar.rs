@@ -162,6 +162,7 @@ pub(crate) struct Flags {
     pub(crate) frozen: bool,
     pub(crate) outdated: bool,
     pub(crate) prune: bool,
+    pub(crate) add_missing: bool,
     pub(crate) pr: bool,
     pub(crate) push: bool,
     pub(crate) group: Option<String>,
@@ -681,6 +682,14 @@ flag_group! {
     PruneFlag, {
         #[arg(long, overrides_with = "prune")]
         prune: bool,
+    }
+}
+
+flag_group! {
+    /// Declare imported but undeclared dependencies at their latest version (needs --apply).
+    AddMissingFlag, {
+        #[arg(long = "add-missing", overrides_with = "add_missing")]
+        add_missing: bool,
     }
 }
 
@@ -1257,6 +1266,7 @@ command_args! {
         apply: ApplyFlag,
         outdated: OutdatedFlag,
         prune: PruneFlag,
+        add_missing: AddMissingFlag,
         pr: PrFlag,
         group: GroupFlag,
         labels: LabelsFlag,

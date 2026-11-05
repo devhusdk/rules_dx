@@ -96,6 +96,15 @@ pub fn outdated(
     found
 }
 
+/// The `latest` stable version of package `name` in the registry at `base`.
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+    let body = fetch.get(&format!("{base}/{name}"))?;
+    match latest(&body, false)? {
+        Some((version, _)) => Ok(version.to_string()),
+        None => Err("no stable version".to_owned()),
+    }
+}
+
 fn skipped(spec: &str) -> bool {
     SKIPPED_PREFIXES
         .iter()

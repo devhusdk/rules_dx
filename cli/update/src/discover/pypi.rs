@@ -89,6 +89,12 @@ pub fn outdated(
     found
 }
 
+/// The newest stable release of `name` on PyPI at `base`.
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+    let body = fetch.get(&format!("{base}/{name}/json"))?;
+    newest(&body, false).map(|(version, _)| version.to_string())
+}
+
 fn collect(item: Option<&Item>, into: &mut Vec<String>) {
     if let Some(list) = item.and_then(Item::as_array) {
         into.extend(list.iter().filter_map(|v| v.as_str().map(str::to_owned)));

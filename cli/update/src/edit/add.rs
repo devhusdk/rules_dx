@@ -1,6 +1,6 @@
 //! Declares a requirement `dx update` found missing.
 
-use super::request::{DepTarget, EditError, UpdateRequest};
+use super::request::{ConfiguredKind, DepTarget, EditError, UpdateRequest};
 use super::sets::UpdateSet;
 use super::version::WidenVersion;
 
@@ -94,20 +94,24 @@ impl AddRequest {
             Err(EditError::NotFound { .. }) => {}
             Err(other) => return Err(other.into()),
         }
-        let version = match &self.version {
-            WidenVersion::Semver(version) => version.to_string(),
-            _ => {
-                return Err(AddError::UnsupportedManifest {
-                    manifest: self.target_manifest().to_owned(),
-                    reason: "expected exact semver".to_owned(),
-                })
-            }
-        };
         let manifest = self.target_manifest();
         let unsupported = |reason: String| AddError::UnsupportedManifest {
             manifest: manifest.to_owned(),
             reason,
         };
+        let package = self.package();
+        if self.set() == UpdateSet::Ruby {
+            return plans::insert_gem(content, package, &self.version.display())
+                .map_err(unsupported);
+        }
+        let version = match &self.version {
+            WidenVersion::Semver(version) => version.to_string(),
+            _ => return Err(unsupported("expected exact semver".to_owned())),
+        };
+        if self.target.configured.as_ref().map(|set| set.kind) == Some(ConfiguredKind::Uv) {
+            return plans::insert_pyproject_dependency(content, package, &version)
+                .map_err(unsupported);
+        }
         let package = self.package();
         match self.set() {
             UpdateSet::Bazel => dx_module_bazel::ModuleFile::parse(content)
@@ -155,10 +159,6 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit composer.json and run `composer update`",
             }),
-            UpdateSet::Ruby => Err(AddError::UnsupportedSet {
-                selector: self.selector.clone(),
-                hint: "edit the Gemfile and run `bundle lock`",
-            }),
             UpdateSet::Pub => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit pubspec.yaml and run `dart pub get`",
@@ -167,6 +167,7 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",
             }),
+            UpdateSet::Ruby => unreachable!("handled above"),
         }
     }
 }

@@ -70,6 +70,12 @@ pub fn outdated(
     found
 }
 
+/// The newest stable release of gem `name` on the API at `base`.
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+    let body = fetch.get(&format!("{base}/api/v1/versions/{name}.json"))?;
+    newest(&body, false).map(|(version, _, _)| version)
+}
+
 fn repository(base: &str, name: &str, fetch: &dyn Fetch) -> Option<String> {
     let body = fetch.get(&format!("{base}/api/v1/gems/{name}.json")).ok()?;
     let json: serde_json::Value = serde_json::from_str(&body).ok()?;

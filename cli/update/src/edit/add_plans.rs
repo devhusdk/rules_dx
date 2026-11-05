@@ -224,3 +224,88 @@ pub(super) fn insert_paket_dependency(
     entry.push_str(&format!("{indent}nuget {package} {version}{eol}"));
     Ok(splice(content, end, &entry))
 }
+
+/// Adds `package>=version` to `[project].dependencies`, creating the array when missing.
+pub(super) fn insert_pyproject_dependency(
+    content: &str,
+    package: &str,
+    version: &str,
+) -> Result<String, String> {
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|_| "manifest is not valid TOML".to_owned())?;
+    let project = doc
+        .get_mut("project")
+        .and_then(toml_edit::Item::as_table_like_mut)
+        .ok_or_else(|| "no [project] table".to_owned())?;
+    let item = project
+        .entry("dependencies")
+        .or_insert_with(|| toml_edit::value(toml_edit::Array::new()));
+    let Some(array) = item.as_array_mut() else {
+        return Err("[project].dependencies is not an array".to_owned());
+    };
+    let requirement = format!("{package}>={version}");
+    let multiline = array.iter().any(|value| {
+        value
+            .decor()
+            .prefix()
+            .and_then(|prefix| prefix.as_str())
+            .is_some_and(|prefix| prefix.contains('\n'))
+    });
+    if multiline {
+        let indent = array
+            .iter()
+            .last()
+            .and_then(|value| value.decor().prefix())
+            .and_then(|prefix| prefix.as_str())
+            .unwrap_or("\n    ")
+            .to_owned();
+        let mut value = toml_edit::Value::from(requirement.as_str());
+        value.decor_mut().set_prefix(indent);
+        array.push_formatted(value);
+    } else {
+        array.push(requirement.as_str());
+    }
+    let out = doc.to_string();
+    let kept = out
+        .parse::<toml_edit::DocumentMut>()
+        .ok()
+        .and_then(|doc| {
+            doc["project"]["dependencies"]
+                .as_array()
+                .map(|array| array.iter().any(|v| v.as_str() == Some(requirement.as_str())))
+        })
+        .unwrap_or(false);
+    if !kept {
+        return Err("edit did not round-trip".to_owned());
+    }
+    Ok(out)
+}
+
+/// Adds `gem "package", "~> major.minor"` after the last top-level `gem` line, or at the end.
+pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<String, String> {
+    let mut parts = version.split('.');
+    let requirement = match (parts.next(), parts.next()) {
+        (Some(major), Some(minor)) => format!("{major}.{minor}"),
+        (Some(major), None) => major.to_owned(),
+        _ => return Err("empty gem version".to_owned()),
+    };
+    let eol = line_ending(content);
+    let mut at = content.len();
+    let mut offset = 0usize;
+    for line in content.split_inclusive('\n') {
+        offset += line.len();
+        if line.starts_with("gem ") {
+            at = offset;
+        }
+    }
+    let mut entry = String::new();
+    if at == content.len() && !content.is_empty() && !content.ends_with('\n') {
+        entry.push_str(eol);
+    }
+    entry.push_str(&format!("gem \"{package}\", \"~> {requirement}\"{eol}"));
+    if at < content.len() && !content[..at].ends_with('\n') {
+        entry.insert_str(0, eol);
+    }
+    Ok(splice(content, at, &entry))
+}

@@ -210,8 +210,7 @@ CELLS = {
 # Apps do not build for them until those land.
 OTP_UNPORTED_CELLS = []
 
-# An arm64 NIF .dll cannot load into the x64 BEAM that windows_arm64 runs (#6321).
-OTP_NIF_UNPORTED_CELLS = ["windows_arm64"]
+OTP_NIF_UNPORTED_CELLS = []
 
 OTP_DIALYZER_UNPORTED_CELLS = []
 

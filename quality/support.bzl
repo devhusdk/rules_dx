@@ -2026,13 +2026,10 @@ ERLANG_DIALYZER_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "erlang",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "dialyzer",
     "transport": "batched",
-    "unsupported": {
-        "windows_arm64": "dialyzer on Windows is pending #6321",
-    },
 }
 
 ELIXIR_DIALYZER_TYPECHECK_SUPPORT = {

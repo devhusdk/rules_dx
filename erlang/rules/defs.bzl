@@ -338,6 +338,28 @@ def nif_linkopt_cases(version_script):
         "//conditions:default": [],
     }
 
+def _x64_windows_impl(settings, _attr):
+    platform = str(Label("//erlang/rules:windows_x86_64"))
+    return {
+        "//command_line_option:extra_execution_platforms": settings["//command_line_option:extra_execution_platforms"] + [platform],
+        "//command_line_option:platforms": [platform],
+    }
+
+_x64_windows = transition(
+    implementation = _x64_windows_impl,
+    inputs = ["//command_line_option:extra_execution_platforms"],
+    outputs = ["//command_line_option:extra_execution_platforms", "//command_line_option:platforms"],
+)
+
+def _nif_x64_lib_impl(ctx):
+    return [DefaultInfo(files = ctx.attr.lib[0][DefaultInfo].files)]
+
+_nif_x64_lib = rule(
+    implementation = _nif_x64_lib_impl,
+    doc = "Builds a NIF library for x64 Windows, the architecture of the OTP that windows_arm64 runs under emulation.",
+    attrs = {"lib": attr.label(mandatory = True, cfg = _x64_windows)},
+)
+
 def _erlang_nif_impl(ctx):
     wanted = "lib" + ctx.label.name + ".so"
     libraries = [f for f in ctx.attr.lib[0][DefaultInfo].files.to_list() if f.basename == wanted]
@@ -406,9 +428,18 @@ def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, 
         tags = tags,
         target_compatible_with = compatible,
     )
+    _nif_x64_lib(
+        name = "lib" + name + "_x64",
+        lib = ":lib" + name + ".so",
+        tags = (tags or []) + ["manual"],
+        target_compatible_with = compatible,
+    )
     _erlang_nif(
         name = name,
-        lib = ":lib" + name + ".so",
+        lib = select({
+            Label("//erlang/toolchain:cell_windows_arm64"): ":lib" + name + "_x64",
+            "//conditions:default": ":lib" + name + ".so",
+        }),
         tags = tags,
         target_compatible_with = compatible,
         visibility = visibility,

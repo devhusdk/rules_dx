@@ -7253,6 +7253,52 @@ fn lychee_reports_broken_links_with_scratch_free_messages() {
         .is_empty());
 }
 
+fn actionlint_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = argv.last().expect("file");
+    let text = std::fs::read_to_string(file).expect("checked file is materialized");
+    let name = file.to_string_lossy().replace('\\', "/");
+    if text.contains("env.foo") {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: format!(
+                "[{{\"message\":\"property \\\"foo\\\" is not defined in object type {{}}\",\"filepath\":\"{name}\",\"line\":7,\"column\":14,\"kind\":\"expression\"}}]"
+            )
+            .into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"null".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn actionlint_reports_an_undefined_context_property() {
+    let backend = backend_for("actionlint", plain_tool(), actionlint_fake);
+    let path = ".github/workflows/ci.yml";
+    let findings = backend
+        .diagnose("actionlint", "lint", &single(path, "name: ci\non: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: ${{ env.foo }}\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].tool_id, "actionlint");
+    assert_eq!(findings[0].path, path);
+    assert_eq!(findings[0].rule_id, "expression");
+    assert!(findings[0]
+        .message
+        .contains("property \"foo\" is not defined in object type"));
+    assert!(backend
+        .diagnose("actionlint", "lint", &single(path, "name: ci\n"))
+        .expect("diagnosed")
+        .is_empty());
+}
+
 fn lychee_online_fake(
     argv: &[OsString],
     _cwd: &Path,

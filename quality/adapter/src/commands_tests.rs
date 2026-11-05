@@ -2715,6 +2715,7 @@ fn plan_batches_honours_launcher_budget() {
 #[test]
 fn file_independent_tools_batch() {
     for tool in [
+        "actionlint",
         "keep_sorted",
         "typos",
         "lychee",

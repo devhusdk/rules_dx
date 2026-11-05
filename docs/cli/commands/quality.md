@@ -177,9 +177,9 @@ Every tool runs from a managed executable. To use your own build, pass its targe
 tools/dx lint -- --@rules_dx//config:tool_<name>=//tools:my_tool
 ```
 
-Tools with an override flag: `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `julialint`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
+Tools with an override flag: `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `julialint`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
 
-The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates must be a single executable file. The others must be executable targets. Anything else fails analysis with the tool named.
+The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates must be a single executable file. The others must be executable targets. Anything else fails analysis with the tool named.
 
 ### Native languages
 
@@ -304,6 +304,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `cmakelint`, `gersemi` | Lint and format CMake | |
 | `checkmake`, `mbake` | Lint and format Make | |
 | `hadolint` | Lint Dockerfiles | |
+| `actionlint` | Lint GitHub workflows | |
 | `ansible_lint` | Lint Ansible | `windows_x86_64`, `windows_arm64` |
 | `kubeconform` | Validate Kubernetes manifests | |
 | `helm` | Lint Helm charts and validate rendered manifests | |

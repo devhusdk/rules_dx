@@ -4,6 +4,12 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 load("//quality:sources.bzl", "QualityToolsInfo")
 
 TOOLS = {
+    "actionlint": {
+        "attr": attr.label(default = "//config:tool_actionlint", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "core",
+    },
     "biome": {
         "attr": attr.label(default = "@dx_tools//:biome", allow_single_file = True, cfg = "exec"),
         "kind": "file",

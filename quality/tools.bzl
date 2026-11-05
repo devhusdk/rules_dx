@@ -93,6 +93,21 @@ _TYPOS_FAMILY_CLASSES = {
 
 TOOLS = [
     tool(
+        id = "actionlint",
+        adapters = {"lint": ["github_workflow"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["github_workflow"],
+                context = "owned",
+                family = "core",
+                fix = "check_only",
+                state = "supported",
+                transport = "batched",
+            ),
+        ],
+    ),
+    tool(
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
         config_suffix = [".ansible-lint", ".yml", ".yaml"],

@@ -2926,10 +2926,9 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff" | "flake8"
-        | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
-            ArgTransport::Batched
-        }
+        "actionlint" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff"
+        | "flake8" | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint"
+        | "selene" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

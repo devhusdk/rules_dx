@@ -1,6 +1,7 @@
 // Generated from quality/tools.bzl. Run `bazel run //quality:update_tools` to refresh it.
 
 pub const REAL_TOOLS: &[&str] = &[
+    "actionlint",
     "ansible_lint",
     "avro_tools",
     "bicep",

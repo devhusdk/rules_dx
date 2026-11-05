@@ -1677,6 +1677,19 @@ impl RealBackend {
                 |files| Ok(commands::typos_check(&tool.binary, files)),
                 |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
             ),
+            "actionlint" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::actionlint_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_actionlint(&out.stdout, &out.stderr, out.code, names),
+                    )
+                },
+            ),
             "lychee" => {
                 let root = scratch.root();
                 let online = tool

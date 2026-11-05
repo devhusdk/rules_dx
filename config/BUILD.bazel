@@ -92,6 +92,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_actionlint",
+    build_setting_default = "@dx_tools//:actionlint",
+)
+
+label_flag(
     name = "tool_hadolint",
     build_setting_default = "@dx_tools//:hadolint",
 )

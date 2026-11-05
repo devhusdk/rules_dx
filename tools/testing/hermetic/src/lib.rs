@@ -215,6 +215,7 @@ pub struct Manifest {
     pub module_fragment: Option<PathBuf>,
     pub families: Vec<String>,
     pub compiler: Option<(String, String)>,
+    pub platform: String,
     pub dx: PathBuf,
     pub module_file: PathBuf,
     pub bazelversion: PathBuf,
@@ -392,6 +393,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         module_fragment,
         families,
         compiler,
+        platform: value["platform"].as_str().unwrap_or("").to_owned(),
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -708,6 +710,12 @@ pub struct Session {
 }
 
 impl Session {
+    fn platform_flag(&self) -> Option<String> {
+        Some(self.manifest.platform.as_str())
+            .filter(|platform| !platform.is_empty())
+            .map(|platform| format!("--platforms={platform}"))
+    }
+
     fn bazel_argv(&self, probe: &Probe) -> Vec<String> {
         let mut argv = vec![
             "/usr/bin/env".to_owned(),
@@ -728,6 +736,7 @@ impl Session {
             format!("--repository_cache={}", probe.repos.display()),
         ];
         argv.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        argv.extend(self.platform_flag());
         argv.extend(probe.extra.iter().cloned());
         argv.push("--".to_owned());
         argv.extend(probe.targets.iter().cloned());
@@ -769,6 +778,7 @@ impl Session {
             "--repository_disable_download".to_owned(),
         ]);
         args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
+        args.extend(self.platform_flag());
         let mut argv = vec![
             "/usr/bin/env".to_owned(),
             "-i".to_owned(),

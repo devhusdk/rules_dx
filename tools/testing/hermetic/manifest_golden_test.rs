@@ -29,6 +29,10 @@ fn consumer_manifest_matches_its_golden() {
     {
         lines.push(format!("compiler {compiler}"));
     }
+    // The value follows the host cell, so the golden records only that one is set.
+    if manifest["platform"].as_str().is_some_and(|p| !p.is_empty()) {
+        lines.push("platform selected".to_owned());
+    }
     for pattern in list(&manifest, "patterns") {
         lines.push(format!("pattern {pattern}"));
     }

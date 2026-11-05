@@ -502,6 +502,11 @@ hermetic_qualification(
     ],
     module_fragment = "consumers/qt_tasks/module_fragment.bazel",
     patterns = ["//..."],
+    platform = select({
+        "//qt/platforms:cell_linux_arm64": "//:qt_linux_arm64",
+        "//qt/platforms:cell_macos_arm64": "//:qt_macos_arm64",
+        "//conditions:default": "//:qt_linux_x86_64",
+    }),
 )
 
 hermetic_qualification(
@@ -790,6 +795,11 @@ hermetic_qualification(
     ],
     module_fragment = "consumers/qt_rust/module_fragment.bazel",
     patterns = ["//..."],
+    platform = select({
+        "//qt/platforms:cell_linux_arm64": "//:qt_linux_arm64",
+        "//qt/platforms:cell_macos_arm64": "//:qt_macos_arm64",
+        "//conditions:default": "//:qt_linux_x86_64",
+    }),
 )
 
 hermetic_qualification(

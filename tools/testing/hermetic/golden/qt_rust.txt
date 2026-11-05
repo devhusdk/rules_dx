@@ -1,6 +1,7 @@
 language cpp
 language qml
 language rust
+platform selected
 pattern //...
 file .bazelrc
 file BUILD.bazel

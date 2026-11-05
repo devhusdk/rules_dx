@@ -18,6 +18,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         module_fragment: Some(PathBuf::from("f")),
         families: Vec::new(),
         compiler: None,
+        platform: String::new(),
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),
         bazelversion: PathBuf::from(".bazelversion"),
@@ -1398,4 +1399,64 @@ fn macos_profile_denies_network_except_loopback() {
         .collect();
     assert_eq!(args[0], "-p");
     assert_eq!(args[2..], ["--", "/bin/true"]);
+}
+
+#[test]
+fn platform_is_passed_to_bazel_only_when_the_manifest_sets_it() {
+    let mut value = json!({
+        "label": "//x:y",
+        "languages": ["cpp"],
+        "module": "m",
+        "repo_name": "r",
+        "workspace_dir": "ws",
+        "patterns": ["//..."],
+        "failures": {},
+        "coverage": [],
+        "covered": [],
+        "files": [],
+        "module_fragment": "f",
+        "dx": "d",
+        "module_file": "MODULE.bazel",
+        "bazelversion": ".bazelversion",
+    });
+    let session = |manifest: Manifest| Session {
+        manifest,
+        root: PathBuf::from("/q"),
+        workspace: PathBuf::from("/q/ws"),
+        out: PathBuf::from("/out"),
+        source: PathBuf::from("/src"),
+        bazelisk: PathBuf::from("/q/bin/bazelisk"),
+        bazelisk_home: PathBuf::from("/q/bazelisk"),
+        isolation: Isolation::default(),
+        probes: Vec::new(),
+    };
+    let argv = |session: &Session| {
+        session.bazel_argv(&Probe {
+            name: "build".to_owned(),
+            net: Net::Denied,
+            home: Path::new("/q/home"),
+            output_root: Path::new("/q/cold"),
+            repos: Path::new("/q/repos"),
+            command: "build",
+            targets: vec!["//...".to_owned()],
+            extra: Vec::new(),
+            expect: Expect::Pass,
+        })
+    };
+
+    let unset = parse_manifest(&value.to_string(), Path::new("/")).unwrap();
+    assert_eq!(unset.platform, "");
+    assert!(!argv(&session(unset))
+        .iter()
+        .any(|arg| arg.starts_with("--platforms")));
+
+    value["platform"] = json!("//:qt_linux_arm64");
+    let set = parse_manifest(&value.to_string(), Path::new("/")).unwrap();
+    assert_eq!(set.platform, "//:qt_linux_arm64");
+    let args = argv(&session(set));
+    let flag = args
+        .iter()
+        .position(|arg| arg == "--platforms=//:qt_linux_arm64")
+        .unwrap();
+    assert!(flag < args.iter().position(|arg| arg == "--").unwrap());
 }

@@ -23,7 +23,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--agents=<list>] [dir]
+dx init [--apply] [--agents=<list>] [--profile=standard|strict] [dir]
 ```
 
 Starts a new workspace or adopts `dx` into an existing tree. Checks by
@@ -46,6 +46,8 @@ before any file is written.
 
 It writes every path in the [fixed file set](#fixed-file-set). Re-running
 `dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
+
+`--profile=standard|strict` (default `standard`) picks the config profile. For each language found, init writes both profile files to `.dx/config/<tool>/` (owned by dx, rewritten by `dx upgrade`) and a thin root file that extends the chosen one. For Python that is `.dx/config/ruff/{standard,strict}.toml` and a two-line `ruff.toml` with `extend = ".dx/config/ruff/<profile>.toml"`. The profile is recorded nowhere: the root file says which one is in use. The root file is written once. Re-running with another `--profile` leaves it alone and prints one line per file with the change to make.
 
 Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents=<tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
 
@@ -71,7 +73,7 @@ The CI caller pins the
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/`,
 `/.dx/docs/`, `/.dx/results.json`, `/.dx/explain/`, `/.dx/profile/`, `/.dx/fuzz/`, `/.dx/mutate/`, `/.dx/advisory/`, `/.dx/bench/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
-warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
+warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/ide`, `.dx/bazelrc`, `.dx/docs`, `.dx/explain`, `.dx/profile`, `.dx/fuzz`, `.dx/mutate`, `.dx/advisory`, `.dx/bench`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
 to stderr if it does not list `.dx`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they set up

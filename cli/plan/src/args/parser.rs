@@ -318,6 +318,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         release,
         prune_unobserved,
         agents,
+        profile,
         to,
         here,
         affected,
@@ -464,7 +465,10 @@ fn parse_inner<S: AsRef<OsStr>>(
             value: fail_on_name,
         });
     }
-    let mut fail_on = if matches!(fail_on_name.as_str(), "uncovered" | "no-collector" | "unused") {
+    let mut fail_on = if matches!(
+        fail_on_name.as_str(),
+        "uncovered" | "no-collector" | "unused"
+    ) {
         Threshold::Warning
     } else {
         Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
@@ -700,6 +704,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         app_args,
         prune_unobserved,
         agents,
+        profile,
         to,
         here,
         affected,

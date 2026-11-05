@@ -24,6 +24,7 @@ dx_rust_crate(
         "src/preflight.rs",
         "src/preset.rs",
         "src/preset_fragment.rs",
+        "src/profiles.rs",
         "src/scaffold.rs",
         "src/status.rs",
         "src/upgrade.rs",
@@ -32,6 +33,8 @@ dx_rust_crate(
     ],
     # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
     compile_data = [
+        "templates/config/ruff/standard.toml",
+        "templates/config/ruff/strict.toml",
         "//.github:workflows/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//modules:consumer_graph.json",

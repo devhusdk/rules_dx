@@ -61,6 +61,17 @@ pub(super) fn plan(
     fresh: bool,
     agents: &[Agent],
 ) -> Result<Vec<InitFile>, AdoptError> {
+    plan_with_profile(root, module, fresh, agents, None)
+}
+
+/// `plan` with the config profile the root files pick; without one they keep their current pick.
+pub(super) fn plan_with_profile(
+    root: &Path,
+    module: &str,
+    fresh: bool,
+    agents: &[Agent],
+    profile: Option<dx_adopt::Profile>,
+) -> Result<Vec<InitFile>, AdoptError> {
     let selected: Vec<&str> = agents
         .iter()
         .flat_map(|agent| agent_paths(*agent).iter().copied())
@@ -71,7 +82,7 @@ pub(super) fn plan(
     } else {
         Vec::new()
     };
-    scaffold.extend(dx_adopt::plan_init_files_at(root, module)?);
+    scaffold.extend(dx_adopt::plan_init_files_at(root, module, profile)?);
     let mut entries: Vec<(String, String, Kind)> = scaffold
         .into_iter()
         .map(|file| (file.path, file.content, Kind::Scaffold(file.kind)))

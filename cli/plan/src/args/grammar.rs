@@ -15,6 +15,13 @@ pub enum Agent {
     Copilot,
 }
 
+/// A config profile `dx init --profile` picks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum ProfileArg {
+    Standard,
+    Strict,
+}
+
 impl Agent {
     /// Every agent.
     pub const ALL: [Self; 4] = [Self::Claude, Self::Codex, Self::Gemini, Self::Copilot];
@@ -135,6 +142,7 @@ pub(crate) struct Flags {
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
     pub(crate) agents: Vec<Agent>,
+    pub(crate) profile: Option<ProfileArg>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -514,6 +522,14 @@ flag_group! {
     AgentsFlag, {
         #[arg(long, value_enum, value_delimiter = ',', value_name = "LIST", require_equals = true)]
         agents: Vec<Agent>,
+    }
+}
+
+flag_group! {
+    /// Config profile whose root files init writes.
+    ProfileFlag, {
+        #[arg(long, value_enum, overrides_with = "profile", value_name = "PROFILE")]
+        profile: Option<ProfileArg>,
     }
 }
 
@@ -1183,6 +1199,7 @@ command_args! {
         output: OutputFlag,
         apply: ApplyFlag,
         agents: AgentsFlag,
+        profile: ProfileFlag,
     };
     /// The flags `dx upgrade` accepts.
     Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };

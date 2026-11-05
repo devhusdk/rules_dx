@@ -460,6 +460,48 @@ mod tests {
     }
 
     #[test]
+    fn upgrade_rewrites_a_changed_profile_base_and_leaves_the_root_file() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-profile-", OLD);
+        std::fs::write(root.join("main.py"), "").expect("python source");
+        let plan = init_files::plan_with_profile(
+            &root,
+            "refresh",
+            false,
+            &[],
+            Some(dx_adopt::Profile::Strict),
+        )
+        .expect("plan");
+        let mut applied = dx_adopt::Applied::default();
+        init_files::apply(
+            &root,
+            "",
+            &plan,
+            init_files::Mode::Create,
+            &mut applied,
+            &mut Vec::new(),
+        )
+        .expect("init");
+        let base = ".dx/config/ruff/strict.toml";
+        let current = std::fs::read_to_string(root.join(base)).expect("base");
+        let ruff = std::fs::read_to_string(root.join("ruff.toml")).expect("root file");
+        assert!(ruff.contains(&format!("extend = \"{base}\"")), "{ruff}");
+        std::fs::write(root.join(base), "stale\n").expect("stale");
+        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
+        dx_adopt::write_version_pin(&root, OLD).expect("pin");
+        legacy_launcher(&root, OLD);
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(base)).expect("base"),
+            current
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("ruff.toml")).expect("root"),
+            ruff
+        );
+    }
+
+    #[test]
     fn upgrade_refreshes_stale_overrides_layers_hooks_and_claude_md() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-kinds-", OLD);
         let plan =

@@ -23,6 +23,7 @@ pub mod overrides;
 pub mod preflight;
 pub mod preset;
 pub mod preset_fragment;
+pub mod profiles;
 pub mod scaffold;
 pub mod status;
 pub mod upgrade;
@@ -57,6 +58,7 @@ pub use preset::{
     inspect_preset, preflight_preset, preset_drift, preset_files, preset_paths, refresh_preset,
     sync_preset, write_preset, PresetDrift, PresetState,
 };
+pub use profiles::{infer_profile, plan_profile_files, profile_notes, Profile};
 pub use scaffold::{
     bazelignore_covers_dx, owned_file_drift, plan_init_files, plan_init_files_at,
     preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,

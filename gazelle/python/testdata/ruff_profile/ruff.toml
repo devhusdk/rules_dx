@@ -1,0 +1,1 @@
+extend = ".dx/config/ruff/strict.toml"

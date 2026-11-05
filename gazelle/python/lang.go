@@ -48,7 +48,7 @@ func ruffKindInfo() rule.KindInfo {
 	return rule.KindInfo{
 		MatchAttrs:     []string{"src"},
 		NonEmptyAttrs:  map[string]bool{"src": true},
-		MergeableAttrs: map[string]bool{"src": true},
+		MergeableAttrs: map[string]bool{"src": true, "data": true},
 	}
 }
 
@@ -231,7 +231,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	ruff := ruffAt(args.Config)
 	var result language.GenerateResult
 	if ruff != nil && ruff.rel == args.Rel {
-		result.Gen = append(result.Gen, ruffRule(ruff, args.Rel))
+		result.Gen = append(result.Gen, ruffRule(args.Config, ruff, args.Rel))
 		result.Imports = append(result.Imports, common.WrapImportSet(nil))
 	}
 	if len(sources) == 0 {

@@ -3,6 +3,7 @@ package python
 import (
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -47,6 +48,23 @@ func ruffFile(dir string) string {
 	return ""
 }
 
+// ruffProfileFiles lists the profile bases dx init stages under .dx/config/ruff, for the root only.
+func ruffProfileFiles(repoRoot, rel string) []string {
+	if rel != "" {
+		return nil
+	}
+	matches, err := filepath.Glob(filepath.Join(repoRoot, ".dx", "config", "ruff", "*.toml"))
+	if err != nil {
+		return nil
+	}
+	var data []string
+	for _, match := range matches {
+		data = append(data, ".dx/config/ruff/"+filepath.Base(match))
+	}
+	sort.Strings(data)
+	return data
+}
+
 func configureRuff(c *config.Config, rel string, _ *rule.File, _ common.Reporter) {
 	if file := ruffFile(filepath.Join(c.RepoRoot, filepath.FromSlash(rel))); file != "" {
 		c.Exts[ruffExt] = &ruffState{rel: rel, file: file}
@@ -61,9 +79,12 @@ func ruffAt(c *config.Config) *ruffState {
 	return state
 }
 
-func ruffRule(state *ruffState, rel string) *rule.Rule {
+func ruffRule(c *config.Config, state *ruffState, rel string) *rule.Rule {
 	r := rule.NewRule(ruffKind, ruffName)
 	r.SetAttr("src", state.file)
+	if data := ruffProfileFiles(c.RepoRoot, rel); len(data) > 0 {
+		r.SetAttr("data", data)
+	}
 	r.SetAttr("visibility", []string{"//" + rel + ":__subpackages__"})
 	return r
 }

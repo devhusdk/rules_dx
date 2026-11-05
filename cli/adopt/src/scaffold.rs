@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use super::{release_pins, AdoptError, DX_VERSION};
+use super::{plan_profile_files, release_pins, AdoptError, Profile, DX_VERSION};
 
 /// How a scaffold file is treated when it already exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -56,8 +56,19 @@ pub const RUST_DISCOVER_LABEL: &str =
 /// Public rules_rust target that runs the rust-analyzer check.
 pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck";
 
-/// Content `dx init` writes to a new `.bazelignore`.
-pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
+/// Content `dx init` writes to a new `.bazelignore`: each `.dx` scratch directory, but not
+/// `.dx/config`, which holds the profile bases Bazel stages.
+pub const BAZELIGNORE_CONTENT: &str = concat!(
+    ".dx/ide\n",
+    ".dx/bazelrc\n",
+    ".dx/docs\n",
+    ".dx/explain\n",
+    ".dx/profile\n",
+    ".dx/fuzz\n",
+    ".dx/mutate\n",
+    ".dx/advisory\n",
+    ".dx/bench\n",
+);
 
 /// Content `dx init` writes to a new `.editorconfig`.
 const EDITORCONFIG_CONTENT: &str = concat!(
@@ -325,11 +336,12 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
             let wanted = dx_merge::jsonc::parse(generated)?;
             let mut text = existing.to_owned();
             for id in wanted["recommendations"].as_array().into_iter().flatten() {
-                let skipped = unwanted
-                    .iter()
-                    .any(|other| other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase));
+                let skipped = unwanted.iter().any(|other| {
+                    other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase)
+                });
                 if !skipped {
-                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
+                    text =
+                        dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
                 }
             }
             Ok(text)
@@ -362,7 +374,11 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
 
 /// Plans the init files for `root`, with the repo's default branch in the caller workflow and
 /// editor recommendations for the languages in the tree.
-pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+pub fn plan_init_files_at(
+    root: &Path,
+    module_name: &str,
+    profile: Option<Profile>,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let (branch, extensions) = if root.is_dir() {
         (
             detect_default_branch(root),
@@ -372,12 +388,13 @@ pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<Scaffold
         (DEFAULT_BRANCH_FALLBACK.to_owned(), BTreeSet::new())
     };
     let mut files = plan_init_files_full(module_name, &branch, &extensions)?;
-    if root.is_dir() && needs_empty_ruff_config(root) {
-        files.push(ScaffoldFile {
-            path: "ruff.toml".to_owned(),
-            content: String::new(),
-            kind: FileKind::WriteOnce,
-        });
+    if root.is_dir() {
+        let wants_ruff_file = needs_empty_ruff_config(root);
+        files.extend(
+            plan_profile_files(root, &extensions, profile)
+                .into_iter()
+                .filter(|file| file.kind == FileKind::Generated || wants_ruff_file),
+        );
     }
     Ok(files)
 }
@@ -688,7 +705,7 @@ mod tests {
     ) -> Result<(), super::AdoptError> {
         super::apply_scaffold(
             root,
-            &super::plan_init_files_at(root, module_name)?,
+            &super::plan_init_files_at(root, module_name, None)?,
             applied,
         )
     }
@@ -889,7 +906,7 @@ mod tests {
             std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
             std::fs::write(dest, text).expect("file");
         }
-        let plan = super::plan_init_files_at(&root, "demo").expect("init plans");
+        let plan = super::plan_init_files_at(&root, "demo", None).expect("init plans");
         let extensions = plan
             .iter()
             .find(|f| f.path == ".vscode/extensions.json")
@@ -1364,6 +1381,18 @@ mod tests {
             assert_eq!(super::bazelignore_covers_dx(text), covered, "{text:?}");
         }
         assert!(super::bazelignore_covers_dx(super::BAZELIGNORE_CONTENT));
+        let listed: Vec<&str> = super::BAZELIGNORE_CONTENT.lines().collect();
+        for line in crate::build_output::IGNORE_LINES {
+            if let Some(dir) = line
+                .strip_prefix("/.dx/")
+                .and_then(|rest| rest.strip_suffix('/'))
+            {
+                assert!(listed.contains(&format!(".dx/{dir}").as_str()), "{dir}");
+            }
+        }
+        assert!(!listed
+            .iter()
+            .any(|line| line.starts_with(".dx/config") || *line == ".dx/pins"));
     }
 
     #[test]
@@ -1473,7 +1502,7 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         std::fs::write(root.join("a.rs"), "").expect("rs");
         let mine = "{\n  // mine\n  \"recommendations\": [\"me.mine\", \"ms-python.python\"],\n  \"unwantedRecommendations\": [\"rust-lang.rust-analyzer\"]\n}\n";
         std::fs::write(root.join(".vscode/extensions.json"), mine).expect("write");
-        let files = super::plan_init_files_at(root, "refresh").expect("plan");
+        let files = super::plan_init_files_at(root, "refresh", None).expect("plan");
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         let text = std::fs::read_to_string(root.join(".vscode/extensions.json")).expect("read");
@@ -1481,7 +1510,12 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let ids = dx_merge::jsonc::parse(&text).expect("json")["recommendations"].clone();
         assert_eq!(
             ids,
-            serde_json::json!(["me.mine", "ms-python.python", "bazelbuild.vscode-bazel", "golang.go"])
+            serde_json::json!([
+                "me.mine",
+                "ms-python.python",
+                "bazelbuild.vscode-bazel",
+                "golang.go"
+            ])
         );
         scratch.close().expect("cleanup");
     }

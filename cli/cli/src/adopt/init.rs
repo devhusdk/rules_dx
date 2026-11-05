@@ -6,7 +6,7 @@ use dx_output::{
     command_finished, command_started, init_plan_event, notice_event, FinishedCounts, NoticeEvent,
     OutputMode, PlanFindingEvent,
 };
-use dx_plan::args::{Agent, Invocation};
+use dx_plan::args::{Agent, Invocation, ProfileArg};
 
 use super::{operational, summaries_suppressed};
 
@@ -39,6 +39,7 @@ struct Target {
     /// The entry that makes the directory an existing tree; `None` when it is fresh.
     blocker: Option<String>,
     agents: Vec<Agent>,
+    profile: Option<dx_adopt::Profile>,
 }
 
 impl Target {
@@ -74,16 +75,21 @@ impl Target {
             module,
             blocker,
             agents: invocation.agents.clone(),
+            profile: invocation.profile.map(|profile| match profile {
+                ProfileArg::Standard => dx_adopt::Profile::Standard,
+                ProfileArg::Strict => dx_adopt::Profile::Strict,
+            }),
         })
     }
 
     /// The files this run plans, relative to `root`.
     fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
-        super::init_files::plan(
+        super::init_files::plan_with_profile(
             &self.root,
             &self.module,
             self.blocker.is_none(),
             &self.agents,
+            self.profile,
         )
     }
 
@@ -95,6 +101,9 @@ impl Target {
             command.push_str(&self.dir);
         }
         command.push_str(" --apply");
+        if let Some(profile) = self.profile {
+            command.push_str(&format!(" --profile={}", profile.name()));
+        }
         if !self.agents.is_empty() {
             let names: Vec<&str> = self.agents.iter().map(|agent| agent.name()).collect();
             command.push_str(&format!(" --agents={}", names.join(",")));
@@ -137,6 +146,13 @@ pub(crate) fn execute_init(
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut notes = Vec::new();
+    if let Some(profile) = target.profile {
+        notes.extend(
+            dx_adopt::profile_notes(root, profile)
+                .into_iter()
+                .map(|note| format!("{}{note}", target.prefix)),
+        );
+    }
     if let Some(blocker) = &target.blocker {
         if !root.join("MODULE.bazel").exists() {
             notes.push(format!(

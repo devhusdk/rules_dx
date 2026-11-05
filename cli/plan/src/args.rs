@@ -120,11 +120,11 @@ pub use command::{Command, WorkflowVerb};
 pub use completion::{
     registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
 };
-pub use grammar::{cli_command, man_page, Agent};
+pub use grammar::{cli_command, man_page, Agent, ProfileArg};
 pub use invocation::{
-    apply_here, bare_scope_note, here_scope, AffectedHandoff, CommonOptions, GenerateRequest, HintScope, Invocation,
-    OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest,
-    AGENT_QUIET_FLAGS,
+    apply_here, bare_scope_note, here_scope, AffectedHandoff, CommonOptions, GenerateRequest,
+    HintScope, Invocation, OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin,
+    UmbrellaRequest, AGENT_QUIET_FLAGS,
 };
 pub use parser::{
     ci_ignores_env, early_output_flag, is_discovery_exempt, json_output_intent, parse, parse_with,

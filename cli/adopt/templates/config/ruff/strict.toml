@@ -1,0 +1,6 @@
+extend = "standard.toml"
+
+[lint]
+extend-select = ["ALL"]
+ignore = ["D", "ANN", "COM", "FIX", "TD", "ERA", "CPY", "ISC001"]
+preview = false

@@ -262,6 +262,8 @@ pub struct Invocation {
     pub prune_unobserved: bool,
     /// `dx init --agents`: agent tools whose files init adds, without repeats.
     pub agents: Vec<crate::args::Agent>,
+    /// `dx init --profile`: the config profile the root files pick.
+    pub profile: Option<crate::args::ProfileArg>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
@@ -695,6 +697,7 @@ mod tests {
             app_args: Vec::new(),
             prune_unobserved: false,
             agents: Vec::new(),
+            profile: None,
             to: None,
             here: true,
             affected: false,

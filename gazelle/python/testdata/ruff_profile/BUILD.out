@@ -1,0 +1,11 @@
+load("@rules_dx//quality:native_config.bzl", "ruff_config")
+
+ruff_config(
+    name = "ruff_config",
+    src = "ruff.toml",
+    data = [
+        ".dx/config/ruff/standard.toml",
+        ".dx/config/ruff/strict.toml",
+    ],
+    visibility = ["//:__subpackages__"],
+)

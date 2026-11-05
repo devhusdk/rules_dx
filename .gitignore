@@ -12,7 +12,7 @@ AGENTS.local.md
 .claude/
 
 # dx managed state.
-.dx/
+/.dx/
 
 # dx local-only preferences.
 

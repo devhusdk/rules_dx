@@ -1,13 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-ipa=""
-for f in $1; do
-  case "$f" in
-  *.ipa) ipa="$f" ;;
-  esac
-done
-[ -n "$ipa" ] || { echo "no .ipa in: $1" >&2; exit 1; }
+ipa="$1"
+if [ -d "$ipa" ]; then
+  ipa="$(find "$ipa" -name '*.ipa' | head -n 1)"
+fi
+[ -f "$ipa" ] || { echo "no .ipa in: $1" >&2; ls -laR "$1" >&2 || true; exit 1; }
 
 dir="$(mktemp -d)"
 trap 'rm -rf "$dir"' EXIT

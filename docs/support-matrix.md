@@ -63,10 +63,12 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
 
-| Compiler | Not supported on |
-| --- | --- |
-| GCC 16.2.0 (`gcc`) | `linux_arm64`: not tested yet; `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
-| LLVM (`llvm`, default) | none |
+| Compiler | Driver | Coverage | Not supported on |
+| --- | --- | --- | --- |
+| GCC 16.2.0 (`gcc`) | gnu | gcov | `linux_arm64`: not tested yet; `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
+| LLVM (`llvm`, default) | gnu | llvm | none |
+
+Pending `msvc`: Not qualified until the clean Windows x64 run in #5954; row tracked in #6093
 
 ## Quality
 

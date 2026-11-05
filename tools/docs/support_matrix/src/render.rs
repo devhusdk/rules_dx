@@ -21,6 +21,38 @@ fn rows_in<'a>(facts: &'a Facts, section: &str) -> Vec<&'a Row> {
         .collect()
 }
 
+fn unsupported_cell(
+    facts: &Facts,
+    platforms: &BTreeMap<String, RowPlatforms>,
+    row: &Row,
+) -> String {
+    let tested = platforms.get(&row.name).cloned().unwrap_or_default();
+    let declared = facts.platform_not_applicable.get(&row.name);
+    // Group the unsupported platforms by reason, in platform order.
+    let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+    for platform in &facts.platforms {
+        let reason = match declared.and_then(|d| d.get(&platform.id)) {
+            Some(reason) => reason.clone(),
+            None if tested.build.contains(&platform.id) => continue,
+            None => "not tested yet".to_owned(),
+        };
+        let id = format!("`{}`", platform.id);
+        match groups.iter_mut().find(|(r, _)| *r == reason) {
+            Some((_, ids)) => ids.push(id),
+            None => groups.push((reason, vec![id])),
+        }
+    }
+    if groups.is_empty() {
+        "none".to_owned()
+    } else {
+        groups
+            .iter()
+            .map(|(reason, ids)| format!("{}: {reason}", ids.join(", ")))
+            .collect::<Vec<_>>()
+            .join("; ")
+    }
+}
+
 fn build_table(
     facts: &Facts,
     platforms: &BTreeMap<String, RowPlatforms>,
@@ -30,35 +62,37 @@ fn build_table(
     let rows: Vec<Vec<String>> = rows_in(facts, section)
         .into_iter()
         .map(|row| {
-            let tested = platforms.get(&row.name).cloned().unwrap_or_default();
-            let declared = facts.platform_not_applicable.get(&row.name);
-            // Group the unsupported platforms by reason, in platform order.
-            let mut groups: Vec<(String, Vec<String>)> = Vec::new();
-            for platform in &facts.platforms {
-                let reason = match declared.and_then(|d| d.get(&platform.id)) {
-                    Some(reason) => reason.clone(),
-                    None if tested.build.contains(&platform.id) => continue,
-                    None => "not tested yet".to_owned(),
-                };
-                let id = format!("`{}`", platform.id);
-                match groups.iter_mut().find(|(r, _)| *r == reason) {
-                    Some((_, ids)) => ids.push(id),
-                    None => groups.push((reason, vec![id])),
-                }
-            }
-            let cell = if groups.is_empty() {
-                "none".to_owned()
-            } else {
-                groups
-                    .iter()
-                    .map(|(reason, ids)| format!("{}: {reason}", ids.join(", ")))
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            };
+            let cell = unsupported_cell(facts, platforms, row);
             vec![row.title.clone(), cell]
         })
         .collect();
     table(&[heading, "Not supported on"], &rows)
+}
+
+fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
+    let rows: Vec<Vec<String>> = rows_in(facts, "compilers")
+        .into_iter()
+        .map(|row| {
+            let field = |key: &str| match row.identity.get(key).map(String::as_str) {
+                Some("") | None => "no".to_owned(),
+                Some(value) => value.to_owned(),
+            };
+            vec![
+                row.title.clone(),
+                field("driver"),
+                field("coverage"),
+                unsupported_cell(facts, platforms, row),
+            ]
+        })
+        .collect();
+    let mut out = table(
+        &["Compiler", "Driver", "Coverage", "Not supported on"],
+        &rows,
+    );
+    for (compiler, reason) in &facts.pending_compilers {
+        out.push_str(&format!("\nPending `{compiler}`: {reason}\n"));
+    }
+    out
 }
 
 /// Returns the quality tools of `capability` across `families`, sorted and unique.
@@ -188,7 +222,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
     out.push_str("\n## Compilers\n\n");
     out.push_str("Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.\n\n");
-    out.push_str(&build_table(facts, platforms, "compilers", "Compiler"));
+    out.push_str(&compiler_table(facts, platforms));
     out.push_str("\n## Quality\n\n");
     out.push_str(
         "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. \
@@ -233,6 +267,7 @@ mod tests {
         {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
          "ci_tests": [], "consumer_tests": [], "workflows": []},
         {"name": "cc_llvm", "title": "LLVM", "section": "compilers", "families": [],
+         "identity": {"driver": "gnu", "coverage": ""},
          "ci_tests": [], "consumer_tests": [], "workflows": []},
         {"name": "yaml", "title": "YAML", "section": "formats", "families": ["yaml"],
          "ci_tests": [], "consumer_tests": [], "workflows": []}
@@ -244,6 +279,7 @@ mod tests {
       "deferred_families": [],
       "not_applicable": {"typecheck": {"yaml": "data format"}},
       "not_languages": [],
+      "pending_compilers": {"msvc": "waiting on #5954"},
       "computed_constraints": {}
     }"#;
 
@@ -292,7 +328,12 @@ mod tests {
         let page = render(&facts, &BTreeMap::new());
         let (head, quality) = page.split_once("## Quality").expect("quality");
         assert!(head.contains("## Compilers\n"), "{page}");
-        assert!(head.contains("| LLVM |"), "{page}");
+        assert!(
+            head.contains("| Compiler | Driver | Coverage | Not supported on |"),
+            "{page}"
+        );
+        assert!(head.contains("| LLVM | gnu | no |"), "{page}");
+        assert!(head.contains("Pending `msvc`: waiting on #5954"), "{page}");
         assert!(!quality.contains("LLVM"), "{page}");
     }
 }

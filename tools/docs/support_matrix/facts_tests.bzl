@@ -112,6 +112,12 @@ def support_matrix_facts_tests(name):
                 [row["name"] for row in facts["rows"] if row["section"] == "compilers"],
                 ["cc_gcc", "cc_llvm"],
             ),
+            expect_equal(
+                "compiler identity",
+                {row["name"]: row["identity"] for row in facts["rows"] if row["section"] == "compilers"},
+                {"cc_gcc": {"coverage": "gcov", "driver": "gnu"}, "cc_llvm": {"coverage": "llvm", "driver": "gnu"}},
+            ),
+            expect_equal("pending compilers", sorted(facts["pending_compilers"].keys()), ["msvc"]),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],
     )

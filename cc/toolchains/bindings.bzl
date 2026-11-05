@@ -13,6 +13,12 @@ def cc_toolchain_toolchains():
     """Toolchain types a probe rule must declare for cc_toolchain_info."""
     return [CC_TOOLCHAIN_TYPE]
 
+CC_COMPILERS = {
+    "gcc": "gcc",
+    "llvm": "clang",
+    "msvc": "msvc-cl",
+}
+
 _FAMILY = {
     "clang": "clang",
     "clang-cl": "clang-cl",

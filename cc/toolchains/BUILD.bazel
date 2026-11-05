@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//cc/rules:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":bindings.bzl", "CC_COMPILERS")
 load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":identity_tests.bzl", "cc_toolchain_identity_tests")
@@ -23,11 +24,7 @@ cc_toolchain_identity_tests(name = "identity")
 string_flag(
     name = "compiler",
     build_setting_default = "llvm",
-    values = [
-        "llvm",
-        "gcc",
-        "msvc",
-    ],
+    values = sorted(CC_COMPILERS.keys()),
     visibility = ["//visibility:public"],
 )
 

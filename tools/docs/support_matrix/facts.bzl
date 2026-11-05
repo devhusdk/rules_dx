@@ -1,13 +1,14 @@
 """Writes the support matrix facts JSON from the language list and the quality registry."""
 
+load("//cc/toolchains:bindings.bzl", "CC_COMPILERS", "cc_compiler_identity")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPUTED_CONSTRAINTS", "DOC_TOOLS", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
+load(":languages.bzl", "COMPUTED_CONSTRAINTS", "DOC_TOOLS", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
-_ROW_KEYS = ["ci_tests", "consumer_tests", "families", "name", "section", "title", "workflows"]
+_ROW_KEYS = ["ci_tests", "compiler", "consumer_tests", "families", "name", "section", "title", "workflows"]
 
 _BUILD_KEYS = ["ci_tests", "consumer_tests", "workflows"]
 
@@ -32,6 +33,12 @@ def _quality():
         for family, tools in families.items()
     }
 
+def _identity(row):
+    if "compiler" not in row:
+        return {}
+    identity = cc_compiler_identity(CC_COMPILERS[row["compiler"]], "")
+    return {"coverage": identity.coverage, "driver": identity.driver}
+
 def tool_not_applicable(records):
     """Merges the unsupported platforms of the records into one reason table per tool."""
     merged = {}
@@ -46,6 +53,7 @@ def support_matrix_facts_dict():
     """Returns the validated facts as a dict."""
     quality = _quality()
     names = {}
+    compiler_rows = {}
     for row in ROWS:
         for key in row:
             if key not in _ROW_KEYS:
@@ -68,6 +76,21 @@ def support_matrix_facts_dict():
             for key in ["families", "workflows"]:
                 if row.get(key, []):
                     fail("support matrix: compiler row " + row["name"] + " sets " + key)
+            if row.get("compiler") not in CC_COMPILERS:
+                fail("support matrix: compiler row " + row["name"] + " needs a compiler from CC_COMPILERS")
+            compiler_rows.setdefault(row["compiler"], []).append(row["name"])
+        elif "compiler" in row:
+            fail("support matrix: row " + row["name"] + " sets compiler outside the compilers section")
+    for compiler in CC_COMPILERS:
+        rows = compiler_rows.get(compiler, [])
+        pending = PENDING_COMPILERS.get(compiler, "")
+        if rows and pending:
+            fail("support matrix: compiler " + compiler + " has a row and is pending")
+        if len(rows) > 1 or (not rows and not pending):
+            fail("support matrix: compiler " + compiler + " needs exactly one row or a pending reason")
+    for compiler in PENDING_COMPILERS:
+        if compiler not in CC_COMPILERS:
+            fail("support matrix: PENDING_COMPILERS names unknown compiler " + compiler)
     row_names = {row["name"]: True for row in ROWS}
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
     tool_na = tool_not_applicable(SUPPORT_RECORDS)
@@ -94,6 +117,7 @@ def support_matrix_facts_dict():
         "deferred_families": sorted(deferred.keys()),
         "not_applicable": NOT_APPLICABLE,
         "not_languages": sorted(NOT_LANGUAGES),
+        "pending_compilers": PENDING_COMPILERS,
         "platform_not_applicable": PLATFORM_NOT_APPLICABLE,
         "platforms": PLATFORMS,
         "quality": quality,
@@ -103,6 +127,7 @@ def support_matrix_facts_dict():
                 "consumer_tests": row.get("consumer_tests", []),
                 "doc": _doc(row["name"]),
                 "families": row.get("families", [row["name"]]),
+                "identity": _identity(row),
                 "name": row["name"],
                 "section": row["section"],
                 "title": row["title"],

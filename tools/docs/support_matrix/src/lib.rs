@@ -35,6 +35,8 @@ pub struct Row {
     /// The API doc tool; empty when the language has none, absent when docs do not apply.
     #[serde(default)]
     pub doc: Option<String>,
+    #[serde(default)]
+    pub identity: BTreeMap<String, String>,
     pub ci_tests: Vec<String>,
     pub consumer_tests: Vec<String>,
     pub workflows: Vec<String>,
@@ -58,6 +60,8 @@ pub struct Facts {
     pub quality: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub support: Vec<Support>,
     pub deferred_families: Vec<String>,
+    #[serde(default)]
+    pub pending_compilers: BTreeMap<String, String>,
     /// Capability, then family, then the reason the capability never applies.
     #[serde(default)]
     pub not_applicable: BTreeMap<String, BTreeMap<String, String>>,

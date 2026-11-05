@@ -114,6 +114,7 @@ ROWS = [
             "//cc/toolchains:gcc_ubsan_test",
         ],
         "consumer_tests": ["//tools/testing/hermetic:c_fixture_gcc", "//tools/testing/hermetic:cpp_fixture_gcc"],
+        "compiler": "gcc",
         "families": [],
         "name": "cc_gcc",
         "section": "compilers",
@@ -121,6 +122,7 @@ ROWS = [
     },
     {
         "ci_tests": _hello("cc"),
+        "compiler": "llvm",
         "families": [],
         "name": "cc_llvm",
         "section": "compilers",
@@ -305,6 +307,10 @@ NOT_LANGUAGES = [
     "third_party",
     "tools",
 ]
+
+PENDING_COMPILERS = {
+    "msvc": "Not qualified until the clean Windows x64 run in #5954; row tracked in #6093",
+}
 
 # A platform a row does not support, with the reason.
 PLATFORM_NOT_APPLICABLE = {

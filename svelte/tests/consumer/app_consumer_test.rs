@@ -99,13 +99,13 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
     );
     nested::stage_consumer_maven_lock(&root);
     let build = String::from_utf8_lossy(&read(&resolve_runfiles(
-        "examples/svelte-app/consumer.BUILD.bazel",
+        "svelte/tests/fixtures/svelte-app/consumer.BUILD.bazel",
     )))
     .replace("@rules_dx//", "@acme_rules//");
     write(&root.join("BUILD.bazel"), build.as_bytes());
     let mut own = Vec::new();
     for file in FILES.iter().chain(MORE_FILES.iter()) {
-        let bytes = read(&resolve_runfiles(&format!("examples/svelte-app/{file}")));
+        let bytes = read(&resolve_runfiles(&format!("svelte/tests/fixtures/svelte-app/{file}")));
         write(&root.join(file), &bytes);
         own.push((root.join(file), bytes));
     }

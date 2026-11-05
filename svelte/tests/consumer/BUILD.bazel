@@ -10,7 +10,7 @@ rust_test(
         "app_consumer_test.rs",
         "//:MODULE.bazel.lock",
         "//cli/cli:dx",
-        "//examples/svelte-app:consumer_srcs",
+        "//svelte/tests/fixtures/svelte-app:consumer_srcs",
     ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",

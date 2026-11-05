@@ -1,4 +1,4 @@
-# Svelte app example
+# Svelte app fixture
 
 A standalone Svelte 5 app with its own `package.json`, `pnpm-lock.yaml` and `tsconfig.json`. It is built for a consumer module that depends on `rules_dx` under another repository name.
 

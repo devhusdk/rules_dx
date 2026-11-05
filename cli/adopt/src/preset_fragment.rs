@@ -1,8 +1,9 @@
 pub use dx_preset::{
     bazelrc_imports, collision_lines, import_line, is_generated, layer_import_state,
-    layer_is_current, owned_collisions_in_content, prepend_imports, preset_paths, render_all,
-    render_layer, rendered_flag_lines, ImportState, Layer, CONSUMER_DIR, HEADER_MARKER,
-    PRESET_BAZEL_VERSION, REPO_DIR,
+    layer_is_current, layer_is_current_with, layer_warnings_as_errors, owned_collisions_in_content,
+    prepend_imports, preset_paths, render_all, render_layer, render_layer_with,
+    rendered_flag_lines, ImportState, Layer, CONSUMER_DIR, HEADER_MARKER, PRESET_BAZEL_VERSION,
+    REPO_DIR,
 };
 
 #[cfg(test)]

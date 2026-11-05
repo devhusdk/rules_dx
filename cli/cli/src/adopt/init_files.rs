@@ -103,7 +103,7 @@ pub(super) fn plan_with_profile(
             .map(|(path, content)| (path, content, Kind::Override)),
     );
     entries.extend(
-        dx_adopt::preset_files(root)
+        dx_adopt::preset_files(root, profile)
             .into_iter()
             .map(|(path, content)| (path, content, Kind::Preset)),
     );
@@ -288,7 +288,11 @@ pub(super) fn apply(
     if has(|kind| *kind == Kind::Preset) {
         let mut preset = Applied::default();
         let mut preset_notes = Vec::new();
-        let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes);
+        let profile = files
+            .iter()
+            .find(|file| file.kind == Kind::Preset && file.path.ends_with("correctness.bazelrc"))
+            .map(|file| dx_adopt::layer_profile(&file.content));
+        let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes, profile);
         applied.wrote.extend(prefixed(preset.wrote));
         notes.extend(
             preset_notes

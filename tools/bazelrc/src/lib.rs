@@ -260,6 +260,19 @@ pub const DEFAULT_REPO: &str = "rules_dx";
 /// Renders one layer file for a workspace that names rules_dx `repo`.
 /// Labels follow `repo`; the bytes are otherwise the same everywhere.
 pub fn render_layer(layer: Layer, repo: &str) -> String {
+    render_layer_with(layer, repo, None)
+}
+
+/// The flag that sets `warnings_as_errors` for a workspace that names rules_dx `repo`.
+fn warnings_flag(repo: &str, on: bool) -> String {
+    format!("common --@{repo}//config:warnings_as_errors={on}")
+}
+
+/// The comment above the `warnings_as_errors` line.
+const WARNINGS_COMMENT: &str = "Compiler warnings fail the build under the strict profile.";
+
+/// Like [`render_layer`]; the correctness layer also pins `warnings_as_errors` when it is `Some`.
+pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bool>) -> String {
     let mut out = format!(
         "{HEADER_MARKER}, do not edit.\n\
          # Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.\n\
@@ -275,7 +288,22 @@ pub fn render_layer(layer: Layer, repo: &str) -> String {
         out.push_str(&flag.replacen("@rules_dx//", &format!("@{repo}//"), 1));
         out.push('\n');
     }
+    if let (Layer::Correctness, Some(on)) = (layer, warnings_as_errors) {
+        out.push_str(&format!(
+            "\n# {WARNINGS_COMMENT}\n{}\n",
+            warnings_flag(repo, on)
+        ));
+    }
     out
+}
+
+/// The `warnings_as_errors` value a rendered correctness layer pins, if any.
+pub fn layer_warnings_as_errors(text: &str) -> Option<bool> {
+    normalized(text).lines().find_map(|line| {
+        let (flag, value) = line.split_once("config:warnings_as_errors=")?;
+        flag.starts_with("common --@").then_some(())?;
+        value.trim().parse().ok()
+    })
 }
 
 /// Renders every layer in import order, for collision checks over the whole preset.
@@ -325,8 +353,21 @@ pub fn is_generated(text: &str) -> bool {
 }
 
 /// Whether `text` is what dx renders for `layer`, ignoring a BOM and CRLF line endings.
+/// A correctness layer that pins `warnings_as_errors` either way counts as current.
 pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
-    normalized(text) == render_layer(layer, repo)
+    [None, Some(false), Some(true)]
+        .into_iter()
+        .any(|pin| layer_is_current_with(text, layer, repo, pin))
+}
+
+/// Whether `text` is what dx renders for `layer` with the given `warnings_as_errors` pin.
+pub fn layer_is_current_with(
+    text: &str,
+    layer: Layer,
+    repo: &str,
+    warnings_as_errors: Option<bool>,
+) -> bool {
+    normalized(text) == render_layer_with(layer, repo, warnings_as_errors)
 }
 
 /// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.
@@ -638,6 +679,34 @@ pub fn update_preset(workspace: &Path) -> Result<(), PresetError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn warnings_pin_is_rendered_read_back_and_absent_by_default() {
+        let plain = render_layer(Layer::Correctness, "my_dx");
+        assert_eq!(layer_warnings_as_errors(&plain), None);
+        for on in [true, false] {
+            let text = render_layer_with(Layer::Correctness, "my_dx", Some(on));
+            assert!(text.contains(&format!(
+                "common --@my_dx//config:warnings_as_errors={on}\n"
+            )));
+            assert_eq!(layer_warnings_as_errors(&text), Some(on));
+            assert!(layer_is_current_with(
+                &text,
+                Layer::Correctness,
+                "my_dx",
+                Some(on)
+            ));
+            assert!(!layer_is_current_with(
+                &text,
+                Layer::Correctness,
+                "my_dx",
+                Some(!on)
+            ));
+            assert!(layer_is_current(&text, Layer::Correctness, "my_dx"));
+        }
+        let perf = render_layer_with(Layer::Performance, DEFAULT_REPO, Some(true));
+        assert_eq!(perf, render_layer(Layer::Performance, DEFAULT_REPO));
+    }
 
     fn flag_sequence(rendered: &str) -> Vec<&str> {
         rendered
@@ -953,7 +1022,7 @@ mod tests {
 
     #[test]
     fn telemetry_opt_out_is_not_a_collision() {
-        let rendered = render_all();
+        let rendered = render_all(DEFAULT_REPO);
         let root = "common --repo_env=DO_NOT_TRACK=1\n";
         assert!(owned_collisions_in_content(root, &rendered).is_empty());
     }

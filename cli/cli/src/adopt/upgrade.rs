@@ -519,12 +519,12 @@ mod tests {
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
         legacy_launcher(&root, OLD);
-        let layer = dx_adopt::preset_files(&root)[2].0.clone();
+        let layer = dx_adopt::preset_files(&root, None)[2].0.clone();
         let stale = [
             ("third_party/rules_dx/BUILD.bazel", "stale\n".to_owned()),
             (
                 layer.as_str(),
-                format!("{}old\n", dx_adopt::preset_files(&root)[2].1),
+                format!("{}old\n", dx_adopt::preset_files(&root, None)[2].1),
             ),
             (dx_worktree::setup::HOOK_FILES[0].path, "{}".to_owned()),
             ("CLAUDE.md", "# Mine\n".to_owned()),
@@ -635,7 +635,7 @@ mod tests {
             "CLAUDE.md".to_owned(),
             dx_worktree::setup::HOOK_FILES[0].path.to_owned(),
             dx_adopt::render_overrides(&Default::default()).remove(0).0,
-            dx_adopt::preset_files(&root)[3].0.clone(),
+            dx_adopt::preset_files(&root, None)[3].0.clone(),
         ];
         for path in &gone {
             std::fs::remove_file(root.join(path)).expect("remove");

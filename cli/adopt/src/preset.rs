@@ -7,10 +7,11 @@ use std::path::{Path, PathBuf};
 use crate::build_output::IGNORE_LINES;
 use crate::error::AdoptError;
 use crate::preset_fragment::{
-    bazelrc_imports, is_generated, layer_import_state, layer_is_current,
-    owned_collisions_in_content, prepend_imports, render_all, render_layer, ImportState, Layer,
-    CONSUMER_DIR, REPO_DIR,
+    bazelrc_imports, is_generated, layer_import_state, layer_is_current_with,
+    layer_warnings_as_errors, owned_collisions_in_content, prepend_imports, render_all,
+    render_layer_with, ImportState, Layer, CONSUMER_DIR, REPO_DIR,
 };
+use crate::profiles::Profile;
 use crate::scaffold::{scaffold_dest_within_root, Applied};
 
 /// The root `.bazelrc` file.
@@ -162,8 +163,34 @@ pub fn preset_paths() -> Vec<String> {
     paths
 }
 
+/// The profile a correctness layer pins; `Standard` when it has no line.
+pub fn layer_profile(text: &str) -> Profile {
+    match layer_warnings_as_errors(text) {
+        Some(true) => Profile::Strict,
+        _ => Profile::Standard,
+    }
+}
+
+/// The profile the correctness layer of `root` records.
+pub fn read_profile(root: &Path) -> Profile {
+    let text = std::fs::read_to_string(root.join(layer_rel(Layer::Correctness)));
+    layer_profile(&text.unwrap_or_default())
+}
+
+/// The `warnings_as_errors` pin for `layer`; only the correctness layer has one.
+fn pin(layer: Layer, profile: Profile) -> Option<bool> {
+    (layer == Layer::Correctness).then_some(profile == Profile::Strict)
+}
+
+fn render(layer: Layer, repo: &str, profile: Profile) -> String {
+    render_layer_with(layer, repo, pin(layer, profile))
+}
+
 /// Every file the preset owns with the content a fresh workspace gets.
-pub fn preset_files(root: &Path) -> Vec<(String, String)> {
+///
+/// Without a profile, the correctness layer keeps the one it records.
+pub fn preset_files(root: &Path, profile: Option<Profile>) -> Vec<(String, String)> {
+    let profile = profile.unwrap_or_else(|| read_profile(root));
     let repo = dx_module_bazel::rules_dx_repo(root);
     let imports: Vec<String> = Layer::ALL
         .iter()
@@ -179,7 +206,7 @@ pub fn preset_files(root: &Path) -> Vec<(String, String)> {
     files.extend(
         Layer::ALL
             .iter()
-            .map(|layer| (layer_rel(*layer), render_layer(*layer, &repo))),
+            .map(|layer| (layer_rel(*layer), render(*layer, &repo, profile))),
     );
     files
 }
@@ -195,7 +222,7 @@ fn read_text(path: &Path, rel: &str) -> Result<Option<String>, AdoptError> {
     }
 }
 
-fn layer_file(root: &Path, layer: Layer, repo: &str) -> LayerFile {
+fn layer_file(root: &Path, layer: Layer, repo: &str, profile: Profile) -> LayerFile {
     let path = root.join(layer_rel(layer));
     let Ok(meta) = std::fs::symlink_metadata(&path) else {
         return LayerFile::Missing;
@@ -204,7 +231,9 @@ fn layer_file(root: &Path, layer: Layer, repo: &str) -> LayerFile {
         return LayerFile::Symlink;
     }
     match std::fs::read_to_string(&path) {
-        Ok(text) if layer_is_current(&text, layer, repo) => LayerFile::Current,
+        Ok(text) if layer_is_current_with(&text, layer, repo, pin(layer, profile)) => {
+            LayerFile::Current
+        }
         Ok(text) if is_generated(&text) => LayerFile::Stale,
         _ => LayerFile::Custom,
     }
@@ -212,6 +241,12 @@ fn layer_file(root: &Path, layer: Layer, repo: &str) -> LayerFile {
 
 /// Reads the preset state of `root` once.
 pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
+    inspect_preset_as(root, None)
+}
+
+/// Like [`inspect_preset`], measuring the correctness layer against `profile` instead of the one it records.
+pub fn inspect_preset_as(root: &Path, profile: Option<Profile>) -> Result<PresetState, AdoptError> {
+    let profile = profile.unwrap_or_else(|| read_profile(root));
     let rc_path = root.join(BAZELRC);
     let rc_symlink = std::fs::symlink_metadata(&rc_path).is_ok_and(|m| m.file_type().is_symlink());
     let text = read_text(&rc_path, BAZELRC)?;
@@ -225,7 +260,7 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     let repo = dx_module_bazel::rules_dx_repo(root);
     let layers = layer_import_state(&rc_text, CONSUMER_DIR)
         .into_iter()
-        .map(|(layer, import)| (layer, import, layer_file(root, layer, &repo)))
+        .map(|(layer, import)| (layer, import, layer_file(root, layer, &repo, profile)))
         .collect();
     Ok(PresetState {
         applicable,
@@ -320,8 +355,10 @@ pub fn write_preset(
     root: &Path,
     applied: &mut Applied,
     notes: &mut Vec<String>,
+    profile: Option<Profile>,
 ) -> Result<(), AdoptError> {
-    let state = inspect_preset(root)?;
+    let profile = profile.unwrap_or_else(|| read_profile(root));
+    let state = inspect_preset_as(root, Some(profile))?;
     if !state.applicable {
         return Ok(());
     }
@@ -333,7 +370,7 @@ pub fn write_preset(
     let repo = dx_module_bazel::rules_dx_repo(root);
     for (layer, _) in state.to_write() {
         let rel = layer_rel(layer);
-        write(root, &rel, &render_layer(layer, &repo))?;
+        write(root, &rel, &render(layer, &repo, profile))?;
         applied.wrote.push(rel);
     }
     if state.will_import() {
@@ -368,6 +405,7 @@ fn sync_layers(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptEr
     if !state.applicable {
         return Ok(Vec::new());
     }
+    let profile = read_profile(root);
     let repo = dx_module_bazel::rules_dx_repo(root);
     let mut wrote = Vec::new();
     for (layer, import, file) in &state.layers {
@@ -378,7 +416,7 @@ fn sync_layers(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptEr
         };
         if *import == ImportState::Active && wanted {
             let rel = layer_rel(*layer);
-            write(root, &rel, &render_layer(*layer, &repo))?;
+            write(root, &rel, &render(*layer, &repo, profile))?;
             wrote.push(rel);
         }
     }
@@ -427,12 +465,12 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
 mod tests {
     #[test]
     fn preset_files_match_preset_paths() {
-        let files: Vec<String> = super::preset_files(Path::new("."))
+        let files: Vec<String> = super::preset_files(Path::new("."), None)
             .into_iter()
             .map(|(path, _)| path)
             .collect();
         assert_eq!(files, super::preset_paths());
-        assert!(super::preset_files(Path::new("."))
+        assert!(super::preset_files(Path::new("."), None)
             .iter()
             .all(|(_, content)| !content.is_empty()));
     }
@@ -441,7 +479,7 @@ mod tests {
 
     fn apply(root: &Path) -> (Vec<String>, Vec<String>) {
         let (mut applied, mut notes) = (Applied::default(), Vec::new());
-        write_preset(root, &mut applied, &mut notes).expect("write");
+        write_preset(root, &mut applied, &mut notes, None).expect("write");
         (applied.wrote, notes)
     }
 
@@ -455,6 +493,47 @@ mod tests {
         assert_eq!(preset_drift(root), PresetDrift::default());
         let (wrote, notes) = apply(root);
         assert!(wrote.is_empty() && notes.is_empty(), "{wrote:?} {notes:?}");
+    }
+
+    fn correctness(root: &Path) -> String {
+        std::fs::read_to_string(root.join(layer_rel(Layer::Correctness))).expect("read")
+    }
+
+    #[test]
+    fn strict_profile_is_written_kept_and_not_drift() {
+        let scratch = dx_test_scratch::scratch("dx-preset-strict-");
+        let root = scratch.path();
+        let (mut applied, mut notes) = (Applied::default(), Vec::new());
+        write_preset(root, &mut applied, &mut notes, Some(Profile::Strict)).expect("write");
+        assert!(correctness(root).contains("config:warnings_as_errors=true"));
+        assert_eq!(read_profile(root), Profile::Strict);
+        assert_eq!(preset_drift(root), PresetDrift::default());
+        assert!(sync_preset(root).expect("sync").is_empty());
+        let (wrote, _) = apply(root);
+        assert!(wrote.is_empty(), "{wrote:?}");
+        assert!(correctness(root).contains("warnings_as_errors=true"));
+    }
+
+    #[test]
+    fn standard_writes_false_and_a_missing_line_reads_as_standard() {
+        let scratch = dx_test_scratch::scratch("dx-preset-standard-");
+        let root = scratch.path();
+        apply(root);
+        let text = correctness(root);
+        assert!(text.contains("config:warnings_as_errors=false"));
+        let old: String = text
+            .lines()
+            .filter(|line| !line.contains("warnings_as_errors") && !line.contains("strict profile"))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        std::fs::write(
+            root.join(layer_rel(Layer::Correctness)),
+            old.trim_end().to_owned() + "\n",
+        )
+        .expect("write");
+        assert_eq!(read_profile(root), Profile::Standard);
+        sync_preset(root).expect("sync");
+        assert_eq!(preset_drift(root), PresetDrift::default());
     }
 
     #[test]

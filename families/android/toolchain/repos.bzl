@@ -44,12 +44,12 @@ def toolchain_repo_errors(local_path, revision, api_level, cxx_runtime):
 _TUPLE_BUILD = """
 filegroup(
     name = "compiler_files_{tuple}",
-    srcs = ["{ndk}:clang", "{ndk}:compiler_files"],
+    srcs = ["{ndk}:clang", "{ndk}:compiler_files", ":native_tools"],
 )
 
 filegroup(
     name = "linker_files_{tuple}",
-    srcs = ["{ndk}:clang", "{ndk}:ld_lld", "{ndk}:linker_files_{triple}"],
+    srcs = ["{ndk}:clang", "{ndk}:ld_lld", "{ndk}:linker_files_{triple}", ":native_tools"],
 )
 
 filegroup(
@@ -105,7 +105,7 @@ filegroup(name = "empty", srcs = [])
 
 filegroup(
     name = "ar_files",
-    srcs = ["{ndk}:llvm_ar"],
+    srcs = ["{ndk}:llvm_ar", ":native_tools"],
 )
 
 filegroup(
@@ -115,7 +115,7 @@ filegroup(
 
 filegroup(
     name = "strip_files",
-    srcs = ["{ndk}:llvm_strip"],
+    srcs = ["{ndk}:llvm_strip", ":native_tools"],
 )
 """
 
@@ -146,6 +146,10 @@ def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "
     ]
     if local_root != "":
         chunks.append(ndk_toolchain_build(local_root))
+    if tool_root != "":
+        chunks.append('filegroup(name = "native_tools", srcs = glob(["' + tool_prebuilt + '/bin/**"]))')
+    else:
+        chunks.append('filegroup(name = "native_tools", srcs = [])')
     for name in ["device", "emulator"]:
         triple = _TUPLE_TRIPLE[name]
         chunks.append(_TUPLE_BUILD.format(
@@ -172,13 +176,14 @@ def _android_ndk_toolchain_repo_impl(ctx):
         if len(failures) > 0:
             fail("; ".join(failures))
         ndk = Label("@" + ndk_repository_name(_QUALIFIED_HOST) + "//:ndk_anchor")
+        ctx.symlink(ctx.path(Label(str(ndk).removesuffix("ndk_anchor") + "BUILD.bazel")).dirname.get_child("extracted"), "ndk")
         ctx.file("BUILD.bazel", toolchain_build(
             str(ndk).removesuffix(":ndk_anchor"),
             ndk.workspace_root + "/extracted",
             api_level,
             ctx.attr.cxx_runtime,
             "",
-            "../" + ndk.repo_name + "/extracted",
+            "ndk",
         ))
         return
     revision = ctx.attr.ndk_revision or ANDROID_NDK_REVISION

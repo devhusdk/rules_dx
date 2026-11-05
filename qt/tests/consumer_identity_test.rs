@@ -12,6 +12,7 @@ fn archives() -> Vec<PathBuf> {
 fn identity_records_the_os_supplied_runtime() {
     let archives = archives();
     assert_eq!(archives.len(), 3, "{archives:?}");
+    let want = std::env::var("DX_QT_RUNTIME_RECORD").expect("DX_QT_RUNTIME_RECORD must be set");
     let scratch = dx_testing::mkscratch("qt-consumer-identity").expect("scratch");
     for (index, archive) in archives.iter().enumerate() {
         let dir = scratch.join(index.to_string());
@@ -21,11 +22,6 @@ fn identity_records_the_os_supplied_runtime() {
             .lines()
             .filter_map(|line| line.strip_prefix("runtime: "))
             .collect();
-        assert_eq!(records.len(), 1, "{}: {identity}", archive.display());
-        assert!(
-            records[0].ends_with(" os_supplied"),
-            "{}: {identity}",
-            archive.display()
-        );
+        assert_eq!(records, [want.as_str()], "{}: {identity}", archive.display());
     }
 }

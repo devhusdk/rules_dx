@@ -491,16 +491,18 @@ platform_transition_filegroup(
         srcs = ["consumer_identity_test.rs"],
         crate_name = "consumer_identity_test_" + cell.replace("-", "_"),
         data = [":consumer_archives_" + cell],
-        env = {"DX_QT_ARCHIVES": "$(rootpaths :consumer_archives_" + cell + ")"},
-        tags = ["manual"],
+        env = {
+            "DX_QT_ARCHIVES": "$(rootpaths :consumer_archives_" + cell + ")",
+            "DX_QT_RUNTIME_RECORD": "os_runtime_" + cell + " " + glibc + " os_supplied",
+        },
         target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + cpu],
         deps = [
             "//deploy/rules:dx_deploy_tools",
             "//tools/testing:dx_testing",
         ],
     )
-    for (cell, cpu) in [
-        ("linux_x86_64", "x86_64"),
-        ("linux_arm64", "arm64"),
+    for (cell, cpu, glibc) in [
+        ("linux_x86_64", "x86_64", "glibc-2.34"),
+        ("linux_arm64", "arm64", "glibc-2.39"),
     ]
 ]

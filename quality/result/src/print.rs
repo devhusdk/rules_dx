@@ -26,6 +26,7 @@ fn capability_name(value: i32) -> &'static str {
         2 => "TYPECHECK",
         3 => "FORMAT",
         4 => "AUDIT",
+        5 => "UNUSED",
         _ => "UNKNOWN",
     }
 }

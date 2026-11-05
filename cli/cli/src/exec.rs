@@ -279,7 +279,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Update => update::execute_update(invocation, env),
         Command::Docs => docs::execute_docs(invocation, env),
-        Command::Lint | Command::Typecheck | Command::Format => {
+        Command::Lint | Command::Typecheck | Command::Format | Command::Unused => {
             quality::execute_quality(invocation, env)
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
@@ -326,7 +326,7 @@ mod tests {
         assert_ne!(code, 141);
     }
 
-    const QUIET_ROWS: [(Command, &[&str]); 12] = [
+    const QUIET_ROWS: [(Command, &[&str]); 13] = [
         (Command::Generate, &["generate"]),
         (Command::Docs, &["docs"]),
         (Command::Env, &["env"]),
@@ -347,6 +347,7 @@ mod tests {
         (Command::Lint, &["lint"]),
         (Command::Typecheck, &["typecheck"]),
         (Command::Format, &["format"]),
+        (Command::Unused, &["unused"]),
         (Command::Check, &["check"]),
     ];
 

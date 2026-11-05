@@ -2,7 +2,7 @@
 
 load(":native_config.bzl", "DxNativeConfigInfo")
 
-CAPABILITIES = ["lint", "typecheck", "format", "audit"]
+CAPABILITIES = ["lint", "typecheck", "format", "audit", "unused"]
 
 FamilyPolicyInfo = provider(
     doc = "Tool-ID selection per capability for one quality policy family.",
@@ -13,6 +13,7 @@ FamilyPolicyInfo = provider(
         "format": "List[str]: selected formatter IDs, in policy order.",
         "lint": "List[str]: selected lint tool IDs, in policy order.",
         "typecheck": "List[str]: selected typecheck tool IDs, in policy order.",
+        "unused": "List[str]: selected cross-file unused-code tool IDs, in policy order.",
     },
 )
 
@@ -63,6 +64,7 @@ def _quality_family_impl(ctx):
         typecheck = selections["typecheck"],
         format = selections["format"],
         audit = selections["audit"],
+        unused = selections["unused"],
         disabled = ctx.attr.disabled,
     )]
 
@@ -89,6 +91,10 @@ quality_family = rule(
         ),
         "typecheck": attr.string_list(
             doc = "Typecheck tool ids selected for this quality family.",
+            default = [],
+        ),
+        "unused": attr.string_list(
+            doc = "Cross-file unused-code tool ids selected for this quality family.",
             default = [],
         ),
     },

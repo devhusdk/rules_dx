@@ -75,6 +75,18 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
         },
+        Command::Unused => CommandSpec {
+            command,
+            aspects: &[
+                "quality:real_aspects.bzl%real_js_unused_aspect",
+                "quality:real_aspects.bzl%real_python_unused_aspect",
+                "quality:real_aspects.bzl%real_ruby_unused_aspect",
+                "quality:real_aspects.bzl%real_erlang_unused_aspect",
+                "quality:real_aspects.bzl%real_elixir_unused_aspect",
+            ],
+            probe: None,
+            reports: &[],
+        },
         Command::Typecheck => CommandSpec {
             command,
             aspects: &[

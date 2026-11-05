@@ -45,7 +45,7 @@ pub fn parse_xref(
             file,
             "unused_export".to_owned(),
             format!("Exported function {function} is not called by any analysed module"),
-            ToolSeverity::Info,
+            ToolSeverity::Warning,
             TextPosition {
                 line: row,
                 column: 1,
@@ -77,7 +77,7 @@ mod tests {
             .collect();
         assert_eq!(seen, vec![("src/a.erl", 3), ("src/a.erl", 7)]);
         assert_eq!(found[1].finding.rule_id, "unused_export");
-        assert_eq!(found[1].finding.severity, ToolSeverity::Info);
+        assert_eq!(found[1].finding.severity, ToolSeverity::Warning);
         assert!(found[1].finding.message.contains("a:old/2"));
     }
 

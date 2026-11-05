@@ -813,3 +813,21 @@ fn lint_online_sets_the_lychee_build_flag() {
     let plain = parse(&strings(&["lint"])).expect("parse");
     assert!(plain.bazel_options.is_empty());
 }
+
+#[test]
+fn unused_defaults_to_never_failing_and_takes_none_only_there() {
+    let got = parse(&strings(&["unused"])).expect("unused parses");
+    assert_eq!(got.command, Command::Unused);
+    assert_eq!(got.fail_on, Threshold::Error);
+    let got = parse(&strings(&["unused", "--fail-on=none"])).expect("none parses");
+    assert_eq!(got.fail_on, Threshold::Error);
+    let got = parse(&strings(&["unused", "--fail-on=warning"])).expect("warning parses");
+    assert_eq!(got.fail_on, Threshold::Warning);
+    assert!(parse(&strings(&["unused", "--fail-on=error"])).is_err());
+    for other in ["lint", "check", "update", "security"] {
+        assert!(
+            parse(&strings(&[other, "--fail-on=none"])).is_err(),
+            "{other} must reject --fail-on=none"
+        );
+    }
+}

@@ -89,9 +89,11 @@
       "aspects": [
         "real_elixir_format_aspect",
         "real_elixir_lint_aspect",
+        "real_elixir_unused_aspect",
         "real_erlang_format_aspect",
         "real_erlang_lint_aspect",
-        "real_erlang_typecheck_aspect"
+        "real_erlang_typecheck_aspect",
+        "real_erlang_unused_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -525,7 +527,8 @@
       "aspects": [
         "real_js_format_aspect",
         "real_js_lint_aspect",
-        "real_js_typecheck_aspect"
+        "real_js_typecheck_aspect",
+        "real_js_unused_aspect"
       ],
       "bazel_deps": [
         "aspect_rules_jest",
@@ -780,7 +783,8 @@
       "aspects": [
         "real_python_format_aspect",
         "real_python_lint_aspect",
-        "real_python_typecheck_aspect"
+        "real_python_typecheck_aspect",
+        "real_python_unused_aspect"
       ],
       "bazel_deps": [
         "hermetic_launcher",
@@ -809,7 +813,8 @@
       "aspects": [
         "real_ruby_format_aspect",
         "real_ruby_lint_aspect",
-        "real_ruby_typecheck_aspect"
+        "real_ruby_typecheck_aspect",
+        "real_ruby_unused_aspect"
       ],
       "bazel_deps": [],
       "dirs": [

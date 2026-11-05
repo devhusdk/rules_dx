@@ -599,7 +599,7 @@ fn vulture_reports_unused_code_across_files_and_is_check_only() {
     let mut files = single("a.py", "def unused_fn():\n    pass\n");
     files.insert("b.py".to_owned(), "\n".to_owned());
     let findings = backend
-        .diagnose("vulture", "lint", &files)
+        .diagnose("vulture", "unused", &files)
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "vulture");
@@ -607,11 +607,11 @@ fn vulture_reports_unused_code_across_files_and_is_check_only() {
     assert_eq!(findings[0].path, "a.py");
     assert_eq!(
         findings[0].severity,
-        quality_result::proto::Severity::Info as i32
+        quality_result::proto::Severity::Warning as i32
     );
     files.insert("b.py".to_owned(), "from a import unused_fn\n".to_owned());
     assert!(backend
-        .diagnose("vulture", "lint", &files)
+        .diagnose("vulture", "unused", &files)
         .expect("diagnosed")
         .is_empty());
     let text = "def unused_fn():\n    pass\n";
@@ -3547,7 +3547,7 @@ fn debride_garbage(
 fn debride_reports_one_uncalled_method() {
     let backend = backend_for("debride", plain_tool(), debride_tool);
     let findings = backend
-        .diagnose("debride", "lint", &single("lib/foo.rb", DEBRIDE_DIRTY))
+        .diagnose("debride", "unused", &single("lib/foo.rb", DEBRIDE_DIRTY))
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "debride");
@@ -3559,7 +3559,7 @@ fn debride_reports_one_uncalled_method() {
 fn debride_garbage_fails_the_action() {
     let backend = backend_for("debride", plain_tool(), debride_garbage);
     backend
-        .diagnose("debride", "lint", &single("lib/foo.rb", DEBRIDE_DIRTY))
+        .diagnose("debride", "unused", &single("lib/foo.rb", DEBRIDE_DIRTY))
         .expect_err("garbage is never clean");
 }
 
@@ -5828,19 +5828,19 @@ fn knip_files(source: &str) -> std::collections::BTreeMap<String, String> {
 }
 
 #[test]
-fn knip_reports_an_unused_export_as_info_from_the_package_root() {
+fn knip_reports_an_unused_export_as_a_warning_from_the_package_root() {
     let backend = backend_for("knip", plain_tool(), knip_fake);
     let findings = backend
-        .diagnose("knip", "lint", &knip_files("export const unused = 1;\n"))
+        .diagnose("knip", "unused", &knip_files("export const unused = 1;\n"))
         .expect("knip diagnose");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id, "exports");
     assert_eq!(
         findings[0].severity,
-        quality_result::proto::Severity::Info as i32
+        quality_result::proto::Severity::Warning as i32
     );
     let clean = backend
-        .diagnose("knip", "lint", &knip_files("export const used = 1;\n"))
+        .diagnose("knip", "unused", &knip_files("export const used = 1;\n"))
         .expect("knip clean");
     assert!(clean.is_empty());
 }
@@ -6215,7 +6215,7 @@ fn xref_passes_dependencies_and_keeps_owned_findings() {
     };
     let backend = backend_for("xref", tool, xref_report);
     let findings = backend
-        .diagnose("xref", "lint", &single("lib/src/a.erl", DIALYZER_SRC))
+        .diagnose("xref", "unused", &single("lib/src/a.erl", DIALYZER_SRC))
         .expect("diagnosed");
     let seen: Vec<(&str, &str)> = findings
         .iter()

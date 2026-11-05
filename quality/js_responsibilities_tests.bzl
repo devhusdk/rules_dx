@@ -66,7 +66,7 @@ def js_responsibilities_unit_tests(name):
                 ["biome", "prettier"],
             ),
             expect_equal(
-                "biome, eslint and knip share javascript lint; knip joins biome on typescript and tsx",
+                "biome and eslint share javascript lint; knip no longer lints",
                 [
                     _claimants("lint", "javascript"),
                     _claimants("lint", "jsx"),
@@ -75,10 +75,10 @@ def js_responsibilities_unit_tests(name):
                     _claimants("lint", "json"),
                 ],
                 [
-                    ["biome", "eslint", "knip"],
-                    ["biome", "eslint"],
-                    ["biome", "knip"],
-                    ["biome", "knip"],
+                    ["biome", "eslint", "typos"],
+                    ["biome", "eslint", "typos"],
+                    ["biome", "typos"],
+                    ["biome", "typos"],
                     ["biome"],
                 ],
             ),

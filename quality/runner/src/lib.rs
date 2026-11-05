@@ -22,7 +22,7 @@ pub mod real;
 pub mod request;
 
 pub fn max_rounds_for_capability(capability: &str) -> u32 {
-    if capability == "audit" || capability == "typecheck" {
+    if matches!(capability, "audit" | "typecheck" | "unused") {
         1
     } else {
         MAX_COMPLETED_ROUNDS
@@ -46,7 +46,7 @@ pub struct FileInput {
 pub enum RunnerError {
     #[error("empty producer: want a non-empty producer")]
     EmptyProducer,
-    #[error("unknown capability {capability:?}: want lint, typecheck, format, or audit")]
+    #[error("unknown capability {capability:?}: want lint, typecheck, format, audit, or unused")]
     UnknownCapability { capability: String },
     #[error("empty stages: want at least one stage")]
     EmptyStages,
@@ -78,6 +78,7 @@ fn parse_capability(capability: &str) -> Result<i32, RunnerError> {
         "typecheck" => Ok(Capability::Typecheck as i32),
         "format" => Ok(Capability::Format as i32),
         "audit" => Ok(Capability::Audit as i32),
+        "unused" => Ok(Capability::Unused as i32),
         _ => Err(RunnerError::UnknownCapability {
             capability: capability.to_owned(),
         }),

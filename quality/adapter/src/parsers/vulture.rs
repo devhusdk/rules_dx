@@ -63,7 +63,7 @@ pub fn parse_vulture(
                 tool_id: TOOL.to_owned(),
                 rule_id: vulture_rule(message)?,
                 message: message.to_owned(),
-                severity: ToolSeverity::Info,
+                severity: ToolSeverity::Warning,
                 start,
                 end,
                 suggestions: Vec::new(),
@@ -101,7 +101,7 @@ mod tests {
         assert_eq!(findings[0].file, "/s/a.py");
         assert_eq!(findings[0].finding.tool_id, "vulture");
         assert_eq!(findings[0].finding.rule_id, "unused-function");
-        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
         assert_eq!(
             (findings[0].finding.start, findings[0].finding.end),
             (TextPosition { line: 8, column: 1 }, None)

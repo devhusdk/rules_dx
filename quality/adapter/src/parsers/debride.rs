@@ -80,7 +80,7 @@ pub fn parse_debride(
                     tool_id: TOOL.to_owned(),
                     rule_id: "uncalled_method".to_owned(),
                     message: format!("{class}#{name} might not be called"),
-                    severity: ToolSeverity::Info,
+                    severity: ToolSeverity::Warning,
                     start: TextPosition { line, column: 1 },
                     end: None,
                     suggestions: Vec::new(),
@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(finding.finding.tool_id, "debride");
         assert_eq!(finding.finding.rule_id, "uncalled_method");
         assert_eq!(finding.finding.message, "Foo#bar might not be called");
-        assert_eq!(finding.finding.severity, ToolSeverity::Info);
+        assert_eq!(finding.finding.severity, ToolSeverity::Warning);
         assert_eq!(finding.finding.start, TextPosition { line: 2, column: 1 });
         assert_eq!(finding.finding.end, None);
     }

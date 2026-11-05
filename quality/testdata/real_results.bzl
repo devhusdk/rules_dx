@@ -3,6 +3,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality/testdata:real_aspect_subject.bzl", "real_aspect_subject")
 load("//quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
+load("//quality/testdata:real_unused_subject.bzl", "real_unused_subject")
 load("//quality/testdata:runner_matrix_tests.bzl", "compatible")
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
@@ -51,9 +52,9 @@ _results = rule(
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, rustc_flags = [], target_compatible_with = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, unused_subject = False, rustc_flags = [], target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
-    subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
+    subject_rule = real_unused_subject if unused_subject else (real_typecheck_subject if typecheck_subject else real_aspect_subject)
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",

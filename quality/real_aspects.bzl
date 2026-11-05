@@ -35,10 +35,10 @@ load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_k
 load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
 load("//quality:families/dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _DART_HOOKS = "HOOKS", _DART_SHARD_SPECS = "SHARD_SPECS", _DART_TOOLS = "TOOLS")
 load("//quality:families/powershell.bzl", _real_powershell_format_aspect = "real_powershell_format_aspect", _real_powershell_lint_aspect = "real_powershell_lint_aspect", _POWERSHELL_HOOKS = "HOOKS", _POWERSHELL_SHARD_SPECS = "SHARD_SPECS", _POWERSHELL_TOOLS = "TOOLS")
-load("//quality:families/ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _RUBY_HOOKS = "HOOKS", _RUBY_SHARD_SPECS = "SHARD_SPECS", _RUBY_TOOLS = "TOOLS")
-load("//quality:families/python.bzl", _real_python_format_aspect = "real_python_format_aspect", _real_python_lint_aspect = "real_python_lint_aspect", _real_python_typecheck_aspect = "real_python_typecheck_aspect", _PYTHON_HOOKS = "HOOKS", _PYTHON_SHARD_SPECS = "SHARD_SPECS", _PYTHON_TOOLS = "TOOLS")
+load("//quality:families/ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_unused_aspect = "real_ruby_unused_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _RUBY_HOOKS = "HOOKS", _RUBY_SHARD_SPECS = "SHARD_SPECS", _RUBY_TOOLS = "TOOLS")
+load("//quality:families/python.bzl", _real_python_format_aspect = "real_python_format_aspect", _real_python_lint_aspect = "real_python_lint_aspect", _real_python_unused_aspect = "real_python_unused_aspect", _real_python_typecheck_aspect = "real_python_typecheck_aspect", _PYTHON_HOOKS = "HOOKS", _PYTHON_SHARD_SPECS = "SHARD_SPECS", _PYTHON_TOOLS = "TOOLS")
 load("//quality:families/jvm.bzl", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_scala_format_aspect = "real_scala_format_aspect", _real_scala_lint_aspect = "real_scala_lint_aspect", _JVM_HOOKS = "HOOKS", _JVM_SHARD_SPECS = "SHARD_SPECS", _JVM_TOOLS = "TOOLS")
-load("//quality:families/js.bzl", _real_js_format_aspect = "real_js_format_aspect", _real_js_lint_aspect = "real_js_lint_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _JS_HOOKS = "HOOKS", _JS_SHARD_SPECS = "SHARD_SPECS", _JS_TOOLS = "TOOLS")
+load("//quality:families/js.bzl", _real_js_format_aspect = "real_js_format_aspect", _real_js_lint_aspect = "real_js_lint_aspect", _real_js_unused_aspect = "real_js_unused_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _JS_HOOKS = "HOOKS", _JS_SHARD_SPECS = "SHARD_SPECS", _JS_TOOLS = "TOOLS")
 load("//quality:families/julia.bzl", _real_julia_format_aspect = "real_julia_format_aspect", _real_julia_lint_aspect = "real_julia_lint_aspect", _real_julia_typecheck_aspect = "real_julia_typecheck_aspect", _JULIA_HOOKS = "HOOKS", _JULIA_SHARD_SPECS = "SHARD_SPECS", _JULIA_TOOLS = "TOOLS")
 load("//quality:families/dotnet.bzl", _real_dotnet_format_aspect = "real_dotnet_format_aspect", _real_dotnet_lint_aspect = "real_dotnet_lint_aspect", _real_dotnet_typecheck_aspect = "real_dotnet_typecheck_aspect", _DOTNET_HOOKS = "HOOKS", _DOTNET_SHARD_SPECS = "SHARD_SPECS", _DOTNET_TOOLS = "TOOLS")
 load("//quality:families/d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _D_SHARD_SPECS = "SHARD_SPECS", _D_TOOLS = "TOOLS")
@@ -46,7 +46,7 @@ load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortr
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
 load("//quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect", _GENERATION_HOOKS = "HOOKS", _GENERATION_RECOGNIZERS = "RECOGNIZERS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS")
 load("//quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _ZIG_SHARD_SPECS = "SHARD_SPECS", _ZIG_TOOLS = "TOOLS")
-load("//quality:families/beam.bzl", _real_elixir_format_aspect = "real_elixir_format_aspect", _real_elixir_lint_aspect = "real_elixir_lint_aspect", _real_erlang_format_aspect = "real_erlang_format_aspect", _real_erlang_lint_aspect = "real_erlang_lint_aspect", _real_erlang_typecheck_aspect = "real_erlang_typecheck_aspect", _BEAM_HOOKS = "HOOKS", _BEAM_SHARD_SPECS = "SHARD_SPECS", _BEAM_TOOLS = "TOOLS")
+load("//quality:families/beam.bzl", _real_elixir_format_aspect = "real_elixir_format_aspect", _real_elixir_lint_aspect = "real_elixir_lint_aspect", _real_elixir_unused_aspect = "real_elixir_unused_aspect", _real_erlang_format_aspect = "real_erlang_format_aspect", _real_erlang_lint_aspect = "real_erlang_lint_aspect", _real_erlang_unused_aspect = "real_erlang_unused_aspect", _real_erlang_typecheck_aspect = "real_erlang_typecheck_aspect", _BEAM_HOOKS = "HOOKS", _BEAM_SHARD_SPECS = "SHARD_SPECS", _BEAM_TOOLS = "TOOLS")
 load("//quality:families/go.bzl", _real_go_format_aspect = "real_go_format_aspect", _real_go_lint_aspect = "real_go_lint_aspect", _real_go_typecheck_aspect = "real_go_typecheck_aspect", _GO_HOOKS = "HOOKS", _GO_SHARD_SPECS = "SHARD_SPECS", _GO_TOOLS = "TOOLS")
 load("//quality:families/rust.bzl", _real_rust_format_aspect = "real_rust_format_aspect", _real_rust_lint_aspect = "real_rust_lint_aspect", _real_rust_typecheck_aspect = "real_rust_typecheck_aspect", _RUST_HARNESS_SOURCES = "harness_sources", _RUST_HOOKS = "HOOKS", _RUST_RECOGNIZER = "RECOGNIZER", _RUST_SHARD_SPECS = "SHARD_SPECS", _RUST_TOOLCHAIN = "TOOLCHAIN", _RUST_TOOLS = "TOOLS", _inherits_test_crate_sources = "inherits_test_crate_sources", _merge_inherited_sources = "merge_inherited_sources", _rustc_diagnostics_group = "rustc_diagnostics_group")
 load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _OCAML_HOOKS = "HOOKS", _OCAML_SHARD_SPECS = "SHARD_SPECS", _OCAML_TOOLS = "TOOLS")
@@ -236,6 +236,8 @@ real_ruby_format_aspect = _real_ruby_format_aspect
 
 real_ruby_lint_aspect = _real_ruby_lint_aspect
 
+real_ruby_unused_aspect = _real_ruby_unused_aspect
+
 real_html_template_format_aspect = _real_html_template_format_aspect
 
 real_html_template_lint_aspect = _real_html_template_lint_aspect
@@ -248,9 +250,13 @@ real_yaml_lint_aspect = _real_yaml_lint_aspect
 
 real_js_lint_aspect = _real_js_lint_aspect
 
+real_js_unused_aspect = _real_js_unused_aspect
+
 real_js_format_aspect = _real_js_format_aspect
 
 real_python_lint_aspect = _real_python_lint_aspect
+
+real_python_unused_aspect = _real_python_unused_aspect
 
 real_jvm_lint_aspect = _real_jvm_lint_aspect
 
@@ -291,11 +297,15 @@ real_erlang_format_aspect = _real_erlang_format_aspect
 
 real_erlang_lint_aspect = _real_erlang_lint_aspect
 
+real_erlang_unused_aspect = _real_erlang_unused_aspect
+
 real_erlang_typecheck_aspect = _real_erlang_typecheck_aspect
 
 real_elixir_format_aspect = _real_elixir_format_aspect
 
 real_elixir_lint_aspect = _real_elixir_lint_aspect
+
+real_elixir_unused_aspect = _real_elixir_unused_aspect
 
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 

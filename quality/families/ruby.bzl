@@ -15,7 +15,7 @@ TOOLS = {
     },
     "debride": {
         "attr": attr.label(default = "//quality/tools/ruby:debride", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
+        "capabilities": ["unused"],
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",
@@ -50,6 +50,12 @@ SHARD_SPECS = {
     "real_ruby_lint": {
         "capability": "lint",
         "doc": "Additive Ruby lint family aspect (RuboCop).",
+        "shard": "ruby",
+        "suffix": "-ruby",
+    },
+    "real_ruby_unused": {
+        "capability": "unused",
+        "doc": "Additive Ruby unused-code family aspect (debride).",
         "shard": "ruby",
         "suffix": "-ruby",
     },
@@ -89,5 +95,7 @@ _CFG = real_config(
 real_ruby_format_aspect = real_make_aspect(_CFG, "real_ruby_format")
 
 real_ruby_lint_aspect = real_make_aspect(_CFG, "real_ruby_lint")
+
+real_ruby_unused_aspect = real_make_aspect(_CFG, "real_ruby_unused")
 
 real_ruby_typecheck_aspect = real_make_aspect(_CFG, "real_ruby_typecheck")

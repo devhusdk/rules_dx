@@ -195,7 +195,7 @@ def adapter_registry_schema_error():
         if not _is_canonical_token(tool_id):
             return "adapter registry: non-canonical tool '" + str(tool_id) + "'"
         for capability in REAL_ADAPTERS[tool_id]:
-            if capability not in ["audit", "format", "lint", "typecheck"]:
+            if capability not in ["audit", "format", "lint", "typecheck", "unused"]:
                 return "adapter registry: unknown capability '" + capability + "' for tool '" + tool_id + "'"
             for class_id in REAL_ADAPTERS[tool_id][capability]:
                 if not _is_canonical_token(class_id):

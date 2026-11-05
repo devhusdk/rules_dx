@@ -27,6 +27,7 @@ pub enum Command {
     Fuzz,
     Mutate,
     Release,
+    Unused,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,7 +98,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 27] = [
+pub static COMMANDS: [CommandMeta; 28] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -476,6 +477,21 @@ pub static COMMANDS: [CommandMeta; 27] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
+    CommandMeta {
+        command: Command::Unused,
+        name: "unused",
+        scope_policy: "default-//...",
+        describe: "report cross-file unused code over resolved scopes (non-mutating; warnings only unless --fail-on=warning)",
+        usage: "Usage: dx unused [--here] [--affected] [--fail-on=none|warning] [scope ...] [-- bazel-options ...]",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        is_managed: false,
+        is_adoption: false,
+        default_release: false,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+    },
+
 ];
 
 impl Command {
@@ -604,8 +620,8 @@ pub(crate) mod owners {
         Worktree, Release,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
-    pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
-        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check,
+    pub(crate) const AFFECTED_OWNERS: [Command; 10] = [
+        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check, Unused,
     ];
 }
 
@@ -665,7 +681,8 @@ mod tests {
                 Command::Check,
                 Command::Docs,
                 Command::Fuzz,
-                Command::Mutate
+                Command::Mutate,
+                Command::Unused
             ])
         );
         assert_eq!(
@@ -678,7 +695,8 @@ mod tests {
                 Command::Format,
                 Command::Coverage,
                 Command::Check,
-                Command::Update
+                Command::Update,
+                Command::Unused
             ])
         );
     }
@@ -757,6 +775,7 @@ mod tests {
             Command::Fuzz,
             Command::Mutate,
             Command::Release,
+            Command::Unused,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -846,7 +865,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|mutate|release",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|mutate|release|unused",
             "pipe_list order must match declaration order"
         );
     }

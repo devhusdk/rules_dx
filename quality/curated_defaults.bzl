@@ -7,162 +7,189 @@ CURATED_DEFAULTS = {
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
+        "unused": [],
     },
     "bicep": {
         "audit": [],
         "format": ["bicep"],
         "lint": ["bicep", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "cc": {
         "audit": [],
         "format": ["clang_format"],
         "lint": ["typos"],
         "typecheck": [],
+        "unused": [],
     },
     "cloudformation": {
         "audit": [],
         "format": [],
         "lint": ["cfn_lint", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "dockerfile": {
         "audit": [],
         "format": [],
         "lint": ["hadolint", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "go": {
         "audit": [],
         "format": ["gofumpt"],
         "lint": ["govet", "staticcheck", "typos"],
         "typecheck": ["gotype"],
+        "unused": [],
     },
     "go_module": {
         "audit": [],
         "format": ["modfmt"],
         "lint": ["typos"],
         "typecheck": [],
+        "unused": [],
     },
     "graphql": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": [],
+        "unused": [],
     },
     "html": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": [],
+        "unused": [],
     },
     "java": {
         "audit": [],
         "format": ["google_java_format"],
         "lint": ["checkstyle", "pmd", "spotbugs", "typos"],
         "typecheck": ["javac"],
+        "unused": [],
     },
     "javascript": {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "json": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["biome"],
         "typecheck": [],
+        "unused": [],
     },
     "kotlin": {
         "audit": [],
         "format": ["ktfmt"],
         "lint": ["detekt", "ktlint", "typos"],
         "typecheck": ["kotlinc"],
+        "unused": [],
     },
     "helm": {
         "audit": [],
         "format": [],
         "lint": ["helm", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "kubernetes": {
         "audit": [],
         "format": [],
         "lint": ["kubeconform", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "markdown": {
         "audit": [],
         "format": [],
         "lint": ["lychee", "markdown_check", "typos", "vale"],
         "typecheck": [],
+        "unused": [],
     },
     "mdx": {
         "audit": [],
         "format": ["remark"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
+        "unused": [],
     },
     "python": {
         "audit": [],
         "format": ["ruff"],
-        "lint": ["pydoclint", "ruff", "typos", "vulture"],
+        "lint": ["pydoclint", "ruff", "typos"],
         "typecheck": ["ty"],
+        "unused": ["vulture"],
     },
     "rust": {
         "audit": [],
         "format": ["rustfmt"],
         "lint": ["clippy", "typos"],
         "typecheck": ["rustc"],
+        "unused": [],
     },
     "scala": {
         "audit": [],
         "format": ["scalafmt"],
         "lint": ["typos"],
         "typecheck": ["scalac"],
+        "unused": [],
     },
     "shell": {
         "audit": [],
         "format": ["shfmt"],
         "lint": ["shellcheck", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "starlark": {
         "audit": [],
         "format": ["buildifier"],
         "lint": ["buildifier", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "svelte": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
+        "unused": [],
     },
     "text": {
         "audit": [],
         "format": [],
         "lint": ["keep_sorted", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "toml": {
         "audit": [],
         "format": ["taplo"],
         "lint": ["taplo", "typos"],
         "typecheck": [],
+        "unused": [],
     },
     "typescript": {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome", "typos"],
         "typecheck": ["tsc"],
+        "unused": [],
     },
     "vue": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
         "typecheck": ["tsc"],
+        "unused": [],
     },
 }
 
@@ -184,8 +211,8 @@ def curated_schema_error():
         if not _is_canonical_token(family):
             return "curated defaults: non-canonical family '" + str(family) + "'"
         entry = CURATED_DEFAULTS[family]
-        if sorted(entry.keys()) != ["audit", "format", "lint", "typecheck"]:
-            return "curated defaults: family '" + family + "' must carry exactly audit/format/lint/typecheck"
+        if sorted(entry.keys()) != ["audit", "format", "lint", "typecheck", "unused"]:
+            return "curated defaults: family '" + family + "' must carry exactly audit/format/lint/typecheck/unused"
         for capability in entry:
             for tool in entry[capability]:
                 if not _is_canonical_token(tool):

@@ -48,7 +48,7 @@ PYTHON_PYLINT_LINT_SUPPORT = _record("python", "pylint", "lint")
 PYTHON_RUFF_FORMAT_SUPPORT = _record("python", "ruff", "format")
 PYTHON_RUFF_LINT_SUPPORT = _record("python", "ruff", "lint")
 PYTHON_TY_TYPECHECK_SUPPORT = _record("python", "ty", "typecheck")
-PYTHON_VULTURE_LINT_SUPPORT = _record("python", "vulture", "lint")
+PYTHON_VULTURE_UNUSED_SUPPORT = _record("python", "vulture", "unused")
 RUST_RUSTFMT_FORMAT_SUPPORT = _record("rust", "rustfmt", "format")
 SQL_PRETTIER_FORMAT_SUPPORT = _record("sql", "prettier", "format")
 SQL_SQLFLUFF_FORMAT_SUPPORT = _record("sql", "sqlfluff", "format")
@@ -125,7 +125,7 @@ def support_record_error(record):
     family = record["family"]
     if not _is_canonical_token(tool):
         return "support: non-canonical tool '" + str(tool) + "'"
-    if capability not in ["audit", "format", "lint", "typecheck"]:
+    if capability not in ["audit", "format", "lint", "typecheck", "unused"]:
         return "support: unknown capability '" + str(capability) + "' for tool '" + tool + "'"
     if not _is_canonical_token(family):
         return "support: non-canonical family '" + str(family) + "'"

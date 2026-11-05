@@ -457,3 +457,17 @@ A finding without a path records the Bazel `target` instead of `path`.
 Checks print `Baseline <file>: <total> total, <new> new, <suppressed> suppressed.` Suppressed findings print with `(baselined)` and stay in JSON and SARIF, where JSON marks them `"baseline": "suppressed"`. New findings fail. Fixed entries turn stale and fail. An incomplete run never goes green through a baseline.
 
 `--apply` adds new findings, prunes fixed entries in scope, and keeps the rest. It writes nothing after an incomplete run, a target that did not converge, or an unreadable source file. A malformed file fails and is not rewritten.
+
+## Unused code
+
+`dx unused` runs the tools that judge code across files: `knip` for JavaScript and TypeScript, `vulture` for Python, `debride` for Ruby and `xref` for Erlang and Elixir. They guess entry points, so reflection, plugins and exported APIs come back as findings. `dx lint` and `dx check` never run them.
+
+```sh
+tools/dx unused //...
+tools/dx unused --affected
+tools/dx unused --fail-on=warning //pkg/...
+```
+
+Every finding is a `warning` with no fix. `dx unused` exits `0` by default. Pass `--fail-on=warning` to exit `1` on a finding; `--fail-on=none` is the default and only `dx unused` accepts it. JSON output uses the lint schema with `capability` set to `unused`.
+
+A consumer policy lists these tools under `unused` in `quality_family`. Moving a tool such as `vulture` out of `lint = [...]` and into `unused = [...]` is required: listing it under `lint` fails analysis.

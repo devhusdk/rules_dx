@@ -9,10 +9,11 @@ quality_family(
     disabled = [
         "audit",
         "format",
+        "lint",
         "typecheck",
     ],
     family_id = "erlang",
-    lint = ["xref"],
+    unused = ["xref"],
 )
 
 workspace_policy(
@@ -25,10 +26,11 @@ quality_family(
     disabled = [
         "audit",
         "format",
+        "lint",
         "typecheck",
     ],
     family_id = "elixir",
-    lint = ["xref"],
+    unused = ["xref"],
 )
 
 workspace_policy(

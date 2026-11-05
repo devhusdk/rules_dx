@@ -24,6 +24,7 @@ enum Capability {
   TYPECHECK = 2;
   FORMAT = 3;
   AUDIT = 4;
+  UNUSED = 5;
 }
 
 // Terminal state of a completed pipeline. Tool launch, configuration,

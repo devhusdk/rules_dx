@@ -62,6 +62,12 @@ SHARD_SPECS = {
         "shard": "erlang",
         "suffix": "-erlang",
     },
+    "real_erlang_unused": {
+        "capability": "unused",
+        "doc": "Additive Erlang unused-code family aspect (xref).",
+        "shard": "erlang",
+        "suffix": "-erlang",
+    },
     "real_erlang_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Erlang typecheck family aspect (dialyzer).",
@@ -77,6 +83,12 @@ SHARD_SPECS = {
     "real_elixir_lint": {
         "capability": "lint",
         "doc": "Additive Elixir lint family aspect (credo, xref).",
+        "shard": "elixir",
+        "suffix": "-elixir",
+    },
+    "real_elixir_unused": {
+        "capability": "unused",
+        "doc": "Additive Elixir unused-code family aspect (xref).",
         "shard": "elixir",
         "suffix": "-elixir",
     },
@@ -151,8 +163,12 @@ real_elixir_format_aspect = real_make_aspect(_CFG, "real_elixir_format")
 
 real_elixir_lint_aspect = real_make_aspect(_CFG, "real_elixir_lint")
 
+real_elixir_unused_aspect = real_make_aspect(_CFG, "real_elixir_unused")
+
 real_erlang_format_aspect = real_make_aspect(_CFG, "real_erlang_format")
 
 real_erlang_lint_aspect = real_make_aspect(_CFG, "real_erlang_lint")
+
+real_erlang_unused_aspect = real_make_aspect(_CFG, "real_erlang_unused")
 
 real_erlang_typecheck_aspect = real_make_aspect(_CFG, "real_erlang_typecheck")

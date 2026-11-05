@@ -191,9 +191,9 @@ quality_family(
         "pydoclint",
         "ruff",
         "typos",
-        "vulture",
     ],
     typecheck = ["ty"],
+    unused = ["vulture"],
 )
 
 quality_family(

@@ -144,7 +144,7 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
         "Exit codes: 2 usage errors, not watchable, or CI=true; 1 operational failures such as watch_failed; 141 when stdout closes; 129 after SIGHUP, 130 after Ctrl-C, 143 after SIGTERM."
     } else if matches!(
         command,
-        Command::Lint | Command::Typecheck | Command::Format
+        Command::Lint | Command::Typecheck | Command::Format | Command::Unused
     ) {
         "Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings, operational failures, and Bazel failures (Bazel's code is not kept)."
     } else if !runs_bazel(command) {
@@ -224,6 +224,10 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     (
         Command::Format,
         &["format --apply", "format --affected --diff"],
+    ),
+    (
+        Command::Unused,
+        &["unused --affected", "unused --fail-on=warning //pkg/..."],
     ),
     (
         Command::Generate,

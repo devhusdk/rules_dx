@@ -662,10 +662,10 @@ TOOLS = [
     ),
     tool(
         id = "debride",
-        adapters = {"lint": ["ruby"]},
+        adapters = {"unused": ["ruby"]},
         support = [
             row(
-                capability = "lint",
+                capability = "unused",
                 classes = ["ruby"],
                 context = "owned",
                 family = "ruby",
@@ -1358,10 +1358,10 @@ TOOLS = [
     ),
     tool(
         id = "knip",
-        adapters = {"lint": ["javascript", "tsx", "typescript"]},
+        adapters = {"unused": ["javascript", "tsx", "typescript"]},
         support = [
             row(
-                capability = "lint",
+                capability = "unused",
                 classes = ["javascript"],
                 context = "owned",
                 family = "javascript",
@@ -1371,7 +1371,7 @@ TOOLS = [
                 transport = "batched",
             ),
             row(
-                capability = "lint",
+                capability = "unused",
                 classes = ["tsx", "typescript"],
                 context = "owned",
                 family = "typescript",
@@ -2704,10 +2704,10 @@ TOOLS = [
     ),
     tool(
         id = "vulture",
-        adapters = {"lint": ["python"]},
+        adapters = {"unused": ["python"]},
         support = [
             row(
-                capability = "lint",
+                capability = "unused",
                 classes = ["python"],
                 context = "owned",
                 family = "python",
@@ -2736,10 +2736,10 @@ TOOLS = [
     ),
     tool(
         id = "xref",
-        adapters = {"lint": ["erlang", "elixir"]},
+        adapters = {"unused": ["erlang", "elixir"]},
         support = [
             row(
-                capability = "lint",
+                capability = "unused",
                 classes = ["erlang"],
                 context = "target_coupled",
                 family = "erlang",
@@ -2753,7 +2753,7 @@ TOOLS = [
                 },
             ),
             row(
-                capability = "lint",
+                capability = "unused",
                 classes = ["elixir"],
                 context = "target_coupled",
                 family = "elixir",

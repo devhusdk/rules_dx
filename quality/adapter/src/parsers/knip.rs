@@ -10,7 +10,7 @@ fn finding(file: &str, rule_id: &str, message: String, start: TextPosition) -> F
             tool_id: TOOL.to_owned(),
             rule_id: rule_id.to_owned(),
             message,
-            severity: ToolSeverity::Info,
+            severity: ToolSeverity::Warning,
             start,
             end: None,
             suggestions: Vec::new(),
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(findings[2].finding.start.column, 14);
         assert!(findings
             .iter()
-            .all(|found| found.finding.severity == ToolSeverity::Info));
+            .all(|found| found.finding.severity == ToolSeverity::Warning));
     }
 
     #[test]

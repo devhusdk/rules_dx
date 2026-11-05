@@ -100,7 +100,7 @@ DEAD_CODE = {
     "dart": ["dart unused_element"],
     "fortran": ["fortitude C191 unreachable-statement"],
     "go": ["staticcheck U1000"],
-    "javascript": ["knip", "eslint no-unused-vars"],
+    "javascript": ["knip (dx unused)", "eslint no-unused-vars"],
     "julia": ["none"],
     "kotlin": ["detekt"],
     "lua": ["selene unused_variable"],
@@ -108,13 +108,13 @@ DEAD_CODE = {
     "ocaml": ["ocamlc warnings 26, 27, 32 to 39"],
     "perl": ["perlcritic ProhibitUnusedVariables"],
     "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
-    "python": ["vulture", "ruff F401, F841"],
-    "ruby": ["debride", "rubocop Lint/UselessAssignment"],
+    "python": ["vulture (dx unused)", "ruff F401, F841"],
+    "ruby": ["debride (dx unused)", "rubocop Lint/UselessAssignment"],
     "rust": ["rustc dead_code"],
     "scala": ["scalac -Wunused"],
     "shell": ["shellcheck SC2034"],
     "starlark": ["buildifier unused-variable"],
-    "typescript": ["knip", "eslint no-unused-vars"],
+    "typescript": ["knip (dx unused)", "eslint no-unused-vars"],
 }
 
 # The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.

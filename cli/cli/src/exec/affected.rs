@@ -699,7 +699,7 @@ mod tests {
         use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 14] = [
+        let cases: [(&[&str], &str); 15] = [
             (&["check", "--affected", "--output=json"], "check"),
             (
                 &["check", "--apply", "--affected", "--output=json"],
@@ -725,6 +725,7 @@ mod tests {
             (&["coverage", "--affected", "--output=json"], "default"),
             (&["security", "--affected", "--output=json"], "default"),
             (&["license", "--affected", "--output=json"], "default"),
+            (&["unused", "--affected", "--output=json"], "default"),
             (&["check", "--affected", "--output=json"], "check"),
         ];
         let mut covered: Vec<String> = cases.iter().map(|(w, _)| w[0].to_owned()).collect();

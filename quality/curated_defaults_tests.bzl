@@ -19,8 +19,9 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["ruff"],
-                    "lint": ["pydoclint", "ruff", "typos", "vulture"],
+                    "lint": ["pydoclint", "ruff", "typos"],
                     "typecheck": ["ty"],
+                    "unused": ["vulture"],
                 },
             ),
             expect_equal(
@@ -31,6 +32,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["biome"],
                     "lint": ["biome", "typos"],
                     "typecheck": ["tsc"],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -41,6 +43,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["biome"],
                     "lint": ["biome", "typos"],
                     "typecheck": [],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -51,6 +54,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["biome"],
                     "typecheck": [],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -61,6 +65,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": [],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -71,6 +76,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": [],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -81,6 +87,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -91,6 +98,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["remark"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -101,6 +109,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -111,6 +120,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["prettier"],
                     "lint": ["typos"],
                     "typecheck": ["tsc"],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -121,6 +131,7 @@ def curated_defaults_unit_tests(name):
                     "format": [],
                     "lint": ["hadolint", "typos"],
                     "typecheck": [],
+                    "unused": [],
                 },
             ),
             expect_equal(
@@ -131,6 +142,7 @@ def curated_defaults_unit_tests(name):
                     "format": ["rustfmt"],
                     "lint": ["clippy", "typos"],
                     "typecheck": ["rustc"],
+                    "unused": [],
                 },
             ),
         ],

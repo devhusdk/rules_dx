@@ -32,7 +32,7 @@ TOOLS = {
     },
     "knip": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:knip", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
+        "capabilities": ["unused"],
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "kind": "executable",
         "resources": "heavy",
@@ -90,6 +90,12 @@ SHARD_SPECS = {
         "shard": "js",
         "suffix": "-js",
     },
+    "real_js_unused": {
+        "capability": "unused",
+        "doc": "Additive JavaScript unused-code family aspect (knip).",
+        "shard": "js",
+        "suffix": "-js",
+    },
     "real_js_typecheck": {
         "capability": "typecheck",
         "doc": "Additive TypeScript typecheck family aspect (delegated tsc over typescript_project and js_library).",
@@ -132,5 +138,7 @@ _CFG = real_config(
 real_js_format_aspect = real_make_aspect(_CFG, "real_js_format")
 
 real_js_lint_aspect = real_make_aspect(_CFG, "real_js_lint")
+
+real_js_unused_aspect = real_make_aspect(_CFG, "real_js_unused")
 
 real_js_typecheck_aspect = real_make_aspect(_CFG, "real_js_typecheck")

@@ -429,6 +429,19 @@ flag_group! {
 }
 
 flag_group! {
+    /// Fail on warnings, or never (the default).
+    UnusedFailOnFlag, {
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "fail_on",
+            value_parser = clap::builder::PossibleValuesParser::new(["none", "warning"])
+        )]
+        fail_on: Option<String>,
+    }
+}
+
+flag_group! {
     /// Suppress findings already in this workspace-relative JSON baseline.
     BaselineFlag, {
         #[arg(
@@ -1251,6 +1264,14 @@ command_args! {
         check: CheckFlag,
         apply: ApplyFlag,
         own: ToFlag,
+    };
+    /// The flags `dx unused` accepts.
+    Unused => 27, BazelTail, {
+        output: OutputFlag,
+        fail_on: UnusedFailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+        affected: AffectedFlag,
     };
 }
 

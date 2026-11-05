@@ -678,8 +678,12 @@ mod tests {
     #[test]
     fn unknown_enum_values_are_rejected() {
         let mut result = sample();
-        result.capability = 5;
+        result.capability = 6;
         assert_eq!(validate(&result), Err(Error::InvalidCapability));
+
+        let mut result = sample();
+        result.capability = Capability::Unused as i32;
+        assert_eq!(validate(&result), Ok(()));
 
         let mut result = sample();
         result.convergence = 4;

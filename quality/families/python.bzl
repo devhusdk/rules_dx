@@ -27,7 +27,7 @@ TOOLS = {
     },
     "vulture": {
         "attr": attr.label(default = "//quality/tools/python:vulture", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
+        "capabilities": ["unused"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -64,6 +64,12 @@ SHARD_SPECS = {
     "real_python_lint": {
         "capability": "lint",
         "doc": "Additive Python lint family aspect (flake8/pylint/pydoclint/vulture).",
+        "shard": "py",
+        "suffix": "-py",
+    },
+    "real_python_unused": {
+        "capability": "unused",
+        "doc": "Additive Python unused-code family aspect (vulture).",
         "shard": "py",
         "suffix": "-py",
     },
@@ -104,5 +110,7 @@ _CFG = real_config(
 real_python_format_aspect = real_make_aspect(_CFG, "real_python_format")
 
 real_python_lint_aspect = real_make_aspect(_CFG, "real_python_lint")
+
+real_python_unused_aspect = real_make_aspect(_CFG, "real_python_unused")
 
 real_python_typecheck_aspect = real_make_aspect(_CFG, "real_python_typecheck")

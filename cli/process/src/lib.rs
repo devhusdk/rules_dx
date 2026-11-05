@@ -242,7 +242,9 @@ pub fn current_directory() -> std::io::Result<PathBuf> {
 }
 
 pub fn is_ci_value(value: Option<&str>) -> bool {
-    value.is_some_and(|value| value == "true")
+    value.is_some_and(|value| {
+        value.eq_ignore_ascii_case("true") || value == "1" || value.eq_ignore_ascii_case("yes")
+    })
 }
 
 pub fn is_ci() -> bool {

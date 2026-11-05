@@ -844,18 +844,18 @@ fn bazel_env_defaults_sets_arena_max_only_when_free() {
 
 #[test]
 fn ci_gate_matrix_is_single_sourced() {
-    assert!(is_ci_value(Some("true")));
-    for allowed in [
+    for ci in ["true", "TRUE", "True", "1", "yes", "YES"] {
+        assert!(is_ci_value(Some(ci)), "{ci:?} must count as CI");
+    }
+    for local in [
         None,
         Some(""),
-        Some("1"),
-        Some("yes"),
         Some("false"),
         Some("0"),
-        Some("True"),
-        Some("TRUE"),
+        Some("no"),
+        Some("2"),
     ] {
-        assert!(!is_ci_value(allowed), "{allowed:?} must not count as CI");
+        assert!(!is_ci_value(local), "{local:?} must not count as CI");
     }
     assert_eq!(
         is_ci(),

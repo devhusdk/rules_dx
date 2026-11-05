@@ -128,7 +128,7 @@ fn render_env_help() -> String {
     out.push_str(
         "  <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.\n",
     );
-    out.push_str("  NO_COLOR=<any>\n");
+    out.push_str("  NO_COLOR=<non-empty>\n");
     out.push_str("      Disable color output.\n");
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
@@ -305,7 +305,7 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out
 }
 
-const ENV_LINE: &str = "Environment: NO_COLOR=<any> disables color; \
+const ENV_LINE: &str = "Environment: NO_COLOR=<non-empty> disables color; \
 BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.";
 
 pub(crate) fn render_command_help(command: Command) -> String {

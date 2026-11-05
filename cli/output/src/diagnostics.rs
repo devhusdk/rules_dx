@@ -86,7 +86,7 @@ pub fn color_enabled_for(mode: ColorMode) -> bool {
 }
 
 fn no_color_present() -> bool {
-    std::env::var_os("NO_COLOR").is_some()
+    std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty())
 }
 
 pub fn color_enabled() -> bool {
@@ -408,13 +408,13 @@ mod tests {
         assert!(!verbose.contains("dx-probe-debug"), "{verbose}");
         assert!(!verbose.contains("dx diagnostics initialised"), "{verbose}");
 
-        let always = run("false:always", &[("NO_COLOR", "")]);
+        let always = run("false:always", &[("NO_COLOR", "1")]);
         assert!(always.contains(ANSI), "{always}");
 
         let forced = run("false:auto", &[("CLICOLOR_FORCE", "1")]);
         assert!(forced.contains(ANSI), "{forced}");
 
-        let forced_no_color = run("false:auto", &[("CLICOLOR_FORCE", "1"), ("NO_COLOR", "")]);
+        let forced_no_color = run("false:auto", &[("CLICOLOR_FORCE", "1"), ("NO_COLOR", "1")]);
         assert!(!forced_no_color.contains(ANSI), "{forced_no_color}");
 
         let piped = run("false:auto", &[]);
@@ -437,7 +437,7 @@ mod tests {
         let prior_override = color_override();
         assert!(
             !colors_allowed_for(ColorMode::Auto, true, true),
-            "NO_COLOR presence (even empty) must disable color"
+            "a non-empty NO_COLOR must disable color"
         );
         assert!(
             colors_allowed_for(ColorMode::Auto, false, true),
@@ -469,7 +469,11 @@ mod tests {
             unsafe {
                 std::env::set_var("NO_COLOR", "");
             }
-            assert!(no_color_present(), "an empty NO_COLOR still counts");
+            assert!(!no_color_present(), "an empty NO_COLOR is ignored");
+            unsafe {
+                std::env::set_var("NO_COLOR", "1");
+            }
+            assert!(no_color_present(), "a non-empty NO_COLOR counts");
             unsafe {
                 std::env::remove_var("NO_COLOR");
             }

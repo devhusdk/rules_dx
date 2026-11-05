@@ -4,6 +4,12 @@ die() {
   echo "dx: $1" >&2
   exit 1
 }
+is_ci() {
+  case "${CI:-}" in
+  [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss]) return 0 ;;
+  esac
+  return 1
+}
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 os=
 exe=
@@ -224,7 +230,7 @@ if stale; then
       print (gc ? "gc" : "none")
     }
   ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2>/dev/null) || found=
-  if [ -z "$rc" ] && [ "${CI:-}" != true ] && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
+  if [ -z "$rc" ] && ! is_ci && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
     dc="--disk_cache=$cache/dx/disk-cache"
     [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
     # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.

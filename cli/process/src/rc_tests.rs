@@ -95,12 +95,27 @@ fn bazel_test_keeps_bazel_hermetic() {
 }
 
 #[test]
-fn ci_other_than_true_and_empty_bazel_test_stay_local() {
-    let policy = Machine::local()
-        .env("CI", "1")
-        .env("BAZEL_TEST", "")
-        .policy();
-    assert!(policy.read_user_rc);
+fn ci_spellings_add_no_cache() {
+    for ci in ["1", "yes", "TRUE"] {
+        let policy = Machine::local()
+            .env("CI", ci)
+            .env("BAZEL_TEST", "")
+            .policy();
+        assert!(policy.read_user_rc, "CI={ci}");
+        assert_eq!(policy.disk_cache, None, "CI={ci}");
+    }
+}
+
+#[test]
+fn ci_false_and_zero_stay_local() {
+    for ci in ["0", "false", ""] {
+        let policy = Machine::local()
+            .env("CI", ci)
+            .env("BAZEL_TEST", "")
+            .policy();
+        assert!(policy.read_user_rc, "CI={ci:?}");
+        assert_eq!(policy.disk_cache, local_cache(), "CI={ci:?}");
+    }
 }
 
 #[test]

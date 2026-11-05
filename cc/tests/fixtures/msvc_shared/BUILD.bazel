@@ -65,6 +65,7 @@ cc_test(
     name = "shared_test",
     srcs = ["shared_test.cc"],
     dynamic_deps = [":greet_dll"],
+    features = ["copy_dynamic_libraries_to_binary"],
     tags = ["manual"],
     target_compatible_with = _MSVC_ONLY,
     deps = [

@@ -35,6 +35,7 @@ load("//quality/artifacts:nixfmt.bzl", _nixfmt = "ARTIFACTS")
 load("//quality/artifacts:opa.bzl", _opa = "ARTIFACTS")
 load("//quality/artifacts:ormolu.bzl", _ormolu = "ARTIFACTS")
 load("//quality/artifacts:pkl.bzl", _pkl = "ARTIFACTS")
+load("//quality/artifacts:pkl_lsp.bzl", _pkl_lsp = "SOURCE")
 load("//quality/artifacts:platforms.bzl", "artifact_platform_key", "platform_repeat_message")
 load("//quality/artifacts:pmd.bzl", _pmd = "SOURCE")
 load("//quality/artifacts:regal.bzl", _regal = "ARTIFACTS")
@@ -112,6 +113,7 @@ TOOL_SOURCES = [
     _google_java_format,
     _ktfmt,
     _ktlint,
+    _pkl_lsp,
     _pmd,
     _spotbugs,
     _zanuda,

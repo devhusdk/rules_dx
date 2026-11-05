@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
@@ -47,7 +46,6 @@ impl RealBackend {
         staged: &StagedScratch,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let pairs = &staged.pairs;
-        let sibling_pairs = &staged.sibling_pairs;
         let resolve_pairs = &staged.resolve_pairs;
         let scratch = &staged.scratch;
         let refs: Vec<&Path> = pairs
@@ -68,6 +66,7 @@ impl RealBackend {
             .chain(super::native::TOOLS.iter())
             .chain(super::schema::TOOLS.iter())
             .chain(super::single_run::TOOLS.iter())
+            .chain(super::web::TOOLS.iter())
             .find(|def| def.id == tool_id)
         {
             let call = CheckCall {
@@ -80,36 +79,6 @@ impl RealBackend {
             return (def.run)(self, &call);
         }
         match tool_id {
-            "markdown_check" => {
-                let specs: Vec<(&str, &Path)> = pairs
-                    .iter()
-                    .map(|(workspace, absolute)| (workspace.as_str(), absolute.as_path()))
-                    .collect();
-                let sibling_specs: Vec<(&str, &Path)> = sibling_pairs
-                    .iter()
-                    .map(|(workspace, absolute)| (workspace.as_str(), absolute.as_path()))
-                    .collect();
-                let invocation = commands::markdown_check(&tool.binary, &specs, &sibling_specs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let reported = parsed(
-                    tool_id,
-                    parsers::parse_markdown_findings(&out.stdout, out.code, &workspaces),
-                )?;
-                let mut rerooted = Vec::with_capacity(reported.len());
-                for found in reported {
-                    rerooted.push(FileFinding {
-                        file: reanchor(tool_id, pairs, &found.file)?
-                            .to_string_lossy()
-                            .into_owned(),
-                        finding: found.finding,
-                    });
-                }
-                Ok(rerooted)
-            }
             "ruff" => {
                 let config_ref = config.as_deref();
                 let format = capability == "format";
@@ -329,229 +298,6 @@ impl RealBackend {
                     found.file = absolute.to_string_lossy().into_owned();
                 }
                 Ok(findings)
-            }
-            "taplo" => {
-                let invocation = if capability == "format" {
-                    commands::taplo_format(&tool.binary, &refs, config.as_deref(), true)
-                } else {
-                    commands::taplo_lint(&tool.binary, &refs, config.as_deref())
-                };
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                if capability == "format" {
-                    let batch = parsed(
-                        tool_id,
-                        parsers::parse_taplo_format_check(&out.stderr, out.code, &strs),
-                    );
-                    if batch.is_ok() || refs.len() < 2 {
-                        return batch;
-                    }
-                    // Re-check each file alone to name the file taplo rejected.
-                    let mut merged = Vec::new();
-                    for (name, path) in strs.iter().zip(refs.iter()) {
-                        let single = commands::taplo_format(
-                            &tool.binary,
-                            std::slice::from_ref(path),
-                            config.as_deref(),
-                            true,
-                        );
-                        let out = self.run(tool_id, tool, &single, scratch)?;
-                        merged.extend(parsed(
-                            tool_id,
-                            parsers::parse_taplo_format_check(&out.stderr, out.code, &[*name]),
-                        )?);
-                    }
-                    Ok(merged)
-                } else {
-                    parsed(
-                        tool_id,
-                        parsers::parse_taplo_lint(&out.stderr, out.code, &strs),
-                    )
-                }
-            }
-            "vale" => {
-                let invocation = match config.as_ref() {
-                    Some(ini) => commands::vale_check(&tool.binary, ini, &refs, &cwd_rel),
-                    None => return Err(execution(tool_id, "vale requires a config".to_owned())),
-                };
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                // Vale prints a runtime error envelope on stderr when stdout is empty.
-                let report = if out.stdout.iter().all(u8::is_ascii_whitespace) {
-                    &out.stderr
-                } else {
-                    &out.stdout
-                };
-                parsed(tool_id, parsers::parse_vale(report, out.code, &strs))
-            }
-            "biome" => {
-                let config_dir = Self::biome_config_dir(tool, scratch)?;
-                let invocation = if capability == "format" {
-                    commands::biome_format_check(&tool.binary, &refs, &config_dir)
-                } else {
-                    commands::biome_lint_check(&tool.binary, &refs, &config_dir)
-                };
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let report = if capability == "format" {
-                    parsers::parse_biome_format(&out.stdout, out.code, &workspaces)
-                } else {
-                    parsers::parse_biome_lint(&out.stdout, out.code, &workspaces)
-                };
-                let mut findings = parsed(tool_id, report)?;
-                for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
-                    found.file = absolute.to_string_lossy().into_owned();
-                }
-                Ok(findings)
-            }
-            "eslint" => {
-                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let invocation = match config.as_ref() {
-                    Some(cfg) => commands::eslint_check(&launch, &refs, cfg)
-                        .map_err(|err| execution(tool_id, err.to_string()))?,
-                    None => {
-                        return Err(execution(tool_id, "eslint requires a config".to_owned()));
-                    }
-                };
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_eslint(&out.stdout, out.code, &strs))
-            }
-            "gplint" => {
-                // gplint reports realpaths, so lint and match the canonical ones.
-                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "gplint requires a config".to_owned()));
-                };
-                let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
-                for (workspace, absolute) in pairs {
-                    let real = std::fs::canonicalize(absolute)
-                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
-                    owned.push((real, absolute));
-                }
-                let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
-                let invocation = commands::gplint_check(&launch, &path_refs, cfg)
-                    .map_err(|err| execution(tool_id, err.to_string()))?;
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                if out.stdout.is_empty() {
-                    // A crash or a configuration error: gplint prints no report, and a crash exits 0.
-                    return Err(execution(
-                        tool_id,
-                        format!(
-                            "gplint printed no report (exit {:?}): {}",
-                            out.code,
-                            String::from_utf8_lossy(&out.stderr).trim()
-                        ),
-                    ));
-                }
-                let real_names: Vec<String> = owned
-                    .iter()
-                    .map(|(real, _)| real.to_string_lossy().into_owned())
-                    .collect();
-                let real_strs: Vec<&str> = real_names.iter().map(String::as_str).collect();
-                let mut findings = parsed(
-                    tool_id,
-                    parsers::parse_gplint(&out.stdout, out.code, &real_strs),
-                )?;
-                for found in &mut findings {
-                    // Messages such as the duplicate-name rules quote realpaths; name the workspace path.
-                    for ((real, _), (workspace, _)) in owned.iter().zip(pairs.iter()) {
-                        found.finding.message = found
-                            .finding
-                            .message
-                            .replace(real.to_string_lossy().as_ref(), workspace);
-                    }
-                    if let Some((_, absolute)) = owned
-                        .iter()
-                        .find(|(real, _)| real.to_string_lossy() == found.file.as_str())
-                    {
-                        found.file = absolute.to_string_lossy().into_owned();
-                    }
-                }
-                Ok(findings)
-            }
-            "stylelint" => {
-                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "stylelint requires a config".to_owned()));
-                };
-                let invocation = commands::stylelint_check(&launch, &refs, cfg)
-                    .map_err(|err| execution(tool_id, err.to_string()))?;
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let report = if out.stdout.is_empty() {
-                    &out.stderr
-                } else {
-                    &out.stdout
-                };
-                parsed(tool_id, parsers::parse_stylelint(report, out.code, &strs))
-            }
-            "graphql_eslint" => {
-                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(
-                        tool_id,
-                        "graphql_eslint requires a config".to_owned(),
-                    ));
-                };
-                let invocation =
-                    commands::graphql_eslint_check(&launch, &refs, cfg, scratch.root())
-                        .map_err(|err| execution(tool_id, err.to_string()))?;
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                if !matches!(out.code, Some(0 | 1)) {
-                    let code = out
-                        .code
-                        .map_or_else(|| "signal".to_owned(), |code| code.to_string());
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(execution(
-                        tool_id,
-                        format!("exit {code}: {}", stderr.trim()),
-                    ));
-                }
-                parsed(
-                    tool_id,
-                    parsers::parse_graphql_eslint(&out.stdout, out.code, &strs),
-                )
-            }
-            "prettier" => {
-                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let invocation = commands::prettier_check(
-                    &launch,
-                    &refs,
-                    config.as_deref(),
-                    tool.dialect.as_deref(),
-                )
-                .map_err(|err| execution(tool_id, err.to_string()))?;
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
-                    .iter()
-                    .map(|(workspace, _)| workspace.as_str())
-                    .collect();
-                let report = parsers::parse_prettier_check_with_sources(
-                    &out.stderr,
-                    out.code,
-                    &workspaces,
-                    |workspace| {
-                        let (_, absolute) = pairs.iter().find(|(known, _)| known == workspace)?;
-                        std::fs::read_to_string(absolute).ok()
-                    },
-                );
-                let mut findings = parsed(tool_id, report)?;
-                for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
-                    found.file = absolute.to_string_lossy().into_owned();
-                }
-                Ok(findings)
-            }
-            "remark" => {
-                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let invocation = commands::remark_check(&launch, &refs, config.as_deref())
-                    .map_err(|err| execution(tool_id, err.to_string()))?;
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_remark(&out.stdout, &out.stderr, out.code, &strs),
-                )
             }
             "scalafmt" => {
                 let invocation = commands::scalafmt_check(&tool.binary, &refs, config.as_deref());
@@ -1461,33 +1207,6 @@ impl RealBackend {
                         scratch.root(),
                     ),
                 )
-            }
-            "djlint" => {
-                if capability != "format" && !tool.upstream_diagnostics.is_empty() {
-                    return self.check_file_family_delegated(tool_id, tool, pairs);
-                }
-                let mut findings = Vec::new();
-                for name in &strs {
-                    let file = [Path::new(name)];
-                    let one = [*name];
-                    if capability == "format" {
-                        let invocation =
-                            commands::djlint_format_check(&tool.binary, &file, config.as_deref());
-                        let out = self.run(tool_id, tool, &invocation, scratch)?;
-                        let report = parsers::djlint_ran(&out.stderr).and_then(|()| {
-                            parsers::parse_djlint_format(&out.stdout, out.code, &one)
-                        });
-                        findings.extend(parsed(tool_id, report)?);
-                    } else {
-                        let invocation =
-                            commands::djlint_check(&tool.binary, &file, config.as_deref());
-                        let out = self.run(tool_id, tool, &invocation, scratch)?;
-                        let report = parsers::djlint_ran(&out.stderr)
-                            .and_then(|()| parsers::parse_djlint(&out.stdout, out.code, &one));
-                        findings.extend(parsed(tool_id, report)?);
-                    }
-                }
-                Ok(findings)
             }
             "psscriptanalyzer" => {
                 if capability == "format" {

@@ -867,6 +867,7 @@ mod single_run;
 mod sqlfluff;
 mod staging;
 mod tools_gen;
+mod web;
 
 pub use pipeline::{
     run_real_pipeline, run_real_pipeline_with_resolve, run_real_pipeline_with_siblings,

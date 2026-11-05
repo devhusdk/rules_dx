@@ -1,5 +1,5 @@
 use super::common::*;
-use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget, Selection};
+use dx_adopt::dependency_sets::{cargo_fetch_repository, Ecosystem, ResolvedTarget, Selection};
 use dx_output::{notice_event, NoticeEvent};
 use dx_plan::resolve::{run_label_query_file, QueryRunner};
 use std::collections::BTreeSet;
@@ -38,6 +38,28 @@ fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
         Ecosystem::Nuget => Some(dx_depcheck::Ecosystem::Csharp),
         _ => None,
     }
+}
+
+/// Crate name behind a label of a crate_universe hub: `serde-1.0.229` is `serde`, `cc` stays.
+fn crate_name(label: &str) -> Option<String> {
+    let (repository, rest) = label.split_once("//")?;
+    if !repository.starts_with('@') {
+        return None;
+    }
+    let target = rest.rsplit_once(':').map_or(rest, |(_, target)| target);
+    let semver = |text: &str| {
+        let core = text.split(['-', '+']).next().unwrap_or("");
+        let parts: Vec<&str> = core.split('.').collect();
+        parts.len() == 3
+            && parts
+                .iter()
+                .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+    };
+    let name = target
+        .match_indices('-')
+        .find(|(at, _)| semver(&target[at + 1..]))
+        .map_or(target, |(at, _)| &target[..at]);
+    (!name.is_empty()).then(|| name.to_owned())
 }
 
 /// Maven and nuget packages are not imported by name, so only the Bazel graph can tell.
@@ -98,7 +120,10 @@ fn used_labels(
     startup: &[String],
 ) -> Option<BTreeSet<String>> {
     let scope = match target.set.ecosystem {
-        Ecosystem::Cargo | Ecosystem::Maven => {
+        Ecosystem::Cargo => {
+            format!("@{}//...", cargo_fetch_repository(workspace, &target.set)?)
+        }
+        Ecosystem::Maven => {
             format!("@{}//:*", target.set.repository.as_deref()?)
         }
         Ecosystem::Uv => format!("@{}//...", uv_hub(workspace, manifest)?),
@@ -117,6 +142,14 @@ fn used_labels(
     };
     let expression = format!("deps(//..., 1) intersect ({scope})");
     let labels = run_label_query_file(&expression, &expression, workspace, query, startup).ok()?;
+    if target.set.ecosystem == Ecosystem::Cargo {
+        let used: BTreeSet<String> = labels
+            .iter()
+            .filter_map(|label| crate_name(label))
+            .map(|name| format!(":{name}"))
+            .collect();
+        return (!used.is_empty()).then_some(used);
+    }
     Some(labels.iter().filter_map(|label| label_key(label)).collect())
 }
 
@@ -442,10 +475,102 @@ mod tests {
     }
 
     fn cargo_set(root: &Path, manifest: &str) -> Vec<ResolvedTarget> {
+        cargo_set_named(root, manifest, "crates")
+    }
+
+    fn cargo_set_named(root: &Path, manifest: &str, visible: &str) -> Vec<ResolvedTarget> {
         write(root, "rs/Cargo.toml", manifest);
+        write(
+            root,
+            "MODULE.bazel",
+            &format!(
+                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"dx_crates\", cargo_lockfile = \"//rs:Cargo.lock\", manifests = [\"//rs:Cargo.toml\"])\nuse_repo(crate, {visible} = \"dx_crates\")\n"
+            ),
+        );
         let mut resolved = vec![target("crates", Ecosystem::Cargo, "rs/Cargo.toml")];
-        resolved[0].set.repository = Some("crates".to_owned());
+        resolved[0].set.repository = Some("dx_crates".to_owned());
+        resolved[0].set.locks = vec!["rs/Cargo.lock".to_owned()];
         resolved
+    }
+
+    struct Recorded(std::sync::Mutex<Vec<String>>, &'static str);
+
+    impl QueryRunner for Recorded {
+        fn run_query(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+        ) -> std::io::Result<dx_plan::resolve::QueryResult> {
+            for arg in argv {
+                if let Some(file) = arg.strip_prefix("--query_file=") {
+                    self.0
+                        .lock()
+                        .unwrap()
+                        .push(std::fs::read_to_string(file).unwrap());
+                }
+            }
+            Labels(self.1).run_query(argv, _cwd)
+        }
+    }
+
+    #[test]
+    fn crate_name_strips_a_trailing_version() {
+        let name = |label: &str| crate_name(label).unwrap();
+        assert_eq!(
+            name("@@rules_rust++crate+crates//serde-1.0.229:serde-1.0.229"),
+            "serde"
+        );
+        assert_eq!(
+            name("@@rules_rust++crate+crates//x-0.3.0-alpha.1:x-0.3.0-alpha.1"),
+            "x"
+        );
+        assert_eq!(name("@@rules_rust++crate+crates//:cc"), "cc");
+        assert_eq!(name("@crates//sha-1-0.10.1:sha-1-0.10.1"), "sha-1");
+        assert_eq!(name("@crates//:sha-1"), "sha-1");
+    }
+
+    #[test]
+    fn graph_reads_per_crate_subpackage_labels() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let manifest =
+            "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\ncc = \"1\"\nregex = \"1\"\n";
+        let resolved = cargo_set(root, manifest);
+        let query = Labels(
+            "@@rules_rust++crate+crates//serde-1.0.229:serde-1.0.229\n@@rules_rust++crate+crates//:cc\n",
+        );
+        let found = find(root, &resolved, &query, &[]);
+        let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
+        assert_eq!(names, ["regex"]);
+    }
+
+    #[test]
+    fn query_uses_the_use_repo_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let resolved = cargo_set_named(
+            root,
+            "[package]\nname = \"x\"\n\n[dependencies]\ncc = \"1\"\n",
+            "deps",
+        );
+        let query = Recorded(Default::default(), "@@m++crate+dx_crates//:cc\n");
+        assert!(find(root, &resolved, &query, &[]).is_empty());
+        let argv = query.0.lock().unwrap().join(" ");
+        assert!(argv.contains("@deps//..."), "{argv}");
+    }
+
+    #[test]
+    fn query_without_hub_labels_falls_back_to_import_scanning() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let resolved = cargo_set(
+            root,
+            "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nregex = \"1\"\n",
+        );
+        write(root, "rs/src/lib.rs", "use serde::Serialize;\n");
+        let found = find(root, &resolved, &Labels("//app:lib\n"), &[]);
+        let names: Vec<&str> = found.iter().map(|u| u.name.as_str()).collect();
+        assert_eq!(names, ["regex"]);
     }
 
     #[test]

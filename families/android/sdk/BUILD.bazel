@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "android_metadata_tests")
 
@@ -19,4 +20,17 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
+)
+
+build_test(
+    name = "androidsdk_build_test",
+    targets = [
+        "@dx_androidsdk//:sdk",
+        "@dx_androidsdk//:aapt2_binary",
+        "@dx_androidsdk//:d8_jar_import",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )

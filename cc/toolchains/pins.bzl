@@ -5,8 +5,8 @@ LLVM_CLANG_VERSION = "23.1.2"
 
 GCC_VERSION = "16.2.0"
 
-# The cl.exe build of the MSVC toolset, as the Rich header of its output records it.
-MSVC_CL_BUILD = "35717"
+# The cl.exe build in the MSVC 14.50.35717 toolset, as the Rich header of its output records it.
+MSVC_CL_BUILD = "35728"
 
 CC_COMPILER_VERSIONS = {"gcc": GCC_VERSION, "llvm": LLVM_CLANG_VERSION}
 

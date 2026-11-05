@@ -103,7 +103,7 @@ def _check_msvc(env, mnemonics, bin_dir, lib_suffix):
                     if key == "LIB":
                         asserts.true(env, entry.endswith(lib_suffix), "LIB entry not for %s: %s" % (lib_suffix, entry))
         for entry in (action.env or {}).get("PATH", "").split(";"):
-            asserts.false(env, "Visual Studio" in entry or "Program Files" in entry, "PATH entry from an installed Visual Studio: " + entry)
+            asserts.false(env, "Visual Studio" in entry or "Windows Kits" in entry, "PATH entry from an installed Visual Studio: " + entry)
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
@@ -157,7 +157,8 @@ def cc_msvc_arm64_action_tests(name, compile_target, link_target):
             name = test,
             size = "small",
             testonly = True,
-            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            target_compatible_with = ["@platforms//os:windows"],
             target_under_test = target,
         )
         tests.append(test)

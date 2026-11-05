@@ -690,6 +690,47 @@ mod tests {
         );
         assert!(!root.join(second).exists());
     }
+    /// A family-shaped dir whose `third_party/rules_dx` is what dx renders now.
+    fn family_dir(scratch: &Path) {
+        std::fs::write(
+            scratch.join("MODULE.bazel"),
+            format!("bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\ninclude(\"{OVERRIDES_INCLUDE}\")\n"),
+        )
+        .expect("module");
+        for (rel, content) in render_overrides(&BTreeSet::new()) {
+            let dest = scratch.join(&rel);
+            std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
+            std::fs::write(dest, content).expect("write");
+        }
+    }
+
+    #[test]
+    fn a_family_dir_matching_dx_is_ok() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-family-ok-");
+        family_dir(scratch.path());
+        assert_eq!(check_overrides(scratch.path()), OverridesState::Ok);
+    }
+
+    #[test]
+    fn a_family_dir_with_a_stale_patch_or_missing_file_is_an_error() {
+        let scratch = dx_test_scratch::scratch("dx-overrides-family-stale-");
+        let root = scratch.path();
+        family_dir(root);
+        let patch = render_overrides(&BTreeSet::new())
+            .into_iter()
+            .map(|(rel, _)| rel)
+            .find(|rel| rel.ends_with(".patch"))
+            .expect("a patch");
+        std::fs::write(root.join(&patch), "old\n").expect("stale");
+        assert!(
+            matches!(check_overrides(root), OverridesState::Error(text) if text.contains(&patch))
+        );
+        std::fs::remove_file(root.join(&patch)).expect("rm");
+        assert!(
+            matches!(check_overrides(root), OverridesState::Error(text) if text.contains(&patch))
+        );
+    }
+
     use dx_module_bazel::Value;
 
     #[test]

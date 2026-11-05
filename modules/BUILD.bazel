@@ -81,6 +81,7 @@ rust_test(
         "no-remote-exec",
     ],
     deps = [
+        "//cli/adopt:dx_adopt",
         "//libs/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",

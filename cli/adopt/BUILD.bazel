@@ -90,6 +90,7 @@ dx_rust_crate(
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
     },
     visibility = VIS_CLI + [
+        "//modules:__pkg__",
         "//tools/ci:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
     ],

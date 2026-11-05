@@ -447,6 +447,19 @@ mod tests {
 }
 
 #[test]
+fn moved_families_vendor_the_overrides_dx_renders() {
+    let root = dx_testing::rules_dx_source();
+    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    for (family, path) in &paths {
+        assert_eq!(
+            dx_adopt::check_overrides(&root.join(path)),
+            dx_adopt::OverridesState::Ok,
+            "families/{family}/third_party/rules_dx is stale; run: (cd {path} && ../../tools/dx init --apply)"
+        );
+    }
+}
+
+#[test]
 fn real_core_loads_no_rule_set() {
     let core = dx_testing::read_runfiles("quality/real_core.bzl");
     let outside: Vec<&str> = core

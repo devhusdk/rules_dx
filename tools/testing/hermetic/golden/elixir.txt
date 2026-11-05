@@ -1,7 +1,7 @@
 language elixir
 pattern //...
+file elixir/tests/fixtures/elixir-app/mix.lock
 file elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel
-file elixir/tests/fixtures/elixir-app/catalog/jason.BUILD.bazel
 file elixir/tests/fixtures/elixir-app/catalog/lib/catalog.ex
 file elixir/tests/fixtures/elixir-app/catalog/lib/catalog/item.ex
 file elixir/tests/fixtures/elixir-app/catalog/test/catalog_test.exs

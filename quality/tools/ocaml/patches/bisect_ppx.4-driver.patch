@@ -1,0 +1,13 @@
+diff --git a/bisect_ppx/src/driver/driver.ml b/bisect_ppx/src/driver/driver.ml
+--- a/bisect_ppx/src/driver/driver.ml
++++ b/bisect_ppx/src/driver/driver.ml
+@@ -0,0 +1 @@
++let () = Ppxlib.Driver.standalone ()
+diff --git a/bisect_ppx/src/driver/dune b/bisect_ppx/src/driver/dune
+--- a/bisect_ppx/src/driver/dune
++++ b/bisect_ppx/src/driver/dune
+@@ -0,0 +1,4 @@
++(executable
++ (name driver)
++ (link_flags (-linkall))
++ (libraries bisect_ppx ppxlib))

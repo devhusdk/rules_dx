@@ -11,6 +11,11 @@ filegroup(
     srcs = glob(["**"], exclude = ["**/BUILD", "**/BUILD.bazel", "**/WORKSPACE", "**/MODULE.bazel", "**/REPO.bazel"]),
 )
 
+exports_files(glob(
+    ["bisect_ppx/src/**/*.ml", "bisect_ppx/src/**/*.mli"],
+    allow_empty = True,
+))
+
 filegroup(
     name = "licenses",
     srcs = glob(["*/LICENSE*"]),

@@ -2146,6 +2146,7 @@ use_repo(
     "dx_lychee_macos_arm64",
     "dx_lychee_windows_x86_64",
     "dx_nixfmt_linux_x86_64",
+    "dx_ocaml_bisect_duniverse",
     "dx_ocaml_duniverse",
     "dx_opa_linux_arm64",
     "dx_opa_linux_x86_64",

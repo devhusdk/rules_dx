@@ -3,6 +3,7 @@ load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_test")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_test")
 load("//fortran/rules:defs.bzl", "fortran_library", "fortran_test")
+load("//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test")
 load("//perl/rules:defs.bzl", "perl_test")
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:coverage_sources_tests.bzl", "coverage_fixture")
@@ -130,4 +131,17 @@ fortran_test(
     srcs = ["calc_test.f90"],
     tags = ["manual"],
     deps = [":fcalc_lib"],
+)
+
+ocaml_module(
+    name = "ocaml_probe_main",
+    testonly = True,
+    struct = "ocaml_probe.ml",
+    tags = ["manual"],
+)
+
+ocaml_test(
+    name = "ocaml_probe_test",
+    main = ":ocaml_probe_main",
+    tags = ["manual"],
 )

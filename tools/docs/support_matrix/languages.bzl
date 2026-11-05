@@ -135,6 +135,7 @@ COVERAGE_COLLECTORS = {
     "julia": ["CoverageTools"],
     "kotlin": ["jacoco"],
     "lua": ["luacov"],
+    "ocaml": ["bisect_ppx"],
     "php": ["pcov (Linux only)"],
     "powershell": ["pester"],
     "python": ["coverage.py"],
@@ -148,6 +149,7 @@ COVERAGE_COLLECTORS = {
 # A note on where a row's coverage collector runs.
 COVERAGE_NOTES = {
     "fortran": "kcov runs on Linux only",
+    "ocaml": "bisect_ppx runs on Linux x86_64 only",
     "zig": "kcov runs on Linux only",
 }
 
@@ -158,7 +160,6 @@ NO_COVERAGE = {
     "astro": "js_test has no dx coverage wiring",
     "cuda": "cuda_test has no dx coverage wiring",
     "mdx": "js_test has no dx coverage wiring",
-    "ocaml": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "perl": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "qt": "no dx coverage wiring in the Qt rules",
     "svelte": "js_test has no dx coverage wiring",

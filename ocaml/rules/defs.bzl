@@ -24,7 +24,7 @@ load(
     _ocamlyacc = "ocamlyacc",
 )
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_with_tag", "dx_wrap_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "OCamlCmtInfo", "bin_annot_opts", "cmt_entries", "unused_warning_opts")
@@ -38,6 +38,12 @@ OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", 
 OCAML_TOOLCHAIN_FLAG = "@rules_ocaml//toolchain"
 
 OCAML_EMITTER_FLAG = str(Label("//ocaml/toolchain:emitter"))
+
+COVERAGE_ACTIVE = str(Label("//tools/coverage/ocaml:coverage_active"))
+
+BISECT_DRIVER = str(Label("//tools/coverage/ocaml:bisect_driver"))
+
+BISECT_RUNTIME = str(Label("//tools/coverage/ocaml:bisect_runtime"))
 
 NATIVE_TOOLCHAIN = "ocamlopt.opt"
 
@@ -96,6 +102,7 @@ def _library_forward_rule(provider, name, extra_providers = None):
         allow_files = _SOURCE_EXTS,
         upstream_providers = [[provider]],
         runtime = "besteffort",
+        instrument_srcs = True,
         quiet_providers = [p for p in _FORWARDED if p != provider],
         upstream_cfg = _toolchain,
     )
@@ -147,12 +154,78 @@ def _run_environment_info(ctx, upstream):
     out = run_environment(upstream_env, upstream_inherited, ctx.attr.env, ctx.attr.env_inherit)
     return RunEnvironmentInfo(environment = out.environment, inherited_environment = out.inherited_environment)
 
+OCamlCoverageSources = provider(
+    doc = "The hand-written .ml files a target is built from.",
+    fields = {"srcs": "depset of source files"},
+)
+
+_SOURCE_EDGES = ["upstream", "deps", "main", "manifest"]
+
+def _sources_aspect_impl(_target, ctx):
+    own = []
+    if hasattr(ctx.rule.files, "struct"):
+        own = [f for f in ctx.rule.files.struct if f.is_source]
+    deps = []
+    for edge in _SOURCE_EDGES:
+        value = getattr(ctx.rule.attr, edge, None)
+        for dep in value if type(value) == "list" else [value]:
+            if dep != None and OCamlCoverageSources in dep:
+                deps.append(dep[OCamlCoverageSources].srcs)
+    return [OCamlCoverageSources(srcs = depset(own, transitive = deps))]
+
+_sources_aspect = aspect(
+    implementation = _sources_aspect_impl,
+    attr_aspects = _SOURCE_EDGES,
+)
+
+def _coverage_launcher(ctx, upstream, bytecode):
+    info = upstream[DefaultInfo]
+    runtime = ctx.attr._ocamlrun[DefaultInfo]
+    ocamlrun = runtime.files.to_list()[0]
+    runfiles = ctx.runfiles([bytecode, ocamlrun]).merge_all(
+        [info.default_runfiles, runtime.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
+    )
+    inner = ctx.actions.declare_file(ctx.label.name + ".run")
+    ctx.actions.write(
+        inner,
+        launcher_script(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)),
+        is_executable = True,
+    )
+    launcher = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.symlink(output = launcher, target_file = ctx.executable._bisect_collect, is_executable = True)
+    sources = [f for f in upstream[OCamlCoverageSources].srcs.to_list() if not f.short_path.startswith("../")]
+    manifest = ctx.actions.declare_file(ctx.label.name + ".bisect_sources")
+    ctx.actions.write(manifest, "".join([f.short_path + "\n" for f in sources]))
+    report = ctx.attr._bisect_report[DefaultInfo]
+    to_lcov = ctx.attr._bisect_to_lcov[DefaultInfo]
+    env = dict(_run_environment_info(ctx, upstream).environment)
+    env.update({
+        "DX_BISECT_REPORT": runfiles_path(ctx.workspace_name, report.files_to_run.executable.short_path),
+        "DX_BISECT_SOURCES": runfiles_path(ctx.workspace_name, manifest.short_path),
+        "DX_BISECT_UPSTREAM": runfiles_path(ctx.workspace_name, inner.short_path),
+        "DX_BISECT_WORKSPACE": ctx.workspace_name,
+        "DX_TO_LCOV": runfiles_path(ctx.workspace_name, to_lcov.files_to_run.executable.short_path),
+    })
+    runfiles = runfiles.merge(ctx.runfiles([launcher, inner, manifest, report.files_to_run.executable] + sources)).merge_all([
+        report.default_runfiles,
+        to_lcov.default_runfiles,
+        ctx.attr._bisect_collect[DefaultInfo].default_runfiles,
+    ])
+    return [
+        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
+        coverage_common.instrumented_files_info(ctx, dependency_attributes = ["upstream"]),
+        dx_quality_sources(ctx.files.srcs, _OCAML, str(ctx.label)),
+        RunEnvironmentInfo(environment = env, inherited_environment = _run_environment_info(ctx, upstream).inherited_environment),
+    ]
+
 def _launcher_impl(ctx):
     upstream = dx_upstream(ctx)
     info = upstream[DefaultInfo]
     bytecode = info.files_to_run.executable
     if bytecode == None:
         fail("ocaml_*: upstream target has no executable: " + str(upstream.label))
+    if ctx.attr._emitter[BuildSettingInfo].value != "sys" and ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_bisect_collect") and ctx.attr._bisect_report[DefaultInfo].files_to_run.executable != None:
+        return _coverage_launcher(ctx, upstream, bytecode)
     launcher = ctx.actions.declare_file(ctx.label.name)
     if ctx.attr._emitter[BuildSettingInfo].value == "sys":
         ctx.actions.symlink(output = launcher, target_file = bytecode, is_executable = True)
@@ -182,8 +255,8 @@ def _launcher_impl(ctx):
         _run_environment_info(ctx, upstream),
     ]
 
-def _launcher_attrs(extra = None):
-    attrs = dx_forward_attrs(allow_files = _SOURCE_EXTS, upstream_providers = None, extra_attrs = extra, upstream_cfg = _toolchain)
+def _launcher_attrs(extra = None, upstream_aspects = None):
+    attrs = dx_forward_attrs(allow_files = _SOURCE_EXTS, upstream_providers = None, extra_attrs = extra, upstream_cfg = _toolchain, upstream_aspects = upstream_aspects)
     attrs.update(dx_forward_data_attr())
     attrs["env"] = attr.string_dict(doc = "Environment variables set when the executable runs.")
     attrs["env_inherit"] = attr.string_list(doc = "Environment variable names passed through from the caller.")
@@ -204,7 +277,11 @@ _ocaml_forward_test = rule(
     doc = "Runs one rules_ocaml bytecode test on the pinned ocamlrun.",
     test = True,
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    attrs = _launcher_attrs(dx_lcov_merger_attr()),
+    attrs = _launcher_attrs(dict(dx_lcov_merger_attr(), **{
+        "_bisect_collect": attr.label(default = "//tools/coverage/ocaml:collect", executable = True, cfg = "target"),
+        "_bisect_report": attr.label(default = "//tools/coverage/ocaml:report_or_none", cfg = "target"),
+        "_bisect_to_lcov": attr.label(default = "//tools/coverage/ocaml:to_lcov_or_none", cfg = "target"),
+    }), upstream_aspects = [_sources_aspect]),
 )
 
 def owned_sources(*files):
@@ -277,8 +354,18 @@ def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs):
     upstream_rule(name = name + "_upstream", visibility = ["//visibility:private"], **upstream)
     forward_rule(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **dx_wrap_forward_kwargs(kwargs))
 
-def ocaml_module(name, struct, sig = None, visibility = None, **kwargs):
-    """Thin wrapper over the rules_ocaml ocaml_module rule."""
+def coverage_kwargs(kwargs, struct, package):
+    """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64."""
+    if type(struct) != "string" or not struct.endswith(".ml") or kwargs.get("ppx") != None:
+        return kwargs
+    out = dict(kwargs)
+    out["ppx"] = select({COVERAGE_ACTIVE: BISECT_DRIVER, "//conditions:default": None})
+    out["ppx_args"] = select({COVERAGE_ACTIVE: ["-loc-filename", package + "/" + struct], "//conditions:default": []})
+    out["deps"] = (out.get("deps") or []) + select({COVERAGE_ACTIVE: [BISECT_RUNTIME], "//conditions:default": []})
+    return out
+
+def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverage = True, **kwargs):
+    """Thin wrapper over the rules_ocaml ocaml_module rule; modules are instrumented for bisect_ppx coverage unless instrument_coverage is False."""
     if sig != None:
         kwargs["sig"] = sig
     if kwargs.get("module_name") == None:
@@ -286,6 +373,8 @@ def ocaml_module(name, struct, sig = None, visibility = None, **kwargs):
         if module_name != None:
             kwargs["module_name"] = module_name
     kwargs["opts"] = unused_warning_opts(bin_annot_opts(kwargs.get("opts")))
+    if instrument_coverage:
+        kwargs = coverage_kwargs(kwargs, struct, native.package_name())
     _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct))
 
 def ocaml_signature(name, src, visibility = None, **kwargs):
@@ -311,4 +400,4 @@ def ocaml_test(name, visibility = None, **kwargs):
     upstream = test_upstream_kwargs(dx_test_upstream_kwargs(link_kwargs(kwargs)))
     upstream["tags"] = upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
-    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dict(test_forward_kwargs(kwargs), tags = dx_with_tag(test_forward_kwargs(kwargs).get("tags"), DX_NO_COVERAGE_COLLECTOR_TAG)))
+    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **test_forward_kwargs(kwargs))

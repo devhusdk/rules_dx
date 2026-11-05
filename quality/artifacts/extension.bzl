@@ -7,6 +7,7 @@ load("//quality/artifacts:actionlint.bzl", _actionlint = "ARTIFACTS")
 load("//quality/artifacts:avro_tools.bzl", _avro_tools = "SOURCE")
 load("//quality/artifacts:bicep.bzl", _bicep = "ARTIFACTS")
 load("//quality/artifacts:biome.bzl", _biome = "ARTIFACTS")
+load("//quality/artifacts:bisect_ppx.bzl", _bisect_ppx = "SOURCE")
 load("//quality/artifacts:buf.bzl", _buf = "ARTIFACTS")
 load("//quality/artifacts:buildifier.bzl", _buildifier = "ARTIFACTS")
 load("//quality/artifacts:checkmake.bzl", _checkmake = "ARTIFACTS")
@@ -117,6 +118,7 @@ _ARTIFACTS = [
 
 TOOL_SOURCES = [
     _avro_tools,
+    _bisect_ppx,
     _checkstyle,
     _cppcheck,
     _detekt,

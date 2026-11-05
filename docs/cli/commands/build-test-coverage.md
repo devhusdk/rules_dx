@@ -114,7 +114,7 @@ The `failures` file has `record_version`, `exit_code`, `complete`, `truncated`, 
 
 A whole-repository run (`//...`) also fails on a tracked source no Bazel target owns. Add the file to a rule or delete it.
 
-Tests in these languages fail with `no_coverage_collector`: OCaml. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
+Tests in these languages fail with `no_coverage_collector`: Perl. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
 Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources under `--instrument_test_targets`.
 

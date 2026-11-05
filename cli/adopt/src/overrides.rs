@@ -126,10 +126,6 @@ pub const OVERRIDES: &[Override] = &[
         }),
         patches: &[
             OverridePatch {
-                file: "windows_venv.patch",
-                content: include_str!("../../../patches/rules_py/windows_venv.patch"),
-            },
-            OverridePatch {
                 file: "py_cc_toolchain_platform.patch",
                 content: include_str!("../../../patches/rules_py/py_cc_toolchain_platform.patch"),
             },
@@ -857,7 +853,6 @@ archive_override(
     integrity = "sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=",
     patch_strip = 1,
     patches = [
-        "//third_party/rules_dx:rules_py.windows_venv.patch",
         "//third_party/rules_dx:rules_py.py_cc_toolchain_platform.patch",
         "//third_party/rules_dx:rules_py.native_sdist_toolchain_flags.patch",
         "//third_party/rules_dx:rules_py.pep517_msvc.patch",

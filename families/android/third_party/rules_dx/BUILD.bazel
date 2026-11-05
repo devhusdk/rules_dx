@@ -14,7 +14,6 @@ exports_files([
     "rules_py.native_sdist_toolchain_flags.patch",
     "rules_py.pep517_msvc.patch",
     "rules_py.py_cc_toolchain_platform.patch",
-    "rules_py.windows_venv.patch",
     "rules_rust.clippy_metadata_inputs.patch",
     "rules_rust.crate_universe_root_lookup.patch",
     "rules_rust.exec_cc_toolchain_env.patch",

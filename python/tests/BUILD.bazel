@@ -4,16 +4,6 @@ load(":soabi_tests.bzl", "soabi_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-python_test(
-    name = "windows_venv_launcher_test",
-    srcs = ["windows_venv_launcher_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    data = ["@rules_py//py/private/py_venv:templates/windows_venv_launcher.py"],
-    env = {"LAUNCHER": "$(rlocationpath @rules_py//py/private/py_venv:templates/windows_venv_launcher.py)"},
-    main = "windows_venv_launcher_test.py",
-    runner = "plain",
-)
-
 # Outcome: rpds-py 2026.9.1 builds from its sdist offline with rustc 1.99.1.
 # CARGO_HOME points at the vendored crates because maturin does not pass
 # --config to cargo metadata.

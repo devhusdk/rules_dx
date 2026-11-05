@@ -38,7 +38,6 @@ exports_files([
     "defs.bzl",
     "runtime_tests.bzl",
     "sdist_cargo_vendor.bzl",
-    "windows_launcher_tests.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -243,7 +242,6 @@ real_source_target(
         "defs.bzl",
         "runtime_tests.bzl",
         "sdist_cargo_vendor.bzl",
-        "windows_launcher_tests.bzl",
     ],
     tags = ["corpus"],
 )

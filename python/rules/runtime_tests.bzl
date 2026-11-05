@@ -89,8 +89,7 @@ def python_runtime_unit_tests(name):
             "//modules:python.bzl": [_UV_PROJECTS_BLOCK, _UV_LOCKS_BLOCK],
         },
         file_checks = {
-            "//:MODULE.bazel": "//patches/rules_py:windows_venv.patch\n" +
-                               "python_version = \"3.12\"",
+            "//:MODULE.bazel": "python_version = \"3.12\"",
             "//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
             "//quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",
         },

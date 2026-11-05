@@ -44,6 +44,8 @@ build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+cr
 
 build --javacopt=-Werror
 build --javacopt=-Xlint:all
+# rules_android compiles its Kotlin registrant with source 8, which javac flags as obsolete.
+build --javacopt=-Xlint:-options
 
 build --features=treat_warnings_as_errors
 

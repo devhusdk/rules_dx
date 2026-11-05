@@ -1,7 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
+load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPCS", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 
 HUB_NAME = "dx_php_toolchains"
 
@@ -84,7 +84,7 @@ _SOURCES_BUILD = """package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "files",
-    srcs = glob(["src/**", "config/**"], allow_empty = True),
+    srcs = glob(["src/**", "config/**", "rules.neon"], allow_empty = True),
 )
 """
 
@@ -141,6 +141,7 @@ def _php_impl(mctx):
     for name, pin in [
         ("dx_unused_public", UNUSED_PUBLIC),
         ("dx_webmozart_assert", WEBMOZART_ASSERT),
+        ("dx_phpstan_strict_rules", PHPSTAN_STRICT_RULES),
     ]:
         pinned_archive(
             name = name,

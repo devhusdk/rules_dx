@@ -24,6 +24,7 @@ TOOLS = {
 
 _PHPSTAN_ATTRS = {
     "_phpstan_unused_public": attr.label(default = "@dx_unused_public//:files", cfg = "exec", doc = "The pinned unused-public extension."),
+    "_phpstan_strict_rules": attr.label(default = "@dx_phpstan_strict_rules//:files", cfg = "exec", doc = "The pinned phpstan-strict-rules the strict profile includes."),
     "_phpstan_assert": attr.label(default = "@dx_webmozart_assert//:files", cfg = "exec", doc = "The pinned webmozart/assert the extension needs."),
     "_phpstan_autoload": attr.label(default = "//php/tools:phpstan_autoload.php", allow_single_file = True, cfg = "exec", doc = "Autoloads the extension classes inside the phar run."),
 }
@@ -70,6 +71,8 @@ def _phpstan_hook(target, ctx, resolved, capability, _what, shared):
         if pkg_file.path.endswith(".php") and pkg_file.path not in owned_paths and pkg_file.path not in seen_scan:
             seen_scan[pkg_file.path] = True
             stage(tool_files, inputs, "dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file)
+    for f in ctx.files._phpstan_strict_rules:
+        stage(tool_files, inputs, "vendor/phpstan/phpstan-strict-rules/" + f.short_path.split("/", 2)[2], f)
     if capability == "unused":
         for f in ctx.files._phpstan_unused_public:
             stage(tool_files, inputs, "dx-phpstan/ext/unused-public/" + f.short_path.split("/", 2)[2], f)

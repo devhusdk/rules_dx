@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_php_lint_standard
+capability LINT
+stages 1
+stage phpcs classes=php sources=matrix/phpcs_profile_standard.php
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

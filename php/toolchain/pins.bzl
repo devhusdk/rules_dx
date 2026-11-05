@@ -77,6 +77,13 @@ UNUSED_PUBLIC = struct(
     urls = ["https://github.com/TomasVotruba/unused-public/archive/refs/tags/2.2.1.tar.gz"],
 )
 
+PHPSTAN_STRICT_RULES = struct(
+    version = "2.1.1",
+    sha256 = "26262cc118f6b4fefdeb8f0f8dc972d47285a09e2c7818c379f78c51cd0f8d5b",
+    strip_prefix = "phpstan-strict-rules-2.1.1",
+    urls = ["https://github.com/phpstan/phpstan-strict-rules/archive/refs/tags/2.1.1.tar.gz"],
+)
+
 WEBMOZART_ASSERT = struct(
     version = "2.5.0",
     sha256 = "4dc1ffd9e4060770b1a8dd582427ce2394bd5164557cf07ce55928e00eeab184",

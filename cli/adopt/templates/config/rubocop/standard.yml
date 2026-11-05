@@ -1,0 +1,3 @@
+# Needs the standard gem in the Gemfile that provides rubocop.
+inherit_gem:
+  standard: config/base.yml

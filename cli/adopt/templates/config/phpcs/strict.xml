@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<ruleset name="dx strict">
+    <rule ref="PSR12"/>
+    <rule ref="Generic.CodeAnalysis"/>
+    <rule ref="Squiz.PHP"/>
+</ruleset>

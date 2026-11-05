@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_ruby_lint_strict
+capability LINT
+stages 1
+stage rubocop classes=ruby sources=matrix/rubocop_profile_strict.rb
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING rubocop Style/FrozenStringLiteralComment matrix/rubocop_profile_strict.rb 0 0 fixable=false "Missing frozen string literal comment."
+terminal 1
+terminal WARNING rubocop Style/FrozenStringLiteralComment matrix/rubocop_profile_strict.rb 0 0 fixable=false "Missing frozen string literal comment."
+replacements 0

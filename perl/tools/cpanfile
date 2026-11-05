@@ -3,3 +3,4 @@ requires 'Perl::Critic', '== 1.156';
 requires 'Perl::Tidy', '== 20260826';
 requires 'Carton', '== v1.0.35';
 requires 'App::cpanoutdated', '== 0.32';
+requires 'CPANSA::DB', '== 20261101.010';

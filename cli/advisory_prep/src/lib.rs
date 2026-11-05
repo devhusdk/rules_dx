@@ -20,7 +20,7 @@ use std::process::Command as Process;
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::{
     convert_entries, cpan_snapshot, fetch_plan, identity_bytes, needed_families,
-    split_cpan_audit_output, FetchLimits, PrepError, CPAN_AUDIT_SCRIPT, CPAN_AUDIT_URL,
+    split_cpansa_output, FetchLimits, PrepError, CPANSA_URL,
     DEFAULT_LIMITS,
 };
 
@@ -34,8 +34,10 @@ pub struct PrepareOptions {
     pub retrieved_at: String,
     pub limits: FetchLimits,
     pub archives: BTreeMap<String, PathBuf>,
-    /// File holding the CPAN::Audit output instead of running perl.
-    pub cpan_audit_output: Option<PathBuf>,
+    /// File holding the cpansa_dump output instead of running the binary.
+    pub cpansa_output: Option<PathBuf>,
+    /// The `//perl/tools:cpansa_dump` binary that prints the CPANSA::DB database.
+    pub cpansa_dump: Option<PathBuf>,
     /// The pinned trivy binary; set, it downloads the trivy databases under `out`.
     pub trivy: Option<PathBuf>,
 }
@@ -48,7 +50,8 @@ impl Default for PrepareOptions {
             retrieved_at: String::new(),
             limits: DEFAULT_LIMITS,
             archives: BTreeMap::new(),
-            cpan_audit_output: None,
+            cpansa_output: None,
+            cpansa_dump: None,
             trivy: None,
         }
     }
@@ -105,7 +108,7 @@ pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, Pre
     let mut out = Vec::new();
     for family in families {
         let url = match family {
-            "cpan" => Some(CPAN_AUDIT_URL),
+            "cpan" => Some(CPANSA_URL),
             _ => dx_audit::advisory::advisory_source(family),
         }
         .ok_or_else(|| PrepError::UnsupportedSet {
@@ -196,38 +199,43 @@ fn prepare_family(
 fn prepare_cpan(
     options: &PrepareOptions,
 ) -> Result<dx_audit::advisory_prep::PreparedSnapshot, PrepError> {
-    let output = match &options.cpan_audit_output {
-        Some(path) => std::fs::read_to_string(path).map_err(|error| PrepError::ArchiveRead {
+    let output = match (&options.cpansa_output, &options.cpansa_dump) {
+        (Some(path), _) => std::fs::read_to_string(path).map_err(|error| PrepError::ArchiveRead {
             family: "cpan".to_owned(),
             path: path.display().to_string(),
             detail: error.to_string(),
         })?,
-        None => run_cpan_audit()?,
+        (None, Some(binary)) => run_cpansa_dump(binary)?,
+        (None, None) => {
+            return Err(PrepError::Usage {
+                detail: "the cpan family needs --cpansa-dump or --cpansa-output".to_owned(),
+            })
+        }
     };
-    let (version, database) = split_cpan_audit_output(&output)?;
+    let (version, database) = split_cpansa_output(&output)?;
     cpan_snapshot(database, version, &options.retrieved_at)
 }
 
-fn run_cpan_audit() -> Result<String, PrepError> {
-    let done = Process::new("perl")
-        .args(["-e", CPAN_AUDIT_SCRIPT])
+fn run_cpansa_dump(binary: &Path) -> Result<String, PrepError> {
+    let program = binary.display().to_string();
+    let done = Process::new(binary)
         .output()
         .map_err(|error| PrepError::Fetch {
-            program: "perl".to_owned(),
+            program: program.clone(),
             detail: error.to_string(),
         })?;
     if !done.status.success() {
         return Err(PrepError::Fetch {
-            program: "perl".to_owned(),
+            program,
             detail: format!(
-                "CPAN::Audit exited with {}: {}",
+                "exited with {}: {}",
                 exit_text(done.status),
                 String::from_utf8_lossy(&done.stderr).trim()
             ),
         });
     }
     String::from_utf8(done.stdout).map_err(|error| PrepError::Fetch {
-        program: "perl".to_owned(),
+        program,
         detail: error.to_string(),
     })
 }

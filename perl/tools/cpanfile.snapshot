@@ -57,6 +57,16 @@ DISTRIBUTIONS
       perl 5.006
       strict 0
       warnings 0
+  CPANSA-DB-20261101.010
+    pathname: B/BR/BRIANDFOY/CPANSA-DB-20261101.010.tar.gz
+    provides:
+      CPAN::Audit::DB 20261101.010
+      CPANSA::DB 20261101.010
+    requirements:
+      Carp 0
+      ExtUtils::MakeMaker 6.64
+      File::Spec::Functions 0
+      perl 5.020
   Capture-Tiny-0.50
     pathname: D/DA/DAGOLDEN/Capture-Tiny-0.50.tar.gz
     provides:

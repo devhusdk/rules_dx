@@ -266,23 +266,19 @@ pub fn fetch_plan(
     })
 }
 
-pub const CPAN_AUDIT_URL: &str = "https://metacpan.org/release/CPAN-Audit";
+pub const CPANSA_URL: &str = "https://metacpan.org/release/CPANSA-DB";
 
-/// Perl program that prints the CPAN::Audit version, a newline, then its database as JSON.
-pub const CPAN_AUDIT_SCRIPT: &str = "use CPAN::Audit; use CPAN::Audit::DB; use JSON::PP; \
-print $CPAN::Audit::VERSION, qq{\\n}, JSON::PP->new->canonical->encode(CPAN::Audit::DB->db->{dists});";
-
-/// Splits the output of `CPAN_AUDIT_SCRIPT` into the CPAN::Audit version and the database text.
-pub fn split_cpan_audit_output(output: &str) -> Result<(&str, &str), PrepError> {
+/// Splits the output of `//perl/tools:cpansa_dump` into the CPANSA::DB version and the database text.
+pub fn split_cpansa_output(output: &str) -> Result<(&str, &str), PrepError> {
     match output.split_once('\n') {
         Some((version, database)) if !version.trim().is_empty() => Ok((version.trim(), database)),
         _ => Err(PrepError::Usage {
-            detail: "the CPAN::Audit output does not start with a version line".to_owned(),
+            detail: "the CPANSA::DB output does not start with a version line".to_owned(),
         }),
     }
 }
 
-/// Builds the cpan snapshot; the CPAN::Audit release that produced it is recorded in the sidecar URL.
+/// Builds the cpan snapshot; the CPANSA-DB release that produced it is recorded in the sidecar URL.
 pub fn cpan_snapshot(
     database: &str,
     version: &str,
@@ -299,7 +295,7 @@ pub fn cpan_snapshot(
         .unwrap_or_default();
     let snapshot = AdvisorySnapshot {
         set: "cpan".to_owned(),
-        url: format!("{CPAN_AUDIT_URL}?version={version}"),
+        url: format!("{CPANSA_URL}?version={version}"),
         sha256: dx_digest::sha256_hex(&payload),
         retrieved_at: retrieved_at.to_owned(),
         path: advisory::snapshot_rel("cpan"),
@@ -312,7 +308,7 @@ pub fn cpan_snapshot(
     })
 }
 
-/// Turns the CPAN::Audit advisory database, keyed by distribution, into the cpan snapshot payload.
+/// Turns the CPANSA advisory database, keyed by distribution, into the cpan snapshot payload.
 pub fn cpan_audit_payload(text: &str) -> Result<Vec<u8>, PrepError> {
     let bad = |detail: String| PrepError::BadEntryJson {
         family: "cpan".to_owned(),

@@ -53,6 +53,20 @@ sh_test(
     ],
 )
 
+perl_binary(
+    name = "cpansa_dump",
+    srcs = ["cpansa_dump.pl"],
+    main = "cpansa_dump.pl",
+    deps = ["@dx_perl_cpan//:CPANSA-DB"],
+)
+
+sh_test(
+    name = "cpansa_dump_smoke_test",
+    srcs = ["cpansa_dump_smoke_test.sh"],
+    args = ["$(rootpath :cpansa_dump)"],
+    data = [":cpansa_dump"],
+)
+
 cpan_compiler(
     name = "compiler",
     cpanfile = "cpanfile",

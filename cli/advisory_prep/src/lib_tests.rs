@@ -140,7 +140,8 @@ fn options(workspace: &TempDir) -> PrepareOptions {
         retrieved_at: "2026-09-22".to_owned(),
         limits: DEFAULT_LIMITS,
         archives: BTreeMap::new(),
-        cpan_audit_output: None,
+        cpansa_output: None,
+        cpansa_dump: None,
         trivy: None,
     }
 }
@@ -713,7 +714,7 @@ fn a_planted_file_at_the_old_temp_path_has_no_effect() {
 const CPAN_OUTPUT: &str = "1.002\n{\"Mojolicious\":{\"distribution\":\"Mojolicious\",\"advisories\":[{\"id\":\"CPANSA-Mojolicious-2018-03\",\"affected_versions\":[\">=7.0,<7.58\"],\"fixed_versions\":[\">=7.58\"],\"severity\":\"high\"}]}}";
 
 #[test]
-fn a_cpan_set_is_prepared_from_the_cpan_audit_output() {
+fn a_cpan_set_is_prepared_from_the_cpansa_output() {
     let workspace = workspace();
     for (rel, text) in [
         (
@@ -727,10 +728,10 @@ fn a_cpan_set_is_prepared_from_the_cpan_audit_output() {
         std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
         std::fs::write(&path, text).expect("writes");
     }
-    let output = workspace.path().join("cpan-audit.txt");
+    let output = workspace.path().join("cpansa.txt");
     std::fs::write(&output, CPAN_OUTPUT).expect("writes the output");
     let mut options = options(&workspace);
-    options.cpan_audit_output = Some(output);
+    options.cpansa_output = Some(output);
     let urls: Vec<_> = plan(&options)
         .expect("plans")
         .into_iter()

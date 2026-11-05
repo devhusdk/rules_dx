@@ -28,6 +28,12 @@
       "strip_prefix" : "CPAN-Meta-Check-0.018",
       "url" : "https://cpan.metacpan.org/authors/id/L/LE/LEONT/CPAN-Meta-Check-0.018.tar.gz"
    },
+   "CPANSA-DB" : {
+      "dependencies" : [],
+      "sha256" : "9393db0a7f02fdc482c56b9112a615125118ec002defe7766ada5118d13b7ccd",
+      "strip_prefix" : "CPANSA-DB-20261101.010",
+      "url" : "https://cpan.metacpan.org/authors/id/B/BR/BRIANDFOY/CPANSA-DB-20261101.010.tar.gz"
+   },
    "Capture-Tiny" : {
       "dependencies" : [],
       "sha256" : "ca6e8d7ce7471c2be54e1009f64c367d7ee233a2894cacf52ebe6f53b04e81e5",

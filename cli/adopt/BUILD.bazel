@@ -130,14 +130,6 @@ exports_files([
     "src/launcher.rs",
     "src/lib.rs",
     "src/version.rs",
-    "templates/config/ansible_lint/standard.yaml",
-    "templates/config/ansible_lint/strict.yaml",
-    "templates/config/regal/standard.yaml",
-    "templates/config/regal/strict.yaml",
-    "templates/config/tflint/standard.hcl",
-    "templates/config/tflint/strict.hcl",
-    "templates/config/tsconfig/standard.json",
-    "templates/config/tsconfig/strict.json",
 ])
 
 real_source_target(

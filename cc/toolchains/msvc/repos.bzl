@@ -24,8 +24,16 @@ def layout_links(msvc_version, sdk_version):
         A list of structs with the layout path, the source repo and the path inside it.
     """
     sdk = "Windows Kits/10/"
+    vc = "VC/Tools/MSVC/" + msvc_version
+    vc_src = "sysroot/Contents/" + vc
+    hosts = sorted({host: None for host, _ in SUPPORTED_CELLS})
     return [
-        struct(dst = "VC/Tools/MSVC/" + msvc_version, repo = "msvc_runtime", src = "sysroot/Contents/VC/Tools/MSVC/" + msvc_version),
+        struct(dst = vc + "/include", repo = "msvc_runtime", src = vc_src + "/include"),
+        struct(dst = vc + "/lib", repo = "msvc_runtime", src = vc_src + "/lib"),
+    ] + [
+        struct(dst = vc + "/bin/Host" + host, repo = "msvc_runtime", src = vc_src + "/bin/Host" + host)
+        for host in hosts
+    ] + [
         struct(dst = sdk + "Include/" + sdk_version, repo = "windows_sdk", src = "sysroot/base/c/Include/" + sdk_version),
     ] + [
         link
@@ -36,6 +44,14 @@ def layout_links(msvc_version, sdk_version):
             struct(dst = sdk + "Lib/" + sdk_version + "/um/" + arch, repo = "windows_sdk", src = "sysroot/{}/c/um/{}".format(arch, arch)),
         ]
     ]
+
+def match_name(parent, name):
+    """Returns the entry of parent whose name equals name ignoring case, or name when none does."""
+    if parent.exists:
+        for child in parent.readdir():
+            if child.basename.lower() == name.lower():
+                return child.basename
+    return name
 
 def missing_error(paths):
     """Returns the error for tools missing from the assembled layout."""
@@ -106,6 +122,7 @@ def _layout_repo_impl(rctx):
     sdk_version = _only_child(rctx, sdk_root.get_child("sysroot/base/c/Include"))
     for link in layout_links(msvc_version, sdk_version):
         source = roots[link.repo].get_child(link.src)
+        source = source.dirname.get_child(match_name(source.dirname, source.basename))
         if source.exists:
             rctx.symlink(source, link.dst)
     redist = rctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC")

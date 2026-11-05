@@ -17,7 +17,10 @@ def _checks():
     return [
         expect_equal("hub name", HUB_NAME, "dx_msvc"),
         expect_equal("link destinations", [k.dst for k in links], [
-            "VC/Tools/MSVC/14.44.35207",
+            "VC/Tools/MSVC/14.44.35207/include",
+            "VC/Tools/MSVC/14.44.35207/lib",
+            "VC/Tools/MSVC/14.44.35207/bin/Hostarm64",
+            "VC/Tools/MSVC/14.44.35207/bin/Hostx64",
             sdk + "Include/10.0.26100.0",
             sdk + "bin/10.0.26100.0/x64",
             sdk + "Lib/10.0.26100.0/ucrt/x64",
@@ -27,7 +30,10 @@ def _checks():
             sdk + "Lib/10.0.26100.0/um/arm64",
         ]),
         expect_equal("link sources", [(k.repo, k.src) for k in links], [
-            ("msvc_runtime", "sysroot/Contents/VC/Tools/MSVC/14.44.35207"),
+            ("msvc_runtime", "sysroot/Contents/VC/Tools/MSVC/14.44.35207/include"),
+            ("msvc_runtime", "sysroot/Contents/VC/Tools/MSVC/14.44.35207/lib"),
+            ("msvc_runtime", "sysroot/Contents/VC/Tools/MSVC/14.44.35207/bin/Hostarm64"),
+            ("msvc_runtime", "sysroot/Contents/VC/Tools/MSVC/14.44.35207/bin/Hostx64"),
             ("windows_sdk", "sysroot/base/c/Include/10.0.26100.0"),
             ("windows_sdk", "sysroot/base/c/bin/10.0.26100.0/x64"),
             ("windows_sdk", "sysroot/x64/c/ucrt/x64"),

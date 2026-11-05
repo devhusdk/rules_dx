@@ -1250,16 +1250,19 @@ fn ruby_unsupported_syntax_is_incomplete_not_clean() {
 
 #[test]
 fn unparseable_scopes_and_versions_are_incomplete_per_ecosystem() {
-    use super::VersionScope::Incomplete;
     for (scope, version) in [(">=1.0, <banana", "1.0.0"), ("<2", "banana")] {
         assert_eq!(
             cargo_assess(scope, version),
-            Incomplete,
+            VersionScope::Incomplete,
             "{scope} {version}"
         );
     }
     for (scope, version) in [("not a range", "1.0.0"), ("<2", "banana")] {
-        assert_eq!(go_assess(scope, version), Incomplete, "{scope} {version}");
+        assert_eq!(
+            go_assess(scope, version),
+            VersionScope::Incomplete,
+            "{scope} {version}"
+        );
     }
     for (scope, version) in [
         ("[1.0,2.0", "1.5"),
@@ -1268,14 +1271,14 @@ fn unparseable_scopes_and_versions_are_incomplete_per_ecosystem() {
     ] {
         assert_eq!(
             maven_assess(scope, version),
-            Incomplete,
+            VersionScope::Incomplete,
             "{scope} {version}"
         );
     }
     for (scope, version) in [("1.*", "1.0"), ("[1.0,2.0)", "1.0-a..b"), ("[1.0]x", "1.0")] {
         assert_eq!(
             nuget_assess(scope, version),
-            Incomplete,
+            VersionScope::Incomplete,
             "{scope} {version}"
         );
     }

@@ -8,6 +8,8 @@ _FEATURES = "//command_line_option:features"
 
 _EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
 
+_PLATFORMS = "//command_line_option:platforms"
+
 def _impl(settings, attr):
     features = list(settings[_FEATURES])
     for f in getattr(attr, "extra_features", []):
@@ -21,12 +23,13 @@ def _impl(settings, attr):
         _COMPILER: attr.compiler or settings[_COMPILER],
         _EXTRA_TOOLCHAINS: extra_toolchains,
         _FEATURES: features,
+        _PLATFORMS: getattr(attr, "platforms", []) or settings[_PLATFORMS],
     }
 
 toolchain_transition = transition(
     implementation = _impl,
-    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES],
-    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES],
+    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _PLATFORMS],
+    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _PLATFORMS],
 )
 
 def _test_impl(ctx):
@@ -51,8 +54,6 @@ cc_toolchain_test = rule(
     } | dx_lcov_merger_attr(),
     test = True,
 )
-
-_PLATFORMS = "//command_line_option:platforms"
 
 def _files_transition_impl(_settings, attr):
     return {

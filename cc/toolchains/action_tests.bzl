@@ -20,6 +20,15 @@ def _gcc_impl(ctx):
             asserts.true(env, len(linkers) > 0, "link action does not use the pinned GCC linker")
     return analysistest.end(env)
 
+def _gcc_arm64_impl(ctx):
+    env = analysistest.begin(ctx)
+    for action in _actions(env, ctx.attr.mnemonics):
+        asserts.true(env, "dx_gcc_linux_aarch64_cross" in action.argv[0], "tool outside the pinned cross GCC: " + action.argv[0])
+        asserts.false(env, "dx_gcc_linux_x86_64" in action.argv[0], "x86_64 GCC used for arm64: " + action.argv[0])
+        for arg in action.argv:
+            asserts.false(env, arg.startswith("/usr/") or arg.startswith("/lib"), "host path in %s: %s" % (action.mnemonic, arg))
+    return analysistest.end(env)
+
 def _llvm_impl(ctx):
     env = analysistest.begin(ctx)
     for action in _actions(env, ctx.attr.mnemonics):
@@ -29,6 +38,11 @@ def _llvm_impl(ctx):
 _ATTRS = {"mnemonics": attr.string_list()}
 
 _gcc_test = analysistest.make(_gcc_impl, attrs = _ATTRS, config_settings = {_COMPILER: "gcc"})
+_gcc_arm64_test = analysistest.make(
+    _gcc_arm64_impl,
+    attrs = _ATTRS,
+    config_settings = {_COMPILER: "gcc", "//command_line_option:platforms": [str(Label("//cc/tests/gcc_cross:linux_arm64"))]},
+)
 _llvm_test = analysistest.make(_llvm_impl, attrs = _ATTRS, config_settings = {_COMPILER: "llvm"})
 
 def cc_action_tests(name, compile_target, link_target):
@@ -41,7 +55,7 @@ def cc_action_tests(name, compile_target, link_target):
     """
     tests = []
     for kind, target, mnemonics in [("compile", compile_target, ["CppCompile"]), ("link", link_target, ["CppLink"])]:
-        for compiler, rule in [("gcc", _gcc_test), ("llvm", _llvm_test)]:
+        for compiler, rule in [("gcc", _gcc_test), ("gcc_arm64", _gcc_arm64_test), ("llvm", _llvm_test)]:
             test = "%s_%s_%s" % (name, kind, compiler)
             rule(
                 name = test,

@@ -28,6 +28,7 @@ cc_toolchain_identity_subject = rule(
     doc = "Analysis subject reporting the selected C/C++ toolchain.",
     attrs = {
         "compiler": attr.string(doc = "Compiler flag value to build with."),
+        "platforms": attr.string_list(doc = "Target platform labels to build with."),
         "extra_toolchains": attr.string_list(doc = "Toolchain labels to register ahead of the defaults."),
     },
     cfg = toolchain_transition,

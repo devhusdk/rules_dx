@@ -37,6 +37,23 @@ aspect_field has_subject=True
 aspect_field subject_label=//cc/toolchains:identity_under_test_gcc
 aspect_field transitive_count=0"""
 
+EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test_gcc_arm64
+field cc.abi=itanium
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include/c++/16.2.0 | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include/c++/16.2.0/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include/c++/16.2.0/backward | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/lib/gcc/aarch64-linux/16.2.0/include | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/lib/gcc/aarch64-linux/16.2.0/include-fixed | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/sysroot/usr/include
+field cc.compiler=gcc
+field cc.coverage=gcov
+field cc.driver=gnu
+field cc.family=gcc
+field cc.libc=glibc_2.28
+field cc.syntax_only=-fsyntax-only
+field cc.sysroot=None
+field cc.target=aarch64-linux-gnu
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//cc/toolchains:identity_under_test_gcc_arm64
+aspect_field transitive_count=0"""
+
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
 def cc_toolchain_identity_tests(name):
@@ -119,5 +136,12 @@ def cc_toolchain_identity_tests(name):
         mode = "analysis",
         subjects = [":identity_under_test_gcc"],
         expected_observations = EXPECTED_GCC_IDENTITY_OBSERVATIONS,
+        target_compatible_with = _LINUX_X86_64,
+    )
+    starlark_test(
+        name = name + "_gcc_arm64",
+        mode = "analysis",
+        subjects = [":identity_under_test_gcc_arm64"],
+        expected_observations = EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS,
         target_compatible_with = _LINUX_X86_64,
     )

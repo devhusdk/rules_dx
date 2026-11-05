@@ -21,6 +21,12 @@ cc_toolchain_identity_subject(
     compiler = "gcc",
 )
 
+cc_toolchain_identity_subject(
+    name = "identity_under_test_gcc_arm64",
+    compiler = "gcc",
+    platforms = ["//cc/tests/gcc_cross:linux_arm64"],
+)
+
 cc_toolchain_identity_tests(name = "identity")
 
 string_flag(
@@ -260,6 +266,7 @@ test_suite(
         ":identity",
         ":identity_contract",
         ":identity_gcc",
+        ":identity_gcc_arm64",
         "//cc/tests/fixtures/hello:toolchain_action_tests",
         "//cc/tests/gcc_cross:cross_arm64_test",
         "//cc/tests/gcc_linux_x86_64:all",

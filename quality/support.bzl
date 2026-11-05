@@ -4,2303 +4,1997 @@ load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
-
-TEXT_KEEP_SORTED_SUPPORT = {
+SUPPORT_DEFAULTS = {
     "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["text"],
-    "context": "owned",
     "execution": "direct",
-    "family": "text",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "keep_sorted",
-    "transport": "batched",
 }
 
-SHELL_SHELLCHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["shell"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "shell",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "shellcheck",
-    "transport": "single",
-}
+def support(**overrides):
+    """Returns one support record with the shared defaults filled in."""
+    return dict(SUPPORT_DEFAULTS, **overrides)
 
-DOCKERFILE_HADOLINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["dockerfile"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "dockerfile",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "hadolint",
-    "transport": "batched",
-}
+TEXT_KEEP_SORTED_SUPPORT = support(
+    capability = "lint",
+    classes = ["text"],
+    context = "owned",
+    family = "text",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "keep_sorted",
+    transport = "batched",
+)
 
-ANSIBLE_ANSIBLE_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["ansible"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "ansible",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "ansible_lint",
-    "transport": "batched",
-    "unsupported": {
+SHELL_SHELLCHECK_SUPPORT = support(
+    capability = "lint",
+    classes = ["shell"],
+    context = "owned",
+    family = "shell",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "shellcheck",
+    transport = "single",
+)
+
+DOCKERFILE_HADOLINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["dockerfile"],
+    context = "owned",
+    family = "dockerfile",
+    fix = "check_only",
+    state = "supported",
+    tool = "hadolint",
+    transport = "batched",
+)
+
+ANSIBLE_ANSIBLE_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["ansible"],
+    context = "owned",
+    family = "ansible",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "ansible_lint",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "ansible-core does not run on Windows",
         "windows_x86_64": "ansible-core does not run on Windows",
     },
-}
+)
 
-BICEP_BICEP_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["bicep"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "bicep",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "bicep",
-    "transport": "single",
-}
+BICEP_BICEP_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["bicep"],
+    context = "owned",
+    family = "bicep",
+    fix = "supported",
+    state = "supported",
+    tool = "bicep",
+    transport = "single",
+)
 
-BICEP_BICEP_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["bicep"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "bicep",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "bicep",
-    "transport": "single",
-}
+BICEP_BICEP_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["bicep"],
+    context = "target_coupled",
+    family = "bicep",
+    fix = "check_only",
+    state = "supported",
+    tool = "bicep",
+    transport = "single",
+)
 
-CLOUDFORMATION_CFN_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["cloudformation"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cloudformation",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "cfn_lint",
-    "transport": "batched",
-}
+CLOUDFORMATION_CFN_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["cloudformation"],
+    context = "owned",
+    family = "cloudformation",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "cfn_lint",
+    transport = "batched",
+)
 
-KUBERNETES_KUBECONFORM_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["kubernetes"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "kubernetes",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "kubeconform",
-    "transport": "batched",
-}
+KUBERNETES_KUBECONFORM_SUPPORT = support(
+    capability = "lint",
+    classes = ["kubernetes"],
+    context = "owned",
+    family = "kubernetes",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "kubeconform",
+    transport = "batched",
+)
 
-HELM_HELM_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["helm"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "helm",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "helm",
-    "transport": "single",
-}
+HELM_HELM_SUPPORT = support(
+    capability = "lint",
+    classes = ["helm"],
+    context = "owned",
+    family = "helm",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "helm",
+    transport = "single",
+)
 
-MAKE_CHECKMAKE_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["make"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "make",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "checkmake",
-    "transport": "batched",
-}
+MAKE_CHECKMAKE_SUPPORT = support(
+    capability = "lint",
+    classes = ["make"],
+    context = "owned",
+    family = "make",
+    fix = "check_only",
+    state = "supported",
+    tool = "checkmake",
+    transport = "batched",
+)
 
-MAKE_MBAKE_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["make"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "make",
-    "fix": "supported",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "mbake",
-    "transport": "batched",
-}
+MAKE_MBAKE_SUPPORT = support(
+    capability = "format",
+    classes = ["make"],
+    context = "owned",
+    family = "make",
+    fix = "supported",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "mbake",
+    transport = "batched",
+)
 
-CMAKE_GERSEMI_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["cmake"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cmake",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "gersemi",
-    "transport": "batched",
-}
+CMAKE_GERSEMI_SUPPORT = support(
+    capability = "format",
+    classes = ["cmake"],
+    context = "owned",
+    family = "cmake",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "gersemi",
+    transport = "batched",
+)
 
-CMAKE_CMAKELINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["cmake"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cmake",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "cmakelint",
-    "transport": "batched",
-}
+CMAKE_CMAKELINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["cmake"],
+    context = "owned",
+    family = "cmake",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "cmakelint",
+    transport = "batched",
+)
 
-SHELL_SHFMT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["shell"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "shell",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "shfmt",
-    "transport": "single",
-}
+SHELL_SHFMT_SUPPORT = support(
+    capability = "format",
+    classes = ["shell"],
+    context = "owned",
+    family = "shell",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "shfmt",
+    transport = "single",
+)
 
-SCALA_SCALAFMT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["scala"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "scala",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "scalafmt",
-    "transport": "batched",
-}
+SCALA_SCALAFMT_SUPPORT = support(
+    capability = "format",
+    classes = ["scala"],
+    context = "owned",
+    family = "scala",
+    fix = "supported",
+    state = "supported",
+    tool = "scalafmt",
+    transport = "batched",
+)
 
-SCALA_SCALAC_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["scala"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "scala",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "scalac",
-    "transport": "batched",
-}
+SCALA_SCALAC_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["scala"],
+    context = "target_coupled",
+    family = "scala",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "scalac",
+    transport = "batched",
+)
 
-SCALA_SCALAFIX_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["scala"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "scala",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "scalafix",
-    "transport": "batched",
-}
+SCALA_SCALAFIX_SUPPORT = support(
+    capability = "lint",
+    classes = ["scala"],
+    context = "target_coupled",
+    family = "scala",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "scalafix",
+    transport = "batched",
+)
 
-JAVA_CHECKSTYLE_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["java"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "java",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "checkstyle",
-    "transport": "batched",
-}
+JAVA_CHECKSTYLE_SUPPORT = support(
+    capability = "lint",
+    classes = ["java"],
+    context = "owned",
+    family = "java",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "checkstyle",
+    transport = "batched",
+)
 
-JAVA_GOOGLE_JAVA_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["java"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "java",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "google_java_format",
-    "transport": "batched",
-}
+JAVA_GOOGLE_JAVA_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["java"],
+    context = "owned",
+    family = "java",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "google_java_format",
+    transport = "batched",
+)
 
-JAVA_JAVAC_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["java"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "java",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "javac",
-    "transport": "batched",
-}
+JAVA_JAVAC_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["java"],
+    context = "target_coupled",
+    family = "java",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "javac",
+    transport = "batched",
+)
 
-JAVA_PMD_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["java"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "java",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "pmd",
-    "transport": "batched",
-}
+JAVA_PMD_SUPPORT = support(
+    capability = "lint",
+    classes = ["java"],
+    context = "owned",
+    family = "java",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "pmd",
+    transport = "batched",
+)
 
-JAVA_SPOTBUGS_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["java"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "java",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "spotbugs",
-    "transport": "batched",
-}
+JAVA_SPOTBUGS_SUPPORT = support(
+    capability = "lint",
+    classes = ["java"],
+    context = "target_coupled",
+    family = "java",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "spotbugs",
+    transport = "batched",
+)
 
-KOTLIN_KOTLINC_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["kotlin"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "kotlin",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "kotlinc",
-    "transport": "batched",
-}
+KOTLIN_KOTLINC_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["kotlin"],
+    context = "target_coupled",
+    family = "kotlin",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "kotlinc",
+    transport = "batched",
+)
 
-KOTLIN_KTFMT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["kotlin"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "kotlin",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "ktfmt",
-    "transport": "batched",
-}
+KOTLIN_KTFMT_SUPPORT = support(
+    capability = "format",
+    classes = ["kotlin"],
+    context = "owned",
+    family = "kotlin",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "ktfmt",
+    transport = "batched",
+)
 
-KOTLIN_KTLINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["kotlin"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "kotlin",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "ktlint",
-    "transport": "batched",
-}
+KOTLIN_KTLINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["kotlin"],
+    context = "owned",
+    family = "kotlin",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "ktlint",
+    transport = "batched",
+)
 
-CSHARP_CSHARPIER_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["csharp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "csharp",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "csharpier",
-    "transport": "batched",
-}
+CSHARP_CSHARPIER_SUPPORT = support(
+    capability = "format",
+    classes = ["csharp"],
+    context = "owned",
+    family = "csharp",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "csharpier",
+    transport = "batched",
+)
 
-CSHARP_ROSLYN_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["csharp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "csharp",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "roslyn",
-    "transport": "batched",
-}
+CSHARP_ROSLYN_SUPPORT = support(
+    capability = "lint",
+    classes = ["csharp"],
+    context = "target_coupled",
+    family = "csharp",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "roslyn",
+    transport = "batched",
+)
 
-CSHARP_CSC_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["csharp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "csharp",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "csc",
-    "transport": "batched",
-}
+CSHARP_CSC_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["csharp"],
+    context = "target_coupled",
+    family = "csharp",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "csc",
+    transport = "batched",
+)
 
-FSHARP_FANTOMAS_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["fsharp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "fsharp",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "fantomas",
-    "transport": "batched",
-}
+FSHARP_FANTOMAS_SUPPORT = support(
+    capability = "format",
+    classes = ["fsharp"],
+    context = "owned",
+    family = "fsharp",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "fantomas",
+    transport = "batched",
+)
 
-FSHARP_FSC_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["fsharp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "fsharp",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "fsc",
-    "transport": "batched",
-}
+FSHARP_FSC_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["fsharp"],
+    context = "target_coupled",
+    family = "fsharp",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "fsc",
+    transport = "batched",
+)
 
-FSHARP_FSHARPLINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["fsharp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "fsharp",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "fsharplint",
-    "transport": "batched",
-}
+FSHARP_FSHARPLINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["fsharp"],
+    context = "target_coupled",
+    family = "fsharp",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "fsharplint",
+    transport = "batched",
+)
 
-RUBY_RUBOCOP_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["ruby"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "ruby",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "rubocop",
-    "transport": "batched",
-    "unsupported": {
+RUBY_RUBOCOP_SUPPORT = support(
+    capability = "lint",
+    classes = ["ruby"],
+    context = "owned",
+    family = "ruby",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "rubocop",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "Ruby portable builds ship no Windows interpreter",
         "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
     },
-}
+)
 
-RUBY_SORBET_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["ruby"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "ruby",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "sorbet",
-    "transport": "batched",
-    "unsupported": {
+RUBY_SORBET_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["ruby"],
+    context = "target_coupled",
+    family = "ruby",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "sorbet",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "Sorbet ships no Windows build",
         "windows_x86_64": "Sorbet ships no Windows build",
     },
-}
+)
 
-RUBY_STANDARDRB_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["ruby"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "ruby",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "standardrb",
-    "transport": "batched",
-    "unsupported": {
+RUBY_STANDARDRB_SUPPORT = support(
+    capability = "format",
+    classes = ["ruby"],
+    context = "owned",
+    family = "ruby",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "standardrb",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "Ruby portable builds ship no Windows interpreter",
         "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
     },
-}
+)
 
-YAML_YAMLFMT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["yaml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "yaml",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "yamlfmt",
-    "transport": "batched",
-}
+YAML_YAMLFMT_SUPPORT = support(
+    capability = "format",
+    classes = ["yaml"],
+    context = "owned",
+    family = "yaml",
+    fix = "supported",
+    state = "supported",
+    tool = "yamlfmt",
+    transport = "batched",
+)
 
-YAML_YAMLLINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["yaml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "yaml",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "yamllint",
-    "transport": "batched",
-}
+YAML_YAMLLINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["yaml"],
+    context = "owned",
+    family = "yaml",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "yamllint",
+    transport = "batched",
+)
 
-NIX_STATIX_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["nix"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "nix",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "statix",
-    "transport": "single",
-}
+NIX_STATIX_SUPPORT = support(
+    capability = "lint",
+    classes = ["nix"],
+    context = "owned",
+    family = "nix",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "statix",
+    transport = "single",
+)
 
-NIX_NIXFMT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["nix"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "nix",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "nixfmt",
-    "transport": "batched",
-    "unsupported": {
+NIX_NIXFMT_SUPPORT = support(
+    capability = "format",
+    classes = ["nix"],
+    context = "owned",
+    family = "nix",
+    fix = "supported",
+    state = "supported",
+    tool = "nixfmt",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "nixfmt ships only a Linux x86_64 binary",
         "macos_arm64": "nixfmt ships only a Linux x86_64 binary",
         "windows_arm64": "nixfmt ships only a Linux x86_64 binary",
         "windows_x86_64": "nixfmt ships only a Linux x86_64 binary",
     },
-}
+)
 
-OCAML_TOPIARY_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["ocaml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "ocaml",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "topiary",
-    "transport": "single",
-}
+OCAML_TOPIARY_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["ocaml"],
+    context = "owned",
+    family = "ocaml",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "topiary",
+    transport = "single",
+)
 
-OCAML_ZANUDA_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["ocaml"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "ocaml",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "zanuda",
-    "transport": "single",
-    "unsupported": {
+OCAML_ZANUDA_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["ocaml"],
+    context = "target_coupled",
+    family = "ocaml",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "zanuda",
+    transport = "single",
+    unsupported = {
         "linux_arm64": "zanuda is built only for Linux x86_64",
         "macos_arm64": "zanuda is built only for Linux x86_64",
         "windows_arm64": "zanuda is built only for Linux x86_64",
         "windows_x86_64": "zanuda is built only for Linux x86_64",
     },
-}
+)
 
-NIX_DEADNIX_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["nix"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "nix",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "deadnix",
-    "transport": "batched",
-}
+NIX_DEADNIX_SUPPORT = support(
+    capability = "lint",
+    classes = ["nix"],
+    context = "owned",
+    family = "nix",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "deadnix",
+    transport = "batched",
+)
 
-XML_XMLLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["xml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "xml",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "xmllint",
-    "transport": "batched",
-}
+XML_XMLLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["xml"],
+    context = "owned",
+    family = "xml",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "xmllint",
+    transport = "batched",
+)
 
-TERRAFORM_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["terraform"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "terraform",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "terraform",
-    "transport": "single",
-}
+TERRAFORM_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["terraform"],
+    context = "owned",
+    family = "terraform",
+    fix = "supported",
+    state = "qualified",
+    tool = "terraform",
+    transport = "single",
+)
 
-TERRAFORM_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["terraform"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "terraform",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "terraform",
-    "transport": "single",
-}
+TERRAFORM_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["terraform"],
+    context = "target_coupled",
+    family = "terraform",
+    fix = "check_only",
+    state = "supported",
+    tool = "terraform",
+    transport = "single",
+)
 
-TERRAFORM_TFLINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["terraform"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "terraform",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "tflint",
-    "transport": "batched",
-}
+TERRAFORM_TFLINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["terraform"],
+    context = "owned",
+    family = "terraform",
+    fix = "check_only",
+    state = "supported",
+    tool = "tflint",
+    transport = "batched",
+)
 
-GO_GOFUMPT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["go"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "go",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "gofumpt",
-    "transport": "batched",
-}
+GO_GOFUMPT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["go"],
+    context = "owned",
+    family = "go",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "gofumpt",
+    transport = "batched",
+)
 
-GO_MODFMT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["go_module"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "go_module",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "modfmt",
-    "transport": "batched",
-}
+GO_MODFMT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["go_module"],
+    context = "owned",
+    family = "go_module",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "modfmt",
+    transport = "batched",
+)
 
-CC_CLANG_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["c", "cpp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cc",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "clang_format",
-    "transport": "batched",
-}
+CC_CLANG_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["c", "cpp"],
+    context = "owned",
+    family = "cc",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "clang_format",
+    transport = "batched",
+)
 
-CUDA_CLANG_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["cuda"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cuda",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "clang_format",
-    "transport": "batched",
-}
+CUDA_CLANG_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["cuda"],
+    context = "owned",
+    family = "cuda",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "clang_format",
+    transport = "batched",
+)
 
-OBJC_CLANG_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["objc", "objcpp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "objc",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "clang_format",
-    "transport": "batched",
-}
+OBJC_CLANG_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["objc", "objcpp"],
+    context = "owned",
+    family = "objc",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "clang_format",
+    transport = "batched",
+)
 
-CC_CPPCHECK_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["c", "cpp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cc",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "cppcheck",
-    "transport": "batched",
-}
+CC_CPPCHECK_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["c", "cpp"],
+    context = "owned",
+    family = "cc",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "cppcheck",
+    transport = "batched",
+)
 
-RUST_RUSTFMT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["rust"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "rust",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "rustfmt",
-    "transport": "batched",
-}
+RUST_RUSTFMT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["rust"],
+    context = "owned",
+    family = "rust",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "rustfmt",
+    transport = "batched",
+)
 
-CC_CLANG_TIDY_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["c", "cpp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "cc",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "clang_tidy",
-    "transport": "batched",
-}
+CC_CLANG_TIDY_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["c", "cpp"],
+    context = "target_coupled",
+    family = "cc",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "clang_tidy",
+    transport = "batched",
+)
 
-GO_ERRCHECK_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["go"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "go",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "errcheck",
-    "transport": "batched",
-}
+GO_ERRCHECK_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["go"],
+    context = "target_coupled",
+    family = "go",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "errcheck",
+    transport = "batched",
+)
 
-GO_GOVET_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["go"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "go",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "govet",
-    "transport": "batched",
-}
+GO_GOVET_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["go"],
+    context = "target_coupled",
+    family = "go",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "govet",
+    transport = "batched",
+)
 
-GO_STATICCHECK_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["go"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "go",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "known",
-    "tool": "staticcheck",
-    "transport": "batched",
-}
+GO_STATICCHECK_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["go"],
+    context = "target_coupled",
+    family = "go",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "known",
+    tool = "staticcheck",
+    transport = "batched",
+)
 
-RUST_CLIPPY_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["rust"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "rust",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "clippy",
-    "transport": "batched",
-}
+RUST_CLIPPY_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["rust"],
+    context = "target_coupled",
+    family = "rust",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "clippy",
+    transport = "batched",
+)
 
-CC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["c", "cpp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "cc",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "clang_syntax",
-    "transport": "batched",
-}
+CC_CLANG_SYNTAX_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["c", "cpp"],
+    context = "target_coupled",
+    family = "cc",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "clang_syntax",
+    transport = "batched",
+)
 
-CUDA_NVCC_SYNTAX_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["cuda"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "cuda",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "nvcc_syntax",
-    "transport": "batched",
-}
+CUDA_NVCC_SYNTAX_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["cuda"],
+    context = "target_coupled",
+    family = "cuda",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "windows_x86_64"],
+    state = "supported",
+    tool = "nvcc_syntax",
+    transport = "batched",
+)
 
-GO_GOTYPE_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["go"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "go",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "gotype",
-    "transport": "batched",
-}
+GO_GOTYPE_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["go"],
+    context = "target_coupled",
+    family = "go",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "gotype",
+    transport = "batched",
+)
 
-OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["objc", "objcpp"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "objc",
-    "fix": "check_only",
-    "platforms": ["macos_arm64"],
-    "state": "supported",
-    "tool": "clang_syntax",
-    "transport": "batched",
-    "unsupported": {
+OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["objc", "objcpp"],
+    context = "target_coupled",
+    family = "objc",
+    fix = "check_only",
+    platforms = ["macos_arm64"],
+    state = "supported",
+    tool = "clang_syntax",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "objc_library builds only with an Apple toolchain",
         "linux_x86_64": "objc_library builds only with an Apple toolchain",
         "windows_arm64": "objc_library builds only with an Apple toolchain",
         "windows_x86_64": "objc_library builds only with an Apple toolchain",
     },
-}
+)
 
-RUST_RUSTC_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["rust"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "rust",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "rustc",
-    "transport": "batched",
-}
+RUST_RUSTC_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["rust"],
+    context = "target_coupled",
+    family = "rust",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "rustc",
+    transport = "batched",
+)
 
-PROTOBUF_BUF_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["protobuf"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "protobuf",
-    "fix": "supported",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "buf",
-    "transport": "single",
-}
+PROTOBUF_BUF_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["protobuf"],
+    context = "owned",
+    family = "protobuf",
+    fix = "supported",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "buf",
+    transport = "single",
+)
 
-PROTOBUF_BUF_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["protobuf"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "protobuf",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "buf",
-    "transport": "batched",
-}
+PROTOBUF_BUF_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["protobuf"],
+    context = "owned",
+    family = "protobuf",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "buf",
+    transport = "batched",
+)
 
-FLATBUFFERS_FLATC_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["flatbuffers"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "flatbuffers",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "flatc",
-    "transport": "batched",
-}
+FLATBUFFERS_FLATC_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["flatbuffers"],
+    context = "owned",
+    family = "flatbuffers",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "flatc",
+    transport = "batched",
+)
 
-FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["flatbuffers"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "flatbuffers",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "flatc",
-    "transport": "batched",
-}
+FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["flatbuffers"],
+    context = "owned",
+    family = "flatbuffers",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "flatc",
+    transport = "batched",
+)
 
-CAPNP_CAPNP_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["capnp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "capnp",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "capnp",
-    "transport": "batched",
-    "unsupported": {
+CAPNP_CAPNP_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["capnp"],
+    context = "owned",
+    family = "capnp",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "capnp",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "The capnp compiler is built only for Linux x86_64",
         "macos_arm64": "The capnp compiler is built only for Linux x86_64",
         "windows_x86_64": "The capnp compiler is built only for Linux x86_64",
     },
-}
+)
 
-CAPNP_CAPNP_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["capnp"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "capnp",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "capnp",
-    "transport": "batched",
-    "unsupported": {
+CAPNP_CAPNP_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["capnp"],
+    context = "owned",
+    family = "capnp",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "capnp",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "The capnp compiler is built only for Linux x86_64",
         "macos_arm64": "The capnp compiler is built only for Linux x86_64",
         "windows_x86_64": "The capnp compiler is built only for Linux x86_64",
     },
-}
+)
 
-AVRO_AVRO_TOOLS_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["avro"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "avro",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "avro_tools",
-    "transport": "batched",
-}
+AVRO_AVRO_TOOLS_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["avro"],
+    context = "owned",
+    family = "avro",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "avro_tools",
+    transport = "batched",
+)
 
-AVRO_AVRO_TOOLS_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["avro"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "avro",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "avro_tools",
-    "transport": "batched",
-}
+AVRO_AVRO_TOOLS_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["avro"],
+    context = "owned",
+    family = "avro",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "avro_tools",
+    transport = "batched",
+)
 
-THRIFT_THRIFT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["thrift"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "thrift",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "thrift",
-    "transport": "batched",
-    "unsupported": {
+THRIFT_THRIFT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["thrift"],
+    context = "owned",
+    family = "thrift",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "thrift",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "The thrift compiler is built only for Linux x86_64",
         "macos_arm64": "The thrift compiler is built only for Linux x86_64",
         "windows_x86_64": "The thrift compiler is built only for Linux x86_64",
     },
-}
+)
 
-THRIFT_THRIFT_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["thrift"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "thrift",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "thrift",
-    "transport": "batched",
-    "unsupported": {
+THRIFT_THRIFT_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["thrift"],
+    context = "owned",
+    family = "thrift",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "thrift",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "The thrift compiler is built only for Linux x86_64",
         "macos_arm64": "The thrift compiler is built only for Linux x86_64",
         "windows_x86_64": "The thrift compiler is built only for Linux x86_64",
     },
-}
+)
 
-CSS_STYLELINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["css", "less", "scss"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "css",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "stylelint",
-    "transport": "batched",
-}
+CSS_STYLELINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["css", "less", "scss"],
+    context = "owned",
+    family = "css",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "stylelint",
+    transport = "batched",
+)
 
-GRAPHQL_ESLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["graphql"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "graphql",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "graphql_eslint",
-    "transport": "batched",
-}
+GRAPHQL_ESLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["graphql"],
+    context = "owned",
+    family = "graphql",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "graphql_eslint",
+    transport = "batched",
+)
 
-API_SPEC_REDOCLY_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["api_spec"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "api_spec",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "redocly",
-    "transport": "single",
-}
+API_SPEC_REDOCLY_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["api_spec"],
+    context = "owned",
+    family = "api_spec",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "redocly",
+    transport = "single",
+)
 
-JAVASCRIPT_BIOME_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["javascript", "jsx"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "javascript",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "biome",
-    "transport": "batched",
-}
+JAVASCRIPT_BIOME_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["javascript", "jsx"],
+    context = "owned",
+    family = "javascript",
+    fix = "supported",
+    state = "supported",
+    tool = "biome",
+    transport = "batched",
+)
 
-JAVASCRIPT_BIOME_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["javascript", "jsx"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "javascript",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "biome",
-    "transport": "batched",
-}
+JAVASCRIPT_BIOME_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["javascript", "jsx"],
+    context = "owned",
+    family = "javascript",
+    fix = "supported",
+    state = "supported",
+    tool = "biome",
+    transport = "batched",
+)
 
-JAVASCRIPT_ESLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["javascript"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "javascript",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "eslint",
-    "transport": "batched",
-}
+JAVASCRIPT_ESLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["javascript"],
+    context = "owned",
+    family = "javascript",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "eslint",
+    transport = "batched",
+)
 
-JAVASCRIPT_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["javascript"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "javascript",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+JAVASCRIPT_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["javascript"],
+    context = "owned",
+    family = "javascript",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-ASTRO_ESLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["astro"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "astro",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "eslint",
-    "transport": "batched",
-}
+ASTRO_ESLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["astro"],
+    context = "owned",
+    family = "astro",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "eslint",
+    transport = "batched",
+)
 
-SVELTE_ESLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["svelte"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "svelte",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "eslint",
-    "transport": "batched",
-}
+SVELTE_ESLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["svelte"],
+    context = "owned",
+    family = "svelte",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "eslint",
+    transport = "batched",
+)
 
-VUE_ESLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["vue"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "vue",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "eslint",
-    "transport": "batched",
-}
+VUE_ESLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["vue"],
+    context = "owned",
+    family = "vue",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "eslint",
+    transport = "batched",
+)
 
-MDX_ESLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["mdx"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "mdx",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "eslint",
-    "transport": "batched",
-}
+MDX_ESLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["mdx"],
+    context = "owned",
+    family = "mdx",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "eslint",
+    transport = "batched",
+)
 
-TYPESCRIPT_BIOME_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["tsx", "typescript"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "typescript",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "biome",
-    "transport": "batched",
-}
+TYPESCRIPT_BIOME_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["tsx", "typescript"],
+    context = "owned",
+    family = "typescript",
+    fix = "supported",
+    state = "supported",
+    tool = "biome",
+    transport = "batched",
+)
 
-TYPESCRIPT_BIOME_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["tsx", "typescript"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "typescript",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "biome",
-    "transport": "batched",
-}
+TYPESCRIPT_BIOME_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["tsx", "typescript"],
+    context = "owned",
+    family = "typescript",
+    fix = "supported",
+    state = "supported",
+    tool = "biome",
+    transport = "batched",
+)
 
-MDX_REMARK_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["mdx"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "mdx",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "remark",
-    "transport": "batched",
-}
+MDX_REMARK_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["mdx"],
+    context = "owned",
+    family = "mdx",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "remark",
+    transport = "batched",
+)
 
-API_SPEC_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["api_spec", "api_spec_ref"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "api_spec",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+API_SPEC_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["api_spec", "api_spec_ref"],
+    context = "owned",
+    family = "api_spec",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-ANSIBLE_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["ansible"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "ansible",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+ANSIBLE_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["ansible"],
+    context = "owned",
+    family = "ansible",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-KUBERNETES_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["kubernetes"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "kubernetes",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+KUBERNETES_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["kubernetes"],
+    context = "owned",
+    family = "kubernetes",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-DOCKERFILE_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["dockerfile"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "dockerfile",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+DOCKERFILE_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["dockerfile"],
+    context = "owned",
+    family = "dockerfile",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-PERL_PERLCRITIC_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["perl"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "perl",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "perlcritic",
-    "transport": "batched",
-    "unsupported": {
+PERL_PERLCRITIC_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["perl"],
+    context = "owned",
+    family = "perl",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "perlcritic",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
     },
-}
+)
 
-PERL_PERLTIDY_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["perl"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "perl",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "perltidy",
-    "transport": "batched",
-    "unsupported": {
+PERL_PERLTIDY_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["perl"],
+    context = "owned",
+    family = "perl",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "perltidy",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
     },
-}
+)
 
-PHP_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["php"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "php",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+PHP_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["php"],
+    context = "owned",
+    family = "php",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-PHP_PHPCS_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["php"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "php",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "phpcs",
-    "transport": "batched",
-    "unsupported": {
+PHP_PHPCS_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["php"],
+    context = "owned",
+    family = "php",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "phpcs",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
     },
-}
+)
 
-PHP_PHPSTAN_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["php"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "php",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "phpstan",
-    "transport": "batched",
-    "unsupported": {
+PHP_PHPSTAN_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["php"],
+    context = "target_coupled",
+    family = "php",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "phpstan",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
     },
-}
+)
 
-SQL_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["sql"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "sql",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+SQL_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["sql"],
+    context = "owned",
+    family = "sql",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-SQL_SQLFLUFF_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["sql"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "sql",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "sqlfluff",
-    "transport": "batched",
-}
+SQL_SQLFLUFF_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["sql"],
+    context = "owned",
+    family = "sql",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "sqlfluff",
+    transport = "batched",
+)
 
-SQL_SQLFLUFF_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["sql"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "sql",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "sqlfluff",
-    "transport": "batched",
-}
+SQL_SQLFLUFF_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["sql"],
+    context = "owned",
+    family = "sql",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "sqlfluff",
+    transport = "batched",
+)
 
-XML_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["xml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "xml",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+XML_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["xml"],
+    context = "owned",
+    family = "xml",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-GHERKIN_GPLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["gherkin"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "gherkin",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "gplint",
-    "transport": "batched",
-}
+GHERKIN_GPLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["gherkin"],
+    context = "owned",
+    family = "gherkin",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "gplint",
+    transport = "batched",
+)
 
-GHERKIN_PRETTIER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["gherkin"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "gherkin",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "prettier",
-    "transport": "batched",
-}
+GHERKIN_PRETTIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["gherkin"],
+    context = "owned",
+    family = "gherkin",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "prettier",
+    transport = "batched",
+)
 
-CUE_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["cue"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "cue",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "cue",
-    "transport": "batched",
-}
+CUE_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["cue"],
+    context = "owned",
+    family = "cue",
+    fix = "supported",
+    state = "qualified",
+    tool = "cue",
+    transport = "batched",
+)
 
-CUE_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["cue"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "cue",
-    "fix": "check_only",
-    "state": "qualified",
-    "tool": "cue",
-    "transport": "batched",
-}
+CUE_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["cue"],
+    context = "target_coupled",
+    family = "cue",
+    fix = "check_only",
+    state = "qualified",
+    tool = "cue",
+    transport = "batched",
+)
 
-JSONNET_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["jsonnet"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "jsonnet",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "jsonnetfmt",
-    "transport": "batched",
-}
+JSONNET_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["jsonnet"],
+    context = "owned",
+    family = "jsonnet",
+    fix = "supported",
+    state = "qualified",
+    tool = "jsonnetfmt",
+    transport = "batched",
+)
 
-FORTRAN_FFMT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["fortran"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "fortran",
-    "fix": "supported",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "ffmt",
-    "transport": "batched",
-}
+FORTRAN_FFMT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["fortran"],
+    context = "owned",
+    family = "fortran",
+    fix = "supported",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "ffmt",
+    transport = "batched",
+)
 
-FORTRAN_FORTITUDE_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["fortran"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "fortran",
-    "fix": "check_only",
-    "platforms": ["linux_x86_64"],
-    "state": "supported",
-    "tool": "fortitude",
-    "transport": "batched",
-}
+FORTRAN_FORTITUDE_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["fortran"],
+    context = "owned",
+    family = "fortran",
+    fix = "check_only",
+    platforms = ["linux_x86_64"],
+    state = "supported",
+    tool = "fortitude",
+    transport = "batched",
+)
 
-JSONNET_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["jsonnet"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "jsonnet",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "jsonnet_lint",
-    "transport": "batched",
-}
+JSONNET_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["jsonnet"],
+    context = "owned",
+    family = "jsonnet",
+    fix = "check_only",
+    state = "supported",
+    tool = "jsonnet_lint",
+    transport = "batched",
+)
 
-TYPST_TINYMIST_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["typst"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "typst",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "tinymist",
-    "transport": "single",
-}
+TYPST_TINYMIST_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["typst"],
+    context = "owned",
+    family = "typst",
+    fix = "check_only",
+    state = "supported",
+    tool = "tinymist",
+    transport = "single",
+)
 
-TYPST_TYPSTYLE_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["typst"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "typst",
-    "fix": "supported",
-    "state": "supported",
-    "tool": "typstyle",
-    "transport": "batched",
-}
+TYPST_TYPSTYLE_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["typst"],
+    context = "owned",
+    family = "typst",
+    fix = "supported",
+    state = "supported",
+    tool = "typstyle",
+    transport = "batched",
+)
 
-LATEX_LATEXINDENT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["latex"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "latex",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "latexindent",
-    "transport": "single",
-}
+LATEX_LATEXINDENT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["latex"],
+    context = "owned",
+    family = "latex",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "latexindent",
+    transport = "single",
+)
 
-LATEX_CHKTEX_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["latex"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "latex",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "chktex",
-    "transport": "single",
-}
+LATEX_CHKTEX_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["latex"],
+    context = "owned",
+    family = "latex",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "chktex",
+    transport = "single",
+)
 
 # Vale lints AsciiDoc through the pinned Asciidoctor.js converter the owner rule carries.
-ASCIIDOC_VALE_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["asciidoc"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "asciidoc",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "vale",
-    "transport": "batched",
-}
+ASCIIDOC_VALE_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["asciidoc"],
+    context = "owned",
+    family = "asciidoc",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "vale",
+    transport = "batched",
+)
 
-MARKDOWN_VALE_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["markdown"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "markdown",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "vale",
-    "transport": "batched",
-}
+MARKDOWN_VALE_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["markdown"],
+    context = "owned",
+    family = "markdown",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "vale",
+    transport = "batched",
+)
 
-RST_VALE_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["rst"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "rst",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "vale",
-    "transport": "batched",
-}
+RST_VALE_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["rst"],
+    context = "owned",
+    family = "rst",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "vale",
+    transport = "batched",
+)
 
-POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["powershell"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "powershell",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "psscriptanalyzer",
-    "transport": "batched",
-    "unsupported": {
+POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["powershell"],
+    context = "owned",
+    family = "powershell",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "psscriptanalyzer",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "No PSScriptAnalyzer artifact is pinned for Windows",
         "windows_x86_64": "No PSScriptAnalyzer artifact is pinned for Windows",
     },
-}
+)
 
-POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["powershell"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "powershell",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "psscriptanalyzer",
-    "transport": "batched",
-    "unsupported": {
+POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["powershell"],
+    context = "owned",
+    family = "powershell",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "psscriptanalyzer",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "No PSScriptAnalyzer artifact is pinned for Windows",
         "windows_x86_64": "No PSScriptAnalyzer artifact is pinned for Windows",
     },
-}
+)
 
-HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["html_template"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "html_template",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "djlint",
-    "transport": "single",
-}
+HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["html_template"],
+    context = "owned",
+    family = "html_template",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "djlint",
+    transport = "single",
+)
 
-HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["html_template"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "html_template",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "djlint",
-    "transport": "single",
-}
+HTML_TEMPLATE_DJLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["html_template"],
+    context = "owned",
+    family = "html_template",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "djlint",
+    transport = "single",
+)
 
-HASKELL_HLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["haskell"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "haskell",
-    "fix": "check_only",
-    "state": "supported",
-    "tool": "hlint",
-    "transport": "batched",
-    "unsupported": {
+HASKELL_HLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["haskell"],
+    context = "owned",
+    family = "haskell",
+    fix = "check_only",
+    state = "supported",
+    tool = "hlint",
+    transport = "batched",
+    unsupported = {
         "linux_arm64": "hlint publishes no linux_arm64 build",
         "macos_arm64": "hlint v3.10 ships only x86_64-osx and no macOS fallback exists",
     },
-}
+)
 
-HASKELL_ORMOLU_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["haskell"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "haskell",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "ormolu",
-    "transport": "single",
-    "unsupported": {
+HASKELL_ORMOLU_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["haskell"],
+    context = "owned",
+    family = "haskell",
+    fix = "supported",
+    state = "qualified",
+    tool = "ormolu",
+    transport = "single",
+    unsupported = {
         "linux_arm64": "ormolu publishes no linux_arm64 build",
         "macos_arm64": "The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose",
     },
-}
+)
 
-PKL_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["pkl"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "pkl",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "pkl",
-    "transport": "batched",
-}
+PKL_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["pkl"],
+    context = "owned",
+    family = "pkl",
+    fix = "supported",
+    state = "qualified",
+    tool = "pkl",
+    transport = "batched",
+)
 
-PKL_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["pkl"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "pkl",
-    "fix": "check_only",
-    "state": "qualified",
-    "tool": "pkl",
-    "transport": "single",
-}
+PKL_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["pkl"],
+    context = "target_coupled",
+    family = "pkl",
+    fix = "check_only",
+    state = "qualified",
+    tool = "pkl",
+    transport = "single",
+)
 
-PKL_PKL_LSP_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["pkl"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "pkl",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "pkl_lsp",
-    "transport": "batched",
-}
+PKL_PKL_LSP_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["pkl"],
+    context = "owned",
+    family = "pkl",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "pkl_lsp",
+    transport = "batched",
+)
 
-LUA_SELENE_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["lua"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "lua",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "selene",
-    "transport": "batched",
-}
+LUA_SELENE_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["lua"],
+    context = "owned",
+    family = "lua",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "selene",
+    transport = "batched",
+)
 
-LUA_STYLUA_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["lua"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "lua",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "stylua",
-    "transport": "batched",
-}
+LUA_STYLUA_SUPPORT = support(
+    capability = "format",
+    classes = ["lua"],
+    context = "owned",
+    family = "lua",
+    fix = "supported",
+    state = "qualified",
+    tool = "stylua",
+    transport = "batched",
+)
 
-JUPYTER_RUFF_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["jupyter"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "jupyter",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "ruff",
-    "transport": "batched",
-}
+JUPYTER_RUFF_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["jupyter"],
+    context = "owned",
+    family = "jupyter",
+    fix = "supported",
+    state = "qualified",
+    tool = "ruff",
+    transport = "batched",
+)
 
-JUPYTER_RUFF_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["jupyter"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "jupyter",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "ruff",
-    "transport": "batched",
-}
+JUPYTER_RUFF_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["jupyter"],
+    context = "owned",
+    family = "jupyter",
+    fix = "supported",
+    state = "qualified",
+    tool = "ruff",
+    transport = "batched",
+)
 
-PYTHON_FLAKE8_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["python", "python_stub"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "python",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "flake8",
-    "transport": "batched",
-}
+PYTHON_FLAKE8_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["python", "python_stub"],
+    context = "owned",
+    family = "python",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "flake8",
+    transport = "batched",
+)
 
-PYTHON_PYDOCLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["python", "python_stub"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "python",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "pydoclint",
-    "transport": "batched",
-}
+PYTHON_PYDOCLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["python", "python_stub"],
+    context = "owned",
+    family = "python",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "pydoclint",
+    transport = "batched",
+)
 
-PYTHON_PYLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["python", "python_stub"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "python",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "pylint",
-    "transport": "batched",
-}
+PYTHON_PYLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["python", "python_stub"],
+    context = "owned",
+    family = "python",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "pylint",
+    transport = "batched",
+)
 
-PYTHON_RUFF_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["python", "python_stub"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "python",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "ruff",
-    "transport": "batched",
-}
+PYTHON_RUFF_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["python", "python_stub"],
+    context = "owned",
+    family = "python",
+    fix = "supported",
+    state = "qualified",
+    tool = "ruff",
+    transport = "batched",
+)
 
-PYTHON_RUFF_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["python", "python_stub"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "python",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "ruff",
-    "transport": "batched",
-}
+PYTHON_RUFF_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["python", "python_stub"],
+    context = "owned",
+    family = "python",
+    fix = "supported",
+    state = "qualified",
+    tool = "ruff",
+    transport = "batched",
+)
 
-PYTHON_TY_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["python", "python_stub"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "python",
-    "fix": "check_only",
-    "state": "qualified",
-    "tool": "ty",
-    "transport": "batched",
-}
+PYTHON_TY_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["python", "python_stub"],
+    context = "target_coupled",
+    family = "python",
+    fix = "check_only",
+    state = "qualified",
+    tool = "ty",
+    transport = "batched",
+)
 
-JUPYTER_TY_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["jupyter"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "jupyter",
-    "fix": "check_only",
-    "state": "qualified",
-    "tool": "ty",
-    "transport": "batched",
-}
+JUPYTER_TY_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["jupyter"],
+    context = "target_coupled",
+    family = "jupyter",
+    fix = "check_only",
+    state = "qualified",
+    tool = "ty",
+    transport = "batched",
+)
 
-JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["jupyter"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "jupyter",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "qualified",
-    "tool": "notebook_outputs",
-    "transport": "batched",
-}
+JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["jupyter"],
+    context = "owned",
+    family = "jupyter",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "qualified",
+    tool = "notebook_outputs",
+    transport = "batched",
+)
 
-REGO_OPA_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["rego"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "rego",
-    "fix": "supported",
-    "state": "qualified",
-    "tool": "opa",
-    "transport": "single",
-}
+REGO_OPA_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["rego"],
+    context = "owned",
+    family = "rego",
+    fix = "supported",
+    state = "qualified",
+    tool = "opa",
+    transport = "single",
+)
 
-REGO_OPA_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["rego"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "rego",
-    "fix": "check_only",
-    "state": "qualified",
-    "tool": "opa",
-    "transport": "batched",
-}
+REGO_OPA_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["rego"],
+    context = "target_coupled",
+    family = "rego",
+    fix = "check_only",
+    state = "qualified",
+    tool = "opa",
+    transport = "batched",
+)
 
-REGO_REGAL_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["rego"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "rego",
-    "fix": "check_only",
-    "state": "qualified",
-    "tool": "regal",
-    "transport": "batched",
-}
+REGO_REGAL_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["rego"],
+    context = "owned",
+    family = "rego",
+    fix = "check_only",
+    state = "qualified",
+    tool = "regal",
+    transport = "batched",
+)
 
-ELIXIR_CREDO_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["elixir"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "elixir",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "credo",
-    "transport": "batched",
-}
+ELIXIR_CREDO_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["elixir"],
+    context = "owned",
+    family = "elixir",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "credo",
+    transport = "batched",
+)
 
-ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["elixir"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "elixir",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "mix_format",
-    "transport": "batched",
-}
+ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["elixir"],
+    context = "owned",
+    family = "elixir",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "mix_format",
+    transport = "batched",
+)
 
-ERLANG_ELVIS_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["erlang"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "erlang",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "elvis",
-    "transport": "batched",
-    "unsupported": {
+ERLANG_ELVIS_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["erlang"],
+    context = "owned",
+    family = "erlang",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "elvis",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "No OTP Windows cell is pinned",
         "windows_x86_64": "No OTP Windows cell is pinned",
     },
-}
+)
 
-ERLANG_DIALYZER_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["erlang"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "erlang",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "dialyzer",
-    "transport": "batched",
-}
+ERLANG_DIALYZER_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["erlang"],
+    context = "target_coupled",
+    family = "erlang",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "dialyzer",
+    transport = "batched",
+)
 
-ELIXIR_DIALYZER_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["elixir"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "elixir",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "dialyzer",
-    "transport": "batched",
-    "unsupported": {
+ELIXIR_DIALYZER_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["elixir"],
+    context = "target_coupled",
+    family = "elixir",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "dialyzer",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "dialyzer on Windows is pending #6321",
         "windows_x86_64": "dialyzer on Windows is pending #6008",
     },
-}
+)
 
-ERLANG_ERLFMT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["erlang"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "erlang",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "erlfmt",
-    "transport": "batched",
-    "unsupported": {
+ERLANG_ERLFMT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["erlang"],
+    context = "owned",
+    family = "erlang",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "erlfmt",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "No OTP Windows cell is pinned",
         "windows_x86_64": "No OTP Windows cell is pinned",
     },
-}
+)
 
-JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["julia"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "julia",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "julia_format",
-    "transport": "single",
-    "unsupported": {
+JULIA_JULIA_FORMAT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["julia"],
+    context = "target_coupled",
+    family = "julia",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "julia_format",
+    transport = "single",
+    unsupported = {
         "windows_arm64": "Julia ships no windows_arm64 runtime",
     },
-}
+)
 
-JULIA_JULIALINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["julia"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "julia",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "julialint",
-    "transport": "single",
-    "unsupported": {
+JULIA_JULIALINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["julia"],
+    context = "owned",
+    family = "julia",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "julialint",
+    transport = "single",
+    unsupported = {
         "windows_arm64": "Julia ships no windows_arm64 runtime",
     },
-}
+)
 
-D_DFMT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["d"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "d",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "dfmt",
-    "transport": "batched",
-}
+D_DFMT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["d"],
+    context = "target_coupled",
+    family = "d",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "dfmt",
+    transport = "batched",
+)
 
-D_DSCANNER_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["d"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "d",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "dscanner",
-    "transport": "batched",
-}
+D_DSCANNER_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["d"],
+    context = "target_coupled",
+    family = "d",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "dscanner",
+    transport = "batched",
+)
 
-SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["swift"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "swift",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64"],
-    "state": "supported",
-    "tool": "swift_format",
-    "transport": "single",
-    "unsupported": {
+SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["swift"],
+    context = "target_coupled",
+    family = "swift",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64"],
+    state = "supported",
+    tool = "swift_format",
+    transport = "single",
+    unsupported = {
         "macos_arm64": "swift-format is pinned only for Linux",
         "windows_arm64": "swift-format is pinned only for Linux",
         "windows_x86_64": "swift-format is pinned only for Linux",
     },
-}
+)
 
-SWIFT_SWIFT_LINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["swift"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "swift",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64"],
-    "state": "supported",
-    "tool": "swift_lint",
-    "transport": "batched",
-    "unsupported": {
+SWIFT_SWIFT_LINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["swift"],
+    context = "target_coupled",
+    family = "swift",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64"],
+    state = "supported",
+    tool = "swift_lint",
+    transport = "batched",
+    unsupported = {
         "macos_arm64": "SwiftLint is pinned only for Linux",
         "windows_arm64": "SwiftLint is pinned only for Linux",
         "windows_x86_64": "SwiftLint is pinned only for Linux",
     },
-}
+)
 
-ZIG_ZIG_FMT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["zig"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "zig",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "zig_fmt",
-    "transport": "single",
-    "unsupported": {},
-}
+ZIG_ZIG_FMT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["zig"],
+    context = "target_coupled",
+    family = "zig",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "zig_fmt",
+    transport = "single",
+    unsupported = {},
+)
 
-DART_DART_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["dart"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "dart",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "dart",
-    "transport": "batched",
-    "unsupported": {
+DART_DART_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["dart"],
+    context = "target_coupled",
+    family = "dart",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "dart",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "rules_dart ships no windows_arm64 SDK",
     },
-}
+)
 
-DART_DART_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["dart"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "dart",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "dart",
-    "transport": "batched",
-    "unsupported": {
+DART_DART_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["dart"],
+    context = "target_coupled",
+    family = "dart",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "dart",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "rules_dart ships no windows_arm64 SDK",
     },
-}
+)
 
-DART_DART_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["dart"],
-    "context": "target_coupled",
-    "execution": "direct",
-    "family": "dart",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "supported",
-    "tool": "dart",
-    "transport": "batched",
-    "unsupported": {
+DART_DART_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["dart"],
+    context = "target_coupled",
+    family = "dart",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "dart",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "rules_dart ships no windows_arm64 SDK",
     },
-}
+)
 
-QML_QMLLINT_LINT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "lint",
-    "classes": ["qml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "qml",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "qmllint",
-    "transport": "batched",
-    "unsupported": {
+QML_QMLLINT_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["qml"],
+    context = "owned",
+    family = "qml",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "qmllint",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "The Qt Windows arm64 cell has a blocker",
         "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
     },
-}
+)
 
-QML_QMLLINT_TYPECHECK_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "typecheck",
-    "classes": ["qml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "qml",
-    "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "qmllint",
-    "transport": "batched",
-    "unsupported": {
+QML_QMLLINT_TYPECHECK_SUPPORT = support(
+    capability = "typecheck",
+    classes = ["qml"],
+    context = "owned",
+    family = "qml",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "qmllint",
+    transport = "batched",
+    unsupported = {
         "windows_arm64": "The Qt Windows arm64 cell has a blocker",
         "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
     },
-}
+)
 
-QML_QMLFORMAT_FORMAT_SUPPORT = {
-    "artifact": "pinned",
-    "capability": "format",
-    "classes": ["qml"],
-    "context": "owned",
-    "execution": "direct",
-    "family": "qml",
-    "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
-    "state": "supported",
-    "tool": "qmlformat",
-    "transport": "single",
-    "unsupported": {
+QML_QMLFORMAT_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["qml"],
+    context = "owned",
+    family = "qml",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    state = "supported",
+    tool = "qmlformat",
+    transport = "single",
+    unsupported = {
         "windows_arm64": "The Qt Windows arm64 cell has a blocker",
         "windows_x86_64": "The Qt Windows x86_64 cell has a blocker",
     },
-}
+)
 
 SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
 

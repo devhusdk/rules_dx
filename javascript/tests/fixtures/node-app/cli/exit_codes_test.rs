@@ -160,11 +160,11 @@ fn where_reports_the_staged_entry_and_the_pinned_dependency() {
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
     let entry = lines[0].strip_prefix("entry ").expect("entry line");
-    assert!(entry.ends_with("/examples/node-app/cli/main.js"), "{entry}");
+    assert!(entry.ends_with("/javascript/tests/fixtures/node-app/cli/main.js"), "{entry}");
     assert!(std::path::Path::new(entry).is_file(), "{entry}");
     let data = lines[1].strip_prefix("data ").expect("data line");
     assert!(
-        data.ends_with("/examples/node-app/registry/packages.json"),
+        data.ends_with("/javascript/tests/fixtures/node-app/registry/packages.json"),
         "{data}"
     );
     assert!(std::path::Path::new(data).is_file(), "{data}");
@@ -189,7 +189,7 @@ fn staged_symlink_runs_the_same_entry() {
     let run = registry_at(&link, &["where"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
     assert!(
-        stdout(&run).contains("/examples/node-app/cli/main.js\n"),
+        stdout(&run).contains("/javascript/tests/fixtures/node-app/cli/main.js\n"),
         "{}",
         stdout(&run)
     );

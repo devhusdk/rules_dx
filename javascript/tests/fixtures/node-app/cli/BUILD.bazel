@@ -3,7 +3,7 @@ load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_t
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
-package(default_visibility = ["//examples/node-app:__subpackages__"])
+package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
 
 exports_files(
     [
@@ -23,7 +23,7 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
-    deps = ["//examples/node-app:node_modules/@node-app/registry"],
+    deps = ["//javascript/tests/fixtures/node-app:node_modules/@node-app/registry"],
 )
 
 javascript_binary(
@@ -32,10 +32,10 @@ javascript_binary(
     aspect_hints = ["//:biome_config"],
     data = [
         ":cli",
-        "//examples/node-app:node_modules/@node-app/registry",
-        "//examples/node-app:node_modules/semver",
-        "//examples/node-app:package_json",
-        "//examples/node-app/registry",
+        "//javascript/tests/fixtures/node-app:node_modules/@node-app/registry",
+        "//javascript/tests/fixtures/node-app:node_modules/semver",
+        "//javascript/tests/fixtures/node-app:package_json",
+        "//javascript/tests/fixtures/node-app/registry",
     ],
     entry_point = "main.js",
     visibility = ["//visibility:public"],
@@ -47,9 +47,9 @@ typescript_test(
     aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
-    node_modules = "//examples/node-app:node_modules",
+    node_modules = "//javascript/tests/fixtures/node-app:node_modules",
     node_options = ["--experimental-vm-modules"],
-    package_json = "//examples/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":cli"],
@@ -60,21 +60,21 @@ rust_test(
     srcs = ["exit_codes_test.rs"],
     data = [
         ":registry",
-        "//examples/node-app/registry:malformed/bad_entry.json",
-        "//examples/node-app/registry:malformed/bad_version.json",
-        "//examples/node-app/registry:malformed/duplicate.json",
-        "//examples/node-app/registry:malformed/not_array.json",
-        "//examples/node-app/registry:malformed/not_json.txt",
-        "//examples/node-app/registry:packages.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/bad_entry.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/bad_version.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/duplicate.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/not_array.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/not_json.txt",
+        "//javascript/tests/fixtures/node-app/registry:packages.json",
     ],
     env = {
-        "REGISTRY_BAD_ENTRY": "$(rootpath //examples/node-app/registry:malformed/bad_entry.json)",
-        "REGISTRY_BAD_VERSION": "$(rootpath //examples/node-app/registry:malformed/bad_version.json)",
+        "REGISTRY_BAD_ENTRY": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/bad_entry.json)",
+        "REGISTRY_BAD_VERSION": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/bad_version.json)",
         "REGISTRY_BIN": "$(rootpath :registry)",
-        "REGISTRY_DUPLICATE": "$(rootpath //examples/node-app/registry:malformed/duplicate.json)",
-        "REGISTRY_JSON": "$(rootpath //examples/node-app/registry:packages.json)",
-        "REGISTRY_NOT_ARRAY": "$(rootpath //examples/node-app/registry:malformed/not_array.json)",
-        "REGISTRY_NOT_JSON": "$(rootpath //examples/node-app/registry:malformed/not_json.txt)",
+        "REGISTRY_DUPLICATE": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/duplicate.json)",
+        "REGISTRY_JSON": "$(rootpath //javascript/tests/fixtures/node-app/registry:packages.json)",
+        "REGISTRY_NOT_ARRAY": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/not_array.json)",
+        "REGISTRY_NOT_JSON": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/not_json.txt)",
     },
     deps = ["//tools/testing:dx_testing"],
 )
@@ -84,11 +84,11 @@ rust_test(
     srcs = ["coverage_test.rs"],
     data = [
         ":cli_test",
-        "//examples/node-app/registry:registry_test",
+        "//javascript/tests/fixtures/node-app/registry:registry_test",
     ],
     env = {
         "CLI_TEST": "$(rootpath :cli_test)",
-        "REGISTRY_TEST": "$(rootpath //examples/node-app/registry:registry_test)",
+        "REGISTRY_TEST": "$(rootpath //javascript/tests/fixtures/node-app/registry:registry_test)",
     },
     tags = ["no-remote-exec"],
     deps = ["//tools/testing:dx_testing"],

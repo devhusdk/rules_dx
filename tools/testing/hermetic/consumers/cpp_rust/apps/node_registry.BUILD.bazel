@@ -22,8 +22,8 @@ typescript_project(
     tsconfig = "tsconfig.json",
     visibility = _PUBLIC,
     deps = [
-        "//examples/node-app:node_modules/@types/semver",
-        "//examples/node-app:node_modules/semver",
+        "//javascript/tests/fixtures/node-app:node_modules/@types/semver",
+        "//javascript/tests/fixtures/node-app:node_modules/semver",
     ],
 )
 
@@ -41,9 +41,9 @@ typescript_test(
     srcs = ["registry_test.ts"],
     config = "jest.config.cjs",
     declaration = True,
-    node_modules = "//examples/node-app:node_modules",
+    node_modules = "//javascript/tests/fixtures/node-app:node_modules",
     node_options = ["--experimental-vm-modules"],
-    package_json = "//examples/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":registry"],
@@ -58,12 +58,12 @@ typescript_test(
     ],
     declaration = True,
     entry_point = "plain_test.js",
-    package_json = "//examples/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
     runner = "node",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [
         ":registry",
-        "//examples/node-app:node_modules/@types/node",
+        "//javascript/tests/fixtures/node-app:node_modules/@types/node",
     ],
 )

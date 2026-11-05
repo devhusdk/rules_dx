@@ -8,7 +8,7 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
-    deps = ["//examples/node-app:node_modules/@node-app/registry"],
+    deps = ["//javascript/tests/fixtures/node-app:node_modules/@node-app/registry"],
 )
 
 javascript_binary(
@@ -16,10 +16,10 @@ javascript_binary(
     srcs = ["main.js"],
     data = [
         ":cli",
-        "//examples/node-app:node_modules/@node-app/registry",
-        "//examples/node-app:node_modules/semver",
-        "//examples/node-app:package_json",
-        "//examples/node-app/registry",
+        "//javascript/tests/fixtures/node-app:node_modules/@node-app/registry",
+        "//javascript/tests/fixtures/node-app:node_modules/semver",
+        "//javascript/tests/fixtures/node-app:package_json",
+        "//javascript/tests/fixtures/node-app/registry",
     ],
     entry_point = "main.js",
 )
@@ -29,9 +29,9 @@ typescript_test(
     srcs = ["cli_test.ts"],
     config = "jest.config.cjs",
     declaration = True,
-    node_modules = "//examples/node-app:node_modules",
+    node_modules = "//javascript/tests/fixtures/node-app:node_modules",
     node_options = ["--experimental-vm-modules"],
-    package_json = "//examples/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":cli"],

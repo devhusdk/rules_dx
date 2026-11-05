@@ -9,12 +9,12 @@ A multi-package TypeScript and JavaScript app. It has a package registry CLI, a 
 | `diagnostics` | Files with deliberate errors, and the checks that must reject them |
 
 ```sh
-bazel build //examples/node-app/...
-bazel test //examples/node-app/...
-bazel run //examples/node-app/cli:registry -- list
-bazel run //examples/node-app/cli:registry -- next core minor
-bazel run //examples/node-app/cli:registry -- satisfy net '^2.0.0'
-bazel run //examples/node-app/cli:registry -- --file path/to/packages.json list
+bazel build //javascript/tests/fixtures/node-app/...
+bazel test //javascript/tests/fixtures/node-app/...
+bazel run //javascript/tests/fixtures/node-app/cli:registry -- list
+bazel run //javascript/tests/fixtures/node-app/cli:registry -- next core minor
+bazel run //javascript/tests/fixtures/node-app/cli:registry -- satisfy net '^2.0.0'
+bazel run //javascript/tests/fixtures/node-app/cli:registry -- --file path/to/packages.json list
 ```
 
 Without `--file` or `REGISTRY_FILE`, `registry` reads the packaged `packages.json`, so the binary runs from any directory. Relative `--file` paths resolve against the directory you ran `bazel run` from. `latest` and `next` ignore prerelease versions.
@@ -25,4 +25,4 @@ Tests use both runners. `registry_test` and `cli_test` run Jest. `plain_test` ru
 
 Sources use the repo Biome settings. `format_test` checks every source and config file against the pinned Biome. `diagnostics_test` runs `tsc` and Biome on files with a syntax error, a type error, an inferred export under `isolatedDeclarations`, an import of a package that is not installed, a lint finding in `.ts` and `.js`, and bad formatting, and expects each to fail.
 
-`bazel coverage //examples/node-app/...` writes LCOV for the Jest tests: `registry.js`, `build_info.js` and `cli.js`. `coverage_test` checks each report names those files with executed lines. `plain_test` runs `node:test` and reports none.
+`bazel coverage //javascript/tests/fixtures/node-app/...` writes LCOV for the Jest tests: `registry.js`, `build_info.js` and `cli.js`. `coverage_test` checks each report names those files with executed lines. `plain_test` runs `node:test` and reports none.

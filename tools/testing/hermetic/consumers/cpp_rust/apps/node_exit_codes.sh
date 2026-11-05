@@ -42,7 +42,7 @@ fi
 
 where=$("$bin" where one "two words")
 case "$where" in
-*"/examples/node-app/cli/main.js"*) ;;
+*"/javascript/tests/fixtures/node-app/cli/main.js"*) ;;
 *)
   echo "FAIL: where entry -> '$where'"
   failures=$((failures + 1))

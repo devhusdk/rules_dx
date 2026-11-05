@@ -54,6 +54,6 @@ npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm_consumer_app",
     npmrc = "//:.npmrc",
-    pnpm_lock = "//examples/node-app:pnpm-lock.yaml",
+    pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
 )
 use_repo(npm, "npm_consumer_app")

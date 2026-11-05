@@ -2,7 +2,7 @@ load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//examples/node-app:__subpackages__"])
+package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
 
 exports_files(
     [
@@ -36,10 +36,10 @@ typescript_project(
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
-    visibility = ["//examples/node-app:__subpackages__"],
+    visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"],
     deps = [
-        "//examples/node-app:node_modules/@types/semver",
-        "//examples/node-app:node_modules/semver",
+        "//javascript/tests/fixtures/node-app:node_modules/@types/semver",
+        "//javascript/tests/fixtures/node-app:node_modules/semver",
     ],
 )
 
@@ -49,7 +49,7 @@ npm_package(
         "package.json",
         ":registry",
     ],
-    visibility = ["//examples/node-app:__subpackages__"],
+    visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"],
 )
 
 typescript_test(
@@ -58,9 +58,9 @@ typescript_test(
     aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
-    node_modules = "//examples/node-app:node_modules",
+    node_modules = "//javascript/tests/fixtures/node-app:node_modules",
     node_options = ["--experimental-vm-modules"],
-    package_json = "//examples/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":registry"],
@@ -76,13 +76,13 @@ typescript_test(
     ],
     declaration = True,
     entry_point = "plain_test.js",
-    package_json = "//examples/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
     runner = "node",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [
         ":registry",
-        "//examples/node-app:node_modules/@types/node",
+        "//javascript/tests/fixtures/node-app:node_modules/@types/node",
     ],
 )
 

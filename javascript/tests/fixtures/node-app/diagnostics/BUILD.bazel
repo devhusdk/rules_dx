@@ -1,7 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
-package(default_visibility = ["//examples/node-app:__subpackages__"])
+package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
 
 config_setting(
     name = "linux_arm64",
@@ -62,27 +62,27 @@ rust_test(
     data = [
         ":biome",
         "//:biome.json",
-        "//examples/node-app/cli:cli.ts",
-        "//examples/node-app/cli:cli_test.ts",
-        "//examples/node-app/cli:jest.config.cjs",
-        "//examples/node-app/cli:main.js",
-        "//examples/node-app/registry:jest.config.cjs",
-        "//examples/node-app/registry:plain_test.ts",
-        "//examples/node-app/registry:registry.ts",
-        "//examples/node-app/registry:registry_test.ts",
+        "//javascript/tests/fixtures/node-app/cli:cli.ts",
+        "//javascript/tests/fixtures/node-app/cli:cli_test.ts",
+        "//javascript/tests/fixtures/node-app/cli:jest.config.cjs",
+        "//javascript/tests/fixtures/node-app/cli:main.js",
+        "//javascript/tests/fixtures/node-app/registry:jest.config.cjs",
+        "//javascript/tests/fixtures/node-app/registry:plain_test.ts",
+        "//javascript/tests/fixtures/node-app/registry:registry.ts",
+        "//javascript/tests/fixtures/node-app/registry:registry_test.ts",
     ],
     env = {
         "DX_BIOME": "$(rootpath :biome)",
         "DX_CONFIG": "$(rootpath //:biome.json)",
         "DX_FORMAT_SRCS": " ".join([
-            "$(rootpath //examples/node-app/cli:cli.ts)",
-            "$(rootpath //examples/node-app/cli:cli_test.ts)",
-            "$(rootpath //examples/node-app/cli:jest.config.cjs)",
-            "$(rootpath //examples/node-app/cli:main.js)",
-            "$(rootpath //examples/node-app/registry:jest.config.cjs)",
-            "$(rootpath //examples/node-app/registry:plain_test.ts)",
-            "$(rootpath //examples/node-app/registry:registry.ts)",
-            "$(rootpath //examples/node-app/registry:registry_test.ts)",
+            "$(rootpath //javascript/tests/fixtures/node-app/cli:cli.ts)",
+            "$(rootpath //javascript/tests/fixtures/node-app/cli:cli_test.ts)",
+            "$(rootpath //javascript/tests/fixtures/node-app/cli:jest.config.cjs)",
+            "$(rootpath //javascript/tests/fixtures/node-app/cli:main.js)",
+            "$(rootpath //javascript/tests/fixtures/node-app/registry:jest.config.cjs)",
+            "$(rootpath //javascript/tests/fixtures/node-app/registry:plain_test.ts)",
+            "$(rootpath //javascript/tests/fixtures/node-app/registry:registry.ts)",
+            "$(rootpath //javascript/tests/fixtures/node-app/registry:registry_test.ts)",
         ]),
     },
     deps = ["//tools/testing:dx_testing"],

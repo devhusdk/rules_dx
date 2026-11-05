@@ -10,5 +10,5 @@ NPM_DEV_HUBS = ["dx_npm", "npm_node_app"]
 NPM_LOCKS = [
     "//:pnpm-lock.yaml",
     "//quality/tools/javascript:pnpm-lock.yaml",
-    "//examples/node-app:pnpm-lock.yaml",
+    "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
 ]

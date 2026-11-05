@@ -2314,6 +2314,29 @@ impl RealBackend {
                 |files| Ok(commands::typos_check(&tool.binary, files)),
                 |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
             ),
+            "lychee" => {
+                let root = scratch.root();
+                let reported = self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::lychee_check(&tool.binary, files, root)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_lychee(&out.stdout, &out.stderr, out.code, names),
+                        )
+                    },
+                )?;
+                Ok(reported
+                    .into_iter()
+                    .map(|mut found| {
+                        found.finding.message = without_scratch_url(&found.finding.message, root);
+                        found
+                    })
+                    .collect())
+            }
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
@@ -2805,6 +2828,13 @@ impl RealBackend {
         });
         Ok(merged)
     }
+}
+
+/// Drops the scratch directory from `file://` links so messages read the same on every host.
+fn without_scratch_url(message: &str, root: &Path) -> String {
+    let root = root.to_string_lossy().replace('\\', "/");
+    let root = root.trim_start_matches('/');
+    message.replace(&format!("file:///{root}/"), "")
 }
 
 /// Names the file whose output failed to parse.

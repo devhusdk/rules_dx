@@ -42,6 +42,7 @@ EMULATED_TOOLS = {
         "hlint",
         "keep_sorted",
         "latexindent",
+        "lychee",
         "mdbook",
         "opa",
         "ormolu",

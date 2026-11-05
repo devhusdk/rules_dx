@@ -192,6 +192,27 @@ fn vale_check_never_passes_no_exit() {
 }
 
 #[test]
+fn lychee_check_is_offline_and_rooted_in_the_scratch() {
+    let invocation = lychee_check(Path::new(BIN), &[Path::new(FILE)], Path::new("/scratch"));
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--offline",
+            "--format",
+            "json",
+            "--no-progress",
+            "--include-fragments",
+            "--no-ignore",
+            "--root-dir",
+            "/scratch",
+            FILE
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}
+
+#[test]
 fn ruff_check_is_hermetic_and_config_explicit() {
     let file = Path::new("/scratch/a.py");
     let bare = ruff_check(Path::new(BIN), &[file], None);
@@ -2654,6 +2675,7 @@ fn file_independent_tools_batch() {
     for tool in [
         "keep_sorted",
         "typos",
+        "lychee",
         "notebook_outputs",
         "ruff",
         "flake8",

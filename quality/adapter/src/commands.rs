@@ -31,6 +31,14 @@ const TAPLO_FORMAT_BASE: &[&str] = &["format", "--colors=never", "--no-auto-conf
 const TAPLO_FORMAT_CHECK_FLAG: &[&str] = &["--check"];
 const TAPLO_CONFIG_FLAG: &[&str] = &["-c"];
 const VALE_FIXED: &[&str] = &["--output=JSON", "--no-color", "--no-global", "--no-wrap"];
+const LYCHEE_FIXED: &[&str] = &[
+    "--offline",
+    "--format",
+    "json",
+    "--no-progress",
+    "--include-fragments",
+    "--no-ignore",
+];
 const RUFF_CHECK_SUBCOMMAND: &[&str] = &["check"];
 const RUFF_FORMAT_SUBCOMMAND: &[&str] = &["format"];
 const RUFF_HERMETIC_TAIL: &[&str] = &["--no-cache", "--no-respect-gitignore"];
@@ -557,6 +565,15 @@ pub fn vale_check(binary: &Path, ini: &Path, files: &[&Path], ini_dir_rel: &str)
     ];
     head.extend(VALE_FIXED.iter().map(OsString::from));
     assemble(binary, head, files, ini_dir_rel)
+}
+
+/// Offline only: local paths and `#anchors`. Root-relative links resolve against `root`.
+pub fn lychee_check(binary: &Path, files: &[&Path], root: &Path) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(LYCHEE_FIXED.iter().map(OsString::from));
+    head.push(OsString::from("--root-dir"));
+    head.push(root.as_os_str().to_owned());
+    assemble(binary, head, files, "")
 }
 
 /// Inline `src` override so sibling modules next to the checked files classify as
@@ -2812,8 +2829,8 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" | "typos" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint"
-        | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
+        "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff" | "flake8"
+        | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
             ArgTransport::Batched
         }
         _ => ArgTransport::Single,

@@ -31,6 +31,7 @@ load("//quality/artifacts:detekt.bzl", _detekt = "SOURCE")
 load("//quality/artifacts:ktlint.bzl", _ktlint = "SOURCE")
 load("//quality/artifacts:kubeconform.bzl", _kubeconform = "ARTIFACTS")
 load("//quality/artifacts:latexindent.bzl", _latexindent = "ARTIFACTS")
+load("//quality/artifacts:lychee.bzl", _lychee = "ARTIFACTS")
 load("//quality/artifacts:mdbook.bzl", _mdbook = "ARTIFACTS")
 load("//quality/artifacts:nixfmt.bzl", _nixfmt = "ARTIFACTS")
 load("//quality/artifacts:opa.bzl", _opa = "ARTIFACTS")
@@ -84,6 +85,7 @@ _ARTIFACTS = [
         _keep_sorted,
         _kubeconform,
         _latexindent,
+        _lychee,
         _mdbook,
         _nixfmt,
         _opa,

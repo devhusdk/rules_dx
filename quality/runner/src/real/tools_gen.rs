@@ -67,6 +67,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "latexindent",
     "ldc",
     "luals",
+    "lychee",
     "markdown_check",
     "mbake",
     "mix_format",

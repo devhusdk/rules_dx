@@ -146,7 +146,7 @@ These fail: `disabled` without `extends`, a disabled ID the base lacks, a family
 | `javascript` | `biome` | `biome`, `typos` | disabled |
 | `json` | `prettier` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `ktlint`, `typos` | `kotlinc` |
-| `markdown` | disabled | `markdown_check`, `typos`, `vale` | disabled |
+| `markdown` | disabled | `lychee`, `markdown_check`, `typos`, `vale` | disabled |
 | `mdx` | `remark` | `typos` | disabled |
 | `python` | `ruff` | `pydoclint`, `ruff`, `typos`, `vulture` | `ty` |
 | `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
@@ -335,6 +335,7 @@ Schema languages have no formatter, so `--apply` has nothing to fix for them.
 
 | Tool | Checks | Not on |
 | --- | --- | --- |
+| `lychee` | Check links in Markdown, MDX, reStructuredText, AsciiDoc and HTML; local paths and `#anchors` only | |
 | `markdown_check` | Lint Markdown | |
 | `vale` | Lint Markdown, AsciiDoc, reStructuredText prose | |
 | `typstyle` | Format Typst | |

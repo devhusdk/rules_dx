@@ -7069,3 +7069,50 @@ fn typos_lint_reports_and_fix_corrects() {
         .expect("fixed");
     assert_eq!(fixed, "say the word\n");
 }
+
+fn lychee_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(argv.iter().any(|arg| arg == "--offline"), "{argv:?}");
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--root-dir")
+        .expect("root dir");
+    let root = argv[at + 1].to_string_lossy().replace('\\', "/");
+    let mut broken = String::new();
+    for file in &argv[at + 2..] {
+        let text = std::fs::read_to_string(file).expect("checked file is materialized");
+        if text.contains("BROKEN") {
+            let name = file.to_string_lossy().replace('\\', "/");
+            let slashes = if root.starts_with('/') { "//" } else { "///" };
+            broken.push_str(&format!(
+                "\"{name}\":[{{\"url\":\"file:{slashes}{root}/gone.md\",\"status\":{{\"text\":\"File not found\"}},\"span\":{{\"line\":2,\"column\":3}}}}]"
+            ));
+        }
+    }
+    let code = if broken.is_empty() { 0 } else { 2 };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: format!("{{\"error_map\":{{{broken}}},\"timeout_map\":{{}}}}").into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn lychee_reports_broken_links_with_scratch_free_messages() {
+    let backend = backend_for("lychee", plain_tool(), lychee_fake);
+    let findings = backend
+        .diagnose("lychee", "lint", &single("docs/a.md", "# a\nsee BROKEN\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].tool_id, "lychee");
+    assert_eq!(findings[0].path, "docs/a.md");
+    assert_eq!(findings[0].message, "gone.md: File not found");
+    assert!(backend
+        .diagnose("lychee", "lint", &single("docs/a.md", "fine\n"))
+        .expect("diagnosed")
+        .is_empty());
+}

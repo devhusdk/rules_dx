@@ -386,7 +386,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     inputs = pipeline_inputs_for_paths(ordered_paths, path_to_file)
 
     sibling_pairs = {}
-    if "markdown_check" in stage_tools and hasattr(ctx.rule.attr, "markdown_siblings"):
+    if ("markdown_check" in stage_tools or "lychee" in stage_tools) and hasattr(ctx.rule.attr, "markdown_siblings"):
         for sibling in ctx.rule.attr.markdown_siblings:
             if hasattr(sibling, "files"):
                 sibling_files = sibling.files.to_list()

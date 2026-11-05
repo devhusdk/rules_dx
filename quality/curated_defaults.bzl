@@ -95,7 +95,7 @@ CURATED_DEFAULTS = {
     "markdown": {
         "audit": [],
         "format": [],
-        "lint": ["markdown_check", "typos", "vale"],
+        "lint": ["lychee", "markdown_check", "typos", "vale"],
         "typecheck": [],
     },
     "mdx": {

@@ -95,7 +95,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | Kotlin | `detekt`, `ktlint` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` |
 | Lua | `selene` | `stylua` | `luals` | no | `luacov` |
-| MDX | `eslint` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring |
+| MDX | `eslint`, `lychee` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring |
 | OCaml | `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no | `DxLcov` (pure Perl) |
 | PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
@@ -116,7 +116,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a | no: no dx coverage wiring in the Qt rules |
 | Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows) | `prettier` | n/a | n/a | n/a |
 | API specs | `redocly` | `prettier` | n/a | n/a | n/a |
-| AsciiDoc | `vale` | no | n/a | n/a | n/a |
+| AsciiDoc | `lychee`, `vale` | no | n/a | n/a | n/a |
 | Avro | `avro_tools` | n/a | `avro_tools` | n/a | n/a |
 | Bicep | `bicep` | `bicep` | n/a | n/a | n/a |
 | Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a |
@@ -133,12 +133,12 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a |
 | Kubernetes | `kubeconform` | `prettier` | n/a | n/a | n/a |
 | LaTeX | `chktex` | `latexindent` | n/a | n/a | n/a |
-| Markdown | `markdown_check`, `vale` | no | no | n/a | n/a |
+| Markdown | `lychee`, `markdown_check`, `vale` | no | no | n/a | n/a |
 | Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a |
 | OCI images | no | no | no | n/a | n/a |
 | Pkl | `pkl_lsp` (not on `windows_x86_64`: pkl-lsp exits at start under the hermetic runner (#7292); `windows_arm64`: pkl-lsp exits at start under the hermetic runner (#7292)) | `pkl` | `pkl` | n/a | n/a |
 | Rego | `regal` | `opa` | `opa` | n/a | n/a |
-| reStructuredText | `vale` | no | n/a | n/a | n/a |
+| reStructuredText | `lychee`, `vale` | no | n/a | n/a | n/a |
 | Shell | `shellcheck` | `shfmt` | no | n/a | n/a |
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a | n/a | n/a |
 | Starlark | `buildifier` | `buildifier` | no | n/a | n/a |

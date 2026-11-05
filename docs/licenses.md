@@ -36,6 +36,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | ktlint | 1.8.0 | MIT |
 | kubeconform | 0.8.0 | Apache-2.0 |
 | latexindent | 4.0.3 | GPL-3.0-only |
+| lychee | 0.24.2 | Apache-2.0, MIT |
 | mdbook | 0.4.52 | MPL-2.0 |
 | mksquashfs | 4.6.1 | GPL-2.0-or-later |
 | nixfmt | 1.5.0 | MPL-2.0 |

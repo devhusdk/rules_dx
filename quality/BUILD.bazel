@@ -176,6 +176,7 @@ quality_family(
     ],
     family_id = "markdown",
     lint = [
+        "lychee",
         "markdown_check",
         "typos",
         "vale",

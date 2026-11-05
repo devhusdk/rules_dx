@@ -16,6 +16,13 @@ TOOLS = {
         "resources": "light",
         "shard": "core",
     },
+    "lychee": {
+        "attr": attr.label(default = "@dx_tools//:lychee", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "core",
+    },
     "markdown_check": {
         "attr": attr.label(default = "//quality/markdown:quality_markdown", allow_single_file = True, cfg = "exec"),
         "kind": "file",

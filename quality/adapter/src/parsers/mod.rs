@@ -63,6 +63,7 @@ pub mod kubeconform;
 pub mod latexindent;
 pub mod ldc;
 pub mod luals;
+pub mod lychee;
 pub mod markdown;
 pub mod mbake;
 pub mod mix_format;
@@ -199,6 +200,7 @@ pub use kubeconform::{parse_kubeconform, KubeconformTarget};
 pub use latexindent::parse_latexindent;
 pub use ldc::parse_ldc;
 pub use luals::parse_luals;
+pub use lychee::parse_lychee;
 pub use markdown::parse_markdown_findings;
 pub use mbake::parse_mbake;
 pub use mix_format::parse_mix_format;
@@ -2019,6 +2021,14 @@ mod tests {
         super::ktlint::parse_ktlint(input, code, files)
     }
 
+    fn fuzz_lychee(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::lychee::parse_lychee(input, input, code, files)
+    }
+
     fn fuzz_luals(
         input: &[u8],
         _code: Option<i32>,
@@ -3049,6 +3059,7 @@ mod tests {
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("luals", fuzz_luals),
+        ("lychee", fuzz_lychee),
         ("parse_markdown_findings", fuzz_markdown_findings),
         ("parse_notebook_outputs", fuzz_notebook_outputs),
         ("mix_format", fuzz_mix_format),
@@ -3195,6 +3206,7 @@ mod tests {
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("luals", include_str!("luals.rs")),
+        ("lychee", include_str!("lychee.rs")),
         ("markdown", include_str!("markdown.rs")),
         ("mbake", include_str!("mbake.rs")),
         ("notebook_outputs", include_str!("notebook_outputs.rs")),

@@ -434,9 +434,11 @@ pub(super) struct Drift {
     pub(super) missing: Vec<String>,
     pub(super) stale: Vec<String>,
     pub(super) other: Vec<String>,
+    pub(super) absent: Vec<String>,
 }
 
-/// Every planned file that is missing (essential only), stale or unreadable under `root`, without writing.
+/// Every planned file that is missing, stale or unreadable under `root`, without writing.
+/// A missing essential file is `missing`; any other missing file is `absent`.
 pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
     let mut drift = Drift::default();
     let stale_launchers = dx_adopt::stale_launchers(root);
@@ -448,6 +450,8 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
         if !root.join(path).exists() {
             if file.essential {
                 drift.missing.push(file.path.clone());
+            } else {
+                drift.absent.push(file.path.clone());
             }
             continue;
         }
@@ -678,8 +682,19 @@ mod tests {
             };
             let mode = std::fs::metadata(&full).expect("metadata").permissions();
             std::fs::remove_file(&full).expect("remove");
-            let missing = super::drift(root, &files).missing.contains(&file.path);
-            assert_eq!(missing, file.essential, "{}", file.path);
+            let drift = super::drift(root, &files);
+            assert_eq!(
+                drift.missing.contains(&file.path),
+                file.essential,
+                "{}",
+                file.path
+            );
+            assert_eq!(
+                drift.absent.contains(&file.path),
+                !file.essential,
+                "{}",
+                file.path
+            );
             if file.path != "MODULE.bazel" {
                 let (code, _out, _err) = run(
                     &invocation(&["init", "--agents=claude,codex,gemini,copilot"]),

@@ -84,12 +84,15 @@ Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
 It also flags a missing preset import. It flags a dx-written launcher that differs from the current launcher text
-and an empty or non-semver `.dx/pins`. It flags
-a missing `AGENTS.md`, an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks, and a
+and an empty or non-semver `.dx/pins`. It flags an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks, and a
 `CLAUDE.md` without the `@AGENTS.md` import. It looks at the tool files only when they exist or `--agents` names their agent, so a deleted tool file is not drift.
-When nothing is missing or stale and the pin is valid, it prints
-`init current: <module>` to stdout. Otherwise it prints
-`dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/pins ("<pin>")`
+A missing `.dx/pins`, `.gitignore`, `.bazelignore`, `MODULE.bazel`, `tools/dx`, `tools/dx.cmd`, or a missing file of an agent named with `--agents` is missing drift.
+Any other planned file that is gone, such as `AGENTS.md`, `.vscode/settings.json` or `.github/workflows/ci.yml`, is absent.
+When nothing is missing, stale, absent or invalid and the pin is valid, it prints
+`init current: <module>` to stdout. When only absent paths remain, it prints
+``init absent: <paths> (run `dx init --apply` to recreate)`` to stderr and exits `0`. JSON output reports absent paths as an `init_absent` notice.
+Otherwise it prints
+`dx: init_failed: init drift: missing <paths>; stale <paths>; absent <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/pins ("<pin>")`
 to stderr (only the parts that apply), followed by the `dx init --apply` command to run
 (`dx init <dir> --apply` when a directory was given). Apply adds the missing hooks to an existing hooks file. An invalid pin is not fixed by apply: write the module version to
 `.dx/pins`, which the message names.
@@ -105,7 +108,7 @@ write fails, apply still lists the files it already wrote, then the
 
 Output: `--output text|json`. JSON covers the check only; see Init plan below.
 
-Exit codes: `0` check passed or apply succeeded, `2` usage error, including
+Exit codes: `0` check passed (absent paths may be named on stderr) or apply succeeded, `2` usage error, including
 extra positionals, an unknown flag, or an invalid directory, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
 
@@ -138,7 +141,7 @@ match the running dx.
 
 `.vscode/extensions.json` recommends the Bazel extension, plus the editor extension for each language with files in the tree (Python for `.py`, Go for `.go`, and so on). Edit the file to change the list. `dx init` never rewrites it.
 
-Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. To opt out of a preset layer, comment out its import (see
+Check reports a missing essential path or a stale path as drift, and exits `1`. It reports any other missing planned path as absent and exits `0`. An old dx key in `.vscode/settings.json`, or an old pin in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. `dx init --apply` recreates an absent path. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).
 
 ## Init plan

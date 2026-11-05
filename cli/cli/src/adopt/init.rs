@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal};
-use crate::exec::notice_codes::CODE_INIT_PLAN_PARTIAL;
+use crate::exec::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
 use dx_output::{
     command_finished, command_started, init_plan_event, notice_event, FinishedCounts, NoticeEvent,
     OutputMode, PlanFindingEvent,
@@ -197,6 +197,13 @@ pub(crate) fn execute_init(
     )
 }
 
+fn absent_message(absent: &[String], apply: &str) -> String {
+    format!(
+        "init absent: {} (run `{apply}` to recreate)",
+        absent.join(", ")
+    )
+}
+
 fn check_init(
     invocation: &Invocation,
     target: &Target,
@@ -212,6 +219,7 @@ fn check_init(
     let wiring = super::init_files::drift(workspace, &files);
     let missing: Vec<String> = prefixed(&target.prefix, wiring.missing).collect();
     let stale: Vec<String> = prefixed(&target.prefix, wiring.stale).collect();
+    let absent: Vec<String> = prefixed(&target.prefix, wiring.absent).collect();
     let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
@@ -271,10 +279,19 @@ fn check_init(
         && invalid_pin.is_none()
         && conflicts.is_empty()
     {
+        let apply = target.apply_command();
         if json {
+            if !absent.is_empty() {
+                let notice = NoticeEvent::info(CODE_INIT_ABSENT, absent_message(&absent, &apply));
+                if let Err(exit) = emit_built(out, notice_event(&notice)) {
+                    return exit;
+                }
+            }
             if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
                 return exit;
             }
+        } else if !absent.is_empty() {
+            let _ = writeln!(err, "{}", absent_message(&absent, &apply));
         } else if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
                 return exit;
@@ -283,7 +300,7 @@ fn check_init(
         return 0;
     }
     let rewrite = dx_adopt::pin_rewrite_hint();
-    let mut clauses: Vec<String> = [("missing", missing), ("stale", stale)]
+    let mut clauses: Vec<String> = [("missing", missing), ("stale", stale), ("absent", absent)]
         .into_iter()
         .filter(|(_, paths)| !paths.is_empty())
         .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
@@ -396,6 +413,38 @@ mod tests {
         assert_eq!(run(&invocation(&["init"]), &root).0, 0);
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
         assert!(!root.join(".claude/settings.json").exists());
+    }
+
+    #[test]
+    fn a_deleted_agents_md_is_named_as_absent_and_check_exits_zero() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-absent-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        std::fs::remove_file(root.join("AGENTS.md")).expect("remove");
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            err.contains("init absent: AGENTS.md (run `dx init --apply` to recreate)"),
+            "{err}"
+        );
+        assert!(!out.contains("init current"), "{out}");
+        let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            events(&out).iter().any(|e| {
+                e["event"] == "notice"
+                    && e["code"] == "init_absent"
+                    && e["message"]
+                        .as_str()
+                        .is_some_and(|m| m.contains("AGENTS.md"))
+            }),
+            "{out}"
+        );
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        assert!(root.join("AGENTS.md").exists());
+        let (code, out, _err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("init current"), "{out}");
     }
 
     #[test]

@@ -6,7 +6,10 @@ load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["pmd_default.xml"])
+exports_files([
+    "pmd_default.xml",
+    "scalafmt_default.conf",
+])
 
 java_import(
     name = "google_java_format_import",

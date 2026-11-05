@@ -924,3 +924,21 @@ fn ci_config_leaves_remote_downloads_to_dx() {
         );
     }
 }
+
+#[test]
+fn the_scalafmt_default_pins_the_version_the_toolchain_downloads() {
+    let version_of = |text: &str| {
+        text.lines()
+            .find_map(|line| line.strip_prefix("version = "))
+            .expect("version is unset")
+            .trim()
+            .to_owned()
+    };
+    let default = version_of(&read_runfiles("quality/tools/jvm/scalafmt_default.conf"));
+    assert_eq!(default, version_of(&read_runfiles(".scalafmt.conf")));
+    let artifact = read_runfiles("quality/artifacts/scalafmt.bzl");
+    assert!(
+        artifact.contains(&format!("\"upstream_version\": \"{default}\"")),
+        "scalafmt_default.conf pins {default}, which quality/artifacts/scalafmt.bzl does not ship"
+    );
+}

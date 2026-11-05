@@ -7276,3 +7276,32 @@ fn lychee_goes_online_when_the_request_sets_the_env() {
         .expect("diagnosed")
         .is_empty());
 }
+
+#[test]
+fn scalafmt_uses_pinned_defaults() {
+    let mirrors = RealBackend::mirror_tool_files("scalafmt", &plain_tool(), &[], Path::new("/s"));
+    let staged = mirrors
+        .iter()
+        .find(|mirror| mirror.mirror_rel == Path::new(SCALAFMT_DEFAULTS_REL))
+        .expect("the default is staged");
+    assert!(matches!(
+        &staged.contents,
+        MirrorContents::Bytes(bytes) if bytes == SCALAFMT_DEFAULTS_BYTES
+    ));
+}
+
+#[test]
+fn scalafmt_hinted_config_wins() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.scalafmt.conf".to_owned()),
+        tool_files: vec![(
+            "cfg/.scalafmt.conf".to_owned(),
+            b"version = 3.11.4\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let mirrors = RealBackend::mirror_tool_files("scalafmt", &tool, &[], Path::new("/s"));
+    assert!(mirrors
+        .iter()
+        .all(|mirror| mirror.mirror_rel != Path::new(SCALAFMT_DEFAULTS_REL)));
+}

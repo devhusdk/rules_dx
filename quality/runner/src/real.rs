@@ -154,6 +154,10 @@ const SELENE_STD_BYTES: &[u8] = include_bytes!("../../tools/lua/lua54.yml");
 const PMD_DEFAULTS_REL: &str = "dx-pmd-default/pmd_default.xml";
 const PMD_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/jvm/pmd_default.xml");
 
+/// scalafmt's default config, the version and dialect it needs and no style, used when the consumer binds none.
+const SCALAFMT_DEFAULTS_REL: &str = "dx-scalafmt-default/.scalafmt.conf";
+const SCALAFMT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/jvm/scalafmt_default.conf");
+
 /// scalafix's default config when the consumer binds none.
 const SCALAFIX_DEFAULTS_REL: &str = "dx-scalafix-default/.scalafix.conf";
 const SCALAFIX_DEFAULTS_BYTES: &[u8] = b"rules = [RemoveUnused]\n";

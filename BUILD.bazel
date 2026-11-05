@@ -275,6 +275,7 @@ exports_files([
     ".editorconfig",
     ".gitignore",
     ".npmrc",
+    ".scalafmt.conf",
     ".shellcheckrc",
     "MODULE.bazel",
     "MODULE.bazel.lock",

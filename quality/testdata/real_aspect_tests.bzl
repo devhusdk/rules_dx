@@ -242,6 +242,16 @@ aspect_field field_count=4
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:fixture_real_scala_dirty_subject
 aspect_field transitive_count=0
+subject //quality/testdata:fixture_real_scala_no_config_subject
+field dx_count=1
+field dx_results=fixture_real_scala_no_config-real-format-scala.pb
+field has_quality_sources=True
+field label=//quality/testdata:fixture_real_scala_no_config
+aspect_field aspect_seen=True
+aspect_field field_count=4
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:fixture_real_scala_no_config_subject
+aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_scala_subject
 field dx_count=1
 field dx_results=fixture_real_scala-real-format-scala.pb

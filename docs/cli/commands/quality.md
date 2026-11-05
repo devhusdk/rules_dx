@@ -397,7 +397,7 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 
 | Tool | Required | Config it reads | Files it ignores | How to bind (policy `configs` or `aspect_hints`) |
 | --- | --- | --- | --- | --- |
-| `biome` | yes | `biome.json` | | `biome_config` |
+| `biome` | lint only | `biome.json` | | `biome_config` |
 | `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
 | `checkstyle` | yes | `checkstyle.xml` | | `checkstyle_config` |
 | `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
@@ -406,7 +406,7 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | `helm` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas`, shared with `kubeconform` |
 | `ruff` | yes | `ruff.toml` | | `ruff_config` |
 | `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]`; `RemoveUnused` needs the `@rules_dx//scala/toolchain:semanticdb` toolchain, which sets `-Wunused` and `-Wconf:cat=unused:info` | | `scalafix_config` |
-| `scalafmt` | yes | `.scalafmt.conf` | | `scalafmt_config` |
+| `scalafmt` | no | `.scalafmt.conf`, default `version = 3.11.4` and `runner.dialect = scala213` (`quality/tools/jvm/scalafmt_default.conf`) | | `scalafmt_config` |
 | `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
 | `vale` | yes | `.vale.ini` | | `vale_config` |
 | `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`) | | `pmd_config` |
@@ -423,6 +423,8 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | `perltidy` | no | none | `.perltidyrc`, `$PERLTIDY` | none |
 | `perlcritic` | no | none | `.perlcriticrc`, `$PERLCRITIC` | none |
 | OCaml formatting | no | none | `.ocamlformat` | none |
+
+Formatters run on their tool defaults. dx ships no style for them, and `dx init` writes no formatter file.
 
 ## Baselines
 

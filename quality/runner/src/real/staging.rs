@@ -251,6 +251,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(SCALAFIX_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "scalafmt" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(SCALAFMT_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(SCALAFMT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "stylelint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
@@ -488,6 +494,13 @@ impl RealBackend {
         }
         if tool_id == "pmd" {
             let rel = tool.config_rel.as_deref().unwrap_or(PMD_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "scalafmt" {
+            let rel = tool.config_rel.as_deref().unwrap_or(SCALAFMT_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

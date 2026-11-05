@@ -22,7 +22,7 @@ DxDartConfigInfo = provider(
 )
 
 CONFIG_REQUIRED_TOOLS = {
-    "biome": struct(name = "Biome", src = "biome.json"),
+    "biome": struct(name = "Biome", src = "biome.json", capabilities = ["lint"]),
     "buildifier": struct(name = "Buildifier", src = ".buildifier.json"),
     "checkstyle": struct(name = "Checkstyle", src = "checkstyle.xml"),
     "eslint": struct(name = "ESLint", src = "eslint.config.mjs"),
@@ -38,7 +38,6 @@ CONFIG_REQUIRED_TOOLS = {
         hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and list it in your workspace_policy configs or add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
     ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
-    "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
     "sqlfluff": struct(
         name = "sqlfluff",
         src = ".sqlfluff",
@@ -121,6 +120,8 @@ def missing_required_config_error(tool, capability, configs_by_tool, what):
     if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:
         return ""
     info = CONFIG_REQUIRED_TOOLS[tool]
+    if hasattr(info, "capabilities") and capability not in info.capabilities:
+        return ""
     if hasattr(info, "hint"):
         return info.name + " needs a config. " + info.hint
     return (info.name + " needs a config. Declare " + tool + "_config(name = \"" +

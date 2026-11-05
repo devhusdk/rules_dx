@@ -380,7 +380,7 @@ def native_config_unit_tests(name):
             expect_equal(
                 "missing_required_config_error names an unbound biome format stage",
                 missing_required_config_error("biome", "format", {}, "//q:t"),
-                "Biome needs a config. Declare biome_config(name = \"biome_config\", src = \"biome.json\") from @rules_dx//quality:native_config.bzl and list it in your workspace_policy configs or add aspect_hints = [\":biome_config\"], or tag the target no-format.",
+                "",
             ),
             expect_equal(
                 "missing_required_config_error names an unbound biome lint stage",
@@ -395,7 +395,7 @@ def native_config_unit_tests(name):
             expect_equal(
                 "missing_required_config_error names an unbound scalafmt format stage",
                 missing_required_config_error("scalafmt", "format", {}, "//q:t"),
-                "Scalafmt needs a config. Declare scalafmt_config(name = \"scalafmt_config\", src = \".scalafmt.conf\") from @rules_dx//quality:native_config.bzl and list it in your workspace_policy configs or add aspect_hints = [\":scalafmt_config\"], or tag the target no-format.",
+                "",
             ),
             expect_equal(
                 "every required-config sample src passes native_config_error",

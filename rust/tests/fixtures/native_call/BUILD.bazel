@@ -4,10 +4,11 @@ load("@rules_cc//cc:defs.bzl", _raw_cc_library = "cc_library")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//cc/rules:defs.bzl", "cc_library")
+load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
-load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_tool_inputs_test")
+load(":build_script_tests.bzl", "build_script_compiler_tests", "build_script_libstdcxx_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests")
 
 package(
     default_testonly = True,
@@ -129,6 +130,21 @@ cross_build_script_tool_inputs_test(
     target_under_test = ":native_cc_build_script",
 )
 
+rust_link_compiler_tests(
+    name = "native_cc_link_compiler_tests",
+    target = ":native_cc_test_upstream",
+)
+
+cc_toolchain_test(
+    name = "gcc_native_cc_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_cc_test",
+)
+
 rust_library(
     name = "native_call",
     srcs = ["src/lib.rs"],
@@ -152,6 +168,21 @@ rust_test(
     crate = ":native_call",
     link_deps = [":native_c"],
     deps = [":native_call_build_script"],
+)
+
+rust_link_compiler_tests(
+    name = "native_call_link_compiler_tests",
+    target = ":native_call_test_upstream",
+)
+
+cc_toolchain_test(
+    name = "gcc_native_call_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_call_test",
 )
 
 _raw_cc_library(

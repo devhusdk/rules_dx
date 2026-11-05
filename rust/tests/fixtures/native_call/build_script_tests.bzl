@@ -146,3 +146,66 @@ def build_script_msvc_test(name, target):
         target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         target_under_test = target,
     )
+
+def _rustc_action(env):
+    actions = [
+        a
+        for a in analysistest.target_actions(env)
+        if a.mnemonic == "Rustc"
+    ]
+    asserts.equals(env, 1, len(actions))
+    return actions[0]
+
+def _link_args(action):
+    linker = ""
+    link_args = []
+    for part in action.argv:
+        if part.startswith("--codegen=linker="):
+            linker = part[len("--codegen=linker="):]
+        elif part.startswith("-Clink-arg="):
+            link_args.append(part[len("-Clink-arg="):])
+        elif part.startswith("--codegen=link-arg="):
+            link_args.append(part[len("--codegen=link-arg="):])
+    return linker, link_args
+
+def _link_gcc_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _rustc_action(env)
+    linker, link_args = _link_args(action)
+    asserts.true(env, "dx_gcc_linux_x86_64" in linker, "linker is not the pinned GCC: {}".format(linker))
+    asserts.true(env, "-l:libstdc++.a" in link_args, "libstdc++.a is not linked: {}".format(link_args))
+    for arg in link_args:
+        if arg.startswith("-L") or arg.startswith("-B"):
+            asserts.true(env, arg[2:].startswith("external/+gcc+dx_gcc_linux_x86_64"), "search path outside the pinned GCC: {}".format(arg))
+    for part in action.argv:
+        for prefix in ["/usr", "/lib", "-L/usr", "-L/lib"]:
+            asserts.false(env, part.startswith(prefix), "host path in rustc argv: {}".format(part))
+    return analysistest.end(env)
+
+def _link_llvm_impl(ctx):
+    env = analysistest.begin(ctx)
+    linker, _ = _link_args(_rustc_action(env))
+    asserts.false(env, "dx_gcc" in linker, "linker is GCC under llvm: {}".format(linker))
+    return analysistest.end(env)
+
+_link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"})
+_link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
+
+def rust_link_compiler_tests(name, target):
+    """Asserts the Rust link step uses the pinned GCC under gcc and not under llvm.
+
+    Args:
+        name: Name of the test suite.
+        target: A rust_test or rust_binary that links native code.
+    """
+    tests = []
+    for compiler, rule in [("gcc", _link_gcc_test), ("llvm", _link_llvm_test)]:
+        test = "{}_{}".format(name, compiler)
+        rule(
+            name = test,
+            size = "small",
+            target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+        tests.append(test)
+    native.test_suite(name = name, tests = tests)

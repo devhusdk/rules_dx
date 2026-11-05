@@ -44,7 +44,8 @@ def _gcc_impl(ctx):
     inputs = {f.path: True for f in action.inputs.to_list()}
     for name in ["CC", "CXX", "AR"]:
         value = _relative(action.env.get(name, ""))
-        asserts.true(env, "dx_gcc_linux_x86_64" in value, "{} is not the pinned GCC: {}".format(name, value))
+        asserts.true(env, ctx.attr.gcc in value, "{} is not the pinned GCC: {}".format(name, value))
+        asserts.false(env, "_cross" in value, "{} is a cross GCC: {}".format(name, value))
         asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
     for name in ["HOST_CFLAGS", "HOST_CXXFLAGS", "TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
         asserts.true(env, name in action.env, "{} is not set".format(name))
@@ -80,7 +81,9 @@ def _msvc_impl(ctx):
         asserts.true(env, part.startswith("external/") or part.startswith("${pwd}/external/") or "dx_msvc" in part, "INCLUDE entry outside the provisioned SDK: {}".format(part))
     return analysistest.end(env)
 
-_gcc_test = analysistest.make(_gcc_impl, config_settings = {_COMPILER: "gcc"})
+_GCC_ATTRS = {"gcc": attr.string(default = "dx_gcc_linux_x86_64")}
+
+_gcc_test = analysistest.make(_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _llvm_test = analysistest.make(_llvm_impl, config_settings = {_COMPILER: "llvm"})
 _msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})
 
@@ -96,10 +99,11 @@ def _libstdcxx_impl(ctx):
         archives = [f.path for f in action.inputs.to_list() if f.path.endswith("/lib64/libstdc++.a")]
         asserts.true(env, len(archives) > 0, "libstdc++.a is not an input of {}".format(action.outputs.to_list()))
         for path in archives:
-            asserts.true(env, "dx_gcc_linux_x86_64" in path, "libstdc++.a is not from the pinned GCC: {}".format(path))
+            asserts.true(env, ctx.attr.gcc in path, "libstdc++.a is not from the pinned GCC: {}".format(path))
+            asserts.false(env, "_cross" in path, "libstdc++.a is from a cross GCC: {}".format(path))
     return analysistest.end(env)
 
-_libstdcxx_test = analysistest.make(_libstdcxx_impl, config_settings = {_COMPILER: "gcc"})
+_libstdcxx_test = analysistest.make(_libstdcxx_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 
 def build_script_libstdcxx_test(name, target):
     """Asserts a binary using the C++ build script links libstdc++ from the pinned GCC.
@@ -112,6 +116,13 @@ def build_script_libstdcxx_test(name, target):
         name = name,
         size = "small",
         target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
+    _libstdcxx_test(
+        name = name + "_arm64",
+        size = "small",
+        gcc = "dx_gcc_linux_aarch64",
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:arm64"],
         target_under_test = target,
     )
 
@@ -132,6 +143,16 @@ def build_script_compiler_tests(name, target):
             target_under_test = target,
         )
         tests.append(test)
+        if compiler == "gcc":
+            arm64 = test + "_arm64"
+            rule(
+                name = arm64,
+                size = "small",
+                gcc = "dx_gcc_linux_aarch64",
+                target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+                target_under_test = target,
+            )
+            tests.append(arm64)
     native.test_suite(name = name, tests = tests)
 
 cross_build_script_tool_inputs_test = analysistest.make(
@@ -237,11 +258,12 @@ def _link_gcc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _rustc_action(env)
     linker, link_args = _link_args(action)
-    asserts.true(env, "dx_gcc_linux_x86_64" in linker, "linker is not the pinned GCC: {}".format(linker))
+    asserts.true(env, ctx.attr.gcc in linker, "linker is not the pinned GCC: {}".format(linker))
+    asserts.false(env, "_cross" in linker, "linker is a cross GCC: {}".format(linker))
     asserts.true(env, "-l:libstdc++.a" in link_args, "libstdc++.a is not linked: {}".format(link_args))
     for arg in link_args:
         if arg.startswith("-L") or arg.startswith("-B"):
-            asserts.true(env, arg[2:].startswith("external/+gcc+dx_gcc_linux_x86_64"), "search path outside the pinned GCC: {}".format(arg))
+            asserts.true(env, arg[2:].startswith("external/+gcc+" + ctx.attr.gcc), "search path outside the pinned GCC: {}".format(arg))
     for part in action.argv:
         for prefix in ["/usr", "/lib", "-L/usr", "-L/lib"]:
             asserts.false(env, part.startswith(prefix), "host path in rustc argv: {}".format(part))
@@ -261,7 +283,7 @@ def _link_windows_impl(ctx):
     asserts.false(env, "clang-cl" in linker, "linker is clang-cl: {}".format(linker))
     return analysistest.end(env)
 
-_link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"})
+_link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
 
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {_COMPILER: "llvm", _LINKER_PREFERENCE: "rust"})
@@ -297,4 +319,14 @@ def rust_link_compiler_tests(name, target):
             target_under_test = target,
         )
         tests.append(test)
+        if compiler == "gcc":
+            arm64 = test + "_arm64"
+            rule(
+                name = arm64,
+                size = "small",
+                gcc = "dx_gcc_linux_aarch64",
+                target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+                target_under_test = target,
+            )
+            tests.append(arm64)
     native.test_suite(name = name, tests = tests)

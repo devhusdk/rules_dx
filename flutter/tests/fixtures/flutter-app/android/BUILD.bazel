@@ -5,6 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 flutter_android_app(
     name = "apk",
+    android_abi = "x64",
     application = "//flutter/tests/fixtures/flutter-app/app:native",
     package_name = "dk.devhus.flutterapp",
     pub_hub_name = "dx_flutter_app_deps",
@@ -12,7 +13,6 @@ flutter_android_app(
 
 flutter_android_app(
     name = "apk_arm64",
-    android_abi = "arm64",
     application = "//flutter/tests/fixtures/flutter-app/app:native",
     package_name = "dk.devhus.flutterapp",
     pub_hub_name = "dx_flutter_app_deps",
@@ -35,8 +35,23 @@ sh_test(
     args = [
         "$(location :apk)",
         "dk.devhus.flutterapp",
+        "x86_64",
     ],
     data = [":apk"],
+    tags = ["block-network"],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+)
+
+sh_test(
+    name = "inspect_apk_arm64_test",
+    size = "small",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :apk_arm64)",
+        "dk.devhus.flutterapp",
+        "arm64-v8a",
+    ],
+    data = [":apk_arm64"],
     tags = ["block-network"],
     target_compatible_with = FLUTTER_COMPATIBLE_WITH,
 )

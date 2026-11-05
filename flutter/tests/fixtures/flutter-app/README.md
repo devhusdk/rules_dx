@@ -16,3 +16,12 @@ The packages are:
 - `gen` holds the generator.
 
 The font is a one-glyph font made for this fixture, so no test fetches fonts from the network.
+
+## Android
+
+`android:apk` builds the native app as an x64 APK, and `android:apk_arm64` builds the arm64 one. Both build on Linux with the managed Android SDK and NDK, run no Gradle, and need no network at build time.
+
+```sh
+bazel build //flutter/tests/fixtures/flutter-app/android:all --sandbox_default_allow_network=false
+bazel test //flutter/tests/fixtures/flutter-app/android:inspect_apk_test //flutter/tests/fixtures/flutter-app/android:inspect_apk_arm64_test
+```

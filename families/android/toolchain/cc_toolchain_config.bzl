@@ -23,7 +23,7 @@ def _ndk_cc_toolchain_config_impl(ctx):
         tool_path(name = "gcov", path = prebuilt + "/bin/llvm-cov"),
         tool_path(name = "nm", path = prebuilt + "/bin/llvm-nm"),
         tool_path(name = "objdump", path = prebuilt + "/bin/llvm-objdump"),
-        tool_path(name = "strip", path = ("../" + prebuilt.removeprefix("external/") if prebuilt.startswith("external/") else prebuilt) + "/bin/llvm-strip"),
+        tool_path(name = "strip", path = prebuilt + "/bin/llvm-strip"),
     ]
     resource_dir = ctx.attr.clang_resource_dir.removesuffix("/include")
     compile_flags = ["--target=" + target, "-resource-dir=" + resource_dir]

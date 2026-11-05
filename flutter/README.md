@@ -15,7 +15,7 @@ Build the fixture as an Android APK on Linux:
 bazel build //flutter/tests/fixtures/flutter-app/android:apk
 ```
 
-`flutter_android_app` wraps the upstream rule and uses `android_binary`, so no Gradle runs. Set `android_abi` to `x64` (default) or `arm64`. Device and emulator runs are not covered yet.
+`flutter_android_app` wraps the upstream rule and uses `android_binary`, so no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. Device and emulator runs are not covered yet.
 
 Consumers load the rules from `@rules_dx//flutter/rules:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
 

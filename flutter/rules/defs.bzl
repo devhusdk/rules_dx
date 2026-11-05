@@ -116,10 +116,8 @@ def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""
     _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
 
-def flutter_android_app(name, application, package_name, android_abi = "x64", visibility = None, **kwargs):
+def flutter_android_app(name, application, package_name, android_abi = "arm64", visibility = None, **kwargs):
     """Thin wrapper over flutter_android_app."""
-    if android_abi not in ["arm64", "x64"]:
-        fail('flutter_android_app: android_abi must be "arm64" or "x64", got "{}"'.format(android_abi))
     _flutter_android_app(
         name = name,
         application = application,

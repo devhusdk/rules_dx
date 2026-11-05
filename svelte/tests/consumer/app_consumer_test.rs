@@ -109,7 +109,9 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
     nested::seed_rules_dx_lock(&root, &rules);
     write(
         &root.join(".bazelrc"),
-        dx_testing::preset_rc(&rules).as_bytes(),
+        dx_testing::preset_rc(&rules)
+            .replace("@rules_dx//", "@acme_rules//")
+            .as_bytes(),
     );
     nested::stage_consumer_maven_lock(&root);
     let build = String::from_utf8_lossy(&read(&resolve_runfiles(

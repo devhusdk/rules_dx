@@ -143,7 +143,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
             "aquery returned no compile action".to_string(),
         ));
     }
-    let qualified = cc_context::qualify(&graph, &commands)?;
+    let qualified = cc_context::qualify(&graph, &commands, &PathBuf::from(&execroot))?;
 
     let (version, _) = runner.exec("git", &["rev-parse".to_string(), "HEAD".to_string()])?;
     let bazel_version = runner.bazel(&["version"], &[])?;

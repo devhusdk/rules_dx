@@ -689,7 +689,7 @@ const PLAIN: &str = r#""/usr/bin/gcc","-c","pkg/probe.cc""#;
 fn qualify_accepts_exact_gnu_argv() {
     let graph = qualify_graph(PLAIN, "");
     let command = exported(&["/usr/bin/gcc", "-c", "pkg/probe.cc"], Some(gnu()));
-    let done = qualify(&graph, &[command]).expect("qualified");
+    let done = qualify(&graph, &[command], Path::new(".")).expect("qualified");
     assert_eq!(done.len(), 1);
     assert_eq!(done[0].driver, "Gnu");
 }
@@ -704,7 +704,7 @@ fn qualify_expands_param_file_with_spaced_backslash_path() {
         &["cl.exe", "/c", "C:\\Program Files\\x y\\a.cc"],
         Some(gnu()),
     );
-    qualify(&graph, &[command]).expect("qualified");
+    qualify(&graph, &[command], Path::new(".")).expect("qualified");
 }
 
 #[test]
@@ -712,7 +712,7 @@ fn qualify_rejects_dropped_argument() {
     let graph = qualify_graph(PLAIN, "");
     let command = exported(&["/usr/bin/gcc", "pkg/probe.cc"], Some(gnu()));
     assert!(matches!(
-        qualify(&graph, &[command]),
+        qualify(&graph, &[command], Path::new(".")),
         Err(Error::Unqualified { .. })
     ));
 }
@@ -722,7 +722,7 @@ fn qualify_rejects_changed_argv0() {
     let graph = qualify_graph(PLAIN, "");
     let command = exported(&["/usr/bin/cc", "-c", "pkg/probe.cc"], Some(gnu()));
     assert!(matches!(
-        qualify(&graph, &[command]),
+        qualify(&graph, &[command], Path::new(".")),
         Err(Error::Unqualified { .. })
     ));
 }
@@ -745,14 +745,15 @@ fn qualify_accepts_msvc_projected_prefix() {
         ],
         Some(msvc()),
     );
-    qualify(&graph, &[command]).expect("qualified");
+    qualify(&graph, &[command], Path::new(".")).expect("qualified");
 }
 
 #[test]
 fn qualify_accepts_clang_cl_argv_imsvc_unchanged() {
     let argv = ["clang-cl.exe", "/imsvcC:/inc", "/c", "a.cc"];
     let graph = qualify_graph(r#""clang-cl.exe","/imsvcC:/inc","/c","a.cc""#, "");
-    let done = qualify(&graph, &[exported(&argv, Some(msvc()))]).expect("qualified");
+    let done =
+        qualify(&graph, &[exported(&argv, Some(msvc()))], Path::new(".")).expect("qualified");
     assert_eq!(done[0].expected, done[0].exported);
 }
 
@@ -764,7 +765,7 @@ fn qualify_rejects_extra_injected_flag() {
         Some(msvc()),
     );
     assert!(matches!(
-        qualify(&graph, &[command]),
+        qualify(&graph, &[command], Path::new(".")),
         Err(Error::Unqualified { .. })
     ));
 }
@@ -774,8 +775,8 @@ fn qualify_rejects_unknown_driver_and_missing_identity() {
     let graph = qualify_graph(PLAIN, "");
     let args = ["/usr/bin/gcc", "-c", "pkg/probe.cc"];
     let unknown = exported(&args, Some(identity("k8-fastbuild", Driver::Unknown)));
-    assert!(qualify(&graph, &[unknown]).is_err());
-    assert!(qualify(&graph, &[exported(&args, None)]).is_err());
+    assert!(qualify(&graph, &[unknown], Path::new(".")).is_err());
+    assert!(qualify(&graph, &[exported(&args, None)], Path::new(".")).is_err());
 }
 
 #[test]
@@ -783,7 +784,7 @@ fn qualify_rejects_missing_param_file() {
     let graph = qualify_graph(r#""cl.exe","@bazel-out/p.params""#, "");
     let command = exported(&["cl.exe", "/c"], Some(gnu()));
     assert!(matches!(
-        qualify(&graph, &[command]),
+        qualify(&graph, &[command], Path::new(".")),
         Err(Error::Unqualified { .. })
     ));
 }
@@ -803,4 +804,27 @@ fn retain_owned_drops_compile_actions_of_other_targets() {
         .map(|a| (a.mnemonic.as_str(), a.target_id))
         .collect();
     assert_eq!(ids, [("CppCompile", 1), ("Other", 2)]);
+}
+
+#[test]
+fn qualify_reads_an_unlisted_param_file_from_the_execroot() {
+    let root = scratch("qualify-param");
+    fs::write(
+        root.join("probe.obj.params"),
+        "/c\r\n\"C:\\Program Files\\x y\\a.cc\"\r\n",
+    )
+    .expect("params");
+    let graph = qualify_graph(r#""cl.exe","@probe.obj.params""#, "");
+    let command = exported(
+        &["cl.exe", "/c", "C:\\Program Files\\x y\\a.cc"],
+        Some(gnu()),
+    );
+    qualify(&graph, &[command], &root).expect("qualified");
+    let missing = qualify_graph(r#""cl.exe","@gone.params""#, "");
+    let command = exported(&["cl.exe", "/c"], Some(gnu()));
+    assert!(matches!(
+        qualify(&missing, &[command], &root),
+        Err(Error::Unqualified { .. })
+    ));
+    fs::remove_dir_all(&root).ok();
 }

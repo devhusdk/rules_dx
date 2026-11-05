@@ -544,7 +544,14 @@ pub struct Qualified {
 
 /// Checks exported commands against the argv Bazel recorded, with param files
 /// taken from aquery `paramFiles` and never from this crate's tokenizer.
-pub fn qualify(graph: &AqueryGraph, commands: &[CompileCommand]) -> Result<Vec<Qualified>, Error> {
+/// Compile actions whose param file aquery does not report (the compiler param
+/// file Bazel writes while executing) are read from the execroot, one argument
+/// per line.
+pub fn qualify(
+    graph: &AqueryGraph,
+    commands: &[CompileCommand],
+    execroot: &Path,
+) -> Result<Vec<Qualified>, Error> {
     let mut qualified = Vec::new();
     for command in commands {
         let fail = |reason: String| Error::Unqualified {
@@ -566,21 +573,18 @@ pub fn qualify(graph: &AqueryGraph, commands: &[CompileCommand]) -> Result<Vec<Q
         for argument in &action.arguments {
             match argument.strip_prefix('@') {
                 Some(path) => {
-                    let file = action
+                    let listed = action
                         .param_files
                         .iter()
-                        .find(|file| file.exec_path.replace('\\', "/") == path.replace('\\', "/"))
-                        .ok_or_else(|| {
-                            let known: Vec<&str> = action
-                                .param_files
-                                .iter()
-                                .map(|file| file.exec_path.as_str())
-                                .collect();
-                            fail(format!(
-                                "param file '{path}' not in aquery (action has {known:?})"
-                            ))
-                        })?;
-                    expected.extend(file.arguments.iter().cloned());
+                        .find(|file| file.exec_path.replace('\\', "/") == path.replace('\\', "/"));
+                    match listed {
+                        Some(file) => expected.extend(file.arguments.iter().cloned()),
+                        None => {
+                            let text = read_response_file(execroot, path)
+                                .map_err(|err| fail(format!("param file '{path}': {err}")))?;
+                            expected.extend(text.lines().map(unquote_line));
+                        }
+                    }
                 }
                 None => expected.push(argument.clone()),
             }
@@ -631,6 +635,17 @@ pub fn qualify(graph: &AqueryGraph, commands: &[CompileCommand]) -> Result<Vec<Q
         });
     }
     Ok(qualified)
+}
+
+fn unquote_line(line: &str) -> String {
+    let line = line.trim_end_matches('\r');
+    match line
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
+        Some(inner) => inner.to_string(),
+        None => line.to_string(),
+    }
 }
 
 /// Expands every `@response` argument against the execroot.

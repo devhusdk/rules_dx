@@ -1,5 +1,5 @@
 {
-  "checksum": "dbc42ef735e23b6d2a8de8aea13c70e5ead5f6e6576c750d63b43933fba110b3",
+  "checksum": "094caa5cd87c62d895586378ac0a81eab7840af22f909e4f23cabc7dc9262814",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1141,6 +1141,35 @@
         }
       ],
       "version": "0.0.0"
+    },
+    "arbitrary 1.5.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "arbitrary",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "arbitrary",
+      "package_url": "https://github.com/rust-fuzz/arbitrary/",
+      "repository": {
+        "Http": {
+          "sha256": "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed",
+          "url": "https://static.crates.io/crates/arbitrary/1.5.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "arbitrary",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.5.0"
     },
     "argon2 0.5.3": {
       "common_attrs": {
@@ -9874,6 +9903,25 @@
       ],
       "version": "0.3.34"
     },
+    "fuzz_fixture 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "libfuzzer-sys 0.4.13",
+            "target": "libfuzzer_sys"
+          }
+        ],
+        "edition": "2021"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "fuzz_fixture",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "fxhash 0.2.1": {
       "common_attrs": {
         "deps": [
@@ -13219,6 +13267,59 @@
         }
       ],
       "version": "0.2.189"
+    },
+    "libfuzzer-sys 0.4.13": {
+      "build_script_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.11.0",
+            "target": "cc"
+          }
+        ]
+      },
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "arbitrary 1.5.0",
+            "target": "arbitrary"
+          }
+        ],
+        "edition": "2018",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "libfuzzer_sys",
+      "license": "(MIT OR Apache-2.0) AND NCSA",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT",
+        "NCSA"
+      ],
+      "name": "libfuzzer-sys",
+      "package_url": "https://github.com/rust-fuzz/libfuzzer",
+      "repository": {
+        "Http": {
+          "sha256": "a9fd2f41a1cba099f79a0b6b6c35656cf7c03351a7bae8ff0f28f25270f929d2",
+          "url": "https://static.crates.io/crates/libfuzzer-sys/0.4.13/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "libfuzzer_sys",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "0.4.13"
     },
     "libm 0.2.16": {
       "build_script_attrs": {},
@@ -27685,6 +27786,7 @@
     "jsonschema 0.60.2",
     "lcov 0.8.2",
     "libc 0.2.189",
+    "libfuzzer-sys 0.4.13",
     "line-index 0.1.2",
     "md-5 0.10.6",
     "mvn_version 0.1.0",
@@ -27796,6 +27898,7 @@
     "dx_worktree 0.0.0": "cli/dx_worktree",
     "env_shard 0.0.0": "env/env_shard",
     "env_stubs 0.0.0": "env/env_stubs",
+    "fuzz_fixture 0.0.0": "rust/tests/fixtures/fuzz_fixture",
     "generation_result 0.0.0": "generation/generation_result",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",

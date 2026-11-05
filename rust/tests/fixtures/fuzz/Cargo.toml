@@ -1,0 +1,12 @@
+[package]
+license = "Apache-2.0"
+name = "fuzz_fixture"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+libfuzzer-sys = { version = "0.4", default-features = false }
+
+[[bin]]
+name = "parse_fuzz"
+path = "parse_fuzz.rs"

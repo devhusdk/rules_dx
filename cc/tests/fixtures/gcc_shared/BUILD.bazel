@@ -22,9 +22,9 @@ cc_library(
     name = "greet",
     srcs = ["greet.cc"],
     copts = ["-fPIC"],
+    deps = [":greet_api"],
     tags = ["manual"],
     target_compatible_with = _GCC_ONLY,
-    deps = [":greet_api"],
 )
 
 cc_shared_library(

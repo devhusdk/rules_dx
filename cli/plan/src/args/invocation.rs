@@ -265,6 +265,8 @@ pub struct Invocation {
     /// `dx init --profile`: the config profile the root files pick.
     pub profile: Option<crate::args::ProfileArg>,
     pub to: Option<String>,
+    /// `dx release --commits`: the git range whose subjects are linted.
+    pub commits: Option<String>,
     pub here: bool,
     pub affected: bool,
     pub affected_handoff: Option<AffectedHandoff>,
@@ -707,6 +709,7 @@ mod tests {
             agents: Vec::new(),
             profile: None,
             to: None,
+            commits: None,
             here: true,
             affected: false,
             affected_handoff: None,

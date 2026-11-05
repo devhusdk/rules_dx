@@ -151,6 +151,7 @@ pub(crate) struct Flags {
     pub(crate) agents: Vec<Agent>,
     pub(crate) profile: Option<ProfileArg>,
     pub(crate) to: Option<String>,
+    pub(crate) commits: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
     pub(crate) serve: bool,
@@ -587,6 +588,14 @@ flag_group! {
     ToFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
         to: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Git range whose commit subjects `dx release --check` lints.
+    CommitsFlag, {
+        #[arg(long, overrides_with = "commits", value_parser = non_empty, value_name = "RANGE")]
+        commits: Option<String>,
     }
 }
 
@@ -1320,6 +1329,7 @@ command_args! {
         apply: ApplyFlag,
         push: PushFlag,
         own: ToFlag,
+        commits: CommitsFlag,
     };
     /// The flags `dx unused` accepts.
     Unused => 27, BazelTail, {

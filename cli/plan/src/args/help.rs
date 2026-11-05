@@ -302,7 +302,14 @@ const EXAMPLES: &[(Command, &[&str])] = &[
             "mutate --time 5m --fail-on=survived:20 //pkg/...",
         ],
     ),
-    (Command::Release, &["release", "release --to 2.0.0"]),
+    (
+        Command::Release,
+        &[
+            "release",
+            "release --to 2.0.0",
+            "release --check --commits origin/main..HEAD",
+        ],
+    ),
 ];
 
 fn examples_text(command: Command) -> String {

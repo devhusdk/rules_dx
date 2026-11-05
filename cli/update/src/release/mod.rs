@@ -19,12 +19,15 @@ const DEFAULT_TAG_PREFIX: &str = "v";
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     pub tag_prefix: String,
+    /// Subject prefixes `--commits` lets through, such as `Merge `.
+    pub skip: Vec<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             tag_prefix: DEFAULT_TAG_PREFIX.to_owned(),
+            skip: Vec::new(),
         }
     }
 }
@@ -49,7 +52,36 @@ fn parse_config(text: &str) -> Result<Config, String> {
             .ok_or("tag_prefix must be a string")?
             .to_owned();
     }
+    if let Some(item) = doc.get("skip") {
+        let table = item.as_table_like().ok_or("skip must be a table")?;
+        if let Some(item) = table.get("subjects") {
+            config.skip = item
+                .as_array()
+                .and_then(|array| {
+                    array
+                        .iter()
+                        .map(|v| v.as_str().map(str::to_owned))
+                        .collect()
+                })
+                .ok_or("skip.subjects must be an array of strings")?;
+        }
+    }
     Ok(config)
+}
+
+/// The commits in `log` whose subject is not a conventional commit and does not start with a `skip` entry, as `(hash, subject)`.
+pub fn lint(config: &Config, log: &str) -> Vec<(String, String)> {
+    conventional::parse(log)
+        .into_iter()
+        .filter(|commit| commit.kind == conventional::Kind::Other)
+        .filter(|commit| {
+            !config
+                .skip
+                .iter()
+                .any(|s| commit.subject.starts_with(s.as_str()))
+        })
+        .map(|commit| (commit.hash, commit.subject))
+        .collect()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -136,3 +136,22 @@ fn tag_message_starts_with_the_tag_and_lists_the_commits() {
     assert!(message.contains("## Features"), "{message}");
     assert!(message.contains("## Fixes"), "{message}");
 }
+
+#[test]
+fn lint_names_non_conventional_subjects_and_honours_skip() {
+    let log = "aaaa1111\0feat: add a thing\0\x1ebbbb2222\0update stuff\0\x1ecccc3333\0Merge branch 'x'\0\x1e";
+    let config = Config::default();
+    let bad = lint(&config, log);
+    assert_eq!(bad.len(), 2);
+    assert_eq!(bad[0], ("bbbb2222".to_owned(), "update stuff".to_owned()));
+    let dir = workspace(&[("Cargo.toml", "1.0.0")]);
+    fs::write(
+        dir.path().join("release.toml"),
+        "[skip]\nsubjects = [\"Merge \"]\n",
+    )
+    .expect("write");
+    let config = read_config(dir.path()).expect("config");
+    assert_eq!(lint(&config, log), vec![bad[0].clone()]);
+    fs::write(dir.path().join("release.toml"), "[skip]\nsubjects = 3\n").expect("write");
+    assert!(read_config(dir.path()).is_err());
+}

@@ -5,7 +5,7 @@ use std::process::Command as Process;
 
 use super::common::*;
 use dx_plan::args::Invocation;
-use dx_update::release::{apply, plan, read_config, tag_message};
+use dx_update::release::{apply, lint, plan, read_config, tag_message};
 
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
     let output = Process::new("git")
@@ -31,6 +31,9 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(config) => config,
         Err(message) => return refusal(invocation.output, out, err, &message),
     };
+    if let Some(range) = invocation.commits.as_deref() {
+        return lint_commits(invocation, workspace, &config, range, out, err);
+    }
     let pattern = format!("{}*", config.tag_prefix);
     let tag = git(
         workspace,
@@ -88,6 +91,48 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Err(message) => refusal(invocation.output, out, err, &message),
     }
+}
+
+fn lint_commits(
+    invocation: &Invocation,
+    workspace: &Path,
+    config: &dx_update::release::Config,
+    range: &str,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> i32 {
+    if invocation.apply || invocation.to.is_some() {
+        return refusal(
+            invocation.output,
+            out,
+            err,
+            "--commits only checks; it cannot be combined with --apply or --to",
+        );
+    }
+    let Some(log) = git(
+        workspace,
+        &["log", "--no-merges", "--format=%H%x00%s%x00%b%x1e", range],
+    ) else {
+        return operational(
+            invocation,
+            out,
+            err,
+            "release_git_failed",
+            &format!("cannot read the commits in {range}; check the range and that this is a git checkout"),
+        );
+    };
+    let bad = lint(config, &log);
+    if bad.is_empty() {
+        return 0;
+    }
+    let mut text = String::from("commits that do not follow conventional commits:\n");
+    for (hash, subject) in &bad {
+        text.push_str(&format!("  {} {subject}\n", &hash[..hash.len().min(12)]));
+    }
+    if let Err(exit) = check_stdout_write(out.write_all(text.as_bytes())) {
+        return exit;
+    }
+    1
 }
 
 fn refresh_locks(workspace: &Path, changed: &[String]) -> Result<Vec<String>, String> {

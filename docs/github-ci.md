@@ -140,6 +140,7 @@ The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without
 | `min_changed_line_coverage` | Whole number 0 to 100. Pull requests only. Fails when fewer of the added executable lines are covered. Empty skips it. |
 | `affected_on_pr` | Default `true`. Use `--affected` on pull requests. |
 | `link_check_online` | Default `false`. Run `lint` with `--online` so lychee checks external links. Ignored on pull requests; call the workflow from a `schedule` trigger to use it. |
+| `commit_lint` | Default `false`. On pull requests, run `dx release --check --commits` over the commits since the merge base and fail the `commit-lint` job on any subject that is not a conventional commit. |
 | `mutate` | Default `false`. Run [`dx mutate`](cli/commands/mutate.md) with a 10 minute budget per target on `dx-mutate` targets. Runs only on scheduled or dispatched runs of the default branch; call the workflow from a weekly `schedule` trigger to use it. |
 | `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. The corpus under `.dx/fuzz` is cached between runs. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |
 | `fuzz_time` | Default `300s`. Time budget per fuzz target: `90s`, `5m` or `1h`. |

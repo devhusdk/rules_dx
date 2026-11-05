@@ -58,6 +58,11 @@ on:
         required: false
         default: ""
         type: string
+      commit_lint:
+        description: "On pull requests, fail when a commit between the base and the head is not a conventional commit (dx release --check --commits). Skipped subjects come from release.toml."
+        required: false
+        default: false
+        type: boolean
     secrets:
       REMOTE_CACHE_HEADER:
         description: "Header for the remote cache as name=value. Optional; used with remote_cache."
@@ -720,6 +725,32 @@ jobs:
           path: .dx/fuzz/**/crash-*
           if-no-files-found: ignore
           retention-days: 30
+  commit-lint:
+    name: commit-lint
+    if: ${{ inputs.commit_lint && github.event_name == 'pull_request' }}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Lint the commit subjects
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          bazel run "$@" @rules_dx//:dx -- release --check --commits "$base..$HEAD_SHA"
   dx-ci:
     name: dx-ci (aggregate)
     needs: [validate, checks, security-audit, advisory-snapshots]

@@ -2,8 +2,9 @@
 """Keep the Rule names table in docs/cli/commands/README.md in step with defs.bzl.
 
 Rows with an upstream rule are written by hand. Every other public rule or
-macro a rules/defs.bzl exports gets a generated row with an empty upstream
-column. Run with --write to regenerate, or without to check.
+macro a rules/defs.bzl or families/*/*/app.bzl exports gets a generated row
+with an empty upstream column. Run with --write to regenerate, or without to
+check.
 """
 
 import glob
@@ -25,7 +26,11 @@ def dx_load(path):
 
 def exports(root):
     found = {}
-    paths = glob.glob("*/rules/defs.bzl", root_dir=root) + glob.glob("families/*/rules/defs.bzl", root_dir=root)
+    paths = (
+        glob.glob("*/rules/defs.bzl", root_dir=root)
+        + glob.glob("families/*/rules/defs.bzl", root_dir=root)
+        + glob.glob("families/*/*/app.bzl", root_dir=root)
+    )
     for path in sorted(paths):
         with open(os.path.join(root, path), encoding="utf-8") as f:
             names = sorted({a or b for a, b in EXPORT.findall(f.read())})

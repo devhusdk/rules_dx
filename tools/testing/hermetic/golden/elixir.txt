@@ -1,6 +1,5 @@
 language elixir
 pattern //...
-file elixir/tests/fixtures/elixir-app/mix.lock
 file elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel
 file elixir/tests/fixtures/elixir-app/catalog/lib/catalog.ex
 file elixir/tests/fixtures/elixir-app/catalog/lib/catalog/item.ex
@@ -11,6 +10,7 @@ file elixir/tests/fixtures/elixir-app/cli/BUILD.bazel
 file elixir/tests/fixtures/elixir-app/cli/lib/stockctl.ex
 file elixir/tests/fixtures/elixir-app/cli/test/stockctl_test.exs
 file elixir/tests/fixtures/elixir-app/cli/test/test_helper.exs
+file elixir/tests/fixtures/elixir-app/mix.lock
 file elixir/tests/fixtures/elixir-app/stock/BUILD.bazel
 file elixir/tests/fixtures/elixir-app/stock/lib/stock/application.ex
 file elixir/tests/fixtures/elixir-app/stock/lib/stock/ledger.ex

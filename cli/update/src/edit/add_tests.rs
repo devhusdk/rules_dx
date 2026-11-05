@@ -403,7 +403,10 @@ fn uv_keeps_a_multiline_array_and_creates_a_missing_one() {
         "[project]\nname = \"demo\"\ndependencies = [\n    \"requests>=2\",\n    \"numpy>=1.26.4\",\n]\n"
     );
     let created = add("uv:numpy", "1.26.4", "[project]\nname = \"demo\"\n").expect("create");
-    assert!(created.contains("dependencies = [\"numpy>=1.26.4\"]"), "{created}");
+    assert!(
+        created.contains("dependencies = [\"numpy>=1.26.4\"]"),
+        "{created}"
+    );
 }
 
 #[test]

@@ -5,6 +5,7 @@ use dx_update::edit::{AddError, AddRequest, ConfiguredKind, UpdateRequest};
 use std::collections::BTreeMap;
 use std::path::Path;
 
+#[derive(Debug)]
 pub(super) struct Added {
     pub set: String,
     pub name: String,
@@ -22,11 +23,7 @@ fn kind_of(ecosystem: Ecosystem) -> Option<ConfiguredKind> {
     }
 }
 
-fn latest(
-    ecosystem: Ecosystem,
-    name: &str,
-    fetch: &dyn Fetch,
-) -> Result<String, String> {
+fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String, String> {
     match ecosystem {
         Ecosystem::Cargo => cargo::latest_stable(name, cargo::DEFAULT_BASE, fetch),
         Ecosystem::Npm => npm::latest_stable(name, npm::DEFAULT_BASE, fetch),
@@ -170,14 +167,26 @@ mod tests {
             "rs/Cargo.toml",
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\n",
         );
-        write(root, "rs/src/lib.rs", "use serde::Serialize;\nuse regex::Regex;\n");
+        write(
+            root,
+            "rs/src/lib.rs",
+            "use serde::Serialize;\nuse regex::Regex;\n",
+        );
         write(
             root,
             "rs/Cargo.lock",
-            "[[package]]\nname = \"regex\"\nversion = \"1.5.0\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\n",
+            "[[package]]\nname = \"regex\"\nversion = \"1.5.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n",
         );
-        write(root, "web/package.json", "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n");
-        write(root, "web/index.js", "import pad from 'left-pad';\nimport React from 'react';\n");
+        write(
+            root,
+            "web/package.json",
+            "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
+        );
+        write(
+            root,
+            "web/index.js",
+            "import pad from 'left-pad';\nimport React from 'react';\n",
+        );
         write(
             root,
             "web/pnpm-lock.yaml",
@@ -185,7 +194,12 @@ mod tests {
         );
         let resolved = [
             target("crates", Ecosystem::Cargo, "rs/Cargo.toml", "rs/Cargo.lock"),
-            target("npm", Ecosystem::Npm, "web/package.json", "web/pnpm-lock.yaml"),
+            target(
+                "npm",
+                Ecosystem::Npm,
+                "web/package.json",
+                "web/pnpm-lock.yaml",
+            ),
         ];
         let added = add_missing(root, &resolved, &registry).expect("added");
         let names: Vec<_> = added
@@ -198,21 +212,36 @@ mod tests {
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
         assert!(update_unused::find_missing(root, &resolved).is_empty());
-        assert!(add_missing(root, &resolved, &registry).expect("again").is_empty());
+        assert!(add_missing(root, &resolved, &registry)
+            .expect("again")
+            .is_empty());
     }
 
     #[test]
     fn a_failed_lookup_is_reported_and_the_others_are_still_written() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        write(root, "web/package.json", "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n");
-        write(root, "web/index.js", "import pad from 'left-pad';\nimport z from 'zzz';\n");
+        write(
+            root,
+            "web/package.json",
+            "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
+        );
+        write(
+            root,
+            "web/index.js",
+            "import pad from 'left-pad';\nimport z from 'zzz';\n",
+        );
         write(
             root,
             "web/pnpm-lock.yaml",
             "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.3.0:\n    resolution: {integrity: sha512-x}\n\n  zzz@1.0.0:\n    resolution: {integrity: sha512-y}\n",
         );
-        let resolved = [target("npm", Ecosystem::Npm, "web/package.json", "web/pnpm-lock.yaml")];
+        let resolved = [target(
+            "npm",
+            Ecosystem::Npm,
+            "web/package.json",
+            "web/pnpm-lock.yaml",
+        )];
         let error = add_missing(root, &resolved, &registry).expect_err("zzz fails");
         assert!(error.contains("npm:zzz"), "{error}");
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();

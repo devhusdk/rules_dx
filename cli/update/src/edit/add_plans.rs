@@ -271,9 +271,11 @@ pub(super) fn insert_pyproject_dependency(
         .parse::<toml_edit::DocumentMut>()
         .ok()
         .and_then(|doc| {
-            doc["project"]["dependencies"]
-                .as_array()
-                .map(|array| array.iter().any(|v| v.as_str() == Some(requirement.as_str())))
+            doc["project"]["dependencies"].as_array().map(|array| {
+                array
+                    .iter()
+                    .any(|v| v.as_str() == Some(requirement.as_str()))
+            })
         })
         .unwrap_or(false);
     if !kept {

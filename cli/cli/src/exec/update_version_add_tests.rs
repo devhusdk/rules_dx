@@ -49,7 +49,7 @@ fn unsupported_selectors_do_not_write() {
 }
 
 #[test]
-fn configured_uv_set_reports_unsupported_add() {
+fn configured_uv_set_adds_a_requirement_before_the_refresh() {
     let harness = Harness::new("update-add-consumer-uv");
     harness.write_source(
         "MODULE.bazel",
@@ -59,12 +59,11 @@ fn configured_uv_set_reports_unsupported_add() {
     harness.write_source("apps/frontend/pyproject.toml", pyproject);
     let (code, _, err) = harness.run(&["update", "pypi-frontend:anyio", "4.1.0", "--apply"]);
     assert_eq!(code, 1, "{err}");
+    assert!(err.contains("cannot run uv"), "{err}");
     assert!(
-        err.contains("no declared requirement for \"anyio\""),
-        "{err}"
+        !err.contains("no declared requirement"),
+        "the add is no longer refused: {err}"
     );
-    assert_eq!(read(&harness, "apps/frontend/pyproject.toml"), pyproject);
-    assert!(harness.seen_env.borrow().is_empty());
 }
 
 #[test]
@@ -323,18 +322,17 @@ fn configured_go_set_add_check_names_its_go_mod() {
 }
 
 #[test]
-fn configured_ruby_set_refuses_an_add_to_an_unreadable_gemfile() {
+fn configured_ruby_set_adds_a_gem_line() {
     let harness = Harness::new("update-add-consumer-unsupported");
     harness.write_source(
         "MODULE.bazel",
         "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"other\", gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
     );
-    harness.write_source("Gemfile", "x\n");
+    harness.write_source("Gemfile", "source \"https://rubygems.org\"\n");
     let (code, _, err) = harness.run(&["update", "other:thing", "1.0.0", "--apply"]);
-    assert_eq!(code, 1, "{err}");
-    assert!(
-        err.contains("unsupported manifest shape in Gemfile"),
-        "{err}"
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(
+        read(&harness, "Gemfile"),
+        "source \"https://rubygems.org\"\ngem \"thing\", \"~> 1.0\"\n"
     );
-    assert_unchanged(&harness, &[("Gemfile", "x\n")]);
 }

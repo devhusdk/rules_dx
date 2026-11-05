@@ -77,8 +77,11 @@ fn run(args: &[String]) -> Result<bool, String> {
     };
     let result = check(stdout, stdin, &absolute, &options);
     let _ = child.kill();
-    let _ = child.wait();
-    let found = result?;
+    let status = child.wait();
+    let found = result.map_err(|error| match status {
+        Ok(status) => format!("{error} ({status})"),
+        Err(_) => error,
+    })?;
     for (diagnostic, original) in found.iter().map(|d| {
         let original = absolute
             .iter()

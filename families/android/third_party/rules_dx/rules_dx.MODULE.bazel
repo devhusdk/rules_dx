@@ -3,18 +3,6 @@
 # https://github.com/devhusdk/rules_dx/blob/main/patches/README.md
 
 single_version_override(
-    module_name = "rules_rust",
-    patch_strip = 1,
-    patches = [
-        "//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch",
-        "//third_party/rules_dx:rules_rust.pipelined_rmeta_path.patch",
-        "//third_party/rules_dx:rules_rust.crate_universe_root_lookup.patch",
-        "//third_party/rules_dx:rules_rust.exec_cc_toolchain_env.patch",
-    ],
-    version = "0.75.0",
-)
-
-single_version_override(
     module_name = "rules_julia",
     patch_strip = 1,
     patches = [
@@ -66,6 +54,7 @@ single_version_override(
         "//third_party/rules_dx:gcc_toolchain.runtime_libs.patch",
         "//third_party/rules_dx:gcc_toolchain.target_identity_config.patch",
         "//third_party/rules_dx:gcc_toolchain.target_identity_defs.patch",
+        "//third_party/rules_dx:gcc_toolchain.target_identity_extension.patch",
     ],
     version = "0.13.0",
 )

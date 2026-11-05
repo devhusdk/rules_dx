@@ -441,3 +441,23 @@ qt_cc_test(
         "linux_arm64",
     ]
 ]
+
+[
+    rust_test(
+        name = "consumer_identity_test_" + cell,
+        srcs = ["consumer_identity_test.rs"],
+        crate_name = "consumer_identity_test_" + cell.replace("-", "_"),
+        data = [":consumer_archives_" + cell],
+        env = {"DX_QT_ARCHIVES": "$(rootpaths :consumer_archives_" + cell + ")"},
+        tags = ["manual"],
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + cpu],
+        deps = [
+            "//deploy/rules:dx_deploy_tools",
+            "//tools/testing:dx_testing",
+        ],
+    )
+    for (cell, cpu) in [
+        ("linux_x86_64", "x86_64"),
+        ("linux_arm64", "arm64"),
+    ]
+]

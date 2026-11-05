@@ -160,7 +160,8 @@ fn used_labels(
         let mut used = BTreeMap::new();
         for label in &labels {
             if let Some(name) = crate_name(label) {
-                used.entry(format!(":{name}")).or_insert_with(|| label.clone());
+                used.entry(format!(":{name}"))
+                    .or_insert_with(|| label.clone());
             }
         }
         return (!used.is_empty()).then_some(used);
@@ -557,6 +558,24 @@ mod tests {
 
     struct Labels(&'static str);
 
+    /// Answers the hub query with `Labels` and the `rdeps` query with one BUILD target.
+    struct HubAndUser(&'static str, &'static str);
+
+    impl QueryRunner for HubAndUser {
+        fn run_query(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+        ) -> std::io::Result<dx_plan::resolve::QueryResult> {
+            let rdeps = argv.iter().any(|arg| {
+                arg.strip_prefix("--query_file=")
+                    .and_then(|file| std::fs::read_to_string(file).ok())
+                    .is_some_and(|text| text.starts_with("rdeps("))
+            });
+            Labels(if rdeps { self.1 } else { self.0 }).run_query(argv, cwd)
+        }
+    }
+
     impl QueryRunner for Labels {
         fn run_query(
             &self,
@@ -842,13 +861,13 @@ mod tests {
             root,
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\n",
         );
-        let query = Labels("@crates//:serde\n@crates//:regex\n");
+        let query = HubAndUser("@crates//:serde\n@crates//:regex\n", "//app:bin\n");
         let found = find_missing(root, &resolved, &query, &[]);
         let mut out = Vec::new();
         emit_missing_text(&mut out, &found).unwrap();
         assert_eq!(
             String::from_utf8_lossy(&out),
-            "missing: crates: regex (used by @crates//:serde)\n"
+            "missing: crates: regex (used by //app:bin)\n"
         );
         assert!(find_missing(root, &resolved, &NoQuery, &[]).is_empty());
     }
@@ -864,7 +883,7 @@ mod tests {
         write(
             root,
             "rs/Cargo.lock",
-            "version = 3\n\n[[package]]\nname = \"regex\"\nversion = \"1.0.0\"\n",
+            "version = 3\n\n[[package]]\nname = \"regex\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
         write(root, "rs/src/lib.rs", "use regex::Regex;\n");
         let by_import = find_missing(root, &resolved, &NoQuery, &[]);

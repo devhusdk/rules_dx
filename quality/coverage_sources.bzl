@@ -43,7 +43,7 @@ def dx_coverage_source_lines(info):
 
 def _dx_coverage_sources_aspect_impl(target, ctx):
     """Writes the target's instrumented main-repo sources as one manifest."""
-    if InstrumentedFilesInfo not in target:
+    if InstrumentedFilesInfo not in target or AnalysisTestResultInfo in target:
         return []
     files = target[InstrumentedFilesInfo].instrumented_files
     if not files:

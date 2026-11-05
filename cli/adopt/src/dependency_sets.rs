@@ -25,8 +25,10 @@ pub const ECOSYSTEM_PUB: &str = "pub";
 
 pub const ECOSYSTEM_CONAN: &str = "conan";
 
+pub const ECOSYSTEM_COMPOSER: &str = "composer";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, composer";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -49,6 +51,10 @@ pub const PUBSPEC_LOCK: &str = "pubspec.lock";
 const CONANFILES: [&str; 2] = ["conanfile.txt", "conanfile.py"];
 
 pub const CONAN_LOCK: &str = "conan.lock";
+
+pub const COMPOSER_JSON: &str = "composer.json";
+
+pub const COMPOSER_LOCK: &str = "composer.lock";
 
 pub const PAKET_LOCK: &str = "paket.lock";
 
@@ -76,6 +82,7 @@ pub enum Ecosystem {
     Cpan,
     Pub,
     Conan,
+    Composer,
 }
 
 impl Ecosystem {
@@ -93,6 +100,7 @@ impl Ecosystem {
             Ecosystem::Cpan => ECOSYSTEM_CPAN,
             Ecosystem::Pub => ECOSYSTEM_PUB,
             Ecosystem::Conan => ECOSYSTEM_CONAN,
+            Ecosystem::Composer => ECOSYSTEM_COMPOSER,
         }
     }
 
@@ -110,6 +118,7 @@ impl Ecosystem {
             ECOSYSTEM_CPAN => Some(Ecosystem::Cpan),
             ECOSYSTEM_PUB => Some(Ecosystem::Pub),
             ECOSYSTEM_CONAN => Some(Ecosystem::Conan),
+            ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
             _ => None,
         }
     }
@@ -127,7 +136,8 @@ impl Ecosystem {
             | Ecosystem::PowerShell
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => "pinned",
+            | Ecosystem::Conan
+            | Ecosystem::Composer => "pinned",
         }
     }
 
@@ -144,7 +154,8 @@ impl Ecosystem {
             | Ecosystem::PowerShell
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => "pinned",
+            | Ecosystem::Conan
+            | Ecosystem::Composer => "pinned",
         }
     }
 
@@ -175,7 +186,8 @@ impl Ecosystem {
             | Ecosystem::Go
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => "audit",
+            | Ecosystem::Conan
+            | Ecosystem::Composer => "audit",
         }
     }
 
@@ -191,6 +203,7 @@ impl Ecosystem {
             Ecosystem::Go => Some("go"),
             Ecosystem::Cpan => Some("cpan"),
             Ecosystem::Pub => Some("pub"),
+            Ecosystem::Composer => Some("packagist"),
             Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
     }
@@ -210,6 +223,7 @@ impl Ecosystem {
             Ecosystem::Cpan => CPANFILE,
             Ecosystem::Pub => PUBSPEC_YAML,
             Ecosystem::Conan => "conanfile.txt",
+            Ecosystem::Composer => COMPOSER_JSON,
         }
     }
 
@@ -226,7 +240,8 @@ impl Ecosystem {
             | Ecosystem::Go
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => false,
+            | Ecosystem::Conan
+            | Ecosystem::Composer => false,
         }
     }
 }
@@ -356,6 +371,12 @@ pub enum DependencySetsError {
     },
     #[error("dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the cpanfile")]
     StaleCpanLock {
+        name: String,
+        lock: String,
+        detail: String,
+    },
+    #[error("dependency set {name:?} has a stale {lock}: {detail}; regenerate the digests for composer.lock")]
+    StaleComposerLock {
         name: String,
         lock: String,
         detail: String,
@@ -513,6 +534,16 @@ pub fn discover(
                 Ecosystem::Pub,
                 vec![in_dir(&dir, PUBSPEC_YAML)],
                 vec![in_dir(&dir, PUBSPEC_LOCK)],
+            )?);
+        }
+        for composer in module.composer_locks().map_err(hub)? {
+            let lock = path(composer.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
+            sets.push(hub_set(
+                composer.name,
+                Ecosystem::Composer,
+                vec![in_dir(&dir, COMPOSER_JSON)],
+                vec![lock, path(composer.digests)?],
             )?);
         }
         for label in module.conan_extensions() {
@@ -841,6 +872,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Cpan
         | Ecosystem::Pub
         | Ecosystem::Conan
+        | Ecosystem::Composer
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1227,6 +1259,7 @@ pub fn check_backend_settings(
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
         Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
+        Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1306,6 +1339,55 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
     }
     if let Some(extra) = in_lock.difference(&in_snapshot).next() {
         return Err(stale(format!("it has {extra}, which {snapshot} lacks")));
+    }
+    Ok(())
+}
+
+fn check_composer_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    check_pinned_lock(set, COMPOSER_LOCK)?;
+    let Some(digests) = set.locks.iter().find(|lock| lock.ends_with(".json")) else {
+        return Ok(());
+    };
+    let stale = |detail: String| DependencySetsError::StaleComposerLock {
+        name: set.name.clone(),
+        lock: digests.clone(),
+        detail,
+    };
+    let lock = in_dir(&set.dir, COMPOSER_LOCK);
+    let read = |file: &str| -> Result<serde_json::Value, DependencySetsError> {
+        let text = std::fs::read_to_string(workspace.join(file))
+            .map_err(|error| stale(format!("cannot read {file}: {error}")))?;
+        serde_json::from_str(&text).map_err(|error| stale(format!("cannot parse {file}: {error}")))
+    };
+    let lock_json = read(&lock)?;
+    let digests_json = read(digests)?;
+    for key in ["packages", "packages-dev"] {
+        let Some(entries) = lock_json.get(key).and_then(serde_json::Value::as_array) else {
+            continue;
+        };
+        for entry in entries {
+            let Some(name) = entry.get("name").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            let wanted = entry
+                .get("dist")
+                .and_then(|dist| dist.get("reference"))
+                .and_then(serde_json::Value::as_str);
+            let have = digests_json
+                .get("packages")
+                .and_then(|packages| packages.get(name))
+                .and_then(|digest| digest.get("reference"))
+                .and_then(serde_json::Value::as_str);
+            match (wanted, have) {
+                (_, None) => return Err(stale(format!("it has no digest for {name}"))),
+                (Some(wanted), Some(have)) if wanted != have => {
+                    return Err(stale(format!(
+                        "its reference for {name} is {have}, but {lock} has {wanted}"
+                    )))
+                }
+                _ => {}
+            }
+        }
     }
     Ok(())
 }
@@ -2061,6 +2143,61 @@ mod tests {
         assert!(message.contains("run the cpan_compiler"), "{message}");
     }
 
+    fn composer_workspace(digest_reference: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-composer-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("php")).expect("dir");
+        std::fs::write(
+            root.join("php/composer.lock"),
+            "{\"packages\":[{\"name\":\"psr/log\",\"version\":\"3.0.0\",\"dist\":{\"reference\":\"aaa\"}}],\"packages-dev\":[]}",
+        )
+        .expect("lock");
+        std::fs::write(
+            root.join("php/composer.digests.json"),
+            format!("{{\"packages\":{{\"psr/log\":{{\"reference\":\"{digest_reference}\"}}}}}}"),
+        )
+        .expect("digests");
+        let set = ResolvedSet {
+            name: "php".to_owned(),
+            ecosystem: Ecosystem::Composer,
+            dir: "php".to_owned(),
+            manifests: vec!["php/composer.json".to_owned()],
+            locks: vec![
+                "php/composer.lock".to_owned(),
+                "php/composer.digests.json".to_owned(),
+            ],
+            repository: None,
+        };
+        (scratch, set)
+    }
+
+    #[test]
+    fn composer_locks_become_composer_sets() {
+        let module = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("vendor").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Composer);
+        assert_eq!(set.manifests, ["php/composer.json"]);
+        assert_eq!(set.locks, ["php/composer.lock", "php/composer.digests.json"]);
+    }
+
+    #[test]
+    fn composer_layout_accepts_matching_digests() {
+        let (scratch, set) = composer_workspace("aaa");
+        assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+    }
+
+    #[test]
+    fn composer_layout_rejects_a_stale_digest() {
+        let (scratch, set) = composer_workspace("bbb");
+        let error = check_backend_settings(scratch.path(), &set).expect_err("stale");
+        let message = error.to_string();
+        assert!(message.contains("psr/log"), "{message}");
+        assert!(message.contains("aaa"), "{message}");
+    }
+
     #[test]
     fn pub_locks_become_pub_sets() {
         let module = "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
@@ -2621,7 +2758,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, composer"
         );
     }
 

@@ -519,6 +519,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Conan => {
                 "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
             }
+            Ecosystem::Composer => {
+                "dx does not resolve Composer packages; edit composer.json and regenerate composer.lock with `composer update`"
+            }
             _ => {
                 "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
             }
@@ -633,8 +636,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan | Ecosystem::Composer, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan | Ecosystem::Composer, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
@@ -853,8 +856,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan | Ecosystem::Composer, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan | Ecosystem::Composer, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Cpan, Selection::Full) => {

@@ -251,6 +251,15 @@ pub struct CpanInstall<'a> {
     pub line: usize,
 }
 
+/// One `composer.lock` tag of the rules_dx composer extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ComposerLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub digests: &'a str,
+    pub line: usize,
+}
+
 /// One `pub.from_lock` tag of rules_dart or `flutter.pub` tag of rules_flutter.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
@@ -806,6 +815,21 @@ impl ModuleFile {
                 Ok(PubLock {
                     name: required(call, tag, "name")?,
                     lock: required(call, tag, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `composer.lock` tag of the rules_dx composer extension in source order.
+    pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
+        const TAG: &str = "composer.lock";
+        self.tags(RUBY_MODULE, "php/composer:extensions.bzl", "composer", "lock")
+            .map(|call| {
+                Ok(ComposerLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    digests: required(call, TAG, "digests")?,
                     line: call.line,
                 })
             })

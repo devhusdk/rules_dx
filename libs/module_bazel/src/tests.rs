@@ -1147,6 +1147,21 @@ fn pub_locks_follow_the_rules_dart_and_rules_flutter_extensions() {
 }
 
 #[test]
+fn composer_locks_follow_the_rules_dx_extension() {
+    let file = parse("composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\nother = use_extension(\"//php:extensions.bzl\", \"composer\")\nother.lock(name = \"x\", lock = \"//x:composer.lock\", digests = \"//x:d.json\")\n");
+    let found: Vec<_> = file
+        .composer_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock, entry.digests))
+        .collect();
+    assert_eq!(
+        found,
+        [("vendor", "//php:composer.lock", "//php:composer.digests.json")]
+    );
+}
+
+#[test]
 fn cpan_installs_follow_the_rules_perl_extension() {
     let file = parse("cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n");
     let found: Vec<_> = file

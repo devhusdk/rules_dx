@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("//perl/rules:defs.bzl", "perl_test")
 load("//quality:coverage_sources_tests.bzl", "coverage_fixture")
 
 package(default_visibility = ["//quality:__subpackages__"])
@@ -69,5 +70,11 @@ coverage_fixture(
         "@platforms//cpu:arm64": ["arm.cc"],
         "//conditions:default": [],
     }),
+    tags = ["manual"],
+)
+
+perl_test(
+    name = "perl_probe_test",
+    srcs = ["perl_probe.t"],
     tags = ["manual"],
 )

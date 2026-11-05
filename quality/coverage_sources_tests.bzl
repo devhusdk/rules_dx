@@ -56,6 +56,15 @@ _generated_test = analysistest.make(
     extra_target_under_test_aspects = [dx_coverage_sources_aspect],
 )
 
+_test_target_test = analysistest.make(
+    _manifest_impl,
+    attrs = _ATTRS,
+    config_settings = _COVERAGE | {
+        "//command_line_option:instrument_test_targets": True,
+    },
+    extra_target_under_test_aspects = [dx_coverage_sources_aspect],
+)
+
 _x86_64_test = analysistest.make(
     _manifest_impl,
     attrs = _ATTRS,
@@ -86,6 +95,7 @@ def coverage_sources_analysis_tests(name):
         (_manifest_test, "rust_test", "split_lib_test", "", _rows("test", "source", split)),
         (_manifest_test, "header", "header_lib", "", _rows("prod", "source", ["header.cc", "header.h"])),
         (_manifest_test, "testonly", "helper_lib", "", _rows("test", "source", ["helper.cc"])),
+        (_test_target_test, "perl_test", "perl_probe_test", "", _rows("test", "source", ["perl_probe.t"])),
         (_generated_test, "generated", "generated_lib", "", _rows("prod", "generated", ["gen.cc"])),
         (_x86_64_test, "x86_64", "arm_only_lib", "linux_x86_64", _rows("prod", "source", ["common.cc"])),
         (_arm64_test, "arm64", "arm_only_lib", "linux_arm64", _rows("prod", "source", ["common.cc", "arm.cc"])),

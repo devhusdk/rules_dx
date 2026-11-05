@@ -579,6 +579,10 @@ fn qualify_rejects_format_name_digest_and_rebuild_mismatches() {
     let record = qualify(&fixture.inputs, &FakeRunner::new());
     assert_failed(&record, "digest", "sidecar lists \"0000\"");
     assert_failed(&record, "determinism", "rebuild is");
+    let sha = dx_digest::sha256_hex(&std::fs::read(&fixture.inputs.archive).expect("archive"));
+    std::fs::write(&sidecar, format!("\\{sha}  dir\\x\n")).expect("sidecar");
+    let record = qualify(&fixture.inputs, &FakeRunner::new());
+    assert_eq!(verdict_of(&record, "digest").0, Verdict::Ok);
     std::fs::remove_file(&fixture.inputs.rebuild).expect("rm");
     let record = qualify(
         &QualifyInputs {

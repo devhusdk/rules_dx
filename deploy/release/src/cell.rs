@@ -607,6 +607,7 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
             let text = std::fs::read_to_string(&sidecar)
                 .map_err(|error| format!("cannot read the .sha256 sidecar: {error}"))?;
             let listed = text.split_whitespace().next().unwrap_or_default();
+            let listed = listed.strip_prefix('\\').unwrap_or(listed);
             if listed == archive.sha256 {
                 Ok(())
             } else {

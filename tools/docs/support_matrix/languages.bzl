@@ -223,14 +223,13 @@ ROWS = [
     },
     {
         "ci_tests": [
-            "//apple/tests:linux_consumer_test",
+            "//apple/provisioning:managed_without_xcode_config_test",
             "//apple/tests:macos_consumer_test",
             "//apple/tests:macos_app_sign_smoke_test",
             "//apple/tests/fixtures/swift_app:ledger_ipa_test",
             "//swift/tests/fixtures/hello:xctest",
         ],
         "consumer_tests": [
-            "//apple/tests:linux_consumer_test",
             "//apple/tests:macos_consumer_test",
             "//apple/tests:macos_app_sign_smoke_test",
         ],

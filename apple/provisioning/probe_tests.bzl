@@ -57,9 +57,28 @@ _macos_test = analysistest.make(
     },
 )
 
+_unconfigured_test = analysistest.make(
+    _impl,
+    expect_failure = True,
+    attrs = _ATTRS,
+    config_settings = {
+        "//command_line_option:ios_minimum_os": "17.0",
+        "//command_line_option:platforms": [_IOS_SIM],
+    },
+)
+
+_host_test = analysistest.make(
+    _impl,
+    expect_failure = True,
+    attrs = _ATTRS,
+    config_settings = {"//command_line_option:xcode_version_config": _XCODES},
+)
+
 _RULES = {
+    "host": _host_test,
     "macos": _macos_test,
     "simulator": _simulator_test,
+    "unconfigured": _unconfigured_test,
     "simulator_default_os": _simulator_default_os_test,
     "simulator_future_os": _simulator_future_os_test,
 }

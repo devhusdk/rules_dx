@@ -75,7 +75,10 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|error| format!("pypi_deploy: wheel {name} is not a zip file: {error}"))?;
     let record_name = (0..archive.len())
-        .filter_map(|index| archive.name_for_index(index).map(str::to_owned))
+        .filter_map(|index| {
+            let name = archive.name_for_index(index)?.ok()?;
+            Some(name.into_owned())
+        })
         .find(|entry| entry.ends_with(".dist-info/RECORD") && entry.matches('/').count() == 1)
         .ok_or_else(|| format!("pypi_deploy: wheel {name} has no .dist-info/RECORD"))?;
     let mut record = String::new();

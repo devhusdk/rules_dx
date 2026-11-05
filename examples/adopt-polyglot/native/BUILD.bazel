@@ -39,3 +39,13 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+filegroup(
+    name = "sources",
+    testonly = True,
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//examples/adopt-polyglot:__pkg__"],
+)

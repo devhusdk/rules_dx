@@ -47,3 +47,13 @@ javascript_library(
     srcs = ["jest.config.cjs"],
     aspect_hints = ["//:biome_config"],
 )
+
+filegroup(
+    name = "sources",
+    testonly = True,
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//examples/adopt-polyglot:__pkg__"],
+)

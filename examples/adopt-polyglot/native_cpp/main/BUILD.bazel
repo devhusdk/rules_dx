@@ -15,3 +15,13 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "sources",
+    testonly = True,
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//examples/adopt-polyglot:__pkg__"],
+)

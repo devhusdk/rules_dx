@@ -1,0 +1,39 @@
+# gazelle:ignore
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
+load("//ios:app.bzl", "apple_ios_xcframework")
+
+_MACOS_ARM64 = [
+    "@platforms//os:macos",
+    "@platforms//cpu:arm64",
+]
+
+rust_static_library(
+    name = "share_rust",
+    srcs = ["share.rs"],
+    edition = "2021",
+    tags = ["manual"],
+    target_compatible_with = _MACOS_ARM64,
+)
+
+apple_ios_xcframework(
+    name = "share",
+    bundle_id = "com.example.share",
+    bundle_name = "Share",
+    deployment = "17.0",
+    hdrs = ["share_api.h"],
+    library = ":share_rust",
+    platforms = [
+        "device/arm64",
+        "simulator/arm64",
+    ],
+    resources = ["rates.txt"],
+    tags = ["manual"],
+    version = "1.4",
+)
+
+build_test(
+    name = "share_build_test",
+    target_compatible_with = _MACOS_ARM64,
+    targets = [":share"],
+)

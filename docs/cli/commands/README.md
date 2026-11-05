@@ -70,7 +70,7 @@ directories must exist.
 line on stdout. Every object has an `event` name and a `schema` with `major`
 and `minor`. The stream starts with `command_started` and ends with
 `command_finished`. Logs go to stderr. The schema is
-[`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json).
+[`cli/output/schema/events.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/output/schema/events.schema.json).
 
 ```sh
 tools/dx lint //... --output=json

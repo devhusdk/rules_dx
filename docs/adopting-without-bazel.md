@@ -54,6 +54,6 @@ Ignore the paths `dx init` adds to `.gitignore`. See [Init](cli/commands/init.md
 
 ## Example
 
-[examples/adopt-polyglot](../examples/adopt-polyglot/README.md) is a mixed
+[examples/adopt-polyglot](https://github.com/devhusdk/rules_dx/blob/main/examples/adopt-polyglot/README.md) is a mixed
 tree inside the rules_dx repository. It is built from the rules_dx root, so it
 shows the layout and not a standalone consumer.

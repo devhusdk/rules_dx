@@ -45,5 +45,5 @@ Any other REAPI cache takes its URL in `--remote_cache`. Authenticate with `--re
 
 ## CI
 
-- GitHub: see [Caching](github-ci.md#caching).
+- GitHub: see [Caching](github-ci.md#caches).
 - GitLab: see the [remote cache setup](https://github.com/devhusdk/rules_dx/blob/main/examples/gitlab-ci/README.md#remote-cache).

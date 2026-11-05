@@ -156,4 +156,4 @@ Run the same checks on every pull request. See [GitHub CI](github-ci.md).
 - [Bazel for dx users](bazel-for-dx-users.md)
 - [Command reference](cli/commands/README.md)
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md)
-- [Examples](../examples/README.md)
+- [Examples](https://github.com/devhusdk/rules_dx/blob/main/examples/README.md)

@@ -241,18 +241,21 @@ def dx_native_coverage_attrs():
         "_cc_toolchain": attr.label(default = Label("@rules_cc//cc:current_cc_toolchain")),
     }
 
+def dx_gcov_tool(cc_toolchain):
+    """Returns the gcov File that ships with the cc toolchain, or fails."""
+    gcov_path = cc_toolchain.gcov_executable
+    for f in cc_toolchain.all_files.to_list():
+        if f.path == gcov_path:
+            return f
+    fail("the gcc toolchain does not ship gcov at " + gcov_path)
+
 def dx_native_test_coverage(ctx, upstream, gcov = False):
     """Returns coverage providers that collect native LLVM or gcov coverage."""
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
     gcov_tool = None
     if gcov:
-        gcov_path = cc_toolchain.gcov_executable
-        for f in cc_toolchain.all_files.to_list():
-            if f.path == gcov_path:
-                gcov_tool = f
-        if gcov_tool == None:
-            fail("the gcc toolchain does not ship gcov at " + gcov_path)
+        gcov_tool = dx_gcov_tool(cc_toolchain)
         llvm_cov = None
         llvm_profdata = None
         metadata = [collector, gcov_tool]

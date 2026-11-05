@@ -7,7 +7,7 @@ load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":identity_tests.bzl", "cc_toolchain_identity_tests")
 load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION")
-load(":select.bzl", "cc_toolchain_test")
+load(":select.bzl", "cc_toolchain_test", "gcov_tool")
 load(":unavailable.bzl", "GCC_UNSUPPORTED", "cc_toolchain_unavailable")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -336,6 +336,11 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/msvc_shared:shared_test",
 )
 
+gcov_tool(
+    name = "gcov_tool",
+    visibility = ["//visibility:private"],
+)
+
 cc_gcov_coverage_env_test(
     name = "gcc_coverage_env_test",
     target = "//cc/tests/fixtures/hello:hello_c_test",
@@ -381,6 +386,7 @@ test_suite(
         "//cc/toolchains/msvc:msvc_unsupported",
         "//cc/toolchains/msvc:msvc_x64_arm64_toolchain",
         "//cc/toolchains/msvc:msvc_x64_x64_toolchain",
+        "//tools/coverage/collect:gcov_native_test",
     ],
 )
 

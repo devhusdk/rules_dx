@@ -47,13 +47,14 @@ pub fn gcov_args(object_dir: &Path, gcda: &Path) -> Vec<String> {
 
 /// The first gcov diagnostic that means the data is wrong, although gcov exits 0.
 pub fn gcov_problem(stderr: &str) -> Option<String> {
-    const MARKERS: [&str; 6] = [
+    const MARKERS: [&str; 7] = [
         "version mismatch",
         "prefer '",
         "stamp mismatch",
         "corrupt",
         "overflow",
         "cannot open notes file",
+        "profile mismatch for",
     ];
     stderr
         .lines()
@@ -196,6 +197,7 @@ mod tests {
             "a.gcda:corrupted profile",
             "a.gcno:cannot open notes file",
             "a.gcda:overflowed arc counter",
+            "a.gcda:profile mismatch for 'main'",
         ] {
             let found = gcov_problem(&format!("ok\n{line}\n"));
             assert_eq!(found.as_deref(), Some(line));

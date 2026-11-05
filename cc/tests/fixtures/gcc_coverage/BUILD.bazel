@@ -1,0 +1,44 @@
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//cc/toolchains:select.bzl", "cc_gcov_fixture")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_GCC_ONLY = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+cc_library(
+    name = "lib",
+    srcs = ["lib.c"],
+    hdrs = ["lib.h"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_test(
+    name = "main_test",
+    srcs = ["main.cc"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+    deps = [":lib"],
+)
+
+cc_gcov_fixture(
+    name = "gcov_fixture",
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+    tests = [":main_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

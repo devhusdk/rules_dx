@@ -1,6 +1,7 @@
 """Run a test or build a binary under an explicitly selected C++ toolchain."""
 
-load("//libs/starlark:wrapper.bzl", "dx_lcov_merger_attr", "dx_symlink_executable")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+load("//libs/starlark:wrapper.bzl", "dx_gcov_tool", "dx_lcov_merger_attr", "dx_symlink_executable")
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
 
@@ -104,4 +105,68 @@ cc_toolchain_binary = rule(
         "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),
     },
     executable = True,
+)
+
+_COVERAGE = "//command_line_option:collect_code_coverage"
+_FILTER = "//command_line_option:instrumentation_filter"
+
+def _gcov_transition_impl(_settings, attr):
+    return {
+        _COMPILER: "gcc",
+        _COVERAGE: True,
+        _FILTER: attr.instrumentation_filter,
+    }
+
+_gcov_transition = transition(
+    implementation = _gcov_transition_impl,
+    inputs = [],
+    outputs = [_COMPILER, _COVERAGE, _FILTER],
+)
+
+def _gcov_tool_impl(ctx):
+    cc_toolchain = find_cc_toolchain(ctx)
+    gcov = dx_gcov_tool(cc_toolchain)
+    return [DefaultInfo(
+        files = depset([gcov]),
+        runfiles = ctx.runfiles(transitive_files = cc_toolchain.all_files),
+    )]
+
+gcov_tool = rule(
+    implementation = _gcov_tool_impl,
+    doc = "Exposes the gcov that ships with the selected C++ toolchain.",
+    attrs = {"_cc_toolchain": attr.label(default = Label("@rules_cc//cc:current_cc_toolchain"))},
+    toolchains = use_cc_toolchain(),
+    fragments = ["cpp"],
+)
+
+def _gcov_fixture_impl(ctx):
+    binaries = [t[DefaultInfo].files_to_run.executable for t in ctx.attr.tests]
+    notes = [
+        f
+        for t in ctx.attr.tests
+        for f in t[InstrumentedFilesInfo].metadata_files.to_list()
+        if f.extension == "gcno"
+    ]
+    gcov = ctx.attr._gcov[0][DefaultInfo].files.to_list()[0]
+    lines = (
+        ["test=" + b.short_path for b in binaries] +
+        ["gcno=" + f.path + "=" + f.short_path for f in notes] +
+        ["gcov=" + gcov.short_path]
+    )
+    paths = ctx.actions.declare_file(ctx.label.name + ".paths")
+    ctx.actions.write(paths, "\n".join(lines) + "\n")
+    runfiles = ctx.runfiles(files = binaries + notes + [gcov, paths])
+    runfiles = runfiles.merge(ctx.attr._gcov[0][DefaultInfo].default_runfiles)
+    for t in ctx.attr.tests:
+        runfiles = runfiles.merge(t[DefaultInfo].default_runfiles)
+    return [DefaultInfo(files = depset([paths]), runfiles = runfiles)]
+
+cc_gcov_fixture = rule(
+    implementation = _gcov_fixture_impl,
+    doc = "Builds tests with GCC coverage instrumentation and hands over the binaries, their .gcno files and the toolchain gcov.",
+    attrs = {
+        "instrumentation_filter": attr.string(default = "^//cc/tests/fixtures/gcc_coverage[/:]"),
+        "tests": attr.label_list(doc = "Tests to instrument.", cfg = _gcov_transition, mandatory = True),
+        "_gcov": attr.label(default = Label(":gcov_tool"), cfg = _gcov_transition),
+    },
 )

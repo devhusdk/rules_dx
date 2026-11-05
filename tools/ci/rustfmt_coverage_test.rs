@@ -137,7 +137,6 @@ const PACKAGES: [&str; 115] = [
     "deploy/tests/cross",
     "deploy/tests/fixtures/consumer_archive",
     "deploy/tests/runfiles",
-    "elixir/tests/negative",
     "env/env_shard",
     "env/stubs",
     "cc/tests/fixtures/c-app/cli",

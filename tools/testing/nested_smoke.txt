@@ -8,7 +8,6 @@
 //cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
 //deploy/release/tests:release_candidate_smoke_test
 //deploy/release/tests:readme_quickstart_smoke_test
-//elixir/tests/negative:negative_test
 //haskell/tests/negative:negative_test
 //php/tests/negative:negative_test
 //python/tests/consumer:python_init_adopt_smoke_test

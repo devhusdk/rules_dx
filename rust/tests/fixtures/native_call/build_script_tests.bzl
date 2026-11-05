@@ -151,6 +151,12 @@ def _cross_gcc_impl(ctx):
     cflags = action.env.get("CFLAGS", "")
     asserts.true(env, "aarch64-linux" in cflags, "CFLAGS does not target aarch64: {}".format(cflags))
     asserts.false(env, "dx_gcc_linux_x86_64" in cflags, "CFLAGS uses the exec GCC: {}".format(cflags))
+    for name in ["HOST_CFLAGS", "HOST_CXXFLAGS"]:
+        value = action.env.get(name, "")
+        asserts.false(env, "aarch64_cross" in value, "{} has target GCC paths: {}".format(name, value))
+    for name in ["TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
+        value = action.env.get(name, "")
+        asserts.false(env, "dx_gcc_linux_x86_64" in value, "{} has exec GCC paths: {}".format(name, value))
     for name, value in action.env.items():
         for part in value.split(" "):
             asserts.false(env, part.startswith("/usr") or part.startswith("-L/usr"), "host path in {}: {}".format(name, value))

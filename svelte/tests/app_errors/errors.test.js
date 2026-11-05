@@ -13,11 +13,11 @@ const report = fs.readFileSync(
 test("svelte-check records the wrong-typed prop at the source path", () => {
 	expect(report).toMatch(/^exit_code: 1\n/);
 	expect(report).toMatch(
-		/^ERROR "src\/App\.svelte" \d+:\d+ ".*not assignable to type 'number'/m,
+		/^ERROR "src[\\/]+App\.svelte" \d+:\d+ ".*not assignable to type 'number'/m,
 	);
 });
 
 test("svelte-check records the parse error", () => {
-	expect(report).toMatch(/^ERROR "src\/Broken\.svelte" \d+:\d+/m);
+	expect(report).toMatch(/^ERROR "src[\\/]+Broken\.svelte" \d+:\d+/m);
 	expect(report).toMatch(/^COMPLETED \d+ FILES [1-9]\d* ERRORS/m);
 });

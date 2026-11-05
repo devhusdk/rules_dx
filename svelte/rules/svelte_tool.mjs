@@ -30,8 +30,17 @@ function nonEmptyDir(dir) {
 }
 
 async function viteBuild(vite, root, config, cacheDir, build) {
+	// Rolldown canonicalizes the HTML entry through the real execroot inside a
+	// sandbox, which makes Vite derive an escaping asset name from it.
+	const entry = path.join(root, "index.html");
+	const keepEntryPath = {
+		name: "svelte-tool:keep-entry-path",
+		enforce: "pre",
+		resolveId: (id) => (path.resolve(id) === entry ? entry : null),
+	};
 	await vite.build({
 		root,
+		plugins: [keepEntryPath],
 		configFile: path.resolve(root, config),
 		cacheDir,
 		logLevel: "warn",

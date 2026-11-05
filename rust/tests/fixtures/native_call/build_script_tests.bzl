@@ -71,7 +71,7 @@ def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _run_action(env)
     inputs = {f.path: True for f in action.inputs.to_list()}
-    for name, tool in [("CC", "cl.exe"), ("CXX", "cl.exe"), ("AR", "lib.exe")]:
+    for name, tool in [("CC", "cl.exe"), ("CXX", "cl.exe"), ("AR", "lib.exe"), ("TARGET_CC", "cl.exe"), ("TARGET_CXX", "cl.exe"), ("TARGET_AR", "lib.exe")]:
         value = _relative(action.env.get(name, ""))
         asserts.true(env, value.lower().endswith(tool), "{} is not {}: {}".format(name, tool, value))
         asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))

@@ -85,7 +85,6 @@ Common failures:
 
 | Message | Fix |
 |---|---|
-| `declares rules_dx "<x>", the workflow expects "<y>"` | Set `rules_dx_version` to your `bazel_dep` version. |
 | Rejected input | Use a value listed under Inputs. |
 | `Config value 'ci' is not defined in any .rc file` | Add the `.bazelrc` stanzas under Caches. |
 | `advisory_refresh_failed` | Rerun the workflow, or run `bazel run @rules_dx//cli/advisory_prep --`. See [Advisory Snapshots](cli/commands/audit-update.md#advisory-snapshots). |
@@ -131,7 +130,6 @@ The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without
 
 | Input | Meaning |
 |---|---|
-| `rules_dx_version` | Version of your `rules_dx` `bazel_dep`. Checked against `MODULE.bazel`. |
 | `disabled_checks` | Comma-separated checks to skip: `lint`, `typecheck`, `format`, `generate`, `security-audit`, `license-audit`, `test`, `build`, `coverage`. Empty runs all. |
 | `platforms` | JSON array. Default `["linux_x86_64"]`. Values: `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`. |
 | `min_coverage` | Whole number 0 to 100. Fails below it. Empty sets no threshold. |
@@ -146,7 +144,6 @@ Changed-line coverage runs `dx coverage --min-changed-line-coverage <percent>`. 
 
 | Input | Meaning |
 |---|---|
-| `rules_dx_version` | Same as above. |
 | `docs_scope` | Space-separated target patterns for `dx lint`. Default `//...`. |
 | `site` | Required. Target label whose output is the rendered mdBook tree. |
 | `site_check` | Target label for `dx docs`. Default empty. |

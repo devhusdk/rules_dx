@@ -463,3 +463,22 @@ fn deployables_reject_bad_input() {
         assert!(error.contains(says), "{text}: {error}");
     }
 }
+
+#[test]
+fn deployables_mode_prints_labels_and_rejects_bad_lists() {
+    let bin =
+        runfiles_root().join(std::env::var("DX_INPUT_VALIDATION").expect("DX_INPUT_VALIDATION"));
+    let run = |text: &str| {
+        Command::new(&bin)
+            .arg("deployables")
+            .env("DX_DEPLOYABLES", text)
+            .output()
+            .expect("run input_validation_bin")
+    };
+    let good = run(r#"["//pkg:npm", "//pkg:gh"]"#);
+    assert!(good.status.success());
+    assert_eq!(String::from_utf8_lossy(&good.stdout), "//pkg:npm\n//pkg:gh\n");
+    let bad = run("[]");
+    assert!(!bad.status.success());
+    assert!(String::from_utf8_lossy(&bad.stderr).contains("empty array"));
+}

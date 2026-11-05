@@ -48,11 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$DX_DEPLOYABLES" ]; then
-            if ! printf '%s' "$DX_DEPLOYABLES" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and test("^(@@?[A-Za-z0-9_.~+-]*)?//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+$"))' > /dev/null; then
-              echo "dx-release: deployables must be a non-empty JSON array of Bazel labels, got: $DX_DEPLOYABLES" >&2
-              exit 1
-            fi
-            printf '%s' "$DX_DEPLOYABLES" | jq -r '.[]' > "$RUNNER_TEMP/deployables.txt"
+            bazel run --lockfile_mode=error @rules_dx//tools/ci:input_validation_bin -- deployables > "$RUNNER_TEMP/deployables.txt"
           else
             bazel query --output=label 'attr(tags, "release", kind(dx_deployment, //...))' > "$RUNNER_TEMP/deployables.txt"
           fi

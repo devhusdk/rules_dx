@@ -1,4 +1,5 @@
 //! `input_validation_bin` validates the consumer workflow inputs and writes them to `GITHUB_OUTPUT`.
+//! With the `deployables` argument it validates the release workflow list instead.
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -8,9 +9,26 @@ fn fail(message: &str) -> ExitCode {
     ExitCode::FAILURE
 }
 
+fn get(name: &str) -> String {
+    std::env::var(name).unwrap_or_default()
+}
+
+/// `input_validation_bin deployables` checks `DX_DEPLOYABLES` and prints one label per line.
+fn deployables() -> ExitCode {
+    match input_validation::validate_deployables(&get(input_validation::DEPLOYABLES_ENV)) {
+        Ok(labels) => {
+            for label in labels {
+                println!("{label}");
+            }
+            ExitCode::SUCCESS
+        }
+        Err(message) => fail(&message),
+    }
+}
+
 fn main() -> ExitCode {
-    fn get(name: &str) -> String {
-        std::env::var(name).unwrap_or_default()
+    if std::env::args().nth(1).as_deref() == Some("deployables") {
+        return deployables();
     }
     let validated = match input_validation::validate(get) {
         Ok(validated) => validated,

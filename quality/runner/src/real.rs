@@ -872,6 +872,7 @@ mod pipeline;
 mod redocly;
 mod rustfmt;
 mod schema;
+mod scripting;
 mod single_run;
 mod sqlfluff;
 mod staging;

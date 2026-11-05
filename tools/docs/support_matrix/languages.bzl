@@ -96,6 +96,7 @@ DOC_TOOLS = {
 COVERAGE_COLLECTORS = {
     "cc": ["gcov", "llvm-cov"],
     "csharp": ["coverlet"],
+    "d": ["ldc --coverage"],
     "dart": ["package:test"],
     "elixir": ["cover"],
     "erlang": ["cover"],
@@ -123,7 +124,6 @@ NO_COVERAGE = {
     "apple": "no dx coverage wiring in the Apple rules",
     "astro": "js_test has no dx coverage wiring",
     "cuda": "cuda_test has no dx coverage wiring",
-    "d": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "fortran": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "mdx": "js_test has no dx coverage wiring",
     "ocaml": "no collector yet; tests carry dx-no-coverage-collector (#2308)",

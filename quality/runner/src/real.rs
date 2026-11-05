@@ -858,6 +858,7 @@ mod cmakelint;
 mod delegated;
 mod helm;
 mod kubeconform;
+mod native;
 mod pipeline;
 mod redocly;
 mod rustfmt;

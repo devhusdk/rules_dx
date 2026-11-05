@@ -89,9 +89,18 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
             format!("pypi_deploy: cannot read {record_name} in wheel {name}: {error}")
         })?;
     let none_any = name.ends_with("-none-any.whl");
+    let tags = FilenameTags::parse(&name);
+    let mut has_native = false;
     for line in record.lines() {
         let path = line.split(',').next().unwrap_or("");
         let lower = path.to_ascii_lowercase();
+        let native = NATIVE_SUFFIXES.iter().any(|suffix| lower.ends_with(suffix));
+        has_native |= native;
+        if native {
+            if let Some(tags) = &tags {
+                tags.check_native(&name, path, &lower)?;
+            }
+        }
         if none_any && NATIVE_SUFFIXES.iter().any(|suffix| lower.ends_with(suffix)) {
             return Err(format!(
                 "pypi_deploy: wheel {name} is tagged none-any but contains {path}"
@@ -106,7 +115,126 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
             ));
         }
     }
+    if let Some(tags) = tags {
+        if has_native || !tags.platforms.iter().all(|platform| platform == "any") {
+            let wheel_name = record_name.replace("RECORD", "WHEEL");
+            let mut metadata = String::new();
+            archive
+                .by_name(&wheel_name)
+                .and_then(|mut entry| entry.read_to_string(&mut metadata).map_err(Into::into))
+                .map_err(|error| {
+                    format!("pypi_deploy: cannot read {wheel_name} in wheel {name}: {error}")
+                })?;
+            tags.check_metadata(&name, &metadata)?;
+        }
+    }
     Ok(())
+}
+
+/// The python, abi and platform tags from a wheel filename, with dotted forms expanded.
+struct FilenameTags {
+    pythons: Vec<String>,
+    abis: Vec<String>,
+    platforms: Vec<String>,
+}
+
+impl FilenameTags {
+    fn parse(name: &str) -> Option<Self> {
+        let stem = name.strip_suffix(".whl")?;
+        let mut fields = stem.rsplit('-');
+        let platform = fields.next()?;
+        let abi = fields.next()?;
+        let python = fields.next()?;
+        let split = |field: &str| field.split('.').map(str::to_owned).collect();
+        Some(Self {
+            pythons: split(python),
+            abis: split(abi),
+            platforms: split(platform),
+        })
+    }
+
+    fn abi_label(&self) -> String {
+        self.abis.join(".")
+    }
+
+    fn check_metadata(&self, name: &str, metadata: &str) -> Result<(), String> {
+        let declared: Vec<&str> = metadata
+            .lines()
+            .filter_map(|line| line.strip_prefix("Tag:"))
+            .map(str::trim)
+            .collect();
+        for python in &self.pythons {
+            for abi in &self.abis {
+                for platform in &self.platforms {
+                    let tag = format!("{python}-{abi}-{platform}");
+                    if !declared.contains(&tag.as_str()) {
+                        return Err(format!(
+                            "pypi_deploy: wheel {name} is named {tag} but its WHEEL file does not list that tag"
+                        ));
+                    }
+                }
+            }
+        }
+        let platform_any = self.platforms.iter().all(|platform| platform == "any");
+        let purelib = metadata
+            .lines()
+            .filter_map(|line| line.strip_prefix("Root-Is-Purelib:"))
+            .any(|value| value.trim().eq_ignore_ascii_case("true"));
+        if !platform_any && purelib {
+            return Err(format!(
+                "pypi_deploy: wheel {name} has a platform tag but its WHEEL file says Root-Is-Purelib: true"
+            ));
+        }
+        Ok(())
+    }
+
+    fn check_native(&self, name: &str, path: &str, lower: &str) -> Result<(), String> {
+        let abi = self.abi_label();
+        let on = |needle: &str| {
+            self.platforms
+                .iter()
+                .any(|platform| platform.contains(needle))
+        };
+        if lower.ends_with(".pyd") && on("linux") {
+            return Err(format!(
+                "pypi_deploy: wheel {name} is tagged {} but contains {path}",
+                self.platforms.join(".")
+            ));
+        }
+        if lower.ends_with(".so") && self.platforms.iter().any(|p| p.starts_with("win")) {
+            return Err(format!(
+                "pypi_deploy: wheel {name} is tagged {} but contains {path}",
+                self.platforms.join(".")
+            ));
+        }
+        if let Some(built) = path_python_tag(lower) {
+            if !self.abis.contains(&built) {
+                return Err(format!(
+                    "pypi_deploy: wheel {name} is tagged {abi} but contains {path} built for {built}"
+                ));
+            }
+        } else if lower.contains(".abi3.") && !self.abis.iter().any(|tag| tag == "abi3") {
+            return Err(format!(
+                "pypi_deploy: wheel {name} is tagged {abi} but contains {path} built for abi3"
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// The `cp3NN` tag in an extension module name like `_core.cpython-312-x86_64-linux-gnu.so`.
+fn path_python_tag(lower: &str) -> Option<String> {
+    let file = lower.rsplit('/').next()?;
+    for marker in [".cpython-3", ".cp3"] {
+        if let Some(index) = file.find(marker) {
+            let rest = &file[index + marker.len()..];
+            let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            if !digits.is_empty() && rest[digits.len()..].starts_with('-') {
+                return Some(format!("cp3{digits}"));
+            }
+        }
+    }
+    None
 }
 
 /// Checks the wheel and sdist name the same project and version.
@@ -365,11 +493,27 @@ mod tests {
     use crate::test_support::*;
 
     fn wheel_bytes(files: &[&str]) -> Vec<u8> {
+        wheel_bytes_with(files, None)
+    }
+
+    fn wheel_bytes_with(files: &[&str], wheel_file: Option<&str>) -> Vec<u8> {
         let mut record = String::from("pkg-1.0.dist-info/RECORD,,\n");
         for file in files {
             record.push_str(&format!("{file},sha256=x,1\n"));
         }
-        zip_archive(&[("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)]).expect("zip")
+        let mut members = vec![("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)];
+        if let Some(wheel_file) = wheel_file {
+            members.push(("pkg-1.0.dist-info/WHEEL", wheel_file.as_bytes(), 0o644));
+        }
+        zip_archive(&members).expect("zip")
+    }
+
+    fn wheel_file(tags: &[&str], purelib: bool) -> String {
+        let mut text = format!("Wheel-Version: 1.0\nRoot-Is-Purelib: {purelib}\n");
+        for tag in tags {
+            text.push_str(&format!("Tag: {tag}\n"));
+        }
+        text
     }
 
     fn wheel_error(name: &str, bytes: &[u8]) -> String {
@@ -390,7 +534,60 @@ mod tests {
         );
         let scratch = scratch_dir();
         let wheel = scratch.path().join("pkg-1.0-cp312-cp312-linux_x86_64.whl");
-        std::fs::write(&wheel, &bytes).expect("wheel");
+        let tagged = wheel_file(&["cp312-cp312-linux_x86_64"], false);
+        std::fs::write(&wheel, wheel_bytes_with(&["pkg/_core.so"], Some(&tagged))).expect("wheel");
+        assert!(pypi_check_pair(&wheel, None).is_ok());
+    }
+
+    #[test]
+    fn pypi_rejects_tag_missing_from_wheel_file() {
+        let metadata = wheel_file(&["cp312-cp312-linux_x86_64"], false);
+        let bytes = wheel_bytes_with(&["pkg/_core.so"], Some(&metadata));
+        let error = wheel_error("pkg-1.0-cp311-cp311-linux_x86_64.whl", &bytes);
+        assert!(error.contains("named cp311-cp311-linux_x86_64"), "{error}");
+    }
+
+    #[test]
+    fn pypi_rejects_native_wheel_marked_purelib() {
+        let metadata = wheel_file(&["cp312-cp312-linux_x86_64"], true);
+        let bytes = wheel_bytes_with(&["pkg/_core.so"], Some(&metadata));
+        let error = wheel_error("pkg-1.0-cp312-cp312-linux_x86_64.whl", &bytes);
+        assert!(error.contains("Root-Is-Purelib: true"), "{error}");
+    }
+
+    #[test]
+    fn pypi_rejects_extension_built_for_other_python() {
+        let metadata = wheel_file(&["cp311-cp311-linux_x86_64"], false);
+        let bytes = wheel_bytes_with(
+            &["pkg/_core.cpython-312-x86_64-linux-gnu.so"],
+            Some(&metadata),
+        );
+        assert_eq!(
+            wheel_error("pkg-1.0-cp311-cp311-linux_x86_64.whl", &bytes),
+            "pypi_deploy: wheel pkg-1.0-cp311-cp311-linux_x86_64.whl is tagged cp311 but contains pkg/_core.cpython-312-x86_64-linux-gnu.so built for cp312"
+        );
+    }
+
+    #[test]
+    fn pypi_accepts_windows_pyd_and_rejects_pyd_on_linux() {
+        let scratch = scratch_dir();
+        let windows = scratch.path().join("pkg-1.0-cp312-cp312-win_amd64.whl");
+        let metadata = wheel_file(&["cp312-cp312-win_amd64"], false);
+        let bytes = wheel_bytes_with(&["pkg/_core.cp312-win_amd64.pyd"], Some(&metadata));
+        std::fs::write(&windows, &bytes).expect("wheel");
+        assert!(pypi_check_pair(&windows, None).is_ok());
+        let metadata = wheel_file(&["cp312-cp312-linux_x86_64"], false);
+        let bytes = wheel_bytes_with(&["pkg/_core.pyd"], Some(&metadata));
+        let error = wheel_error("pkg-1.0-cp312-cp312-linux_x86_64.whl", &bytes);
+        assert!(error.contains("contains pkg/_core.pyd"), "{error}");
+    }
+
+    #[test]
+    fn pypi_accepts_dotted_filename_tags_covered_by_wheel_file() {
+        let scratch = scratch_dir();
+        let wheel = scratch.path().join("pkg-1.0-py3-none-any.whl");
+        let metadata = wheel_file(&["py2-none-any", "py3-none-any"], false);
+        std::fs::write(&wheel, wheel_bytes_with(&[], Some(&metadata))).expect("wheel");
         assert!(pypi_check_pair(&wheel, None).is_ok());
     }
 

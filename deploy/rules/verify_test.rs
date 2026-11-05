@@ -634,9 +634,17 @@ fn probe(python: &Path, code: &str) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
+fn no_compilers(command: &mut std::process::Command) {
+    if !cfg!(windows) {
+        let empty = dx_testing::mkscratch("pypi-empty-path").expect("scratch empty path");
+        command.env("PATH", empty);
+    }
+}
+
 fn import_from(target: &Path, cwd: &Path) -> std::process::Output {
     let mut command = std::process::Command::new(data("DX_PYPI_PYTHON"));
     kept_env(&mut command);
+    no_compilers(&mut command);
     command.current_dir(cwd).env("PYTHONPATH", target).args([
         "-c",
         "import dx_native_probe; print(dx_native_probe.greet())",
@@ -701,6 +709,26 @@ fn pypi_native_case() {
         assert!(!["h", "a", "o"].contains(&extension), "{path:?}");
     }
 
+    for typed in ["py.typed", "__init__.pyi"] {
+        assert!(
+            target.join("dx_native_probe").join(typed).is_file(),
+            "{typed} missing from {files:?}"
+        );
+    }
+    if cfg!(target_os = "linux") {
+        let core = ext[0];
+        let dynamic = readelf_dynamic(core);
+        println!("readelf -d {}\n{dynamic}", core.display());
+        println!("readelf -V\n{}", readelf_output("-V", core));
+        assert!(!dynamic.contains("libpython"), "{dynamic}");
+        for line in dynamic.lines().filter(|line| line.contains("RUNPATH")) {
+            assert!(
+                !line.contains("bazel-out") && !line.contains("[/"),
+                "{line}"
+            );
+        }
+    }
+
     let cwd = dx_testing::mkscratch("pypi-native-cwd").expect("scratch cwd");
     let output = import_from(&target, &cwd);
     assert!(
@@ -731,16 +759,22 @@ fn pypi_native_case() {
     let digest = dx_testing::sha256_file(&house.join(&wheel)).expect("hash wheel");
     println!("python {version} wheel {wheel} sha256 {digest}");
 
-    let house = stage(
-        "DX_NATIVE_WRONGABI_PROG",
+    let outdir = dx_testing::mkscratch("pypi-wrongabi").expect("scratch outdir");
+    let run = run_deploy(
+        &data("DX_NATIVE_WRONGABI_PROG"),
         "DX_NATIVE_WRONGABI_CONFIG",
-        "native_probe_wrongabi-wheelhouse",
-        "dx-native-probe",
-        "native_probe_wrongabi",
+        &[outdir.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("pypi_deploy program must execute");
+    assert!(!run.status.success(), "{}", run.combined());
+    assert!(
+        run.stderr
+            .contains("is tagged cp311 but contains dx_native_probe/_core"),
+        "{}",
+        run.stderr
     );
-    let (url, _log) = serve(house);
-    let (output, _target) = install_output(&url, "dx_native_probe");
-    assert!(!output.status.success(), "cp311 wheel must not install");
+    assert!(run.stderr.contains("built for cp312"), "{}", run.stderr);
 
     let house = stage(
         "DX_NATIVE_NOCORE_PROG",
@@ -766,8 +800,12 @@ fn pypi_native_case() {
 }
 
 fn readelf_dynamic(library: &Path) -> String {
+    readelf_output("-d", library)
+}
+
+fn readelf_output(flag: &str, library: &Path) -> String {
     let output = std::process::Command::new("readelf")
-        .arg("-d")
+        .arg(flag)
         .arg(library)
         .output()
         .expect("readelf must execute");
@@ -782,6 +820,7 @@ fn linked_import(target: &Path, code: &str) -> std::process::Output {
         .env_remove("LD_LIBRARY_PATH")
         .env("PYTHONPATH", target)
         .args(["-c", code]);
+    no_compilers(&mut command);
     command.output().expect("python must execute")
 }
 
@@ -819,7 +858,10 @@ fn pypi_native_linked_case() {
     assert!(!runpath.is_empty(), "{dynamic}");
     for line in &runpath {
         assert!(line.contains("$ORIGIN"), "{line}");
-        assert!(!line.contains("bazel-out") && !line.contains("[/"), "{line}");
+        assert!(
+            !line.contains("bazel-out") && !line.contains("[/"),
+            "{line}"
+        );
     }
 
     let moved = target.with_file_name("moved-linked-target");
@@ -841,7 +883,9 @@ fn pypi_native_linked_case() {
     );
     let (url, _log) = serve(house);
     let target = install(&url, "dx_native_probe");
-    assert!(!target.join("dx_native_probe/libdx_probe_helper.so").exists());
+    assert!(!target
+        .join("dx_native_probe/libdx_probe_helper.so")
+        .exists());
     let output = linked_import(&target, call);
     assert!(!output.status.success());
     assert!(

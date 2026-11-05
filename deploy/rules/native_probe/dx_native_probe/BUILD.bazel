@@ -123,7 +123,6 @@ filegroup(
 real_source_target(
     name = "corpus_cpp",
     testonly = True,
-    aspect_hints = ["//:clang_format_config"],
     cpp_srcs = [
         "_core.cc",
         "_helper.cc",
@@ -135,7 +134,6 @@ real_source_target(
 real_source_target(
     name = "corpus_python",
     testonly = True,
-    aspect_hints = ["//:ruff_config"],
     python_srcs = [
         "__init__.py",
         "__main__.py",

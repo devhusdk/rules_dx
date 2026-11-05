@@ -9,7 +9,6 @@ python_library(
         "__init__.py",
         "server.py",
     ],
-    aspect_hints = ["//:ruff_config"],
     imports = ["../.."],
     deps = ["//python/tests/fixtures/python-service/ledger/core"],
 )
@@ -17,7 +16,6 @@ python_library(
 python_test(
     name = "server_test",
     srcs = ["server_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "ledger",
     imports = ["../.."],
     deps = [
@@ -30,7 +28,6 @@ python_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

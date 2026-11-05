@@ -14,7 +14,6 @@ typescript_project(
         "hello.ts",
         "main.ts",
     ],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     tsconfig = "tsconfig.json",
 )
@@ -28,7 +27,6 @@ javascript_binary(
 typescript_test(
     name = "hello_test",
     srcs = ["hello_test.ts"],
-    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
     node_modules = "//:node_modules",
@@ -47,7 +45,6 @@ dx_hello_output_test(
 typescript_test(
     name = "plain_test",
     srcs = ["plain_test.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     entry_point = "plain_test.js",
     package_json = "//:package_json",
@@ -59,7 +56,6 @@ typescript_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

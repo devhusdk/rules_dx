@@ -8,7 +8,6 @@ package(default_visibility = VIS_QUALITY)
 python_test(
     name = "update_test",
     srcs = ["update_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = ["//quality/artifacts:update.py"],
     dep_group = "hello",
     deps = ["@pypi//pytest"],
@@ -16,7 +15,6 @@ python_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

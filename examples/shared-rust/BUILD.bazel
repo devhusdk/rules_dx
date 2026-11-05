@@ -18,21 +18,18 @@ exports_files([
 rust_library(
     name = "tasks_model",
     srcs = ["model/lib.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "shared_tasks_model",
     crate_root = "model/lib.rs",
 )
 
 rust_test(
     name = "tasks_model_test",
-    aspect_hints = ["//:rustfmt_config"],
     crate = ":tasks_model",
 )
 
 rust_library(
     name = "tasks_core",
     srcs = ["core/lib.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "shared_tasks",
     crate_root = "core/lib.rs",
     visibility = ["//visibility:public"],
@@ -44,14 +41,12 @@ rust_library(
 
 rust_test(
     name = "tasks_core_test",
-    aspect_hints = ["//:rustfmt_config"],
     crate = ":tasks_core",
 )
 
 rust_binary(
     name = "tasks",
     srcs = ["cli/main.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "shared_tasks_cli",
     crate_root = "cli/main.rs",
     visibility = ["//visibility:public"],
@@ -61,7 +56,6 @@ rust_binary(
 rust_library(
     name = "tasks_web_lib",
     srcs = ["web/lib.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "shared_tasks_web",
     crate_root = "web/lib.rs",
     deps = [
@@ -73,7 +67,6 @@ rust_library(
 rust_binary(
     name = "shared_tasks",
     srcs = ["web/main.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "shared_tasks_web_bin",
     crate_root = "web/main.rs",
     visibility = ["//visibility:public"],
@@ -84,7 +77,6 @@ rust_binary(
 rust_static_library(
     name = "tasks_ffi",
     srcs = ["ffi/lib.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "shared_tasks_ffi",
     crate_root = "ffi/lib.rs",
     deps = [":tasks_core"],
@@ -92,7 +84,6 @@ rust_static_library(
 
 rust_test(
     name = "tasks_ffi_test",
-    aspect_hints = ["//:rustfmt_config"],
     crate = ":tasks_ffi",
 )
 
@@ -185,7 +176,6 @@ rust_binary(
 rust_test(
     name = "wasi_test",
     srcs = ["tests/wasi_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [
         "assets/board.txt",
         "assets/notes.txt",
@@ -215,7 +205,6 @@ javascript_web_app(
 javascript_web_server(
     name = "serve",
     app = ":app",
-    aspect_hints = ["//:ruff_config"],
     headers = {"X-App": "shared-tasks"},
 )
 
@@ -260,7 +249,6 @@ rust_test(
 rust_test(
     name = "native_test",
     srcs = ["tests/native_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [
         "assets/board.txt",
         "assets/notes.txt",
@@ -276,7 +264,6 @@ rust_test(
 rust_test(
     name = "release_test",
     srcs = ["tests/release_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [
         "assets/board.txt",
         "assets/notes.txt",
@@ -300,7 +287,6 @@ rust_test(
 rust_test(
     name = "asset_test",
     srcs = ["tests/asset_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [":app"],
     tags = ["block-network"],
     deps = [
@@ -312,7 +298,6 @@ rust_test(
 rust_test(
     name = "browser_test",
     srcs = ["tests/browser_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [
         ":app_release",
         ":serve",
@@ -393,7 +378,6 @@ real_source_target(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "adler2.BUILD.bazel",

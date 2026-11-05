@@ -12,7 +12,6 @@ python_library(
         "__init__.py",
         "main.py",
     ],
-    aspect_hints = ["//:ruff_config"],
     imports = ["../.."],
     deps = [
         "//python/tests/fixtures/python-service/ledger/core",
@@ -24,7 +23,6 @@ python_library(
 python_binary(
     name = "ledger",
     srcs = ["main.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "ledger",
     imports = ["../.."],
     main = "main.py",
@@ -36,7 +34,6 @@ python_binary(
     name = "broken",
     testonly = True,
     srcs = ["broken_main.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "ledger",
     imports = ["../.."],
     main = "broken_main.py",
@@ -45,7 +42,6 @@ python_binary(
 python_test(
     name = "cli_test",
     srcs = ["cli_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = [":ledger"],
     dep_group = "ledger",
     env = {"LEDGER_BIN": "$(rootpath :ledger)"},
@@ -62,7 +58,6 @@ python_test(
     runner = "plain",
     name = "cli_unittest_test",
     srcs = ["cli_unittest_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = [":ledger"],
     dep_group = "ledger",
     env = {"LEDGER_BIN": "$(rootpath :ledger)"},
@@ -72,7 +67,6 @@ python_test(
 python_test(
     name = "broken_test",
     srcs = ["broken_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = [":broken"],
     dep_group = "ledger",
     env = {"BROKEN_BIN": "$(rootpath :broken)"},
@@ -85,7 +79,6 @@ python_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

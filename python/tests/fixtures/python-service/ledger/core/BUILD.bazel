@@ -9,7 +9,6 @@ package(default_visibility = [
 python_binary(
     name = "gen_build_info",
     srcs = ["gen_build_info.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["../.."],
     main = "gen_build_info.py",
 )
@@ -33,7 +32,6 @@ python_library(
         "config.py",
         ":build_info_py",
     ],
-    aspect_hints = ["//:ruff_config"],
     data = ["items.json"],
     imports = ["../.."],
 )
@@ -41,14 +39,12 @@ python_library(
 python_library(
     name = "gen_lib",
     srcs = ["gen_build_info.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["../.."],
 )
 
 python_test(
     name = "catalog_test",
     srcs = ["catalog_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "ledger",
     imports = ["../.."],
     deps = [
@@ -62,7 +58,6 @@ python_test(
     runner = "plain",
     name = "build_info_test",
     srcs = ["build_info_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "ledger",
     env = {
         "PIP_NO_INDEX": "1",
@@ -78,7 +73,6 @@ python_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

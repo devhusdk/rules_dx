@@ -89,7 +89,6 @@ sh_test(
 rust_test(
     name = "consumer_browser_test",
     srcs = ["tests/consumer_browser_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [
         "//tools/docs/site/browser:firefox",
         "//tools/docs/site/browser:firefox_tree",
@@ -117,7 +116,6 @@ rust_test(
 rust_test(
     name = "consumer_native_test",
     srcs = ["tests/consumer_native_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     data = [
         "@shared_consumer//:consumer_probe",
         "@shared_consumer//:consumer_release",

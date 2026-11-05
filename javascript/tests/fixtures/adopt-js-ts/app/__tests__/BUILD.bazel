@@ -5,13 +5,11 @@ javascript_library(
     name = "data",
     testonly = True,
     srcs = ["data.js"],
-    aspect_hints = ["//:biome_config"],
 )
 
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

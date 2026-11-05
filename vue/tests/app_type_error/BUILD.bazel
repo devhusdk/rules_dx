@@ -19,7 +19,6 @@ vue_check(
 javascript_test(
     name = "type_error_test",
     srcs = ["type_error.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":check.vue_check.txt"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
@@ -29,7 +28,6 @@ javascript_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

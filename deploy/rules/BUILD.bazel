@@ -1866,7 +1866,6 @@ deploy_analysis_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "archive.bzl",
@@ -1917,7 +1916,6 @@ real_source_target(
 
 real_source_target(
     name = "corpus_python",
-    aspect_hints = ["//:ruff_config"],
     python_srcs = [
         "pypi_probe/dx_pypi_probe/__init__.py",
         "pypi_probe/dx_pypi_probe/__main__.py",
@@ -1927,7 +1925,6 @@ real_source_target(
 
 real_source_target(
     name = "corpus_json",
-    aspect_hints = ["//:biome_config"],
     json_srcs = ["npm_demo/package.json"],
     tags = ["corpus"],
 )

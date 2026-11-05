@@ -19,7 +19,6 @@ exports_files(
 typescript_project(
     name = "cli",
     srcs = ["cli.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -29,7 +28,6 @@ typescript_project(
 javascript_binary(
     name = "registry",
     srcs = ["main.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         ":cli",
         "//javascript/tests/fixtures/node-app:node_modules/@node-app/registry",
@@ -44,7 +42,6 @@ javascript_binary(
 typescript_test(
     name = "cli_test",
     srcs = ["cli_test.ts"],
-    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
     node_modules = "//javascript/tests/fixtures/node-app:node_modules",
@@ -96,7 +93,6 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

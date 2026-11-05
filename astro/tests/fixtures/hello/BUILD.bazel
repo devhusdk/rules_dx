@@ -16,13 +16,11 @@ astro_library(
 javascript_library(
     name = "helper_lib",
     srcs = ["helper.js"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_test(
     name = "hello_test",
     srcs = ["Hello.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         ":Hello.astro",
         ":helper_lib",
@@ -44,7 +42,6 @@ build_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

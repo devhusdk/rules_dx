@@ -48,7 +48,6 @@ exports_files(["testdata/graph_bazel_9_2_0.json"])
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

@@ -19,7 +19,6 @@ svelte_check(
 javascript_test(
     name = "errors_test",
     srcs = ["errors.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":check.svelte_check.txt"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
@@ -35,7 +34,6 @@ _VITE = [
 javascript_test(
     name = "build_errors_test",
     srcs = ["build_errors.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = glob(["build_fail/**"]) + ["//svelte/rules:svelte_tool_entry"] + _VITE,
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
@@ -45,7 +43,6 @@ javascript_test(
 javascript_test(
     name = "render_ssr_test",
     srcs = ["render_ssr.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = ["//svelte/tests/app_errors/throwing:site_ssr"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
@@ -55,7 +52,6 @@ javascript_test(
 javascript_test(
     name = "render_client_test",
     srcs = ["render_client.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         "//:node_modules/jest-environment-jsdom",
         "//svelte/tests/app_errors/throwing:site",
@@ -68,7 +64,6 @@ javascript_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

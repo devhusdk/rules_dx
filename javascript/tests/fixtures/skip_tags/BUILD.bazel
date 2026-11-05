@@ -21,7 +21,6 @@ javascript_test(
     name = "plain_test",
     runner = "node",
     srcs = ["plain_test.js"],
-    aspect_hints = ["//:biome_config"],
     data = ["shared.js"],
     entry_point = "plain_test.js",
 )
@@ -39,7 +38,6 @@ typescript_test(
     name = "tagged_ts_test",
     runner = "node",
     srcs = ["user.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     declaration_srcs = ["shared.d.ts"],
     entry_point = "user.js",
@@ -88,7 +86,6 @@ aspect_field transitive_count=0
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

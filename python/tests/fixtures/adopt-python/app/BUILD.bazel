@@ -5,7 +5,6 @@ python_library(
     name = "envelopes",
     testonly = True,
     srcs = ["envelopes.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     visibility = ["//visibility:public"],
     deps = [":handlers"],
@@ -15,7 +14,6 @@ python_library(
     name = "handlers",
     testonly = True,
     srcs = ["handlers.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     visibility = ["//visibility:public"],
 )
@@ -24,7 +22,6 @@ python_test(
     name = "handlers_test",
     testonly = True,
     srcs = ["handlers_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [
@@ -39,7 +36,6 @@ python_library(
     name = "seed_helpers",
     testonly = True,
     srcs = ["seed_helpers.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     visibility = ["//visibility:public"],
     deps = [":envelopes"],
@@ -48,7 +44,6 @@ python_library(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

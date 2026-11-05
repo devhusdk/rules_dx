@@ -14,7 +14,6 @@ exports_files([
 python_test(
     name = "geohash_test",
     srcs = ["geohash_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "sdist-native",
     main = "geohash_test.py",
     runner = "plain",
@@ -62,7 +61,6 @@ py_binary(
 python_test(
     name = "missing_build_dep_test",
     srcs = ["missing_build_dep_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = [":nodeps_build_tool"],
     env = {"BUILD_TOOL": "$(rootpath :nodeps_build_tool)"},
     main = "missing_build_dep_test.py",
@@ -78,7 +76,6 @@ sdist_action_tests(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "sdist_action_tests.bzl",

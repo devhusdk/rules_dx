@@ -19,7 +19,6 @@ cc_library(
     name = "cli",
     srcs = ["cli.c"],
     hdrs = ["cli.h"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = ["//cc/tests/fixtures/c-app/store:stock.json"],
     local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c-app/store:stock.json)\\"'],
@@ -29,7 +28,6 @@ cc_library(
 cc_binary(
     name = "stock",
     srcs = ["main.c"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = ["//cc/tests/fixtures/c-app/store:stock.json"],
     deps = [":cli"],
@@ -38,7 +36,6 @@ cc_binary(
 cc_test(
     name = "cli_test",
     srcs = ["cli_test.c"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = [
         "//cc/tests/fixtures/c-app/store:malformed/negative.json",
@@ -102,7 +99,6 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

@@ -12,7 +12,6 @@ dev_hub_tests(name = "dev_hub_test")
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "dev_hub.bzl",

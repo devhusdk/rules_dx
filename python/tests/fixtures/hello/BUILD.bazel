@@ -11,7 +11,6 @@ package(
 python_library(
     name = "hello_lib",
     srcs = ["hello.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
@@ -26,7 +25,6 @@ python_library(
 python_binary(
     name = "hello",
     srcs = ["main.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     main = "main.py",
     deps = [":hello_lib"],
@@ -35,7 +33,6 @@ python_binary(
 python_test(
     name = "hello_test",
     srcs = ["hello_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [
@@ -61,7 +58,6 @@ python_benchmark(
 python_test(
     name = "flaky_passthrough_fixture",
     srcs = ["flaky_passthrough_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     flaky = True,
     imports = ["."],
@@ -74,7 +70,6 @@ python_test(
 python_test(
     name = "generic_unittest_test",
     srcs = ["generic_unittest_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     runner = "plain",
@@ -84,7 +79,6 @@ python_test(
 python_test(
     name = "generic_main_test",
     srcs = ["generic_main_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     env = {"DX_GENERIC_FIXTURE": "1"},
     imports = ["."],
@@ -96,7 +90,6 @@ python_test(
 python_test(
     name = "venv_rerun_test",
     srcs = ["venv_rerun_test.py"],
-    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     main = "venv_rerun_test.py",
@@ -127,7 +120,6 @@ thin_compare_py_tests(name = "thin_py_test")
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

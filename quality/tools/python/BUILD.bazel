@@ -249,14 +249,12 @@ py_unittest_test(
 
 real_source_target(
     name = "corpus_python",
-    aspect_hints = ["//:ruff_config"],
     python_srcs = glob(["*.py"]),
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
     ],

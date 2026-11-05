@@ -31,7 +31,6 @@ cc_library(
         "store.h",
         ":store_build_h",
     ],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = ["stock.json"],
     deps = ["@c_app_cjson//:cjson"],
@@ -40,7 +39,6 @@ cc_library(
 cc_test(
     name = "store_test",
     srcs = ["store_test.c"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = [
         "VERSION",
@@ -53,7 +51,6 @@ cc_test(
 cc_test(
     name = "linkage_test",
     srcs = ["linkage_test.cc"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["stock.json"],
     deps = [":store"],
@@ -96,7 +93,6 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

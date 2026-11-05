@@ -59,7 +59,6 @@ dx_test_srcs_split_tests(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
     ],

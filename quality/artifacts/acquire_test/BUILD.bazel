@@ -18,7 +18,6 @@ filegroup(
 python_test(
     name = "acquire_test",
     srcs = ["acquire_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = [
         ":fixture_module",
         ":fixtures",
@@ -31,7 +30,6 @@ python_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "repos.bzl",

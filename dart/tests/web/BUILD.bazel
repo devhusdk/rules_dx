@@ -22,7 +22,6 @@ javascript_test(
     name = "js_run_test",
     srcs = ["js_test.mjs"],
     args = ["$(rootpath :hello_js)"],
-    aspect_hints = ["//:biome_config"],
     data = [":hello_js"],
     entry_point = "js_test.mjs",
     package_json = "//:package_json",
@@ -33,7 +32,6 @@ javascript_test(
     name = "wasm_run_test",
     srcs = ["wasm_test.mjs"],
     args = ["$(rootpaths :hello_wasm)"],
-    aspect_hints = ["//:biome_config"],
     data = [":hello_wasm"],
     entry_point = "wasm_test.mjs",
     package_json = "//:package_json",
@@ -43,7 +41,6 @@ javascript_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

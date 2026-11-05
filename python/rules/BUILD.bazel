@@ -243,7 +243,6 @@ python_runtime_unit_tests(name = "runtime_unit")
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",

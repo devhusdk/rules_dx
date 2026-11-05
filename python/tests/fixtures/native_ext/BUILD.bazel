@@ -37,7 +37,6 @@ py_extension(
 python_test(
     name = "native_ext_test",
     srcs = ["native_ext_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = select({
         "@platforms//os:windows": ["@msvc_runtime//:vc_redist"],
         "//conditions:default": [],
@@ -87,7 +86,6 @@ cc_toolchain_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
@@ -95,7 +93,6 @@ real_source_target(
 real_source_target(
     name = "corpus_cpp",
     testonly = True,
-    aspect_hints = ["//:clang_format_config"],
     cpp_srcs = [
         "dxhelper.cc",
         "dxlinked.cc",

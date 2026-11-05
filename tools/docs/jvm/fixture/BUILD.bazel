@@ -90,7 +90,6 @@ java_doc_shard(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
@@ -169,13 +168,11 @@ scala_library(
         "scala/dx/fixture/shapes/Circle.scala",
         "scala/dx/fixture/shapes/Shape.scala",
     ],
-    aspect_hints = ["//:scalafmt_config"],
 )
 
 scala_library(
     name = "scala_paint",
     srcs = ["scala/dx/fixture/paint/Square.scala"],
-    aspect_hints = ["//:scalafmt_config"],
     deps = [":scala_shapes"],
 )
 

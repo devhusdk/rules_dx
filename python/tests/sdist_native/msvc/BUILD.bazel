@@ -104,7 +104,6 @@ python_test(
     name = "build_helper_msvc_test",
     size = "small",
     srcs = ["build_helper_msvc_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = ["@rules_py//uv/private/pep517_whl/tools:build_helper.py"],
     env = {"BUILD_HELPER": "$(rootpath @rules_py//uv/private/pep517_whl/tools:build_helper.py)"},
     main = "build_helper_msvc_test.py",
@@ -114,7 +113,6 @@ python_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "msvc_sdist_tests.bzl",

@@ -27,7 +27,6 @@ javascript_web_app(
 javascript_web_server(
     name = "serve",
     app = ":app",
-    aspect_hints = ["//:ruff_config"],
     headers = {"X-App": "web"},
     visibility = ["//visibility:public"],
 )
@@ -35,14 +34,12 @@ javascript_web_server(
 javascript_web_server(
     name = "serve_isolated",
     app = ":app",
-    aspect_hints = ["//:ruff_config"],
     cross_origin_isolated = True,
 )
 
 python_binary(
     name = "stub_bundler",
     srcs = ["stub_bundler.py"],
-    aspect_hints = ["//:ruff_config"],
     main = "stub_bundler.py",
 )
 
@@ -293,7 +290,6 @@ failure_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "repos.bzl",

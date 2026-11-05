@@ -12,14 +12,12 @@ package(
 python_library(
     name = "dep",
     srcs = ["dep.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
 python_binary(
     name = "declared",
     srcs = ["user.py"],
-    aspect_hints = ["//:ruff_config"],
     main = "user.py",
     deps = [":dep"],
 )
@@ -27,7 +25,6 @@ python_binary(
 python_binary(
     name = "undeclared",
     srcs = ["user.py"],
-    aspect_hints = ["//:ruff_config"],
     main = "user.py",
 )
 
@@ -53,7 +50,6 @@ no_click_runfiles_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "coverage_tests.bzl",

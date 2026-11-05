@@ -4,19 +4,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_library(
     name = "widgets",
     srcs = ["widgets.js"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_test(
     name = "widgets_test",
     srcs = ["widgets_test.js"],
-    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     data = [":widgets"],
     node_modules = "//:node_modules",
@@ -26,7 +23,6 @@ javascript_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

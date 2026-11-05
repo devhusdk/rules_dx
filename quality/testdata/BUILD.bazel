@@ -432,7 +432,6 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_cc_hinted",
-    aspect_hints = ["//:clang_format_config"],
     c_srcs = ["real_clean.c"],
     cpp_srcs = ["real_clean_cpp.cc"],
 )
@@ -1998,7 +1997,6 @@ rust_clippy_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"] + glob(
         ["*.bzl"],
         exclude = ["real_clean.bzl"],

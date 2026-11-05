@@ -40,13 +40,11 @@ mdx_check(
 javascript_web_server(
     name = "serve",
     app = ":site",
-    aspect_hints = ["//:ruff_config"],
 )
 
 javascript_test(
     name = "site_static_test",
     srcs = ["site_static.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         ":site",
         "//:node_modules/jest-environment-jsdom",
@@ -59,7 +57,6 @@ javascript_test(
 javascript_test(
     name = "site_ssr_test",
     srcs = ["site_ssr.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         ":site",
         ":site_ssr",
@@ -73,7 +70,6 @@ javascript_test(
 javascript_test(
     name = "site_client_test",
     srcs = ["site_client.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         ":site",
         "//:node_modules/jest-environment-jsdom",
@@ -96,7 +92,6 @@ build_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

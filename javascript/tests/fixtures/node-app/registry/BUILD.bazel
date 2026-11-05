@@ -34,7 +34,6 @@ typescript_project(
         "registry.ts",
         ":build_info",
     ],
-    aspect_hints = ["//:biome_config"],
     data = ["packages.json"],
     declaration = True,
     transpiler = "tsc",
@@ -58,7 +57,6 @@ npm_package(
 typescript_test(
     name = "registry_test",
     srcs = ["registry_test.ts"],
-    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
     node_modules = "//javascript/tests/fixtures/node-app:node_modules",
@@ -72,7 +70,6 @@ typescript_test(
 typescript_test(
     name = "plain_test",
     srcs = ["plain_test.ts"],
-    aspect_hints = ["//:biome_config"],
     data = [
         "VERSION",
         "packages.json",
@@ -91,14 +88,12 @@ typescript_test(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_json",
-    aspect_hints = ["//:biome_config"],
     json_srcs = [
         "package.json",
         "packages.json",

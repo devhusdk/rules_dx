@@ -11,7 +11,6 @@ typescript_project(
     name = "good",
     testonly = True,
     srcs = ["good.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -21,7 +20,6 @@ typescript_project(
     name = "clean",
     testonly = True,
     srcs = ["clean.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -65,7 +63,6 @@ typescript_project(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

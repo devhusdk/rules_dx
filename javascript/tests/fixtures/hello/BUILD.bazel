@@ -10,7 +10,6 @@ package(
 javascript_library(
     name = "hello_lib",
     srcs = ["hello.js"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_binary(
@@ -22,7 +21,6 @@ javascript_binary(
 javascript_test(
     name = "hello_test",
     srcs = ["hello.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":hello_lib"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
@@ -39,7 +37,6 @@ javascript_test(
     name = "plain_test",
     runner = "node",
     srcs = ["plain_test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":hello_lib"],
     entry_point = "plain_test.js",
 )
@@ -48,7 +45,6 @@ javascript_test(
     name = "env_forward_test",
     runner = "node",
     srcs = ["plain_test.js"],
-    aspect_hints = ["//:biome_config"],
     entry_point = "plain_test.js",
     env = {"FOO": "1"},
     tags = ["manual"],
@@ -60,7 +56,6 @@ javascript_test(
     runner = "node",
     size = "large",
     srcs = ["plain_test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":hello_lib"],
     entry_point = "plain_test.js",
     tags = ["manual"],
@@ -69,7 +64,6 @@ javascript_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

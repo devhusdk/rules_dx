@@ -11,7 +11,6 @@ package(default_visibility = ["//:__subpackages__"])
 python_test(
     name = "rust_sdist_test",
     srcs = ["rust_sdist_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = ["@dx_rust_sdist_crates//:.cargo/config.toml"],
     dep_group = "rust_sdist",
     env = {"CARGO_CONFIG": "$(rlocationpath @dx_rust_sdist_crates//:.cargo/config.toml)"},
@@ -41,7 +40,6 @@ python_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "soabi_tests.bzl",

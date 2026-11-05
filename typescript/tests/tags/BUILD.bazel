@@ -7,7 +7,6 @@ typescript_project(
     name = "tagged",
     testonly = True,
     srcs = ["tagged.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     tags = [
         "manual",
@@ -21,7 +20,6 @@ typescript_project(
     name = "plain",
     testonly = True,
     srcs = ["plain.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     tsconfig = "base_plain.json",
 )
@@ -73,7 +71,6 @@ aspect_field transitive_count=0
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

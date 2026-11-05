@@ -19,7 +19,6 @@ cc_library(
     name = "report",
     srcs = ["report.cc"],
     hdrs = ["report.h"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     deps = [
         "//cc/tests/fixtures/cpp-app/core",
@@ -30,7 +29,6 @@ cc_library(
 cc_binary(
     name = "pantry",
     srcs = ["main.cc"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["//cc/tests/fixtures/cpp-app/core:menu.csv"],
     local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/cpp-app/core:menu.csv)\\"'],
@@ -43,7 +41,6 @@ cc_binary(
 cc_test(
     name = "report_test",
     srcs = ["report_test.cc"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["//cc/tests/fixtures/cpp-app/core:menu.csv"],
     deps = [
@@ -113,7 +110,6 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

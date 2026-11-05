@@ -21,7 +21,6 @@ package(
 rust_library(
     name = "wasm_hello_lib",
     srcs = ["src/lib.rs"],
-    aspect_hints = ["//:rustfmt_config"],
     crate_name = "wasm_hello",
     crate_root = "src/lib.rs",
     edition = "2021",
@@ -107,7 +106,6 @@ rust_wasm_bindgen(
 javascript_library(
     name = "wasm_helper_lib",
     srcs = ["helper.js"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_wasm_bindgen_library(
@@ -126,7 +124,6 @@ javascript_wasm_bindgen_library(
 javascript_test(
     name = "wasm_node_test",
     srcs = ["wasm_node_test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":wasm_hello_web_js"],
     entry_point = "wasm_node_test.js",
     package_json = "//:package_json",
@@ -150,7 +147,6 @@ typescript_project(
     name = "wasm_ts_consumer",
     testonly = True,
     srcs = ["wasm_ts_consumer.ts"],
-    aspect_hints = ["//:biome_config"],
     declaration = True,
     declaration_srcs = [":wasm_nodejs_types"],
     transpiler = "tsc",
@@ -344,7 +340,6 @@ wasm_js_parity_tests(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "js_parity.bzl",

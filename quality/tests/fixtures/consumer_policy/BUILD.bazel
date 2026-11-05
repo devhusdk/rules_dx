@@ -164,7 +164,6 @@ real_source_target(
     name = "clean_js",
     aspect_hints = [
         ":consumer_eslint_config",
-        "//:biome_config",
     ],
     javascript_srcs = ["clean.js"],
     tags = ["corpus"],
@@ -172,7 +171,6 @@ real_source_target(
 
 real_source_target(
     name = "clean_json",
-    aspect_hints = ["//:biome_config"],
     json_srcs = ["clean.json"],
     tags = ["corpus"],
 )
@@ -185,7 +183,6 @@ real_source_target(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
@@ -519,7 +516,6 @@ real_source_target(
 
 real_source_target(
     name = "clean_jupyter",
-    aspect_hints = ["//:ruff_config"],
     jupyter_srcs = [":jupyter_module"],
 )
 

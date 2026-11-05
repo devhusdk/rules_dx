@@ -6,14 +6,12 @@ javascript_library(
     name = "format",
     testonly = True,
     srcs = ["format.js"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_library(
     name = "greet",
     testonly = True,
     srcs = ["greet.js"],
-    aspect_hints = ["//:biome_config"],
     deps = [":format"],
 )
 
@@ -21,7 +19,6 @@ javascript_test(
     name = "greet_test",
     testonly = True,
     srcs = ["greet_test.js"],
-    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     data = [":greet"],
     node_modules = "//:node_modules",
@@ -33,13 +30,11 @@ javascript_library(
     name = "jest_config",
     testonly = True,
     srcs = ["jest.config.cjs"],
-    aspect_hints = ["//:biome_config"],
 )
 
 javascript_test(
     name = "plain_test",
     srcs = ["plain_test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":greet"],
     entry_point = "plain_test.js",
     package_json = "//:package_json",
@@ -50,14 +45,12 @@ javascript_library(
     name = "test_helpers",
     testonly = True,
     srcs = ["test_helpers.js"],
-    aspect_hints = ["//:biome_config"],
     deps = [":format"],
 )
 
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

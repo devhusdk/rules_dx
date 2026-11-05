@@ -10,20 +10,17 @@ package(default_visibility = VIS_QUALITY)
 python_library(
     name = "update_lib",
     srcs = ["update.py"],
-    aspect_hints = ["//:ruff_config"],
 )
 
 python_binary(
     name = "update",
     srcs = ["update.py"],
-    aspect_hints = ["//:ruff_config"],
     main = "update.py",
 )
 
 python_test(
     name = "update_unit_test",
     srcs = ["update_test.py"],
-    aspect_hints = ["//:ruff_config"],
     data = ["trivy.bzl"],
     dep_group = "hello",
     imports = ["."],
@@ -75,14 +72,12 @@ test_suite(
 
 real_source_target(
     name = "corpus_python",
-    aspect_hints = ["//:ruff_config"],
     python_srcs = glob(["*.py"]),
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
     tags = ["corpus"],
     visibility = VIS_QUALITY + ["//tools/ci:__pkg__"],

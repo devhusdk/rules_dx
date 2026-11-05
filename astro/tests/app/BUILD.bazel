@@ -44,13 +44,11 @@ astro_check(
 javascript_web_server(
     name = "serve",
     app = ":site",
-    aspect_hints = ["//:ruff_config"],
 )
 
 javascript_test(
     name = "site_static_test",
     srcs = ["site_static.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [":site"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
@@ -60,7 +58,6 @@ javascript_test(
 javascript_test(
     name = "site_island_test",
     srcs = ["site_island.test.js"],
-    aspect_hints = ["//:biome_config"],
     data = [
         ":site",
         "//:node_modules/jest-environment-jsdom",
@@ -82,7 +79,6 @@ build_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

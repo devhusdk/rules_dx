@@ -32,7 +32,6 @@ cc_library(
         "menu.h",
         ":build_config_h",
     ],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["menu.csv"],
 )
@@ -40,7 +39,6 @@ cc_library(
 cc_test(
     name = "menu_test",
     srcs = ["menu_test.cc"],
-    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["menu.csv"],
     deps = [
@@ -83,7 +81,6 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
     visibility = [

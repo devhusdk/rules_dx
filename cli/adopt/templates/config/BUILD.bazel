@@ -1,0 +1,16 @@
+_VISIBILITY = [
+    "//cli/adopt:__subpackages__",
+    "//quality/testdata:__subpackages__",
+    "//tools/testing/hermetic:__subpackages__",
+]
+
+exports_files(
+    glob(["*/*"]),
+    visibility = _VISIBILITY,
+)
+
+filegroup(
+    name = "all",
+    srcs = glob(["*/*"]),
+    visibility = _VISIBILITY,
+)

@@ -7,4 +7,8 @@ package(default_visibility = _PUBLIC)
 ruff_config(
     name = "ruff_config",
     src = "ruff.toml",
+    data = [
+        ".dx/config/ruff/standard.toml",
+        ".dx/config/ruff/strict.toml",
+    ],
 )

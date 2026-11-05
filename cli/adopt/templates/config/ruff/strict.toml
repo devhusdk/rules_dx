@@ -1,6 +1,34 @@
 extend = "standard.toml"
+preview = false
 
 [lint]
-extend-select = ["ALL"]
-ignore = ["D", "ANN", "COM", "FIX", "TD", "ERA", "CPY", "ISC001"]
-preview = false
+select = ["ALL"]
+ignore = [
+    "D",
+    "ANN",
+    "COM",
+    "FIX",
+    "TD",
+    "ERA",
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "Q004",
+    "ISC002",
+    "E501",
+    "CPY",
+    "INP001",
+    "T20",
+    "EM",
+    "TRY003",
+    "PLR2004",
+]
+
+[lint.per-file-ignores]
+"*_test.py" = ["S101", "PLR2004", "ARG"]
+"test_*.py" = ["S101", "PLR2004", "ARG"]

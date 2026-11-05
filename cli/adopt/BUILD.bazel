@@ -33,8 +33,7 @@ dx_rust_crate(
     ],
     # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
     compile_data = [
-        "templates/config/ruff/standard.toml",
-        "templates/config/ruff/strict.toml",
+        "//cli/adopt/templates/config:all",
         "//.github:workflows/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//modules:consumer_graph.json",

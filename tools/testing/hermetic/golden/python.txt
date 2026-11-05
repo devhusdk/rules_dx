@@ -1,5 +1,7 @@
 language python
 pattern //ledger/...
+file .dx/config/ruff/standard.toml
+file .dx/config/ruff/strict.toml
 file BUILD.bazel
 file ledger/__init__.py
 file ledger/cli/BUILD.bazel

@@ -1,0 +1,5 @@
+namespace dx.hidden;
+
+table Hidden {
+  id:int;
+}

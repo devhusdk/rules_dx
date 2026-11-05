@@ -28,6 +28,26 @@ def _stage_args_impl(ctx):
 
 flatbuffers_stage_args_test = analysistest.make(_stage_args_impl)
 
+def _undeclared_rust_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = [a for a in analysistest.target_actions(env) if a.mnemonic == "FlatcRust"][0]
+    names = [f.basename for f in action.inputs.to_list()]
+    asserts.true(env, "lost.fbs" in names, "declared schema missing: " + str(names))
+    asserts.false(env, "hidden.fbs" in names, "undeclared include is readable: " + str(names))
+    return analysistest.end(env)
+
+flatbuffers_undeclared_rust_test = analysistest.make(_undeclared_rust_impl)
+
+def _undeclared_java_impl(ctx):
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[FlatBuffersJavaStageInfo]
+    names = [f.basename for f in info.staged.to_list()]
+    asserts.true(env, "lost.fbs" in names, "declared schema missing: " + str(names))
+    asserts.false(env, "hidden.fbs" in names, "undeclared include is readable: " + str(names))
+    return analysistest.end(env)
+
+flatbuffers_undeclared_java_test = analysistest.make(_undeclared_java_impl)
+
 def _java_stage_impl(ctx):
     env = analysistest.begin(ctx)
     info = analysistest.target_under_test(env)[FlatBuffersJavaStageInfo]

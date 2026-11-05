@@ -1,0 +1,7 @@
+include "hidden.fbs";
+
+namespace dx.lost;
+
+table Lost {
+  inner:dx.hidden.Hidden;
+}

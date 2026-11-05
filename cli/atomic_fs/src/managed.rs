@@ -516,6 +516,7 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
+    #[cfg(unix)]
     fn mode_of(path: &Path) -> u32 {
         use std::os::unix::fs::PermissionsExt as _;
         std::fs::metadata(path)
@@ -525,6 +526,7 @@ mod tests {
             & 0o777
     }
 
+    #[cfg(unix)]
     fn chmod(path: &Path, mode: u32) {
         use std::os::unix::fs::PermissionsExt as _;
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod");

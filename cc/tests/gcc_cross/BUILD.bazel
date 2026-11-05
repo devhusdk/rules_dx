@@ -21,8 +21,8 @@ cc_binary(
 cc_toolchain_files(
     name = "gcc_arm64",
     srcs = [
-        "//cc/tests/fixtures/hello:hello",
         ":hello_c",
+        "//cc/tests/fixtures/hello",
     ],
     compiler = "gcc",
     platforms = ["//cc/tests/gcc_cross:linux_arm64"],

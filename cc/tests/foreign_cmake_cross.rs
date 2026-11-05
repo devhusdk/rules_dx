@@ -27,6 +27,16 @@ fn configure_runs_no_target_binary() {
 }
 
 #[test]
+fn configure_is_a_cross_compile() {
+    let log = log();
+    let line = log
+        .lines()
+        .find(|l| l.contains("CMAKE_CROSSCOMPILING") && l.contains("TRUE"))
+        .unwrap_or_else(|| panic!("no CMAKE_CROSSCOMPILING TRUE in log"));
+    assert!(!line.contains("FALSE"));
+}
+
+#[test]
 fn no_host_compiler_is_used() {
     let log = log();
     assert!(!log.contains("/usr/bin/cc"));

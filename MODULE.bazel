@@ -72,6 +72,34 @@ single_version_override(
 
 # dev only: qualifies a real foreign CMake build (#4830); cmake_library stays quality-only
 bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
+bazel_dep(name = "ninja", version = "1.13.2", dev_dependency = True)
+bazel_dep(name = "m4", version = "1.4.21.bcr.8", dev_dependency = True)
+bazel_dep(name = "make", version = "4.4.1.bcr.3", dev_dependency = True)
+bazel_dep(name = "pkgconf", version = "3.0.10", dev_dependency = True)
+
+# explicit drops rules_foreign_cc's system cmake fallback, so a platform without a pinned cmake fails analysis
+_foreign_cc_tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl", "tools", dev_dependency = True)
+_foreign_cc_tools.explicit()
+_foreign_cc_tools.cmake(
+    mode = "binary",
+    version = "3.31.12",
+)
+_foreign_cc_tools.ninja(
+    mode = "custom",
+    target = "@ninja",
+)
+_foreign_cc_tools.make(
+    mode = "custom",
+    target = "@make",
+)
+_foreign_cc_tools.m4(
+    mode = "custom",
+    target = "@m4",
+)
+_foreign_cc_tools.pkgconfig(
+    mode = "custom",
+    target = "@pkgconf//:pkg-config",
+)
 
 # floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975)
 bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")

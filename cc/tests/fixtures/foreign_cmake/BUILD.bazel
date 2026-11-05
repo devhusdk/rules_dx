@@ -47,7 +47,10 @@ cmake(
 cmake(
     name = "zlib_arm64",
     build_args = ["--verbose"],
-    generate_args = ["-GNinja"],
+    generate_args = [
+        "-GNinja",
+        "--trace-expand",
+    ],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_static_libs = ["libz.a"],
     tags = _THIRD_PARTY,

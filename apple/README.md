@@ -359,7 +359,7 @@ apple_ios_export(name = "export", app = ":ledger_device")
 ```
 
 ```sh
-bazel run //:export --ios_multi_cpus=arm64 -- \
+bazel run //:export -- \
     --certificate dev.p12 --password-file dev.p12.pass --out dist/Ledger.ipa
 ```
 

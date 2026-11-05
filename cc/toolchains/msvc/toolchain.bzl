@@ -9,7 +9,7 @@ MSVC_CXX_CONFORMANCE_FLAGS = ["/Zc:__cplusplus", "/permissive-"]
 
 _SYSTEM_NAMES = {"x64": "x86_64-pc-windows-msvc", "arm64": "aarch64-pc-windows-msvc"}
 
-def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "", exec_cpu = "x64", target_cpu = "x64", **kwargs):
+def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cpu = "x64", target_cpu = "x64", **kwargs):
     """Declare a cc_toolchain that runs cl.exe from the layout in this package.
 
     The layout root is the package directory: VC and Windows Kits sit next to
@@ -21,7 +21,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "", exec_cpu = "x64
         name: Name of the cc_toolchain.
         msvc_version: MSVC toolset version directory under VC/Tools/MSVC.
         sdk_version: Windows SDK version directory.
-        tmp: Value for TMP and TEMP in compile and link actions.
+        tmp: Value for TMP and TEMP in compile and link actions. Bazel overrides it for local Windows actions.
         exec_cpu: CPU the tools run on, "x64" or "arm64".
         target_cpu: CPU the tools build for, "x64" or "arm64".
         **kwargs: Passed to cc_toolchain, such as visibility.

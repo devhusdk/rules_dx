@@ -530,6 +530,20 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
+#[test]
+fn real_facade_loads_no_rule_set() {
+    let facade = dx_testing::read_runfiles("quality/real_aspects.bzl");
+    let outside: Vec<&str> = facade
+        .lines()
+        .filter(|line| line.contains("load(\"@") && !line.contains("load(\"@bazel_skylib"))
+        .collect();
+    assert!(
+        outside.is_empty(),
+        "quality/real_aspects.bzl may only load @bazel_skylib from outside the repo:\n{}",
+        outside.join("\n")
+    );
+}
+
 const FAMILY_FILES: [&str; 44] = [
     "ansible",
     "beam",

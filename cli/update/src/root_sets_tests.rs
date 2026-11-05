@@ -6,11 +6,17 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 18] = [
+const EXPECTED_NAMES: [&str; 30] = [
     "dx_crates",
+    "dx_dart_deps",
+    "dx_dart_padded_archive",
     "dx_dokka",
     "dx_flutter_app_deps",
     "dx_flutter_deps",
+    "dx_julia_coverage",
+    "dx_julia_format",
+    "dx_julia_jet",
+    "dx_julia_lint",
     "dx_npm",
     "dx_npm_tools",
     "dx_perl_cpan",
@@ -18,13 +24,19 @@ const EXPECTED_NAMES: [&str; 18] = [
     "dx_pypi-python",
     "dx_pypi-python-service",
     "dx_pypi-sqlfluff",
+    "dx_pypi_rust_sdist-rust_sdist",
+    "dx_pypi_sdist-sdist_native",
+    "dx_pypi_sdist_nodeps-nodeps",
     "dx_quality_crates",
+    "dx_scala3_test",
     "dx_scalafix",
     "dx_thrift_crates",
     "go",
+    "julia_app_pkgs",
     "maven",
     "npm_node_app",
     "nuget",
+    "rules_android_maven",
 ];
 
 fn sets() -> Vec<DependencySet> {

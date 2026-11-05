@@ -828,15 +828,20 @@ impl ModuleFile {
     /// Every `from_manifest` tag of the rules_julia `pkg` extension in source order.
     pub fn julia_manifests(&self) -> Result<Vec<JuliaManifest<'_>>, ModuleError> {
         const TAG: &str = "julia_pkg.from_manifest";
-        self.tags(JULIA_MODULE, "julia/pkg:extensions.bzl", "pkg", "from_manifest")
-            .map(|call| {
-                Ok(JuliaManifest {
-                    name: required(call, TAG, "name")?,
-                    lockfile: required(call, TAG, "lockfile")?,
-                    line: call.line,
-                })
+        self.tags(
+            JULIA_MODULE,
+            "julia/pkg:extensions.bzl",
+            "pkg",
+            "from_manifest",
+        )
+        .map(|call| {
+            Ok(JuliaManifest {
+                name: required(call, TAG, "name")?,
+                lockfile: required(call, TAG, "lockfile")?,
+                line: call.line,
             })
-            .collect()
+        })
+        .collect()
     }
 
     /// Every `cpan.install` tag of the rules_perl extension in source order.

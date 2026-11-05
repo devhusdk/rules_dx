@@ -1403,12 +1403,21 @@ fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
                 ));
             }
             None => {
-                return Err(stale(&bazel, format!("{manifest} has {name}, which it lacks")));
+                return Err(stale(
+                    &bazel,
+                    format!("{manifest} has {name}, which it lacks"),
+                ));
             }
         }
     }
-    if let Some(extra) = in_bazel.keys().find(|name| !in_manifest.contains_key(*name)) {
-        return Err(stale(&bazel, format!("it has {extra}, which {manifest} lacks")));
+    if let Some(extra) = in_bazel
+        .keys()
+        .find(|name| !in_manifest.contains_key(*name))
+    {
+        return Err(stale(
+            &bazel,
+            format!("it has {extra}, which {manifest} lacks"),
+        ));
     }
     Ok(())
 }
@@ -2188,8 +2197,11 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("dir");
         let manifest = "manifest_format = \"2.0\"\n[[deps.Glob]]\nversion = \"1.3.1\"\n[[deps.Dates]]\nuuid = \"x\"\n";
         std::fs::write(dir.join("Manifest.toml"), manifest).expect("write");
-        std::fs::write(dir.join("Manifest.bazel.json"), "{\"Glob\": {\"version\": \"1.3.1\"}}")
-            .expect("write");
+        std::fs::write(
+            dir.join("Manifest.bazel.json"),
+            "{\"Glob\": {\"version\": \"1.3.1\"}}",
+        )
+        .expect("write");
         let set = ResolvedSet {
             name: "jl".to_owned(),
             ecosystem: Ecosystem::Julia,
@@ -2199,8 +2211,11 @@ mod tests {
             repository: None,
         };
         assert!(check_julia_layout(&dir, &set).is_ok());
-        std::fs::write(dir.join("Manifest.bazel.json"), "{\"Glob\": {\"version\": \"1.3.0\"}}")
-            .expect("write");
+        std::fs::write(
+            dir.join("Manifest.bazel.json"),
+            "{\"Glob\": {\"version\": \"1.3.0\"}}",
+        )
+        .expect("write");
         let message = check_julia_layout(&dir, &set).unwrap_err().to_string();
         assert!(message.contains("Glob 1.3.0"), "{message}");
         std::fs::remove_dir_all(&dir).ok();
@@ -2777,7 +2792,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia"
         );
     }
 

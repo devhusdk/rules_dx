@@ -835,5 +835,9 @@ fn unquote_line_unescapes_quotes_in_quoted_lines() {
         unquote_line(r#""/D__DATE__=\"redacted\"""#),
         r#"/D__DATE__="redacted""#
     );
+    assert_eq!(
+        unquote_line(r#"/D__DATE__=\"redacted\""#),
+        r#"/D__DATE__="redacted""#
+    );
     assert_eq!(unquote_line("/c"), "/c");
 }

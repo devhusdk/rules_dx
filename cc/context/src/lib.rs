@@ -643,13 +643,11 @@ pub fn qualify(
 
 fn unquote_line(line: &str) -> String {
     let line = line.trim_end_matches('\r');
-    match line
+    let inner = line
         .strip_prefix('"')
         .and_then(|rest| rest.strip_suffix('"'))
-    {
-        Some(inner) => inner.replace("\\\"", "\""),
-        None => line.to_string(),
-    }
+        .unwrap_or(line);
+    inner.replace("\\\"", "\"")
 }
 
 /// Expands every `@response` argument against the execroot.

@@ -112,6 +112,36 @@ toolchain(
 )
 
 toolchain(
+    name = "msvc_windows_x86_64_to_arm64",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = [":msvc_selected"],
+    toolchain = "@dx_msvc//:cc_toolchain_x64_arm64",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "msvc_windows_arm64",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = [":msvc_selected"],
+    toolchain = "@dx_msvc//:cc_toolchain_arm64_arm64",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
     name = "msvc_unsupported",
     target_settings = [":msvc_selected"],
     toolchain = "//cc/toolchains/msvc:unsupported",

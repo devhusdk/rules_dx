@@ -8,6 +8,16 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
+exports_files([
+    "add.c",
+    "add.h",
+    "greet.h",
+    "greet_dll.cc",
+    "greet_static.cc",
+    "greet_static_suffix.cc",
+    "shared_test.cc",
+])
+
 _MSVC_ONLY = [
     "@platforms//os:windows",
     "@platforms//cpu:x86_64",

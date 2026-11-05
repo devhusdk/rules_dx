@@ -12,6 +12,7 @@ exports_files(
 filegroup(
     name = "templates",
     srcs = [
+        "config.yml",
         "metadata.template.json",
         "presubmit.yml",
         "source.template.json",

@@ -82,3 +82,47 @@ jobs:
             echo "- version: $printed"
             echo "- dx: $files"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  bcr:
+    needs: consumer
+    if: vars.BCR_REGISTRY_FORK != ''
+    permissions:
+      contents: read
+    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@1ae09341a6014e9bea052879c42392ac6b8b632c # v1.7.0
+    with:
+      tag_name: ${{ inputs.tag || github.event.release.tag_name }}
+      registry_fork: ${{ vars.BCR_REGISTRY_FORK }}
+      attest: false
+    secrets:
+      publish_token: ${{ secrets.BCR_PUBLISH_TOKEN }}
+
+  bcr-ledger:
+    needs: bcr
+    if: always() && needs.bcr.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      RESULT: ${{ needs.bcr.result }}
+      PR_URL: ${{ needs.bcr.outputs.pr_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Record the BCR submission
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          status=0
+          bazel run //deploy/release:bcr_ledger -- "rules_dx@$version" "$RESULT" "$PR_URL" > ledger.json || status=$?
+          { echo '```json'; cat ledger.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: bcr-ledger
+          path: ledger.json

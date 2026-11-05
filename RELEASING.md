@@ -54,7 +54,16 @@ Publishing starts `release-consumer.yml`. It builds the quickstart consumer agai
 
 ## 6. Submit to the Bazel Central Registry
 
-Check the entry first:
+Submission is automatic. When every `consumer` cell in `release-consumer.yml` is green, its `bcr` job calls the `bazel-contrib/publish-to-bcr` reusable workflow (pinned by SHA, `attest: false`). It reads `.bcr/config.yml` for the module roots, pushes a branch to the registry fork and opens one pull request that adds every module at `X.Y.Z`. The `bcr-ledger` job then records the pull request URL in the `bcr-ledger` artifact and the run summary, or records `failed` when the submission did not succeed.
+
+One-time setup, done by the owner:
+
+- the repository variable `BCR_REGISTRY_FORK`, for example `owner/bazel-central-registry`. While it is unset the `bcr` job is skipped.
+- the repository secret `BCR_PUBLISH_TOKEN`, a classic personal access token with the `repo` and `workflow` scopes that can push to that fork.
+
+The pull request opens as a draft. The owner reviews it, waits for BCR CI, and marks it ready for review.
+
+If the job is skipped or fails, check the entry by hand and open the pull request yourself:
 
 ```
 BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo

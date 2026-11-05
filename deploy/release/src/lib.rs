@@ -524,6 +524,25 @@ pub fn bcr_run(
     )]))
 }
 
+const BCR_PR_PREFIX: &str = "https://github.com/bazelbuild/bazel-central-registry/pull/";
+
+/// Ledger record for the publish-to-bcr job: executed only for a successful
+/// run that reported a pull request on the central registry.
+pub fn bcr_submit_record(subject: &str, result: &str, pr_url: &str) -> OpRecord {
+    let (state, detail) = match (result, pr_url) {
+        ("success", url) if url.starts_with(BCR_PR_PREFIX) => (OpState::Executed, url.to_owned()),
+        ("success", _) => (
+            OpState::Failed,
+            "publish-to-bcr succeeded but reported no BCR pull request".to_owned(),
+        ),
+        (other, _) => (
+            OpState::Failed,
+            format!("publish-to-bcr result was '{other}'"),
+        ),
+    };
+    OpRecord::new("bcr-submit", subject, state, &detail)
+}
+
 pub struct CosignPin<'a> {
     pub path: &'a str,
     pub version: &'a str,
@@ -1417,6 +1436,24 @@ mod tests {
         assert!(live.contains("\"subject\": \"rules_dx@1.2.3\""));
         assert!(live.contains("\"state\": \"validated\""));
         assert!(live.contains("never pushes itself"));
+    }
+
+    #[test]
+    fn bcr_submit_record_needs_success_and_a_bcr_pull_request() {
+        let url = "https://github.com/bazelbuild/bazel-central-registry/pull/123";
+        let ok = bcr_submit_record("rules_dx@1.2.3", "success", url);
+        assert_eq!(ok.state, OpState::Executed);
+        assert_eq!(ok.detail, url);
+        for (result, url) in [
+            ("failure", url),
+            ("cancelled", url),
+            ("success", ""),
+            ("success", "https://example.com/pull/1"),
+        ] {
+            let record = bcr_submit_record("rules_dx@1.2.3", result, url);
+            assert_eq!(record.state, OpState::Failed, "{result} {url}");
+        }
+        assert!(bcr_submit_record("s", "failure", "").detail.contains("failure"));
     }
 
     #[test]

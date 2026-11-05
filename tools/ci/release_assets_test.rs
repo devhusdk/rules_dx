@@ -558,3 +558,47 @@ fn publishing_runs_the_consumer_against_the_prebuilt_download() {
     assert!(text.contains("@rules_dx//:dx -- --version"));
     assert!(text.contains("dx_prebuilt_"));
 }
+
+fn consumer_job(name: &str) -> String {
+    let text = read_runfiles(CONSUMER);
+    let start = text.find(&format!("\n  {name}:\n")).expect("job") + 1;
+    let rest = &text[start..];
+    let end = rest
+        .match_indices("\n  ")
+        .map(|(i, _)| i)
+        .find(|&i| rest[i + 3..].chars().next().is_some_and(|c| c != ' '))
+        .unwrap_or(rest.len());
+    rest[..end].to_owned()
+}
+
+#[test]
+fn the_bcr_submission_waits_for_the_consumer_check_and_stays_read_only() {
+    let bcr = consumer_job("bcr");
+    assert!(bcr.contains("needs: consumer\n"));
+    assert!(bcr.contains("contents: read"));
+    assert!(!bcr.contains("contents: write"));
+    assert!(bcr.contains("attest: false"));
+    let uses = bcr
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("uses: "))
+        .expect("uses");
+    let (_, rest) = uses.split_once('@').expect("pinned");
+    let sha = rest.split_whitespace().next().expect("sha");
+    assert!(
+        sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
+        "bcr uses must be SHA-pinned: {uses}"
+    );
+    assert!(!bcr.contains("run:"));
+}
+
+#[test]
+fn the_bcr_ledger_follows_the_bcr_job_and_records_failures() {
+    let ledger = consumer_job("bcr-ledger");
+    assert!(ledger.contains("needs: bcr\n"));
+    assert!(ledger.contains("if: always() && needs.bcr.result != 'skipped'"));
+    assert!(ledger.contains("contents: read"));
+    assert!(!ledger.contains("contents: write"));
+    assert!(ledger.contains("//deploy/release:bcr_ledger"));
+    assert!(ledger.contains("name: bcr-ledger"));
+    assert!(!ledger.contains("secrets."));
+}

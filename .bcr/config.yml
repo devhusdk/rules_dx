@@ -1,0 +1,4 @@
+moduleRoots:
+  - "."
+  - "families/android"
+  - "families/apple"

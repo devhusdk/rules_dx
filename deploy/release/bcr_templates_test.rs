@@ -83,3 +83,25 @@ fn every_family_template_directory_is_complete() {
         }
     }
 }
+
+#[test]
+fn config_lists_the_root_and_every_family_with_templates() {
+    let config = template("config.yml");
+    let mut roots: Vec<String> = config
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("- "))
+        .map(|root| root.trim_matches('"').to_owned())
+        .collect();
+    roots.sort();
+    let dir = dx_testing::resolve_runfiles(".bcr/presubmit.yml").with_file_name("families");
+    let mut want = vec![".".to_owned()];
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries {
+            let name = entry.expect("entry").file_name();
+            want.push(format!("families/{}", name.to_string_lossy()));
+        }
+    }
+    want.sort();
+    assert!(config.starts_with("moduleRoots:"));
+    assert_eq!(roots, want);
+}

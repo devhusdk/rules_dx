@@ -37,6 +37,7 @@ exports_files([
     "sbom_tests.bzl",
     "signing.bzl",
     "signing_tests.bzl",
+    "src/bin_bcr_ledger.rs",
     "src/bin_bump_version.rs",
     "src/bin_publish_dry_run_check.rs",
     "src/bin_release_cell.rs",
@@ -230,6 +231,7 @@ rust_test(
 
 # Release binaries that have a bin_test.
 _TESTED_RELEASE_BINS = [
+    "bcr_ledger",
     "bump_version",
     "publish_dry_run_check",
     "release_cell",
@@ -292,6 +294,24 @@ rust_binary(
         package_name = "deploy/dx_release_tools",
         normal = True,
     ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "bcr_ledger",
+    srcs = ["src/bin_bcr_ledger.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "bcr_ledger",
+    crate_root = "src/bin_bcr_ledger.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [
+        ":dx_release_tools",
+    ],
 )
 
 rust_binary(
@@ -373,6 +393,23 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "bcr_ledger_bin_test",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bcr_ledger",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_release_tools",
+    ],
 )
 
 rust_test(

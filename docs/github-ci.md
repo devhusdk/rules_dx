@@ -49,6 +49,8 @@
 
 ## What the job runs
 
+Every job first runs `dx completion bash` to write the gitignored `.dx/bazelrc` layers, so the next Bazel call reads them.
+
 Per platform, `checks (<platform>)` runs these in order. A failing check does not stop the next one.
 
 | Check | Command | Reports |

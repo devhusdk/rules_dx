@@ -8,7 +8,7 @@ Status: rules_dx is not released yet. Install starts with the first BCR release.
 
 ## Quickstart
 
-Bazel via Bazelisk is required. In an empty directory, create four files.
+Bazel via Bazelisk is required. In an empty directory, create three files.
 
 `.bazelversion`:
 
@@ -28,12 +28,6 @@ bazel_dep(name = "rules_dx", version = "<release>")
 # Empty on purpose: rules_rust crate_universe needs a root package.
 ```
 
-`.bazelrc`:
-
-```text
-common --repo_env=DO_NOT_TRACK=1
-```
-
 Then:
 
 ```sh
@@ -47,6 +41,8 @@ After that, run `dx` through the launcher:
 tools/dx --help
 tools/dx build //...
 ```
+
+On a fresh clone, run `tools/dx` first. Any dx command writes the gitignored `.dx/bazelrc` layers that plain `bazel` reads.
 
 Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-and-ca.md).
 

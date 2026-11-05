@@ -1,7 +1,6 @@
 # `dx init`
 
-Empty directory, with Bazel. Create `.bazelversion`, a `.bazelrc` with
-`common --repo_env=DO_NOT_TRACK=1`, an empty `BUILD.bazel`, and a `MODULE.bazel`
+Empty directory, with Bazel. Create `.bazelversion`, an empty `BUILD.bazel`, and a `MODULE.bazel`
 with `bazel_dep(name = "rules_dx", version = "<release>")`. Then:
 
 ```sh

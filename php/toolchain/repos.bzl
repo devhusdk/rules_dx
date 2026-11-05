@@ -1,7 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "COMPOSER", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION")
+load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION")
 
 HUB_NAME = "dx_php_toolchains"
 
@@ -22,9 +22,25 @@ exports_files(["{interpreter}", "{version_file}"])
 php_toolchain(
     name = "php_toolchain",
     interpreter = "{interpreter}",
+    pcov = {pcov},
     version = "{version}",
 )
 """
+
+PCOV_LABEL = "@dx_php_pcov//:pcov.so"
+
+_HEADERS_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "headers",
+    hdrs = glob(["include/**/*.h"]),
+    includes = {includes},
+)
+"""
+
+_PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
 
 _TOOLCHAINS = """toolchain(
     name = "{cell}",
@@ -41,10 +57,11 @@ toolchain(
 )
 """
 
-def runtime_build(version, interpreter = "php"):
-    """Returns the BUILD file of one runtime repository."""
+def runtime_build(version, interpreter = "php", pcov = False):
+    """Returns the BUILD file of one runtime repository; pcov names the PCOV extension it can load."""
     return _RUNTIME_BUILD.format(
         interpreter = interpreter,
+        pcov = repr(PCOV_LABEL) if pcov else "None",
         php_bzl = str(Label("//php/toolchain:php.bzl")),
         version = version,
         version_file = VERSION_FILE,
@@ -72,13 +89,39 @@ def _php_impl(mctx):
         pinned_archive(
             name = RUNTIME_PREFIX + cell,
             files = {
-                "BUILD.bazel": runtime_build(PHP_VERSION, PHP_CELLS[cell].interpreter),
+                "BUILD.bazel": runtime_build(PHP_VERSION, PHP_CELLS[cell].interpreter, PHP_CELLS[cell].pcov),
                 VERSION_FILE: PHP_VERSION + "\n",
             },
             required = [PHP_CELLS[cell].interpreter],
             sha256 = PHP_CELLS[cell].sha256,
             urls = PHP_CELLS[cell].urls,
         )
+    for cell, headers in sorted(PHP_HEADERS.items()):
+        pinned_archive(
+            name = "dx_php_headers_" + cell,
+            files = {"BUILD.bazel": _HEADERS_BUILD.format(includes = repr(_PHP_INCLUDES))},
+            inner = [headers.inner],
+            required = ["include/php/main/php_config.h"],
+            sha256 = headers.sha256,
+            type = "zip",
+            urls = headers.urls,
+        )
+    pinned_archive(
+        name = "dx_php_pcre2",
+        files = {"BUILD.bazel": _HEADERS_BUILD.format(includes = repr(["include"]))},
+        inner = [PCRE2_HEADERS.inner],
+        required = ["include/pcre2.h"],
+        sha256 = PCRE2_HEADERS.sha256,
+        type = "zip",
+        urls = PCRE2_HEADERS.urls,
+    )
+    pinned_archive(
+        name = "dx_php_pcov",
+        files = {"BUILD.bazel": mctx.read(Label("//php/toolchain:pcov.BUILD"))},
+        required = ["pcov-" + PCOV.version + "/pcov.c"],
+        sha256 = PCOV.sha256,
+        urls = PCOV.urls,
+    )
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
     for name, file, pin in [
         ("dx_composer", "composer.phar", COMPOSER),

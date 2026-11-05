@@ -32,6 +32,11 @@ php_test(
 )
 
 php_test(
+    name = "pcov_test",
+    srcs = ["test/PcovTest.php"],
+)
+
+php_test(
     name = "cli_test",
     srcs = ["test/CliTest.php"],
     data = [

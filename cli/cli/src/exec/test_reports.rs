@@ -1889,6 +1889,19 @@ mod tests {
     }
 
     #[test]
+    fn coverage_merges_the_lcov_a_php_test_writes() {
+        let lcov = "SF:php/tests/fixtures/hello/src/Hello/Greeter.php\nDA:13,1\nDA:17,1\nLF:2\nLH:2\nend_of_record\n";
+        let harness = coverage_harness("cov-php-pcov", lcov.as_bytes());
+        let harness = with_sources(
+            harness,
+            "v1 cell linux_x86_64\nprod source php/tests/fixtures/hello/src/Hello/Greeter.php\n",
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("(2/2 lines) meets minimum 100%"), "{err}");
+    }
+
+    #[test]
     fn coverage_min_coverage_fails_below_threshold() {
         let harness = coverage_harness("cov-threshold-low", HALF_LCOV.as_bytes());
         let harness = with_sources(harness, PY_SOURCES);

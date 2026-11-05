@@ -2,7 +2,7 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "fake_file", "label_string")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS", "php_compatible_with", "php_deferred_tags", "php_kwargs", "php_quality_srcs")
-load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
+load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -190,6 +190,21 @@ dx_wrapper_contract_tests(
                 fake_file(short_path = "../dep+/x.php"),
             ),
             "dep+/x.php",
+        ),
+        expect_contains(
+            "the coverage launcher loads pcov on the autoload tree",
+            coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
+            "-d \"extension=$runfiles/pcov+/pcov.so\" -d pcov.enabled=1 -d \"pcov.directory=$tree\" \"$runfiles/phpunit/phpunit.phar\" --coverage-filter \"$tree\" --coverage-clover \"$clover\" --bootstrap",
+        ),
+        expect_contains(
+            "the coverage launcher converts the report to LCOV below the tree",
+            coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
+            "\"$runfiles/_main/tools/clover_to_lcov\" \"$clover\" \"$COVERAGE_OUTPUT_FILE\" \"/t.php/\"",
+        ),
+        expect_contains(
+            "the coverage launcher keeps the test status",
+            coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
+            "exit \"$status\"",
         ),
         expect_contains(
             "the launcher runs php without php.ini",

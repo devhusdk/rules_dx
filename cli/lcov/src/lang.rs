@@ -15,6 +15,7 @@ pub(crate) const COVERED_LANGUAGES: &[(&str, LineComment)] = &[
     (".d", LineComment::SlashSlash),
     (".pl", LineComment::Hash),
     (".pm", LineComment::Hash),
+    (".php", LineComment::SlashSlash),
     (".erl", LineComment::Percent),
     (".hrl", LineComment::Percent),
     (".js", LineComment::SlashSlash),

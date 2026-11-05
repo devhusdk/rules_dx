@@ -1,0 +1,43 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_binary(
+    name = "clover_to_lcov",
+    srcs = ["src/main.rs"],
+    crate_name = "clover_to_lcov",
+    crate_root = "src/main.rs",
+    deps = ["//cli/lcov:dx_lcov"],
+)
+
+rust_test(
+    name = "clover_to_lcov_test",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    deps = ["//cli/lcov:dx_lcov"],
+)
+
+rustfmt_test(
+    name = "clover_to_lcov_fmt_test",
+    targets = [
+        ":clover_to_lcov",
+        ":clover_to_lcov_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "clover_to_lcov_clippy_test",
+    targets = [
+        ":clover_to_lcov",
+        ":clover_to_lcov_test",
+    ],
+)

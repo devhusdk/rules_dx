@@ -8,6 +8,8 @@ PHP_SOURCE_EXTS = [".php"]
 
 _TOOL = Label("//php/rules:tool.php")
 
+_CLOVER_TO_LCOV = Label("//tools/coverage/php:clover_to_lcov")
+
 _COMPOSER = Label("@dx_composer//:composer.phar")
 
 _PHPUNIT = Label("@dx_phpunit//:phpunit.phar")
@@ -151,6 +153,26 @@ def launcher_script(php, ini, tokens):
     tail = " ".join([_bash_word(token) for token in tokens] + ['"$@"'])
     return _LAUNCHER.format(body = 'exec "$runfiles/{php}" -n {flags}{tail}\n'.format(php = php, flags = flags, tail = tail))
 
+_COVERAGE_BODY = """tree="$(cd -P "$runfiles/{tree}" && pwd)"
+clover="$(mktemp "${{TEST_TMPDIR:-${{TMPDIR:-/tmp}}}}/clover.XXXXXX")"
+status=0
+"$runfiles/{php}" -n {flags}-d "extension=$runfiles/{pcov}" -d pcov.enabled=1 -d "pcov.directory=$tree" {head} --coverage-filter "$tree" --coverage-clover "$clover" {tail} || status=$?
+if [[ -s "$clover" && -n "${{COVERAGE_OUTPUT_FILE:-}}" ]]; then
+    "$runfiles/{converter}" "$clover" "$COVERAGE_OUTPUT_FILE" "/{marker}/"
+fi
+exit "$status"
+"""
+
+def coverage_launcher_script(php, ini, tokens, pcov, converter, tree):
+    """Returns the bash launcher of a php_test under coverage: PCOV loaded, a Clover report converted to LCOV in $COVERAGE_OUTPUT_FILE.
+
+    The first token is the PHPUnit phar; the coverage flags follow it. The tree is the runfiles key of the autoload tree; the converter keeps the sources below its last path segment.
+    """
+    flags = "".join([shell_quote(flag) + " " for flag in ini_flags(ini)])
+    tail = " ".join([_bash_word(token) for token in tokens[1:]] + ['"$@"'])
+    body = _COVERAGE_BODY.format(tree = tree, php = php, flags = flags, pcov = pcov, head = _bash_word(tokens[0]), tail = tail, converter = converter, marker = tree.rsplit("/", 1)[-1])
+    return _LAUNCHER.format(body = body)
+
 def _descriptor_line(token):
     kind = token[0]
     for text in token[1:]:
@@ -187,6 +209,22 @@ def _write_launcher(ctx, tokens):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     launcher, runfiles = write_launcher(ctx, php, ctx.attr.ini, tokens)
     return launcher, runfiles.merge(ctx.runfiles(transitive_files = php.files))
+
+def _write_coverage_launcher(ctx, tokens, tree):
+    """Writes the launcher of a test under coverage, with PCOV and the Clover converter in its runfiles."""
+    php = ctx.toolchains[TOOLCHAIN_TYPE].php
+    launcher = ctx.actions.declare_file(ctx.label.name)
+    script = coverage_launcher_script(
+        runfiles_path(ctx.workspace_name, php.interpreter),
+        ctx.attr.ini,
+        tokens,
+        runfiles_path(ctx.workspace_name, php.pcov),
+        runfiles_path(ctx.workspace_name, ctx.executable._clover_to_lcov),
+        tree,
+    )
+    ctx.actions.write(launcher, script, is_executable = True)
+    runfiles = ctx.runfiles(files = [launcher, php.pcov, ctx.executable._clover_to_lcov], transitive_files = php.files)
+    return launcher, runfiles.merge(ctx.attr._clover_to_lcov[DefaultInfo].default_runfiles)
 
 def _runfiles(ctx, files, transitive, base = None):
     runfiles = ctx.runfiles(files = files + ctx.files.data, transitive_files = depset(transitive = transitive))
@@ -257,7 +295,11 @@ def _php_test_impl(ctx):
         tokens.append(lit("--no-configuration"))
     tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
     tokens += [rf(root + "/" + staged_path(f)) for f in srcs]
-    launcher, base = _write_launcher(ctx, tokens)
+    php = ctx.toolchains[TOOLCHAIN_TYPE].php
+    if ctx.configuration.coverage_enabled and php.pcov and not target_is_windows(ctx):
+        launcher, base = _write_coverage_launcher(ctx, tokens, root)
+    else:
+        launcher, base = _write_launcher(ctx, tokens)
     extra = [phpunit] + ([ctx.file.config] if ctx.file.config else [])
     return [
         info,
@@ -308,6 +350,7 @@ php_test = rule(
     attrs = _RUN_ATTRS | {
         "config": attr.label(allow_single_file = [".xml", ".dist"], doc = "A phpunit.xml; without it PHPUnit runs with --no-configuration."),
         "srcs": attr.label_list(mandatory = True, allow_files = PHP_SOURCE_EXTS, doc = "PHPUnit test files PHPUnit runs."),
+        "_clover_to_lcov": attr.label(default = _CLOVER_TO_LCOV, executable = True, cfg = "exec", doc = "Converts the Clover report PHPUnit writes under coverage to LCOV."),
         "_phpunit": attr.label(default = _PHPUNIT, allow_single_file = True, doc = "The pinned PHPUnit phar."),
     },
     test = True,

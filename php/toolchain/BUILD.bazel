@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "metadata_tests.bzl",
     "php.bzl",
+    "pcov.BUILD",
     "pins.bzl",
     "repos.bzl",
     "version_check.php",
@@ -38,7 +39,8 @@ real_source_target(
         "BUILD.bazel",
         "metadata_tests.bzl",
         "php.bzl",
-        "pins.bzl",
+        "pcov.BUILD",
+    "pins.bzl",
         "repos.bzl",
     ],
     tags = ["corpus"],

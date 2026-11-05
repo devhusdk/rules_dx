@@ -10,6 +10,7 @@ def _php_toolchain_impl(ctx):
         php = struct(
             interpreter = interpreter,
             files = depset([interpreter]),
+            pcov = ctx.file.pcov,
             version = ctx.attr.version,
         ),
     )]
@@ -22,6 +23,10 @@ php_toolchain = rule(
             mandatory = True,
             allow_single_file = True,
             doc = "The php executable.",
+        ),
+        "pcov": attr.label(
+            allow_single_file = True,
+            doc = "The PCOV extension built for this interpreter, if it can load one.",
         ),
         "version": attr.string(mandatory = True, doc = "PHP version of the interpreter."),
     },

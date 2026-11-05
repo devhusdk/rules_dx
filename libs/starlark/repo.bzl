@@ -27,6 +27,9 @@ def _pinned_archive_impl(rctx):
             stripPrefix = rctx.attr.strip_prefix,
             type = rctx.attr.type,
         )
+    for inner in rctx.attr.inner:
+        rctx.extract(inner)
+        rctx.delete(inner)
     missing = [path for path in rctx.attr.required + rctx.attr.dropped if not rctx.path(path).exists]
     if missing:
         fail("{} archive does not ship {}".format(rctx.name, ", ".join(missing)))
@@ -44,6 +47,7 @@ pinned_archive = repository_rule(
         "download_as": attr.string(doc = "File name to download to without extracting."),
         "dropped": attr.string_list(doc = "Paths deleted after extraction."),
         "files": attr.string_dict(doc = "Repository path to file content."),
+        "inner": attr.string_list(doc = "Archives inside the downloaded one, extracted into the repository and then deleted."),
         "patches": attr.label_list(doc = "Patches applied last with strip 1."),
         "required": attr.string_list(doc = "Paths the archive must ship."),
         "sha256": attr.string(mandatory = True, doc = "Archive digest."),

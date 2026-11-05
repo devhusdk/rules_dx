@@ -152,11 +152,17 @@ resolve by PHP's lexical rules: the current namespace and the `use` aliases.
 - `php_binary` targets and `bin/` scripts stay hand-written. A hand-set
   `autoload_files` stays out of `srcs` and its declarations are indexed.
 
+## Coverage
+
+On Linux, `dx coverage` runs `php_test` with PCOV and writes LCOV. The pinned
+Linux PHP is the glibc `gnu-bulk` build, which can load extensions; PCOV is built
+from source against the conda-forge PHP headers. macOS and Windows run the tests
+without collecting coverage.
+
 ## Quality
 
 PHP sources form the `php` class, so `dx check` sees them. No formatter runs
-yet, and there is no coverage: the pinned build has neither Xdebug nor PCOV.
-Until the formatter lands, the PHP rules add the `no-format` tag to every target.
+yet. Until the formatter lands, the PHP rules add the `no-format` tag to every target.
 
 PHP_CodeSniffer 4.0.4 lints `php` targets against PSR12 or a bound ruleset.
 Select `phpcs` in a `php` family. The tool flag overrides the pinned binary:

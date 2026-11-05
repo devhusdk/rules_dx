@@ -600,6 +600,13 @@ def _bundle_runpath():
         "//conditions:default": [QT_BUNDLE_RUNPATH],
     })
 
+def _dynamic_lookup_linkopts():
+    # The library's own dylib carries Qt references that the final binary resolves.
+    return select({
+        "@platforms//os:macos": ["-Wl,-undefined,dynamic_lookup"],
+        "//conditions:default": [],
+    })
+
 def _pic_copts():
     return select({
         "@platforms//os:windows": [],
@@ -668,6 +675,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
     compatible = kwargs.get("target_compatible_with", None)
+    upstream_linkopts = kwargs.pop("linkopts", []) + _dynamic_lookup_linkopts()
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, compatible)
     _cc_library(
         name = name + "_upstream",
@@ -676,6 +684,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
         copts = copts + _include_copts(name),
         deps = effective_deps,
         alwayslink = True,
+        linkopts = upstream_linkopts,
         tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],
         **kwargs

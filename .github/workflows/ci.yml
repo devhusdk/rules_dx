@@ -131,6 +131,7 @@ jobs:
       - name: Test every family module
         run: |
           set -euo pipefail
+          # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           for dir in families/*/; do
             [ -f "$dir/MODULE.bazel" ] || continue
@@ -248,8 +249,8 @@ jobs:
           bazel cquery --noshow_progress --//cc/toolchains:compiler=gcc "$@" --output=files //cc/tests/gcc_cross:gcc_arm64 2>/dev/null | while read -r file; do
             cp "$file" "$RUNNER_TEMP/gcc-arm64/"
           done
-          ls "$RUNNER_TEMP/gcc-arm64"
-          test "$(ls "$RUNNER_TEMP/gcc-arm64" | wc -l)" -eq 3
+          find "$RUNNER_TEMP/gcc-arm64" -type f
+          test "$(find "$RUNNER_TEMP/gcc-arm64" -type f | wc -l)" -eq 3
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gcc-arm64-fixtures

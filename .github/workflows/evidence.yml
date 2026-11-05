@@ -291,7 +291,7 @@ jobs:
               dest="${dest%.fixture}"
               mkdir -p "$(dirname "$dest")"
               case "$dest" in
-                demo-app/families) for family in $(cat "$fixture/$file"); do printf 'bazel_dep(name = "rules_dx_%s", version = "0.0.0")\nlocal_path_override(module_name = "rules_dx_%s", path = "%s/families/%s")\n' "$family" "$family" "$checkout" "$family" >> demo-app/MODULE.bazel; done ;;
+                demo-app/families) while read -r family; do printf 'bazel_dep(name = "rules_dx_%s", version = "0.0.0")\nlocal_path_override(module_name = "rules_dx_%s", path = "%s/families/%s")\n' "$family" "$family" "$checkout" "$family" >> demo-app/MODULE.bazel; done < "$fixture/$file" ;;
                 demo-app/MODULE.bazel | demo-app/.bazelrc) printf '\n' >> "$dest" && cat "$fixture/$file" >> "$dest" ;;
                 *) cp "$fixture/$file" "$dest" ;;
               esac

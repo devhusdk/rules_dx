@@ -18,7 +18,6 @@ fn shard(ids: &[&str]) -> Vec<u8> {
                 ..Symbol::default()
             })
             .collect(),
-        ..DocIr::default()
     };
     encode_shard(&shard).unwrap_or_else(|error| panic!("encode shard: {error:?}"))
 }

@@ -112,6 +112,8 @@ pub(crate) fn configured_set(
         }
         dx_adopt::dependency_sets::Ecosystem::Pub if foreign => {
             Some(dx_update::edit::ConfiguredKind::Pub)
+        dx_adopt::dependency_sets::Ecosystem::Composer if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Composer)
         }
         _ => None,
     };
@@ -143,6 +145,8 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Ruby => "exactly one Gemfile",
                             dx_update::edit::ConfiguredKind::Cpan => "exactly one cpanfile",
                             dx_update::edit::ConfiguredKind::Pub => "exactly one pubspec.yaml",
+                            dx_update::edit::ConfiguredKind::Composer =>
+                                "exactly one composer.json",
                         },
                         set.name
                     ),
@@ -761,7 +765,8 @@ fn refresh_plan(
         }
         dx_update::edit::ConfiguredKind::Npm
         | dx_update::edit::ConfiguredKind::Cpan
-        | dx_update::edit::ConfiguredKind::Pub => (
+        | dx_update::edit::ConfiguredKind::Pub
+        | dx_update::edit::ConfiguredKind::Composer => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),

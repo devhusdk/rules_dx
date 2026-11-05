@@ -7,7 +7,8 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi, ruby, Candidate,
+    bcr, cargo, composer, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi, ruby,
+    Candidate,
     Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
@@ -283,6 +284,29 @@ pub(super) fn collect(
                 merge(
                     &mut found,
                     ruby::outdated(name, &texts, only, prereleases, ruby::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Composer => {
+                registries.insert(name.to_owned(), Registry::Packagist);
+                let texts = read_texts(workspace, &target.set.manifests);
+                let locks: Vec<String> = target
+                    .set
+                    .locks
+                    .iter()
+                    .filter(|lock| lock.ends_with("composer.lock"))
+                    .cloned()
+                    .collect();
+                merge(
+                    &mut found,
+                    composer::outdated(
+                        name,
+                        &texts,
+                        &read_texts(workspace, &locks),
+                        only,
+                        prereleases,
+                        composer::DEFAULT_BASE,
+                        fetch,
+                    ),
                 );
             }
             Ecosystem::Cpan => {

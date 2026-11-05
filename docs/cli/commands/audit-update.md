@@ -282,6 +282,7 @@ It reads registries, writes nothing and starts no Bazel. Yanked versions and pre
 | --- | --- |
 | Bazel module sets | `bazel_dep` against the Bazel Central Registry. |
 | `cargo` | crates.io. |
+| `composer` | Direct `require` and `require-dev` packages of `composer.json` against the `composer.lock` version and `repo.packagist.org/p2/<vendor>/<name>.json`. Platform requires (`php`, `ext-*`) are skipped, as are packages missing from the lock. `composer outdated` is not run. |
 | `go` | Direct `require` lines of `go.mod` against proxy.golang.org. Indirect and replaced modules are skipped. |
 | `maven` | Literal `maven.install` coordinates against Maven Central. Snapshot, alpha, beta, rc and milestone versions are ignored. |
 | `npm` | `dependencies`, `devDependencies`, `optionalDependencies` against the npm registry. |
@@ -368,6 +369,7 @@ Without `--apply` it exits `0` when the manifest already declares the version, a
 | `bazel` | Tested version in the `single_version_override`, keeping patches. Falls back to the `bazel_dep` when there is no override or no `version`. `--floor --reason <text>` edits the `bazel_dep` version and the `# floor: <text>` comment lines above it. |
 | `github-actions` | A tag resolves to its commit SHA through `api.github.com` (`GH_TOKEN` or `GITHUB_TOKEN` when set). The pin is written as the SHA in every workflow that declares the action; a `# v4` comment becomes the tag. `--offline` fails a tag with `offline_required`; pass a SHA. |
 | `cargo` | Crate in its manifests, then repins the hub with `dx update --apply <set>`. |
+| `composer` | Constraint in `require` or `require-dev` of `composer.json`, keeping the operator, then `composer update <package> --with-all-dependencies --no-install` and the digest refresh. A package that is not declared, or a constraint that is not one literal version, is refused. |
 | `go` | `require` line of the `go.mod`, then regenerates `go.sum`. If go fails or would change `go.mod`, the widen stays, `go.sum` is untouched, and the report names `go mod tidy` then `dx update <set>`. |
 | `maven` | Literal coordinate in the set's `maven.install`, then `@<set>//:pin`. Use `<set>:<group>:<artifact> <version>`. |
 | `npm`, `uv` | `package.json` or `pyproject.toml`, then refreshes the lock. |
@@ -406,6 +408,7 @@ JSON emits an `add_declared` notice for an insert, an `update_widened` notice pe
 | `uv.project` | `<hub_name>-<pyproject directory name>` | `pyproject` | `lock` |
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
 | `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
+| `composer.lock` of `@rules_dx//php/composer:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
 | `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | Conan `BazelDeps` `conan_deps_module_extension.bzl` | `conan` | `conanfile.txt` or `conanfile.py` beside the .bzl or in its parent | `conan.lock` beside the conanfile |
@@ -454,6 +457,21 @@ ruby.bundle_fetch(
 - `gemfile_lock` must sit beside the `Gemfile`, or the set is unsupported.
 - `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bundle lock`.
 - `dx security` matches `Gemfile.lock` against `.dx/advisory/rubygems.json`. `dx license` needs `[[inventory]]` with `set = "ruby"`.
+
+### composer
+
+```starlark
+composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
+composer.lock(
+    name = "php_deps",
+    digests = "//apps/php:composer.digests.json",
+    lock = "//apps/php:composer.lock",
+)
+```
+
+- `composer.json` must sit beside `composer.lock`.
+- `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json`, runs `composer update` and refreshes `composer.digests.json`.
+- `dx security` matches `composer.lock` against `.dx/advisory/packagist.json`.
 
 ### cargo
 

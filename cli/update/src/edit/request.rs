@@ -38,6 +38,8 @@ pub enum ConfiguredKind {
     Cpan,
     /// A pub set; only the package's constraint in pubspec.yaml is edited.
     Pub,
+    /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
+    Composer,
 }
 
 impl ConfiguredKind {
@@ -51,6 +53,7 @@ impl ConfiguredKind {
             ConfiguredKind::Ruby => UpdateSet::Ruby,
             ConfiguredKind::Cpan => UpdateSet::Cpan,
             ConfiguredKind::Pub => UpdateSet::Pub,
+            ConfiguredKind::Composer => UpdateSet::Composer,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -254,7 +257,7 @@ fn configured_refresh_selector(
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
         | ConfiguredKind::Go => set.name.clone(),
-        ConfiguredKind::Ruby | ConfiguredKind::Cpan | ConfiguredKind::Pub => {
+        ConfiguredKind::Ruby | ConfiguredKind::Cpan | ConfiguredKind::Pub | ConfiguredKind::Composer => {
             format!("{}:{package}", set.name)
         }
     })
@@ -289,7 +292,8 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::NuGet
         | UpdateSet::Cpan
         | UpdateSet::Pub
-        | UpdateSet::Ruby => "",
+        | UpdateSet::Ruby
+        | UpdateSet::Composer => "",
     }
 }
 
@@ -373,7 +377,8 @@ impl UpdateRequest {
             | ConfiguredKind::Go
             | ConfiguredKind::Ruby
             | ConfiguredKind::Cpan
-            | ConfiguredKind::Pub => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Pub
+            | ConfiguredKind::Composer => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -552,6 +557,9 @@ impl UpdateRequest {
             UpdateSet::Ruby => plan_gemfile(manifest, content, &self.package, &self.version),
             UpdateSet::Cpan => plan_cpanfile(manifest, content, &self.package, &self.version),
             UpdateSet::Pub => plan_pubspec(manifest, content, &self.package, &self.version),
+            UpdateSet::Composer => {
+                plan_composer_json(manifest, content, &self.package, &self.version)
+            }
             UpdateSet::GithubActions => plan_github_workflow(
                 content,
                 &self.package,

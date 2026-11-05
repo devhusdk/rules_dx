@@ -581,6 +581,7 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ("maven:junit:junit", "4.13.2"),
         ("nuget:FSharp.Core", "10.1.201"),
         ("ruby:rake", "13.2.1"),
+        ("composer:psr/log", "3.0.2"),
         ("bazel:rules_rust", "0.74.0"),
         (
             "containers:distroless_static",
@@ -1742,6 +1743,48 @@ fn cpan_refuses_undeclared_and_unversioned_modules() {
         cpan_request("Path::Tiny", "1.0")
             .expect("cpan")
             .plan_edit(CPANFILE),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
+}
+
+fn composer_request(package: &str, version: &str) -> UpdateRequest {
+    configured(
+        ConfiguredKind::Composer,
+        &["php/composer.json"],
+        None,
+        &format!("php:{package}"),
+        version,
+    )
+    .expect("composer")
+}
+
+const COMPOSER_JSON: &str = "{\n    \"require\": {\n        \"php\": \"^8.2\",\n        \"psr/log\": \"^1.1\"\n    },\n    \"require-dev\": {\n        \"phpunit/phpunit\": \"~10.0.1\"\n    }\n}\n";
+
+#[test]
+fn composer_edit_keeps_the_operator() {
+    let edited = composer_request("psr/log", "3.0.2")
+        .plan_edit(COMPOSER_JSON)
+        .expect("edit");
+    assert_eq!(edited, COMPOSER_JSON.replace("^1.1", "^3.0.2"));
+}
+
+#[test]
+fn composer_edit_reaches_require_dev() {
+    let edited = composer_request("phpunit/phpunit", "11.0.0")
+        .plan_edit(COMPOSER_JSON)
+        .expect("edit");
+    assert_eq!(edited, COMPOSER_JSON.replace("~10.0.1", "~11.0.0"));
+}
+
+#[test]
+fn composer_edit_refuses_undeclared_and_complex_constraints() {
+    assert!(matches!(
+        composer_request("acme/other", "1.0.0").plan_edit(COMPOSER_JSON),
+        Err(EditError::NotFound { .. })
+    ));
+    let complex = COMPOSER_JSON.replace("^1.1", "^1.1 || ^2.0");
+    assert!(matches!(
+        composer_request("psr/log", "3.0.0").plan_edit(&complex),
         Err(EditError::UnsupportedManifest { .. })
     ));
 }

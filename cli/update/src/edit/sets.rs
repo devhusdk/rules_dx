@@ -2,6 +2,7 @@
 pub enum UpdateSet {
     Bazel,
     Cargo,
+    Composer,
     Containers,
     Cpan,
     GithubActions,
@@ -14,9 +15,10 @@ pub enum UpdateSet {
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 11] = [
+    pub const ALL: [UpdateSet; 12] = [
         UpdateSet::Bazel,
         UpdateSet::Cargo,
+        UpdateSet::Composer,
         UpdateSet::Containers,
         UpdateSet::Cpan,
         UpdateSet::GithubActions,
@@ -42,6 +44,7 @@ impl UpdateSet {
         match self {
             UpdateSet::Bazel => "bazel",
             UpdateSet::Cargo => "cargo",
+            UpdateSet::Composer => "composer",
             UpdateSet::Containers => "containers",
             UpdateSet::Cpan => "cpan",
             UpdateSet::GithubActions => "github-actions",
@@ -58,6 +61,7 @@ impl UpdateSet {
         match text {
             "bazel" => Some(UpdateSet::Bazel),
             "cargo" => Some(UpdateSet::Cargo),
+            "composer" => Some(UpdateSet::Composer),
             "containers" => Some(UpdateSet::Containers),
             "cpan" => Some(UpdateSet::Cpan),
             "github-actions" => Some(UpdateSet::GithubActions),
@@ -104,7 +108,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 11);
+        assert_eq!(seen.len(), 12);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -133,6 +137,7 @@ mod tests {
             vec![
                 "bazel",
                 "cargo",
+                "composer",
                 "containers",
                 "cpan",
                 "github-actions",
@@ -170,6 +175,7 @@ mod tests {
         assert!(!UpdateSet::Bazel.needs_update_refresh());
         assert!(!UpdateSet::GithubActions.needs_update_refresh());
         assert!(UpdateSet::Cargo.needs_update_refresh());
+        assert!(UpdateSet::Composer.needs_update_refresh());
         assert!(UpdateSet::Npm.needs_update_refresh());
         assert!(UpdateSet::Go.needs_update_refresh());
         assert!(UpdateSet::Maven.needs_update_refresh());

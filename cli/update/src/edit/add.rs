@@ -151,6 +151,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "add an oci.pull to MODULE.bazel",
             }),
+            UpdateSet::Composer => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit composer.json and run `composer update`",
+            }),
             UpdateSet::Ruby => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the Gemfile and run `bundle lock`",

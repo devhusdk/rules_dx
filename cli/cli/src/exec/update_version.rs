@@ -630,6 +630,39 @@ dependencies = ["anyio>=4"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", digests = \"//apps/php:composer.digests.json\", lock = \"//apps/php:composer.lock\")\n";
+    const COMPOSER_JSON: &str = "{\n    \"require\": {\n        \"psr/log\": \"^1.1\"\n    }\n}\n";
+
+    fn seed_composer_set(harness: &Harness) {
+        harness.write_source("MODULE.bazel", COMPOSER_MODULE);
+        harness.write_source("apps/php/composer.json", COMPOSER_JSON);
+        harness.write_source("apps/php/composer.lock", "{\"packages\":[]}\n");
+        harness.write_source("apps/php/composer.digests.json", "{\"packages\":{}}\n");
+    }
+
+    #[test]
+    fn consumer_composer_set_refuses_an_undeclared_package_without_mutation() {
+        let harness = Harness::new("update-consumer-composer-undeclared");
+        seed_composer_set(&harness);
+        let (code, _, err) = harness.run(&["update", "vendor:acme/other", "1.0.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert_unchanged(&harness, &[("apps/php/composer.json", COMPOSER_JSON)]);
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_composer_set_widens_the_constraint_and_refreshes() {
+        let harness = Harness::new("update-consumer-composer");
+        seed_composer_set(&harness);
+        let (code, out, err) = harness.run(&["update", "vendor:psr/log", "3.0.2", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read(&harness, "apps/php/composer.json"),
+            COMPOSER_JSON.replace("^1.1", "^3.0.2")
+        );
+        assert!(!harness.build_argv.borrow().is_empty());
+    }
+
     const CARGO_A: &str =
         "[package]\nname = \"a\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n";
     const CARGO_B: &str =

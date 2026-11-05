@@ -2,6 +2,7 @@
 
 pub mod bcr;
 pub mod cargo;
+pub mod composer;
 pub mod containers;
 pub mod cpan;
 pub mod github;
@@ -94,6 +95,7 @@ pub enum Registry {
     Maven,
     Nuget,
     Rubygems,
+    Packagist,
     Metacpan,
     PubDev,
     GitHub,
@@ -117,6 +119,7 @@ impl Registry {
             },
             Registry::Nuget => format!("https://www.nuget.org/packages/{package}"),
             Registry::Rubygems => format!("https://rubygems.org/gems/{package}"),
+            Registry::Packagist => format!("https://packagist.org/packages/{package}"),
             Registry::Metacpan => format!("https://metacpan.org/pod/{package}"),
             Registry::PubDev => format!("https://pub.dev/packages/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),

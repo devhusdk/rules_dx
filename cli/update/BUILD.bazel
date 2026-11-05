@@ -15,6 +15,7 @@ dx_rust_crate(
         "src/backend.rs",
         "src/discover/bcr.rs",
         "src/discover/cargo.rs",
+        "src/discover/composer.rs",
         "src/discover/containers.rs",
         "src/discover/cpan.rs",
         "src/discover/github.rs",

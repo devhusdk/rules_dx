@@ -462,6 +462,92 @@ pub(super) fn plan_gemfile(
     Ok(edited)
 }
 
+/// Rewrites the constraint of a package in the `require` or `require-dev` of a composer.json.
+///
+/// The operator stays; only a single constraint such as `^1.2` or `~1.2.3` is rewritten.
+pub(super) fn plan_composer_json(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Gem(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected a composer version".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let json: serde_json::Value =
+        serde_json::from_str(content).map_err(|error| unsupported(&error.to_string()))?;
+    let sections: Vec<&str> = ["require", "require-dev"]
+        .into_iter()
+        .filter(|section| json[*section].get(package).is_some())
+        .collect();
+    let section = match sections.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [section] => *section,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let constraint = json[section][package]
+        .as_str()
+        .ok_or_else(|| unsupported("the constraint is not a string"))?;
+    let number = constraint.trim_start_matches(['^', '~', '>', '<', '=', ' ']);
+    let literal = number.strip_prefix('v').unwrap_or(number);
+    let single = !literal.is_empty()
+        && literal
+            .split('.')
+            .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()));
+    if !single {
+        return Err(unsupported(
+            "the constraint needs exactly one literal version",
+        ));
+    }
+    let operator = &constraint[..constraint.len() - number.len()];
+    let key_start = content
+        .find(&format!("\"{section}\""))
+        .and_then(|at| {
+            let rest = &content[at..];
+            let open = at + rest.find('{')?;
+            Some(open)
+        })
+        .ok_or_else(|| unsupported("cannot find the section"))?;
+    let section_end = content[key_start..]
+        .find('}')
+        .map_or(content.len(), |end| key_start + end);
+    let key = format!("\"{package}\"");
+    let found = content[key_start..section_end]
+        .find(&key)
+        .ok_or_else(|| unsupported("cannot find the package in its section"))?;
+    let after_key = key_start + found + key.len();
+    let value_start = after_key
+        + content[after_key..section_end]
+            .find('"')
+            .ok_or_else(|| unsupported("cannot find the constraint"))?
+        + 1;
+    let value_end = value_start + constraint.len();
+    if content.get(value_start..value_end) != Some(constraint) {
+        return Err(unsupported("the constraint has escapes"));
+    }
+    let mut edited = content.to_owned();
+    edited.replace_range(value_start..value_end, &format!("{operator}{new}"));
+    Ok(edited)
+}
+
 struct Literal<'a> {
     text: &'a str,
     /// Byte range of the text inside the quotes, relative to the line.
@@ -1030,6 +1116,18 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
         UpdateSet::Go => dx_module_bazel::identity::validate_go(package),
         UpdateSet::Maven => dx_module_bazel::identity::validate_maven(package),
         UpdateSet::NuGet => dx_module_bazel::identity::validate_nuget(package),
+        UpdateSet::Composer => {
+            let part = |text: &str| {
+                !text.is_empty()
+                    && text
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            };
+            match package.split_once('/') {
+                Some((vendor, name)) if part(vendor) && part(name) => Ok(()),
+                _ => Err("composer packages are vendor/name"),
+            }
+        }
         UpdateSet::Ruby => {
             if !package.is_empty()
                 && package

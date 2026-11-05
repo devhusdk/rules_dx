@@ -62,9 +62,9 @@ def _parse(argv):
 
 
 def _version():
-    """Returns the installed griffelib version."""
+    """Returns the installed griffelib version, or "unknown" without metadata."""
     metadata = import_tool("importlib.metadata", "version")
-    return metadata("griffelib")
+    return metadata("griffelib") or "unknown"
 
 
 def _check_sources(root, package):

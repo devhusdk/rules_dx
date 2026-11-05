@@ -8,6 +8,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -49,6 +50,21 @@ class GriffeDumpTestCase(unittest.TestCase):
             code = griffe_dump.main(argv)
         self.stderr = captured.getvalue()
         return code
+
+    def test_a_missing_distribution_version_is_written_as_unknown(self):
+        """Runfiles without package metadata still write a string version."""
+        self.write("pkg/__init__.py", '"""Doc."""\n')
+        real = griffe_dump.import_tool
+
+        def fake(module, name):
+            if module == "importlib.metadata":
+                return lambda _: None
+            return real(module, name)
+
+        with mock.patch.object(griffe_dump, "import_tool", fake):
+            self.assertEqual(self.run_driver("pkg"), 0, self.stderr)
+        document = json.loads(self.out.read_text(encoding="utf-8"))
+        self.assertEqual(document["griffe"], "unknown")
 
     def test_dumps_a_package(self):
         """A plain package writes the header and the module."""

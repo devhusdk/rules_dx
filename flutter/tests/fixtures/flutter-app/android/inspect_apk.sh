@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
-apk="$1"
+apk=""
+for f in $1; do
+    case "$f" in
+    *_unsigned.apk) ;;
+    *.apk) apk="$f" ;;
+    esac
+done
+[ -n "$apk" ] || { echo "no signed apk in: $1"; exit 1; }
 app_id="$2"
 abi="$3"
 case "$abi" in

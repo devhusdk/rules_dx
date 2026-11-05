@@ -45,7 +45,7 @@ sh_test(
         "emulator-5554",
         "dk.devhus.flutterapp",
         "dk.devhus.flutterapp.MainActivity",
-        "$(location :apk)",
+        "$(locations :apk)",
     ],
     data = [":apk"],
     tags = [
@@ -71,7 +71,7 @@ sh_test(
     size = "small",
     srcs = ["inspect_apk.sh"],
     args = [
-        "$(location :apk)",
+        "$(locations :apk)",
         "dk.devhus.flutterapp",
         "x86_64",
     ],
@@ -85,7 +85,7 @@ sh_test(
     size = "small",
     srcs = ["inspect_apk.sh"],
     args = [
-        "$(location :apk_arm64)",
+        "$(locations :apk_arm64)",
         "dk.devhus.flutterapp",
         "arm64-v8a",
     ],

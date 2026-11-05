@@ -7,6 +7,7 @@ def _tool(path):
     return path
 
 LAYOUT = struct(
+    compiler = "",
     display_plugins = {
         "wayland": [
             "plugins/platforms/libqwayland.so",

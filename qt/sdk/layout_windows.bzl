@@ -10,6 +10,7 @@ def _tool(path):
     return "bin/" + path.split("/")[-1] + ".exe"
 
 LAYOUT = struct(
+    compiler = "msvc",
     display_plugins = {},
     icu_libraries = [],
     launcher = "exec",

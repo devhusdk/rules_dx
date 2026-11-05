@@ -13,6 +13,7 @@ package(default_visibility = ["//visibility:public"])
     config_setting(
         name = "cell_" + cell,
         constraint_values = CELLS[cell].constraints,
+        flag_values = {"//cc/toolchains:compiler": CELLS[cell].layout.compiler} if CELLS[cell].layout.compiler else {},
     )
     for cell in qualified_cells()
     if CELLS[cell].layout.os != "linux"
@@ -79,6 +80,7 @@ platform(
 platform(
     name = "windows_x86_64",
     constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
         "@platforms//cpu:x86_64",
         "@platforms//os:windows",
     ],

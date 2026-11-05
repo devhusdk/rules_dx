@@ -120,6 +120,8 @@ def _pin_checks():
         ),
         expect_equal("macos cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "macos" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),
         expect_equal("windows cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "windows" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),
+        expect_equal("windows cells build with msvc", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "windows" and (CELLS[cell].layout.compiler != "msvc" or "@llvm//constraints/windows/abi:msvc" not in CELLS[cell].constraints)], []),
+        expect_equal("other layouts declare no compiler", [LINUX_LAYOUT.compiler, MACOS_LAYOUT.compiler], ["", ""]),
         expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and CELLS[cell].layout != LINUX_LAYOUT], []),
         expect_equal("windows layout names import libraries", [WINDOWS_LAYOUT.library("Core"), WINDOWS_LAYOUT.shared("Core")], ["Qt6Core.lib", "bin/Qt6Core.dll"]),
         expect_equal("windows layout runs tools from bin", [WINDOWS_LAYOUT.tool("libexec/moc"), WINDOWS_LAYOUT.tool("bin/lrelease")], ["bin/moc.exe", "bin/lrelease.exe"]),

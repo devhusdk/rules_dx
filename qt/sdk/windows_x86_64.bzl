@@ -24,7 +24,7 @@ CELL = struct(
         ),
     },
     blocker = "",
-    constraints = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+    constraints = ["@platforms//os:windows", "@platforms//cpu:x86_64", "@llvm//constraints/windows/abi:msvc"],
     directory = "windows_x86/desktop/qt6_6113/qt6_6113_msvc2022_64/qt.qt6.6113.win64_msvc2022_64",
     layout = LAYOUT,
     needs = None,

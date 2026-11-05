@@ -281,8 +281,10 @@ fn spdx_package(document: &Value, name: &str) -> Value {
 #[test]
 fn probe_evaluates_qml_against_only_pinned_libraries() {
     let probe = tool("DX_QT_PROBE");
-    let envs = &HOST_ROUTES[1..];
-    let run = dx_testing::run(&probe, &[], envs).expect("run probe");
+    let path = runtime_path();
+    let mut envs = vec![("PATH", path.as_str())];
+    envs.extend(&HOST_ROUTES[1..]);
+    let run = dx_testing::run(&probe, &[], &envs).expect("run probe");
     assert!(run.status.success(), "probe failed:\n{}", run.combined());
     assert!(
         run.stdout
@@ -295,6 +297,32 @@ fn probe_evaluates_qml_against_only_pinned_libraries() {
     for name in PROBE_LOADS {
         assert!(loaded(&objects, name), "{name} not loaded:\n{}", run.stdout);
     }
+}
+
+/// Windows loads DLLs from next to the symlinked executable, not next to its target,
+/// so the pinned runtime `bin` directory goes first on PATH for the children.
+#[cfg(windows)]
+fn runtime_path() -> String {
+    let paths = std::env::var("DX_QT_RUNTIME").expect("DX_QT_RUNTIME must name files");
+    let core = paths
+        .split_whitespace()
+        .find(|path| file_name(path) == "Qt6Core.dll")
+        .unwrap_or_else(|| panic!("DX_QT_RUNTIME holds no Qt6Core.dll: {paths}"));
+    let bin = dx_testing::resolve_runfiles(core)
+        .parent()
+        .expect("runtime directory")
+        .to_str()
+        .expect("utf-8 path")
+        .to_owned();
+    match std::env::var("PATH") {
+        Ok(path) => format!("{bin};{path}"),
+        Err(_) => bin,
+    }
+}
+
+#[cfg(not(windows))]
+fn runtime_path() -> String {
+    std::env::var("PATH").unwrap_or_default()
 }
 
 fn directory_of(variable: &str, name: &str) -> String {
@@ -319,7 +347,9 @@ fn run_gui(platform: &str) -> dx_testing::Run {
         .parent()
         .and_then(Path::parent)
         .expect("import root");
+    let path = runtime_path();
     let mut envs = vec![
+        ("PATH", path.as_str()),
         LOADER_TRACE,
         ("QML_IMPORT_PATH", imports.to_str().expect("utf-8 path")),
         ("QT_QPA_PLATFORM", platform),

@@ -2,6 +2,7 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("//cc/toolchains:select.bzl", "cc_toolchain_binary")
 load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -82,12 +83,14 @@ platform_transition_binary(
     target_platform = "//qt/platforms:macos_arm64",
 )
 
-platform_transition_binary(
+# Qt's msvc2022 DLLs export Microsoft STL types, so Windows builds with cl.exe.
+cc_toolchain_binary(
     name = "probe_windows_x86_64",
     binary = ":probe",
+    compiler = "msvc",
+    platforms = ["//qt/platforms:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X86_64,
-    target_platform = "//qt/platforms:windows_x86_64",
 )
 
 alias(
@@ -132,6 +135,7 @@ _QT_TEST_ENV = {
     "DX_QT_PROBE": "$(rootpath :probe_native)",
     "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
     "DX_QT_QMLDIR_PATH": "$(rootpath @dx_qt//:qtqml_qmldir)",
+    "DX_QT_RUNTIME": "$(rootpaths @dx_qt//:runtime)",
     "DX_QT_SBOM": "$(rootpaths @dx_qt//:sbom)",
     "DX_RCC": "$(rootpath @dx_qt//:rcc)",
     "DX_UIC": "$(rootpath @dx_qt//:uic)",
@@ -170,7 +174,14 @@ rust_test(
         "block-network",
         "no-remote-exec",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
+    # Windows is data only here: the C++ probes are built with cl.exe by cc_toolchain_binary.
+    target_compatible_with = select({
+        "@dx_qt//:linux_arm64": [],
+        "@dx_qt//:linux_x86_64": [],
+        "@dx_qt//:macos_arm64": [],
+        "@dx_qt//:windows_x86_64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -249,13 +260,14 @@ platform_transition_binary(
     target_platform = "//qt/platforms:macos_arm64",
 )
 
-platform_transition_binary(
+cc_toolchain_binary(
     name = "gui_check_windows_x86_64",
     testonly = True,
     binary = ":gui_check",
+    compiler = "msvc",
+    platforms = ["//qt/platforms:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X86_64,
-    target_platform = "//qt/platforms:windows_x86_64",
 )
 
 alias(

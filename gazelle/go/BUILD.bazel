@@ -64,6 +64,7 @@ real_source_target(
         "testdata/external_same_package/README.md",
         "testdata/importpath/README.md",
         "testdata/merge/README.md",
+        "testdata/proto_import/README.md",
         "testdata/source_only/README.md",
     ],
     tags = ["corpus"],

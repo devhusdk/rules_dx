@@ -17,6 +17,7 @@ go_proto_library(
     importpath = "example.com/gen/app",
     proto = ":app_proto",
     visibility = ["//visibility:public"],
+    deps = ["//api:api_go_proto"],
 )
 
 py_proto_library(

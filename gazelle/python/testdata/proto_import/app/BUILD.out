@@ -1,0 +1,16 @@
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library")
+
+python_library(
+    name = "main",
+    srcs = ["main.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = ["//api:api_py_proto"],
+)
+
+python_binary(
+    name = "main_bin",
+    imports = ["."],
+    main = "main.py",
+    deps = [":main"],
+)

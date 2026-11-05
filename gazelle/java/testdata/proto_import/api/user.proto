@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package api;
+
+option java_package = "com.example.api";
+
+message User {
+  string name = 1;
+}

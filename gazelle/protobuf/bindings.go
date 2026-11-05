@@ -8,8 +8,11 @@ import (
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
 const (
@@ -41,14 +44,18 @@ func bindingKinds() map[string]rule.KindInfo {
 		attrs := map[string]bool{"deps": true, "visibility": true}
 		attr := "deps"
 		if b.kind == goKind {
-			attrs = map[string]bool{"proto": true, "importpath": true}
+			attrs = map[string]bool{"proto": true, "importpath": true, "deps": true}
 			attr = "proto"
 		}
-		kinds[b.kind] = rule.KindInfo{
+		info := rule.KindInfo{
 			MatchAttrs:     []string{attr},
 			NonEmptyAttrs:  map[string]bool{attr: true},
 			MergeableAttrs: attrs,
 		}
+		if b.kind == goKind {
+			info.ResolveAttrs = map[string]bool{"deps": true}
+		}
+		kinds[b.kind] = info
 	}
 	return kinds
 }
@@ -99,6 +106,7 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 				continue
 			}
 			r := rule.NewRule(b.kind, base+b.infix+suffix)
+			var imp any
 			if b.kind == goKind {
 				path := goImportPath(args.Dir, lib.AttrStrings("srcs"))
 				if path == "" {
@@ -106,12 +114,13 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 				}
 				r.SetAttr("proto", ":"+lib.Name())
 				r.SetAttr("importpath", path)
+				imp = common.WrapImportSet(libImports(result, lib))
 			} else {
 				r.SetAttr("deps", []string{":" + lib.Name()})
 			}
 			r.SetAttr("visibility", []string{"//visibility:public"})
 			gen = append(gen, r)
-			imports = append(imports, nil)
+			imports = append(imports, imp)
 			desired[r.Kind()+"\x00"+r.Name()] = true
 		}
 	}
@@ -150,4 +159,116 @@ func goImportPath(dir string, srcs []string) string {
 		}
 	}
 	return ""
+}
+
+// libImports returns the import set Generate recorded for lib.
+func libImports(result language.GenerateResult, lib *rule.Rule) []string {
+	for i, r := range result.Gen {
+		if r == lib && i < len(result.Imports) {
+			if names, ok := common.UnwrapImportSet(result.Imports[i]); ok {
+				return names
+			}
+		}
+	}
+	return nil
+}
+
+var (
+	protoPackage = regexp.MustCompile(`(?m)^\s*package\s+([A-Za-z0-9_.]+)\s*;`)
+	javaPackage  = regexp.MustCompile(`(?m)^\s*option\s+java_package\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')\s*;`)
+)
+
+// JavaPackage returns the java_package option, or else the proto package. It
+// is empty when neither is set.
+func JavaPackage(content []byte) string {
+	content = stripComments(content)
+	if m := javaPackage.FindSubmatch(content); m != nil {
+		return string(m[1]) + string(m[2])
+	}
+	if m := protoPackage.FindSubmatch(content); m != nil {
+		return string(m[1])
+	}
+	return ""
+}
+
+// Binding keys are indexed under the protobuf language as "<key>:<value>", so
+// other languages find the binding of the code they import.
+const (
+	keyGo      = "go"
+	keyGoProto = "go_proto"
+	keyPython  = "python"
+	keyJava    = "java"
+	keyCC      = "cc"
+)
+
+// crossKeys maps the language of an importing rule to its binding key.
+var crossKeys = map[string]string{"go": keyGo, "python": keyPython, "java": keyJava, "cc": keyCC}
+
+func bindingKey(key, value string) string { return key + ":" + value }
+
+func protoLabel(c *config.Config, pkg, name string) string {
+	return label.New(c.RepoName, pkg, name).String()
+}
+
+// bindingImports indexes a binding rule under the imports of the code it
+// generates.
+func bindingImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+	if f == nil {
+		return nil
+	}
+	var wrapped string
+	if r.Kind() == goKind {
+		wrapped = strings.TrimPrefix(r.AttrString("proto"), ":")
+	} else if deps := r.AttrStrings("deps"); len(deps) == 1 {
+		wrapped = strings.TrimPrefix(deps[0], ":")
+	}
+	var lib *rule.Rule
+	for _, other := range f.Rules {
+		if other.Kind() == LibraryKind && other.Name() == wrapped {
+			lib = other
+		}
+	}
+	if lib == nil {
+		return nil
+	}
+	var specs []resolve.ImportSpec
+	seen := map[string]bool{}
+	add := func(key, value string) {
+		imp := bindingKey(key, value)
+		if value != "" && !seen[imp] {
+			seen[imp] = true
+			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: imp})
+		}
+	}
+	switch r.Kind() {
+	case goKind:
+		add(keyGo, r.AttrString("importpath"))
+		add(keyGoProto, protoLabel(c, f.Pkg, lib.Name()))
+		return specs
+	}
+	dir := filepath.Join(c.RepoRoot, f.Pkg)
+	for _, src := range lib.AttrStrings("srcs") {
+		stem := common.ModuleIdentity(f.Pkg, strings.TrimSuffix(src, filepath.Ext(src)))
+		switch r.Kind() {
+		case pyKind:
+			add(keyPython, strings.ReplaceAll(stem, "/", ".")+"_pb2")
+		case ccKind:
+			add(keyCC, stem+".pb.h")
+		case javaKind:
+			if content, err := os.ReadFile(filepath.Join(dir, src)); err == nil {
+				add(keyJava, JavaPackage(content))
+			}
+		}
+	}
+	return specs
+}
+
+// CrossResolve lets Go, Python, Java and C++ imports of generated proto code
+// find the binding rule that produces it.
+func (l *protoLang) CrossResolve(c *config.Config, ix *resolve.RuleIndex, imp resolve.ImportSpec, lang string) []resolve.FindResult {
+	key, ok := crossKeys[imp.Lang]
+	if !ok {
+		return nil
+	}
+	return ix.FindRulesByImportWithConfig(c, resolve.ImportSpec{Lang: languageName, Imp: bindingKey(key, imp.Imp)}, languageName)
 }

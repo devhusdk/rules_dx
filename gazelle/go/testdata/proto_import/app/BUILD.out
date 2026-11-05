@@ -1,0 +1,9 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library")
+
+go_library(
+    name = "app",
+    srcs = ["app.go"],
+    importpath = "example.com/proto_import/app",
+    visibility = ["//visibility:public"],
+    deps = ["//api:api_go_proto"],
+)

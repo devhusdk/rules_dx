@@ -14,8 +14,8 @@ fn absolute(path: &str) -> PathBuf {
     std::env::current_dir().unwrap().join(path)
 }
 
-fn read_fixture() -> Fixture {
-    let text = fs::read_to_string(std::env::var("GCOV_FIXTURE").unwrap()).unwrap();
+fn read_fixture(var: &str) -> Fixture {
+    let text = fs::read_to_string(std::env::var(var).unwrap()).unwrap();
     let mut fixture = Fixture {
         tests: Vec::new(),
         notes: Vec::new(),
@@ -49,8 +49,18 @@ struct Run {
     gcov: PathBuf,
 }
 
+impl Run {
+    fn manifest_entries(&self) -> Vec<String> {
+        fs::read_to_string(&self.manifest)
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect()
+    }
+}
+
 fn setup(name: &str) -> Run {
-    let fixture = read_fixture();
+    let fixture = read_fixture("GCOV_FIXTURE");
     let base = Path::new(&std::env::var("TEST_TMPDIR").unwrap()).join(name);
     let root = base.join("root");
     let coverage_dir = base.join("cov");
@@ -118,6 +128,53 @@ fn reports_hit_and_missed_lines() {
         .collect();
     assert!(counts.iter().any(|&k| k > 0), "{lcov}");
     assert!(counts.contains(&0), "{lcov}");
+}
+
+#[test]
+fn reports_shared_library_lines() {
+    let run = setup("shared");
+    let out = collect(&run);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let lcov = fs::read_to_string(run.coverage_dir.join("coverage.dat")).unwrap();
+    let record = lcov
+        .split("end_of_record")
+        .find(|r| r.contains("SF:cc/tests/fixtures/gcc_shared/greet.cc"))
+        .unwrap_or_else(|| panic!("{lcov}"));
+    let hit = record
+        .lines()
+        .filter_map(|l| l.strip_prefix("DA:")?.split_once(',')?.1.parse::<u64>().ok())
+        .any(|k| k > 0);
+    assert!(hit, "{record}");
+}
+
+#[test]
+fn fails_on_stale_gcda() {
+    let run = setup("stale");
+    let alt = read_fixture("GCOV_FIXTURE_ALT");
+    let mut replaced = false;
+    for pair in &alt.notes {
+        let (alt_path, source) = pair.split_once('=').unwrap();
+        let name = Path::new(alt_path).file_name().unwrap();
+        if name != "lib.pic.gcno" {
+            continue;
+        }
+        let dest = run
+            .manifest_entries()
+            .into_iter()
+            .find(|p| Path::new(p).file_name() == Some(name))
+            .unwrap();
+        fs::copy(absolute(source), run.root.join(dest)).unwrap();
+        replaced = true;
+    }
+    assert!(replaced);
+    let out = collect(&run);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("lib.pic.gcda"), "{stderr}");
 }
 
 #[test]

@@ -40,10 +40,12 @@ rust_test(
     data = [
         ":collect_native",
         "//cc/tests/fixtures/gcc_coverage:gcov_fixture",
+        "//cc/tests/fixtures/gcc_coverage:gcov_fixture_alt",
     ],
     env = {
         "COLLECT_NATIVE": "$(rootpath :collect_native)",
         "GCOV_FIXTURE": "$(rootpath //cc/tests/fixtures/gcc_coverage:gcov_fixture)",
+        "GCOV_FIXTURE_ALT": "$(rootpath //cc/tests/fixtures/gcc_coverage:gcov_fixture_alt)",
     },
     target_compatible_with = [
         "@platforms//os:linux",

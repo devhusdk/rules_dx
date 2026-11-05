@@ -28,11 +28,39 @@ cc_test(
     deps = [":lib"],
 )
 
+cc_library(
+    name = "lib_alt",
+    srcs = ["lib.c"],
+    hdrs = ["lib.h"],
+    copts = ["-DALT_BUILD"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
+cc_test(
+    name = "main_alt_test",
+    srcs = ["main.cc"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+    deps = [":lib_alt"],
+)
+
 cc_gcov_fixture(
     name = "gcov_fixture",
     tags = ["manual"],
+    libraries = ["//cc/tests/fixtures/gcc_shared:greet"],
     target_compatible_with = _GCC_ONLY,
-    tests = [":main_test"],
+    tests = [
+        ":main_test",
+        "//cc/tests/fixtures/gcc_shared:shared_test",
+    ],
+)
+
+cc_gcov_fixture(
+    name = "gcov_fixture_alt",
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+    tests = [":main_alt_test"],
 )
 
 real_source_target(

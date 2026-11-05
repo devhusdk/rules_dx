@@ -318,7 +318,7 @@ filegroup(
         "//quality:module_srcs",
         "//rust/rules:module_srcs",
     ],
-    visibility = ["//:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

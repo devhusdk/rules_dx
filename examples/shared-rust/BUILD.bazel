@@ -51,6 +51,7 @@ filegroup(
         "core/lib.rs",
         "model/lib.rs",
     ],
+    visibility = ["//visibility:public"],
 )
 
 rust_test(

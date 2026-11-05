@@ -84,6 +84,7 @@ USER_BOOK = [
     mdbook_page("Explain", "docs/cli/commands/explain.md", "//docs:cli/commands/explain.md"),
     mdbook_page("Bench", "docs/cli/commands/bench.md", "//docs:cli/commands/bench.md"),
     mdbook_page("Fuzz", "docs/cli/commands/fuzz.md", "//docs:cli/commands/fuzz.md"),
+    mdbook_page("Mutate", "docs/cli/commands/mutate.md", "//docs:cli/commands/mutate.md"),
     mdbook_page(
         "Offline Bundle",
         "docs/cli/commands/offline-bundle.md",

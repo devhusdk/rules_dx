@@ -21,6 +21,7 @@ mod failure_reports;
 mod profile_report;
 pub mod first_run;
 mod fuzz;
+mod mutate;
 mod generate;
 mod guidance;
 #[cfg(test)]
@@ -283,6 +284,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Explain => explain::execute_explain(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
+        Command::Mutate => mutate::execute_mutate(invocation, env),
     }
 }
 

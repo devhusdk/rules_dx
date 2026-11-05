@@ -92,6 +92,13 @@ fn fuzz_duration(raw: &str) -> Result<String, String> {
     }
 }
 
+fn survived_percent(raw: &str) -> Result<u32, String> {
+    match raw.strip_prefix("survived:") {
+        Some(rest) => percent(rest),
+        None => Err(format!("want survived:<pct>, got {raw:?}")),
+    }
+}
+
 /// The usage line clap renders for one command.
 fn usage_of(index: usize) -> String {
     let usage = COMMANDS[index].usage;
@@ -161,6 +168,7 @@ pub(crate) struct Flags {
     pub(crate) new_log: Option<String>,
     pub(crate) time: Option<String>,
     pub(crate) jobs: Option<u16>,
+    pub(crate) fail_survived: Option<u32>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -818,6 +826,27 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Fail when more than this percent of mutants survive.
+    FailSurvivedFlag, {
+        #[arg(
+            long = "fail-on",
+            value_name = "survived:PCT",
+            overrides_with = "fail_survived",
+            value_parser = survived_percent
+        )]
+        fail_survived: Option<u32>,
+    }
+}
+
+composite_group! {
+    /// The mutation budget and gate flags.
+    MutateArgs, {
+        time: TimeFlag,
+        fail_survived: FailSurvivedFlag,
+    }
+}
+
 composite_group! {
     /// The fuzz budget flags.
     FuzzArgs, {
@@ -1164,6 +1193,8 @@ command_args! {
     Explain => 23, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx fuzz` accepts.
     Fuzz => 24, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
+    /// The flags `dx mutate` accepts.
+    Mutate => 25, NoPassthroughTail, { own: MutateArgs, here: HereFlag, };
 }
 
 #[derive(Parser)]

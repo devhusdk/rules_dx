@@ -25,6 +25,7 @@ pub enum Command {
     Worktree,
     Explain,
     Fuzz,
+    Mutate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,7 +96,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 25] = [
+pub static COMMANDS: [CommandMeta; 26] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -446,6 +447,20 @@ pub static COMMANDS: [CommandMeta; 25] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
     },
+    CommandMeta {
+        command: Command::Mutate,
+        name: "mutate",
+        scope_policy: "default-//...",
+        describe: "run dx-mutate targets for a time budget and report surviving mutants",
+        usage: "Usage: dx mutate [--here] [--time <duration>] [--fail-on=survived:<pct>] [scope ...]",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //.... Only targets tagged dx-mutate run.",
+        is_managed: false,
+        is_adoption: false,
+        default_release: false,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+    },
 ];
 
 impl Command {
@@ -511,7 +526,8 @@ impl Command {
 
     /// Whether `--fail-on` applies; watch passes it to the command it wraps.
     pub fn supports_fail_on(self) -> bool {
-        super::grammar::accepts_long(self, "fail-on") && self != Command::Watch
+        super::grammar::accepts_long(self, "fail-on")
+            && !matches!(self, Command::Watch | Command::Mutate)
     }
 
     pub fn describe(self) -> &'static str {
@@ -592,7 +608,12 @@ mod tests {
         let json: Vec<Command> = all
             .iter()
             .copied()
-            .filter(|c| !matches!(c, Command::Deploy | Command::Completion | Command::Fuzz))
+            .filter(|c| {
+                !matches!(
+                    c,
+                    Command::Deploy | Command::Completion | Command::Fuzz | Command::Mutate
+                )
+            })
             .collect();
         assert_eq!(set(Command::supports_json), json);
         let in_order = |names: &[Command]| -> Vec<Command> {
@@ -624,7 +645,8 @@ mod tests {
                 Command::Bench,
                 Command::Check,
                 Command::Docs,
-                Command::Fuzz
+                Command::Fuzz,
+                Command::Mutate
             ])
         );
         assert_eq!(
@@ -713,6 +735,7 @@ mod tests {
             Command::Worktree,
             Command::Explain,
             Command::Fuzz,
+            Command::Mutate,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -802,7 +825,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz|mutate",
             "pipe_list order must match declaration order"
         );
     }

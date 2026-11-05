@@ -319,6 +319,8 @@ pub struct Invocation {
     pub time: Option<String>,
     /// `dx fuzz --jobs`: jobs each fuzz runner may use.
     pub jobs: Option<u16>,
+    /// `dx mutate --fail-on=survived:<pct>`: the survivor percent that fails the run.
+    pub fail_survived: Option<u32>,
     pub path_only: bool,
     pub shell: Option<String>,
     pub agent: bool,
@@ -725,6 +727,7 @@ mod tests {
             old_log: None,
             time: None,
             jobs: None,
+            fail_survived: None,
             new_log: None,
             path_only: false,
             shell: None,

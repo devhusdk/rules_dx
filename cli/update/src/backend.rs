@@ -639,8 +639,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, request) => {
@@ -765,6 +765,7 @@ pub fn plan_configured(
             ]))
         }
         (Ecosystem::SwiftPm, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::SwiftPm, Selection::Packages(packages)) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -782,6 +783,36 @@ pub fn plan_configured(
                 argv: swift_argv(workspace, set, head, true, &command)?,
                 env: Vec::new(),
             })
+        }
+        (Ecosystem::Opam, Selection::Packages(packages)) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let Some(manifest) = set.manifests.first().and_then(|m| m.rsplit('/').next()) else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: "the set has no .opam file",
+                });
+            };
+            let mut upgrade = vec!["upgrade"];
+            upgrade.extend(packages.iter().map(String::as_str));
+            Ok(BackendPlan::Sequence(vec![
+                Run {
+                    argv: opam_argv(workspace, set, head, &upgrade)?,
+                    env: opam_env(),
+                },
+                Run {
+                    argv: opam_argv(workspace, set, head, &["lock", manifest])?,
+                    env: opam_env(),
+                },
+            ]))
         }
         (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Cpan, Selection::Packages(modules)) => {
@@ -999,8 +1030,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, Selection::Full) => {
@@ -1097,6 +1128,26 @@ pub fn check_configured(
         (Ecosystem::SwiftPm, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "swift package resolve checks the whole Package.resolved; select the set without a package",
+        }),
+        (Ecosystem::Opam, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            Ok(CheckPlan::Run {
+                argv: opam_argv(
+                    workspace,
+                    set,
+                    head,
+                    &["install", "--locked", "--deps-only", "--dry-run", "--show-actions", "."],
+                )?,
+                env: opam_env(),
+            })
+        }
+        (Ecosystem::Opam, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "opam checks the whole .opam.locked file; select the set without a package",
         }),
         (Ecosystem::Cpan, Selection::Full) => {
             if offline {
@@ -1428,6 +1479,26 @@ fn julia_env() -> Vec<(String, String)> {
         "JULIA_DEPOT_PATH".to_owned(),
         path.to_string_lossy().into_owned(),
     )]
+}
+
+/// An `opam` run from the pinned binary and opam-repository snapshot in the set's directory.
+fn opam_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    command: &[&str],
+) -> Result<Vec<String>, BackendError> {
+    let dir = set_dir(workspace, set)?;
+    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//ocaml/tools:opam", "--"]);
+    argv.extend(strings(command));
+    Ok(argv)
+}
+
+/// Keeps the opam root, with the snapshot as its only repository, out of the workspace.
+fn opam_env() -> Vec<(String, String)> {
+    let path = std::env::temp_dir().join("dx-opam-root");
+    vec![("OPAMROOT".to_owned(), path.to_string_lossy().into_owned())]
 }
 
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
@@ -2258,6 +2329,17 @@ mod tests {
         }
     }
 
+    fn opam_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "ocaml".to_owned(),
+            ecosystem: Ecosystem::Opam,
+            dir: "app".to_owned(),
+            manifests: vec!["app/app.opam".to_owned()],
+            locks: vec!["app/app.opam.locked".to_owned()],
+            repository: None,
+        }
+    }
+
     fn swift_update(
         packages: &[&str],
         offline: bool,
@@ -2267,6 +2349,18 @@ mod tests {
             ws(),
             &swift_set(),
             &Selection::Packages(strings(packages)),
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    }
+
+    fn opam_update(offline: bool, frozen: bool) -> Result<BackendPlan, BackendError> {
+        plan_configured(
+            ws(),
+            &opam_set(),
+            &Selection::Packages(vec!["astring".to_owned()]),
             offline,
             frozen,
             &no_head(),
@@ -2330,6 +2424,79 @@ mod tests {
         assert!(matches!(
             swift_update(&["a"], false, true),
             Err(BackendError::FrozenLocked { .. })
+        ));
+    }
+
+    #[test]
+    fn opam_update_upgrades_then_relocks() {
+        let BackendPlan::Sequence(runs) = opam_update(false, false).expect("plan") else {
+            panic!("expected a sequence");
+        };
+        assert_eq!(runs.len(), 2);
+        assert_eq!(
+            runs[0].argv[runs[0].argv.len() - 2..],
+            ["upgrade", "astring"]
+        );
+        assert_eq!(runs[1].argv[runs[1].argv.len() - 2..], ["lock", "app.opam"]);
+        assert!(runs[0]
+            .argv
+            .iter()
+            .any(|a| a.contains("cd '/dx-workspace/app'")));
+        assert!(runs[1]
+            .argv
+            .contains(&"@rules_dx//ocaml/tools:opam".to_owned()));
+        assert_eq!(runs[0].env[0].0, "OPAMROOT");
+    }
+
+    #[test]
+    fn opam_update_refuses_frozen_and_offline() {
+        assert!(matches!(
+            opam_update(false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+        assert!(matches!(
+            opam_update(true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+    }
+
+    #[test]
+    fn opam_check_dry_runs_the_locked_install() {
+        let plan = check_configured(
+            ws(),
+            &opam_set(),
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect("plan");
+        let CheckPlan::Run { argv, .. } = plan else {
+            panic!("expected a run");
+        };
+        assert_eq!(
+            argv[argv.len() - 6..],
+            [
+                "install",
+                "--locked",
+                "--deps-only",
+                "--dry-run",
+                "--show-actions",
+                "."
+            ]
+        );
+        assert!(matches!(
+            check_configured(
+                ws(),
+                &opam_set(),
+                &Selection::Full,
+                true,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
+            Err(BackendError::OfflineRequired { .. })
         ));
     }
 

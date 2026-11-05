@@ -7,8 +7,8 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cabal, cargo, composer, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi,
-    ruby, swiftpm, Candidate, Fetch, Findings, Registry,
+    bcr, cabal, cargo, composer, containers, cpan, github, go, maven, npm, nuget, opam, pub_dev,
+    pypi, ruby, swiftpm, Candidate, Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 pub(crate) const REGISTRY_DIR_ENV: &str = "DX_UPDATE_REGISTRY_DIR";
+const OPAM_SNAPSHOT_ENV: &str = "DX_OPAM_SNAPSHOT_DIR";
 
 pub(crate) const CODE_UPDATE_OUTDATED: &str = "update_outdated";
 pub(crate) const CODE_UPDATE_OUTDATED_UNSUPPORTED: &str = "update_outdated_unsupported";
@@ -188,6 +189,28 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     exit
 }
 
+/// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
+fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, String> {
+    if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
+        return Ok(PathBuf::from(dir));
+    }
+    let mut argv = dx_process::BazelHead::default().argv("run");
+    argv.extend(["@rules_dx//ocaml/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
+    let output = std::process::Command::new(&argv[0])
+        .args(&argv[1..])
+        .current_dir(workspace)
+        .output()
+        .map_err(|error| format!("cannot run bazel for the opam snapshot: {error}"))?;
+    if !output.status.success() {
+        return Err("bazel could not provide the opam-repository snapshot".to_owned());
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    match text.lines().last().map(str::trim).filter(|l| !l.is_empty()) {
+        Some(dir) => Ok(PathBuf::from(dir)),
+        None => Err("the opam wrapper printed no snapshot directory".to_owned()),
+    }
+}
+
 /// What the registries said about the resolved sets.
 pub(super) struct Collected {
     pub found: Findings,
@@ -352,6 +375,21 @@ pub(super) fn collect(
                         fetch,
                     ),
                 );
+            }
+            Ecosystem::Opam => {
+                registries.insert(name.to_owned(), Registry::Opam);
+                let texts = read_texts(workspace, &target.set.locks);
+                match opam_snapshot_dir(workspace) {
+                    Ok(snapshot) => merge(
+                        &mut found,
+                        opam::outdated(name, &texts, only, prereleases, &snapshot),
+                    ),
+                    Err(reason) => found.errors.push(dx_update::discover::LookupError {
+                        set: name.to_owned(),
+                        package: String::new(),
+                        reason,
+                    }),
+                }
             }
             Ecosystem::Pub => {
                 registries.insert(name.to_owned(), Registry::PubDev);

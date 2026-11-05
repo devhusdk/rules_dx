@@ -1,0 +1,38 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+[
+    config_setting(
+        name = "{}_{}".format(os, cpu),
+        constraint_values = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
+    )
+    for os in ["linux", "macos"]
+    for cpu in ["x86_64", "aarch64"]
+]
+
+alias(
+    name = "opam_binary",
+    actual = select({
+        ":linux_aarch64": "@dx_opam_linux_arm64//file",
+        ":linux_x86_64": "@dx_opam_linux_x86_64//file",
+        ":macos_aarch64": "@dx_opam_macos_arm64//file",
+        ":macos_x86_64": "@dx_opam_macos_x86_64//file",
+    }),
+)
+
+sh_binary(
+    name = "opam",
+    srcs = ["opam.sh"],
+    args = [
+        "$(rlocationpath :opam_binary)",
+        "$(rlocationpath @dx_opam_repository//:repo)",
+    ],
+    data = [
+        ":opam_binary",
+        "@dx_opam_repository//:repo",
+    ],
+)

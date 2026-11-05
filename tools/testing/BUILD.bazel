@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_TAGS")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -220,29 +220,6 @@ rust_test(
 )
 
 # keep
-# size: large, nested Bazel consumer build, see #5689
-rust_test(
-    name = "nested_bazel_leak_test",
-    size = "large",
-    srcs = ["nested_bazel_leak_test.rs"],
-    data = [
-        ":nested_bazel_probe",
-        "//:.bazelversion",
-    ] + NESTED_BAZEL_DATA,
-    env = NESTED_BAZEL_ENV | {
-        "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
-        "RUST_TEST_THREADS": "1",
-    },
-    env_inherit = NESTED_BAZEL_ENV_INHERIT,
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    deps = [
-        ":dx_nested",
-        ":dx_testing",
-        "//cli/test_scratch:dx_test_scratch",
-    ],
-)
-
-# keep
 rust_test(
     name = "consumer_maven_lock_test",
     srcs = ["consumer_maven_lock_test.rs"],
@@ -264,18 +241,30 @@ rust_test(
     size = "large",
     srcs = ["nested_bazel_harness_test.rs"],
     data = [
+        ":nested_bazel_probe",
         "//:.bazelversion",
         "//:module_srcs",
     ] + NESTED_BAZEL_DATA,
-    env = NESTED_BAZEL_ENV | {
-        "PATH": "/usr/bin:/bin",
-        "RUST_TEST_THREADS": "1",
-    },
+    env = select({
+        "@platforms//os:linux": NESTED_BAZEL_ENV | {
+            "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
+            "PATH": "/usr/bin:/bin",
+            "RUST_TEST_THREADS": "1",
+        },
+        "//conditions:default": NESTED_BAZEL_ENV | {
+            "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
+            "RUST_TEST_THREADS": "1",
+        },
+    }),
+    env_inherit = select({
+        "@platforms//os:linux": [],
+        "//conditions:default": NESTED_BAZEL_ENV_INHERIT,
+    }),
     tags = NESTED_BAZEL_TAGS,
-    target_compatible_with = ["@platforms//os:linux"],
     deps = [
         ":dx_nested",
         ":dx_testing",
+        "//cli/test_scratch:dx_test_scratch",
     ],
 )
 
@@ -287,7 +276,6 @@ rustfmt_test(
         ":dx_nested",
         ":dx_testing",
         ":module_srcs_test",
-        ":nested_bazel_leak_test",
         ":nested_bazel_harness_test",
         ":nested_bazel_probe",
         ":nested_bazel_shim",
@@ -305,7 +293,6 @@ rust_clippy_test(
         ":dx_nested",
         ":dx_testing",
         ":module_srcs_test",
-        ":nested_bazel_leak_test",
         ":nested_bazel_harness_test",
         ":nested_bazel_probe",
         ":nested_bazel_shim",

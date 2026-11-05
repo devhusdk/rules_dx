@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
+load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -130,6 +130,9 @@ def support_matrix_facts_dict():
     for name in PLATFORM_NOT_APPLICABLE:
         if name not in row_names:
             fail("support matrix: PLATFORM_NOT_APPLICABLE names unknown row " + name)
+    for name in UNSUPPORTED_CONSTRAINTS:
+        if name not in PLATFORM_NOT_APPLICABLE:
+            fail("support matrix: UNSUPPORTED_CONSTRAINTS names " + name + " which has no PLATFORM_NOT_APPLICABLE reason")
     support = []
     for record in SUPPORT_RECORDS:
         support.append({
@@ -150,6 +153,7 @@ def support_matrix_facts_dict():
         "platform_not_applicable": PLATFORM_NOT_APPLICABLE,
         "platforms": PLATFORMS,
         "quality": quality,
+        "unsupported_constraints": UNSUPPORTED_CONSTRAINTS,
         "rows": [
             {
                 "ci_tests": row.get("ci_tests", []),

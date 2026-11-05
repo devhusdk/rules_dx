@@ -4,13 +4,15 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use support_matrix::runfiles_source::RunfilesSource;
-use support_matrix::{generate, parse_facts, Source, MATRIX_PATH, UPDATE_COMMAND};
+use support_matrix::{
+    generate, parse_facts, unsupported_json, Source, MATRIX_PATH, UNSUPPORTED_PATH, UPDATE_COMMAND,
+};
 
 const FACTS: &str = "tools/docs/support_matrix/facts.json";
 
-fn write(workspace: &Path, text: &str) -> Result<(), String> {
-    let target = workspace.join(MATRIX_PATH);
-    let staging = workspace.join(format!("{MATRIX_PATH}.tmp"));
+fn write(workspace: &Path, path: &str, text: &str) -> Result<(), String> {
+    let target = workspace.join(path);
+    let staging = workspace.join(format!("{path}.tmp"));
     std::fs::write(&staging, text)
         .map_err(|error| format!("write {}: {error}", staging.display()))?;
     std::fs::rename(&staging, &target)
@@ -55,7 +57,12 @@ fn run() -> Result<ExitCode, String> {
                     "top-level dirs {unlisted:?} are neither rows nor NOT_LANGUAGES in tools/docs/support_matrix/languages.bzl"
                 ));
             }
-            write(workspace, &matrix)?;
+            write(workspace, MATRIX_PATH, &matrix)?;
+            write(
+                workspace,
+                UNSUPPORTED_PATH,
+                &unsupported_json(&parse_facts(&facts)?),
+            )?;
             Ok(ExitCode::SUCCESS)
         }
         other => Err(format!("usage: support_matrix --write (got {other:?})")),

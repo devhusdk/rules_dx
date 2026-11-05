@@ -12,6 +12,9 @@ use serde::Deserialize;
 /// The page this crate generates, relative to the workspace root.
 pub const MATRIX_PATH: &str = "docs/support-matrix.md";
 
+/// The skip reasons dx reads at run time, relative to the workspace root.
+pub const UNSUPPORTED_PATH: &str = "cli/cli/src/exec/unsupported.json";
+
 /// The command that refreshes the page.
 pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";
 
@@ -81,6 +84,9 @@ pub struct Facts {
     /// Family, capability, tool, then platform, then the reason the tool cannot run there.
     #[serde(default)]
     pub tool_not_applicable: ToolNotApplicable,
+    /// Row name to the label of its unsupported constraint_value.
+    #[serde(default)]
+    pub unsupported_constraints: BTreeMap<String, String>,
     pub not_languages: Vec<String>,
     pub computed_constraints: BTreeMap<String, Vec<Vec<String>>>,
 }
@@ -302,6 +308,34 @@ pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, String>
     Ok(render::render(&facts, &platforms))
 }
 
+/// Renders the per-language skip reasons as JSON keyed by the unsupported constraint label.
+pub fn unsupported_json(facts: &Facts) -> String {
+    let mut out = serde_json::Map::new();
+    for row in &facts.rows {
+        let (Some(label), Some(reasons)) = (
+            facts.unsupported_constraints.get(&row.name),
+            facts.platform_not_applicable.get(&row.name),
+        ) else {
+            continue;
+        };
+        let platforms: serde_json::Map<String, serde_json::Value> = facts
+            .platforms
+            .iter()
+            .filter_map(|platform| {
+                let reason = reasons.get(&platform.id)?;
+                Some((platform.id.clone(), reason.clone().into()))
+            })
+            .collect();
+        out.insert(
+            label.clone(),
+            serde_json::json!({"title": row.title, "platforms": platforms}),
+        );
+    }
+    let mut text = serde_json::to_string_pretty(&out).unwrap_or_default();
+    text.push('\n');
+    text
+}
+
 /// Returns a short line diff of `want` against `have`, or None when equal.
 pub fn diff(have: &str, want: &str) -> Option<String> {
     if have == want {
@@ -344,6 +378,31 @@ mod tests {
             "tools/testing/x.bzl"
         );
         assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
+    }
+
+    #[test]
+    fn unsupported_json_lists_declared_reasons() {
+        let facts = parse_facts(
+            r#"{
+              "platforms": [{"id": "a", "os": "x", "cpu": "y"}, {"id": "b", "os": "x", "cpu": "z"}],
+              "sections": [],
+              "rows": [
+                {"name": "hs", "title": "Haskell", "section": "languages", "families": [],
+                 "ci_tests": [], "consumer_tests": [], "workflows": []},
+                {"name": "go", "title": "Go", "section": "languages", "families": [],
+                 "ci_tests": [], "consumer_tests": [], "workflows": []}
+              ],
+              "quality": {}, "support": [], "deferred_families": [],
+              "platform_not_applicable": {"hs": {"b": "no bindist"}, "go": {"a": "x"}},
+              "unsupported_constraints": {"hs": "//haskell/toolchain:unsupported"},
+              "not_languages": [], "computed_constraints": {}
+            }"#,
+        )
+        .expect("facts");
+        assert_eq!(
+            unsupported_json(&facts),
+            "{\n  \"//haskell/toolchain:unsupported\": {\n    \"platforms\": {\n      \"b\": \"no bindist\"\n    },\n    \"title\": \"Haskell\"\n  }\n}\n"
+        );
     }
 
     #[test]

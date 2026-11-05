@@ -14,7 +14,7 @@ load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
-load(":languages.bzl", "DOC_TOOLS", "PLATFORMS")
+load(":languages.bzl", "DOC_TOOLS", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
 
 # Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
 _SHARD_RULES = {
@@ -63,6 +63,9 @@ def _not_applicable_problems(facts):
         for family in entries
         if family not in facts["quality"] or facts["quality"][family].get(capability, []) != []
     ]
+
+# Rows with a stated reason that do not yet declare an unsupported constraint_value; shrink as #6175 lands them.
+_PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl"]
 
 def support_matrix_facts_tests(name):
     """Declares the support matrix facts schema test."""
@@ -127,6 +130,16 @@ def support_matrix_facts_tests(name):
                 },
             ),
             expect_equal("pending compilers", sorted(facts["pending_compilers"].keys()), []),
+            expect_equal(
+                "every row with a stated reason has an unsupported constraint_value or is pending",
+                sorted([name for name in facts["platform_not_applicable"] if name not in UNSUPPORTED_CONSTRAINTS]),
+                _PENDING_UNSUPPORTED,
+            ),
+            expect_equal(
+                "unsupported constraint labels name the row's unsupported value",
+                [name for name, label in facts["unsupported_constraints"].items() if not label.endswith(":unsupported")],
+                [],
+            ),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],
     )

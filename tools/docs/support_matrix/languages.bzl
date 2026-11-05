@@ -383,6 +383,7 @@ NOT_LANGUAGES = [
     "ci",
     "cli",
     "config",
+    "containers",
     "deploy",
     "docs",
     "dotnet",
@@ -404,6 +405,15 @@ PENDING_COMPILERS = {}
 
 # The identity test of each compiler that has one.
 COMPILER_PROBES = {"gcc": "//cc/toolchains:identity_gcc", "llvm": "//cc/toolchains:identity", "msvc": "//cc/toolchains:identity_msvc"}
+
+# The unsupported constraint_value of each row that declares one, written to cli/cli/src/exec/unsupported.json.
+UNSUPPORTED_CONSTRAINTS = {
+    "dart": "//dart/rules:unsupported",
+    "flutter": "//flutter/rules:unsupported",
+    "haskell": "//haskell/toolchain:unsupported",
+    "julia": "//julia/rules:unsupported",
+    "php": "//php/toolchain:unsupported",
+}
 
 # A platform a row does not support, with the reason.
 PLATFORM_NOT_APPLICABLE = {

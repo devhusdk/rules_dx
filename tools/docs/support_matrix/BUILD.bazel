@@ -19,6 +19,7 @@ filegroup(
     name = "inputs",
     srcs = [
         ":facts",
+        "//cli/cli:src/exec/unsupported.json",
         "//.github:workflows/ci.yml",
     ] + support_matrix_inputs(),
 )

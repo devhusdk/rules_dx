@@ -1,0 +1,32 @@
+{
+  "//dart/rules:unsupported": {
+    "platforms": {
+      "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+    },
+    "title": "Dart"
+  },
+  "//flutter/rules:unsupported": {
+    "platforms": {
+      "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+    },
+    "title": "Flutter"
+  },
+  "//haskell/toolchain:unsupported": {
+    "platforms": {
+      "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
+    },
+    "title": "Haskell"
+  },
+  "//julia/rules:unsupported": {
+    "platforms": {
+      "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
+    },
+    "title": "Julia"
+  },
+  "//php/toolchain:unsupported": {
+    "platforms": {
+      "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
+    },
+    "title": "PHP"
+  }
+}

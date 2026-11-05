@@ -409,6 +409,7 @@ exports_files(
         "Cargo.toml",
         "src/bin_man.rs",
         "src/lib.rs",
+        "src/exec/unsupported.json",
         "src/main.rs",
     ],
     visibility = ["//visibility:public"],

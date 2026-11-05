@@ -165,9 +165,38 @@ rust_clippy_test(
     targets = [":versions_loaded_test"],
 )
 
+# keep
+rust_test(
+    name = "python_budget_test",
+    srcs = ["python_budget_test.rs"],
+    data = [
+        ":python_budget.json",
+        "//:MODULE.bazel.lock",
+    ],
+    env = {
+        "DX_PYTHON_BUDGET": "$(rootpath :python_budget.json)",
+    },
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rustfmt_test(
+    name = "python_budget_fmt_test",
+    targets = [":python_budget_test"],
+)
+
+rust_clippy_test(
+    name = "python_budget_clippy_test",
+    targets = [":python_budget_test"],
+)
+
 test_suite(
     name = "all",
     tests = [
+        ":python_budget_test",
         ":consumer_deps_test",
         ":families_test",
         ":versions_contract",
@@ -187,6 +216,7 @@ exports_files([
     "dotnet.bzl",
     "families.json",
     "powershell.bzl",
+    "python_budget.json",
     "toolchains.bzl",
     "versions.bzl",
 ])

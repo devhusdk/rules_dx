@@ -51,6 +51,26 @@ pub fn measure(
     })
 }
 
+/// Measures only the lock: its size and its module extension count.
+pub fn measure_lock(lock_text: &str) -> Result<Footprint, String> {
+    Ok(Footprint {
+        modules: 0,
+        lock_bytes: lock_text.len() as u64,
+        lock_extensions: count_extensions(lock_text)?,
+        external_repos: 0,
+    })
+}
+
+/// Checks `lock_bytes` and `lock_extensions` of a lock measurement against the budget, with the
+/// same rules as `check_budget`.
+pub fn check_lock_budget(measured: &Footprint, budget: &Value) -> Result<(), String> {
+    let mut lock_only = budget.clone();
+    for name in ["modules", "external_repos"] {
+        lock_only[name] = json!(0);
+    }
+    check_budget(measured, &lock_only)
+}
+
 fn count_modules(graph: &str) -> Result<u64, String> {
     fn walk(node: &Value, found: &mut BTreeSet<String>) {
         let name = node.get("name").and_then(Value::as_str).unwrap_or_default();
@@ -169,6 +189,19 @@ mod tests {
             r#"{"lockFileVersion":1,"moduleExtensions":{"//a:b.bzl%x":{},"//c:d.bzl%y":{}}}"#;
         assert_eq!(count_extensions(lock), Ok(2));
         assert_eq!(count_extensions("{}"), Ok(0));
+    }
+
+    #[test]
+    fn measures_the_lock_alone() {
+        let lock = r#"{"moduleExtensions":{"//a:b.bzl%x":{}}}"#;
+        let measured = measure_lock(lock).expect("lock");
+        assert_eq!(measured.lock_bytes, lock.len() as u64);
+        assert_eq!(measured.lock_extensions, 1);
+        let budget = json!({"lock_bytes": lock.len(), "lock_extensions": 1});
+        assert_eq!(check_lock_budget(&measured, &budget), Ok(()));
+        let low = json!({"lock_bytes": lock.len(), "lock_extensions": 2});
+        let error = check_lock_budget(&measured, &low).expect_err("below");
+        assert!(error.contains("lower the budget to 1"), "{error}");
     }
 
     #[test]

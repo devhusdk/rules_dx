@@ -169,6 +169,22 @@ fn must_not_spawn(
 }
 
 #[test]
+fn staticcheck_reads_the_unitchecker_report_of_the_go_aspect() {
+    let report = r#"{"p":{"S1000":[{"posn":"src/a.go:1:1","message":"finding"}]}}"#;
+    let upstream = upstream_file("staticcheck", report);
+    let backend = backend_for(
+        "staticcheck",
+        delegated_tool(upstream.path().to_path_buf()),
+        must_not_spawn,
+    );
+    let findings = backend
+        .diagnose("staticcheck", "lint", &single("src/a.go", "xx\n"))
+        .expect("delegated finding");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "src/a.go");
+}
+
+#[test]
 pub(super) fn every_real_tool_reaches_a_check_arm() {
     for &tool_id in REAL_TOOLS {
         let spawn = if tool_id == "bicep" {

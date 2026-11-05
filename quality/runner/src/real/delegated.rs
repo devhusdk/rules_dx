@@ -627,10 +627,12 @@ impl RealBackend {
         for path in &tool.upstream_diagnostics {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_staticcheck(&bytes, Some(0), &workspaces),
-            )?);
+            let report = if is_unit_report(&bytes) {
+                parsers::parse_go_analysis("staticcheck", &bytes, Some(0), &workspaces)
+            } else {
+                parsers::parse_staticcheck(&bytes, Some(0), &workspaces)
+            };
+            findings.extend(parsed(tool_id, report)?);
         }
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
@@ -742,4 +744,13 @@ fn same_finding(left: &FileFinding, right: &FileFinding) -> bool {
         && left.finding.start == right.finding.start
         && left.finding.rule_id == right.finding.rule_id
         && left.finding.message == right.finding.message
+}
+
+/// Whether the bytes are one unitchecker report, which has no top-level `code` field.
+fn is_unit_report(bytes: &[u8]) -> bool {
+    serde_json::from_slice::<serde_json::Value>(bytes).is_ok_and(|value| {
+        value
+            .as_object()
+            .is_some_and(|map| !map.contains_key("code"))
+    })
 }

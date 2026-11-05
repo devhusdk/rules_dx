@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_python_typecheck_strict_profile
+capability TYPECHECK
+stages 1
+stage ty classes=python sources=matrix/possibly_unbound.py
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR ty possibly-unresolved-reference matrix/possibly_unbound.py 84 84 fixable=false "Name `value` used when possibly not defined"
+terminal 1
+terminal ERROR ty possibly-unresolved-reference matrix/possibly_unbound.py 84 84 fixable=false "Name `value` used when possibly not defined"
+replacements 0

@@ -669,10 +669,19 @@ pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) ->
     assemble(binary, head, files, "")
 }
 
-pub fn ty_check(binary: &Path, files: &[&Path], search_paths: &[&Path]) -> Invocation {
-    let mut head = Vec::with_capacity(1 + TY_BASE.len() + 2 * search_paths.len());
+pub fn ty_check(
+    binary: &Path,
+    files: &[&Path],
+    search_paths: &[&Path],
+    config: Option<&Path>,
+) -> Invocation {
+    let mut head = Vec::with_capacity(3 + TY_BASE.len() + 2 * search_paths.len());
     head.push(binary.as_os_str().to_owned());
     head.extend(TY_BASE.iter().map(OsString::from));
+    if let Some(config) = config {
+        head.push(OsString::from("--config-file"));
+        head.push(config.as_os_str().to_owned());
+    }
     for dir in search_paths {
         head.push(OsString::from("--extra-search-path"));
         head.push(dir.as_os_str().to_owned());

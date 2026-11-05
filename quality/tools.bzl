@@ -2697,6 +2697,7 @@ TOOLS = [
     tool(
         id = "ty",
         adapters = {"typecheck": ["jupyter", "python", "python_stub"]},
+        config_suffix = [".toml"],
         support = [
             row(
                 capability = "typecheck",

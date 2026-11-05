@@ -300,7 +300,7 @@ fn ruff_fix_and_format_shapes() {
 #[test]
 fn ty_check_is_concise_and_hermetic() {
     let file = Path::new("/scratch/a.py");
-    let invocation = ty_check(Path::new(BIN), &[file], &[]);
+    let invocation = ty_check(Path::new(BIN), &[file], &[], None);
     assert_eq!(
         argv_strings(&invocation),
         vec![
@@ -317,10 +317,20 @@ fn ty_check_is_concise_and_hermetic() {
     assert!(!argv_strings(&invocation).contains(&"--fix".to_owned()));
     assert!(!argv_strings(&invocation).contains(&"--add-ignore".to_owned()));
     let search = Path::new("/scratch/pkg");
-    let with_search = ty_check(Path::new(BIN), &[file], &[search]);
+    let with_search = ty_check(Path::new(BIN), &[file], &[search], None);
     let argv = argv_strings(&with_search);
     assert!(argv.contains(&"--extra-search-path".to_owned()));
     assert!(argv.contains(&"/scratch/pkg".to_owned()));
+}
+
+#[test]
+fn ty_check_passes_a_bound_config() {
+    let file = Path::new("/scratch/a.py");
+    let config = Path::new("/s/ty.toml");
+    let argv = argv_strings(&ty_check(Path::new(BIN), &[file], &[], Some(config)));
+    let at = argv.iter().position(|arg| arg == "--config-file").unwrap();
+    assert_eq!(argv[at + 1], "/s/ty.toml");
+    assert_eq!(argv.last().unwrap(), "/scratch/a.py");
 }
 
 #[test]

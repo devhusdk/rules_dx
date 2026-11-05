@@ -38,6 +38,7 @@ CONFIG_REQUIRED_TOOLS = {
         hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and list it in your workspace_policy configs or add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
     ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
+    "ty": struct(name = "ty", src = "ty.toml"),
     "sqlfluff": struct(
         name = "sqlfluff",
         src = ".sqlfluff",
@@ -187,6 +188,8 @@ vale_config = _make_native_config_rule("vale")
 rustfmt_config = _make_native_config_rule("rustfmt")
 
 ruff_config = _make_native_config_rule("ruff")
+
+ty_config = _make_native_config_rule("ty")
 
 biome_config = _make_native_config_rule("biome")
 

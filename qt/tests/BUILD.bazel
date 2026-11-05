@@ -129,6 +129,11 @@ _QT_FONTS = select({
     "//conditions:default": ["@dx_qt//:fonts"],
 })
 
+_VCRUNTIME = select({
+    "@platforms//os:windows": ["//cc/toolchains:msvc_vcruntime"],
+    "//conditions:default": [],
+})
+
 _QT_TEST_ENV = {
     "DX_MOC": "$(rootpath @dx_qt//:moc)",
     "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
@@ -168,10 +173,13 @@ rust_test(
         "@dx_qt//:runtime",
         "@dx_qt//:sbom",
         "@dx_qt//:uic",
-    ] + _QT_FONTS,
+    ] + _QT_FONTS + _VCRUNTIME,
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,
-        "@platforms//os:windows": _QT_TEST_ENV,
+        "@platforms//os:windows": dict(
+            _QT_TEST_ENV,
+            DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
+        ),
         "//conditions:default": dict(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",

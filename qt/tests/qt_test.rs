@@ -193,7 +193,9 @@ fn file_name(path: &str) -> &str {
 fn host_leaks(paths: &BTreeSet<String>) -> Vec<String> {
     paths
         .iter()
-        .filter(|path| HOST_PREFIXES.iter().any(|prefix| path.starts_with(prefix)))
+        .filter(|path| {
+            HOST_PREFIXES.iter().any(|prefix| path.starts_with(prefix)) || host_msvc_runtime(path)
+        })
         .filter(|path| !HOST_GLIBC.contains(&file_name(path)))
         .cloned()
         .collect()
@@ -314,10 +316,29 @@ fn runtime_path() -> String {
         .to_str()
         .expect("utf-8 path")
         .to_owned();
+    let redist = directory_of("DX_QT_VCRUNTIME", "vcruntime140.dll");
+    let redist = dx_testing::resolve_runfiles(&redist)
+        .to_str()
+        .expect("utf-8 path")
+        .to_owned();
     match std::env::var("PATH") {
-        Ok(path) => format!("{bin};{path}"),
-        Err(_) => bin,
+        Ok(path) => format!("{bin};{redist};{path}"),
+        Err(_) => format!("{bin};{redist}"),
     }
+}
+
+/// The MSVC runtime must come from the pinned payload, never from the host System32.
+#[cfg(windows)]
+fn host_msvc_runtime(path: &str) -> bool {
+    let path = path.replace('\\', "/").to_ascii_lowercase();
+    let name = file_name(&path);
+    (name.starts_with("vcruntime140") || name.starts_with("msvcp140"))
+        && path.contains("/windows/system32/")
+}
+
+#[cfg(not(windows))]
+fn host_msvc_runtime(_path: &str) -> bool {
+    false
 }
 
 #[cfg(not(windows))]

@@ -1,11 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-ipa="$1"
-if [ -d "$ipa" ]; then
-  ipa="$(find "$ipa" -name '*.ipa' | head -n 1)"
-fi
-[ -f "$ipa" ] || { echo "no .ipa in: $1" >&2; ls -laR "$1" >&2 || true; exit 1; }
+ipa="$1.ipa"
+[ -f "$ipa" ] || { echo "no $ipa" >&2; ls -la "$(dirname "$1")" >&2; exit 1; }
 
 dir="$(mktemp -d)"
 trap 'rm -rf "$dir"' EXIT

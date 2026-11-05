@@ -28,6 +28,14 @@ TOOLS = {
         "runfiles_env": True,
         "shard": "py",
     },
+    "vulture": {
+        "attr": attr.label(default = "//quality/tools/python:vulture", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "medium",
+        "runfiles_env": True,
+        "shard": "py",
+    },
     "ruff": {
         "attr": attr.label(default = "//config:tool_ruff", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format", "lint"],
@@ -59,7 +67,7 @@ SHARD_SPECS = {
     },
     "real_python_lint": {
         "capability": "lint",
-        "doc": "Additive Python lint family aspect (flake8/pylint/pydoclint).",
+        "doc": "Additive Python lint family aspect (flake8/pylint/pydoclint/vulture).",
         "shard": "py",
         "suffix": "-py",
     },

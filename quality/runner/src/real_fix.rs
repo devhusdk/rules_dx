@@ -386,16 +386,16 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         }
     };
     match tool_id {
-        "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
-        | "clippy" | "roslyn" | "csc" | "fsc" | "fsharplint" | "checkstyle" | "dscanner"
-        | "fortitude" | "pkl_lsp" | "perlcritic" | "jsonnet_lint" | "pmd" | "spotbugs"
-        | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "gplint"
-        | "errcheck" | "stylelint" | "rubocop" | "yamllint" | "shellcheck" | "hadolint"
-        | "hlint" | "redocly" | "kubeconform" | "helm" | "capnp" | "checkmake" | "flatc"
-        | "tflint" | "cfn_lint" | "chktex" | "cmakelint" | "credo" | "dialyzer" | "elvis"
-        | "gotype" | "jet" | "julialint" | "luals" | "phpcs" | "phpstan" | "regal" | "sorbet"
-        | "tsc" | "javac" | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc" | "ocaml" | "zig"
-        | "zig_ast_check" | "swift_lint" | "xmllint" | "selene" | "zanuda" | "thrift"
+        "vale" | "vulture" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8"
+        | "pylint" | "clippy" | "roslyn" | "csc" | "fsc" | "fsharplint" | "checkstyle"
+        | "dscanner" | "fortitude" | "pkl_lsp" | "perlcritic" | "jsonnet_lint" | "pmd"
+        | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
+        | "gplint" | "errcheck" | "stylelint" | "rubocop" | "yamllint" | "shellcheck"
+        | "hadolint" | "hlint" | "redocly" | "kubeconform" | "helm" | "capnp" | "checkmake"
+        | "flatc" | "tflint" | "cfn_lint" | "chktex" | "cmakelint" | "credo" | "dialyzer"
+        | "elvis" | "gotype" | "jet" | "julialint" | "luals" | "phpcs" | "phpstan" | "regal"
+        | "sorbet" | "tsc" | "javac" | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc" | "ocaml"
+        | "zig" | "zig_ast_check" | "swift_lint" | "xmllint" | "selene" | "zanuda" | "thrift"
         | "avro_tools" | "tinymist" | "detekt" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),

@@ -296,6 +296,23 @@ fn pydoclint_check_is_quiet() {
 }
 
 #[test]
+fn vulture_check_reports_unused_code_at_its_floor() {
+    let files = [Path::new("/scratch/a.py"), Path::new("/scratch/b.py")];
+    let invocation = vulture_check(Path::new(BIN), &files);
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--min-confidence",
+            "60",
+            "/scratch/a.py",
+            "/scratch/b.py"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}
+
+#[test]
 fn flake8_check_is_isolated_single_job() {
     let file = Path::new("/scratch/a.py");
     let invocation = flake8_check(Path::new(BIN), &[file]);
@@ -2660,6 +2677,7 @@ fn file_independent_tools_batch() {
         "biome",
         "eslint",
         "statix",
+        "vulture",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
     }

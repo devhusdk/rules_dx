@@ -278,6 +278,19 @@ impl RealBackend {
                     )
                 },
             ),
+            "vulture" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::vulture_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_vulture(&out.stdout, out.code, names),
+                    )
+                },
+            ),
             "flake8" => self.check_files(
                 tool_id,
                 tool,

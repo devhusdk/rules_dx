@@ -19,7 +19,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["ruff"],
-                    "lint": ["pydoclint", "ruff", "typos"],
+                    "lint": ["pydoclint", "ruff", "typos", "vulture"],
                     "typecheck": ["ty"],
                 },
             ),

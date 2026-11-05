@@ -190,6 +190,7 @@ quality_family(
         "pydoclint",
         "ruff",
         "typos",
+        "vulture",
     ],
     typecheck = ["ty"],
 )

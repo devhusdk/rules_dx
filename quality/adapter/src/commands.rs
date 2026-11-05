@@ -70,6 +70,8 @@ const TY_BASE: &[&str] = &[
     "--no-respect-ignore-files",
 ];
 const PYDOCLINT_ARGS: &[&str] = &["--quiet"];
+/// Vulture scores unused functions and variables at 60%, so the floor must stay at 60.
+const VULTURE_ARGS: &[&str] = &["--min-confidence", "60"];
 const FLAKE8_ARGS: &[&str] = &[
     "--isolated",
     "--color=never",
@@ -634,6 +636,10 @@ pub fn ty_check(binary: &Path, files: &[&Path], search_paths: &[&Path]) -> Invoc
 
 pub fn pydoclint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PYDOCLINT_ARGS, files, "")
+}
+
+pub fn vulture_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, VULTURE_ARGS, files, "")
 }
 
 pub fn flake8_check(binary: &Path, files: &[&Path]) -> Invocation {

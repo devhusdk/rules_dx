@@ -107,7 +107,7 @@ CURATED_DEFAULTS = {
     "python": {
         "audit": [],
         "format": ["ruff"],
-        "lint": ["pydoclint", "ruff", "typos"],
+        "lint": ["pydoclint", "ruff", "typos", "vulture"],
         "typecheck": ["ty"],
     },
     "rust": {

@@ -1,5 +1,7 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
-use dx_process::lifecycle::{CapturePolicy, CleanupBudget, ChildOutcome, Descendants, EnvPolicy, SpawnSpec};
+use dx_process::lifecycle::{
+    CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec,
+};
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::io;
@@ -1091,7 +1093,7 @@ mod tests {
                 drain: Duration::from_secs(1),
             },
         )
-            .expect_err("a tree that escapes its owner is never success");
+        .expect_err("a tree that escapes its owner is never success");
         assert_eq!(err.kind(), io::ErrorKind::TimedOut);
         let elapsed = started.elapsed();
         assert!(

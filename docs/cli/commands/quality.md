@@ -148,7 +148,7 @@ These fail: `disabled` without `extends`, a disabled ID the base lacks, a family
 | `kotlin` | `ktfmt` | `ktlint`, `typos` | `kotlinc` |
 | `markdown` | disabled | `markdown_check`, `typos`, `vale` | disabled |
 | `mdx` | `remark` | `typos` | disabled |
-| `python` | `ruff` | `pydoclint`, `ruff`, `typos` | `ty` |
+| `python` | `ruff` | `pydoclint`, `ruff`, `typos`, `vulture` | `ty` |
 | `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
 | `scala` | `scalafmt` | `typos` | `scalac` |
 | `shell` | `shfmt` | `shellcheck`, `typos` | disabled |

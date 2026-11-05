@@ -124,14 +124,15 @@ pub mod ty;
 pub mod typos;
 pub mod typstyle;
 pub mod vale;
+pub mod vulture;
 pub mod xmllint;
 pub mod yamlfmt;
 pub mod yamllint;
-pub mod zizmor;
 pub mod zanuda;
 pub mod zig_ast_check;
 pub mod zig_compile;
 pub mod zig_fmt;
+pub mod zizmor;
 
 pub use actionlint::parse_actionlint;
 pub use ansible_lint::parse_ansible_lint;
@@ -256,14 +257,15 @@ pub use ty::parse_ty;
 pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
+pub use vulture::parse_vulture;
 pub use xmllint::parse_xmllint;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
-pub use zizmor::parse_zizmor;
 pub use zanuda::parse_zanuda;
 pub use zig_ast_check::parse_zig_ast_check;
 pub use zig_compile::parse_zig_compile;
 pub use zig_fmt::parse_zig_fmt;
+pub use zizmor::parse_zizmor;
 
 use std::path::Path;
 
@@ -2931,6 +2933,14 @@ mod tests {
         super::vale::parse_vale(input, code, files)
     }
 
+    fn fuzz_vulture(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::vulture::parse_vulture(input, code, files)
+    }
+
     fn fuzz_xmllint(
         input: &[u8],
         code: Option<i32>,
@@ -3097,6 +3107,7 @@ mod tests {
         ("typos", fuzz_typos),
         ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
+        ("vulture", fuzz_vulture),
         ("xmllint", fuzz_xmllint),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
@@ -3234,6 +3245,7 @@ mod tests {
         ("tinymist", include_str!("tinymist.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),
+        ("vulture", include_str!("vulture.rs")),
         ("xmllint", include_str!("xmllint.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),

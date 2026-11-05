@@ -594,6 +594,36 @@ fn pylint_reports_and_is_check_only() {
 }
 
 #[test]
+fn vulture_reports_unused_code_across_files_and_is_check_only() {
+    let backend = backend_for("vulture", plain_tool(), roundtrip_vulture);
+    let mut files = single("a.py", "def unused_fn():\n    pass\n");
+    files.insert("b.py".to_owned(), "\n".to_owned());
+    let findings = backend
+        .diagnose("vulture", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "vulture");
+    assert_eq!(findings[0].rule_id, "unused-function");
+    assert_eq!(findings[0].path, "a.py");
+    assert_eq!(
+        findings[0].severity,
+        quality_result::proto::Severity::Info as i32
+    );
+    files.insert("b.py".to_owned(), "from a import unused_fn\n".to_owned());
+    assert!(backend
+        .diagnose("vulture", "lint", &files)
+        .expect("diagnosed")
+        .is_empty());
+    let text = "def unused_fn():\n    pass\n";
+    assert_eq!(
+        backend
+            .apply_fix("vulture", "a.py", text, "lint")
+            .expect("check-only"),
+        text
+    );
+}
+
+#[test]
 fn biome_lint_uses_pinned_defaults_and_is_check_only() {
     let backend = backend_for("biome", plain_tool(), biome_defaults);
     let findings = backend

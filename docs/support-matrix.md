@@ -101,7 +101,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a | `pwsh` | `pester` |
 | Protobuf | `buf` | `buf` | no | no | n/a |
-| Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` | `griffe` | `coverage.py` |
+| Python | `flake8`, `pydoclint`, `pylint`, `ruff`, `vulture` | `ruff` | `ty` | `griffe` | `coverage.py` |
 | Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` |
 | Rust | `clippy` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` |
 | Scala | `scalafix` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` |

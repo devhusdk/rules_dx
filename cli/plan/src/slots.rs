@@ -3713,6 +3713,25 @@ mod tests {
     }
 
     #[test]
+    fn an_unwritable_queue_warns_once_through_the_gate() {
+        let scratch = dx_test_scratch::scratch("dx-slots-queue-gate-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(queue_dir(&dir), "").expect("blocker");
+        let gate = Gate::new(dir.clone(), 2, "a".to_owned(), false);
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        let slot = gate.take(Command::Test, &mut err, &mut events);
+        assert!(matches!(slot, Ok(Some(_))));
+        let text = String::from_utf8(err).expect("utf8");
+        assert_eq!(text.lines().count(), 1, "{text}");
+        assert!(
+            text.contains(&queue_dir(&dir).display().to_string()),
+            "{text}"
+        );
+    }
+
+    #[test]
     fn a_consumer_passes_a_rules_dx_head_blocked_on_its_reserve() {
         let scratch = dx_test_scratch::scratch("dx-slots-pass-head-");
         let dir = scratch.path().join("slots");

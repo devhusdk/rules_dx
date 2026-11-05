@@ -786,6 +786,10 @@ julia.toolchain(version = "1.12.5")
 
 julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
 julia_pkg.from_manifest(
+    name = "dx_julia_coverage",
+    lockfile = "//julia/coverage:Manifest.bazel.json",
+)
+julia_pkg.from_manifest(
     name = "dx_julia_format",
     lockfile = "//julia/tools:Manifest.bazel.json",
 )
@@ -835,7 +839,7 @@ julia_pkg.pkg_annotation(
     patch_args = ["-p1"],
     patches = ["//julia/tools/lint/patches:JSON.patch"],
 )
-use_repo(julia_pkg, "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
+use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
 julia_pkg_dev = use_extension(
     "@rules_julia//julia/pkg:extensions.bzl",

@@ -1,0 +1,8 @@
+name = "coverage"
+version = "0.0.1"
+
+[deps]
+CoverageTools = "c36e975a-824b-4404-a568-ef97ca766997"
+
+[compat]
+CoverageTools = "=1.3.2"

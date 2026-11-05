@@ -3,7 +3,7 @@ load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "JULIA_COVERAGE_COLLECTOR", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS", "julia_quality_srcs")
+load(":defs.bzl", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS", "julia_quality_srcs")
 load(":platforms.bzl", "JULIA_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
@@ -14,6 +14,7 @@ exports_files([
     "defs.bzl",
     "precompile_tests.bzl",
     "platforms.bzl",
+    "wrapper_tests.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -65,11 +66,6 @@ dx_wrapper_contract_tests(
             [],
         ),
         expect_equal(
-            "julia tests have no coverage collector yet",
-            JULIA_COVERAGE_COLLECTOR,
-            False,
-        ),
-        expect_equal(
             "windows arm64 has no Julia build",
             [name for name, (os, cpu) in JULIA_PLATFORMS.items() if os == "windows" and cpu == "arm64"],
             [],
@@ -102,6 +98,7 @@ real_source_target(
         "defs.bzl",
         "platforms.bzl",
         "precompile_tests.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

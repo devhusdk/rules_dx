@@ -1,0 +1,11 @@
+{
+  "CoverageTools": {
+    "deps": [],
+    "integrity": "sha256-SA9/6UP7eMZ6ykwctItjNDwYgitDjXkwk2vbBaBeEtQ=",
+    "urls": [
+      "https://pkg.julialang.org/package/c36e975a-824b-4404-a568-ef97ca766997/72ded72062bedff105dc69dfc0cb07d2197c1669"
+    ],
+    "uuid": "c36e975a-824b-4404-a568-ef97ca766997",
+    "version": "1.3.2"
+  }
+}

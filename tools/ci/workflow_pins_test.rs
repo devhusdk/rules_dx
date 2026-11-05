@@ -5,7 +5,11 @@ const CALLERS: [(&str, &str); 2] = [
     ("examples/docs-ci/caller.yml", "reusable-docs.yml"),
 ];
 
-const REUSABLE: [&str; 2] = ["reusable-consumer.yml", "reusable-docs.yml"];
+const REUSABLE: [&str; 3] = [
+    "reusable-consumer.yml",
+    "reusable-docs.yml",
+    "reusable-release.yml",
+];
 
 const SCRIPTS: [(&str, &[&str]); 2] = [
     ("tools/ci/input_validation.rs", &["reusable-consumer.yml"]),

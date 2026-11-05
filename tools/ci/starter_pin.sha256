@@ -1,2 +1,3 @@
 079016bf30c3f8bfa85fbe5065971387688dd366aa9f3f41be3f428a2bc30318  .github/workflows/reusable-consumer.yml
 3050bea2b8e4964af7ce495db444aae78e1dda7813b3696e7008c4197eba3212  .github/workflows/reusable-docs.yml
+e5362ea09f8f5b03fe4c6af37afbcbef56422bc4f07221fd7b2367a8a462cdab  .github/workflows/reusable-release.yml

@@ -77,6 +77,7 @@ fn only_the_reusable_and_cache_free_workflows_call_upstream_setup_bazel_directly
             ".github/workflows/dx-update.yml",
             ".github/workflows/reusable-consumer.yml",
             ".github/workflows/reusable-docs.yml",
+            ".github/workflows/reusable-release.yml",
             ".github/workflows/upgrade-e2e.yml"
         ],
         "other workflows must use {LOCAL_ACTION}"
@@ -84,9 +85,10 @@ fn only_the_reusable_and_cache_free_workflows_call_upstream_setup_bazel_directly
 }
 
 /// Workflows that call upstream setup-bazel without a repository cache:
-/// dx-update is a `dx init` template and upgrade-e2e runs nested Bazel itself.
+/// dx-update is a `dx init` template, reusable-release publishes from a tag and upgrade-e2e runs nested Bazel itself.
 const CACHE_FREE: &[&str] = &[
     ".github/workflows/dx-update.yml",
+    ".github/workflows/reusable-release.yml",
     ".github/workflows/upgrade-e2e.yml",
 ];
 

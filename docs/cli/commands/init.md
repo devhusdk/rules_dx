@@ -129,6 +129,7 @@ match the running dx.
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
 | `.github/workflows/dx-update.yml` | you | Written when missing. Never rewritten. |
+| `.github/workflows/release.yml` | you | Written when missing. Never rewritten. Calls `reusable-release.yml` on `v*` tags. |
 | `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
 | `CLAUDE.md` | you | Created when missing and `--agents=claude` is given. `@AGENTS.md` is added when the import is missing. |
 | `.github/copilot-instructions.md` | you | Created when missing and `--agents=copilot` is given. A line pointing at `AGENTS.md` is added when the file does not mention it. |

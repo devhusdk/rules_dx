@@ -143,6 +143,8 @@ pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.ym
 
 pub const CONSUMER_WORKFLOW_PIN: &str = "04bb90c9221b324fe86a16bee0a4e5dadb3adaf7";
 
+pub const RELEASE_WORKFLOW_PATH: &str = ".github/workflows/reusable-release.yml";
+
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
 
 /// The repo's default branch: `origin/HEAD`, then `init.defaultBranch`, then `main`.
@@ -193,6 +195,16 @@ pub fn render_consumer_caller_for(branch: &str) -> String {
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
+        pin = CONSUMER_WORKFLOW_PIN,
+    )
+}
+
+pub fn render_release_caller() -> String {
+    format!(
+        "name: release\non:\n  push:\n    tags: ['v*']\njobs:\n  release:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
+        owner = CONSUMER_WORKFLOW_OWNER,
+        repo = CONSUMER_WORKFLOW_REPO,
+        path = RELEASE_WORKFLOW_PATH,
         pin = CONSUMER_WORKFLOW_PIN,
     )
 }
@@ -403,6 +415,11 @@ fn plan_init_files_full(
         ScaffoldFile {
             path: ".github/workflows/dx-update.yml".to_owned(),
             content: DX_UPDATE_WORKFLOW.to_owned(),
+            kind: FileKind::WriteOnce,
+        },
+        ScaffoldFile {
+            path: ".github/workflows/release.yml".to_owned(),
+            content: render_release_caller(),
             kind: FileKind::WriteOnce,
         },
     ];
@@ -632,11 +649,33 @@ mod tests {
             ".vscode/extensions.json",
             ".github/workflows/ci.yml",
             ".github/workflows/dx-update.yml",
+            ".github/workflows/release.yml",
         ];
         want.sort_unstable();
         let mut got: Vec<&str> = paths.iter().map(String::as_str).collect();
         got.sort_unstable();
         assert_eq!(got, want);
+    }
+
+    #[test]
+    fn release_workflow_calls_the_pinned_reusable_release() {
+        let files = plan_init_files("demo").expect("init plans");
+        let file = files
+            .iter()
+            .find(|f| f.path == ".github/workflows/release.yml")
+            .expect("release scaffold");
+        let uses = format!(
+            "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/.github/workflows/reusable-release.yml@{CONSUMER_WORKFLOW_PIN}"
+        );
+        for want in [
+            "tags: ['v*']",
+            uses.as_str(),
+            "secrets: inherit",
+            "id-token: write",
+            "attestations: write",
+        ] {
+            assert!(file.content.contains(want), "missing {want}");
+        }
     }
 
     #[test]

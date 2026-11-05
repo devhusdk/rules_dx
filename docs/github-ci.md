@@ -8,7 +8,7 @@
    bazel run @rules_dx//:dx -- init --apply
    ```
 
-   This writes `.github/workflows/ci.yml` and `.github/workflows/dx-update.yml` when missing. See [Init](cli/commands/init.md).
+   This writes `.github/workflows/ci.yml`, `.github/workflows/dx-update.yml` and `.github/workflows/release.yml` when missing. See [Init](cli/commands/init.md).
 
 2. Check `ci.yml`:
 
@@ -163,6 +163,17 @@ Set the Pages source to GitHub Actions before the first publish.
 2. Allow GitHub Actions to create and approve pull requests.
 3. For CI on update pull requests and for Actions pins, create a GitHub App with read and write on Contents, Pull requests and Workflows.
 4. Set the secrets `DX_UPDATE_APP_ID` and `DX_UPDATE_APP_PRIVATE_KEY`.
+
+## Releases
+
+`release.yml` calls `reusable-release.yml` when a `v*` tag is pushed. Tag the `dx_deployment` targets to publish with `tags = ["release"]`. The job runs `dx deploy <label>` for each one so the dry run is in the log, then `dx deploy --apply <label>` with the `*_LIVE` and `*_APPROVED` variables set, in the order of the list. A failed deployable stops the rest, and the job summary lists the ones already published.
+
+| Input | Meaning |
+|---|---|
+| `deployables` | JSON array of labels, for example `["//pkg:npm", "//pkg:github"]`. Empty publishes every `dx_deployment` tagged `release`. |
+| `runner` | Runner label. Default `ubuntu-latest`. |
+
+The caller grants `contents`, `id-token`, `attestations` and `packages` write and passes `secrets: inherit`, so registry tokens such as `NPM_TOKEN` are repository secrets. A `github_deploy` creates a draft release.
 
 ## Repository settings
 

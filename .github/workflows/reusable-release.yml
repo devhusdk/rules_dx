@@ -1,0 +1,105 @@
+name: rules-dx-release
+
+on:
+  workflow_call:
+    inputs:
+      deployables:
+        description: 'JSON array of dx_deployment labels to publish, in order. Empty publishes every dx_deployment tagged release.'
+        required: false
+        default: ""
+        type: string
+      runner:
+        description: "Runner label for the release job."
+        required: false
+        default: "ubuntu-latest"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dx-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
+    env:
+      DX_DEPLOYABLES: ${{ inputs.deployables }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-cache: true
+      - name: List the deployables
+        id: list
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$DX_DEPLOYABLES" ]; then
+            if ! printf '%s' "$DX_DEPLOYABLES" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and test("^(@@?[A-Za-z0-9_.~+-]*)?//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+$"))' > /dev/null; then
+              echo "dx-release: deployables must be a non-empty JSON array of Bazel labels, got: $DX_DEPLOYABLES" >&2
+              exit 1
+            fi
+            printf '%s' "$DX_DEPLOYABLES" | jq -r '.[]' > "$RUNNER_TEMP/deployables.txt"
+          else
+            bazel query --output=label 'attr(tags, "release", kind(dx_deployment, //...))' > "$RUNNER_TEMP/deployables.txt"
+          fi
+          if [ ! -s "$RUNNER_TEMP/deployables.txt" ]; then
+            echo "dx-release: no dx_deployment is tagged release; tag one or pass deployables." >&2
+            exit 1
+          fi
+          echo "Deployables for ${GITHUB_REF_NAME}:"
+          cat "$RUNNER_TEMP/deployables.txt"
+      - name: Dry run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r label; do
+            echo "::group::dx deploy $label (dry run)"
+            tools/dx deploy "$label"
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/deployables.txt"
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for registry in GH_RELEASE NPM_PUBLISH MAVEN_PUBLISH CRATES_PUBLISH PYPI_PUBLISH NUGET_PUBLISH OCI_PUBLISH HOMEBREW_TAP_PUBLISH OCTOPUS_PUBLISH CLOUDFLARE_PAGES; do
+            export "${registry}_LIVE=1"
+            export "${registry}_PUBLISH_APPROVED=1"
+            export "${registry}_APPROVED=1"
+          done
+          published=()
+          summary() {
+            {
+              echo "## Release ${GITHUB_REF_NAME}"
+              if [ "${#published[@]}" -eq 0 ]; then
+                echo "Nothing was published."
+              else
+                echo "Published:"
+                printf -- '- %s\n' "${published[@]}"
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+          trap summary EXIT
+          while IFS= read -r label; do
+            echo "::group::dx deploy --apply $label"
+            tools/dx deploy --apply "$label"
+            echo "::endgroup::"
+            published+=("$label")
+          done < "$RUNNER_TEMP/deployables.txt"

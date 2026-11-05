@@ -14,16 +14,29 @@ const MARKERS: &[(&str, &[&str])] = &[
             "gh workflow run",
         ],
     ),
-    ("attestations", &["actions/attest@"]),
+    ("attestations", &["actions/attest@", "deploy --apply"]),
     ("artifact-metadata", &["actions/attest@"]),
     ("checks", &["check-runs"]),
-    ("contents", &["gh release ", "git push", "dx update --pr"]),
+    (
+        "contents",
+        &[
+            "gh release ",
+            "git push",
+            "dx update --pr",
+            "deploy --apply",
+        ],
+    ),
     (
         "id-token",
-        &["cosign", "actions/deploy-pages@", "actions/attest@"],
+        &[
+            "cosign",
+            "actions/deploy-pages@",
+            "actions/attest@",
+            "deploy --apply",
+        ],
     ),
     ("issues", &["gh issue "]),
-    ("packages", &["docker push"]),
+    ("packages", &["docker push", "deploy --apply"]),
     ("pages", &["actions/deploy-pages@"]),
     (
         "pull-requests",

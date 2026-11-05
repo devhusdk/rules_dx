@@ -329,7 +329,7 @@ mod tests {
         assert_eq!(docs.matches("1.2.3").count(), 3);
         let consumer = read(dir.path(), "examples/consumer-ci/caller.yml");
         assert!(consumer.contains(&format!("reusable-consumer.yml@{NEW}\n")));
-        assert!(consumer.contains("rules_dx_version: \"1.2.3\""));
+        assert!(!consumer.contains("rules_dx_version"));
         let docs_ci = read(dir.path(), "examples/docs-ci/caller.yml");
         assert!(docs_ci.contains(&format!("reusable-docs.yml@{NEW}\n")));
         assert!(docs_ci.contains("docs_scope: \"//...\""));

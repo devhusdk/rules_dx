@@ -456,10 +456,10 @@ index 0d3ea2f..0d338db 100644
          **kwargs
      )
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
-index be9fceb..a3ccd1f 100644
+index be9fceb..f446691 100644
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
-@@ -83,10 +83,10 @@ WORKSPACE = "{:workspace:}"
+@@ -83,17 +83,24 @@ WORKSPACE = "{:workspace:}"
  CC = os.environ.get("CC_WRAPPER_CC_PATH", "{:cc:}")
  PLATFORM = os.environ.get("CC_WRAPPER_PLATFORM", "{:platform:}")
  CPU = os.environ.get("CC_WRAPPER_CPU", "{:cpu:}")
@@ -472,7 +472,97 @@ index be9fceb..a3ccd1f 100644
  
  
  def main():
-@@ -1033,7 +1033,10 @@ def find_cc():
+     parsed = Args(load_response_files(sys.argv[1:]))
+ 
+     if parsed.linking:
+-        link(parsed.output, parsed.libraries, parsed.rpaths, parsed.args)
++        link(
++            parsed.output,
++            parsed.libraries,
++            parsed.rpaths,
++            parsed.args,
++            parsed.library_paths,
++            parsed.missing_library_paths,
++        )
+     elif parsed.printing_file_name:
+         print_file_name(parsed.print_file_name, parsed.args)
+     else:
+@@ -144,6 +151,7 @@ class Args:
+         self.print_file_name = None
+         self.libraries = []
+         self.library_paths = []
++        self.missing_library_paths = []
+         self.rpaths = []
+         self.output = None
+         # gcc action, print-file-name (--print-file-name), compile
+@@ -288,6 +296,8 @@ class Args:
+                 # Remember the library search paths.
+                 self.library_paths.append(shortened)
+                 out.append("-L{}".format(shortened))
++            else:
++                self.missing_library_paths.append(library_path)
+ 
+         return consumed
+ 
+@@ -552,7 +562,27 @@ def rpath_args(rpaths):
+ # Link binary or library
+ 
+ 
+-def link(output, libraries, rpaths, args):
++def report_link_failure(libraries, library_paths, missing_library_paths):
++    """Print what the linker could have looked at, after a failed link."""
++    for path in missing_library_paths:
++        sys.stderr.write("cc_wrapper: missing -L directory {}\n".format(path))
++    for library in libraries:
++        found = False
++        for directory in library_paths:
++            for ext in ("a", "dylib", "so", "tbd"):
++                path = os.path.join(directory, "lib{}.{}".format(library, ext))
++                if os.path.lexists(path):
++                    found = True
++                    sys.stderr.write(
++                        "cc_wrapper: {} lexists=True exists={} realpath={}\n".format(
++                            path, os.path.exists(path), os.path.realpath(path)))
++        if not found:
++            sys.stderr.write("cc_wrapper: lib{} not found in any -L directory\n".format(library))
++    sys.stderr.write("cc_wrapper: searched {} libraries in {} -L directories\n".format(
++        len(libraries), len(library_paths)))
++
++
++def link(output, libraries, rpaths, args, library_paths=(), missing_library_paths=()):
+     """Execute the link action.
+ 
+     Args:
+@@ -560,6 +590,8 @@ def link(output, libraries, rpaths, args):
+       libraries: Library dependencies.
+       rpaths: The provided rpaths.
+       args: The command-line arguments.
++      library_paths: The kept -L directories, for diagnostics.
++      missing_library_paths: The skipped -L directories, for diagnostics.
+ 
+     """
+     if is_darwin():
+@@ -579,7 +611,18 @@ def link(output, libraries, rpaths, args):
+     # Note: `RULES_HASKELL_SILENCE_LINKER` is only set if called from doctest,
+     #       which is used to silence the linker output to not interfere with the output
+     #       from GHCi
+-    run_cc(args, capture_output="RULES_HASKELL_SILENCE_LINKER" in os.environ, exit_on_error=True)
++    returncode, stdoutbuf, stderrbuf = run_cc(
++        args,
++        capture_output="RULES_HASKELL_SILENCE_LINKER" in os.environ,
++        exit_on_error=False,
++    )
++    if returncode != 0:
++        if stdoutbuf is not None:
++            sys.stdout.buffer.write(stdoutbuf)
++        if stderrbuf is not None:
++            sys.stderr.buffer.write(stderrbuf)
++        report_link_failure(libraries, library_paths, missing_library_paths)
++        sys.exit(returncode)
+ 
+     if is_darwin():
+         darwin_rewrite_load_commands(darwin_rewrites, output)
+@@ -1033,7 +1076,10 @@ def find_cc():
                  r = bazel_runfiles.CreateManifestBased(manifest_path)
              elif exe_path is not None and os.path.isfile(exe_path):
                  r = bazel_runfiles.CreateDirectoryBased(exe_path + ".runfiles")

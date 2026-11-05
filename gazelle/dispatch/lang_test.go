@@ -484,6 +484,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"mdx":    oneSourceRelative,
 		"perl":   oneSource,
 		"php":    "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",
+		"protobuf": "add a proto_library that owns that file or an exact # gazelle:resolve protobuf mapping",
 		"python": oneSource,
 		"ruby":   oneSource,
 		"scala":  jvm,

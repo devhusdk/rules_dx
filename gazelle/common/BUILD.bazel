@@ -82,6 +82,7 @@ go_library(
         "//gazelle/perl:__pkg__",
         "//gazelle/php:__pkg__",
         "//gazelle/powershell:__pkg__",
+        "//gazelle/protobuf:__pkg__",
         "//gazelle/python:__pkg__",
         "//gazelle/ruby:__pkg__",
         "//gazelle/rust:__pkg__",

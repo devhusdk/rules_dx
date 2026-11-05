@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package app;
+
+import "api/user.proto";
+
+message App {
+  api.User owner = 1;
+}

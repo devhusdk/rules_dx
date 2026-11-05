@@ -21,6 +21,7 @@ import (
 	_ "github.com/devhusdk/rules_dx/gazelle/perl"
 	_ "github.com/devhusdk/rules_dx/gazelle/php"
 	_ "github.com/devhusdk/rules_dx/gazelle/powershell"
+	_ "github.com/devhusdk/rules_dx/gazelle/protobuf"
 	_ "github.com/devhusdk/rules_dx/gazelle/python"
 	_ "github.com/devhusdk/rules_dx/gazelle/ruby"
 	_ "github.com/devhusdk/rules_dx/gazelle/rust"

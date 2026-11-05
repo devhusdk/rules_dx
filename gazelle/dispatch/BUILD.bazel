@@ -62,6 +62,7 @@ go_test(
         "//gazelle/perl",
         "//gazelle/php",
         "//gazelle/powershell",
+        "//gazelle/protobuf",
         "//gazelle/python",
         "//gazelle/ruby",
         "//gazelle/rust",

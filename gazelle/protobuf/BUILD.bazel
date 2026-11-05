@@ -1,0 +1,51 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "protobuf",
+    srcs = [
+        "doc.go",
+        "lang.go",
+        "naming.go",
+        "parser.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/protobuf",
+    visibility = [
+        "//gazelle/dispatch:__pkg__",
+        "@dx_gazelle//:__pkg__",
+    ],
+    deps = [
+        "//gazelle/common",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//repo",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
+        "@gazelle//v2/rule",
+    ],
+)
+
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "@dx_gazelle//:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
+go_test(
+    name = "protobuf_test",
+    srcs = [
+        "naming_test.go",
+        "parser_test.go",
+    ],
+    embed = [":protobuf"],
+    pure = "on",
+)

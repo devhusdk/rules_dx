@@ -156,6 +156,11 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"pwsh_library", "pwsh_test"},
 		oldSrcs: []string{"Old.psm1"},
 	},
+	"protobuf": {
+		files: map[string]string{"demo.proto": "syntax = \"proto3\";\n"},
+		kind:  "proto_library", target: "demo_proto", defs: "@protobuf//bazel:proto_library.bzl",
+		symbols: []string{"proto_library"},
+	},
 	"python": {
 		files: map[string]string{"demo.py": "x = 1\n"},
 		kind:  "python_library", target: "demo", defs: "python/rules:defs.bzl",
@@ -332,7 +337,11 @@ func checkMetadata(t *testing.T, name string, row conformanceRow, lang language.
 		t.Errorf("Configure without a BUILD file recorded %#v, want none", got)
 	}
 	loads := lang.Loads()
-	wantLoads := map[string][]string{"@rules_dx//" + row.defs: row.symbols}
+	defsLabel := "@rules_dx//" + row.defs
+	if strings.HasPrefix(row.defs, "@") {
+		defsLabel = row.defs
+	}
+	wantLoads := map[string][]string{defsLabel: row.symbols}
 	for name, symbols := range row.extraLoads {
 		wantLoads[name] = symbols
 	}

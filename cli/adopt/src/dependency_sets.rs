@@ -2317,7 +2317,10 @@ mod tests {
         let set = registry.find("vendor").expect("set");
         assert_eq!(set.ecosystem, Ecosystem::Composer);
         assert_eq!(set.manifests, ["php/composer.json"]);
-        assert_eq!(set.locks, ["php/composer.lock", "php/composer.digests.json"]);
+        assert_eq!(
+            set.locks,
+            ["php/composer.lock", "php/composer.digests.json"]
+        );
     }
 
     #[test]

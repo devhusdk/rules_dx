@@ -257,7 +257,10 @@ fn configured_refresh_selector(
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
         | ConfiguredKind::Go => set.name.clone(),
-        ConfiguredKind::Ruby | ConfiguredKind::Cpan | ConfiguredKind::Pub | ConfiguredKind::Composer => {
+        ConfiguredKind::Ruby
+        | ConfiguredKind::Cpan
+        | ConfiguredKind::Pub
+        | ConfiguredKind::Composer => {
             format!("{}:{package}", set.name)
         }
     })

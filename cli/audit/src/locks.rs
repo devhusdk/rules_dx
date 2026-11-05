@@ -11,6 +11,10 @@ mod locks_composer;
 mod locks_conan;
 #[path = "locks_cpan.rs"]
 mod locks_cpan;
+#[path = "locks_hex.rs"]
+mod locks_hex;
+#[path = "locks_julia.rs"]
+mod locks_julia;
 #[path = "locks_licenses.rs"]
 mod locks_licenses;
 #[path = "locks_npm.rs"]
@@ -19,10 +23,6 @@ mod locks_npm;
 mod locks_paket;
 #[path = "locks_pnpm.rs"]
 mod locks_pnpm;
-#[path = "locks_julia.rs"]
-mod locks_julia;
-#[path = "locks_hex.rs"]
-mod locks_hex;
 #[path = "locks_pub.rs"]
 mod locks_pub;
 #[path = "locks_ruby.rs"]
@@ -35,12 +35,12 @@ pub use locks_cargo::*;
 pub use locks_composer::*;
 pub use locks_conan::*;
 pub use locks_cpan::*;
+pub use locks_hex::*;
 pub use locks_julia::*;
 pub use locks_licenses::*;
 pub use locks_npm::*;
 pub use locks_paket::*;
 pub use locks_pnpm::*;
-pub use locks_hex::*;
 pub use locks_pub::*;
 pub use locks_ruby::*;
 pub use locks_uv::*;

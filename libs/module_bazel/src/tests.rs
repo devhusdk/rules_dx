@@ -1170,7 +1170,11 @@ fn composer_locks_follow_the_rules_dx_extension() {
         .collect();
     assert_eq!(
         found,
-        [("vendor", "//php:composer.lock", "//php:composer.digests.json")]
+        [(
+            "vendor",
+            "//php:composer.lock",
+            "//php:composer.digests.json"
+        )]
     );
 }
 

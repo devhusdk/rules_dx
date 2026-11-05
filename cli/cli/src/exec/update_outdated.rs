@@ -8,8 +8,7 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_update::discover::{
     bcr, cargo, composer, containers, cpan, github, go, maven, npm, nuget, pub_dev, pypi, ruby,
-    Candidate,
-    Fetch, Findings, Registry,
+    Candidate, Fetch, Findings, Registry,
 };
 use std::collections::BTreeMap;
 use std::io::Write;

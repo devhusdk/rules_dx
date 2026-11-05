@@ -112,6 +112,7 @@ pub(crate) fn configured_set(
         }
         dx_adopt::dependency_sets::Ecosystem::Pub if foreign => {
             Some(dx_update::edit::ConfiguredKind::Pub)
+        }
         dx_adopt::dependency_sets::Ecosystem::Composer if foreign => {
             Some(dx_update::edit::ConfiguredKind::Composer)
         }

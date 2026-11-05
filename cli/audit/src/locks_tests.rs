@@ -1585,7 +1585,10 @@ fn julia_manifest_lists_packages_and_skips_stdlibs() {
         .iter()
         .map(|package| (package.name.as_str(), package.version.as_str()))
         .collect();
-    assert_eq!(found, [("Foo", "0.1.0"), ("Foo", "0.2.0"), ("HTTP", "1.10.4")]);
+    assert_eq!(
+        found,
+        [("Foo", "0.1.0"), ("Foo", "0.2.0"), ("HTTP", "1.10.4")]
+    );
     assert!(packages.iter().all(|package| package.set == "julia"));
 }
 
@@ -1631,7 +1634,13 @@ fn composer_lock_lists_both_arrays_and_skips_branches() {
     let packages = parse_composer_lock(text).expect("parses");
     let found: Vec<_> = packages
         .iter()
-        .map(|package| (package.set.as_str(), package.name.as_str(), package.version.as_str()))
+        .map(|package| {
+            (
+                package.set.as_str(),
+                package.name.as_str(),
+                package.version.as_str(),
+            )
+        })
         .collect();
     assert_eq!(
         found,

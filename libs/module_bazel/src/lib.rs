@@ -862,16 +862,21 @@ impl ModuleFile {
     /// Every `composer.lock` tag of the rules_dx composer extension in source order.
     pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
         const TAG: &str = "composer.lock";
-        self.tags(RUBY_MODULE, "php/composer:extensions.bzl", "composer", "lock")
-            .map(|call| {
-                Ok(ComposerLock {
-                    name: required(call, TAG, "name")?,
-                    lock: required(call, TAG, "lock")?,
-                    digests: required(call, TAG, "digests")?,
-                    line: call.line,
-                })
+        self.tags(
+            RUBY_MODULE,
+            "php/composer:extensions.bzl",
+            "composer",
+            "lock",
+        )
+        .map(|call| {
+            Ok(ComposerLock {
+                name: required(call, TAG, "name")?,
+                lock: required(call, TAG, "lock")?,
+                digests: required(call, TAG, "digests")?,
+                line: call.line,
             })
-            .collect()
+        })
+        .collect()
     }
 
     /// Every `from_manifest` tag of the rules_julia `pkg` extension in source order.

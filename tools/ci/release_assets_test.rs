@@ -670,9 +670,15 @@ fn a_dry_run_never_signs_or_publishes() {
     let attest = text.find("\n  attest:\n").expect("attest job");
     for job in [&text[attest..assets], &text[assets..pins]] {
         for step in job_steps(job) {
-            let writes = ["gh release", "actions/attest@", "gh attestation", "RELEASE_DRY_RUN=0", "actions/checkout"]
-                .iter()
-                .any(|needle| step.contains(needle));
+            let writes = [
+                "gh release",
+                "actions/attest@",
+                "gh attestation",
+                "RELEASE_DRY_RUN=0",
+                "actions/checkout",
+            ]
+            .iter()
+            .any(|needle| step.contains(needle));
             if writes {
                 let cond = step
                     .lines()

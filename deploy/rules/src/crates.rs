@@ -404,7 +404,15 @@ pub fn crates_main(
     version: &str,
     argv: &[String],
 ) -> i32 {
-    crates_main_checked(crate_rlocs, crate_name, version, "off", "registry", "", argv)
+    crates_main_checked(
+        crate_rlocs,
+        crate_name,
+        version,
+        "off",
+        "registry",
+        "",
+        argv,
+    )
 }
 
 /// Runs the crates deploy tool.

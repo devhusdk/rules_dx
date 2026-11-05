@@ -1708,18 +1708,59 @@ fn padded_selection(count: usize, pad: usize) -> BTreeMap<String, String> {
     files
 }
 
-fn batched_keep_sorted_spawns() -> usize {
-    BATCHED_SPAWNS.load(std::sync::atomic::Ordering::SeqCst)
+/// A spawn counter per test thread, so tests running in parallel never see each other's spawns.
+struct SpawnCount(std::sync::Mutex<Vec<(std::thread::ThreadId, usize)>>);
+
+impl SpawnCount {
+    const fn new() -> Self {
+        Self(std::sync::Mutex::new(Vec::new()))
+    }
+
+    fn with<T>(&self, act: impl FnOnce(&mut usize) -> T) -> T {
+        let me = std::thread::current().id();
+        let mut all = self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let at = match all.iter().position(|(id, _)| *id == me) {
+            Some(at) => at,
+            None => {
+                all.push((me, 0));
+                all.len() - 1
+            }
+        };
+        act(&mut all[at].1)
+    }
+
+    /// Counts one spawn and returns how many came before it.
+    fn bump(&self) -> usize {
+        self.with(|count| {
+            *count += 1;
+            *count - 1
+        })
+    }
+
+    fn reset(&self) {
+        self.with(|count| *count = 0);
+    }
+
+    fn get(&self) -> usize {
+        self.with(|count| *count)
+    }
 }
 
-static BATCHED_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+fn batched_keep_sorted_spawns() -> usize {
+    BATCHED_SPAWNS.get()
+}
+
+static BATCHED_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn batched_keep_sorted(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    BATCHED_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    BATCHED_SPAWNS.bump();
     assert_within_budget(argv);
     keep_sorted_multi_behavior(argv, cwd, env)
 }
@@ -1745,50 +1786,50 @@ fn python_selection(count: usize, pad: usize) -> BTreeMap<String, String> {
     files
 }
 
-static RUFF_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static RUFF_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn batched_ruff(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    RUFF_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    RUFF_SPAWNS.bump();
     assert_within_budget(argv);
     ruff_multi_behavior(argv, cwd, env)
 }
 
-static RUFF_EQUAL_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static RUFF_EQUAL_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn batched_ruff_equal(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    RUFF_EQUAL_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    RUFF_EQUAL_SPAWNS.bump();
     assert_within_budget(argv);
     ruff_multi_behavior(argv, cwd, env)
 }
 
-static FLAKE8_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static FLAKE8_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn batched_flake8(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    FLAKE8_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    FLAKE8_SPAWNS.bump();
     assert_within_budget(argv);
     flake8_multi_behavior(argv, cwd, env)
 }
 
-static LAUNCHER_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static LAUNCHER_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn batched_launcher(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    LAUNCHER_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    LAUNCHER_SPAWNS.bump();
     assert_eq!(
         quality_adapter::commands::argv_budget(&argv[0]),
         quality_adapter::commands::LAUNCHER_BATCH_BUDGET
@@ -1797,14 +1838,14 @@ fn batched_launcher(
     ruff_multi_behavior(argv, cwd, env)
 }
 
-static TY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static TY_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn counting_ty(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    TY_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    TY_SPAWNS.bump();
     roundtrip_ty(argv, cwd, env)
 }
 
@@ -1812,12 +1853,12 @@ fn counting_ty(
 fn ruff_large_selection_runs_batched() {
     let files = python_selection(300, 96);
     for (capability, kind) in [("lint", "F401"), ("format", "unformatted")] {
-        RUFF_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+        RUFF_SPAWNS.reset();
         let backend = backend_for("ruff", plain_tool(), batched_ruff);
         let first = backend
             .diagnose("ruff", capability, &files)
             .expect("batched ruff runs");
-        let spawns = RUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+        let spawns = RUFF_SPAWNS.get();
         assert!(spawns > 1, "{capability} splits into {spawns} spawns");
         assert_eq!(first.len(), 150, "every other file is dirty");
         assert!(
@@ -1838,13 +1879,13 @@ fn ruff_large_selection_runs_batched() {
 #[test]
 fn ruff_batches_match_single_file_results() {
     let files = python_selection(120, 200);
-    RUFF_EQUAL_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    RUFF_EQUAL_SPAWNS.reset();
     let batched = backend_for("ruff", plain_tool(), batched_ruff_equal);
     let merged = batched
         .diagnose("ruff", "lint", &files)
         .expect("batched ruff runs");
     assert!(
-        RUFF_EQUAL_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 1,
+        RUFF_EQUAL_SPAWNS.get() > 1,
         "equivalence input spans batches"
     );
     let mut singles = Vec::new();
@@ -1863,13 +1904,13 @@ fn ruff_batches_match_single_file_results() {
 
 #[test]
 fn flake8_large_selection_runs_batched() {
-    FLAKE8_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    FLAKE8_SPAWNS.reset();
     let files = python_selection(300, 96);
     let backend = backend_for("flake8", plain_tool(), batched_flake8);
     let findings = backend
         .diagnose("flake8", "lint", &files)
         .expect("batched flake8 runs");
-    assert!(FLAKE8_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 1);
+    assert!(FLAKE8_SPAWNS.get() > 1);
     assert_eq!(findings.len(), 150);
     let paths: Vec<&str> = findings.iter().map(|found| found.path.as_str()).collect();
     let mut ordered = paths.clone();
@@ -1879,7 +1920,7 @@ fn flake8_large_selection_runs_batched() {
 
 #[test]
 fn ty_over_budget_selection_fails_before_spawn() {
-    TY_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    TY_SPAWNS.reset();
     let files = python_selection(300, 120);
     let backend = backend_for("ty", plain_tool(), counting_ty);
     let err = backend
@@ -1891,12 +1932,12 @@ fn ty_over_budget_selection_fails_before_spawn() {
             .contains("selection too large for one ty spawn"),
         "{err}"
     );
-    assert_eq!(TY_SPAWNS.load(std::sync::atomic::Ordering::SeqCst), 0);
+    assert_eq!(TY_SPAWNS.get(), 0);
 }
 
 #[test]
 fn batch_launcher_splits_at_launcher_budget() {
-    LAUNCHER_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    LAUNCHER_SPAWNS.reset();
     let files = python_selection(120, 96);
     let tool = RealTool {
         binary: PathBuf::from("/fake/bin/ruff.bat"),
@@ -1906,32 +1947,32 @@ fn batch_launcher_splits_at_launcher_budget() {
     let findings = backend
         .diagnose("ruff", "lint", &files)
         .expect("launcher batches stay under the guard");
-    assert!(LAUNCHER_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 2);
+    assert!(LAUNCHER_SPAWNS.get() > 2);
     assert_eq!(findings.len(), 60);
 }
 
-static FLAKY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static FLAKY_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn flaky_keep_sorted(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let at = FLAKY_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let at = FLAKY_SPAWNS.bump();
     if at == 1 {
         return Err(io::Error::new(io::ErrorKind::Other, "terminal gone"));
     }
     keep_sorted_multi_behavior(argv, cwd, env)
 }
 
-static POISONED_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static POISONED_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn poisoned_keep_sorted(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let at = POISONED_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let at = POISONED_SPAWNS.bump();
     if at == 1 {
         return Ok(ChildOutput {
             code: Some(1),
@@ -1944,7 +1985,7 @@ fn poisoned_keep_sorted(
 
 #[test]
 fn keep_sorted_large_selection_runs_batched_with_a_stable_merge() {
-    BATCHED_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    BATCHED_SPAWNS.reset();
     let files = oversized_selection(300);
     let backend = backend_for("keep_sorted", plain_tool(), batched_keep_sorted);
     let first = backend
@@ -1969,7 +2010,7 @@ fn keep_sorted_large_selection_runs_batched_with_a_stable_merge() {
 #[test]
 fn keep_sorted_batches_match_single_file_results() {
     let files = padded_selection(120, 200);
-    BATCHED_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    BATCHED_SPAWNS.reset();
     let batched = backend_for("keep_sorted", plain_tool(), batched_keep_sorted);
     let merged = batched
         .diagnose("keep_sorted", "lint", &files)
@@ -1999,7 +2040,7 @@ fn keep_sorted_batches_match_single_file_results() {
 
 #[test]
 fn keep_sorted_middle_batch_spawn_failure_aborts() {
-    FLAKY_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    FLAKY_SPAWNS.reset();
     let files = oversized_selection(300);
     let backend = backend_for("keep_sorted", plain_tool(), flaky_keep_sorted);
     let err = backend
@@ -2011,7 +2052,7 @@ fn keep_sorted_middle_batch_spawn_failure_aborts() {
 
 #[test]
 fn keep_sorted_middle_batch_garbage_aborts() {
-    POISONED_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    POISONED_SPAWNS.reset();
     let files = oversized_selection(300);
     let backend = backend_for("keep_sorted", plain_tool(), poisoned_keep_sorted);
     let err = backend
@@ -3129,15 +3170,14 @@ fn rustfmt_fix_spawns_once_per_stage_per_round_in_one_scratch() {
     assert_ne!(log[0].1, log[1].1, "diagnose keeps its own scratch");
 }
 
-static SHFMT_FALLBACK_SPAWNS: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(0);
+static SHFMT_FALLBACK_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn partial_shfmt(
     argv: &[OsString],
     _cwd: &Path,
     _env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    SHFMT_FALLBACK_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    SHFMT_FALLBACK_SPAWNS.bump();
     let files = file_args(argv, "sh");
     let broken = files.iter().any(|file| {
         std::fs::read_to_string(file)
@@ -3170,7 +3210,7 @@ fn sh_stage(count: usize, pad: usize) -> (crate::StageSpec, BTreeMap<String, Str
 
 #[test]
 fn batch_fix_failure_falls_back_to_single_files() {
-    SHFMT_FALLBACK_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    SHFMT_FALLBACK_SPAWNS.reset();
     let (spec, mut current) = sh_stage(4, 0);
     let broken = spec.source_paths[2].clone();
     current.insert(broken.clone(), "BROKEN  \n".to_owned());
@@ -3181,10 +3221,7 @@ fn batch_fix_failure_falls_back_to_single_files() {
         .fix(0, &spec, &current, &spec.source_paths)
         .expect("fallback fixes");
     session.close().expect("session closes");
-    assert_eq!(
-        SHFMT_FALLBACK_SPAWNS.load(std::sync::atomic::Ordering::SeqCst),
-        5
-    );
+    assert_eq!(SHFMT_FALLBACK_SPAWNS.get(), 5);
     for (path, text) in &fixed {
         let want = if *path == broken {
             "BROKEN  \n"
@@ -3196,21 +3233,21 @@ fn batch_fix_failure_falls_back_to_single_files() {
     assert_eq!(fixed.len(), 4);
 }
 
-static SHFMT_BUDGET_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static SHFMT_BUDGET_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn budget_shfmt(
     argv: &[OsString],
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    SHFMT_BUDGET_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    SHFMT_BUDGET_SPAWNS.bump();
     assert_within_budget(argv);
     partial_shfmt(argv, cwd, env)
 }
 
 #[test]
 fn large_fix_selection_splits_within_argv_budget() {
-    SHFMT_BUDGET_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    SHFMT_BUDGET_SPAWNS.reset();
     let (spec, current) = sh_stage(300, 120);
     let backend = backend_for("shfmt", plain_tool(), budget_shfmt);
     let known = BTreeSet::new();
@@ -3219,7 +3256,7 @@ fn large_fix_selection_splits_within_argv_budget() {
         .fix(0, &spec, &current, &spec.source_paths)
         .expect("batches fix");
     session.close().expect("session closes");
-    let spawns = SHFMT_BUDGET_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let spawns = SHFMT_BUDGET_SPAWNS.get();
     assert!(spawns > 1 && spawns < 300, "{spawns} spawns");
     assert_eq!(fixed.len(), 300);
     assert!(fixed.values().all(|text| text == "echo\n"));
@@ -3574,7 +3611,7 @@ fn deadnix_garbage_fails_the_action() {
 const KUBECONFORM_CONFIG_REL: &str = "k8s/schemas.kubeconform.json";
 const KUBECONFORM_MANIFEST: &str = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: a\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  replicas: \"2\"\n";
 
-static KUBECONFORM_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static KUBECONFORM_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn kubeconform_tool(config: &str) -> RealTool {
     RealTool {
@@ -3605,7 +3642,7 @@ fn kubeconform_fake(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    KUBECONFORM_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    KUBECONFORM_SPAWNS.bump();
     let args: Vec<String> = argv
         .iter()
         .skip(1)
@@ -3681,14 +3718,11 @@ fn kubeconform_validates_every_document_in_one_run() {
         "k8s/broken.yaml".to_owned(),
         "apiVersion: v1\nkind: [\n".to_owned(),
     );
-    let before = KUBECONFORM_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let before = KUBECONFORM_SPAWNS.get();
     let mut findings = backend
         .diagnose("kubeconform", "lint", &files)
         .expect("diagnosed");
-    assert_eq!(
-        KUBECONFORM_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
-        1
-    );
+    assert_eq!(KUBECONFORM_SPAWNS.get() - before, 1);
     findings.sort_by(|a, b| a.path.cmp(&b.path));
     let seen: Vec<(&str, &str)> = findings
         .iter()
@@ -3772,7 +3806,7 @@ const CFN_TEMPLATE: &str = "AWSTemplateFormatVersion: \"2010-09-09\"\nResources:
 const CFN_CLEAN: &str =
     "AWSTemplateFormatVersion: \"2010-09-09\"\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket\n";
 
-static CFN_LINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static CFN_LINT_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn cfn_lint_tool(config: &str) -> RealTool {
     RealTool {
@@ -3791,7 +3825,7 @@ fn cfn_lint_fake(
     for denied in ["AWS_REGION", "AWS_DEFAULT_REGION", "HOME"] {
         assert!(env.iter().all(|(key, _)| key != denied), "{denied} leaked");
     }
-    CFN_LINT_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    CFN_LINT_SPAWNS.bump();
     let args: Vec<String> = argv
         .iter()
         .skip(1)
@@ -3877,14 +3911,11 @@ fn cfn_lint_lints_every_template_in_one_run() {
     );
     let mut files = single("infra/a.yaml", CFN_TEMPLATE);
     files.insert("infra/b.yaml".to_owned(), CFN_CLEAN.to_owned());
-    let before = CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let before = CFN_LINT_SPAWNS.get();
     let findings = backend
         .diagnose("cfn_lint", "lint", &files)
         .expect("diagnosed");
-    assert_eq!(
-        CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
-        1
-    );
+    assert_eq!(CFN_LINT_SPAWNS.get() - before, 1);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].path, "infra/a.yaml");
     assert_eq!(findings[0].rule_id, "E3002");
@@ -3909,16 +3940,13 @@ fn cfn_lint_always_passes_a_config_file() {
 #[test]
 fn cfn_lint_plain_yaml_never_reaches_the_tool() {
     let backend = backend_for("cfn_lint", plain_tool(), cfn_lint_fake);
-    let before = CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let before = CFN_LINT_SPAWNS.get();
     let findings = backend
         .diagnose("cfn_lint", "lint", &single("infra/data.yaml", "a: 1\n"))
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id, "dx/cloudformation-root");
-    assert_eq!(
-        CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst),
-        before
-    );
+    assert_eq!(CFN_LINT_SPAWNS.get(), before);
 }
 
 #[test]
@@ -4302,7 +4330,7 @@ fn bicep_has_no_delegated_mode() {
 const CMAKELINT_DIRTY: &str = "cmake_minimum_required(VERSION 3.20)\nSET(A b)\n";
 const CMAKELINT_CLEAN: &str = "cmake_minimum_required(VERSION 3.20)\n";
 
-static CMAKELINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static CMAKELINT_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn cmakelint_tool(config: &str) -> RealTool {
     RealTool {
@@ -4318,7 +4346,7 @@ fn cmakelint_fake(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    CMAKELINT_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    CMAKELINT_SPAWNS.bump();
     let args: Vec<String> = argv
         .iter()
         .skip(1)
@@ -4399,14 +4427,11 @@ fn cmakelint_lints_every_file_in_one_check_only_run() {
     let backend = backend_for("cmakelint", plain_tool(), cmakelint_fake);
     let mut files = single("CMakeLists.txt", CMAKELINT_DIRTY);
     files.insert("cmake/b.cmake".to_owned(), CMAKELINT_CLEAN.to_owned());
-    let before = CMAKELINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let before = CMAKELINT_SPAWNS.get();
     let findings = backend
         .diagnose("cmakelint", "lint", &files)
         .expect("diagnosed");
-    assert_eq!(
-        CMAKELINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
-        1
-    );
+    assert_eq!(CMAKELINT_SPAWNS.get() - before, 1);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].path, "CMakeLists.txt");
     assert_eq!(findings[0].rule_id, "readability/wonkycase");
@@ -4511,7 +4536,7 @@ fn cmakelint_has_no_delegated_mode() {
 const SQL_DIRTY: &str = "select a,b from t\n";
 const SQL_CLEAN: &str = "select a from t\n";
 
-static SQLFLUFF_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static SQLFLUFF_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn sqlfluff_tool(config: &str) -> RealTool {
     RealTool {
@@ -4530,7 +4555,7 @@ fn sqlfluff_fake(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(env.iter().all(|(key, _)| key != "HOME"), "HOME leaked");
-    SQLFLUFF_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    SQLFLUFF_SPAWNS.bump();
     let args: Vec<String> = argv
         .iter()
         .skip(1)
@@ -4608,14 +4633,11 @@ fn sqlfluff_lints_every_file_in_one_run_and_stays_check_only() {
     let backend = backend_for("sqlfluff", sqlfluff_tool(SQLFLUFF_CONFIG), sqlfluff_fake);
     let mut files = single("db/a.sql", SQL_DIRTY);
     files.insert("db/b.sql".to_owned(), SQL_CLEAN.to_owned());
-    let before = SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let before = SQLFLUFF_SPAWNS.get();
     let findings = backend
         .diagnose("sqlfluff", "lint", &files)
         .expect("diagnosed");
-    assert_eq!(
-        SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
-        1
-    );
+    assert_eq!(SQLFLUFF_SPAWNS.get() - before, 1);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].path, "db/a.sql");
     assert_eq!(findings[0].rule_id, "LT01");
@@ -4631,7 +4653,7 @@ fn sqlfluff_lints_every_file_in_one_run_and_stays_check_only() {
 #[test]
 fn sqlfluff_without_a_config_is_refused() {
     let backend = backend_for("sqlfluff", plain_tool(), sqlfluff_fake);
-    let before = SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let before = SQLFLUFF_SPAWNS.get();
     let err = backend
         .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
         .expect_err("needs a config");
@@ -4639,10 +4661,7 @@ fn sqlfluff_without_a_config_is_refused() {
         err.to_string().contains("sqlfluff requires a config"),
         "{err}"
     );
-    assert_eq!(
-        SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst),
-        before
-    );
+    assert_eq!(SQLFLUFF_SPAWNS.get(), before);
 }
 
 #[test]
@@ -5296,7 +5315,7 @@ fn topiary_syntax_error_is_an_error_not_a_clean_run() {
         .is_err());
 }
 
-static TFLINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static TFLINT_SPAWNS: SpawnCount = SpawnCount::new();
 
 fn tflint_arg<'a>(argv: &'a [OsString], prefix: &str) -> Vec<&'a str> {
     argv.iter()
@@ -5309,7 +5328,7 @@ fn tflint_fake(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    TFLINT_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    TFLINT_SPAWNS.bump();
     assert_hermetic(env);
     let value = |key: &str| {
         env.iter()
@@ -5415,7 +5434,7 @@ fn nixfmt_syntax_error_is_reported_and_a_fix_leaves_it_unchanged() {
 
 #[test]
 fn tflint_runs_once_per_directory_with_scratch_home_and_default_config() {
-    TFLINT_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    TFLINT_SPAWNS.reset();
     let backend = backend_for("tflint", plain_tool(), tflint_fake);
     let mut files = BTreeMap::new();
     files.insert("infra/a/main.tf".to_owned(), "bad\n".to_owned());
@@ -5424,7 +5443,7 @@ fn tflint_runs_once_per_directory_with_scratch_home_and_default_config() {
     let findings = backend
         .diagnose("tflint", "lint", &files)
         .expect("diagnosed");
-    assert_eq!(TFLINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst), 2);
+    assert_eq!(TFLINT_SPAWNS.get(), 2);
     let mut paths: Vec<&str> = findings.iter().map(|f| f.path.as_str()).collect();
     paths.sort_unstable();
     assert_eq!(paths, ["infra/a/main.tf", "infra/b/main.tf"]);

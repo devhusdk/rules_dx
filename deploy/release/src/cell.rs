@@ -587,7 +587,8 @@ fn installed_checks(
             &inputs.work,
             cell.os == "windows",
             runner,
-        ).and_then(|dir| {
+        )
+        .and_then(|dir| {
             ["build", "test", "check"]
                 .into_iter()
                 .try_for_each(|command| {

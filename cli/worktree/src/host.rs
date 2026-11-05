@@ -1051,7 +1051,12 @@ mod tests {
         let spec = shutdown_spec(Path::new("/bin/bazel"), &["--nohome_rc"], Path::new("/w"));
         assert_eq!(
             spec.argv,
-            ["/bin/bazel", "--nohome_rc", "--noblock_for_lock", "shutdown"]
+            [
+                "/bin/bazel",
+                "--nohome_rc",
+                "--noblock_for_lock",
+                "shutdown"
+            ]
         );
         assert_eq!(spec.timeout, SHUTDOWN_TIMEOUT);
         assert_eq!(spec.cwd, Path::new("/w"));

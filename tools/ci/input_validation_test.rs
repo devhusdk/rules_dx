@@ -477,7 +477,10 @@ fn deployables_mode_prints_labels_and_rejects_bad_lists() {
     };
     let good = run(r#"["//pkg:npm", "//pkg:gh"]"#);
     assert!(good.status.success());
-    assert_eq!(String::from_utf8_lossy(&good.stdout), "//pkg:npm\n//pkg:gh\n");
+    assert_eq!(
+        String::from_utf8_lossy(&good.stdout),
+        "//pkg:npm\n//pkg:gh\n"
+    );
     let bad = run("[]");
     assert!(!bad.status.success());
     assert!(String::from_utf8_lossy(&bad.stderr).contains("empty array"));

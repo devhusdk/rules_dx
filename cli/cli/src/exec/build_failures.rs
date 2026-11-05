@@ -1,6 +1,6 @@
 use super::common::{emit_built, CODE_BUILD_EVENTS_INCOMPLETE};
-use super::skipped_targets::language_in_message;
 use super::rustc_stderr::{self, ActionDiagnostic};
+use super::skipped_targets::language_in_message;
 use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
 use dx_output::{
     build_failure_event, notice_event, BuildFailureEvent, FailureDiagnostic, FailureRelated,
@@ -622,7 +622,10 @@ mod tests {
         );
         super::add_skip_reason(&mut event);
         let message = event.message.unwrap();
-        assert!(message.contains("Dart is not supported on this platform"), "{message}");
+        assert!(
+            message.contains("Dart is not supported on this platform"),
+            "{message}"
+        );
         let mut plain = to_failure_event_for_test();
         plain.message = Some("boom".to_owned());
         super::add_skip_reason(&mut plain);

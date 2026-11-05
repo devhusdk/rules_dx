@@ -77,7 +77,6 @@ pub fn import_allowed(os: &str, needed: &str, runtime: &[String]) -> bool {
         })
 }
 
-
 fn os_for(format: &str) -> &'static str {
     match format {
         "elf" => "linux",
@@ -114,9 +113,9 @@ pub fn missing_imports(
         for needed in &image.needed {
             let base = needed.rsplit('/').next().unwrap_or_default();
             if !import_allowed(os, needed, members)
-                && !provides
-                    .iter()
-                    .any(|name| matches_pattern(os, needed, name) || matches_pattern(os, base, name))
+                && !provides.iter().any(|name| {
+                    matches_pattern(os, needed, name) || matches_pattern(os, base, name)
+                })
                 && !missing.contains(needed)
             {
                 missing.push(needed.clone());
@@ -300,8 +299,7 @@ mod tests {
             strings(&["libqt.so.6", "libstdc++.so.6"])
         );
         assert_eq!(
-            missing_imports(&image, &strings(&["libstdc++.so.6"]), &strings(&["libqt*"]))
-                .unwrap(),
+            missing_imports(&image, &strings(&["libstdc++.so.6"]), &strings(&["libqt*"])).unwrap(),
             Vec::<String>::new()
         );
     }
@@ -354,6 +352,8 @@ mod tests {
 
     #[test]
     fn missing_imports_skips_non_images() {
-        assert!(missing_imports(b"not a library", &[], &[]).unwrap().is_empty());
+        assert!(missing_imports(b"not a library", &[], &[])
+            .unwrap()
+            .is_empty());
     }
 }

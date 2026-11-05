@@ -41,10 +41,7 @@ impl Fixture {
         std::fs::create_dir_all(workspace.path().join(".dx")).expect("mkdir");
         std::fs::write(
             workspace.path().join(".dx/pins"),
-            format!(
-                "{VERSION} {} {asset}\r\n",
-                support::sha256_hex(&fake)
-            ),
+            format!("{VERSION} {} {asset}\r\n", support::sha256_hex(&fake)),
         )
         .expect("pin");
         Self {

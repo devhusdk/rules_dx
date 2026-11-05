@@ -203,13 +203,20 @@ impl CacheUse {
 
 impl Report {
     pub(crate) fn text(&self) -> String {
-        let mut lines = vec![format!("dx: profile, wall time {}", seconds(self.wall_micros))];
+        let mut lines = vec![format!(
+            "dx: profile, wall time {}",
+            seconds(self.wall_micros)
+        )];
         lines.push(format!(
             "dx: critical path {}",
             seconds(self.critical_micros)
         ));
         for item in &self.critical {
-            lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.label()));
+            lines.push(format!(
+                "dx:   {:>8}  {}",
+                seconds(item.micros),
+                item.label()
+            ));
         }
         match &self.cache {
             Some(cache) => lines.push(format!(
@@ -224,7 +231,9 @@ impl Report {
         }
         match self.bytes_downloaded {
             Some(bytes) => lines.push(format!("dx: downloaded {}", megabytes(bytes))),
-            None => lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned()),
+            None => {
+                lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned())
+            }
         }
         if let Some(totals) = &self.totals {
             if let Some(heap) = totals.peak_heap_bytes {
@@ -244,7 +253,11 @@ impl Report {
         }
         lines.push("dx: slowest actions".to_owned());
         for item in &self.slowest {
-            lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.label()));
+            lines.push(format!(
+                "dx:   {:>8}  {}",
+                seconds(item.micros),
+                item.label()
+            ));
         }
         lines.push(format!(
             "dx: repository fetches {} in {}",
@@ -334,12 +347,24 @@ mod tests {
         prune(root.path());
         let mut kept: Vec<String> = std::fs::read_dir(&dir)
             .expect("read")
-            .map(|entry| entry.expect("entry").file_name().to_string_lossy().into_owned())
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
             .collect();
         kept.sort();
         assert_eq!(
             kept,
-            ["4.json.gz", "5.json.gz", "6.json.gz", "7.json.gz", "report.json"]
+            [
+                "4.json.gz",
+                "5.json.gz",
+                "6.json.gz",
+                "7.json.gz",
+                "report.json"
+            ]
         );
     }
 
@@ -376,7 +401,9 @@ mod tests {
         assert!(text.contains("wall time 4.0s"), "{text}");
         assert!(text.contains("[CppCompile] action 'A'"), "{text}");
         assert!(
-            text.contains("cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"),
+            text.contains(
+                "cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"
+            ),
             "{text}"
         );
         assert!(text.contains("downloaded 2.5 MB"), "{text}");
@@ -420,7 +447,10 @@ mod tests {
         let text = report.text();
         assert!(text.contains("peak heap 3.0 MB"), "{text}");
         assert!(text.contains("1.5s  CppCompile x7"), "{text}");
-        assert_eq!(report.json()["build_metrics"]["mnemonics"][0]["cpu_ms"], 1500);
+        assert_eq!(
+            report.json()["build_metrics"]["mnemonics"][0]["cpu_ms"],
+            1500
+        );
     }
 
     #[test]

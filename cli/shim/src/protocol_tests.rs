@@ -99,7 +99,10 @@ fn pinned_hash_reads_the_line_for_version_and_asset() {
 fn pinned_hash_rejects_bad_lines() {
     let a = "a".repeat(64);
     assert_eq!(pinned_hash("1.2.3\n", "1.2.3", "dx-linux-x86_64"), None);
-    assert_eq!(pinned_hash("1.2.3 abc dx-linux-x86_64\n", "1.2.3", "dx-linux-x86_64"), None);
+    assert_eq!(
+        pinned_hash("1.2.3 abc dx-linux-x86_64\n", "1.2.3", "dx-linux-x86_64"),
+        None
+    );
     let extra = format!("1.2.3 {a} dx-linux-x86_64 extra\n");
     assert_eq!(pinned_hash(&extra, "1.2.3", "dx-linux-x86_64"), None);
 }

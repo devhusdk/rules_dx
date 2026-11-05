@@ -86,11 +86,7 @@ fn preset_parity() {
     }
     dx_testing::expect_contains(
         &preset_rs,
-        &[
-            "PRESET_BAZEL_VERSION",
-            "PRESET_DX_VERSION",
-            "\"0.0.0\"",
-        ],
+        &["PRESET_BAZEL_VERSION", "PRESET_DX_VERSION", "\"0.0.0\""],
     )
     .expect("preset src lost its Bazel/dx version pins");
 

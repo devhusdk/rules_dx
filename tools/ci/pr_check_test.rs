@@ -117,9 +117,7 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
     assert!(wanted.len() > 10, "found only {} labels", wanted.len());
     let uncovered: Vec<_> = wanted
         .iter()
-        .filter(|label| {
-            !labels(body).contains(label) && !labels(blocked).contains(label)
-        })
+        .filter(|label| !labels(body).contains(label) && !labels(blocked).contains(label))
         .collect();
     assert!(
         uncovered.is_empty(),

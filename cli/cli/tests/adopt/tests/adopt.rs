@@ -139,11 +139,7 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     }
     let check = dx(&root, &home, &["upgrade", "--to", &built]);
     assert_eq!(check.code, 1, "{}", check.stderr);
-    assert!(
-        check.stderr.contains("upgrade_pending"),
-        "{}",
-        check.stderr
-    );
+    assert!(check.stderr.contains("upgrade_pending"), "{}", check.stderr);
     let kept = || {
         let mut files = BTreeMap::new();
         tree(&root.join(".dx/bazelrc"), &root, &mut files);

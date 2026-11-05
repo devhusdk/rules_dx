@@ -248,17 +248,13 @@ pub fn check_deployable(
         .find(|line| !line.is_empty())
         .ok_or_else(|| malformed("cquery returned no deploy observation"))?;
     let mut parts = line.split('|');
-    let (has, profile_raw, app_raw, exe) = match (
-        parts.next(),
-        parts.next(),
-        parts.next(),
-        parts.next(),
-    ) {
-        (Some(has), Some(profile), Some(app), Some(exe)) => (has, profile, app, exe),
-        _ => {
-            return Err(malformed("cquery returned a malformed deploy observation"));
-        }
-    };
+    let (has, profile_raw, app_raw, exe) =
+        match (parts.next(), parts.next(), parts.next(), parts.next()) {
+            (Some(has), Some(profile), Some(app), Some(exe)) => (has, profile, app, exe),
+            _ => {
+                return Err(malformed("cquery returned a malformed deploy observation"));
+            }
+        };
     let size_budget = parts.next().unwrap_or("").to_owned();
     let size_stamp = parts.next().unwrap_or("").to_owned();
     if parts.next().is_some() {

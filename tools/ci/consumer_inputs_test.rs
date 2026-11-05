@@ -426,7 +426,10 @@ fn mutate_is_off_by_default_and_runs_only_on_the_default_branch_schedule() {
     for needle in ["inputs.mutate", "'schedule'", "default_branch"] {
         assert!(condition.contains(needle), "mutate if: {condition}");
     }
-    assert!(!condition.contains("pull_request"), "mutate if: {condition}");
+    assert!(
+        !condition.contains("pull_request"),
+        "mutate if: {condition}"
+    );
 }
 
 #[test]

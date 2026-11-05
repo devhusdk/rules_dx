@@ -291,8 +291,15 @@ fn execute_checked(
     }
     let action_counts = read_actions(&bep, actions);
     if let Some(trace) = &trace {
-        if let Err(exit) = announce_profile(invocation, workspace, out, err, trace, Some(&bep), action_counts)
-        {
+        if let Err(exit) = announce_profile(
+            invocation,
+            workspace,
+            out,
+            err,
+            trace,
+            Some(&bep),
+            action_counts,
+        ) {
             let _ = std::fs::remove_file(&bep);
             return kept_child(err, bazel_code, exit);
         }
@@ -649,7 +656,8 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("dir");
         let id = dx_plan::plan::run_id(std::process::id(), 0, &harness.temp);
         let trace = dir.join(format!("{id}.json.gz"));
-        let json = r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#;
+        let json =
+            r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#;
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
         std::io::Write::write_all(&mut gz, json.as_bytes()).expect("gzip");
         std::fs::write(&trace, gz.finish().expect("finish")).expect("trace");
@@ -663,8 +671,14 @@ mod tests {
             .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("json"))
             .find(|event| event["code"] == "profile_report")
             .expect("notice");
-        assert_eq!(notice["path"], dir.join("report.json").display().to_string());
-        assert!(notice["message"].as_str().expect("message").contains("slow"));
+        assert_eq!(
+            notice["path"],
+            dir.join("report.json").display().to_string()
+        );
+        assert!(notice["message"]
+            .as_str()
+            .expect("message")
+            .contains("slow"));
         assert!(dir.join("report.json").is_file());
         let (code, _, err) = harness.run(&["build", "--profile"]);
         assert_eq!(code, 0);
@@ -679,7 +693,8 @@ mod tests {
         let dir = harness.workspace.join(".dx").join("profile");
         std::fs::create_dir_all(&dir).expect("dir");
         let trace = dir.join("1.json.gz");
-        let json = r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#;
+        let json =
+            r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#;
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
         std::io::Write::write_all(&mut gz, json.as_bytes()).expect("gzip");
         std::fs::write(&trace, gz.finish().expect("finish")).expect("trace");
@@ -700,8 +715,14 @@ mod tests {
         .expect("announce");
         let notice: serde_json::Value = serde_json::from_slice(&out).expect("json");
         assert_eq!(notice["code"], "profile_report");
-        assert_eq!(notice["path"], dir.join("report.json").display().to_string());
-        assert!(notice["message"].as_str().expect("message").contains("slow"));
+        assert_eq!(
+            notice["path"],
+            dir.join("report.json").display().to_string()
+        );
+        assert!(notice["message"]
+            .as_str()
+            .expect("message")
+            .contains("slow"));
         assert!(dir.join("report.json").is_file());
         let mut err = Vec::new();
         let inv = invocation(&["build", "--profile"]);

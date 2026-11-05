@@ -1,7 +1,7 @@
 pub(crate) mod agents;
 pub(crate) mod claude_md;
-mod copilot_md;
 mod completion;
+mod copilot_md;
 mod init;
 mod init_files;
 mod status;

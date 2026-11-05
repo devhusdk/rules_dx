@@ -743,7 +743,22 @@ fn pkl_lsp_behavior(
     _cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
+    // The launch points the JVM profile variables at the scratch home; the rest must stay hermetic.
+    let profile = ["USERPROFILE", "APPDATA", "LOCALAPPDATA"];
+    for name in profile {
+        let value = env.iter().find(|(key, _)| key == name).map(|(_, v)| v);
+        let value = value.unwrap_or_else(|| panic!("{name} is pinned"));
+        assert!(
+            value.to_string_lossy().contains(".dx-pkl-lsp"),
+            "{name} stays in the scratch home"
+        );
+    }
+    let rest: Vec<(OsString, OsString)> = env
+        .iter()
+        .filter(|(key, _)| !profile.iter().any(|name| key == name))
+        .cloned()
+        .collect();
+    assert_hermetic(&rest);
     let text: Vec<String> = argv
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())

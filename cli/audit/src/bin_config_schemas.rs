@@ -6,8 +6,14 @@ fn main() {
     let dir = PathBuf::from(root).join("cli/audit/schema");
     std::fs::create_dir_all(&dir).expect("create schema dir");
     let files = [
-        ("security.schema.json", dx_audit::config_schema::security_schema()),
-        ("licenses.schema.json", dx_audit::config_schema::licenses_schema()),
+        (
+            "security.schema.json",
+            dx_audit::config_schema::security_schema(),
+        ),
+        (
+            "licenses.schema.json",
+            dx_audit::config_schema::licenses_schema(),
+        ),
     ];
     for (name, text) in files {
         std::fs::write(dir.join(name), text).expect("write schema");

@@ -197,6 +197,14 @@ impl Probe {
     }
 }
 
+/// dx ends an interrupted watch with code 130 or by re-raising SIGINT, depending on timing.
+fn assert_interrupted(status: ExitStatus) {
+    assert!(
+        status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
+        "not interrupted: {status:?}"
+    );
+}
+
 impl Drop for Probe {
     fn drop(&mut self) {
         if let Ok(None) = self.child.try_wait() {
@@ -313,7 +321,7 @@ fn reruns_once_after(prefix: &str, step: impl Fn(&Path)) {
     probe.idle(2);
     probe.settle();
     assert_eq!(probe.count("start "), 2, "{}", probe.log());
-    assert_eq!(probe.stop().code(), Some(130));
+    assert_interrupted(probe.stop());
 }
 
 #[test]
@@ -355,7 +363,7 @@ fn generated_outputs_written_by_the_command_never_loop() {
     probe.settle();
     assert_eq!(probe.count("start "), 1, "{}", probe.log());
     assert!(probe.workspace.join("bazel-out/k8/bin/app").is_file());
-    assert_eq!(probe.stop().code(), Some(130));
+    assert_interrupted(probe.stop());
 }
 
 #[test]
@@ -371,7 +379,7 @@ fn a_failed_iteration_keeps_watching_and_recovers() {
     probe.idle(2);
     assert_eq!(probe.count("start "), 2, "{}", probe.log());
     assert!(probe.log().lines().last().unwrap_or("").ends_with(" 0"));
-    assert_eq!(probe.stop().code(), Some(130));
+    assert_interrupted(probe.stop());
 }
 
 #[test]
@@ -460,7 +468,8 @@ fn json_watch_keeps_every_stdout_line_an_event() {
     probe.until("the second iteration", |probe| {
         probe.stdout().matches("\"command_finished\"").count() == 2
     });
-    assert_eq!(probe.stop().code(), Some(130));
+    let status = probe.stop();
+    assert_interrupted(status);
     let stdout = probe.stdout();
     let events: Vec<serde_json::Value> = stdout
         .lines()
@@ -475,9 +484,14 @@ fn json_watch_keeps_every_stdout_line_an_event() {
         "{stdout}"
     );
     let stderr = probe.stderr();
-    for needle in ["iteration=1", "changed ", "iteration=2", "stopped"] {
+    for needle in ["iteration=1", "changed ", "iteration=2"] {
         assert!(stderr.contains(needle), "{needle}: {stderr}");
     }
+    // A signal that lands while a child runs kills dx before it can say it stopped.
+    assert!(
+        status.code() != Some(130) || stderr.contains("stopped"),
+        "stopped: {stderr}"
+    );
 }
 
 fn descendants(probe: &Probe) -> Vec<i32> {
@@ -589,5 +603,5 @@ fn watch_run_relaunches_a_finished_app_only_after_a_change() {
     assert!(starts[2].contains(" build "), "{log}");
     assert!(starts[3].contains(" run "), "{log}");
     assert_eq!(probe.count("overlap "), 0, "{log}");
-    assert_eq!(probe.stop().code(), Some(130));
+    assert_interrupted(probe.stop());
 }

@@ -1,7 +1,7 @@
 //! Serves the rendered site over real HTTP at every hosting base and walks it.
 
-use std::collections::BTreeSet;
 use dx_docs_serve::{Handle, Site};
+use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};

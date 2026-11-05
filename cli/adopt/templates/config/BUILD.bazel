@@ -1,6 +1,7 @@
 _VISIBILITY = [
     "//cli/adopt:__subpackages__",
     "//quality/testdata:__subpackages__",
+    "//typescript/tests:__subpackages__",
     "//tools/testing/hermetic:__subpackages__",
 ]
 

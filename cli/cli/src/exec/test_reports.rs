@@ -1933,7 +1933,10 @@ mod tests {
         );
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=50"]);
         assert_eq!(code, 0, "{err}");
-        assert!(err.contains("50.00% (1/2 lines) meets minimum 50%"), "{err}");
+        assert!(
+            err.contains("50.00% (1/2 lines) meets minimum 50%"),
+            "{err}"
+        );
     }
 
     #[test]

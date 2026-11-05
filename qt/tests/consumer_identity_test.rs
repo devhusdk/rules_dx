@@ -25,7 +25,12 @@ fn identity_records_the_os_supplied_runtime() {
         if want.is_empty() {
             assert!(records.is_empty(), "{}: {identity}", archive.display());
         } else {
-            assert_eq!(records, [want.as_str()], "{}: {identity}", archive.display());
+            assert_eq!(
+                records,
+                [want.as_str()],
+                "{}: {identity}",
+                archive.display()
+            );
         }
     }
 }

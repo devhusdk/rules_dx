@@ -265,10 +265,7 @@ fn shallow_clone_merge_base_failure_is_unavailable() {
         "--min-changed-line-coverage=80",
     ]);
     assert_eq!(code, 1, "{err}");
-    assert!(
-        err.contains("dx: git history is shallow"),
-        "{err}"
-    );
+    assert!(err.contains("dx: git history is shallow"), "{err}");
 }
 
 #[test]
@@ -283,10 +280,7 @@ fn diff_failure_is_unavailable() {
         "--min-changed-line-coverage=80",
     ]);
     assert_eq!(code, 1, "{err}");
-    assert!(
-        err.contains("dx: git diff failed"),
-        "{err}"
-    );
+    assert!(err.contains("dx: git diff failed"), "{err}");
 }
 
 #[test]

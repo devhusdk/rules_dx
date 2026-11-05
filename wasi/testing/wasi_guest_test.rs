@@ -10,5 +10,8 @@ fn declared_environment_arrives() {
 
 #[test]
 fn preopened_file_reads_back() {
-    assert_eq!(std::fs::read_to_string("/data/input.txt").unwrap(), "staged input\n");
+    assert_eq!(
+        std::fs::read_to_string("/data/input.txt").unwrap(),
+        "staged input\n"
+    );
 }

@@ -292,11 +292,7 @@ fn every_page_links_to_every_other_page_it_names() {
     let root = site(USER_SITE);
     let routes = every_html(&root);
     let commands = read(&root, "docs/cli/commands/index.html");
-    for page in [
-        "docs.html",
-        "quality.html",
-        "scope-defaults.html",
-    ] {
+    for page in ["docs.html", "quality.html", "scope-defaults.html"] {
         assert!(
             commands.contains(page),
             "the command reference never links {page}"

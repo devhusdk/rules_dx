@@ -160,7 +160,10 @@ fn where_reports_the_staged_entry_and_the_pinned_dependency() {
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 5, "{text}");
     let entry = lines[0].strip_prefix("entry ").expect("entry line");
-    assert!(entry.ends_with("/javascript/tests/fixtures/node-app/cli/main.js"), "{entry}");
+    assert!(
+        entry.ends_with("/javascript/tests/fixtures/node-app/cli/main.js"),
+        "{entry}"
+    );
     assert!(std::path::Path::new(entry).is_file(), "{entry}");
     let data = lines[1].strip_prefix("data ").expect("data line");
     assert!(

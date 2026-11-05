@@ -2,6 +2,8 @@
 # Upgrades a throwaway consumer from the second-latest BCR release of rules_dx
 # to the latest and back, running tests after each step.
 # Usage: upgrade_e2e.sh [<previous> <latest>]
+# With "local" as <latest>, the upgrade target is this checkout (through
+# local_path_override) at the version in the root MODULE.bazel.
 set -euo pipefail
 
 bcr_url="${BCR_URL:-https://bcr.bazel.build}"
@@ -24,9 +26,16 @@ else
     exit 0
   fi
 fi
-echo "upgrade-e2e: $from -> $to -> $from"
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+use_local=0
+if [ "$to" = local ]; then
+  use_local=1
+  to=$(sed -n '/^module(/,/^)/s/^ *version = "\([^"]*\)".*/\1/p' "$repo_root/MODULE.bazel" | head -n 1)
+  [ -n "$to" ] || { echo "upgrade-e2e: no version in $repo_root/MODULE.bazel"; exit 1; }
+fi
+echo "upgrade-e2e: $from -> $to -> $from"
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cd "$work"
@@ -70,6 +79,9 @@ expect_version() {
 
 dx init
 bazel test //...
+if [ "$use_local" = 1 ]; then
+  printf '\nlocal_path_override(module_name = "rules_dx", path = "%s")\n' "$repo_root" >>MODULE.bazel
+fi
 dx upgrade --to "$to" --apply
 expect_version "$to"
 bazel test //...

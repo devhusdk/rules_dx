@@ -9,7 +9,7 @@ on:
         default: ""
         type: string
       to:
-        description: "Newer rules_dx version. Empty uses the latest on the BCR."
+        description: "Newer rules_dx version, or local for this checkout. Empty uses the latest on the BCR."
         required: false
         default: ""
         type: string

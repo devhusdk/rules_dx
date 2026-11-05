@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "package_annotation_version.patch",
     "package_name.patch",
     "portable_cpu_target.patch",
 ])

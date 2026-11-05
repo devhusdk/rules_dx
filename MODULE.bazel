@@ -757,6 +757,7 @@ single_version_override(
     module_name = "rules_julia",
     patch_strip = 1,
     patches = [
+        "//patches/rules_julia:package_annotation_version.patch",
         "//patches/rules_julia:package_name.patch",
         "//patches/rules_julia:portable_cpu_target.patch",
     ],
@@ -803,7 +804,7 @@ julia_pkg.pkg_annotation(
     patches = ["//julia/tools/lint/patches:ExceptionUnwrapping.patch"],
 )
 julia_pkg.pkg_annotation(
-    dep = "CommonMark",
+    dep = "CommonMark@1.0.4",
     patch_args = ["-p1"],
     patches = ["//julia/tools/lint/patches:CommonMark.patch"],
 )

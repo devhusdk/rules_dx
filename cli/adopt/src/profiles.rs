@@ -31,10 +31,6 @@ enum Mode {
     /// The root file holds an extends line naming the chosen base.
     Inherit,
     /// The root file is a copy of the chosen base.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "no tool without extends is staged yet")
-    )]
     Copy,
 }
 
@@ -102,6 +98,32 @@ const TABLE: &[Entry] = &[
         pyproject_table: None,
         standard: include_str!("../templates/config/tsconfig/standard.json"),
         strict: include_str!("../templates/config/tsconfig/strict.json"),
+    },
+    Entry {
+        tool: "dart",
+        family: "dart",
+        ext: "yaml",
+        root: "analysis_options.yaml",
+        root_template: "include: {base}\n",
+        comment: Some("#"),
+        mode: Mode::Inherit,
+        configured: &["analysis_options.yaml"],
+        pyproject_table: None,
+        standard: include_str!("../templates/config/dart/standard.yaml"),
+        strict: include_str!("../templates/config/dart/strict.yaml"),
+    },
+    Entry {
+        tool: "psscriptanalyzer",
+        family: "powershell",
+        ext: "psd1",
+        root: "PSScriptAnalyzerSettings.psd1",
+        root_template: "",
+        comment: Some("#"),
+        mode: Mode::Copy,
+        configured: &["PSScriptAnalyzerSettings.psd1"],
+        pyproject_table: None,
+        standard: include_str!("../templates/config/psscriptanalyzer/standard.psd1"),
+        strict: include_str!("../templates/config/psscriptanalyzer/strict.psd1"),
     },
 ];
 
@@ -269,6 +291,27 @@ mod tests {
 
     fn exts(list: &[&str]) -> BTreeSet<String> {
         list.iter().map(|ext| (*ext).to_owned()).collect()
+    }
+
+    #[test]
+    fn strict_on_dart_and_powershell_writes_include_and_copy_roots() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
+        let files = plan_profile_files(
+            scratch.path(),
+            &exts(&[".dart", ".ps1"]),
+            Some(Profile::Strict),
+        );
+        let find = |path: &str| files.iter().find(|file| file.path == path).expect(path);
+        assert_eq!(
+            find("analysis_options.yaml").content,
+            "include: .dx/config/dart/strict.yaml\n"
+        );
+        assert_eq!(
+            find("PSScriptAnalyzerSettings.psd1").content,
+            include_str!("../templates/config/psscriptanalyzer/strict.psd1")
+        );
+        find(".dx/config/dart/standard.yaml");
+        find(".dx/config/psscriptanalyzer/strict.psd1");
     }
 
     #[test]

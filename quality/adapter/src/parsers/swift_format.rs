@@ -1,15 +1,24 @@
-use crate::ToolSeverity;
-use crate::{ColumnEncoding, TextPosition};
-
-use super::{as_text, code_name, finding, rewrite_format, FileFinding, ParseError};
+use super::gnu_diagnostics::{read, Dialect, Disposition};
+use super::{as_text, code_name, rewrite_format, FileFinding, ParseError};
+use crate::{ColumnEncoding, ToolSeverity};
 
 const TOOL: &str = "swift_format";
+
+const SYNTAX: Dialect = Dialect {
+    tool: TOOL,
+    encoding: ColumnEncoding::Utf8,
+    severity: |word| match word {
+        "error" => Some(Disposition::Report(ToolSeverity::Error)),
+        _ => None,
+    },
+    bracket_rule: false,
+};
 
 /// Findings from one `swift-format format <file>` run, which writes the formatted text to stdout.
 ///
 /// Exit 0 means the file parsed, so stdout is compared with the input and a difference is one
-/// finding. Exit 1 means a syntax error: the first `file:LINE:COL: error: message` stderr line
-/// becomes one syntax finding. Any other exit, or exit 1 without such a line, is an error.
+/// finding. Exit 1 means a syntax error: each `file:LINE:COL: error: message` stderr line becomes
+/// one syntax finding. Any other exit, or exit 1 without such a line, is an error.
 pub fn parse_swift_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -18,16 +27,10 @@ pub fn parse_swift_format(
     file: &str,
 ) -> Result<Vec<FileFinding>, ParseError> {
     as_text(TOOL, input)?;
-    let stderr = as_text(TOOL, stderr)?;
+    as_text(TOOL, stderr)?;
     match code {
         Some(0) => rewrite_format(TOOL, stdout, Some(0), input, file, ColumnEncoding::Utf8),
-        Some(1) => match syntax_error(stderr, file) {
-            Some(found) => Ok(vec![found]),
-            None => Err(ParseError::Shape {
-                tool: TOOL,
-                detail: "exit 1 without a syntax error line".to_owned(),
-            }),
-        },
+        Some(1) => syntax_errors(stderr, code, file),
         other => Err(ParseError::Shape {
             tool: TOOL,
             detail: format!("exit {} (want 0 or 1)", code_name(other)),
@@ -35,41 +38,16 @@ pub fn parse_swift_format(
     }
 }
 
-fn syntax_error(stderr: &str, file: &str) -> Option<FileFinding> {
-    for line in stderr.lines() {
-        let Some(rest) = line
-            .strip_prefix(file)
-            .and_then(|rest| rest.strip_prefix(':'))
-        else {
-            continue;
-        };
-        let mut parts = rest.splitn(3, ':');
-        let (Some(row), Some(col), Some(tail)) = (parts.next(), parts.next(), parts.next()) else {
-            continue;
-        };
-        let (Ok(row), Ok(col)) = (row.parse::<u64>(), col.parse::<u64>()) else {
-            continue;
-        };
-        let Some(message) = tail.trim().strip_prefix("error:") else {
-            continue;
-        };
-        if row == 0 || col == 0 {
-            continue;
-        }
-        return Some(finding(
-            TOOL,
-            file,
-            "syntax".to_owned(),
-            message.trim().to_owned(),
-            ToolSeverity::Error,
-            TextPosition {
-                line: row,
-                column: col,
-            },
-            ColumnEncoding::Utf8,
-        ));
+fn syntax_errors(
+    stderr: &[u8],
+    code: Option<i32>,
+    file: &str,
+) -> Result<Vec<FileFinding>, ParseError> {
+    let mut found = read(&SYNTAX, stderr, code, &[file])?;
+    for finding in &mut found {
+        finding.finding.rule_id = "syntax".to_owned();
     }
-    None
+    Ok(found)
 }
 
 #[cfg(test)]

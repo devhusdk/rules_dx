@@ -568,6 +568,41 @@ fn installed_checks(
     );
 }
 
+/// Names the members that differ between the archive and its rebuild.
+fn differing_members(inputs: &QualifyInputs) -> String {
+    let list = |archive: &Path, dir: &str| {
+        dx_deploy_tools::archive_extract(archive, &inputs.work.join(dir))
+            .map_err(|error| format!("cannot extract {}: {error}", archive.display()))
+    };
+    let (first, second) = match (
+        list(&inputs.archive, "determinism-archive"),
+        list(&inputs.rebuild, "determinism-rebuild"),
+    ) {
+        (Ok(first), Ok(second)) => (first, second),
+        (Err(error), _) | (_, Err(error)) => return error,
+    };
+    let mut names = Vec::new();
+    for (name, mode, sha256) in &first {
+        match second.iter().find(|(other, _, _)| other == name) {
+            None => names.push(format!("{name} (missing from rebuild)")),
+            Some((_, other_mode, other)) if other != sha256 || other_mode != mode => {
+                names.push(name.clone())
+            }
+            Some(_) => {}
+        }
+    }
+    for (name, _, _) in &second {
+        if !first.iter().any(|(other, _, _)| other == name) {
+            names.push(format!("{name} (only in rebuild)"));
+        }
+    }
+    if names.is_empty() {
+        "all members match, so the archive framing differs".to_owned()
+    } else {
+        format!("differing members: {}", names.join(", "))
+    }
+}
+
 /// Measures one cell archive on its native runner and returns a record with a verdict per check.
 pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
     let cell = &inputs.cell;
@@ -624,8 +659,9 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
                 Ok(())
             } else {
                 Err(format!(
-                    "rebuild is {rebuilt}, archive is {}",
-                    archive.sha256
+                    "rebuild is {rebuilt}, archive is {}; {}",
+                    archive.sha256,
+                    differing_members(inputs)
                 ))
             }
         }),

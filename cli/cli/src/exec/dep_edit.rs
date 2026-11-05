@@ -104,6 +104,9 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Go if foreign => {
             Some(dx_update::edit::ConfiguredKind::Go)
         }
+        dx_adopt::dependency_sets::Ecosystem::Ruby if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Ruby)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -131,6 +134,7 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Nuget =>
                                 "exactly one paket.dependencies",
                             dx_update::edit::ConfiguredKind::Go => "exactly one go.mod",
+                            dx_update::edit::ConfiguredKind::Ruby => "exactly one Gemfile",
                         },
                         set.name
                     ),
@@ -488,9 +492,14 @@ pub(crate) fn write_and_refresh(
             finish(result, refreshed("resolver-owned"))
         }
         RefreshPlan::InDir(run) => {
+            let lock_name = if request.is_configured_ruby() {
+                "Gemfile.lock"
+            } else {
+                "MODULE.bazel.lock"
+            };
             let lock = match run.dir.as_str() {
-                "." => "MODULE.bazel.lock".to_owned(),
-                dir => format!("{dir}/MODULE.bazel.lock"),
+                "." => lock_name.to_owned(),
+                dir => format!("{dir}/{lock_name}"),
             };
             let result = launch_refresh(
                 runner,
@@ -734,6 +743,16 @@ fn refresh_plan(
             dx_adopt::dependency_sets::Selection::Full,
             dx_update::backend::UvClosure::default(),
         ),
+        dx_update::edit::ConfiguredKind::Ruby => {
+            let plan = dx_update::backend::plan_ruby_lock(
+                &set,
+                &target.package,
+                invocation.offline,
+                invocation.frozen,
+                &invocation.bazel_head(),
+            );
+            return Some((name, plan.map(RefreshPlan::InDir)));
+        }
         // Nothing re-resolves paket.lock, so a nuget update never plans a refresh.
         dx_update::edit::ConfiguredKind::Nuget => return None,
         dx_update::edit::ConfiguredKind::Uv => (

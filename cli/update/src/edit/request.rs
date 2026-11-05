@@ -32,6 +32,8 @@ pub enum ConfiguredKind {
     Nuget,
     /// A go set; only the `require` line of its go.mod is edited, then go.sum is refreshed.
     Go,
+    /// A ruby set; only the gem's line in the Gemfile is edited, then `bundle lock` runs.
+    Ruby,
 }
 
 impl ConfiguredKind {
@@ -42,6 +44,7 @@ impl ConfiguredKind {
             ConfiguredKind::Maven => UpdateSet::Maven,
             ConfiguredKind::Nuget => UpdateSet::NuGet,
             ConfiguredKind::Go => UpdateSet::Go,
+            ConfiguredKind::Ruby => UpdateSet::Ruby,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -196,6 +199,11 @@ impl DepTarget {
         matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Bazel)
     }
 
+    /// Whether the dependency belongs to a configured ruby set.
+    pub fn is_configured_ruby(&self) -> bool {
+        matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Ruby)
+    }
+
     /// What the user must do after the edit when nothing re-resolves the lock.
     pub fn follow_up(&self) -> Option<String> {
         let set = self.configured.as_ref()?;
@@ -216,6 +224,8 @@ impl DepTarget {
     pub fn refresh_command(&self) -> String {
         if self.is_configured_bazel() {
             "bazel mod deps".to_owned()
+        } else if self.is_configured_ruby() {
+            format!("bundle lock --update {} --conservative", self.package)
         } else {
             format!("dx update {}", self.refresh_selector())
         }
@@ -238,6 +248,7 @@ fn configured_refresh_selector(
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
         | ConfiguredKind::Go => set.name.clone(),
+        ConfiguredKind::Ruby => format!("{}:{package}", set.name),
     })
 }
 
@@ -262,9 +273,12 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
             }
         }
         UpdateSet::GithubActions => WORKFLOW_DIR,
-        UpdateSet::Cargo | UpdateSet::Go | UpdateSet::Maven | UpdateSet::Npm | UpdateSet::NuGet => {
-            ""
-        }
+        UpdateSet::Cargo
+        | UpdateSet::Go
+        | UpdateSet::Maven
+        | UpdateSet::Npm
+        | UpdateSet::NuGet
+        | UpdateSet::Ruby => "",
     }
 }
 
@@ -345,7 +359,8 @@ impl UpdateRequest {
             | ConfiguredKind::Cargo
             | ConfiguredKind::Maven
             | ConfiguredKind::Nuget
-            | ConfiguredKind::Go => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Go
+            | ConfiguredKind::Ruby => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -520,6 +535,7 @@ impl UpdateRequest {
             UpdateSet::NuGet => {
                 plan_paket_dependencies(manifest, content, &self.package, &self.version)
             }
+            UpdateSet::Ruby => plan_gemfile(manifest, content, &self.package, &self.version),
             UpdateSet::GithubActions => plan_github_workflow(
                 content,
                 &self.package,

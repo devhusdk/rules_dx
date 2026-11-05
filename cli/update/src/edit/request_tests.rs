@@ -580,6 +580,7 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ("go:example.com/mod", "1.2.3"),
         ("maven:junit:junit", "4.13.2"),
         ("nuget:FSharp.Core", "10.1.201"),
+        ("ruby:rake", "13.2.1"),
         ("bazel:rules_rust", "0.74.0"),
         (
             "github-actions:actions/checkout",
@@ -1621,4 +1622,73 @@ fn configured_nuget_edit_names_its_paket_dependencies() {
         Err(EditError::NotFound { manifest, .. }) => assert_eq!(manifest, "d/paket.dependencies"),
         other => panic!("{other:?}"),
     }
+}
+
+fn ruby_request(package: &str, version: &str) -> UpdateRequest {
+    configured(
+        ConfiguredKind::Ruby,
+        &["app/Gemfile"],
+        None,
+        &format!("bundle:{package}"),
+        version,
+    )
+    .expect("ruby")
+}
+
+#[test]
+fn ruby_widen_rewrites_only_the_gem_line_version() {
+    let source = "source 'https://rubygems.org'\ngem 'rake', '1.0'\ngem \"rails\", \"~> 7.0\", require: false\ngem 'rake-extra', '1.0'\n";
+    let edited = ruby_request("rake", "13.2.1")
+        .plan_edit(source)
+        .expect("rake");
+    assert_eq!(
+        edited,
+        "source 'https://rubygems.org'\ngem 'rake', '13.2.1'\ngem \"rails\", \"~> 7.0\", require: false\ngem 'rake-extra', '1.0'\n"
+    );
+    let edited = ruby_request("rails", "7.2.1.1")
+        .plan_edit(source)
+        .expect("rails");
+    assert!(
+        edited.contains("gem \"rails\", \"~> 7.2.1.1\", require: false\n"),
+        "{edited}"
+    );
+    assert!(edited.contains("gem 'rake', '1.0'\n"), "{edited}");
+}
+
+#[test]
+fn ruby_widen_refuses_what_it_cannot_rewrite_literally() {
+    for source in [
+        "gem 'rake'\n",
+        "gem 'rake', RAKE_VERSION\n",
+        "gem 'rake', '>= 1.0', '< 3'\n",
+    ] {
+        assert!(
+            matches!(
+                ruby_request("rake", "2.0").plan_edit(source),
+                Err(EditError::UnsupportedManifest { .. })
+            ),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        ruby_request("rake", "2.0").plan_edit("gem 'other', '1.0'\n"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        ruby_request("rake", "2.0").plan_edit("gem 'rake', '1.0'\ngem 'rake', '1.1'\n"),
+        Err(EditError::Ambiguous { count: 2, .. })
+    ));
+}
+
+#[test]
+fn ruby_versions_are_dotted_numbers() {
+    assert!(UpdateRequest::parse_configured_set(
+        ConfiguredKind::Ruby,
+        "bundle",
+        &["Gemfile".to_owned()],
+        None,
+        "bundle:rake",
+        "1.0.0.rc1",
+    )
+    .is_err());
 }

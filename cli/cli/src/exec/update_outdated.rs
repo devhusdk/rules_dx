@@ -343,10 +343,7 @@ fn merge(into: &mut Findings, from: Findings) {
     into.errors.extend(from.errors);
 }
 
-fn command_for(candidate: &Candidate, ecosystem: Ecosystem) -> Option<String> {
-    if ecosystem == Ecosystem::Ruby {
-        return None;
-    }
+fn command_for(candidate: &Candidate, _ecosystem: Ecosystem) -> Option<String> {
     Some(format!(
         "dx update {}:{} {}",
         candidate.set, candidate.package, candidate.latest
@@ -610,7 +607,6 @@ mod tests {
             command_for(&candidate, Ecosystem::Cargo),
             Some("dx update cargo:serde 2.0.0".to_owned())
         );
-        assert_eq!(command_for(&candidate, Ecosystem::Ruby), None);
     }
 
     #[test]

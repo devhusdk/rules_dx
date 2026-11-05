@@ -5,6 +5,8 @@ pub enum WidenVersion {
     Semver(semver::Version),
     GitTag(String),
     GitCommit(String),
+    /// A gem version such as `1.5` or `7.0.8.1`, which semver cannot hold.
+    Gem(String),
 }
 
 impl WidenVersion {
@@ -13,6 +15,7 @@ impl WidenVersion {
             WidenVersion::Semver(version) => version.to_string(),
             WidenVersion::GitTag(tag) => tag.clone(),
             WidenVersion::GitCommit(sha) => sha.clone(),
+            WidenVersion::Gem(version) => version.clone(),
         }
     }
 }
@@ -52,6 +55,7 @@ pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
         | UpdateSet::Maven
         | UpdateSet::NuGet => parse_semver(set.name(), trimmed),
         UpdateSet::GithubActions => parse_git(set.name(), trimmed),
+        UpdateSet::Ruby => parse_gem(set.name(), trimmed),
     }
 }
 
@@ -73,6 +77,21 @@ fn parse_semver(set: &'static str, text: &str) -> Result<WidenVersion, VersionEr
             set,
             version: text.to_owned(),
         }),
+    }
+}
+
+fn parse_gem(set: &'static str, text: &str) -> Result<WidenVersion, VersionError> {
+    let candidate = text.strip_prefix('=').unwrap_or(text).trim();
+    let valid = candidate
+        .split('.')
+        .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()));
+    if valid {
+        Ok(WidenVersion::Gem(candidate.to_owned()))
+    } else {
+        Err(VersionError::InvalidSemver {
+            set,
+            version: text.to_owned(),
+        })
     }
 }
 

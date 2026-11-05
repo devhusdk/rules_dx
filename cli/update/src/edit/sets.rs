@@ -7,10 +7,11 @@ pub enum UpdateSet {
     Maven,
     Npm,
     NuGet,
+    Ruby,
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 7] = [
+    pub const ALL: [UpdateSet; 8] = [
         UpdateSet::Bazel,
         UpdateSet::Cargo,
         UpdateSet::GithubActions,
@@ -18,6 +19,7 @@ impl UpdateSet {
         UpdateSet::Maven,
         UpdateSet::Npm,
         UpdateSet::NuGet,
+        UpdateSet::Ruby,
     ];
 
     pub const BUILTIN: [UpdateSet; 2] = [UpdateSet::Bazel, UpdateSet::GithubActions];
@@ -35,6 +37,7 @@ impl UpdateSet {
             UpdateSet::Maven => "maven",
             UpdateSet::Npm => "npm",
             UpdateSet::NuGet => "nuget",
+            UpdateSet::Ruby => "ruby",
         }
     }
 
@@ -47,6 +50,7 @@ impl UpdateSet {
             "maven" => Some(UpdateSet::Maven),
             "npm" => Some(UpdateSet::Npm),
             "nuget" => Some(UpdateSet::NuGet),
+            "ruby" => Some(UpdateSet::Ruby),
             _ => None,
         }
     }
@@ -81,7 +85,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 7);
+        assert_eq!(seen.len(), 8);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -111,7 +115,8 @@ mod tests {
                 "go",
                 "maven",
                 "npm",
-                "nuget"
+                "nuget",
+                "ruby"
             ]
         );
         let mut sorted = names.clone();
@@ -144,6 +149,7 @@ mod tests {
         assert!(UpdateSet::Go.needs_update_refresh());
         assert!(UpdateSet::Maven.needs_update_refresh());
         assert!(UpdateSet::NuGet.needs_update_refresh());
+        assert!(UpdateSet::Ruby.needs_update_refresh());
     }
 
     #[test]

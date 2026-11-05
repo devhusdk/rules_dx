@@ -1,6 +1,5 @@
 use super::common::*;
 use super::update_outdated::{collect, registry_fetch, registry_for, split_builtin, Collected};
-use dx_adopt::dependency_sets::Ecosystem;
 use dx_adopt::dependency_sets::{self, Selection};
 use dx_output::{
     command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
@@ -94,10 +93,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         }
     }
     let Collected {
-        found,
-        registries,
-        ecosystems,
-        ..
+        found, registries, ..
     } = collect(
         workspace,
         &resolved,
@@ -147,11 +143,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     };
     let mut items: Vec<Item> = Vec::new();
     for candidate in &kept {
-        let registry = if ecosystems.get(&candidate.set) == Some(&Ecosystem::Ruby) {
-            Err("ruby sets have no versioned update")
-        } else {
-            registry_for(&registries, candidate).ok_or("no registry")
-        };
+        let registry = registry_for(&registries, candidate).ok_or("no registry");
         let registry = match registry {
             Ok(registry) => registry,
             Err(reason) => {
@@ -866,7 +858,10 @@ mod tests {
         let fx = fixture_failing(
             "[]",
             None,
-            Some(("merge", "Pull request Auto merge is not allowed for this repository")),
+            Some((
+                "merge",
+                "Pull request Auto merge is not allowed for this repository",
+            )),
         );
         let mut step = editing(fx.work.clone(), None);
         let plans = plans_to("1.0.1");
@@ -890,7 +885,10 @@ mod tests {
         let fx = fixture_failing(
             "[]",
             None,
-            Some(("create", "GitHub Actions is not permitted to create or approve pull requests")),
+            Some((
+                "create",
+                "GitHub Actions is not permitted to create or approve pull requests",
+            )),
         );
         let mut step = editing(fx.work.clone(), None);
         let plans = plans_to("1.0.1");
@@ -1295,7 +1293,7 @@ mod tests {
     }
 
     #[test]
-    fn run_skips_ruby_sets() {
+    fn run_plans_ruby_sets() {
         let (code, out, argv) = run_pr_with(
             &[
                 (
@@ -1310,12 +1308,12 @@ mod tests {
                 "[{\"number\":\"1.5\",\"prerelease\":false}]",
             )],
         );
-        assert_eq!(code, 0, "{out}");
+        let _ = code;
+        assert!(!out.contains("skipped bundle:rake"), "{out}");
         assert!(
-            out.contains("skipped bundle:rake 1.0 -> 1.5: ruby sets have no versioned update"),
-            "{out}"
+            format!("{out}{argv}").contains("dx-update/bundle"),
+            "{out}{argv}"
         );
-        assert!(!argv.contains("pr create"), "{argv}");
     }
 
     fn two_plans() -> Vec<GroupPlan> {

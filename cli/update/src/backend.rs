@@ -569,6 +569,36 @@ pub fn plan_configured_bazel_lock(
     })
 }
 
+/// The `bundle lock --update <gem> --conservative` run that refreshes a ruby set's lock.
+///
+/// It runs the pinned toolchain Ruby through Bazel in the Gemfile's directory, never a
+/// host Ruby, and touches only that gem and what it needs.
+pub fn plan_ruby_lock(
+    set: &ResolvedSet,
+    gem: &str,
+    offline: bool,
+    frozen: bool,
+    head: &dx_process::BazelHead,
+) -> Result<DirRun, BackendError> {
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    let mut argv = bazel(head, "run", &["@ruby//:bundle", "--"]);
+    argv.extend(strings(&["lock", "--update", gem, "--conservative"]));
+    Ok(DirRun {
+        argv,
+        env: Vec::new(),
+        dir: set.dir.clone(),
+    })
+}
+
 pub fn plan_configured(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1299,6 +1329,49 @@ mod tests {
         assert!(matches!(
             plan_configured_bazel_lock(&foreign, false, false, &no_head()),
             Err(BackendError::Unsupported { .. })
+        ));
+    }
+
+    fn ruby_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "bundle".to_owned(),
+            ecosystem: Ecosystem::Ruby,
+            dir: "app".to_owned(),
+            manifests: vec!["app/Gemfile".to_owned()],
+            locks: vec!["app/Gemfile.lock".to_owned()],
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn ruby_lock_runs_bundler_from_the_toolchain_in_the_gemfile_dir() {
+        let plan = plan_ruby_lock(&ruby_set(), "rake", false, false, &no_head()).expect("plan");
+        assert_eq!(plan.dir, "app");
+        assert!(plan.env.is_empty());
+        let tail = plan.argv.iter().position(|arg| arg == "@ruby//:bundle");
+        let tail = &plan.argv[tail.expect("bundle target")..];
+        assert_eq!(
+            tail,
+            [
+                "@ruby//:bundle",
+                "--",
+                "lock",
+                "--update",
+                "rake",
+                "--conservative"
+            ]
+        );
+    }
+
+    #[test]
+    fn ruby_lock_refuses_frozen_and_offline() {
+        assert!(matches!(
+            plan_ruby_lock(&ruby_set(), "rake", false, true, &no_head()),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+        assert!(matches!(
+            plan_ruby_lock(&ruby_set(), "rake", true, false, &no_head()),
+            Err(BackendError::OfflineRequired { .. })
         ));
     }
 

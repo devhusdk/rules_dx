@@ -348,6 +348,108 @@ pub(super) fn plan_go_mod(
     })
 }
 
+/// Rewrites the version on the one `gem "<package>"` line of a Gemfile, keeping its operator.
+///
+/// Only a single literal requirement is rewritten; other lines are returned untouched.
+pub(super) fn plan_gemfile(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Gem(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected a gem version".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let lines: Vec<&str> = content.split_inclusive('\n').collect();
+    let hits: Vec<usize> = (0..lines.len())
+        .filter(|&i| {
+            gem_literals(lines[i])
+                .first()
+                .is_some_and(|l| l.text == package)
+        })
+        .collect();
+    let index = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [index] => *index,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let line = lines[index];
+    let requirements: Vec<GemLiteral<'_>> = gem_literals(line)
+        .into_iter()
+        .skip(1)
+        .take_while(|l| {
+            l.text.starts_with(['>', '<', '=', '~'])
+                || l.text.starts_with(|c: char| c.is_ascii_digit())
+        })
+        .collect();
+    let [requirement] = requirements.as_slice() else {
+        return Err(unsupported(
+            "the gem line needs exactly one literal version requirement",
+        ));
+    };
+    let number = requirement
+        .text
+        .trim_start_matches(['>', '<', '=', '~', ' ']);
+    let operator = &requirement.text[..requirement.text.len() - number.len()];
+    let mut edited = lines.concat();
+    let offset: usize = lines[..index].iter().map(|l| l.len()).sum();
+    edited.replace_range(
+        offset + requirement.start..offset + requirement.end,
+        &format!("{operator}{new}"),
+    );
+    Ok(edited)
+}
+
+struct GemLiteral<'a> {
+    text: &'a str,
+    /// Byte range of the text inside the quotes, relative to the line.
+    start: usize,
+    end: usize,
+}
+
+/// The leading quoted strings of a `gem` line, in order; empty when it is not one.
+fn gem_literals(line: &str) -> Vec<GemLiteral<'_>> {
+    let Some(rest) = line.trim_start().strip_prefix("gem ") else {
+        return Vec::new();
+    };
+    let mut found = Vec::new();
+    let mut cursor = line.len() - rest.len();
+    loop {
+        let after = line[cursor..].trim_start_matches([' ', ',']);
+        let start = line.len() - after.len();
+        let Some(quote) = after.chars().next().filter(|c| matches!(c, '"' | '\'')) else {
+            return found;
+        };
+        let Some(close) = after[1..].find(quote) else {
+            return found;
+        };
+        found.push(GemLiteral {
+            text: &after[1..1 + close],
+            start: start + 1,
+            end: start + 1 + close,
+        });
+        cursor = start + close + 2;
+    }
+}
+
 pub(super) fn plan_maven_module_bazel(
     manifest: &str,
     content: &str,
@@ -674,7 +776,7 @@ pub(super) fn plan_github_workflow(
                 }),
             }
         }
-        WidenVersion::Semver(_) => Err(EditError::UnsupportedManifest {
+        WidenVersion::Semver(_) | WidenVersion::Gem(_) => Err(EditError::UnsupportedManifest {
             manifest: WORKFLOW_DIR.to_owned(),
             reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
         }),
@@ -722,6 +824,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
         UpdateSet::Go => dx_module_bazel::identity::validate_go(package),
         UpdateSet::Maven => dx_module_bazel::identity::validate_maven(package),
         UpdateSet::NuGet => dx_module_bazel::identity::validate_nuget(package),
+        UpdateSet::Ruby => {
+            if !package.is_empty()
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            {
+                Ok(())
+            } else {
+                Err("gem names use letters, digits, '-', '_' and '.'")
+            }
+        }
         UpdateSet::GithubActions => match package.split_once('/') {
             None => Err("github-actions identities are owner/repo"),
             Some((owner, repo)) => {

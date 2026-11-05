@@ -327,11 +327,14 @@ Checks by default; `--apply` writes updates. In `rules_dx` the sets are
 `dx_pypi-tooling`, `dx_quality_crates`, `dx_scalafix`, `go`, `maven`,
 `npm_node_app`, and `nuget`. Selectors are `set`, `set:package`, or a
 label/path. `go` and `ruby` pins are manual: `update` reports them pinned and
-changes nothing. `ruby` pins come from `bundle lock` on the seed host, and `go`
-pins track Gazelle and widen through `dx update go:<module> <version>`.
+changes nothing. `go` pins track Gazelle and widen through
+`dx update go:<module> <version>`. A `ruby` gem widens through
+`dx update <set>:<gem> <version>`: dx rewrites the one literal requirement on
+the gem's line in the Gemfile, then runs `bundle lock --update <gem> --conservative`
+with the toolchain Ruby (`@ruby//:bundle`) in the Gemfile's directory.
 Without `--apply`, `dx update` validates the selected sets and writes nothing. A `uv` set runs a
 read-only lockfile check and reports current, and a stale lock reports failed.
-`go` and `ruby` sets report pinned. Every other resolvable set reports
+`go` and `ruby` sets report pinned; a ruby gem is updated by name as above. Every other resolvable set reports
 unsupported and fails the run; refresh those with `dx update --apply <set>`.
 No selector checks all sets, so a bare `dx update` reports the unsupported sets
 and exits `1`. Checks never take a [build slot](README.md#build-slots).

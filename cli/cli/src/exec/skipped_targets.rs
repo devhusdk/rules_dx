@@ -71,6 +71,17 @@ fn known_languages(json: &str) -> Vec<(String, String, String)> {
         .collect()
 }
 
+/// The language named by an explicit-request error, from the unsupported constraint in its dependency chain.
+pub(crate) fn language_in_message(message: &str) -> Option<SkipLanguage> {
+    if !message.contains("explicitly requested") {
+        return None;
+    }
+    known_languages(UNSUPPORTED_JSON)
+        .into_iter()
+        .find(|(constraint, _, _)| message.contains(constraint.as_str()))
+        .map(|(_, title, reason)| SkipLanguage { title, reason })
+}
+
 /// Groups the skipped targets by the language whose unsupported constraint they depend on.
 /// One cquery per language that `unsupported.json` lists; a failed query leaves its targets ungrouped.
 pub(crate) fn group_skipped(
@@ -288,6 +299,17 @@ mod tests {
     fn several_platform_reasons_are_listed() {
         let languages = known_languages(JSON);
         assert_eq!(languages[0].2, "a: x; b: y");
+    }
+
+    #[test]
+    fn explicit_request_errors_name_the_language() {
+        let (constraint, title, _) = known_languages(UNSUPPORTED_JSON).remove(0);
+        let message = format!(
+            "Target //a:x is incompatible and cannot be built, but was explicitly requested.\nDependency chain:\n    //a:x\n    @@rules_dx+{constraint}"
+        );
+        assert_eq!(language_in_message(&message).unwrap().title, title);
+        assert!(language_in_message(&format!("other {constraint}")).is_none());
+        assert!(language_in_message("explicitly requested, no constraint").is_none());
     }
 
     #[test]

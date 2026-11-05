@@ -1,4 +1,5 @@
 use super::common::{emit_built, CODE_BUILD_EVENTS_INCOMPLETE};
+use super::skipped_targets::language_in_message;
 use super::rustc_stderr::{self, ActionDiagnostic};
 use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
 use dx_output::{
@@ -186,6 +187,18 @@ fn dedupe(events: Vec<BuildFailureEvent>) -> Vec<BuildFailureEvent> {
     merged
 }
 
+fn add_skip_reason(event: &mut BuildFailureEvent) {
+    let Some(language) = event.message.as_deref().and_then(language_in_message) else {
+        return;
+    };
+    if let Some(message) = &mut event.message {
+        message.push_str(&format!(
+            "\n{} is not supported on this platform: {} (docs/support-matrix.md)",
+            language.title, language.reason
+        ));
+    }
+}
+
 fn describe(event: &BuildFailureEvent) -> String {
     let unknown = "unknown";
     let mut listed = vec![event.target.as_deref().unwrap_or(unknown)];
@@ -293,7 +306,11 @@ pub(crate) fn report_build_failures(
         }
     };
     let collected = collect_build_failures(BufReader::new(file));
-    let events = dedupe(collected.failures.iter().map(to_event).collect());
+    let mut events: Vec<BuildFailureEvent> = collected.failures.iter().map(to_event).collect();
+    for event in &mut events {
+        add_skip_reason(event);
+    }
+    let events = dedupe(events);
     for event in &events {
         match output {
             OutputMode::Json => {
@@ -594,6 +611,22 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].count, 2);
         assert!(merged[0].diagnostics[0].related.is_empty());
+    }
+
+    #[test]
+    fn an_explicit_incompatible_target_gets_the_language_reason() {
+        let mut event = to_failure_event_for_test();
+        event.message = Some(
+            "Target //a:x is incompatible and cannot be built, but was explicitly requested.\n  @@rules_dx+//dart/rules:unsupported"
+                .to_owned(),
+        );
+        super::add_skip_reason(&mut event);
+        let message = event.message.unwrap();
+        assert!(message.contains("Dart is not supported on this platform"), "{message}");
+        let mut plain = to_failure_event_for_test();
+        plain.message = Some("boom".to_owned());
+        super::add_skip_reason(&mut plain);
+        assert_eq!(plain.message.as_deref(), Some("boom"));
     }
 
     #[test]

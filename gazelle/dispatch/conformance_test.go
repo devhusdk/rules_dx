@@ -178,7 +178,7 @@ var conformanceRows = map[string]conformanceRow{
 		extraLoads: map[string][]string{
 			"@rules_dx//rust/rules:crate.bzl":      {"dx_rust_crate"},
 			"@rules_rust//cargo:defs.bzl":          {"cargo_build_script"},
-			"@crates//:crates.bzl":                 {"aliases", "all_crate_deps", "crate_deps"},
+			"@crates//:crates.bzl":                 {"aliases", "all_crate_deps"},
 			"@rules_dx//quality:native_config.bzl": {"buildifier_config", "taplo_config", "vale_config", "rustfmt_config"},
 			"@rules_dx//quality:fixtures.bzl":      {"real_source_target"},
 		},

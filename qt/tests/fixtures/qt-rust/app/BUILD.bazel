@@ -45,11 +45,11 @@ consumer_archive(
     name = "ledger_release",
     app = ":ledger",
     arch = QT_CONSUMER_ARCH,
+    check_imports = False,
     min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
     os = QT_CONSUMER_OS,
     resources = [":runtime"],
-    check_imports = False,
 )
 
 real_source_target(

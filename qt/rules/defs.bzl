@@ -1079,7 +1079,11 @@ QT_CONSUMER_MIN_RUNTIME = select(
 )
 
 def qt_bundle_members(runfiles, licenses, modules, needs):
-    """Returns the sorted (member, short path) pairs one bundle stages."""
+    """Returns the sorted (member, short path) pairs one bundle stages.
+
+    Windows DLLs go under bin/. A DLL counts as linked when Bazel copied it
+    next to the binary, so its path does not start with ../.
+    """
     roots = [path.rpartition("/")[0] for path in runfiles if path.rpartition("/")[2] == "builtins.qmltypes"]
     if len(roots) > 1:
         fail("qt_bundle: the binary carries " + str(len(roots)) + " QML import trees")
@@ -1125,6 +1129,10 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
             libraries.setdefault(name, path)
             if linked:
                 roots.append(name)
+        elif name.endswith(".dll"):
+            libraries.setdefault(name, path)
+            if not path.startswith("../"):
+                roots.append(name)
     needed = {}
     for _ in range(len(libraries) + 1):
         pending = [name for name in roots if name in libraries and name not in needed]
@@ -1134,6 +1142,9 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
             needed[name] = True
             roots.extend(needs.library.get(name, []))
     for name in needed:
+        if name.endswith(".dll"):
+            members["bin/" + name] = libraries[name]
+            continue
         if name in frameworks:
             members["lib/" + frameworks[name]] = libraries[name]
             continue
@@ -1163,7 +1174,7 @@ def _qt_bundle_impl(ctx):
 
 _qt_bundle = rule(
     implementation = _qt_bundle_impl,
-    doc = "Stages the linked shared libraries, their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
+    doc = "Stages the linked shared libraries (Windows DLLs under bin/), their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
     attrs = {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
         "display_plugins": attr.label_list(allow_files = True, doc = "Display platform plugin files to ship."),

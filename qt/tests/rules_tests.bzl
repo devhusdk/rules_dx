@@ -126,6 +126,38 @@ def _unit_checks():
                 ("plugins/platforms/libqoffscreen.dylib", "../qt/plugins/platforms/libqoffscreen.dylib"),
             ],
         ),
+        # The linked rule (a DLL not under ../) is confirmed on a Windows host by #6520.
+        expect_equal(
+            "bundle stages windows dlls",
+            qt_bundle_members(
+                [
+                    "app/tool.exe",
+                    "app/Qt6Gui.dll",
+                    "../qt/bin/Qt6Gui.dll",
+                    "../qt/bin/Qt6Core.dll",
+                    "../qt/bin/Qt6Network.dll",
+                    "../qt/lib/Qt6Gui.lib",
+                    "../qt/plugins/platforms/qoffscreen.dll",
+                ],
+                [],
+                None,
+                struct(
+                    library = {"Qt6Gui.dll": ["Qt6Core.dll", "KERNEL32.dll"]},
+                    plugin = {},
+                    runtime_plugin = {"platforms/qoffscreen.dll": ["Qt6Gui.dll"]},
+                ),
+            ),
+            [
+                ("bin/Qt6Core.dll", "../qt/bin/Qt6Core.dll"),
+                ("bin/Qt6Gui.dll", "../qt/bin/Qt6Gui.dll"),
+                ("plugins/platforms/qoffscreen.dll", "../qt/plugins/platforms/qoffscreen.dll"),
+            ],
+        ),
+        expect_equal(
+            "bundle without linked windows dlls",
+            qt_bundle_members(["app/tool.exe", "../qt/bin/Qt6Core.dll", "../qt/bin/Qt6Gui.dll"], [], None, struct(library = {}, plugin = {}, runtime_plugin = {})),
+            [],
+        ),
         expect_equal(
             "bundle without QML",
             qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None, CELLS["linux_x86_64"].needs),

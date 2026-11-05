@@ -20,5 +20,9 @@ toolchain found" failure, so `tools.explicit()` has no system fallback.
 `cmake_toolchain_present_test` is the positive control on the host. A real
 `cmake` target on riscv64 would fail earlier on the LLVM glibc stubs select.
 
-Not covered yet (part of #6222): a wrong-architecture `cc_import`, tracked in
-#7246.
+`zlib_arm64_wrong_arch_link` runs the x86_64 toolchain's link command over the
+arm64 `libz.a` with `--whole-archive` and keeps the linker output and exit code
+in a log. `foreign_cmake_cross_test` checks that lld rejects the archive.
+
+Not covered yet (part of #6222): a missing cmake toolchain for a real `cmake`
+target.

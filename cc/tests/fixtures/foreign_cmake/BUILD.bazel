@@ -9,7 +9,7 @@ load(
     "missing_cmake_toolchain_test",
     "unknown_generator_test",
 )
-load(":transition.bzl", "arm64_files")
+load(":transition.bzl", "arm64_files", "wrong_arch_link")
 
 package(
     default_testonly = True,
@@ -67,6 +67,13 @@ arm64_files(
     name = "zlib_arm64_log",
     srcs = [":zlib_arm64"],
     tags = _THIRD_PARTY,
+)
+
+wrong_arch_link(
+    name = "zlib_arm64_wrong_arch_link",
+    lib = ":zlib_arm64",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
 )
 
 cc_test(

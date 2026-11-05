@@ -42,3 +42,19 @@ fn no_host_compiler_is_used() {
     assert!(!log.contains("/usr/bin/cc"));
     assert!(!log.contains("/usr/bin/gcc"));
 }
+
+#[test]
+fn x86_64_link_rejects_arm64_archive() {
+    let srcdir = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR");
+    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE");
+    let rootpath = std::env::var("DX_FOREIGN_CMAKE_WRONG_ARCH_LINK").expect("rootpath");
+    let path = Path::new(&srcdir).join(workspace).join(rootpath);
+    let log = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert!(log.contains("is incompatible with elf_x86_64"), "{log}");
+    assert!(log.contains("libz.a("), "{log}");
+    let exit = log
+        .lines()
+        .find_map(|l| l.strip_prefix("exit="))
+        .unwrap_or_else(|| panic!("no exit line in {log}"));
+    assert_ne!(exit, "0", "{log}");
+}

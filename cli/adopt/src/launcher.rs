@@ -220,10 +220,9 @@ fn pins_error(detail: String) -> AdoptError {
 const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
 DX_PINS=.dx/pins
-args="$*"
 fail() {
   echo "dx: $1" >&2
-  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
+  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- <your arguments>" >&2
   exit 1
 }
 via_bazel() {
@@ -462,7 +461,7 @@ move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
 if exist "%BIN%" goto run
 echo dx: could not install %BIN% 1>&2
-echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
+echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- ^<your arguments^> 1>&2
 exit /b 1
 :run
 "%BIN%" %*
@@ -470,7 +469,7 @@ exit /b %errorlevel%
 :mismatch
 call :clean
 echo dx: sha256 mismatch for %DX_URL%: want '%WANT%', got '%GOT%'; refusing to run it 1>&2
-echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
+echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- ^<your arguments^> 1>&2
 exit /b 1
 :clean
 del /q "%DX_PART%" 2>nul
@@ -1461,7 +1460,7 @@ mod tests {
             assert!(out.is_empty(), "{out}");
             assert!(err.contains("noexec mount"), "{err}");
             assert!(err.contains("DX_CACHE_DIR"), "{err}");
-            assert!(err.contains("bazel run @rules_dx//:dx -- status"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- <your arguments>"), "{err}");
             assert_eq!(fx.downloads(), 0);
         }
 

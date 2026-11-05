@@ -73,6 +73,7 @@ const SKIPPED: &[&str] = &[
 ];
 
 /// `preferred` when it is in the chain, else the first ancestor that is not a shell, wrapper or dx.
+/// PID 1 is only chosen when preferred, so a host's init is never recorded.
 fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option<u32> {
     if let Some(pid) = preferred.filter(|pid| chain.iter().any(|(entry, _)| entry == pid)) {
         return Some(pid);
@@ -81,10 +82,11 @@ fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option
         let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
         SKIPPED.contains(&base.trim_start_matches('-').to_lowercase().as_str())
     };
-    chain
-        .iter()
+    let mut hosts = chain.iter().filter(|(pid, _)| *pid != 1);
+    hosts
+        .clone()
         .find(|(_, name)| !is_skipped(name))
-        .or_else(|| chain.first())
+        .or_else(|| hosts.next())
         .map(|(pid, _)| *pid)
 }
 
@@ -92,7 +94,7 @@ fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option
 fn ancestors() -> Vec<(u32, String)> {
     let mut chain = Vec::new();
     let mut pid = u32::try_from(unsafe { libc::getppid() }).unwrap_or(0);
-    while pid > 1 && chain.len() < 8 {
+    while pid >= 1 && chain.len() < 8 {
         let ps = |field: &str| {
             dx_process::probe("ps", ["-o", field, "-p", &pid.to_string()])
                 .map(|text| text.trim().to_owned())
@@ -102,6 +104,9 @@ fn ancestors() -> Vec<(u32, String)> {
             break;
         };
         chain.push((pid, name));
+        if pid == 1 {
+            break;
+        }
         match ps("ppid=").and_then(|text| text.parse().ok()) {
             Some(parent) => pid = parent,
             None => break,
@@ -647,6 +652,19 @@ mod tests {
         let main = Path::new("/work/repo");
         assert!(marker_matches(b"/work/repo\n", main));
         assert!(!marker_matches(b"/work/other", main));
+    }
+
+    #[test]
+    fn pid_one_is_only_recorded_when_preferred() {
+        let chain = vec![
+            (10, "bash".to_owned()),
+            (11, "sh".to_owned()),
+            (1, "claude".to_owned()),
+        ];
+        assert_eq!(outliving_ancestor(&chain, Some(1)), Some(1));
+        assert_eq!(outliving_ancestor(&chain, None), Some(10));
+        let init = vec![(10, "bash".to_owned()), (1, "systemd".to_owned())];
+        assert_eq!(outliving_ancestor(&init, None), Some(10));
     }
 
     #[test]

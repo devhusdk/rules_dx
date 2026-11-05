@@ -622,3 +622,65 @@ fn dart_runner_uris_resolve_to_owned_paths_and_drop_pub_packages() {
     let result = account(&[parsed], &[report], &blank_sources());
     assert_eq!(result.errors, Vec::<String>::new());
 }
+
+fn hygiene_errors(source: String, lines: &[(u32, u64)]) -> Vec<String> {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let load = sources(&[("a.rs", source.as_str())]);
+    account(&manifests, &[lcov("a.rs", lines)], &load).errors
+}
+
+#[test]
+fn stale_line_ignore_is_an_error() {
+    let source = format!(
+        "fn a() {{}}\n// {} - reason: gone, issue: 1.\n",
+        marker("_LINE")
+    );
+    let errors = hygiene_errors(source, &[(1, 1)]);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.starts_with("stale coverage ignore at a.rs:2")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn stale_range_is_an_error() {
+    let source = format!(
+        "fn a() {{}}\n// {} - reason: gone, issue: 1.\n\n// {} - reason: gone, issue: 1.\n",
+        marker("_START"),
+        marker("_STOP")
+    );
+    let errors = hygiene_errors(source, &[(1, 1)]);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.starts_with("stale coverage range at a.rs:2-4")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn ignoring_every_instrumented_line_is_an_error() {
+    let source = format!(
+        "// {} - reason: all, issue: 1.\nfn a() {{}}\n// {} - reason: all, issue: 1.\n",
+        marker("_START"),
+        marker("_STOP")
+    );
+    let errors = hygiene_errors(source, &[(2, 0)]);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.starts_with("broad coverage ignore at a.rs")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn ignore_on_an_instrumented_line_is_clean() {
+    let source = format!(
+        "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
+        marker("_LINE")
+    );
+    assert!(hygiene_errors(source, &[(1, 1), (2, 0)]).is_empty());
+}

@@ -311,6 +311,32 @@ fn whole_file_excluded(path: &str, source: &str) -> bool {
     })
 }
 
+/// Errors for ignores that cover no instrumented line, or that hide every one.
+fn ignore_hygiene_errors(path: &str, hits: &FileHits, ignores: &Ignores) -> Vec<String> {
+    let mut errors = Vec::new();
+    for line in ignores.singles.keys() {
+        if !hits.lines.contains_key(line) {
+            errors.push(format!(
+                "stale coverage ignore at {path}:{line}: no instrumented line; remove it"
+            ));
+        }
+    }
+    for (start, stop, _) in &ignores.ranges {
+        if !hits.lines.keys().any(|line| start <= line && line <= stop) {
+            errors.push(format!(
+                "stale coverage range at {path}:{start}-{stop}: covers no instrumented lines; remove it"
+            ));
+        }
+    }
+    if hits.lines.keys().all(|line| is_ignored(ignores, *line)) {
+        errors.push(format!(
+            "broad coverage ignore at {path}: all {} instrumented lines ignored; narrow the range or reclassify to support",
+            hits.lines.len()
+        ));
+    }
+    errors
+}
+
 /// Accounts every owned source of one cell against the merged LCOV report.
 pub fn account(
     manifests: &[SourceManifest],
@@ -390,6 +416,7 @@ pub fn account(
                         Ignores::default()
                     }
                 };
+                result.errors.extend(ignore_hygiene_errors(path, hits, &ignores));
                 let count = count_lines(hits, &ignores);
                 result.raw_lines += count.eligible + count.ignored;
                 result.excluded_lines += count.ignored;

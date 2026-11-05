@@ -85,14 +85,14 @@ jobs:
           CELLS_SHA: ${{ needs.cells.outputs.sha }}
         run: |
           set -euo pipefail
-          test "$CELLS_VERSION" = "${RELEASE_TAG#v}"
-          test "$CELLS_SHA" = "$CANDIDATE_COMMIT"
+          test "$CELLS_VERSION" = "${RELEASE_TAG#v}" || { echo "want ${RELEASE_TAG#v}, got $CELLS_VERSION" >&2; exit 1; }
+          test "$CELLS_SHA" = "$CANDIDATE_COMMIT" || { echo "want $CANDIDATE_COMMIT, got $CELLS_SHA" >&2; exit 1; }
           : > sums.tmp
           files="dx-sha256sums.txt dx-sha256sums.txt.sigstore.json"
           for asset in dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64; do
             case "$asset" in dx-windows-*) archive="$asset.zip" ;; *) archive="$asset.tar.gz" ;; esac
             for file in "$archive" "$archive.sha256" "$archive.spdx.json"; do
-              test -s "out/$file"
+              test -s "out/$file" || { echo "want a non-empty out/$file" >&2; exit 1; }
             done
             case "$archive" in *.zip) unzip -p "out/$archive" dx.exe ;; *) tar -xzOf "out/$archive" dx ;; esac > "out/$asset"
             hash="$(sha256sum "out/$asset" | cut -d' ' -f1)"
@@ -103,7 +103,7 @@ jobs:
           done
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 15
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 15 || { echo "want 15 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
       - name: Build and verify the source archive
         env:

@@ -425,6 +425,19 @@ fn the_upload_checks_the_cells_version_and_commit_before_hashing() {
 }
 
 #[test]
+fn the_upload_checks_name_the_wanted_and_actual_values() {
+    let text = workflow();
+    for needle in [
+        "|| { echo \"want ${RELEASE_TAG#v}, got $CELLS_VERSION\" >&2; exit 1; }",
+        "|| { echo \"want $CANDIDATE_COMMIT, got $CELLS_SHA\" >&2; exit 1; }",
+        "|| { echo \"want a non-empty out/$file\" >&2; exit 1; }",
+        "|| { echo \"want 15 manifest lines, got $(wc -l < out/dx-sha256sums.txt)\" >&2; exit 1; }",
+    ] {
+        assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
+    }
+}
+
+#[test]
 fn the_source_job_refuses_a_tag_the_committed_versions_do_not_match() {
     let text = workflow();
     let source = text.find("\n  source:\n").expect("source job");

@@ -5,6 +5,8 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//appimage:pins.bzl", "MKSQUASHFS_LICENSE", "MKSQUASHFS_VERSION", "RUNTIME_LICENSE", "RUNTIME_VERSION", "TOOL_LICENSE", "TOOL_VERSION")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
 
+_WRITE_GOOD_VERSION = "0.4.1"
+
 _HEADER = """# Licenses
 
 This page lists the license of each tool rules_dx downloads. It is generated.
@@ -31,6 +33,7 @@ def licenses_rows():
     rows["appimagetool"] = (TOOL_VERSION, TOOL_LICENSE)
     rows["appimage runtime"] = (RUNTIME_VERSION, RUNTIME_LICENSE)
     rows["mksquashfs"] = (MKSQUASHFS_VERSION, MKSQUASHFS_LICENSE)
+    rows["write-good (vale style)"] = (_WRITE_GOOD_VERSION, "MIT")
     return [(tool, rows[tool][0], rows[tool][1]) for tool in sorted(rows.keys())]
 
 def licenses_page():

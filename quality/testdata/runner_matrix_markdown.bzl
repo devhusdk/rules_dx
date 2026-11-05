@@ -1,5 +1,44 @@
 """Matrix Markdown cases (split from runner_matrix_cases.bzl)."""
 
+_VALE_STYLE_FILES = [
+    "Cliches.yml",
+    "E-Prime.yml",
+    "Illusions.yml",
+    "LICENSE",
+    "Passive.yml",
+    "So.yml",
+    "ThereIs.yml",
+    "TooWordy.yml",
+    "Weasel.yml",
+    "meta.json",
+]
+
+def _vale_profile_case(name, profile, family, path, text):
+    styles = ["write-good/" + f for f in _VALE_STYLE_FILES]
+    ini = ":vale_profile/%s/.vale.ini" % profile
+    root = "quality/testdata/vale_profile/%s/" % profile
+    return {
+        "name": name,
+        "generated": {path: text},
+        "capability": "lint",
+        "stages": ["vale;%s;%s" % (family, path)],
+        "tool_names": ["vale"],
+        "tool_binaries": ["@dx_tools//:vale"],
+        "toolfile_tools": ["vale"] * (1 + len(styles)),
+        "toolfile_srcs": [ini] + ["//cli/adopt/templates/config:vale/styles/" + s for s in styles],
+        "toolfile_rels": [""] + [root + ".dx/config/vale/styles/" + s for s in styles],
+        "config_tools": ["vale"],
+        "config_files": [ini],
+        "path_tool_owners": ["vale"] if family == "rst" else [],
+        "path_tool_names": ["rst2html"] if family == "rst" else [],
+        "path_tool_binaries": ["//quality/tools/python:rst2html"] if family == "rst" else [],
+        "expected_file": ":matrix/%s.expected.txt" % name,
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    }
+
 MARKDOWN_CASES = [
     {
         "name": "matrix_markdown_lint_pass",
@@ -253,4 +292,7 @@ MARKDOWN_CASES = [
         "runner_failure": True,
         "expected_file": ":matrix/matrix_vale_asciidoc_lint_no_converter.expected.txt",
     },
+    _vale_profile_case("matrix_markdown_lint_profile_standard", "standard", "markdown", "matrix/vale_profile_standard.md", "# Profile\n\nThe ball was kicked.\n"),
+    _vale_profile_case("matrix_markdown_lint_profile_strict", "strict", "markdown", "matrix/vale_profile_strict.md", "# Profile\n\nThe ball was kicked.\n"),
+    _vale_profile_case("matrix_rst_lint_profile_strict", "strict", "rst", "matrix/vale_profile_strict.rst", "Profile\n=======\n\nThe ball was kicked.\n"),
 ]

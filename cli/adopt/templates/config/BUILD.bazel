@@ -5,12 +5,12 @@ _VISIBILITY = [
 ]
 
 exports_files(
-    glob(["*/*"]),
+    glob(["**/*"]),
     visibility = _VISIBILITY,
 )
 
 filegroup(
     name = "all",
-    srcs = glob(["*/*"]),
+    srcs = glob(["**/*"]),
     visibility = _VISIBILITY,
 )

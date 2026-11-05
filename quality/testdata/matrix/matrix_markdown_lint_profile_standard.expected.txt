@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_markdown_lint_profile_standard
+capability LINT
+stages 1
+stage vale classes=markdown sources=matrix/vale_profile_standard.md
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

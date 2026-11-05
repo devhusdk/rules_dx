@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
 load("@rules_rust//rust:defs.bzl", upstream_rust_binary = "rust_binary", upstream_rust_library = "rust_library")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//java/rules:defs.bzl", "java_library")
@@ -102,6 +103,15 @@ exports_files(
         "//tools/ci:__pkg__",
     ],
 )
+
+[
+    copy_file(
+        name = "vale_profile_%s" % profile,
+        src = "//cli/adopt/templates/config:vale/%s.ini" % profile,
+        out = "vale_profile/%s/.vale.ini" % profile,
+    )
+    for profile in ["standard", "strict"]
+]
 
 vale_config(
     name = "vale_cfg",

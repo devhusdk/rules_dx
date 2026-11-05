@@ -212,6 +212,7 @@ pub struct Manifest {
     pub failures: Vec<(String, String)>,
     pub coverage: Vec<String>,
     pub covered: Vec<String>,
+    pub generate: bool,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: Option<PathBuf>,
     pub families: Vec<String>,
@@ -421,6 +422,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         failures,
         coverage,
         covered,
+        generate: value["generate"].as_bool().unwrap_or(false),
         files,
         module_fragment,
         families,
@@ -802,6 +804,7 @@ impl Session {
     pub fn run_dx(
         &mut self,
         name: &str,
+        net: Net,
         command: &str,
         targets: &[String],
         home: &Path,
@@ -817,8 +820,10 @@ impl Session {
         args.extend([
             "--".to_owned(),
             format!("--repository_cache={}", repos.display()),
-            "--repository_disable_download".to_owned(),
         ]);
+        if net == Net::Denied {
+            args.push("--repository_disable_download".to_owned());
+        }
         args.extend(BUILD_FLAGS.iter().map(|flag| (*flag).to_owned()));
         args.extend(self.platform_flag());
         let mut argv = vec![
@@ -842,7 +847,7 @@ impl Session {
         } else {
             Expect::Pass
         };
-        self.execute(name, Net::Denied, home, &argv, recorded, &expect)
+        self.execute(name, net, home, &argv, recorded, &expect)
     }
 
     /// Runs one probe, logs it and records its verdict.
@@ -1108,18 +1113,19 @@ fn check_lint(recorded: &Value, want: &[(String, u64)]) -> Result<(), String> {
 }
 
 fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
-    let mut required: Vec<(String, &str, &str, Net)> = REQUIRED_PROBES
-        .iter()
-        .map(|name| {
-            let (expect, marker) = probe_expectation(name);
-            let net = if *name == "fetch" {
-                Net::Allowed
-            } else {
-                Net::Denied
-            };
-            ((*name).to_owned(), expect, marker, net)
-        })
-        .collect();
+    let mut required: Vec<(String, &str, &str, Net)> = Vec::new();
+    if manifest.generate {
+        required.push(("dx_generate".to_owned(), "pass", "", Net::Allowed));
+    }
+    required.extend(REQUIRED_PROBES.iter().map(|name| {
+        let (expect, marker) = probe_expectation(name);
+        let net = if *name == "fetch" {
+            Net::Allowed
+        } else {
+            Net::Denied
+        };
+        ((*name).to_owned(), expect, marker, net)
+    }));
     if !manifest.coverage.is_empty() {
         required.push(("fetch_coverage".to_owned(), "pass", "", Net::Allowed));
         required.push(("coverage".to_owned(), "pass", "", Net::Denied));
@@ -1603,6 +1609,17 @@ fn run_all(
     let coverage = session.manifest.coverage.clone();
     let failures = session.manifest.failures.clone();
     let leak = |name: &str| vec![format!("//{LEAKS_PACKAGE}:{name}")];
+    if session.manifest.generate {
+        session.run_dx(
+            "dx_generate",
+            Net::Allowed,
+            "generate",
+            &patterns,
+            &clean_home,
+            &cold,
+            &repos,
+        )?;
+    }
     session.run(Probe {
         name: "fetch".to_owned(),
         net: Net::Allowed,
@@ -1753,12 +1770,21 @@ fn run_all(
             ("dx_generate_check", "generate"),
             ("dx_coverage", "coverage"),
         ] {
-            session.run_dx(name, command, &coverage_targets, &clean_home, &warm, &repos)?;
+            session.run_dx(
+                name,
+                Net::Denied,
+                command,
+                &coverage_targets,
+                &clean_home,
+                &warm,
+                &repos,
+            )?;
         }
     }
     if !session.manifest.lint_findings.is_empty() {
         let lint = session.run_dx(
             "dx_lint",
+            Net::Denied,
             "lint",
             &["//...".to_owned()],
             &clean_home,

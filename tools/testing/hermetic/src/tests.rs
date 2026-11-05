@@ -14,6 +14,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         failures: Vec::new(),
         coverage: Vec::new(),
         covered: Vec::new(),
+        generate: false,
         files: Vec::new(),
         module_fragment: Some(PathBuf::from("f")),
         families: Vec::new(),
@@ -1103,6 +1104,21 @@ fn manifest_parses_failures_and_coverage() {
     );
     assert_eq!(manifest.coverage, vec!["//app/..."]);
     assert_eq!(manifest.covered, vec!["app/lib/Lib.java"]);
+}
+
+#[test]
+fn manifest_generate_defaults_off_and_leads_the_required_probes() {
+    let mut json = probe_manifest_json();
+    let off = parse_manifest(&json.to_string(), Path::new("/")).unwrap();
+    assert!(!off.generate);
+    assert_eq!(required_probes(&off)[0].0, "fetch");
+    json["generate"] = json!(true);
+    let on = parse_manifest(&json.to_string(), Path::new("/")).unwrap();
+    assert!(on.generate);
+    let required = required_probes(&on);
+    assert_eq!(required[0].0, "dx_generate");
+    assert_eq!(required[0].3, Net::Allowed);
+    assert_eq!(required[1].0, "fetch");
 }
 
 #[test]

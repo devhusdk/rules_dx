@@ -13,7 +13,7 @@ _COMPILED_RESOURCES = ["metal", "mlmodel", "mlpackage", "storyboard", "xcstrings
 
 _GROUPED_RESOURCES = (".alticon", ".atlas", ".bundle", ".icon", ".lproj", ".mlpackage", ".scnassets", ".xcassets", ".xcdatamodel", ".xcdatamodeld", ".xcmappingmodel", ".xcstickers")
 
-_SIGNING_CERTIFICATE = str(Label("@rules_apple//apple/build_settings:signing_certificate_name"))
+SIGNING_CERTIFICATE = str(Label("@rules_apple//apple/build_settings:signing_certificate_name"))
 
 def platform_errors(kind, platforms, allowed):
     """Returns one error string unless platforms holds exactly one allowed value."""
@@ -140,10 +140,10 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
     return report
 
 def _adhoc_signing_impl(_settings, _attr):
-    return {_SIGNING_CERTIFICATE: "-"}
+    return {SIGNING_CERTIFICATE: "-"}
 
 adhoc_signing_transition = transition(
     implementation = _adhoc_signing_impl,
     inputs = [],
-    outputs = [_SIGNING_CERTIFICATE],
+    outputs = [SIGNING_CERTIFICATE],
 )

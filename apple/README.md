@@ -229,8 +229,8 @@ The build fails before linking when:
 - the library links no static archive or lacks `CcInfo`;
 - an archive misses the cell's arch, is built for another platform
   (`iphoneos`, `macosx`), or needs a newer iOS than `deployment`;
-- the build targets another cell; pass the `--ios_multi_cpus` value the
-  error names;
+- a simulator app builds for another cell; pass the `--ios_multi_cpus`
+  value the error names. Device apps select `arm64` themselves;
 - no Xcode resolves, as on a Linux host, or Bazel resolved a different
   Xcode than `xcode_version`;
 - `srcs` and `entry` are both empty or both set, `deployment`,
@@ -308,7 +308,7 @@ apple_ios_app(
 ```
 
 ```sh
-bazel build //:ledger_device --ios_multi_cpus=arm64
+bazel build //:ledger_device
 ```
 
 Device builds always sign ad hoc and embed the profile. They never read

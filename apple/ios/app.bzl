@@ -11,8 +11,8 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "//apple/bundle:defs.bzl",
+    "SIGNING_CERTIFICATE",
     "TOOL_PATH",
-    "adhoc_signing_transition",
     "archives",
     "bundle_id_errors",
     "bundle_version_errors",
@@ -439,6 +439,8 @@ _framework_cell = rule(
     fragments = ["apple"],
 )
 
+_IOS_MULTI_CPUS = "//command_line_option:ios_multi_cpus"
+
 AppleIosDeviceAppInfo = provider(
     doc = "One ad hoc signed device app ready for an explicit export.",
     fields = {
@@ -471,13 +473,25 @@ def _device_app_impl(ctx):
         providers.append(bundle[OutputGroupInfo])
     return providers
 
+def _device_cpu_impl(_settings, _attr):
+    return {
+        _IOS_MULTI_CPUS: [MULTI_CPUS["device/arm64"]],
+        SIGNING_CERTIFICATE: "-",
+    }
+
+_device_cpu_transition = transition(
+    implementation = _device_cpu_impl,
+    inputs = [],
+    outputs = [_IOS_MULTI_CPUS, SIGNING_CERTIFICATE],
+)
+
 _device_app = rule(
     implementation = _device_app_impl,
     doc = "Builds one device app bundle signed ad hoc whatever signing flags are set.",
     attrs = {
         "bundle": attr.label(
             doc = "The upstream ios_application.",
-            cfg = adhoc_signing_transition,
+            cfg = _device_cpu_transition,
             mandatory = True,
             providers = [AppleBundleInfo],
         ),

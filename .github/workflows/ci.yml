@@ -676,6 +676,8 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           tools/docs/site/public_rust_crates_guard.sh "$@"
+      - name: Fail when the Rule names table misses a rules/defs.bzl export
+        run: python3 tools/docs/rule_names/rule_names.py
       - name: Fail when a nested Bazel test is missing from nested_smoke.txt
         run: |
           # shellcheck disable=SC2086

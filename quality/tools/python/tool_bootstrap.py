@@ -8,14 +8,20 @@ import sys
 
 def site_packages() -> list:
     """Returns every site-packages directory this tool's runfiles carry."""
-    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
-    if not manifest:
-        return []
-    try:
-        lines = pathlib.Path(manifest).read_text().splitlines()
-    except OSError:
-        return []
     sites = []
+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
+    lines = []
+    if manifest:
+        try:
+            lines = pathlib.Path(manifest).read_text().splitlines()
+        except OSError:
+            lines = []
+    root = os.environ.get("RUNFILES_DIR")
+    if root and os.path.isdir(root):
+        for site in glob.glob(os.path.join(root, "**", "site-packages"), recursive=True):
+            sites.append(pathlib.Path(site))
+    if not manifest and not sites:
+        return []
 
     def add(path):
         """Records one import root the runfiles carry."""

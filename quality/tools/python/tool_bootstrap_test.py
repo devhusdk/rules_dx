@@ -19,6 +19,7 @@ class BootstrapTestCase(unittest.TestCase):
     def setUp(self):
         """Takes a private root, import path and probe identity."""
         self.saved_env = os.environ.pop("RUNFILES_MANIFEST_FILE", None)
+        self.saved_dir = os.environ.pop("RUNFILES_DIR", None)
         self.saved_path = list(sys.path)
         sys.modules.pop(PROBE, None)
         temporary = tempfile.TemporaryDirectory()
@@ -30,6 +31,8 @@ class BootstrapTestCase(unittest.TestCase):
         os.environ.pop("RUNFILES_MANIFEST_FILE", None)
         if self.saved_env is not None:
             os.environ["RUNFILES_MANIFEST_FILE"] = self.saved_env
+        if self.saved_dir is not None:
+            os.environ["RUNFILES_DIR"] = self.saved_dir
         sys.path[:] = self.saved_path
         sys.modules.pop(PROBE, None)
 

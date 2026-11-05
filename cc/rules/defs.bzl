@@ -80,11 +80,33 @@ def cc_coverage_unsupported(compiler):
         return ""
     return "cc_test coverage needs an LLVM compiler (clang or clang-cl); the toolchain compiler is '%s'. Run without --collect_code_coverage or select an LLVM toolchain." % compiler
 
+def cc_coverage_mismatch(compiler, llvm_maps):
+    """Returns why a known non-LLVM compiler cannot use the LLVM coverage features the transition added, or an empty string."""
+    if not llvm_maps or not compiler:
+        return ""
+    identity = cc_compiler_identity(compiler, "")
+    if identity.family == "unknown" or identity.coverage == "llvm":
+        return ""
+    hint = "Pass --compiler=%s" % compiler
+    if compiler == "gcc":
+        hint += " or --@rules_dx//cc/toolchains:compiler=gcc"
+    return "cc_test coverage under the '%s' toolchain needs %s coverage maps, but LLVM coverage features were added. %s." % (compiler, identity.coverage, hint)
+
+CcCoverageProbeInfo = provider(doc = "Whether LLVM coverage maps are enabled in the cc_test configuration.", fields = {"llvm": "True when llvm_coverage_map_format is a feature."})
+
+def _cc_coverage_probe_impl(ctx):
+    return [CcCoverageProbeInfo(llvm = "llvm_coverage_map_format" in ctx.features)]
+
+cc_coverage_probe = rule(implementation = _cc_coverage_probe_impl)
+
 def _cc_test_coverage(ctx, upstream):
     toolchain = find_cc_toolchain(ctx, mandatory = False)
     reason = cc_coverage_unsupported(toolchain.compiler if toolchain else "")
     if reason:
         fail(reason)
+    mismatch = cc_coverage_mismatch(toolchain.compiler if toolchain else "", ctx.attr._coverage_probe[0][CcCoverageProbeInfo].llvm)
+    if mismatch:
+        fail(mismatch)
     gcov = bool(toolchain) and cc_compiler_identity(toolchain.compiler, "").coverage == "gcov"
     return dx_native_test_coverage(ctx, upstream, gcov = gcov)
 
@@ -98,7 +120,9 @@ _cc_forward_test = dx_executable_forward_rule(
     what = "cc_*",
     allow_files = True,
     upstream_providers = [[CcInfo]],
-    extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs(),
+    extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
+        "_coverage_probe": attr.label(default = "//cc/rules:coverage_probe", cfg = _cc_coverage_transition),
+    },
     optional_providers = [CcInfo],
     upstream_cfg = _cc_coverage_transition,
     coverage_providers = _cc_test_coverage,

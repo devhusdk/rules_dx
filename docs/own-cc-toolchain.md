@@ -57,7 +57,7 @@ common --credential_helper=<host>=<path to helper>
 
 ## GCC-specific behaviour
 
-Under an external GCC toolchain, `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` from the resolved toolchain, not from the dx flag. Coverage features still follow `--@rules_dx//cc/toolchains:compiler`, because a transition cannot see the resolved toolchain (#6574). Pass `--@rules_dx//cc/toolchains:compiler=gcc` as well when you collect GCC coverage.
+Under an external GCC toolchain, `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` from the resolved toolchain, not from the dx flag. Coverage features follow `--compiler=<name>`, because a transition cannot see the resolved toolchain. Pass `--compiler=gcc` (or `--@rules_dx//cc/toolchains:compiler=gcc`) with `--collect_code_coverage` under GCC. Without it the build fails at analysis with a message naming the flag, instead of compiling with LLVM coverage features.
 
 ## Support
 

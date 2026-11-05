@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
-load("@rules_dx//cc/rules:wrapper_tests.bzl", "cc_external_asan_env_tests")
+load("@rules_dx//cc/rules:wrapper_tests.bzl", "cc_external_asan_env_tests", "cc_external_coverage_tests")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//cc/toolchains:identity_subject.bzl", "cc_toolchain_identity_subject")
 load("//cc/toolchains:select.bzl", "cc_toolchain_test")
@@ -69,6 +69,11 @@ external_toolchain_tests(name = "external")
 
 cc_external_asan_env_tests(
     name = "asan_env_tests",
+    target = "//cc/tests/fixtures/prebuilt_interop:interop_test",
+)
+
+cc_external_coverage_tests(
+    name = "coverage_tests",
     target = "//cc/tests/fixtures/prebuilt_interop:interop_test",
 )
 

@@ -6,7 +6,7 @@ load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":defs.bzl", "cc_coverage_features", "cc_coverage_unsupported")
+load(":defs.bzl", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_unsupported")
 
 def cc_wrapper_contract_tests(name):
     """Instantiates C, C++ and Objective-C wrapper contract tests."""
@@ -29,6 +29,10 @@ def cc_wrapper_contract_tests(name):
             expect_equal("llvm coverage supported", cc_coverage_unsupported("clang"), ""),
             expect_equal("unknown compiler not blocked", cc_coverage_unsupported("icx"), ""),
             expect_equal("gcc coverage supported", cc_coverage_unsupported("gcc"), ""),
+            expect_equal("gcc with llvm maps names the flag", "--compiler=gcc" in cc_coverage_mismatch("gcc", True), True),
+            expect_equal("gcc without llvm maps passes", cc_coverage_mismatch("gcc", False), ""),
+            expect_equal("clang with llvm maps passes", cc_coverage_mismatch("clang", True), ""),
+            expect_equal("icx with llvm maps passes", cc_coverage_mismatch("icx", True), ""),
             expect_equal("msvc coverage reported", "msvc-cl" in cc_coverage_unsupported("msvc-cl"), True),
         ],
     )
@@ -105,6 +109,30 @@ def cc_external_asan_env_tests(name, target, **kwargs):
     _asan_env_external_icx_test(name = name + "_icx", size = "small", target_under_test = target, **kwargs)
     native.test_suite(name = name, tests = [name + "_gcc", name + "_icx"], **kwargs)
 
+def _coverage_mismatch_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, "--compiler=gcc")
+    return analysistest.end(env)
+
+def _icx_coverage_impl(ctx):
+    env = analysistest.begin(ctx)
+    return analysistest.end(env)
+
+def _coverage_flag_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, "does not ship gcov")
+    return analysistest.end(env)
+
+def _external_coverage_test(toolchain, impl, **settings):
+    return analysistest.make(
+        impl,
+        expect_failure = impl != _icx_coverage_impl,
+        config_settings = {
+            "//command_line_option:collect_code_coverage": True,
+            "//command_line_option:extra_toolchains": [toolchain],
+        } | settings,
+    )
+
 def _gcov_env_impl(ctx):
     env = analysistest.begin(ctx)
     run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
@@ -123,6 +151,17 @@ _coverage_env_gcc_test = analysistest.make(
         str(Label("//cc/toolchains:compiler")): "gcc",
     },
 )
+
+_coverage_external_gcc_test = _external_coverage_test(str(Label("//cc/toolchains/external:gcc_toolchain")), _coverage_mismatch_impl)
+_coverage_external_gcc_flag_test = _external_coverage_test(str(Label("//cc/toolchains/external:gcc_toolchain")), _coverage_flag_impl, **{"//command_line_option:compiler": "gcc"})
+_coverage_external_icx_test = _external_coverage_test(str(Label("//cc/toolchains/external:icx_toolchain")), _icx_coverage_impl)
+
+def cc_external_coverage_tests(name, target, **kwargs):
+    """Asserts cc_test coverage fails fast under an external GCC toolchain without --compiler, gets past that check with it (the fake toolchain has no gcov), and leaves unknown compilers alone."""
+    _coverage_external_gcc_test(name = name + "_gcc", size = "small", target_under_test = target, **kwargs)
+    _coverage_external_gcc_flag_test(name = name + "_gcc_flag", size = "small", target_under_test = target, **kwargs)
+    _coverage_external_icx_test(name = name + "_icx", size = "small", target_under_test = target, **kwargs)
+    native.test_suite(name = name, tests = [name + "_gcc", name + "_gcc_flag", name + "_icx"], **kwargs)
 
 def cc_gcov_coverage_env_test(name, target):
     """Asserts a cc_test under the GCC toolchain gets GCOV and no LLVM coverage tools."""

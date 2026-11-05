@@ -60,6 +60,7 @@ single_version_override(
         "//patches/gcc_toolchain:target_identity_config.patch",
         "//patches/gcc_toolchain:target_identity_defs.patch",
         "//patches/gcc_toolchain:target_identity_extension.patch",
+        "//patches/gcc_toolchain:native_include_layout.patch",
     ],
     version = "0.13.0",
 )

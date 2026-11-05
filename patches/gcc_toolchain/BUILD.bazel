@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "native_include_layout.patch",
     "runtime_libs.patch",
     "sanitizer_spec.patch",
     "target_identity_config.patch",

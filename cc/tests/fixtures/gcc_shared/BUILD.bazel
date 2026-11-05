@@ -9,8 +9,11 @@ package(
 
 _GCC_ONLY = [
     "@platforms//os:linux",
-    "@platforms//cpu:x86_64",
-]
+] + select({
+    "@platforms//cpu:arm64": [],
+    "@platforms//cpu:x86_64": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
 
 cc_library(
     name = "greet_api",

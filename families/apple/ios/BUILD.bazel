@@ -449,7 +449,7 @@ cell_failure_test(
 cell_failure_test(
     name = "simulator_app_without_archive_test",
     config = "simulator",
-    expected_failure_substring = "library //ios:share_stub links no static archive",
+    expected_failure_substring = "//ios:share_stub links no static archive",
     target = ":simulator_app_library",
 )
 
@@ -818,7 +818,7 @@ apple_ios_xcframework(
 cell_failure_test(
     name = "share_framework_without_archive_test",
     config = "simulator",
-    expected_failure_substring = "apple_ios_xcframework: library //ios:share_stub links no static archive",
+    expected_failure_substring = "//ios:share_stub links no static archive",
     target = ":share_framework_library",
 )
 
@@ -899,7 +899,7 @@ apple_ios_app(
 cell_failure_test(
     name = "device_lib_app_test",
     config = "simulator",
-    expected_failure_substring = "library //ios:device_share declares device/arm64 but the app builds simulator/arm64",
+    expected_failure_substring = "//ios:device_share declares device/arm64 but the app builds simulator/arm64",
     target = ":device_lib_app_library",
 )
 
@@ -917,7 +917,7 @@ apple_ios_xcframework(
 cell_failure_test(
     name = "device_lib_framework_test",
     config = "simulator",
-    expected_failure_substring = "library //ios:device_share declares device/arm64 but this slice builds simulator/arm64",
+    expected_failure_substring = "//ios:device_share declares device/arm64 but this slice builds simulator/arm64",
     target = ":device_lib_framework_library",
 )
 
@@ -963,6 +963,6 @@ ios_lib_cell(
 cell_failure_test(
     name = "empty_lib_cell_test",
     config = "simulator",
-    expected_failure_substring = "library //ios:share_stub links no static archive",
+    expected_failure_substring = "//ios:share_stub links no static archive",
     target = ":empty_lib_cell",
 )

@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_apple//apple:macos.bzl", "macos_bundle", "macos_dynamic_framework")
+load("@rules_apple//apple:macos.bzl", "macos_bundle", "macos_framework")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("//bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load("//signing:defs.bzl", "apple_macos_sign")
@@ -260,7 +260,7 @@ objc_library(
     target_compatible_with = ["@platforms//os:macos"],
 )
 
-macos_dynamic_framework(
+macos_framework(
     name = "Helper",
     bundle_id = "com.example.helper",
     bundle_name = "PartsHelper",

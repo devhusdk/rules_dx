@@ -27,7 +27,7 @@ apple_macos_sign(
 
 failure_test(
     name = "sign_files_test",
-    expected_failure_substring = "apple_macos_sign: '//signing:files' is not a macOS application",
+    expected_failure_substring = "'//signing:files' is not a macOS application",
     target = ":sign_files_meta",
 )
 
@@ -38,7 +38,7 @@ apple_macos_notarize(
 
 failure_test(
     name = "notarize_files_test",
-    expected_failure_substring = "apple_macos_notarize: '//signing:files' is not a macOS application",
+    expected_failure_substring = "'//signing:files' is not a macOS application",
     target = ":notarize_files_meta",
 )
 

@@ -23,6 +23,7 @@ python_library(
         "src/mylib/shapes.py",
     ],
     imports = ["src"],
+    tags = ["no-format", "no-lint"],  # no ruff config in this fixture package
 )
 
 python_doc_shard(
@@ -35,6 +36,7 @@ python_library(
     name = "npylib",
     srcs = ["src/npylib/__init__.py"],
     imports = ["src"],
+    tags = ["no-format", "no-lint"],  # no ruff config in this fixture package
 )
 
 python_doc_shard(

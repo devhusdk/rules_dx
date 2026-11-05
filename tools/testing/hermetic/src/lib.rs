@@ -172,6 +172,17 @@ pub const NETWORK_MARKER: &str = "Network is unreachable";
 
 pub const HOME_MARKER: &str = "dx-hermetic: home config absent";
 
+/// Marker strings the probes expect, by host OS: (ambient tool, network, home config).
+pub fn markers(os: &str) -> (&'static str, &'static str, &'static str) {
+    if os == "macos" {
+        (MACOS_DENIED_MARKER, MACOS_DENIED_MARKER, HOME_MARKER)
+    } else {
+        (AMBIENT_MARKER, NETWORK_MARKER, HOME_MARKER)
+    }
+}
+
+pub const MACOS_DENIED_MARKER: &str = "Operation not permitted";
+
 pub const MISS_MARKER: &str = "Unknown host";
 
 pub const HOME_RC: &str = "build --action_env=DX_HOME_CONFIG=present\n";
@@ -652,7 +663,7 @@ impl Isolation {
     /// Wraps one command in fresh user, mount and, when denied, network namespaces.
     pub fn command(&self, net: Net, inner: &[String]) -> Command {
         if cfg!(target_os = "macos") {
-            return macos_command(net, inner);
+            return self.macos_command(net, inner);
         }
         let mut command = Command::new("/usr/bin/unshare");
         command.env_clear();
@@ -667,23 +678,51 @@ impl Isolation {
     }
 }
 
-/// The macOS sandbox profile: everything allowed, network denied except loopback when asked.
-pub fn macos_profile(net: Net) -> String {
-    let mut profile = "(version 1)(allow default)".to_owned();
-    if net == Net::Denied {
-        profile.push_str("(deny network*)(allow network* (remote ip \"localhost:*\"))(allow network* (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
-    }
-    profile
+/// Quotes a path for a sandbox profile string, resolving symlinks like `/var`.
+fn profile_path(path: &Path) -> String {
+    let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    real.to_string_lossy()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
 }
 
-/// Wraps one command in a macOS `sandbox-exec` profile (the network-denied backend).
-pub fn macos_command(net: Net, inner: &[String]) -> Command {
-    let mut command = Command::new("/usr/bin/sandbox-exec");
-    command.env_clear();
-    command.env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
-    command.args(["-p", &macos_profile(net), "--"]);
-    command.args(inner);
-    command
+impl Isolation {
+    /// The macOS sandbox profile: network denied except loopback when asked, planned paths hidden.
+    pub fn macos_profile(&self, net: Net) -> String {
+        let mut profile = "(version 1)(allow default)".to_owned();
+        if net == Net::Denied {
+            profile.push_str("(deny network*)(allow network* (remote ip \"localhost:*\"))(allow network* (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
+        }
+        for dir in self.sdk_dirs.iter().chain(&self.home_dirs) {
+            profile.push_str(&format!(
+                "(deny file-read* (subpath \"{}\"))",
+                profile_path(dir)
+            ));
+        }
+        for file in &self.home_files {
+            profile.push_str(&format!(
+                "(deny file-read* (literal \"{}\"))",
+                profile_path(file)
+            ));
+        }
+        for tool in &self.tools {
+            profile.push_str(&format!(
+                "(deny process-exec (literal \"{}\"))",
+                profile_path(tool)
+            ));
+        }
+        profile
+    }
+
+    /// Wraps one command in a macOS `sandbox-exec` profile.
+    pub fn macos_command(&self, net: Net, inner: &[String]) -> Command {
+        let mut command = Command::new("/usr/bin/sandbox-exec");
+        command.env_clear();
+        command.env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
+        command.args(["-p", &self.macos_profile(net), "--"]);
+        command.args(inner);
+        command
+    }
 }
 
 /// The real user and group id: /proc/self/status on Linux, `id` elsewhere.
@@ -950,11 +989,12 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
     Ok(out)
 }
 
-fn probe_expectation(name: &str) -> (&'static str, &'static str) {
+fn probe_expectation(name: &str, os: &str) -> (&'static str, &'static str) {
+    let (ambient, network, home) = markers(os);
     match name {
-        "ambient_tool" => ("fail", AMBIENT_MARKER),
-        "network" => ("fail", NETWORK_MARKER),
-        "home_config" => ("fail", HOME_MARKER),
+        "ambient_tool" => ("fail", ambient),
+        "network" => ("fail", network),
+        "home_config" => ("fail", home),
         "cache_miss" => ("fail", MISS_MARKER),
         _ => ("pass", ""),
     }
@@ -1112,13 +1152,13 @@ fn check_lint(recorded: &Value, want: &[(String, u64)]) -> Result<(), String> {
     Ok(())
 }
 
-fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
+fn required_probes<'a>(manifest: &'a Manifest, os: &str) -> Vec<(String, &'a str, &'a str, Net)> {
     let mut required: Vec<(String, &str, &str, Net)> = Vec::new();
     if manifest.generate {
         required.push(("dx_generate".to_owned(), "pass", "", Net::Allowed));
     }
     required.extend(REQUIRED_PROBES.iter().map(|name| {
-        let (expect, marker) = probe_expectation(name);
+        let (expect, marker) = probe_expectation(name, os);
         let net = if *name == "fetch" {
             Net::Allowed
         } else {
@@ -1190,7 +1230,9 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
         }
     }
     let probes = evidence["probes"].as_array().cloned().unwrap_or_default();
-    for (name, expect, marker, net) in required_probes(manifest) {
+    for (name, expect, marker, net) in
+        required_probes(manifest, evidence["exec"]["os"].as_str().unwrap_or("linux"))
+    {
         let Some(probe) = probes.iter().find(|probe| probe["name"] == name.as_str()) else {
             return Err(format!("evidence is missing required probe {name}"));
         };
@@ -1558,7 +1600,11 @@ fn run_all(
         .map(|(name, _)| name)
         .ok_or("no ambient compiler or interpreter on this host for the ambient-tool probe")?;
     evidence["isolation"] = json!({
-        "network": "fresh network namespace with loopback only",
+        "network": if cfg!(target_os = "macos") {
+            "sandbox-exec profile, loopback only"
+        } else {
+            "fresh network namespace with loopback only"
+        },
         "path": ACTION_PATH,
         "masked_tools": isolation.tools,
         "masked_sdk_dirs": isolation.sdk_dirs,
@@ -1689,10 +1735,11 @@ fn run_all(
     evidence["target"] = json!({"machines": unique_machines(&built)});
     evidence["exec"] = json!({"os": std::env::consts::OS, "arch": std::env::consts::ARCH});
     evidence["artifacts"] = json!(built);
+    let (ambient_marker, network_marker, home_marker) = markers(std::env::consts::OS);
     for (name, marker) in [
-        ("ambient_tool", AMBIENT_MARKER),
-        ("network", NETWORK_MARKER),
-        ("home_config", HOME_MARKER),
+        ("ambient_tool", ambient_marker),
+        ("network", network_marker),
+        ("home_config", home_marker),
     ] {
         session.run(Probe {
             name: name.to_owned(),

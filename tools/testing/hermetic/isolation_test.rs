@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use hermetic::{
-    ambient_tools, capture, preflight, Isolation, Net, AMBIENT_MARKER, AMBIENT_TOOLS, SHIM,
-    TOOL_DIRS,
+    ambient_tools, capture, markers, preflight, Isolation, Net, AMBIENT_TOOLS, SHIM, TOOL_DIRS,
 };
 
 fn scratch() -> PathBuf {
@@ -39,12 +38,19 @@ fn isolation_denies_network_masks_tools_and_config_and_keeps_the_real_user() {
         .find(|(_, path)| isolation.tools.contains(path))
         .expect("this host has an ambient tool to mask");
     let home_text = home.to_string_lossy();
+    let macos = cfg!(target_os = "macos");
+    let (ambient_marker, network_marker, _) = markers(std::env::consts::OS);
+    let devices = if macos {
+        ""
+    } else {
+        "echo devices=$(tail -n +3 /proc/net/dev | cut -d: -f1 | tr -d ' ' | tr '\\n' ,)\n"
+    };
     let script = format!(
         "(exec 3<>/dev/tcp/1.1.1.1/443) && echo network=open\n\
          echo uid=$(id -u)\n\
-         echo devices=$(tail -n +3 /proc/net/dev | cut -d: -f1 | tr -d ' ' | tr '\\n' ,)\n\
+         {devices}\
          echo cargo=$(ls -A '{home_text}/.cargo' | wc -l)\n\
-         echo netrc=$(wc -c < '{home_text}/.netrc')\n\
+         echo netrc=$(wc -c < '{home_text}/.netrc' 2>/dev/null || echo 0)\n\
          echo sdk=$(find {sdk} -mindepth 1 | wc -l)\n\
          {tool} --version\n\
          echo tool_exit=$?\n",
@@ -57,17 +63,29 @@ fn isolation_denies_network_masks_tools_and_config_and_keeps_the_real_user() {
     );
     let denied = inside(&isolation, Net::Denied, &script);
     assert_eq!(denied.exit, 0, "{denied:?}");
-    let uid = std::fs::read_to_string("/proc/self/status")
-        .ok()
-        .and_then(|status| hermetic::status_id(&status, "Uid:"))
-        .expect("own uid");
-    for line in [
+    let uid = if macos {
+        let id = std::process::Command::new("/usr/bin/id")
+            .arg("-u")
+            .output()
+            .expect("id -u");
+        String::from_utf8_lossy(&id.stdout).trim().to_owned()
+    } else {
+        std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|status| hermetic::status_id(&status, "Uid:"))
+            .expect("own uid")
+            .to_string()
+    };
+    let mut expected_lines = vec![
         format!("uid={uid}"),
-        "devices=lo,".to_owned(),
         "cargo=0".to_owned(),
         "netrc=0".to_owned(),
-        "tool_exit=97".to_owned(),
-    ] {
+        format!("tool_exit={}", if macos { 126 } else { 97 }),
+    ];
+    if !macos {
+        expected_lines.push("devices=lo,".to_owned());
+    }
+    for line in expected_lines {
         assert!(
             denied.stdout.lines().any(|out| out == line),
             "missing {line}: {denied:?}"
@@ -80,28 +98,24 @@ fn isolation_denies_network_masks_tools_and_config_and_keeps_the_real_user() {
         );
     }
     assert!(!denied.stdout.contains("network=open"), "{denied:?}");
-    assert!(
-        denied.stderr.contains("Network is unreachable"),
-        "{denied:?}"
-    );
-    assert!(
-        denied.stderr.contains(&format!("{AMBIENT_MARKER} ")),
-        "{denied:?}"
-    );
-    let allowed = inside(
-        &isolation,
-        Net::Allowed,
-        "tail -n +3 /proc/net/dev | cut -d: -f1 | tr -d ' ' | tr '\\n' ,",
-    );
-    assert_eq!(allowed.exit, 0, "{allowed:?}");
-    let host = std::fs::read_to_string("/proc/net/dev").expect("host devices");
-    let expected: String = host
-        .lines()
-        .skip(2)
-        .filter_map(|line| line.split(':').next())
-        .map(|name| format!("{},", name.trim()))
-        .collect();
-    assert_eq!(allowed.stdout, expected, "fetch keeps the host network");
+    assert!(denied.stderr.contains(network_marker), "{denied:?}");
+    assert!(denied.stderr.contains(ambient_marker), "{denied:?}");
+    if !macos {
+        let allowed = inside(
+            &isolation,
+            Net::Allowed,
+            "tail -n +3 /proc/net/dev | cut -d: -f1 | tr -d ' ' | tr '\\n' ,",
+        );
+        assert_eq!(allowed.exit, 0, "{allowed:?}");
+        let host = std::fs::read_to_string("/proc/net/dev").expect("host devices");
+        let expected: String = host
+            .lines()
+            .skip(2)
+            .filter_map(|line| line.split(':').next())
+            .map(|name| format!("{},", name.trim()))
+            .collect();
+        assert_eq!(allowed.stdout, expected, "fetch keeps the host network");
+    }
     assert!(
         Path::new(&home)
             .join(".netrc")

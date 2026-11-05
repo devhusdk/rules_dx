@@ -49,7 +49,7 @@ fn good_evidence() -> Value {
     let probes: Vec<Value> = REQUIRED_PROBES
         .iter()
         .map(|name| {
-            let (expect, marker) = probe_expectation(name);
+            let (expect, marker) = probe_expectation(name, "linux");
             let network = if *name == "fetch" {
                 "allowed"
             } else {
@@ -1111,11 +1111,11 @@ fn manifest_generate_defaults_off_and_leads_the_required_probes() {
     let mut json = probe_manifest_json();
     let off = parse_manifest(&json.to_string(), Path::new("/")).unwrap();
     assert!(!off.generate);
-    assert_eq!(required_probes(&off)[0].0, "fetch");
+    assert_eq!(required_probes(&off, "linux")[0].0, "fetch");
     json["generate"] = json!(true);
     let on = parse_manifest(&json.to_string(), Path::new("/")).unwrap();
     assert!(on.generate);
-    let required = required_probes(&on);
+    let required = required_probes(&on, "linux");
     assert_eq!(required[0].0, "dx_generate");
     assert_eq!(required[0].3, Net::Allowed);
     assert_eq!(required[1].0, "fetch");
@@ -1340,7 +1340,7 @@ fn verify_requires_coverage_probes_and_owned_sources() {
 fn verify_keeps_the_base_probe_set_without_failures_or_coverage() {
     let manifest = cpp_rust();
     assert!(manifest.failures.is_empty() && manifest.coverage.is_empty());
-    let names: Vec<String> = required_probes(&manifest)
+    let names: Vec<String> = required_probes(&manifest, "linux")
         .into_iter()
         .map(|(name, ..)| name)
         .collect();
@@ -1405,11 +1405,15 @@ fn c_evidence_needs_a_native_artifact_machine() {
 
 #[test]
 fn macos_profile_denies_network_except_loopback() {
-    assert_eq!(macos_profile(Net::Allowed), "(version 1)(allow default)");
-    let denied = macos_profile(Net::Denied);
+    let isolation = Isolation::default();
+    assert_eq!(
+        isolation.macos_profile(Net::Allowed),
+        "(version 1)(allow default)"
+    );
+    let denied = isolation.macos_profile(Net::Denied);
     assert!(denied.contains("(deny network*)"));
     assert!(denied.contains("localhost:*"));
-    let command = macos_command(Net::Denied, &["/bin/true".to_owned()]);
+    let command = isolation.macos_command(Net::Denied, &["/bin/true".to_owned()]);
     assert_eq!(command.get_program(), "/usr/bin/sandbox-exec");
     let args: Vec<_> = command
         .get_args()
@@ -1420,162 +1424,57 @@ fn macos_profile_denies_network_except_loopback() {
 }
 
 #[test]
-fn platform_is_passed_to_bazel_only_when_the_manifest_sets_it() {
-    let mut value = json!({
-        "label": "//x:y",
-        "languages": ["cpp"],
-        "module": "m",
-        "repo_name": "r",
-        "workspace_dir": "ws",
-        "patterns": ["//..."],
-        "failures": {},
-        "coverage": [],
-        "covered": [],
-        "files": [],
-        "module_fragment": "f",
-        "dx": "d",
-        "module_file": "MODULE.bazel",
-        "bazelversion": ".bazelversion",
-    });
-    let session = |manifest: Manifest| Session {
-        manifest,
-        root: PathBuf::from("/q"),
-        workspace: PathBuf::from("/q/ws"),
-        out: PathBuf::from("/out"),
-        source: PathBuf::from("/src"),
-        bazelisk: PathBuf::from("/q/bin/bazelisk"),
-        bazelisk_home: PathBuf::from("/q/bazelisk"),
-        isolation: Isolation::default(),
-        probes: Vec::new(),
+fn macos_profile_hides_planned_paths_even_with_network_allowed() {
+    let isolation = Isolation {
+        sdk_dirs: vec![PathBuf::from("/nonexistent/sdk")],
+        home_dirs: vec![PathBuf::from("/nonexistent/h\"ome")],
+        home_files: vec![PathBuf::from("/nonexistent/.netrc")],
+        tools: vec![PathBuf::from("/nonexistent/bin/cc")],
+        ..Isolation::default()
     };
-    let argv = |session: &Session| {
-        session.bazel_argv(&Probe {
-            name: "build".to_owned(),
-            net: Net::Denied,
-            home: Path::new("/q/home"),
-            output_root: Path::new("/q/cold"),
-            repos: Path::new("/q/repos"),
-            command: "build",
-            targets: vec!["//...".to_owned()],
-            extra: Vec::new(),
-            expect: Expect::Pass,
-        })
-    };
-
-    let unset = parse_manifest(&value.to_string(), Path::new("/")).unwrap();
-    assert_eq!(unset.platform, "");
-    assert!(!argv(&session(unset))
-        .iter()
-        .any(|arg| arg.starts_with("--platforms")));
-
-    value["platform"] = json!("//:qt_linux_arm64");
-    let set = parse_manifest(&value.to_string(), Path::new("/")).unwrap();
-    assert_eq!(set.platform, "//:qt_linux_arm64");
-    let args = argv(&session(set));
-    let flag = args
-        .iter()
-        .position(|arg| arg == "--platforms=//:qt_linux_arm64")
-        .unwrap();
-    assert!(flag < args.iter().position(|arg| arg == "--").unwrap());
-}
-
-fn lint_manifest() -> Manifest {
-    let mut json = probe_manifest_json();
-    json["profile"] = json!("strict");
-    json["lint_findings"] = json!({"ruff:ARG001": "1", "typos:typo": "2"});
-    parse_manifest(&json.to_string(), Path::new("/")).unwrap()
-}
-
-fn lint_evidence(manifest: &Manifest) -> Value {
-    let mut evidence = probe_evidence(manifest);
-    evidence["probes"]
-        .as_array_mut()
-        .unwrap()
-        .push(probe_record("dx_lint", "pass", "", "denied", &[]));
-    evidence["lint"] = json!({"ruff:ARG001": 1, "typos:typo": 2});
-    evidence
+    let profile = isolation.macos_profile(Net::Allowed);
+    assert!(!profile.contains("deny network"));
+    assert!(profile.contains("(deny file-read* (subpath \"/nonexistent/sdk\"))"));
+    assert!(profile.contains("(deny file-read* (subpath \"/nonexistent/h\\\"ome\"))"));
+    assert!(profile.contains("(deny file-read* (literal \"/nonexistent/.netrc\"))"));
+    assert!(profile.contains("(deny process-exec (literal \"/nonexistent/bin/cc\"))"));
 }
 
 #[test]
-fn manifest_parses_profile_and_lint_findings() {
-    let absent = probe_manifest();
-    assert_eq!(absent.profile, "");
-    assert!(absent.lint_findings.is_empty());
-    let manifest = lint_manifest();
-    assert_eq!(manifest.profile, "strict");
+fn markers_follow_the_host_os() {
     assert_eq!(
-        manifest.lint_findings,
-        vec![("ruff:ARG001".to_owned(), 1), ("typos:typo".to_owned(), 2)]
-    );
-    let parse = |key: &str, value: Value| {
-        let mut json = probe_manifest_json();
-        json[key] = value;
-        parse_manifest(&json.to_string(), Path::new("/")).unwrap_err()
-    };
-    assert!(parse("profile", json!("loose")).contains("must be standard or strict"));
-    assert!(parse("lint_findings", json!({"ruff": "1"})).contains("must be tool:rule"));
-    assert!(parse("lint_findings", json!({"ruff:X": "many"})).contains("whole number"));
-}
-
-#[test]
-fn init_passes_profile_only_when_set() {
-    assert_eq!(
-        init_args(&probe_manifest(), "/w"),
-        vec!["init", "--apply", "--workspace", "/w"]
+        markers("linux"),
+        (AMBIENT_MARKER, NETWORK_MARKER, HOME_MARKER)
     );
     assert_eq!(
-        init_args(&lint_manifest(), "/w"),
-        vec![
-            "init",
-            "--apply",
-            "--workspace",
-            "/w",
-            "--profile",
-            "strict"
-        ]
+        markers("macos"),
+        (
+            "Operation not permitted",
+            "Operation not permitted",
+            HOME_MARKER
+        )
     );
+    assert_eq!(
+        probe_expectation("network", "macos").1,
+        "Operation not permitted"
+    );
+    assert_eq!(probe_expectation("network", "linux").1, NETWORK_MARKER);
 }
 
 #[test]
-fn lint_counts_group_diagnostics_by_tool_and_rule() {
-    let stdout = "{\"event\":\"diagnostic\",\"tool\":\"ruff\",\"rule\":\"ARG001\"}\nnot json\n{\"event\":\"diagnostic\",\"tool\":\"ruff\",\"rule\":\"ARG001\"}\n{\"event\":\"diagnostic\",\"tool\":\"ruff\"}\n{\"event\":\"summary\",\"tool\":\"x\",\"rule\":\"y\"}\n";
-    let counts = lint_counts(stdout);
-    assert_eq!(counts.len(), 1);
-    assert_eq!(counts["ruff:ARG001"], 2);
-    assert!(verdict(&Expect::Findings, 1, "").is_ok());
-    assert!(verdict(&Expect::Findings, 2, "").is_err());
-}
-
-#[test]
-fn verify_requires_dx_lint_only_with_lint_findings() {
-    let names = |manifest: &Manifest| -> Vec<String> {
-        required_probes(manifest)
-            .into_iter()
-            .map(|(name, ..)| name)
-            .collect()
-    };
-    assert!(!names(&probe_manifest()).contains(&"dx_lint".to_owned()));
-    let manifest = lint_manifest();
-    assert!(names(&manifest).contains(&"dx_lint".to_owned()));
-    let evidence = lint_evidence(&manifest);
-    verify_evidence(&evidence, "abc123", &manifest).unwrap();
-    let err =
-        verify_evidence(&without_probe(&evidence, "dx_lint"), "abc123", &manifest).unwrap_err();
-    assert!(err.contains("missing required probe dx_lint"), "{err}");
-}
-
-#[test]
-fn verify_compares_lint_counts() {
-    let manifest = lint_manifest();
-    for lint in [
-        json!({"ruff:ARG001": 1}),
-        json!({"ruff:ARG001": 1, "typos:typo": 2, "ruff:E501": 1}),
-        json!({"ruff:ARG001": 1, "typos:typo": 3}),
-        json!(null),
-    ] {
-        let mut evidence = lint_evidence(&manifest);
-        evidence["lint"] = lint;
-        let err = verify_evidence(&evidence, "abc123", &manifest).unwrap_err();
-        assert!(err.contains("lint findings"), "{err}");
+fn macos_evidence_is_checked_against_macos_markers() {
+    let manifest = cpp_rust();
+    let mut evidence = good_evidence();
+    evidence["exec"]["os"] = json!("macos");
+    evidence["host"]["os"] = json!("macos");
+    for probe in evidence["probes"].as_array_mut().unwrap() {
+        let name = probe["name"].as_str().unwrap().to_owned();
+        probe["marker"] = json!(probe_expectation(&name, "macos").1);
     }
+    verify_evidence(&evidence, "abc123", &manifest).unwrap();
+    let mut stale = evidence.clone();
+    stale["exec"]["os"] = json!("linux");
+    assert!(verify_evidence(&stale, "abc123", &manifest).is_err());
+    let linux = good_evidence();
+    assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }

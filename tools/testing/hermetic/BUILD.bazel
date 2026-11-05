@@ -108,7 +108,7 @@ rust_test(
     name = "isolation_probe_test",
     srcs = ["isolation_test.rs"],
     tags = QUALIFICATION_TAGS,
-    target_compatible_with = LINUX,
+    target_compatible_with = LINUX_MACOS,
     deps = [":hermetic"],
 )
 

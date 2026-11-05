@@ -1,5 +1,5 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_test")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library", "javascript_test")
 load("@rules_dx//quality:native_config.bzl", "biome_config")
 load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_check", "svelte_library")
 
@@ -15,6 +15,13 @@ biome_config(
 )
 
 npm_link_all_packages(name = "node_modules")
+
+# keep
+javascript_library(
+    name = "vite_config",
+    aspect_hints = [":biome_config"],
+    srcs = ["vite.config.mjs"],
+)
 
 # keep
 svelte_library(

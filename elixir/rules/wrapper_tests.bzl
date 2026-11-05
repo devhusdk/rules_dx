@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "escript_headers", "helper_first", "nif_priv")
+load(":defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "elixir_kwargs", "escript_headers", "helper_first", "nif_priv")
 load(":hex.bzl", "hex_metadata_entry", "hex_tarball_url")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -15,6 +15,9 @@ def elixir_wrapper_contract_tests(name):
         name,
         file_classes = ["elixir"],
         extra_checks = [
+            expect_equal("elixir guard is a select by default", type(elixir_kwargs({})["target_compatible_with"]), "select"),
+            expect_equal("elixir guard stays with a user list", type(elixir_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
+            expect_equal("elixir keeps user tags", elixir_kwargs({"tags": ["t"]})["tags"], ["t"]),
             expect_equal("apps own lib sources", ELIXIR_SOURCE_GLOBS, ["lib/**/*.ex"]),
             expect_equal("default apps own the glob", app_sources({}, _glob), ["lib/**/*.ex!"]),
             expect_equal("explicit srcs are the owned files", app_sources({"srcs": ["lib/a.ex"]}, _glob), ["lib/a.ex"]),
@@ -34,7 +37,7 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("srcs without a helper keep their order", helper_first(["b.exs", "a.exs"]), ["b.exs", "a.exs"]),
             expect_equal("nifs land in priv after globbed and extra files", nif_priv({"extra_priv": ["x.txt"]}, ["//n:nif"], _glob), ["priv/**/*!x.txt", "x.txt", "//n:nif"]),
             expect_equal("label extra_priv is not excluded from the glob", nif_priv({"extra_priv": ["//p:f"]}, [], lambda patterns, exclude = [], **_k: exclude), ["//p:f"]),
-            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
+            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
             expect_equal("hex tarballs come from repo.hex.pm", hex_tarball_url("jason", "1.4.4"), "https://repo.hex.pm/tarballs/jason-1.4.4.tar"),
             expect_equal("hex metadata names the release", hex_metadata_entry("version", "1.4.4"), '{<<"version">>,<<"1.4.4">>}.'),
         ],

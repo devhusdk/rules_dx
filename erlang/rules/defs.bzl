@@ -15,7 +15,7 @@ load("//erlang/rules:providers.bzl", "BeamInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS", "OTP_UNPORTED_CELLS")
 load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
@@ -297,7 +297,12 @@ def app_forward_kwargs(testonly, nifs, tags, kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
+def erlang_kwargs(kwargs):
+    """Returns kwargs with the Erlang platform guard appended."""
+    return dx_language_kwargs(kwargs, [], ERLANG_COMPATIBLE_WITH)
+
 def _app(upstream_macro, name, testonly, visibility, kwargs):
+    kwargs = erlang_kwargs(kwargs)
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:
@@ -502,10 +507,12 @@ def test_erlang_app(name = "test_erlang_app", visibility = None, **kwargs):
 
 def erlang_bytecode(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over rules_erlang erlang_bytecode."""
+    kwargs = erlang_kwargs(kwargs)
     dx_wrap(name, _erlang_bytecode, _erlang_bytecode_forward, srcs, visibility = visibility, **kwargs)
 
 def escript_archive(name, visibility = None, **kwargs):
     """Thin wrapper over rules_erlang escript_archive that runs on the pinned runtime."""
+    kwargs = erlang_kwargs(kwargs)
     srcs = kwargs.get("srcs", [])
     _escript_archive(name = name + "_upstream", **dx_binary_upstream_kwargs(kwargs, srcs))
     _escript_binary(
@@ -519,6 +526,7 @@ def escript_archive(name, visibility = None, **kwargs):
 
 def eunit(name = "eunit", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang eunit test."""
+    kwargs = erlang_kwargs(kwargs)
     target = kwargs.get("target")
     apps = ([target] if target else []) + (kwargs.get("deps") or [])
     dx_wrap_test(name, _eunit, _erlang_forward_test, None, visibility = visibility, extra_forward_kwargs = {"apps": apps}, **kwargs)
@@ -536,6 +544,7 @@ def ct_run_args(extra_args):
 
 def ct_suite(name, suite_name = "", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang ct_suite macro."""
+    kwargs = erlang_kwargs(kwargs)
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
 

@@ -5,7 +5,7 @@ load("//erlang/toolchain:cells.bzl", "cell_cases")
 load("//libs/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal")
-load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_forward_kwargs", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
+load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_forward_kwargs", "app_sources", "ct_run_args", "ct_suite_source", "erlang_kwargs", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
 load(":providers.bzl", "BeamInfo")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -17,6 +17,9 @@ def erlang_wrapper_contract_tests(name):
         name,
         file_classes = ["erlang"],
         extra_checks = [
+            expect_equal("erlang guard is a select by default", type(erlang_kwargs({})["target_compatible_with"]), "select"),
+            expect_equal("erlang guard stays with a user list", type(erlang_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
+            expect_equal("erlang keeps user tags", erlang_kwargs({"tags": ["t"]})["tags"], ["t"]),
             expect_equal("native priv keeps libraries", native_priv_files(["priv/a.so", "priv/b.dylib", "priv/c.dll", "priv/d.txt", "priv/e.so.1"]), ["priv/a.so", "priv/b.dylib", "priv/c.dll"]),
             expect_contains("nif refusal names label", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "//x:cli"),
             expect_contains("nif refusal names app and file", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "app: x/priv/a.so"),
@@ -48,7 +51,7 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("named suites keep their node", ct_run_args(["-sname peer_host"]), ["-sname peer_host"]),
             expect_equal("long names keep their node", ct_run_args(["-name", "a@b"]), ["-name", "a@b"]),
             expect_equal("apps compile on every OTP cell", ERLANG_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
-            expect_equal("other cells are incompatible", [str(c) for c in cell_cases(["linux_amd64"])["//conditions:default"]], [str(Label("@platforms//:incompatible"))]),
+            expect_equal("other cells are incompatible", [str(c) for c in cell_cases(["linux_amd64"])["//conditions:default"]], [str(Label("@platforms//:incompatible")), str(Label("//erlang/toolchain:unsupported"))]),
             expect_equal("tools run from the real exe path", otp_launch_descriptor("+otp+root", "erl"), "program=+otp+root/bin/erl.exe\n"),
             expect_equal("a native launcher reads the descriptor beside it", native_launch_descriptor_path("bin/dialyzer.exe"), "bin/dialyzer.launch"),
             expect_equal("escripts pass the archive as the path", otp_launch_descriptor("+otp+root", "escript", "_main/x.escript"), "program=+otp+root/bin/escript.exe\npath=_main/x.escript\n"),

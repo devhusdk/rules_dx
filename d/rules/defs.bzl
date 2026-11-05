@@ -4,7 +4,7 @@ load("@rules_d//d:defs.bzl", _d_binary = "d_binary", _d_library = "d_library", _
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 DInfo = _DInfo
@@ -113,8 +113,13 @@ def _cover(kwargs):
         "//conditions:default": [],
     }))
 
+def d_kwargs(kwargs):
+    """Returns kwargs with the D platform guard appended."""
+    return dx_language_kwargs(kwargs, [], D_COMPATIBLE_WITH)
+
 def d_library(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_library rule."""
+    kwargs = d_kwargs(kwargs)
     kwargs = _cover(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _string_srcs(name, kwargs)
@@ -122,6 +127,7 @@ def d_library(name, srcs, visibility = None, **kwargs):
 
 def d_binary(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_binary rule."""
+    kwargs = d_kwargs(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _string_srcs(name, kwargs)
     upstream = dict(kwargs, tags = dx_upstream_tags(kwargs.get("tags", None)))
@@ -131,6 +137,7 @@ D_COVERAGE_COLLECTOR = True
 
 def d_test(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_test rule."""
+    kwargs = d_kwargs(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _cover(_string_srcs(name, kwargs))
     dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)

@@ -546,8 +546,8 @@ enum Constraint {
 ///
 /// A kind whose macro computes its own constraints must say so here, or the matrix
 /// would claim platforms the test never runs on. rust_test's libstdc++ select only
-/// guards the upstream target outside its runtime transition, and the cc, go, haskell,
-/// kotlin, typescript and elixir wrappers forward the attribute as written.
+/// guards the upstream target outside its runtime transition, and the cc, go,
+/// kotlin and typescript wrappers forward the attribute as written.
 const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("android_check", Constraint::AsWritten),
     (
@@ -562,15 +562,24 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         "cuda_test",
         Constraint::Appended("//cuda/rules:defs.bzl", "CUDA_TARGET"),
     ),
-    ("d_test", Constraint::AsWritten),
+    (
+        "d_test",
+        Constraint::Appended("//d/rules:defs.bzl", "D_COMPATIBLE_WITH"),
+    ),
     ("dx_hello_output_test", Constraint::AsWritten),
     ("dx_wasi_test_tests", Constraint::AsWritten),
-    ("eunit", Constraint::AsWritten),
+    (
+        "eunit",
+        Constraint::Appended("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH"),
+    ),
     (
         "dart_test",
         Constraint::Appended("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH"),
     ),
-    ("ex_unit_test", Constraint::AsWritten),
+    (
+        "ex_unit_test",
+        Constraint::Appended("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH"),
+    ),
     (
         "fortran_test",
         Constraint::DefaultIfUnset("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
@@ -582,7 +591,10 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     ("fsharp_test", Constraint::AsWritten),
     ("go_test", Constraint::AsWritten),
-    ("haskell_test", Constraint::AsWritten),
+    (
+        "haskell_test",
+        Constraint::Appended("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH"),
+    ),
     (
         "hermetic_qualification",
         Constraint::DefaultIfUnset(

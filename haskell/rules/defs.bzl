@@ -6,7 +6,7 @@ load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCov
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_lcov_merger_attr", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/haskell:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
 
@@ -91,8 +91,13 @@ def _forward_kwargs(kwargs, testonly):
             out[key] = kwargs[key]
     return out
 
+def haskell_kwargs(kwargs):
+    """Returns kwargs with the Haskell platform guard appended."""
+    return dx_language_kwargs(kwargs, [], HASKELL_COMPATIBLE_WITH)
+
 def haskell_library(name, srcs = [], visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_haskell haskell_library macro."""
+    kwargs = haskell_kwargs(kwargs)
     upstream = upstream_kwargs(kwargs)
     upstream["tags"] = dx_upstream_tags(upstream.get("tags"))
     _haskell_library(name = name + "_upstream", srcs = srcs, testonly = testonly, visibility = ["//visibility:private"], **upstream)
@@ -100,12 +105,14 @@ def haskell_library(name, srcs = [], visibility = None, testonly = False, **kwar
 
 def haskell_binary(name, srcs = [], visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_binary macro."""
+    kwargs = haskell_kwargs(kwargs)
     upstream = upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_binary(name, _haskell_binary, _haskell_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
 
 def haskell_test(name, srcs = [], visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_test macro."""
+    kwargs = haskell_kwargs(kwargs)
     upstream = upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)

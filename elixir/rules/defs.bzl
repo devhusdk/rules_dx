@@ -9,7 +9,7 @@ load("//erlang/rules:defs.bzl", "runfiles_path", _escript_archive = "escript_arc
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
@@ -150,8 +150,13 @@ def nif_priv(kwargs, nifs, glob = None):
     excluded = [e for e in extra if not (e.startswith(":") or e.startswith("//") or e.startswith("@"))]
     return glob(["priv/**/*"], exclude = excluded, allow_empty = True) + extra + list(nifs)
 
+def elixir_kwargs(kwargs):
+    """Returns kwargs with the Elixir platform guard appended."""
+    return dx_language_kwargs(kwargs, [], ELIXIR_COMPATIBLE_WITH)
+
 def elixir_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_elixir elixir_app macro."""
+    kwargs = elixir_kwargs(kwargs)
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:
@@ -197,6 +202,7 @@ def cover_opts(opts):
 
 def ex_unit_test(name, srcs, visibility = None, **kwargs):
     """Thin wrapper over the rules_elixir ex_unit_test rule."""
+    kwargs = elixir_kwargs(kwargs)
     upstream = dict(kwargs, elixir_opts = cover_opts(kwargs.get("elixir_opts")))
     apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None
     dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = apps, **kwargs)

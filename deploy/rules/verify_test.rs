@@ -138,6 +138,13 @@ fn github_case() {
             "github asset '{base}' not reported\n{out}"
         );
     }
+    if let Ok(want) = std::env::var("DX_GITHUB_SBOM_PACKAGES") {
+        assert!(
+            out.lines()
+                .any(|line| line.trim() == format!("sbom: app_sbom.spdx.json {want} packages")),
+            "github sbom package count {want} not reported\n{out}"
+        );
+    }
     assert!(
         out.contains(&format!("gh release create {want_tag} ")),
         "github would-run command missing 'gh release create {want_tag}'\n{out}"

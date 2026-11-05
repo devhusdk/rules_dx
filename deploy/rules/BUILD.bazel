@@ -960,6 +960,7 @@ rust_test(
         "DX_GITHUB_ASSETS": "app app_sbom.spdx.json",
         "DX_GITHUB_CONFIG": "$(rootpath //deploy/rules/sbom_demo:app_release_config)",
         "DX_GITHUB_PROG": "$(rootpath //deploy/rules/sbom_demo:app_release)",
+        "DX_GITHUB_SBOM_PACKAGES": "2",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
         "DX_VERIFY_MODE": "github",
     },

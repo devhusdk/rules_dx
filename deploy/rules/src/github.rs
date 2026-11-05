@@ -167,6 +167,25 @@ fn previous_release_lines(bases: &[String]) -> Vec<String> {
     lines
 }
 
+/// Describes each `.spdx.json` asset with its package count, for a dry run.
+fn sbom_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> Vec<String> {
+    let mut lines = Vec::new();
+    for (src, base) in sorted.iter().zip(bases) {
+        if !base.ends_with(".spdx.json") {
+            continue;
+        }
+        let count = std::fs::read(src)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|doc| doc.get("packages")?.as_array().map(Vec::len));
+        match count {
+            Some(count) => lines.push(format!("  sbom: {base} {count} packages")),
+            None => lines.push(format!("  sbom: {base} is not a readable SPDX document")),
+        }
+    }
+    lines
+}
+
 /// Runs the GitHub deploy tool.
 pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
@@ -258,6 +277,9 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
             println!("  tag: {tag}");
             for (src, base) in sorted.iter().zip(&bases) {
                 println!("  asset: {base} ({})", src.display());
+            }
+            for line in sbom_lines(&sorted, &bases) {
+                println!("{line}");
             }
             println!("  command: {}", github_release_command(tag, &bases));
             println!("  staging: {}", staging.display());
@@ -406,6 +428,26 @@ mod tests {
         let lines = github_asset_lines(&[&a], &["a.tar.gz".to_owned()]).expect("lines");
         let digest = dx_digest::sha256_file_hex(&a).expect("digest");
         assert_eq!(lines, [format!("  asset: a.tar.gz sha256:{digest}")]);
+    }
+
+    #[test]
+    fn sbom_lines_count_packages_of_spdx_assets_only() {
+        let scratch = scratch_dir();
+        let sbom = scratch.path().join("a.spdx.json");
+        let bad = scratch.path().join("b.spdx.json");
+        let other = scratch.path().join("c.tar.gz");
+        std::fs::write(&sbom, br#"{"packages":[{"name":"a"},{"name":"b"}]}"#).expect("write");
+        std::fs::write(&bad, b"nope").expect("write");
+        std::fs::write(&other, b"x").expect("write");
+        let bases = ["a.spdx.json", "b.spdx.json", "c.tar.gz"].map(str::to_owned);
+        let lines = sbom_lines(&[&sbom, &bad, &other], &bases);
+        assert_eq!(
+            lines,
+            [
+                "  sbom: a.spdx.json 2 packages",
+                "  sbom: b.spdx.json is not a readable SPDX document",
+            ]
+        );
     }
 
     #[cfg(unix)]

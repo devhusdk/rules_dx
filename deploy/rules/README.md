@@ -320,7 +320,9 @@ native_runtime(
   empty `srcs`. `build_only` fails the archive, because compiler and SDK
   inputs cannot ship.
 - `version` and `source`: required and non-empty.
-- `notice`: required for `app_local`.
+- `notice`: required for `app_local`. The `notice` output group carries it,
+  so a `filegroup(output_group = "notice")` can feed a wheel's
+  `extra_distinfo_files`.
 - `provides`: only for `os_supplied`. Library names the OS supplies for this
   runtime, such as `libGL.so.1`. A trailing `*` matches any name with that
   prefix.

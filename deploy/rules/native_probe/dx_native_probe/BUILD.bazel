@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
 load("//deploy/rules:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -61,6 +62,23 @@ cc_shared_library(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
+native_runtime(
+    name = "dx_probe_helper_runtime",
+    srcs = [":dx_probe_helper"],
+    notice = "dx_probe_helper_NOTICE.txt",
+    redistribution = "app_local",
+    source = "rules_dx native probe fixture",
+    target_compatible_with = ["@platforms//os:linux"],
+    version = "1.0",
+)
+
+filegroup(
+    name = "dx_probe_helper_notice",
+    srcs = [":dx_probe_helper_runtime"],
+    output_group = "notice",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
 py_extension(
     name = "_linked",
     srcs = ["_linked.cc"],
@@ -76,7 +94,7 @@ filegroup(
     name = "linked_srcs",
     srcs = [
         ":_linked",
-        ":dx_probe_helper",
+        ":dx_probe_helper_runtime",
     ],
     target_compatible_with = [
         "@platforms//os:linux",

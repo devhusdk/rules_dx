@@ -1041,6 +1041,9 @@ py_wheel_rule(
     name = "native_probe_linked_wheel",
     abi = "cp312",
     distribution = "dx_native_probe",
+    extra_distinfo_files = {
+        "//deploy/rules/native_probe/dx_native_probe:dx_probe_helper_notice": "licenses/dx_probe_helper_runtime",
+    },
     platform = "linux_x86_64",
     python_tag = "cp312",
     strip_path_prefixes = ["deploy/rules/native_probe/"],
@@ -1093,10 +1096,12 @@ rust_test(
         ":native_probe_nolib_config",
         "//cli/update:python_files",
         "//cli/update:python_interpreter",
+        "//deploy/rules/native_probe/dx_native_probe:dx_probe_helper_notice",
         "@dx_tools//:uv",
     ],
     env = {
         "DX_LINKED_CONFIG": "$(rootpath :native_probe_linked_config)",
+        "DX_LINKED_NOTICE": "$(rootpath //deploy/rules/native_probe/dx_native_probe:dx_probe_helper_notice)",
         "DX_LINKED_PROG": "$(rootpath :native_probe_linked)",
         "DX_NOLIB_CONFIG": "$(rootpath :native_probe_nolib_config)",
         "DX_NOLIB_PROG": "$(rootpath :native_probe_nolib)",

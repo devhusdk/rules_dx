@@ -848,6 +848,12 @@ fn pypi_native_linked_case() {
         .collect();
     assert_eq!(ext.len(), 1, "{found:?}");
     assert!(package.join("libdx_probe_helper.so").is_file(), "{found:?}");
+    let notice = target.join("dx_native_probe-1.2.dist-info/licenses/dx_probe_helper_runtime");
+    println!("{}", notice.display());
+    assert_eq!(
+        std::fs::read(&notice).expect("wheel must ship the helper notice"),
+        std::fs::read(data("DX_LINKED_NOTICE")).expect("declared notice must be readable"),
+    );
     let dynamic = readelf_dynamic(ext[0]);
     println!("{dynamic}");
     assert!(dynamic.contains("libdx_probe_helper.so"), "{dynamic}");

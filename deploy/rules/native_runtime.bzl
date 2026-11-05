@@ -57,6 +57,7 @@ def _native_runtime_impl(ctx):
             notice = ctx.file.notice,
             provides = ctx.attr.provides,
         ),
+        OutputGroupInfo(notice = depset([ctx.file.notice]) if ctx.file.notice else depset()),
     ]
 
 native_runtime = rule(

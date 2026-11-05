@@ -291,7 +291,8 @@ fn execute_checked(
     }
     let action_counts = read_actions(&bep, actions);
     if let Some(trace) = &trace {
-        if let Err(exit) = announce_profile(invocation, workspace, out, err, trace, &bep, action_counts)
+        if let Err(exit) =
+            announce_profile(invocation, workspace, out, err, trace, &bep, action_counts)
         {
             let _ = std::fs::remove_file(&bep);
             return kept_child(err, bazel_code, exit);
@@ -368,7 +369,7 @@ fn prepare_trace(workspace: &std::path::Path) -> Result<String, String> {
     let dir = profile_report::dir(workspace);
     std::fs::create_dir_all(&dir)
         .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
-    profile_report::profile_path(workspace)
+    profile_report::next_trace_path(workspace)
         .to_str()
         .map(ToOwned::to_owned)
         .ok_or_else(|| "profile path is not UTF-8".to_owned())
@@ -417,6 +418,7 @@ fn announce_profile(
             return Ok(());
         }
     };
+    profile_report::prune_traces(workspace);
     let report_file = profile_report::report_path(workspace);
     let value = report.json();
     let _ = std::fs::write(&report_file, format!("{value}\n"));
@@ -637,33 +639,72 @@ mod tests {
     }
 
     #[test]
-    fn profile_passes_the_trace_flag_and_reports_json_and_text() {
+    fn profile_passes_a_numbered_trace_flag_per_run() {
         let harness = Harness::new("build-profile");
         let dir = harness.workspace.join(".dx").join("profile");
+        let inv = invocation(&["build", "--profile", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        let flag = format!("--profile={}", dir.join("1.json").display());
+        assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
+        std::fs::write(dir.join("1.json"), "{}").expect("trace");
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        let flag = format!("--profile={}", dir.join("2.json").display());
+        assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
+        let run = harness.probe_with(&invocation(&["build"]), &[Some(0)]);
+        assert!(!run.argv[0].iter().any(|arg| arg.starts_with("--profile")));
+    }
+
+    #[test]
+    fn profile_reports_json_and_text_from_the_trace() {
+        let harness = Harness::new("build-profile-report");
+        let dir = harness.workspace.join(".dx").join("profile");
         std::fs::create_dir_all(&dir).expect("dir");
+        let trace = dir.join("1.json");
         std::fs::write(
-            dir.join("trace.json"),
+            &trace,
             r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#,
         )
         .expect("trace");
+        let trace = trace.to_str().expect("utf8");
+        let bep = harness.workspace.join("missing-bep.json");
+        let mut out = Vec::new();
+        let mut err = Vec::new();
         let inv = invocation(&["build", "--profile", "--output=json"]);
-        let run = harness.probe_with(&inv, &[Some(0)]);
-        let flag = format!("--profile={}", dir.join("trace.json").display());
-        assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
-        let notice = run
-            .out
-            .lines()
-            .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("json"))
-            .find(|event| event["code"] == "profile_report")
-            .expect("notice");
-        assert_eq!(notice["path"], dir.join("report.json").display().to_string());
-        assert!(notice["message"].as_str().expect("message").contains("slow"));
+        super::announce_profile(
+            &inv,
+            &harness.workspace,
+            &mut out,
+            &mut err,
+            trace,
+            &bep,
+            None,
+        )
+        .expect("announce");
+        let notice: serde_json::Value = serde_json::from_slice(&out).expect("json");
+        assert_eq!(notice["code"], "profile_report");
+        assert_eq!(
+            notice["path"],
+            dir.join("report.json").display().to_string()
+        );
+        assert!(notice["message"]
+            .as_str()
+            .expect("message")
+            .contains("slow"));
         assert!(dir.join("report.json").is_file());
-        let (code, _, err) = harness.run(&["build", "--profile"]);
-        assert_eq!(code, 0);
+        let mut err = Vec::new();
+        let inv = invocation(&["build", "--profile"]);
+        super::announce_profile(
+            &inv,
+            &harness.workspace,
+            &mut Vec::new(),
+            &mut err,
+            trace,
+            &bep,
+            None,
+        )
+        .expect("announce");
+        let err = String::from_utf8(err).expect("utf8");
         assert!(err.contains("dx: profile, wall time 2.0s"), "{err}");
-        let run = harness.probe_with(&invocation(&["build"]), &[Some(0)]);
-        assert!(!run.argv[0].iter().any(|arg| arg.starts_with("--profile")));
     }
 
     #[test]

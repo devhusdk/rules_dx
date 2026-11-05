@@ -14,8 +14,45 @@ pub(crate) fn dir(workspace: &Path) -> PathBuf {
     workspace.join(".dx").join("profile")
 }
 
-pub(crate) fn profile_path(workspace: &Path) -> PathBuf {
-    dir(workspace).join("trace.json")
+/// How many traces `--profile` keeps.
+pub(crate) const KEEP: usize = 5;
+
+const SUFFIX: &str = ".json";
+
+fn trace_number(name: &str) -> Option<u64> {
+    let digits = name.strip_suffix(SUFFIX)?;
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
+}
+
+/// Trace numbers on disk, newest first.
+fn trace_numbers(workspace: &Path) -> Vec<u64> {
+    let Ok(entries) = std::fs::read_dir(dir(workspace)) else {
+        return Vec::new();
+    };
+    let mut found: Vec<u64> = entries
+        .flatten()
+        .filter_map(|entry| entry.file_name().to_str().and_then(trace_number))
+        .collect();
+    found.sort_unstable_by(|a, b| b.cmp(a));
+    found
+}
+
+/// The trace file for the next run, numbered after the newest one on disk.
+pub(crate) fn next_trace_path(workspace: &Path) -> PathBuf {
+    let next = trace_numbers(workspace)
+        .first()
+        .map_or(1, |newest| newest + 1);
+    dir(workspace).join(format!("{next}{SUFFIX}"))
+}
+
+/// Deletes all but the newest `KEEP` traces.
+pub(crate) fn prune_traces(workspace: &Path) {
+    for number in trace_numbers(workspace).into_iter().skip(KEEP) {
+        let _ = std::fs::remove_file(dir(workspace).join(format!("{number}{SUFFIX}")));
+    }
 }
 
 pub(crate) fn report_path(workspace: &Path) -> PathBuf {
@@ -146,7 +183,10 @@ impl CacheUse {
 
 impl Report {
     pub(crate) fn text(&self) -> String {
-        let mut lines = vec![format!("dx: profile, wall time {}", seconds(self.wall_micros))];
+        let mut lines = vec![format!(
+            "dx: profile, wall time {}",
+            seconds(self.wall_micros)
+        )];
         lines.push(format!(
             "dx: critical path {}",
             seconds(self.critical_micros)
@@ -167,7 +207,9 @@ impl Report {
         }
         match self.bytes_downloaded {
             Some(bytes) => lines.push(format!("dx: downloaded {}", megabytes(bytes))),
-            None => lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned()),
+            None => {
+                lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned())
+            }
         }
         lines.push("dx: slowest actions".to_owned());
         for item in &self.slowest {
@@ -251,7 +293,9 @@ mod tests {
             .text();
         assert!(text.contains("wall time 4.0s"), "{text}");
         assert!(
-            text.contains("cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"),
+            text.contains(
+                "cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"
+            ),
             "{text}"
         );
         assert!(text.contains("downloaded 2.5 MB"), "{text}");
@@ -275,6 +319,23 @@ mod tests {
         let report = build(&trace, None, None).expect("report");
         assert_eq!(report.slowest.len(), SLOWEST_SHOWN);
         assert_eq!(report.slowest[0].name, "a19");
+    }
+
+    #[test]
+    fn traces_are_numbered_per_run_and_the_last_five_are_kept() {
+        let workspace = tempfile::tempdir().expect("dir");
+        let root = workspace.path();
+        std::fs::create_dir_all(dir(root)).expect("dir");
+        for expected in 1..=7u64 {
+            let path = next_trace_path(root);
+            assert_eq!(path, dir(root).join(format!("{expected}.json")));
+            std::fs::write(&path, "{}").expect("trace");
+            prune_traces(root);
+        }
+        std::fs::write(report_path(root), "{}").expect("report");
+        prune_traces(root);
+        assert_eq!(trace_numbers(root), vec![7, 6, 5, 4, 3]);
+        assert!(report_path(root).is_file());
     }
 
     #[test]

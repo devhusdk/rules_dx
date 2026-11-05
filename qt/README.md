@@ -341,7 +341,7 @@ consumer_archive(
 archive identity of the targeted cell: `x86_64`, `linux` and `glibc-2.34` on
 `linux_x86_64`, `aarch64`, `linux` and `glibc-2.39` on `linux_arm64`, and
 `aarch64`, `macos` and `macos-13.0` on `macos_arm64`. `qt_bundle` is skipped on
-cells without a needs table, which includes `macos_arm64` for now.
+cells without a needs table, such as the Windows cells for now.
 
 - `binary`: the `qt_cc_binary`.
 - `qml_modules`: import modules to ship. Defaults to `["QML", "QtQml"]` when

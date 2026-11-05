@@ -97,6 +97,31 @@ def _unit_checks():
             ],
         ),
         expect_equal(
+            "macos bundle members",
+            qt_bundle_members(
+                [
+                    "app/tasks",
+                    "app/qt_frameworks/QtGui.framework/Versions/A/QtGui",
+                    "../qt/lib/QtCore.framework/Versions/A/QtCore",
+                    "../qt/lib/QtDBus.framework/Versions/A/QtDBus",
+                    "../qt/lib/QtGui.framework/Versions/A/QtGui",
+                    "../qt/lib/QtNetwork.framework/Versions/A/QtNetwork",
+                    "../qt/lib/QtSql.framework/Versions/A/QtSql",
+                    "../qt/plugins/tls/libqcertonlybackend.dylib",
+                ],
+                [],
+                None,
+                CELLS["macos_arm64"].needs,
+            ),
+            [
+                ("lib/QtCore.framework/Versions/A/QtCore", "../qt/lib/QtCore.framework/Versions/A/QtCore"),
+                ("lib/QtDBus.framework/Versions/A/QtDBus", "../qt/lib/QtDBus.framework/Versions/A/QtDBus"),
+                ("lib/QtGui.framework/Versions/A/QtGui", "../qt/lib/QtGui.framework/Versions/A/QtGui"),
+                ("lib/QtNetwork.framework/Versions/A/QtNetwork", "../qt/lib/QtNetwork.framework/Versions/A/QtNetwork"),
+                ("plugins/tls/libqcertonlybackend.dylib", "../qt/plugins/tls/libqcertonlybackend.dylib"),
+            ],
+        ),
+        expect_equal(
             "bundle root package licenses",
             qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], None, CELLS["linux_x86_64"].needs),
             [("licenses/fmt/LICENSE", "licenses/fmt/LICENSE"), ("licenses/zlib/LICENSE", "third_party/licenses/zlib/LICENSE")],

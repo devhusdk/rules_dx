@@ -104,12 +104,10 @@ alias(
     tags = ["manual"],
 )
 
-# The macos_arm64 and windows_x86_64 cells publish no needs tables; their qt_test skips the table check.
-# macOS links system frameworks only; needs tables arrive with qt_bundle (#5194, #6520).
+# The windows_x86_64 cell publishes no needs tables; its qt_test skips the table check.
 alias(
     name = "needs_native",
     actual = select({
-        "@platforms//os:macos": "//qt/sdk:macos_arm64.bzl",
         "@platforms//os:windows": "//qt/sdk:windows_x86_64.bzl",
         "//conditions:default": "@dx_qt//:needs",
     }),

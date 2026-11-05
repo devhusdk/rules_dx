@@ -677,7 +677,7 @@ fn elf_needed(path: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn pinned_needs(table: &str) -> std::collections::BTreeMap<String, BTreeSet<String>> {
     let text = std::fs::read_to_string(dx_testing::resolve_runfiles(
         &std::env::var("DX_QT_NEEDS").expect("DX_QT_NEEDS"),
@@ -763,4 +763,96 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
     .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))
     .collect();
     assert_eq!(pinned_needs("runtime_plugin"), runtime_plugin_want);
+}
+
+#[cfg(target_os = "macos")]
+fn dylib_needed(path: &Path, frameworks: &BTreeSet<String>) -> BTreeSet<String> {
+    let output = std::process::Command::new("/usr/bin/otool")
+        .arg("-L")
+        .arg(path)
+        .output()
+        .expect("run otool");
+    assert!(output.status.success(), "{path:?}: {output:?}");
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .skip(1)
+        .filter_map(|line| {
+            let install = line.trim().split(" (").next()?;
+            let name = install.split('/').find(|part| part.ends_with(".framework"))?;
+            frameworks.contains(name).then(|| name.to_owned())
+        })
+        .collect()
+}
+
+#[cfg(target_os = "macos")]
+fn dylibs(dir: &Path, found: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(dir).expect("directory") {
+        let path = entry.expect("entry").path();
+        if path.is_dir() {
+            dylibs(&path, found);
+        } else if path.extension().is_some_and(|ext| ext == "dylib") {
+            found.push(path);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn the_pinned_dependency_tables_match_the_shipped_frameworks() {
+    let qmldir = std::fs::canonicalize(dx_testing::resolve_runfiles(
+        &std::env::var("DX_QT_QMLDIR_PATH").expect("DX_QT_QMLDIR_PATH"),
+    ))
+    .expect("qmldir");
+    let cell = qmldir.ancestors().nth(3).expect("cell root").to_path_buf();
+    let mut libraries = std::collections::BTreeMap::new();
+    for entry in std::fs::read_dir(cell.join("lib")).expect("lib") {
+        let path = entry.expect("entry").path();
+        let name = file_name(&path.to_string_lossy()).to_owned();
+        if let Some(stem) = name.strip_suffix(".framework") {
+            libraries.insert(name.clone(), path.join("Versions/A").join(stem));
+        }
+    }
+    let frameworks: BTreeSet<String> = libraries.keys().cloned().collect();
+    let table = |paths: Vec<(String, PathBuf)>| -> std::collections::BTreeMap<String, BTreeSet<String>> {
+        paths
+            .into_iter()
+            .map(|(name, path)| {
+                let mut needed = dylib_needed(&path, &frameworks);
+                needed.remove(&name);
+                (name, needed)
+            })
+            .collect()
+    };
+    let library = table(libraries.into_iter().collect());
+
+    let mut files = Vec::new();
+    dylibs(&cell.join("qml"), &mut files);
+    let plugin = table(
+        files
+            .into_iter()
+            .map(|path| {
+                let relative = path.strip_prefix(cell.join("qml")).expect("below qml");
+                (relative.to_string_lossy().into_owned(), path)
+            })
+            .collect(),
+    );
+
+    let runtime_plugin = table(
+        [
+            "imageformats/libqgif.dylib",
+            "imageformats/libqico.dylib",
+            "imageformats/libqjpeg.dylib",
+            "platforms/libqminimal.dylib",
+            "platforms/libqoffscreen.dylib",
+            "tls/libqcertonlybackend.dylib",
+            "tls/libqopensslbackend.dylib",
+            "tls/libqsecuretransportbackend.dylib",
+        ]
+        .into_iter()
+        .map(|name| (name.to_owned(), cell.join("plugins").join(name)))
+        .collect(),
+    );
+    assert_eq!(pinned_needs("library"), library);
+    assert_eq!(pinned_needs("plugin"), plugin);
+    assert_eq!(pinned_needs("runtime_plugin"), runtime_plugin);
 }

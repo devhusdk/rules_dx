@@ -13,8 +13,9 @@ mod cloudflare;
 mod config;
 mod crates;
 mod github;
-mod imports;
+mod homebrew;
 pub mod http;
+mod imports;
 mod maven;
 mod npm;
 mod nuget;
@@ -33,6 +34,7 @@ pub use cloudflare::*;
 pub use config::*;
 pub use crates::*;
 pub use github::*;
+pub use homebrew::*;
 pub use imports::*;
 pub use maven::*;
 pub use npm::*;
@@ -822,6 +824,7 @@ mod tests {
         let nuget: Main5 = crate::nuget_main;
         let crates: fn(&[String], &str, &str, &[String]) -> i32 = crate::crates_main;
         let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
+        let homebrew: fn(&crate::HomebrewLaunch<'_>, &[String]) -> i32 = crate::homebrew_tap_main;
         let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;
         let oci: fn(&str, &str, &str, &str, &str, u64, &[String]) -> i32 = crate::oci_main;
         let promotion: Main5 = crate::promotion_main;
@@ -830,8 +833,8 @@ mod tests {
         let npm_pack: fn(&[String]) -> i32 = crate::npm_pack_main;
         let pages: fn(&crate::PagesLaunch<'_>, &[String]) -> i32 = crate::cloudflare_pages_main;
         let _ = (
-            archive, pypi, nuget, crates, github, maven, oci, promotion, octopus, npm_deploy,
-            npm_pack, pages,
+            archive, pypi, nuget, crates, github, homebrew, maven, oci, promotion, octopus,
+            npm_deploy, npm_pack, pages,
         );
         let _ = crate::MavenLaunch {
             jar_rloc: "",

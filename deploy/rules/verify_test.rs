@@ -69,6 +69,51 @@ fn archive_case() {
     );
 }
 
+fn homebrew_case() {
+    let prog = data("DX_HOMEBREW_PROG");
+    let outdir = dx_testing::mkscratch("homebrew-out").expect("scratch outdir");
+    let run = run_deploy(
+        &prog,
+        "DX_HOMEBREW_CONFIG",
+        &[outdir.to_str().expect("utf8 outdir")],
+        &[],
+    )
+    .expect("homebrew launcher must execute");
+    let out = run.combined();
+    assert_eq!(run.status.code(), Some(0), "{out}");
+    assert!(
+        out.contains("homebrew_tap_deploy: staged formula, pushing nothing:"),
+        "{out}"
+    );
+    let formula = std::fs::read_to_string(
+        outdir
+            .join("homebrew_demo-tap")
+            .join("Formula")
+            .join("homebrew-demo.rb"),
+    )
+    .expect("staged formula");
+    assert!(
+        formula.starts_with("class HomebrewDemo < Formula\n"),
+        "{formula}"
+    );
+    for want in [
+        "version \"1.2.3\"",
+        "on_macos do",
+        "on_linux do",
+        "releases/download/v1.2.3/homebrew_demo-darwin-arm64.tar.gz",
+        "releases/download/v1.2.3/homebrew_demo-linux-x86_64.tar.gz",
+    ] {
+        assert!(formula.contains(want), "formula missing {want}\n{formula}");
+    }
+    for var in ["DX_HOMEBREW_MAC", "DX_HOMEBREW_LINUX"] {
+        let digest = dx_testing::sha256_file(&data(var)).expect("hash asset");
+        assert!(
+            formula.contains(&format!("sha256 \"{digest}\"")),
+            "{var} digest {digest} missing\n{formula}"
+        );
+    }
+}
+
 fn github_case() {
     let prog = data("DX_GITHUB_PROG");
     let want_tag = std::env::var("DX_GITHUB_TAG").expect("DX_GITHUB_TAG must name the tag");
@@ -908,6 +953,7 @@ fn deploy_verify() {
         "archive" => archive_case(),
         "cloudflare" => cloudflare_case(),
         "github" => github_case(),
+        "homebrew" => homebrew_case(),
         "oci" => oci_case(),
         "pypi" => pypi_case(),
         "pypi_native" => pypi_native_case(),

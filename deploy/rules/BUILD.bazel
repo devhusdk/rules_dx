@@ -16,6 +16,8 @@ load(":defs.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
+load(":homebrew.bzl", "homebrew_tap_deploy")
+load(":homebrew_tests.bzl", "homebrew_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_unit_tests")
 load(":native_runtime_tests.bzl", "native_runtime_unit_tests")
@@ -52,6 +54,8 @@ exports_files([
     "deploy_tests.bzl",
     "github.bzl",
     "github_tests.bzl",
+    "homebrew.bzl",
+    "homebrew_tests.bzl",
     "maven.bzl",
     "maven_tests.bzl",
     "native_probe.bzl",
@@ -79,6 +83,7 @@ exports_files([
     "src/config.rs",
     "src/crates.rs",
     "src/github.rs",
+    "src/homebrew.rs",
     "src/http.rs",
     "src/imports.rs",
     "src/lib.rs",
@@ -106,6 +111,7 @@ rust_library(
         "src/config.rs",
         "src/crates.rs",
         "src/github.rs",
+        "src/homebrew.rs",
         "src/http.rs",
         "src/imports.rs",
         "src/lib.rs",
@@ -722,6 +728,9 @@ test_suite(
         ":github_demo_verify",
         ":github_duplicate_basename_fails",
         ":github_unit",
+        ":homebrew_analysis",
+        ":homebrew_demo_verify",
+        ":homebrew_unit",
         ":maven_analysis",
         ":maven_unit",
         ":npm_analysis",
@@ -818,6 +827,64 @@ rust_test(
         "DX_GITHUB_PROG": "$(rootpath :github_demo)",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
         "DX_VERIFY_MODE": "github",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+genrule(
+    name = "homebrew_demo_mac",
+    outs = ["homebrew_demo-darwin-arm64.tar.gz"],
+    cmd = "printf mac > $@",
+)
+
+genrule(
+    name = "homebrew_demo_linux",
+    outs = ["homebrew_demo-linux-x86_64.tar.gz"],
+    cmd = "printf linux > $@",
+)
+
+github_deploy(
+    name = "homebrew_demo_release",
+    artifacts = [
+        ":homebrew_demo_linux",
+        ":homebrew_demo_mac",
+    ],
+    tag = "v1.2.3",
+)
+
+homebrew_tap_deploy(
+    name = "homebrew_demo",
+    formula = "homebrew-demo",
+    release = ":homebrew_demo_release",
+    repo = "example/homebrew-demo",
+    tap = "example/homebrew-tap",
+)
+
+homebrew_unit_tests(name = "homebrew_unit")
+
+deploy_analysis_test(
+    name = "homebrew_analysis",
+    subject = "homebrew_demo",
+)
+
+# keep
+rust_test(
+    name = "homebrew_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":homebrew_demo",
+        ":homebrew_demo_config",
+        ":homebrew_demo_linux",
+        ":homebrew_demo_mac",
+    ],
+    env = {
+        "DX_HOMEBREW_CONFIG": "$(rootpath :homebrew_demo_config)",
+        "DX_HOMEBREW_LINUX": "$(rootpath :homebrew_demo_linux)",
+        "DX_HOMEBREW_MAC": "$(rootpath :homebrew_demo_mac)",
+        "DX_HOMEBREW_PROG": "$(rootpath :homebrew_demo)",
+        "DX_VERIFY_MODE": "homebrew",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
@@ -1504,6 +1571,8 @@ real_source_target(
         "deploy_tests.bzl",
         "github.bzl",
         "github_tests.bzl",
+        "homebrew.bzl",
+        "homebrew_tests.bzl",
         "maven.bzl",
         "maven_tests.bzl",
         "npm.bzl",
@@ -1563,6 +1632,7 @@ rustfmt_test(
     targets = [
         ":cloudflare_demo_verify",
         ":github_demo_verify",
+        ":homebrew_demo_verify",
         ":oci_demo_layout_verify",
         ":oci_demo_verify",
         ":release_demo_debug_verify",

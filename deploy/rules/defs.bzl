@@ -41,6 +41,7 @@ def _dx_deployment_impl(ctx):
         config = ctx.attr.config[DxDeployConfigInfo]
         runfiles = runfiles.merge(ctx.attr.config[DefaultInfo].default_runfiles)
         runfiles = runfiles.merge(ctx.runfiles(files = [config.file]))
+        extra.append(config)
         extra.append(RunEnvironmentInfo(
             environment = {"DX_DEPLOY_CONFIG": rlocation_path(ctx, config.file)},
         ))

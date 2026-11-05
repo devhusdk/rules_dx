@@ -422,6 +422,42 @@ GH_RELEASE_LIVE=1 GH_RELEASE_APPROVED=1 dx deploy --apply //pkg:github_demo
 This runs `gh release create <tag> <assets> --draft --verify-tag`, so the
 tag must already exist on GitHub. A live run refuses `v0.0.0-dryrun`.
 
+# homebrew_tap_deploy
+
+Renders a Homebrew formula from a `github_deploy` release and pushes it to a tap repository.
+
+```starlark
+load("@rules_dx//deploy/rules:homebrew.bzl", "homebrew_tap_deploy")
+
+homebrew_tap_deploy(
+    name = "tool_tap",
+    release = ":github_demo",
+    repo = "org/tool",
+    tap = "org/homebrew-tap",
+    formula = "tool",
+)
+```
+
+- `release`: the `github_deploy` target. Its tag gives the version; its `.tar.gz`, `.tgz` and `.zip` assets become the formula urls.
+- `repo`: GitHub `owner/repository` that hosts the release.
+- `tap`: GitHub `owner/repository` of the tap.
+- `formula`: formula name. Defaults to `name`.
+- `binary`: file at the top of each archive, installed into `bin`. Defaults to `formula`.
+- `desc`, `homepage`: formula fields. Default to the formula name and `https://github.com/<repo>`.
+
+An asset name must say its platform: `darwin`, `macos` or `apple`, or `linux`; and `arm64` or `aarch64`, or `x86_64`, `amd64` or `x64`. Other assets are ignored. The sha256 comes from the asset file and must match a sibling `<asset>.sha256` when the release has one.
+
+Default run writes `<name>-tap/Formula/<formula>.rb` and `would-run.txt` into the output tree and runs `ruby -c` on the formula when `ruby` is on `PATH`. Nothing is pushed.
+
+Push the formula with `gh` on `PATH`:
+
+```
+HOMEBREW_TAP_PUBLISH_LIVE=1 HOMEBREW_TAP_PUBLISH_APPROVED=1 HOMEBREW_TAP_API_TOKEN=... \
+dx deploy --apply //pkg:tool_tap
+```
+
+This commits `Formula/<formula>.rb` to the tap's default branch through the contents API. The token needs write access to the tap. A live run refuses placeholder tags such as `v0.0.0-dryrun`.
+
 # nuget_deploy
 
 Stages one nupkg as a local folder feed and pushes it to a NuGet source.

@@ -29,6 +29,20 @@ pub struct GithubConfig {
     pub asset_rlocs: Vec<String>,
 }
 
+/// Pins one Homebrew tap formula: the GitHub release config it renders from and the tap.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HomebrewTapConfig {
+    pub release_rloc: String,
+    pub deploy_name: String,
+    pub repo: String,
+    pub tap: String,
+    pub formula: String,
+    pub binary: String,
+    pub desc: String,
+    pub homepage: String,
+}
+
 /// Pins one Cloudflare Pages deploy: the project, branches, site and Wrangler.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -146,6 +160,7 @@ pub struct PromotionConfig {
 pub enum DeployConfig {
     Archive(ArchiveConfig),
     Github(GithubConfig),
+    HomebrewTap(HomebrewTapConfig),
     CloudflarePages(CloudflarePagesConfig),
     Pypi(PypiConfig),
     Npm(NpmConfig),
@@ -208,6 +223,19 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
         DeployConfig::Github(github) => {
             crate::github_main(&github.asset_rlocs, &github.deploy_name, &github.tag, argv)
         }
+        DeployConfig::HomebrewTap(tap) => crate::homebrew_tap_main(
+            &crate::HomebrewLaunch {
+                release_rloc: &tap.release_rloc,
+                deploy_name: &tap.deploy_name,
+                repo: &tap.repo,
+                tap: &tap.tap,
+                formula: &tap.formula,
+                binary: &tap.binary,
+                desc: &tap.desc,
+                homepage: &tap.homepage,
+            },
+            argv,
+        ),
         DeployConfig::CloudflarePages(pages) => crate::cloudflare_pages_main(
             &crate::PagesLaunch {
                 deploy_name: &pages.deploy_name,
@@ -629,6 +657,16 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 tag: "v1.0.0".to_owned(),
                 asset_rlocs: vec!["a".to_owned()],
+            }),
+            DeployConfig::HomebrewTap(HomebrewTapConfig {
+                release_rloc: "a".to_owned(),
+                deploy_name: "demo".to_owned(),
+                repo: "org/demo".to_owned(),
+                tap: "org/homebrew-tap".to_owned(),
+                formula: "demo".to_owned(),
+                binary: "demo".to_owned(),
+                desc: "demo".to_owned(),
+                homepage: "https://example.invalid".to_owned(),
             }),
             DeployConfig::CloudflarePages(CloudflarePagesConfig {
                 deploy_name: "demo".to_owned(),

@@ -511,7 +511,9 @@ Policy flags:
 
 A zero-major version counts a minor bump as major. Auto-merge runs
 `gh pr merge --auto --squash`, so the repository must allow auto-merge. If it
-does not, pass `--automerge=none`. When a refresh brings a pull request above
+does not, the pull request stays open, the line ends with
+`auto-merge not enabled: ...` and the exit code does not change. Turn on
+Allow auto-merge or pass `--automerge=none`. When a refresh brings a pull request above
 the level, `dx update --pr` turns auto-merge off for it.
 
 Each skipped package prints `skipped <set>:<package> <old> -> <new>: <reason>`
@@ -520,7 +522,9 @@ code `update_pr_skipped`. A group over `--max-prs` prints
 `skipped: --max-prs=<n> reached` and does not change the exit code. When the
 push is refused because the token cannot change workflow files, the group
 prints `skipped: token cannot push workflow files` and the exit code does not
-change. With `--group=all`, the whole group is skipped.
+change. If the token may not create pull requests, the run fails and names the
+repository setting "Allow GitHub Actions to create and approve pull requests".
+With `--group=all`, the whole group is skipped.
 
 For each group, `dx update --pr` does this:
 

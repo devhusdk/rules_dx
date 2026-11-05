@@ -341,6 +341,16 @@ fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String>
 
 const WORKFLOW_SKIP: &str = "skipped: token cannot push workflow files";
 
+const ACTIONS_PR_REFUSAL: &str = "not permitted to create or approve pull requests";
+const AUTO_MERGE_HINT: &str = "turn on Allow auto-merge or pass --automerge=none";
+
+fn enable_auto_merge(gh: &dyn Fn(&[&str]) -> Result<String, String>, pr: &str) -> String {
+    match gh(&["pr", "merge", pr, "--auto", "--squash"]) {
+        Ok(_) => String::new(),
+        Err(error) => format!("; auto-merge not enabled: {error} ({AUTO_MERGE_HINT})"),
+    }
+}
+
 fn refused_workflow(stderr: &str) -> bool {
     let text = stderr.to_lowercase();
     text.contains("refusing to allow") && text.contains("workflow")
@@ -584,12 +594,13 @@ fn publish_one(
             "--body",
             &text,
         ])?;
+        let mut note = String::new();
         if merge {
-            gh(&["pr", "merge", &number, "--auto", "--squash"])?;
+            note = enable_auto_merge(&gh, &number);
         } else {
             let _ = gh(&["pr", "merge", &number, "--disable-auto"]);
         }
-        return Ok(format!("updated #{number}"));
+        return Ok(format!("updated #{number}{note}"));
     }
     let mut args = vec![
         "pr",
@@ -606,11 +617,19 @@ fn publish_one(
     for label in labels {
         args.extend(["--label", label]);
     }
-    let created = gh(&args)?;
-    if merge {
-        gh(&["pr", "merge", created.trim(), "--auto", "--squash"])?;
-    }
-    Ok(format!("opened {}", created.trim()))
+    let created = gh(&args).map_err(|error| {
+        if error.contains(ACTIONS_PR_REFUSAL) {
+            format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)")
+        } else {
+            error
+        }
+    })?;
+    let note = if merge {
+        enable_auto_merge(&gh, created.trim())
+    } else {
+        String::new()
+    };
+    Ok(format!("opened {}{note}", created.trim()))
 }
 
 #[cfg(test)]
@@ -636,6 +655,14 @@ mod tests {
     }
 
     fn fixture_with_hook(list_output: &str, hook: Option<&str>) -> Fixture {
+        fixture_failing(list_output, hook, None)
+    }
+
+    fn fixture_failing(
+        list_output: &str,
+        hook: Option<&str>,
+        fail: Option<(&str, &str)>,
+    ) -> Fixture {
         let dir = super::super::test_support::temp_dir("update-pr");
         let origin = dir.path().join("origin.git");
         let work = dir.path().join("work");
@@ -673,10 +700,13 @@ mod tests {
         }
         let argv = dir.path().join("gh-argv");
         let script = dir.path().join("gh");
+        let failing = fail.map_or(String::new(), |(sub, message)| {
+            format!("if [ \"$2\" = {sub} ]; then echo '{message}' >&2; exit 1; fi\n")
+        });
         std::fs::write(
             &script,
             format!(
-                "#!/bin/sh\necho \"$@\" >> '{}'\nif [ \"$2\" = list ]; then echo '{list_output}'; fi\nif [ \"$2\" = create ]; then echo https://example.com/pr/9; fi\n",
+                "#!/bin/sh\necho \"$@\" >> '{}'\n{failing}if [ \"$2\" = list ]; then echo '{list_output}'; fi\nif [ \"$2\" = create ]; then echo https://example.com/pr/9; fi\n",
                 argv.display()
             ),
         )
@@ -829,6 +859,53 @@ mod tests {
         .expect("publish");
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr merge https://example.com/pr/9 --auto --squash"));
+    }
+
+    #[test]
+    fn an_auto_merge_refusal_keeps_the_pr() {
+        let fx = fixture_failing(
+            "[]",
+            None,
+            Some(("merge", "Pull request Auto merge is not allowed for this repository")),
+        );
+        let mut step = editing(fx.work.clone(), None);
+        let plans = plans_to("1.0.1");
+        let outcomes = publish(
+            &fx.work,
+            &fx.tools,
+            &plans,
+            &scope(),
+            &[],
+            &rules(),
+            &mut step,
+        )
+        .expect("publish");
+        let result = outcomes[0].result.clone().expect("ok");
+        assert!(result.starts_with("opened https://example.com/pr/9; auto-merge not enabled"));
+        assert!(result.contains(AUTO_MERGE_HINT));
+    }
+
+    #[test]
+    fn an_actions_pr_refusal_names_the_setting() {
+        let fx = fixture_failing(
+            "[]",
+            None,
+            Some(("create", "GitHub Actions is not permitted to create or approve pull requests")),
+        );
+        let mut step = editing(fx.work.clone(), None);
+        let plans = plans_to("1.0.1");
+        let outcomes = publish(
+            &fx.work,
+            &fx.tools,
+            &plans,
+            &scope(),
+            &[],
+            &rules(),
+            &mut step,
+        )
+        .expect("publish");
+        let error = outcomes[0].result.clone().expect_err("error");
+        assert!(error.contains("Allow GitHub Actions to create and approve pull requests"));
     }
 
     #[test]

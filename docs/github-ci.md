@@ -234,6 +234,10 @@ permissions, so a read-only repository default is fine.
   required checks for its own SHA. Merge-group runs post no PR comment and
   never publish Pages.
 - Pages source: GitHub Actions, before the first publishing run.
+- Update workflow settings: with "Allow GitHub Actions to create and approve
+  pull requests" off, `dx update --pr` fails and names the setting. With
+  "Allow auto-merge" off, pull requests still open and the run prints
+  `auto-merge not enabled`; turn the setting on or pass `--automerge=none`.
 - Workflow permissions: read-only by default. Each calling job then grants
   what its reusable jobs request: the consumer caller `pull-requests: write`, the docs caller `pages: write` plus
   `id-token: write`.

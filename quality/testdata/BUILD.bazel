@@ -85,6 +85,8 @@ filegroup(
 exports_files(
     [
         "biome_cfg/biome.json",
+        "biome_profiles/standard/biome.json",
+        "biome_profiles/strict/biome.json",
         "buildifier_cfg/.buildifier.json",
         "dart_cfg/analysis_options.yaml",
         "dart_cfg/bad_analysis_options.yaml",

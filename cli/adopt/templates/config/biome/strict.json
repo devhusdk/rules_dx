@@ -1,0 +1,71 @@
+{
+  "extends": [
+    "./standard.json"
+  ],
+  "linter": {
+    "rules": {
+      "complexity": "error",
+      "suspicious": "error",
+      "style": "error"
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "**"
+      ],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off",
+            "useMaxParams": "off",
+            "noVoid": "off",
+            "noImplicitCoercions": "off"
+          },
+          "suspicious": {
+            "noConsole": "off",
+            "noShadow": "off",
+            "noImportCycles": "off",
+            "noUndeclaredEnvVars": "off",
+            "noUnnecessaryConditions": "off",
+            "useAwait": "off",
+            "noEmptyBlockStatements": "off",
+            "noBitwiseOperators": "off",
+            "noReactSpecificProps": "off",
+            "noAlert": "off"
+          },
+          "style": {
+            "noDefaultExport": "off",
+            "useNamingConvention": "off",
+            "useFilenamingConvention": "off",
+            "noMagicNumbers": "off",
+            "noEnum": "off",
+            "noParameterProperties": "off",
+            "useConsistentMemberAccessibility": "off",
+            "noProcessEnv": "off",
+            "noJsxLiterals": "off",
+            "noRestrictedGlobals": "off",
+            "noRestrictedImports": "off",
+            "noRestrictedTypes": "off",
+            "noExcessiveClassesPerFile": "off",
+            "noExcessiveLinesPerFile": "off",
+            "useExportsLast": "off",
+            "noImplicitBoolean": "off",
+            "noNamespace": "off",
+            "noTernary": "off",
+            "noNestedTernary": "off",
+            "noCommonJs": "off",
+            "noContinue": "off",
+            "noIncrementDecrement": "off",
+            "useBlockStatements": "off",
+            "useNumericSeparators": "off",
+            "noExportedImports": "off",
+            "useReadonlyClassProperties": "off",
+            "useComponentExportOnlyModules": "off"
+          }
+        }
+      }
+    }
+  ]
+}

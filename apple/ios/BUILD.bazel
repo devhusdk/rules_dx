@@ -582,7 +582,7 @@ failure_test(
 
 apple_ios_export(
     name = "export_simulator",
-    app = ":simulator_app",
+    app = "//apple/tests/fixtures/swift_app:ledger_app",
 )
 
 failure_test(

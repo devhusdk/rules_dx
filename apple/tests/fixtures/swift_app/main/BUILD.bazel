@@ -3,6 +3,7 @@ load("//swift/rules:defs.bzl", "swift_library")
 
 swift_library(
     name = "ledger_main",
+    tags = ["manual"],
     srcs = ["LedgerAppDelegate.swift"],
     module_name = "LedgerApp",
     target_compatible_with = [

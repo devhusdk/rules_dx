@@ -1,6 +1,9 @@
 #include "native_cc.h"
 
+#include <string>
+
 extern "C" int native_cc_cxx_value(void) {
-  int values[3] = {1, 2, 3};
-  return values[0] + values[1] + values[2];
+  std::string value = "native";
+  value += "_cxx";
+  return static_cast<int>(value.size());
 }

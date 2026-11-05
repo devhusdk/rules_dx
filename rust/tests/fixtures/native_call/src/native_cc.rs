@@ -20,7 +20,7 @@ mod tests {
     #[test]
     fn calls_c_and_cxx() {
         assert_eq!(c_value(), 7);
-        assert_eq!(cxx_value(), 6);
+        assert_eq!(cxx_value(), 10);
     }
 
     #[test]

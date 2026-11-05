@@ -921,6 +921,7 @@ impl RealBackend {
                         })
                 };
                 let java = companion("java")?;
+                let java = real_launcher(&java);
                 let jar = companion("pkl-lsp.jar")?;
                 let home = scratch.root().join(PKL_LSP_HOME_REL);
                 std::fs::create_dir_all(&home)
@@ -3249,6 +3250,18 @@ fn cue_package_clause(text: &str) -> String {
             rest.trim().to_owned()
         })
         .unwrap_or_default()
+}
+
+/// The JVM finds its modules file beside the launcher it was started from, and a
+/// runfiles symlink on Windows does not lead there, so the launcher is named by its real path.
+fn real_launcher(path: &Path) -> PathBuf {
+    let Ok(real) = std::fs::canonicalize(path) else {
+        return path.to_path_buf();
+    };
+    match real.to_str().and_then(|text| text.strip_prefix(r"\\?\")) {
+        Some(plain) => PathBuf::from(plain),
+        None => real,
+    }
 }
 
 #[cfg(test)]

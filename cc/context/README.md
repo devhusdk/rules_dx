@@ -63,6 +63,10 @@ bazel run //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:pr
 Extra Bazel flags (for a custom toolchain) go after `--`. The evidence JSON records the
 git SHA, Bazel version, compiler banner, every command run and every qualified entry.
 
+The qualifier builds and its unit tests pass on `linux_x86_64` and `windows_x86_64` CI
+(evidence run 41989006621). The Windows MSVC and LLVM runs of the qualifier itself are
+not recorded yet.
+
 ## Fixture records
 
 `//cc/tests/fixtures/compilation_db` holds one aquery record per fixture target, taken

@@ -153,8 +153,12 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
     (case, own)
 }
 
-fn bazel(case: &Case, verb: &str, targets: &[&str]) -> (Option<i32>, String) {
-    let mut args = vec![verb, "--color=no", "--curses=no", "--test_output=errors"];
+fn bazel(case: &Case, verb: &str, extra: &[&str], targets: &[&str]) -> (Option<i32>, String) {
+    let mut args = vec![verb, "--color=no", "--curses=no"];
+    if verb == "test" {
+        args.push("--test_output=errors");
+    }
+    args.extend_from_slice(extra);
     args.extend_from_slice(targets);
     let run = case.bazel(&args);
     (run.status.code(), run.combined())
@@ -163,18 +167,17 @@ fn bazel(case: &Case, verb: &str, targets: &[&str]) -> (Option<i32>, String) {
 #[test]
 fn the_app_builds_checks_and_tests_through_a_renamed_rules_dx() {
     let (case, _) = consumer();
-    let (code, text) = bazel(
-        &case,
-        "test",
-        &[
-            "//:check",
-            "//:components",
-            "//:site",
-            "//:site_ssr_test",
-            "//:site_client_test",
-        ],
-    );
-    assert_eq!(code, Some(0), "{text}");
+    let targets = [
+        "//:check",
+        "//:components",
+        "//:site",
+        "//:site_ssr_test",
+        "//:site_client_test",
+    ];
+    let (code, text) = bazel(&case, "fetch", &[], &targets);
+    assert_eq!(code, Some(0), "fetch failed:\n{text}");
+    let (code, text) = bazel(&case, "test", &["--repository_disable_download"], &targets);
+    assert_eq!(code, Some(0), "offline test failed:\n{text}");
     for name in ["//:site_ssr_test", "//:site_client_test"] {
         let line = text
             .lines()
@@ -183,6 +186,21 @@ fn the_app_builds_checks_and_tests_through_a_renamed_rules_dx() {
         assert!(line.contains("PASSED"), "{line}");
     }
 }
+
+const UNFORMATTED: &str = r#"<script lang="ts">
+let   count:number=0
+  function  inc(){count+=1}
+</script>
+
+<button   on:click={inc}>
+clicked {count}
+</button>
+
+<style>
+button{color:red;
+    margin:0}
+</style>
+"#;
 
 #[test]
 fn dx_check_leaves_the_consumer_sources_unchanged() {
@@ -214,4 +232,25 @@ fn dx_check_leaves_the_consumer_sources_unchanged() {
     for (path, bytes) in own {
         assert_eq!(read(&path), bytes, "{path:?} changed");
     }
+}
+
+#[test]
+fn dx_format_applies_to_the_consumer_svelte_files() {
+    let (case, own) = consumer();
+    let workspace = case.to_string_lossy().into_owned();
+    let dx = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN"));
+    let target = case.root().join("src/components/Unformatted.svelte");
+    write(&target, UNFORMATTED.as_bytes());
+    let run = case.run(
+        &dx,
+        &["format", "--apply", "--workspace", &workspace, "//:all"],
+        &[],
+    );
+    assert_eq!(run.status.code(), Some(0), "{}", run.combined());
+    assert_ne!(read(&target), UNFORMATTED.as_bytes(), "not formatted");
+    for (path, bytes) in own {
+        assert_eq!(read(&path), bytes, "{path:?} changed");
+    }
+    let run = case.run(&dx, &["format", "--workspace", &workspace, "//:all"], &[]);
+    assert_eq!(run.status.code(), Some(0), "{}", run.combined());
 }

@@ -190,5 +190,25 @@ pub fn plan(
     })
 }
 
+/// Writes `version` into every manifest that carries one; returns their paths relative to `workspace`.
+pub fn apply(workspace: &Path, version: &str) -> Result<Vec<String>, String> {
+    let manifests = own_version::find(workspace)
+        .map_err(|error| format!("cannot scan {}: {error}", workspace.display()))?;
+    let mut changed = Vec::new();
+    for manifest in &manifests {
+        own_version::set(manifest, version)
+            .map_err(|error| format!("{}: {error}", manifest.path.display()))?;
+        changed.push(
+            manifest
+                .path
+                .strip_prefix(workspace)
+                .unwrap_or(&manifest.path)
+                .to_string_lossy()
+                .replace('\\', "/"),
+        );
+    }
+    Ok(changed)
+}
+
 #[cfg(test)]
 mod tests;

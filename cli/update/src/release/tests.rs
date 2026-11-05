@@ -118,3 +118,13 @@ fn release_toml_sets_the_tag_prefix() {
     fs::write(dir.path().join("release.toml"), "tag_prefix = 3\n").expect("write");
     assert!(read_config(dir.path()).is_err());
 }
+
+#[test]
+fn apply_writes_the_version_into_every_manifest() {
+    let dir = workspace(&[("Cargo.toml", "1.2.3"), ("web/package.json", "1.2.3")]);
+    let changed = apply(dir.path(), "1.3.0").expect("apply");
+    assert_eq!(changed, ["Cargo.toml", "web/package.json"]);
+    let report = plan(dir.path(), &Config::default(), Some("v1.3.0"), "", None).expect("plan");
+    assert_eq!(report.out_of_sync(), 0);
+    assert!(report.manifests.iter().all(|line| line.version == "1.3.0"));
+}

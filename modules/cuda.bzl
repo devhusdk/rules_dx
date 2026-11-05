@@ -233,7 +233,7 @@ CUDA_CELLS = {
     ),
     "windows_x86_64": struct(
         rules_cuda_platform = "windows-x86_64",
-        blocker = "nvcc_msvc needs the MSVC cl.exe toolchain (#4815) and a Windows run (#4704)",
+        blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         components = _WINDOWS_X86_64_COMPONENTS,

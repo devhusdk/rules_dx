@@ -70,6 +70,7 @@ rust_test(
         "//quality:families/dockerfile.bzl",
         "//quality:families/fortran.bzl",
         "//quality:families/generation.bzl",
+        "//quality:families/go.bzl",
         "//quality:families/haskell.bzl",
         "//quality:families/html_template.bzl",
         "//quality:families/jsonnet.bzl",

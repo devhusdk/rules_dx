@@ -52,6 +52,7 @@ rust_library(
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
+        "src/conventional.rs",
         "src/deploy.rs",
         "src/inventory.rs",
         "src/ledger.rs",
@@ -106,6 +107,7 @@ rust_test(
         "src/candidate.rs",
         "src/cell.rs",
         "src/cell_tests.rs",
+        "src/conventional.rs",
         "src/deploy.rs",
         "src/inventory.rs",
         "src/ledger.rs",
@@ -117,6 +119,7 @@ rust_test(
         "src/spdx.rs",
         "src/tool.rs",
     ],
+    compile_data = glob(["testdata/*.log"]),
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,

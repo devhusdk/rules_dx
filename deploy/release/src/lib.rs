@@ -13,6 +13,7 @@ use std::path::Path;
 
 pub mod candidate;
 pub mod cell;
+pub mod conventional;
 mod deploy;
 pub mod inventory;
 pub mod ledger;

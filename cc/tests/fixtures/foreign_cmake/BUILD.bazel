@@ -108,6 +108,12 @@ filegroup(
     target_compatible_with = _LINUX_X86_64,
 )
 
+_MSVC_NO_WX = {
+    "CMAKE_EXE_LINKER_FLAGS": "/WX:NO",
+    "CMAKE_SHARED_LINKER_FLAGS": "/WX:NO",
+    "CMAKE_STATIC_LINKER_FLAGS": "/WX:NO",
+}
+
 _WINDOWS_X86_64 = [
     "@platforms//cpu:x86_64",
     "@platforms//os:windows",
@@ -116,6 +122,7 @@ _WINDOWS_X86_64 = [
 cmake(
     name = "zlib_msvc_static",
     build_args = ["--verbose"],
+    cache_entries = _MSVC_NO_WX,
     generate_args = [
         "-GNinja",
         "--trace-expand",
@@ -129,6 +136,7 @@ cmake(
 cmake(
     name = "zlib_msvc_shared",
     build_args = ["--verbose"],
+    cache_entries = _MSVC_NO_WX,
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_interface_libs = ["zlib.lib"],

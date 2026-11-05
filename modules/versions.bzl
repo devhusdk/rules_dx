@@ -111,6 +111,8 @@ CONSUMER_BAZEL_DEPS = {
     "rules_julia": struct(floor = RULES_JULIA_VERSION, tested = RULES_JULIA_VERSION),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),
+    "rules_oci": struct(floor = "2.3.0", tested = "2.3.0"),
+    "rules_pkg": struct(floor = "1.3.0", tested = "1.3.0"),
     "lua": struct(floor = LUA_VERSION, tested = LUA_VERSION),
     "rules_py": struct(floor = RULES_PY_VERSION, tested = RULES_PY_VERSION),
     "aspect_rules_js": struct(floor = ASPECT_RULES_JS_VERSION, tested = ASPECT_RULES_JS_VERSION),

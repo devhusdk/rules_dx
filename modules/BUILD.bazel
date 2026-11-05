@@ -53,6 +53,22 @@ rust_clippy_test(
 
 # keep
 rust_test(
+    name = "oci_pins_test",
+    srcs = ["oci_pins_test.rs"],
+    data = ["//:MODULE.bazel"],
+    deps = [
+        "//libs/module_bazel:dx_module_bazel",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "oci_pins_fmt_test",
+    targets = [":oci_pins_test"],
+)
+
+# keep
+rust_test(
     name = "families_test",
     srcs = ["families_test.rs"],
     data = [

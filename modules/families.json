@@ -170,6 +170,23 @@
         "@llvm//toolchain:all"
       ]
     },
+    "containers": {
+      "aspects": [],
+      "bazel_deps": [
+        "rules_oci",
+        "rules_pkg"
+      ],
+      "dirs": [
+        "containers"
+      ],
+      "extensions": [
+        "@rules_oci//oci:extensions.bzl%oci"
+      ],
+      "file_extensions": [],
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": []
+    },
     "core": {
       "aspects": [
         "real_ansible_lint_aspect",

@@ -1,5 +1,6 @@
 """Minimal Go wrappers."""
 
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_binary = "go_binary", _go_library = "go_library", _go_test = "go_test")
 load(":cgo.bzl", "cgo_toolchain_error")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
@@ -84,3 +85,15 @@ def go_binary(name, srcs = None, visibility = None, **kwargs):
 def go_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_test."""
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
+
+def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
+    """A go_test plus a `<name>_run` runner that fuzzes the function `fuzz` for `dx fuzz`."""
+    go_test(name = name, srcs = srcs, visibility = visibility, tags = (tags or []) + ["dx-fuzz"], **kwargs)
+    sh_binary(
+        name = name + "_run",
+        srcs = [Label("//go/rules:fuzz_run.sh")],
+        args = ["$(rootpath :" + name + ")", fuzz],
+        data = [":" + name],
+        testonly = True,
+        visibility = visibility,
+    )

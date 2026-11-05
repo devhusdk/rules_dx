@@ -1,0 +1,31 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//go/rules:defs.bzl", "go_fuzz_test", "go_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+go_library(
+    name = "parse",
+    srcs = ["parse.go"],
+    importpath = "rules_dx/go/tests/fixtures/fuzz",
+)
+
+go_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse_test.go"],
+    embed = [":parse"],
+    fuzz = "FuzzParse",
+)
+
+sh_test(
+    name = "parse_fuzz_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_fuzz)"],
+    data = [
+        ":parse_fuzz",
+        "//go/rules:fuzz_run.sh",
+    ],
+    timeout = "short",
+)

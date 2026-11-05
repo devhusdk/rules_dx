@@ -14,6 +14,8 @@ dx fuzz [--here] [--time <duration>] [--jobs <n>] [scope ...]
 
 A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next to it. Targets without the tag are skipped. Targets run one after another.
 
+Go: `go_fuzz_test(name, fuzz = "FuzzParse", srcs = ..., ...)` from `//go/rules:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
+
 | Flag | What it does |
 | --- | --- |
 | `--time <duration>` | Time budget per target: `90`, `90s`, `5m` or `1h`. Default: `60s`. |

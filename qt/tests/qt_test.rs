@@ -173,6 +173,14 @@ fn host_leaks(paths: &BTreeSet<String>) -> Vec<String> {
         .collect()
 }
 
+fn expected_platform_plugins() -> BTreeSet<String> {
+    let mut plugins = BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]);
+    if cfg!(target_os = "macos") {
+        plugins.insert("cocoa".to_owned());
+    }
+    plugins
+}
+
 /// Parses Qt's "Available platform plugins are: a, b." line into a set; empty if absent.
 fn available_platform_plugins(output: &str) -> BTreeSet<String> {
     const MARKER: &str = "Available platform plugins are: ";
@@ -322,7 +330,7 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
     // Keep in sync with platform_plugins in the cell layouts.
     assert_eq!(
         available_platform_plugins(&run.stderr),
-        BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),
+        expected_platform_plugins(),
         "{}",
         run.stderr
     );

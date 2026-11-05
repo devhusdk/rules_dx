@@ -444,17 +444,6 @@
       "strip_prefix" : "YAML-PP-v0.43.0",
       "url" : "https://cpan.metacpan.org/authors/id/T/TI/TINITA/YAML-PP-v0.43.0.tar.gz"
    },
-   "cpan-outdated" : {
-      "dependencies" : [
-         "CPAN-DistnameInfo",
-         "Module-Build-Tiny",
-         "URI",
-         "local-lib"
-      ],
-      "sha256" : "eb4106d33fd747a2ba4276d1628da1bb5f0b9eaf25e6761a449cb9060a582153",
-      "strip_prefix" : "cpan-outdated-0.32",
-      "url" : "https://cpan.metacpan.org/authors/id/D/DO/DOLMEN/cpan-outdated-0.32.tar.gz"
-   },
    "local-lib" : {
       "dependencies" : [],
       "sha256" : "8df87a10c14c8e909c5b47c5701e4b8187d519e5251e87c80709b02bb33efdd7",

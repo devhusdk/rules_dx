@@ -920,7 +920,6 @@ perl_tools_cpan.install(
     bins = {
         "Carton": ["bin/carton"],
         "Perl-Tidy": ["bin/perltidy"],
-        "cpan-outdated": ["bin/cpan-outdated"],
     },
     lock = "//perl/tools:cpanfile.snapshot.lock.json",
 )

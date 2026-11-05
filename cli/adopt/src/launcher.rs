@@ -1562,6 +1562,19 @@ mod tests {
         }
 
         #[test]
+        fn a_module_bump_runs_direct_once_pins_are_refreshed() {
+            let fx = Fixture::new("dx-launcher-refreshed-", true, None);
+            fx.set_module("bazel_dep(name = \"rules_dx\", version = \"1.2.4\")\n");
+            fx.assert_via_bazel(&["check", "//..."]);
+            let sha = sha_of(&fx.base.join("payload"));
+            fx.set_pin(&format!("1.2.4 {sha} dx-linux-x86_64\n"));
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(fx.downloads(), 1);
+            assert_eq!(fx.bazel_calls().len(), 1, "no new Bazel call");
+        }
+
+        #[test]
         fn a_missing_module_file_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-nomodule-", true, None);
             std::fs::remove_file(fx.base.join("repo/MODULE.bazel")).expect("remove module");

@@ -67,25 +67,30 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
 }
 
 /// Under `bazel run`, rewrites a stale `.dx/pins` to `module_version` so the next
-/// launcher call skips Bazel. Does nothing when the file is missing, current, or
-/// when `pins` lacks a hash for any release asset. Errors are ignored.
+/// launcher call skips Bazel. A file is current when it names `module_version` and
+/// holds a hash for every release asset. Does nothing when the file is missing,
+/// current, or when `pins` lacks a hash for any release asset. Errors are ignored.
 pub fn refresh_stale_pins(
     workspace: Option<&Path>,
     module_version: &str,
     pins: impl FnOnce() -> Result<crate::LauncherPins, AdoptError>,
 ) {
     let Some(root) = workspace else { return };
-    let Ok(current) = read_version_pin(root) else {
+    if matches!(read_version_pin(root), Err(AdoptError::MissingVersionPin)) {
         return;
+    }
+    let has_all_hashes = |held: &crate::LauncherPins| {
+        crate::launcher::RELEASE_ASSETS
+            .iter()
+            .all(|asset| held.get(asset).is_some_and(|hash| !hash.is_empty()))
     };
-    if current == module_version {
+    if read_version_pin(root).is_ok_and(|v| v == module_version)
+        && read_version_pins(root).is_ok_and(|held| has_all_hashes(&held))
+    {
         return;
     }
     let Ok(pins) = pins() else { return };
-    if crate::launcher::RELEASE_ASSETS
-        .iter()
-        .any(|asset| pins.get(asset).is_none_or(str::is_empty))
-    {
+    if !has_all_hashes(&pins) {
         return;
     }
     let _ = write_version_pins(root, module_version, &pins);
@@ -443,9 +448,26 @@ mod tests {
         let missing = pins_dir(None);
         refresh_stale_pins(Some(missing.path()), "2.0.0", || Ok(full_pins()));
         assert_eq!(pins_text(&missing), None);
-        let current = pins_dir(Some("2.0.0\n"));
-        refresh_stale_pins(Some(current.path()), "2.0.0", || Ok(full_pins()));
-        assert_eq!(pins_text(&current).unwrap(), "2.0.0\n");
+        let bare = pins_dir(Some("2.0.0\n"));
+        refresh_stale_pins(Some(bare.path()), "2.0.0", || {
+            Ok(crate::LauncherPins::unreleased())
+        });
+        assert_eq!(pins_text(&bare).unwrap(), "2.0.0\n");
+    }
+
+    #[test]
+    fn refresh_skips_a_current_file_without_reading_pins() {
+        let text = full_pins().to_lines("2.0.0");
+        let dir = pins_dir(Some(&text));
+        refresh_stale_pins(Some(dir.path()), "2.0.0", || panic!("pins read"));
+        assert_eq!(pins_text(&dir).unwrap(), text);
+    }
+
+    #[test]
+    fn refresh_heals_a_bare_version_line() {
+        let dir = pins_dir(Some("2.0.0\n"));
+        refresh_stale_pins(Some(dir.path()), "2.0.0", || Ok(full_pins()));
+        assert_eq!(pins_text(&dir).unwrap(), full_pins().to_lines("2.0.0"));
     }
 
     #[test]

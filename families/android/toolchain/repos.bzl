@@ -172,13 +172,14 @@ def _android_ndk_toolchain_repo_impl(ctx):
         if len(failures) > 0:
             fail("; ".join(failures))
         ndk = Label("@" + ndk_repository_name(_QUALIFIED_HOST) + "//:ndk_anchor")
+        ctx.symlink(ctx.path(Label("@" + ndk.repo_name + "//:BUILD.bazel")).dirname.get_child("extracted"), "ndk")
         ctx.file("BUILD.bazel", toolchain_build(
             str(ndk).removesuffix(":ndk_anchor"),
             ndk.workspace_root + "/extracted",
             api_level,
             ctx.attr.cxx_runtime,
             "",
-            "../" + ndk.repo_name + "/extracted",
+            "ndk",
         ))
         return
     revision = ctx.attr.ndk_revision or ANDROID_NDK_REVISION

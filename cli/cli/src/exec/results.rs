@@ -172,6 +172,7 @@ pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
     pub(crate) ran: BTreeSet<(String, String)>,
     pub(crate) analyzed: BTreeSet<(String, String)>,
+    pub(crate) analyzed_by: BTreeMap<String, BTreeSet<(String, String)>>,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
@@ -410,6 +411,7 @@ pub(crate) fn collect_results_in(
     let mut tools = BTreeSet::new();
     let mut ran = BTreeSet::new();
     let mut analyzed = BTreeSet::new();
+    let mut analyzed_by: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
     let mut initial = Vec::new();
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
@@ -474,6 +476,10 @@ pub(crate) fn collect_results_in(
                 .map(|tool| (tool.clone(), target.label.clone())),
         );
         analyzed.extend(staged.analyzed.iter().cloned());
+        analyzed_by
+            .entry(target.label.clone())
+            .or_default()
+            .extend(staged.analyzed.iter().cloned());
         for mut item in staged.unstable {
             item.label = target.label.clone();
             item.configuration = target.configuration.clone();
@@ -543,6 +549,7 @@ pub(crate) fn collect_results_in(
         tools: tools.into_iter().collect(),
         ran,
         analyzed,
+        analyzed_by,
         initial,
         terminal: reconciled.terminal,
         changes: reconciled.changes,

@@ -474,6 +474,8 @@ tools/dx unused --fail-on=warning //pkg/...
 
 Every finding is a `warning` with no fix. `dx unused` exits `0` by default. Pass `--fail-on=warning` to exit `1` on a finding; `--fail-on=none` is the default and only `dx unused` accepts it. JSON output uses the lint schema with `capability` set to `unused`.
 
+`dx unused` builds only the top-level targets of the scope: a target that another target in the scope uses through its inputs is skipped, and its code is analyzed as part of the target that uses it. When several top-level targets analyze the same file, a finding in that file is kept only if every one of them reports it, so a function that one binary calls is not reported. The graph links every attribute, not only the ones the analysis follows, so a library reached only through `data` is skipped and its findings can be missed, never invented.
+
 A consumer policy lists these tools under `unused` in `quality_family`. Moving a tool such as `vulture` out of `lint = [...]` and into `unused = [...]` is required: listing it under `lint` fails analysis.
 
 `vulture` runs once per target over its whole dependency closure. Findings in a `*_binary` or `*_test` main, or in a `//visibility:public` target, are dropped for names without a leading `_`. Everything in a target tagged `dx-keep` is dropped.

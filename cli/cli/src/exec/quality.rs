@@ -10,6 +10,7 @@ use super::quality_reports::{
     verified_snapshots, write_standard_reports, Snapshots, StandardReports,
 };
 use super::results::collect_results;
+use super::unused_shared::keep_shared;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, meets_threshold, notice_event, ActionCounts, FinishedCounts,
@@ -18,7 +19,7 @@ use dx_output::{
 use dx_plan::args::{Command, Invocation, QualityRequest};
 use dx_plan::plan::{bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP};
 use dx_plan::reports::{plan_reports, BaselineReport, Destination};
-use dx_plan::resolve::resolve;
+use dx_plan::resolve::{resolve, RuleGraph};
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
@@ -324,7 +325,7 @@ fn run_quality_request(
             &crate::startup::temp_path_not_utf8(),
         );
     };
-    let resolved = match resolve(
+    let mut resolved = match resolve(
         &request.targets,
         workspace,
         query_runner,
@@ -333,6 +334,14 @@ fn run_quality_request(
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
+    if request.command == Command::Unused {
+        // Without the graph every resolved target is analyzed, which is slower but still correct.
+        let graph = RuleGraph::load(workspace, query_runner, &request.bazel_startup_options);
+        let top = graph.map(|graph| graph.top_level(&resolved.targets));
+        if let Some(top) = top.ok().filter(|top| !top.is_empty()) {
+            resolved.targets = top;
+        }
+    }
     // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family;
     // in both cases every family's aspects stay.
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
@@ -492,6 +501,9 @@ fn run_quality_request(
         }
     }
     collected.complete = collected.complete && bazel_code == 0;
+    if request.command == Command::Unused {
+        keep_shared(&mut collected);
+    }
     dx_output::sort_diagnostics(&mut collected.initial);
     dx_output::sort_diagnostics(&mut collected.terminal);
     collected

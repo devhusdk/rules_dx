@@ -44,6 +44,7 @@ mod quality_reconcile;
 mod quality_reports;
 mod release;
 mod results;
+mod unused_shared;
 mod run;
 mod rustc_stderr;
 mod skipped_targets;

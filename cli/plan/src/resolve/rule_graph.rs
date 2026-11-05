@@ -226,6 +226,42 @@ impl RuleGraph {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
+    /// Rules the scopes select that no other selected rule uses through its inputs.
+    /// Manual rules count only when a scope names them exactly.
+    pub fn top_level(&self, scopes: &[String]) -> Vec<String> {
+        let selected: HashSet<&str> = self
+            .inputs
+            .keys()
+            .map(String::as_str)
+            .filter(|rule| {
+                let exact = scopes.iter().any(|scope| scope == rule);
+                let matched = scopes.iter().any(|scope| matches_scope(scope, rule));
+                matched && (exact || !self.manual.contains(*rule))
+            })
+            .collect();
+        let mut covered: HashSet<&str> = HashSet::new();
+        let mut pending: Vec<&str> = selected.iter().copied().collect();
+        let mut seen: HashSet<&str> = HashSet::new();
+        while let Some(label) = pending.pop() {
+            if !seen.insert(label) {
+                continue;
+            }
+            for input in self.inputs.get(label).into_iter().flatten() {
+                if input != label && selected.contains(input.as_str()) {
+                    covered.insert(input);
+                }
+                pending.push(input);
+            }
+        }
+        let mut top: Vec<String> = selected
+            .into_iter()
+            .filter(|rule| !covered.contains(rule))
+            .map(str::to_owned)
+            .collect();
+        top.sort();
+        top
+    }
+
     /// Rules that may hold tests for the owners, keeping manual owners.
     pub(crate) fn test_candidates(&self, owners: &[String]) -> Vec<String> {
         self.keep(self.reach(owners), |label| {
@@ -372,6 +408,45 @@ mod tests {
             argv: RefCell::new(Vec::new()),
         };
         RuleGraph::load(Path::new("/w"), &answer, &[]).expect("graph")
+    }
+
+    #[test]
+    fn top_level_drops_rules_another_selected_rule_uses() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:a.py"], &[]),
+            rule("//a:mid", &["//a:lib"], &[]),
+            rule("//a:bin", &["//a:mid"], &[]),
+        ]);
+        assert_eq!(graph.top_level(&strings(&["//a/..."])), ["//a:bin"]);
+        assert_eq!(
+            graph.top_level(&strings(&["//a:lib", "//a:mid"])),
+            ["//a:mid"]
+        );
+    }
+
+    #[test]
+    fn top_level_keeps_independent_rules() {
+        let graph = graph(&[
+            rule("//a:one", &["//a:one.py"], &[]),
+            rule("//a:two", &["//a:two.py"], &[]),
+        ]);
+        assert_eq!(
+            graph.top_level(&strings(&["//a:all"])),
+            ["//a:one", "//a:two"]
+        );
+    }
+
+    #[test]
+    fn top_level_drops_manual_rules_unless_named() {
+        let graph = graph(&[
+            rule("//a:one", &[], &[]),
+            rule("//a:hand", &[], &["manual"]),
+        ]);
+        assert_eq!(graph.top_level(&strings(&["//a/..."])), ["//a:one"]);
+        assert_eq!(
+            graph.top_level(&strings(&["//a/...", "//a:hand"])),
+            ["//a:hand", "//a:one"]
+        );
     }
 
     fn sample() -> RuleGraph {

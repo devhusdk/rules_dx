@@ -255,6 +255,7 @@ mod tests {
             tools: vec!["lint".to_owned()],
             ran: std::collections::BTreeSet::new(),
             analyzed: std::collections::BTreeSet::new(),
+            analyzed_by: BTreeMap::new(),
             initial: Vec::new(),
             terminal: Vec::new(),
             changes: vec![FileChange {

@@ -223,3 +223,19 @@ fn closed_pipe_starts_nothing() {
     assert_eq!(launches(&h), 0);
     assert_eq!(source(&h), b"x = 1\n");
 }
+
+#[test]
+fn unused_builds_only_the_top_level_target() {
+    let harness = clean("unused-top-level");
+    harness.write_source("pkg/BUILD.bazel", "");
+    harness.query.script_graph(&[
+        dx_testing::cli::graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+        dx_testing::cli::graph_rule("//pkg:bin", &["//pkg:lib"], &[]),
+    ]);
+    run(&harness, &["unused", "//pkg/..."], &mut Sink::new(Fault::None, 0));
+    let runs = harness.build_argv.borrow();
+    let build = runs.iter().find(|argv| argv.contains(&"build".to_owned()));
+    let build = build.expect("a build ran");
+    assert!(build.contains(&"//pkg:bin".to_owned()), "{build:?}");
+    assert!(!build.contains(&"//pkg:lib".to_owned()), "{build:?}");
+}

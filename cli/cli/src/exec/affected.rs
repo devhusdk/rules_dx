@@ -788,6 +788,15 @@ mod tests {
     }
 
     #[test]
+    fn unused_affected_includes_reverse_deps() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Unused, &[&graph]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+    }
+
+    #[test]
     fn the_universe_query_never_names_rdeps_or_external_repos() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");

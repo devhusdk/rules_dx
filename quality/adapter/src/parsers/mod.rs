@@ -1428,8 +1428,9 @@ mod tests {
     #[test]
     fn diff_format_matches_a_checked_file_spelled_with_backslashes() {
         let diff = b"--- D:/w/x.go.orig\n+++ D:/w/x.go\n@@ -1 +1 @@\n-a\n+b\n";
-        let findings = super::diff_format("t", diff, Some(1), &["D:\\w\\x.go"], super::DiffExit::One)
-            .expect("parsed");
+        let findings =
+            super::diff_format("t", diff, Some(1), &["D:\\w\\x.go"], super::DiffExit::One)
+                .expect("parsed");
         assert_eq!(findings[0].file, "D:\\w\\x.go");
     }
 

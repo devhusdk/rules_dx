@@ -639,7 +639,7 @@ mod tests {
     #[test]
     fn profile_passes_the_trace_flag_and_reports_json_and_text() {
         let harness = Harness::new("build-profile");
-        let dir = harness.workspace.join(".dx/profile");
+        let dir = harness.workspace.join(".dx").join("profile");
         std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(
             dir.join("trace.json"),

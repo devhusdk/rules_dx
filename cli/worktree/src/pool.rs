@@ -443,9 +443,9 @@ impl Pool {
         }
     }
 
-    /// Whether a dx command runs in `slot` now.
+    /// Whether a dx command runs in `slot` now, or its lock cannot be checked.
     pub(crate) fn busy(&self, slot: u32) -> bool {
-        matches!(self.try_quiet(slot), Ok(None))
+        !matches!(self.try_quiet(slot), Ok(Some(_)))
     }
 
     /// Holds the pool lock while a slot is chosen.

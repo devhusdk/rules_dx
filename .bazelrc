@@ -69,7 +69,7 @@ common:bb --remote_timeout=10m
 common:ci --remote_cache=grpcs://remote.buildbuddy.io
 common:ci --remote_cache_compression
 common:ci --remote_timeout=10m
-common:ci --remote_download_minimal
+common:ci --remote_download_toplevel
 common:ci --remote_local_fallback
 common:ci --remote_retries=5
 common:ci --experimental_remote_cache_eviction_retries=5

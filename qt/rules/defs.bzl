@@ -596,7 +596,7 @@ qt_frameworks = rule(
 
 def _bundle_runpath():
     return select({
-        "@platforms//os:macos": [],
+        "@platforms//os:macos": [QT_BUNDLE_MACOS_RUNPATH],
         "@platforms//os:windows": [],
         "//conditions:default": [QT_BUNDLE_RUNPATH],
     })
@@ -937,37 +937,6 @@ def _qt_rust_runtime_files_impl(ctx):
         ),
     ]
 
-def _qt_always_link_impl(ctx):
-    inputs = []
-    for linker_input in ctx.attr.dep[CcInfo].linking_context.linker_inputs.to_list():
-        libraries = [
-            cc_common.create_library_to_link(
-                actions = ctx.actions,
-                static_library = library.static_library,
-                pic_static_library = library.pic_static_library,
-                alwayslink = True,
-            )
-            for library in linker_input.libraries
-            if library.static_library != None or library.pic_static_library != None
-        ]
-        if libraries:
-            inputs.append(cc_common.create_linker_input(
-                owner = linker_input.owner,
-                libraries = depset(libraries),
-                user_link_flags = linker_input.user_link_flags,
-                additional_inputs = depset(linker_input.additional_inputs),
-            ))
-        else:
-            inputs.append(linker_input)
-    return [CcInfo(linking_context = cc_common.create_linking_context(linker_inputs = depset(inputs)))]
-
-_qt_always_link = rule(
-    implementation = _qt_always_link_impl,
-    doc = "Re-exports the static libraries of a C++ dependency as always linked.",
-    attrs = {"dep": attr.label(providers = [CcInfo], doc = "Dependency whose static libraries must reach the link.")},
-    provides = [CcInfo],
-)
-
 _qt_rust_runtime_files = rule(
     implementation = _qt_rust_runtime_files_impl,
     doc = "Stages the CXX-Qt runtime headers and generates its CXX bridges.",
@@ -1037,13 +1006,6 @@ def qt_rust_cc_library(
         visibility = visibility,
         **shared
     )
-    _qt_always_link(
-        name = name + "_rust_linked",
-        dep = rust,
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-        **shared
-    )
     _output_group(name + "_bridge_hdrs", ":" + name + "_bridge", "qt_rust_hdrs", testonly)
     _output_group(name + "_bridge_moc", ":" + name + "_bridge", "qt_rust_moc_hdrs", testonly)
     _output_group(name + "_bridge_srcs", ":" + name + "_bridge", "qt_rust_srcs", testonly)
@@ -1056,10 +1018,7 @@ def qt_rust_cc_library(
         [],
         "/",
         [],
-        cc_deps + [qt + "//:cxx_qt"] + select({
-            "@platforms//os:macos": [":" + name + "_rust_linked"],
-            "//conditions:default": [rust],
-        }),
+        cc_deps + [rust, qt + "//:cxx_qt"],
         modules if modules != None else (["qml"] if uri != None else ["core"]),
         qt,
         qml_srcs,

@@ -1,4 +1,4 @@
-package javascript
+package common
 
 import (
 	"encoding/json"
@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// isWorkspaceMember reports whether rel holds a package.json and is listed as
+// IsPnpmWorkspaceMember reports whether rel holds a package.json and is listed as
 // a workspace package by an ancestor directory that holds pnpm-lock.yaml.
-func isWorkspaceMember(repoRoot, rel string) bool {
-	if rel == "" || repoRoot == "" || !fileExists(filepath.Join(repoRoot, filepath.FromSlash(rel), "package.json")) {
+func IsPnpmWorkspaceMember(repoRoot, rel string) bool {
+	if rel == "" || repoRoot == "" || !hasFile(repoRoot, path.Join(rel, "package.json")) {
 		return false
 	}
 	for dir := path.Dir(rel); ; dir = path.Dir(dir) {
@@ -19,7 +19,7 @@ func isWorkspaceMember(repoRoot, rel string) bool {
 			dir = ""
 		}
 		abs := filepath.Join(repoRoot, filepath.FromSlash(dir))
-		if fileExists(filepath.Join(abs, "pnpm-lock.yaml")) {
+		if hasFile(repoRoot, path.Join(dir, "pnpm-lock.yaml")) {
 			sub := strings.TrimPrefix(strings.TrimPrefix(rel, dir), "/")
 			if matchesWorkspace(workspacePatterns(abs), sub) {
 				return true

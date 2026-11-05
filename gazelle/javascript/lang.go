@@ -114,7 +114,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	sort.Strings(sources)
 	var result language.GenerateResult
-	if fileExists(filepath.Join(args.Dir, "pnpm-lock.yaml")) || (args.Config != nil && isWorkspaceMember(args.Config.RepoRoot, args.Rel)) {
+	if fileExists(filepath.Join(args.Dir, "pnpm-lock.yaml")) || (args.Config != nil && common.IsPnpmWorkspaceMember(args.Config.RepoRoot, args.Rel)) {
 		link := rule.NewRule(linkKind, "node_modules")
 		result.Gen = append(result.Gen, link)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))

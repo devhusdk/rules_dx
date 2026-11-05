@@ -29,9 +29,9 @@ type externalParser struct {
 	// DefaultRepo is the hub repository a source uses when the directive
 	// names none. An empty DefaultRepo means the ecosystem takes no repo.
 	DefaultRepo string
-	// BelowRoot, when set, is a file a non-root directory must also hold for
-	// Discover to feed it. The root needs no such file.
-	BelowRoot string
+	// Below, when set, reports whether a non-root directory may feed the
+	// ecosystem. The root needs no such check.
+	Below func(root, rel string) bool
 	// Place adjusts a discovered manifest for the directory it was found in.
 	Place func(m externalManifest, rel string) externalManifest
 	Parse    func(content []byte, path string) (externalManifest, error)
@@ -76,7 +76,7 @@ var externalParsers = map[string]externalParser{
 	},
 	"npm": {
 		Discover: "package.json",
-		BelowRoot: "pnpm-lock.yaml",
+		Below:    npmBelow,
 		Place:     placeNpmManifest,
 		Parse:     parseNpmManifest,
 	},
@@ -140,7 +140,7 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 	sort.Strings(ecos)
 	for _, eco := range ecos {
 		parser := externalParsers[eco]
-		if rel != "" && parser.BelowRoot != "" && !hasFile(c.RepoRoot, path.Join(rel, parser.BelowRoot)) {
+		if rel != "" && parser.Below != nil && !parser.Below(c.RepoRoot, rel) {
 			continue
 		}
 		relPath := path.Join(rel, parser.Discover)

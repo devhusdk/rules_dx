@@ -332,6 +332,29 @@ func TestExternalNpmLockDirs(t *testing.T) {
 	}
 }
 
+func TestExternalNpmWorkspaceImporters(t *testing.T) {
+	cfg, root := externalConfig(t)
+	dotFile(t, root, "web/package.json", `{"dependencies":{"vite":"1"}}`)
+	dotFile(t, root, "web/pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	dotFile(t, root, "web/pnpm-workspace.yaml", "packages:\n  - 'apps/*'\n")
+	dotFile(t, root, "web/apps/ui/package.json", `{"dependencies":{"react":"1"}}`)
+	dotFile(t, root, "web/other/package.json", `{"dependencies":{"vue":"1"}}`)
+	ui := cfg.Clone()
+	if errs := ConfigureExternal(ui, "web/apps/ui", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	if got, _ := ExternalLabels(ui, "npm", "react"); labelStrings(got) != "//web/apps/ui:node_modules/react" {
+		t.Errorf("react: got %v", got)
+	}
+	other := cfg.Clone()
+	if errs := ConfigureExternal(other, "web/other", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	if got, _ := ExternalLabels(other, "npm", "vue"); got != nil {
+		t.Errorf("non-importer vue: got %v", got)
+	}
+}
+
 func TestExternalNpmBOM(t *testing.T) {
 	cfg, root := externalConfig(t)
 	dotFile(t, root, "package.json", "\xEF\xBB\xBF"+`{"dependencies":{"react":"1"}}`)

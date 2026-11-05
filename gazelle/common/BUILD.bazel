@@ -47,6 +47,7 @@ go_library(
         "manifest.go",
         "naming.go",
         "nodestdlib.go",
+        "pnpmworkspace.go",
         "registry.go",
         "remedy.go",
         "singlelang.go",

@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/json"
+	"path"
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
@@ -12,6 +13,12 @@ type npmManifest struct {
 	packages map[string]bool
 	// dir is the package holding the pnpm lock the packages link from.
 	dir string
+}
+
+// npmBelow lets a directory feed npm when it holds a pnpm lock or is a
+// workspace importer of one.
+func npmBelow(root, rel string) bool {
+	return hasFile(root, path.Join(rel, "pnpm-lock.yaml")) || IsPnpmWorkspaceMember(root, rel)
 }
 
 func placeNpmManifest(m externalManifest, rel string) externalManifest {

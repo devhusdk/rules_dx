@@ -2494,12 +2494,27 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/.github/workflows/ci.yml"
         ]
     );
-    let knip = knip_check(Path::new(BIN), "web");
+    let knip = knip_check(Path::new(BIN), "web", None);
     assert_eq!(
         argv_strings(&knip),
         vec![BIN, "--reporter", "json", "--no-progress"]
     );
     assert_eq!(knip.cwd_rel, "web");
+    assert_eq!(
+        argv_strings(&knip_check(
+            Path::new(BIN),
+            "web",
+            Some(Path::new("/scratch/dx-unused/knip.json"))
+        )),
+        vec![
+            BIN,
+            "--reporter",
+            "json",
+            "--no-progress",
+            "--config",
+            "/scratch/dx-unused/knip.json"
+        ]
+    );
     let dockerfile = Path::new("/scratch/Dockerfile");
     assert_eq!(
         argv_strings(&hadolint_check(

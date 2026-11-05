@@ -483,3 +483,5 @@ Every finding is a `warning` with no fix. `dx unused` exits `0` by default. Pass
 A consumer policy lists these tools under `unused` in `quality_family`. Moving a tool such as `vulture` out of `lint = [...]` and into `unused = [...]` is required: listing it under `lint` fails analysis.
 
 `vulture` runs once per target over its whole dependency closure. Findings in a `*_binary` or `*_test` main, or in a `//visibility:public` target, are dropped for names without a leading `_`. Everything in a target tagged `dx-keep` is dropped.
+
+`knip`, `debride` and `xref` read the same roots. Every finding in a main, a `//visibility:public` target or a `dx-keep` target is dropped. `knip` also receives those files as `entry` files in a generated config, so what they import counts as used; a package with its own knip config keeps it.

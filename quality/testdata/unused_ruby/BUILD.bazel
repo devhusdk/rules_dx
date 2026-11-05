@@ -1,0 +1,48 @@
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//ruby/rules:defs.bzl", "ruby_binary", "ruby_library")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "ruby_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "ruby",
+    unused = ["debride"],
+)
+
+workspace_policy(
+    name = "ruby_policy",
+    families = [":ruby_family"],
+)
+
+ruby_library(
+    name = "private_lib",
+    srcs = ["private_lib.rb"],
+)
+
+ruby_library(
+    name = "public_lib",
+    srcs = ["public_lib.rb"],
+    visibility = ["//visibility:public"],
+)
+
+ruby_library(
+    name = "keep_lib",
+    srcs = ["keep_lib.rb"],
+    tags = ["dx-keep"],
+)
+
+ruby_binary(
+    name = "app",
+    srcs = ["app.rb"],
+    deps = [
+        ":keep_lib",
+        ":private_lib",
+        ":public_lib",
+    ],
+)

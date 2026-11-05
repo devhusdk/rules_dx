@@ -2698,9 +2698,18 @@ pub fn zizmor_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIZMOR_PREFIX, files, "")
 }
 
-/// Knip analyses the package it starts in, so the run happens in the package root.
-pub fn knip_check(binary: &Path, root_rel: &str) -> Invocation {
-    fixed(binary, KNIP_PREFIX, &[], root_rel)
+/// Knip analyses the package it starts in, so the run happens in the package root. A config
+/// adds the Bazel-graph roots as entry files.
+pub fn knip_check(binary: &Path, root_rel: &str, config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        KNIP_PREFIX,
+        "--config",
+        config,
+        EMPTY_ARGS,
+        &[],
+        root_rel,
+    )
 }
 
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.

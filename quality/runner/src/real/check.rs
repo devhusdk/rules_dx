@@ -330,19 +330,24 @@ impl RealBackend {
                     },
                 )
             }
-            "debride" => self.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::debride_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_debride(&out.stdout, &out.stderr, out.code, names),
-                    )
-                },
-            ),
+            "debride" => {
+                let roots = unused_roots(tool_id, tool, pairs)?;
+                let mut found = self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::debride_check(&tool.binary, files)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_debride(&out.stdout, &out.stderr, out.code, names),
+                        )
+                    },
+                )?;
+                roots.drop_rooted(&mut found);
+                Ok(found)
+            }
             "nixfmt" => self.check_files(
                 tool_id,
                 tool,
@@ -514,9 +519,11 @@ impl RealBackend {
                 .or_default()
                 .push((inside.to_string_lossy().replace('\\', "/"), absolute));
         }
+        let unused = unused_roots(tool_id, tool, pairs)?;
         let mut found = Vec::new();
         for (package, members) in &roots {
-            let invocation = commands::knip_check(&tool.binary, package);
+            let config = knip_entry_config(tool_id, scratch, package, &unused, pairs)?;
+            let invocation = commands::knip_check(&tool.binary, package, config.as_deref());
             let out = self.run(tool_id, tool, &invocation, scratch)?;
             let names: Vec<&str> = members.iter().map(|(inside, _)| inside.as_str()).collect();
             for mut hit in parsed(
@@ -530,6 +537,7 @@ impl RealBackend {
                 found.push(hit);
             }
         }
+        unused.drop_rooted(&mut found);
         Ok(found)
     }
 
@@ -959,6 +967,53 @@ impl RealBackend {
         });
         Ok(merged)
     }
+}
+
+const KNIP_CONFIGS: &[&str] = &[
+    "knip.json",
+    "knip.jsonc",
+    ".knip.json",
+    ".knip.jsonc",
+    "knip.ts",
+    "knip.js",
+];
+
+/// Writes a knip config listing the roots inside one package as `entry` files, so what they
+/// import counts as used. A package with its own knip config keeps it.
+fn knip_entry_config(
+    tool_id: &str,
+    scratch: &Scratch,
+    package: &str,
+    roots: &parsers::UnusedRoots,
+    pairs: &[(String, PathBuf)],
+) -> Result<Option<PathBuf>, RunnerError> {
+    let root = scratch.root();
+    let dir = root.join(package);
+    if KNIP_CONFIGS.iter().any(|name| dir.join(name).is_file()) {
+        return Ok(None);
+    }
+    let mut entries: Vec<String> = pairs
+        .iter()
+        .filter(|(_, absolute)| {
+            let name = absolute.to_string_lossy();
+            roots.exported.contains(name.as_ref()) || roots.keep.contains(name.as_ref())
+        })
+        .filter_map(|(_, absolute)| absolute.strip_prefix(&dir).ok())
+        .map(|inside| inside.to_string_lossy().replace('\\', "/"))
+        .collect();
+    if entries.is_empty() {
+        return Ok(None);
+    }
+    entries.sort();
+    let out = root
+        .join("dx-unused")
+        .join(if package.is_empty() { "root" } else { package });
+    std::fs::create_dir_all(&out)
+        .map_err(|err| execution(tool_id, format!("create {}: {err}", out.display())))?;
+    let config = out.join("knip.json");
+    std::fs::write(&config, serde_json::json!({ "entry": entries }).to_string())
+        .map_err(|err| execution(tool_id, format!("write {}: {err}", config.display())))?;
+    Ok(Some(config))
 }
 
 /// Reads the roots file the unused shard stages; without one nothing is kept alive.

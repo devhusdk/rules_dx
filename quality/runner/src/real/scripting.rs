@@ -196,6 +196,7 @@ fn xref(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Run
     let dep_refs: Vec<&Path> = deps.iter().map(PathBuf::as_path).collect();
     let owned_refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
     let name_refs: Vec<&str> = pairs.iter().map(|(rel, _)| rel.as_str()).collect();
+    let roots = super::check::unused_roots(tool_id, tool, pairs)?;
     let invocation =
         commands::xref_check(&tool.binary, &script, &code_dirs, &dep_refs, &owned_refs);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
@@ -208,6 +209,7 @@ fn xref(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Run
             found.file = absolute.to_string_lossy().into_owned();
         }
     }
+    roots.drop_rooted(&mut findings);
     Ok(findings)
 }
 

@@ -3,6 +3,7 @@
 load("//quality:family_hooks.bzl", "default_files_hook", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
+load("//quality:unused_roots.bzl", "unused_closure_sources", "unused_roots_aspect", "unused_roots_context")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 
 TOOLS = {
@@ -92,7 +93,8 @@ SHARD_SPECS = {
     },
     "real_js_unused": {
         "capability": "unused",
-        "doc": "Additive JavaScript unused-code family aspect (knip).",
+        "doc": "Additive JavaScript unused-code family aspect (knip over the target's whole closure).",
+        "requires": [unused_roots_aspect],
         "shard": "js",
         "suffix": "-js",
     },
@@ -116,12 +118,31 @@ def _prettier_hook(target, _ctx, _resolved, _capability, _what, _shared):
         return real_context()
     return real_context(options = {"dialect": target[SqlDialectInfo].dialect})
 
-HOOK_ORDER = ["tsc", "prettier", "redocly"]
+_JS_EXTENSIONS = ["cjs", "cts", "js", "mjs", "mts", "ts", "tsx"]
+
+_JS_CLASSES = {
+    "cjs": "javascript",
+    "cts": "typescript",
+    "js": "javascript",
+    "mjs": "javascript",
+    "mts": "typescript",
+    "ts": "typescript",
+    "tsx": "tsx",
+}
+
+def _knip_hook(target, ctx, _resolved, _capability, _what, _shared):
+    return unused_roots_context(target, ctx, _JS_EXTENSIONS)
+
+def _harness_sources(target, capability, direct_sources):
+    return unused_closure_sources(target, capability, direct_sources, _JS_CLASSES)
+
+HOOK_ORDER = ["tsc", "prettier", "redocly", "knip"]
 
 HOOKS = {
     "tsc": _tsc_hook,
     "prettier": _prettier_hook,
     "redocly": default_files_hook(["yaml", "yml", "json"]),
+    "knip": _knip_hook,
 }
 
 _CFG = real_config(
@@ -130,7 +151,7 @@ _CFG = real_config(
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
     source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
+    harness_sources = _harness_sources,
     toolchain = None,
     check_policy = False,
 )

@@ -2,7 +2,7 @@
 
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//quality:unused_roots.bzl", "DxUnusedRootsInfo", "unused_roots_aspect")
+load("//quality:unused_roots.bzl", "unused_closure_sources", "unused_roots_aspect", "unused_roots_context")
 
 TOOLS = {
     "flake8": {
@@ -94,29 +94,11 @@ def _ty_hook(target, _ctx, _resolved, _capability, _what, _shared):
             search_dirs.append(f)
     return real_context(early_inputs = search_dirs, resolve_pairs = pairs, options = {"search_paths": search_dirs})
 
-def _python_files(files):
-    return [f for f in files if f.extension == "py"]
-
-def _roots_paths(files):
-    return sorted({f.short_path: True for f in _python_files(files.to_list())}.keys())
-
 def _vulture_hook(target, ctx, _resolved, _capability, _what, _shared):
-    if DxUnusedRootsInfo not in target:
-        return real_context()
-    roots = target[DxUnusedRootsInfo]
-    out = ctx.actions.declare_file(target.label.name + "-dx-unused-roots.json")
-    ctx.actions.write(out, json.encode({
-        "keep": _roots_paths(roots.keep),
-        "mains": _roots_paths(roots.mains),
-        "public": _roots_paths(roots.public),
-    }))
-    return real_context(tool_files = [("dx-unused/roots.json", out)], inputs = [out])
+    return unused_roots_context(target, ctx, ["py"])
 
 def _harness_sources(target, capability, direct_sources):
-    if capability != "unused" or DxUnusedRootsInfo not in target:
-        return direct_sources
-    closure = _python_files(target[DxUnusedRootsInfo].sources.to_list())
-    return {"python": depset(closure)} if closure else direct_sources
+    return unused_closure_sources(target, capability, direct_sources, {"py": "python"})
 
 HOOK_ORDER = ["ty", "vulture"]
 

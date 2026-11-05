@@ -3,6 +3,7 @@
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo", "XrefToolInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//quality:unused_roots.bzl", "unused_roots_aspect", "unused_roots_context")
 
 TOOLS = {
     "credo": {
@@ -65,6 +66,7 @@ SHARD_SPECS = {
     "real_erlang_unused": {
         "capability": "unused",
         "doc": "Additive Erlang unused-code family aspect (xref).",
+        "requires": [unused_roots_aspect],
         "shard": "erlang",
         "suffix": "-erlang",
     },
@@ -89,6 +91,7 @@ SHARD_SPECS = {
     "real_elixir_unused": {
         "capability": "unused",
         "doc": "Additive Elixir unused-code family aspect (xref).",
+        "requires": [unused_roots_aspect],
         "shard": "elixir",
         "suffix": "-elixir",
     },
@@ -111,7 +114,7 @@ def _stage_beams(target, prefix, tool_files, inputs):
         seen_aux[beam.path] = True
         stage(tool_files, inputs, "%s/aux/%d/%s" % (prefix, index, beam.basename), beam)
 
-def _xref_hook(target, ctx, resolved, _capability, what, _shared):
+def _xref_hook(target, ctx, resolved, capability, what, _shared):
     if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
         return without(resolved, "xref")
     tool_target = getattr(ctx.attr, "_xref")
@@ -121,6 +124,10 @@ def _xref_hook(target, ctx, resolved, _capability, what, _shared):
     inputs = []
     stage(tool_files, inputs, "dx-xref/dx_xref.escript", tool_target[XrefToolInfo].script)
     _stage_beams(target, "dx-xref", tool_files, inputs)
+    if capability == "unused":
+        roots = unused_roots_context(target, ctx, ["erl", "ex"])
+        tool_files += roots.tool_files
+        inputs += roots.inputs
     return real_context(tool_files = tool_files, inputs = inputs)
 
 def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):

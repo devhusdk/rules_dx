@@ -59,6 +59,16 @@ pub struct UnusedRoots {
     pub keep: BTreeSet<String>,
 }
 
+impl UnusedRoots {
+    /// Drops every finding in a main, public or keep file, for tools that report whole
+    /// definitions (exports, methods, files) rather than names.
+    pub fn drop_rooted(&self, findings: &mut Vec<FileFinding>) {
+        findings.retain(|found| {
+            !self.exported.contains(&found.file) && !self.keep.contains(&found.file)
+        });
+    }
+}
+
 /// `unused function 'foo' (60% confidence)` names `foo`.
 fn flagged_name(message: &str) -> &str {
     let rest = message.split_once('\'').map_or("", |(_, rest)| rest);
@@ -181,6 +191,24 @@ mod tests {
             .map(|found| (found.file.as_str(), found.finding.start.line))
             .collect();
         assert_eq!(kept, vec![("/s/lib.py", 5), ("/s/priv.py", 4)]);
+    }
+
+    #[test]
+    fn drop_rooted_removes_every_finding_in_a_root_file() {
+        let stdout = concat!(
+            "/s/lib.py:5: unused function 'api' (60% confidence)\n",
+            "/s/keep.py:2: unused function 'kept' (60% confidence)\n",
+            "/s/priv.py:4: unused function 'dead' (60% confidence)\n",
+        );
+        let files = ["/s/lib.py", "/s/keep.py", "/s/priv.py"];
+        let roots = UnusedRoots {
+            exported: ["/s/lib.py"].map(String::from).into(),
+            keep: ["/s/keep.py"].map(String::from).into(),
+        };
+        let mut findings = parse_vulture(stdout.as_bytes(), Some(3), &files).expect("parsed");
+        roots.drop_rooted(&mut findings);
+        let kept: Vec<_> = findings.iter().map(|found| found.file.as_str()).collect();
+        assert_eq!(kept, vec!["/s/priv.py"]);
     }
 
     #[test]

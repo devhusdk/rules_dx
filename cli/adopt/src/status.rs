@@ -6,6 +6,7 @@ use crate::AdoptError;
 
 use super::{read_module_dependency, version_pin_matches_module, MODULE_VERSION};
 use crate::version::version_move_hint;
+use crate::{LauncherPins, RELEASE_ASSETS};
 use dx_versions::{
     RULES_RUST_VERSION as CONSUMER_RULES_RUST_VERSION, RUST_VERSION as CONSUMER_RUST_VERSION,
 };
@@ -26,14 +27,40 @@ pub fn render_status_text(checks: &[StatusCheck]) -> String {
         .join("\n")
 }
 
-fn pin_check(pinned: Result<String, AdoptError>) -> StatusCheck {
+fn missing_pin_hash(held: &LauncherPins, released: &LauncherPins) -> Option<&'static str> {
+    let has = |pins: &LauncherPins, asset: &str| pins.get(asset).is_some_and(|h| !h.is_empty());
+    let all_released = RELEASE_ASSETS.iter().all(|asset| has(released, asset));
+    if !all_released {
+        return None;
+    }
+    RELEASE_ASSETS
+        .iter()
+        .copied()
+        .find(|asset| !has(held, asset))
+}
+
+fn pin_check(
+    pinned: Result<String, AdoptError>,
+    held: &LauncherPins,
+    released: &LauncherPins,
+) -> StatusCheck {
     match pinned {
-        Ok(pinned) if version_pin_matches_module(&pinned, MODULE_VERSION) => check(
-            "pin",
-            "ok",
-            format!("dx {pinned} vs module {MODULE_VERSION}"),
-            "dx status",
-        ),
+        Ok(pinned) if version_pin_matches_module(&pinned, MODULE_VERSION) => {
+            match missing_pin_hash(held, released) {
+                Some(asset) => check(
+                    "pin",
+                    "warn",
+                    format!("dx {pinned} has no sha256 for {asset}; launchers run dx through Bazel until .dx/pins is refreshed"),
+                    "dx init --apply",
+                ),
+                None => check(
+                    "pin",
+                    "ok",
+                    format!("dx {pinned} vs module {MODULE_VERSION}"),
+                    "dx status",
+                ),
+            }
+        }
         Ok(pinned) => check(
             "pin",
             "warn",
@@ -429,7 +456,11 @@ pub fn observed_status_checks(
         host_check(std::env::consts::OS, std::env::consts::ARCH),
         exec_tools_check(root),
         tools,
-        pin_check(pinned),
+        pin_check(
+            pinned,
+            &crate::read_version_pins(root).unwrap_or_default(),
+            &crate::release_pins(MODULE_VERSION).unwrap_or_default(),
+        ),
     ];
     checks.extend(ide_check(root));
     checks
@@ -438,6 +469,8 @@ pub fn observed_status_checks(
 #[cfg(test)]
 mod tests {
     use super::super::{StatusCheck, MODULE_VERSION};
+
+    use crate::{LauncherPins, RELEASE_ASSETS};
 
     use super::{init_plan_check, pin_check, render_status_text, toolchain_check};
 
@@ -470,7 +503,11 @@ mod tests {
         .expect("module");
         let checks = vec![
             toolchain_check(dir),
-            pin_check(Ok(MODULE_VERSION.to_owned())),
+            pin_check(
+                Ok(MODULE_VERSION.to_owned()),
+                &LauncherPins::default(),
+                &LauncherPins::default(),
+            ),
         ];
         let text = render_status_text(&checks);
         assert!(text.contains("pin: ok"), "{text}");
@@ -567,9 +604,45 @@ mod tests {
 
     #[test]
     fn pin_check_hints_the_write_for_an_empty_pin() {
-        let check = pin_check(Ok(String::new()));
+        let none = LauncherPins::default();
+        let check = pin_check(Ok(String::new()), &none, &none);
         assert_eq!(check.status, "warn");
         assert_eq!(check.hint, "dx init --apply");
+    }
+
+    fn full_pins() -> LauncherPins {
+        let lines: Vec<String> = RELEASE_ASSETS
+            .iter()
+            .map(|asset| format!("{MODULE_VERSION} {} {asset}", "a".repeat(64)))
+            .collect();
+        LauncherPins::from_pin_lines(lines.iter().map(String::as_str)).expect("pins")
+    }
+
+    #[test]
+    fn pin_check_needs_hashes_when_the_module_is_released() {
+        let ok = pin_check(Ok(MODULE_VERSION.to_owned()), &full_pins(), &full_pins());
+        assert_eq!(ok.status, "ok", "{}", ok.detail);
+        let bare = pin_check(
+            Ok(MODULE_VERSION.to_owned()),
+            &LauncherPins::default(),
+            &full_pins(),
+        );
+        assert_eq!(bare.status, "warn");
+        assert!(
+            bare.detail.contains(&format!(
+                "has no sha256 for {}; launchers run dx through Bazel",
+                RELEASE_ASSETS[0]
+            )),
+            "{}",
+            bare.detail
+        );
+        assert_eq!(bare.hint, "dx init --apply");
+        let unreleased = pin_check(
+            Ok(MODULE_VERSION.to_owned()),
+            &LauncherPins::default(),
+            &LauncherPins::default(),
+        );
+        assert_eq!(unreleased.status, "ok", "{}", unreleased.detail);
     }
 
     #[test]

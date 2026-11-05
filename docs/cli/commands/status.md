@@ -31,7 +31,7 @@ Scopes: none.
 | `host` | Host is linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 or windows_arm64. |
 | `exec_tools` | `warn` when `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`. |
 | `tools` | Tools selected by `dx env --apply`. `warn` when none; `error` when a link or `values.json` is missing or corrupt. |
-| `pin` | `.dx/pins` against the `dx` version. `warn` when missing, empty or another version: launchers run `dx` through Bazel until `dx init --apply` refreshes it. |
+| `pin` | `.dx/pins` against the `dx` version. `warn` when missing, empty, another version, or lacking a sha256 per release asset once the module version is released: launchers run `dx` through Bazel until `dx init --apply` refreshes it. |
 | `init` | Files `dx init` writes that are missing or out of date. |
 | `ide` | After `.dx/ide/state.json` exists: `ok`, or `error` with the failing plug-ins. Fix with `dx env --apply`. |
 | `lease` | Inside a `dx worktree` slot: holder and branch. |

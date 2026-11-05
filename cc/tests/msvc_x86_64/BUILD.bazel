@@ -27,7 +27,7 @@ cc_toolchain_binary(
     name = "hello_msvc",
     binary = ":hello_cxx",
     compiler = "msvc",
-    platforms = [":windows_x86_64"],
+    platforms = ["//cc/tests/msvc_x86_64:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
 )

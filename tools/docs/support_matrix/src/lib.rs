@@ -37,9 +37,19 @@ pub struct Row {
     pub doc: Option<String>,
     #[serde(default)]
     pub identity: BTreeMap<String, String>,
+    /// The coverage collector; absent when coverage does not apply to the row.
+    #[serde(default)]
+    pub coverage: Option<Coverage>,
     pub ci_tests: Vec<String>,
     pub consumer_tests: Vec<String>,
     pub workflows: Vec<String>,
+}
+
+/// The coverage collectors of a row, or the reason it has none.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Coverage {
+    pub collectors: Vec<String>,
+    pub reason: String,
 }
 
 /// One explicit tool support record.

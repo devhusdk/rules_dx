@@ -91,6 +91,49 @@ DOC_TOOLS = {
     "zig": None,
 }
 
+# The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.
+COVERAGE_COLLECTORS = {
+    "cc": ["gcov", "llvm-cov"],
+    "csharp": ["coverlet"],
+    "erlang": ["cover"],
+    "fsharp": ["coverlet"],
+    "go": ["go cover"],
+    "java": ["jacoco"],
+    "javascript": ["jest"],
+    "kotlin": ["jacoco"],
+    "python": ["coverage.py"],
+    "ruby": ["simplecov"],
+    "rust": ["llvm-cov"],
+    "scala": ["jacoco"],
+    "typescript": ["jest"],
+}
+
+# The reason a row's tests have no coverage collector.
+NO_COVERAGE = {
+    "android": "no dx coverage wiring in the Android rules",
+    "apple": "no dx coverage wiring in the Apple rules",
+    "astro": "js_test has no dx coverage wiring",
+    "cuda": "cuda_test has no dx coverage wiring",
+    "d": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "dart": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "elixir": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "flutter": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "fortran": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "haskell": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "julia": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "lua": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "mdx": "js_test has no dx coverage wiring",
+    "ocaml": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "perl": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "php": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "powershell": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+    "qt": "no dx coverage wiring in the Qt rules",
+    "svelte": "js_test has no dx coverage wiring",
+    "vue": "js_test has no dx coverage wiring",
+    "wasi": "the WASI guest test has no coverage collector",
+    "zig": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
+}
+
 def _hello(lang):
     return ["//" + lang + "/tests/fixtures/hello:hello_test"]
 

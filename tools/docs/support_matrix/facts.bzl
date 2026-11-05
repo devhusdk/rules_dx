@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "DOC_TOOLS", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
+load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -18,6 +18,13 @@ def _doc(name):
         return None
     entry = DOC_TOOLS[name]
     return entry["tool"] if entry else ""
+
+def _coverage(name):
+    if name in COVERAGE_COLLECTORS:
+        return {"collectors": COVERAGE_COLLECTORS[name], "reason": ""}
+    if name in NO_COVERAGE:
+        return {"collectors": [], "reason": NO_COVERAGE[name]}
+    return None
 
 def _quality():
     families = {}
@@ -104,6 +111,12 @@ def support_matrix_facts_dict():
         if compiler not in CC_COMPILERS:
             fail("support matrix: COMPILER_PROBES names unknown compiler " + compiler)
     row_names = {row["name"]: True for row in ROWS}
+    for name in COVERAGE_COLLECTORS:
+        if name not in row_names or name in NO_COVERAGE:
+            fail("support matrix: COVERAGE_COLLECTORS names " + name + " which is unknown or also in NO_COVERAGE")
+    for name in NO_COVERAGE:
+        if name not in row_names:
+            fail("support matrix: NO_COVERAGE names unknown row " + name)
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
     tool_na = tool_not_applicable(SUPPORT_RECORDS)
     declared_tables = PLATFORM_NOT_APPLICABLE.items()
@@ -141,6 +154,7 @@ def support_matrix_facts_dict():
             {
                 "ci_tests": row.get("ci_tests", []),
                 "consumer_tests": row.get("consumer_tests", []),
+                "coverage": _coverage(row["name"]),
                 "doc": _doc(row["name"]),
                 "families": row.get("families", [row["name"]]),
                 "identity": _identity(row),

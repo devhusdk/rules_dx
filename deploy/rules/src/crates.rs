@@ -848,4 +848,62 @@ mod tests {
         );
         assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "3");
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn api_check_fails_on_breaking_change_unless_major() {
+        let scratch = scratch_dir();
+        let repo = scratch.path().join("repo");
+        std::fs::create_dir_all(&repo).expect("repo dir");
+        for args in [
+            vec!["init", "-q"],
+            vec![
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.com",
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "x",
+            ],
+            vec!["tag", "v1.2.0"],
+        ] {
+            let status = std::process::Command::new("git")
+                .args(&args)
+                .current_dir(&repo)
+                .status()
+                .expect("git");
+            assert!(status.success(), "git {args:?}");
+        }
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let mapped = crates_package_paths(&files).expect("paths");
+        let args_log = scratch.path().join("args");
+        let fake = scratch.path().join("cargo-semver-checks");
+        std::fs::write(
+            &fake,
+            format!(
+                "#!/bin/sh\necho \"$@\" > {}\necho '--- failure pub_function_missing'\nexit 1\n",
+                args_log.display()
+            ),
+        )
+        .expect("fake tool");
+        set_mode(&fake, 0o755);
+        let repo_dir = repo.display().to_string();
+        let run = |version: &str, mode: ApiCompatMode| {
+            with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
+                crates_api_check(Some(&fake), &mapped, version, "pkg", mode, "git")
+            })
+        };
+        let refused = run("1.2.1", ApiCompatMode::Fail).expect_err("patch bump refused");
+        assert!(refused.contains("1.2.0 -> 1.2.1"), "{refused}");
+        let logged = std::fs::read_to_string(&args_log).expect("args");
+        assert!(logged.contains("--baseline-rev v1.2.0"), "{logged}");
+        assert!(run("2.0.0", ApiCompatMode::Fail).is_ok());
+        assert!(run("1.2.1", ApiCompatMode::Warn).is_ok());
+        std::fs::remove_file(&args_log).expect("clear log");
+        assert!(run("1.2.1", ApiCompatMode::Off).is_ok());
+        assert!(!args_log.exists(), "off must not run the tool");
+    }
 }

@@ -67,7 +67,7 @@ pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, A
         )),
         [(path, _)] if path != MODULE_FILE => Err(refuse(
             path,
-            "the rules_dx bazel_dep must be in MODULE.bazel itself, not an included file",
+            "the rules_dx bazel_dep must be in MODULE.bazel itself, not an included file; move it to one line in the root MODULE.bazel",
         )),
         [(path, file)] => {
             let new = file
@@ -77,7 +77,7 @@ pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, A
             if !old.lines().any(is_one_line_dep) {
                 return Err(refuse(
                     path,
-                    "the rules_dx bazel_dep must be one line: bazel_dep(name = \"rules_dx\", version = \"...\")",
+                    "the rules_dx bazel_dep must be one line in the root MODULE.bazel: bazel_dep(name = \"rules_dx\", version = \"...\")",
                 ));
             }
             Ok(ModuleEdit {
@@ -150,6 +150,7 @@ mod tests {
         let err =
             plan(&[("MODULE.bazel", root), ("tools/dx.MODULE.bazel", DEP)]).expect_err("refused");
         assert!(err.to_string().contains("MODULE.bazel itself"), "{err}");
+        assert!(err.to_string().contains("one line"), "{err}");
     }
 
     #[test]

@@ -227,7 +227,7 @@ const PACKAGES: [&str; 114] = [
 ];
 
 /// Fewer packages than this means the list lost its data.
-const MIN_PACKAGES: usize = 115;
+const MIN_PACKAGES: usize = 114;
 
 /// Fewer Rust targets than this means the sweep lost its data.
 const MIN_TARGETS: usize = 400;

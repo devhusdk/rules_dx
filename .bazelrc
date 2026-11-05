@@ -90,6 +90,10 @@ common:rbe --strategy=TestRunner=remote,sandboxed,local
 # Fixture for consumer --config passthrough checks.
 build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
 
+# iOS simulator builds run debug code for arm64 simulators.
+build:ios_sim --compilation_mode=dbg
+build:ios_sim --ios_multi_cpus=sim_arm64
+
 build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 
 # Source builds of Python sdists run without network.

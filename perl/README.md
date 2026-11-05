@@ -111,14 +111,16 @@ exists, the Perl rules add the `no-typecheck` tag to every target. Set
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
+| `linux_arm64` | Qualified by CI |
 | `macos_x86_64` | Not qualified |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |
 | `windows_arm64` | Unsupported |
 
-`macos_x86_64` has no CI cell. The `linux_arm64`, `macos_arm64` and
-`windows_x86_64` cells stay Not qualified until the evidence workflow has
+`macos_x86_64` has no CI cell. The `linux_arm64` cell is qualified by
+evidence.yml run 42002623118 (`//perl/tests/fixtures/perl-app/...`,
+`//perl/tests/runtime:all`, `//tools/testing/hermetic:perl`). The `macos_arm64`
+and `windows_x86_64` cells stay Not qualified until the evidence workflow has
 passed on them.
 
 rules_perl has no toolchain for other platforms. The wrappers mark their

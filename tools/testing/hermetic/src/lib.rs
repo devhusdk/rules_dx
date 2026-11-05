@@ -691,7 +691,7 @@ impl Isolation {
     pub fn macos_profile(&self, net: Net) -> String {
         let mut profile = "(version 1)(allow default)".to_owned();
         if net == Net::Denied {
-            profile.push_str("(deny network*)(allow network* (remote ip \"localhost:*\"))(allow network* (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
+            profile.push_str("(deny network*)(allow network-outbound (remote ip \"localhost:*\"))(allow network-bind network-inbound (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
         }
         for dir in self.sdk_dirs.iter().chain(&self.home_dirs) {
             profile.push_str(&format!(

@@ -49,9 +49,9 @@ fn isolation_denies_network_masks_tools_and_config_and_keeps_the_real_user() {
         "(exec 3<>/dev/tcp/1.1.1.1/443) && echo network=open\n\
          echo uid=$(id -u)\n\
          {devices}\
-         echo cargo=$(ls -A '{home_text}/.cargo' | wc -l)\n\
-         echo netrc=$(wc -c < '{home_text}/.netrc' 2>/dev/null || echo 0)\n\
-         echo sdk=$(find {sdk} -mindepth 1 | wc -l)\n\
+         echo cargo=$(ls -A '{home_text}/.cargo' 2>/dev/null | wc -l | tr -d ' ')\n\
+         echo netrc=$(cat '{home_text}/.netrc' 2>/dev/null | wc -c | tr -d ' ')\n\
+         echo sdk=$(find {sdk} -mindepth 1 2>/dev/null | wc -l | tr -d ' ')\n\
          {tool} --version\n\
          echo tool_exit=$?\n",
         sdk = isolation

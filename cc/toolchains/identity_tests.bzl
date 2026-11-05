@@ -76,7 +76,7 @@ aspect_field transitive_count=0"""
 
 EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test_msvc
 field cc.abi=msvc
-field cc.builtin_includes=MSVC_INCLUDES
+field cc.builtin_includes=external/+msvc+dx_msvc/VC/Tools/MSVC/14.50.35717/include | external/+msvc+dx_msvc/Windows Kits/10/Include/10.0.26100.0/shared | external/+msvc+dx_msvc/Windows Kits/10/Include/10.0.26100.0/ucrt | external/+msvc+dx_msvc/Windows Kits/10/Include/10.0.26100.0/um | external/+msvc+dx_msvc/Windows Kits/10/Include/10.0.26100.0/winrt
 field cc.compiler=msvc-cl
 field cc.coverage=
 field cc.driver=msvc
@@ -85,7 +85,7 @@ field cc.libc=ucrt
 field cc.syntax_only=/Zs
 field cc.sysroot=None
 field cc.target=x86_64-pc-windows-msvc
-field cc.version=MSVC_VERSION
+field cc.version=14.50.35717
 aspect_field aspect_seen=True
 aspect_field field_count=11
 aspect_field has_subject=True

@@ -125,7 +125,9 @@ tests pass, a build and test pass rather than a hermetic one, since the
 hermetic qualification is linux only. The `windows_x86_64` cell stays Not
 qualified: in the same run the `cli:launcher_test` and
 `//perl/tests/runtime:launcher_test` fail because the `.bat` launcher cannot
-find its `.runfiles_manifest`.
+find its `.runfiles_manifest`. Handing the child the test's manifest with
+backslashes did not change that (evidence.yml runs 42092655665 and
+42094340334).
 
 rules_perl has no toolchain for other platforms. The wrappers mark their
 targets incompatible there, so a build fails instead of running the host

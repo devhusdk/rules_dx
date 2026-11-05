@@ -51,7 +51,7 @@ impl InitFile {
             Kind::Scaffold(kind) => match kind {
                 FileKind::WriteOnce if self.path == "MODULE.bazel" => Ownership::Lines,
                 FileKind::WriteOnce => Ownership::Once,
-                FileKind::VscodeKeys => Ownership::Keys,
+                FileKind::VscodeKeys | FileKind::EditorconfigKeys => Ownership::Keys,
                 FileKind::VscodeRecommendations | FileKind::Bazelignore => Ownership::Lines,
                 FileKind::CiPin(_) | FileKind::DevcontainerPins => Ownership::Pin,
                 FileKind::Generated => Ownership::Whole,

@@ -11,6 +11,7 @@
 //! Pure text merges that change only what dx owns and keep every other byte.
 
 pub mod block;
+pub mod editorconfig;
 pub mod jsonc;
 pub mod yaml_scalar;
 

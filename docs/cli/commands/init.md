@@ -145,7 +145,8 @@ touches after you edit the file:
 | `.dx/config/ruff/standard.toml`, `.dx/config/ruff/strict.toml` | whole | Generated. Written when the tree has Python files. Rewritten when it differs. |
 | `ruff.toml` | once | Written when missing and the tree has Python files. Its `extend` line picks the base. Never rewritten. |
 | `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
-| `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
+| `.editorconfig` | keys | Written when missing. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. On every `dx init`/`dx upgrade`, if the repo has Kotlin sources, dx sets the ktlint keys under `[*.{kt,kts}]`. It never changes other keys or sections, and it overwrites a ktlint key that you changed. |
+| `.gitattributes` | once | Written when missing. Never rewritten. It sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
 | `.vscode/settings.json` | keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
 | `.github/workflows/dx-update.yml` | once | Written when missing. Never rewritten. |

@@ -9,17 +9,20 @@ bazel build //...
 bazel test //...
 ```
 
-The APK and its launchers are tagged manual. They need an installed Android SDK
-with platform android-34, build-tools 35.0.0 and an NDK:
+The APK and its launchers are tagged manual. The APK build fetches the pinned
+Android SDK and NDK, so it needs no ANDROID_HOME:
 
 ```sh
-export ANDROID_HOME=$HOME/Android/Sdk
-export ANDROID_NDK_REVISION=<installed ndk version>
-bazel build --config=android :demo-app_apk_file
-bazel test --config=android :demo-app_check_test
-bazel run --config=android :demo-app_install
-bazel run --config=android :demo-app_start
-bazel run --config=android :demo-app_log
+bazel build :demo-app_apk_file
+bazel test :demo-app_check_test
+```
+
+Only the launchers need adb and a running emulator:
+
+```sh
+bazel run :demo-app_install
+bazel run :demo-app_start
+bazel run :demo-app_log
 ```
 
 The launchers name emulator-5554. The APK is debug-signed, so no keys are needed.

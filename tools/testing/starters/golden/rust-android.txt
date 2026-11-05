@@ -8,4 +8,5 @@ res/values/strings.xml
 src/lib.rs
 bazel_dep rules_dx
 bazel_dep rules_rust
+bazel_dep rules_android
 bazel_dep rules_dx_android

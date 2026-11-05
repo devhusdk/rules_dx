@@ -555,6 +555,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         Constraint::DefaultIfUnset("@rules_dx_apple//ios:cell.bzl", "APPLE_HOSTS"),
     ),
     ("cc_test", Constraint::AsWritten),
+    ("codegen_shard_argv_test", Constraint::AsWritten),
     ("cc_toolchain_test", Constraint::AsWritten),
     ("csharp_test", Constraint::AsWritten),
     (

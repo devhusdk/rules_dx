@@ -79,6 +79,7 @@ DOC_TOOLS = {
     "ocaml": None,
     "perl": None,
     "php": None,
+    "protobuf": None,
     "powershell": {"tool": "pwsh", "shard": "powershell_doc_shard"},
     "python": {"tool": "griffe", "shard": "python_doc_shard"},
     "ruby": {"tool": "yard", "shard": "ruby_doc_shard"},
@@ -204,6 +205,7 @@ ROWS = [
     {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
     {"ci_tests": _hello("powershell"), "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": "PowerShell"},
+    {"ci_tests": ["//generation:codegen_prost_fixture_argv_test"], "name": "protobuf", "section": "languages", "title": "Protobuf"},
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
         "consumer_tests": [

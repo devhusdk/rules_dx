@@ -1,6 +1,6 @@
 # gazelle:ignore
 
-load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
@@ -390,3 +390,20 @@ qt_cc_test(
     plugins = ["imageformats"],
     target_compatible_with = QT_COMPATIBLE_WITH,
 )
+
+[
+    platform_transition_filegroup(
+        name = "consumer_archives_" + cell,
+        srcs = [
+            "//qt/tests/fixtures/qt-rust/app:ledger_release_archive",
+            "//qt/tests/fixtures/qt-tasks/app:board_release_archive",
+            "//qt/tests/fixtures/qt-tasks/app:tasks_release_archive",
+        ],
+        tags = ["manual"],
+        target_platform = "//qt/platforms:" + cell,
+    )
+    for cell in [
+        "linux_x86_64",
+        "linux_arm64",
+    ]
+]

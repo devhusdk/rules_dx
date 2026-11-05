@@ -105,6 +105,7 @@ exports_files([
     "src/bin_deploy_tool.rs",
     "src/bin_hasher.rs",
     "src/bin_npm_pack.rs",
+    "src/bin_size_checker.rs",
     "src/cloudflare.rs",
     "src/config.rs",
     "src/crates.rs",
@@ -241,6 +242,20 @@ rust_binary(
     deps = [":dx_deploy_tools"],
 )
 
+rust_binary(
+    name = "size_checker",
+    srcs = ["src/bin_size_checker.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "size_checker",
+    crate_root = "src/bin_size_checker.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [":dx_deploy_tools"],
+)
+
 rust_test(
     name = "dx_deploy_tools_test",
     aliases = aliases(
@@ -281,6 +296,7 @@ rustfmt_test(
         ":dx_deploy_tools",
         ":hasher",
         ":npm_packer",
+        ":size_checker",
     ],
 )
 
@@ -295,6 +311,7 @@ rust_clippy_test(
         ":dx_deploy_tools",
         ":hasher",
         ":npm_packer",
+        ":size_checker",
     ],
 )
 
@@ -388,6 +405,16 @@ dx_deployment(
         "//deploy/release:notice_demo_a.txt",
     ],
     deploy = ":deploy_program",
+)
+
+dx_deployment(
+    name = "deploy_web_budgeted",
+    artifacts = [
+        ":web_dir",
+        "//deploy/release:notice_demo_a.txt",
+    ],
+    deploy = ":deploy_program",
+    size_budget = "25MB",
 )
 
 deploy_analysis_test(

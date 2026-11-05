@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
 load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
+load(":validate.bzl", "size_budget_bytes", "size_budget_error")
 
 DxDeployInfo = provider(
     doc = "Deploy entrypoint identity and default profile for dx deploy dispatch.",
@@ -24,7 +25,11 @@ def _dx_deployment_impl(ctx):
              str(ctx.attr.deploy.label) + " has no executable")
     link = dx_symlink_executable(ctx, exe)
     runfiles = ctx.runfiles(files = [link]).merge(deploy_default.default_runfiles)
+    budget_error = size_budget_error(ctx.attr.size_budget)
+    if budget_error:
+        fail("dx_deployment " + str(ctx.label) + ": " + budget_error)
     artifact_labels = []
+    artifact_files = []
     for target in ctx.attr.artifacts:
         info = target[DefaultInfo]
         files = info.files.to_list()
@@ -32,6 +37,7 @@ def _dx_deployment_impl(ctx):
             fail("dx_deployment " + str(ctx.label) + ": artifact " +
                  str(target.label) + " provides no files")
         artifact_labels.append(display_label(target.label))
+        artifact_files.extend(files)
         runfiles = runfiles.merge(ctx.runfiles(files = files))
         runfiles = runfiles.merge(info.default_runfiles)
     for target in ctx.attr.data:
@@ -50,7 +56,24 @@ def _dx_deployment_impl(ctx):
     if ctx.attr.app:
         app_label = ctx.attr.app.label
         app_text = display_label(app_label)
+    validation = []
+    if ctx.attr.size_budget and artifact_files:
+        stamp = ctx.actions.declare_file(ctx.label.name + ".size_budget")
+        args = ctx.actions.args()
+        args.add(size_budget_bytes(ctx.attr.size_budget))
+        args.add(stamp)
+        args.add_all(artifact_files)
+        ctx.actions.run(
+            executable = ctx.executable._size_checker,
+            arguments = [args],
+            inputs = artifact_files,
+            outputs = [stamp],
+            mnemonic = "DxSizeBudget",
+            progress_message = "Checking size_budget of " + str(ctx.label),
+        )
+        validation.append(stamp)
     return [
+        OutputGroupInfo(_validation = depset(validation)),
         DefaultInfo(
             executable = link,
             files = depset([link]),
@@ -102,6 +125,14 @@ dx_deployment = rule(
             cfg = "exec",
             executable = True,
             mandatory = True,
+        ),
+        "size_budget": attr.string(
+            doc = "Largest total size of artifacts, such as 25MB (decimal B, KB, MB or GB). Building fails above it and prints both sizes in bytes. Empty means no budget.",
+        ),
+        "_size_checker": attr.label(
+            cfg = "exec",
+            default = Label("//deploy/rules:size_checker"),
+            executable = True,
         ),
         "profile": attr.string(
             doc = "Default deploy profile, one of debug, dev, or release.",

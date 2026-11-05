@@ -242,6 +242,17 @@ pub(crate) fn check_size_budget(
     ))
 }
 
+/// Fails when the files under the given paths together exceed the budget.
+pub fn check_files_size_budget(paths: &[PathBuf], budget: u64) -> Result<u64, String> {
+    let mut bytes = 0;
+    for path in paths {
+        bytes +=
+            tree_bytes(path).map_err(|error| format!("cannot size {}: {error}", path.display()))?;
+    }
+    check_size_budget("dx_deployment", "artifacts total", bytes, budget)?;
+    Ok(bytes)
+}
+
 /// One deploy launcher run: its name and its output directory.
 pub struct DeployRun {
     tool: &'static str,
@@ -577,6 +588,17 @@ mod size_budget_tests {
             check_size_budget("oci_deploy", "image", 2_000_000, 0),
             Ok(())
         );
+    }
+
+    #[test]
+    fn check_files_size_budget_fails_a_two_megabyte_file_over_one_megabyte() {
+        let scratch = scratch_dir();
+        let big = scratch.path().join("big.bin");
+        std::fs::write(&big, vec![0u8; 2_000_000]).expect("big");
+        let error = check_files_size_budget(&[big.clone()], 1_000_000).expect_err("over budget");
+        assert!(error.contains("2000000 bytes"), "{error}");
+        assert!(error.contains("1000000 bytes"), "{error}");
+        assert_eq!(check_files_size_budget(&[big], 2_000_000), Ok(2_000_000));
     }
 
     #[test]

@@ -1,3 +1,9 @@
+# dx_deployment
+
+`size_budget` is optional, such as `25MB` (decimal `B`, `KB`, `MB` or `GB`).
+Building the deployment fails when its `artifacts` together are larger, and
+prints both sizes in bytes. Empty means no budget.
+
 # maven_deploy
 
 Publishes one jar and its pom to a Maven repository.

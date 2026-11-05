@@ -75,10 +75,10 @@ The extension is built with the repo's hermetic C++ toolchain and imported by th
 | LLVM | linux_x86_64, linux_arm64 | qualified |
 | GCC | linux_x86_64, linux_arm64 | qualified |
 | clang-cl | windows_x86_64 | qualified |
-| cl.exe | windows_x86_64 | pending #6489 |
+| cl.exe | windows_x86_64 | qualified |
 | any | windows_arm64 | pending #7119 |
 
-Windows links the dynamic CRT. An app that ships an extension must also ship `msvcp140` and `vcruntime140*` from `@msvc_runtime`. Invalid compiler and platform combinations fail at analysis.
+Windows links the dynamic CRT. An app that ships an extension must also ship the CRT DLLs from `//cc/toolchains:msvc_vcruntime` (`native_runtime`, `app_local`). Invalid compiler and platform combinations fail at analysis.
 
 ## Platforms
 

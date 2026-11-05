@@ -55,6 +55,16 @@ FlatBuffersCcAspectInfo = provider(
     fields = {
         "cc_info": "CcInfo of the generated headers of the closure.",
         "headers": "List[File]: headers generated for this library's own schemas.",
+        "stage_roots": "depset of the exec paths of the private include roots flatc reads.",
+        "staged": "depset of the staged schema files flatc reads.",
+    },
+)
+
+FlatBuffersCcStageInfo = provider(
+    doc = "The private include roots and staged schemas the C++ flatc actions read, for tests.",
+    fields = {
+        "stage_roots": "depset of include root exec paths.",
+        "staged": "depset of staged schema files.",
     },
 )
 
@@ -83,10 +93,12 @@ def _cc_aspect_impl(target, ctx):
         headers = depset(headers),
         quote_includes = depset([ctx.bin_dir.path + "/" + target.label.package + "/" + subdir if target.label.package else ctx.bin_dir.path + "/" + subdir]),
     ))
-    dep_infos = [dep[FlatBuffersCcAspectInfo].cc_info for dep in ctx.rule.attr.deps]
+    deps = [dep[FlatBuffersCcAspectInfo] for dep in ctx.rule.attr.deps]
     return [FlatBuffersCcAspectInfo(
-        cc_info = cc_common.merge_cc_infos(cc_infos = [own] + dep_infos),
+        cc_info = cc_common.merge_cc_infos(cc_infos = [own] + [d.cc_info for d in deps]),
         headers = headers,
+        stage_roots = depset([stage.root], transitive = [d.stage_roots for d in deps]),
+        staged = depset(stage.files, transitive = [d.staged for d in deps]),
     )]
 
 _cc_aspect = aspect(
@@ -110,6 +122,10 @@ def _cc_library_impl(ctx):
         dx_quality_sources([], [], str(ctx.label)),
         OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset(own_headers)}),
         FlatBuffersCodegenInfo(language = "cpp"),
+        FlatBuffersCcStageInfo(
+            stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
+            staged = depset(transitive = [info.staged for info in aspect_infos]),
+        ),
     ]
 
 flatbuffers_cc_library = rule(

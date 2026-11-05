@@ -5,7 +5,7 @@ load("//flatbuffers/rules:defs.bzl", "flatbuffers_library")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java/rules:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":failure_tests.bzl", "flatbuffers_codegen_failure_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
+load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_codegen_failure_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -330,6 +330,11 @@ flatbuffers_codegen_failure_test(
     name = "external_rs_test",
     message = "is in another Bazel repository",
     target_under_test = ":external_rs_generated",
+)
+
+flatbuffers_cc_stage_test(
+    name = "cc_stage_test",
+    target_under_test = ":shapes_cc",
 )
 
 flatbuffers_java_stage_test(

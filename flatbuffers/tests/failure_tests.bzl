@@ -1,7 +1,7 @@
 """Analysis-failure tests for the FlatBuffers codegen rules."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//flatbuffers/rules:codegen.bzl", "FlatBuffersJavaStageInfo")
+load("//flatbuffers/rules:codegen.bzl", "FlatBuffersCcStageInfo", "FlatBuffersJavaStageInfo")
 
 def _failure_impl(ctx):
     env = analysistest.begin(ctx)
@@ -63,3 +63,19 @@ def _java_stage_impl(ctx):
     return analysistest.end(env)
 
 flatbuffers_java_stage_test = analysistest.make(_java_stage_impl)
+
+def _cc_stage_impl(ctx):
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[FlatBuffersCcStageInfo]
+    roots = info.stage_roots.to_list()
+    staged = info.staged.to_list()
+    asserts.equals(env, 2, len(roots))
+    for root in roots:
+        asserts.true(env, root.endswith("_fbs_stage/base") or root.endswith("_fbs_stage/api"), "include root: " + root)
+    names = sorted([f.short_path for f in staged if f.extension == "fbs"])
+    asserts.true(env, len(names) >= 3, "closure not staged: " + str(names))
+    for f in staged:
+        asserts.true(env, "_fbs_stage/" in f.path, "unstaged input " + f.path)
+    return analysistest.end(env)
+
+flatbuffers_cc_stage_test = analysistest.make(_cc_stage_impl)

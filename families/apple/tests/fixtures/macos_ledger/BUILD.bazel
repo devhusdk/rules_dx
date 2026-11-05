@@ -26,3 +26,8 @@ cc_test(
     target_compatible_with = _MACOS_ARM64,
     deps = [":ledger"],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)

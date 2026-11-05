@@ -192,7 +192,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `gofumpt` | Format Go | |
 | `govet`, `staticcheck`, `errcheck` | Lint Go | |
 | `gotype` | Typecheck Go | |
-| `modfmt` | Format `go.mod` | |
+| `modfmt` | Format `go.mod` (family `go_module`, from `go_module_srcs`) | |
 | `zig_fmt` | Format Zig | |
 | `zig_ast_check` | Lint Zig | |
 | `zig` | Typecheck Zig | |

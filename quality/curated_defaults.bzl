@@ -38,6 +38,12 @@ CURATED_DEFAULTS = {
         "lint": ["govet", "staticcheck"],
         "typecheck": ["gotype"],
     },
+    "go_module": {
+        "audit": [],
+        "format": ["modfmt"],
+        "lint": [],
+        "typecheck": [],
+    },
     "graphql": {
         "audit": [],
         "format": ["prettier"],

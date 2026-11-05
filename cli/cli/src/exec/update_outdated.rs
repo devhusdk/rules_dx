@@ -7,8 +7,8 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, containers, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings,
-    Registry,
+    bcr, cargo, containers, cpan, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch,
+    Findings, Registry,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -272,6 +272,14 @@ pub(super) fn collect(
                 merge(
                     &mut found,
                     ruby::outdated(name, &texts, only, prereleases, ruby::DEFAULT_BASE, fetch),
+                );
+            }
+            Ecosystem::Cpan => {
+                registries.insert(name.to_owned(), Registry::Metacpan);
+                let texts = read_texts(workspace, &target.set.manifests);
+                merge(
+                    &mut found,
+                    cpan::outdated(name, &texts, only, prereleases, cpan::DEFAULT_BASE, fetch),
                 );
             }
             Ecosystem::Maven => {

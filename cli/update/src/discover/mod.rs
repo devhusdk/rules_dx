@@ -3,6 +3,7 @@
 pub mod bcr;
 pub mod cargo;
 pub mod containers;
+pub mod cpan;
 pub mod github;
 pub mod go;
 pub mod maven;
@@ -92,6 +93,7 @@ pub enum Registry {
     Maven,
     Nuget,
     Rubygems,
+    Metacpan,
     GitHub,
     BazelReleases,
 }
@@ -113,6 +115,7 @@ impl Registry {
             },
             Registry::Nuget => format!("https://www.nuget.org/packages/{package}"),
             Registry::Rubygems => format!("https://rubygems.org/gems/{package}"),
+            Registry::Metacpan => format!("https://metacpan.org/pod/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),
             Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),
         }

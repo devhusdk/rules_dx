@@ -23,6 +23,7 @@ dx_rust_crate(
         "src/discover/npm.rs",
         "src/discover/nuget.rs",
         "src/discover/pypi.rs",
+        "src/discover/cpan.rs",
         "src/discover/ruby.rs",
         "src/edit/add.rs",
         "src/edit/add_plans.rs",

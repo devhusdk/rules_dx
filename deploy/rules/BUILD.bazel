@@ -812,6 +812,7 @@ test_suite(
         ":crates_unit",
         ":rubygems_analysis",
         ":rubygems_unit",
+        ":rubygems_verify",
         ":deploy_analysis",
         ":deploy_app_analysis",
         ":deploy_config",
@@ -1538,6 +1539,29 @@ rubygems_unit_tests(name = "rubygems_unit")
 deploy_analysis_test(
     name = "rubygems_analysis",
     subject = "rubygems_demo",
+)
+
+rust_test(
+    name = "rubygems_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":rubygems_demo",
+        ":rubygems_demo_config",
+        "@ruby//:files",
+        "@ruby//:ruby_file",
+    ],
+    env = {
+        "DX_RUBYGEMS_CONFIG": "$(rootpath :rubygems_demo_config)",
+        "DX_RUBYGEMS_PROG": "$(rootpath :rubygems_demo)",
+        "DX_RUBYGEMS_RUBY": "$(rootpath @ruby//:ruby_file)",
+        "DX_VERIFY_MODE": "rubygems",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 deploy_analysis_test(

@@ -367,6 +367,26 @@ fn helm_case() {
     assert!(out.contains("staged dx-helm-demo-1.2.3.tgz"), "{out}");
 }
 
+fn rubygems_case() {
+    let ruby = data("DX_RUBYGEMS_RUBY");
+    let bin = ruby.parent().expect("ruby bin dir");
+    assert!(bin.join("gem").is_file(), "no gem next to {}", ruby.display());
+    let path = format!("{}:/usr/bin:/bin", bin.display());
+    let outdir = dx_testing::mkscratch("rubygems-demo").expect("scratch");
+    let run = run_deploy(
+        &data("DX_RUBYGEMS_PROG"),
+        "DX_RUBYGEMS_CONFIG",
+        &[outdir.to_string_lossy().as_ref()],
+        &[("PATH", path.as_str())],
+    )
+    .expect("rubygems_deploy must execute");
+    let out = run.combined();
+    assert!(run.status.success(), "rubygems_deploy failed\n{out}");
+    let gem = outdir.join("rubygems_demo-0.0.0.gem");
+    assert!(gem.is_file(), "{out}");
+    assert!(out.contains("staged rubygems_demo 0.0.0"), "{out}");
+}
+
 fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
     let outdir = dx_testing::mkscratch(name).expect("scratch");
     let run = run_deploy(prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
@@ -1047,6 +1067,7 @@ fn deploy_verify() {
         "pypi_native" => pypi_native_case(),
         "pypi_native_linked" => pypi_native_linked_case(),
         "resources" => resources_case(),
+        "rubygems" => rubygems_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),
     }
 }

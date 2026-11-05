@@ -8,6 +8,8 @@ use super::{release_pins, AdoptError, DX_VERSION};
 pub enum FileKind {
     WriteOnce,
     VscodeKeys,
+    /// Adds missing ids to `recommendations`, never removing or reordering, skipping unwanted ones.
+    VscodeRecommendations,
     /// Repins the `uses:` ref of the reusable workflow at this path.
     CiPin(&'static str),
     /// Rewritten whenever it differs from the planned content.
@@ -314,6 +316,24 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .collect();
             dx_merge::jsonc::set_keys(existing, &edits)
         }
+        FileKind::VscodeRecommendations => {
+            let unwanted = dx_merge::jsonc::parse(existing)?
+                .get("unwantedRecommendations")
+                .and_then(|value| value.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let wanted = dx_merge::jsonc::parse(generated)?;
+            let mut text = existing.to_owned();
+            for id in wanted["recommendations"].as_array().into_iter().flatten() {
+                let skipped = unwanted
+                    .iter()
+                    .any(|other| other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase));
+                if !skipped {
+                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
+                }
+            }
+            Ok(text)
+        }
         FileKind::CiPin(workflow) => {
             let action = format!("{CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{workflow}");
             let pinned =
@@ -445,7 +465,7 @@ fn plan_init_files_full(
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
             content: render_editor_recommendations(extensions),
-            kind: FileKind::WriteOnce,
+            kind: FileKind::VscodeRecommendations,
         },
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
@@ -1442,6 +1462,28 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         applied.wrote
+    }
+
+    #[test]
+    fn recommendations_gain_detected_ids_and_respect_unwanted() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-recs-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".vscode")).expect("dir");
+        std::fs::write(root.join("main.go"), "package main\n").expect("go");
+        std::fs::write(root.join("a.rs"), "").expect("rs");
+        let mine = "{\n  // mine\n  \"recommendations\": [\"me.mine\", \"ms-python.python\"],\n  \"unwantedRecommendations\": [\"rust-lang.rust-analyzer\"]\n}\n";
+        std::fs::write(root.join(".vscode/extensions.json"), mine).expect("write");
+        let files = super::plan_init_files_at(root, "refresh").expect("plan");
+        let mut applied = super::Applied::default();
+        super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
+        let text = std::fs::read_to_string(root.join(".vscode/extensions.json")).expect("read");
+        assert!(text.contains("// mine"), "{text}");
+        let ids = dx_merge::jsonc::parse(&text).expect("json")["recommendations"].clone();
+        assert_eq!(
+            ids,
+            serde_json::json!(["me.mine", "ms-python.python", "bazelbuild.vscode-bazel", "golang.go"])
+        );
+        scratch.close().expect("cleanup");
     }
 
     #[test]

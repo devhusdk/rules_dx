@@ -123,6 +123,22 @@ class WindowsVenvLauncherTest(unittest.TestCase):
         self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
         self.assertIn("venv not found", result.stderr)
 
+    def test_rerun_finds_runfiles_next_to_the_script(self):
+        runfiles = os.path.join(self.root, "app.runfiles")
+        copy = os.path.join(runfiles, "rules_py+", "windows_venv_launcher.py")
+        self.write(os.path.join(runfiles, VENV), "")
+        self.write(os.path.join(runfiles, "venv", "pyvenv.cfg"), "")
+        with open(LAUNCHER, encoding="utf-8") as src:
+            self.write(copy, src.read())
+        spec = importlib.util.spec_from_file_location("copied_launcher", copy)
+        assert spec is not None and spec.loader is not None
+        launcher = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(launcher)
+        env = {k: v for k, v in os.environ.items() if not k.startswith("RUNFILES_")}
+        with mock.patch.dict(os.environ, env, clear=True):
+            venv_python, _ = launcher.locate_venv(VENV)
+        self.assertEqual(venv_python, os.path.join(runfiles, VENV))
+
     def test_rerun_passes_venv_launcher_env(self):
         # CPython consumes __PYVENV_LAUNCHER__ at startup, so capture the
         # child's environment from a fake Popen instead of a real child.

@@ -117,7 +117,7 @@ diff --git a/py/private/py_venv/templates/windows_venv_launcher.py b/py/private/
 new file mode 100644
 --- /dev/null
 +++ b/py/private/py_venv/templates/windows_venv_launcher.py
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,213 @@
 +"""Windows launcher for rules_py venvs.
 +
 +Runs under the toolchain `python.exe` (started by a hermetic-launcher stub).
@@ -239,10 +239,27 @@ new file mode 100644
 +    return dirs
 +
 +
++def runfiles_next_to_script():
++    """Finds the `.runfiles` directory this launcher script lives in."""
++    path = os.path.dirname(os.path.abspath(__file__))
++    while True:
++        if path.endswith(".runfiles"):
++            return path
++        parent = os.path.dirname(path)
++        if parent == path:
++            return ""
++        path = parent
++
++
 +def locate_venv(rlocation):
 +    """Returns (venv_python, extra_import_dirs); exits with 2 when missing."""
 +    runfiles = os.environ.get("RUNFILES_DIR", "")
 +    manifest = os.environ.get("RUNFILES_MANIFEST_FILE", "")
++    if not runfiles and not manifest:
++        runfiles = runfiles_next_to_script()
++        if not os.path.isdir(runfiles):
++            manifest = runfiles + "_manifest" if runfiles else ""
++            runfiles = ""
 +    if not runfiles and manifest:
 +        if manifest.endswith("_manifest"):
 +            runfiles = manifest[: -len("_manifest")]

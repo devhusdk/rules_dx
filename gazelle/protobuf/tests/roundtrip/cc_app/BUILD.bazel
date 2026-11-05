@@ -1,0 +1,10 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "cc_app",
+    testonly = True,
+    srcs = ["app.cc"],
+    deps = ["//gazelle/protobuf/tests/roundtrip/api:api_cc_proto"],
+)

@@ -1,3 +1,5 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
@@ -53,5 +55,27 @@ go_test(
     deps = [
         "@gazelle//config",
         "@gazelle//v2/rule",
+    ],
+)
+
+[
+    diff_test(
+        name = "roundtrip_%s_build_test" % pkg,
+        file1 = "testdata/roundtrip/gazelle/protobuf/tests/roundtrip/%s/BUILD.out" % pkg,
+        file2 = "//gazelle/protobuf/tests/roundtrip/%s:BUILD.bazel" % pkg,
+    )
+    for pkg in [
+        "api",
+        "java_app",
+        "cc_app",
+    ]
+]
+
+build_test(
+    name = "roundtrip_build_test",
+    targets = [
+        "//gazelle/protobuf/tests/roundtrip/api:api_go_proto",
+        "//gazelle/protobuf/tests/roundtrip/api:api_py_proto",
+        "//gazelle/protobuf/tests/roundtrip/cc_app",
     ],
 )

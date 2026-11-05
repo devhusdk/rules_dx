@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package api;
+
+option java_package = "com.example.api";
+option java_multiple_files = true;
+option go_package = "example.com/roundtrip/api";
+
+message User {
+  string name = 1;
+}

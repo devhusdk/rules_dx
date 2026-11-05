@@ -1,0 +1,43 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "api_proto",
+    testonly = True,
+    srcs = ["user.proto"],
+    strip_import_prefix = "/",
+)
+
+go_proto_library(
+    name = "api_go_proto",
+    testonly = True,
+    importpath = "example.com/roundtrip/api",
+    proto = ":api_proto",
+    visibility = ["//visibility:public"],
+)
+
+py_proto_library(
+    name = "api_py_proto",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":api_proto"],
+)
+
+java_proto_library(
+    name = "api_java_proto",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":api_proto"],
+)
+
+cc_proto_library(
+    name = "api_cc_proto",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":api_proto"],
+)

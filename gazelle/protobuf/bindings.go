@@ -41,10 +41,10 @@ var bindings = []binding{
 func bindingKinds() map[string]rule.KindInfo {
 	kinds := map[string]rule.KindInfo{}
 	for _, b := range bindings {
-		attrs := map[string]bool{"deps": true, "visibility": true}
+		attrs := map[string]bool{"deps": true, "visibility": true, "testonly": true}
 		attr := "deps"
 		if b.kind == goKind {
-			attrs = map[string]bool{"proto": true, "importpath": true, "deps": true}
+			attrs = map[string]bool{"proto": true, "importpath": true, "deps": true, "testonly": true}
 			attr = "proto"
 		}
 		info := rule.KindInfo{
@@ -117,6 +117,9 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 				imp = common.WrapImportSet(libImports(result, lib))
 			} else {
 				r.SetAttr("deps", []string{":" + lib.Name()})
+			}
+			if lib.AttrBool("testonly") {
+				r.SetAttr("testonly", true)
 			}
 			r.SetAttr("visibility", []string{"//visibility:public"})
 			gen = append(gen, r)

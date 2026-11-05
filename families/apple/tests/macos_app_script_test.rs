@@ -482,18 +482,20 @@ fn the_launcher_exits_127_without_ditto_and_runs_the_app_with_it() {
     let tree = case.root.join("tree").to_string_lossy().into_owned();
     let runfiles = runfiles.to_string_lossy().into_owned();
     let tmp = case.root.to_string_lossy().into_owned();
-    let ran = run(
-        &launcher,
-        &["--flag"],
-        &[
-            ("PATH", path.as_str()),
-            ("FAKE_TREE", tree.as_str()),
-            ("RUNFILES_DIR", runfiles.as_str()),
-            ("DX_MACOS_APP_ZIP", "_main/pkg/Ledger.zip"),
-            ("TMPDIR", tmp.as_str()),
-        ],
-    )
-    .unwrap_or_else(|error| panic!("run: {error}"));
+    let output = std::process::Command::new(&launcher)
+        .arg("--flag")
+        .env("PATH", path)
+        .env("FAKE_TREE", tree)
+        .env("RUNFILES_DIR", runfiles)
+        .env("DX_MACOS_APP_ZIP", "_main/pkg/Ledger.zip")
+        .env("TMPDIR", tmp)
+        .output()
+        .unwrap_or_else(|error| panic!("run: {error}"));
+    let ran = Run {
+        status: output.status,
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    };
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
     assert_eq!(ran.stdout, "ledger --flag\n");
 }

@@ -306,6 +306,52 @@ mod tests {
         );
     }
 
+    fn pe_importing(dll: &str) -> Vec<u8> {
+        let mut image = vec![0u8; 0x400];
+        put(&mut image, 0, b"MZ");
+        put(&mut image, 0x3c, &0x40u32.to_le_bytes());
+        put(&mut image, 0x40, b"PE\0\0");
+        let coff = 0x44;
+        put(&mut image, coff, &0x8664u16.to_le_bytes());
+        put(&mut image, coff + 2, &1u16.to_le_bytes());
+        put(&mut image, coff + 16, &240u16.to_le_bytes());
+        put(&mut image, coff + 18, &0x22u16.to_le_bytes());
+        let optional = coff + 20;
+        put(&mut image, optional, &0x20bu16.to_le_bytes());
+        put(&mut image, optional + 32, &0x1000u32.to_le_bytes());
+        put(&mut image, optional + 36, &0x200u32.to_le_bytes());
+        put(&mut image, optional + 56, &0x2000u32.to_le_bytes());
+        put(&mut image, optional + 60, &0x200u32.to_le_bytes());
+        put(&mut image, optional + 68, &3u16.to_le_bytes());
+        put(&mut image, optional + 108, &16u32.to_le_bytes());
+        let section = optional + 240;
+        put(&mut image, section, b".idata\0\0");
+        put(&mut image, section + 8, &0x200u32.to_le_bytes());
+        put(&mut image, section + 12, &0x1000u32.to_le_bytes());
+        put(&mut image, section + 16, &0x200u32.to_le_bytes());
+        put(&mut image, section + 20, &0x200u32.to_le_bytes());
+        put(&mut image, section + 36, &0xc000_0040u32.to_le_bytes());
+        put(&mut image, optional + 112 + 8, &0x1000u32.to_le_bytes());
+        put(&mut image, optional + 112 + 12, &40u32.to_le_bytes());
+        put(&mut image, 0x200 + 12, &0x1040u32.to_le_bytes());
+        put(&mut image, 0x200 + 16, &0x1080u32.to_le_bytes());
+        put(&mut image, 0x240, format!("{dll}\0").as_bytes());
+        image
+    }
+
+    #[test]
+    fn windows_app_needs_vcruntime_shipped_but_not_the_ucrt() {
+        let app = pe_importing("VCRUNTIME140.dll");
+        assert_eq!(
+            missing_imports(&app, &strings(&["app.exe"]), &[]).unwrap(),
+            strings(&["VCRUNTIME140.dll"])
+        );
+        let shipped = strings(&["app.exe", "vcruntime140.dll", "msvcp140.dll"]);
+        assert!(missing_imports(&app, &shipped, &[]).unwrap().is_empty());
+        let ucrt = pe_importing("api-ms-win-crt-runtime-l1-1-0.dll");
+        assert!(missing_imports(&ucrt, &[], &[]).unwrap().is_empty());
+    }
+
     #[test]
     fn missing_imports_skips_non_images() {
         assert!(missing_imports(b"not a library", &[], &[]).unwrap().is_empty());

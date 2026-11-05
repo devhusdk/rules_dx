@@ -8,7 +8,7 @@ Find your task.
 - Add a dependency: [Generate](cli/commands/generate.md), [Environment](cli/commands/env.md).
 - Set up CI: [GitHub CI](github-ci.md).
 - Upgrade dx: [Upgrade](cli/commands/upgrade.md).
-- Use with an AI agent: [Init](cli/commands/init.md), [Agent sessions](cli/commands/README.md#agent-sessions).
+- Use with an AI agent: [Init](cli/commands/init.md), [Agent sessions](cli/commands/worktree.md#agent-sessions).
 - Adopt an existing Bazel repo: [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md).
 
 ## All pages

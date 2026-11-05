@@ -1,524 +1,155 @@
 # Command Reference
 
-Every `dx` command runs through Bazel. Put `dx` flags after the command,
-Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
-checkout `//:dx` is the same target.
-
-Bazel reads `~/.bazelrc` and the system rc for every `dx` call, locally and in
-CI. Inside Bazel tests, `dx` passes `--nohome_rc --nosystem_rc`. Under
-`CI=true`, `dx` adds no disk cache, so setup-bazel owns caching.
+Put `dx` flags after the command, Bazel flags after `--`.
 
 ```sh
 bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 ```
 
-- [`dx build`, `dx test`, `dx coverage`, `dx run`, `dx deploy`](build-test-coverage.md)
-- [`dx lint`, `dx typecheck`, `dx format`](quality.md)
-- [`dx check`, `dx clean`](check-fix-clean.md)
-- [`dx generate`](generate.md)
-- [`dx env`](env.md)
-- [`dx security`, `dx license`, `dx update`](audit-update.md)
-- [`dx docs`](docs.md)
-- [`dx explain`](explain.md)
-- [`dx init`](init.md)
-- [`dx status`](status.md)
-- [`dx completion`](completion.md)
-- [`dx upgrade`](upgrade.md)
-- [`dx watch`](watch.md)
-- [`dx worktree`](worktree.md)
+- [`dx build`](build-test-coverage.md): build targets.
+- [`dx test`](build-test-coverage.md): run tests.
+- [`dx coverage`](build-test-coverage.md): collect LCOV coverage.
+- [`dx run`](build-test-coverage.md): build and run a target.
+- [`dx deploy`](build-test-coverage.md): build and run a deployable target.
+- [`dx lint`](quality.md): run linters.
+- [`dx typecheck`](quality.md): run type checkers.
+- [`dx format`](quality.md): check or rewrite formatting.
+- [`dx check`](check-fix-clean.md): run generate, format, lint and typecheck.
+- [`dx clean`](check-fix-clean.md): remove build outputs.
+- [`dx generate`](generate.md): update BUILD files with Gazelle.
+- [`dx env`](env.md): set up the toolchain environment.
+- [`dx security`](audit-update.md): run the security audit.
+- [`dx license`](audit-update.md): run the license audit.
+- [`dx update`](audit-update.md): update dependencies.
+- [`dx docs`](docs.md): build and serve the docs site.
+- [`dx explain`](explain.md): explain cache misses.
+- [`dx init`](init.md): set up a workspace.
+- [`dx status`](status.md): report workspace status.
+- [`dx completion`](completion.md): print shell completions.
+- [`dx upgrade`](upgrade.md): move the dx pin.
+- [`dx watch`](watch.md): rebuild on changes.
+- [`dx worktree`](worktree.md): lease warm checkout slots for agents.
 
-Scope rules live in [Scope Defaults](scope-defaults.md).
-
-Airgapped hosts install from a vendored bundle: see
+Scope rules: [Scope Defaults](scope-defaults.md). Airgapped hosts:
 [Offline Bundle](offline-bundle.md).
-
-## Build Slots
-
-`dx build`, `test`, `coverage`, `deploy`, `lint`, `typecheck`,
-`format`, `check`, `fix`, `generate`, `env`, `security`, `license` and
-`docs` take a build slot before they call Bazel.
-`dx run` holds a slot only while it builds and frees it before the app starts.
-`dx watch` takes one slot per iteration and holds none while it waits for
-changes. `dx update` takes one slot at its first updater that runs Bazel and
-holds it until its updaters finish. `dx update` and updaters that do
-not run Bazel take none. Slots are shared by every
-worktree and every user session on the machine. The slot count is the machine
-memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
-at least one and never more than 16.
-
-`--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` sets
-a default, and the flag wins. The default is `auto`, the count above, inside a
-`dx worktree` slot and `off` anywhere else. In CI the env var is ignored, like
-every other default, so a CI run outside a slot takes no slot unless
-`--build-slots` is passed.
-
-- `auto`: the memory-based count above, with the remote extras below.
-- `<n>`: exactly `n` slots, from 1 to 1024. There is no 16 cap and no remote
-  extras; raise `n` instead. In the rules_dx workspace the slots kept for
-  nested Bazel test servers sit above `n`.
-- `off`: dx takes no slot, never waits for one, and adds no
-  `--local_resources` flags.
-
-Every dx process applies its own setting, while the slot files are shared
-across the machine. A run with `--build-slots 32` can take slots that `auto`
-runs never look at, so the setting is not a machine-wide cap. `DX_BUILD_SLOT`
-(singular) is an internal marker dx sets for nested calls; do not set it.
-
-When the Bazel config sets a non-empty `--remote_executor`, dx offers more
-slots: the memory divided by 1.5 GiB, at most 16. dx reads this from the rc
-files Bazel reads, their `--config` sections, and the flags you pass. A run
-takes an extra slot only when no regular slot is free, the host is not under
-memory pressure, and no other run took an extra slot in the last 10 seconds.
-On Linux, memory pressure means `/proc/pressure/memory` `some avg10` is 10 or
-more, or `MemAvailable` is below 1.5 GiB when that file is missing. On macOS it
-means the kernel level `kern.memorystatus_vm_pressure_level` is 2 (warn) or 4
-(critical); level 1 is calm. Windows has no signal, so it gets no extra slots.
-An unreadable or unknown level is no signal. A run that waits only because of
-memory pressure says so in its waiting notice.
-
-Regular slots have a softer rule, for `auto` and for `--build-slots <n>`. When
-another slot is held and the host is under memory pressure, a run that finds a
-free slot waits instead of taking it, and its notice ends with `; paused under
-memory pressure`. Here memory pressure means the same PSI reading, or
-`MemAvailable` below one slot's memory budget (3 GiB, or 1.5 GiB with a remote
-executor) when that file is missing. On macOS it is the same kernel level as
-above. Each run waits at most 30 seconds, then takes the slot. A run that finds
-no other slot held never waits. Windows has no signal and no pause.
-
-While a slot is held, dx adds two flags right after `build`, `test`,
-`coverage` and `run`:
-
-```text
---local_resources=cpu=<n> --local_resources=memory=<mb>
-```
-
-`n` is the CPU count divided by the slots held right now, extra slots and
-this one included, and never less than 2. `mb` is the memory, less the memory kept for nested
-Bazel test servers, divided by the same number, in MiB. The values are fixed
-when dx takes the slot. Nested dx calls reuse them through `DX_BUILD_SHARE`.
-
-dx adds neither flag when an rc file Bazel reads sets that resource to a value
-other than the vendored preset default. It also skips a resource you pass after
-`--`:
-
-```bash
-dx build //... -- --local_resources=cpu=4
-```
-
-CI runs and dx runs inside a Bazel test add neither flag.
-
-When all slots are taken, or other runs already wait, dx waits and prints one
-line to stderr:
-
-```text
-dx: waiting for a build slot (held by /path/to/worktree and 5 more, 2 ahead in line); see dx status, or set --build-slots or DX_BUILD_SLOTS
-```
-
-The line names one current holder, how many other slots are held, and how many
-runs wait ahead. It also points to `dx status`, `--build-slots` and
-`DX_BUILD_SLOTS`. Waiting runs get a slot in the order they started waiting,
-except that a later run may take a slot no run ahead can use right now, such as
-a slot above the ahead run's count or a slot while the ahead run waits for its
-nested Bazel reserve. A waiter that exits or is stopped leaves the line. A
-waiter suspended for over 30 seconds does not hold up the line until it
-resumes. If dx cannot use the
-`queue` directory next to the slot files, it waits without a line.
-
-With `--output=json`, dx also writes one `notice` event with code
-`waiting_for_build_slot` right after `command_started`. The slot frees when the
-Bazel work ends or dx exits, including when it crashes.
-
-While dx waits, it keeps the worktree's running Bazel server from shutting down
-for idleness. It never starts a server, and it leaves a server alone that was started
-with `--max_idle_secs=0`, since that one never shuts down.
-It finds that server and the idle-server reaper's output roots from `startup
---output_user_root` and `--output_base` in rc files (including `startup:<os>` lines
-for the host OS) and from `--bazel-startup-option`; the command line wins.
-
-Before it prints the wait line, dx stops idle Bazel servers to free memory for
-the running builds. A server is idle when no Bazel client holds its output base
-lock and it ran no command in the last 120 seconds. dx stops the least recently
-used servers first, until it has freed about one slot's worth of memory: 3 GiB,
-or 1.5 GiB for remote-execution runs. It runs `bazel shutdown` with
-`--noblock_for_lock` on each server's own output base, so a server that a new
-command just started on keeps running. dx keeps:
-
-- servers for its own worktree, slot holders, and other waiting runs;
-- servers outside the default output roots and the `--output_user_root` on the
-  dx command line, such as nested test servers and other users' servers;
-- servers it cannot check.
-
-Only one waiting run stops servers at a time. Stopping servers does not free a
-slot. On Windows dx stops no servers.
-
-When dx stopped servers, the wait line ends with the count:
-
-```text
-dx: waiting for a build slot (held by /path/to/worktree); see dx status, or set --build-slots or DX_BUILD_SLOTS; stopped 2 idle Bazel servers
-```
-
-The `waiting_for_build_slot` notice event carries the count in
-`reaped_servers`, also when it is 0. It also carries `reason`: `"pressure"`
-when dx is holding back from a free slot because of memory pressure, and
-`"held"` otherwise.
-
-If dx cannot write a slot file, it locks it read-only. If it still cannot use
-a slot file, it prints `dx: skipped build slot <path>: <error>` once and runs
-with one slot fewer. With `--output=json` it also writes one warning `notice`
-event with code `build_slot_skipped`.
-
-If dx can use no slot file, it prints `dx: build slots disabled: <error>` and
-runs without a slot. With
-`--output=json` it also writes one `notice` event with code
-`build_slots_disabled`.
-
-Ctrl-C or SIGTERM during the wait stops dx at once, before any child starts. dx prints
-`dx: cancelled: stopped by signal N` and exits `128` plus the signal number.
-
-`status`, `version`, `worktree`, `completion` and the other commands that do not
-run Bazel never take a slot. A dx call started while `DX_BUILD_SLOT` is set, or
-from inside a Bazel test, takes no second slot. While dx holds a slot, the
-Bazel and tool processes it starts see `DX_BUILD_SLOT=1` and `DX_BUILD_SHARE`
-set to `cpu=<n>,memory=<mb>`. `dx run` apps start
-after the slot frees.
-
-## Disk Space
-
-Before each Bazel build it starts, dx checks free space on the workspace disk,
-the Bazel output base, the temp dir and the home dir. When one has under 1 GiB
-free, dx prints one line to stderr and keeps going:
-
-```text
-dx: disk_low: 512.0 MiB free at /path; free disk space with `dx worktree prune --apply`
-```
-
-With `--output=json`, dx also writes one `notice` event with code `disk_low`
-and level `warning`.
-
-`dx run` and `dx deploy` check before the build, not before the app starts, and
-an app's exit code is never reported as `disk_full`.
-
-When the disk holding the worktree pool has under 20 GiB and under 10% free,
-or under 1 GiB free,
-dx drops orphaned output bases, repository cache downloads unused for 30 days,
-the output bases of free nested-Bazel test slots, and free slots' output bases each time it
-takes a build slot: once for each command above, for each `watch` iteration,
-for the build `run` does before the app starts, and for `update` when it runs
-Bazel. A workspace without a `dx worktree` pool still drops orphaned output bases,
-stale downloads and nested test cases, but has no free slots to drop; the low
-check then covers the Bazel output roots. This also happens when build slots are disabled. It never drops the
-output base of the workspace being built. dx prints one of these lines to
-stderr only when it removed something or could not reclaim:
-
-```text
-dx: low disk at <path>: <free> free; removed <what>; <free> free now
-dx: low disk, cannot reclaim output bases: <error>
-```
-
-With `--output=json`, dx also writes one `notice` event with code `disk_low`
-and level `warning`, after `command_started` and before that build's output.
-
-`dx worktree add` and `dx worktree hook create` also refuse with code
-`disk_full` when the pool's disk has under 1 GiB free after that reclaim.
-
-## Inspecting The Graph
-
-`dx` has no owners, deps, or why command. Use native Bazel. Quote every
-expression.
-
-```text
-bazel query 'rdeps(//..., //pkg:target, 1)'
-bazel query 'deps(//pkg:target)'
-bazel query 'somepath(//app:server, //lib:core)'
-bazel cquery 'deps(//pkg:target)' --platforms=//platforms:linux_x86_64
-bazel query 'kind(rule, rdeps(//..., @repo//pkg:target, 1))'
-```
-
-`query` reads the unconfigured graph. `cquery` reads the graph for the
-selected platform and flags. An empty result is not a pass: check the exit
-code.
 
 ## Global Flags
 
-Every command takes these:
+Every command takes these.
 
-- `--help` (`-h`): print help.
-- `--version` (`-V`): print the dx version.
-- `--workspace <dir>`: run in another workspace. A relative dir starts from the current directory.
-- `--quiet[=bool]` (`-q`), `--verbose[=bool]` (`-v`): less or more output. Bare means
-  `true`, and `=false` turns off a default inherited from the environment or a
-  config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
-- `--color auto|always|never`: color output. Default `auto`.
-- `--build-slots auto|<n>|off`: build slots for this run. Default `auto`. See
-  [Build Slots](#build-slots).
-- `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
-  `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
-  Bazel verb for every managed invocation. Isolated output bases isolate
-  concurrent runs.
+| Flag | What it does |
+| --- | --- |
+| `-h`, `--help` | Print help. |
+| `-V`, `--version` | Print the dx version. |
+| `--workspace <dir>` | Run in another workspace. |
+| `-q`, `--quiet[=bool]` | Less output. |
+| `-v`, `--verbose[=bool]` | More output. |
+| `--color auto\|always\|never` | Color output. Default `auto`. |
+| `--build-slots auto\|<n>\|off` | Build slots for this run. Default `auto`. |
+| `--bazel-startup-option <token>` | Bazel startup option. Repeatable. Takes `--output_base=<path>` or `--output_user_root=<path>`. |
 
-Every other flag belongs to one command family. `dx <command> --help` lists
-only the flags that command takes, and a flag from another family is a usage
-error.
+Other flags belong to one command family. `dx <command> --help` lists them.
 
-Read commands take `--output text|json` (`-o`). `-o json`, `-ojson` and short
-clusters such as `-qojson` all work. Commands that can print a patch also take `diff`. Commands that only
-print text take no `--output`.
+| Family | Flags |
+| --- | --- |
+| Read commands | `-o`, `--output text\|json`. Commands that can print a patch also take `diff`. |
+| Check commands | `--fail-on info\|warning\|error` (default `warning`), `--report <format>=<dest>` (repeatable). |
+| Coverage | `--min-coverage <percent>`. |
+| Network commands | `--offline` (no network), `--frozen` (no manifest or lock changes). |
+| Scoped commands | `--here` (current directory tree), `--affected` (targets your changes reach). |
+| Mutating commands | `--apply`. |
+| Build commands | `--debug`, `--release`. |
 
-Check commands take `--fail-on info|warning|error` (default `warning`) and
-`--report <format>=<dest>`. Repeat `--report` for more files. A relative
-`<dest>` anchors at the workspace root wherever dx runs; an absolute `<dest>`
-writes outside the workspace as given. Two flags resolving to the same file fail
-before anything runs, including `./` and `parent/../` spellings of one path.
-Parent directories must already exist. A failed write names the resolved file and
-the cause, exits nonzero, and keeps the previous file bytes. Each command page
-lists its report formats. Coverage also takes `--min-coverage <percent>` and
-fails below it.
+A relative `--report` destination starts at the workspace root. Parent
+directories must exist.
 
-Network commands take `--offline` and `--frozen`. `--offline` means no network:
-use pinned cached snapshots or fail. `--frozen` means no manifest or lock
-resolution changes and may fetch already pinned content. Combine them for both
-policies.
+## Output Values
 
-`--apply`, `--debug`, `--release`, `--here`, and `--affected` are
-documented on the command pages that take them. `--here` limits a command to the
-current directory tree. `--affected` limits it to targets your changes reach. Bare `--debug` or
-`--release` means dev, except for deploy, where it means release.
-
-Exit codes: `0` success, `2` usage error, `1` failed check.
-
-A usage error names the offending token, prints a `tip: a similar ...` line when
-a near match exists, then prints the usage line above. With no command, the usage
-error prints the command list and a `see dx <command> --help` hint.
-
-## JSON Output
-
-`--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.7`.
-Readers accept any `3.x` and reject other majors. The JSON Schema for every event is
-[`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json). The stream starts with one
-`command_started` and ends with one `command_finished`, unless a stop kills dx by a signal. Diagnostics and logs go to
-stderr. A failure before the command starts emits `error` and then
-`command_finished` with no `command_started`; that `command_finished` carries
-the process exit code and `results_complete: false`. If dx cannot build an
-event, it writes `error` with code `invalid_result`, then `command_finished`,
-and exits `1`. `DX_OUTPUT=json` gives the same stream. A stop before any child starts, or during
-failure reporting, writes `error` with code `cancelled` and `command_finished`; dx exits `128` plus the signal number.
-A stop while Bazel or the app runs makes dx die by the same signal, with no `cancelled` event and no `command_finished`.
-A dx crash writes
-`error` with code `internal_error` and `command_finished`; dx exits `101`. A closed stdout
-exits `141`.
-
-Any command can emit these `notice` events: `waiting_for_build_slot`,
-`build_slot_skipped`, and `build_slots_disabled` from
-[Build Slots](#build-slots), `disk_low` from [Disk Space](#disk-space), and
-`orphan_process_group_stopped` when dx stops a leftover process group from a
-dx run that is gone.
+`--output text` prints for people. `--output json` prints one JSON object per
+line on stdout. Every object has an `event` name and a `schema` with `major`
+and `minor`. The stream starts with `command_started` and ends with
+`command_finished`. Logs go to stderr. The schema is
+[`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json).
 
 ```sh
 bazel run @rules_dx//:dx -- lint //... --output=json
 ```
 
-### Error codes
+When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI` or
+`AI_AGENT` is set, the default output is `json`. See
+[Agent sessions](worktree.md#agent-sessions).
 
-Every `error` event has a `code`, a `message`, and a `cause`. Exit `1` is a failed
-command, `2` is a usage or setup error, and "Bazel" means the exit status Bazel
-returned.
+## Exit Codes
 
-| Code | Cause | Exit |
-| --- | --- | --- |
-| `invalid_arguments` | `input` | 2 |
-| `invalid_scope` | `input` | 2 |
-| `scope_error` | `input` | 2 |
-| `no_owner` | `input` | 2 |
-| `no_tests` | `input` | 1 |
-| `no_runnable` | `input` | 1 |
-| `ambiguous_runnable` | `input` | 1 |
-| `not_deployable` | `input` | 2 |
-| `completion_failed` | `input` | 2 |
-| `unresolved_workspace` | `input` | 2 |
-| `unreadable_working_directory` | `input` | 2 |
-| `invalid_defaults` | `defaults` | 2 |
-| `query_launch_failed` | `query_launch` | 1 |
-| `query_failed` | `query` | 2 |
-| `analysis_failed` | `analysis` | Bazel |
-| `bazel_failed` | `bazel` | Bazel |
-| `tests_failed` | `test` | Bazel |
-| `application_failed` | `application` | Bazel |
-| `launch_failed` | `tool_unavailable` | 1 |
-| `unsupported_platform` | `tool_unavailable` | 2 |
-| `unreadable_bep` | `collection` | 1 |
-| `invalid_bep` | `collection` | 1 |
-| `collection_failed` | `collection` | 1 |
-| `invalid_result` | `collection` | 1 |
-| `report_failed` | `report` | 1 |
-| `disk_full` | `host` | Bazel |
-| `server_crashed` | `host` | Bazel |
-| `server_out_of_memory` | `host` | Bazel |
-| `bazel_signalled` | `unknown` | Bazel |
-| `cancelled` | `operational` | 128 plus the signal number |
-| `internal_error` | `operational` | 101 |
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | Failed check or operational failure. |
+| `2` | Usage error. |
+| Bazel's code | Bazel failed. |
+| `101` | dx crashed. |
+| `128` plus signal | A signal stopped dx. |
 
-These codes have cause `operational` and exit `1` unless noted: `diff_failed`,
-`verification_failed`, `not_converged`, `coverage_below_minimum`,
-`no_coverage_collector`, `coverage_sources_incomplete`, `coverage_sources`,
-`changed_line_coverage_below_minimum`, `changed_line_coverage_incomplete`,
-`changed_line_coverage_unavailable`, `clean_failed`, `generation_failed`,
-`managed_commit_failed`, `no_capability`, `audit_failed`,
-`advisory_refresh_failed`, `update_failed`, `update_widen_failed`,
-`offline_required`, `frozen_locked`, `init_failed`, `upgrade_failed`,
-`status_pin_mismatch`, `status_check_failed`, `explain_log`,
-`explain_log_unwritable`, `serve_failed`.
+## Build Slots
 
-### Agent sessions
+Commands that run Bazel wait for a build slot, so parallel runs on one machine
+do not run out of memory. Slots are shared by every worktree on the machine.
+The count is the machine memory, or the cgroup limit if lower, divided by 3 GiB.
+It is at least 1 and at most 16.
 
-When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or
-`AI_AGENT` is set, the default output is `json` for commands that support it,
-and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win. In CI these variables are ignored.
+```sh
+bazel run @rules_dx//:dx -- build //... --build-slots 4
+```
 
-Empty optional fields are left out of `test_outcome` and `build_failure` events. A plain
-pass is not an event. `dx test` and `dx coverage` count passed, failed, cached, no_cases, and skipped tests
-in `command_finished` and write every test to the `results` report. Each count is
-per result, so a target with four shards counts four. Equal
-`build_failure` and `diagnostic` events from different targets and
-configurations appear once, with a `count`.
+- `auto`: the memory-based count. This is the default inside a
+  `dx worktree` slot.
+- `<n>`: exactly `n` slots, from 1 to 1024.
+- `off`: take no slot. This is the default outside a `dx worktree` slot.
 
-- `command_started`: the `command` and its `mode`.
-- `build_failure`: one failure Bazel reported while building, from `dx build`,
-  `dx test`, and `dx coverage`. It has `record_version`, `target`,
-  `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
-  `message`, and `diagnostics`, whose items may carry a `related` list. Facts Bazel did not report read `unknown`. The
-  same failure from several targets or configurations is one event with a
-  `count` and up to 20 other `targets`.
-- `capability`: one declared capability, with `name`, `source`,
-  `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
-  `effect`, and `passthrough`.
-- `operation`: a `phase` of a `command`, with the optional `scope` it resolved to.
-- `selection`: the resolved environment, as `setup_id`, `environment_id`, and
-  `codegen_id` digests.
-- `init_plan`: one finding of the `dx init` plan, with `kind`, `subject`, `before`,
-  `after`, `path`, `hint`, `severity` (`hard` or `advisory`), and the `line` when known.
-  `file` is a deprecated alias of `path` and goes away in the next major.
-- `status`: one check, with `name`, `status`, `detail`, and `hint`.
-- `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
-  plus optional `slot`, `branch`, `holder`, `reason`, `base`, and
-  `disk_bytes`. `reason` says why a slot or worktree was kept, or that a held slot's
-  holder is gone.
-- `coverage`: one cell's owned-source line account from `dx coverage`, with
-  `cell`, `covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
-  `eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
-  `passed`, `errors`, and `dx_version`, plus optional `minimum`, `sha`, `dirty`,
-  and `collector`.
-- `changed_line_coverage`: the `--min-changed-line-coverage` gate from
-  `dx coverage`, with `base`, `merge_base`, `minimum`, `covered_lines`,
-  `eligible_lines`, `uncovered` (`path` and `line` items), `uninstrumented`,
-  `result` (`pass`, `fail`, `not-applicable`, `incomplete`, or
-  `unavailable`), and `dx_version`.
-- `cache_miss`: one action that ran in the newer execution log, from
-  `dx explain`, with `mnemonic`, `target`, `primary_output`, and `changes`,
-  plus optional `changes_omitted`. Each change has a `kind` (`input`, `env`,
-  `arg`, `platform`, `not_in_old_log`, or `not_cacheable`), a `change`
-  (`modified`, `added`, `removed`, or `order_changed`) for the first four, and
-  the `path`, `name`, or `value` it is about. Env changes carry names only.
-- `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
-  and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
-- `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
-  `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
-  `package`, `resolution`, `unfixable_reason` (`no_change`, `unstable`, or
-  `persists`, set when `fixable` is false), `baseline`, `origins`, and `related`. `location` is
-  `unknown`, `file`, `bytes`, or `lines`. A `range` with `lines` location adds
-  `start_line`, `start_column`, `end_line`, and `end_column`, all 1-based.
-  `count` is how many identical findings this one stands for. `baseline` is
-  `suppressed` when the baseline holds the finding. Each of `origins` names the
-  `producer`, `target`, and `configuration` that reported it. `package` names
-  the dependency of a `vuln` or `license` finding, with `name` and `version`,
-  plus `fixed` for a vulnerability and `license` for a license finding. An
-  empty `fixed` list means no fixed version exists.
-- `change`: one file edit, with `path`, `kind`, `edit_count`, and `effect`.
-  `effect` is `proposed` in check mode, and `applied` or `refused` with
-  `--apply`. A `refused` change carries a `reason` and makes the run exit `1`. `--include-edits` adds
-  `source_digest` and the full `edits`.
-- `phase_started`: a `dx check` phase began, with `command`,
-  `phase`, `mode`, and `correlation`. Every event of the phase carries the same
-  `command`, `phase`, and `correlation`.
-- `phase_finished`: a phase ended, with its `exit_code` and counts.
-- `notice`: a note, with `level`, `code`, `message`, and optional
-  `related_command`, `scope`, `path`, `language`, and `import`.
-- `report`: a report written, with `format`, `path`, and `results_complete`.
-  `format` is `junit`, `lcov`, `failures`, or `results`.
-- `test_outcome`: one test result except a plain pass, with `target` and
-  `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
-  `attempt`, `final`, `duration_millis`, `cases_total`, `cases_failed`,
-  `cases_error`, `cases_skipped`, `cases_omitted`, `artifacts`, and
-  `evidence_complete`. `evidence_complete` and `artifacts` appear only when
-  evidence is missing. `final` is `false` only on an attempt that a later
-  attempt replaced.
-  A failing result adds `failing_cases` (up to 10, each with `classname`,
-  `name`, `outcome`, and a `message` cut to 1024 bytes),
-  `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines, at most 8 KiB of the
-  test log).
-- `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
-  `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
-  `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`, `test`,
-  `application`, `tool_unavailable`, `collection`, `report`, `host`,
-  `operational`, or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed`
-  has cause `test`; `application_failed` is a
-  `dx run` application that exited nonzero or died by a signal, and has cause
-  `application`. For a signal, `status` is `128` plus the signal number.
-  `disk_full` has cause `host`: a Bazel run or query exited 36 and a disk it
-  writes to has under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
-  `dx worktree prune --apply`.
-  `status` is the exit code of the failed Bazel run or application. `excerpt` holds the first
-  `ERROR:` line Bazel printed with a few lines after it, then `...`, then the last
-  lines of stderr. Without an `ERROR:` line it holds the last lines. `truncated` is `true` when lines were cut.
-- `command_finished`: the `exit_code`, plus any `results_complete`, `run_id`,
-  `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
-  `failed`, `cached`, `no_cases`, and `skipped`. Each counts results (per target,
-  configuration, run and shard), so a target with four shards counts four. `failed` counts results whose final attempt has
-  outcome `failed` or `timeout`; earlier failed attempts of a retried test
-  still appear as `test_outcome` events with `final: false` and are not
-  counted. `cached` counts
-  the passed tests that came from the cache. `no_cases` counts passed tests
-  whose report had no test cases; they are also in `passed`. `skipped` counts tests
-  with outcome `skipped` or `filtered`. `changes` has `create` and
-  `modify`, and with `--apply` also `applied` and `refused`. `actions` has
-  the Bazel action counts summed over the command's builds: `created`,
-  `executed`, and `cache_hits` with `disk`, `remote`, and `local`.
-  `executed` leaves out disk and remote cache hits, and is approximate when an
-  action runs several spawns. `actions` is absent when no build reported
-  metrics.
+`DX_BUILD_SLOTS` sets a default. The flag wins. A waiting run prints
+`dx: waiting for a build slot` to stderr and runs when a slot frees. Run
+`dx status` to see who holds the slots. Ctrl-C ends the wait.
 
-`dx run` and `dx update` add `correlation` to their events, so you can group
-them by target or set.
+With a Bazel `--remote_executor`, dx offers more slots: the memory divided by
+1.5 GiB. A run takes an extra slot only when no regular slot is free and the
+host is not under memory pressure. On Linux that means `/proc/pressure/memory`
+`some avg10` is under 10. On macOS it means the kernel level
+`kern.memorystatus_vm_pressure_level` is 1.
+
+While a slot is held, dx adds `--local_resources=cpu=<n>` and
+`--local_resources=memory=<mb>` to `build`, `test`, `coverage` and `run`. dx
+skips them when an rc file or your Bazel arguments set the resource.
+
+## Disk Space
+
+Before each Bazel build, dx checks free space on the workspace, the Bazel output
+base, the temp dir and the home dir. Under 1 GiB free, it prints a `disk_low`
+line to stderr and keeps going. Free space with:
+
+```sh
+bazel run @rules_dx//:dx -- worktree prune --apply
+```
 
 ## Environment
 
-Every variable below supplies a default. A flag on the command line wins, and
-`--quiet=false`, and `--verbose=false` turn an inherited
-default off.
+A flag on the command line wins over these defaults.
 
-- `DX_WORKSPACE=<dir>`: default for `--workspace`.
-- `DX_QUIET=<bool>`: default for `--quiet`.
-- `DX_VERBOSE=<bool>`: default for `--verbose`.
-- `DX_COLOR=<mode>`: default for `--color`.
-- `DX_OUTPUT=<mode>`: default for `--output`.
-- `DX_FAIL_ON=<level>`: default for `--fail-on`.
-- `DX_BUILD_SLOTS=auto|<n>|off`: default for `--build-slots`.
-- `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
-- `MALLOC_ARENA_MAX=<n>`: dx and `tools/dx` set it to `2` on Linux when it and the `GLIBC_TUNABLES` `glibc.malloc.arena_max` tunable are unset, to cut Bazel server native memory. A running server keeps its environment until it restarts. Under `bazel run @rules_dx//:dx` the outer Bazel starts the server, so the default does not reach it.
-- `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
-- `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.
+| Variable | What it does |
+| --- | --- |
+| `DX_WORKSPACE=<dir>` | Default for `--workspace`. |
+| `DX_QUIET=<bool>` | Default for `--quiet`. |
+| `DX_VERBOSE=<bool>` | Default for `--verbose`. |
+| `DX_COLOR=<mode>` | Default for `--color`. |
+| `DX_OUTPUT=<mode>` | Default for `--output`. |
+| `DX_FAIL_ON=<level>` | Default for `--fail-on`. |
+| `DX_BUILD_SLOTS=auto\|<n>\|off` | Default for `--build-slots`. |
+| `NO_COLOR=<any>` | Disable color in `auto` mode. |
+| `BUILD_WORKSPACE_DIRECTORY=<dir>` | Workspace start under `bazel run`. |
+| `BUILD_WORKING_DIRECTORY=<dir>` | Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |
 
-A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
-Any other non-empty value is a usage error. An empty value is unset.
-A `DX_OUTPUT` or `DX_FAIL_ON` value that a command does not support is ignored
-for that command. An unsupported `DX_OUTPUT` falls back to the command's default
-output: `json` in an agent session for commands with JSON output, else `text`.
-An unsupported `DX_FAIL_ON` falls back to `warning`. The same value as a flag is
-a usage error. An invalid value is always a usage error.
-
-In CI the `DX_` variables are ignored. Flags still win. CI never implies
-`--apply`. dx reads no config file for these defaults.
+A `<bool>` is `true` or `false`. Any other non-empty value is a usage error. In
+CI the `DX_` variables are ignored. Flags still win.
 
 ## Global Shim
 

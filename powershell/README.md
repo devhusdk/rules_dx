@@ -120,4 +120,4 @@ modules and a `pwsh_test` per `*.Tests.ps1` script. The
 
 ## Coverage
 
-PowerShell tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.
+Pester tests write LCOV under `bazel coverage` and `dx coverage`. Depend on `//powershell/coverage:dx_coverage` and build the Pester configuration with `New-DxPesterConfiguration`. After `Invoke-Pester`, call `Write-DxPesterCoverage -Result $result`. Only the first-party `.ps1` and `.psm1` sources the test depends on are measured, and a line counts as covered when Pester ran a command on it. A test that does not call these functions writes no coverage.

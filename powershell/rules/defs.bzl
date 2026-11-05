@@ -4,10 +4,6 @@ load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_bin
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
-# False while powershell tests write empty LCOV under `bazel coverage`; the public
-# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308).
-POWERSHELL_COVERAGE_COLLECTOR = False
-
 _DX_POWERSHELL_LIBRARY_PROVIDES = [
     _PwshInfo,
     DefaultInfo,
@@ -42,6 +38,45 @@ _pwsh_binary_forward = dx_executable_forward_rule(
     runtime = "besteffort",
 )
 
+def _workspace_path(file):
+    if file.short_path.startswith("../"):
+        return file.short_path[3:]
+    return file.short_path
+
+def _rlocation(ctx, file):
+    path = file.short_path
+    if path.startswith("../"):
+        return path[3:]
+    return ctx.workspace_name + "/" + path
+
+def _pwsh_test_coverage(ctx, upstream):
+    """Lists the instrumented sources for DxCoverage, which writes the LCOV from Pester."""
+    if InstrumentedFilesInfo in upstream:
+        instrumented = upstream[InstrumentedFilesInfo]
+    else:
+        instrumented = coverage_common.instrumented_files_info(
+            ctx,
+            source_attributes = ["srcs"],
+            dependency_attributes = ["upstream"],
+        )
+    sources = ctx.actions.declare_file(ctx.label.name + ".coverage_sources")
+    lines = []
+    for file in instrumented.instrumented_files.to_list():
+        if file.extension in ["ps1", "psm1"] and not file.short_path.endswith("/DxCoverage/DxCoverage.psm1"):
+            lines.append(_rlocation(ctx, file) + "\t" + _workspace_path(file))
+    ctx.actions.write(sources, "\n".join(lines) + "\n")
+    env = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
+    env["DX_POWERSHELL_COVERAGE_SOURCES"] = _rlocation(ctx, sources)
+    return struct(
+        instrumented = instrumented,
+        env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
+        runfiles = ctx.runfiles(files = [sources]),
+    )
+
 _pwsh_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES,
@@ -52,6 +87,7 @@ _pwsh_forward_test = dx_executable_forward_rule(
     upstream_providers = [[_PwshInfo]],
     extra_attrs = dx_lcov_merger_attr(),
     optional_providers = [_PwshInfo],
+    coverage_providers = _pwsh_test_coverage,
 )
 
 def pwsh_library(name, srcs, visibility = None, **kwargs):
@@ -64,4 +100,4 @@ def pwsh_binary(name, srcs = None, visibility = None, **kwargs):
 
 def pwsh_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_test; srcs are .ps1 files."""
-    dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, coverage_collector = POWERSHELL_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, **kwargs)

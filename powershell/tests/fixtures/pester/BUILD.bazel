@@ -1,4 +1,5 @@
 load("//powershell/rules:defs.bzl", "pwsh_library", "pwsh_test")
+load("//powershell/rules:wrapper_tests.bzl", "pwsh_coverage_env_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -18,8 +19,14 @@ pwsh_test(
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         ":greeter_lib",
+        "//powershell/coverage:dx_coverage",
         "//powershell/gallery:pester",
     ],
+)
+
+pwsh_coverage_env_test(
+    name = "greeter_test_coverage_env_test",
+    target = ":greeter_test",
 )
 
 real_source_target(

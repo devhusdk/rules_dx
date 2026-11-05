@@ -1,0 +1,9 @@
+load("//powershell/rules:defs.bzl", "pwsh_library")
+
+package(default_visibility = ["//visibility:public"])
+
+pwsh_library(
+    name = "dx_coverage",
+    srcs = ["DxCoverage/DxCoverage.psm1"],
+    deps = ["//powershell/gallery:pester"],
+)

@@ -473,7 +473,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 30] = [
+const FAMILY_FILES: [&str; 31] = [
     "ansible",
     "bicep",
     "cloudformation",
@@ -481,6 +481,7 @@ const FAMILY_FILES: [&str; 30] = [
     "core",
     "cue",
     "d",
+    "dart",
     "dockerfile",
     "fortran",
     "haskell",

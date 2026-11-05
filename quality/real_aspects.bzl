@@ -14,7 +14,6 @@ load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_co
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//avro/rules:defs.bzl", "AvroInfo")
 load("//capnproto/rules:defs.bzl", "CapnpInfo")
-load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
@@ -22,7 +21,6 @@ load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
 load("//php/rules:php.bzl", "staged_path")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
-load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stubs")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
@@ -52,12 +50,12 @@ load("//quality:families/lua.bzl", _real_lua_format_aspect = "real_lua_format_as
 load("//quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _PHP_HOOKS = "HOOKS", _PHP_SHARD_SPECS = "SHARD_SPECS", _PHP_TOOLS = "TOOLS")
 load("//quality:families/kubernetes.bzl", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _KUBERNETES_HOOKS = "HOOKS", _KUBERNETES_SHARD_SPECS = "SHARD_SPECS", _KUBERNETES_TOOLS = "TOOLS")
 load("//quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _SQL_HOOKS = "HOOKS", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
+load("//quality:families/dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _DART_HOOKS = "HOOKS", _DART_SHARD_SPECS = "SHARD_SPECS", _DART_TOOLS = "TOOLS")
 load("//quality:families/d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _D_SHARD_SPECS = "SHARD_SPECS", _D_TOOLS = "TOOLS")
 load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _FORTRAN_SHARD_SPECS = "SHARD_SPECS", _FORTRAN_TOOLS = "TOOLS")
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
 load("//quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _ZIG_SHARD_SPECS = "SHARD_SPECS", _ZIG_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _without = "without")
-load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "generated_source_paths", "prune_tool_generated_sources", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_tool_table_error = "real_tool_table_error", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
@@ -185,14 +183,6 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "medium",
         "shard": "erlang",
-    },
-    "dart": {
-        "attr": attr.label(default = "//config:tool_dart", allow_files = True, cfg = "exec"),
-        "capabilities": ["format", "lint", "typecheck"],
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "dart",
-        "target_tool": True,
     },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
@@ -785,42 +775,6 @@ def _jet_staging(target, ctx, path_to_file):
     )
     return (staged, config)
 
-_DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
-_DART_OPTIONS_REL = "analysis_options.yaml"
-
-def _dart_info(target, what):
-    if DartAnalyzableInfo in target:
-        return target[DartAnalyzableInfo].dart_info
-    if DartInfo in target:
-        return target[DartInfo]
-    fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
-
-def _dart_context(target, ctx, what, capability, config_packages = []):
-    """Writes the package config that gives each Dart file the language version Dart itself would use.
-
-    The version is the one of the in-repo package whose root holds the file (`test/` and `bin/`
-    included); a package that states none is listed without one, so it formats at the newest
-    version like a file in no package. The analyzer view (lint and typecheck) also resolves the
-    external packages under `_external/` and gets one stub `pubspec.yaml` per in-repo package
-    root. Returns (package_config, empty_options, stubs) where stubs are (scratch path, File).
-    """
-    info = _dart_info(target, what)
-    mode = DART_FORMAT if capability == "format" else DART_ANALYZE
-    packages = info.transitive_packages.to_list()
-    if mode == DART_ANALYZE:
-        packages = dart_merge_packages(packages, config_packages)
-    config = ctx.actions.declare_file(target.label.name + "-dart-package-config-" + capability + ".json")
-    ctx.actions.write(output = config, content = json.encode({"configVersion": 2, "packages": dart_package_entries(packages, mode)}))
-    options = ctx.actions.declare_file(target.label.name + "-dart-analysis-options-" + capability + ".yaml")
-    ctx.actions.write(output = options, content = "")
-    stubs = []
-    if mode == DART_ANALYZE:
-        for index, (path, content) in enumerate(dart_pubspec_stubs(packages)):
-            stub = ctx.actions.declare_file("%s-dart-pubspec-%s-%d.yaml" % (target.label.name, capability, index))
-            ctx.actions.write(output = stub, content = content)
-            stubs.append((path, stub))
-    return (config, options, stubs)
-
 # Converters Vale shells out to, by source class: (tool name, owner rule, defs.bzl).
 # The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
 # never load Python or Node.
@@ -948,24 +902,6 @@ _REAL_SHARD_SPECS = {
         "shard": "go",
         "suffix": "-go",
         "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
-    },
-    "real_dart_format": {
-        "capability": "format",
-        "doc": "Additive Dart format family aspect (dart format).",
-        "shard": "dart",
-        "suffix": "-dart",
-    },
-    "real_dart_lint": {
-        "capability": "lint",
-        "doc": "Additive Dart lint family aspect (dart analyze).",
-        "shard": "dart",
-        "suffix": "-dart",
-    },
-    "real_dart_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Dart typecheck family aspect (dart analyze).",
-        "shard": "dart",
-        "suffix": "-dart",
     },
     "real_python_format": {
         "capability": "format",
@@ -1307,54 +1243,6 @@ def _jet_hook(target, ctx, resolved, _capability, _what, shared):
         _stage(tool_files, inputs, "dx-jet/config.toml", config)
     return real_context(tool_files = tool_files, inputs = inputs)
 
-def _dart_hook(target, ctx, _resolved, capability, what, _shared):
-    config_packages = []
-    config_files = []
-    if capability != "format" and hasattr(ctx.rule.attr, "aspect_hints"):
-        for hint_target in ctx.rule.attr.aspect_hints:
-            if DxDartConfigInfo in hint_target:
-                config_packages.extend(hint_target[DxDartConfigInfo].packages.to_list())
-                config_files.extend(hint_target[DxDartConfigInfo].srcs.to_list())
-                config_files.extend(hint_target[DxDartConfigInfo].resources.to_list())
-    (package_config, dart_options, stubs) = _dart_context(target, ctx, what, capability, config_packages)
-
-    pairs = []
-    reserved = []
-    if capability != "format":
-        dart_info = _dart_info(target, what)
-        dart_files = [f for f in dart_info.transitive_srcs.to_list() if f.extension == "dart"]
-        dart_files += [f for f in dart_info.transitive_resources.to_list() if f.basename == "_embedder.yaml"]
-        for f in dart_files + config_files:
-            ws_path = f.short_path
-            if ws_path.startswith("../"):
-                ws_path = dart_external_root(ws_path)
-            if ".." in ws_path.split("/"):
-                continue
-            pairs.append((ws_path, f, False))
-        for (stub_path, _) in stubs:
-            reserved.append((stub_path, "generated pubspec.yaml stub collides with the staged source " + stub_path))
-
-    def _with_config(hint, config_rel):
-        # dart format reads `formatter:` from the nearest analysis_options.yaml, so the
-        # hinted config (or an empty one) sits at the scratch root and nowhere else.
-        options = dart_options
-        tool_files = []
-        inputs = []
-        if hint != None:
-            options = hint.config
-        else:
-            inputs.append(options)
-        if config_rel != _DART_OPTIONS_REL:
-            tool_files.append((_DART_OPTIONS_REL, options))
-        _stage(tool_files, inputs, _DART_PACKAGE_CONFIG_REL, package_config)
-        for (stub_path, stub) in stubs:
-            if stub_path == config_rel:
-                fail(what + ": generated pubspec.yaml stub collides with the config " + stub_path)
-            _stage(tool_files, inputs, stub_path, stub)
-        return struct(tool_files = tool_files, inputs = inputs)
-
-    return real_context(resolve_pairs = pairs, reserved = reserved, with_config = _with_config)
-
 def _jvm_check_hook(tool):
     def _hook(target, _ctx, resolved, _capability, _what, _shared):
         if JvmCheckInfo not in target or target[JvmCheckInfo].tool != tool:
@@ -1634,7 +1522,6 @@ _HOOK_ORDER = [
     "scalafix",
     "fsharplint",
     "jet",
-    "dart",
 ] + _JVM_CHECK_TOOLS + _GO_ANALYSIS_TOOLS + COMPILE_CHECK_TOOLS + [
     "tsc",
     "roslyn",
@@ -1675,7 +1562,6 @@ _CONTEXT_HOOKS = {
     "scalafix": _scalafix_hook,
     "fsharplint": _fsharplint_hook,
     "jet": _jet_hook,
-    "dart": _dart_hook,
     "tsc": _tsc_hook,
     "roslyn": _roslyn_hook,
     "csc": _roslyn_hook,
@@ -1693,7 +1579,7 @@ _CONTEXT_HOOKS = {
     "buf": _buf_hook,
     "psscriptanalyzer": _psscriptanalyzer_hook,
     "gofumpt": _gofumpt_hook,
-} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -1705,8 +1591,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -1783,11 +1669,11 @@ real_elixir_format_aspect = _make_real_aspect("real_elixir_format")
 
 real_elixir_lint_aspect = _make_real_aspect("real_elixir_lint")
 
-real_dart_format_aspect = _make_real_aspect("real_dart_format")
+real_dart_format_aspect = _real_dart_format_aspect
 
-real_dart_lint_aspect = _make_real_aspect("real_dart_lint")
+real_dart_lint_aspect = _real_dart_lint_aspect
 
-real_dart_typecheck_aspect = _make_real_aspect("real_dart_typecheck")
+real_dart_typecheck_aspect = _real_dart_typecheck_aspect
 
 real_d_format_aspect = _real_d_format_aspect
 

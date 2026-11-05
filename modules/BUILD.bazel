@@ -65,6 +65,7 @@ rust_test(
         "//quality:families/core.bzl",
         "//quality:families/cue.bzl",
         "//quality:families/d.bzl",
+        "//quality:families/dart.bzl",
         "//quality:families/dockerfile.bzl",
         "//quality:families/fortran.bzl",
         "//quality:families/haskell.bzl",

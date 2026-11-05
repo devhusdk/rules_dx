@@ -1,4 +1,5 @@
 # gazelle:ignore
+load("//apple/ios:cell.bzl", "APPLE_HOSTS")
 load("//swift/rules:defs.bzl", "swift_library")
 
 swift_library(
@@ -6,10 +7,7 @@ swift_library(
     tags = ["manual"],
     srcs = ["LedgerAppDelegate.swift"],
     module_name = "LedgerApp",
-    target_compatible_with = [
-        "@platforms//os:macos",
-        "@platforms//cpu:arm64",
-    ],
+    target_compatible_with = APPLE_HOSTS,
     visibility = ["//apple/tests/fixtures/swift_app:__pkg__"],
     deps = [
         "//apple/tests/fixtures/swift_app:ledger_core",

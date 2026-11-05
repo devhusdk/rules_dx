@@ -36,6 +36,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "fuzz_run.sh",
     "runtime_tests.bzl",
     "sdist_cargo_vendor.bzl",
 ])

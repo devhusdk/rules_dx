@@ -1,5 +1,6 @@
 """Minimal Python wrappers."""
 
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo", _py_binary = "py_binary", _py_library = "py_library", _py_pytest_test = "py_pytest_test", _py_test = "py_test")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -116,3 +117,15 @@ def python_test(name, srcs = None, runner = "pytest", visibility = None, **kwarg
         dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
     else:
         dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
+
+def python_fuzz_test(name, srcs = None, visibility = None, tags = None, **kwargs):
+    """A python_binary that calls atheris plus a `<name>_run` runner for `dx fuzz`. Needs the atheris wheel: linux x86_64 only."""
+    python_binary(name = name, srcs = srcs, visibility = visibility, testonly = True, tags = (tags or []) + ["dx-fuzz"], **kwargs)
+    sh_binary(
+        name = name + "_run",
+        srcs = [Label("//python/rules:fuzz_run.sh")],
+        args = ["$(rootpath :" + name + ")"],
+        data = [":" + name],
+        testonly = True,
+        visibility = visibility,
+    )

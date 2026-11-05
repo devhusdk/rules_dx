@@ -533,7 +533,7 @@ mod tests {
     fn upgrade_refreshes_only_what_exists_from_the_init_plan() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-plan-", OLD);
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             &root,
         );
         assert_eq!(code, 0, "{err}");

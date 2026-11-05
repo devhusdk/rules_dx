@@ -201,6 +201,7 @@ you trust them with `/hooks`. Gemini CLI runs them in a trusted folder.
 | Codex | `.codex/hooks.json` | `CODEX_THREAD_ID` |
 | Cursor | `.claude/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 | Gemini CLI | `.gemini/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
+| GitHub Copilot | `.github/copilot-instructions.md` (no hooks) | none |
 
 `dx init --apply --agents=<list>` writes the file of each named agent when it
 is absent and never overwrites one. If a file exists, it prints the missing

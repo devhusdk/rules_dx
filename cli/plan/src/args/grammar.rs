@@ -12,11 +12,12 @@ pub enum Agent {
     Claude,
     Codex,
     Gemini,
+    Copilot,
 }
 
 impl Agent {
     /// Every agent.
-    pub const ALL: [Self; 3] = [Self::Claude, Self::Codex, Self::Gemini];
+    pub const ALL: [Self; 4] = [Self::Claude, Self::Codex, Self::Gemini, Self::Copilot];
 
     /// The word `--agents` takes for this agent.
     pub fn name(self) -> &'static str {
@@ -24,6 +25,7 @@ impl Agent {
             Self::Claude => "claude",
             Self::Codex => "codex",
             Self::Gemini => "gemini",
+            Self::Copilot => "copilot",
         }
     }
 }

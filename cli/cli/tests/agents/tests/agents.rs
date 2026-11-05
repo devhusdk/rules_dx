@@ -117,7 +117,7 @@ fn init(root: &Path, env: &Env) {
         &[
             "init",
             "--apply",
-            "--agents=claude,codex,gemini",
+            "--agents=claude,codex,gemini,copilot",
             "--workspace",
             root.to_str().expect("utf8"),
         ],

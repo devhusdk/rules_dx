@@ -396,7 +396,7 @@ mod tests {
             &crate::adopt::test_support::invocation(&[
                 "init",
                 "--apply",
-                "--agents=claude,codex,gemini",
+                "--agents=claude,codex,gemini,copilot",
             ]),
             root,
         );

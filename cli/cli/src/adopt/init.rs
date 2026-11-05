@@ -503,7 +503,7 @@ mod tests {
 
     #[test]
     fn init_full_applies_every_part() {
-        let inv = invocation(&["init", "--apply", "--agents=claude,codex,gemini"]);
+        let inv = invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
@@ -890,7 +890,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-full-");
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             &root,
         );
         assert_eq!(code, 0, "{err}");

@@ -88,13 +88,13 @@ mod tests {
             root,
             "",
             CODE_INIT_FAILED,
-            &["init", "--apply", "--agents=claude,codex,gemini"],
+            &["init", "--apply", "--agents=claude,codex,gemini,copilot"],
         )
     }
 
     fn full_init(root: &Path) -> (i32, String, String) {
         crate::adopt::test_support::run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         )
     }
@@ -196,12 +196,17 @@ mod tests {
     fn a_prefix_reaches_every_report_line() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-prefix-");
         let root = scratch.path();
-        let words = ["init", "--apply", "--agents=claude,codex,gemini", "demo"];
+        let words = [
+            "init",
+            "--apply",
+            "--agents=claude,codex,gemini,copilot",
+            "demo",
+        ];
         let (code, out, _err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 0);
         assert_eq!(
             out,
-            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
+            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\n",
             overrides = dx_adopt::render_overrides(&Default::default())
                 .iter()
                 .map(|(path, _)| format!("wrote demo/{path}\n"))
@@ -225,7 +230,12 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
         assert!(init_files::preflight(root, "demo/", &plan(root)).is_err());
-        let words = ["init", "--apply", "--agents=claude,codex,gemini", "demo"];
+        let words = [
+            "init",
+            "--apply",
+            "--agents=claude,codex,gemini,copilot",
+            "demo",
+        ];
         let (code, _out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 1);
         assert!(err.contains("init_failed"));

@@ -5,7 +5,7 @@ use dx_adopt::{AdoptError, Applied, FileKind};
 use dx_plan::args::Agent;
 use dx_worktree::setup;
 
-use super::{agents, claude_md};
+use super::{agents, claude_md, copilot_md};
 
 const ESSENTIAL: [&str; 6] = [
     ".dx/pins",
@@ -26,6 +26,7 @@ pub(super) enum Kind {
     Hooks,
     AgentsBlock,
     ClaudeImport,
+    CopilotInstructions,
 }
 
 /// Whether apply creates missing files or only refreshes existing ones.
@@ -49,6 +50,7 @@ fn agent_paths(agent: Agent) -> &'static [&'static str] {
         Agent::Claude => &[setup::SETTINGS, claude_md::FILE],
         Agent::Codex => &[setup::CODEX.path],
         Agent::Gemini => &[setup::GEMINI.path],
+        Agent::Copilot => &[copilot_md::FILE],
     }
 }
 
@@ -112,6 +114,13 @@ pub(super) fn plan(
             claude_md::FILE.to_owned(),
             format!("@{}\n", agents::FILE),
             Kind::ClaudeImport,
+        ));
+    }
+    if wanted(copilot_md::FILE) {
+        entries.push((
+            copilot_md::FILE.to_owned(),
+            copilot_md::BLOCK.to_owned(),
+            Kind::CopilotInstructions,
         ));
     }
     let overrides_included = std::fs::read_to_string(root.join("MODULE.bazel"))
@@ -198,6 +207,7 @@ pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result
     setup::inspect(root, &hook_paths(files)).map_err(io)?;
     agents::planned(root, true).map_err(io)?;
     claude_md::state(root).map_err(io)?;
+    copilot_md::imported(root).map_err(io)?;
     Ok(())
 }
 
@@ -302,6 +312,11 @@ pub(super) fn apply(
     {
         applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
     }
+    if has(|kind| *kind == Kind::CopilotInstructions)
+        && copilot_md::write(root).map_err(|error| error.to_string())?
+    {
+        applied.wrote.push(format!("{prefix}{}", copilot_md::FILE));
+    }
     Ok(())
 }
 
@@ -392,6 +407,12 @@ fn refresh(
     {
         record(applied, vec![claude_md::FILE.to_owned()]);
     }
+    if has(|kind| *kind == Kind::CopilotInstructions)
+        && copilot_md::refresh(root)
+            .map_err(|error| format!("{} not refreshed: {error}", copilot_md::FILE))?
+    {
+        record(applied, vec![copilot_md::FILE.to_owned()]);
+    }
     Ok(())
 }
 
@@ -473,6 +494,11 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
                     .push(format!("{path} (lacks @{})", agents::FILE)),
                 Err(error) => drift.other.push(format!("{path}: {error}")),
             },
+            Kind::CopilotInstructions => match copilot_md::imported(root) {
+                Ok(true) => {}
+                Ok(false) => drift.stale.push(format!("{path} (lacks {})", agents::FILE)),
+                Err(error) => drift.other.push(format!("{path}: {error}")),
+            },
         }
     }
     drift
@@ -505,7 +531,7 @@ mod tests {
         let root = scratch.path();
         let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         let (code, out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -557,7 +583,7 @@ mod tests {
             .map(|file| file.path)
             .collect();
         let (code, out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -628,7 +654,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-planned-removed-");
         let root = scratch.path();
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -643,8 +669,10 @@ mod tests {
             let missing = super::drift(root, &files).missing.contains(&file.path);
             assert_eq!(missing, file.essential, "{}", file.path);
             if file.path != "MODULE.bazel" {
-                let (code, _out, _err) =
-                    run(&invocation(&["init", "--agents=claude,codex,gemini"]), root);
+                let (code, _out, _err) = run(
+                    &invocation(&["init", "--agents=claude,codex,gemini,copilot"]),
+                    root,
+                );
                 assert_eq!(code == 0, !file.essential, "{}", file.path);
             }
             std::fs::write(&full, kept).expect("restore");
@@ -658,7 +686,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-owned-removed-");
         let root = scratch.path();
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -689,7 +717,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-owned-gaps-");
         let root = scratch.path();
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -723,7 +751,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-");
         let root = scratch.path();
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");
@@ -735,7 +763,7 @@ mod tests {
             .stale
             .contains(&".vscode/settings.json".to_owned()));
         let (code, _out, err) = run(
-            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
         );
         assert_eq!(code, 0, "{err}");

@@ -8,7 +8,8 @@ use super::{release_pins, AdoptError, DX_VERSION};
 pub enum FileKind {
     WriteOnce,
     VscodeKeys,
-    CiPin,
+    /// Repins the `uses:` ref of the reusable workflow at this path.
+    CiPin(&'static str),
     /// Rewritten whenever it differs from the planned content.
     Generated,
 }
@@ -313,10 +314,8 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 .collect();
             dx_merge::jsonc::set_keys(existing, &edits)
         }
-        FileKind::CiPin => {
-            let action = format!(
-                "{CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{CONSUMER_WORKFLOW_PATH}"
-            );
+        FileKind::CiPin(workflow) => {
+            let action = format!("{CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{workflow}");
             let pinned =
                 dx_merge::yaml_scalar::set_uses_ref(existing, &action, CONSUMER_WORKFLOW_PIN);
             Ok(pinned
@@ -451,7 +450,7 @@ fn plan_init_files_full(
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
             content: render_consumer_caller_for(branch),
-            kind: FileKind::CiPin,
+            kind: FileKind::CiPin(CONSUMER_WORKFLOW_PATH),
         },
         ScaffoldFile {
             path: ".github/workflows/dx-update.yml".to_owned(),
@@ -461,7 +460,7 @@ fn plan_init_files_full(
         ScaffoldFile {
             path: ".github/workflows/release.yml".to_owned(),
             content: render_release_caller(),
-            kind: FileKind::WriteOnce,
+            kind: FileKind::CiPin(RELEASE_WORKFLOW_PATH),
         },
     ];
     Ok(files)

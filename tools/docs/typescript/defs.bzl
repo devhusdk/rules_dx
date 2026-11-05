@@ -2,35 +2,21 @@
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load(":shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
 
 _TYPEDOC = Label("//quality/tools/javascript/bin:typedoc")
-_JSON_SCHEMA = "2.0"
 
 _RESERVED_OPTIONS = ["plugin", "options", "tsconfig", "entryPoints", "json", "out", "basePath"]
 
 def _docs_typescript_shard_impl(ctx):
-    shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
-    args = ctx.actions.args()
-    args.add("--typedoc", ctx.file.json)
-    args.add("--out", shard)
-    args.add("--package", ctx.attr.package)
-    args.add("--source-prefix", ctx.attr.source_prefix)
-    args.add("--config", ctx.attr.config)
-    ctx.actions.run(
-        executable = ctx.executable._extract,
-        arguments = [args],
-        inputs = [ctx.file.json],
-        outputs = [shard],
-        mnemonic = "DxDocsTypescriptExtract",
-        progress_message = "Extracting TypeScript API docs for %{label}",
-    )
+    shard = typescript_shard_action(ctx, ctx.file.json, ctx.attr.package, ctx.attr.source_prefix, ctx.attr.config, ctx.label.name, ctx.executable._extract)
     return [
         DefaultInfo(files = depset([shard])),
         DocsShardInfo(language = "typescript", package = ctx.attr.package, shard = shard),
     ]
 
 docs_typescript_shard = rule(
-    doc = "Converts one TypeScript project's TypeDoc JSON into a DocIr shard.",
+    doc = "Converts one TypeScript project's TypeDoc JSON into a DocIr shard with //tools/docs/typescript/extract:typescript_extract.",
     implementation = _docs_typescript_shard_impl,
     attrs = {
         "config": attr.string(doc = "Configuration identity recorded on every symbol."),
@@ -67,25 +53,7 @@ def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [],
     if package == "":
         fail(where + ": package is required")
     _check_options(where, options)
-    arguments = [
-        "--tsconfig",
-        tsconfig,
-        "--name",
-        package,
-        "--basePath",
-        ".",
-        "--json",
-        name + ".typedoc.json",
-        "--excludePrivate",
-        "--excludeProtected",
-        "--excludeInternal",
-        "--excludeExternals",
-        "--treatWarningsAsErrors",
-        "--treatValidationWarningsAsErrors",
-    ]
-    for entry in entry_points:
-        arguments.extend(["--entryPoints", entry])
-    arguments.extend(options)
+    arguments = typedoc_arguments(tsconfig, package, name + ".typedoc.json", entry_points, options)
     js_run_binary(
         name = name + "_typedoc",
         srcs = srcs + [tsconfig] + deps,
@@ -103,6 +71,6 @@ def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [],
         json = ":" + name + ".typedoc.json",
         package = package,
         source_prefix = native.package_name(),
-        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";typedoc-json=" + _JSON_SCHEMA + ";options=" + " ".join(options),
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";typedoc-json=" + TYPEDOC_JSON_SCHEMA + ";options=" + " ".join(options),
         **kwargs
     )

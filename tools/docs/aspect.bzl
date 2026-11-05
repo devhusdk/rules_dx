@@ -5,12 +5,15 @@ load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
+load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
+load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
@@ -89,6 +92,43 @@ def _powershell_docs_shard(target, ctx):
     pwsh = ctx.attr._pwsh[platform_common.ToolchainInfo]
     return powershell_shard_action(ctx, sources, manifests[0] if manifests else None, package, "", "_dx_docs/" + ctx.label.name, pwsh, ctx.file._pwsh_script, ctx.executable._pwsh_extract).shard
 
+_TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
+_TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
+
+def _typescript_entry_point(file):
+    name = file.basename
+    if file.extension not in _TS_ENTRY_EXTENSIONS or ".d." in name:
+        return False
+    return not any([marker in name for marker in _TS_TEST_MARKERS])
+
+def _typescript_docs_shard(target, ctx):
+    attrs = ctx.rule.attr
+    if DocsShardInfo in target or not (hasattr(attrs, "tsc") and hasattr(attrs, "_options") and hasattr(attrs, "tsconfig")):
+        return None
+    if ctx.rule.kind.endswith("_test") or OutputGroupInfo not in target or not hasattr(target[OutputGroupInfo], "_action_inputs"):
+        return None
+    entry_points = sorted([repo_relative(f.short_path) for f in ctx.rule.files.srcs if _typescript_entry_point(f)])
+    if not entry_points:
+        return None
+    package = ctx.label.name
+    tsconfig = repo_relative(ctx.rule.file.tsconfig.short_path)
+    stem = "_dx_docs/" + ctx.label.name
+    typedoc_json = ctx.actions.declare_file(stem + ".typedoc.json")
+    arguments = ctx.actions.args()
+    arguments.add_all(typedoc_arguments(tsconfig, package, typedoc_json.path[len(ctx.bin_dir.path) + 1:], entry_points, [], ctx.label.package or "."))
+    js_binary_lib.run_binary_action(
+        ctx,
+        mnemonic = "DxTypedoc",
+        progress_message = "TypeDoc JSON of %{label}",
+        executable = ctx.attr._typedoc[DefaultInfo].files_to_run,
+        inputs = target[OutputGroupInfo]._action_inputs,
+        outputs = [typedoc_json],
+        arguments = [arguments],
+        resource_set = dx_heavy_resources,
+    )
+    config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";typedoc-json=" + TYPEDOC_JSON_SCHEMA + ";options="
+    return typescript_shard_action(ctx, typedoc_json, package, ctx.label.package, config, stem, ctx.executable._ts_extract)
+
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
@@ -133,6 +173,9 @@ def _real_docs_aspect_impl(target, ctx):
     pwsh_shard = _powershell_docs_shard(target, ctx)
     if pwsh_shard:
         parts.append({"dx_results": [pwsh_shard], "dx_docs_shards": [pwsh_shard]})
+    ts_shard = _typescript_docs_shard(target, ctx)
+    if ts_shard:
+        parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
     if not parts:
         return []
     groups = {}
@@ -143,7 +186,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F# and PowerShell library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell and TypeScript library shards go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_csharp_driver": attr.label(
             cfg = "exec",
@@ -222,6 +265,16 @@ real_docs_aspect = aspect(
         "_scala_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/jvm/scaladoc:scaladoc_extract"),
+            executable = True,
+        ),
+        "_ts_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/typescript/extract:typescript_extract"),
+            executable = True,
+        ),
+        "_typedoc": attr.label(
+            cfg = "exec",
+            default = Label("//quality/tools/javascript/bin:typedoc"),
             executable = True,
         ),
     },

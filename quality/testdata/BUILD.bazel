@@ -2075,6 +2075,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_typescript_library_subject",
+    target = "//tools/docs/typescript/fixture:geometry_library",
+)
+
+real_docs_subject(
     name = "docs_plain_subject",
     target = ":plain",
 )
@@ -2096,6 +2101,7 @@ real_docs_tests(
         ":docs_rust_library_subject",
         ":docs_rust_test_subject",
         ":docs_scala_library_subject",
+        ":docs_typescript_library_subject",
     ],
 )
 

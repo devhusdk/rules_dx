@@ -1,3 +1,4 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -9,6 +10,15 @@ typescript_doc_shard(
     srcs = glob(["src/*.ts"]),
     entry_points = ["src/index.ts"],
     package = "geometry",
+    tsconfig = "tsconfig.json",
+)
+
+ts_project(
+    name = "geometry_library",
+    srcs = glob(["src/*.ts"]),
+    declaration = True,
+    no_emit = True,
+    transpiler = "tsc",
     tsconfig = "tsconfig.json",
 )
 

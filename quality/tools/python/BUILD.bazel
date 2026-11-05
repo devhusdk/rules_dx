@@ -222,6 +222,7 @@ py_binary(
     main = "griffe_dump.py",
     visibility = [
         "//quality:__pkg__",
+        "//tools/docs:__pkg__",
         "//tools/docs/python:__subpackages__",
     ],
     deps = ["@pypi//griffelib"],

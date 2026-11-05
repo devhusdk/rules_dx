@@ -15,6 +15,9 @@ def _gcc_impl(ctx):
         asserts.true(env, "dx_gcc_linux_x86_64" in action.argv[0], "tool outside the pinned GCC: " + action.argv[0])
         for arg in action.argv:
             asserts.false(env, arg.startswith("/usr/") or arg.startswith("/lib"), "host path in %s: %s" % (action.mnemonic, arg))
+        if action.mnemonic == "CppLink":
+            linkers = [f for f in action.inputs.to_list() if "dx_gcc_linux_x86_64" in f.path and f.path.endswith("/xbin/ld")]
+            asserts.true(env, len(linkers) > 0, "link action does not use the pinned GCC linker")
     return analysistest.end(env)
 
 def _llvm_impl(ctx):

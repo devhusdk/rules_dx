@@ -66,6 +66,13 @@ hermetic_manifest = rule(
 # Read by the support matrix (tools/docs/support_matrix) for the hermetic_qualification kind.
 HERMETIC_COMPATIBLE_WITH = ["@platforms//os:linux"]
 
+# The manifest only lists the consumer; the unit tests read it on macOS too.
+MANIFEST_COMPATIBLE_WITH = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 QUALIFICATION_TAGS = [
     "exclusive",
     "hermetic-qualification",
@@ -109,7 +116,7 @@ def hermetic_qualification(
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
         srcs = srcs,
-        target_compatible_with = HERMETIC_COMPATIBLE_WITH,
+        target_compatible_with = MANIFEST_COMPATIBLE_WITH,
         workspace_dir = workspace_dir,
     )
     if not smoke:

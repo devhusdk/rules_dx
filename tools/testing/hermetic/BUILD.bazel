@@ -3,7 +3,7 @@ load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
-load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
+load(":defs.bzl", "MANIFEST_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -19,6 +19,8 @@ exports_files(
 )
 
 LINUX = ["@platforms//os:linux"]
+
+LINUX_MACOS = MANIFEST_COMPATIBLE_WITH
 
 # The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
 filegroup(
@@ -41,7 +43,7 @@ rust_library(
     crate_name = "hermetic",
     crate_root = "src/lib.rs",
     edition = "2021",
-    target_compatible_with = LINUX,
+    target_compatible_with = LINUX_MACOS,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -70,7 +72,7 @@ rust_test(
         "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
     },
     tags = ["no-remote-exec"],
-    target_compatible_with = LINUX,
+    target_compatible_with = LINUX_MACOS,
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,

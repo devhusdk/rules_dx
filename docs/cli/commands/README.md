@@ -71,6 +71,7 @@ line on stdout. Every object has an `event` name and a `schema` with `major`
 and `minor`. The stream starts with `command_started` and ends with
 `command_finished`. Logs go to stderr. The schema is
 [`cli/output/schema/events.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/output/schema/events.schema.json).
+Readers accept added fields and any minor, and reject a `major` they do not write.
 
 ```sh
 tools/dx lint //... --output=json
@@ -546,7 +547,6 @@ Quality config:
 
 Every other file stays private.
 A private file is not a dependency.
-Readers tolerate added fields and fail on a new major schema.
 The Bazel version in `.bazelversion` is the tested baseline.
 Bazel 9.2.0 or later is required.
 

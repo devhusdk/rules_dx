@@ -328,6 +328,16 @@ REAL_RESULT_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
     },
+    {
+        "name": "real_result_roslyn_unused_dep",
+        "target": "//quality/testdata/dotnet_owned:unused_dep",
+        "policy": "//quality/testdata/dotnet_owned:policy",
+        "tool": "roslyn",
+        "capability": "lint",
+        "class": "csharp",
+        "contains": ["RT0001", "dotnet_owned:dep"],
+        "absent": ["Fatal error"],
+    },
 ]
 
 def real_result_evidence(case):

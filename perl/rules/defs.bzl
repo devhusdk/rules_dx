@@ -6,8 +6,6 @@ load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 PerlInfo = _PerlInfo
 
-PERL_COVERAGE_COLLECTOR = False
-
 PERL_QUALITY_TOOLS = {
     "perlcritic": Label("//perl/tools:perlcritic"),
     "perltidy": Label("//perl/tools:perltidy"),
@@ -33,6 +31,7 @@ _perl_library_forward = dx_library_forward_rule(
     upstream_providers = [[_PerlInfo]],
     runtime = "besteffort",
     quality_tools = PERL_QUALITY_TOOLS,
+    instrument_srcs = True,
 )
 
 _perl_binary_forward = dx_executable_forward_rule(
@@ -47,6 +46,31 @@ _perl_binary_forward = dx_executable_forward_rule(
     quality_tools = PERL_QUALITY_TOOLS,
 )
 
+def _perl_test_coverage(ctx, upstream):
+    """Loads the DxLcov collector in every perl the test starts (#7324)."""
+    instrumented = coverage_common.instrumented_files_info(
+        ctx,
+        source_attributes = ["srcs"],
+        dependency_attributes = ["upstream", "deps"],
+    )
+    collector = ctx.files._perl_coverage
+    env = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
+    sep = ";" if ctx.target_platform_has_constraint(ctx.attr._perl_windows[platform_common.ConstraintValueInfo]) else ":"
+    dirs = [collector[0].short_path.rpartition("/")[0]]
+    if env.get("PERL5LIB"):
+        dirs.append(env["PERL5LIB"])
+    env["PERL5LIB"] = sep.join(dirs)
+    env["PERL5OPT"] = " ".join(["-MDxLcov"] + ([env["PERL5OPT"]] if env.get("PERL5OPT") else []))
+    return struct(
+        instrumented = instrumented,
+        env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
+        runfiles = ctx.runfiles(files = collector),
+    )
+
 _perl_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = _PERL_EXEC_PROVIDES,
@@ -55,9 +79,14 @@ _perl_forward_test = dx_executable_forward_rule(
     what = "perl_test",
     allow_files = PERL_SOURCE_EXTS,
     upstream_providers = None,
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | {
+        "deps": attr.label_list(providers = [_PerlInfo]),
+        "_perl_coverage": attr.label(default = Label("//perl/coverage:collector")),
+        "_perl_windows": attr.label(default = Label("@platforms//os:windows"), providers = [platform_common.ConstraintValueInfo]),
+    },
     runtime = "besteffort",
     quality_tools = PERL_QUALITY_TOOLS,
+    coverage_providers = _perl_test_coverage,
 )
 
 PERL_DEFERRED_SKIP_TAGS = ["no-typecheck"]
@@ -82,4 +111,4 @@ def perl_test(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over perl_test."""
     kwargs = dx_language_kwargs(kwargs, PERL_DEFERRED_SKIP_TAGS, PERL_COMPATIBLE_WITH)
     upstream = dict(kwargs, main = main) if main != None else kwargs
-    dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = perl_quality_srcs(main, srcs), coverage_collector = PERL_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, quality_srcs = perl_quality_srcs(main, srcs), **kwargs)

@@ -126,3 +126,11 @@ passed on them.
 rules_perl has no toolchain for other platforms. The wrappers mark their
 targets incompatible there, so a build fails instead of running the host
 Perl. Unix launchers start through a bash script.
+
+## Coverage
+
+`dx coverage` runs `perl_test` through the `DxLcov` collector in
+`@rules_dx//perl/coverage`. It loads in every Perl the test starts, counts the
+statements that run, and writes LCOV for the instrumented sources to
+`$COVERAGE_OUTPUT_FILE`. Devel::Cover needs XS, which the `cpan` extension
+cannot build.

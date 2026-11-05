@@ -6,8 +6,8 @@ use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
     registry::{spec, CommandSpec},
-    rules_dx_label, BuildPlan, DOCS_SITES_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
-    SKIP_INCOMPATIBLE_FLAG,
+    rules_dx_label, BuildPlan, DOCS_SITE_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP,
+    SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -158,12 +158,7 @@ pub fn plan_build_with(
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
     let aspects = joined_labels(select_aspects(&entry, shards));
-    let group = if command == Command::Docs {
-        format!("{OUTPUT_GROUP},{DOCS_SITES_GROUP}")
-    } else {
-        OUTPUT_GROUP.to_owned()
-    };
-    let mut required = shaped_options(&aspects, &group, bazel_options, bep_path);
+    let mut required = shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path);
     if let Some(path) = exec_log {
         required.extend(exec_log_options(path));
     }
@@ -174,6 +169,26 @@ pub fn plan_build_with(
         startup_options,
         &required,
         exec_log.is_some(),
+    )
+}
+
+/// Plans the docs build: the docs aspect over the scope, with the site manifests beside the results.
+pub fn plan_docs(
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+) -> Result<BuildPlan, ForwardError> {
+    let aspects = joined_labels(spec(Command::Docs).aspects.iter().copied());
+    let groups = format!("{OUTPUT_GROUP},{DOCS_SITE_OUTPUT_GROUP}");
+    let required = shaped_options(&aspects, &groups, bazel_options, bep_path);
+    shaped_plan(
+        Command::Docs,
+        resolved,
+        bazel_options,
+        startup_options,
+        &required,
+        false,
     )
 }
 
@@ -873,6 +888,40 @@ mod tests {
             plan.argv.iter().filter(|arg| *arg == selection).count(),
             1,
             "the consumer policy selection passes through once: {plan:?}"
+        );
+    }
+
+    #[test]
+    fn docs_plan_adds_the_site_group_and_protects_output_groups() {
+        let plan = plan_docs(&resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
+        let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+        assert!(
+            argv.contains(&"--aspects=@rules_dx//quality:real_aspects.bzl%real_docs_aspect"),
+            "{argv:?}"
+        );
+        assert!(
+            argv.contains(&"--output_groups=dx_results,dx_docs_sites"),
+            "{argv:?}"
+        );
+        assert!(
+            !argv.iter().any(|arg| arg.starts_with("--output_groups=+")),
+            "{argv:?}"
+        );
+        assert!(
+            argv.contains(&"--build_event_json_file=/tmp/bep.json"),
+            "{argv:?}"
+        );
+        assert_eq!(argv.last(), Some(&"//..."));
+        let err = plan_docs(
+            &resolved(&[]),
+            &strings(&["--output_groups=other"]),
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect_err("a second output group must fail");
+        assert!(
+            matches!(err, ForwardError::ConflictingOption { .. }),
+            "{err:?}"
         );
     }
 

@@ -17,7 +17,7 @@ pub use generate::{
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;
-pub use quality::{plan_build, plan_build_with, plan_probe};
+pub use quality::{plan_build, plan_build_with, plan_docs, plan_probe};
 pub use registry::spec;
 pub use run_deploy::{
     plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
@@ -205,8 +205,8 @@ fn bazel_argv_in(
 
 pub const OUTPUT_GROUP: &str = "dx_results";
 
-/// The output group that holds the built docs site trees `dx docs --serve` previews.
-pub const DOCS_SITES_GROUP: &str = "dx_docs_sites";
+/// The output group of manifests naming the site trees `dx docs --serve` previews.
+pub const DOCS_SITE_OUTPUT_GROUP: &str = "dx_docs_sites";
 
 /// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";

@@ -465,6 +465,10 @@ mod tests {
                 StandardFormat::Results
             ]
         );
+        let docs = spec(Command::Docs);
+        assert_eq!(docs.aspects, &["quality:real_aspects.bzl%real_docs_aspect"]);
+        assert!(docs.probe.is_none());
+        assert!(docs.reports.is_empty());
         let run = spec(Command::Run);
         assert!(run.aspects.is_empty());
         assert!(run.reports.is_empty());

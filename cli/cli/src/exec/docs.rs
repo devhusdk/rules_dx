@@ -1,10 +1,8 @@
 use super::common::*;
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
-use dx_plan::args::Command;
 use dx_plan::args::Invocation;
-use dx_plan::plan::{bep_path, plan_build_with};
+use dx_plan::plan::{bep_path, plan_docs, DOCS_SITE_OUTPUT_GROUP};
 use dx_plan::resolve::resolve;
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 const DOCS_DEFAULT_PORT: u16 = 8000;
@@ -58,41 +56,37 @@ impl RunningPreview for StdRunning {
     }
 }
 
-/// Reads the built site trees the docs aspect reported, without opening them.
-struct PathOnly;
-
-impl dx_bep::ArtifactReader for PathOnly {
-    fn read_artifact(&self, _path: &Path) -> std::io::Result<Vec<u8>> {
-        Ok(Vec::new())
-    }
-}
-
-fn built_site_dir(bep: &Path, workspace: &Path, scope_text: &str) -> Result<PathBuf, String> {
-    let file = std::fs::File::open(bep)
-        .map_err(|error| format!("failed to read build events for {scope_text}: {error}"))?;
-    let config = dx_bep::CollectorConfig::new(dx_plan::plan::DOCS_SITES_GROUP)
-        .map_err(|error| format!("invalid BEP config: {error}"))?;
-    let account =
-        dx_bep::collect_account(BufReader::new(file), &config, &PathOnly, Some(workspace))
-            .map_err(|error| format!("invalid build events for {scope_text}: {error}"))?;
+/// The one site tree the docs aspect named in its site manifests, as a `(code, detail)` error otherwise.
+fn built_site_dir(
+    bep: &Path,
+    workspace: &Path,
+    scope_text: &str,
+) -> Result<PathBuf, (String, String)> {
+    let account = collect_output_account(bep, DOCS_SITE_OUTPUT_GROUP, workspace)?;
     let mut sites: Vec<PathBuf> = account
         .targets
         .into_iter()
         .flat_map(|target| target.artifacts)
-        .map(|artifact| artifact.exec_path)
+        .map(|manifest| workspace.join(String::from_utf8_lossy(&manifest.bytes).trim()))
         .collect();
     sites.sort();
     sites.dedup();
     let [dir] = sites.as_slice() else {
-        return Err(format!(
-            "{scope_text} built {} docs sites; serve needs exactly one (pass a single site target)",
-            sites.len()
+        return Err((
+            CODE_SERVE_FAILED.to_owned(),
+            format!(
+                "{scope_text} built {} docs sites; serve needs exactly one (pass a single site target)",
+                sites.len()
+            ),
         ));
     };
     if !dir.join("index.html").is_file() {
-        return Err(format!(
-            "the built site for {scope_text} has no index.html entry page at {}",
-            dir.display()
+        return Err((
+            CODE_SERVE_FAILED.to_owned(),
+            format!(
+                "the built site for {scope_text} has no index.html entry page at {}",
+                dir.display()
+            ),
         ));
     }
     Ok(dir.clone())
@@ -124,7 +118,11 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
-    let scope_text = resolved.targets.join(" ");
+    let scope_text = if resolved.targets.is_empty() {
+        "//...".to_owned()
+    } else {
+        resolved.targets.join(" ")
+    };
     let labels = resolved.targets.clone();
     let actions: &[&str] = &["summary", "render"];
     let bep = bep_path(temp_dir, pid, nonce);
@@ -136,20 +134,17 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
             &crate::startup::temp_path_not_utf8(),
         );
     };
-    let plan = match plan_build_with(
-        Command::Docs,
+    let plan = match plan_docs(
         &resolved,
         &invocation.quiet_bazel_options(),
         bep_text,
         &invocation.bazel_startup_options,
-        None,
-        None,
     ) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     let argv = plan.argv;
-    let summary = plan.summary;
+    let summary = format!("Running docs build for {scope_text} (mdBook render)");
     if json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
@@ -211,8 +206,8 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     let _ = std::fs::remove_file(&bep);
     let serve_dir = match site {
         Ok(dir) => dir,
-        Err(detail) => {
-            return operational(invocation, out, err, CODE_SERVE_FAILED, &detail);
+        Err((code, detail)) => {
+            return operational(invocation, out, err, &code, &detail);
         }
     };
     let serve_dir_text = serve_dir.display().to_string();
@@ -287,11 +282,13 @@ mod tests {
     use dx_plan::resolve::QueryResult;
     use dx_testing::cli::strings;
 
+    /// One target per site, each reporting a manifest that names its tree.
     fn site_bep(harness: &Harness, rels: &[&str]) -> Vec<String> {
         let mut lines = Vec::new();
-        let mut sets = Vec::new();
         for (index, rel) in rels.iter().enumerate() {
-            let uri = format!("file://{}", harness.workspace.join(rel).display());
+            let manifest = format!("bazel-bin/site{index}/site.dx_docs_site");
+            harness.write_source(&manifest, rel);
+            let uri = format!("file://{}", harness.workspace.join(&manifest).display());
             lines.push(
                 serde_json::json!({
                     "id": {"namedSet": {"id": index.to_string()}},
@@ -299,24 +296,44 @@ mod tests {
                 })
                 .to_string(),
             );
-            sets.push(serde_json::json!({"id": index.to_string()}));
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetCompleted": {"label": format!("//site{index}:site")}},
+                    "completed": {
+                        "success": true,
+                        "outputGroup": [{"name": "dx_docs_sites", "fileSets": [{"id": index.to_string()}]}],
+                    },
+                })
+                .to_string(),
+            );
         }
-        lines.push(
-            serde_json::json!({
-                "id": {"targetCompleted": {"label": "//site:site"}},
-                "completed": {
-                    "success": true,
-                    "outputGroup": [{"name": "dx_docs_sites", "fileSets": sets}],
-                },
-            })
-            .to_string(),
-        );
         lines
     }
 
     fn script_site_tree(harness: &mut Harness, rel: &str) {
         harness.write_source(&format!("{rel}/index.html"), "<!doctype html>\n");
         harness.raw_bep = Some(site_bep(harness, &[rel]));
+    }
+
+    fn docs_argv(harness: &Harness, words: &[&str]) -> Vec<String> {
+        let (code, out, err) = harness.run(words);
+        assert_eq!(code, 0, "{words:?}: {out}{err}");
+        let argv = harness.build_argv.borrow()[0].clone();
+        assert!(
+            argv.contains(
+                &"--aspects=@rules_dx//quality:real_aspects.bzl%real_docs_aspect".to_owned()
+            ),
+            "{argv:?}"
+        );
+        assert!(
+            argv.contains(&"--output_groups=dx_results,dx_docs_sites".to_owned()),
+            "{argv:?}"
+        );
+        assert!(
+            !argv.iter().any(|arg| arg.contains("user_site")),
+            "{argv:?}"
+        );
+        argv
     }
 
     #[test]
@@ -352,37 +369,56 @@ mod tests {
         let harness = Harness::new("docs-build");
         let (code, out, _) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}");
-        assert!(out.contains("docs analysis for //..."), "{out}");
+        assert!(
+            out.contains("Running docs build for //... (mdBook render)"),
+            "{out}"
+        );
     }
 
     #[test]
-    fn docs_scopes_select_targets_through_the_docs_aspect() {
-        let cases: Vec<(Vec<&str>, &str)> = vec![
-            (vec!["docs", "--output=text"], "//..."),
-            (vec!["docs", "//a/...", "--output=text"], "//a/..."),
-            (vec!["docs", "//a:site", "--output=text"], "//a:site"),
-        ];
-        for (words, target) in cases {
-            let harness = Harness::new("docs-summary-scope");
-            harness.write_source("a/BUILD.bazel", "");
-            let (code, out, err) = harness.run(&words);
-            assert_eq!(code, 0, "{out}{err}");
-            let argv = &harness.build_argv.borrow()[0];
-            assert!(argv.contains(&target.to_owned()), "{argv:?}");
-            assert!(
-                argv.iter()
-                    .any(|arg| arg.starts_with("--aspects=") && arg.contains("real_docs_aspect")),
-                "{argv:?}"
-            );
-            assert!(
-                argv.contains(&"--output_groups=dx_results,dx_docs_sites".to_owned()),
-                "{argv:?}"
-            );
-            assert!(
-                !argv.iter().any(|arg| arg.contains("user_site")),
-                "{argv:?}"
-            );
-        }
+    fn docs_no_scope_covers_the_repository() {
+        let harness = Harness::new("docs-no-scope");
+        let argv = docs_argv(&harness, &["docs", "--output=text"]);
+        assert_eq!(argv.last().map(String::as_str), Some("//..."));
+    }
+
+    #[test]
+    fn docs_dir_scope_is_its_tree() {
+        let harness = Harness::new("docs-dir-scope");
+        harness.write_source("a/BUILD.bazel", "");
+        let argv = docs_argv(&harness, &["docs", "a", "--output=text"]);
+        assert_eq!(argv.last().map(String::as_str), Some("//a/..."));
+    }
+
+    #[test]
+    fn docs_file_scope_is_its_owning_rule() {
+        let harness = Harness::new("docs-file-scope");
+        harness.write_source("a/BUILD.bazel", "");
+        harness.write_source("a/page.md", "# page\n");
+        harness
+            .query
+            .script_graph(&[graph_rule("//a:site", &["//a:page.md"], &[])]);
+        let argv = docs_argv(&harness, &["docs", "a/page.md", "--output=text"]);
+        assert_eq!(argv.last().map(String::as_str), Some("//a:site"));
+    }
+
+    #[test]
+    fn docs_here_is_the_current_tree() {
+        let mut harness = Harness::new("docs-here");
+        harness.write_source("a/BUILD.bazel", "");
+        harness.cwd = harness.workspace.join("a");
+        let argv = docs_argv(&harness, &["docs", "--here", "--output=text"]);
+        assert_eq!(argv.last().map(String::as_str), Some("//a/..."));
+    }
+
+    #[test]
+    fn docs_scope_without_docs_targets_exits_zero() {
+        let mut harness = Harness::new("docs-empty-scope");
+        harness.write_source("b/BUILD.bazel", "");
+        harness.raw_bep = Some(Vec::new());
+        let (code, out, err) = harness.run(&["docs", "b", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Running docs build for //b/..."), "{out}");
     }
 
     #[test]
@@ -686,7 +722,7 @@ mod tests {
         assert_eq!((bound[0].0.as_str(), bound[0].1), ("127.0.0.1", 8080));
         assert!(
             bound[0].2.ends_with("bazel-bin/a/site"),
-            "the preview must serve the tree cquery reported: {bound:?}"
+            "the preview must serve the tree the site manifest names: {bound:?}"
         );
         assert_eq!(run.argvs.len(), 1, "only bazel runs: {:?}", run.argvs);
     }

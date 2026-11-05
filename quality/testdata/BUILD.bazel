@@ -270,6 +270,21 @@ real_aspect_subject(
     target = ":fixture_upstream_rust",
 )
 
+real_docs_subject(
+    name = "docs_demo_site_subject",
+    target = "//tools/docs/site:demo_site",
+)
+
+real_docs_subject(
+    name = "docs_demo_site_api_subject",
+    target = "//tools/docs/site:demo_site_docs",
+)
+
+real_docs_subject(
+    name = "docs_fixture_shard_subject",
+    target = "//tools/docs/rust/fixture:docs_fixture_docs",
+)
+
 real_aspect_subject(
     name = "fixture_upstream_cc_subject",
     target = ":fixture_upstream_cc",
@@ -2020,6 +2035,9 @@ real_docs_subject(
 real_docs_tests(
     name = "real_docs_shards",
     subjects = [
+        ":docs_demo_site_api_subject",
+        ":docs_demo_site_subject",
+        ":docs_fixture_shard_subject",
         ":docs_plain_subject",
         ":docs_rust_library_subject",
         ":docs_rust_test_subject",

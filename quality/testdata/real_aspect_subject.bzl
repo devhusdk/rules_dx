@@ -319,11 +319,19 @@ def _real_docs_subject_impl(ctx):
     shards = []
     if OutputGroupInfo in target and "dx_docs_shards" in target[OutputGroupInfo]:
         shards = sorted([f.short_path for f in target[OutputGroupInfo]["dx_docs_shards"].to_list()])
+    results = []
+    if OutputGroupInfo in target and "dx_results" in target[OutputGroupInfo]:
+        results = sorted([f.basename for f in target[OutputGroupInfo]["dx_results"].to_list()])
+    sites = []
+    if OutputGroupInfo in target and "dx_docs_sites" in target[OutputGroupInfo]:
+        sites = sorted([f.basename for f in target[OutputGroupInfo]["dx_docs_sites"].to_list()])
     return [
         DefaultInfo(files = depset([])),
         DxSubjectInfo(fields = {
             "docs_shard_count": str(len(shards)),
             "docs_shards": ",".join(shards) if shards else "(none)",
+            "dx_docs_sites": ",".join(sites) if sites else "(none)",
+            "dx_results": ",".join(results) if results else "(none)",
             "label": _label_text(target.label),
         }),
     ]

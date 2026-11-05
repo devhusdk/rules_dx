@@ -2895,28 +2895,41 @@ def _rust_docs_shard(target, ctx):
         return None
     return rust_shard_action(ctx, target, "", stem = "_dx_docs/" + ctx.label.name).shard
 
+def _docs_site_groups(target, ctx):
+    tree = target[DocsSiteInfo].tree
+    manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
+    ctx.actions.write(manifest, tree.path)
+    return {"dx_docs_sites": [manifest], "dx_results": [tree]}
+
+def _docs_api_groups(target):
+    api = target[DocsApiInfo]
+    return {"dx_results": [api.api, api.records, api.summary, api.tree]}
+
+def _docs_shard_groups(target):
+    return {"dx_results": [target[DocsShardInfo].shard]}
+
 def _real_docs_aspect_impl(target, ctx):
-    files = []
-    sites = []
-    shards = []
+    parts = []
     if DocsSiteInfo in target:
-        sites.append(target[DocsSiteInfo].tree)
+        parts.append(_docs_site_groups(target, ctx))
+    if DocsApiInfo in target:
+        parts.append(_docs_api_groups(target))
     if DocsShardInfo in target:
-        files.append(target[DocsShardInfo].shard)
+        parts.append(_docs_shard_groups(target))
     rust_shard = _rust_docs_shard(target, ctx)
     if rust_shard:
-        shards.append(rust_shard)
-    if DocsApiInfo in target:
-        files.append(target[DocsApiInfo].tree)
-    return [OutputGroupInfo(
-        dx_results = depset(files + sites + shards),
-        dx_docs_sites = depset(sites),
-        dx_docs_shards = depset(shards),
-    )]
+        parts.append({"dx_results": [rust_shard], "dx_docs_shards": [rust_shard]})
+    if not parts:
+        return []
+    groups = {}
+    for part in parts:
+        for name, files in part.items():
+            groups[name] = groups.get(name, []) + files
+    return [OutputGroupInfo(**{name: depset(files) for name, files in groups.items()})]
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results, and builds Rust library shards.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust library shards go in dx_docs_shards.",
     attrs = {
         "_error_format": attr.label(default = Label("@rules_rust//rust/settings:error_format")),
         "_extract": attr.label(

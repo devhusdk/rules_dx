@@ -1,4 +1,3 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//javascript/rules:defs.bzl", "javascript_library")
 load("//svelte/rules:defs.bzl", "svelte_library")
@@ -51,10 +50,3 @@ svelte_library(
     for case in ["bad", "broken", "clean"]
     for kind in ["stdout", "exit"]
 ]
-
-sh_test(
-    name = "dbg_test",
-    srcs = ["dbg.sh"],
-    data = [":bad_stdout_report", ":broken_stdout_report", "bad.stdout.expected"],
-    args = ["$(rootpath :bad_stdout_report)", "$(rootpath :broken_stdout_report)"],
-)

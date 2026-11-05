@@ -52,8 +52,10 @@ class WindowsVenvLauncherTest(unittest.TestCase):
     def launch(self, args, **env):
         base = {k: v for k, v in os.environ.items() if not k.startswith("RUNFILES_")}
         base.update(env)
+        # On Windows sys.executable is the venv stub, which needs RUNFILES_*.
+        interpreter = getattr(sys, "_base_executable", sys.executable)
         return subprocess.run(
-            [sys.executable, LAUNCHER] + args,
+            [interpreter, LAUNCHER] + args,
             env=base,
             capture_output=True,
             text=True,

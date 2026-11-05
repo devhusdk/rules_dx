@@ -92,7 +92,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists) | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` | `javadoc` | `jacoco` |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` | no | `jest` |
-| Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
+| Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | no | `CoverageTools` |
 | Kotlin | `detekt`, `ktlint` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` |
 | Lua | `selene` | `stylua` | `luals` | no | `luacov` |
 | MDX | `eslint`, `lychee` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring |

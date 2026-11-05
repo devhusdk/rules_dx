@@ -282,7 +282,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | Tool | Checks | Not on |
 | --- | --- | --- |
 | `biome` | Format and lint JavaScript, TypeScript, JSON | |
-| `eslint` | Lint Astro, JavaScript, MDX, Svelte, Vue | |
+| `eslint` | Lint Astro, JavaScript, MDX, Svelte, TSX, TypeScript, Vue | |
 | `knip` | Lint unused files, exports and dependencies in JavaScript and TypeScript | |
 | `tsc` | Typecheck Astro, JavaScript, JSX, MDX, Svelte, TSX, TypeScript, Vue | |
 | `prettier` | Format Astro, CSS, HTML, JSON, Svelte, TypeScript, Vue, GraphQL | |

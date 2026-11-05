@@ -15,6 +15,7 @@ package(default_visibility = ["//:__subpackages__"])
 js_binary(
     name = "eslint_generated",
     data = [
+        "//quality/tools/javascript:node_modules/@eslint/js",
         "//quality/tools/javascript:node_modules/@typescript-eslint/parser",
         "//quality/tools/javascript:node_modules/astro-eslint-parser",
         "//quality/tools/javascript:node_modules/eslint",
@@ -22,8 +23,10 @@ js_binary(
         "//quality/tools/javascript:node_modules/eslint-plugin-mdx",
         "//quality/tools/javascript:node_modules/eslint-plugin-svelte",
         "//quality/tools/javascript:node_modules/eslint-plugin-vue",
+        "//quality/tools/javascript:node_modules/globals",
         "//quality/tools/javascript:node_modules/svelte",
         "//quality/tools/javascript:node_modules/svelte-eslint-parser",
+        "//quality/tools/javascript:node_modules/typescript-eslint",
         "//quality/tools/javascript:node_modules/vue-eslint-parser",
     ],
     entry_point = "eslint.mjs",

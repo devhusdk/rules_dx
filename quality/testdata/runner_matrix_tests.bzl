@@ -85,6 +85,8 @@ def _runner_matrix_test_impl(ctx):
     configs = {}
     for i, tool in enumerate(ctx.attr.config_tools):
         configs[tool] = _single_file(ctx.attr.config_files[i]).short_path
+        if i < len(ctx.attr.config_rels) and ctx.attr.config_rels[i]:
+            configs[tool] = ctx.attr.config_rels[i]
     editions = {}
     for i, tool in enumerate(ctx.attr.edition_tools):
         editions[tool] = ctx.attr.edition_values[i]
@@ -303,6 +305,9 @@ _runner_matrix_test = rule(
         "config_files": attr.label_list(
             allow_files = True,
         ),
+        "config_rels": attr.string_list(
+            doc = "Optional mirror-relative config path per config_files entry; empty keeps the file's short path.",
+        ),
         "edition_tools": attr.string_list(),
         "edition_values": attr.string_list(),
         "dialect_tools": attr.string_list(),
@@ -429,6 +434,7 @@ def runner_matrix_suite(name, cases, extra_cases = []):
             toolfile_group_srcs = case.get("toolfile_group_srcs", []),
             config_tools = case.get("config_tools", []),
             config_files = case.get("config_files", []),
+            config_rels = case.get("config_rels", []),
             edition_tools = case.get("edition_tools", []),
             edition_values = case.get("edition_values", []),
             dialect_tools = case.get("dialect_tools", []),

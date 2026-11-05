@@ -892,7 +892,7 @@ TOOLS = [
     ),
     tool(
         id = "eslint",
-        adapters = {"lint": ["astro", "javascript", "jsx", "mdx", "svelte", "vue"]},
+        adapters = {"lint": ["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"]},
         config_suffix = [".js", ".mjs", ".cjs"],
         support = [
             row(
@@ -900,6 +900,16 @@ TOOLS = [
                 classes = ["javascript"],
                 context = "owned",
                 family = "javascript",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                state = "supported",
+                transport = "batched",
+            ),
+            row(
+                capability = "lint",
+                classes = ["tsx", "typescript"],
+                context = "owned",
+                family = "typescript",
                 fix = "check_only",
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
                 state = "supported",

@@ -77,8 +77,8 @@ def js_responsibilities_unit_tests(name):
                 [
                     ["biome", "eslint", "typos"],
                     ["biome", "eslint", "typos"],
-                    ["biome", "typos"],
-                    ["biome", "typos"],
+                    ["biome", "eslint", "typos"],
+                    ["biome", "eslint", "typos"],
                     ["biome"],
                 ],
             ),

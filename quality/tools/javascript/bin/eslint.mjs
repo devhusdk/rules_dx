@@ -3,13 +3,17 @@ import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const MANAGED = [
+  "@eslint/js",
   "@typescript-eslint/parser",
   "astro-eslint-parser",
+  "eslint",
   "eslint-plugin-astro",
   "eslint-plugin-mdx",
   "eslint-plugin-svelte",
   "eslint-plugin-vue",
+  "globals",
   "svelte-eslint-parser",
+  "typescript-eslint",
   "vue-eslint-parser",
 ];
 const NOT_FOUND = ["ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND"];

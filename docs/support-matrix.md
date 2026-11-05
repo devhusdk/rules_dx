@@ -80,35 +80,35 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | --- | --- | --- | --- | --- | --- | --- |
 | Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | no |
 | Avro | `avro_tools`, `typos` | n/a | `avro_tools` | no | n/a | no |
-| C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `cppcheck unusedFunction (dx unused)` |
+| C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | no |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
 | D | `dscanner`, `typos` | `dfmt` | `ldc` | no | `ldc --coverage` | `dscanner unused_variable_check, unused_parameter_check` |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `package:test` | `dart unused_element` |
-| Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no | `cover` | no |
-| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned), `typos` | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` | no | `cover` | no |
+| Elixir | `credo`, `typos`, `xref` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no | `cover` | no |
+| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned), `typos`, `xref` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` | no | `cover` | no |
 | Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `flutter_tester` | no |
-| Fortran | `fortitude`, `typos` | `ffmt` | `flang` | no | `kcov` (kcov runs on Linux only) | `fortitude C191 unreachable-statement` |
+| Fortran | `fortitude`, `typos` | `ffmt` | `flang` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) | `fortitude C191 unreachable-statement` |
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | no |
-| Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000 (dx lint)`, `deadcode (dx unused)` |
+| Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000` |
 | Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists), `typos` | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | no |
-| JavaScript | `biome`, `eslint`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
+| JavaScript | `biome`, `eslint`, `knip`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` | none |
 | Kotlin | `detekt`, `ktlint`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
 | MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring | no |
-| OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | `bisect_ppx` (bisect_ppx runs on Linux x86_64 only) | `ocamlc warnings 26, 27, 32 to 39` |
+| OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) | `ocamlc warnings 26, 27, 32 to 39` |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) | `perlcritic ProhibitUnusedVariables` |
-| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | `pcov (Linux only)` | `phpstan unused-public (dx unused)` |
+| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | `pcov (Linux only)` | no |
 | PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows), `typos` | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
 | Protobuf | `buf`, `typos` | `buf` | no | no | n/a | no |
-| Python | `flake8`, `pydoclint`, `pylint`, `ruff`, `typos` | `ruff` | `ty` | `griffe` | `coverage.py` | `vulture (dx unused)`, `ruff F401, F841` |
-| Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `debride (dx unused)`, `rubocop Lint/UselessAssignment` |
+| Python | `flake8`, `pydoclint`, `pylint`, `ruff`, `typos`, `vulture` | `ruff` | `ty` | `griffe` | `coverage.py` | `vulture (dx unused)`, `ruff F401, F841` |
+| Ruby | `debride` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `debride (dx unused)`, `rubocop Lint/UselessAssignment` |
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | no |
-| TypeScript | `biome`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
+| TypeScript | `biome`, `eslint`, `knip`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` | `knip (dx unused)`, `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | no |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | no |
 | Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules | n/a |
@@ -126,7 +126,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
 | FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
 | Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| GitHub workflows | `actionlint` | `yamlfmt` | no | n/a | n/a | n/a |
+| GitHub workflows | no | `yamlfmt` | no | n/a | n/a | n/a |
 | GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a | n/a |
 | Helm | `helm`, `typos` | no | n/a | n/a | n/a | n/a |
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |

@@ -1,0 +1,3 @@
+tea 450
+bread 325
+jam 600

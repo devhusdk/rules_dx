@@ -1,0 +1,89 @@
+# gazelle:ignore
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+load("//apple/ios:app.bzl", "apple_ios_app", "apple_ios_app_test")
+load("//cc/rules:defs.bzl", "cc_library")
+load("//rust/rules:defs.bzl", "rust_static_library", "rustfmt_test")
+load("//swift/rules:defs.bzl", "swift_library")
+
+_MACOS_ARM64 = [
+    "@platforms//os:macos",
+    "@platforms//cpu:arm64",
+]
+
+rust_static_library(
+    name = "ledger_rust",
+    srcs = ["ledger.rs"],
+    edition = "2021",
+    target_compatible_with = _MACOS_ARM64,
+)
+
+rustfmt_test(
+    name = "ledger_rustfmt_test",
+    targets = [":ledger_rust"],
+    target_compatible_with = _MACOS_ARM64,
+)
+
+swift_interop_hint(
+    name = "ledger_core_hint",
+    module_name = "LedgerCore",
+    target_compatible_with = _MACOS_ARM64,
+)
+
+cc_library(
+    name = "ledger_core",
+    visibility = ["//apple/tests/fixtures/swift_app/main:__pkg__"],
+    hdrs = ["ledger.h"],
+    aspect_hints = [":ledger_core_hint"],
+    target_compatible_with = _MACOS_ARM64,
+)
+
+swift_library(
+    name = "ledger_kit",
+    visibility = ["//apple/tests/fixtures/swift_app/main:__pkg__"],
+    srcs = ["LedgerKit.swift"],
+    module_name = "LedgerKit",
+    target_compatible_with = _MACOS_ARM64,
+)
+
+swift_library(
+    name = "ledger_xctests",
+    testonly = True,
+    srcs = ["LedgerAppTests.swift"],
+    module_name = "LedgerAppTests",
+    target_compatible_with = _MACOS_ARM64,
+    deps = [
+        ":ledger_core",
+        ":ledger_kit",
+    ],
+)
+
+apple_ios_app(
+    name = "ledger_app",
+    bundle_id = "com.example.ledger",
+    deployment = "17.0",
+    entry = "//apple/tests/fixtures/swift_app/main:ledger_main",
+    library = ":ledger_rust",
+    platforms = ["simulator/arm64"],
+    resources = ["entries.txt"],
+    tags = ["manual"],
+    version = "1.4",
+)
+
+apple_ios_app_test(
+    name = "ledger_app_test",
+    size = "large",
+    app = ":ledger_app",
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
+    deps = [":ledger_xctests"],
+)
+
+sh_test(
+    name = "ledger_ipa_test",
+    srcs = ["check_ipa.sh"],
+    args = ["$(rootpaths :ledger_app)"],
+    data = [":ledger_app"],
+    target_compatible_with = _MACOS_ARM64,
+)

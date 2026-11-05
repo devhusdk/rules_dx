@@ -1,0 +1,12 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library", "d_test")
+
+d_library(
+    name = "tested",
+    srcs = ["sum.d"],
+    visibility = ["//visibility:public"],
+)
+
+d_test(
+    name = "tested_test",
+    srcs = ["sum.d"],
+)

@@ -1,8 +1,14 @@
-load("@rules_dx//d/rules:defs.bzl", "d_library")
+load("@rules_dx//d/rules:defs.bzl", "d_library", "d_test")
 
 d_library(
     name = "cli",
     srcs = ["options.d"],
     imports = [".."],
     visibility = ["//visibility:public"],
+)
+
+d_test(
+    name = "cli_test",
+    srcs = ["options.d"],
+    imports = [".."],
 )

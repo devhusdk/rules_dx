@@ -1,4 +1,4 @@
-load("@rules_dx//d/rules:defs.bzl", "d_library")
+load("@rules_dx//d/rules:defs.bzl", "d_library", "d_test")
 
 d_library(
     name = "base",
@@ -9,4 +9,14 @@ d_library(
     imports = [".."],
     string_srcs = ["banner.txt"],
     visibility = ["//visibility:public"],
+)
+
+d_test(
+    name = "base_test",
+    srcs = [
+        "banner.d",
+        "greeting.d",
+    ],
+    imports = [".."],
+    string_srcs = ["banner.txt"],
 )

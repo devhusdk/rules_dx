@@ -108,11 +108,40 @@ func TestGenerateFailsOnPathMismatch(t *testing.T) {
 	}
 }
 
-func TestGenerateFailsOnMain(t *testing.T) {
+func TestGenerateBinaryFromMain(t *testing.T) {
 	lang := NewLanguage()
-	generate(t, lang, "pkg", map[string]string{"m.d": "void main() {}\n"}, "")
-	if !failed(lang) || !strings.Contains(errorsOf(lang), "defines main") {
-		t.Fatalf("errors = %q", errorsOf(lang))
+	result := generate(t, lang, "pkg", map[string]string{
+		"util.d": "module util;\n",
+		"run.d":  "module run;\nimport util;\nvoid main() {}\n",
+	}, "")
+	if failed(lang) || len(result.Gen) != 2 {
+		t.Fatalf("gen = %v, errors: %s", result.Gen, errorsOf(lang))
+	}
+	lib, bin := result.Gen[0], result.Gen[1]
+	if got := strings.Join(lib.AttrStrings("srcs"), ","); lib.Kind() != LibraryKind || got != "util.d" {
+		t.Errorf("library = %s %q", lib.Kind(), got)
+	}
+	if bin.Kind() != BinaryKind || bin.Name() != "run" || strings.Join(bin.AttrStrings("deps"), ",") != ":pkg" {
+		t.Errorf("binary = %s %s %v", bin.Kind(), bin.Name(), bin.AttrStrings("deps"))
+	}
+}
+
+func TestGenerateTestFromUnittest(t *testing.T) {
+	lang := NewLanguage()
+	result := generate(t, lang, "pkg", map[string]string{
+		"a.d": "module a;\nimport b;\nimport c;\nunittest {}\n",
+		"b.d": "module b;\n",
+		"c.d": "module c;\n",
+	}, "")
+	if failed(lang) || len(result.Gen) != 2 {
+		t.Fatalf("gen = %v, errors: %s", result.Gen, errorsOf(lang))
+	}
+	test := result.Gen[1]
+	if test.Kind() != TestKind || test.Name() != "pkg_test" || strings.Join(test.AttrStrings("srcs"), ",") != "a.d,b.d,c.d" {
+		t.Errorf("test = %s %s %v", test.Kind(), test.Name(), test.AttrStrings("srcs"))
+	}
+	if got := result.Imports[1].(common.ImportSet).Names; len(got) != 0 {
+		t.Errorf("test imports = %v, want none", got)
 	}
 }
 
@@ -208,12 +237,12 @@ func TestDubExecutableMainPackageIsBinary(t *testing.T) {
 	}
 }
 
-func TestDubLibraryMainStaysHandwritten(t *testing.T) {
-	lang, _ := dubGenerate(t, `{"name": "app", "targetType": "library"}`, "source", map[string]string{
+func TestDubLibraryMainIsBinary(t *testing.T) {
+	lang, result := dubGenerate(t, `{"name": "app", "targetType": "library"}`, "source", map[string]string{
 		"app.d": "module app;\nvoid main() {}\n",
 	})
-	if !failed(lang) {
-		t.Fatal("main in a library package should fail")
+	if failed(lang) || len(result.Gen) != 1 || result.Gen[0].Kind() != BinaryKind {
+		t.Fatalf("gen = %v, errors: %s", result.Gen, errorsOf(lang))
 	}
 }
 

@@ -114,8 +114,11 @@ A directory with `.d` files gets a `d_library` named after the directory. Import
 resolve by exact module name to the `d_library` that declares the module, and
 `import("file")` arguments that are plain string literals go in `string_srcs`.
 The parser is a small lexer, not a full D grammar. It fails with the line of an
-unterminated literal or comment. A source with a module-scope `main` fails
-generation, and DTrace scripts and Make dependency files with a `.d` extension
+unterminated literal or comment. Each source with a module-scope `main` becomes a
+`d_binary` named after the file and depending on the library. When a library
+source has a `unittest` block, a `d_test` named `<library>_test` takes the
+library sources, because D runs unittests only in sources compiled with
+`-unittest`. DTrace scripts and Make dependency files with a `.d` extension
 are skipped.
 
 ## Dart and Flutter

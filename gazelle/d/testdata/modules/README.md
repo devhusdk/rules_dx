@@ -1,6 +1,6 @@
 # D Module Generation
 
-One `d_library` per directory. A module declaration must match the file path,
+One `d_library` per directory, a `d_binary` per source with `main`, and a `d_test` when sources have `unittest` blocks. A module declaration must match the file path,
 and the path above the module name becomes the package-relative `imports`
 entry. A file without a declaration is the module named after the file.
 Imports resolve to the library that declares exactly that module.

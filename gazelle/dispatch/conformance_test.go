@@ -54,7 +54,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.d": "module demo;\n"},
 		inert: []string{"notes.txt"},
 		kind:  "d_library", target: "demo", defs: "d/rules:defs.bzl",
-		symbols: []string{"d_library", "d_binary"},
+		symbols: []string{"d_library", "d_binary", "d_test"},
 	},
 	"dart": {
 		rel: "pkg/demo",

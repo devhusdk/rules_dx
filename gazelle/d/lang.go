@@ -26,6 +26,9 @@ const BinaryKind = "d_binary"
 // hubDirective names the repository that holds the DUB packages.
 const hubDirective = "d_dub_hub"
 
+// TestKind is the rule kind generated for a library with unittest blocks.
+const TestKind = "d_test"
+
 const defaultHub = "dub"
 
 const unresolvedHint = "add a d_library whose srcs declare that module, or an exact # gazelle:resolve d <module> <label>"
@@ -45,7 +48,10 @@ var dKinds = map[string]rule.KindInfo{
 	},
 }
 
-func init() { dKinds[BinaryKind] = dKinds[LibraryKind] }
+func init() {
+	dKinds[BinaryKind] = dKinds[LibraryKind]
+	dKinds[TestKind] = dKinds[LibraryKind]
+}
 
 // dubConfig is the dub.json in effect for a directory.
 type dubConfig struct {
@@ -120,7 +126,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		Kinds:          dKinds,
-		ExtraKinds:     []string{BinaryKind},
+		ExtraKinds:     []string{BinaryKind, TestKind},
 		External:       "dub",
 		Directives:     []string{hubDirective},
 		ConfigureExt:   configureDub,
@@ -185,6 +191,158 @@ func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
+	dub := dubOf(args.Config)
+	dubRoot, underDub := dub.importRootOf(args.Rel)
+	var mains map[string][]byte
+	if !(dubRoot == args.Rel && underDub && dub.project.TargetType == "executable") {
+		mains = mainFiles(args)
+	}
+	res := generateDir(args, kinds, rep, mains)
+	if rep.Failed() {
+		return res
+	}
+	return addBinariesAndTest(args, res, mains, rep)
+}
+
+// mainFiles maps the D sources of the directory with a module-scope main to
+// their content.
+func mainFiles(args language.GenerateArgs) map[string][]byte {
+	mains := make(map[string][]byte)
+	for _, file := range args.RegularFiles {
+		if !isSupported(file) {
+			continue
+		}
+		content, err := common.ReadSource(filepath.Join(args.Dir, file))
+		if err == nil && !IsForeign(content) && DefinesMain(content) {
+			mains[file] = content
+		}
+	}
+	return mains
+}
+
+// addBinariesAndTest adds a d_binary for each main source and a d_test over
+// the library sources when any of them has a unittest block.
+func addBinariesAndTest(args language.GenerateArgs, res language.GenerateResult, mains map[string][]byte, rep common.Reporter) language.GenerateResult {
+	var lib *rule.Rule
+	var libImports []string
+	if len(res.Gen) > 0 {
+		lib = res.Gen[0]
+		libImports, _ = common.UnwrapImportSet(res.Imports[0])
+	}
+	desired := make(map[string]bool)
+	files := make([]string, 0, len(mains))
+	for file := range mains {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	for _, file := range files {
+		info, err := Analyze(mains[file])
+		var root string
+		if err == nil {
+			root, err = ImportRoot(args.Rel, file, info.Module)
+		}
+		if err != nil {
+			rep.Fail(common.InPackage(args.Rel), "d: %s: %s: %v", args.Rel, file, err)
+			return language.GenerateResult{}
+		}
+		r := rule.NewRule(BinaryKind, stem(file))
+		r.SetAttr("srcs", []string{file})
+		if root != "." {
+			r.SetAttr("imports", []string{root})
+		}
+		if lib != nil {
+			r.SetAttr("deps", []string{":" + lib.Name()})
+		}
+		res.Gen = append(res.Gen, r)
+		res.Imports = append(res.Imports, common.WrapImportSet(info.Imports))
+		desired[BinaryKind+"\x00"+r.Name()] = true
+	}
+	if lib != nil && lib.Kind() == LibraryKind {
+		if test, imports := libraryTest(args, lib, libImports); test != nil {
+			res.Gen = append(res.Gen, test)
+			res.Imports = append(res.Imports, common.WrapImportSet(imports))
+			desired[TestKind+"\x00"+test.Name()] = true
+		}
+	}
+	res.Empty = keepStale(args.File, res.Empty, desired)
+	return res
+}
+
+// libraryTest builds the d_test over the library sources, or nil when none of
+// them has a unittest block. D runs unittests only in the sources compiled
+// with -unittest, so the test takes the sources instead of the library.
+func libraryTest(args language.GenerateArgs, lib *rule.Rule, imports []string) (*rule.Rule, []string) {
+	own := make(map[string]bool)
+	tested := false
+	for _, src := range lib.AttrStrings("srcs") {
+		content, err := common.ReadSource(filepath.Join(args.Dir, src))
+		if err != nil {
+			continue
+		}
+		info, err := Analyze(content)
+		if err != nil {
+			continue
+		}
+		tested = tested || info.HasUnittest
+		if module, err := ModuleOf(args.Rel, path.Base(src), info.Module); err == nil {
+			own[module] = true
+		}
+	}
+	if !tested {
+		return nil, nil
+	}
+	test := rule.NewRule(TestKind, lib.Name()+"_test")
+	for _, attr := range []string{"srcs", "imports", "string_srcs"} {
+		if v := lib.AttrStrings(attr); len(v) > 0 {
+			test.SetAttr(attr, v)
+		}
+	}
+	var external []string
+	for _, imp := range imports {
+		if !own[imp] {
+			external = append(external, imp)
+		}
+	}
+	return test, external
+}
+
+// keepStale drops removals of rules this run generates, and of d_binary and
+// d_test rules that generation would not have written.
+func keepStale(build *rule.File, empty []*rule.Rule, desired map[string]bool) []*rule.Rule {
+	var kept []*rule.Rule
+	for _, r := range empty {
+		if desired[r.Kind()+"\x00"+r.Name()] {
+			continue
+		}
+		if (r.Kind() == BinaryKind || r.Kind() == TestKind) && !generatedShape(build, r) {
+			continue
+		}
+		kept = append(kept, r)
+	}
+	return kept
+}
+
+// generatedShape reports whether the rule named like r in build is one
+// generation could have written: a binary over one source named after its
+// stem, or a test named like a library.
+func generatedShape(build *rule.File, r *rule.Rule) bool {
+	if build == nil {
+		return false
+	}
+	for _, existing := range build.Rules {
+		if existing.Kind() != r.Kind() || existing.Name() != r.Name() {
+			continue
+		}
+		if r.Kind() == TestKind {
+			return strings.HasSuffix(r.Name(), "_test")
+		}
+		srcs := existing.AttrStrings("srcs")
+		return len(srcs) == 1 && stem(srcs[0]) == r.Name()
+	}
+	return false
+}
+
+func generateDir(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter, mains map[string][]byte) language.GenerateResult {
 	root := "."
 	dub := dubOf(args.Config)
 	dubRoot, underDub := dub.importRootOf(args.Rel)
@@ -195,7 +353,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		// Only parsed D claims a .d file: DTrace scripts and Make
 		// dependency files share the extension.
 		IsSource: func(file string) bool {
-			if !isSupported(file) {
+			if !isSupported(file) || mains[file] != nil {
 				return false
 			}
 			content, err := common.ReadSource(filepath.Join(args.Dir, file))

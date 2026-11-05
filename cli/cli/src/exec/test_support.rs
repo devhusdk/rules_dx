@@ -230,6 +230,17 @@ impl QueryRunner for ScriptQuery {
     }
 }
 
+/// Keeps the build-output guard from finding a repository above the scratch dir.
+fn init_empty_repo(workspace: &Path) {
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(["init", "-q", "-b", "main"])
+        .status()
+        .expect("git init");
+    assert!(status.success());
+}
+
 impl Harness {
     pub(crate) fn new(name: &str) -> Self {
         let workspace_guard = temp_dir(&format!("{name}-ws"));
@@ -237,6 +248,7 @@ impl Harness {
         let workspace = workspace_guard.path().to_path_buf();
         let temp = temp_guard.path().to_path_buf();
         let cwd = workspace.clone();
+        init_empty_repo(&workspace);
         Harness {
             workspace,
             temp,

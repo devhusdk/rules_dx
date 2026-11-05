@@ -1390,6 +1390,27 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/a.typ"
         ]
     );
+    assert_eq!(
+        argv_strings(&pkl_lsp_check(
+            Path::new(BIN),
+            Path::new("/jdk/bin/java"),
+            Path::new("/pins/pkl-lsp.jar"),
+            Path::new("/scratch/home"),
+            &[Path::new("/scratch/a.pkl")]
+        )),
+        vec![
+            BIN,
+            "--language-id",
+            "pkl",
+            "--",
+            "/jdk/bin/java",
+            "-Duser.home=/scratch/home",
+            "-jar",
+            "/pins/pkl-lsp.jar",
+            "--",
+            "/scratch/a.pkl"
+        ]
+    );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
         argv_strings(&jsonnet_lint_check(Path::new(BIN), &[jsonnet])),

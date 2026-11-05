@@ -1453,6 +1453,35 @@ pub fn topiary_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TOPIARY_FIX_ARGS, files, "")
 }
 
+/// One batched run of the pkl-lsp server under `lsp_check`. `home` is a scratch directory the
+/// server may write its caches to.
+pub fn pkl_lsp_check(
+    lsp_check: &Path,
+    java: &Path,
+    jar: &Path,
+    home: &Path,
+    files: &[&Path],
+) -> Invocation {
+    let mut user_home = OsString::from("-Duser.home=");
+    user_home.push(home);
+    let mut argv = vec![
+        lsp_check.as_os_str().to_owned(),
+        OsString::from("--language-id"),
+        OsString::from("pkl"),
+        OsString::from("--"),
+        java.as_os_str().to_owned(),
+        user_home,
+        OsString::from("-jar"),
+        jar.as_os_str().to_owned(),
+        OsString::from("--"),
+    ];
+    argv.extend(files.iter().map(|path| path.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_CHECK_ARGS, files, "")
 }

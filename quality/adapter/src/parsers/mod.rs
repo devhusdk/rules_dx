@@ -75,6 +75,7 @@ pub mod perltidy;
 pub mod phpcs;
 pub mod phpstan;
 pub mod pkl;
+pub mod pkl_lsp;
 pub mod pmd;
 pub mod prettier;
 pub mod psscriptanalyzer;
@@ -201,6 +202,7 @@ pub use perltidy::parse_perltidy;
 pub use phpcs::parse_phpcs;
 pub use phpstan::parse_phpstan;
 pub use pkl::{parse_pkl, parse_pkl_eval};
+pub use pkl_lsp::parse_pkl_lsp;
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
 pub use psscriptanalyzer::{parse_psscriptanalyzer, parse_psscriptanalyzer_format};
@@ -2136,6 +2138,14 @@ mod tests {
         super::pkl::parse_pkl_eval(input, input, code, files)
     }
 
+    fn fuzz_pkl_lsp(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::pkl_lsp::parse_pkl_lsp(input, code, files)
+    }
+
     fn fuzz_pkl(
         input: &[u8],
         code: Option<i32>,
@@ -2960,6 +2970,7 @@ mod tests {
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
         ("pkl_eval", fuzz_pkl_eval),
+        ("pkl_lsp", fuzz_pkl_lsp),
         ("phpcs", fuzz_phpcs),
         ("phpstan", fuzz_phpstan),
         ("pmd", fuzz_pmd),
@@ -3097,6 +3108,7 @@ mod tests {
         ("phpcs", include_str!("phpcs.rs")),
         ("phpstan", include_str!("phpstan.rs")),
         ("pkl", include_str!("pkl.rs")),
+        ("pkl_lsp", include_str!("pkl_lsp.rs")),
         ("pmd", include_str!("pmd.rs")),
         ("prettier", include_str!("prettier.rs")),
         ("psscriptanalyzer", include_str!("psscriptanalyzer.rs")),

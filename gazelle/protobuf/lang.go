@@ -15,7 +15,7 @@ import (
 
 const languageName = "protobuf"
 
-var kinds = map[string]rule.KindInfo{
+var kinds = withBindings(map[string]rule.KindInfo{
 	LibraryKind: {
 		MatchAttrs:    []string{"srcs"},
 		NonEmptyAttrs: map[string]bool{"srcs": true},
@@ -26,6 +26,13 @@ var kinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+})
+
+func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
+	for kind, info := range bindingKinds() {
+		kinds[kind] = info
+	}
+	return kinds
 }
 
 type protoLang struct {
@@ -38,6 +45,8 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          kinds,
 		DefsPackage:    "@protobuf//bazel:proto_library.bzl",
+		ExtraKinds:     bindingExtraKinds(),
+		KindDefs:       bindingKindDefs(),
 		ImportAttr:     "srcs",
 		Identity:       func(name string) string { return name },
 		PathIdentity:   true,
@@ -66,7 +75,7 @@ func (l *protoLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Rem
 }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
+	result := common.GenerateSingleDir(args, map[string]rule.KindInfo{LibraryKind: kinds[LibraryKind]}, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,
 		IsSource:     func(file string) bool { return common.HasExt(file, SupportedExts) },
@@ -84,6 +93,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		},
 		Wrap: common.WrapImportSet,
 	}, rep)
+	return addBindings(args, result)
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

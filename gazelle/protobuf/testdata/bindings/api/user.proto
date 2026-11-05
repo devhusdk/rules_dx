@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "example.com/gen/api;apipb";
+
+import "google/protobuf/timestamp.proto";
+
+message User {
+  string name = 1;
+  google.protobuf.Timestamp created = 2;
+}

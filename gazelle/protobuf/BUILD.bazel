@@ -7,6 +7,7 @@ go_library(
     name = "protobuf",
     srcs = [
         "doc.go",
+        "bindings.go",
         "lang.go",
         "naming.go",
         "parser.go",
@@ -43,6 +44,7 @@ gazelle_generation_test(
 go_test(
     name = "protobuf_test",
     srcs = [
+        "bindings_test.go",
         "naming_test.go",
         "parser_test.go",
     ],

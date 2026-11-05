@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package app;
+
+option go_package = "example.com/gen/app";
+
+import "api/user.proto";
+
+message App {
+  api.User owner = 1;
+}

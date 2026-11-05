@@ -1,5 +1,6 @@
 load("//java/rules:defs.bzl", "java_library")
 load("//kotlin/rules:defs.bzl", "kotlin_library")
+load("//scala/rules:defs.bzl", "scala_library")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])
@@ -24,6 +25,17 @@ quality_family(
     ],
     family_id = "kotlin",
     typecheck = ["kotlinc"],
+)
+
+quality_family(
+    name = "scala_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "scala",
+    typecheck = ["scalac"],
 )
 
 workspace_policy(
@@ -71,5 +83,30 @@ kotlin_library(
     deps = [
         ":kt_kept_helper",
         ":kt_dropped_helper",
+    ],
+)
+
+workspace_policy(
+    name = "scala_policy",
+    families = [":scala_family"],
+)
+
+scala_library(
+    name = "sc_kept_helper",
+    srcs = ["ScKeptHelper.scala"],
+)
+
+scala_library(
+    name = "sc_dropped_helper",
+    srcs = ["ScDroppedHelper.scala"],
+)
+
+scala_library(
+    name = "scala_unused_dep",
+    srcs = ["ScalaUnusedDep.scala"],
+    unused_dependency_checker_mode = "off",
+    deps = [
+        ":sc_kept_helper",
+        ":sc_dropped_helper",
     ],
 )

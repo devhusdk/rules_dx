@@ -316,6 +316,18 @@ REAL_RESULT_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
     },
+    {
+        "name": "real_result_scalac_unused_dep",
+        "target": "//quality/testdata/jvm_owned:scala_unused_dep",
+        "policy": "//quality/testdata/jvm_owned:scala_policy",
+        "tool": "scalac",
+        "capability": "typecheck",
+        "class": "scala",
+        "contains": ["unused_deps", "sc_dropped_helper"],
+        "absent": ["sc_kept_helper", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
 ]
 
 def real_result_evidence(case):

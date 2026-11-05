@@ -52,6 +52,62 @@ pub fn parse_unused_dependencies(
         .collect())
 }
 
+#[derive(Debug, Deserialize)]
+struct ScalacLog {
+    diagnostics: Vec<ScalacDiagnostic>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScalacDiagnostic {
+    code: String,
+    message: String,
+}
+
+/// Code the scalac driver gives the dependency analyzer's unused-dependency warnings.
+const SCALAC_UNUSED_DEP_CODE: &str = "scalac.unused.dep";
+
+/// Names every dependency in `map` that the scalac log reports as unused.
+///
+/// The warning reads `Target '<label>' is specified as a dependency to <target> but isn't used`.
+pub fn parse_scalac_unused_dependencies(
+    map: &[u8],
+    log: &[u8],
+) -> Result<Vec<UnusedDependency>, ParseError> {
+    let tool = "scalac";
+    let json = |err: serde_json::Error| ParseError::Json {
+        tool,
+        detail: err.to_string(),
+    };
+    let map: DepsMap = serde_json::from_slice(map).map_err(json)?;
+    let log: ScalacLog = serde_json::from_slice(log).map_err(json)?;
+    let bare = |label: &str| label.trim_start_matches('@').to_owned();
+    let mut found = Vec::new();
+    for diagnostic in log
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == SCALAC_UNUSED_DEP_CODE)
+    {
+        let Some(rest) = diagnostic.message.strip_prefix("Target '") else {
+            continue;
+        };
+        let Some((label, _)) = rest.split_once('\'') else {
+            continue;
+        };
+        let label = bare(label);
+        let Some(dep) = map.deps.iter().find(|dep| bare(&dep.label) == label) else {
+            continue;
+        };
+        let name = dep.label.rsplit(':').next().unwrap_or(&dep.label);
+        found.push(UnusedDependency {
+            package: map.package.clone(),
+            target: map.target.clone(),
+            dependency: name.to_owned(),
+            crate_name: dep.label.clone(),
+        });
+    }
+    Ok(found)
+}
+
 /// Reads the `Dependencies` message of a jdeps file and returns the paths not marked unused.
 /// Kotlin marks an idle jar UNUSED (2) where JavaBuilder writes 3.
 fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
@@ -173,5 +229,52 @@ mod tests {
     fn a_truncated_jdeps_file_is_an_error() {
         assert!(parse_unused_dependencies("javac", MAP.as_bytes(), &[0x0a, 0x09, 0x01]).is_err());
         assert!(parse_unused_dependencies("javac", b"{", &[]).is_err());
+    }
+
+    fn scalac_log(entries: &[(&str, &str)]) -> Vec<u8> {
+        let items: Vec<String> = entries
+            .iter()
+            .map(|(code, message)| {
+                format!(
+                    r#"{{"file":"","line":0,"column":0,"severity":"warning","code":"{code}","message":"{message}"}}"#
+                )
+            })
+            .collect();
+        format!(
+            r#"{{"tool":"scalac","exit":0,"diagnostics":[{}]}}"#,
+            items.join(",")
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn scalac_warning_names_the_dependency_through_the_map() {
+        let log = scalac_log(&[(
+            "scalac.unused.dep",
+            "Target '@@//b:idle' is specified as a dependency to //p:lib but isn't used",
+        )]);
+        let found = parse_scalac_unused_dependencies(MAP.as_bytes(), &log).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].dependency, "idle");
+        assert_eq!(found[0].target, "lib");
+    }
+
+    #[test]
+    fn scalac_label_outside_the_map_is_ignored() {
+        let log = scalac_log(&[(
+            "scalac.unused.dep",
+            "Target '//z:other' is specified as a dependency to //p:lib but isn't used",
+        )]);
+        assert!(parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn scalac_other_warnings_are_ignored() {
+        let log = scalac_log(&[("scalac", "Target '//b:idle' is something else")]);
+        assert!(parse_scalac_unused_dependencies(MAP.as_bytes(), &log)
+            .unwrap()
+            .is_empty());
     }
 }

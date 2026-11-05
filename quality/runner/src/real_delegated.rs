@@ -2394,6 +2394,38 @@ fn rustc_unused_dependency_is_a_diagnostic_without_a_path() {
         .is_empty());
 }
 
+#[test]
+fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("lib.json");
+    std::fs::write(
+        &log,
+        r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"","line":0,"column":0,"severity":"warning","code":"scalac.unused.dep","message":"Target '//p:gone' is specified as a dependency to //p:lib but isn't used"}]}"#,
+    )
+    .expect("write log");
+    let map = scratch.path().join("lib.unused_deps.json");
+    std::fs::write(
+        &map,
+        r#"{"package":"p","target":"lib","deps":[{"label":"//p:gone","jars":["gone.jar"]}]}"#,
+    )
+    .expect("write map");
+    let mut tool = delegated_tool(log);
+    tool.upstream_diagnostics.push(map);
+    let found = delegated::build_dep_diagnostics("scalac", &tool).expect("diagnostics");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].path.is_empty());
+    assert_eq!(found[0].rule_id, "unused_deps");
+    let dep = found[0].build_dep.as_ref().expect("build dep");
+    assert_eq!(
+        (&*dep.package, &*dep.target, &*dep.dependency),
+        ("p", "lib", "gone")
+    );
+    tool.upstream_diagnostics.pop();
+    assert!(delegated::build_dep_diagnostics("scalac", &tool)
+        .expect("diagnostics")
+        .is_empty());
+}
+
 fn unused_reference_sarif(labels: &[&str]) -> String {
     let results: Vec<String> = labels
         .iter()
@@ -2417,8 +2449,10 @@ fn roslyn_unused_dependency_is_reported_only_when_every_framework_agrees() {
     );
     let map = r#"{"package":"p","target":"app","deps":[{"label":"//p:gone","refs":["gone.dll"]},{"label":"//p:partly","refs":["partly.dll"]}]}"#;
     for tfm in ["net8.0", "net10.0"] {
-        tool.tool_files
-            .push((format!("dx-roslyn/{tfm}/deps.json"), map.as_bytes().to_vec()));
+        tool.tool_files.push((
+            format!("dx-roslyn/{tfm}/deps.json"),
+            map.as_bytes().to_vec(),
+        ));
     }
     let found = delegated::build_dep_diagnostics("roslyn", &tool).expect("diagnostics");
     assert_eq!(found.len(), 1);

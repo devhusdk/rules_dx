@@ -34,6 +34,12 @@ public final class ScalacCheck {
    */
   static final String WERROR_CODE = "scalac.warnings.as.errors";
 
+  /**
+   * Code of the rules_scala dependency analyzer warning about a direct dependency the sources never
+   * use. The runner's parser looks for this exact code.
+   */
+  static final String UNUSED_DEP_CODE = "scalac.unused.dep";
+
   /** Code of every scalac diagnostic: Scala 2 has no diagnostic ids. */
   static final String GENERIC_CODE = "scalac";
 
@@ -93,6 +99,7 @@ public final class ScalacCheck {
     List<String> classpath = new ArrayList<>();
     List<String> compiler = new ArrayList<>();
     List<String> plugins = new ArrayList<>();
+    List<String> analyzer = new ArrayList<>();
     List<String> options = new ArrayList<>();
     for (String line : request) {
       if (line.isEmpty()) {
@@ -119,6 +126,9 @@ public final class ScalacCheck {
         case "plugin":
           plugins.add(value);
           break;
+        case "analyzer":
+          analyzer.add(value);
+          break;
         case "scalacopt":
           options.add(value);
           break;
@@ -144,6 +154,10 @@ public final class ScalacCheck {
       args.addAll(List.of("-classpath", String.join(File.pathSeparator, classpath)));
       for (String plugin : plugins) {
         args.add("-Xplugin:" + plugin);
+      }
+      if (!analyzer.isEmpty()) {
+        // One entry: the plugin loads the rules_scala reporter class from its own jars.
+        args.add("-Xplugin:" + String.join(File.pathSeparator, analyzer));
       }
       List<Entry> entries = new ArrayList<>();
       int exit = runOnBigStack(compiler, args, inputs, entries, names);
@@ -241,9 +255,8 @@ public final class ScalacCheck {
           .getMethod("compile", from.getReturnType())
           .invoke(compileRun, from.invoke(listModule, asScala.invoke(null, inputs)));
       reporterClass.getMethod("finish").invoke(reporter);
-      boolean errors = (Boolean) reporterClass.getMethod("hasErrors").invoke(reporter);
       collect(storeClass.getMethod("infos").invoke(reporter), entries, names);
-      return errors ? 1 : 0;
+      return settle(entries);
     } catch (InvocationTargetException err) {
       throw new IOException("scalac failed: " + err.getCause(), err.getCause());
     } catch (ReflectiveOperationException err) {
@@ -251,6 +264,28 @@ public final class ScalacCheck {
     } finally {
       thread.setContextClassLoader(previous);
     }
+  }
+
+  /**
+   * Returns the exit code for the collected entries. Unused-dependency warnings have no position,
+   * so when they are the only warnings, the warnings-as-errors failure they caused is dropped.
+   */
+  static int settle(List<Entry> entries) {
+    boolean onlyDeps = true;
+    for (Entry entry : entries) {
+      if (entry.severity.equals("warning") && !entry.code.equals(UNUSED_DEP_CODE)) {
+        onlyDeps = false;
+      }
+    }
+    if (onlyDeps) {
+      entries.removeIf(entry -> entry.code.equals(WERROR_CODE));
+    }
+    for (Entry entry : entries) {
+      if (entry.severity.equals("error")) {
+        return 1;
+      }
+    }
+    return 0;
   }
 
   private static void collect(Object infos, List<Entry> entries, Map<String, String> names)
@@ -303,6 +338,12 @@ public final class ScalacCheck {
     String code = GENERIC_CODE;
     if (severity.equals("error") && file.isEmpty() && message.contains("-Werror")) {
       code = WERROR_CODE;
+    }
+    if (severity.equals("warning")
+        && file.isEmpty()
+        && message.startsWith("Target '")
+        && message.contains("is specified as a dependency to")) {
+      code = UNUSED_DEP_CODE;
     }
     entries.add(new Entry(file, line, column, severity, code, stable(message, names)));
   }

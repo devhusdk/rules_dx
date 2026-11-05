@@ -51,11 +51,8 @@ def javac_options(tokens):
     """
     return [t for t in tokens if not any([t.startswith(p) for p in _JAVABUILDER_ONLY_PREFIXES])]
 
-def _unused_deps_files(target, ctx, attrs):
-    """Files the runner reads to find direct deps whose jars the compiler never used."""
-    jdeps = [o.jdeps for o in target[JavaInfo].java_outputs if o.jdeps]
-    if not jdeps:
-        return []
+def _unused_deps_map(target, ctx, attrs):
+    """Writes the direct dependencies with their compile jars, or returns None when none has a jar."""
     deps = []
     for dep in getattr(attrs, "deps", []):
         if JavaInfo not in dep:
@@ -66,7 +63,50 @@ def _unused_deps_files(target, ctx, attrs):
     name = target.label.name.removesuffix("_upstream")
     out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.json" % target.label.name)
     ctx.actions.write(out, json.encode({"package": target.label.package, "target": name, "deps": deps}))
-    return [out, jdeps[0]]
+    return out
+
+def _unused_deps_files(target, ctx, attrs):
+    """Files the runner reads to find direct deps whose jars the compiler never used."""
+    jdeps = [o.jdeps for o in target[JavaInfo].java_outputs if o.jdeps]
+    if not jdeps:
+        return []
+    return [_unused_deps_map(target, ctx, attrs), jdeps[0]]
+
+def _plugin_param(values):
+    return ";".join([v.replace(";", "\\;") for v in values])
+
+def _analyzer(target, ctx, attrs):
+    """The rules_scala dependency analyzer jars and options for a scala target, or None."""
+    plugin = ctx.attr._dependency_analyzer
+    if JavaInfo not in plugin:
+        return None
+    direct = [d for d in getattr(attrs, "deps", []) if JavaInfo in d and d[JavaInfo].compile_jars.to_list()]
+    if not direct:
+        return None
+    info = plugin[JavaInfo]
+    jars = []
+    for jar in info.runtime_output_jars + info.transitive_runtime_jars.to_list():
+        if jar not in jars:
+            jars.append(jar)
+    direct_jars = []
+    direct_targets = []
+    for dep in direct:
+        for jar in dep[JavaInfo].compile_jars.to_list():
+            direct_jars.append(jar.path)
+            direct_targets.append(str(dep.label))
+    ignored = [str(t.label) for t in getattr(attrs, "exports", []) + getattr(attrs, "unused_dependency_checker_ignored_targets", [])]
+    prefix = "-P:dependency-analyzer:"
+    options = [
+        prefix + "unused-deps-mode:warn",
+        prefix + "strict-deps-mode:off",
+        prefix + "dependency-tracking-method:ast",
+        prefix + "current-target:" + str(target.label),
+        prefix + "direct-jars:" + _plugin_param(direct_jars),
+        prefix + "direct-targets:" + _plugin_param(direct_targets),
+    ]
+    if ignored:
+        options.append(prefix + "unused-deps-ignored-targets:" + _plugin_param(ignored))
+    return struct(jars = jars, options = options)
 
 def _depset(value):
     return value if type(value) == "depset" else depset(value)
@@ -232,6 +272,12 @@ def _scalac_check(target, ctx, attrs):
     plugin_targets = list(toolchain.plugins) + list(getattr(attrs, "plugins", []))
     plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
 
+    analyzer = _analyzer(target, ctx, attrs)
+    analyzer_jars = []
+    if analyzer:
+        options = options + analyzer.options
+        analyzer_jars = analyzer.jars
+
     log = ctx.actions.declare_file("dx_scalac/%s.json" % target.label.name)
     args = ctx.actions.args()
     args.set_param_file_format("multiline")
@@ -242,18 +288,20 @@ def _scalac_check(target, ctx, attrs):
     args.add_all(classpath, format_each = "classpath=%s")
     args.add_all(jars.compiler, format_each = "compiler=%s")
     args.add_all(plugin_jars, format_each = "plugin=%s")
+    args.add_all(analyzer_jars, format_each = "analyzer=%s")
     args.add_all(options, format_each = "scalacopt=%s")
     ctx.actions.run(
         mnemonic = "ScalacCheck",
         progress_message = "scalac check %{label}",
         executable = ctx.attr._scalac_check.files_to_run,
         arguments = [args],
-        inputs = depset(sources + srcjars, transitive = [classpath, jars.compiler, plugin_jars]),
+        inputs = depset(sources + srcjars + analyzer_jars, transitive = [classpath, jars.compiler, plugin_jars]),
         outputs = [log],
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    return [JvmCheckInfo(log = log, tool = "scalac", unused_deps = [])]
+    unused_deps = [_unused_deps_map(target, ctx, attrs)] if analyzer else []
+    return [JvmCheckInfo(log = log, tool = "scalac", unused_deps = unused_deps)]
 
 def _jvm_check_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -322,6 +370,11 @@ jvm_check_aspect = aspect(
         "_scalac_check": attr.label(
             default = "//quality/tools/jvm/scalac_check:scalac_check",
             executable = True,
+            cfg = "exec",
+        ),
+        # Built for the exec platform: its Java sources do not compile under the repo's -Werror javacopts.
+        "_dependency_analyzer": attr.label(
+            default = "@rules_scala//third_party/dependency_analyzer/src/main:dependency_analyzer",
             cfg = "exec",
         ),
         "_javac_check": attr.label(

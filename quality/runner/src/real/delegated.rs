@@ -187,6 +187,7 @@ pub(super) fn build_dep_diagnostics(
     let (rule_id, unused) = match tool_id {
         "clippy" | "rustc" => (rust_unused_deps::RULE_ID, rust_unused(tool_id, tool)?),
         "javac" | "kotlinc" => (jvm_unused_deps::RULE_ID, jvm_unused(tool_id, tool)?),
+        "scalac" => (jvm_unused_deps::RULE_ID, scalac_unused(tool_id, tool)?),
         "roslyn" => (
             parsers::UNUSED_REFERENCE_RULE,
             csharp_unused(tool_id, tool)?,
@@ -252,6 +253,34 @@ fn jvm_unused(
     parsed(
         tool_id,
         jvm_unused_deps::parse_unused_dependencies(name, &read(map)?, &read(jdeps)?),
+    )
+}
+
+fn scalac_unused(
+    tool_id: &str,
+    tool: &RealTool,
+) -> Result<Vec<rust_unused_deps::UnusedDependency>, RunnerError> {
+    let Some(map) = tool
+        .upstream_diagnostics
+        .iter()
+        .find(|path| path.to_string_lossy().ends_with(".unused_deps.json"))
+    else {
+        return Ok(Vec::new());
+    };
+    let Some(log) = tool
+        .upstream_diagnostics
+        .iter()
+        .find(|path| !path.to_string_lossy().ends_with(".unused_deps.json"))
+    else {
+        return Ok(Vec::new());
+    };
+    let read = |path: &PathBuf| {
+        std::fs::read(path)
+            .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))
+    };
+    parsed(
+        tool_id,
+        jvm_unused_deps::parse_scalac_unused_dependencies(&read(map)?, &read(log)?),
     )
 }
 

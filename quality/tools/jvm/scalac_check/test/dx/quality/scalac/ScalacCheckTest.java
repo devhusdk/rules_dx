@@ -40,6 +40,9 @@ public final class ScalacCheckTest {
     srcjar(dir);
     javaSource(dir);
     malformed();
+    settleDropsDepOnlyWerror();
+    settleKeepsMixedWerror();
+    analyzerKeyIsAccepted(dir);
     System.out.println("ok");
   }
 
@@ -166,5 +169,38 @@ public final class ScalacCheckTest {
       return;
     }
     throw new AssertionError("a malformed request line must fail");
+  }
+
+  private static ScalacCheck.Entry entry(String severity, String code) {
+    return new ScalacCheck.Entry("", 0, 0, severity, code, "m");
+  }
+
+  private static void settleDropsDepOnlyWerror() {
+    List<ScalacCheck.Entry> entries = new ArrayList<>();
+    entries.add(entry("warning", ScalacCheck.UNUSED_DEP_CODE));
+    entries.add(entry("error", ScalacCheck.WERROR_CODE));
+    expect(ScalacCheck.settle(entries) == 0, "dep-only warnings exit 0", "");
+    expect(entries.size() == 1, "werror entry is dropped", "");
+  }
+
+  private static void settleKeepsMixedWerror() {
+    List<ScalacCheck.Entry> entries = new ArrayList<>();
+    entries.add(entry("warning", ScalacCheck.UNUSED_DEP_CODE));
+    entries.add(entry("warning", ScalacCheck.GENERIC_CODE));
+    entries.add(entry("error", ScalacCheck.WERROR_CODE));
+    expect(ScalacCheck.settle(entries) == 1, "mixed warnings still fail", "");
+    expect(entries.size() == 3, "werror entry is kept", "");
+  }
+
+  private static void analyzerKeyIsAccepted(Path dir) throws IOException {
+    Path a = write(dir, "analyzer/A.scala", "object A { def f: Int = 1 }\n");
+    try {
+      check(List.of("source=" + a, "analyzer=" + dir.resolve("missing.jar")));
+    } catch (IOException err) {
+      expect(
+          !String.valueOf(err.getMessage()).contains("unknown request key"),
+          "analyzer= is a known key",
+          err.getMessage());
+    }
   }
 }

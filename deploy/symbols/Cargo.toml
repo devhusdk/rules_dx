@@ -12,6 +12,14 @@ path = "src/lib.rs"
 name = "split"
 path = "src/bin_split.rs"
 
+[[bin]]
+name = "dsym"
+path = "src/bin_dsym.rs"
+
+[[bin]]
+name = "pdb"
+path = "src/bin_pdb.rs"
+
 [dependencies]
 object = "0.36"
 serde_json = "1"

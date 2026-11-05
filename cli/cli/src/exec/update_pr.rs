@@ -212,6 +212,10 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         .map(str::to_owned)
         .collect();
     let plans = plan(&items, group);
+    let locks: Vec<String> = resolved
+        .iter()
+        .flat_map(|target| target.set.locks.iter().cloned())
+        .collect();
     let mut full_sets = Vec::new();
     let mut picked = Vec::new();
     for target in &resolved {
@@ -261,7 +265,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             tail(&text)
         ))
     };
-    let outcomes = match publish(workspace, tools, &plans, &scope, &labels, &rules, &mut step) {
+    let outcomes = match publish(
+        workspace, tools, &plans, &scope, &labels, &rules, &locks, &mut step,
+    ) {
         Ok(outcomes) => outcomes,
         Err(reason) => {
             return operational_output(invocation.output, out, err, CODE_UPDATE_PR_FAILED, &reason);
@@ -400,6 +406,7 @@ fn publish(
     scope: &Scope,
     labels: &[String],
     rules: &Rules,
+    locks: &[String],
     step: &mut Step<'_>,
 ) -> Result<Vec<Outcome>, String> {
     let git = |args: &[&str]| program(&tools.git, root, args);
@@ -437,6 +444,7 @@ fn publish(
             sha: &sha,
             existing,
             rules,
+            locks,
         };
         let result = publish_one(root, tools, group, labels, &ctx, step);
         if existing.is_none()
@@ -484,6 +492,7 @@ struct Target<'a> {
     sha: &'a str,
     existing: Option<u64>,
     rules: &'a Rules,
+    locks: &'a [String],
 }
 
 /// Lists open pull requests on `dx-update/` branches as number and branch.
@@ -533,6 +542,7 @@ fn publish_one(
         sha,
         existing,
         rules,
+        locks,
     } = *target;
     let git = |args: &[&str]| program(&tools.git, root, args);
     let branch = group.branch.as_str();
@@ -576,7 +586,7 @@ fn publish_one(
     let commit: Vec<&str> = commit.iter().map(String::as_str).collect();
     git(&commit)?;
     let numstat = git(&["diff", "--numstat", sha, "HEAD"])?;
-    let text = body(group, &lock_numstat(&numstat));
+    let text = body(group, &lock_numstat(&numstat, locks));
     let _ = git(&[
         "fetch",
         "origin",
@@ -823,6 +833,7 @@ mod tests {
             &scope(),
             &["deps".into()],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -851,6 +862,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -872,6 +884,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -898,6 +911,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -925,6 +939,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -945,6 +960,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -963,6 +979,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -981,6 +998,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1003,6 +1021,7 @@ mod tests {
             &scope(),
             &[],
             &rules,
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1022,6 +1041,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1049,6 +1069,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         );
         assert!(got.is_err());
@@ -1067,6 +1088,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1081,8 +1103,17 @@ mod tests {
     fn an_empty_plan_still_closes_stale() {
         let fx = fixture("[{\"number\":5,\"headRefName\":\"dx-update/npm\"}]");
         let mut step = editing(fx.work.clone(), None);
-        let got =
-            publish(&fx.work, &fx.tools, &[], &scope(), &[], &rules(), &mut step).expect("publish");
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &[],
+            &scope(),
+            &[],
+            &rules(),
+            &[],
+            &mut step,
+        )
+        .expect("publish");
         assert_eq!(got[0].result, Ok("closed #5".into()));
     }
 
@@ -1097,6 +1128,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1108,6 +1140,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1121,7 +1154,17 @@ mod tests {
         let fx = fixture("[{\"number\":7,\"headRefName\":\"dx-update/cargo\"}]");
         let mut step = editing(fx.work.clone(), None);
         let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), String>| {
-            publish(&fx.work, &fx.tools, &plans(), &scope(), &[], &rules(), step).expect("publish")
+            publish(
+                &fx.work,
+                &fx.tools,
+                &plans(),
+                &scope(),
+                &[],
+                &rules(),
+                &[],
+                step,
+            )
+            .expect("publish")
         };
         publish_once(&mut step);
         sh(&fx.work, &["commit", "-q", "--allow-empty", "-m", "moved"]);
@@ -1146,6 +1189,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1157,6 +1201,7 @@ mod tests {
             &scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1389,6 +1434,7 @@ mod tests {
             &two_scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");
@@ -1430,6 +1476,7 @@ mod tests {
             &two_scope(),
             &[],
             &rules(),
+            &[],
             &mut step,
         )
         .expect("publish");

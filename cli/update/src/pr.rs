@@ -192,20 +192,18 @@ pub fn pick_tags(listing: &str, package: &str, old: &str, new: &str) -> Option<(
     })
 }
 
-/// Reads `git diff --numstat` lines, keeping lock files.
-pub fn lock_numstat(text: &str) -> Vec<(String, u64, u64)> {
+/// Reads `git diff --numstat` lines, keeping the lock files the sets own.
+pub fn lock_numstat(text: &str, locks: &[String]) -> Vec<(String, u64, u64)> {
     text.lines()
         .filter_map(|line| {
             let mut parts = line.splitn(3, '\t');
             let added = parts.next()?.parse().ok()?;
             let removed = parts.next()?.parse().ok()?;
             let file = parts.next()?;
-            let name = file.rsplit('/').next().unwrap_or(file);
-            let lock = name.ends_with(".lock")
-                || name.contains("-lock.")
-                || name.contains(".lock.")
-                || name == "go.sum";
-            lock.then(|| (file.to_owned(), added, removed))
+            locks
+                .iter()
+                .any(|lock| lock == file)
+                .then(|| (file.to_owned(), added, removed))
         })
         .collect()
 }
@@ -360,16 +358,18 @@ mod tests {
     }
 
     #[test]
-    fn numstat_keeps_lock_files_only() {
-        let text =
-            "4\t2\tCargo.lock\n10\t1\tsrc/main.rs\n-\t-\timg.lock\n3\t0\tweb/package-lock.json\n";
+    fn numstat_keeps_the_locks_sets_own() {
+        let text = "4\t2\tCargo.lock\n10\t1\tsrc/main.rs\n-\t-\timg.lock\n\
+            3\t0\tweb/package-lock.json\n2\t1\tios/Package.resolved\n";
+        let owned = sets(&["Cargo.lock", "ios/Package.resolved"]);
         assert_eq!(
-            lock_numstat(text),
+            lock_numstat(text, &owned),
             vec![
                 ("Cargo.lock".to_owned(), 4, 2),
-                ("web/package-lock.json".to_owned(), 3, 0)
+                ("ios/Package.resolved".to_owned(), 2, 1)
             ]
         );
+        assert!(lock_numstat(text, &[]).is_empty());
     }
 
     #[test]

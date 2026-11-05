@@ -129,12 +129,12 @@ _CFG = real_config(
     check_policy = False,
 )
 
+real_elixir_format_aspect = real_make_aspect(_CFG, "real_elixir_format")
+
+real_elixir_lint_aspect = real_make_aspect(_CFG, "real_elixir_lint")
+
 real_erlang_format_aspect = real_make_aspect(_CFG, "real_erlang_format")
 
 real_erlang_lint_aspect = real_make_aspect(_CFG, "real_erlang_lint")
 
 real_erlang_typecheck_aspect = real_make_aspect(_CFG, "real_erlang_typecheck")
-
-real_elixir_format_aspect = real_make_aspect(_CFG, "real_elixir_format")
-
-real_elixir_lint_aspect = real_make_aspect(_CFG, "real_elixir_lint")

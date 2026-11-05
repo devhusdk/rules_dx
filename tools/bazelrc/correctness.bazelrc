@@ -52,3 +52,6 @@ build --@rules_dx//config:clippy_output_diagnostics=true
 
 # Rustc diagnostics are part of the build output, as in dx build.
 build --@rules_dx//config:rustc_output_diagnostics=true
+
+# Compiler warnings fail the build under the strict profile.
+common --@rules_dx//config:warnings_as_errors=true

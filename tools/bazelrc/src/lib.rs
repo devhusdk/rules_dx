@@ -638,11 +638,20 @@ fn require_source_and_no_collisions(workspace: &Path) -> Result<(), PresetError>
     }
 }
 
+/// rules_dx renders its own layers strict, so warnings stay errors.
+pub fn render_repo_layer(layer: Layer) -> String {
+    render_layer_with(
+        layer,
+        DEFAULT_REPO,
+        (layer == Layer::Correctness).then_some(true),
+    )
+}
+
 pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
     require_source_and_no_collisions(workspace)?;
     let mut stale = Vec::new();
     for (layer, path) in preset_paths(workspace, REPO_DIR) {
-        let rendered = render_layer(layer, DEFAULT_REPO);
+        let rendered = render_repo_layer(layer);
         let checked_in = std::fs::read_to_string(&path).unwrap_or_default();
         if checked_in != rendered {
             let diff = unified_diff(&checked_in, &rendered);
@@ -664,7 +673,7 @@ pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
 pub fn update_preset(workspace: &Path) -> Result<(), PresetError> {
     require_source_and_no_collisions(workspace)?;
     for (layer, path) in preset_paths(workspace, REPO_DIR) {
-        let rendered = render_layer(layer, DEFAULT_REPO);
+        let rendered = render_repo_layer(layer);
         if std::fs::read_to_string(&path).ok().as_deref() == Some(rendered.as_str()) {
             continue;
         }
@@ -762,6 +771,15 @@ mod tests {
     }
 
     #[test]
+    fn rules_dx_renders_its_correctness_layer_strict_and_the_rest_unchanged() {
+        let text = render_repo_layer(Layer::Correctness);
+        assert_eq!(layer_warnings_as_errors(&text), Some(true));
+        for layer in [Layer::Performance, Layer::Resources] {
+            assert_eq!(render_repo_layer(layer), render_layer(layer, DEFAULT_REPO));
+        }
+    }
+
+    #[test]
     fn labels_follow_the_repo_name() {
         let text = render_layer(Layer::Correctness, "my_dx");
         assert!(text.contains("build --@my_dx//config:clippy_output_diagnostics=true\n"));
@@ -793,6 +811,7 @@ mod tests {
                 "coverage --instrumentation_filter=^//",
                 "common --nolegacy_external_runfiles",
                 "build:windows --nobuild_runfile_links",
+                "common --incompatible_strict_action_env",
                 "build:windows --enable_runfiles",
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common --repo_env=DO_NOT_TRACK=1",
@@ -894,8 +913,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 35);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 35);
+        assert_eq!(total, 36);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 36);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1003,7 +1022,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 35);
+        assert_eq!(flags.len(), 36);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }
@@ -1152,7 +1171,7 @@ mod tests {
         for (layer, path) in preset_paths(root, REPO_DIR) {
             assert_eq!(
                 std::fs::read_to_string(&path).expect("read"),
-                render_layer(layer, DEFAULT_REPO)
+                render_repo_layer(layer)
             );
         }
         let resources = &preset_paths(root, REPO_DIR)[2].1;

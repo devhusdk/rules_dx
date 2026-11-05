@@ -18,7 +18,7 @@ fn preset_parity() {
         let path = expected_dir.join(layer.file_name());
         let text = std::fs::read_to_string(&path).expect("read checked-in preset layer");
         assert_eq!(
-            dx_preset::render_layer(layer, dx_preset::DEFAULT_REPO),
+            dx_preset::render_repo_layer(layer),
             text,
             "//tools/bazelrc:preset_update would rewrite tools/bazelrc/{}; \
              run `bazel run //tools/bazelrc:preset_update`",
@@ -86,11 +86,7 @@ fn preset_parity() {
     }
     dx_testing::expect_contains(
         &preset_rs,
-        &[
-            "PRESET_BAZEL_VERSION",
-            "PRESET_DX_VERSION",
-            "\"0.0.0\"",
-        ],
+        &["PRESET_BAZEL_VERSION", "PRESET_DX_VERSION", "\"0.0.0\""],
     )
     .expect("preset src lost its Bazel/dx version pins");
 

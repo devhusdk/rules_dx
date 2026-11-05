@@ -57,7 +57,7 @@ pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{
     inspect_preset, inspect_preset_as, layer_profile, preflight_preset, preset_drift, preset_files,
     preset_paths, read_profile, refresh_preset, sync_preset, write_preset, PresetDrift,
-    PresetState,
+    PresetState, WERROR_NOTE,
 };
 pub use profiles::{infer_profile, plan_profile_files, profile_notes, Profile};
 pub use scaffold::{

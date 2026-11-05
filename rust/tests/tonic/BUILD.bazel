@@ -1,0 +1,25 @@
+# gazelle:ignore
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+load("//rust/rules:defs.bzl", "rust_test")
+
+proto_library(
+    name = "greeter_proto",
+    srcs = ["greeter.proto"],
+)
+
+rust_prost_library(
+    name = "greeter_proto_rs",
+    proto = ":greeter_proto",
+)
+
+rust_test(
+    name = "greeter_test",
+    srcs = ["greeter_test.rs"],
+    deps = [
+        ":greeter_proto_rs",
+        "@rules_rust_prost//private/3rdparty/crates:tokio",
+        "@rules_rust_prost//private/3rdparty/crates:tokio-stream",
+        "@rules_rust_prost//private/3rdparty/crates:tonic",
+    ],
+)

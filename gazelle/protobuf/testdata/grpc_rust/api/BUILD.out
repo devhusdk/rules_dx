@@ -1,0 +1,15 @@
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+
+proto_library(
+    name = "api_proto",
+    srcs = ["greeter.proto"],
+    strip_import_prefix = "/",
+    visibility = ["//visibility:public"],
+)
+
+rust_prost_library(
+    name = "api_proto_rs",
+    proto = ":api_proto",
+    visibility = ["//visibility:public"],
+)

@@ -11,7 +11,7 @@ DInfo = _DInfo
 
 D_CELLS = sorted(LDC_CELLS.keys())
 
-D_COMPATIBLE_WITH = cells_compatible_with(LDC_CELLS, "//d/toolchain", D_CELLS)
+D_COMPATIBLE_WITH = cells_compatible_with(LDC_CELLS, "//d/toolchain", D_CELLS, unsupported = True)
 
 D_QUALITY_TOOLS = {
     "dfmt": Label("//d/tools:dfmt"),

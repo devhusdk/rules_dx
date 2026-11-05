@@ -17,7 +17,7 @@ HASKELL_COVERAGE_COLLECTOR = False
 
 HASKELL_CELLS = qualified_cells()
 
-HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS)
+HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS, unsupported = True)
 
 DEFAULT_GHCOPTS = ["-Wall"]
 

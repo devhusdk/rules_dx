@@ -1,4 +1,4 @@
-load("//libs/starlark:cells.bzl", "cell_settings")
+load("//libs/starlark:cells.bzl", "cell_settings", "unsupported_value")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "d_metadata_tests")
 load(":pins.bzl", "LDC_CELLS")
@@ -10,6 +10,8 @@ exports_files([
     "pins.bzl",
     "repos.bzl",
 ])
+
+unsupported_value("unsupported")
 
 cell_settings(
     name = "cell",

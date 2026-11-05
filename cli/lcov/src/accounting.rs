@@ -416,7 +416,9 @@ pub fn account(
                         Ignores::default()
                     }
                 };
-                result.errors.extend(ignore_hygiene_errors(path, hits, &ignores));
+                result
+                    .errors
+                    .extend(ignore_hygiene_errors(path, hits, &ignores));
                 let count = count_lines(hits, &ignores);
                 result.raw_lines += count.eligible + count.ignored;
                 result.excluded_lines += count.ignored;

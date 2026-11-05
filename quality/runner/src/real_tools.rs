@@ -998,6 +998,45 @@ fn selene_embedded_defaults_use_the_merged_files() {
 }
 
 #[test]
+fn pmd_without_a_ruleset_stages_the_unused_code_default() {
+    let mirrors = RealBackend::mirror_tool_files("pmd", &plain_tool(), &[], Path::new("/s"));
+    assert!(mirrors
+        .iter()
+        .any(|mirror| mirror.mirror_rel == Path::new(PMD_DEFAULTS_REL)));
+}
+
+#[test]
+fn pmd_consumer_ruleset_replaces_the_default() {
+    let tool = RealTool {
+        config_rel: Some("cfg/pmd.xml".to_owned()),
+        tool_files: vec![("cfg/pmd.xml".to_owned(), b"<ruleset/>".to_vec())],
+        ..plain_tool()
+    };
+    let mirrors = RealBackend::mirror_tool_files("pmd", &tool, &[], Path::new("/s"));
+    assert!(mirrors
+        .iter()
+        .all(|mirror| mirror.mirror_rel != Path::new(PMD_DEFAULTS_REL)));
+}
+
+#[test]
+fn pmd_default_ruleset_reports_unused_code_as_info() {
+    let text = std::str::from_utf8(PMD_DEFAULTS_BYTES).expect("utf8");
+    for rule in [
+        "UnusedPrivateMethod",
+        "UnusedPrivateField",
+        "UnusedLocalVariable",
+        "UnusedFormalParameter",
+        "UnusedAssignment",
+    ] {
+        assert!(
+            text.contains(&format!("bestpractices.xml/{rule}\"")),
+            "{rule}"
+        );
+    }
+    assert_eq!(text.matches("<priority>5</priority>").count(), 5);
+}
+
+#[test]
 fn gplint_crashes_are_never_clean() {
     let backend = backend_for("gplint", gplint_tool(), roundtrip_gplint);
     let err = backend

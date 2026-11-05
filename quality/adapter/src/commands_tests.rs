@@ -783,24 +783,10 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
         ]
     );
     assert_eq!(check.cwd_rel, "");
-    let bare = pmd_check(Path::new(BIN), &[java], None);
-    assert_eq!(
-        argv_strings(&bare),
-        vec![
-            BIN,
-            "check",
-            "--dir",
-            "/scratch/src/Hello.java",
-            "--format",
-            "sarif",
-            "--rulesets",
-            "rulesets/java/quickstart.xml"
-        ]
-    );
     let pmd_cfg = Path::new("/scratch/pmd.xml");
-    let hinted = pmd_check(Path::new(BIN), &[java], Some(pmd_cfg));
+    let pmd = pmd_check(Path::new(BIN), &[java], pmd_cfg);
     assert_eq!(
-        argv_strings(&hinted),
+        argv_strings(&pmd),
         vec![
             BIN,
             "check",
@@ -812,7 +798,6 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "/scratch/pmd.xml"
         ]
     );
-    assert!(!argv_strings(&hinted).contains(&"rulesets/java/quickstart.xml".to_owned()));
     let spot = spotbugs_check(Path::new(BIN), &[java], &[]).expect("spot");
     assert_eq!(
         argv_strings(&spot),

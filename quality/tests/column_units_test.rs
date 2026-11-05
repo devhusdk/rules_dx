@@ -197,7 +197,7 @@ fn pmd_sarif_columns_land_after_an_emoji() {
         "ruleset.xml",
         "<?xml version=\"1.0\"?>\n<ruleset name=\"t\" xmlns=\"http://pmd.sourceforge.net/ruleset/2.0.0\">\n  <description>t</description>\n  <rule ref=\"category/java/codestyle.xml/UselessParentheses\"/>\n</ruleset>\n",
     );
-    let invocation = commands::pmd_check(&tool("DX_PMD"), &[file.as_path()], Some(&ruleset));
+    let invocation = commands::pmd_check(&tool("DX_PMD"), &[file.as_path()], &ruleset);
     let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
     let findings = parsers::parse_pmd(out.stdout.as_bytes(), out.code, &[name])

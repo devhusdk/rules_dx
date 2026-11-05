@@ -403,7 +403,7 @@ Bind a config with the `*_config` rule from `@rules_dx//quality:native_config.bz
 | `scalafmt` | yes | `.scalafmt.conf` | | `scalafmt_config` |
 | `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
 | `vale` | yes | `.vale.ini` | | `vale_config` |
-| `pmd` | no | `.xml` ruleset, default `rulesets/java/quickstart.xml` | | `pmd_config` |
+| `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`) | | `pmd_config` |
 | `clang-format` | no | `.clang-format` | | `clang_format_config` |
 | `djlint` | no | `djlint.toml` or `.djlintrc` | Workspace configs | `djlint_config` |
 | `latexindent` | no | YAML settings file | `localSettings.yaml` | `latexindent_config` |

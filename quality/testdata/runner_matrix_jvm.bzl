@@ -93,9 +93,9 @@ JVM_CASES = [
     },
     {
         "name": "matrix_java_pmd_fail",
-        "srcs": [":real_dirty.java"],
+        "srcs": [":real_unused.java"],
         "capability": "lint",
-        "stages": ["pmd;java;quality/testdata/real_dirty.java"],
+        "stages": ["pmd;java;quality/testdata/real_unused.java"],
         "tool_names": ["pmd"],
         "tool_binaries": ["//quality/tools/jvm:pmd"],
         "expected_file": ":matrix/matrix_java_pmd_fail.expected.txt",

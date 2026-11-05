@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="dx-pmd-default"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Unused code, reported as info. Used when the consumer sets no pmd_config.</description>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateField">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedLocalVariable">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedFormalParameter">
+    <priority>5</priority>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedAssignment">
+    <priority>5</priority>
+  </rule>
+</ruleset>

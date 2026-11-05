@@ -150,6 +150,9 @@ const SELENE_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/lua/selene.toml
 /// The std file name selene resolves `std = "lua53+lua54"` against.
 const SELENE_STD_FILE: &str = "lua54.yml";
 const SELENE_STD_BYTES: &[u8] = include_bytes!("../../tools/lua/lua54.yml");
+/// pmd's default ruleset, the unused-code rules at info, used when the consumer sets no `pmd_config`.
+const PMD_DEFAULTS_REL: &str = "dx-pmd-default/pmd_default.xml";
+const PMD_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/jvm/pmd_default.xml");
 
 /// scalafix's default config when the consumer binds none.
 const SCALAFIX_DEFAULTS_REL: &str = "dx-scalafix-default/.scalafix.conf";

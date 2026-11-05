@@ -673,7 +673,10 @@ impl RealBackend {
                 )
             }
             "pmd" => {
-                let invocation = commands::pmd_check(&tool.binary, &refs, config.as_deref());
+                let Some(ruleset) = config.as_deref() else {
+                    return Err(execution(tool_id, "pmd needs a ruleset".to_owned()));
+                };
+                let invocation = commands::pmd_check(&tool.binary, &refs, ruleset);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_pmd(&out.stdout, out.code, &strs))
             }

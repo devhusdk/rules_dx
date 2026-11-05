@@ -125,7 +125,6 @@ const KTFMT_FIX_ARGS: &[&str] = &["--kotlinlang-style"];
 const CHECKSTYLE_MIDDLE: &[&str] = &["-f", "sarif"];
 const PMD_PREFIX: &[&str] = &["check"];
 const PMD_MIDDLE: &[&str] = &["--format", "sarif", "--rulesets"];
-const PMD_DEFAULT_RULESET: &[&str] = &["rulesets/java/quickstart.xml"];
 const DIALYZER_ARGS: &[&str] = &[
     "--no_check_plt",
     "--no_indentation",
@@ -1057,7 +1056,7 @@ pub fn checkstyle_check(binary: &Path, files: &[&Path], config: &Path) -> Invoca
     )
 }
 
-pub fn pmd_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn pmd_check(binary: &Path, files: &[&Path], ruleset: &Path) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
     head.extend(PMD_PREFIX.iter().map(OsString::from));
     for file in files {
@@ -1065,10 +1064,7 @@ pub fn pmd_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invoc
         head.push(file.as_os_str().to_owned());
     }
     head.extend(PMD_MIDDLE.iter().map(OsString::from));
-    match config {
-        Some(path) => head.push(path.as_os_str().to_owned()),
-        None => head.extend(PMD_DEFAULT_RULESET.iter().map(OsString::from)),
-    }
+    head.push(ruleset.as_os_str().to_owned());
     Invocation {
         argv: head,
         cwd_rel: String::new(),

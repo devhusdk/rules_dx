@@ -30,7 +30,7 @@ MODULES = {
     "qtbase": struct(
         files = [],
         requires = [],
-        targets = ["core", "display_wayland", "display_xcb", "fonts", "gui", "metatypes", "moc", "network", "platforms", "plugins_imageformats", "plugins_platformthemes", "plugins_tls", "rcc", "test", "uic", "widgets"],
+        targets = ["core", "display_cocoa", "display_wayland", "display_xcb", "fonts", "gui", "metatypes", "moc", "network", "platforms", "plugins_imageformats", "plugins_platformthemes", "plugins_tls", "rcc", "test", "uic", "widgets"],
     ),
     "qtdeclarative": struct(
         files = [],

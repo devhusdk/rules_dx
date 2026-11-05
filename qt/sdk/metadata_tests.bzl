@@ -449,6 +449,7 @@ def _build_checks():
         expect_false("macos cell has no closure", 'name = "closure"' in macos or ":gui_closure" in macos),
         expect_contains("macos cell ships no fonts", macos, 'name = "fonts",\n    srcs = [],'),
         expect_contains("macos cell refuses xcb", macos, 'qt_unsupported(\n    name = "display_xcb",\n    reason = "not available on the macos_arm64 Qt cell",'),
+        expect_contains("macos cell ships cocoa", macos, 'name = "display_cocoa",\n    srcs = ["plugins/platforms/libqcocoa.dylib"],'),
         expect_contains("macos cell refuses platformthemes", macos, 'qt_unsupported(\n    name = "plugins_platformthemes",'),
         expect_contains("macos cell ships headless platforms", macos, '["plugins/platforms/libqminimal.dylib", "plugins/platforms/libqoffscreen.dylib"]'),
         expect_contains("macos qmllint plugins are dylibs", macos_full, 'srcs = glob(["plugins/qmllint/*.dylib"]),'),
@@ -458,6 +459,7 @@ def _build_checks():
         expect_equal("cell repository", cell_repository_name("linux_x86_64"), "dx_qt_linux_x86_64"),
         expect_equal("hub targets", hub_targets(), [
             "core",
+            "display_cocoa",
             "display_wayland",
             "display_xcb",
             "fonts",

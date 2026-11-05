@@ -81,6 +81,7 @@ without them `@dx_qt//:needs` fails analysis and says why.
 | `@dx_qt//:test` | `qtbase` | QtTest headers and library |
 | `@dx_qt//:fonts` | `qtbase` | `fonts.conf` and the DejaVu Sans fonts |
 | `@dx_qt//:platforms` | `qtbase` | `minimal` and `offscreen` platform plugins |
+| `@dx_qt//:display_cocoa` | `qtbase` | `cocoa` platform plugin, macOS only |
 | `@dx_qt//:display_wayland` | `qtbase` | `wayland` platform plugin, `xdg-shell`, `bradient` and `wayland-egl` plugins |
 | `@dx_qt//:display_xcb` | `qtbase` | `xcb` platform plugin and its `glx` and `egl` GL integration plugins |
 | `@dx_qt//:plugins_imageformats` | `qtbase` | `gif`, `ico` and `jpeg` image format plugins |

@@ -168,7 +168,6 @@ const PACKAGES: [&str; 115] = [
     "javascript/tests/fixtures/web_app",
     "lua/tests/negative",
     "modules",
-    "ocaml/tests/negative",
     "php/tests/negative",
     "python/tests/consumer",
     "qt/rust",

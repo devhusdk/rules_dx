@@ -195,6 +195,56 @@ jobs:
         run: |
           echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+  gcc-cross-build:
+    name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Cross-build the ARM64 fixtures with GCC
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel build --noshow_progress --//cc/toolchains:compiler=gcc "$@" //cc/tests/gcc_cross:gcc_arm64
+          mkdir -p "$RUNNER_TEMP/gcc-arm64"
+          bazel cquery --noshow_progress --//cc/toolchains:compiler=gcc "$@" --output=files //cc/tests/gcc_cross:gcc_arm64 2>/dev/null | while read -r file; do
+            cp "$file" "$RUNNER_TEMP/gcc-arm64/"
+          done
+          ls "$RUNNER_TEMP/gcc-arm64"
+          test "$(ls "$RUNNER_TEMP/gcc-arm64" | wc -l)" -eq 2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gcc-arm64-fixtures
+          path: ${{ runner.temp }}/gcc-arm64
+          retention-days: 7
+          if-no-files-found: error
+  gcc-cross-run-arm64:
+    name: gcc-cross-run-arm64 (run x86_64-cross-built fixtures on native linux_arm64)
+    needs: [gcc-cross-build]
+    timeout-minutes: 10
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: gcc-arm64-fixtures
+          path: ${{ runner.temp }}/gcc-arm64
+      - name: Run the fixtures without emulation
+        run: |
+          set -eu
+          test "$(uname -m)" = aarch64
+          cd "$RUNNER_TEMP/gcc-arm64"
+          chmod +x hello hello_c
+          test "$(./hello)" = "hello 42"
+          test "$(./hello_c)" = "hello from c"
   network:
     name: network (requires-network nested consumer tests)
     timeout-minutes: 75
@@ -627,6 +677,7 @@ jobs:
         devcontainer-check,
         families,
         gate,
+        gcc-cross-run-arm64,
         hermetic,
         msix-install,
         network,
@@ -645,6 +696,7 @@ jobs:
           NEEDS_DEVCONTAINER_CHECK: ${{ needs.devcontainer-check.result }}
           NEEDS_FAMILIES: ${{ needs.families.result }}
           NEEDS_GATE: ${{ needs.gate.result }}
+          NEEDS_GCC_CROSS_RUN_ARM64: ${{ needs.gcc-cross-run-arm64.result }}
           NEEDS_HERMETIC: ${{ needs.hermetic.result }}
           NEEDS_MSIX_INSTALL: ${{ needs.msix-install.result }}
           NEEDS_NETWORK: ${{ needs.network.result }}
@@ -654,7 +706,7 @@ jobs:
         run: |
           set -eu
           export LC_ALL=C
-          required=(coverage-cells dogfood docs devcontainer-check families gate hermetic msix-install network preflight starter-consumer workflow-check)
+          required=(coverage-cells dogfood docs devcontainer-check families gate gcc-cross-run-arm64 hermetic msix-install network preflight starter-consumer workflow-check)
           failing=()
           for name in "${required[@]}"; do
             var="NEEDS_${name^^}"

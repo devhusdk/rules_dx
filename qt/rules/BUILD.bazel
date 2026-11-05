@@ -1,7 +1,10 @@
+load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
+load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES")
+load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "QT_SOURCE_SPECS")
+load(":defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -21,9 +24,39 @@ dx_wrapper_contract_tests(
                 "qml",
             ],
         ),
+        expect_equal(
+            "os supplied libraries skip Qt and ICU",
+            qt_os_supplied_libraries({
+                "libQt6Gui.so.6": [
+                    "libGL.so.1",
+                    "libQt6Core.so.6",
+                    "libicuuc.so.73",
+                    "libfreetype.so.6",
+                ],
+                "libGL.so.1": ["libX11.so.6"],
+            }),
+            [
+                "libGL.so.1",
+                "libX11.so.6",
+                "libfreetype.so.6",
+            ],
+        ),
     ],
     file_classes = [file_class for file_class, _ in QT_SOURCE_SPECS],
 )
+
+# The system libraries a Qt app imports that qt_bundle does not ship, per Linux cell.
+[
+    native_runtime(
+        name = "os_runtime_" + cell,
+        provides = qt_os_supplied_libraries(CELLS[cell].needs.library),
+        redistribution = "os_supplied",
+        source = "operating system",
+        version = IDENTITIES[cell].min_runtime,
+    )
+    for cell in qualified_cells()
+    if CELLS[cell].layout.os == "linux" and IDENTITIES[cell] != None and CELLS[cell].needs != None
+]
 
 real_source_target(
     name = "corpus_starlark",

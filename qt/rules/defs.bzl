@@ -1078,6 +1078,24 @@ QT_CONSUMER_MIN_RUNTIME = select(
     {"//conditions:default": ""},
 )
 
+# Linux cells whose Qt apps import system libraries that the OS supplies.
+_RUNTIME_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "linux"]
+
+# consumer_archive runtime of the qualified cell the build targets.
+QT_CONSUMER_RUNTIME = select(
+    {_cell_setting(cell): [Label("//qt/rules:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
+    {"//conditions:default": []},
+)
+
+def qt_os_supplied_libraries(library):
+    """Returns the sorted system libraries a Qt library table needs, which the bundle leaves to the OS."""
+    names = {}
+    for needed in library.values():
+        for name in needed:
+            if not name.startswith("libQt6") and not name.startswith("libicu"):
+                names[name] = True
+    return sorted(names)
+
 def qt_bundle_members(runfiles, licenses, modules, needs):
     """Returns the sorted (member, short path) pairs one bundle stages."""
     roots = [path.rpartition("/")[0] for path in runfiles if path.rpartition("/")[2] == "builtins.qmltypes"]

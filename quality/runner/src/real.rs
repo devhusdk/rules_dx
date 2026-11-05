@@ -857,6 +857,7 @@ mod kubeconform;
 mod pipeline;
 mod redocly;
 mod rustfmt;
+mod single_run;
 mod sqlfluff;
 mod staging;
 mod tools_gen;

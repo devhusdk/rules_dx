@@ -65,6 +65,7 @@ impl RealBackend {
             .iter()
             .copied()
             .chain(super::delegated::TOOLS.iter())
+            .chain(super::single_run::TOOLS.iter())
             .find(|def| def.id == tool_id)
         {
             let call = CheckCall {
@@ -1682,41 +1683,6 @@ impl RealBackend {
                     parsers::parse_fortitude(&out.stdout, out.code, &free_strs),
                 )
             }
-            "hlint" => {
-                let Some(config) = config.as_deref() else {
-                    return Err(execution(tool_id, "hlint needs a config path".to_owned()));
-                };
-                let invocation = commands::hlint_check(&tool.binary, &refs, config);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_hlint(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
-            "xmllint" => {
-                let invocation = commands::xmllint_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_xmllint(&out.stderr, out.code, &strs),
-                )
-            }
-            "jsonnet_lint" => {
-                let invocation = commands::jsonnet_lint_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_jsonnet_lint(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
-            "jsonnetfmt" => {
-                let invocation = commands::jsonnetfmt_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_jsonnetfmt(&out.stdout, &out.stderr, out.code, &strs),
-                )
-            }
             "dfmt" => {
                 // One process per file: with two or more files dfmt edits them in place.
                 let mut findings = Vec::new();
@@ -1733,37 +1699,6 @@ impl RealBackend {
                     findings.extend(found);
                 }
                 Ok(findings)
-            }
-            "dscanner" => {
-                // dscanner silently skips a file it cannot read, so read each one first.
-                for (workspace, absolute) in pairs {
-                    std::fs::read(absolute)
-                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
-                }
-                let invocation = commands::dscanner_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_dscanner(&out.stdout, out.code, &strs),
-                )
-            }
-            "perlcritic" => {
-                // perlcritic exits 3 on a file it cannot read, so it is never a clean run.
-                let invocation = commands::perlcritic_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_perlcritic(&out.stdout, out.code, &strs),
-                )
-            }
-            "typstyle" => {
-                let invocation = commands::typstyle_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let cwd = scratch.root().join(&cwd_rel);
-                parsed(
-                    tool_id,
-                    parsers::parse_typstyle(&out.stdout, &out.stderr, out.code, &strs, &cwd),
-                )
             }
             "tinymist" => {
                 // One process per file: each run compiles one entry file.

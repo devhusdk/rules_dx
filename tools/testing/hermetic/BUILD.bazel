@@ -93,6 +93,19 @@ rust_binary(
 )
 
 rust_test(
+    name = "consumer_repos_test",
+    srcs = ["consumer_repos_test.rs"],
+    data = glob([
+        "consumers/**/*BUILD.bazel",
+        "consumers/*/module_fragment.bazel",
+    ]),
+    deps = [
+        "//libs/module_bazel:dx_module_bazel",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
     name = "isolation_probe_test",
     srcs = ["isolation_test.rs"],
     tags = QUALIFICATION_TAGS,
@@ -1014,6 +1027,7 @@ rustfmt_test(
         ":qt_tasks",
         ":rust_wasi",
         ":scala_scalafix",
+        ":consumer_repos_test",
         ":isolation_probe_test",
         ":verify",
         ":zig",
@@ -1045,6 +1059,7 @@ rust_clippy_test(
         ":qt_tasks",
         ":rust_wasi",
         ":scala_scalafix",
+        ":consumer_repos_test",
         ":isolation_probe_test",
         ":verify",
         ":zig",

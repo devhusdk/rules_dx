@@ -35,7 +35,7 @@ hermetic() {
   targets="$(bazel query --lockfile_mode=error "$@" 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...)' --output=label)"
   test -n "$targets"
   # shellcheck disable=SC2086
-  bazel build --nobuild --lockfile_mode=error "$@" //tools/testing/hermetic:isolation_probe_test $targets
+  bazel build --nobuild --lockfile_mode=error "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing/hermetic:consumer_repos_test $targets
 }
 
 docs() {

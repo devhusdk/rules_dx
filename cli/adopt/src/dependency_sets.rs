@@ -2074,6 +2074,17 @@ mod tests {
     }
 
     #[test]
+    fn the_repos_own_dart_hub_becomes_a_pub_set() {
+        let module = "pub = use_extension(\"//dart:extensions.bzl\", \"pub\", dev_dependency = True)\npub.from_lock(name = \"dx_dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("dx_dart_deps").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Pub);
+        assert_eq!(set.locks, ["third_party/dart/pubspec.lock"]);
+    }
+
+    #[test]
     fn conan_extensions_become_conan_sets() {
         let module = "conan = use_extension(\"//build/conan:conan_deps_module_extension.bzl\", \"conan_extension\")\n";
         let read = |path: &str| match path {

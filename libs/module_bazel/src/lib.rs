@@ -792,8 +792,8 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of rules_dart and `flutter.pub` tag of rules_flutter, in source
-    /// order within each extension.
+    /// Every `pub.from_lock` tag of rules_dart or this repository's `//dart:extensions.bzl` and
+    /// `flutter.pub` tag of rules_flutter, in source order within each extension.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
             .tags(DART_MODULE, "dart/pub:extensions.bzl", "pub", "from_lock")
@@ -801,7 +801,11 @@ impl ModuleFile {
         let flutter = self
             .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")
             .map(|call| ("flutter.pub", call));
+        let own = self
+            .tags_of("//dart:extensions.bzl".to_owned(), "pub", "from_lock")
+            .map(|call| ("pub.from_lock", call));
         dart.chain(flutter)
+            .chain(own)
             .map(|(tag, call)| {
                 Ok(PubLock {
                     name: required(call, tag, "name")?,
@@ -862,7 +866,15 @@ impl ModuleFile {
         tag: &'a str,
     ) -> impl Iterator<Item = &'a Call> + 'a {
         let repo = self.repo_name(module).unwrap_or(module);
-        let label = format!("@{repo}//{file}");
+        self.tags_of(format!("@{repo}//{file}"), name, tag)
+    }
+
+    fn tags_of<'a>(
+        &'a self,
+        label: String,
+        name: &str,
+        tag: &'a str,
+    ) -> impl Iterator<Item = &'a Call> + 'a {
         let proxies: Vec<&str> = self
             .calls_named("use_extension")
             .filter(|call| {

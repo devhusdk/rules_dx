@@ -513,9 +513,6 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Cpan => {
                 "dx refreshes cpanfile.snapshot with `carton update`; edit cpanfile and run `carton install`"
             }
-            Ecosystem::Pub => {
-                "dx does not resolve pub packages; edit pubspec.yaml and regenerate pubspec.lock with `dart pub get`"
-            }
             Ecosystem::Conan => {
                 "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
             }
@@ -633,9 +630,29 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
+        }
+        (Ecosystem::Pub, request) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let mut command = vec!["pub", "upgrade"];
+            if let Selection::Packages(packages) = request {
+                command.extend(packages.iter().map(String::as_str));
+            }
+            Ok(BackendPlan::Run {
+                argv: pub_argv(workspace, set, head, &command)?,
+                env: pub_env(),
+            })
         }
         (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Cpan, Selection::Packages(modules)) => {
@@ -853,10 +870,24 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
+        (Ecosystem::Pub, Selection::Full) => {
+            let mut command = vec!["pub", "get", "--enforce-lockfile"];
+            if offline {
+                command.push("--offline");
+            }
+            Ok(CheckPlan::Run {
+                argv: pub_argv(workspace, set, head, &command)?,
+                env: pub_env(),
+            })
+        }
+        (Ecosystem::Pub, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "dart pub get checks the whole pubspec.lock; select the set without a package",
+        }),
         (Ecosystem::Cpan, Selection::Full) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -1122,6 +1153,38 @@ fn carton_env() -> Vec<(String, String)> {
         "PERL_CARTON_PATH".to_owned(),
         path.to_string_lossy().into_owned(),
     )]
+}
+
+/// A `dart pub` run from the pinned Dart SDK in the set's directory.
+///
+/// Flutter sets are refused: the pinned Flutter toolchain ships no `flutter` command.
+fn pub_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    command: &[&str],
+) -> Result<Vec<String>, BackendError> {
+    let flutter = set.manifests.first().is_some_and(|manifest| {
+        std::fs::read_to_string(workspace.join(manifest))
+            .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
+    });
+    if flutter {
+        return Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "the pinned Flutter toolchain has no flutter command; run `flutter pub get` or `flutter pub upgrade` in the set directory",
+        });
+    }
+    let dir = set_dir(workspace, set)?;
+    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//dart/tools:dart", "--"]);
+    argv.extend(strings(command));
+    Ok(argv)
+}
+
+/// Keeps pub's package cache out of the workspace.
+fn pub_env() -> Vec<(String, String)> {
+    let path = std::env::temp_dir().join("dx-pub-cache");
+    vec![("PUB_CACHE".to_owned(), path.to_string_lossy().into_owned())]
 }
 
 fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String> {
@@ -1576,6 +1639,105 @@ mod tests {
             ),
             Err(BackendError::OfflineRequired { .. })
         ));
+    }
+
+    fn pub_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "dart_deps".to_owned(),
+            ecosystem: Ecosystem::Pub,
+            dir: "app".to_owned(),
+            manifests: vec!["app/pubspec.yaml".to_owned()],
+            locks: vec!["app/pubspec.lock".to_owned()],
+            repository: None,
+        }
+    }
+
+    fn pub_workspace(pubspec: &str) -> dx_test_scratch::TempDir {
+        let dir = dx_test_scratch::scratch("pub_backend");
+        dx_test_scratch::write(dir.path(), "app/pubspec.yaml", pubspec);
+        dir
+    }
+
+    fn pub_plan(
+        workspace: &Path,
+        request: &Selection,
+        offline: bool,
+        frozen: bool,
+    ) -> Result<BackendPlan, BackendError> {
+        plan_configured(
+            workspace,
+            &pub_set(),
+            request,
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    }
+
+    #[test]
+    fn pub_update_runs_dart_pub_upgrade() {
+        let dir = pub_workspace("name: app\n");
+        let BackendPlan::Run { argv, env } = pub_plan(
+            dir.path(),
+            &Selection::Packages(vec!["http".to_owned()]),
+            false,
+            false,
+        )
+        .expect("plan") else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv[argv.len() - 4..], ["--", "pub", "upgrade", "http"]);
+        assert!(argv.contains(&"@rules_dx//dart/tools:dart".to_owned()));
+        assert_eq!(env[0].0, "PUB_CACHE");
+        let BackendPlan::Run { argv, .. } =
+            pub_plan(dir.path(), &Selection::Full, false, false).expect("plan")
+        else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv[argv.len() - 2..], ["pub", "upgrade"]);
+    }
+
+    #[test]
+    fn pub_update_refuses_frozen_offline_and_flutter() {
+        let dir = pub_workspace("name: app\n");
+        assert!(matches!(
+            pub_plan(dir.path(), &Selection::Full, true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        assert!(matches!(
+            pub_plan(dir.path(), &Selection::Full, false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+        let flutter = pub_workspace("dependencies:\n  flutter:\n    sdk: flutter\n");
+        assert!(matches!(
+            pub_plan(flutter.path(), &Selection::Full, false, false),
+            Err(BackendError::Unsupported { .. })
+        ));
+    }
+
+    #[test]
+    fn pub_check_enforces_the_lockfile() {
+        let dir = pub_workspace("name: app\n");
+        let check = |offline| {
+            check_configured(
+                dir.path(),
+                &pub_set(),
+                &Selection::Full,
+                offline,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let Ok(CheckPlan::Run { argv, .. }) = check(false) else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv[argv.len() - 3..], ["pub", "get", "--enforce-lockfile"]);
+        let Ok(CheckPlan::Run { argv, .. }) = check(true) else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv[argv.len() - 1], "--offline");
     }
 
     fn bazel_set(dir: &str, lock: &str) -> ResolvedSet {

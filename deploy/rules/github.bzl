@@ -73,8 +73,11 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = []):
-    """Publishes pinned files as a draft-only GitHub Release."""
+def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = [], sbom = None):
+    """Publishes pinned files as a draft-only GitHub Release.
+
+    `sbom` is a dx_sbom target uploaded as one more release asset.
+    """
     tag_error = github_tag_error(tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
@@ -82,7 +85,7 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
     config_target = name + "_config"
     github_config(
         name = config_target,
-        artifacts = artifacts,
+        artifacts = artifacts + ([sbom] if sbom else []),
         deploy_name = name,
         tag = tag,
         tags = tags,

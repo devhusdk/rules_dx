@@ -37,6 +37,7 @@ Find your task.
 - [Audit and update](cli/commands/audit-update.md)
 - [Config reference](cli/commands/config.md)
 - [Explain](cli/commands/explain.md)
+- [Fuzz](cli/commands/fuzz.md)
 - [Init](cli/commands/init.md)
 - [Status](cli/commands/status.md)
 - [Completion](cli/commands/completion.md)

@@ -124,6 +124,7 @@ pub fn first_run_notice(
             | Command::Bench
             | Command::Run
             | Command::Deploy
+            | Command::Fuzz
             | Command::Check
             | Command::Lint
             | Command::Format

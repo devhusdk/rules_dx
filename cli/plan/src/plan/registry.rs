@@ -223,6 +223,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Upgrade
         | Command::Worktree
         | Command::Explain
+        | Command::Fuzz
         | Command::Status
         | Command::Watch
         | Command::Completion => CommandSpec {

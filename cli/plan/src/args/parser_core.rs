@@ -433,7 +433,7 @@ fn workflow_commands_reject_quality_only_options() {
 #[test]
 fn unknown_options_fail() {
     for (words, needle) in [
-        (vec!["lint", "--jobs=4"], "--jobs"),
+        (vec!["lint", "--parallel=4"], "--parallel"),
         (vec!["lint", "-z"], "-z"),
         (vec!["lint", "--dry-run"], "--dry-run"),
         (vec!["-"], "-"),

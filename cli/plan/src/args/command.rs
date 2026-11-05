@@ -24,6 +24,7 @@ pub enum Command {
     Docs,
     Worktree,
     Explain,
+    Fuzz,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,7 +95,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 24] = [
+pub static COMMANDS: [CommandMeta; 25] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -431,6 +432,20 @@ pub static COMMANDS: [CommandMeta; 24] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
+    CommandMeta {
+        command: Command::Fuzz,
+        name: "fuzz",
+        scope_policy: "default-//...",
+        describe: "run dx-fuzz targets for a time budget and store crashes under .dx/fuzz",
+        usage: "Usage: dx fuzz [--here] [--time <duration>] [--jobs <n>] [scope ...]",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //.... Only targets tagged dx-fuzz run.",
+        is_managed: false,
+        is_adoption: false,
+        default_release: false,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+    },
 ];
 
 impl Command {
@@ -577,7 +592,7 @@ mod tests {
         let json: Vec<Command> = all
             .iter()
             .copied()
-            .filter(|c| !matches!(c, Command::Deploy | Command::Completion))
+            .filter(|c| !matches!(c, Command::Deploy | Command::Completion | Command::Fuzz))
             .collect();
         assert_eq!(set(Command::supports_json), json);
         let in_order = |names: &[Command]| -> Vec<Command> {
@@ -608,7 +623,8 @@ mod tests {
                 Command::Coverage,
                 Command::Bench,
                 Command::Check,
-                Command::Docs
+                Command::Docs,
+                Command::Fuzz
             ])
         );
         assert_eq!(
@@ -696,6 +712,7 @@ mod tests {
             Command::Docs,
             Command::Worktree,
             Command::Explain,
+            Command::Fuzz,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -785,7 +802,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|fuzz",
             "pipe_list order must match declaration order"
         );
     }

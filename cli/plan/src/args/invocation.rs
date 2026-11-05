@@ -315,6 +315,10 @@ pub struct Invocation {
     pub old_log: Option<String>,
     /// `dx explain --new`.
     pub new_log: Option<String>,
+    /// `dx fuzz --time`: the budget per target; 60s when absent.
+    pub time: Option<String>,
+    /// `dx fuzz --jobs`: jobs each fuzz runner may use.
+    pub jobs: Option<u16>,
     pub path_only: bool,
     pub shell: Option<String>,
     pub agent: bool,
@@ -719,6 +723,8 @@ mod tests {
             build_profile: false,
             exec_log: None,
             old_log: None,
+            time: None,
+            jobs: None,
             new_log: None,
             path_only: false,
             shell: None,

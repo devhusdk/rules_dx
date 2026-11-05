@@ -68,6 +68,30 @@ fn percent(raw: &str) -> Result<u32, String> {
     }
 }
 
+/// The seconds in a fuzz budget such as `90`, `90s`, `5m` or `1h`.
+pub fn fuzz_seconds(raw: &str) -> Option<u64> {
+    let (digits, unit) = match raw.strip_suffix(['s', 'm', 'h']) {
+        Some(digits) => (digits, raw.chars().last()),
+        None => (raw, Some('s')),
+    };
+    let count: u64 = digits.parse().ok().filter(|count| *count > 0)?;
+    let scale = match unit? {
+        'm' => 60,
+        'h' => 3600,
+        _ => 1,
+    };
+    count.checked_mul(scale)
+}
+
+fn fuzz_duration(raw: &str) -> Result<String, String> {
+    match fuzz_seconds(raw) {
+        Some(_) => Ok(raw.to_owned()),
+        None => Err(format!(
+            "want a duration such as 90s, 5m or 1h, got {raw:?}"
+        )),
+    }
+}
+
 /// The usage line clap renders for one command.
 fn usage_of(index: usize) -> String {
     let usage = COMMANDS[index].usage;
@@ -135,6 +159,8 @@ pub(crate) struct Flags {
     pub(crate) build_profile: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
+    pub(crate) time: Option<String>,
+    pub(crate) jobs: Option<u16>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -771,6 +797,35 @@ composite_group! {
     }
 }
 
+flag_group! {
+    /// Time budget per target, such as 90s, 5m or 1h (default 60s).
+    TimeFlag, {
+        #[arg(long, value_name = "DURATION", overrides_with = "time", value_parser = fuzz_duration)]
+        time: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Jobs each fuzz runner may use.
+    JobsFlag, {
+        #[arg(
+            long,
+            value_name = "N",
+            overrides_with = "jobs",
+            value_parser = clap::value_parser!(u16).range(1..)
+        )]
+        jobs: Option<u16>,
+    }
+}
+
+composite_group! {
+    /// The fuzz budget flags.
+    FuzzArgs, {
+        time: TimeFlag,
+        jobs: JobsFlag,
+    }
+}
+
 /// Scopes and the Bazel passthrough.
 #[derive(Args)]
 pub(crate) struct BazelTail {
@@ -1107,6 +1162,8 @@ command_args! {
     };
     /// The flags `dx explain` accepts.
     Explain => 23, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
+    /// The flags `dx fuzz` accepts.
+    Fuzz => 24, NoPassthroughTail, { own: FuzzArgs, here: HereFlag, };
 }
 
 #[derive(Parser)]

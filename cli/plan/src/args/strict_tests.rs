@@ -5,7 +5,7 @@ use dx_testing::cli::strings;
 #[test]
 fn strict_unknown_options_fail_with_whole_token() {
     for words in [
-        vec!["lint", "--jobs=4"],
+        vec!["lint", "--parallel=4"],
         vec!["lint", "-z"],
         vec!["lint", "--dry-run=yes"],
         vec!["lint", "--quiet=x"],

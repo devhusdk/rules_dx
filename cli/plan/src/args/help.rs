@@ -282,6 +282,10 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         Command::Explain,
         &["explain", "explain --old=old.log --new=new.log"],
     ),
+    (
+        Command::Fuzz,
+        &["fuzz //pkg:parser", "fuzz --time 5m //pkg/..."],
+    ),
 ];
 
 fn examples_text(command: Command) -> String {

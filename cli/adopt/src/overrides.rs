@@ -274,13 +274,15 @@ fn render_module(rows: &[&Override]) -> String {
     out
 }
 
-/// Whether the consumer wants `row`: its module belongs to no family (core), or to a family
-/// that is installed.
+/// Whether the consumer wants `row`: its module belongs to no family, or to at least one family
+/// that is core or installed.
 fn wanted(row: &Override, families: &[Family], deps: &BTreeSet<String>) -> bool {
-    families
+    let mut listed = families
         .iter()
         .filter(|family| family.bazel_deps.iter().any(|dep| dep == row.module))
-        .all(|family| {
+        .peekable();
+    listed.peek().is_none()
+        || listed.any(|family| {
             family
                 .module
                 .as_ref()
@@ -893,6 +895,26 @@ archive_override(
         let all = render_in(dx_families::families(), &BTreeSet::new());
         assert_eq!(all, render_in(&[], &BTreeSet::new()));
         assert!(paths(&all).iter().any(|p| p.contains("rules_rust.")));
+    }
+
+    #[test]
+    fn a_module_in_several_families_needs_only_one_installed() {
+        let family = |name: &str, module: Option<&str>| Family {
+            name: name.to_owned(),
+            module: module.map(str::to_owned),
+            bazel_deps: vec!["rules_rust".to_owned()],
+            ..Family::default()
+        };
+        let families = vec![family("rust", None), family("apple", Some("rules_dx_apple"))];
+        let files = render_in(&families, &BTreeSet::new());
+        assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
+    }
+
+    #[test]
+    fn the_shipped_families_keep_rules_rust_without_apple() {
+        let deps = BTreeSet::from(["rules_rust".to_owned()]);
+        let files = render_in(dx_families::families(), &deps);
+        assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
     }
 
     #[test]

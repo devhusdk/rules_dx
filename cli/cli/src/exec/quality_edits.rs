@@ -800,6 +800,22 @@ fn missing_and_unused_deps_are_placed_and_apply_fixes_both() {
 }
 
 #[test]
+fn external_missing_dep_is_added_under_its_apparent_repo_name() {
+    let harness = missing_and_unused_dep("missing-mapped", "@@crates+//:serde");
+    harness
+        .query
+        .script_stdout("{\"\":\"\",\"crates\":\"crates+\"}\n");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert_eq!(
+        after,
+        "rust_library(\n    name = \"lib\",\n    deps = [\n        \":used\",\n        \"@crates//:serde\",\n    ],\n)\n"
+    );
+}
+
+#[test]
 fn external_missing_dep_is_reported_and_left_alone() {
     let harness = missing_and_unused_dep("missing-external", "@@x//:y");
     let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);

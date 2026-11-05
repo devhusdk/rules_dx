@@ -20,7 +20,7 @@ use dx_plan::args::{Command, Invocation, QualityRequest};
 use dx_plan::plan::{bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP};
 use dx_plan::reports::{plan_reports, BaselineReport, Destination};
 use dx_plan::resolve::{resolve, RuleGraph};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::Path;
 
@@ -255,6 +255,25 @@ fn probe_shards(
     shards
 }
 
+/// The apparent to canonical repository names of the main module, or None when Bazel cannot print them.
+fn repo_mapping(
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &Path,
+    startup_options: &[String],
+) -> Option<BTreeMap<String, String>> {
+    let mut argv = dx_process::startup_argv(startup_options);
+    argv.extend(["mod", "dump_repo_mapping", ""].map(str::to_owned));
+    let result = query_runner.run_query(&argv, workspace).ok()?;
+    if result.code != Some(0) {
+        return None;
+    }
+    let text = std::str::from_utf8(&result.stdout).ok()?;
+    let line = text
+        .lines()
+        .find(|line| line.trim_start().starts_with('{'))?;
+    serde_json::from_str(line).ok()
+}
+
 /// Unions the shard names of every `{"shards":[...]}` file in the probe's event file.
 fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
     let account = collect_output_account(bep, SHARD_OUTPUT_GROUP, workspace).ok()?;
@@ -457,7 +476,9 @@ fn run_quality_request(
             }
         }
     };
-    let mut collected = match collect_results(&bep, workspace) {
+    let mut collected = match collect_results(&bep, workspace, &|| {
+        repo_mapping(query_runner, workspace, &request.bazel_startup_options)
+    }) {
         Ok(collected) => collected,
         Err((code, message)) => {
             let _ = std::fs::remove_file(&bep);

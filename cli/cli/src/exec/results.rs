@@ -25,6 +25,7 @@ struct Staged {
 type BuildDepKey = (String, u64, u64, String, Option<String>, String);
 
 /// A missing dependency to add: the target name and the label as written in its package.
+/// A canonical external label stays `@@repo//...` until the repository mapping names it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Insert {
     target: String,
@@ -37,7 +38,11 @@ fn build_dep_fix(dep: &proto::BuildDep) -> Option<Option<Insert>> {
     if !dep.missing {
         return Some(None);
     }
-    let label = build_deps::short_label(&dep.package, &dep.label)?;
+    let label = match build_deps::short_label(&dep.package, &dep.label) {
+        Some(label) => label,
+        None if dep.label.starts_with("@@") => dep.label.clone(),
+        None => return None,
+    };
     Some(Some(Insert {
         target: dep.target.clone(),
         label,
@@ -299,6 +304,7 @@ fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
 fn build_dep_producer(
     workspace: &Path,
     keys: &BTreeMap<BuildDepKey, Option<Insert>>,
+    mapping: RepoMapping,
 ) -> (Option<Producer>, BTreeSet<BuildDepKey>) {
     let mut by_path: BTreeMap<&str, Vec<(&BuildDepKey, &Option<Insert>)>> = BTreeMap::new();
     for item @ (key, _) in keys {
@@ -314,6 +320,7 @@ fn build_dep_producer(
     };
     producer.tools.dedup();
     let mut fixed = BTreeSet::new();
+    let mut repos: Option<Option<BTreeMap<String, String>>> = None;
     for (path, items) in by_path {
         let Ok(bytes) = std::fs::read(workspace.join(path)) else {
             continue;
@@ -354,8 +361,19 @@ fn build_dep_producer(
                 }
                 None => {}
                 Some(insert) => {
-                    let Some((at, add)) =
-                        build_deps::insertion(&after, &insert.target, &insert.label)
+                    let label = if insert.label.starts_with("@@") {
+                        let names = repos.get_or_insert_with(mapping);
+                        let Some(label) = names
+                            .as_ref()
+                            .and_then(|names| build_deps::apparent_label(&insert.label, names))
+                        else {
+                            continue;
+                        };
+                        label
+                    } else {
+                        insert.label.clone()
+                    };
+                    let Some((at, add)) = build_deps::insertion(&after, &insert.target, &label)
                     else {
                         continue;
                     };
@@ -398,14 +416,22 @@ fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
     Some((prefix as u64, (before.len() - suffix) as u64, middle))
 }
 
-pub(crate) fn collect_results(bep: &Path, workspace: &Path) -> Result<Collected, (String, String)> {
-    collect_results_in(bep, OUTPUT_GROUP, workspace)
+/// Apparent to canonical repository names, read only when a missing external dependency needs them.
+pub(crate) type RepoMapping<'a> = &'a dyn Fn() -> Option<BTreeMap<String, String>>;
+
+pub(crate) fn collect_results(
+    bep: &Path,
+    workspace: &Path,
+    mapping: RepoMapping,
+) -> Result<Collected, (String, String)> {
+    collect_results_in(bep, OUTPUT_GROUP, workspace, mapping)
 }
 
 pub(crate) fn collect_results_in(
     bep: &Path,
     group: &str,
     workspace: &Path,
+    mapping: RepoMapping,
 ) -> Result<Collected, (String, String)> {
     let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
@@ -507,7 +533,7 @@ pub(crate) fn collect_results_in(
         });
     }
     unstable.sort_by(|a: &Unstable, b: &Unstable| a.label.cmp(&b.label));
-    let (removal, fixed) = build_dep_producer(workspace, &build_dep_keys);
+    let (removal, fixed) = build_dep_producer(workspace, &build_dep_keys, mapping);
     let removed: BTreeSet<&str> = removal
         .iter()
         .flat_map(|producer| producer.changes.iter().map(|change| change.path.as_str()))
@@ -715,7 +741,7 @@ mod tests {
         let dir = temp_dir("group-tmp");
         let bep = dir.path().join("empty.json");
         std::fs::write(&bep, "").expect("bep");
-        let Err((code, message)) = collect_results_in(&bep, "", dir.path()) else {
+        let Err((code, message)) = collect_results_in(&bep, "", dir.path(), &|| None) else {
             panic!("empty output group must fail"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         };
         assert_eq!(code, CODE_INVALID_BEP);
@@ -765,7 +791,7 @@ mod tests {
     fn collect(harness: &Harness, lines: &[String]) -> Collected {
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        collect_results_in(&bep, "dx_results", &harness.workspace).expect("collected")
+        collect_results_in(&bep, "dx_results", &harness.workspace, &|| None).expect("collected")
     }
 
     #[test]
@@ -981,7 +1007,7 @@ mod tests {
         lines.push(LAST_EVENT.to_owned());
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        let collected = collect_results_in(&bep, "dx_results", &harness.workspace)
+        let collected = collect_results_in(&bep, "dx_results", &harness.workspace, &|| None)
             .expect("a garbled line must not fail the run");
         assert!(
             collected

@@ -1,5 +1,7 @@
 //! Finds `deps` entries in BUILD file text and the bytes that remove them.
 
+use std::collections::BTreeMap;
+
 /// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
 pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
     let rule = text.find(&format!("name = \"{target}\""))?;
@@ -163,6 +165,17 @@ pub fn short_label(package: &str, label: &str) -> Option<String> {
     }
 }
 
+/// An external label written with the apparent repository name from `mapping` (apparent to canonical).
+/// None when the label is not a canonical `@@repo` label or no apparent name maps to it.
+pub fn apparent_label(label: &str, mapping: &BTreeMap<String, String>) -> Option<String> {
+    let rest = label.strip_prefix("@@")?;
+    let (canonical, path) = rest.split_once("//")?;
+    let (apparent, _) = mapping
+        .iter()
+        .find(|(apparent, name)| !apparent.is_empty() && name.as_str() == canonical)?;
+    Some(format!("@{apparent}//{path}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,6 +285,20 @@ mod tests {
         let build = "rust_library(\n    name = \"lib\",\n)\n";
         let (start, end) = locate_deps_list(build, "lib").expect("located");
         assert_eq!(&build[start..end], "    name = \"lib\",");
+    }
+
+    #[test]
+    fn maps_a_canonical_repo_to_its_apparent_name() {
+        let mapping = BTreeMap::from([
+            (String::new(), String::new()),
+            ("crates".to_owned(), "crates+".to_owned()),
+        ]);
+        assert_eq!(
+            apparent_label("@@crates+//:serde", &mapping).as_deref(),
+            Some("@crates//:serde")
+        );
+        assert_eq!(apparent_label("@@other+//:x", &mapping), None);
+        assert_eq!(apparent_label("//p:a", &mapping), None);
     }
 
     #[test]

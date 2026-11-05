@@ -417,7 +417,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          out="$RUNNER_TEMP/compiler-evidence/${PLATFORM}.jsonl"
+          out="$RUNNER_TEMP/compiler-evidence/starter-${PLATFORM}.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
           bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts
@@ -798,6 +798,35 @@ jobs:
         run: |
           echo "### ci — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: always()
+        with:
+          sparse-checkout: tools/ci/compiler_table.sh
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: always()
+        continue-on-error: true
+        with:
+          pattern: compiler-evidence-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/compiler-evidence
+      - name: Merge compiler evidence
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/compiler-evidence"
+          {
+            echo "### Compiler evidence (row x platform)"
+            tools/ci/compiler_table.sh "$RUNNER_TEMP/compiler-evidence" "$RUNNER_TEMP/compiler-evidence-all.jsonl" linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        continue-on-error: true
+        with:
+          name: compiler-evidence-all
+          path: ${{ runner.temp }}/compiler-evidence-all.jsonl
+          if-no-files-found: ignore
+          retention-days: 7
   scheduled-report:
     name: scheduled-report
     if: ${{ always() && github.event_name == 'schedule' }}

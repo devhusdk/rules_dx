@@ -34,9 +34,11 @@ rust_test(
     data = [
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
+        ":compiler_table.sh",
         "//.github:workflows",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
+    tags = ["no-remote"],
     deps = [
         ":ci_workflow",
         "//cli/test_scratch:dx_test_scratch",

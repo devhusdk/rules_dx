@@ -137,3 +137,24 @@ fn docs_name_every_artifact_and_the_download_command() {
     }
     assert!(docs.contains("gh run download"));
 }
+
+#[test]
+fn the_profile_report_is_kept_and_summarised_in_the_pr_comment() {
+    let all = steps(WORKFLOW, JOB);
+    let run_of = |needle: &str| -> String {
+        all.iter()
+            .filter_map(|step| step["run"].as_str())
+            .find(|run| run.contains(needle))
+            .unwrap_or_else(|| panic!("no step runs {needle}"))
+            .to_owned()
+    };
+    let checks = run_of("@rules_dx//:dx -- \"${args[@]}\"");
+    assert!(
+        checks.contains("cp .dx/profile/report.json \"$reports/profile-$id.json\""),
+        "{checks}"
+    );
+    let summary = run_of("dx-coverage-summary");
+    assert!(summary.contains("% cache hits (remote "), "{summary}");
+    assert!(summary.contains("critical path "), "{summary}");
+    assert!(summary.contains("\"$profile_lines\""), "{summary}");
+}

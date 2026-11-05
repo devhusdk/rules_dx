@@ -221,6 +221,11 @@ jobs:
             rc=0
             bazel run "$@" @rules_dx//:dx -- "${args[@]}" < /dev/null || rc=$?
             echo "::endgroup::"
+            case "$id" in
+              test|build)
+                cp .dx/profile/report.json "$reports/profile-$id.json" 2>/dev/null || true
+                ;;
+            esac
             if [ "$rc" -eq 0 ]; then
               echo "$id: passed (exit 0)" >> "$GITHUB_STEP_SUMMARY"
             else
@@ -351,6 +356,15 @@ jobs:
             changed_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.rc 2>/dev/null || echo "not run")"
           fi
           changed_line="$(grep -v -e '^[[:space:]]*$' "${RUNNER_TEMP:-/tmp}"/dx_changed_lines.txt 2>/dev/null | head -n 1 || true)"
+          profile_lines=""
+          for id in build test; do
+            profile_lines+="$(jq -r --arg id "$id" '
+              def clock: (. / 1000000 | floor) as $s | "\($s / 60 | floor)m\($s % 60 | tostring | if length < 2 then "0" + . else . end)s";
+              select(.cache != null and .cache.actions > 0)
+              | "\($id): \(.cache.hit_percent)% cache hits (remote \(.cache.remote_hits * 100 / .cache.actions | floor)%, disk \(.cache.disk_hits * 100 / .cache.actions | floor)%), \(.wall_micros | clock), critical path \(.critical_path_micros | clock)"
+            ' "${RUNNER_TEMP:-/tmp}/dx-reports/$id/profile-$id.json" 2>/dev/null || true)"$'\n'
+          done
+          profile_lines="$(printf '%s' "$profile_lines" | grep -v '^$' || true)"
           status="PASS"
           if [[ "$dx_rc" != "0" ]]; then status="FAIL"; fi
           if [[ "$changed_rc" =~ ^[0-9]+$ && "$changed_rc" != "0" ]]; then status="FAIL"; fi
@@ -362,6 +376,7 @@ jobs:
             echo ""
             if [[ -n "$dx_line" ]]; then echo "$dx_line"; echo ""; fi
             if [[ -n "$sources_lines" ]]; then echo '```text'; echo "$sources_lines"; echo '```'; echo ""; fi
+            if [[ -n "$profile_lines" ]]; then echo '```text'; echo "$profile_lines"; echo '```'; echo ""; fi
             echo "Gate exit: $dx_rc (comment never changes this outcome)."
             echo ""
             echo "Changed-line gate exit: $changed_rc"

@@ -81,6 +81,15 @@ class NativeExtTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
+            if result.returncode:
+                base = subprocess.run(
+                    [sys.executable, "-I", "-c", "print(1)"],
+                    env=clean_env(),
+                    cwd=tmp,
+                    capture_output=True,
+                    text=True,
+                )
+                print("DIAG", sys.executable, sys.version, result, base, os.listdir(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_linked_extension_calls_helper(self):

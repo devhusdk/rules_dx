@@ -1043,6 +1043,7 @@ uv.project(
 )
 use_repo(uv, pypi = "dx_pypi")
 
+# Dev-only. Remove this block and the sdist_cargo_vendor block below in #6817 once rules_py ships #1526.
 uv_rust = use_extension("@rules_py//uv:extensions.bzl", "uv", dev_dependency = True)
 uv_rust.declare_hub(hub_name = "dx_pypi_rust_sdist")
 uv_rust.project(

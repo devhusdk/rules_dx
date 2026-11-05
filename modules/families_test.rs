@@ -530,7 +530,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 41] = [
+const FAMILY_FILES: [&str; 42] = [
     "ansible",
     "beam",
     "cc",
@@ -563,6 +563,7 @@ const FAMILY_FILES: [&str; 41] = [
     "ruby",
     "pkl",
     "rego",
+    "rust",
     "shell",
     "sql",
     "swift",

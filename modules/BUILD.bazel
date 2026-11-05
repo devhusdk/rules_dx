@@ -106,6 +106,7 @@ rust_test(
         "//quality:families/python.bzl",
         "//quality:families/rego.bzl",
         "//quality:families/ruby.bzl",
+        "//quality:families/rust.bzl",
         "//quality:families/shell.bzl",
         "//quality:families/sql.bzl",
         "//quality:families/swift.bzl",

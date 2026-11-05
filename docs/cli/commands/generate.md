@@ -84,7 +84,7 @@ The `java` and `kotlin` languages generate an Android library kind for
 directories that import the Android SDK:
 
 - An `android.*` or `dalvik.*` import selects `java_android_library` or
-  `kotlin_android_library`, loaded from `@rules_dx//android/rules:defs.bzl`,
+  `kotlin_android_library`, loaded from `@rules_dx_android//rules:defs.bzl`,
   instead of `java_library` or `kotlin_library`. `android.support.*`,
   `android.arch.*` and `androidx.*` are Maven artifacts and don't select it.
 - In those directories `android.*`, `dalvik.*`, `org.json.*` and

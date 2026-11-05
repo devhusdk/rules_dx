@@ -102,8 +102,8 @@ list is in [Supported Surface](cli/commands/README.md#supported-surface).
 
 | Upstream load | Upstream rule | dx load | dx rule |
 | --- | --- | --- | --- |
-| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx//android/rules:defs.bzl` | `java_android_library` |
-| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx//android/rules:defs.bzl` | `kotlin_android_library` |
+| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx_android//rules:defs.bzl` | `java_android_library` |
+| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx_android//rules:defs.bzl` | `kotlin_android_library` |
 | `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_app` |
 | `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_app_test` |
 | `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_xcframework` |

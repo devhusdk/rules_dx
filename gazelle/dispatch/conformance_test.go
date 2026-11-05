@@ -104,7 +104,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.java": "package demo;\n\npublic class Demo {}\n"},
 		kind:  "java_library", target: "demo", defs: "java/rules:defs.bzl",
 		symbols:    []string{"java_library", "java_test"},
-		extraLoads: map[string][]string{"@rules_dx//android/rules:defs.bzl": {"java_android_library"}},
+		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"java_android_library"}},
 	},
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
@@ -125,7 +125,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.kt": "package demo\n\nclass Demo\n"},
 		kind:  "kotlin_library", target: "demo", defs: "kotlin/rules:defs.bzl",
 		symbols:    []string{"kotlin_library"},
-		extraLoads: map[string][]string{"@rules_dx//android/rules:defs.bzl": {"kotlin_android_library"}},
+		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"kotlin_android_library"}},
 	},
 	"lua": {
 		files: map[string]string{"demo.lua": "return {}\n"},

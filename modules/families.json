@@ -3,19 +3,36 @@
     "android": {
       "aspects": [],
       "bazel_deps": [
-        "rules_android"
+        "bazel_skylib",
+        "platforms",
+        "rules_android",
+        "rules_cc",
+        "rules_dx",
+        "rules_java",
+        "rules_kotlin",
+        "rules_shell"
       ],
       "dirs": [
-        "android"
+        "bcr_test_module",
+        "packaging",
+        "platforms",
+        "rules",
+        "sdk",
+        "tests",
+        "third_party",
+        "toolchain"
       ],
       "extensions": [
-        "//android/sdk:repos.bzl%android_sdk",
-        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension"
+        "//sdk:repos.bzl%android_sdk",
+        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension",
+        "@rules_java//java:extensions.bzl%toolchains"
       ],
       "file_extensions": [
         ".aidl"
       ],
       "gazelle": [],
+      "module": "rules_dx_android",
+      "path": "families/android",
       "repo_rules": [],
       "toolchains": []
     },
@@ -193,6 +210,7 @@
         "gazelle",
         "libxml2",
         "platforms",
+        "rules_android",
         "rules_go",
         "rules_python",
         "rules_shell",
@@ -216,6 +234,7 @@
         "dx",
         "env",
         "examples",
+        "families",
         "gazelle",
         "go",
         "helm",

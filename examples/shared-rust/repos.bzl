@@ -145,7 +145,7 @@ shift
 exec "$DX_WASI_MANAGED_RUNTIME" "$subcommand" --env CONSUMER_RUNTIME=wrapped "$@"
 """
 
-_BUILD_BAZEL = '''load("@rules_dx//android/packaging:defs.bzl", "rust_android_apk")
+_BUILD_BAZEL = '''load("@rules_dx_android//packaging:defs.bzl", "rust_android_apk")
 load("@rules_dx//examples/shared-rust:release.bzl", "release_artifact")
 load("@rules_dx//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_test")

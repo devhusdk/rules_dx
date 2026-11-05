@@ -262,7 +262,6 @@ exports_files([
     "MODULE.bazel",
     "MODULE.bazel.lock",
     "README.md",
-    "android/README.md",
     "csharp/README.md",
     "cuda/README.md",
     "d/README.md",
@@ -374,7 +373,6 @@ real_source_target(
         "CONTRIBUTING.md",
         "README.md",
         "SECURITY.md",
-        "android/README.md",
         "csharp/README.md",
         "d/README.md",
         "elixir/README.md",
@@ -463,7 +461,7 @@ vale_config(
 buildifier_config(
     name = "buildifier_config",
     src = ".buildifier.json",
-    visibility = ["//:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
 # gazelle:exclude cc/tests/fixtures/compilation_db
 # gazelle:exclude cc/tests/fixtures/copts

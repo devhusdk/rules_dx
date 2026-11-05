@@ -15,6 +15,7 @@ fn starter_matches_its_golden() {
     let mut paths: Vec<&str> = files
         .split_whitespace()
         .filter_map(|file| file.strip_prefix(&prefix)?.strip_suffix(".fixture"))
+        .filter(|path| *path != "families")
         .collect();
     paths.sort_unstable();
     let mut lines = Vec::new();

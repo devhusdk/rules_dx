@@ -1,0 +1,24 @@
+# Vendored Bazel execution preset -- GENERATED, do not edit.
+# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Layer performance: build speed and the dx compilation configs.
+
+# Build host tools without optimization so builds finish sooner.
+build --host_compilation_mode=fastbuild
+
+# The dx_debug config builds with debug symbols.
+build:dx_debug --compilation_mode=dbg
+
+# The dx_dev config builds unoptimized for quick edit and test loops.
+build:dx_dev --compilation_mode=fastbuild
+
+# The dx_release config builds optimized target code.
+build:dx_release --compilation_mode=opt
+
+# The dx_release config also optimizes host tools.
+build:dx_release --host_compilation_mode=opt
+
+# The dx_dev_remote config builds unoptimized on remote executors.
+build:dx_dev_remote --compilation_mode=fastbuild
+
+# The dx_toolchain config builds toolchains unoptimized.
+build:dx_toolchain --compilation_mode=fastbuild

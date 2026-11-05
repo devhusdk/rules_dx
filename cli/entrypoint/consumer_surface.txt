@@ -1,7 +1,3 @@
-android/packaging:defs.bzl
-android/rules:defs.bzl
-android/sdk:repos.bzl
-android/toolchain:repos.bzl
 ansible/rules:defs.bzl
 api_spec/rules:defs.bzl
 appimage:defs.bzl

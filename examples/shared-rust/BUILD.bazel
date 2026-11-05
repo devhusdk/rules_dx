@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
+load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library", "cc_test")
 load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")

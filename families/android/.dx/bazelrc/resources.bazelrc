@@ -1,0 +1,39 @@
+# Vendored Bazel execution preset -- GENERATED, do not edit.
+# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Layer resources: memory, CPU and cache limits for the host.
+
+# Let the Bazel server return unused heap to the system sooner.
+startup --host_jvm_args=-XX:MaxHeapFreeRatio=30
+
+# Keep little spare heap after a garbage collection.
+startup --host_jvm_args=-XX:MinHeapFreeRatio=10
+
+# Cap the Bazel server heap at a quarter of host memory.
+startup --host_jvm_args=-XX:MaxRAMPercentage=25
+
+# Schedule local actions within half of host memory.
+common --local_resources=memory=HOST_RAM*.5
+
+# Leave a quarter of the CPUs for the rest of the machine.
+common --local_resources=cpu=HOST_CPUS*.75
+
+# Stop a Bazel server after 15 idle minutes.
+startup --max_idle_secs=900
+
+# Stop an idle Bazel server when the host runs low on memory.
+startup --shutdown_on_low_sys_mem
+
+# Drop disk cache entries unused for 14 days.
+common --experimental_disk_cache_gc_max_age=14d
+
+# Keep the disk cache under 20 GB.
+common --experimental_disk_cache_gc_max_size=20G
+
+# Drop repository contents cache entries unused for 60 days.
+common --repo_contents_cache_gc_max_age=60d
+
+# Shrink persistent worker pools when memory runs low.
+build --experimental_shrink_worker_pool
+
+# Cap the memory of all persistent workers together at 4 GB.
+build --experimental_total_worker_memory_limit_mb=4096

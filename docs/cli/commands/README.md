@@ -567,7 +567,7 @@ or signal is the dx binary's own.
 
 Language rules:
 
-- `@rules_dx//android/rules:defs.bzl`: Android libraries.
+- `@rules_dx_android//rules:defs.bzl`: Android libraries.
 - `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
 - `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
@@ -618,8 +618,8 @@ dx rule that wraps it.
 
 | Upstream load | Upstream rule | dx load | dx rule |
 | --- | --- | --- | --- |
-| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx//android/rules:defs.bzl` | `java_android_library` |
-| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx//android/rules:defs.bzl` | `kotlin_android_library` |
+| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx_android//rules:defs.bzl` | `java_android_library` |
+| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx_android//rules:defs.bzl` | `kotlin_android_library` |
 | `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_app` |
 | `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_app_test` |
 | `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_xcframework` |
@@ -662,7 +662,7 @@ dx rule that wraps it.
 
 Packaging and deploy:
 
-- `@rules_dx//android/packaging:defs.bzl`: APKs, App Bundles and adb.
+- `@rules_dx_android//packaging:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
 - `@rules_dx//apple/ios:device.bzl`: signed iOS IPA export.
 - `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
@@ -684,8 +684,8 @@ Packaging and deploy:
 
 SDK and toolchain extensions:
 
-- `@rules_dx//android/sdk:repos.bzl`: Android SDK.
-- `@rules_dx//android/toolchain:repos.bzl`: Android NDK toolchain.
+- `@rules_dx_android//sdk:repos.bzl`: Android SDK.
+- `@rules_dx_android//toolchain:repos.bzl`: Android NDK toolchain.
 - `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//cuda/toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.

@@ -110,10 +110,8 @@ const EXEMPT: [(&str, &str); 4] = [
 ];
 
 /// Packages whose BUILD.bazel declares Rust targets; their :corpus_starlark is in the test data.
-const PACKAGES: [&str; 118] = [
+const PACKAGES: [&str; 116] = [
     ".devcontainer",
-    "android/tests/fixtures/native_lib",
-    "android/tests/fixtures/rust_apk",
     "appimage/packer",
     "appimage/tests",
     "apple/tests",

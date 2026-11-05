@@ -188,8 +188,8 @@ ROWS = [
     {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
     {
         "ci_tests": [
-            "//android/tests/fixtures/rust_apk:check_unsigned_test",
-            "//android/tests/fixtures/rust_apk:sign_test",
+            "@rules_dx_android//tests/fixtures/rust_apk:check_unsigned_test",
+            "@rules_dx_android//tests/fixtures/rust_apk:sign_test",
         ],
         "consumer_tests": _starter_consumers("rust-android"),
         "families": [],

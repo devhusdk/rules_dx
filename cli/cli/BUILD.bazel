@@ -306,11 +306,6 @@ rust_test(
     data = glob(["src/**/*.rs"]) + [
         ":dx",
         "//:MODULE.bazel",
-        "//android/sdk:repos.bzl",
-        "//android/tests/fixtures/consumer_android:BUILD.bazel",
-        "//android/tests/fixtures/consumer_android:activity.c",
-        "//android/tests/fixtures/consumer_android:res/values/strings.xml",
-        "//android/tests/fixtures/consumer_android:src/lib.rs",
         "//modules:versions.bzl",
         "//rust/tests/fixtures/consumer_web:BUILD.bazel",
         "//rust/tests/fixtures/consumer_web:src/browser_test.rs",

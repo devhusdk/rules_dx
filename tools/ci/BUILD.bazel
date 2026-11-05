@@ -505,8 +505,6 @@ rust_test(
     srcs = ["rustfmt_coverage_test.rs"],
     data = [
         "//.devcontainer:corpus_starlark",
-        "//android/tests/fixtures/native_lib:corpus_starlark",
-        "//android/tests/fixtures/rust_apk:corpus_starlark",
         "//ansible/rules:corpus_starlark",
         "//appimage/packer:corpus_starlark",
         "//appimage/tests:corpus_starlark",
@@ -648,11 +646,6 @@ rust_test(
     name = "starlark_docs_test",
     srcs = ["starlark_docs_test.rs"],
     data = [
-        "//android/packaging:corpus_starlark",
-        "//android/platforms:corpus_starlark",
-        "//android/rules:corpus_starlark",
-        "//android/sdk:corpus_starlark",
-        "//android/toolchain:corpus_starlark",
         "//appimage:corpus_starlark",
         "//apple/bundle:corpus_starlark",
         "//apple/ios:corpus_starlark",

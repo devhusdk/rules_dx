@@ -13,7 +13,6 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_siblings = [
-        "//android/tests/fixtures/adopt-android:README.md",
         "//cc/tests/fixtures/adopt-cpp:README.md",
         "//csharp/tests/fixtures/adopt-csharp:README.md",
         "//dart/tests/fixtures/adopt-dart:README.md",

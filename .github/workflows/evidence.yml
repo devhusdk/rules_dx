@@ -194,7 +194,7 @@ jobs:
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
           set -o pipefail
-          bazel test --noshow_progress --test_output=errors //android/tests/fixtures/adopt-android/app:check_apk_test //android/tests/fixtures/adopt-android/app:inspect_apk_test //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test //android/tests/fixtures/rust_apk:sign_app_test //android/tests/fixtures/rust_apk:sign_app_aab_test 2>&1 | tail -n 20
+          bazel test --noshow_progress --test_output=errors @rules_dx_android//tests/fixtures/adopt-android/app:check_apk_test @rules_dx_android//tests/fixtures/adopt-android/app:inspect_apk_test //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test @rules_dx_android//tests/fixtures/rust_apk:sign_app_test @rules_dx_android//tests/fixtures/rust_apk:sign_app_aab_test 2>&1 | tail -n 20
       - name: Wait for the emulator to boot
         id: boot
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
@@ -225,7 +225,7 @@ jobs:
           } > "$RUNNER_TEMP/evidence/android-versions.txt" 2>&1
       - name: Run the device scenario
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
-        run: sh android/tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
+        run: cd families/android && sh tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
       - name: Run the rust-android fixture on the emulator
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -244,6 +244,7 @@ jobs:
               dest="${dest%.fixture}"
               mkdir -p "$(dirname "$dest")"
               case "$dest" in
+                demo-app/families) for family in $(cat "$fixture/$file"); do printf 'bazel_dep(name = "rules_dx_%s", version = "0.0.0")\nlocal_path_override(module_name = "rules_dx_%s", path = "%s/families/%s")\n' "$family" "$family" "$checkout" "$family" >> demo-app/MODULE.bazel; done ;;
                 demo-app/MODULE.bazel | demo-app/.bazelrc) printf '\n' >> "$dest" && cat "$fixture/$file" >> "$dest" ;;
                 *) cp "$fixture/$file" "$dest" ;;
               esac

@@ -140,7 +140,7 @@ cmake(
     generate_args = ["-GNinja"],
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_interface_libs = ["zlib.lib"],
-    out_shared_libs = ["zlib1.dll"],
+    out_shared_libs = ["zlib.dll"],
     tags = _THIRD_PARTY,
     target_compatible_with = _WINDOWS_X86_64,
 )

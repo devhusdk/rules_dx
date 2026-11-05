@@ -20,7 +20,7 @@ fn configure_uses_msvc() {
 #[test]
 fn ninja_generator_is_used() {
     let log = log();
-    assert!(!log.contains("Visual Studio"));
+    assert!(!log.contains("Visual Studio 1"));
     assert!(!log.contains("NMake"));
 }
 

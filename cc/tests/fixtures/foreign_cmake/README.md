@@ -26,3 +26,11 @@ in a log. `foreign_cmake_cross_test` checks that lld rejects the archive.
 
 Not covered yet (part of #6222): a missing cmake toolchain for a real `cmake`
 target.
+
+On windows_x86_64 with `--//cc/toolchains:compiler=msvc`, `zlib_msvc_static` and
+`zlib_msvc_shared` build the same zlib with cl.exe through the Ninja generator
+(`zlibstatic.lib`, `zlib.lib` and `zlib.dll`; zlib only names the DLL `zlib1.dll`
+under MinGW). The root MODULE.bazel uses the prebuilt ninja on Windows and noop
+make, m4 and pkgconfig toolchains there. `foreign_cmake_msvc_log_test` checks the
+MSVC identification and the /MD flag in the CMake log. Link warnings are not errors
+for these probes (`/WX:NO`).

@@ -69,7 +69,7 @@ other entries stay.
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/`,
-`/.dx/docs/`, `/.dx/results.json`, `/.dx/explain/`, `/.dx/advisory/` and
+`/.dx/docs/`, `/.dx/results.json`, `/.dx/explain/`, `/.dx/profile/`, `/.dx/advisory/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
 warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`

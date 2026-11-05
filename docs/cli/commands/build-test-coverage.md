@@ -38,7 +38,7 @@ dx coverage [--here] [--affected] [--explain] [--profile] [--min-coverage <perce
 | `--debug` | Compile with the `dx_debug` profile (`build`, `test`, `run`, `deploy`). |
 | `--release` | Compile with the `dx_release` profile. No flag uses `dx_dev`. |
 | `--explain` | Save the execution log for [`dx explain`](explain.md). |
-| `--profile` | Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions, cache hit rate, bytes downloaded, the ten slowest actions and repository fetch time. The trace is `.dx/profile/trace.json` and the report `.dx/profile/report.json`; with `--output=json` the report is the message of a `profile_report` notice. |
+| `--profile` | Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions, cache hit rate (disk, remote, local), bytes downloaded, the ten slowest actions and repository fetch time. The trace is `.dx/profile/trace.json` and the report `.dx/profile/report.json`; with `--output=json` the report is the message of a `profile_report` notice. |
 | `--min-coverage <percent>` | `coverage`: fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage`: fail below this whole percent (0-100) on lines changed since the merge-base. |
 | `--report <format>=<path>` | Write a report. Repeatable. `-` is stdout. |

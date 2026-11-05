@@ -53,6 +53,7 @@ pub(crate) struct CacheUse {
     pub(crate) executed: u64,
     pub(crate) disk: u64,
     pub(crate) remote: u64,
+    pub(crate) local: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,10 +156,11 @@ impl Report {
         }
         match &self.cache {
             Some(cache) => lines.push(format!(
-                "dx: cache hits {}% ({}% local disk, {}% remote) of {} actions",
+                "dx: cache hits {}% ({}% disk, {}% remote, {}% local action cache) of {} actions",
                 cache.hit_percent(),
                 percent(cache.disk, cache.total()),
                 percent(cache.remote, cache.total()),
+                percent(cache.local, cache.total()),
                 cache.total()
             )),
             None => lines.push("dx: cache hits unknown (no action summary)".to_owned()),
@@ -192,6 +194,7 @@ impl Report {
                 "executed": cache.executed,
                 "disk_hits": cache.disk,
                 "remote_hits": cache.remote,
+                "local_hits": cache.local,
                 "hit_percent": cache.hit_percent(),
             })
         });
@@ -227,6 +230,7 @@ mod tests {
             executed: 2,
             disk: 1,
             remote: 5,
+            local: 2,
         })
     }
 
@@ -247,7 +251,7 @@ mod tests {
             .text();
         assert!(text.contains("wall time 4.0s"), "{text}");
         assert!(
-            text.contains("cache hits 75% (12% local disk, 62% remote) of 8 actions"),
+            text.contains("cache hits 75% (12% disk, 62% remote, 25% local action cache) of 8 actions"),
             "{text}"
         );
         assert!(text.contains("downloaded 2.5 MB"), "{text}");

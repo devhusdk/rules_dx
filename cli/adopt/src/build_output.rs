@@ -16,7 +16,7 @@ pub const ALLOW_FILE: &str = ".dx-large-files";
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
 
 /// Lines dx keeps in `.gitignore`; the preset adds the missing ones.
-pub const IGNORE_LINES: [&str; 14] = [
+pub const IGNORE_LINES: [&str; 15] = [
     "target/",
     "/bazel-*",
     "node_modules/",
@@ -29,6 +29,7 @@ pub const IGNORE_LINES: [&str; 14] = [
     "/.dx/docs/",
     "/.dx/results.json",
     "/.dx/explain/",
+    "/.dx/profile/",
     "/.dx/advisory/",
     // rules_rust 0.75.0 discover writes last_warnings.log here (WARNINGS_LOG_REL in
     // tools/rust_analyzer/lib.rs); keep while dx wires the rules_rust discover binary.
@@ -651,7 +652,12 @@ mod tests {
 
     #[test]
     fn init_ignore_lines_cover_the_files_dx_test_and_explain_write() {
-        for line in ["/.dx/results.json", "/.dx/explain/", "/.dx/advisory/"] {
+        for line in [
+            "/.dx/results.json",
+            "/.dx/explain/",
+            "/.dx/profile/",
+            "/.dx/advisory/",
+        ] {
             assert!(IGNORE_LINES.contains(&line), "{line}");
         }
     }

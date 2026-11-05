@@ -389,6 +389,7 @@ fn announce_profile(
         executed: counts.executed,
         disk: counts.disk,
         remote: counts.remote,
+        local: counts.local,
     });
     let bytes = std::fs::File::open(bep)
         .ok()

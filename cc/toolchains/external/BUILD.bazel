@@ -23,6 +23,24 @@ fake_cc_toolchain_config(
     target = "fake-icx-linux-gnu",
 )
 
+fake_cc_toolchain_config(
+    name = "msvc_cl_config",
+    compiler = "msvc-cl",
+    target = "x86_64-pc-windows-msvc",
+)
+
+fake_cc_toolchain_config(
+    name = "clang_cl_config",
+    compiler = "clang-cl",
+    target = "x86_64-pc-windows-msvc",
+)
+
+fake_cc_toolchain_config(
+    name = "clang_msvc_config",
+    compiler = "clang",
+    target = "x86_64-pc-windows-msvc",
+)
+
 [
     (
         cc_toolchain(
@@ -44,8 +62,11 @@ fake_cc_toolchain_config(
         ),
     )
     for name in [
+        "clang_cl",
+        "clang_msvc",
         "gcc",
         "icx",
+        "msvc_cl",
     ]
 ]
 

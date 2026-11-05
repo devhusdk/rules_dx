@@ -4,6 +4,7 @@ load("//go/rules:defs.bzl", "go_library", "go_test")
 load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":toolchain_test.bzl", "cgo_toolchain_tests")
+load(":unsupported_tests.bzl", "cgo_unsupported_toolchain_tests")
 
 package(
     default_testonly = True,
@@ -81,6 +82,11 @@ go_test(
 cgo_toolchain_tests(
     name = "toolchain_test",
     target_under_test = ":cxx_test",
+)
+
+cgo_unsupported_toolchain_tests(
+    name = "unsupported_toolchain_test",
+    target_under_test = ":cgo",
 )
 
 cc_toolchain_test(

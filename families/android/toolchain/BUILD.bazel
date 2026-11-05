@@ -24,6 +24,7 @@ ndk_cc_toolchain_config(
     ndk_sysroot = "/fake/sysroot",
     rust_triple = "aarch64-linux-android",
     tags = ["manual"],
+    tool_prebuilt = "fake/prebuilt",
     tuple = "device",
 )
 

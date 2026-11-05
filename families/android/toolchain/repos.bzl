@@ -71,6 +71,7 @@ ndk_cc_toolchain_config(
     cxx_include_dir = "{cxx_include_dir}",
     cxx_runtime = "{cxx_runtime}",
     ndk_prebuilt = "{prebuilt}",
+    tool_prebuilt = "{tool_prebuilt}",
     ndk_sysroot = "{ndk_sysroot}",
     rust_triple = "{triple}",
     tuple = "{tuple}",
@@ -130,7 +131,7 @@ _TUPLE_CONSTRAINTS = {
     for name in ["device", "emulator"]
 }
 
-def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = ""):
+def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "", tool_root = ""):
     """Returns the BUILD text declaring both NDK cc toolchains.
 
     Args:
@@ -139,12 +140,14 @@ def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "
       api_level: Default Android API level.
       cxx_runtime: C++ runtime linkage.
       local_root: Package-relative NDK directory when the NDK is symlinked into this repository, else empty.
+      tool_root: Package-relative NDK directory the tool paths resolve against, defaulting to local_root.
 
     Returns:
       The BUILD file text.
     """
     prebuilt = exec_root + "/" + NDK_PREBUILT
     sysroot = prebuilt + "/sysroot"
+    tool_prebuilt = (tool_root or local_root) + "/" + NDK_PREBUILT
     chunks = [
         'load("' + str(Label("@rules_cc//cc:defs.bzl")) + '", "cc_toolchain")',
         'load("' + str(Label("//toolchain:cc_toolchain_config.bzl")) + '", "ndk_cc_toolchain_config")',
@@ -161,6 +164,7 @@ def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "
             ndk = ndk_label,
             tuple = name,
             prebuilt = prebuilt,
+            tool_prebuilt = tool_prebuilt,
             api_level = api_level,
             clang_target = triple + str(api_level),
             cpu = _TUPLE_CPU[name],
@@ -185,6 +189,8 @@ def _android_ndk_toolchain_repo_impl(ctx):
             ndk.workspace_root + "/extracted",
             api_level,
             ctx.attr.cxx_runtime,
+            "",
+            "../" + ndk.repo_name + "/extracted",
         ))
         return
     revision = ctx.attr.ndk_revision or ANDROID_NDK_REVISION

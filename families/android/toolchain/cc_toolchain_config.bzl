@@ -10,7 +10,7 @@ NdkToolchainLevelInfo = provider(
 )
 
 def _ndk_cc_toolchain_config_impl(ctx):
-    prebuilt = ctx.attr.ndk_prebuilt
+    prebuilt = ctx.attr.tool_prebuilt
     selected = ctx.attr._api_level[BuildSettingInfo].value
     api_level = selected if selected != 0 else ctx.attr.api_level
     target = ctx.attr.rust_triple + str(api_level) if selected != 0 else ctx.attr.clang_target
@@ -128,6 +128,10 @@ ndk_cc_toolchain_config = rule(
         ),
         "rust_triple": attr.string(
             doc = "Rust target triple used in the sysroot include path.",
+            mandatory = True,
+        ),
+        "tool_prebuilt": attr.string(
+            doc = "Package-relative NDK prebuilt directory the tool paths resolve against.",
             mandatory = True,
         ),
         "tuple": attr.string(

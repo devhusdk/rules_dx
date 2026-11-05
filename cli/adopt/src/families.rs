@@ -97,7 +97,7 @@ pub fn plan_family_deps(root: &Path, families: &[Family]) -> Result<FamilyDeps, 
 }
 
 /// The lowercased extensions, with their dot, of the files under `root`.
-fn file_extensions(root: &Path) -> BTreeSet<String> {
+pub(crate) fn file_extensions(root: &Path) -> BTreeSet<String> {
     let ignored = bazelignore(root);
     let paths = git_files(root).unwrap_or_else(|| walk(root));
     paths

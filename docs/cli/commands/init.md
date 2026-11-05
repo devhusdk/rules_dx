@@ -130,6 +130,8 @@ match the running dx.
 | `.claude/settings.json` | you, and dx for its hooks and allow entries | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
 | `.codex/hooks.json`, `.gemini/settings.json` | you, and dx for the guard hook | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |
 
+`.vscode/extensions.json` recommends the Bazel extension, plus the editor extension for each language with files in the tree (Python for `.py`, Go for `.go`, and so on). Edit the file to change the list. `dx init` never rewrites it.
+
 Check reports a missing or stale path as drift. An old dx key in `.vscode/settings.json`, or an old pin in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).
 

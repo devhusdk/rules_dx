@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use super::{release_pins, AdoptError, DX_VERSION};
@@ -54,6 +55,41 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
+
+/// VS Code extension that every workspace gets.
+const BAZEL_EDITOR_EXTENSION: &str = "bazelbuild.vscode-bazel";
+
+/// Language editor extensions, each with the file extensions that bring it in.
+const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 10] = [
+    ("rust-lang.rust-analyzer", &[".rs"]),
+    ("ms-python.python", &[".py", ".pyi"]),
+    (
+        "bradlc.vscode-tailwindcss",
+        &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"],
+    ),
+    ("golang.go", &[".go"]),
+    (
+        "llvm-vs-code-extensions.vscode-clangd",
+        &[".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"],
+    ),
+    ("redhat.java", &[".java"]),
+    ("fwcd.kotlin", &[".kt", ".kts"]),
+    ("scalameta.metals", &[".scala"]),
+    ("ms-dotnettools.csharp", &[".cs"]),
+    ("ionide.ionide-fsharp", &[".fs", ".fsi", ".fsx"]),
+];
+
+/// The `.vscode/extensions.json` text: Bazel, then each language whose files are in `extensions`.
+fn render_editor_recommendations(extensions: &BTreeSet<String>) -> String {
+    let mut ids = vec![BAZEL_EDITOR_EXTENSION];
+    ids.extend(
+        LANGUAGE_EDITOR_EXTENSIONS
+            .iter()
+            .filter(|(_, own)| own.iter().any(|ext| extensions.contains(*ext)))
+            .map(|(id, _)| *id),
+    );
+    format!("{}\n", serde_json::json!({ "recommendations": ids }))
+}
 
 const DX_UPDATE_WORKFLOW: &str = include_str!("../../../.github/workflows/dx-update.yml");
 
@@ -259,17 +295,21 @@ pub fn bazelignore_covers_dx(text: &str) -> bool {
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_full(module_name, DEFAULT_BRANCH_FALLBACK)
+    plan_init_files_full(module_name, DEFAULT_BRANCH_FALLBACK, &BTreeSet::new())
 }
 
-/// Plans the init files for `root`, with the repo's default branch in the caller workflow.
+/// Plans the init files for `root`, with the repo's default branch in the caller workflow and
+/// editor recommendations for the languages in the tree.
 pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    let branch = if root.is_dir() {
-        detect_default_branch(root)
+    let (branch, extensions) = if root.is_dir() {
+        (
+            detect_default_branch(root),
+            crate::families::file_extensions(root),
+        )
     } else {
-        DEFAULT_BRANCH_FALLBACK.to_owned()
+        (DEFAULT_BRANCH_FALLBACK.to_owned(), BTreeSet::new())
     };
-    let mut files = plan_init_files_full(module_name, &branch)?;
+    let mut files = plan_init_files_full(module_name, &branch, &extensions)?;
     if root.is_dir() && needs_empty_ruff_config(root) {
         files.push(ScaffoldFile {
             path: "ruff.toml".to_owned(),
@@ -318,7 +358,11 @@ fn needs_empty_ruff_config(root: &Path) -> bool {
     python
 }
 
-fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+fn plan_init_files_full(
+    module_name: &str,
+    branch: &str,
+    extensions: &BTreeSet<String>,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
     validate_init_module(module_name)?;
     let files = vec![
         ScaffoldFile {
@@ -348,8 +392,7 @@ fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldF
         },
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
-            content: "{\"recommendations\":[\"rust-lang.rust-analyzer\",\"ms-python.python\",\"bradlc.vscode-tailwindcss\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]}\n"
-                .to_owned(),
+            content: render_editor_recommendations(extensions),
             kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
@@ -730,26 +773,72 @@ mod tests {
             .contains("rust-analyzer.check.overrideCommand"));
         assert!(!settings.content.contains("rust-analyzer.check.command"));
         assert!(settings.content.contains("go.toolsManagement"));
-        let extensions = files
-            .iter()
-            .find(|f| f.path == ".vscode/extensions.json")
-            .expect("extensions scaffold");
-        for id in [
-            "golang.go",
-            "llvm-vs-code-extensions.vscode-clangd",
-            "redhat.java",
-            "fwcd.kotlin",
-            "scalameta.metals",
-            "ms-dotnettools.csharp",
-            "ionide.ionide-fsharp",
-        ] {
-            assert!(extensions.content.contains(id), "missing {id}");
-        }
         let devcontainer = files
             .iter()
             .find(|f| f.path == ".devcontainer/devcontainer.json")
             .expect("devcontainer scaffold");
         assert!(!devcontainer.content.contains("extensions"));
+    }
+
+    fn recommendations(files: &[(&str, &str)]) -> Vec<String> {
+        let scratch = dx_test_scratch::scratch("dx-adopt-editor-recs-");
+        let root = scratch.path().join("root");
+        for (path, text) in files {
+            let dest = root.join(path);
+            std::fs::create_dir_all(dest.parent().expect("parent")).expect("dir");
+            std::fs::write(dest, text).expect("file");
+        }
+        let plan = super::plan_init_files_at(&root, "demo").expect("init plans");
+        let extensions = plan
+            .iter()
+            .find(|f| f.path == ".vscode/extensions.json")
+            .expect("extensions scaffold");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&extensions.content).expect("valid JSON");
+        scratch.close().expect("cleanup");
+        parsed["recommendations"]
+            .as_array()
+            .expect("array")
+            .iter()
+            .map(|id| id.as_str().expect("string").to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn python_only_repo_recommends_bazel_and_python() {
+        assert_eq!(
+            recommendations(&[("app/main.py", "print(1)\n")]),
+            ["bazelbuild.vscode-bazel", "ms-python.python"]
+        );
+    }
+
+    #[test]
+    fn repo_without_sources_recommends_only_bazel() {
+        assert_eq!(
+            recommendations(&[("README.md", "hi\n")]),
+            ["bazelbuild.vscode-bazel"]
+        );
+    }
+
+    #[test]
+    fn every_language_in_the_tree_gets_its_extension() {
+        let files = [
+            ("a.rs", ""),
+            ("b.go", ""),
+            ("c.cpp", ""),
+            ("d.java", ""),
+            ("e.kt", ""),
+            ("f.scala", ""),
+            ("g.cs", ""),
+            ("h.fsx", ""),
+            ("i.tsx", ""),
+        ];
+        let got = recommendations(&files);
+        assert_eq!(got.len(), 10, "{got:?}");
+        assert_eq!(got[0], "bazelbuild.vscode-bazel");
+        assert!(got.contains(&"rust-lang.rust-analyzer".to_owned()));
+        assert!(got.contains(&"ionide.ionide-fsharp".to_owned()));
+        assert!(!got.contains(&"ms-python.python".to_owned()));
     }
 
     #[test]

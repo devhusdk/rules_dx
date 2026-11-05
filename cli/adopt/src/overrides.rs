@@ -942,7 +942,10 @@ archive_override(
             bazel_deps: vec!["rules_rust".to_owned()],
             ..Family::default()
         };
-        let families = vec![family("rust", None), family("apple", Some("rules_dx_apple"))];
+        let families = vec![
+            family("rust", None),
+            family("apple", Some("rules_dx_apple")),
+        ];
         let files = render_in(&families, &BTreeSet::new());
         assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
     }

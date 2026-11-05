@@ -2021,13 +2021,3 @@ use_repo(qt_sdk, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
 use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")
-
-npm.npm_translate_lock(
-    name = "npm_examples_adopt-polyglot",
-    pnpm_lock = "//examples/adopt-polyglot:pnpm-lock.yaml",
-)
-npm.npm_translate_lock(
-    name = "npm_examples_svelte-app",
-    pnpm_lock = "//examples/svelte-app:pnpm-lock.yaml",
-)
-use_repo(npm, "npm_examples_adopt-polyglot", "npm_examples_svelte-app")

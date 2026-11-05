@@ -160,7 +160,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.proto": "syntax = \"proto3\";\n"},
 		kind:  "proto_library", target: "demo_proto", defs: "@protobuf//bazel:proto_library.bzl",
 		symbols:    []string{"proto_library"},
-		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript/rules:defs.bzl": {"ts_proto_library"}},
+		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript/rules:defs.bzl": {"ts_proto_library"}, "@rules_dx_dotnet//csharp/rules:defs.bzl": {"csharp_proto_library"}},
 	},
 	"python": {
 		files: map[string]string{"demo.py": "x = 1\n"},

@@ -2,17 +2,29 @@ load("@rules_dx//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
+load(":proto.bzl", "pascal_case")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "coverage_check.bzl",
     "defs.bzl",
+    "proto.bzl",
 ])
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     extra_checks = [
+        expect_equal(
+            "proto file names are Pascal case",
+            [pascal_case("user"), pascal_case("user_profile"), pascal_case("v2beta")],
+            ["User", "UserProfile", "V2beta"],
+        ),
+        expect_equal(
+            "a letter after a digit is capitalised",
+            pascal_case("a1b_c"),
+            "A1BC",
+        ),
         expect_equal(
             "empty gains net10 tfm",
             csharp_tfm_with_defaults({})["target_frameworks"],

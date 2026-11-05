@@ -191,6 +191,44 @@ func JavaPackage(content []byte) string {
 	return ""
 }
 
+var csharpNamespace = regexp.MustCompile(`(?m)^\s*option\s+csharp_namespace\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')\s*;`)
+
+// CSharpNamespace returns the csharp_namespace option, or else the proto
+// package with each segment in PascalCase. It is empty when neither is set.
+func CSharpNamespace(content []byte) string {
+	content = stripComments(content)
+	if m := csharpNamespace.FindSubmatch(content); m != nil {
+		return string(m[1]) + string(m[2])
+	}
+	m := protoPackage.FindSubmatch(content)
+	if m == nil {
+		return ""
+	}
+	parts := strings.Split(string(m[1]), ".")
+	for i, part := range parts {
+		parts[i] = pascalCase(part)
+	}
+	return strings.Join(parts, ".")
+}
+
+func pascalCase(name string) string {
+	var out strings.Builder
+	upper := true
+	for _, ch := range name {
+		switch {
+		case ch == '_':
+			upper = true
+		case upper:
+			out.WriteString(strings.ToUpper(string(ch)))
+			upper = false
+		default:
+			out.WriteRune(ch)
+			upper = ch >= '0' && ch <= '9'
+		}
+	}
+	return out.String()
+}
+
 // Binding keys are indexed under the protobuf language as "<key>:<value>", so
 // other languages find the binding of the code they import.
 const (
@@ -267,7 +305,7 @@ func bindingImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.Impo
 // find the binding rule that produces it, and lets Rust imports of a prost
 // crate find its rust_prost_library.
 func (l *protoLang) CrossResolve(c *config.Config, ix *resolve.RuleIndex, imp resolve.ImportSpec, lang string) []resolve.FindResult {
-	if (imp.Lang == "rust" || imp.Lang == "typescript") && imp.Lang == lang {
+	if (imp.Lang == "rust" || imp.Lang == "typescript" || imp.Lang == "csharp") && imp.Lang == lang {
 		return ix.FindRulesByImport(imp, languageName)
 	}
 	key, ok := crossKeys[imp.Lang]

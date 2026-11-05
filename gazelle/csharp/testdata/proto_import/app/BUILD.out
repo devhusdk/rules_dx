@@ -1,0 +1,8 @@
+load("@rules_dx_dotnet//csharp/rules:defs.bzl", "csharp_library")
+
+csharp_library(
+    name = "app",
+    srcs = ["Program.cs"],
+    visibility = ["//visibility:public"],
+    deps = ["//api:api_proto_cs"],
+)

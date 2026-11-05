@@ -1,7 +1,9 @@
 package protobuf
 
 import (
+	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -26,6 +28,11 @@ const (
 	tsModule     = "aspect_rules_ts"
 	tsRuntime    = "//:node_modules/@bufbuild/protobuf"
 	tsDefs       = "@rules_dx//typescript/rules:defs.bzl"
+	csKind       = "csharp_proto_library"
+	csSuffix     = "_cs"
+	csModule     = "rules_dx_dotnet"
+	csRuntime    = "@paket.main//google.protobuf"
+	csDefs       = "@rules_dx_dotnet//csharp/rules:defs.bzl"
 )
 
 var kinds = withBindings(map[string]rule.KindInfo{
@@ -41,6 +48,7 @@ var kinds = withBindings(map[string]rule.KindInfo{
 	},
 	rustKind: protoRefKind(),
 	tsKind:   tsKindInfo(),
+	csKind:   tsKindInfo(),
 })
 
 func protoRefKind() rule.KindInfo {
@@ -66,13 +74,14 @@ func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
 
 // extraKinds are the kinds generated next to proto_library.
 func extraKinds() []string {
-	return append(bindingExtraKinds(), rustKind, tsKind)
+	return append(bindingExtraKinds(), rustKind, tsKind, csKind)
 }
 
 func extraKindDefs() map[string]string {
 	defs := bindingKindDefs()
 	defs[rustKind] = rustDefs
 	defs[tsKind] = tsDefs
+	defs[csKind] = csDefs
 	return defs
 }
 
@@ -127,6 +136,9 @@ func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []reso
 	}
 	if r.Kind() == tsKind {
 		return tsImports(r, f)
+	}
+	if r.Kind() == csKind {
+		return csImports(r, f, c.RepoRoot)
 	}
 	for _, b := range bindings {
 		if r.Kind() == b.kind {
@@ -199,6 +211,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}, rep)
 	result = addRustLibraries(args, result)
 	result = addTypeScriptLibraries(args, result)
+	result = addCSharpLibraries(args, result)
 	return addBindings(args, result)
 }
 
@@ -214,6 +227,12 @@ func addTypeScriptLibraries(args language.GenerateArgs, result language.Generate
 	return addProtoRefs(args, result, tsModule, tsKind, tsSuffix)
 }
 
+// addCSharpLibraries adds a csharp_proto_library next to each proto_library
+// when the root MODULE.bazel depends on rules_dx_dotnet.
+func addCSharpLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
+	return addProtoRefs(args, result, csModule, csKind, csSuffix)
+}
+
 func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, module, kind, suffix string) language.GenerateResult {
 	if !common.ModuleDeps(args.Config.RepoRoot)[module] {
 		return result
@@ -224,8 +243,11 @@ func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, mo
 		}
 		r := rule.NewRule(kind, lib.Name()+suffix)
 		r.SetAttr("proto", ":"+lib.Name())
-		if kind == tsKind {
+		switch kind {
+		case tsKind:
 			r.SetAttr("deps", []string{tsRuntime})
+		case csKind:
+			r.SetAttr("deps", []string{csRuntime})
 		}
 		if common.ShouldSetVisibility(args) {
 			r.SetAttr("visibility", []string{"//visibility:public"})
@@ -255,6 +277,32 @@ func tsImports(r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 		for _, src := range lib.AttrStrings("srcs") {
 			stem := strings.TrimSuffix(src, ".proto")
 			specs = append(specs, resolve.ImportSpec{Lang: "typescript", Imp: path.Join(f.Pkg, stem+"_pb")})
+		}
+	}
+	return specs
+}
+
+// csImports indexes a csharp_proto_library by the namespaces protoc writes for
+// the sources of its proto_library.
+func csImports(r *rule.Rule, f *rule.File, repoRoot string) []resolve.ImportSpec {
+	if f == nil {
+		return nil
+	}
+	var specs []resolve.ImportSpec
+	seen := map[string]bool{}
+	for _, lib := range f.Rules {
+		if ":"+lib.Name() != r.AttrString("proto") || lib.Kind() != LibraryKind {
+			continue
+		}
+		for _, src := range lib.AttrStrings("srcs") {
+			content, err := os.ReadFile(filepath.Join(repoRoot, f.Pkg, src))
+			if err != nil {
+				continue
+			}
+			if ns := CSharpNamespace(content); ns != "" && !seen[ns] {
+				seen[ns] = true
+				specs = append(specs, resolve.ImportSpec{Lang: "csharp", Imp: ns})
+			}
 		}
 	}
 	return specs

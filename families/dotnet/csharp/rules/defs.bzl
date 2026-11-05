@@ -5,6 +5,7 @@ load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo",
 load("@rules_dx//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
+load(":proto.bzl", "csharp_proto_srcs")
 
 # Set False to tag csharp tests dx-no-coverage-collector instead of running coverlet.
 CSHARP_COVERAGE_COLLECTOR = True
@@ -93,6 +94,23 @@ def csharp_tfm_forward_kwargs(name, kwargs):
         "dx_target_frameworks": frameworks,
         "dx_tfm_variants": ":" + name + "_upstream",
     }
+
+def csharp_proto_library(name, proto, deps = None, visibility = None, **kwargs):
+    """Compiles a proto_library to C# with protoc; deps should hold Google.Protobuf."""
+    csharp_proto_srcs(
+        name = name + "_srcs",
+        proto = proto,
+        visibility = ["//visibility:private"],
+        tags = kwargs.get("tags", None),
+        testonly = kwargs.get("testonly", None),
+    )
+    csharp_library(
+        name = name,
+        srcs = [":" + name + "_srcs"],
+        deps = deps,
+        visibility = visibility,
+        **kwargs
+    )
 
 def csharp_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over csharp_library; target_frameworks defaults to net10.0 and warnings are errors."""

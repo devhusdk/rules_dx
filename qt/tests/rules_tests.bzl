@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -427,32 +427,32 @@ def qt_rules_tests(name):
     _module_test(
         name = name + "_module",
         target_under_test = "//qt/tests/fixtures/qt-app/tally",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _compile_test(
         name = name + "_compile",
         target_under_test = ":selected_upstream",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _moc_test(
         name = name + "_moc",
         target_under_test = ":selected_qt",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _uic_test(
         name = name + "_uic",
         target_under_test = ":form_qt",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _widgets_test(
         name = name + "_widgets",
         target_under_test = ":form",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _lrelease_test(
         name = name + "_lrelease",
         target_under_test = ":translated_qt",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _runpath_test(
         name = name + "_runpath",
@@ -512,7 +512,7 @@ def qt_rules_tests(name):
             name = name + "_" + fixture,
             target_under_test = ":" + fixture,
             message = failures[fixture],
-            target_compatible_with = _LINUX,
+            target_compatible_with = _LINUX if fixture.startswith("bundle_") or fixture == "rust_foreign" else QT_COMPATIBLE_WITH,
         )
     native.test_suite(
         name = name,

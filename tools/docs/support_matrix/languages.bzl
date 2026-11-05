@@ -49,7 +49,7 @@ COMPUTED_CONSTRAINTS = {
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
     "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
-    "//qt/rules:defs.bzl%QT_HOST_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
+    "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
 # The API doc tool per language and the *_doc_shard macro or rule that runs it. None marks a gap.

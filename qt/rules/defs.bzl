@@ -1037,16 +1037,10 @@ _BUNDLE_CELLS = [cell for cell in _CONSUMER_CELLS if CELLS[cell].needs != None]
 def _cell_setting(cell):
     return Label("//qt/platforms:cell_" + cell)
 
-# target_compatible_with for targets that build against @dx_qt: every cell with a needs table.
+# target_compatible_with for targets that build against @dx_qt or run: every
+# consumer cell, including macOS. Packaging has its own gate, QT_BUNDLE_COMPATIBLE_WITH.
 QT_COMPATIBLE_WITH = select(
-    {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible")]},
-)
-
-# target_compatible_with for targets that run on any qualified cell, including
-# macOS; QT_COMPATIBLE_WITH covers glibc consumer cells only.
-QT_HOST_COMPATIBLE_WITH = select(
-    {_cell_setting(cell): [] for cell in qualified_cells()} |
+    {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
     {"//conditions:default": [Label("@platforms//:incompatible")]},
 )
 

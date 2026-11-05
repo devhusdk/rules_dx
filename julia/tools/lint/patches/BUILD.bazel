@@ -1,6 +1,15 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
 exports_files([
     "CommonMark.patch",
     "ExceptionUnwrapping.patch",
     "JSON.patch",
     "JuliaWorkspaces.patch",
 ])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -531,9 +531,9 @@ pwsh_test(
     data = [
         ":app_arm64",
         ":argv_signtool",
+        "//msix:signtool",
         "//msix/tests/fixtures/msix-app/app",
         "//msix/tests/fixtures/msix-app/app:app_sign",
-        "//msix:signtool",
     ],
     env = {
         "DX_MSIX_ARGV_SIGNTOOL": "$(rlocationpaths :argv_signtool)",
@@ -561,9 +561,9 @@ sign_env_test(
         data = [
             ":app_noresource",
             ":app_probe",
+            "//msix:signtool",
             "//msix/tests/fixtures/msix-app/app",
             "//msix/tests/fixtures/msix-app/app:app_sign",
-            "//msix:signtool",
         ],
         env = {
             "DX_INSTALL_CASE": case,

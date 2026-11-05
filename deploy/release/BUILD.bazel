@@ -119,12 +119,12 @@ rust_test(
         "src/spdx.rs",
         "src/tool.rs",
     ],
-    compile_data = glob(["testdata/*.log"]),
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
     ),
+    compile_data = glob(["testdata/*.log"]),
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
     edition = "2021",
@@ -312,9 +312,7 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
-    ) + [
-        ":dx_release_tools",
-    ],
+    ) + [":dx_release_tools"],
 )
 
 rust_binary(
@@ -410,9 +408,7 @@ rust_test(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-    ) + [
-        ":dx_release_tools",
-    ],
+    ) + [":dx_release_tools"],
 )
 
 rust_test(
@@ -666,7 +662,10 @@ bcr_check(
         module_name = "rules_dx_" + family,
         version = "0.0.0",
     )
-    for family in ["android", "apple"]
+    for family in [
+        "android",
+        "apple",
+    ]
 ]
 
 notice_file_tests(

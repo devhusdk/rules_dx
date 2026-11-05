@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_go_client", "openapi_typescript_client")
 load("//api_spec/rules:defs.bzl", "api_spec_library")

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 

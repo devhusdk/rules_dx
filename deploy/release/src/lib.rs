@@ -87,6 +87,17 @@ pub fn render_spdx_with_crates(
     supplier: &str,
     crates: &[NoticeEntry],
 ) -> String {
+    render_spdx_full(base, digest, package, supplier, crates, &[])
+}
+
+pub fn render_spdx_full(
+    base: &str,
+    digest: &str,
+    package: &str,
+    supplier: &str,
+    crates: &[NoticeEntry],
+    runtimes: &[runtimes::RuntimeRecord],
+) -> String {
     let mut document = spdx::Document::new(
         &format!("{package}-{base}"),
         &format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
@@ -138,8 +149,51 @@ pub fn render_spdx_with_crates(
             ..spdx::SpdxPackage::default()
         });
     }
+    add_runtimes(&mut document, runtimes);
     let value = serde_json::to_value(&document).unwrap_or(serde_json::Value::Null);
     render_pretty(&value)
+}
+
+fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeRecord]) {
+    let mut sorted: Vec<&runtimes::RuntimeRecord> = runtimes.iter().collect();
+    sorted.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    for record in sorted {
+        let id = spdx_id("Runtime", &record.name, &record.version);
+        document
+            .relationships
+            .push(spdx::contains("SPDXRef-Package", &id));
+        let os_supplied = record.redistribution == "os_supplied";
+        document.packages.push(spdx::SpdxPackage {
+            id: id.clone(),
+            name: record.name.clone(),
+            version: record.version.clone(),
+            supplier: format!("Organization: {}", record.source),
+            comment: if os_supplied {
+                "Supplied by the operating system; no files are shipped.".to_owned()
+            } else {
+                String::new()
+            },
+            download_location: spdx::NOASSERTION.to_owned(),
+            files_analyzed: Some(false),
+            ..spdx::SpdxPackage::default()
+        });
+        for file in &record.files {
+            let file_id = spdx_id(
+                "RuntimeFile",
+                &format!("{}-{}", record.name, record.version),
+                &file.name,
+            );
+            document.relationships.push(spdx::contains(&id, &file_id));
+            document.files.push(spdx::SpdxFile {
+                id: file_id,
+                name: file.name.clone(),
+                checksums: vec![spdx::SpdxChecksum {
+                    algorithm: spdx::SHA256.to_owned(),
+                    value: file.sha256.clone(),
+                }],
+            });
+        }
+    }
 }
 
 pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
@@ -169,6 +223,10 @@ pub fn render_bcr_source(module: &str, version: &str) -> String {
 }
 
 fn crate_spdx_id(name: &str, version: &str) -> String {
+    spdx_id("Crate", name, version)
+}
+
+fn spdx_id(kind: &str, name: &str, version: &str) -> String {
     let clean: String = format!("{name}-{version}")
         .chars()
         .map(|c| {
@@ -179,7 +237,7 @@ fn crate_spdx_id(name: &str, version: &str) -> String {
             }
         })
         .collect();
-    format!("SPDXRef-Crate-{clean}")
+    format!("SPDXRef-{kind}-{clean}")
 }
 
 pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> io::Result<()> {
@@ -193,6 +251,17 @@ pub fn write_spdx_with_inventory(
     supplier: &str,
     inventory: Option<&Path>,
 ) -> io::Result<()> {
+    write_spdx_full(src, dst, package, supplier, inventory, None)
+}
+
+pub fn write_spdx_full(
+    src: &Path,
+    dst: &Path,
+    package: &str,
+    supplier: &str,
+    inventory: Option<&Path>,
+    runtimes: Option<&Path>,
+) -> io::Result<()> {
     let digest = dx_digest::sha256_file_hex(src)?;
     let base = basename(src)?;
     let crates = match inventory {
@@ -201,9 +270,13 @@ pub fn write_spdx_with_inventory(
         }
         None => Vec::new(),
     };
+    let records = match runtimes {
+        Some(path) => runtimes::read_records(path)?,
+        None => Vec::new(),
+    };
     std::fs::write(
         dst,
-        render_spdx_with_crates(&base, &digest, package, supplier, &crates).as_bytes(),
+        render_spdx_full(&base, &digest, package, supplier, &crates, &records).as_bytes(),
     )?;
     Ok(())
 }
@@ -1332,6 +1405,56 @@ mod tests {
     }
 
     #[test]
+    fn spdx_lists_runtimes_with_file_hashes() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let record = |name: &str, redistribution: &str, files: Vec<runtimes::RuntimeFile>| {
+            runtimes::RuntimeRecord {
+                name: name.to_owned(),
+                version: "1.2".to_owned(),
+                redistribution: redistribution.to_owned(),
+                source: "fixture".to_owned(),
+                files,
+                notice: None,
+            }
+        };
+        let records = [
+            record("libc", "os_supplied", Vec::new()),
+            record(
+                "libz",
+                "app_local",
+                vec![runtimes::RuntimeFile {
+                    name: "libz.so".to_owned(),
+                    sha256: "ab".repeat(32),
+                }],
+            ),
+        ];
+        let text = render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &records);
+        let value: serde_json::Value = serde_json::from_str(&text).expect("json");
+        let packages = value["packages"].as_array().expect("packages");
+        assert_eq!(packages.len(), 3);
+        assert_eq!(packages[1]["name"], "libc");
+        assert_eq!(packages[1]["supplier"], "Organization: fixture");
+        assert!(packages[1]["comment"]
+            .as_str()
+            .unwrap()
+            .contains("operating system"));
+        assert_eq!(packages[2]["versionInfo"], "1.2");
+        let files = value["files"].as_array().expect("files");
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[1]["fileName"], "libz.so");
+        assert_eq!(files[1]["checksums"][0]["checksumValue"], "ab".repeat(32));
+        let rels = value["relationships"].as_array().expect("relationships");
+        assert_eq!(rels.len(), 4);
+        assert_eq!(rels[3]["spdxElementId"], "SPDXRef-Runtime-libz-1.2");
+        assert_eq!(rels[3]["relationshipType"], "CONTAINS");
+        assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
+        assert_eq!(
+            render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &[]),
+            render_spdx("artifact.bin", digest, "dx", "rules_dx")
+        );
+    }
+
+    #[test]
     fn release_spdx_passes_spdx_2_3_schema() {
         let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
         let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
@@ -1476,7 +1599,9 @@ mod tests {
             let record = bcr_submit_record("rules_dx@1.2.3", result, url);
             assert_eq!(record.state, OpState::Failed, "{result} {url}");
         }
-        assert!(bcr_submit_record("s", "failure", "").detail.contains("failure"));
+        assert!(bcr_submit_record("s", "failure", "")
+            .detail
+            .contains("failure"));
     }
 
     #[test]

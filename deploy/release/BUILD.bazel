@@ -546,6 +546,18 @@ sbom_file_tests(
     want = "dx-",
 )
 
+sbom_release(
+    name = "runtime_sbom_demo",
+    artifact = "//deploy/rules:release_demo_archive",
+    runtimes = ":runtime_inventory_test_inventory_runtimes",
+)
+
+sbom_file_tests(
+    name = "runtime_sbom_demo_lists_runtime",
+    spdx = ":runtime_sbom_demo_spdx",
+    want = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+)
+
 notice_bundle(
     name = "notice_demo",
     inventory = ":notice_demo_inventory.txt",
@@ -690,6 +702,7 @@ test_suite(
         ":release_tool_inventory_test",
         ":runtime_cell_notice_lists_runtime",
         ":runtime_inventory_test",
+        ":runtime_sbom_demo_lists_runtime",
         ":sbom_quoting_demo_contains_supplier",
         ":sbom_unit",
         ":signing_unit",

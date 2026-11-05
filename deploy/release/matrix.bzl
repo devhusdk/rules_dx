@@ -117,6 +117,7 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx"):
             name = cell_name + "_sbom",
             artifact = ":" + cell_name + "_archive",
             inventory = ":" + cell_name + "_inventory",
+            runtimes = (":" + cell_name + "_inventory_runtimes") if cell["runtime"] else None,
             target_compatible_with = constraints,
         )
         native.config_setting(

@@ -42,8 +42,8 @@ const KINDS: &[KindSpec] = &[
     KindSpec {
         kind: Kind::Spdx,
         name: "spdx",
-        usage: "<artifact> <out> <package> <supplier> [inventory]",
-        arity: Arity::Between(4, 5),
+        usage: "<artifact> <out> <package> <supplier> [inventory] [--runtimes=<runtimes.json>]",
+        arity: Arity::Between(4, 6),
     },
     KindSpec {
         kind: Kind::Provenance,
@@ -79,6 +79,7 @@ enum Invocation {
         package: String,
         supplier: String,
         inventory: Option<PathBuf>,
+        runtimes: Option<PathBuf>,
     },
     Provenance {
         src: PathBuf,
@@ -147,13 +148,24 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
         });
     }
     Ok(match spec.kind {
-        Kind::Spdx => Invocation::Spdx {
-            src: PathBuf::from(&args[0]),
-            dst: PathBuf::from(&args[1]),
-            package: args[2].clone(),
-            supplier: args[3].clone(),
-            inventory: args.get(4).map(PathBuf::from),
-        },
+        Kind::Spdx => {
+            let runtimes = args[4..]
+                .iter()
+                .find_map(|arg| arg.strip_prefix("--runtimes="))
+                .map(PathBuf::from);
+            let inventory = args[4..]
+                .iter()
+                .find(|arg| !arg.starts_with("--runtimes="))
+                .map(PathBuf::from);
+            Invocation::Spdx {
+                src: PathBuf::from(&args[0]),
+                dst: PathBuf::from(&args[1]),
+                package: args[2].clone(),
+                supplier: args[3].clone(),
+                inventory,
+                runtimes,
+            }
+        }
         Kind::Provenance => Invocation::Provenance {
             src: PathBuf::from(&args[0]),
             dst: PathBuf::from(&args[1]),
@@ -219,7 +231,15 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             package,
             supplier,
             inventory,
-        } => crate::write_spdx_with_inventory(src, dst, package, supplier, inventory.as_deref()),
+            runtimes,
+        } => crate::write_spdx_full(
+            src,
+            dst,
+            package,
+            supplier,
+            inventory.as_deref(),
+            runtimes.as_deref(),
+        ),
         Invocation::Provenance { src, dst, builder } => crate::write_provenance(src, dst, builder),
         Invocation::BcrSource {
             dst,
@@ -317,7 +337,8 @@ mod tests {
         assert!(parse(&argv_for("spdx", 4)).is_ok());
         assert!(parse(&argv_for("spdx", 5)).is_ok());
         assert!(parse(&argv_for("spdx", 3)).is_err());
-        assert!(parse(&argv_for("spdx", 6)).is_err());
+        assert!(parse(&argv_for("spdx", 6)).is_ok());
+        assert!(parse(&argv_for("spdx", 7)).is_err());
     }
 
     #[test]
@@ -340,6 +361,7 @@ mod tests {
                 package: "dx".to_owned(),
                 supplier: "rules_dx".to_owned(),
                 inventory: None,
+                runtimes: None,
             })
         );
     }

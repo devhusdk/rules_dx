@@ -124,6 +124,8 @@ pub struct SpdxPackage {
     pub copyright: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub supplier: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub comment: String,
     #[serde(
         default,
         rename = "downloadLocation",

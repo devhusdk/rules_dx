@@ -15,8 +15,11 @@ def sbom_builder_error(builder_id):
     return ("sbom_release: invalid builder '" + str(builder_id) +
             "': want '" + SBOM_BUILDER_RELEASE + "'")
 
-def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", builder_id = SBOM_BUILDER_RELEASE, inventory = None, **kwargs):
-    """Generates SPDX 2.3 JSON + SLSA provenance for one release artifact."""
+def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", builder_id = SBOM_BUILDER_RELEASE, inventory = None, runtimes = None, **kwargs):
+    """Generates SPDX 2.3 JSON + SLSA provenance for one release artifact.
+
+    `runtimes` is a shipped_inventory `_runtimes` target; each runtime becomes an SPDX package.
+    """
     builder_err = sbom_builder_error(builder_id)
     if builder_err != "":
         fail(builder_err + " (in " + native.package_name() + ":" + name + ")")
@@ -24,13 +27,15 @@ def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", bui
     src_target = artifact
     inventory_srcs = [inventory] if inventory else []
     inventory_arg = " $(location " + inventory + ")" if inventory else ""
+    runtimes_srcs = [runtimes] if runtimes else []
+    runtimes_arg = " --runtimes=$(location " + runtimes + ")" if runtimes else ""
 
     native.genrule(
         name = name + "_spdx",
-        srcs = [src_target] + inventory_srcs,
+        srcs = [src_target] + inventory_srcs + runtimes_srcs,
         outs = [spdx],
         tools = ["//deploy/release:release_tool"],
-        cmd = "$(location //deploy/release:release_tool) spdx $(location " + src_target + ") $(OUTS) " + genrule_arg(package_name) + " " + genrule_arg(supplier) + inventory_arg,
+        cmd = "$(location //deploy/release:release_tool) spdx $(location " + src_target + ") $(OUTS) " + genrule_arg(package_name) + " " + genrule_arg(supplier) + inventory_arg + runtimes_arg,
         **kwargs
     )
 

@@ -60,6 +60,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "julia_format",
     "julialint",
     "keep_sorted",
+    "knip",
     "kotlinc",
     "ktfmt",
     "ktlint",

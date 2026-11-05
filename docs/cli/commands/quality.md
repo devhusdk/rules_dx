@@ -279,6 +279,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | --- | --- | --- |
 | `biome` | Format and lint JavaScript, TypeScript, JSON | |
 | `eslint` | Lint Astro, JavaScript, MDX, Svelte, Vue | |
+| `knip` | Lint unused files, exports and dependencies in JavaScript and TypeScript | |
 | `tsc` | Typecheck Astro, JavaScript, JSX, MDX, Svelte, TSX, TypeScript, Vue | |
 | `prettier` | Format Astro, CSS, HTML, JSON, Svelte, TypeScript, Vue, GraphQL | |
 | `stylelint` | Lint CSS, SCSS, Less | |

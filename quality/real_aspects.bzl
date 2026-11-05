@@ -101,6 +101,14 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "js",
     },
+    "knip": {
+        "attr": attr.label(default = "//quality/tools/javascript/bin:knip", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
+        "kind": "executable",
+        "resources": "heavy",
+        "shard": "js",
+    },
     "graphql_eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:graphql_eslint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],

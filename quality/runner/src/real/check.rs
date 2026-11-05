@@ -2340,6 +2340,7 @@ impl RealBackend {
                 |files| Ok(commands::typos_check(&tool.binary, files)),
                 |out, names| parsed(tool_id, parsers::parse_typos(&out.stdout, out.code, names)),
             ),
+            "knip" => self.check_knip(tool_id, tool, scratch, pairs),
             "lychee" => {
                 let root = scratch.root();
                 let online = tool
@@ -2391,6 +2392,59 @@ impl RealBackend {
                 format!("unsupported real tool: {tool_id}"),
             )),
         }
+    }
+
+    /// Knip analyses a whole package, so it runs once in each package root: the nearest
+    /// directory at or above a staged file that holds a `package.json`.
+    fn check_knip(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        scratch: &Scratch,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let root = scratch.root();
+        let mut roots: std::collections::BTreeMap<String, Vec<(String, &Path)>> =
+            std::collections::BTreeMap::new();
+        for (_, absolute) in pairs {
+            let rel = absolute.strip_prefix(root).unwrap_or(absolute);
+            let mut dir = rel.parent();
+            let package = loop {
+                match dir {
+                    Some(dir) if root.join(dir).join("package.json").is_file() => break dir,
+                    Some(dir) if dir.as_os_str().is_empty() => {
+                        return Err(execution(
+                            tool_id,
+                            format!("no package.json at or above {}", rel.display()),
+                        ));
+                    }
+                    Some(parent) => dir = parent.parent(),
+                    None => break Path::new(""),
+                }
+            };
+            let inside = rel.strip_prefix(package).unwrap_or(rel);
+            roots
+                .entry(package.to_string_lossy().replace('\\', "/"))
+                .or_default()
+                .push((inside.to_string_lossy().replace('\\', "/"), absolute));
+        }
+        let mut found = Vec::new();
+        for (package, members) in &roots {
+            let invocation = commands::knip_check(&tool.binary, package);
+            let out = self.run(tool_id, tool, &invocation, scratch)?;
+            let names: Vec<&str> = members.iter().map(|(inside, _)| inside.as_str()).collect();
+            for mut hit in parsed(
+                tool_id,
+                parsers::parse_knip(&out.stdout, &out.stderr, out.code, &names),
+            )? {
+                if let Some((_, absolute)) = members.iter().find(|(inside, _)| *inside == hit.file)
+                {
+                    hit.file = absolute.to_string_lossy().into_owned();
+                }
+                found.push(hit);
+            }
+        }
+        Ok(found)
     }
 
     /// Runs one tool over the selection, in argv-budget batches when its transport allows.

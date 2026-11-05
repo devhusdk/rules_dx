@@ -1357,6 +1357,32 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "knip",
+        adapters = {"lint": ["javascript", "tsx", "typescript"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["javascript"],
+                context = "owned",
+                family = "javascript",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                state = "supported",
+                transport = "batched",
+            ),
+            row(
+                capability = "lint",
+                classes = ["tsx", "typescript"],
+                context = "owned",
+                family = "typescript",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                state = "supported",
+                transport = "batched",
+            ),
+        ],
+    ),
+    tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
         config_suffix = [".kubeconform.json"],

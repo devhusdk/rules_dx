@@ -30,6 +30,7 @@
     "esbuild": "0.28.2",
     "gplint": "2.6.1",
     "graphql": "16.14.2",
+    "knip": "6.44.1",
     "prettier": "3.9.10",
     "prettier-plugin-astro": "1.1.2",
     "prettier-plugin-gherkin": "4.0.0",

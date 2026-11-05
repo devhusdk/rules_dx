@@ -5792,6 +5792,59 @@ fn detekt_reports_an_unused_private_function_as_info() {
     assert!(clean.is_empty());
 }
 
+fn knip_fake(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(argv.iter().any(|arg| arg == "json"), "knip asks for json");
+    assert!(
+        cwd.ends_with("web"),
+        "knip runs in the package root: {cwd:?}"
+    );
+    let unused = std::fs::read_to_string(cwd.join("src/a.ts"))
+        .expect("read staged file")
+        .contains("export const unused");
+    let (code, body) = if unused {
+        (
+            1,
+            r#"{"files":[],"issues":[{"file":"src/a.ts","exports":[{"name":"unused","line":1,"col":14}]}]}"#,
+        )
+    } else {
+        (0, r#"{"files":[],"issues":[]}"#)
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: body.as_bytes().to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn knip_files(source: &str) -> std::collections::BTreeMap<String, String> {
+    let mut files = single("web/src/a.ts", source);
+    files.insert("web/package.json".to_owned(), "{}\n".to_owned());
+    files
+}
+
+#[test]
+fn knip_reports_an_unused_export_as_info_from_the_package_root() {
+    let backend = backend_for("knip", plain_tool(), knip_fake);
+    let findings = backend
+        .diagnose("knip", "lint", &knip_files("export const unused = 1;\n"))
+        .expect("knip diagnose");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "exports");
+    assert_eq!(
+        findings[0].severity,
+        quality_result::proto::Severity::Info as i32
+    );
+    let clean = backend
+        .diagnose("knip", "lint", &knip_files("export const used = 1;\n"))
+        .expect("knip clean");
+    assert!(clean.is_empty());
+}
+
 fn credo_fake(
     argv: &[OsString],
     cwd: &Path,

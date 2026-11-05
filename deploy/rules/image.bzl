@@ -73,7 +73,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
-    Several platforms give an oci_image_index built once per platform.
+    Several platforms give an oci_image_index of one image per platform.
     """
     error = image_options_error(binary, base, platforms)
     if error != "":
@@ -81,32 +81,31 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
     app = image_binary_name(binary)
     single = len(platforms) == 1
 
-    layer_src = binary
-    if single:
-        layer_src = name + "_binary"
+    images = []
+    for platform in platforms:
+        suffix = "" if single else "_" + platform.split("/")[1]
         _for_platform(
-            name = layer_src,
+            name = name + "_binary" + suffix,
             binary = binary,
-            platform = _PLATFORM_LABELS[platforms[0]],
+            platform = _PLATFORM_LABELS[platform],
             tags = ["manual"],
         )
-
-    pkg_tar(
-        name = name + "_layer",
-        srcs = [layer_src],
-        include_runfiles = True,
-        mode = "0755",
-        package_dir = "/app",
-        tags = ["manual"],
-    )
-
-    image = name if single else name + "_image"
-    oci_image(
-        name = image,
-        base = IMAGE_BASES[base],
-        entrypoint = ["/app/" + app],
-        tars = [name + "_layer"],
-    )
+        pkg_tar(
+            name = name + "_layer" + suffix,
+            srcs = [name + "_binary" + suffix],
+            include_runfiles = True,
+            mode = "0755",
+            package_dir = "/app",
+            tags = ["manual"],
+        )
+        image = name if single else name + "_image" + suffix
+        oci_image(
+            name = image,
+            base = IMAGE_BASES[base],
+            entrypoint = ["/app/" + app],
+            tars = [name + "_layer" + suffix],
+        )
+        images.append(image)
 
     if single:
         oci_load(
@@ -118,6 +117,5 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
 
     oci_image_index(
         name = name,
-        images = [image],
-        platforms = [_PLATFORM_LABELS[p] for p in platforms],
+        images = images,
     )

@@ -18,3 +18,12 @@ oci_deploy(
     image_tar = ":image",
     platform = "linux/amd64",
 )
+
+oci_image_from_binary(
+    name = "image_multi",
+    binary = ":hello",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+)

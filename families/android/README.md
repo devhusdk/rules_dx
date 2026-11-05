@@ -353,7 +353,9 @@ targets above.
 Packaging builds read the `androidsdk` repository from the pinned
 build-tools, platform and platform-tools packages that `android_sdk`
 downloads, so no `ANDROID_HOME` is needed on Linux x86_64. Elsewhere the
-repository is empty. A consumer root swaps it in with:
+repository is empty. Until #6844 lands, the first fetch also resolves
+`rules_android_maven` through Coursier, so it needs network access to Maven
+Central. Builds are offline after that. A consumer root swaps it in with:
 
 ```python
 android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")

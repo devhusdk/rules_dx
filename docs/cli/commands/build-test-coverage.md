@@ -116,7 +116,7 @@ A whole-repository run (`//...`) also fails on a tracked source no Bazel target 
 
 Tests in these languages fail with `no_coverage_collector`: Zig, Fortran, and OCaml. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
-Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, PHP, and C/C++. Use `#` in Python, Ruby, Perl, Julia, and Elixir. Use `%` in Erlang. A marker that covers no instrumented line, or that excludes every instrumented line of a file, fails `--min-coverage`.
+Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, PHP, and C/C++. Use `#` in Python, Ruby, Perl, PowerShell, Julia, and Elixir. Use `%` in Erlang. A marker that covers no instrumented line, or that excludes every instrumented line of a file, fails `--min-coverage`.
 
 ## `dx run`
 

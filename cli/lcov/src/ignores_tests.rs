@@ -365,6 +365,19 @@ fn hash_comment_markers_are_honored_for_perl() {
 }
 
 #[test]
+fn hash_comment_markers_are_honored_for_powershell() {
+    for path in ["t.ps1", "t.psm1"] {
+        let source = file_lines(&[
+            "$x = 1  # ".to_string() + &marker("_LINE") + " - reason: fixture, issue: 7328.",
+            "$y = 2".to_string(),
+        ]);
+        let ignores = find_ignores(path, &source).unwrap();
+        assert!(ignores.singles.contains_key(&1), "{path}");
+        assert!(!is_ignored(&ignores, 2), "{path}");
+    }
+}
+
+#[test]
 fn slash_comment_markers_are_honored_for_kts() {
     let source = file_lines(&[
         "val x = 1 // ".to_string() + &marker("_LINE") + " - reason: fixture, issue: 1055.",

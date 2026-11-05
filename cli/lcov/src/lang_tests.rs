@@ -44,6 +44,8 @@ fn covered_languages_include_wrapped_langs() {
         "elf.d",
         "elf.pl",
         "elf.pm",
+        "elf.ps1",
+        "elf.psm1",
         "elf.php",
         "elf.erl",
         "elf.hrl",

@@ -569,8 +569,17 @@ pub fn qualify(graph: &AqueryGraph, commands: &[CompileCommand]) -> Result<Vec<Q
                     let file = action
                         .param_files
                         .iter()
-                        .find(|file| file.exec_path == path)
-                        .ok_or_else(|| fail(format!("param file '{path}' not in aquery")))?;
+                        .find(|file| file.exec_path.replace('\\', "/") == path.replace('\\', "/"))
+                        .ok_or_else(|| {
+                            let known: Vec<&str> = action
+                                .param_files
+                                .iter()
+                                .map(|file| file.exec_path.as_str())
+                                .collect();
+                            fail(format!(
+                                "param file '{path}' not in aquery (action has {known:?})"
+                            ))
+                        })?;
                     expected.extend(file.arguments.iter().cloned());
                 }
                 None => expected.push(argument.clone()),

@@ -346,18 +346,19 @@ fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
     total
 }
 
-/// The blocking `bazel shutdown` of a workspace's server. The server must
+/// The `bazel shutdown` of a workspace's server; it fails at once if a client holds the lock. The server must
 /// outlive a killed client, so descendants stay detachable.
 fn shutdown_spec(bazel: &Path, opts: &[&str], workspace: &Path) -> SpawnSpec {
     let mut argv: Vec<std::ffi::OsString> = vec![bazel.as_os_str().to_owned()];
     argv.extend(opts.iter().map(std::ffi::OsString::from));
+    argv.push("--noblock_for_lock".into());
     argv.push("shutdown".into());
     SpawnSpec {
         argv,
         cwd: workspace.to_path_buf(),
         env: EnvPolicy::Inherited { extra: Vec::new() },
         capture: CapturePolicy { max_bytes: 1 << 16 },
-        timeout: Duration::from_secs(3600),
+        timeout: SHUTDOWN_TIMEOUT,
         descendants: Descendants::Detachable,
     }
 }
@@ -1046,9 +1047,13 @@ mod tests {
     }
 
     #[test]
-    fn the_blocking_shutdown_keeps_the_server_detachable() {
+    fn the_workspace_shutdown_never_waits_for_a_lock_and_keeps_the_server_detachable() {
         let spec = shutdown_spec(Path::new("/bin/bazel"), &["--nohome_rc"], Path::new("/w"));
-        assert_eq!(spec.argv, ["/bin/bazel", "--nohome_rc", "shutdown"]);
+        assert_eq!(
+            spec.argv,
+            ["/bin/bazel", "--nohome_rc", "--noblock_for_lock", "shutdown"]
+        );
+        assert_eq!(spec.timeout, SHUTDOWN_TIMEOUT);
         assert_eq!(spec.cwd, Path::new("/w"));
         assert!(matches!(spec.descendants, Descendants::Detachable));
     }

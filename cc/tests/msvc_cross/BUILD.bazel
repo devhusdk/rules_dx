@@ -130,15 +130,27 @@ cc_msvc_arm64_action_tests(
 
 rust_test(
     name = "cross_arm64_test",
-    srcs = ["cross_arm64_test.rs"],
-    data = [
-        ":arm64",
-        ":x64",
+    srcs = [
+        "check.rs",
+        "cross_arm64_test.rs",
     ],
-    env = {
-        "MSVC_ARM64": "$(rootpaths :arm64)",
-        "MSVC_X64": "$(rootpaths :x64)",
-    },
+    data = [":arm64"],
+    env = {"MSVC_ARM64": "$(rootpaths :arm64)"},
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "cross_x64_test",
+    srcs = [
+        "check.rs",
+        "cross_x64_test.rs",
+    ],
+    data = [":x64"],
+    env = {"MSVC_X64": "$(rootpaths :x64)"},
     target_compatible_with = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
@@ -148,12 +160,12 @@ rust_test(
 
 rustfmt_test(
     name = "cross_arm64_fmt_test",
-    targets = [":cross_arm64_test"],
+    targets = [":cross_arm64_test", ":cross_x64_test"],
 )
 
 rust_clippy_test(
     name = "cross_arm64_clippy_test",
-    targets = [":cross_arm64_test"],
+    targets = [":cross_arm64_test", ":cross_x64_test"],
 )
 
 real_source_target(

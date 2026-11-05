@@ -1,15 +1,11 @@
 """Target-scoped real capability aspects over real adapters."""
 
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
-load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
-load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
-load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//quality:families/cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _CC_HOOKS = "HOOKS", _CC_RECOGNIZER = "RECOGNIZER", _CC_SHARD_SPECS = "SHARD_SPECS", _CC_TOOLS = "TOOLS")
 load("//quality:families/core.bzl", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
@@ -43,6 +39,7 @@ load("//quality:families/powershell.bzl", _real_powershell_format_aspect = "real
 load("//quality:families/ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _RUBY_HOOKS = "HOOKS", _RUBY_SHARD_SPECS = "SHARD_SPECS", _RUBY_TOOLS = "TOOLS")
 load("//quality:families/python.bzl", _real_python_format_aspect = "real_python_format_aspect", _real_python_lint_aspect = "real_python_lint_aspect", _real_python_typecheck_aspect = "real_python_typecheck_aspect", _PYTHON_HOOKS = "HOOKS", _PYTHON_SHARD_SPECS = "SHARD_SPECS", _PYTHON_TOOLS = "TOOLS")
 load("//quality:families/julia.bzl", _real_julia_format_aspect = "real_julia_format_aspect", _real_julia_lint_aspect = "real_julia_lint_aspect", _real_julia_typecheck_aspect = "real_julia_typecheck_aspect", _JULIA_HOOKS = "HOOKS", _JULIA_SHARD_SPECS = "SHARD_SPECS", _JULIA_TOOLS = "TOOLS")
+load("//quality:families/dotnet.bzl", _real_dotnet_format_aspect = "real_dotnet_format_aspect", _real_dotnet_lint_aspect = "real_dotnet_lint_aspect", _real_dotnet_typecheck_aspect = "real_dotnet_typecheck_aspect", _DOTNET_HOOKS = "HOOKS", _DOTNET_SHARD_SPECS = "SHARD_SPECS", _DOTNET_TOOLS = "TOOLS")
 load("//quality:families/d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _D_SHARD_SPECS = "SHARD_SPECS", _D_TOOLS = "TOOLS")
 load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _FORTRAN_SHARD_SPECS = "SHARD_SPECS", _FORTRAN_TOOLS = "TOOLS")
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
@@ -54,7 +51,6 @@ load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_for
 load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _upstream_files = "upstream_files", _without = "without")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "generated_source_paths", "prune_tool_generated_sources", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_tool_table_error = "real_tool_table_error", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
-load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:sources.bzl", "QualityToolsInfo")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
@@ -81,12 +77,6 @@ _REAL_TOOL_TABLE = {
         "shard": "rust",
         "toolchain_file": "clippy_driver",
     },
-    "csharpier": {
-        "attr": attr.label(default = "//quality/tools/dotnet:csharpier", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "dotnet",
-    },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
@@ -94,18 +84,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "js",
-    },
-    "fantomas": {
-        "attr": attr.label(default = "//quality/tools/dotnet:fantomas", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "dotnet",
-    },
-    "fsharplint": {
-        "attr": attr.label(default = "//quality/tools/dotnet/fsharplint", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "dotnet",
     },
     "google_java_format": {
         "attr": attr.label(default = "//quality/tools/jvm:google_java_format", cfg = "exec", executable = True),
@@ -176,21 +154,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "js",
-    },
-    "csc": {
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "dotnet",
-    },
-    "fsc": {
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "dotnet",
-    },
-    "roslyn": {
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "dotnet",
     },
     "javac": {
         "kind": "upstream",
@@ -342,56 +305,10 @@ def _scalafix_context(target, what):
         sorted(auxiliary.values(), key = lambda f: f.path),
     )
 
-def _fsharplint_context(target, ctx, what):
-    """Returns the dependency assemblies and the compile context file for one F# target."""
-    if DotnetAssemblyRuntimeInfo not in target:
-        fail(what + ": fsharplint needs the compiled dependency assemblies of this target")
-    if not (hasattr(ctx.rule.attr, "defines") and hasattr(ctx.rule.attr, "target_frameworks") and hasattr(ctx.rule.attr, "_target_framework")):
-        fail(what + ": fsharplint needs an fsharp_* target with compile symbols")
-    runtime = target[DotnetAssemblyRuntimeInfo]
-    seen = {lib.basename: True for lib in runtime.libs}
-    refs = []
-    for info in runtime.deps.to_list():
-        for lib in info.libs:
-            if lib.basename.endswith(".dll") and lib.basename not in seen:
-                seen[lib.basename] = True
-                refs.append(lib)
-    context = ctx.actions.declare_file(target.label.name + "-fsharplint-context.json")
-    ctx.actions.write(
-        output = context,
-        content = json.encode({
-            "defines": fsharp_compile_defines(ctx.rule.attr._target_framework[BuildSettingInfo].value, ctx.rule.attr.target_frameworks, ctx.rule.attr.defines),
-            "langversion": ctx.rule.attr.langversion,
-            "refs": ["dx-fsharplint/ref/%d-%s" % (index, lib.basename) for index, lib in enumerate(refs)],
-            "sources": [f.short_path for f in ctx.rule.files.srcs],
-        }),
-    )
-    return (refs, context)
-
 # Converters Vale shells out to, by source class: (tool name, owner rule, defs.bzl).
 # The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
 # never load Python or Node.
 _REAL_SHARD_SPECS = {
-    "real_dotnet_format": {
-        "capability": "format",
-        "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).",
-        "shard": "dotnet",
-        "suffix": "-dotnet",
-    },
-    "real_dotnet_lint": {
-        "capability": "lint",
-        "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).",
-        "requires": [roslyn_aspect],
-        "shard": "dotnet",
-        "suffix": "-dotnet",
-    },
-    "real_dotnet_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive C#/F# typecheck family aspect (csc and fsc compiler diagnostics).",
-        "requires": [fsc_aspect, roslyn_aspect],
-        "shard": "dotnet",
-        "suffix": "-dotnet",
-    },
     "real_js_format": {
         "capability": "format",
         "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).",
@@ -505,15 +422,6 @@ def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):
         _stage(tool_files, inputs, "dx-scalafix/aux/%d-%s" % (index, jar.basename), jar)
     return real_context(tool_files = tool_files, inputs = inputs)
 
-def _fsharplint_hook(target, ctx, _resolved, _capability, what, _shared):
-    (refs, context) = _fsharplint_context(target, ctx, what)
-    tool_files = []
-    inputs = []
-    for index, lib in enumerate(refs):
-        _stage(tool_files, inputs, "dx-fsharplint/ref/%d-%s" % (index, lib.basename), lib)
-    _stage(tool_files, inputs, "dx-fsharplint/context.json", context)
-    return real_context(tool_files = tool_files, inputs = inputs)
-
 def _jvm_check_hook(tool):
     def _hook(target, _ctx, resolved, _capability, _what, _shared):
         if JvmCheckInfo not in target or target[JvmCheckInfo].tool != tool:
@@ -543,30 +451,6 @@ def _tsc_hook(target, _ctx, resolved, _capability, _what, _shared):
         return _without(resolved, "tsc")
     info = target[TscInfo]
     return real_context(upstream = [info.stdout], late_tool_files = [("dx-tsc/exit", info.status)], late_inputs = [info.stdout, info.status])
-
-def _roslyn_hook(target, _ctx, _resolved, _capability, what, _shared):
-    if RoslynInfo not in target:
-        fail(what + ": roslyn and csc need a csharp_* target compiled with the SDK analyzers")
-    info = target[RoslynInfo]
-    tool_files = []
-    inputs = []
-    for i in range(len(info.tfms)):
-        inputs.append(info.sarifs[i])
-        _stage(tool_files, inputs, "dx-roslyn/" + info.tfms[i] + "/exit", info.statuses[i])
-    return real_context(upstream = info.sarifs, late_tool_files = tool_files, late_inputs = inputs)
-
-def _fsc_hook(target, _ctx, _resolved, _capability, what, _shared):
-    if FscUnsupportedInfo in target:
-        fail(what + ": fsc is unavailable: " + target[FscUnsupportedInfo].reason)
-    if FscInfo not in target:
-        fail(what + ": fsc needs an fsharp_* target")
-    info = target[FscInfo]
-    tool_files = []
-    inputs = []
-    for i in range(len(info.tfms)):
-        inputs.append(info.logs[i])
-        _stage(tool_files, inputs, "dx-fsc/" + info.tfms[i] + "/exit", info.statuses[i])
-    return real_context(upstream = info.logs, late_tool_files = tool_files, late_inputs = inputs)
 
 def _prettier_hook(target, _ctx, _resolved, _capability, _what, _shared):
     if SqlDialectInfo not in target:
@@ -697,24 +581,20 @@ _HOOK_ORDER = [
 _CONTEXT_HOOKS = {
     "spotbugs": _spotbugs_hook,
     "scalafix": _scalafix_hook,
-    "fsharplint": _fsharplint_hook,
     "tsc": _tsc_hook,
-    "roslyn": _roslyn_hook,
-    "csc": _roslyn_hook,
-    "fsc": _fsc_hook,
     "prettier": _prettier_hook,
     "rustfmt": _rustfmt_hook,
     "clippy": _clippy_hook,
     "rustc": _rustc_hook,
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
-} | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _BEAM_HOOKS | _GO_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | _CC_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _BEAM_HOOKS | _GO_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | _CC_HOOKS | _DOTNET_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _compile_check_hook(tool)
     for tool in COMPILE_CHECK_TOOLS
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _BEAM_TOOLS | _GO_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS | _PYTHON_TOOLS | _CC_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _BEAM_SHARD_SPECS | _GO_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS | _PYTHON_SHARD_SPECS | _CC_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _BEAM_TOOLS | _GO_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS | _PYTHON_TOOLS | _CC_TOOLS | _DOTNET_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _BEAM_SHARD_SPECS | _GO_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS | _PYTHON_SHARD_SPECS | _CC_SHARD_SPECS | _DOTNET_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = _GENERATION_RECOGNIZERS + [_rust_sources, _CC_RECOGNIZER],
@@ -775,11 +655,11 @@ real_cc_typecheck_aspect = _real_cc_typecheck_aspect
 
 real_d_typecheck_aspect = _real_d_typecheck_aspect
 
-real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
+real_dotnet_format_aspect = _real_dotnet_format_aspect
 
-real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
+real_dotnet_lint_aspect = _real_dotnet_lint_aspect
 
-real_dotnet_typecheck_aspect = _make_real_aspect("real_dotnet_typecheck")
+real_dotnet_typecheck_aspect = _real_dotnet_typecheck_aspect
 
 real_dart_format_aspect = _real_dart_format_aspect
 

@@ -530,7 +530,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 40] = [
+const FAMILY_FILES: [&str; 41] = [
     "ansible",
     "beam",
     "cc",
@@ -542,6 +542,7 @@ const FAMILY_FILES: [&str; 40] = [
     "d",
     "dart",
     "dockerfile",
+    "dotnet",
     "fortran",
     "generation",
     "go",
@@ -613,6 +614,93 @@ fn core_family_file_loads_no_family_rule_set() {
         .filter(|line| line.starts_with("load(\"@") && !line.starts_with("load(\"@bazel_skylib"))
         .collect::<Vec<_>>();
     assert!(foreign.is_empty(), "core.bzl loads {foreign:?}");
+}
+
+/// The repos one family file may load from (files of rule-less languages count as core): the family's `bazel_deps`, the repos its extensions `use_repo`, and `bazel_skylib`.
+fn family_repos(module: &ModuleFile, json: &str, family: &str) -> BTreeSet<String> {
+    let value: serde_json::Value = serde_json::from_str(json).expect("families.json");
+    let families = &value["families"];
+    let entry = if families.get(family).is_some() {
+        &families[family]
+    } else {
+        &families["core"]
+    };
+    let listed = |key: &str| -> BTreeSet<String> {
+        entry[key]
+            .as_array()
+            .unwrap_or_else(|| panic!("family {family:?} has no {key} array"))
+            .iter()
+            .map(|item| item.as_str().expect("string item").to_owned())
+            .collect()
+    };
+    let mut repos = listed("bazel_deps");
+    let extensions = listed("extensions");
+    let bindings: BTreeSet<&str> = module
+        .calls()
+        .iter()
+        .filter(|call| call.name == "use_extension")
+        .filter(|call| bzl_and_name(call).is_some_and(|ext| extensions.contains(&ext)))
+        .filter_map(|call| call.binding.as_deref())
+        .collect();
+    for call in module.calls().iter().filter(|call| call.name == "use_repo") {
+        let Some(Value::Ident(binding)) = call.positional.first() else {
+            continue;
+        };
+        if !bindings.contains(binding.as_str()) {
+            continue;
+        }
+        repos.extend(
+            call.positional[1..]
+                .iter()
+                .filter_map(|v| literal(Some(v)))
+                .map(str::to_owned),
+        );
+        repos.extend(call.named.iter().map(|(alias, _)| alias.clone()));
+    }
+    repos.insert("bazel_skylib".to_owned());
+    repos
+}
+
+#[test]
+fn family_repos_follow_deps_and_extension_use_repo() {
+    let module = ModuleFile::parse(
+        r#"
+bazel_dep(name = "rules_x", version = "1")
+ext = use_extension("//x:e.bzl", "x")
+use_repo(ext, "hub", alias = "real_hub")
+other = use_extension("//y:e.bzl", "y")
+use_repo(other, "foreign")
+"#,
+    )
+    .expect("module");
+    let json = r#"{"families": {"x": {
+        "bazel_deps": ["rules_x"],
+        "extensions": ["//x:e.bzl%x"]
+    }}}"#;
+    let repos: Vec<String> = family_repos(&module, json, "x").into_iter().collect();
+    assert_eq!(repos, ["alias", "bazel_skylib", "hub", "rules_x"]);
+}
+
+#[test]
+fn family_files_load_only_their_own_repos() {
+    let json = dx_testing::read_runfiles("modules/families.json");
+    let module =
+        ModuleFile::parse(&dx_testing::read_runfiles("MODULE.bazel")).expect("MODULE.bazel");
+    let mut problems = Vec::new();
+    for family in FAMILY_FILES {
+        let allowed = family_repos(&module, &json, family);
+        let source = dx_testing::read_runfiles(&format!("quality/families/{family}.bzl"));
+        for line in source.lines().filter(|line| line.starts_with("load(\"@")) {
+            let repo = line["load(\"@".len()..]
+                .split("//")
+                .next()
+                .unwrap_or_default();
+            if !allowed.contains(repo) {
+                problems.push(format!("{family}.bzl loads @{repo}"));
+            }
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
 /// The source-check targets every moved family declares in its own `BUILD.bazel`.

@@ -85,6 +85,7 @@ rust_test(
         "//quality:families/d.bzl",
         "//quality:families/dart.bzl",
         "//quality:families/dockerfile.bzl",
+        "//quality:families/dotnet.bzl",
         "//quality:families/fortran.bzl",
         "//quality:families/generation.bzl",
         "//quality:families/go.bzl",

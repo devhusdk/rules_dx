@@ -23,6 +23,8 @@ pub struct ChangedAccount {
     pub uncovered: Vec<ChangedLine>,
     /// Changed production sources an instrumented target owns that the report never saw.
     pub uninstrumented: Vec<String>,
+    /// Sources whose LCOV_EXCL markers could not be read or parsed.
+    pub errors: Vec<String>,
 }
 
 /// The verdict of the changed-line gate.
@@ -225,10 +227,21 @@ pub fn changed_account(
         let (Some(lines), Some(hits)) = (find_key(&changed, &key), find_key(&report, &key)) else {
             continue;
         };
-        let ignores = load_source(path)
-            .ok()
-            .and_then(|text| find_ignores(path, &text).ok())
-            .unwrap_or_default();
+        let ignores = match load_source(path) {
+            Ok(text) => match find_ignores(path, &text) {
+                Ok(valid) => valid,
+                Err(error) => {
+                    result.errors.push(error.to_string());
+                    Default::default()
+                }
+            },
+            Err(error) => {
+                result
+                    .errors
+                    .push(format!("cannot read {path} for LCOV_EXCL markers: {error}"));
+                Default::default()
+            }
+        };
         let mut touched = FileHits::default();
         for line in lines.iter() {
             if let Some(count) = hits.lines.get(line) {

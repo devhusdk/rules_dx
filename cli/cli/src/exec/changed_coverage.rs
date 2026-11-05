@@ -133,6 +133,9 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
                 message: format!("{path}: {error}"),
             })
     });
+    if !changed.errors.is_empty() {
+        return unavailable(event, changed.errors.join("; "));
+    }
     let result = changed.result(minimum);
     event.result = result.name().to_owned();
     event.covered_lines = changed.covered_lines;

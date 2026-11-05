@@ -269,3 +269,15 @@ fn result_names_are_stable() {
     assert_eq!(ChangedResult::NotApplicable.name(), "not-applicable");
     assert_eq!(ChangedResult::Incomplete.name(), "incomplete");
 }
+
+#[test]
+fn unreadable_source_is_an_error() {
+    let report = [lcov("src/a.py", &[(1, 0)])];
+    let got = gate(OWNS_A, &report, &added(&[("src/a.py", &[1])]), &[]);
+    assert_eq!(got.errors.len(), 1);
+    assert!(
+        got.errors[0].contains("cannot read src/a.py"),
+        "{:?}",
+        got.errors
+    );
+}

@@ -388,6 +388,44 @@ when `cargo` is on `PATH`. Without `cargo` it prints a skip line. It never
 uploads. Rerunning a published version: `cargo publish` fails with the
 registry's message and the run exits 1.
 
+# hex_deploy
+
+Stages an Elixir or Erlang package and publishes it to Hex.
+
+```starlark
+load("@rules_dx//deploy/rules:hex.bzl", "hex_deploy")
+
+hex_deploy(
+    name = "hex_demo",
+    package = ":hex_demo_package",
+    tool = "mix",
+    version = "1.0.0",
+)
+```
+
+- `name`: the Hex package name.
+- `package`: required. The package files, including `mix.exs` (`rebar.config` for `rebar3`).
+- `tool`: `mix` or `rebar3`. Defaults to `mix`.
+- `version`: defaults to `0.0.0`. It must equal the `version` in `mix.exs`, or the `vsn` in the `.app.src` for `rebar3`.
+- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+
+Default run stages `<name>-hex/package/`, checks the version, and runs
+`mix hex.build` (`rebar3 hex build`) when the tool is on `PATH`. Without it the
+run prints a skip line. `mix` also writes `<name>-hex/<name>-<version>.tar`.
+No credentials needed, nothing is uploaded.
+
+Publish with `mix` or `rebar3` on `PATH`:
+
+```
+HEX_PUBLISH_LIVE=1 HEX_PUBLISH_APPROVED=1 HEX_API_KEY=... \
+dx deploy --apply //pkg:hex_demo
+```
+
+A live run refuses version `0.0.0`. It runs `mix hex.publish --yes`
+(`rebar3 hex publish --yes`) in a staged copy with an empty `HOME` and only
+`HEX_API_KEY` as the credential. `ERL_LIBS`, `ERL_ROOTDIR`, `HEX_HOME` and
+`MIX_HOME` pass through, so point them at the pinned OTP.
+
 # github_deploy
 
 Stages pinned files for a draft GitHub Release and creates the draft.

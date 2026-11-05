@@ -15,6 +15,7 @@ mod crates;
 mod github;
 mod hackage;
 mod helm;
+mod hex;
 mod homebrew;
 pub mod http;
 mod imports;
@@ -40,6 +41,7 @@ pub use crates::*;
 pub use github::*;
 pub use hackage::*;
 pub use helm::*;
+pub use hex::*;
 pub use homebrew::*;
 pub use imports::*;
 pub use luarocks::*;
@@ -217,6 +219,7 @@ mod tests {
             &hackage::HACKAGE_GATE,
             &luarocks::LUAROCKS_GATE,
             &CRATES_GATE,
+            &HEX_GATE,
             &GITHUB_GATE,
             &maven::MAVEN_GATE,
             &OCI_GATE,

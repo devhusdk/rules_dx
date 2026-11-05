@@ -137,6 +137,16 @@ pub struct CratesConfig {
     pub version: String,
 }
 
+/// Pins one Hex publish: the package files, name, version and build tool.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HexConfig {
+    pub package_rlocs: Vec<String>,
+    pub package_name: String,
+    pub version: String,
+    pub tool: String,
+}
+
 /// Pins one Maven publish: the jar, pom, optional extra jars and the repository.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -212,6 +222,7 @@ pub enum DeployConfig {
     Luarocks(LuarocksConfig),
     Crates(CratesConfig),
     Pub(PubConfig),
+    Hex(HexConfig),
     Maven(MavenConfig),
     Oci(OciConfig),
     Octopus(OctopusConfig),
@@ -346,6 +357,13 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &pub_config.package_name,
             &pub_config.version,
             &pub_config.hosted_url,
+            argv,
+        ),
+        DeployConfig::Hex(hex) => crate::hex_main(
+            &hex.package_rlocs,
+            &hex.package_name,
+            &hex.version,
+            &hex.tool,
             argv,
         ),
         DeployConfig::Maven(maven) => crate::maven_main(

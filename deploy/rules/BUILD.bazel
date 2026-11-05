@@ -19,6 +19,8 @@ load(":github_tests.bzl", "github_unit_tests")
 load(":hackage.bzl", "hackage_deploy")
 load(":hackage_tests.bzl", "hackage_unit_tests")
 load(":helm_tests.bzl", "helm_unit_tests")
+load(":hex.bzl", "hex_deploy")
+load(":hex_tests.bzl", "hex_unit_tests")
 load(":homebrew.bzl", "homebrew_tap_deploy")
 load(":homebrew_tests.bzl", "homebrew_unit_tests")
 load(":linux_package_tests.bzl", "linux_package_unit_tests")
@@ -66,6 +68,8 @@ exports_files([
     "hackage_tests.bzl",
     "helm.bzl",
     "helm_tests.bzl",
+    "hex.bzl",
+    "hex_tests.bzl",
     "homebrew.bzl",
     "homebrew_tests.bzl",
     "linux_package.bzl",
@@ -103,6 +107,7 @@ exports_files([
     "src/github.rs",
     "src/hackage.rs",
     "src/helm.rs",
+    "src/hex.rs",
     "src/homebrew.rs",
     "src/http.rs",
     "src/imports.rs",
@@ -135,6 +140,7 @@ rust_library(
         "src/github.rs",
         "src/hackage.rs",
         "src/helm.rs",
+        "src/hex.rs",
         "src/homebrew.rs",
         "src/http.rs",
         "src/imports.rs",
@@ -424,6 +430,7 @@ config_runfiles_tests(
     name = "config_runfiles",
     demos = {
         "crates_demo": ["lib.rs"],
+        "hex_demo": ["mix.exs"],
         "maven_demo": [
             "maven_demo-0.0.0.pom",
             "maven_demo-sources.jar",
@@ -785,6 +792,8 @@ test_suite(
         ":hackage_unit",
         ":helm_demo_verify",
         ":helm_unit",
+        ":hex_analysis",
+        ":hex_unit",
         ":homebrew_analysis",
         ":homebrew_demo_verify",
         ":homebrew_unit",
@@ -1485,6 +1494,18 @@ deploy_analysis_test(
     subject = "crates_demo",
 )
 
+hex_deploy(
+    name = "hex_demo",
+    package = "//deploy/tests/fixtures/hex_package",
+)
+
+hex_unit_tests(name = "hex_unit")
+
+deploy_analysis_test(
+    name = "hex_analysis",
+    subject = "hex_demo",
+)
+
 npm_deploy(
     name = "npm_demo",
     srcs = ["npm_demo/package.json"],
@@ -1733,6 +1754,8 @@ real_source_target(
         "github_tests.bzl",
         "helm.bzl",
         "helm_tests.bzl",
+        "hex.bzl",
+        "hex_tests.bzl",
         "homebrew.bzl",
         "homebrew_tests.bzl",
         "maven.bzl",

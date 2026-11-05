@@ -165,7 +165,6 @@ const PACKAGES: [&str; 111] = [
     "javascript/tests/fixtures/web_app",
     "lua/tests/negative",
     "modules",
-    "php/tests/negative",
     "python/tests/consumer",
     "qt/rust",
     "qt/tests",

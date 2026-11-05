@@ -1,6 +1,7 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
+load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/rules:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
@@ -18,7 +19,12 @@ def _checks():
     }
     flavors = {"linux_amd64": "common", "linux_arm64": "common", "macos_arm64": "common", "windows_x86_64": "spc-max"}
     mac = PHP_CELLS["macos_arm64"]
+    cases = cell_cases("//php/toolchain", PHP_CELLS.keys(), unsupported = True)
+    default = cases.pop("//conditions:default")
     return [
+        expect_equal("one case per pinned cell", sorted([str(key) for key in cases]), sorted([str(cell_setting("//php/toolchain", cell)) for cell in PHP_CELLS])),
+        expect_equal("pinned cells allow the target", cases.values(), [[] for _ in PHP_CELLS]),
+        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php/toolchain:unsupported"))]),
         expect_equal("php version", PHP_VERSION, "8.5.12"),
         expect_equal("pinned cells", sorted(PHP_CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
         expect_equal("archives", {c: PHP_CELLS[c].archive for c in PHP_CELLS}, archives),

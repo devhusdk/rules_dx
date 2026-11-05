@@ -141,6 +141,8 @@ The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without
 | `affected_on_pr` | Default `true`. Use `--affected` on pull requests. |
 | `link_check_online` | Default `false`. Run `lint` with `--online` so lychee checks external links. Ignored on pull requests; call the workflow from a `schedule` trigger to use it. |
 | `mutate` | Default `false`. Run [`dx mutate`](cli/commands/mutate.md) with a 10 minute budget per target on `dx-mutate` targets. Runs only on scheduled or dispatched runs of the default branch; call the workflow from a weekly `schedule` trigger to use it. |
+| `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. The corpus under `.dx/fuzz` is cached between runs. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |
+| `fuzz_time` | Default `300s`. Time budget per fuzz target: `90s`, `5m` or `1h`. |
 | `remote_cache` | REAPI cache URL. |
 | `invocation_id` | 1 to 40 letters, digits, underscores or hyphens. Set one per call when a run has several calls. |
 

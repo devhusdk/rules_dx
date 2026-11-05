@@ -55,14 +55,14 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain(PLATFORM_JOBS.iter().map(|name| (*name).to_owned()))
         .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
-        .chain(std::iter::once("mutate".to_owned()))
+        .chain(["mutate".to_owned(), "fuzz".to_owned()])
         .collect();
     wanted.sort();
     assert_eq!(
         job_names(),
         wanted,
         "{WORKFLOW} must name the validate job, the checks job, security-audit, the \
-shared advisory preparation, the aggregate and mutate"
+shared advisory preparation, the aggregate, mutate and fuzz"
     );
 }
 
@@ -427,6 +427,27 @@ fn mutate_is_off_by_default_and_runs_only_on_the_default_branch_schedule() {
         assert!(condition.contains(needle), "mutate if: {condition}");
     }
     assert!(!condition.contains("pull_request"), "mutate if: {condition}");
+}
+
+#[test]
+fn fuzz_is_off_by_default_and_uploads_crashes_for_thirty_days() {
+    let doc = document(WORKFLOW);
+    let inputs = &doc["on"]["workflow_call"]["inputs"];
+    assert_eq!(inputs["fuzz"]["type"], json!("boolean"), "{WORKFLOW} type");
+    assert_eq!(inputs["fuzz"]["default"], json!(false), "{WORKFLOW} default");
+    assert_eq!(inputs["fuzz_time"]["default"], json!("300s"));
+    let fuzz = job(WORKFLOW, "fuzz");
+    assert_eq!(scope_text(&fuzz["if"]), "${{ inputs.fuzz }}");
+    let steps = fuzz["steps"].to_string();
+    for needle in [
+        "dx-fuzz-corpus-",
+        ".dx/fuzz",
+        "dx-fuzz-crashes",
+        "\"retention-days\":30",
+        "-- fuzz --time",
+    ] {
+        assert!(steps.contains(needle), "fuzz steps miss {needle}: {steps}");
+    }
 }
 
 #[test]

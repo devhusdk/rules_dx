@@ -8,6 +8,7 @@ pub const DISABLED_ENV: &str = "DX_DISABLED_CHECKS";
 pub const MIN_COVERAGE_ENV: &str = "DX_MIN_COVERAGE";
 pub const MIN_CHANGED_ENV: &str = "DX_MIN_CHANGED_LINE_COVERAGE";
 pub const INVOCATION_ENV: &str = "DX_INVOCATION_ID";
+pub const FUZZ_TIME_ENV: &str = "DX_FUZZ_TIME";
 
 pub const PLATFORMS: [(&str, &str); 5] = [
     ("linux_x86_64", "ubuntu-latest"),
@@ -475,6 +476,21 @@ pub fn validate_percent(text: &str, name: &str, omitted: &str) -> Result<String,
     Ok(text.to_string())
 }
 
+pub fn validate_fuzz_time(text: &str) -> Result<(), String> {
+    let digits = text.strip_suffix(['s', 'm', 'h']).unwrap_or(text);
+    let valid = !digits.is_empty()
+        && digits.len() <= 6
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+        && digits.bytes().any(|byte| byte != b'0');
+    if !text.is_empty() && !valid {
+        return Err(format!(
+            "{FUZZ_TIME_ENV}='{text}' is not a duration such as 90s, 5m or 1h. \
+             Omit it for 300s."
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_invocation(text: &str) -> Result<String, String> {
     let valid = (1..=40).contains(&text.len())
         && text
@@ -529,15 +545,22 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> 
         "skip the changed-line check",
     );
     let invocation = validate_invocation(&get(INVOCATION_ENV));
-    let (Ok(platforms), Ok(disabled), Ok(coverage), Ok(changed), Ok(invocation)) =
-        (&platforms, &disabled, &coverage, &changed, &invocation)
-    else {
+    let fuzz_time = validate_fuzz_time(&get(FUZZ_TIME_ENV));
+    let (Ok(platforms), Ok(disabled), Ok(coverage), Ok(changed), Ok(invocation), Ok(_)) = (
+        &platforms,
+        &disabled,
+        &coverage,
+        &changed,
+        &invocation,
+        &fuzz_time,
+    ) else {
         let errors = [
             platforms.err(),
             disabled.err(),
             coverage.err(),
             changed.err(),
             invocation.err(),
+            fuzz_time.err(),
         ];
         return Err(errors.into_iter().flatten().collect());
     };

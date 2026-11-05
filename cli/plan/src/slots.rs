@@ -382,7 +382,7 @@ fn holder_path(dir: &Path, index: usize) -> PathBuf {
 /// Slots in `indices` held right now, counting `own`.
 fn held(dir: &Path, indices: impl Iterator<Item = usize>, own: usize) -> usize {
     let others = indices
-        .filter(|&index| index != own && holder_path(dir, index).exists())
+        .filter(|&index| index != own && slot_path(dir, index).exists())
         .filter(|&index| matches!(lock_slot(&slot_path(dir, index), true), Ok(None)))
         .count();
     1 + others
@@ -1981,6 +1981,15 @@ mod tests {
 
     fn free(dir: &Path, index: usize) -> bool {
         matches!(lock_slot(&slot_path(dir, index), false), Ok(Some(_)))
+    }
+
+    #[test]
+    fn a_slot_without_a_holder_file_still_counts_as_held() {
+        let scratch = dx_test_scratch::scratch("dx-slots-no-holder-");
+        let dir = scratch.path().join("slots");
+        let slot = try_take(&dir, 2, "busy").expect("try").expect("slot");
+        std::fs::remove_file(holder_path(&dir, slot.index)).expect("remove holder");
+        assert_eq!(held(&dir, 0..2, usize::MAX), 2);
     }
 
     #[test]

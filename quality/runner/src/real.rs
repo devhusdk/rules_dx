@@ -825,6 +825,13 @@ impl RealBackend {
                 env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
                 env.push((OsString::from(name), home.clone().into_os_string()));
             }
+            if let Some(root) = std::env::var_os("SystemRoot") {
+                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
+                env.push((
+                    OsString::from("PATH"),
+                    Path::new(&root).join("System32").into_os_string(),
+                ));
+            }
         }
         if tool_id == "zanuda" {
             // zanuda type checks against the compiler's standard library. The request names it

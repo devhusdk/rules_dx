@@ -42,6 +42,8 @@ pub enum ConfiguredKind {
     Cabal,
     /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
     Composer,
+    /// A swiftpm set; only the package's `from:` or `exact:` version in Package.swift is edited.
+    SwiftPm,
 }
 
 impl ConfiguredKind {
@@ -57,6 +59,7 @@ impl ConfiguredKind {
             ConfiguredKind::Pub => UpdateSet::Pub,
             ConfiguredKind::Composer => UpdateSet::Composer,
             ConfiguredKind::Cabal => UpdateSet::Cabal,
+            ConfiguredKind::SwiftPm => UpdateSet::SwiftPm,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -264,7 +267,8 @@ fn configured_refresh_selector(
         ConfiguredKind::Ruby
         | ConfiguredKind::Cpan
         | ConfiguredKind::Pub
-        | ConfiguredKind::Composer => {
+        | ConfiguredKind::Composer
+        | ConfiguredKind::SwiftPm => {
             format!("{}:{package}", set.name)
         }
     })
@@ -300,6 +304,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Cpan
         | UpdateSet::Pub
         | UpdateSet::Cabal
+        | UpdateSet::SwiftPm
         | UpdateSet::Ruby
         | UpdateSet::Composer => "",
     }
@@ -388,6 +393,8 @@ impl UpdateRequest {
             | ConfiguredKind::Pub
             | ConfiguredKind::Cabal
             | ConfiguredKind::Composer => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Composer
+            | ConfiguredKind::SwiftPm => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -569,6 +576,9 @@ impl UpdateRequest {
             UpdateSet::Cabal => plan_cabal(manifest, content, &self.package, &self.version),
             UpdateSet::Composer => {
                 plan_composer_json(manifest, content, &self.package, &self.version)
+            }
+            UpdateSet::SwiftPm => {
+                plan_package_swift(manifest, content, &self.package, &self.version)
             }
             UpdateSet::GithubActions => plan_github_workflow(
                 content,

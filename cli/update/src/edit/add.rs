@@ -159,6 +159,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit composer.json and run `composer update`",
             }),
+            UpdateSet::SwiftPm => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit Package.swift and run `swift package resolve`",
+            }),
             UpdateSet::Pub => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit pubspec.yaml and run `dart pub get`",

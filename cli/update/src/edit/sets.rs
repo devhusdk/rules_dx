@@ -13,6 +13,7 @@ pub enum UpdateSet {
     NuGet,
     Pub,
     Ruby,
+    SwiftPm,
 }
 
 impl UpdateSet {
@@ -30,6 +31,7 @@ impl UpdateSet {
         UpdateSet::NuGet,
         UpdateSet::Pub,
         UpdateSet::Ruby,
+        UpdateSet::SwiftPm,
     ];
 
     pub const BUILTIN: [UpdateSet; 3] = [
@@ -57,6 +59,7 @@ impl UpdateSet {
             UpdateSet::NuGet => "nuget",
             UpdateSet::Pub => "pub",
             UpdateSet::Ruby => "ruby",
+            UpdateSet::SwiftPm => "swiftpm",
         }
     }
 
@@ -75,6 +78,7 @@ impl UpdateSet {
             "nuget" => Some(UpdateSet::NuGet),
             "pub" => Some(UpdateSet::Pub),
             "ruby" => Some(UpdateSet::Ruby),
+            "swiftpm" => Some(UpdateSet::SwiftPm),
             _ => None,
         }
     }
@@ -151,7 +155,8 @@ mod tests {
                 "npm",
                 "nuget",
                 "pub",
-                "ruby"
+                "ruby",
+                "swiftpm"
             ]
         );
         let mut sorted = names.clone();

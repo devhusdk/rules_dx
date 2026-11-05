@@ -831,6 +831,97 @@ pub(super) fn plan_pubspec(
     Ok(edited)
 }
 
+/// Rewrites the `from:` or `exact:` version of the one `.package(url:, ...)` whose
+/// identity (the last URL path segment without `.git`) is `package`.
+pub(super) fn plan_package_swift(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Semver(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected exact semver".to_owned(),
+        });
+    };
+    let unsupported = |reason: &str| EditError::UnsupportedManifest {
+        manifest: manifest.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let mut hits = Vec::new();
+    let mut from = 0;
+    while let Some(found) = content[from..].find(".package(") {
+        let start = from + found;
+        let end = content[start..]
+            .find(')')
+            .map_or(content.len(), |n| start + n);
+        from = end.max(start + 1);
+        let call = &content[start..end];
+        let Some(url) = swift_string_after(call, "url:") else {
+            continue;
+        };
+        let identity = url
+            .0
+            .trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .trim_end_matches(".git")
+            .to_ascii_lowercase();
+        if identity == package.to_ascii_lowercase() {
+            hits.push((start, call));
+        }
+    }
+    let (start, call) = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [hit] => *hit,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    if ["branch:", "revision:", "path:"]
+        .iter()
+        .any(|label| call.contains(label))
+    {
+        return Err(unsupported(
+            "the package is pinned by branch, revision or path, not a version",
+        ));
+    }
+    let Some((_, at, len)) = ["from:", "exact:"]
+        .iter()
+        .find_map(|label| swift_string_after(call, label))
+    else {
+        return Err(unsupported(
+            "the package needs a `from:` or `exact:` version requirement",
+        ));
+    };
+    let mut edited = content.to_owned();
+    edited.replace_range(start + at..start + at + len, &new.to_string());
+    Ok(edited)
+}
+
+/// The string literal after `label` in a call: its text, content offset and length.
+fn swift_string_after<'a>(call: &'a str, label: &str) -> Option<(&'a str, usize, usize)> {
+    let rest = call.find(label).map(|n| n + label.len())?;
+    let after = &call[rest..];
+    let open = rest + after.find('"')? + 1;
+    if !after[..after.find('"')?].trim().is_empty() {
+        return None;
+    }
+    let len = call[open..].find('"')?;
+    Some((&call[open..open + len], open, len))
+}
+
 pub(super) fn plan_maven_module_bazel(
     manifest: &str,
     content: &str,
@@ -1251,6 +1342,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("cabal package names use letters, digits and '-'")
+            }
+        }
+        UpdateSet::SwiftPm => {
+            if !package.is_empty()
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            {
+                Ok(())
+            } else {
+                Err("swiftpm package identities use letters, digits, '-', '_' and '.'")
             }
         }
         UpdateSet::Pub => {

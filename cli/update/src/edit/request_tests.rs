@@ -593,9 +593,9 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ),
     ];
     assert_eq!(
-        cases.len() + 3,
+        cases.len() + 4,
         UpdateSet::ALL.len(),
-        "one case per set but cabal, cpan and pub, which only configured sets edit"
+        "one case per set but cabal, cpan, pub and swiftpm, which only configured sets edit"
     );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");
@@ -1991,4 +1991,71 @@ fn cabal_refuses_undeclared_unbounded_and_repeated_packages() {
         Err(EditError::Ambiguous { count: 2, .. })
     ));
     assert!(cabal_request("safe", "^0.3").is_err());
+}
+
+fn swift_edit(package: &str, version: &str) -> Result<String, EditError> {
+    configured(
+        ConfiguredKind::SwiftPm,
+        &["app/Package.swift"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )?
+    .plan_edit(PACKAGE_SWIFT)
+}
+
+const PACKAGE_SWIFT: &str = "// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: \"app\",
+    dependencies: [
+        .package(url: \"https://github.com/apple/swift-argument-parser\", from: \"1.2.0\"),
+        .package(url: \"https://github.com/vapor/vapor.git\", exact: \"4.0.0\"),
+        .package(url: \"https://github.com/apple/swift-log\", branch: \"main\"),
+        .package(url: \"https://github.com/apple/swift-nio\", revision: \"abc\"),
+    ],
+    targets: []
+)
+";
+
+#[test]
+fn swiftpm_edit_rewrites_from_and_exact_by_identity() {
+    let request = configured(
+        ConfiguredKind::SwiftPm,
+        &["app/Package.swift"],
+        None,
+        "set:swift-argument-parser",
+        "1.3.0",
+    )
+    .expect("swiftpm");
+    assert_eq!(request.set, UpdateSet::SwiftPm);
+    assert_eq!(
+        request.target().refresh_selector(),
+        "set:swift-argument-parser"
+    );
+    assert_eq!(
+        swift_edit("swift-argument-parser", "1.3.0").expect("from"),
+        PACKAGE_SWIFT.replace("from: \"1.2.0\"", "from: \"1.3.0\"")
+    );
+    assert_eq!(
+        swift_edit("vapor", "4.1.0").expect("exact"),
+        PACKAGE_SWIFT.replace("exact: \"4.0.0\"", "exact: \"4.1.0\"")
+    );
+}
+
+#[test]
+fn swiftpm_refuses_branch_revision_undeclared_and_bad_versions() {
+    for pinned in ["swift-log", "swift-nio"] {
+        assert!(matches!(
+            swift_edit(pinned, "1.0.0"),
+            Err(EditError::UnsupportedManifest { .. })
+        ));
+    }
+    assert!(matches!(
+        swift_edit("other", "1.0.0"),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(swift_edit("vapor", "latest").is_err());
+    assert!(swift_edit("a/b", "1.0.0").is_err());
 }

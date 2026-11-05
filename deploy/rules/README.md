@@ -809,6 +809,21 @@ Look up an address (a relative virtual address) with `llvm-symbolizer`:
 llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
 ```
 
+# Registries released by tag
+
+These registries have no deploy rule. The release is a git tag, a pull
+request, or an upload, so the last step is manual:
+
+- Go: push the tag `vX.Y.Z`. The module proxy fetches it from the repository.
+  For a GitHub release, set `tag` on `github_deploy` to that tag.
+- Julia: push the tag, then comment `@JuliaRegistrator register` on the commit.
+- Swift: push a semver tag such as `1.2.0`. SwiftPM reads versions from tags.
+- PHP: run `composer validate`, then push a tag. Packagist reads tags from the
+  repository.
+- opam: open a pull request to the opam repository that adds
+  `packages/<name>/<name>.<version>/opam`.
+- CPAN: upload the tarball to PAUSE.
+
 # Common behavior
 
 Except for `cloudflare_pages_deploy`, a default run writes into the

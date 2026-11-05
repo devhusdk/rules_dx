@@ -139,6 +139,16 @@ dx deploy [--apply] [--debug|--release] <label> [-- args...]
 
 Builds one deployable target. `--apply` runs the deployment and sets `DX_PROFILE`. Without a flag the profile comes from the target's `profile` attribute. Args after `--` reach the app on `--apply` only. Output: text only.
 
+### Registries released by tag
+
+Go, Julia, Swift, PHP, opam and CPAN have no `dx deploy` target. Release them by hand:
+
+- Go, Swift: push a tag (`vX.Y.Z` for Go, a semver tag for Swift).
+- PHP: run `composer validate`, then push a tag.
+- Julia: push a tag, then comment `@JuliaRegistrator register` on the commit.
+- opam: open a pull request to the opam repository.
+- CPAN: upload the tarball to PAUSE.
+
 ## Signals
 
 Ctrl-C, `SIGTERM`, and `SIGHUP` stop the run. Children get the signal, and any still running after 10 seconds are killed. dx dies by the same signal, so the shell sees `128` plus the signal number.

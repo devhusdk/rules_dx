@@ -2,12 +2,10 @@
 """Keep the Rule names table in docs/cli/commands/README.md in step with defs.bzl.
 
 Rows with an upstream rule are written by hand. Every other public rule or
-macro a rules/defs.bzl, families/*/*/app.bzl or packaging defs.bzl exports gets a generated row
-with an empty upstream column. Run with --write to regenerate, or without to
-check.
+macro that a defs.bzl or app.bzl in the repo exports gets a generated row with
+an empty upstream column. Run with --write to regenerate, or without to check.
 """
 
-import glob
 import os
 import re
 import sys
@@ -24,15 +22,17 @@ def dx_load(path):
     return "@rules_dx//%s:%s" % ("/".join(parts[:-1]), parts[-1])
 
 
+def scanned(root):
+    for dirpath, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if not d.startswith((".", "bazel-"))]
+        for name in files:
+            if name in ("defs.bzl", "app.bzl"):
+                yield os.path.relpath(os.path.join(dirpath, name), root).replace(os.sep, "/")
+
+
 def exports(root):
     found = {}
-    paths = (
-        glob.glob("*/rules/defs.bzl", root_dir=root)
-        + glob.glob("families/*/rules/defs.bzl", root_dir=root)
-        + glob.glob("families/*/*/app.bzl", root_dir=root)
-        + ["appimage/defs.bzl", "msix/defs.bzl", "families/android/packaging/defs.bzl"]
-    )
-    for path in sorted(paths):
+    for path in sorted(scanned(root)):
         with open(os.path.join(root, path), encoding="utf-8") as f:
             names = sorted({a or b for a, b in EXPORT.findall(f.read())})
         if names:
@@ -85,7 +85,7 @@ def main():
             f.write(want)
         return 0
     if want != text:
-        print("%s is out of date with the rules/defs.bzl exports; run: python3 tools/docs/rule_names/rule_names.py --write" % DOC, file=sys.stderr)
+        print("%s is out of date with the defs.bzl exports; run: python3 tools/docs/rule_names/rule_names.py --write" % DOC, file=sys.stderr)
         return 1
     print("Rule names table covers every public export")
     return 0

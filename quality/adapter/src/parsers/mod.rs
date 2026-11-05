@@ -91,6 +91,7 @@ pub mod roslyn;
 pub mod rubocop;
 pub mod ruff;
 pub mod rust;
+pub mod rust_unused_deps;
 pub mod rustfmt;
 pub mod sarif;
 pub mod scalafix;

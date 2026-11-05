@@ -1,4 +1,4 @@
-use quality_adapter::parsers::{self, FileFinding};
+use quality_adapter::parsers::{self, rust_unused_deps, FileFinding};
 
 use super::*;
 
@@ -35,6 +35,52 @@ enum ReplayParser {
 type CompileLogParser =
     fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
 
+/// Finds the `deps` entries rustc reports as unused in the BUILD files next to the sources.
+fn unused_dependency_findings(
+    tool_id: &str,
+    tool: &RealTool,
+    pairs: &[(String, PathBuf)],
+) -> Result<Vec<FileFinding>, RunnerError> {
+    let mut stream = Vec::new();
+    for path in &tool.upstream_diagnostics {
+        stream.extend(
+            std::fs::read(path)
+                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?,
+        );
+        stream.push(b'\n');
+    }
+    let unused = parsed(tool_id, rust_unused_deps::parse_unused_dependencies(&stream))?;
+    let Some(root) = pairs.iter().find_map(|(workspace, absolute)| {
+        let mut root = absolute.clone();
+        workspace.split('/').try_for_each(|_| root.pop().then_some(()))?;
+        Some(root)
+    }) else {
+        return Ok(Vec::new());
+    };
+    let mut findings = Vec::new();
+    for item in &unused {
+        for name in ["BUILD.bazel", "BUILD"] {
+            let relative = if item.package.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{}/{name}", item.package)
+            };
+            let absolute = root.join(&relative);
+            let Ok(text) = std::fs::read_to_string(&absolute) else {
+                continue;
+            };
+            if let Some(mut found) =
+                rust_unused_deps::place_unused_dependency(item, &relative, &text)
+            {
+                found.file = absolute.to_string_lossy().into_owned();
+                findings.push(found);
+            }
+            break;
+        }
+    }
+    Ok(findings)
+}
+
 impl RealBackend {
     pub(super) fn check_clippy_delegated(
         &self,
@@ -59,6 +105,7 @@ impl RealBackend {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
         }
+        findings.extend(unused_dependency_findings(tool_id, tool, pairs)?);
         Ok(findings)
     }
 
@@ -85,6 +132,7 @@ impl RealBackend {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
         }
+        findings.extend(unused_dependency_findings(tool_id, tool, pairs)?);
         Ok(findings)
     }
 

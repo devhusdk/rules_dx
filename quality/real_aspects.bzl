@@ -746,22 +746,45 @@ def _rustfmt_hook(target, _ctx, resolved, _capability, what, shared):
         pruned = prune_tool_generated_sources(resolved, generated, "rustfmt")
     return real_context(resolved = pruned, options = {"edition": edition})
 
-def _clippy_hook(target, _ctx, _resolved, _capability, what, shared):
+def _crate_deps_files(target, ctx, tool):
+    """Writes the crate name to dependency target map that places unused-dependency findings."""
+    if ctx.label.workspace_name or _rust_common.crate_info not in target:
+        return []
+    deps = {}
+    for attr_name in ["deps", "proc_macro_deps"]:
+        for dep in getattr(ctx.rule.attr, attr_name, []):
+            if _rust_common.crate_info in dep:
+                deps[dep[_rust_common.crate_info].name] = dep.label.name
+    if not deps:
+        return []
+    line = json.encode({
+        "$message_type": "dx_crate_deps",
+        "crate": target[_rust_common.crate_info].name,
+        "deps": deps,
+        "package": ctx.label.package,
+        "target": ctx.label.name,
+    })
+    out = ctx.actions.declare_file(ctx.label.name + "." + tool + ".dx_crate_deps.json")
+    ctx.actions.write(out, line + "\n")
+    return [out]
+
+def _clippy_hook(target, ctx, _resolved, _capability, what, shared):
     if not shared.has_toolchain:
         fail(what + ": clippy needs the Rust family aspect")
     diagnostics = []
     if OutputGroupInfo in target and "clippy_output" in target[OutputGroupInfo]:
         diagnostics = target[OutputGroupInfo]["clippy_output"].to_list()
+        diagnostics = diagnostics + _crate_deps_files(target, ctx, "clippy")
     return real_context(upstream = diagnostics, late_inputs = diagnostics, delegated = len(diagnostics) > 0)
 
-def _rustc_hook(target, _ctx, _resolved, _capability, what, shared):
+def _rustc_hook(target, ctx, _resolved, _capability, what, shared):
     if not shared.has_toolchain:
         fail(what + ": rustc needs the Rust family aspect")
     diagnostics = []
     if OutputGroupInfo in target:
         group = rustc_diagnostics_group(target[OutputGroupInfo])
         if group:
-            diagnostics = target[OutputGroupInfo][group].to_list()
+            diagnostics = target[OutputGroupInfo][group].to_list() + _crate_deps_files(target, ctx, "rustc")
     return real_context(upstream = diagnostics, late_inputs = diagnostics, delegated = len(diagnostics) > 0)
 
 def _qmllint_hook(target, _ctx, _resolved, _capability, _what, _shared):

@@ -598,6 +598,21 @@ mod tests {
     }
 
     #[test]
+    fn apply_adds_no_family_module_for_a_python_workspace() {
+        let scratch = dx_test_scratch::scratch("dx-init-family-deps-");
+        let root = scratch.path();
+        let module =
+            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+        std::fs::write(root.join("MODULE.bazel"), module).expect("write");
+        std::fs::write(root.join("app.py"), "").expect("write");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
+        assert_eq!(code, 0, "{err}");
+        let after = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
+        assert!(!after.contains("rules_dx_"), "{after}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn drift_in_an_empty_dir_is_owned() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
         let root = scratch.path();

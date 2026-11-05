@@ -431,6 +431,16 @@ maven.install(
         "https://repo1.maven.org/maven2",
     ],
 )
+maven.install(
+    name = "rules_android_maven",
+    fail_if_repin_required = True,
+    known_contributing_modules = [
+        "rules_android",
+        "rules_flutter",
+    ],
+    lock_file = "//third_party/jvm:rules_android_maven_install.json",
+)
+# Bumping rules_android or rules_flutter needs a new lock: run pin-android-maven.yml.
 use_repo(maven, "maven", "rules_android_maven")
 
 maven_tools = use_extension("@rules_jvm_external//:extensions.bzl", "maven")

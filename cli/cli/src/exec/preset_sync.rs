@@ -14,8 +14,11 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
     {
         return;
     }
+    let legacy = dx_adopt::inspect_preset(workspace).is_ok_and(|state| state.legacy_correctness);
     if let Err(error) = dx_adopt::sync_preset(workspace) {
         let _ = writeln!(err, "dx: warning: preset layers not refreshed: {error}");
+    } else if legacy {
+        let _ = writeln!(err, "dx: {}", dx_adopt::WERROR_NOTE);
     }
 }
 
@@ -62,6 +65,24 @@ mod tests {
         let root = scratch.path();
         assert_eq!(run("build", root), "");
         assert!(root.join(LAYER).is_file());
+    }
+
+    #[test]
+    fn a_layer_without_the_line_prints_the_note_once() {
+        let scratch = workspace(true);
+        let root = scratch.path();
+        run("build", root);
+        let path = root.join(LAYER);
+        let text = std::fs::read_to_string(&path).expect("layer");
+        let legacy: String = text
+            .lines()
+            .filter(|line| !line.contains("warnings_as_errors"))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        std::fs::write(&path, legacy).expect("legacy");
+        let err = run("build", root);
+        assert!(err.contains(dx_adopt::WERROR_NOTE), "{err}");
+        assert_eq!(run("build", root), "");
     }
 
     #[test]

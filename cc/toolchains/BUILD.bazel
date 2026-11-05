@@ -377,6 +377,56 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/msvc_shared:shared_test",
 )
 
+cc_toolchain_test(
+    name = "msvc_arm64_hello_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    test = "//cc/tests/fixtures/hello:hello_private_header_test",
+)
+
+cc_toolchain_test(
+    name = "msvc_arm64_hello_c_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    test = "//cc/tests/fixtures/hello:hello_c_test",
+)
+
+cc_toolchain_test(
+    name = "msvc_arm64_shared_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    test = "//cc/tests/fixtures/msvc_shared:shared_test",
+)
+
+cc_toolchain_test(
+    name = "msvc_arm64_c_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    test = "//cc/tests/fixtures/msvc_shared:c_test",
+)
+
+cc_toolchain_test(
+    name = "msvc_arm64_pe_machine_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    test = "//cc/tests/fixtures/msvc_shared:pe_machine_test",
+)
+
 gcov_tool(
     name = "gcov_tool",
     visibility = ["//visibility:private"],
@@ -411,6 +461,11 @@ test_suite(
         ":identity_gcc",
         ":identity_gcc_arm64",
         ":identity_gcc_arm64_native",
+        ":msvc_arm64_c_test",
+        ":msvc_arm64_hello_test",
+        ":msvc_arm64_hello_c_test",
+        ":msvc_arm64_pe_machine_test",
+        ":msvc_arm64_shared_test",
         ":msvc_c_test",
         ":msvc_hello_c_test",
         ":msvc_hello_lib_test",

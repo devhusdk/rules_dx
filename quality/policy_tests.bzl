@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":applicability.bzl", "capability_selection", "effective_classes", "selected_adapters")
-load(":policy.bzl", "merge_policy")
+load(":policy.bzl", "merge_configs", "merge_policy")
 
 _FIXTURE_ADAPTERS = {
     "fmt-a": ["rust"],
@@ -99,6 +99,26 @@ def policy_unit_tests(name):
                 "merge_policy rejects a family provided twice",
                 merge_policy({}, [("go", "a"), ("go", "b")], [], False)[1],
                 "workspace_policy: family 'go' is provided twice",
+            ),
+            expect_equal(
+                "merge_configs keeps the base without entries",
+                merge_configs({"ruff": "a"}, []),
+                ({"ruff": "a"}, ""),
+            ),
+            expect_equal(
+                "merge_configs lets an entry override the base",
+                merge_configs({"ruff": "a"}, [("ruff", "b")]),
+                ({"ruff": "b"}, ""),
+            ),
+            expect_equal(
+                "merge_configs adds a tool",
+                merge_configs({"ruff": "a"}, [("vale", "v")]),
+                ({"ruff": "a", "vale": "v"}, ""),
+            ),
+            expect_equal(
+                "merge_configs rejects a tool listed twice",
+                merge_configs({}, [("ruff", "a"), ("ruff", "b")])[1],
+                "workspace_policy: configs lists tool 'ruff' twice",
             ),
         ],
     )

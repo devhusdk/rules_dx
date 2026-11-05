@@ -1,0 +1,2 @@
+# fixture ruff config bound by the workspace policy
+line-length = 100

@@ -1,5 +1,7 @@
 """Workspace quality-policy providers (freeze)."""
 
+load(":native_config.bzl", "DxNativeConfigInfo")
+
 CAPABILITIES = ["lint", "typecheck", "format", "audit"]
 
 FamilyPolicyInfo = provider(
@@ -17,6 +19,7 @@ FamilyPolicyInfo = provider(
 QualityPolicyInfo = provider(
     doc = "Canonical aggregate workspace policy: family ID to section.",
     fields = {
+        "configs": "Dict[str, DxNativeConfigInfo]: tool ID to the native config every target uses unless its aspect_hints bind one.",
         "families": "Dict[str, FamilyPolicyInfo]: family ID to its section.",
     },
 )
@@ -120,10 +123,32 @@ def merge_policy(base, sections, disabled, has_base):
         families[family_id] = value
     return families, ""
 
+def merge_configs(base, entries):
+    """Merges native configs over a base policy's configs.
+
+    Args:
+        base: dict from tool ID to config, empty without `extends`.
+        entries: list of (tool_id, config) pairs from `configs`.
+
+    Returns:
+        (configs, error): the merged dict, and an error string or "".
+    """
+    seen = {}
+    for tool_id, _ in entries:
+        if tool_id in seen:
+            return {}, "workspace_policy: configs lists tool '" + tool_id + "' twice"
+        seen[tool_id] = True
+    configs = dict(base)
+    for tool_id, value in entries:
+        configs[tool_id] = value
+    return configs, ""
+
 def _workspace_policy_impl(ctx):
     base = {}
+    base_configs = {}
     if ctx.attr.extends:
         base = ctx.attr.extends[QualityPolicyInfo].families
+        base_configs = ctx.attr.extends[QualityPolicyInfo].configs
     sections = []
     for section in ctx.attr.families:
         info = section[FamilyPolicyInfo]
@@ -131,12 +156,21 @@ def _workspace_policy_impl(ctx):
     families, error = merge_policy(base, sections, ctx.attr.disabled, bool(ctx.attr.extends))
     if error:
         fail(error)
-    return [QualityPolicyInfo(families = families)]
+    entries = [(config[DxNativeConfigInfo].tool_id, config[DxNativeConfigInfo]) for config in ctx.attr.configs]
+    configs, config_error = merge_configs(base_configs, entries)
+    if config_error:
+        fail(config_error)
+    return [QualityPolicyInfo(families = families, configs = configs)]
 
 workspace_policy = rule(
     implementation = _workspace_policy_impl,
     doc = "Workspace quality policy built from family sections, optionally extending another policy.",
     attrs = {
+        "configs": attr.label_list(
+            doc = "Native config targets (ruff_config, eslint_config, ...) bound for every target. A config in a target's aspect_hints wins; a config here wins over the one in `extends`.",
+            providers = [DxNativeConfigInfo],
+            default = [],
+        ),
         "disabled": attr.string_list(
             doc = "Family IDs to drop from the policy named by `extends`.",
             default = [],

@@ -2,7 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
-load(":consumer_policy_tests.bzl", "consumer_policy_tests")
+load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
@@ -417,6 +417,8 @@ native_config_unit_tests(name = "native_config_unit")
 policy_analysis_tests(name = "policy_analysis")
 
 coverage_sources_analysis_tests(name = "coverage_sources_analysis_test")
+
+policy_config_tests(name = "policy_config")
 
 consumer_policy_tests(
     name = "consumer_policy",

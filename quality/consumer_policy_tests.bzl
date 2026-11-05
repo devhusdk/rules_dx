@@ -1,5 +1,6 @@
 """Analysis proofs for the consumer-selected workspace policy."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",
@@ -289,6 +290,42 @@ _consumer_policy_test = rule(
         ),
     },
 )
+
+def _ruff_config_inputs(env):
+    paths = []
+    for action in analysistest.target_under_test(env).actions:
+        if action.mnemonic.startswith("DxRealQuality"):
+            paths += [f.short_path for f in action.inputs.to_list() if f.basename == "ruff.toml"]
+    return sorted(paths)
+
+def _policy_config_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.equals(env, [ctx.attr.expected_config], _ruff_config_inputs(env))
+    return analysistest.end(env)
+
+_policy_config_test = analysistest.make(
+    _policy_config_impl,
+    attrs = {"expected_config": attr.string(mandatory = True)},
+    config_settings = {str(Label("//config:workspace")): str(Label("//quality/tests/fixtures/consumer_policy:python_ruff_policy"))},
+    extra_target_under_test_aspects = [real_python_lint_aspect],
+)
+
+def policy_config_tests(name):
+    """Proves a policy's configs bind a target and an aspect_hints config overrides them."""
+    pkg = "quality/tests/fixtures/consumer_policy/"
+    _policy_config_test(
+        name = name + "_policy",
+        size = "small",
+        expected_config = pkg + "ruff.toml",
+        target_under_test = "//quality/tests/fixtures/consumer_policy:policy_bound_py",
+    )
+    _policy_config_test(
+        name = name + "_hint",
+        size = "small",
+        expected_config = pkg + "override/ruff.toml",
+        target_under_test = "//quality/tests/fixtures/consumer_policy:hinted_py",
+    )
+    native.test_suite(name = name, tests = [name + "_policy", name + "_hint"])
 
 def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""

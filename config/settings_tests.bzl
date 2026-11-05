@@ -1,11 +1,13 @@
-"""Analysis tests pinning the frozen quality settings defaults."""
+"""Analysis tests pinning the frozen quality settings defaults.
+
+The workspace flag reads rules_dx's own policy because .bazelrc selects it."""
 
 load("//libs/starlark:defs.bzl", "starlark_test")
 
 _CANONICAL_PREFIX = "@@"  # buildifier: disable=canonical-repository
 
 EXPECTED_OBSERVATIONS = """subject //config:settings_under_test
-field workspace={prefix}//quality:default_workspace_policy
+field workspace={prefix}//:dx_workspace_policy
 aspect_field aspect_seen=True
 aspect_field field_count=1
 aspect_field has_subject=True

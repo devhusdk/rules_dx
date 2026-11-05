@@ -122,13 +122,14 @@ workspace_policy(
 )
 ```
 
-`extends` starts from another policy. A family in `families` replaces the base family with the same `family_id`, or adds one. `disabled` on the policy drops base family IDs.
+`extends` starts from another policy. A family in `families` replaces the base family with the same `family_id`, or adds one. `disabled` on the policy drops base family IDs. `configs` binds native config targets such as `ruff_config` for every target; a config here replaces the one for the same tool in the base policy, and a tool may be listed once. See [Tool config files](#tool-config-files).
 
 ```python
 workspace_policy(
     name = "policy",
     extends = "@rules_dx//quality:default_workspace_policy",
     families = [":python_family"],
+    configs = [":ruff_config"],
     disabled = ["rust"],
 )
 ```
@@ -392,9 +393,9 @@ Set `root` and `baseline_root` when a library owns more than one schema.
 
 ## Tool config files
 
-Bind a config with the `*_config` rule from `@rules_dx//quality:native_config.bzl` and add it to the target's `aspect_hints`. A tool marked required fails analysis until one is bound. Tag a target `no-lint` or `no-format` to skip it.
+Declare a config with the `*_config` rule from `@rules_dx//quality:native_config.bzl`. The normal way to bind it is to list it once in your `workspace_policy` `configs`; every target the tool runs on then uses it. To give one target a different config, add that config to the target's `aspect_hints`; a hint wins over the policy. A tool marked required fails analysis until one is bound either way. Tag a target `no-lint` or `no-format` to skip it.
 
-| Tool | Required | Config it reads | Files it ignores | How to bind |
+| Tool | Required | Config it reads | Files it ignores | How to bind (policy `configs` or `aspect_hints`) |
 | --- | --- | --- | --- | --- |
 | `biome` | yes | `biome.json` | | `biome_config` |
 | `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |

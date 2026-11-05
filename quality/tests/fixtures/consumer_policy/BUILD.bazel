@@ -1,7 +1,7 @@
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "clang_tidy_config", "eslint_config")
+load("//quality:native_config.bzl", "clang_tidy_config", "eslint_config", "ruff_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality:__pkg__"])
@@ -11,6 +11,7 @@ exports_files([
     "clean.js",
     "clean.json",
     "clean.toml",
+    "ruff.toml",
 ])
 
 quality_family(
@@ -854,4 +855,41 @@ real_source_target(
     name = "clean_asciidoc",
     asciidoc_srcs = [":asciidoc_module"],
     aspect_hints = ["//quality:corpus_vale_config"],
+)
+
+quality_family(
+    name = "python_ruff_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "python",
+    lint = ["ruff"],
+)
+
+ruff_config(
+    name = "policy_ruff_config",
+    src = "ruff.toml",
+)
+
+ruff_config(
+    name = "target_ruff_config",
+    src = "override/ruff.toml",
+)
+
+workspace_policy(
+    name = "python_ruff_policy",
+    configs = [":policy_ruff_config"],
+    families = [":python_ruff_family"],
+)
+
+real_source_target(
+    name = "policy_bound_py",
+    python_srcs = ["clean.py"],
+)
+
+real_source_target(
+    name = "hinted_py",
+    aspect_hints = [":target_ruff_config"],
+    python_srcs = ["clean.py"],
 )

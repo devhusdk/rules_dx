@@ -101,6 +101,9 @@ build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 # Source builds of Python sdists run without network.
 common --modify_execution_info=PySdist.*=+block-network
 
+# rules_dx binds its own native configs once in this policy.
+common --//config:workspace=//:dx_workspace_policy
+
 try-import %workspace%/user.bazelrc
 
 build --//quality/tools/ruby:rubocop=@bundle//bin:rubocop

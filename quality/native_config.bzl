@@ -30,19 +30,19 @@ CONFIG_REQUIRED_TOOLS = {
     "kubeconform": struct(
         name = "kubeconform",
         src = "kubernetes.kubeconform.json",
-        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
+        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and list it in your workspace_policy configs or add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
     ),
     "helm": struct(
         name = "helm",
         src = "kubernetes.kubeconform.json",
-        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
+        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and list it in your workspace_policy configs or add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
     ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
     "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
     "sqlfluff": struct(
         name = "sqlfluff",
         src = ".sqlfluff",
-        hint = "Declare sqlfluff_config(name = \"sqlfluff_config\", src = \".sqlfluff\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":sqlfluff_config\"], or tag the target no-lint. The file must set `dialect = ...` under [sqlfluff] using sqlfluff's names (postgres, sparksql, tsql and oracle rather than sql_library's postgresql, spark, transactsql and plsql).",
+        hint = "Declare sqlfluff_config(name = \"sqlfluff_config\", src = \".sqlfluff\") from @rules_dx//quality:native_config.bzl and list it in your workspace_policy configs or add aspect_hints = [\":sqlfluff_config\"], or tag the target no-lint. The file must set `dialect = ...` under [sqlfluff] using sqlfluff's names (postgres, sparksql, tsql and oracle rather than sql_library's postgresql, spark, transactsql and plsql).",
     ),
     "vale": struct(name = "Vale", src = ".vale.ini"),
 }
@@ -99,8 +99,8 @@ def native_config_error(tool_id, config_path, config_is_source, data, allow_gene
                     "checked-in source files, got generated " + entry.path)
     return ""
 
-def collect_native_configs(hints, stage_tools, what):
-    """Resolves aspect hints to the configs for a pipeline's stage tools."""
+def collect_native_configs(hints, stage_tools, what, defaults = {}):
+    """Resolves aspect hints, then the policy defaults, to the configs for a pipeline's stage tools."""
     by_tool = {}
     for hint in hints:
         if hint.tool_id in by_tool:
@@ -112,6 +112,8 @@ def collect_native_configs(hints, stage_tools, what):
         source = CONFIG_TOOL_ALIASES.get(tool, tool)
         if source in by_tool:
             resolved[tool] = by_tool[source]
+        elif source in defaults:
+            resolved[tool] = defaults[source]
     return resolved
 
 def missing_required_config_error(tool, capability, configs_by_tool, what):
@@ -123,7 +125,7 @@ def missing_required_config_error(tool, capability, configs_by_tool, what):
         return info.name + " needs a config. " + info.hint
     return (info.name + " needs a config. Declare " + tool + "_config(name = \"" +
             tool + "_config\", src = \"" + info.src + "\") from @rules_dx//quality:native_config.bzl" +
-            " and add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")
+            " and list it in your workspace_policy configs or add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")
 
 def _native_config_impl(ctx):
     tool_id = ctx.attr._tool_id

@@ -370,7 +370,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         for hint_target in ctx.rule.attr.aspect_hints:
             if DxNativeConfigInfo in hint_target:
                 hints.append(hint_target[DxNativeConfigInfo])
-    configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
+    configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label), ctx.attr._policy[QualityPolicyInfo].configs)
 
     for stage in resolved:
         config_error = missing_required_config_error(stage["tool"], capability, configs_by_tool, str(target.label))

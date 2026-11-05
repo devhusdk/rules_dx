@@ -64,9 +64,12 @@ Extra Bazel flags (for a custom toolchain) go after `--`. The evidence JSON reco
 git SHA, Bazel version, compiler banner, every command run and every qualified entry.
 
 The qualifier builds and its unit tests pass on `linux_x86_64` and `windows_x86_64` CI
-(evidence run 41989006621). The Windows MSVC and LLVM runs of the qualifier itself are
-not recorded yet. Dispatch `evidence.yml` with `qualify: true` on `windows_x86_64` to
-run them; the artifact holds `qualify-llvm.json`, `qualify-msvc.json` and `msvc-vswhere.json`.
+(evidence run 41989006621). On `windows_x86_64` CI (evidence run 42124336539, SHA 43e0f98127ee), the qualifier
+reported `1 compile command(s) qualified` for `probe_plain` with `--compiler llvm` and
+with `--compiler msvc`. A custom (non-LLVM, non-MSVC) toolchain has not been qualified
+and is not claimed as supported. Dispatch `evidence.yml` with `qualify: true` on
+`windows_x86_64` to rerun; the artifact holds `qualify-llvm.json`, `qualify-msvc.json`
+and `msvc-vswhere.json`.
 
 ## Fixture records
 

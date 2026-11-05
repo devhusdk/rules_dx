@@ -368,9 +368,10 @@ jobs:
           bazel run --noshow_progress //examples/shared-rust:install
           bazel run --noshow_progress //examples/shared-rust:start
           sleep 5
-          adb -s emulator-5554 shell input tap 200 400
+          adb -s emulator-5554 shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | tee "$RUNNER_TEMP/evidence/focus-shared-rust.txt"
+          adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
           sleep 2
-          adb -s emulator-5554 shell input tap 200 400
+          adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
           sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
           sleep 2

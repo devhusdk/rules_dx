@@ -71,7 +71,7 @@ static int drain_input(int fd, int events, void *data) {
       handled = 0;
     } else if (type == AINPUT_EVENT_TYPE_MOTION &&
         (AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK) ==
-            AMOTION_EVENT_ACTION_UP) {
+            AMOTION_EVENT_ACTION_DOWN) {
       run("add Touch task", "touch");
     } else if (type == AINPUT_EVENT_TYPE_KEY &&
                AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {

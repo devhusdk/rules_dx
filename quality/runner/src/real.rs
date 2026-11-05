@@ -225,9 +225,13 @@ const ELVIS_DEFAULTS_BYTES: &[u8] = b"[{config, [
 /// stops its upward search for `.editorconfig`, so a home-directory file never reaches it.
 const DFMT_DEFAULTS_FILE: &str = ".editorconfig";
 const DFMT_DEFAULTS_BYTES: &[u8] = b"root = true\n\n[*.d]\nend_of_line = lf\n";
-/// dscanner is always pointed at this file (see `commands::DSCANNER_CONFIG_REL`): the header alone
-/// keeps every upstream default check on.
-const DSCANNER_DEFAULTS_BYTES: &[u8] = b"[analysis.config.StaticAnalysisConfig]\n";
+/// dscanner is always pointed at this file (see `commands::DSCANNER_CONFIG_REL`). Upstream leaves
+/// the unused variable and parameter checks off, so the default turns them on; the rest stay at
+/// their upstream defaults.
+const DSCANNER_DEFAULTS_BYTES: &[u8] = b"[analysis.config.StaticAnalysisConfig]
+unused_variable_check=\"enabled\"
+unused_parameter_check=\"enabled\"
+";
 const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
 /// An empty `statix.toml` keeps every lint on and stops statix searching upward for one.
 const STATIX_DEFAULTS_BYTES: &[u8] = b"";

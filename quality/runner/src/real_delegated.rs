@@ -1058,6 +1058,14 @@ fn dscanner_behavior(
         staged.starts_with("[analysis.config.StaticAnalysisConfig]\n"),
         "{staged}"
     );
+    assert!(
+        staged.contains("unused_variable_check=\"enabled\"\n"),
+        "{staged}"
+    );
+    assert!(
+        staged.contains("unused_parameter_check=\"enabled\"\n"),
+        "{staged}"
+    );
     let file = last_file(argv);
     let text = std::fs::read_to_string(&file).expect("read staged file");
     let (code, stdout) = if text.contains("silent") {

@@ -21,6 +21,7 @@ FLUTTER_DEFERRED_SKIP_TAGS = []
 FLUTTER_COMPATIBLE_WITH = select({
     Label("//flutter/rules:rules_flutter_platform"): [],
     Label("@platforms//os:android"): [],
+    Label("@platforms//os:ios"): [],
     "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//flutter/rules")],
 })
 

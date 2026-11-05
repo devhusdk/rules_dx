@@ -30,7 +30,7 @@ bazel test //flutter/tests/fixtures/flutter-app/android:inspect_apk_test //flutt
 
 `:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use the `iPhone 16` simulator, and `:ios_simulator_smoke_test` runs the three in order. The test is manual and tagged `macos-arm64`.
 
-The build does not work yet. Every Flutter target is limited to Linux by `FLUTTER_COMPATIBLE_WITH`, so on macOS arm64 Bazel reports `:ios_app` as incompatible. Lifting that needs the Flutter host toolchain qualified on macOS first.
+`FLUTTER_COMPATIBLE_WITH` admits the iOS target platform, so `:ios_app` is compatible when built with `--ios_multi_cpus=sim_arm64` on a macOS arm64 host.
 
 ```sh
 bazel build //flutter/tests/fixtures/flutter-app:ios_app --ios_multi_cpus=sim_arm64

@@ -7,6 +7,12 @@ use Runfiles;
 my $stockctl = Runfiles->create()->rlocation( $ENV{STOCKCTL} );
 my $limit    = $ENV{WANT_LIMIT};
 
+my $mf = $ENV{RUNFILES_MANIFEST_FILE};
+if ( defined $mf && -e $mf ) {
+    $ENV{RUNFILES_MANIFEST_FILE} = $mf =~ s{/}{\\}gr;
+    delete $ENV{RUNFILES_DIR};
+}
+
 sub stockctl {
     my (@args) = @_;
     my $quoted = join ' ', map { "'$_'" } @args;

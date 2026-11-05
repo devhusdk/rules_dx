@@ -29,6 +29,11 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
+_WINDOWS_X86_64 = [
+    "@platforms//os:windows",
+    "@platforms//cpu:x86_64",
+]
+
 qt_frameworks(
     name = "probe_qt_frameworks",
     tags = ["manual"],
@@ -39,7 +44,10 @@ qt_frameworks(
 cc_binary(
     name = "probe",
     srcs = ["probe.cc"],
-    copts = ["-fPIC"],
+    copts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["-fPIC"],
+    }),
     data = ["@dx_qt//:qml_imports"],
     linkstatic = False,
     tags = ["manual"],
@@ -74,22 +82,32 @@ platform_transition_binary(
     target_platform = "//qt/platforms:macos_arm64",
 )
 
+platform_transition_binary(
+    name = "probe_windows_x86_64",
+    binary = ":probe",
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_X86_64,
+    target_platform = "//qt/platforms:windows_x86_64",
+)
+
 alias(
     name = "probe_native",
     actual = select({
         "@dx_qt//:linux_arm64": ":probe_linux_arm64",
         "@dx_qt//:linux_x86_64": ":probe_linux_x86_64",
         "@dx_qt//:macos_arm64": ":probe_macos_arm64",
+        "@dx_qt//:windows_x86_64": ":probe_windows_x86_64",
     }),
     tags = ["manual"],
 )
 
-# The macos_arm64 cell publishes no needs tables; its qt_test skips the table check.
-# macOS links system frameworks only; needs tables arrive with qt_bundle (#5194).
+# The macos_arm64 and windows_x86_64 cells publish no needs tables; their qt_test skips the table check.
+# macOS links system frameworks only; needs tables arrive with qt_bundle (#5194, #6520).
 alias(
     name = "needs_native",
     actual = select({
         "@platforms//os:macos": "//qt/sdk:macos_arm64.bzl",
+        "@platforms//os:windows": "//qt/sdk:windows_x86_64.bzl",
         "//conditions:default": "@dx_qt//:needs",
     }),
     tags = ["manual"],
@@ -97,6 +115,7 @@ alias(
 
 _QT_FONTS = select({
     "@platforms//os:macos": [],
+    "@platforms//os:windows": [],
     "//conditions:default": ["@dx_qt//:fonts"],
 })
 
@@ -141,6 +160,7 @@ rust_test(
     ] + _QT_FONTS,
     env = select({
         "@platforms//os:macos": _QT_TEST_ENV,
+        "@platforms//os:windows": _QT_TEST_ENV,
         "//conditions:default": dict(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
@@ -229,6 +249,15 @@ platform_transition_binary(
     target_platform = "//qt/platforms:macos_arm64",
 )
 
+platform_transition_binary(
+    name = "gui_check_windows_x86_64",
+    testonly = True,
+    binary = ":gui_check",
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS_X86_64,
+    target_platform = "//qt/platforms:windows_x86_64",
+)
+
 alias(
     name = "gui_check_native",
     testonly = True,
@@ -236,6 +265,7 @@ alias(
         "@dx_qt//:linux_arm64": ":gui_check_linux_arm64",
         "@dx_qt//:linux_x86_64": ":gui_check_linux_x86_64",
         "@dx_qt//:macos_arm64": ":gui_check_macos_arm64",
+        "@dx_qt//:windows_x86_64": ":gui_check_windows_x86_64",
     }),
     tags = ["manual"],
 )

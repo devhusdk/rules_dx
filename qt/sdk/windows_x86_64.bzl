@@ -6,7 +6,7 @@ _RELEASE = "6.11.3-0-202610220312"
 
 _SUFFIX = "-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z"
 
-IDENTITY = None
+IDENTITY = struct(arch = "x86_64", os = "windows", min_runtime = "windows-10")
 
 CELL = struct(
     archives = {
@@ -23,7 +23,7 @@ CELL = struct(
             sha256 = "b519f552424d8c748ed37c6b3a7615d29a1e3920383ee8ccf9b2066998341c2c",
         ),
     },
-    blocker = "MSVC toolchain and Windows probe evidence pending (#4815, #5104)",
+    blocker = "",
     constraints = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
     directory = "windows_x86/desktop/qt6_6113/qt6_6113_msvc2022_64/qt.qt6.6113.win64_msvc2022_64",
     layout = LAYOUT,

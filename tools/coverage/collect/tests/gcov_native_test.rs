@@ -146,9 +146,61 @@ fn reports_shared_library_lines() {
         .unwrap_or_else(|| panic!("{lcov}"));
     let hit = record
         .lines()
-        .filter_map(|l| l.strip_prefix("DA:")?.split_once(',')?.1.parse::<u64>().ok())
+        .filter_map(|l| {
+            l.strip_prefix("DA:")?
+                .split_once(',')?
+                .1
+                .parse::<u64>()
+                .ok()
+        })
         .any(|k| k > 0);
     assert!(hit, "{record}");
+}
+
+fn line_counts(lcov: &str, source: &str) -> Vec<(u64, u64)> {
+    let record = lcov
+        .split("end_of_record")
+        .find(|r| r.contains(&format!("SF:{source}")))
+        .unwrap_or_else(|| panic!("{lcov}"));
+    record
+        .lines()
+        .filter_map(|l| {
+            let (line, count) = l.strip_prefix("DA:")?.split_once(',')?;
+            Some((line.parse().ok()?, count.parse().ok()?))
+        })
+        .collect()
+}
+
+#[test]
+fn merged_runs_add_hit_counts() {
+    let source = "cc/tests/fixtures/gcc_coverage/lib.c";
+    let merge_dir = Path::new(&std::env::var("TEST_TMPDIR").unwrap()).join("merged");
+    fs::create_dir_all(&merge_dir).unwrap();
+    let mut single = Vec::new();
+    for name in ["first", "second"] {
+        let run = setup(name);
+        let out = collect(&run);
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let lcov = fs::read_to_string(run.coverage_dir.join("coverage.dat")).unwrap();
+        fs::write(merge_dir.join(format!("{name}.dat")), &lcov).unwrap();
+        single = line_counts(&lcov, source);
+    }
+    assert!(single.iter().any(|&(_, k)| k > 0));
+    assert!(single.iter().any(|&(_, k)| k == 0));
+    let output = merge_dir.join("merged.out");
+    let status = Command::new(absolute(&std::env::var("LCOV_MERGER").unwrap()))
+        .arg(format!("--coverage_dir={}", merge_dir.display()))
+        .arg(format!("--output_file={}", output.display()))
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let merged = line_counts(&fs::read_to_string(&output).unwrap(), source);
+    let doubled: Vec<(u64, u64)> = single.iter().map(|&(l, k)| (l, k * 2)).collect();
+    assert_eq!(merged, doubled);
 }
 
 #[test]

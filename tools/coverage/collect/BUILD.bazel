@@ -39,11 +39,13 @@ rust_test(
     srcs = ["tests/gcov_native_test.rs"],
     data = [
         ":collect_native",
+        "@bazel_tools//tools/test:lcov_merger",
         "//cc/tests/fixtures/gcc_coverage:gcov_fixture",
         "//cc/tests/fixtures/gcc_coverage:gcov_fixture_alt",
     ],
     env = {
         "COLLECT_NATIVE": "$(rootpath :collect_native)",
+        "LCOV_MERGER": "$(rootpath @bazel_tools//tools/test:lcov_merger)",
         "GCOV_FIXTURE": "$(rootpath //cc/tests/fixtures/gcc_coverage:gcov_fixture)",
         "GCOV_FIXTURE_ALT": "$(rootpath //cc/tests/fixtures/gcc_coverage:gcov_fixture_alt)",
     },

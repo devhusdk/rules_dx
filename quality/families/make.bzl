@@ -43,6 +43,7 @@ _CFG = real_config(
     source_recognizers = [],
     harness_sources = lambda _target, _capability, direct_sources: direct_sources,
     toolchain = None,
+    check_policy = False,
 )
 
 real_make_lint_aspect = real_make_aspect(_CFG, "real_make_lint")

@@ -23,8 +23,8 @@ aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:fixture_real_cc_subject
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_delim_python_subject
-field dx_count=1
-field dx_results=fixture_real_delim_python-real-format-py.pb
+field dx_count=2
+field dx_results=fixture_real_delim_python-real-format-py.pb,fixture_real_delim_python-real-typecheck-py.pb
 field has_quality_sources=True
 field label=//quality/testdata:fixture_real_delim_python
 aspect_field aspect_seen=True
@@ -174,7 +174,7 @@ aspect_field subject_label=//quality/testdata:fixture_real_no_lint_subject
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_python_foreign_hint_subject
 field dx_count=3
-field dx_results=fixture_real_python_foreign_hint-real-format-py.pb,fixture_real_python_foreign_hint-real-lint-py.pb
+field dx_results=fixture_real_python_foreign_hint-real-format-py.pb,fixture_real_python_foreign_hint-real-lint-py.pb,fixture_real_python_foreign_hint-real-typecheck-py.pb
 field has_quality_sources=True
 field label=//quality/testdata:fixture_real_python_foreign_hint
 aspect_field aspect_seen=True
@@ -184,7 +184,7 @@ aspect_field subject_label=//quality/testdata:fixture_real_python_foreign_hint_s
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_python_generated_config_subject
 field dx_count=3
-field dx_results=fixture_real_python_generated_config-real-format-py.pb,fixture_real_python_generated_config-real-lint-py.pb
+field dx_results=fixture_real_python_generated_config-real-format-py.pb,fixture_real_python_generated_config-real-lint-py.pb,fixture_real_python_generated_config-real-typecheck-py.pb
 field has_quality_sources=True
 field label=//quality/testdata:fixture_real_python_generated_config
 aspect_field aspect_seen=True
@@ -194,7 +194,7 @@ aspect_field subject_label=//quality/testdata:fixture_real_python_generated_conf
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_python_hinted_subject
 field dx_count=3
-field dx_results=fixture_real_python_hinted-real-format-py.pb,fixture_real_python_hinted-real-lint-py.pb
+field dx_results=fixture_real_python_hinted-real-format-py.pb,fixture_real_python_hinted-real-lint-py.pb,fixture_real_python_hinted-real-typecheck-py.pb
 field has_quality_sources=True
 field label=//quality/testdata:fixture_real_python_hinted
 aspect_field aspect_seen=True
@@ -204,7 +204,7 @@ aspect_field subject_label=//quality/testdata:fixture_real_python_hinted_subject
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_python_subject
 field dx_count=3
-field dx_results=fixture_real_python-real-format-py.pb,fixture_real_python-real-lint-py.pb
+field dx_results=fixture_real_python-real-format-py.pb,fixture_real_python-real-lint-py.pb,fixture_real_python-real-typecheck-py.pb
 field has_quality_sources=True
 field label=//quality/testdata:fixture_real_python
 aspect_field aspect_seen=True

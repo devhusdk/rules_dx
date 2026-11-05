@@ -205,7 +205,7 @@ def _expand_shard(tools_table, spec):
         "tools": tools,
     }
 
-def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizers, harness_sources, toolchain):
+def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizers, harness_sources, toolchain, check_policy = True):
     """Bundles the tool table and the family hooks the engine runs.
 
     context_hooks maps a tool name to f(target, ctx, resolved, capability, what, shared) that
@@ -214,6 +214,8 @@ def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizer
     struct(files, error). harness_sources is f(target, capability, direct_sources) returning
     the direct sources with any test-harness sources added. toolchain is
     struct(type, file) where file(ctx, name) returns one toolchain file.
+    check_policy is False for a family file whose table lacks the other families' tools; the
+    combined config validates the workspace policy.
     """
     return struct(
         tools = tools,
@@ -227,6 +229,7 @@ def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizer
         source_recognizers = source_recognizers,
         harness_sources = harness_sources,
         toolchain = toolchain,
+        check_policy = check_policy,
     )
 
 def real_wired_tools(cfg):
@@ -235,6 +238,8 @@ def real_wired_tools(cfg):
 
 def real_policy_error(cfg, policy, capability, what):
     """Validates the selected workspace policy for one real capability."""
+    if not cfg.check_policy:
+        return ""
     unpinned = support_unpinned_tools(capability)
     for family_id in sorted(policy.families.keys()):
         section = policy.families[family_id]

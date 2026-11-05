@@ -155,6 +155,7 @@ pub(crate) struct Flags {
     pub(crate) outdated: bool,
     pub(crate) prune: bool,
     pub(crate) pr: bool,
+    pub(crate) push: bool,
     pub(crate) group: Option<String>,
     pub(crate) labels: Option<String>,
     pub(crate) automerge: Option<String>,
@@ -636,6 +637,14 @@ flag_group! {
     PruneFlag, {
         #[arg(long, overrides_with = "prune")]
         prune: bool,
+    }
+}
+
+flag_group! {
+    /// Push the release branch and tag after committing.
+    PushFlag, {
+        #[arg(long, overrides_with = "push")]
+        push: bool,
     }
 }
 
@@ -1263,6 +1272,7 @@ command_args! {
     Release => 26, NoScopeTail, {
         check: CheckFlag,
         apply: ApplyFlag,
+        push: PushFlag,
         own: ToFlag,
     };
     /// The flags `dx unused` accepts.

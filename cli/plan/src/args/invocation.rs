@@ -282,6 +282,8 @@ pub struct Invocation {
     pub prune: bool,
     /// `dx update --pr`: open or refresh one pull request per group.
     pub pr: bool,
+    /// `dx release --apply --push`: push the branch and the tag.
+    pub push: bool,
     /// `dx update --group`: `package`, `set` or `all`; `set` when absent.
     pub group: Option<String>,
     /// `dx update --labels`: comma-separated labels for new pull requests.
@@ -711,6 +713,7 @@ mod tests {
             outdated: false,
             prune: false,
             pr: false,
+            push: false,
             group: None,
             labels: None,
             automerge: None,

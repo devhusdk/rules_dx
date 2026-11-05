@@ -331,6 +331,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         outdated,
         prune,
         pr,
+        push,
         group,
         labels,
         automerge,
@@ -524,6 +525,9 @@ fn parse_inner<S: AsRef<OsStr>>(
     }
     if command == Command::Release && check && apply {
         return Err(unsupported(command, "--check with --apply"));
+    }
+    if command == Command::Release && push && !apply {
+        return Err(unsupported(command, "--push without --apply"));
     }
     if command == Command::Update && outdated {
         let culprit = if apply {
@@ -728,6 +732,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         outdated,
         prune,
         pr,
+        push,
         group,
         labels,
         automerge,

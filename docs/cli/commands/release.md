@@ -10,13 +10,14 @@ dx release --to 2.0.0 --apply
 ```
 
 ```text
-dx release [--check | --apply] [--to <x.y.z>]
+dx release [--check | --apply [--push]] [--to <x.y.z>]
 ```
 
 | Flag | What it does |
 | --- | --- |
 | `--check` | Report only. This is the default. |
-| `--apply` | Set the version in every manifest, commit them as `release: <tag>` and create the tag. Refuses a dirty working tree, an existing tag, or no version to release. Cannot be combined with `--check`. |
+| `--apply` | Set the version in every manifest, commit them as `release: <tag>` and create the tag. The tag is annotated and its message lists the commits since the last tag. Refuses a dirty working tree, a detached HEAD, an existing tag, or no version to release. Cannot be combined with `--check`. |
+| `--push` | With `--apply`, push the branch and the tag to `origin`. Without it, the output says `next: git push --follow-tags`. |
 | `--to <x.y.z>` | Use this version instead of the derived one, for teams that do not use conventional commits. |
 | `--workspace`, `-q`, `-v`, `--color` | Global flags. |
 

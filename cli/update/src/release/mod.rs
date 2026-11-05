@@ -190,6 +190,18 @@ pub fn plan(
     })
 }
 
+/// The annotated tag message: the title line, then the notes for the commits in `log`.
+pub fn tag_message(tag: &str, log: &str) -> String {
+    use conventional::Kind;
+    let commits = conventional::parse(log);
+    let groups = [
+        (Kind::Feat, "Features"),
+        (Kind::Fix, "Fixes"),
+        (Kind::Perf, "Performance"),
+    ];
+    format!("{tag}\n\n{}", conventional::notes(&commits, &groups))
+}
+
 /// Writes `version` into every manifest that carries one; returns their paths relative to `workspace`.
 pub fn apply(workspace: &Path, version: &str) -> Result<Vec<String>, String> {
     let manifests = own_version::find(workspace)

@@ -128,3 +128,11 @@ fn apply_writes_the_version_into_every_manifest() {
     assert_eq!(report.out_of_sync(), 0);
     assert!(report.manifests.iter().all(|line| line.version == "1.3.0"));
 }
+
+#[test]
+fn tag_message_starts_with_the_tag_and_lists_the_commits() {
+    let message = tag_message("v1.3.0", MINOR_LOG);
+    assert!(message.starts_with("v1.3.0\n\n"), "{message}");
+    assert!(message.contains("## Features"), "{message}");
+    assert!(message.contains("## Fixes"), "{message}");
+}

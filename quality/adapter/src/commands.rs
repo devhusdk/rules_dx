@@ -369,7 +369,7 @@ const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
-const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2"];
+const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2", "--enable=unusedFunction"];
 const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
 const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 

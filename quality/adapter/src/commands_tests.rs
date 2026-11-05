@@ -902,7 +902,13 @@ fn cppcheck_check_is_xml_with_optional_suppressions() {
     let bare = cppcheck_check(Path::new(BIN), &[file], None);
     assert_eq!(
         argv_strings(&bare),
-        vec![BIN, "--xml", "--xml-version=2", "/scratch/Sample.c"]
+        vec![
+            BIN,
+            "--xml",
+            "--xml-version=2",
+            "--enable=unusedFunction",
+            "/scratch/Sample.c"
+        ]
     );
     assert_eq!(bare.cwd_rel, "");
     let hinted = cppcheck_check(

@@ -24,7 +24,6 @@ CONFIG_REQUIRED_TOOLS = {
     "biome": struct(name = "Biome", src = "biome.json"),
     "buildifier": struct(name = "Buildifier", src = ".buildifier.json"),
     "checkstyle": struct(name = "Checkstyle", src = "checkstyle.xml"),
-    "clang_tidy": struct(name = "clang-tidy", src = ".clang-tidy"),
     "eslint": struct(name = "ESLint", src = "eslint.config.mjs"),
     "graphql_eslint": struct(name = "graphql-eslint", src = "graphql_lint.json"),
     "kubeconform": struct(

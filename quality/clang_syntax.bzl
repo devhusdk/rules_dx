@@ -291,8 +291,8 @@ def _clang_syntax_impl(target, ctx):
         context = target[CcInfo].compilation_context
         headers = depset(context.direct_private_headers, transitive = [context.headers])
     tidy = ctx.file._clang_tidy
-    tidy_config = ""
-    tidy_closure = depset()
+    tidy_config = ctx.file._clang_tidy_default.path
+    tidy_closure = depset([ctx.file._clang_tidy_default])
     for hint in getattr(attrs, "aspect_hints", []):
         if DxNativeConfigInfo in hint and hint[DxNativeConfigInfo].tool_id == "clang_tidy":
             tidy_config = hint[DxNativeConfigInfo].config.path
@@ -399,6 +399,7 @@ clang_syntax_aspect = aspect(
     toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
     attrs = apple_support.action_required_attrs() | {
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
+        "_clang_tidy_default": attr.label(default = "//quality:default.clang-tidy", allow_single_file = True),
         "_clang_tidy_run": attr.label(default = "//quality:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),
     },
 )

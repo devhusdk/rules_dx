@@ -62,7 +62,11 @@ fn open_error(
     let tag = String::from_utf8_lossy(element).into_owned();
     let id = required(element, "id", decoder)?;
     let severity_word = required(element, "severity", decoder)?;
-    let severity = severity_of(&severity_word, &tag)?;
+    let severity = if id == "unusedFunction" {
+        ToolSeverity::Info
+    } else {
+        severity_of(&severity_word, &tag)?
+    };
     let message = required(element, "msg", decoder)?;
     if message.is_empty() {
         return Err(missing(TOOL, "message", &tag));
@@ -222,6 +226,20 @@ mod tests {
 
     const DIRTY: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<results version=\"2\">\n  <cppcheck version=\"2.21.0\"/>\n  <errors>\n    <error id=\"nullPointer\" severity=\"error\" msg=\"Possible null pointer dereference: slot\" verbose=\"Possible null pointer dereference: slot\">\n      <location file=\"cc/tests/fixtures/cppcheck/Sample.c\" line=\"8\" column=\"10\"/>\n    </error>\n  </errors>\n</results>\n";
     const CLEAN: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<results version=\"2\">\n  <cppcheck version=\"2.21.0\"/>\n  <errors>\n  </errors>\n</results>\n";
+
+    #[test]
+    fn cppcheck_reports_unused_function_as_info() {
+        let xml = DIRTY
+            .replace("nullPointer", "unusedFunction")
+            .replace("severity=\"error\"", "severity=\"style\"");
+        let findings = parse_cppcheck(
+            xml.as_bytes(),
+            Some(0),
+            &["cc/tests/fixtures/cppcheck/Sample.c"],
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+    }
 
     #[test]
     fn cppcheck_reports_xml_errors() {

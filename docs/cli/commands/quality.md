@@ -211,6 +211,8 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 
 `clang_tidy` on MSVC toolchains runs in clang-cl mode and names flags it cannot model: `/Yc`, `/Yu`, `/clr`, `/ZW`.
 
+`clang_tidy` uses a dx default `.clang-tidy` when no `clang_tidy_config` is bound. It enables `misc-unused-parameters`, `misc-unused-using-decls` and `readability-redundant-declaration`. `cppcheck` runs with `--enable=unusedFunction`. Findings from these checks are reported as info. cppcheck sees only the files of one target, so a function used only from another target is reported as unused.
+
 ### JVM and .NET
 
 | Tool | Checks | Not on |
@@ -390,7 +392,6 @@ Bind a config with the `*_config` rule from `@rules_dx//quality:native_config.bz
 | `biome` | yes | `biome.json` | | `biome_config` |
 | `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
 | `checkstyle` | yes | `checkstyle.xml` | | `checkstyle_config` |
-| `clang-tidy` | yes | `.clang-tidy` | | `clang_tidy_config` |
 | `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
 | `graphql-eslint` | yes | `graphql_lint.json` | | `graphql_eslint_config` |
 | `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |

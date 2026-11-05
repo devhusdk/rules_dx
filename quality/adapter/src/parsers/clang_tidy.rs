@@ -1,6 +1,12 @@
 use super::clang_syntax::{diagnostic, include_entry, split_rule};
 use super::{finding, lines, missing, require_findings, FileFinding, ParseError};
-use crate::{ColumnEncoding, TextPosition};
+use crate::{ColumnEncoding, TextPosition, ToolSeverity};
+
+const INFO_RULES: &[&str] = &[
+    "misc-unused-parameters",
+    "misc-unused-using-decls",
+    "readability-redundant-declaration",
+];
 
 fn is_count_trailer(line: &str) -> bool {
     let line = line.trim_end();
@@ -43,6 +49,11 @@ pub fn parse_clang_tidy(
             if message.is_empty() {
                 return Err(missing(TOOL, "message", line));
             }
+            let severity = if INFO_RULES.contains(&rule_id.as_str()) {
+                ToolSeverity::Info
+            } else {
+                severity
+            };
             findings.push(finding(
                 TOOL,
                 file,
@@ -112,6 +123,14 @@ mod tests {
         assert!(parse_clang_tidy(DIRTY.as_bytes(), Some(1), &["other.c"]).is_err());
         assert!(parse_clang_tidy(b"nope\n", Some(1), &["x"]).is_err());
         assert!(parse_clang_tidy(&[0xff], Some(1), &["x"]).is_err());
+    }
+
+    #[test]
+    fn clang_tidy_reports_unused_code_rules_as_info() {
+        let text = "a.c:1:14: warning: parameter 'x' is unused [misc-unused-parameters]\na.c:2:3: warning: do not use 'else' after 'return' [readability-else-after-return]\n";
+        let findings = parse_clang_tidy(text.as_bytes(), Some(0), &["a.c"]).expect("parsed");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+        assert_eq!(findings[1].finding.severity, ToolSeverity::Warning);
     }
 
     #[test]

@@ -1518,3 +1518,14 @@ fn console_ctrl_c_and_break_act_as_sigint() {
         assert_eq!(console_stop_signal(other), None);
     }
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn sending_a_signal_keeps_the_callers_errno() {
+    unsafe { *libc::__errno_location() = libc::EINTR };
+    backend::send(i32::MAX - 1, 15);
+    assert_eq!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::EINTR)
+    );
+}

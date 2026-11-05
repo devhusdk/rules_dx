@@ -904,9 +904,22 @@ mod backend {
         pub fn send(target: i32, signo: i32) {
             if target != 0 {
                 unsafe {
+                    let slot = errno_slot();
+                    let saved = *slot;
                     kill(target, signo);
+                    *slot = saved;
                 }
             }
+        }
+
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        unsafe fn errno_slot() -> *mut i32 {
+            unsafe { libc::__errno_location() }
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        unsafe fn errno_slot() -> *mut i32 {
+            unsafe { libc::__error() }
         }
 
         pub fn send_kill(target: i32) {

@@ -49,6 +49,8 @@ _with_link_libs = rule(
     },
 )
 
+_LINUX = ["@platforms//os:linux"]
+
 def swift_linux_toolchain(name, cpu):
     """Declares the Swift toolchain and link libraries for one Linux cpu."""
     archive = "@dx_swift_linux_" + cpu
@@ -57,6 +59,7 @@ def swift_linux_toolchain(name, cpu):
 
     swift_tools(
         name = "tools_" + cpu,
+        target_compatible_with = _LINUX,
         additional_inputs = [archive + "//:files", sysroot + "//:files"],
         swift_autolink_extract = archive + "//:usr/bin/swift-autolink-extract",
         swift_driver = archive + "//:usr/bin/swiftc",
@@ -65,6 +68,7 @@ def swift_linux_toolchain(name, cpu):
 
     _runtime_files(
         name = "dynamic_runtime_" + cpu,
+        target_compatible_with = _LINUX,
         srcs = [archive + "//:files"],
         dirs = ["usr/lib/swift/linux/"],
         suffixes = [".so"],
@@ -72,6 +76,7 @@ def swift_linux_toolchain(name, cpu):
 
     _runtime_files(
         name = "static_runtime_" + cpu,
+        target_compatible_with = _LINUX,
         srcs = [archive + "//:files"],
         dirs = [
             "usr/lib/swift/linux/",
@@ -86,6 +91,7 @@ def swift_linux_toolchain(name, cpu):
 
     swift_toolchain(
         name = "inner_toolchain_" + cpu,
+        target_compatible_with = _LINUX,
         arch = cpu,
         dynamic_runtime = [":dynamic_runtime_" + cpu],
         env = {"LD_LIBRARY_PATH": sysroot_root + "/host_libs"},
@@ -107,6 +113,7 @@ def swift_linux_toolchain(name, cpu):
 
     cc_library(
         name = "linux_link_libs_" + cpu,
+        target_compatible_with = _LINUX,
         additional_linker_inputs = [
             sysroot + "//:link_libs/libcurl.so",
             sysroot + "//:link_libs/libgcc_eh.a",
@@ -123,6 +130,7 @@ def swift_linux_toolchain(name, cpu):
 
     _with_link_libs(
         name = "swift_toolchain_" + cpu,
+        target_compatible_with = _LINUX,
         link_libs = ":linux_link_libs_" + cpu,
         toolchain = ":inner_toolchain_" + cpu,
     )

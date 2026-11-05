@@ -9,7 +9,6 @@ const UNOWNED_NAMES: &[(&str, &str)] = &[
     ("cabal.project.freeze", "hackage"),
     ("stack.yaml.lock", "hackage"),
     ("Package.resolved", "swift"),
-    ("Manifest.toml", "julia"),
     ("opam.locked", "opam"),
     ("cpanfile.snapshot", "cpan"),
     ("build.zig.zon", "zig"),

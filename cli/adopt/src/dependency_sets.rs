@@ -25,8 +25,10 @@ pub const ECOSYSTEM_PUB: &str = "pub";
 
 pub const ECOSYSTEM_CONAN: &str = "conan";
 
+pub const ECOSYSTEM_JULIA: &str = "julia";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -49,6 +51,12 @@ pub const PUBSPEC_LOCK: &str = "pubspec.lock";
 const CONANFILES: [&str; 2] = ["conanfile.txt", "conanfile.py"];
 
 pub const CONAN_LOCK: &str = "conan.lock";
+
+pub const PROJECT_TOML: &str = "Project.toml";
+
+pub const JULIA_MANIFEST: &str = "Manifest.toml";
+
+pub const JULIA_BAZEL_MANIFEST: &str = "Manifest.bazel.json";
 
 pub const PAKET_LOCK: &str = "paket.lock";
 
@@ -76,6 +84,7 @@ pub enum Ecosystem {
     Cpan,
     Pub,
     Conan,
+    Julia,
 }
 
 impl Ecosystem {
@@ -93,6 +102,7 @@ impl Ecosystem {
             Ecosystem::Cpan => ECOSYSTEM_CPAN,
             Ecosystem::Pub => ECOSYSTEM_PUB,
             Ecosystem::Conan => ECOSYSTEM_CONAN,
+            Ecosystem::Julia => ECOSYSTEM_JULIA,
         }
     }
 
@@ -110,6 +120,7 @@ impl Ecosystem {
             ECOSYSTEM_CPAN => Some(Ecosystem::Cpan),
             ECOSYSTEM_PUB => Some(Ecosystem::Pub),
             ECOSYSTEM_CONAN => Some(Ecosystem::Conan),
+            ECOSYSTEM_JULIA => Some(Ecosystem::Julia),
             _ => None,
         }
     }
@@ -127,7 +138,8 @@ impl Ecosystem {
             | Ecosystem::PowerShell
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => "pinned",
+            | Ecosystem::Conan
+            | Ecosystem::Julia => "pinned",
         }
     }
 
@@ -144,7 +156,8 @@ impl Ecosystem {
             | Ecosystem::PowerShell
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => "pinned",
+            | Ecosystem::Conan
+            | Ecosystem::Julia => "pinned",
         }
     }
 
@@ -175,7 +188,8 @@ impl Ecosystem {
             | Ecosystem::Go
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => "audit",
+            | Ecosystem::Conan
+            | Ecosystem::Julia => "audit",
         }
     }
 
@@ -191,6 +205,7 @@ impl Ecosystem {
             Ecosystem::Go => Some("go"),
             Ecosystem::Cpan => Some("cpan"),
             Ecosystem::Pub => Some("pub"),
+            Ecosystem::Julia => Some("julia"),
             Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
     }
@@ -210,6 +225,7 @@ impl Ecosystem {
             Ecosystem::Cpan => CPANFILE,
             Ecosystem::Pub => PUBSPEC_YAML,
             Ecosystem::Conan => "conanfile.txt",
+            Ecosystem::Julia => PROJECT_TOML,
         }
     }
 
@@ -226,7 +242,8 @@ impl Ecosystem {
             | Ecosystem::Go
             | Ecosystem::Cpan
             | Ecosystem::Pub
-            | Ecosystem::Conan => false,
+            | Ecosystem::Conan
+            | Ecosystem::Julia => false,
         }
     }
 }
@@ -353,6 +370,12 @@ pub enum DependencySetsError {
         name: String,
         path: String,
         ecosystem: &'static str,
+    },
+    #[error("dependency set {name:?} has a stale {lock}: {detail}; regenerate Manifest.toml and Manifest.bazel.json together")]
+    StaleJuliaLock {
+        name: String,
+        lock: String,
+        detail: String,
     },
     #[error("dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the cpanfile")]
     StaleCpanLock {
@@ -533,6 +556,18 @@ pub fn discover(
                 Ecosystem::Conan,
                 vec![manifest],
                 vec![lock],
+            )?);
+        }
+        for julia in module.julia_manifests().map_err(hub)? {
+            let dir = manifest_dir(std::slice::from_ref(&path(julia.lockfile)?));
+            sets.push(hub_set(
+                julia.name,
+                Ecosystem::Julia,
+                vec![in_dir(&dir, PROJECT_TOML)],
+                vec![
+                    in_dir(&dir, JULIA_MANIFEST),
+                    in_dir(&dir, JULIA_BAZEL_MANIFEST),
+                ],
             )?);
         }
         let mut groups = BTreeSet::new();
@@ -851,6 +886,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::PowerShell
         | Ecosystem::Pub
         | Ecosystem::Conan
+        | Ecosystem::Julia
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1237,6 +1273,7 @@ pub fn check_backend_settings(
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
         Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
+        Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1316,6 +1353,62 @@ fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
     }
     if let Some(extra) = in_lock.difference(&in_snapshot).next() {
         return Err(stale(format!("it has {extra}, which {snapshot} lacks")));
+    }
+    Ok(())
+}
+
+fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    check_pinned_lock(set, JULIA_MANIFEST)?;
+    check_pinned_lock(set, JULIA_BAZEL_MANIFEST)?;
+    let manifest = in_dir(&set.dir, JULIA_MANIFEST);
+    let bazel = in_dir(&set.dir, JULIA_BAZEL_MANIFEST);
+    let stale = |lock: &str, detail: String| DependencySetsError::StaleJuliaLock {
+        name: set.name.clone(),
+        lock: lock.to_owned(),
+        detail,
+    };
+    let read = |file: &str| {
+        std::fs::read_to_string(workspace.join(file))
+            .map_err(|error| stale(file, format!("cannot read it: {error}")))
+    };
+    let table: toml::Table = toml::from_str(&read(&manifest)?)
+        .map_err(|error| stale(&manifest, format!("cannot parse it: {error}")))?;
+    let mut in_manifest = std::collections::BTreeMap::new();
+    if let Some(deps) = table.get("deps").and_then(toml::Value::as_table) {
+        for (name, entries) in deps {
+            let versions = entries.as_array().into_iter().flatten();
+            for version in versions.filter_map(|entry| entry.get("version")?.as_str()) {
+                in_manifest.insert(name.as_str(), version);
+            }
+        }
+    }
+    let json: serde_json::Value = serde_json::from_str(&read(&bazel)?)
+        .map_err(|error| stale(&bazel, format!("cannot parse it: {error}")))?;
+    let in_bazel: std::collections::BTreeMap<&str, &str> = json
+        .as_object()
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|(name, entry)| Some((name.as_str(), entry.get("version")?.as_str()?)))
+                .collect()
+        })
+        .unwrap_or_default();
+    for (name, version) in &in_manifest {
+        match in_bazel.get(name) {
+            Some(other) if other == version => {}
+            Some(other) => {
+                return Err(stale(
+                    &bazel,
+                    format!("it has {name} {other}, but {manifest} has {version}"),
+                ));
+            }
+            None => {
+                return Err(stale(&bazel, format!("{manifest} has {name}, which it lacks")));
+            }
+        }
+    }
+    if let Some(extra) = in_bazel.keys().find(|name| !in_manifest.contains_key(*name)) {
+        return Err(stale(&bazel, format!("it has {extra}, which {manifest} lacks")));
     }
     Ok(())
 }
@@ -2069,6 +2162,48 @@ mod tests {
         let message = error.to_string();
         assert!(message.contains("Try-Tiny-0.31"), "{message}");
         assert!(message.contains("run the cpan_compiler"), "{message}");
+    }
+
+    #[test]
+    fn julia_from_manifest_tags_become_julia_sets() {
+        let module = "pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"jl_deps\", lockfile = \"//third_party/julia:Manifest.bazel.json\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("jl_deps").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Julia);
+        assert_eq!(set.manifests, ["third_party/julia/Project.toml"]);
+        assert_eq!(
+            set.locks,
+            [
+                "third_party/julia/Manifest.toml",
+                "third_party/julia/Manifest.bazel.json"
+            ]
+        );
+    }
+
+    #[test]
+    fn julia_layout_needs_both_locks_to_name_the_same_versions() {
+        let dir = std::env::temp_dir().join(format!("dx-julia-layout-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let manifest = "manifest_format = \"2.0\"\n[[deps.Glob]]\nversion = \"1.3.1\"\n[[deps.Dates]]\nuuid = \"x\"\n";
+        std::fs::write(dir.join("Manifest.toml"), manifest).expect("write");
+        std::fs::write(dir.join("Manifest.bazel.json"), "{\"Glob\": {\"version\": \"1.3.1\"}}")
+            .expect("write");
+        let set = ResolvedSet {
+            name: "jl".to_owned(),
+            ecosystem: Ecosystem::Julia,
+            dir: ".".to_owned(),
+            manifests: vec!["Project.toml".to_owned()],
+            locks: vec!["Manifest.toml".to_owned(), "Manifest.bazel.json".to_owned()],
+            repository: None,
+        };
+        assert!(check_julia_layout(&dir, &set).is_ok());
+        std::fs::write(dir.join("Manifest.bazel.json"), "{\"Glob\": {\"version\": \"1.3.0\"}}")
+            .expect("write");
+        let message = check_julia_layout(&dir, &set).unwrap_err().to_string();
+        assert!(message.contains("Glob 1.3.0"), "{message}");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

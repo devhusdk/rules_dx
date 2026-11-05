@@ -1148,6 +1148,18 @@ fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
 }
 
 #[test]
+fn julia_manifests_follow_the_rules_julia_pkg_extension() {
+    let file = parse("pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"deps\", lockfile = \"//julia:Manifest.bazel.json\")\npkg.pkg_annotation(dep = \"X\")\nother = use_extension(\"//julia:extensions.bzl\", \"pkg\")\nother.from_manifest(name = \"x\", lockfile = \"//x:Manifest.bazel.json\")\n");
+    let found: Vec<_> = file
+        .julia_manifests()
+        .expect("manifests")
+        .iter()
+        .map(|entry| (entry.name, entry.lockfile))
+        .collect();
+    assert_eq!(found, [("deps", "//julia:Manifest.bazel.json")]);
+}
+
+#[test]
 fn cpan_installs_follow_the_rules_perl_extension() {
     let file = parse("cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n");
     let found: Vec<_> = file

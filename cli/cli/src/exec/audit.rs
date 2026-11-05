@@ -501,6 +501,12 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),
+            dx_adopt::dependency_sets::Ecosystem::Julia => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::JULIA_MANIFEST) => {
+                    dx_audit::locks::parse_julia_manifest(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::PowerShell => {
                 dx_audit::locks::parse_psgallery_lock(text)
             }

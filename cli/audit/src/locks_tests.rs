@@ -1576,3 +1576,21 @@ fn pubspec_lock_lists_hosted_packages() {
     assert_eq!(packages[0].version, "2.11.0");
     assert!(parse_pubspec_lock("sdks: {}\n").is_err());
 }
+
+#[test]
+fn julia_manifest_lists_packages_and_skips_stdlibs() {
+    let text = "manifest_format = \"2.0\"\n[[deps.HTTP]]\nuuid = \"cd3eb016-35fb-5094-929b-558a96fad6f3\"\nversion = \"1.10.4\"\n[[deps.Dates]]\nuuid = \"ade2ca70-3891-5945-98fb-dc099432e06a\"\n[[deps.Foo]]\nversion = \"0.2.0\"\n[[deps.Foo]]\nversion = \"0.1.0\"\n";
+    let packages = parse_julia_manifest(text).expect("parses");
+    let found: Vec<(&str, &str)> = packages
+        .iter()
+        .map(|package| (package.name.as_str(), package.version.as_str()))
+        .collect();
+    assert_eq!(found, [("Foo", "0.1.0"), ("Foo", "0.2.0"), ("HTTP", "1.10.4")]);
+    assert!(packages.iter().all(|package| package.set == "julia"));
+}
+
+#[test]
+fn julia_manifest_format_one_is_refused() {
+    let error = parse_julia_manifest("[[HTTP]]\nversion = \"1.10.4\"\n").unwrap_err();
+    assert!(error.contains("format 1.0"), "{error}");
+}

@@ -516,6 +516,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Conan => {
                 "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
             }
+            Ecosystem::Julia => {
+                "dx does not resolve Julia packages; edit Project.toml and regenerate Manifest.toml and Manifest.bazel.json with Pkg"
+            }
             _ => {
                 "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
             }
@@ -630,8 +633,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, request) => {
@@ -870,8 +873,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, Selection::Full) => {

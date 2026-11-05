@@ -1780,10 +1780,14 @@ PKL_PKL_LSP_LINT_SUPPORT = {
     "execution": "direct",
     "family": "pkl",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "pkl_lsp",
     "transport": "batched",
+    "unsupported": {
+        "windows_arm64": "pkl-lsp exits 1 without output under the hermetic runner environment on Windows",
+        "windows_x86_64": "pkl-lsp exits 1 without output under the hermetic runner environment on Windows",
+    },
 }
 
 LUA_SELENE_LINT_SUPPORT = {

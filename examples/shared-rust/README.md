@@ -39,6 +39,9 @@ bazel test //examples/shared-rust:wasi_test
 
 For Android, install the NDK and set `ANDROID_HOME`, then use
 `//examples/shared-rust:install`, `:start`, and `:log` against an emulator.
+The emulator run (`evidence.yml` with `android=true`, run 42102949707) used
+Ubuntu 26.04.1, emulator 37.2.13, platform-tools 37.0.1 and the Android 14
+(API 34) Google APIs x86_64 system image, and checked the full lifecycle log.
 For Apple, `@rules_dx_apple//tests/fixtures/shared_core:core_build_test` builds
 the same core into a macOS CLI and an XCFramework.
 

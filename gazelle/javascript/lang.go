@@ -17,6 +17,8 @@ const (
 	libraryKind     = "javascript_library"
 	testKind        = "javascript_test"
 	binaryKind      = "javascript_binary"
+	linkKind        = "npm_link_all_packages"
+	linkDefs        = "@npm//:defs.bzl"
 	rootNodeModules = "//:node_modules"
 	rootPackageJSON = "//:package_json"
 )
@@ -25,6 +27,7 @@ var javascriptKinds = map[string]rule.KindInfo{
 	libraryKind: libraryKindInfo(),
 	testKind:    testKindInfo(),
 	binaryKind:  binaryKindInfo(),
+	linkKind:    {},
 }
 
 func libraryKindInfo() rule.KindInfo {
@@ -69,7 +72,8 @@ func newLang() *common.SingleLang {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName: languageName,
 		LibraryKind:  libraryKind,
-		ExtraKinds:   []string{testKind, binaryKind},
+		ExtraKinds:   []string{testKind, binaryKind, linkKind},
+		KindDefs:     map[string]string{linkKind: linkDefs},
 		Kinds:        javascriptKinds,
 		DefsPackage:  "javascript/rules:defs.bzl",
 		ImportAttr:   "srcs",
@@ -109,8 +113,14 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	sort.Strings(sources)
+	var result language.GenerateResult
+	if fileExists(filepath.Join(args.Dir, "pnpm-lock.yaml")) {
+		link := rule.NewRule(linkKind, "node_modules")
+		result.Gen = append(result.Gen, link)
+		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
+	}
 	if len(sources) == 0 {
-		return mergeStale(args.File, language.GenerateResult{})
+		return mergeStale(args.File, result)
 	}
 
 	type plan struct {
@@ -159,7 +169,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 
 	plain := common.CustomRunnerTests(args.File, args.OtherGen, testKind, "jest")
 	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
-	var result language.GenerateResult
 	for _, p := range plans {
 		if p.test {
 			if plain[p.name] {
@@ -199,13 +208,17 @@ func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, javascriptKinds, func(r *rule.Rule) bool {
-		return r.Kind() != testKind || r.AttrString("runner") == ""
+		return r.Kind() != linkKind && (r.Kind() != testKind || r.AttrString("runner") == "")
 	})
 }
 
 // rootPackageJSONExists reports whether the repo root has a package.json file.
 func rootPackageJSONExists(repoRoot string) bool {
-	info, err := os.Stat(filepath.Join(repoRoot, "package.json"))
+	return fileExists(filepath.Join(repoRoot, "package.json"))
+}
+
+func fileExists(name string) bool {
+	info, err := os.Stat(name)
 	return err == nil && !info.IsDir()
 }
 

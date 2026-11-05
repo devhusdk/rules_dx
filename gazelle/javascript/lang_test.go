@@ -937,3 +937,30 @@ func TestGenerateKeepsNodeRunnerTestWithoutSource(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateLinksNpmPackagesAtLockDirectory(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	lang := NewLanguage()
+	result := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != "npm_link_all_packages" || result.Gen[0].Name() != "node_modules" {
+		t.Fatalf("generated %v, want npm_link_all_packages(node_modules)", result.Gen)
+	}
+	if len(result.Imports) != 1 {
+		t.Errorf("imports = %d, want 1", len(result.Imports))
+	}
+	loads := lang.(*common.SingleLang).Loads()
+	found := false
+	for _, l := range loads {
+		if l.Name == "@npm//:defs.bzl" && len(l.Symbols) == 1 && l.Symbols[0] == "npm_link_all_packages" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("loads = %+v, want @npm//:defs.bzl", loads)
+	}
+	other := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "x"), Rel: "x"})
+	if len(other.Gen) != 0 {
+		t.Errorf("package without a lock generated %v", other.Gen)
+	}
+}

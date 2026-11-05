@@ -23,6 +23,12 @@ fn consumer_manifest_matches_its_golden() {
     for language in list(&manifest, "languages") {
         lines.push(format!("language {language}"));
     }
+    if let Some(compiler) = manifest["compiler"]["name"]
+        .as_str()
+        .filter(|name| !name.is_empty())
+    {
+        lines.push(format!("compiler {compiler}"));
+    }
     for pattern in list(&manifest, "patterns") {
         lines.push(format!("pattern {pattern}"));
     }

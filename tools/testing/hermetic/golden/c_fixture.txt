@@ -1,4 +1,5 @@
 language c
+compiler llvm
 pattern //...
 file BUILD.bazel
 file hello.c

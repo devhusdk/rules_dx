@@ -18,7 +18,7 @@ use object::pe;
 use object::read::elf::{Dyn as _, ProgramHeader as _};
 use object::read::macho::{FatArch, LoadCommandVariant, MachHeader};
 use object::read::pe::{ImageNtHeaders, ImageOptionalHeader as _, PeFile};
-use object::{FileKind, LittleEndian};
+use object::{FileKind, LittleEndian, Object as _, ObjectSection as _};
 
 /// One reason a binary could not be read.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,6 +227,35 @@ pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
             .map(|image| image.machine)
             .collect()),
     }
+}
+
+/// Lists the strings in an ELF `.comment` section, which compilers and linkers use to sign their output.
+///
+/// Other formats and ELF files without the section yield an empty list.
+pub fn producers(bytes: &[u8]) -> Vec<String> {
+    match FileKind::parse(bytes) {
+        Ok(FileKind::Elf32) => elf_producers::<elf::FileHeader32<object::Endianness>>(bytes),
+        Ok(FileKind::Elf64) => elf_producers::<elf::FileHeader64<object::Endianness>>(bytes),
+        _ => Vec::new(),
+    }
+}
+
+fn elf_producers<H: object::read::elf::FileHeader<Endian = object::Endianness>>(
+    bytes: &[u8],
+) -> Vec<String> {
+    let Ok(file) = object::read::elf::ElfFile::<H>::parse(bytes) else {
+        return Vec::new();
+    };
+    let Some(section) = file.section_by_name(".comment") else {
+        return Vec::new();
+    };
+    let Ok(data) = section.data() else {
+        return Vec::new();
+    };
+    data.split(|byte| *byte == 0)
+        .filter(|part| !part.is_empty())
+        .map(utf8)
+        .collect()
 }
 
 fn utf8(bytes: &[u8]) -> String {

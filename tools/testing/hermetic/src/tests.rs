@@ -17,6 +17,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         files: Vec::new(),
         module_fragment: Some(PathBuf::from("f")),
         families: Vec::new(),
+        compiler: None,
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),
         bazelversion: PathBuf::from(".bazelversion"),
@@ -334,8 +335,8 @@ fn artifacts_hash_and_identify_each_listed_file() {
     assert_eq!(
         found,
         vec![
-            json!({"path": "bazel-out/bin/app", "bytes": 22, "sha256": sha256_hex(&elf), "machine": "aarch64"}),
-            json!({"path": "bazel-out/bin/lib a.a", "bytes": 8, "sha256": sha256_hex(b"!<arch>\n"), "machine": null}),
+            json!({"path": "bazel-out/bin/app", "bytes": 22, "sha256": sha256_hex(&elf), "machine": "aarch64", "producers": []}),
+            json!({"path": "bazel-out/bin/lib a.a", "bytes": 8, "sha256": sha256_hex(b"!<arch>\n"), "machine": null, "producers": []}),
         ]
     );
     assert_eq!(unique_machines(&found), vec!["aarch64"]);
@@ -513,6 +514,29 @@ fn verify_accepts_tool_only_msix_evidence() {
         &manifest_for("//tools/testing/hermetic:msix", &["msix"]),
     )
     .unwrap();
+}
+
+fn compiler_manifest() -> Manifest {
+    Manifest {
+        compiler: Some(("gcc".to_owned(), "GCC: (GNU) 16.2.0".to_owned())),
+        ..cpp_rust()
+    }
+}
+
+#[test]
+fn verify_checks_the_compiler_that_built_each_artifact() {
+    let mut ev = good_evidence();
+    ev["artifacts"][0]["producers"] = json!(["GCC: (GNU) 15.1.0", "GCC: (GNU) 16.2.0"]);
+    verify_evidence(&ev, "abc123", &compiler_manifest()).unwrap();
+
+    ev["artifacts"][0]["producers"] = json!(["clang version 23.1.2"]);
+    let err = verify_evidence(&ev, "abc123", &compiler_manifest()).unwrap_err();
+    assert!(err.contains("not built by gcc"), "{err}");
+    assert!(err.contains("clang version 23.1.2"), "{err}");
+
+    ev["artifacts"][0]["producers"] = json!([]);
+    let err = verify_evidence(&ev, "abc123", &compiler_manifest()).unwrap_err();
+    assert!(err.contains("unproven"), "{err}");
 }
 
 fn appimage_evidence() -> Value {

@@ -908,6 +908,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "c_fixture",
+    compiler = "llvm",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
     files = {
         "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",
@@ -927,6 +928,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "c_fixture_gcc",
+    compiler = "gcc",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: string: No such file or directory"},
     files = {
         "consumers/cc_fixture/gcc.bazelrc": ".bazelrc",
@@ -947,6 +949,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_fixture",
+    compiler = "llvm",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {
         "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
@@ -966,6 +969,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_fixture_gcc",
+    compiler = "gcc",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:3: error: expected primary-expression before 'int'"},
     files = {
         "consumers/cc_fixture/gcc.bazelrc": ".bazelrc",

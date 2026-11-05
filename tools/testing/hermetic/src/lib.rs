@@ -214,6 +214,7 @@ pub struct Manifest {
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: Option<PathBuf>,
     pub families: Vec<String>,
+    pub compiler: Option<(String, String)>,
     pub dx: PathBuf,
     pub module_file: PathBuf,
     pub bazelversion: PathBuf,
@@ -361,6 +362,13 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     } else {
         strings(&value, "families")?
     };
+    let compiler = match value["compiler"]["name"]
+        .as_str()
+        .filter(|name| !name.is_empty())
+    {
+        Some(name) => Some((name.to_owned(), string(&value["compiler"], "producer")?)),
+        None => None,
+    };
     let repo_name = string(&value, "repo_name")?;
     let module_fragment = if fragment.is_empty() {
         None
@@ -383,6 +391,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         files,
         module_fragment,
         families,
+        compiler,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -859,6 +868,7 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
             "bytes": bytes.len(),
             "sha256": sha256_hex(&bytes),
             "machine": dx_binfmt::machine(&bytes).or_else(|| wasm_machine(&bytes)),
+            "producers": dx_binfmt::producers(&bytes),
         }));
     }
     if out.is_empty() {
@@ -1123,11 +1133,40 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
     if evidence["target"]["machines"] != json!(unique_machines(&artifacts)) {
         return Err("evidence target machines disagree with its artifacts".to_owned());
     }
+    if let Some((name, producer)) = &manifest.compiler {
+        check_compiler(name, producer, &artifacts)?;
+    }
     let native = languages
         .iter()
         .any(|language| NATIVE_LANGUAGES.contains(&language.as_str()));
     if native && unique_machines(&artifacts).is_empty() {
         return Err("evidence names no native artifact machine".to_owned());
+    }
+    Ok(())
+}
+
+fn check_compiler(name: &str, producer: &str, artifacts: &[Value]) -> Result<(), String> {
+    let mut signed = 0;
+    for artifact in artifacts {
+        let found: Vec<&str> = artifact["producers"]
+            .as_array()
+            .map(|list| list.iter().filter_map(Value::as_str).collect())
+            .unwrap_or_default();
+        if found.is_empty() {
+            continue;
+        }
+        signed += 1;
+        if !found.contains(&producer) {
+            return Err(format!(
+                "artifact {} was not built by {name} ({producer:?}); its producers are {found:?}",
+                artifact["path"]
+            ));
+        }
+    }
+    if signed == 0 {
+        return Err(format!(
+            "no artifact names its producer, so {name} ({producer:?}) is unproven"
+        ));
     }
     Ok(())
 }
@@ -1402,6 +1441,9 @@ fn run_all(
         "workspace": workspace,
         "patterns": manifest.patterns,
     });
+    if let Some((name, producer)) = &manifest.compiler {
+        evidence["compiler"] = json!({"name": name, "producer": producer});
+    }
     let session = slot.insert(Session {
         manifest,
         root: root.to_path_buf(),

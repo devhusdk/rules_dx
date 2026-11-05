@@ -1,10 +1,20 @@
 """No-install, network-denied consumer qualification targets."""
 
+load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
+# The ELF .comment string each compiler leaves in the binaries it builds.
+COMPILER_PRODUCERS = {
+    "gcc": "GCC: (GNU) " + GCC_VERSION,
+    "llvm": "clang version " + LLVM_CLANG_VERSION,
+}
+
 def _hermetic_manifest_impl(ctx):
     """Writes the consumer manifest and carries every file it names."""
+    compiler = ctx.attr.compiler
+    if compiler and compiler not in COMPILER_PRODUCERS:
+        fail("%s: unknown compiler %r, want one of %s" % (ctx.label, compiler, sorted(COMPILER_PRODUCERS)))
     files = []
     for target, dest in ctx.attr.files.items():
         srcs = target.files.to_list()
@@ -14,6 +24,7 @@ def _hermetic_manifest_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(out, json.encode_indent({
         "bazelversion": ctx.file._bazelversion.short_path,
+        "compiler": {"name": compiler, "producer": COMPILER_PRODUCERS.get(compiler, "")},
         "coverage": ctx.attr.coverage,
         "covered": ctx.attr.covered,
         "dx": ctx.executable._dx.short_path,
@@ -38,6 +49,7 @@ hermetic_manifest = rule(
     implementation = _hermetic_manifest_impl,
     doc = "Describes one consumer workspace for hermetic qualification.",
     attrs = {
+        "compiler": attr.string(doc = "Compiler the consumer artifacts must be built by (gcc or llvm); empty skips the check."),
         "coverage": attr.string_list(doc = "Consumer target patterns to run under coverage with the network denied."),
         "covered": attr.string_list(doc = "Consumer source paths the coverage report must show as hit."),
         "failures": attr.string_dict(doc = "Manual consumer targets that must fail to build, mapped to the log marker of the failure."),
@@ -92,6 +104,7 @@ def hermetic_qualification(
         module_fragment = None,
         coverage = [],
         covered = [],
+        compiler = "",
         failures = {},
         families = [],
         module = "hermetic_consumer",
@@ -104,6 +117,7 @@ def hermetic_qualification(
     hermetic_manifest(
         name = name + "_manifest",
         testonly = True,
+        compiler = compiler,
         coverage = coverage,
         covered = covered,
         failures = failures,

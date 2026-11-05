@@ -92,6 +92,31 @@ fn elf_with(machine: u16, interp: Option<&str>, needed: &[&str], sections: bool)
     image
 }
 
+fn elf_comment(comment: Option<&[u8]>) -> Vec<u8> {
+    let mut image = elf_with(62, None, &[], false);
+    let Some(comment) = comment else {
+        return image;
+    };
+    let names = b"\0.comment\0.shstrtab\0";
+    put(&mut image, 128, comment);
+    put(&mut image, 256, names);
+    image.resize(512 + 3 * 64, 0);
+    let mut section = |index: usize, name: u32, kind: u32, at: usize, size: usize| {
+        let base = 512 + index * 64;
+        put(&mut image, base, &name.to_le_bytes());
+        put(&mut image, base + 4, &kind.to_le_bytes());
+        put(&mut image, base + 24, &(at as u64).to_le_bytes());
+        put(&mut image, base + 32, &(size as u64).to_le_bytes());
+    };
+    section(1, 1, elf::SHT_PROGBITS, 128, comment.len());
+    section(2, 10, elf::SHT_STRTAB, 256, names.len());
+    put(&mut image, 40, &512u64.to_le_bytes());
+    put(&mut image, 58, &64u16.to_le_bytes());
+    put(&mut image, 60, &3u16.to_le_bytes());
+    put(&mut image, 62, &2u16.to_le_bytes());
+    image
+}
+
 fn pe(machine: u16, subsystem: u16, dll: Option<&str>) -> Vec<u8> {
     let mut image = vec![0u8; 0x400];
     put(&mut image, 0, b"MZ");
@@ -534,5 +559,21 @@ fn machines_rejects_an_empty_archive() {
 
 #[test]
 fn machines_reads_executables() {
-    assert_eq!(machines(&elf(elf::EM_AARCH64, None, &[])).unwrap(), ["aarch64"]);
+    assert_eq!(
+        machines(&elf(elf::EM_AARCH64, None, &[])).unwrap(),
+        ["aarch64"]
+    );
+}
+
+#[test]
+fn producers_split_the_elf_comment_section() {
+    let image = elf_comment(Some(b"\0GCC: (GNU) 14.2.0\0Linker: LLD 19\0\0"));
+    assert_eq!(producers(&image), ["GCC: (GNU) 14.2.0", "Linker: LLD 19"]);
+}
+
+#[test]
+fn producers_are_empty_without_a_comment_or_for_other_formats() {
+    assert!(producers(&elf_comment(None)).is_empty());
+    assert!(producers(&pe(0x8664, 3, None)).is_empty());
+    assert!(producers(b"not a binary").is_empty());
 }

@@ -93,7 +93,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` |
 | Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists), `typos` | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` |
 | Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` |
-| JavaScript | `biome`, `eslint`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` |
+| JavaScript | `biome`, `eslint`, `knip`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` |
 | Kotlin | `detekt`, `ktlint`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` |
@@ -108,9 +108,9 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring |
-| TypeScript | `biome`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` |
+| TypeScript | `biome`, `knip`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring |
-| Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
+| Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) |
 | Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules |
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a |
 | Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a |

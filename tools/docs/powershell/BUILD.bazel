@@ -7,10 +7,13 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "defs.bzl",
-    "extract.ps1",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "defs.bzl",
+        "extract.ps1",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 # keep
 rust_test(

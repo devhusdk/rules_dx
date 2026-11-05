@@ -1,8 +1,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//cc/rules:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
+load("//cc/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
 load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//cc/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
 load(":bindings.bzl", "CC_COMPILERS")
 load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
@@ -480,8 +480,8 @@ test_suite(
         ":identity_gcc_arm64_native",
         ":identity_msvc",
         ":msvc_arm64_c_test",
-        ":msvc_arm64_hello_test",
         ":msvc_arm64_hello_c_test",
+        ":msvc_arm64_hello_test",
         ":msvc_arm64_pe_machine_test",
         ":msvc_arm64_shared_test",
         ":msvc_c_test",

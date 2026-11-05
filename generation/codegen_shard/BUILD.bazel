@@ -93,9 +93,9 @@ rust_test(
     ),
     crate = ":codegen_shard_writer",
     deps = all_crate_deps(
+        package_name = "generation/codegen_shard",
         normal = True,
         normal_dev = True,
-        package_name = "generation/codegen_shard",
     ) + [
         ":codegen_shard",
         "//cli/shard_writer:dx_shard_writer",

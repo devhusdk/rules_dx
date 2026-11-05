@@ -38,8 +38,8 @@ rust_binary(
     edition = "2021",
     # keep: generator cannot merge this expression yet (#7638)
     deps = all_crate_deps(
-        normal = True,
         package_name = "deploy/offline/dx_bootstrap",
+        normal = True,
     ) + [":dx_bootstrap"],
 )
 

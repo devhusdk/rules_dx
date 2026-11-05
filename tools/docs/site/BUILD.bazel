@@ -39,15 +39,14 @@ docs_scope_tools(
 docs_site(
     name = "demo_site",
     book_toml = "demo/book.toml",
-    prose = ["demo/demo_prose.md"],
     libraries = ["//tools/docs/rust/fixture:docs_fixture"],
+    prose = ["demo/demo_prose.md"],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
 docs_site(
     name = "demo_polyglot_site",
     book_toml = "demo/book.toml",
-    prose = ["demo/demo_prose.md"],
     libraries = [
         "//tools/docs/go/fixture:money_docs",
         "//tools/docs/jvm/fixture:paint_docs",
@@ -58,22 +57,23 @@ docs_site(
         "//tools/docs/rust/fixture:docs_fixture",
         "//tools/docs/typescript/fixture:geometry_docs",
     ],
+    prose = ["demo/demo_prose.md"],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
 docs_site(
     name = "demo_changed_site",
     book_toml = "demo/book.toml",
-    prose = ["demo/demo_prose.md"],
     libraries = ["//tools/docs/rust/fixture:docs_fixture_changed"],
+    prose = ["demo/demo_prose.md"],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
 docs_api(
     name = "user_api",
     book_toml = "user/book.toml",
-    prose = [page for page in mdbook_page_list(USER_BOOK)[1] if page],
     libraries = PUBLIC_RUST_CRATES,
+    prose = [page for page in mdbook_page_list(USER_BOOK)[1] if page],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 

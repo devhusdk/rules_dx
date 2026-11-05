@@ -21,7 +21,10 @@ filegroup(
 
 filegroup(
     name = "family_templates",
-    srcs = glob(["families/*/*"], allow_empty = True),
+    srcs = glob(
+        ["families/*/*"],
+        allow_empty = True,
+    ),
 )
 
 real_source_target(

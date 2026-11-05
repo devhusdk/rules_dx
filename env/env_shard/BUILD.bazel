@@ -93,9 +93,9 @@ rust_test(
     ),
     crate = ":env_shard_writer",
     deps = all_crate_deps(
+        package_name = "env/env_shard",
         normal = True,
         normal_dev = True,
-        package_name = "env/env_shard",
     ) + [
         ":env_shard",
         "//cli/shard_writer:dx_shard_writer",

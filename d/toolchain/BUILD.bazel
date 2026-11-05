@@ -38,6 +38,6 @@ real_source_target(
 cc_library(
     name = "msvc_iso_stdio",
     srcs = ["msvc_iso_stdio.c"],
-    alwayslink = True,
     target_compatible_with = ["@platforms//os:windows"],
+    alwayslink = True,
 )

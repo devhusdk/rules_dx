@@ -131,13 +131,19 @@ rust_test(
     data = glob(
         ["*_consumer_test.rs"],
         allow_empty = True,
-    ) + ["//python/tests/consumer:service_consumer_test.rs"],
+    ) + [
+        "//python/tests/consumer:service_consumer_test.rs",
+        "//svelte/tests/consumer:app_consumer_test.rs",
+    ],
     env = {"DX_GUARD_FILES": " ".join([
         "$(rlocationpath {})".format(f)
         for f in glob(
             ["*_consumer_test.rs"],
             allow_empty = True,
-        ) + ["//python/tests/consumer:service_consumer_test.rs"]
+        ) + [
+            "//python/tests/consumer:service_consumer_test.rs",
+            "//svelte/tests/consumer:app_consumer_test.rs",
+        ]
     ])},
     deps = ["//tools/testing:dx_testing"],
 )

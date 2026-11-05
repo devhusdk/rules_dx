@@ -1,0 +1,49 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV")
+
+# keep
+rust_test(
+    name = "app_consumer_test",
+    srcs = ["app_consumer_test.rs"],
+    data = [
+        "app_consumer_test.rs",
+        "//:MODULE.bazel.lock",
+        "//cli/cli:dx",
+        "//examples/svelte-app:consumer_srcs",
+    ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV | CONSUMER_MAVEN_ENV,
+    env_inherit = NESTED_BAZEL_ENV_INHERIT,
+    tags = NESTED_BAZEL_CI_NETWORK_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "app_consumer_fmt_test",
+    targets = [":app_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "app_consumer_clippy_test",
+    targets = [":app_consumer_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+exports_files(
+    ["app_consumer_test.rs"],
+    visibility = ["//quality/tests:__pkg__"],
+)

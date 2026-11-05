@@ -8,6 +8,7 @@ filegroup(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//svelte/tests/consumer:__pkg__"],
 )
 
 real_source_target(

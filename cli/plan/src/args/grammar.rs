@@ -99,6 +99,13 @@ fn fuzz_duration(raw: &str) -> Result<String, String> {
     }
 }
 
+fn regression_percent(raw: &str) -> Result<u32, String> {
+    match raw.strip_prefix("regression:").map(str::parse::<u32>) {
+        Some(Ok(value)) => Ok(value),
+        _ => Err(format!("want regression:<pct>, got {raw:?}")),
+    }
+}
+
 fn survived_percent(raw: &str) -> Result<u32, String> {
     match raw.strip_prefix("survived:") {
         Some(rest) => percent(rest),
@@ -181,6 +188,8 @@ pub(crate) struct Flags {
     pub(crate) check: bool,
     pub(crate) jobs: Option<u16>,
     pub(crate) fail_survived: Option<u32>,
+    pub(crate) fail_regression: Option<u32>,
+    pub(crate) compare: Option<String>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -355,6 +364,31 @@ flag_group! {
             overrides_with = "build_slots"
         )]
         build_slots: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Fail when a result is slower than the baseline by more than this percent.
+    FailRegressionFlag, {
+        #[arg(
+            long = "fail-on",
+            value_name = "regression:PCT",
+            overrides_with = "fail_regression",
+            value_parser = regression_percent
+        )]
+        fail_regression: Option<u32>,
+    }
+}
+
+flag_group! {
+    /// Compare with a dx-bench/v1 file, or with the dx-bench artifact of the latest run on a ref.
+    CompareFlag, {
+        #[arg(
+            long,
+            value_name = "PATH|REF",
+            overrides_with = "compare"
+        )]
+        compare: Option<String>,
     }
 }
 
@@ -1177,6 +1211,8 @@ command_args! {
     /// The flags `dx bench` accepts.
     Bench => 9, BazelTail, {
         output: OutputFlag,
+        fail_regression: FailRegressionFlag,
+        compare: CompareFlag,
         here: HereFlag,
     };
     /// The flags `dx run` accepts.

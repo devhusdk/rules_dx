@@ -329,6 +329,10 @@ pub struct Invocation {
     pub jobs: Option<u16>,
     /// `dx mutate --fail-on=survived:<pct>`: the survivor percent that fails the run.
     pub fail_survived: Option<u32>,
+    /// `dx bench --fail-on=regression:<pct>`: the slowdown percent that fails the run.
+    pub bench_regression: Option<u32>,
+    /// `dx bench --compare`: a `dx-bench/v1` file path or a git ref.
+    pub bench_compare: Option<String>,
     pub path_only: bool,
     pub shell: Option<String>,
     pub agent: bool,
@@ -740,6 +744,8 @@ mod tests {
             time: None,
             jobs: None,
             fail_survived: None,
+            bench_regression: None,
+            bench_compare: None,
             new_log: None,
             path_only: false,
             shell: None,

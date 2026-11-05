@@ -253,7 +253,11 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     ),
     (
         Command::Bench,
-        &["bench //...", "bench //app:parse_bench --output=json"],
+        &[
+            "bench //...",
+            "bench //app:parse_bench --output=json",
+            "bench --compare main --fail-on=regression:20",
+        ],
     ),
     (
         Command::Run,

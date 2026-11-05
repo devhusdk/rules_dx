@@ -230,7 +230,7 @@ pub static COMMANDS: [CommandMeta; 28] = [
         name: "bench",
         scope_policy: "default-//...",
         describe: "run dx-bench tagged tests and print their numbers",
-        usage: "Usage: dx bench [--here] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx bench [--compare <path|ref>] [--fail-on=regression:<pct>] [--here] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; only tests tagged dx-bench run. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes.",
         is_managed: false,
         is_adoption: false,
@@ -558,7 +558,7 @@ impl Command {
     /// Whether `--fail-on` applies; watch passes it to the command it wraps.
     pub fn supports_fail_on(self) -> bool {
         super::grammar::accepts_long(self, "fail-on")
-            && !matches!(self, Command::Watch | Command::Mutate)
+            && !matches!(self, Command::Watch | Command::Mutate | Command::Bench)
     }
 
     pub fn describe(self) -> &'static str {

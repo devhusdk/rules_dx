@@ -16,6 +16,8 @@ use std::path::Path;
 const SCHEMA: &str = "dx-bench/v1";
 const BENCH_FILE: &str = "dx-bench.json";
 const CODE_BENCH_RESULTS: &str = "bench_results";
+const CODE_BENCH_COMPARE: &str = "bench_compare";
+const CODE_BENCH_REGRESSION: &str = "bench_regression";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct Measurement {
@@ -36,6 +38,158 @@ struct BenchFile {
 struct TargetResults {
     label: String,
     results: Vec<Measurement>,
+}
+
+/// The results of an earlier run, keyed by target label when the document has one.
+#[derive(Debug, Default)]
+struct Baseline {
+    rows: Vec<(Option<String>, Measurement)>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BaselineFile {
+    schema: String,
+    #[serde(default)]
+    results: Vec<Measurement>,
+    #[serde(default)]
+    targets: Vec<TargetResultsIn>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TargetResultsIn {
+    label: String,
+    results: Vec<Measurement>,
+}
+
+impl Baseline {
+    fn parse(bytes: &[u8]) -> Result<Baseline, String> {
+        let file: BaselineFile =
+            serde_json::from_slice(bytes).map_err(|error| format!("invalid baseline: {error}"))?;
+        if file.schema != SCHEMA {
+            return Err(format!(
+                "invalid baseline: schema is {:?}, want {SCHEMA:?}",
+                file.schema
+            ));
+        }
+        let mut rows: Vec<(Option<String>, Measurement)> =
+            file.results.into_iter().map(|row| (None, row)).collect();
+        for target in file.targets {
+            for row in target.results {
+                rows.push((Some(target.label.clone()), row));
+            }
+        }
+        Ok(Baseline { rows })
+    }
+
+    fn find(&self, label: &str, name: &str) -> Option<&Measurement> {
+        self.rows
+            .iter()
+            .find(|(seen, row)| row.name == name && seen.as_deref() == Some(label))
+            .or_else(|| {
+                self.rows
+                    .iter()
+                    .find(|(seen, row)| row.name == name && seen.is_none())
+            })
+            .map(|(_, row)| row)
+    }
+}
+
+/// One result set against its baseline row.
+struct Delta {
+    baseline: f64,
+    percent: f64,
+    regression_beyond_noise: bool,
+}
+
+fn delta(row: &Measurement, base: &Measurement) -> Option<Delta> {
+    if base.mean <= 0.0 {
+        return None;
+    }
+    let change = row.mean - base.mean;
+    let noise = 2.0 * row.stddev.max(base.stddev);
+    Some(Delta {
+        baseline: base.mean,
+        percent: change / base.mean * 100.0,
+        regression_beyond_noise: change > noise,
+    })
+}
+
+fn load_baseline(
+    reference: &str,
+    workspace: &Path,
+    gh: &Path,
+    scratch: &Path,
+) -> Result<Baseline, String> {
+    let path = workspace.join(reference);
+    if path.is_file() {
+        let bytes = std::fs::read(&path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        return Baseline::parse(&bytes);
+    }
+    let bytes = download_baseline(reference, gh, scratch)?;
+    Baseline::parse(&bytes)
+}
+
+fn gh_output(gh: &Path, args: &[&str]) -> Result<String, String> {
+    let output = std::process::Command::new(gh)
+        .args(args)
+        .output()
+        .map_err(|error| format!("cannot run gh: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "gh {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Downloads the `dx-bench-<platform>` artifact of the latest run on a ref.
+fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u8>, String> {
+    let platform = dx_plan::platform::platform_key(std::env::consts::OS, std::env::consts::ARCH)
+        .ok_or_else(|| "this platform has no dx-bench artifact".to_owned())?;
+    let listing = gh_output(
+        gh,
+        &[
+            "run",
+            "list",
+            "--branch",
+            reference,
+            "--limit",
+            "1",
+            "--json",
+            "databaseId",
+            "--jq",
+            ".[0].databaseId",
+        ],
+    )?;
+    let run = listing.trim();
+    if run.is_empty() || run == "null" {
+        return Err(format!("no workflow run found on {reference:?}"));
+    }
+    let name = format!("dx-bench-{platform}");
+    let dest = scratch.join("baseline");
+    let dest_text = dest
+        .to_str()
+        .ok_or_else(|| "the scratch path is not UTF-8".to_owned())?;
+    gh_output(
+        gh,
+        &["run", "download", run, "--name", &name, "--dir", dest_text],
+    )?;
+    let mut files: Vec<_> = std::fs::read_dir(&dest)
+        .map_err(|error| format!("cannot read the {name} artifact: {error}"))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+        .collect();
+    files.sort();
+    let file = files
+        .iter()
+        .find(|path| path.file_name().is_some_and(|name| name == "last.json"))
+        .or_else(|| files.first())
+        .ok_or_else(|| format!("the {name} artifact holds no json file"))?;
+    std::fs::read(file).map_err(|error| format!("cannot read {}: {error}", file.display()))
 }
 
 /// The query that keeps the `dx-bench` tagged tests of a scope.
@@ -79,20 +233,42 @@ fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, String> {
     parse_bench_file(&bytes)
 }
 
-fn render_table(label: &str, results: &[Measurement]) -> String {
-    let rows: Vec<[String; 4]> = results
+fn render_table(label: &str, results: &[Measurement], baseline: Option<&Baseline>) -> String {
+    let mut head: Vec<String> = ["name", "mean", "stddev", "unit"]
+        .map(str::to_owned)
+        .to_vec();
+    if baseline.is_some() {
+        head.push("baseline".to_owned());
+        head.push("delta %".to_owned());
+    }
+    let rows: Vec<Vec<String>> = results
         .iter()
         .map(|row| {
-            [
+            let mut cells = vec![
                 row.name.clone(),
                 row.mean.to_string(),
                 row.stddev.to_string(),
                 row.unit.clone(),
-            ]
+            ];
+            if let Some(baseline) = baseline {
+                let found = baseline
+                    .find(label, &row.name)
+                    .and_then(|base| delta(row, base));
+                match found {
+                    Some(found) => {
+                        cells.push(found.baseline.to_string());
+                        cells.push(format!("{:+.1}", found.percent));
+                    }
+                    None => {
+                        cells.push("-".to_owned());
+                        cells.push("-".to_owned());
+                    }
+                }
+            }
+            cells
         })
         .collect();
-    let head = ["name", "mean", "stddev", "unit"].map(str::to_owned);
-    let mut widths = [0; 4];
+    let mut widths = vec![0; head.len()];
     for row in std::iter::once(&head).chain(rows.iter()) {
         for (width, cell) in widths.iter_mut().zip(row) {
             *width = (*width).max(cell.chars().count());
@@ -102,7 +278,7 @@ fn render_table(label: &str, results: &[Measurement]) -> String {
     for row in std::iter::once(&head).chain(rows.iter()) {
         let line: Vec<String> = row
             .iter()
-            .zip(widths)
+            .zip(&widths)
             .map(|(cell, width)| format!("{cell:<width$}"))
             .collect();
         text.push_str(line.join("  ").trim_end());
@@ -113,6 +289,53 @@ fn render_table(label: &str, results: &[Measurement]) -> String {
 
 fn merged_document(targets: &[TargetResults]) -> serde_json::Value {
     serde_json::json!({"schema": SCHEMA, "targets": targets})
+}
+
+/// Adds `baseline` and `delta_pct` to every result the baseline covers.
+fn add_deltas(document: &mut serde_json::Value, baseline: &Baseline) {
+    let Some(targets) = document["targets"].as_array_mut() else {
+        return;
+    };
+    for target in targets {
+        let label = target["label"].as_str().unwrap_or_default().to_owned();
+        let Some(results) = target["results"].as_array_mut() else {
+            continue;
+        };
+        for result in results {
+            let Ok(row) = serde_json::from_value::<Measurement>(result.clone()) else {
+                continue;
+            };
+            let found = baseline
+                .find(&label, &row.name)
+                .and_then(|base| delta(&row, base));
+            if let Some(found) = found {
+                result["baseline"] = found.baseline.into();
+                result["delta_pct"] = found.percent.into();
+            }
+        }
+    }
+}
+
+/// The results slower than the baseline by more than `limit` percent and by more than two stddevs.
+fn regressions(targets: &[TargetResults], baseline: &Baseline, limit: u32) -> Vec<String> {
+    let mut found = Vec::new();
+    for target in targets {
+        for row in &target.results {
+            let Some(base) = baseline.find(&target.label, &row.name) else {
+                continue;
+            };
+            let Some(found_delta) = delta(row, base) else {
+                continue;
+            };
+            if found_delta.percent > f64::from(limit) && found_delta.regression_beyond_noise {
+                found.push(format!(
+                    "{}: {} is {:.1}% slower than the baseline",
+                    target.label, row.name, found_delta.percent
+                ));
+            }
+        }
+    }
+    found
 }
 
 fn write_last(workspace: &Path, document: &serde_json::Value) -> std::io::Result<()> {
@@ -135,6 +358,37 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
+    if invocation.bench_regression.is_some() && invocation.bench_compare.is_none() {
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_BENCH_COMPARE,
+            "--fail-on=regression needs --compare",
+        );
+    }
+    let baseline = match &invocation.bench_compare {
+        Some(reference) => {
+            let loaded = tempfile::tempdir()
+                .map_err(|error| error.to_string())
+                .and_then(|scratch| {
+                    load_baseline(reference, workspace, Path::new("gh"), scratch.path())
+                });
+            match loaded {
+                Ok(baseline) => Some(baseline),
+                Err(message) => {
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_BENCH_COMPARE,
+                        &format!("cannot compare with {reference:?}: {message}"),
+                    );
+                }
+            }
+        }
+        None => None,
+    };
     let selection = SelectionContext::unconfigured_with_options(
         invocation.raw_bazel_options(),
         &invocation.bazel_startup_options,
@@ -239,7 +493,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     targets.sort_by(|a, b| a.label.cmp(&b.label));
-    let document = merged_document(&targets);
+    let mut document = merged_document(&targets);
     if let Err(error) = write_last(workspace, &document) {
         return operational(
             invocation,
@@ -249,12 +503,15 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
             &format!("could not write .dx/bench/last.json: {error}"),
         );
     }
+    if let Some(baseline) = &baseline {
+        add_deltas(&mut document, baseline);
+    }
     let shown = if invocation.output == OutputMode::Json {
         format!("{document}\n")
     } else {
         targets
             .iter()
-            .map(|target| render_table(&target.label, &target.results))
+            .map(|target| render_table(&target.label, &target.results, baseline.as_ref()))
             .collect::<Vec<_>>()
             .join("\n")
     };
@@ -264,7 +521,14 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
     for problem in &problems {
         let _ = writeln!(err, "dx: {CODE_BENCH_RESULTS}: {problem}");
     }
-    if bazel_code == 0 && !problems.is_empty() {
+    let slower = match (&baseline, invocation.bench_regression) {
+        (Some(baseline), Some(limit)) => regressions(&targets, baseline, limit),
+        _ => Vec::new(),
+    };
+    for line in &slower {
+        let _ = writeln!(err, "dx: {CODE_BENCH_REGRESSION}: {line}");
+    }
+    if bazel_code == 0 && (!problems.is_empty() || !slower.is_empty()) {
         return 1;
     }
     bazel_code
@@ -308,7 +572,11 @@ mod tests {
 
     #[test]
     fn table_aligns_columns_under_the_label() {
-        let text = render_table("//a:b", &[row("parse", 1.5), row("render_long", 20.0)]);
+        let text = render_table(
+            "//a:b",
+            &[row("parse", 1.5), row("render_long", 20.0)],
+            None,
+        );
         assert_eq!(
             text,
             "//a:b\nname         mean  stddev  unit\nparse        1.5   0.5     ms\nrender_long  20    0.5     ms\n"
@@ -451,6 +719,72 @@ mod tests {
             err.contains("//app:parse_bench: dx-bench.json was not written"),
             "{err}"
         );
+    }
+
+    fn doc(mean: f64) -> String {
+        format!(
+            r#"{{"schema":"dx-bench/v1","results":[{{"name":"parse","unit":"ms","mean":{mean},"stddev":0.1,"iterations":50}}]}}"#
+        )
+    }
+
+    fn compare_run(
+        name: &str,
+        current: f64,
+        baseline: f64,
+        fail_on: &str,
+    ) -> (i32, String, String) {
+        let harness = bench_harness(name, Some(zip_with(BENCH_FILE, doc(current).as_bytes())));
+        std::fs::write(harness.workspace.join("a.json"), doc(baseline)).expect("baseline");
+        harness.run(&["bench", "--compare", "a.json", fail_on, "--output=json"])
+    }
+
+    #[test]
+    fn a_thirty_percent_slowdown_fails_at_twenty_and_passes_at_fifty() {
+        let (code, out, err) = compare_run("bench-cmp-20", 13.0, 10.0, "--fail-on=regression:20");
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("parse is 30.0% slower"), "{err}");
+        let document: serde_json::Value = serde_json::from_str(out.trim()).expect("json");
+        let result = &document["targets"][0]["results"][0];
+        assert_eq!(result["baseline"], 10.0);
+        assert!((result["delta_pct"].as_f64().expect("delta") - 30.0).abs() < 1e-9);
+        let (code, _, err) = compare_run("bench-cmp-50", 13.0, 10.0, "--fail-on=regression:50");
+        assert_eq!(code, 0, "{err}");
+    }
+
+    #[test]
+    fn a_change_inside_two_stddevs_is_not_a_regression() {
+        let (code, _, err) = compare_run("bench-cmp-noise", 10.1, 10.0, "--fail-on=regression:0");
+        assert_eq!(code, 0, "{err}");
+    }
+
+    #[test]
+    fn compare_adds_baseline_columns_to_the_table() {
+        let harness = bench_harness(
+            "bench-cmp-table",
+            Some(zip_with(BENCH_FILE, doc(13.0).as_bytes())),
+        );
+        std::fs::write(harness.workspace.join("a.json"), doc(10.0)).expect("baseline");
+        let (code, out, err) = harness.run(&["bench", "--compare", "a.json"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("baseline  delta %"), "{out}");
+        assert!(out.contains("10        +30.0"), "{out}");
+    }
+
+    #[test]
+    fn regression_gate_needs_a_baseline() {
+        let harness = bench_harness("bench-cmp-none", None);
+        let (code, _, err) = harness.run(&["bench", "--fail-on=regression:20"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("needs --compare"), "{err}");
+    }
+
+    #[test]
+    fn baseline_reads_merged_documents_by_label() {
+        let merged = br#"{"schema":"dx-bench/v1","targets":[{"label":"//a:b","results":[{"name":"x","unit":"ms","mean":2.0,"stddev":0.1,"iterations":1}]}]}"#;
+        let baseline = Baseline::parse(merged).expect("parse");
+        assert!(baseline.find("//a:b", "x").is_some());
+        assert!(baseline.find("//a:c", "x").is_none());
+        assert!(Baseline::parse(br#"{"schema":"other"}"#).is_err());
     }
 
     #[test]

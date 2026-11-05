@@ -40,19 +40,23 @@ elixir="$(cd "$runfiles/{elixir}" && pwd)"
 {env}
 """
 
-def launcher_preamble(otp, elixir):
-    """Returns the launcher text up to the exec line for runfiles-relative OTP and Elixir roots."""
-    env = "\n".join(["export {}='{}'".format(key, value) for key, value in sorted(MIX_FORMAT_ENV.items())])
+def launcher_preamble(otp, elixir, inherit_env = False):
+    """Returns the launcher text up to the exec line for runfiles-relative OTP and Elixir roots.
+
+    With `inherit_env` the mix and hex variables come from the caller instead of the no-home defaults.
+    """
+    env = "" if inherit_env else "\n".join(["export {}='{}'".format(key, value) for key, value in sorted(MIX_FORMAT_ENV.items())])
     return _PREAMBLE.format(otp = otp, elixir = elixir, env = env)
 
 def launcher_root(ctx, version_file):
     """Returns the runfiles-relative directory that holds one toolchain version file."""
     return runfiles_path(ctx.workspace_name, version_file.short_path).rpartition("/")[0]
 
-def windows_descriptor(otp, elixir, ebins, script, script_args = []):
+def windows_descriptor(otp, elixir, ebins, script, script_args = [], inherit_env = False):
     """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl.exe.
 
     `ebins` are extra runfiles-relative code paths; `script_args` follow the script.
+    With `inherit_env` the mix and hex variables come from the caller.
     """
     lines = [
         "program=" + otp + "/bin/erl.exe",
@@ -66,6 +70,6 @@ def windows_descriptor(otp, elixir, ebins, script, script_args = []):
         lines += ["arg=-pa", "path=" + ebin]
     lines += ["arg=+pc", "arg=unicode", "arg=-s", "arg=elixir", "arg=start_cli", "arg=-extra", "path=" + script]
     lines += ["arg=" + arg for arg in script_args]
-    env = _mix_env(WINDOWS_MIX_HOME) | {"PATH": WINDOWS_PATH}
+    env = {"PATH": WINDOWS_PATH} if inherit_env else _mix_env(WINDOWS_MIX_HOME) | {"PATH": WINDOWS_PATH}
     lines += ["env={}\t{}".format(key, value) for key, value in sorted(env.items())]
     return "\n".join(lines) + "\n"

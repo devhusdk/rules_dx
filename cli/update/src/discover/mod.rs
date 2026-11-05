@@ -6,6 +6,7 @@ pub mod containers;
 pub mod cpan;
 pub mod github;
 pub mod go;
+pub mod hex;
 pub mod maven;
 pub mod npm;
 pub mod nuget;
@@ -96,6 +97,7 @@ pub enum Registry {
     Rubygems,
     Metacpan,
     PubDev,
+    Hex,
     GitHub,
     BazelReleases,
 }
@@ -119,6 +121,7 @@ impl Registry {
             Registry::Rubygems => format!("https://rubygems.org/gems/{package}"),
             Registry::Metacpan => format!("https://metacpan.org/pod/{package}"),
             Registry::PubDev => format!("https://pub.dev/packages/{package}"),
+            Registry::Hex => format!("https://hex.pm/packages/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),
             Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),
         }

@@ -31,6 +31,7 @@ const EXPECTED_NAMES: [&str; 30] = [
     "dx_scala3_test",
     "dx_scalafix",
     "dx_thrift_crates",
+    "elixir_app_deps",
     "go",
     "julia_app_pkgs",
     "maven",

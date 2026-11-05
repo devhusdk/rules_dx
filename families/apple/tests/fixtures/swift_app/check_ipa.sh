@@ -20,11 +20,14 @@ expect() {
   [ "$got" = "$want" ] || { echo "$what: want '$want', got '$got'" >&2; exit 1; }
 }
 
-expect CFBundleIdentifier com.example.ledger "$(plutil -extract CFBundleIdentifier raw "$plist")"
+expect CFBundleIdentifier "$2" "$(plutil -extract CFBundleIdentifier raw "$plist")"
 expect MinimumOSVersion 17.0 "$(plutil -extract MinimumOSVersion raw "$plist")"
-expect DTPlatformName iphonesimulator "$(plutil -extract DTPlatformName raw "$plist")"
+expect DTPlatformName "$3" "$(plutil -extract DTPlatformName raw "$plist")"
+if [ "$3" = iphoneos ]; then
+  [ -f "$app/embedded.mobileprovision" ] || { echo "embedded.mobileprovision missing" >&2; exit 1; }
+fi
 
 exe="$app/$(plutil -extract CFBundleExecutable raw "$plist")"
 expect archs arm64 "$(lipo -archs "$exe")"
-otool -l "$exe" | grep -Eq '^ +platform 7$' || { echo "platform 7 not found" >&2; exit 1; }
+otool -l "$exe" | grep -Eq "^ +platform $4\$" || { echo "platform $4 not found" >&2; exit 1; }
 nm "$exe" | grep -q '_ledger_total' || { echo "_ledger_total not found" >&2; exit 1; }

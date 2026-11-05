@@ -550,6 +550,10 @@ enum Constraint {
 /// kotlin, typescript and elixir wrappers forward the attribute as written.
 const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("android_check", Constraint::AsWritten),
+    (
+        "apple_ios_app_test",
+        Constraint::DefaultIfUnset("@rules_dx_apple//ios:cell.bzl", "APPLE_HOSTS"),
+    ),
     ("cc_test", Constraint::AsWritten),
     ("cc_toolchain_test", Constraint::AsWritten),
     ("csharp_test", Constraint::AsWritten),

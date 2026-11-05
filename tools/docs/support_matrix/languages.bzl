@@ -36,6 +36,7 @@ def _cells(pinned, cells):
     return [pinned[cell].exec_compatible_with for cell in cells]
 
 COMPUTED_CONSTRAINTS = {
+    "@rules_dx_apple//ios:cell.bzl%APPLE_HOSTS": [["@platforms//os:ios"], ["@platforms//os:macos"]],
     "//cuda/rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
@@ -244,7 +245,9 @@ ROWS = [
             "@rules_dx_apple//provisioning:managed_without_xcode_config_test",
             "@rules_dx_apple//tests:macos_consumer_test",
             "@rules_dx_apple//tests:macos_app_sign_smoke_test",
+            "@rules_dx_apple//tests/fixtures/swift_app:ledger_app_test",
             "@rules_dx_apple//tests/fixtures/swift_app:ledger_ipa_test",
+            "@rules_dx_apple//tests/fixtures/swift_app:ledger_device_ipa_test",
             "//swift/tests/fixtures/hello:xctest",
         ],
         "consumer_tests": [

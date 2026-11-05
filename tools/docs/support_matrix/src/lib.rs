@@ -128,15 +128,21 @@ impl starlark::Loader for BuildLoader<'_> {
     }
 
     fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
-        let label = label.strip_prefix("@rules_dx").unwrap_or(label);
+        let label = label
+            .strip_prefix("@rules_dx")
+            .filter(|rest| rest.starts_with("//"))
+            .unwrap_or(label);
         self.computed.get(&format!("{label}%{symbol}")).cloned()
     }
 }
 
 fn split_label(label: &str) -> Result<(String, &str), String> {
-    let (prefix, rest) = match label.strip_prefix("@rules_dx_android//") {
-        Some(rest) => ("@rules_dx_android/", rest),
-        None => ("", label.strip_prefix("//").unwrap_or("")),
+    let external = ["@rules_dx_android", "@rules_dx_apple"]
+        .into_iter()
+        .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
+    let (prefix, rest) = match external {
+        Some((repo, rest)) => (format!("{repo}/"), rest),
+        None => (String::new(), label.strip_prefix("//").unwrap_or("")),
     };
     rest.split_once(':')
         .map(|(package, name)| (format!("{prefix}{package}"), name))

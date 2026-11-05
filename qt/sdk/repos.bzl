@@ -865,6 +865,8 @@ def _qt_cell_repo_impl(ctx):
         ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
     if entry.runtime != None:
         _acquire_runtime(ctx, extractor, cells)
+    if layout.os == "windows":
+        ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/toolchains:notices/MSVC_REDISTRIBUTABLE.txt")))
     if layout.link == "framework":
         _normalize_frameworks(ctx)
     _check_module(ctx, "Core")

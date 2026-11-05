@@ -536,6 +536,11 @@ exports_files(
     visibility = ["//cc/tests/gcc_linux_x86_64:__pkg__"],
 )
 
+exports_files(
+    ["notices/MSVC_REDISTRIBUTABLE.txt"],
+    visibility = ["//qt/sdk:__pkg__"],
+)
+
 # The glibc and libgcc of the pinned GCC sysroot come from the host OS, and
 # libstdc++ is linked statically, so nothing ships with the app.
 native_runtime(

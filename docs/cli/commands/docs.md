@@ -84,6 +84,10 @@ items get pages. Symbol ids have the form `rust:<crate>:<path>`, where `<path>`
 joins the module path with `.`, for example `rust:mylib:shapes.Circle`. Pass the
 shard to `docs_site`.
 
+The docs aspect also builds a Rust shard for every Rust library or `rlib` in scope that has no
+shard of its own, with stable rustdoc and the crate's `crate_features`. Test crates are skipped,
+and so are repos without a Rust toolchain. The shards go in the `dx_docs_shards` output group.
+
 Rust keeps types, values and macros in separate namespaces, so two public items
 can share a name. The item that comes first by namespace (types, then values,
 then macros, and for members fields and variants, then associated types, then

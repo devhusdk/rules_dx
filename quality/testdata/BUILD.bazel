@@ -12,8 +12,8 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
-load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subject")
-load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_tests")
+load(":real_aspect_subject.bzl", "real_aspect_subject", "real_docs_shard_files", "real_docs_subject", "real_shard_probe_subject")
+load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_docs_tests", "real_shard_probe_tests")
 load(":real_result_cases.bzl", "real_result_cases")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
@@ -1999,4 +1999,35 @@ clippy_rmeta_inputs_test(
     name = "fixture_upstream_rust_clippy_rmeta_inputs_test",
     size = "small",
     target_under_test = ":fixture_upstream_rust_bin",
+)
+
+real_docs_subject(
+    name = "docs_rust_library_subject",
+    target = "//tools/docs/rust/fixture:docs_fixture",
+)
+
+real_docs_subject(
+    name = "docs_rust_test_subject",
+    testonly = True,
+    target = "//tools/docs/rust/fixture:docs_fixture_test",
+)
+
+real_docs_subject(
+    name = "docs_plain_subject",
+    target = ":plain",
+)
+
+real_docs_tests(
+    name = "real_docs_shards",
+    subjects = [
+        ":docs_plain_subject",
+        ":docs_rust_library_subject",
+        ":docs_rust_test_subject",
+    ],
+)
+
+real_docs_shard_files(
+    name = "docs_fixture_aspect_shard",
+    target = "//tools/docs/rust/fixture:docs_fixture",
+    visibility = ["//tools/docs/rust:__pkg__"],
 )

@@ -1,6 +1,6 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
@@ -49,6 +49,13 @@ rust_library(
     crate_root = "src/lib_changed.rs",
     edition = "2021",
     deps = [":docs_fixture_build_script"],
+)
+
+# keep
+rust_test(
+    name = "docs_fixture_test",
+    crate = ":docs_fixture",
+    tags = ["manual"],
 )
 
 rust_doc_shard(

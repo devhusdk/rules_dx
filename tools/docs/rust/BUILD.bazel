@@ -30,9 +30,11 @@ rust_test(
     data = [
         ":fixture_rustdoc_json",
         ":fixture_srcs_file",
+        "//quality/testdata:docs_fixture_aspect_shard",
         "//tools/docs/rust/extract:rust_extract",
     ],
     env = {
+        "DX_ASPECT_SHARD": "$(rootpath //quality/testdata:docs_fixture_aspect_shard)",
         "DX_FIXTURE_RUSTDOC": "$(rootpath :fixture_rustdoc_json)",
         "DX_FIXTURE_SRCS": "$(rootpath :fixture_srcs_file)",
         "DX_RUST_EXTRACT": "$(rootpath //tools/docs/rust/extract:rust_extract)",

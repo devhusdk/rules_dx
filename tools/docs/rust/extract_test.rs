@@ -101,6 +101,17 @@ fn the_fixture_json_becomes_a_valid_shard() {
 }
 
 #[test]
+fn the_aspect_shard_keeps_the_enabled_features() {
+    let bytes = std::fs::read(runfile("DX_ASPECT_SHARD")).expect("read aspect shard");
+    let shard = decode_shard(&bytes).unwrap_or_else(|error| panic!("decode: {error:?}"));
+    assert!(shard.symbols.iter().any(|s| s.id.ends_with("unit_circle")));
+    assert!(!shard
+        .symbols
+        .iter()
+        .any(|s| s.id.ends_with("without_extra")));
+}
+
+#[test]
 fn malformed_json_fails_without_a_shard() {
     let dir_tmp = scratch("extract-malformed", "{", &fixture_srcs());
     let dir = dir_tmp.path();

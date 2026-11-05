@@ -512,3 +512,39 @@ def real_shard_probe_tests(name, subjects):
         subjects = subjects,
         expected_observations = EXPECTED_PROBE_OBSERVATIONS,
     )
+
+EXPECTED_DOCS_OBSERVATIONS = """subject //quality/testdata:docs_plain_subject
+field docs_shard_count=0
+field docs_shards=(none)
+field label=//quality/testdata:plain
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_plain_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_rust_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/rust/fixture/_dx_docs/docs_fixture.ir.pb
+field label=//tools/docs/rust/fixture:docs_fixture
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_rust_library_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_rust_test_subject
+field docs_shard_count=0
+field docs_shards=(none)
+field label=//tools/docs/rust/fixture:docs_fixture_test
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_rust_test_subject
+aspect_field transitive_count=0"""
+
+def real_docs_tests(name, subjects):
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = subjects,
+        expected_observations = EXPECTED_DOCS_OBSERVATIONS,
+    )

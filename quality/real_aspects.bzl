@@ -47,6 +47,7 @@ load("//sql/rules:providers.bzl", "SqlDialectInfo")
 load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
 _REAL_TOOL_TABLE = {
@@ -2881,21 +2882,58 @@ real_format_probe_aspect = _make_real_probe_aspect("format")
 
 real_typecheck_probe_aspect = _make_real_probe_aspect("typecheck")
 
+_RUST_DOCS_TOOLCHAIN = str(Label("@rules_rust//rust:toolchain_type"))
+_CC_DOCS_TOOLCHAIN = "@bazel_tools//tools/cpp:toolchain_type"
+
+def _rust_docs_shard(target, ctx):
+    if _rust_common.crate_info not in target or DocsShardInfo in target:
+        return None
+    crate = target[_rust_common.crate_info]
+    if crate.type not in ("rlib", "lib") or crate.is_test:
+        return None
+    if not ctx.toolchains[_RUST_DOCS_TOOLCHAIN] or not ctx.toolchains[_CC_DOCS_TOOLCHAIN]:
+        return None
+    return rust_shard_action(ctx, target, "", stem = "_dx_docs/" + ctx.label.name).shard
+
 def _real_docs_aspect_impl(target, ctx):
     files = []
     sites = []
+    shards = []
     if DocsSiteInfo in target:
         sites.append(target[DocsSiteInfo].tree)
     if DocsShardInfo in target:
         files.append(target[DocsShardInfo].shard)
+    rust_shard = _rust_docs_shard(target, ctx)
+    if rust_shard:
+        shards.append(rust_shard)
     if DocsApiInfo in target:
         files.append(target[DocsApiInfo].tree)
     return [OutputGroupInfo(
-        dx_results = depset(files + sites),
+        dx_results = depset(files + sites + shards),
         dx_docs_sites = depset(sites),
+        dx_docs_shards = depset(shards),
     )]
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results, and builds Rust library shards.",
+    attrs = {
+        "_error_format": attr.label(default = Label("@rules_rust//rust/settings:error_format")),
+        "_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/rust/extract:rust_extract"),
+            executable = True,
+        ),
+        "_process_wrapper": attr.label(
+            default = Label("@rules_rust//util/process_wrapper"),
+            cfg = "exec",
+            executable = True,
+        ),
+    },
+    fragments = ["cpp"],
+    requires = [rust_doc_inputs_aspect],
+    toolchains = [
+        config_common.toolchain_type(_RUST_DOCS_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(_CC_DOCS_TOOLCHAIN, mandatory = False),
+    ],
 )

@@ -21,6 +21,7 @@ load(
     "real_cue_format_aspect",
     "real_cue_typecheck_aspect",
     "real_d_typecheck_aspect",
+    "real_docs_aspect",
     "real_dockerfile_lint_aspect",
     "real_dotnet_format_aspect",
     "real_dotnet_lint_aspect",
@@ -310,5 +311,38 @@ real_shard_probe_subject = rule(
         "lint_probe": attr.label(aspects = [real_lint_probe_aspect], mandatory = True),
         "target": attr.label(aspects = _REAL_ASPECTS, mandatory = True),
         "typecheck_probe": attr.label(aspects = [real_typecheck_probe_aspect], mandatory = True),
+    },
+)
+
+def _real_docs_subject_impl(ctx):
+    target = ctx.attr.target
+    shards = []
+    if OutputGroupInfo in target and "dx_docs_shards" in target[OutputGroupInfo]:
+        shards = sorted([f.short_path for f in target[OutputGroupInfo]["dx_docs_shards"].to_list()])
+    return [
+        DefaultInfo(files = depset([])),
+        DxSubjectInfo(fields = {
+            "docs_shard_count": str(len(shards)),
+            "docs_shards": ",".join(shards) if shards else "(none)",
+            "label": _label_text(target.label),
+        }),
+    ]
+
+real_docs_subject = rule(
+    implementation = _real_docs_subject_impl,
+    doc = "Observes the docs shards that real_docs_aspect builds for a target.",
+    attrs = {
+        "target": attr.label(aspects = [real_docs_aspect], mandatory = True),
+    },
+)
+
+def _real_docs_shard_files_impl(ctx):
+    return [DefaultInfo(files = ctx.attr.target[OutputGroupInfo].dx_docs_shards)]
+
+real_docs_shard_files = rule(
+    implementation = _real_docs_shard_files_impl,
+    doc = "Exposes the docs shards that real_docs_aspect builds for a target.",
+    attrs = {
+        "target": attr.label(aspects = [real_docs_aspect], mandatory = True),
     },
 )

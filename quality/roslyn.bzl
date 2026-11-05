@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
 
@@ -60,6 +61,13 @@ def _analysis_level(csc, tfm):
     if tfm.startswith("net") and tfm.endswith(".0") and tfm[3:-2].isdigit() and int(tfm[3:-2]) >= 5:
         return tfm[3:-2]
     return sdk_major
+
+def _bound_config(attrs, default):
+    """Returns the config file and its closure from a roslyn_config in aspect_hints, else the default."""
+    for hint in getattr(attrs, "aspect_hints", []):
+        if DxNativeConfigInfo in hint and hint[DxNativeConfigInfo].tool_id == "roslyn":
+            return hint[DxNativeConfigInfo].config, hint[DxNativeConfigInfo].closure
+    return default, depset([default])
 
 def _roslyn_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -141,7 +149,8 @@ def _roslyn_impl(target, ctx):
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/build/config/analysislevel_" + level + "_default.globalconfig", format = "/analyzerconfig:%s")
     args.add_all(trimmer, format_each = "/analyzer:%s")
-    args.add(ctx.file._default_config, format = "/analyzerconfig:%s")
+    config, config_closure = _bound_config(attrs, ctx.file._default_config)
+    args.add(config, format = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.analyzer_configs, format_each = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.additionalfiles, format_each = "/additionalfile:%s")
     args.add(declared, format = "/additionalfile:%s")
@@ -155,8 +164,9 @@ def _roslyn_impl(target, ctx):
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, ctx.file._default_config, declared] + trimmer,
+        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, declared] + trimmer,
         transitive = [
+            config_closure,
             refs,
             analyzers,
             analyzers_csharp,

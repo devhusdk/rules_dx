@@ -1,0 +1,7 @@
+exports_files(
+    [
+        "standard.globalconfig",
+        "strict.globalconfig",
+    ],
+    visibility = ["//visibility:public"],
+)

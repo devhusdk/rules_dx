@@ -2148,6 +2148,7 @@ TOOLS = [
     tool(
         id = "roslyn",
         adapters = {"lint": ["csharp"]},
+        config_suffix = [".globalconfig"],
         support = [
             row(
                 capability = "lint",

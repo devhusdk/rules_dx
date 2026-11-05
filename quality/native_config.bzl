@@ -247,6 +247,8 @@ clang_tidy_config = _make_native_config_rule("clang_tidy")
 
 cppcheck_config = _make_native_config_rule("cppcheck")
 
+roslyn_config = _make_native_config_rule("roslyn")
+
 staticcheck_config = _make_native_config_rule("staticcheck")
 
 fsharplint_config = _make_native_config_rule("fsharplint")

@@ -412,6 +412,7 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | `helm` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas`, shared with `kubeconform` |
 | `detekt` | no | `.yml` or `.yaml`; replaces detekt's defaults, so rules not in the file do not run | | `detekt_config` |
 | `ktlint` | no | `.editorconfig`, default `intellij_idea` style with three rules off | | `ktlint_config` |
+| `roslyn` | no | `.globalconfig`, replaces the dx default; bases `standard.globalconfig` (the SDK Recommended tier written out) and `strict.globalconfig` (every CA rule at warning, Security and Reliability rules at error) in `cli/adopt/templates/config/roslyn/` | | `roslyn_config` |
 | `ruff` | yes | `ruff.toml` | | `ruff_config` |
 | `scalafix` | no | `.scalafix.conf`, default `rules = [RemoveUnused]`; `RemoveUnused` needs the `@rules_dx//scala/toolchain:semanticdb` toolchain, which sets `-Wunused` and `-Wconf:cat=unused:info`; bases `standard.conf` (`RemoveUnused`, `DisableSyntax` and two more rules) and `strict.conf` (adds `ExplicitResultTypes`, `OrganizeImports` and stricter `DisableSyntax`) in `cli/adopt/templates/config/scalafix/` | | `scalafix_config` |
 | `scalafmt` | no | `.scalafmt.conf`, default `version = 3.11.4` and `runner.dialect = scala213` (`quality/tools/jvm/scalafmt_default.conf`) | | `scalafmt_config` |

@@ -93,6 +93,12 @@ host runtime only. A finding that only some frameworks report ends with
 those frameworks, such as `[net8.0]`. When `target_frameworks` is a
 `select()`, only the framework it resolves to is analyzed.
 
+`roslyn` reads a `.globalconfig` bound with `roslyn_config`. A root
+`.globalconfig` is the profile: it spells out every severity, so `dx` and the
+C# Dev Kit, which picks it up by its name, report the same findings. The dx
+bases are `standard.globalconfig` and `strict.globalconfig` in
+`cli/adopt/templates/config/roslyn/`.
+
 `dx typecheck` runs `csc`, which reports only the compiler diagnostics (`CS*`)
 from the same per-framework compilation that `roslyn` uses, so no extra
 compile runs. Analyzer findings stay with `roslyn`.

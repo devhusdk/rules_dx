@@ -9,6 +9,7 @@ fsharp_binary(
     name = "runner",
     srcs = ["Program.fs"],
     target_frameworks = [DOTNET_TOOL_FRAMEWORK],
+    visibility = ["//visibility:public"],
     deps = [
         "@paket.fsharplint//fsharp.compiler.service",
         "@paket.fsharplint//fsharp.core",

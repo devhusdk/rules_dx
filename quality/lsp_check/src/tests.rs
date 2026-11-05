@@ -210,3 +210,28 @@ fn message_without_length_is_an_error() {
     let mut input = Cursor::new(b"X: 1\r\n\r\n".to_vec());
     assert!(read_message(&mut input).is_err());
 }
+
+#[test]
+fn stray_header_line_is_reported() {
+    let mut input = Cursor::new(b"Picked up JAVA_TOOL_OPTIONS\r\n\r\n".to_vec());
+    let error = read_message(&mut input).unwrap_err();
+    assert!(error.to_string().contains("Picked up JAVA_TOOL_OPTIONS"));
+}
+
+#[test]
+fn content_type_header_is_accepted() {
+    let body = b"{}";
+    let mut raw = format!("content-type: x\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
+    raw.extend_from_slice(body);
+    assert!(read_message(&mut Cursor::new(raw)).unwrap().is_some());
+}
+
+#[test]
+fn vm_init_error_on_stdout_is_reported() {
+    let mut out = Vec::new();
+    let input = Cursor::new(b"Error occurred during initialization of VM\n".to_vec());
+    let error = check(input, &mut out, &[PathBuf::from("/a.pkl")], &options()).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("Error occurred during initialization of VM"));
+}

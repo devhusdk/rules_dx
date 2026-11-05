@@ -86,6 +86,15 @@ pub fn read_message(input: &mut impl BufRead) -> std::io::Result<Option<Value>> 
         }
         if let Some(value) = line.strip_prefix("Content-Length:") {
             length = value.trim().parse::<usize>().ok();
+        } else if !line.to_ascii_lowercase().starts_with("content-type:") {
+            let mut end = line.len().min(200);
+            while !line.is_char_boundary(end) {
+                end -= 1;
+            }
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("server wrote non-LSP output: {}", &line[..end]),
+            ));
         }
     }
     let Some(length) = length else {

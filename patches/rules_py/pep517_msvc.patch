@@ -213,7 +213,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  ) -> dict[str, str]:
      env = dict(os.environ)
      if execroot_marker:
-@@ -629,6 +649,23 @@
+@@ -629,6 +649,21 @@
      # helper still runs there; bare tool names deliberately remain on PATH.
      _absolutize_tool_paths(env)
  
@@ -228,9 +228,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +        if len(sys.executable) >= 250:
 +            # CreateProcess rejects a venv interpreter under the deep runfiles
 +            # tree; run the short base interpreter against the venv packages.
-+            import sysconfig
-+
-+            env["PYTHONPATH"] = sysconfig.get_path("purelib")
++            env["PYTHONPATH"] = pathsep.join(entry for entry in sys.path if entry)
 +            sys.executable = sys._base_executable
 +        return env
 +

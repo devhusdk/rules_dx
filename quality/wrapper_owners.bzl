@@ -11,7 +11,7 @@ WRAPPER_OWNERS = {
     "avro": "//avro/rules:defs.bzl",
     "bicep": "//bicep/rules:defs.bzl",
     "cc": "//cc/rules:defs.bzl",
-    "csharp": "//csharp/rules:defs.bzl",
+    "csharp": "@rules_dx_dotnet//csharp/rules:defs.bzl",
     "cloudformation": "//cloudformation/rules:defs.bzl",
     "css": "//javascript/rules:defs.bzl",
     "cuda": "//cuda/rules:defs.bzl",
@@ -26,7 +26,7 @@ WRAPPER_OWNERS = {
     "erlang": "//erlang/rules:defs.bzl",
     "flatbuffers": "//flatbuffers/rules:defs.bzl",
     "fortran": "//fortran/rules:defs.bzl",
-    "fsharp": "//fsharp/rules:defs.bzl",
+    "fsharp": "@rules_dx_dotnet//fsharp/rules:defs.bzl",
     "gherkin": "//quality/rules:defs.bzl",
     "go": "//go/rules:defs.bzl",
     "go_module": "other",
@@ -109,6 +109,8 @@ def _is_canonical_token(text):
     return True
 
 def _is_owner_label(owner):
+    if owner.startswith("@rules_dx_"):
+        owner = "//" + owner.split("//", 1)[-1]
     return owner.startswith("//") and owner.endswith("/rules:defs.bzl")
 
 def wrapper_schema_error():
@@ -118,7 +120,7 @@ def wrapper_schema_error():
             return "wrapper owners: non-canonical family '" + str(family) + "'"
         owner = WRAPPER_OWNERS[family]
         if owner != "other" and not _is_owner_label(owner):
-            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //.../rules:defs.bzl label or \"other\""
+            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //.../rules:defs.bzl or @rules_dx_<family>//.../rules:defs.bzl label or \"other\""
     for family in _taxonomy_families():
         if family not in WRAPPER_OWNERS:
             return "wrapper owners: taxonomy family '" + family + "' has no owner or uncovered verdict"

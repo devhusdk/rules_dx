@@ -1,4 +1,4 @@
-load("//fsharp/rules:defs.bzl", "fsharp_library")
+load("@rules_dotnet//dotnet:defs.bzl", "fsharp_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/dotnet:defs.bzl", "fsharp_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -12,6 +12,7 @@ exports_files(
 
 fsharp_library(
     name = "ledger",
+    target_frameworks = ["net10.0"],
     srcs = ["ledger/Ledger.fs"],
     generate_documentation_file = True,
     deps = [
@@ -22,6 +23,7 @@ fsharp_library(
 
 fsharp_library(
     name = "ledger_extra",
+    target_frameworks = ["net10.0"],
     srcs = ["ledger/Ledger.fs"],
     defines = ["DX_EXTRA"],
     generate_documentation_file = True,
@@ -33,6 +35,7 @@ fsharp_library(
 
 fsharp_library(
     name = "xmldoc_off",
+    target_frameworks = ["net10.0"],
     srcs = ["ledger/Ledger.fs"],
     generate_documentation_file = False,
     tags = ["manual"],

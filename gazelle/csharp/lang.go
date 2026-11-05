@@ -25,7 +25,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		MainRule:       "csharp_binary",
-		DefsPackage:    "csharp/rules:defs.bzl",
+		DefsPackage:    "@rules_dx_dotnet//csharp/rules:defs.bzl",
 		UnresolvedHint: unresolvedHint,
 		Exts:           SupportedExts,
 		TestSuffixes:   []string{"Test"},

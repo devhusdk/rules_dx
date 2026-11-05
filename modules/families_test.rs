@@ -616,7 +616,7 @@ fn core_family_file_loads_no_family_rule_set() {
     assert!(foreign.is_empty(), "core.bzl loads {foreign:?}");
 }
 
-/// The repos one family file may load from (files of rule-less languages count as core): the family's `bazel_deps`, the repos its extensions `use_repo`, and `bazel_skylib`.
+/// The repos one family file may load from (files of rule-less languages count as core): the family's `bazel_deps`, the repos its extensions `use_repo` (a moved family also gets core's, since its aspect file stays in core), and `bazel_skylib`.
 fn family_repos(module: &ModuleFile, json: &str, family: &str) -> BTreeSet<String> {
     let value: serde_json::Value = serde_json::from_str(json).expect("families.json");
     let families = &value["families"];
@@ -634,7 +634,16 @@ fn family_repos(module: &ModuleFile, json: &str, family: &str) -> BTreeSet<Strin
             .collect()
     };
     let mut repos = listed("bazel_deps");
-    let extensions = listed("extensions");
+    let mut extensions = listed("extensions");
+    if entry.get("path").is_some() {
+        extensions.extend(
+            families["core"]["extensions"]
+                .as_array()
+                .expect("core extensions")
+                .iter()
+                .filter_map(|item| item.as_str().map(str::to_owned)),
+        );
+    }
     let bindings: BTreeSet<&str> = module
         .calls()
         .iter()

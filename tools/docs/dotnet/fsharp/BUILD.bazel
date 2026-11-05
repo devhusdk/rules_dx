@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//fsharp/rules:defs.bzl", "fsharp_binary")
+load("@rules_dotnet//dotnet:defs.bzl", "fsharp_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK", "framework_pinned")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -7,10 +7,10 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 package(default_visibility = VIS_TOOLS)
 
 fsharp_binary(
-    name = "fsharp_api",
+    name = "fsharp_api_upstream",
     srcs = ["Program.fs"],
     target_frameworks = [DOTNET_TOOL_FRAMEWORK],
-    upstream_visibility = ["//tools/docs/dotnet:__pkg__"],
+    visibility = ["//tools/docs/dotnet:__pkg__"],
     deps = [
         "@paket.docs_fsharp//fsharp.compiler.service",
         "@paket.docs_fsharp//fsharp.core",

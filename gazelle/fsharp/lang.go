@@ -29,7 +29,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		MainRule:       "fsharp_binary",
-		DefsPackage:    "fsharp/rules:defs.bzl",
+		DefsPackage:    "@rules_dx_dotnet//fsharp/rules:defs.bzl",
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		Exts:           SupportedExts,
 		TestSuffixes:   []string{"Test"},

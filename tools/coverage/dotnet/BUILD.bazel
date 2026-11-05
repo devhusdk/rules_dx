@@ -1,6 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
-load(":coverage_tests.bzl", "dx_dotnet_coverage_tests")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS)
@@ -11,7 +10,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "coverage.bzl",
-        "coverage_tests.bzl",
     ],
     tags = ["corpus"],
 )
@@ -58,18 +56,4 @@ rust_clippy_test(
         ":coverlet_launcher",
         ":coverlet_launcher_test",
     ],
-)
-
-dx_dotnet_coverage_tests(
-    name = "csharp_coverage_test",
-    library = "greeter_lib_upstream",
-    source = "csharp/tests/fixtures/xunit/Greeter.cs",
-    target = "//csharp/tests/fixtures/xunit:greeter_test",
-)
-
-dx_dotnet_coverage_tests(
-    name = "fsharp_coverage_test",
-    library = "greeter_lib_upstream",
-    source = "fsharp/tests/fixtures/xunit/Greeter.fs",
-    target = "//fsharp/tests/fixtures/xunit:greeter_test",
 )

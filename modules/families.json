@@ -269,6 +269,7 @@
         "deploy",
         "dockerfile",
         "docs",
+        "dotnet",
         "dx",
         "env",
         "examples",
@@ -291,8 +292,11 @@
       ],
       "extensions": [
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//dotnet:extensions.bzl%dotnet",
+        "//dotnet:repos.bzl%dotnet_tools",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//quality/artifacts:extension.bzl%dx_tools",
+        "//third_party/dotnet:extension.bzl%paket",
         "@apple_support//crosstool:setup.bzl%apple_cc_configure_extension",
         "@gazelle//:extensions.bzl%go_deps",
         "@rules_go//go:extensions.bzl%go_sdk",
@@ -325,6 +329,8 @@
         ".yml"
       ],
       "gazelle": [
+        "//gazelle/csharp",
+        "//gazelle/fsharp",
         "//gazelle/go"
       ],
       "repo_rules": [
@@ -334,7 +340,8 @@
         "@gazelle//internal:go_repository.bzl%go_repository"
       ],
       "toolchains": [
-        "//tools/platforms:protoc_windows_arm64"
+        "//tools/platforms:protoc_windows_arm64",
+        "@dotnet_toolchains//:all"
       ]
     },
     "d": {
@@ -395,16 +402,21 @@
         "real_dotnet_lint_aspect",
         "real_dotnet_typecheck_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "bazel_skylib",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
+        "rules_shell"
+      ],
       "dirs": [
+        "bcr_test_module",
         "csharp",
-        "dotnet",
-        "fsharp"
+        "fsharp",
+        "third_party"
       ],
       "extensions": [
-        "//dotnet:extensions.bzl%dotnet",
-        "//dotnet:repos.bzl%dotnet_tools",
-        "//third_party/dotnet:extension.bzl%paket"
+        "@rules_dx//dotnet:repos.bzl%dotnet_tools"
       ],
       "file_extensions": [
         ".cs",
@@ -413,14 +425,11 @@
         ".fsproj",
         ".fsx"
       ],
-      "gazelle": [
-        "//gazelle/csharp",
-        "//gazelle/fsharp"
-      ],
+      "gazelle": [],
+      "module": "rules_dx_dotnet",
+      "path": "families/dotnet",
       "repo_rules": [],
-      "toolchains": [
-        "@dotnet_toolchains//:all"
-      ]
+      "toolchains": []
     },
     "fortran": {
       "aspects": [

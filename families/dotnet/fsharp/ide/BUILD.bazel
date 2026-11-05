@@ -1,0 +1,16 @@
+# gazelle:dx_corpus false
+load("@rules_dx//modules:dotnet.bzl", "DOTNET_VERSION")
+load("@rules_dx//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("@rules_dx//tools/ide:ide_tool.bzl", "ide_dotnet_tool")
+
+package(default_visibility = ["//:__subpackages__"])
+
+ide_dotnet_tool(name = "dotnet_tool")
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    binary = ":dotnet_tool",
+    expected = DOTNET_VERSION,
+    tags = ["no-remote-exec"],
+    version_args = ["--info"],
+)

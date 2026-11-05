@@ -1,0 +1,30 @@
+load("//csharp/rules:defs.bzl", "csharp_library", "csharp_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+# gazelle:dx_ignore_import csharp Xunit
+
+package(default_visibility = ["//:__subpackages__"])
+
+csharp_test(
+    name = "greet_test",
+    srcs = ["GreetTest.cs"],
+    deps = [
+        ":greet",
+        "@paket.main//xunit.v3.assert",
+    ],
+)
+
+csharp_library(
+    name = "greet",
+    srcs = [
+        "Greet.cs",
+        "Helper.cs",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

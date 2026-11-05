@@ -1,0 +1,272 @@
+diff -ru a/uv/private/pep517_whl/cc_layer.bzl b/uv/private/pep517_whl/cc_layer.bzl
+--- a/uv/private/pep517_whl/cc_layer.bzl
++++ b/uv/private/pep517_whl/cc_layer.bzl
+@@ -226,8 +226,65 @@
+         static_runtime_paths = static_runtime_paths,
+     )
+ 
++def _absolutize_msvc_entries(value):
++    """Prefix the execroot-relative entries of a `;` separated Windows path list."""
++    entries = []
++    for entry in value.split(";"):
++        if entry and not entry.startswith(("\\", "/")) and entry[1:2] != ":":
++            entry = _EXECROOT_MARKER + "\\" + entry
++        entries.append(entry)
++    return ";".join(entries)
++
++def extract_msvc_layer(ctx, cc_toolchain):
++    """Extract the PATH, INCLUDE and LIB a cl.exe toolchain sets.
++
++    cl.exe and link.exe find the Windows SDK and the MSVC headers and
++    libraries through these variables, not through command line flags.
++
++    Args:
++        ctx: The rule context, with fragments = ["cpp"].
++        cc_toolchain: The resolved CcToolchainInfo.
++
++    Returns:
++        struct(path, include, lib) of `;` separated strings whose
++        execroot-relative entries start with the EXECROOT marker.
++    """
++    feature_configuration = cc_common.configure_features(
++        ctx = ctx,
++        cc_toolchain = cc_toolchain,
++        requested_features = ctx.features,
++        unsupported_features = ctx.disabled_features + _CC_DISABLED_FEATURES,
++    )
++    compile_env = cc_common.get_environment_variables(
++        feature_configuration = feature_configuration,
++        action_name = ACTION_NAMES.c_compile,
++        variables = cc_common.create_compile_variables(
++            feature_configuration = feature_configuration,
++            cc_toolchain = cc_toolchain,
++        ),
++    )
++
++    # LIB is only set on link actions.
++    link_env = cc_common.get_environment_variables(
++        feature_configuration = feature_configuration,
++        action_name = ACTION_NAMES.cpp_link_dynamic_library,
++        variables = cc_common.create_link_variables(
++            cc_toolchain = cc_toolchain,
++            feature_configuration = feature_configuration,
++            is_using_linker = True,
++            is_linking_dynamic_library = True,
++            must_keep_debug = False,
++        ),
++    )
++    return struct(
++        path = _absolutize_msvc_entries(compile_env.get("PATH", "")),
++        include = _absolutize_msvc_entries(compile_env.get("INCLUDE", "")),
++        lib = _absolutize_msvc_entries(link_env.get("LIB", "")),
++    )
++
+ # Exposed for the unit tests in tests/pep517_whl_test.bzl only.
+ cc_layer_test_util = struct(
+     absolutize_flag = _absolutize_flag,
++    absolutize_msvc_entries = _absolutize_msvc_entries,
+     execroot_marker = _EXECROOT_MARKER,
+ )
+diff -ru a/uv/private/pep517_whl/pep517_native_whl.bzl b/uv/private/pep517_whl/pep517_native_whl.bzl
+--- a/uv/private/pep517_whl/pep517_native_whl.bzl
++++ b/uv/private/pep517_whl/pep517_native_whl.bzl
+@@ -10,7 +10,7 @@
+ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+ load("//py/private/interpreter:versions.bzl", "PLATFORMS")
+ load("//py/private/toolchain:types.bzl", "EXEC_TOOLS_TOOLCHAIN", "NATIVE_BUILD_TOOLCHAIN", "PY_TOOLCHAIN")
+-load(":cc_layer.bzl", "CC_LAYER_ATTRS", "extract_cc_layer")
++load(":cc_layer.bzl", "CC_LAYER_ATTRS", "extract_cc_layer", "extract_msvc_layer")
+ load(
+     ":common.bzl",
+     "PEP517_WHL_ATTRS",
+@@ -42,6 +42,9 @@
+ _EXECROOT_MARKER = "__RULES_PY_EXECROOT__"
+ _INFER_CXX_COMPANION = "RULES_PY_INFER_CXX_COMPANION"
+ 
++# CcToolchainInfo.compiler values that cl.exe builds are driven by.
++_MSVC_COMPILERS = ["msvc-cl"]
++
+ def _collect_toolchain_inputs_and_vars(ctx):
+     """Gather files + Make-variable substitutions from `ctx.attr.toolchains`.
+ 
+@@ -182,6 +185,29 @@
+         include_dir = include_dir,
+     )
+ 
++def _windows_python_artifacts(runtime):
++    """Collect the Windows interpreter files an MSVC build compiles and links against.
++
++    CPython for Windows keeps its headers in `include/` and its import
++    libraries in `libs/`: `Python.h` and `pyconfig.h` for cl.exe and
++    `python3*.lib` for link.exe.
++    """
++    files = runtime.files.to_list() if runtime and hasattr(runtime, "files") else []
++    include_dir = None
++    lib_files = []
++    for f in files:
++        if f.basename == "pyconfig.h" and f.dirname.endswith("/include"):
++            include_dir = f.dirname
++        elif f.extension == "lib" and f.basename.startswith("python3") and f.dirname.endswith("/libs"):
++            lib_files.append(f)
++    include_files = [f for f in files if include_dir and f.path.startswith(include_dir + "/")]
++    return struct(
++        include_files = include_files,
++        include_dir = include_dir,
++        lib_files = lib_files,
++        lib_dir = lib_files[0].dirname if lib_files else None,
++    )
++
+ def _derive_python_host_platform(target_os, target_cpu):
+     """Derive _PYTHON_HOST_PLATFORM from target platform constraints.
+ 
+@@ -283,6 +309,11 @@
+         fail("A toolchain listed in `toolchains` exports the reserved `EXECROOT` make-variable.")
+     known_variables["EXECROOT"] = _EXECROOT_MARKER
+ 
++    cc_toolchain = cc_toolchain_raw
++    if hasattr(cc_toolchain, "cc_provider_in_toolchain") and hasattr(cc_toolchain, "cc"):
++        cc_toolchain = cc_toolchain.cc
++    msvc = getattr(cc_toolchain, "compiler", None) in _MSVC_COMPILERS
++
+     cc_files, cc_tools, infer_cxx = _cc_toolchain_inputs_and_tools(ctx)
+     if cc_files:
+         extra_inputs.append(cc_files)
+@@ -299,18 +330,16 @@
+     for k, v in ctx.attr.env.items():
+         env[k] = ctx.expand_make_variables("env", v, known_variables)
+ 
++    # cl.exe is found through PATH, and setuptools drives it without CC.
+     for key, value in cc_tools.items():
+-        if key not in ctx.attr.env:
++        if key not in ctx.attr.env and not msvc:
+             env[key] = value
+ 
+     env.pop(_INFER_CXX_COMPANION, None)
+-    if "CXX" not in ctx.attr.env and cc_tools.get("CXX") and infer_cxx:
++    if "CXX" not in ctx.attr.env and cc_tools.get("CXX") and infer_cxx and not msvc:
+         env[_INFER_CXX_COMPANION] = "1"
+ 
+     cross_args = []
+-    cc_toolchain = cc_toolchain_raw
+-    if hasattr(cc_toolchain, "cc_provider_in_toolchain") and hasattr(cc_toolchain, "cc"):
+-        cc_toolchain = cc_toolchain.cc
+ 
+     # A hermetic C++ toolchain reaches its libc headers, crt objects and
+     # runtime only through its action flags, so native builds need them too.
+@@ -322,7 +351,21 @@
+         "CC" not in ctx.attr.env and
+         "CXX" not in ctx.attr.env
+     )
+-    if cross or native_toolchain_flags:
++    if msvc:
++        if cross:
++            fail("{}: MSVC sdist builds need a Windows execution platform matching the target".format(ctx.label))
++        msvc_layer = extract_msvc_layer(ctx, cc_toolchain)
++        py_toolchain = ctx.toolchains[PY_TOOLCHAIN]
++        runtime = getattr(py_toolchain, "py3_runtime", None) if py_toolchain != None else None
++        artifacts = _windows_python_artifacts(runtime)
++        if not artifacts.include_dir or not artifacts.lib_dir:
++            fail("{}: the target interpreter has no include/pyconfig.h and libs/python3*.lib to build against".format(ctx.label))
++        extra_inputs.append(depset(artifacts.include_files + artifacts.lib_files))
++        env["PATH"] = msvc_layer.path
++        env["INCLUDE"] = ";".join([msvc_layer.include, _EXECROOT_MARKER + "\\" + artifacts.include_dir.replace("/", "\\")])
++        env["LIB"] = ";".join([msvc_layer.lib, _EXECROOT_MARKER + "\\" + artifacts.lib_dir.replace("/", "\\")])
++        cross_args = ["--msvc"]
++    elif cross or native_toolchain_flags:
+         cc_layer = extract_cc_layer(ctx, cc_toolchain)
+ 
+         # Toolchain flags first, then any flags the package set via `env`
+diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/tools/build_helper.py
+--- a/uv/private/pep517_whl/tools/build_helper.py
++++ b/uv/private/pep517_whl/tools/build_helper.py
+@@ -576,6 +576,25 @@
+     return site_dir
+ 
+ 
++def _add_cargo_and_ant(env: dict[str, str], tmpdir: str) -> None:
++    # maturin locates cargo via shutil.which, not $CARGO — without it on
++    # PATH it auto-installs a Rust toolchain (puccinialin), which fails in
++    # the sandbox. This bites native builds too, so it is not cross-gated.
++    cargo_path = env.get("CARGO")
++    if cargo_path:
++        env["PATH"] = pathsep.join([path.dirname(cargo_path), env.get("PATH", defpath)])
++
++        # Cargo's default $CARGO_HOME (~/.cargo) is unwritable in the sandbox.
++        cargo_home = path.join(tmpdir, ".cargo_home")
++        makedirs(cargo_home, exist_ok=True)
++        env.setdefault("CARGO_HOME", cargo_home)
++
++    # CMake's find_program(ANT_EXECUTABLE) (jpype1 et al.) needs ant on PATH.
++    ant_bin_dir = env.pop("RULES_PY_ANT_BIN_DIR", None)
++    if ant_bin_dir:
++        env["PATH"] = pathsep.join([ant_bin_dir, env.get("PATH", defpath)])
++
++
+ def _compiler_env(
+     tmpdir: str,
+     execroot_marker: str | None = None,
+@@ -583,6 +602,7 @@
+     target_os: str = "",
+     target_cpu: str = "",
+     toolchain_flags: bool = False,
++    msvc: bool = False,
+ ) -> dict[str, str]:
+     env = dict(os.environ)
+     if execroot_marker:
+@@ -629,6 +649,16 @@
+     # helper still runs there; bare tool names deliberately remain on PATH.
+     _absolutize_tool_paths(env)
+ 
++    if msvc:
++        # setuptools finds cl.exe through PATH, INCLUDE and LIB from the
++        # toolchain, and only when it is told no Visual Studio is needed.
++        for key in ("CC", "CXX", "CPP", "AR", "LDSHARED", "LDCXXSHARED"):
++            env.pop(key, None)
++        env["DISTUTILS_USE_SDK"] = "1"
++        env["MSSdk"] = "1"
++        _add_cargo_and_ant(env, tmpdir)
++        return env
++
+     cc_path = _resolve_compiler_path(env, "CC", "cc")
+     cxx_path = _resolve_compiler_path(env, "CXX", "c++")
+     if env.pop("RULES_PY_INFER_CXX_COMPANION", None) == "1":
+@@ -756,22 +786,7 @@
+     ]:
+         _override_tool(env, key, wrapper)
+ 
+-    # maturin locates cargo via shutil.which, not $CARGO — without it on
+-    # PATH it auto-installs a Rust toolchain (puccinialin), which fails in
+-    # the sandbox. This bites native builds too, so it is not cross-gated.
+-    cargo_path = env.get("CARGO")
+-    if cargo_path:
+-        env["PATH"] = pathsep.join([path.dirname(cargo_path), env.get("PATH", defpath)])
+-
+-        # Cargo's default $CARGO_HOME (~/.cargo) is unwritable in the sandbox.
+-        cargo_home = path.join(tmpdir, ".cargo_home")
+-        makedirs(cargo_home, exist_ok=True)
+-        env.setdefault("CARGO_HOME", cargo_home)
+-
+-    # CMake's find_program(ANT_EXECUTABLE) (jpype1 et al.) needs ant on PATH.
+-    ant_bin_dir = env.pop("RULES_PY_ANT_BIN_DIR", None)
+-    if ant_bin_dir:
+-        env["PATH"] = pathsep.join([ant_bin_dir, env.get("PATH", defpath)])
++    _add_cargo_and_ant(env, tmpdir)
+ 
+     return env
+ 
+@@ -1140,6 +1155,7 @@
+ PARSER.add_argument("--execroot-marker", help="Token in env values to replace with the absolute execroot")
+ PARSER.add_argument("--cross", action="store_true", help="Cross-compilation mode: target platform != exec platform")
+ PARSER.add_argument("--toolchain-flags", action="store_true", help="CFLAGS/CXXFLAGS/LDFLAGS/LDSHAREDFLAGS carry the C++ toolchain's action flags")
++PARSER.add_argument("--msvc", action="store_true", help="cl.exe build: the environment carries PATH, INCLUDE and LIB, and no GNU-style compiler variables are set")
+ PARSER.add_argument("--target-os", default="", help="Target platform OS the wheel must be tagged for (linux, darwin, windows)")
+ PARSER.add_argument("--target-libc", default="", help="Target platform C library the wheel must link against (glibc, musl, libsystem)")
+ PARSER.add_argument("--target-cpu", default="", help="Target platform CPU the wheel must be tagged for (x86_64, aarch64, ...)")
+@@ -1197,6 +1213,7 @@
+         target_os=opts.target_os,
+         target_cpu=opts.target_cpu,
+         toolchain_flags=opts.toolchain_flags,
++        msvc=opts.msvc,
+     )
+ 
+     if _legacy_metadata_conflicts_with_pyproject(t):

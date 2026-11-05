@@ -5,7 +5,6 @@ bicep/rules:defs.bzl
 cc/rules:defs.bzl
 cloudformation/rules:defs.bzl
 cmake/rules:defs.bzl
-csharp/rules:defs.bzl
 cuda/rules:defs.bzl
 cuda/toolchain:repos.bzl
 deploy/offline:offline.bzl
@@ -25,7 +24,6 @@ d/rules:defs.bzl
 elixir/rules:defs.bzl
 elixir/rules:hex.bzl
 erlang/rules:defs.bzl
-fsharp/rules:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl
 java/rules:defs.bzl

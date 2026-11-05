@@ -1,0 +1,45 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(default_visibility = ["//visibility:public"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_srcs = [
+        "README.md",
+        "csharp/README.md",
+        "fsharp/README.md",
+    ],
+    tags = ["corpus"],
+)
+
+sh_test(
+    name = "starlark_docs_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
+    data = [
+        "//csharp/rules:corpus_starlark",
+        "//fsharp/rules:corpus_starlark",
+        "@rules_dx//tools/ci:starlark_docs_family_test",
+    ],
+    env = {"STARLARK_DOCS_PACKAGES": "csharp/rules,fsharp/rules"},
+)
+
+sh_test(
+    name = "rustfmt_coverage_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:rustfmt_coverage_family_test)"],
+    data = [
+        "//csharp/tests/fixtures/roslyn:corpus_starlark",
+        "@rules_dx//tools/ci:rustfmt_coverage_family_test",
+    ],
+    env = {"RUSTFMT_COVERAGE_PACKAGES": "csharp/tests/fixtures/roslyn"},
+)

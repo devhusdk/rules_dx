@@ -1,0 +1,55 @@
+load("//fsharp/rules:defs.bzl", "fsharp_library", "fsharp_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//csharp/rules:coverage_check.bzl", "dx_dotnet_coverage_tests")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_library(
+    name = "greeter_lib",
+    srcs = ["Greeter.fs"],
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_test(
+    name = "greeter_test",
+    srcs = [
+        "GreeterTest.fs",
+        "SelfRegisteredExtensions.fs",
+        "XunitEntryPoint.fs",
+    ],
+    deps = [
+        ":greeter_lib",
+        "@paket.main//fsharp.core",
+        "@paket.main//microsoft.testing.extensions.telemetry",
+        "@paket.main//microsoft.testing.extensions.trxreport.abstractions",
+        "@paket.main//microsoft.testing.platform",
+        "@paket.main//microsoft.testing.platform.msbuild",
+        "@paket.main//xunit.analyzers",
+        "@paket.main//xunit.v3",
+        "@paket.main//xunit.v3.assert",
+        "@paket.main//xunit.v3.common",
+        "@paket.main//xunit.v3.core.mtp-v2",
+        "@paket.main//xunit.v3.extensibility.core",
+        "@paket.main//xunit.v3.mtp-v2",
+        "@paket.main//xunit.v3.runner.common",
+        "@paket.main//xunit.v3.runner.inproc.console",
+    ],
+)
+
+dx_dotnet_coverage_tests(
+    name = "fsharp_coverage_test",
+    library = "greeter_lib_upstream",
+    source = "fsharp/tests/fixtures/xunit/Greeter.fs",
+    target = ":greeter_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

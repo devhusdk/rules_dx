@@ -1,4 +1,4 @@
-load("//csharp/rules:defs.bzl", "csharp_library")
+load("@rules_dotnet//dotnet:defs.bzl", "csharp_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -17,11 +17,13 @@ exports_files(
 
 csharp_library(
     name = "core",
+    target_frameworks = ["net10.0"],
     srcs = ["core/Currency.cs"],
 )
 
 csharp_library(
     name = "ledger",
+    target_frameworks = ["net10.0"],
     srcs = [
         "ledger/Account.cs",
         "ledger/Nullable.cs",
@@ -32,6 +34,7 @@ csharp_library(
 
 csharp_library(
     name = "ledger_extra",
+    target_frameworks = ["net10.0"],
     srcs = [
         "ledger/Account.cs",
         "ledger/Nullable.cs",

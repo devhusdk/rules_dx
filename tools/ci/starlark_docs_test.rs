@@ -15,7 +15,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 78] = [
+const PACKAGES: [&str; 76] = [
     "appimage",
     "astro/rules",
     "bicep/rules",
@@ -24,7 +24,6 @@ const PACKAGES: [&str; 78] = [
     "cli/entrypoint",
     "cli/roots",
     "config",
-    "csharp/rules",
     "cuda/rules",
     "cuda/toolchain",
     "deploy/offline",
@@ -38,7 +37,6 @@ const PACKAGES: [&str; 78] = [
     "erlang/rules",
     "erlang/toolchain",
     "examples/shared-rust",
-    "fsharp/rules",
     "generation",
     "go/rules",
     "java/rules",

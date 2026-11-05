@@ -20,9 +20,9 @@ def _ide_rust_test(name, binary, expected, args, size, timeout, kwargs, binary_t
     rest = dict(kwargs)
     rust_test(
         name = name,
-        srcs = ["//tools/ide:ide_acquisition_test.rs"],
+        srcs = [Label("//tools/ide:ide_acquisition_test.rs")],
         data = data,
-        deps = ["//tools/testing:dx_testing"],
+        deps = [Label("//tools/testing:dx_testing")],
         env = env,
         size = rest.pop("size", size),
         timeout = rest.pop("timeout", timeout),

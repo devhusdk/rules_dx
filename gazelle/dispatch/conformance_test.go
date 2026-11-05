@@ -47,7 +47,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"csharp": {
 		files: map[string]string{"Demo.cs": "namespace Demo;\n\nclass Demo\n"},
-		kind:  "csharp_library", target: "demo", defs: "csharp/rules:defs.bzl",
+		kind:  "csharp_library", target: "demo", defs: "@rules_dx_dotnet//csharp/rules:defs.bzl",
 		symbols: []string{"csharp_library"},
 	},
 	"d": {
@@ -86,7 +86,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"fsharp": {
 		files: map[string]string{"Demo.fs": "namespace Demo\n\ntype Demo = class end\n"},
-		kind:  "fsharp_library", target: "demo", defs: "fsharp/rules:defs.bzl",
+		kind:  "fsharp_library", target: "demo", defs: "@rules_dx_dotnet//fsharp/rules:defs.bzl",
 		symbols: []string{"fsharp_library"},
 	},
 	"go": {

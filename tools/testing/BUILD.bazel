@@ -14,7 +14,6 @@ exports_files(
         "clang_format_test.rs",
         "gazelle_compile_test.rs",
         "hello_output.bzl",
-        "hello_output_test.rs",
         "java_diagnostics_test.rs",
         "jvm_format_test.rs",
         "kotlin_diagnostics_test.rs",
@@ -374,6 +373,11 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
+)
+
+exports_files(
+    ["hello_output_test.rs"],
+    visibility = ["//visibility:public"],
 )
 
 exports_files(

@@ -7,10 +7,14 @@ package(default_visibility = VIS_TOOLS)
 exports_files(
     [
         "ide_acquisition.bzl",
-        "ide_acquisition_test.rs",
         "ide_tool.bzl",
     ],
     visibility = VIS_TOOLS,
+)
+
+exports_files(
+    ["ide_acquisition_test.rs"],
+    visibility = ["//visibility:public"],
 )
 
 # keep

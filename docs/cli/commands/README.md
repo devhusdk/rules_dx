@@ -208,7 +208,7 @@ Language rules:
 - `@rules_dx_apple//ios:defs.bzl`: iOS libraries.
 - `@rules_dx_apple//macos:app.bzl`: macOS apps.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
-- `@rules_dx//csharp/rules:defs.bzl`: C#.
+- `@rules_dx_dotnet//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.
 - `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
@@ -216,7 +216,7 @@ Language rules:
 - `@rules_dx//d/rules:defs.bzl`: D.
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
-- `@rules_dx//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx_dotnet//fsharp/rules:defs.bzl`: F#.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//java/rules:defs.bzl`: Java.
@@ -261,7 +261,7 @@ dx rule that wraps it.
 | `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx_apple//macos:app.bzl` | `apple_macos_app` |
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc/rules:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc/rules:defs.bzl` | `objc_library` |
-| `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
+| `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx//cuda/rules:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d/rules:defs.bzl` | `d_binary`, `d_library`, `d_test` |
 | `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_app` |
@@ -271,7 +271,7 @@ dx rule that wraps it.
 | `@rules_erlang//:erlang_bytecode2.bzl` | `erlang_bytecode` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_bytecode` |
 | `@rules_erlang//:escript.bzl` | `escript_archive` | `@rules_dx//erlang/rules:defs.bzl` | `escript_archive` |
 | `@rules_erlang//:eunit2.bzl` | `eunit` | `@rules_dx//erlang/rules:defs.bzl` | `eunit` |
-| `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx//fsharp/rules:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
+| `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
 | `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
 | `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell/rules:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
 | `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java/rules:defs.bzl` | `java_binary`, `java_library`, `java_test` |
@@ -313,8 +313,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
 |  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_template` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
-|  |  | `@rules_dx//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
-|  |  | `@rules_dx//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_binary` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_gpu_env` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_split_srcs` |
@@ -484,7 +484,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `library_name` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `link_kwargs` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `with_defaults` |
-|  |  | `@rules_dx//fsharp/rules:defs.bzl` | `fsharp_tfm_with_defaults` |
+|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_tfm_with_defaults` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `upstream_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |

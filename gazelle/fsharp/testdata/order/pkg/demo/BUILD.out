@@ -1,4 +1,4 @@
-load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_library")
+load("@rules_dx_dotnet//fsharp/rules:defs.bzl", "fsharp_library")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(

@@ -1,4 +1,4 @@
-load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_library", "fsharp_test")
+load("@rules_dx_dotnet//fsharp/rules:defs.bzl", "fsharp_library", "fsharp_test")
 
 filegroup(
     name = "assets",

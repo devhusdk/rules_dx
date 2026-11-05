@@ -5,7 +5,7 @@ load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
 load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
 load(":inventory_tests.bzl", "inventory_file_tests", "inventory_runtime_file_tests", "inventory_unit_tests")
-load(":matrix.bzl", "release_cells", "release_matrix_file")
+load(":matrix.bzl", "release_cells", "release_matrix_cell", "release_matrix_file")
 load(":matrix_tests.bzl", "matrix_unit_tests")
 load(":notice.bzl", "notice_bundle")
 load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
@@ -498,6 +498,16 @@ inventory_runtime_file_tests(
 
 release_cells(name = "dx_host_cell")
 
+release_cells(
+    name = "runtime_cell_demo",
+    app = ":release_tool",
+    cells = [dict(
+        release_matrix_cell("dx-linux-x86_64"),
+        name = "runtime-demo-linux-x86_64",
+        runtime = [":runtime_inventory_test_runtime"],
+    )],
+)
+
 filegroup(
     name = "consumer_template",
     srcs = glob(["consumer/**"]),
@@ -646,6 +656,16 @@ notice_file_tests(
 )
 
 notice_file_tests(
+    name = "runtime_cell_notice_lists_runtime",
+    notice = ":runtime-demo-linux-x86_64_notice_notice",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    want = "=== native runtimes ===\n=== runtime_inventory_test_runtime 1.2 (app_local) [runtime] ===\nruntime notice words",
+)
+
+notice_file_tests(
     name = "notice_shared_demo_contains_words",
     notice = ":notice_shared_demo_notice",
     want = "=== shared 1.0.0 (MIT) [cargo] ===\nFixture license words for shared (cargo).\n=== shared 1.0.0 (MIT) [npm] ===\nFixture license words for shared (npm).",
@@ -668,6 +688,7 @@ test_suite(
         ":release_artifacts_verify",
         ":release_host_cell_test",
         ":release_tool_inventory_test",
+        ":runtime_cell_notice_lists_runtime",
         ":runtime_inventory_test",
         ":sbom_quoting_demo_contains_supplier",
         ":sbom_unit",

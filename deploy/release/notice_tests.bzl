@@ -36,11 +36,12 @@ def notice_unit_tests(name):
         ],
     )
 
-def notice_file_tests(name, notice, want = "NOTICE for\nFixture license words for demo-lib-a\nFixture license words for demo-lib-b"):
+def notice_file_tests(name, notice, want = "NOTICE for\nFixture license words for demo-lib-a\nFixture license words for demo-lib-b", target_compatible_with = None):
     starlark_test(
         name = name,
         mode = "execution",
         file_checks = {
             notice: want,
         },
+        target_compatible_with = target_compatible_with,
     )

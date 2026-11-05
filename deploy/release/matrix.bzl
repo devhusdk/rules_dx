@@ -81,26 +81,28 @@ release_matrix_file = rule(
     doc = "Writes the release-matrix/v1 JSON for every release cell.",
 )
 
-def release_cells(name):
+def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx"):
     """Declares one archive per release cell plus the `name` alias to the host cell archive."""
-    for cell in RELEASE_MATRIX:
+    for cell in cells:
         cell_name = cell["name"]
         constraints = cell["constraints"]
         shipped_inventory(
             name = cell_name + "_inventory",
-            app = "//cli/cli:dx",
+            app = app,
+            runtimes = cell["runtime"],
             target_compatible_with = constraints,
         )
         notice_bundle(
             name = cell_name + "_notice",
             inventory = ":" + cell_name + "_inventory",
             root = "//deploy/release:" + cell_name,
+            runtimes = (":" + cell_name + "_inventory_runtimes") if cell["runtime"] else None,
             texts = [":" + cell_name + "_inventory_texts"],
             target_compatible_with = constraints,
         )
         consumer_archive(
             name = cell_name,
-            app = "//cli/cli:dx",
+            app = app,
             arch = cell["machine"],
             format = cell["format"],
             license_file = "//:LICENSE",
@@ -128,14 +130,14 @@ def release_cells(name):
     native.alias(
         name = name,
         actual = select(dict(
-            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_archive") for cell in RELEASE_MATRIX],
+            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_archive") for cell in cells],
             **{"//conditions:default": ":" + name + "_unsupported"}
         )),
     )
     native.alias(
         name = name + "_sbom",
         actual = select(dict(
-            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_sbom_spdx") for cell in RELEASE_MATRIX],
+            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_sbom_spdx") for cell in cells],
             **{"//conditions:default": ":" + name + "_unsupported"}
         )),
     )

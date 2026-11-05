@@ -53,9 +53,9 @@ python_test(
     }),
     imports = ["."],
     runner = "plain",
-    target_compatible_with = ["@platforms//cpu:x86_64"] + select({
+    target_compatible_with = select({
         "@platforms//os:linux": [],
-        "@platforms//os:windows": [],
+        "@platforms//os:windows": ["@platforms//cpu:x86_64"],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     deps = [
@@ -70,10 +70,7 @@ python_test(
 cc_toolchain_test(
     name = "native_ext_gcc_test",
     compiler = "gcc",
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = ["@platforms//os:linux"],
     test = ":native_ext_test",
 )
 

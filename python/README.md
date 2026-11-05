@@ -55,6 +55,31 @@ hub name, add `# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
 
 Configure `ruff` in `ruff.toml` and bind it with `ruff_config`.
 
+## Native extensions
+
+Build C and C++ extension modules with `py_extension`:
+
+```starlark
+load("@rules_python//python/cc:py_extension.bzl", "py_extension")
+
+py_extension(
+    name = "fast",
+    srcs = ["fast.cc"],
+)
+```
+
+The extension is built with the repo's hermetic C++ toolchain and imported by the hermetic interpreter. `native_ext_test` loads one on every cell below.
+
+| Compiler | Platform | Status |
+| --- | --- | --- |
+| LLVM | linux_x86_64, linux_arm64 | qualified |
+| GCC | linux_x86_64, linux_arm64 | qualified |
+| clang-cl | windows_x86_64 | qualified |
+| cl.exe | windows_x86_64 | pending #6489 |
+| any | windows_arm64 | pending #7119 |
+
+Windows links the dynamic CRT. An app that ships an extension must also ship `msvcp140` and `vcruntime140*` from `@msvc_runtime`. Invalid compiler and platform combinations fail at analysis.
+
 ## Platforms
 
 See the [support matrix](../docs/support-matrix.md).

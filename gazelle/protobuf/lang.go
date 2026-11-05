@@ -1,6 +1,7 @@
 package protobuf
 
 import (
+	"path"
 	"sort"
 	"strings"
 
@@ -20,6 +21,11 @@ const (
 	rustSuffix   = "_rs"
 	rustModule   = "rules_rust_prost"
 	rustDefs     = "@rules_rust_prost//:defs.bzl"
+	tsKind       = "ts_proto_library"
+	tsSuffix     = "_ts"
+	tsModule     = "aspect_rules_ts"
+	tsRuntime    = "//:node_modules/@bufbuild/protobuf"
+	tsDefs       = "@rules_dx//typescript/rules:defs.bzl"
 )
 
 var kinds = withBindings(map[string]rule.KindInfo{
@@ -33,12 +39,23 @@ var kinds = withBindings(map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
-	rustKind: {
+	rustKind: protoRefKind(),
+	tsKind:   tsKindInfo(),
+})
+
+func protoRefKind() rule.KindInfo {
+	return rule.KindInfo{
 		MatchAttrs:     []string{"proto"},
 		NonEmptyAttrs:  map[string]bool{"proto": true},
 		MergeableAttrs: map[string]bool{"proto": true},
-	},
-})
+	}
+}
+
+func tsKindInfo() rule.KindInfo {
+	info := protoRefKind()
+	info.MergeableAttrs = map[string]bool{"proto": true, "deps": true}
+	return info
+}
 
 func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
 	for kind, info := range bindingKinds() {
@@ -49,12 +66,13 @@ func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
 
 // extraKinds are the kinds generated next to proto_library.
 func extraKinds() []string {
-	return append(bindingExtraKinds(), rustKind)
+	return append(bindingExtraKinds(), rustKind, tsKind)
 }
 
 func extraKindDefs() map[string]string {
 	defs := bindingKindDefs()
 	defs[rustKind] = rustDefs
+	defs[tsKind] = tsDefs
 	return defs
 }
 
@@ -106,6 +124,9 @@ func (l *protoLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Rem
 func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() == rustKind {
 		return []resolve.ImportSpec{{Lang: "rust", Imp: r.Name()}}
+	}
+	if r.Kind() == tsKind {
+		return tsImports(r, f)
 	}
 	for _, b := range bindings {
 		if r.Kind() == b.kind {
@@ -177,30 +198,66 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		Wrap: common.WrapImportSet,
 	}, rep)
 	result = addRustLibraries(args, result)
+	result = addTypeScriptLibraries(args, result)
 	return addBindings(args, result)
 }
 
 // addRustLibraries adds a rust_prost_library next to each proto_library when
 // the root MODULE.bazel depends on rules_rust_prost.
 func addRustLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
-	if !common.ModuleDeps(args.Config.RepoRoot)[rustModule] {
+	return addProtoRefs(args, result, rustModule, rustKind, rustSuffix)
+}
+
+// addTypeScriptLibraries adds a ts_proto_library next to each proto_library
+// when the root MODULE.bazel depends on aspect_rules_ts.
+func addTypeScriptLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
+	return addProtoRefs(args, result, tsModule, tsKind, tsSuffix)
+}
+
+func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, module, kind, suffix string) language.GenerateResult {
+	if !common.ModuleDeps(args.Config.RepoRoot)[module] {
 		return result
 	}
 	for _, lib := range result.Gen {
-		prost := rule.NewRule(rustKind, lib.Name()+rustSuffix)
-		prost.SetAttr("proto", ":"+lib.Name())
-		if common.ShouldSetVisibility(args) {
-			prost.SetAttr("visibility", []string{"//visibility:public"})
+		if lib.Kind() != LibraryKind {
+			continue
 		}
-		result.Gen = append(result.Gen, prost)
+		r := rule.NewRule(kind, lib.Name()+suffix)
+		r.SetAttr("proto", ":"+lib.Name())
+		if kind == tsKind {
+			r.SetAttr("deps", []string{tsRuntime})
+		}
+		if common.ShouldSetVisibility(args) {
+			r.SetAttr("visibility", []string{"//visibility:public"})
+		}
+		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, nil)
 	}
 	for _, r := range result.Empty {
 		if r.Kind() == LibraryKind {
-			result.Empty = append(result.Empty, rule.NewRule(rustKind, r.Name()+rustSuffix))
+			result.Empty = append(result.Empty, rule.NewRule(kind, r.Name()+suffix))
 		}
 	}
 	return result
+}
+
+// tsImports indexes a ts_proto_library by the <stem>_pb modules protoc-gen-es
+// writes for the sources of its proto_library.
+func tsImports(r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+	if f == nil {
+		return nil
+	}
+	var specs []resolve.ImportSpec
+	for _, lib := range f.Rules {
+		if ":"+lib.Name() != r.AttrString("proto") || lib.Kind() != LibraryKind {
+			continue
+		}
+		for _, src := range lib.AttrStrings("srcs") {
+			stem := strings.TrimSuffix(src, ".proto")
+			specs = append(specs, resolve.ImportSpec{Lang: "typescript", Imp: path.Join(f.Pkg, stem+"_pb")})
+		}
+	}
+	return specs
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }

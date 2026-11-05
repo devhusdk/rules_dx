@@ -1,0 +1,16 @@
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_dx//typescript/rules:defs.bzl", "ts_proto_library")
+
+proto_library(
+    name = "api_proto",
+    srcs = ["user.proto"],
+    strip_import_prefix = "/",
+    visibility = ["//visibility:public"],
+)
+
+ts_proto_library(
+    name = "api_proto_ts",
+    proto = ":api_proto",
+    visibility = ["//visibility:public"],
+    deps = ["//:node_modules/@bufbuild/protobuf"],
+)

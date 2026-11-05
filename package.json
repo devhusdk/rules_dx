@@ -10,6 +10,7 @@
     "@astrojs/check": "0.9.12",
     "@astrojs/compiler": "4.0.0",
     "@astrojs/preact": "6.1.1",
+    "@bufbuild/protobuf": "2.17.0",
     "@mdx-js/mdx": "3.1.1",
     "@mdx-js/rollup": "3.1.1",
     "@playwright/test": "1.64.1",

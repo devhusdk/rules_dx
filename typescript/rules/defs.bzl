@@ -9,6 +9,7 @@ load("//javascript/rules:node_test.bzl", "node_jest_upstream_attrs", "node_test_
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":proto.bzl", "ts_proto_srcs")
 
 _DX_TS_PROJECT_PROVIDES = [
     _JsInfo,
@@ -278,6 +279,25 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
 def typescript_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags, and <name>_typecheck_test gets the user's tags."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
+
+def ts_proto_library(name, proto, deps = None, visibility = None, **kwargs):
+    """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf."""
+    ts_proto_srcs(
+        name = name + "_srcs",
+        proto = proto,
+        visibility = ["//visibility:private"],
+        tags = kwargs.get("tags", None),
+        testonly = kwargs.get("testonly", None),
+    )
+    if kwargs.get("tsconfig", None) != None and kwargs.get("isolated_typecheck", None) == None:
+        kwargs["isolated_typecheck"] = False
+    typescript_project(
+        name = name,
+        srcs = [":" + name + "_srcs"],
+        deps = deps,
+        visibility = visibility,
+        **kwargs
+    )
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 

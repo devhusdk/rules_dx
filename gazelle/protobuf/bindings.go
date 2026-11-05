@@ -267,7 +267,7 @@ func bindingImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.Impo
 // find the binding rule that produces it, and lets Rust imports of a prost
 // crate find its rust_prost_library.
 func (l *protoLang) CrossResolve(c *config.Config, ix *resolve.RuleIndex, imp resolve.ImportSpec, lang string) []resolve.FindResult {
-	if imp.Lang == "rust" && lang == "rust" {
+	if (imp.Lang == "rust" || imp.Lang == "typescript") && imp.Lang == lang {
 		return ix.FindRulesByImport(imp, languageName)
 	}
 	key, ok := crossKeys[imp.Lang]

@@ -1,0 +1,8 @@
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+
+typescript_project(
+    name = "schema",
+    srcs = ["schema.ts"],
+    visibility = ["//visibility:public"],
+    deps = ["//api:api_proto_ts"],
+)

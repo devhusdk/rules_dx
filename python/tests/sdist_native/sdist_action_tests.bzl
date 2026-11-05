@@ -21,23 +21,35 @@ def _host_paths(value):
             paths.append(path)
     return paths
 
+def _common(env, action):
+    for name in _FLAGS:
+        asserts.true(env, action.env.get(name), name + " is empty")
+    asserts.false(env, "--cross" in action.argv, "native build ran in cross mode")
+    for name, value in action.env.items():
+        asserts.equals(env, [], _host_paths(value), "host path in " + name)
+
 def _llvm_impl(ctx):
     env = analysistest.begin(ctx)
     action = _action(env)
     if action:
-        asserts.true(env, "/llvm" in action.env["CC"] or "llvm+" in action.env["CC"], "CC outside the llvm repo: " + action.env["CC"])
-        for name in _FLAGS:
-            asserts.true(env, action.env.get(name), name + " is empty")
-        asserts.false(env, "--cross" in action.argv, "native build ran in cross mode")
+        cc = action.env.get("CC", "")
+        asserts.true(env, "/llvm" in cc or "llvm+" in cc, "CC outside the llvm repo: " + cc)
         for name, value in action.env.items():
-            asserts.equals(env, [], _host_paths(value), "host path in " + name)
+            asserts.false(env, "dx_gcc" in value, "GCC path in " + name)
+        _common(env, action)
     return analysistest.end(env)
 
 def _gcc_impl(ctx):
     env = analysistest.begin(ctx)
     action = _action(env)
     if action:
-        asserts.true(env, "dx_gcc_linux_x86_64" in action.env["CC"], "CC outside the pinned GCC: " + action.env["CC"])
+        for name in ["CC", "CXX", "AR"]:
+            value = action.env.get(name, "")
+            asserts.true(env, "dx_gcc_linux_x86_64" in value, name + " outside the pinned GCC: " + value)
+        cc = action.env.get("CC", "").removeprefix("$(EXECROOT)/")
+        inputs = [f.path for f in action.inputs.to_list()]
+        asserts.true(env, cc in inputs, "CC is not an action input: " + cc)
+        _common(env, action)
     return analysistest.end(env)
 
 _llvm_test = analysistest.make(_llvm_impl, config_settings = {_COMPILER: "llvm", _DEP_GROUP: "sdist-native"})

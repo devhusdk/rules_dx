@@ -1,5 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_py//py:defs.bzl", "py_binary")
+load("//cc/toolchains:select.bzl", "cc_toolchain_test")
 load("//python/rules:defs.bzl", "python_test")
 load(":sdist_action_tests.bzl", "sdist_action_tests")
 
@@ -19,6 +20,16 @@ python_test(
     runner = "plain",
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["@dx_pypi_sdist//python_geohash"],
+)
+
+cc_toolchain_test(
+    name = "geohash_gcc_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":geohash_test",
 )
 
 # Mirrors the build_tool of the sdist_build repo for the nodeps hub.

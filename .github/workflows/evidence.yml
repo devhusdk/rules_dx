@@ -288,6 +288,11 @@ jobs:
           sleep 2
           adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
           sh examples/shared-rust/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
+      - name: Run the flutter-app interaction test on the emulator
+        if: ${{ !cancelled() && inputs.android && matrix.platform == 'linux_x86_64' && steps.boot.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
       - name: Collect test logs
         if: always()
         run: |

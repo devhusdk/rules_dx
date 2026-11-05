@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start")
 load("@rules_dx//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_android_app")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -16,6 +17,43 @@ flutter_android_app(
     application = "//flutter/tests/fixtures/flutter-app/app:native",
     package_name = "dk.devhus.flutterapp",
     pub_hub_name = "dx_flutter_app_deps",
+)
+
+android_adb_install(
+    name = "install",
+    apk = ":apk",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start",
+    activity = "dk.devhus.flutterapp.MainActivity",
+    app_id = "dk.devhus.flutterapp",
+    serial = "emulator-5554",
+)
+
+android_adb_log(
+    name = "log",
+    serial = "emulator-5554",
+)
+
+sh_test(
+    name = "interaction_test",
+    size = "medium",
+    srcs = ["interaction.sh"],
+    args = [
+        "emulator-5554",
+        "dk.devhus.flutterapp",
+        "dk.devhus.flutterapp.MainActivity",
+        "$(location :apk)",
+    ],
+    data = [":apk"],
+    tags = [
+        "exclusive",
+        "linux-kvm",
+        "manual",
+    ],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
 )
 
 build_test(

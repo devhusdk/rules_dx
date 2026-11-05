@@ -151,6 +151,28 @@ def _unit_checks():
                 ("plugins/platforms/libqoffscreen.dylib", "../qt/plugins/platforms/libqoffscreen.dylib"),
             ],
         ),
+        expect_equal(
+            "bundle skips framework headers and stages the cocoa plugin",
+            qt_bundle_members(
+                [
+                    "app/tool",
+                    "../qt/lib/QtCore.framework/Headers/qglobal.h",
+                    "../qt/lib/QtCore.framework/Versions/A/Headers/qglobal.h",
+                    "../qt/lib/QtCore.framework/Versions/A/QtCore",
+                    "../qt/lib/QtGui.framework/Versions/A/Headers/qwindow.h",
+                    "../qt/lib/QtGui.framework/Versions/A/QtGui",
+                    "../qt/plugins/platforms/libqcocoa.dylib",
+                ],
+                [],
+                None,
+                CELLS["macos_arm64"].needs,
+            ),
+            [
+                ("lib/QtCore.framework/Versions/A/QtCore", "../qt/lib/QtCore.framework/Versions/A/QtCore"),
+                ("lib/QtGui.framework/Versions/A/QtGui", "../qt/lib/QtGui.framework/Versions/A/QtGui"),
+                ("plugins/platforms/libqcocoa.dylib", "../qt/plugins/platforms/libqcocoa.dylib"),
+            ],
+        ),
         # The linked rule (a DLL not under ../) is confirmed on a Windows host by #6520.
         expect_equal(
             "bundle stages windows dlls",

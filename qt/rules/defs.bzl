@@ -1129,11 +1129,12 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
         framework = qt_framework_path(path)
         if framework != None:
             name = framework.partition("/")[0]
-            if name not in frameworks:
-                frameworks[name] = framework
-                libraries[name] = path
-            if not path.startswith("../"):
-                roots.append(name)
+            if framework == name + "/Versions/A/" + name.removesuffix(".framework"):
+                if name not in frameworks:
+                    frameworks[name] = framework
+                    libraries[name] = path
+                if not path.startswith("../"):
+                    roots.append(name)
             continue
         name = path.rpartition("/")[2]
         if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
@@ -1218,7 +1219,10 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plu
     _qt_bundle(
         name = name,
         binary = binary,
-        display_plugins = [qt + "//:display_" + platform for platform in display],
+        display_plugins = select({
+            "@platforms//os:macos": [qt + "//:display_cocoa"] if len(display) > 0 else [],
+            "//conditions:default": [qt + "//:display_" + platform for platform in display],
+        }),
         license_files = [qt + "//:licenses"] + licenses,
         needs = qt + "//:needs",
         qml_modules = qml_modules or [],

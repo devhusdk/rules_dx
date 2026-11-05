@@ -128,6 +128,7 @@ _RUNTIME_PLUGIN_NEEDS = {
     "imageformats/libqgif.dylib": ["QtCore.framework", "QtGui.framework"],
     "imageformats/libqico.dylib": ["QtCore.framework", "QtGui.framework"],
     "imageformats/libqjpeg.dylib": ["QtCore.framework", "QtGui.framework"],
+    "platforms/libqcocoa.dylib": ["QtCore.framework", "QtGui.framework"],
     "platforms/libqminimal.dylib": ["QtCore.framework", "QtGui.framework"],
     "platforms/libqoffscreen.dylib": ["QtCore.framework", "QtGui.framework"],
     "tls/libqcertonlybackend.dylib": ["QtCore.framework", "QtNetwork.framework"],

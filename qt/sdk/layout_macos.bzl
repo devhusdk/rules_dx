@@ -8,7 +8,7 @@ def _tool(path):
 
 LAYOUT = struct(
     compiler = "",
-    display_plugins = {},
+    display_plugins = {"cocoa": ["plugins/platforms/libqcocoa.dylib"]},
     icu_libraries = [],
     launcher = "posix",
     library = _library,

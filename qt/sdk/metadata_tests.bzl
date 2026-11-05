@@ -119,6 +119,17 @@ def _pin_checks():
             [],
         ),
         expect_equal("macos cells pin no runtime", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "macos" and CELLS[cell].runtime != None], []),
+        expect_equal(
+            "macos needs cover every layout plugin and display plugin",
+            [
+                plugin
+                for cell in qualified_cells()
+                if CELLS[cell].layout.os == "macos"
+                for plugin in [p for group in CELLS[cell].layout.runtime_plugins.values() for p in group] + [p for group in CELLS[cell].layout.display_plugins.values() for p in group] + ["plugins/platforms/" + n for n in CELLS[cell].layout.platform_plugins]
+                if plugin.removeprefix("plugins/") not in CELLS[cell].needs.runtime_plugin
+            ],
+            [],
+        ),
         expect_equal("windows cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "windows" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),
         expect_equal("windows cells build with msvc", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "windows" and (CELLS[cell].layout.compiler != "msvc" or "@llvm//constraints/windows/abi:msvc" not in CELLS[cell].constraints)], []),
         expect_equal("other layouts declare no compiler", [LINUX_LAYOUT.compiler, MACOS_LAYOUT.compiler], ["", ""]),

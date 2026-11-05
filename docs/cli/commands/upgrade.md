@@ -23,12 +23,12 @@ Scopes: none. Positional scopes are rejected.
 
 ## What `--apply` Writes
 
-1. The `rules_dx` `bazel_dep` version in `MODULE.bazel` (or the `include()`d file holding it).
+1. The `rules_dx` `bazel_dep` version in the root `MODULE.bazel`. It must be one line, `bazel_dep(name = "rules_dx", version = "...")`, the form the launchers read. A dep in an `include()`d file or spread over several lines is refused and nothing is written.
 2. `MODULE.bazel.lock`, through `bazel mod deps --lockfile_mode=update`. Skipped when absent.
 3. When `--to` differs from this `dx`, the `--to` binary runs `bazel run @rules_dx//:dx -- upgrade --to <to> --apply` and writes the rest. This `dx` returns its exit code.
 4. `.dx/pins`, on every run.
 5. Existing launchers `tools/dx` and `tools/dx.cmd`.
-6. Dx-owned keys of an existing `.vscode/settings.json` and the pin in an existing `.github/workflows/ci.yml`.
+6. Dx-owned keys of an existing `.vscode/settings.json` and the `uses:` pin in an existing `.github/workflows/ci.yml`. The caller carries no version input.
 7. The dx block of an existing `AGENTS.md`.
 8. The `third_party/rules_dx/` overrides.
 9. Stale preset layers under `.dx/`. `.bazelrc` is untouched.

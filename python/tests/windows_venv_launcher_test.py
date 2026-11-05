@@ -139,6 +139,18 @@ class WindowsVenvLauncherTest(unittest.TestCase):
             venv_python, _ = launcher.locate_venv(VENV)
         self.assertEqual(venv_python, os.path.join(runfiles, VENV))
 
+    def test_executable_runs_without_runfiles_env(self):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("RUNFILES_")}
+        result = subprocess.run(
+            [sys.executable, "-c", "import sys; print(sys.prefix)"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.strip(), result.stderr)
+
     def test_rerun_passes_venv_launcher_env(self):
         # CPython consumes __PYVENV_LAUNCHER__ at startup, so capture the
         # child's environment from a fake Popen instead of a real child.

@@ -80,7 +80,7 @@ _rubygems_config = rule(
     },
 )
 
-def rubygems_deploy(name, gem, version = "0.0.0", ruby = None, ruby_files = None, profile = "release"):
+def rubygems_deploy(name, gem, version = "0.0.0", ruby = None, ruby_files = None, profile = "release", sbom = None):
     """Publishes staged gem sources as a local-first RubyGems deployment."""
     name_error = rubygems_name_error(name)
     if name_error != "":
@@ -101,6 +101,7 @@ def rubygems_deploy(name, gem, version = "0.0.0", ruby = None, ruby_files = None
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

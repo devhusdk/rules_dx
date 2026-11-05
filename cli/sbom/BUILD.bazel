@@ -12,10 +12,10 @@ dx_rust_crate(
     name = "dx_sbom",
     package_name = "cli/dx_sbom",
     srcs = ["src/lib.rs"],
-    dev_deps = ["serde_json"],
     test_srcs = ["src/tests.rs"],
     deps = [
         "serde",
+        "serde_json",
         "spdx",
     ],
 )

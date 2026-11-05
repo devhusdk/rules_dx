@@ -193,6 +193,7 @@ pub struct DeployInfo {
     pub executable: bool,
     pub size_budget: String,
     pub size_stamp: String,
+    pub sbom: String,
 }
 
 fn deploy_starlark_expr() -> String {
@@ -203,7 +204,8 @@ fn deploy_starlark_expr() -> String {
          ((str(providers(target).get('{PROVIDER}', None).app) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \
          str(target.files_to_run.executable != None) + '|' + \
          ((providers(target).get('{PROVIDER}', None).size_budget if providers(target).get('{PROVIDER}', None) != None else '')) + '|' + \
-         ((providers(target).get('{PROVIDER}', None).size_stamp if providers(target).get('{PROVIDER}', None) != None else ''))"
+         ((providers(target).get('{PROVIDER}', None).size_stamp if providers(target).get('{PROVIDER}', None) != None else '')) + '|' + \
+         ((providers(target).get('{PROVIDER}', None).sbom if providers(target).get('{PROVIDER}', None) != None else ''))"
     )
 }
 
@@ -257,6 +259,7 @@ pub fn check_deployable(
         };
     let size_budget = parts.next().unwrap_or("").to_owned();
     let size_stamp = parts.next().unwrap_or("").to_owned();
+    let sbom = parts.next().unwrap_or("").to_owned();
     if parts.next().is_some() {
         return Err(malformed("cquery returned a malformed deploy observation"));
     }
@@ -287,6 +290,7 @@ pub fn check_deployable(
         executable,
         size_budget,
         size_stamp,
+        sbom,
     })
 }
 
@@ -657,5 +661,20 @@ mod tests {
         assert!(argv.iter().any(|arg| arg.starts_with("--query_file=")));
         assert!(argv.iter().any(|arg| arg.starts_with("--starlark:expr=")));
         assert!(argv.iter().all(|arg| arg.len() < 4096));
+    }
+
+    #[test]
+    fn deploy_observation_carries_the_sbom_field() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-deploy-sbom-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("True|release|None|True|||out/app.spdx.json\n"),
+            FakeQuery::ok("True|release|None|True|1MB|out/stamp\n"),
+        ]);
+        let with = check_deployable("//d:p", &workspace, &query, &[]).expect("seven fields");
+        assert_eq!(with.sbom, "out/app.spdx.json");
+        let without = check_deployable("//d:p", &workspace, &query, &[]).expect("six fields");
+        assert_eq!(without.sbom, "");
+        assert_eq!(without.size_stamp, "out/stamp");
     }
 }

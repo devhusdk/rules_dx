@@ -141,7 +141,7 @@ fn github_case() {
     if let Ok(want) = std::env::var("DX_GITHUB_SBOM_PACKAGES") {
         assert!(
             out.lines()
-                .any(|line| line.trim() == format!("sbom: app_sbom.spdx.json {want} packages")),
+                .any(|line| line.trim() == format!("sbom: app.spdx.json {want} packages")),
             "github sbom package count {want} not reported\n{out}"
         );
     }

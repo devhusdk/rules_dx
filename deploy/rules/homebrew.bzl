@@ -74,7 +74,8 @@ def homebrew_tap_deploy(
         desc = None,
         homepage = None,
         profile = "release",
-        tags = []):
+        tags = [],
+        sbom = None):
     """Renders a Homebrew formula from a github_deploy release and pushes it to a tap."""
     formula = formula or name
     where = " (in " + native.package_name() + ":" + name + ")"
@@ -102,6 +103,7 @@ def homebrew_tap_deploy(
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

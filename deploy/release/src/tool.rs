@@ -129,6 +129,7 @@ enum ParseError {
         name: &'static str,
         usage: &'static str,
     },
+    BadFlag(String),
 }
 
 fn spec_for(name: &str) -> Option<&'static KindSpec> {
@@ -147,6 +148,18 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             name: spec.name,
             usage: spec.usage,
         });
+    }
+    if spec.kind == Kind::Spdx {
+        for arg in args.iter().skip(4).filter(|arg| arg.starts_with("--")) {
+            let known = arg.starts_with("--runtimes=")
+                || arg.strip_prefix("--lock=").is_some_and(|spec| {
+                    spec.split_once(':')
+                        .is_some_and(|(kind, path)| !kind.is_empty() && !path.is_empty())
+                });
+            if !known {
+                return Err(ParseError::BadFlag(arg.clone()));
+            }
+        }
     }
     Ok(match spec.kind {
         Kind::Spdx => {
@@ -218,6 +231,9 @@ fn usage_for(error: &ParseError) -> i32 {
     match error {
         ParseError::UnknownKind => crate::bin_error(format!("usage: {}", all_kinds_usage())),
         ParseError::Arity { name, usage } => crate::bin_usage(&format!("{PROG} {name}"), usage),
+        ParseError::BadFlag(flag) => crate::bin_error(format!(
+            "unknown or malformed spdx flag {flag}; use --runtimes=<path> or --lock=<kind>:<path>"
+        )),
     }
 }
 
@@ -349,6 +365,28 @@ mod tests {
         assert!(parse(&argv_for("spdx", 3)).is_err());
         assert!(parse(&argv_for("spdx", 6)).is_ok());
         assert!(parse(&argv_for("spdx", 7)).is_ok());
+    }
+
+    #[test]
+    fn spdx_rejects_malformed_locks_and_unknown_flags() {
+        let mut argv = argv_for("spdx", 4);
+        argv.push("--lock=npm:package-lock.json".to_owned());
+        argv.push("--runtimes=r.json".to_owned());
+        assert!(parse(&argv).is_ok());
+        for bad in [
+            "--lock=package-lock.json",
+            "--lock=npm:",
+            "--lock=:x",
+            "--bogus",
+        ] {
+            let mut argv = argv_for("spdx", 4);
+            argv.push(bad.to_owned());
+            assert_eq!(
+                parse(&argv),
+                Err(ParseError::BadFlag(bad.to_owned())),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

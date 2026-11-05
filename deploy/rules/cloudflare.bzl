@@ -85,7 +85,7 @@ cloudflare_config = rule(
     },
 )
 
-def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, profile = "release", tags = []):
+def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, profile = "release", tags = [], sbom = None):
     """Publishes a static bundle directory to an existing Cloudflare Pages project."""
     wrangler = wrangler or str(Label("//quality/tools/javascript/bin:wrangler"))
     error = cloudflare_pages_error(account_id, project, branch, production_branch)
@@ -125,6 +125,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         artifacts = [site],
         config = ":" + config_target,
         data = [":" + check_target],

@@ -99,7 +99,7 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", profile = "release"):
+def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", profile = "release", sbom = None):
     """Packs files into a local npm feed with public or restricted access and a provenance policy."""
     pkg_error = npm_package_error(package)
     if pkg_error != "":
@@ -141,6 +141,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

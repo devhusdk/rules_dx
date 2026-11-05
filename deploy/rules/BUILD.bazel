@@ -192,6 +192,7 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
+        "//cli/sbom:dx_sbom",
         "//cli/update:dx_update",
         "@rules_rust//rust/runfiles",
     ],
@@ -963,7 +964,7 @@ rust_test(
         "//deploy/rules/sbom_demo:app_release_config",
     ],
     env = {
-        "DX_GITHUB_ASSETS": "app app_sbom.spdx.json",
+        "DX_GITHUB_ASSETS": "app app.spdx.json",
         "DX_GITHUB_CONFIG": "$(rootpath //deploy/rules/sbom_demo:app_release_config)",
         "DX_GITHUB_PROG": "$(rootpath //deploy/rules/sbom_demo:app_release)",
         "DX_GITHUB_SBOM_PACKAGES": "2",

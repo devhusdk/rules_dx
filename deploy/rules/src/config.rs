@@ -204,7 +204,7 @@ fn oci_sbom_line(rloc: &str) -> String {
     let base = rloc.rsplit('/').next().unwrap_or(rloc);
     let count = crate::stage::resolve_runfile(rloc)
         .ok()
-        .and_then(|path| crate::github::spdx_package_count(&path));
+        .and_then(|path| dx_sbom::spdx_package_count(&path));
     match count {
         Some(count) => format!("  sbom: {base} {count} packages"),
         None => format!("  sbom: {base} is not a readable SPDX document"),

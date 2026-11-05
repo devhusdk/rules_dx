@@ -79,7 +79,7 @@ _hex_config = rule(
     },
 )
 
-def hex_deploy(name, package, version = "0.0.0", tool = "mix", profile = "release"):
+def hex_deploy(name, package, version = "0.0.0", tool = "mix", profile = "release", sbom = None):
     """Publishes an Elixir or Erlang package as a local-first Hex deployment."""
     name_error = hex_name_error(name)
     if name_error != "":
@@ -102,6 +102,7 @@ def hex_deploy(name, package, version = "0.0.0", tool = "mix", profile = "releas
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

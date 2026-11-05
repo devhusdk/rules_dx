@@ -267,13 +267,6 @@ fn previous_release_lines(bases: &[String]) -> Vec<String> {
     lines
 }
 
-/// Counts the packages of one SPDX document, None when it is unreadable.
-pub(crate) fn spdx_package_count(path: &std::path::Path) -> Option<usize> {
-    let bytes = std::fs::read(path).ok()?;
-    let doc = serde_json::from_slice::<serde_json::Value>(&bytes).ok()?;
-    doc.get("packages")?.as_array().map(Vec::len)
-}
-
 /// Describes each `.spdx.json` asset with its package count, for a dry run.
 fn sbom_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> Vec<String> {
     let mut lines = Vec::new();
@@ -281,7 +274,7 @@ fn sbom_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> Vec<String> {
         if !base.ends_with(".spdx.json") {
             continue;
         }
-        let count = spdx_package_count(src);
+        let count = dx_sbom::spdx_package_count(src);
         match count {
             Some(count) => lines.push(format!("  sbom: {base} {count} packages")),
             None => lines.push(format!("  sbom: {base} is not a readable SPDX document")),
@@ -618,15 +611,6 @@ mod tests {
                 "  sbom: b.spdx.json is not a readable SPDX document",
             ]
         );
-    }
-
-    #[test]
-    fn spdx_package_count_reads_the_packages_array() {
-        let scratch = scratch_dir();
-        let good = scratch.path().join("g.spdx.json");
-        std::fs::write(&good, br#"{"packages":[{"name":"a"}]}"#).expect("write");
-        assert_eq!(spdx_package_count(&good), Some(1));
-        assert_eq!(spdx_package_count(&scratch.path().join("missing")), None);
     }
 
     #[cfg(unix)]

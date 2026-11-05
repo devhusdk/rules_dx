@@ -1,6 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//deploy/rules:oci.bzl", "oci_deploy")
+load("//deploy/rules:pypi.bzl", "pypi_deploy")
 load("//deploy/rules:sbom.bzl", "dx_sbom")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library")
 
@@ -56,8 +57,10 @@ dx_sbom(
     name = "locked_sbom",
     artifact = ":app",
     go_mod = "go.mod",
+    maven_lock = "maven_install.json",
     npm_lock = "package-lock.json",
     package_name = "locked",
+    pip_lock = "uv.lock",
 )
 
 sh_test(
@@ -66,4 +69,17 @@ sh_test(
     srcs = ["locks_check.sh"],
     args = ["$(rootpath :locked_sbom)"],
     data = [":locked_sbom"],
+)
+
+pypi_deploy(
+    name = "app_wheel",
+    sbom = ":app_sbom",
+    wheel = "app-1.0.0-py3-none-any.whl",
+)
+
+sh_test(
+    name = "deployment_sbom_test",
+    size = "small",
+    srcs = ["deployment_check.sh"],
+    data = [":app_wheel"],
 )

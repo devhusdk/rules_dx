@@ -1,0 +1,6 @@
+{
+  "artifacts": {
+    "com.google.guava:guava": {"version": "33.0.0-jre"}
+  },
+  "version": "2"
+}

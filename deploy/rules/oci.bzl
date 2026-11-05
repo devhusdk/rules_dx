@@ -206,6 +206,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

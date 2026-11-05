@@ -208,7 +208,7 @@ _maven_config = rule(
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release", sources = None, javadoc = None):
+def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release", sources = None, javadoc = None, sbom = None):
     """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment."""
     group_error = maven_group_error(group)
     if group_error != "":
@@ -238,6 +238,7 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

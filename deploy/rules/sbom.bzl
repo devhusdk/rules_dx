@@ -10,6 +10,11 @@ DxSbomInfo = provider(
     },
 )
 
+DxSbomFileInfo = provider(
+    doc = "The SPDX document a dx_sbom target wrote.",
+    fields = {"file": "File: the <name>.spdx.json document."},
+)
+
 _LOCAL_VERSION = "0.0.0"
 
 _EDGES = ["deps", "proc_macro_deps", "srcs", "crate", "upstream"]
@@ -53,7 +58,7 @@ def _dx_sbom_impl(ctx):
         output = inventory,
         content = "".join([line + "\n" for line in sorted(lines)]),
     )
-    out = ctx.actions.declare_file(ctx.label.name + ".spdx.json")
+    out = ctx.actions.declare_file((ctx.attr.package_name or ctx.label.name) + ".spdx.json")
     locks = []
     for kind, label in [("npm", ctx.file.npm_lock), ("go", ctx.file.go_mod), ("maven", ctx.file.maven_lock), ("pip", ctx.file.pip_lock)]:
         if label:
@@ -67,7 +72,7 @@ def _dx_sbom_impl(ctx):
         mnemonic = "DxSbom",
         progress_message = "Writing SPDX SBOM " + out.short_path,
     )
-    return [DefaultInfo(files = depset([out]))]
+    return [DefaultInfo(files = depset([out])), DxSbomFileInfo(file = out)]
 
 dx_sbom = rule(
     implementation = _dx_sbom_impl,

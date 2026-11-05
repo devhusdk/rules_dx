@@ -146,7 +146,8 @@ def linux_package_deploy(
         extra_files = {},
         tag = "v0.0.0-dryrun",
         profile = "release",
-        tags = []):
+        tags = [],
+        sbom = None):
     """Builds Linux packages from one binary and publishes them as a draft GitHub release."""
     where = " (in " + native.package_name() + ":" + name + ")"
     name_error = linux_package_name_error(name)
@@ -181,4 +182,5 @@ def linux_package_deploy(
         tag = tag,
         profile = profile,
         tags = tags,
+        sbom = sbom,
     )

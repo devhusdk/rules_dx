@@ -113,6 +113,7 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

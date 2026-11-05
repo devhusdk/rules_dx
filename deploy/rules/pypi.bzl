@@ -97,7 +97,7 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, profile = "release"):
+def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSITORY_URL, profile = "release", sbom = None):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment."""
     name_error = pypi_name_error(name)
     if name_error != "":
@@ -117,6 +117,7 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

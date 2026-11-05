@@ -18,6 +18,13 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+/// Counts the packages of one SPDX document, None when it is not readable JSON with a packages array.
+pub fn spdx_package_count(path: &std::path::Path) -> Option<usize> {
+    let bytes = std::fs::read(path).ok()?;
+    let doc = serde_json::from_slice::<serde_json::Value>(&bytes).ok()?;
+    doc.get("packages")?.as_array().map(Vec::len)
+}
+
 pub const SPDX_VERSION: &str = "SPDX-2.3";
 
 pub const DATA_LICENSE: &str = "CC0-1.0";

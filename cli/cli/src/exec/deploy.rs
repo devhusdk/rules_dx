@@ -94,6 +94,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
                     size_line(workspace, &info.size_stamp, &info.size_budget)
                 );
             }
+            if !info.sbom.is_empty() {
+                let _ = writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom));
+            }
             let mut words = vec!["dx".to_owned(), "deploy".to_owned(), "--apply".to_owned()];
             if invocation.debug {
                 words.push("--debug".to_owned());
@@ -158,6 +161,14 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Ok(app) => app.code,
         Err(exit) => exit,
+    }
+}
+
+fn sbom_line(workspace: &std::path::Path, sbom: &str) -> String {
+    let base = sbom.rsplit('/').next().unwrap_or(sbom);
+    match dx_sbom::spdx_package_count(&workspace.join(sbom)) {
+        Some(count) => format!("{base} {count} packages"),
+        None => format!("{base} is not a readable SPDX document"),
     }
 }
 
@@ -392,6 +403,37 @@ mod tests {
             .collect();
         let err = parse(&args).expect_err("deploy json must fail parse");
         assert!(err.to_string().contains("--output"), "{err:?}");
+    }
+
+    #[test]
+    fn deploy_check_prints_the_sbom_package_count() {
+        let harness = harness_with_deploy(
+            "deploy-check-sbom",
+            "True|release|None|True|||bazel-out/bin/d/app.spdx.json",
+        );
+        harness.write_source(
+            "bazel-out/bin/d/app.spdx.json",
+            r#"{"packages":[{"name":"a"},{"name":"b"}]}"#,
+        );
+        let (code, _, err) = harness.run(&["deploy", "//deploy:prod"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("SBOM of //deploy:prod: app.spdx.json 2 packages"),
+            "{err}"
+        );
+        let harness = harness_with_deploy(
+            "deploy-check-badsbom",
+            "True|release|None|True|||bazel-out/none/app.spdx.json",
+        );
+        let (_, _, err) = harness.run(&["deploy", "//deploy:prod"]);
+        assert!(
+            err.contains("SBOM of //deploy:prod: app.spdx.json is not a readable SPDX document"),
+            "{err}"
+        );
+        let harness =
+            harness_with_deploy("deploy-check-nosbom", "True|release|None|True|1MB|stamp");
+        let (_, _, err) = harness.run(&["deploy", "//deploy:prod"]);
+        assert!(!err.contains("SBOM of"), "{err}");
     }
 
     #[test]

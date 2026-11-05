@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
+load(":sbom.bzl", "DxSbomFileInfo")
 load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
 load(":validate.bzl", "size_budget_bytes", "size_budget_error")
 
@@ -10,6 +11,7 @@ DxDeployInfo = provider(
     fields = {
         "app": "Label or None: the deployed app target when distinct from the deploy target.",
         "artifacts": "List of Labels: declared app artifact targets staged for the deploy tool.",
+        "sbom": "String: exec path of the SPDX document, empty without an sbom.",
         "size_budget": "String: the size_budget attribute, empty when unset.",
         "size_stamp": "String: exec path of the file holding the checked size, empty without a budget.",
         "profile": "String or None: default profile ('debug', 'dev', 'release'); None means the command default applies.",
@@ -45,14 +47,21 @@ def _dx_deployment_impl(ctx):
     for target in ctx.attr.data:
         runfiles = runfiles.merge(ctx.runfiles(files = target[DefaultInfo].files.to_list()))
     extra = []
+    environment = {}
+    built = [link]
     if ctx.attr.config:
         config = ctx.attr.config[DxDeployConfigInfo]
         runfiles = runfiles.merge(ctx.attr.config[DefaultInfo].default_runfiles)
         runfiles = runfiles.merge(ctx.runfiles(files = [config.file]))
         extra.append(config)
-        extra.append(RunEnvironmentInfo(
-            environment = {"DX_DEPLOY_CONFIG": rlocation_path(ctx, config.file)},
-        ))
+        environment["DX_DEPLOY_CONFIG"] = rlocation_path(ctx, config.file)
+    sbom_path = ""
+    if ctx.attr.sbom:
+        sbom_file = ctx.attr.sbom[DxSbomFileInfo].file
+        runfiles = runfiles.merge(ctx.runfiles(files = [sbom_file]))
+        environment["DX_DEPLOY_SBOM"] = rlocation_path(ctx, sbom_file)
+        sbom_path = sbom_file.path
+        built.append(sbom_file)
     app_label = None
     app_text = ""
     if ctx.attr.app:
@@ -76,17 +85,20 @@ def _dx_deployment_impl(ctx):
         )
         validation.append(stamp)
         size_stamp = stamp.path
+    if environment:
+        extra.append(RunEnvironmentInfo(environment = environment))
     return [
         OutputGroupInfo(_validation = depset(validation)),
         DefaultInfo(
             executable = link,
-            files = depset([link]),
+            files = depset(built),
             runfiles = runfiles,
         ),
         DxDeployInfo(
             app = app_label,
             artifacts = [target.label for target in ctx.attr.artifacts],
             profile = ctx.attr.profile,
+            sbom = sbom_path,
             size_budget = ctx.attr.size_budget,
             size_stamp = size_stamp,
         ),
@@ -131,6 +143,12 @@ dx_deployment = rule(
             cfg = "exec",
             executable = True,
             mandatory = True,
+        ),
+        "sbom": attr.label(
+            cfg = "target",
+            mandatory = False,
+            providers = [DxSbomFileInfo],
+            doc = "dx_sbom target whose SPDX document is staged with the deployment and counted by a dx deploy check.",
         ),
         "size_budget": attr.string(
             doc = "Largest total size of artifacts, such as 25MB (decimal B, KB, MB or GB). Building fails above it and prints both sizes in bytes. Empty means no budget.",

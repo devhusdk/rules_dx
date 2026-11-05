@@ -66,7 +66,7 @@ _helm_config = rule(
     },
 )
 
-def helm_chart_deploy(name, chart, version, registry, repository = "", helm = None, profile = "release"):
+def helm_chart_deploy(name, chart, version, registry, repository = "", helm = None, profile = "release", sbom = None):
     """Packages a helm_chart and pushes it to an OCI registry as a local-first deployment."""
     where = " (in " + native.package_name() + ":" + name + ")"
     version_error = helm_version_error(version)
@@ -93,6 +93,7 @@ def helm_chart_deploy(name, chart, version, registry, repository = "", helm = No
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

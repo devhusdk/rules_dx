@@ -85,7 +85,7 @@ _pub_config = rule(
     },
 )
 
-def pub_deploy(name, package, version = "0.0.0", hosted_url = PUB_DEFAULT_HOSTED_URL, profile = "release"):
+def pub_deploy(name, package, version = "0.0.0", hosted_url = PUB_DEFAULT_HOSTED_URL, profile = "release", sbom = None):
     """Publishes a Dart or Flutter package as a local-first pub.dev deployment."""
     name_error = pub_name_error(name)
     if name_error != "":
@@ -108,6 +108,7 @@ def pub_deploy(name, package, version = "0.0.0", hosted_url = PUB_DEFAULT_HOSTED
 
     dx_deployment(
         name = name,
+        sbom = sbom,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

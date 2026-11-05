@@ -1,3 +1,4 @@
+use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
@@ -16,7 +17,7 @@ use dx_output::{
     command_finished, command_started, meets_threshold, notice_event, ActionCounts, FinishedCounts,
     NoticeEvent, OutputMode, Severity,
 };
-use dx_plan::args::{Command, Invocation, QualityRequest};
+use dx_plan::args::{Command, Invocation, QualityRequest, BREAKING_AGAINST_OPTION};
 use dx_plan::plan::{bep_path, plan_build_with, plan_probe, Selection, SHARD_OUTPUT_GROUP};
 use dx_plan::reports::{plan_reports, BaselineReport, Destination};
 use dx_plan::resolve::{resolve, RuleGraph};
@@ -324,6 +325,32 @@ fn run_quality_request(
             CODE_UNREADABLE_BEP,
             &crate::startup::temp_path_not_utf8(),
         );
+    };
+    let rewritten;
+    let request = if request
+        .bazel_options
+        .iter()
+        .any(|option| option.starts_with(BREAKING_AGAINST_OPTION))
+    {
+        let context = breaking_base::Context {
+            workspace,
+            runner,
+            query_runner,
+            startup: &request.bazel_startup_options,
+            temp_dir,
+        };
+        match breaking_base::resolve_options(&request.bazel_options, &context) {
+            Ok(bazel_options) => {
+                rewritten = QualityRequest {
+                    bazel_options,
+                    ..request.clone()
+                };
+                &rewritten
+            }
+            Err(message) => return pre_exec(request.common.output, out, err, &message),
+        }
+    } else {
+        request
     };
     let mut resolved = match resolve(
         &request.targets,

@@ -145,6 +145,7 @@ pub(crate) struct Flags {
     pub(crate) min_changed_line_coverage: Option<u32>,
     pub(crate) apply: bool,
     pub(crate) online: bool,
+    pub(crate) breaking_against: Option<String>,
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
@@ -541,6 +542,21 @@ flag_group! {
     OnlineFlag, {
         #[arg(long, overrides_with = "online")]
         online: bool,
+    }
+}
+
+flag_group! {
+    /// Also run buf breaking against the merge base with this ref (default origin/HEAD).
+    BreakingAgainstFlag, {
+        #[arg(
+            long,
+            value_name = "REF",
+            num_args = 0..=1,
+            require_equals = true,
+            default_missing_value = "origin/HEAD",
+            overrides_with = "breaking_against"
+        )]
+        breaking_against: Option<String>,
     }
 }
 
@@ -1158,6 +1174,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
         online: OnlineFlag,
+        breaking_against: BreakingAgainstFlag,
         fail_on: FailOnFlag,
         baseline: BaselineFlag,
         report: ReportFlag,

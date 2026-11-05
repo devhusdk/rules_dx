@@ -158,6 +158,7 @@ _REAL_BASE_ATTRS = {
         providers = [QualityPolicyInfo],
     ),
     "_online": attr.label(default = "//config:lint_online"),
+    "_breaking_against": attr.label(default = "//config:buf_breaking_against"),
     "_runner": attr.label(
         default = "//quality/runner:quality_runner",
         executable = True,
@@ -471,6 +472,14 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     if "lychee" in stage_tools and hasattr(ctx.attr, "_online") and ctx.attr._online[BuildSettingInfo].value:
         tool_env_entries.setdefault("lychee", []).append(["DX_LINT_ONLINE", "1"])
         requirements["requires-network"] = "1"
+    if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
+        image = ctx.attr._breaking_against[BuildSettingInfo].value
+        if image:
+            # The base image lives outside the workspace, so the action reads it unsandboxed and uncached.
+            tool_env_entries.setdefault("buf", []).append(["DX_BUF_BREAKING_AGAINST", image])
+            requirements["no-sandbox"] = "1"
+            requirements["no-cache"] = "1"
+            requirements["no-remote"] = "1"
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]

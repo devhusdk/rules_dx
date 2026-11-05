@@ -54,7 +54,8 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
+    ("--breaking-against", &["--breaking-against"], &["lint"]),
     ("--online", &["--online"], &["lint"]),
     (
         "--include-edits",

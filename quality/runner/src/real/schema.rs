@@ -75,10 +75,30 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     commands::buf_lint_check(&call.tool.binary, &targets, &root, call.config);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
-                let found = parsed(
+                let mut found = parsed(
                     call.tool_id,
                     parsers::parse_buf_lint(&out.stdout, out.code, &names, &context),
                 )?;
+                let base = call
+                    .tool
+                    .extra_env
+                    .iter()
+                    .find(|(name, _)| name == "DX_BUF_BREAKING_AGAINST")
+                    .map(|(_, image)| image.as_str());
+                if let Some(image) = base {
+                    let invocation = commands::buf_breaking_check(
+                        &call.tool.binary,
+                        Path::new(image),
+                        &root,
+                        call.config,
+                    );
+                    let out =
+                        backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
+                    found.extend(parsed(
+                        call.tool_id,
+                        parsers::parse_buf_lint(&out.stdout, out.code, &names, &context),
+                    )?);
+                }
                 let mut owned = Vec::with_capacity(found.len());
                 for mut item in found {
                     if let Some((_, absolute)) = linted

@@ -21,6 +21,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Write validated fixes and refresh the `--baseline` file. Text output prints `Applied: <path>` per file, then `Applied N file(s).` |
+| `--breaking-against[=REF]` | `lint` only. Also run `buf breaking` against the merge base of `HEAD` and `REF` (default `origin/HEAD`). `dx` builds the base image with the pinned `buf`; the lint action runs unsandboxed and uncached. |
 | `--online` | `lint` only. Check external links too: `lychee` drops `--offline`. Needs network. |
 | `--diff` | Print a unified patch of the proposed fixes instead of findings. |
 | `--fail-on info\|warning\|error` | Severity that fails the run. Default `warning`. |
@@ -331,7 +332,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 | Tool | Checks | Not on |
 | --- | --- | --- |
-| `buf` | Format and lint Protocol Buffers | |
+| `buf` | Format and lint Protocol Buffers; breaking changes with `dx lint --breaking-against` | |
 | `flatc` | Lint and typecheck FlatBuffers | |
 | `capnp` | Lint and typecheck Cap'n Proto | `linux_arm64`, `macos_arm64`, `windows_x86_64` |
 | `thrift` | Lint and typecheck Thrift | `linux_arm64`, `macos_arm64`, `windows_x86_64` |

@@ -1,6 +1,6 @@
 run lint analysis over resolved scopes (check by default; --apply writes fixes)
 
-Usage: dx lint|typecheck|format [--apply] [--online] [--here] [--affected] [scope ...] [-- bazel-options ...]
+Usage: dx lint|typecheck|format [--apply] [--online] [--breaking-against[=REF]] [--here] [--affected] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -50,6 +50,9 @@ Options:
 
       --online
           Check external links too (lychee, needs network)
+
+      --breaking-against[=<REF>]
+          Also run buf breaking against the merge base with this ref (default origin/HEAD)
 
       --fail-on <FAIL_ON>
           Fail on this severity

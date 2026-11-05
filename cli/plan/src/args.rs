@@ -128,7 +128,7 @@ pub use invocation::{
 };
 pub use parser::{
     ci_ignores_env, early_output_flag, is_discovery_exempt, json_output_intent, parse, parse_with,
-    parse_with_ci, startup_workspace,
+    parse_with_ci, startup_workspace, BREAKING_AGAINST_OPTION,
 };
 pub(crate) use profile::filter_profile_configs;
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};

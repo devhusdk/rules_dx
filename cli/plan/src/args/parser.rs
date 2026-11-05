@@ -9,6 +9,9 @@ use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
 use dx_worktree::HookKind;
 
+/// The build setting `--breaking-against` sets. The runner replaces the ref with a base image path.
+pub const BREAKING_AGAINST_OPTION: &str = "--//config:buf_breaking_against";
+
 fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
     match value.to_str() {
         Some(text) => Ok(text.to_owned()),
@@ -314,6 +317,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         min_changed_line_coverage,
         apply,
         online,
+        breaking_against,
         debug,
         release,
         prune_unobserved,
@@ -515,6 +519,9 @@ fn parse_inner<S: AsRef<OsStr>>(
     };
     if online {
         bazel_options.insert(0, "--//config:lint_online=true".to_owned());
+    }
+    if let Some(reference) = breaking_against {
+        bazel_options.insert(0, format!("{BREAKING_AGAINST_OPTION}={reference}"));
     }
     if command.is_managed() {
         if let Err(error) = dx_setup::resolve_scope(&targets) {

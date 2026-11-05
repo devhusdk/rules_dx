@@ -2165,6 +2165,64 @@ fn buf_lint_names_a_broken_import() {
     assert!(!text.contains("unchecked file"), "{text}");
 }
 
+fn buf_breaking_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let clean = ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    };
+    let Some(at) = argv.iter().position(|arg| arg == "--against") else {
+        return Ok(clean);
+    };
+    let base = std::fs::read_to_string(&argv[at + 1])?;
+    let head_path = PathBuf::from(argv.last().expect("root")).join("hello/v1/hello.proto");
+    let head = std::fs::read_to_string(&head_path)?;
+    if !base.contains("string name = 2;") || head.contains("name") {
+        return Ok(clean);
+    }
+    let record = format!(
+        "{{\"path\":{},\"start_line\":5,\"start_column\":1,\"type\":\"FIELD_NO_DELETE\",\"message\":\"Previously present field \\\"2\\\" with name \\\"name\\\" was deleted.\"}}\n",
+        serde_json::to_string(&head_path.display().to_string()).expect("path")
+    );
+    Ok(ChildOutput {
+        code: Some(100),
+        stdout: record.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn buf_breaking_runs_only_with_a_base_image_and_honours_reserved() {
+    const BASE: &str = "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n  string name = 2;\n}\n";
+    const REMOVED: &str = "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n}\n";
+    const RESERVED: &str = "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n  reserved 2;\n  reserved \"name\";\n}\n";
+    let image = tempfile::tempdir().expect("scratch");
+    let image = image.path().join("base.binpb");
+    std::fs::write(&image, BASE).expect("write base image");
+    let run = |head: &str, base: Option<&Path>| {
+        let mut tool = plain_tool();
+        if let Some(base) = base {
+            tool.extra_env = vec![(
+                "DX_BUF_BREAKING_AGAINST".to_owned(),
+                base.to_string_lossy().into_owned(),
+            )];
+        }
+        backend_for("buf", tool, buf_breaking_fake)
+            .diagnose("buf", "lint", &single("hello/v1/hello.proto", head))
+            .expect("diagnosed")
+    };
+    let found = run(REMOVED, Some(&image));
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].rule_id, "FIELD_NO_DELETE");
+    assert!(run(RESERVED, Some(&image)).is_empty());
+    assert!(run(REMOVED, None).is_empty());
+}
+
 fn hadolint_config_arg(argv: &[OsString]) -> PathBuf {
     let at = argv
         .iter()

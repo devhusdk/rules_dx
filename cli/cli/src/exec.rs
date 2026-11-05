@@ -32,6 +32,7 @@ mod managed_prepare;
 mod managed_staging;
 mod mutate;
 pub(crate) mod notice_codes;
+mod breaking_base;
 mod pinned_tool;
 pub mod preset_sync;
 mod profile_report;

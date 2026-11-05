@@ -107,7 +107,7 @@ def _dsym_pair_impl(ctx):
         progress_message = "Pairing the dSYM of %{label}",
     )
     return [
-        target[DefaultInfo],
+        DefaultInfo(files = target[DefaultInfo].files, runfiles = target[DefaultInfo].default_runfiles),
         OutputGroupInfo(symbols = depset([bundle, manifest])),
     ]
 
@@ -182,7 +182,7 @@ def _pdb_pair_impl(ctx):
         progress_message = "Pairing the PDB of %{label}",
     )
     return [
-        target[DefaultInfo],
+        DefaultInfo(files = target[DefaultInfo].files, runfiles = target[DefaultInfo].default_runfiles),
         OutputGroupInfo(symbols = depset([pdb, manifest])),
     ]
 

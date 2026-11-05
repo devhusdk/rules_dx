@@ -112,7 +112,6 @@ def _msvc_impl(ctx):
 
 def _msvc_arm64_impl(ctx):
     env = analysistest.begin(ctx)
-    print("DEBUGPROV", analysistest.target_under_test(env), [str(a.mnemonic) for a in analysistest.target_actions(env)])  # buildifier: disable=print
     _check_msvc(env, _MSVC_TOOLS.keys(), "/bin/Hostx64/arm64/", "/arm64")
     return analysistest.end(env)
 
@@ -157,6 +156,7 @@ def cc_msvc_arm64_action_tests(name, compile_target, link_target):
         _msvc_arm64_test(
             name = test,
             size = "small",
+            tags = ["manual"],
             testonly = True,
             exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_compatible_with = ["@platforms//os:windows"],

@@ -51,3 +51,19 @@ sh_test(
     args = ["$(rootpath :app_image_config)"],
     data = [":app_image_config"],
 )
+
+dx_sbom(
+    name = "locked_sbom",
+    artifact = ":app",
+    go_mod = "go.mod",
+    npm_lock = "package-lock.json",
+    package_name = "locked",
+)
+
+sh_test(
+    name = "locks_test",
+    size = "small",
+    srcs = ["locks_check.sh"],
+    args = ["$(rootpath :locked_sbom)"],
+    data = [":locked_sbom"],
+)

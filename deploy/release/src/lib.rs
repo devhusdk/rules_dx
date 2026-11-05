@@ -131,7 +131,13 @@ pub fn render_spdx_full(
     sorted.sort_by(|a, b| (&a.package, &a.version).cmp(&(&b.package, &b.version)));
     for entry in sorted {
         let id = crate_spdx_id(&entry.package, &entry.version);
-        let ecosystem = if entry.set == "npm" { "npm" } else { "cargo" };
+        let ecosystem = match entry.set.as_str() {
+            "npm" => "npm",
+            "go" => "golang",
+            "maven" => "maven",
+            "pip" => "pypi",
+            _ => "cargo",
+        };
         document
             .relationships
             .push(spdx::contains("SPDXRef-Package", &id));
@@ -278,14 +284,57 @@ pub fn write_spdx_full(
     inventory: Option<&Path>,
     runtimes: Option<&Path>,
 ) -> io::Result<()> {
+    write_spdx_locked(src, dst, package, supplier, inventory, runtimes, &[])
+}
+
+/// Reads the packages a lock file pins as SBOM entries; `kind` is npm, go, maven or pip.
+pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, String> {
+    let (set, packages) = match kind {
+        "npm" => ("npm", dx_audit::locks::parse_package_lock(text)?),
+        "go" => ("go", dx_audit::locks::go_locked_packages(text)?),
+        "maven" => ("maven", dx_audit::locks::parse_maven_install(text)?),
+        "pip" => ("pip", dx_audit::locks::parse_uv_lock(text)?),
+        other => {
+            return Err(format!(
+                "unknown lock kind '{other}': want npm, go, maven or pip"
+            ))
+        }
+    };
+    Ok(packages
+        .into_iter()
+        .filter(|package| !package.name.is_empty() && !package.version.is_empty())
+        .map(|package| NoticeEntry {
+            package: package.name,
+            set: set.to_owned(),
+            version: package.version,
+            license: "NOASSERTION".to_owned(),
+            text_path: String::new(),
+            text_sha256: String::new(),
+        })
+        .collect())
+}
+
+pub fn write_spdx_locked(
+    src: &Path,
+    dst: &Path,
+    package: &str,
+    supplier: &str,
+    inventory: Option<&Path>,
+    runtimes: Option<&Path>,
+    locks: &[(String, std::path::PathBuf)],
+) -> io::Result<()> {
     let digest = dx_digest::sha256_file_hex(src)?;
     let base = basename(src)?;
-    let crates = match inventory {
+    let mut crates = match inventory {
         Some(path) => {
             parse_notice_manifest(&std::fs::read_to_string(path)?).map_err(io::Error::other)?
         }
         None => Vec::new(),
     };
+    for (kind, path) in locks {
+        let text = std::fs::read_to_string(path)?;
+        crates.extend(lock_entries(kind, &text).map_err(io::Error::other)?);
+    }
     let records = match runtimes {
         Some(path) => runtimes::read_records(path)?,
         None => Vec::new(),
@@ -1333,6 +1382,30 @@ mod tests {
     use super::*;
 
     const FORGED_BUILDER_ID: &str = "https://invalid.test/builder";
+
+    #[test]
+    fn lock_entries_read_each_ecosystem() {
+        let npm =
+            r#"{"lockfileVersion":3,"packages":{"":{},"node_modules/a":{"version":"1.0.0"}}}"#;
+        let entries = lock_entries("npm", npm).expect("npm");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            (entries[0].package.as_str(), entries[0].version.as_str()),
+            ("a", "1.0.0")
+        );
+        let go = "module m\n\ngo 1.22\n\nrequire github.com/x/y v1.2.3\n";
+        let entries = lock_entries("go", go).expect("go");
+        assert_eq!(entries[0].set, "go");
+        assert!(lock_entries("cargo", "").is_err());
+    }
+
+    #[test]
+    fn lock_entries_render_as_package_urls() {
+        let go = "module m\n\ngo 1.22\n\nrequire github.com/x/y v1.2.3\n";
+        let entries = lock_entries("go", go).expect("go");
+        let text = render_spdx_with_crates("a", "00", "a", "s", &entries);
+        assert!(text.contains("pkg:golang/github.com/x/y@v1.2.3"), "{text}");
+    }
 
     fn scratch_dir() -> tempfile::TempDir {
         tempfile::TempDir::new().expect("scratch")

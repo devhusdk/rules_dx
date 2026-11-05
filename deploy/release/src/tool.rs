@@ -42,8 +42,8 @@ const KINDS: &[KindSpec] = &[
     KindSpec {
         kind: Kind::Spdx,
         name: "spdx",
-        usage: "<artifact> <out> <package> <supplier> [inventory] [--runtimes=<runtimes.json>]",
-        arity: Arity::Between(4, 6),
+        usage: "<artifact> <out> <package> <supplier> [inventory] [--runtimes=<runtimes.json>] [--lock=<npm|go|maven|pip>:<lockfile> ...]",
+        arity: Arity::AtLeast(4),
     },
     KindSpec {
         kind: Kind::Provenance,
@@ -80,6 +80,7 @@ enum Invocation {
         supplier: String,
         inventory: Option<PathBuf>,
         runtimes: Option<PathBuf>,
+        locks: Vec<(String, PathBuf)>,
     },
     Provenance {
         src: PathBuf,
@@ -155,8 +156,14 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
                 .map(PathBuf::from);
             let inventory = args[4..]
                 .iter()
-                .find(|arg| !arg.starts_with("--runtimes="))
+                .find(|arg| !arg.starts_with("--"))
                 .map(PathBuf::from);
+            let locks = args[4..]
+                .iter()
+                .filter_map(|arg| arg.strip_prefix("--lock="))
+                .filter_map(|spec| spec.split_once(':'))
+                .map(|(kind, path)| (kind.to_owned(), PathBuf::from(path)))
+                .collect();
             Invocation::Spdx {
                 src: PathBuf::from(&args[0]),
                 dst: PathBuf::from(&args[1]),
@@ -164,6 +171,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
                 supplier: args[3].clone(),
                 inventory,
                 runtimes,
+                locks,
             }
         }
         Kind::Provenance => Invocation::Provenance {
@@ -232,13 +240,15 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             supplier,
             inventory,
             runtimes,
-        } => crate::write_spdx_full(
+            locks,
+        } => crate::write_spdx_locked(
             src,
             dst,
             package,
             supplier,
             inventory.as_deref(),
             runtimes.as_deref(),
+            locks,
         ),
         Invocation::Provenance { src, dst, builder } => crate::write_provenance(src, dst, builder),
         Invocation::BcrSource {
@@ -338,7 +348,7 @@ mod tests {
         assert!(parse(&argv_for("spdx", 5)).is_ok());
         assert!(parse(&argv_for("spdx", 3)).is_err());
         assert!(parse(&argv_for("spdx", 6)).is_ok());
-        assert!(parse(&argv_for("spdx", 7)).is_err());
+        assert!(parse(&argv_for("spdx", 7)).is_ok());
     }
 
     #[test]
@@ -362,7 +372,36 @@ mod tests {
                 supplier: "rules_dx".to_owned(),
                 inventory: None,
                 runtimes: None,
+                locks: Vec::new(),
             })
+        );
+    }
+
+    #[test]
+    fn spdx_collects_lock_flags() {
+        let Ok(Invocation::Spdx {
+            inventory, locks, ..
+        }) = parse(&argv_of(&[
+            PROG,
+            "spdx",
+            "artifact",
+            "out",
+            "dx",
+            "rules_dx",
+            "--lock=npm:package-lock.json",
+            "inv",
+            "--lock=go:go.mod",
+        ]))
+        else {
+            panic!("spdx did not parse");
+        };
+        assert_eq!(inventory, Some(PathBuf::from("inv")));
+        assert_eq!(
+            locks,
+            vec![
+                ("npm".to_owned(), PathBuf::from("package-lock.json")),
+                ("go".to_owned(), PathBuf::from("go.mod")),
+            ]
         );
     }
 

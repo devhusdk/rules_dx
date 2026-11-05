@@ -54,10 +54,15 @@ def _dx_sbom_impl(ctx):
         content = "".join([line + "\n" for line in sorted(lines)]),
     )
     out = ctx.actions.declare_file(ctx.label.name + ".spdx.json")
+    locks = []
+    for kind, label in [("npm", ctx.file.npm_lock), ("go", ctx.file.go_mod), ("maven", ctx.file.maven_lock), ("pip", ctx.file.pip_lock)]:
+        if label:
+            locks.append((kind, label))
     ctx.actions.run(
         executable = ctx.executable._release_tool,
-        arguments = ["spdx", artifact.path, out.path, ctx.attr.package_name or ctx.label.name, ctx.attr.supplier, inventory.path],
-        inputs = [artifact, inventory],
+        arguments = ["spdx", artifact.path, out.path, ctx.attr.package_name or ctx.label.name, ctx.attr.supplier, inventory.path] +
+                    ["--lock=%s:%s" % (kind, file.path) for kind, file in locks],
+        inputs = [artifact, inventory] + [file for _, file in locks],
         outputs = [out],
         mnemonic = "DxSbom",
         progress_message = "Writing SPDX SBOM " + out.short_path,
@@ -75,6 +80,10 @@ dx_sbom = rule(
             doc = "The deployable the SBOM describes.",
         ),
         "package_name": attr.string(doc = "Name of the described package; defaults to the rule name."),
+        "npm_lock": attr.label(allow_single_file = True, doc = "package-lock.json whose packages are added to the SBOM."),
+        "go_mod": attr.label(allow_single_file = True, doc = "go.mod whose requirements are added to the SBOM."),
+        "maven_lock": attr.label(allow_single_file = True, doc = "maven_install.json whose artifacts are added to the SBOM."),
+        "pip_lock": attr.label(allow_single_file = True, doc = "uv.lock whose packages are added to the SBOM."),
         "supplier": attr.string(default = "rules_dx", doc = "Supplier recorded on the described package."),
         "_release_tool": attr.label(
             default = Label("//deploy/release:release_tool"),

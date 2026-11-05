@@ -81,6 +81,7 @@ COMMON_LIBRARIES = [
     "exceptions",
     "filepath",
     "ghc-prim",
+    "hpc",
     "mtl",
     "parsec",
     "pretty",
@@ -567,6 +568,7 @@ def _haskell_impl(mctx):
         dropped = DROPPED_PATHS,
         files = {"BUILD.bazel": _ROOT_BUILD},
         patches = [
+            Label("//patches/rules_haskell:coverage_wrapper_no_report.patch"),
             Label("//patches/rules_haskell:hermetic_haskell.patch"),
             Label("//patches/rules_haskell:toolchain_type_alias.patch"),
         ],

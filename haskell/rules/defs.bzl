@@ -6,14 +6,13 @@ load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCov
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_lcov_merger_attr", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//tools/coverage/haskell:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
 
 HaskellInfo = _HaskellInfo
 
 HaskellLibraryInfo = _HaskellLibraryInfo
-
-HASKELL_COVERAGE_COLLECTOR = False
 
 HASKELL_CELLS = qualified_cells()
 
@@ -62,8 +61,10 @@ _haskell_forward_test = dx_executable_forward_rule(
     what = "haskell_test",
     allow_files = _SOURCES,
     upstream_providers = None,
+    extra_attrs = dx_lcov_merger_attr() | dx_haskell_coverage_attrs(),
     quiet_providers = [_HaskellInfo],
     runtime = "besteffort",
+    coverage_providers = dx_haskell_test_coverage,
     upstream_cfg = ghc_mingw_transition,
 )
 
@@ -107,4 +108,4 @@ def haskell_test(name, srcs = [], visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_test macro."""
     upstream = upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
-    dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, coverage_collector = HASKELL_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)

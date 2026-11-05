@@ -87,6 +87,10 @@ with `locale -a | grep -i c.utf`.
 
 `dx format` runs `ormolu` 0.9.0.0 on Haskell sources in a `haskell` quality family on Linux x86_64. See the Haskell section of `docs/cli/commands/quality.md`. `dx typecheck` runs `ghc -fno-code` when a `haskell` family opts in with `typecheck = ["ghc"]`. `dx lint` runs `hlint` 3.10 in the same `haskell` family, on Linux x86_64 only.
 
+## Coverage
+
+Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell compiles the test and its libraries with `-fhpc`, and rules_dx converts the `.tix` and `.mix` files hpc writes into line coverage. Only the lines of each expression are reported, not branches or functions.
+
 ## Platforms
 
 | Cell | Status | Reason |

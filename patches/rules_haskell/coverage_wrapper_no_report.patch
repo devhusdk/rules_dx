@@ -1,0 +1,76 @@
+--- a/haskell/private/coverage_wrapper.sh.tpl
++++ b/haskell/private/coverage_wrapper.sh.tpl
+@@ -93,72 +93,4 @@
+   done
+ fi
+ 
+-$hpc_path report "$tix_file_path" "${hpc_dir_args[@]}" "${hpc_exclude_args[@]}" \
+-  --srcdir "." --srcdir "$package_path" > __hpc_coverage_report
+-
+-# if we want a text report, just output the file generated in the previous step
+-if [ "$coverage_report_format" == "text" ]
+-then
+-  echo "Overall report"
+-  cat __hpc_coverage_report
+-fi
+-
+-# check the covered expression percentage, and if it matches our expectations
+-if [ "$expected_covered_expressions_percentage" -ne -1 ]
+-then
+-  covered_expression_percentage=$(grep "expressions used" __hpc_coverage_report | cut -c 1-3)
+-  if [ "$covered_expression_percentage" -lt "$expected_covered_expressions_percentage" ]
+-  then
+-    echo -e "\n==>$ERRORCOLOR Inadequate expression coverage percentage.$CLEARCOLOR"
+-    echo -e "==> Expected $expected_covered_expressions_percentage%, but the actual coverage was $ERRORCOLOR$((covered_expression_percentage))%$CLEARCOLOR.\n"
+-    exit 1
+-  elif [ "$strict_coverage_analysis" == "True" ] && [ "$covered_expression_percentage" -gt "$expected_covered_expressions_percentage" ]
+-  then
+-    echo -e "\n==>$ERRORCOLOR ** BECAUSE STRICT COVERAGE ANALYSIS IS ENABLED **$CLEARCOLOR"
+-    echo -e "==> Your coverage percentage is now higher than expected.$CLEARCOLOR"
+-    echo -e "==> Expected $expected_covered_expressions_percentage% of expressions covered, but the actual value is $ERRORCOLOR$((covered_expression_percentage))%$CLEARCOLOR."
+-    echo -e "==> Please increase the expected coverage percentage to match.\n"
+-    exit 1
+-  fi
+-fi
+-
+-# check how many uncovered expressions there are, and if that number matches our expectations
+-if [ "$expected_uncovered_expression_count" -ne -1 ]
+-then
+-  coverage_numerator=$(grep "expressions used" __hpc_coverage_report | sed s:.*\(::g | cut -f1 -d "/")
+-  coverage_denominator=$(grep "expressions used" __hpc_coverage_report | sed s:.*/::g | cut -f1 -d ")")
+-  uncovered_expression_count="$((coverage_denominator - coverage_numerator))"
+-  if [ "$uncovered_expression_count" -gt "$expected_uncovered_expression_count" ]
+-  then
+-    echo -e "\n==>$ERRORCOLOR Too many uncovered expressions.$CLEARCOLOR"
+-    echo -e "==> Expected $expected_uncovered_expression_count uncovered expressions, but the actual count was $ERRORCOLOR$((uncovered_expression_count))$CLEARCOLOR.\n"
+-    exit 1
+-  elif [ "$strict_coverage_analysis" == "True" ] && [ "$uncovered_expression_count" -lt "$expected_uncovered_expression_count" ]
+-  then
+-    echo -e "\n==>$ERRORCOLOR ** BECAUSE STRICT COVERAGE ANALYSIS IS ENABLED **$CLEARCOLOR"
+-    echo -e "==>$ERRORCOLOR Your uncovered expression count is now lower than expected.$CLEARCOLOR"
+-    echo -e "==> Expected $expected_uncovered_expression_count uncovered expressions, but there is $ERRORCOLOR$((uncovered_expression_count))$CLEARCOLOR."
+-    echo -e "==> Please lower the expected uncovered expression count to match.\n"
+-    exit 1
+-  fi
+-fi
+-
+-# if we want an html report, run the hpc binary again with the "markup" command,
+-# and feed its generated files into stdout, wrapped in XML tags
+-if [ "$coverage_report_format" == "html" ]
+-then
+-  $hpc_path markup "$tix_file_path" "${hpc_dir_args[@]}" "${hpc_exclude_args[@]}" \
+-    --srcdir "." --srcdir "$package_path" --destdir=hpc_out > /dev/null 2>&1
+-  cd hpc_out
+-  echo "COVERAGE REPORT BELOW"
+-  echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+-  for file in *.html **/*.hs.html; do
+-    [ -e "$file" ] || continue
+-    echo "<coverage-report-part name=\"$file\">"
+-    echo '<![CDATA['
+-    cat "$file"
+-    echo ']]>'
+-    echo "</coverage-report-part>"
+-  done
+-  echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+-fi
++# dx: the LCOV conversion reads the persisted .tix and .mix files, so no hpc report runs here.

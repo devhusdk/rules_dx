@@ -641,6 +641,19 @@ rust_test(
     ],
 )
 
+# The same checks without the root data; a family workspace runs it over its own packages.
+# keep
+rust_test(
+    name = "starlark_docs_family_test",
+    srcs = ["starlark_docs_test.rs"],
+    tags = ["manual"],
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:starlark_syntax",
+    ],
+)
+
 # keep
 rust_test(
     name = "starlark_docs_test",

@@ -108,12 +108,7 @@ def android_native_library(
         linkopts = [],
         visibility = None,
         **kwargs):
-    """Builds one mixed Rust and C shared library per Android tuple.
-
-    api_level chooses the NDK level the library is compiled and linked
-    against; zero means the floor. Common attributes such as tags,
-    testonly and target_compatible_with reach every generated target.
-    """
+    """Builds one mixed Rust and C shared library per Android tuple."""
     shared, rust_kwargs = split_native_kwargs(kwargs)
     proxy_shared = dict(shared)
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())

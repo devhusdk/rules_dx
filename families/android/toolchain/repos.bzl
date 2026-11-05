@@ -132,19 +132,7 @@ _TUPLE_CONSTRAINTS = {
 }
 
 def toolchain_build(ndk_label, exec_root, api_level, cxx_runtime, local_root = "", tool_root = ""):
-    """Returns the BUILD text declaring both NDK cc toolchains.
-
-    Args:
-      ndk_label: Label prefix of the NDK repository holding the tool filegroups, such as "@repo//".
-      exec_root: Execroot-relative directory the NDK is unpacked into.
-      api_level: Default Android API level.
-      cxx_runtime: C++ runtime linkage.
-      local_root: Package-relative NDK directory when the NDK is symlinked into this repository, else empty.
-      tool_root: Package-relative NDK directory the tool paths resolve against, defaulting to local_root.
-
-    Returns:
-      The BUILD file text.
-    """
+    """Returns the BUILD text declaring both NDK cc toolchains."""
     prebuilt = exec_root + "/" + NDK_PREBUILT
     sysroot = prebuilt + "/sysroot"
     tool_prebuilt = (tool_root or local_root) + "/" + NDK_PREBUILT

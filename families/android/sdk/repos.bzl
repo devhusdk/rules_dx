@@ -210,11 +210,7 @@ def build_tools_no_match_error():
             "platform; want one of " + ", ".join(sorted(BUILD_TOOLS_ARTIFACTS.keys())))
 
 def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True, separator = "-"):
-    """Returns one error string per pinned artifact that is not ready to download.
-
-    `separator` joins the archive prefix and the platform suffix; build-tools
-    archives use "_" (build-tools_r35_linux.zip), the others use "-".
-    """
+    """Returns one error string per pinned artifact that is not ready to download."""
     errors = []
     for key in sorted(artifacts.keys()):
         platform = str(key)
@@ -305,11 +301,7 @@ def _level(request):
     return request.api_level if request.api_level != 0 else DEFAULT_PLATFORM_LEVEL
 
 def app_sdk_layout(request):
-    """Returns the SDK directories rules_android's @androidsdk is assembled from.
-
-    Each entry names the directory under the SDK root, the package kind and the
-    pinned artifact, which is None when the directories come from `local_path`.
-    """
+    """Returns the SDK directories rules_android's @androidsdk is assembled from."""
     if not request.enabled:
         return []
     level = _level(request)

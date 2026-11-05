@@ -101,6 +101,17 @@ const PACKAGES: [&str; 83] = [
     "zig/tools",
 ];
 
+/// Set by a family workspace to the comma-separated packages it checks; the size floors then do not apply.
+const PACKAGES_ENV: &str = "STARLARK_DOCS_PACKAGES";
+
+/// The packages to check: those the caller names, else the root list.
+fn packages() -> Vec<String> {
+    match std::env::var(PACKAGES_ENV) {
+        Ok(list) => list.split(',').map(str::to_owned).collect(),
+        Err(_) => PACKAGES.iter().map(|pkg| (*pkg).to_owned()).collect(),
+    }
+}
+
 /// Fewer non-test rules and aspects than this means the sweep lost its data.
 const MIN_CALLS: usize = 100;
 
@@ -297,11 +308,11 @@ fn bzl_files(dir: &Path) -> Vec<String> {
 }
 
 /// The listed package that owns `path`, the longest matching prefix.
-fn owner(path: &str) -> Option<&'static str> {
+fn owner<'a>(packages: &'a [String], path: &str) -> Option<&'a str> {
     let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
-    PACKAGES
+    packages
         .iter()
-        .copied()
+        .map(String::as_str)
         .filter(|pkg| dir == *pkg || dir.starts_with(&format!("{pkg}/")))
         .max_by_key(|pkg| pkg.len())
 }
@@ -312,12 +323,13 @@ fn every_rule_aspect_and_attr_has_doc() {
     let mut calls = 0;
     let mut attrs = 0;
     let mut problems = Vec::new();
+    let packages = packages();
     let mut seen = std::collections::BTreeSet::new();
     for path in bzl_files(&root) {
         if skipped(&path) {
             continue;
         }
-        if let Some(pkg) = owner(&path) {
+        if let Some(pkg) = owner(&packages, &path) {
             seen.insert(pkg);
         }
         let source = std::fs::read_to_string(root.join(&path))
@@ -327,13 +339,18 @@ fn every_rule_aspect_and_attr_has_doc() {
         attrs += result.attrs;
         problems.extend(result.findings);
     }
-    let missing: Vec<_> = PACKAGES.iter().filter(|pkg| !seen.contains(*pkg)).collect();
+    let missing: Vec<_> = packages
+        .iter()
+        .filter(|pkg| !seen.contains(pkg.as_str()))
+        .collect();
     assert!(missing.is_empty(), "no .bzl files from {missing:?}");
-    assert!(
-        calls > MIN_CALLS,
-        "only {calls} rules and aspects were checked"
-    );
-    assert!(attrs > MIN_ATTRS, "only {attrs} public attrs were checked");
+    if std::env::var(PACKAGES_ENV).is_err() {
+        assert!(
+            calls > MIN_CALLS,
+            "only {calls} rules and aspects were checked"
+        );
+        assert!(attrs > MIN_ATTRS, "only {attrs} public attrs were checked");
+    }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 

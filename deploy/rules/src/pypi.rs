@@ -63,10 +63,54 @@ pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), String> {
     Ok((pypi_normalize_name(name), version.to_owned()))
 }
 
+const NATIVE_SUFFIXES: &[&str] = &[".so", ".pyd", ".dylib"];
+const BUILD_ONLY_SUFFIXES: &[&str] = &[".h", ".a", ".lib", ".obj", ".o", ".pdb"];
+
+/// Reads the RECORD of one wheel and rejects native code in a none-any wheel and build-only files.
+fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
+    use std::io::Read;
+    let name = basename(wheel).map_err(|error| error.to_string())?;
+    let file = std::fs::File::open(wheel)
+        .map_err(|error| format!("pypi_deploy: cannot open wheel {name}: {error}"))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|error| format!("pypi_deploy: wheel {name} is not a zip file: {error}"))?;
+    let record_name = (0..archive.len())
+        .filter_map(|index| archive.name_for_index(index).map(str::to_owned))
+        .find(|entry| entry.ends_with(".dist-info/RECORD") && entry.matches('/').count() == 1)
+        .ok_or_else(|| format!("pypi_deploy: wheel {name} has no .dist-info/RECORD"))?;
+    let mut record = String::new();
+    archive
+        .by_name(&record_name)
+        .and_then(|mut entry| entry.read_to_string(&mut record).map_err(Into::into))
+        .map_err(|error| {
+            format!("pypi_deploy: cannot read {record_name} in wheel {name}: {error}")
+        })?;
+    let none_any = name.ends_with("-none-any.whl");
+    for line in record.lines() {
+        let path = line.split(',').next().unwrap_or("");
+        let lower = path.to_ascii_lowercase();
+        if none_any && NATIVE_SUFFIXES.iter().any(|suffix| lower.ends_with(suffix)) {
+            return Err(format!(
+                "pypi_deploy: wheel {name} is tagged none-any but contains {path}"
+            ));
+        }
+        if BUILD_ONLY_SUFFIXES
+            .iter()
+            .any(|suffix| lower.ends_with(suffix))
+        {
+            return Err(format!(
+                "pypi_deploy: wheel {name} ships build-only file {path}"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Checks the wheel and sdist name the same project and version.
 fn pypi_check_pair(wheel_src: &Path, sdist_src: Option<&Path>) -> io::Result<(String, String)> {
     let invalid = |message: String| io::Error::new(io::ErrorKind::InvalidData, message);
     let (project, version) = pypi_artifact_identity(&basename(wheel_src)?).map_err(invalid)?;
+    pypi_check_wheel_contents(wheel_src).map_err(invalid)?;
     if let Some(sdist) = sdist_src {
         let (sdist_project, sdist_version) =
             pypi_artifact_identity(&basename(sdist)?).map_err(invalid)?;
@@ -317,11 +361,56 @@ mod tests {
     use super::*;
     use crate::test_support::*;
 
+    fn wheel_bytes(files: &[&str]) -> Vec<u8> {
+        let mut record = String::from("pkg-1.0.dist-info/RECORD,,\n");
+        for file in files {
+            record.push_str(&format!("{file},sha256=x,1\n"));
+        }
+        zip_archive(&[("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)]).expect("zip")
+    }
+
+    fn wheel_error(name: &str, bytes: &[u8]) -> String {
+        let scratch = scratch_dir();
+        let wheel = scratch.path().join(name);
+        std::fs::write(&wheel, bytes).expect("wheel");
+        pypi_check_pair(&wheel, None)
+            .expect_err("rejected")
+            .to_string()
+    }
+
+    #[test]
+    fn pypi_rejects_native_file_in_none_any_wheel() {
+        let bytes = wheel_bytes(&["pkg/_core.so"]);
+        assert_eq!(
+            wheel_error("pkg-1.0-py3-none-any.whl", &bytes),
+            "pypi_deploy: wheel pkg-1.0-py3-none-any.whl is tagged none-any but contains pkg/_core.so"
+        );
+        let scratch = scratch_dir();
+        let wheel = scratch.path().join("pkg-1.0-cp312-cp312-linux_x86_64.whl");
+        std::fs::write(&wheel, &bytes).expect("wheel");
+        assert!(pypi_check_pair(&wheel, None).is_ok());
+    }
+
+    #[test]
+    fn pypi_rejects_build_only_file() {
+        let bytes = wheel_bytes(&["pkg/include/pkg.h"]);
+        assert_eq!(
+            wheel_error("pkg-1.0-py3-none-any.whl", &bytes),
+            "pypi_deploy: wheel pkg-1.0-py3-none-any.whl ships build-only file pkg/include/pkg.h"
+        );
+    }
+
+    #[test]
+    fn pypi_rejects_non_zip_wheel() {
+        let error = wheel_error("pkg-1.0-py3-none-any.whl", b"not a zip");
+        assert!(error.contains("is not a zip file"), "{error}");
+    }
+
     #[test]
     fn pypi_wheelhouse_builds_index() {
         let scratch = scratch_dir();
         let wheel = scratch.path().join("pypi_demo-0.0.0-py3-none-any.whl");
-        std::fs::write(&wheel, b"pypi-demo-wheel-bytes-v1").expect("write wheel");
+        std::fs::write(&wheel, wheel_bytes(&[])).expect("write wheel");
         let sdist = scratch.path().join("pypi_demo-0.0.0.tar.gz");
         std::fs::write(&sdist, b"pypi-demo-sdist-bytes-v1").expect("write sdist");
         let outdir = scratch.path().join("out");
@@ -366,7 +455,7 @@ mod tests {
         assert!(pypi_artifact_identity("pkg.zip").is_err());
         let scratch = scratch_dir();
         let wheel = scratch.path().join("My_Pkg.Name-1.0-py3-none-any.whl");
-        std::fs::write(&wheel, b"w").expect("wheel");
+        std::fs::write(&wheel, wheel_bytes(&[])).expect("wheel");
         let sdist = scratch.path().join("my-pkg-name-1.0.tar.gz");
         std::fs::write(&sdist, b"s").expect("sdist");
         let outdir = scratch.path().join("out");
@@ -401,7 +490,7 @@ mod tests {
     #[cfg(unix)]
     fn upload_fixture(dir: &Path, sdist_name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
         let wheel = dir.join("pkg-1.0-py3-none-any.whl");
-        std::fs::write(&wheel, b"w").expect("wheel");
+        std::fs::write(&wheel, wheel_bytes(&[])).expect("wheel");
         let sdist = dir.join(sdist_name);
         std::fs::write(&sdist, b"s").expect("sdist");
         (wheel, sdist)

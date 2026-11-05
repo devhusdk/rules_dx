@@ -512,8 +512,10 @@ mod tests {
     fn stage_runfiles_inputs(root: &Path) {
         std::fs::create_dir_all(root).expect("runfiles");
         let maven_pom = crate::maven::tests::central_pom("com.example", "maven_demo", "1.0.0");
+        let wheel =
+            zip_archive(&[("pypi_demo-0.0.0.dist-info/RECORD", &b""[..], 0o644)]).expect("wheel");
         for (name, body) in [
-            ("pypi_demo-0.0.0-py3-none-any.whl", &b"wheel"[..]),
+            ("pypi_demo-0.0.0-py3-none-any.whl", &wheel[..]),
             ("pypi_demo-0.0.0.tar.gz", &b"sdist"[..]),
             ("maven_demo-0.0.0.jar", &b"jar"[..]),
             ("maven_demo-0.0.0.pom", maven_pom.as_bytes()),

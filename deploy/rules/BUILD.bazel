@@ -820,7 +820,9 @@ rust_test(
 genrule(
     name = "pypi_demo_wheel",
     outs = ["pypi_demo-0.0.0-py3-none-any.whl"],
-    cmd = "printf 'pypi-demo-wheel-bytes-v1' > $@",
+    cmd = "printf 'pypi_demo-0.0.0.dist-info/RECORD,,\\n' > RECORD && " +
+          "$(execpath @bazel_tools//tools/zip:zipper) c $@ pypi_demo-0.0.0.dist-info/RECORD=RECORD",
+    tools = ["@bazel_tools//tools/zip:zipper"],
 )
 
 genrule(

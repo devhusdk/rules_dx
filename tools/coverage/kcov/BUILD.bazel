@@ -1,0 +1,54 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["kcov.BUILD"],
+    visibility = VIS_TOOLS,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "kcov.BUILD",
+    ],
+    tags = ["corpus"],
+)
+
+alias(
+    name = "kcov",
+    actual = "@kcov//:kcov",
+    visibility = VIS_TOOLS_PUBLIC,
+)
+
+cc_binary(
+    name = "smoke",
+    testonly = True,
+    srcs = ["smoke.c"],
+    copts = ["-g"],
+    features = ["-strip_debug_symbols"],
+    linkstatic = True,
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "smoke_test",
+    size = "small",
+    srcs = ["smoke_test.sh"],
+    args = [
+        "$(rootpath :kcov)",
+        "$(rootpath :smoke)",
+    ],
+    data = [
+        "smoke.c",
+        ":kcov",
+        ":smoke",
+    ],
+    tags = ["no-remote-exec"],
+    target_compatible_with = ["@platforms//os:linux"],
+)

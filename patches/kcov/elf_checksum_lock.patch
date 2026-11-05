@@ -1,0 +1,19 @@
+--- a/src/parsers/elf-parser.cc
++++ b/src/parsers/elf-parser.cc
+@@ -176,6 +176,16 @@
+ 			m_elfIsShared = e_type == ET_DYN;
+ 			if (!m_checksum)
+ 			{
++				// elfutils built with locks deadlocks when the checksum
++				// loads section headers and data lazily, so load them first.
++				for (Elf_Scn *scn = elf_nextscn(elf, NULL); scn; scn = elf_nextscn(elf, scn))
++				{
++					if (m_elfIs32Bit)
++						elf32_getshdr(scn);
++					else
++						elf64_getshdr(scn);
++					elf_rawdata(scn, NULL);
++				}
+ 				m_checksum = m_elfIs32Bit ? elf32_checksum(elf) : elf64_checksum(elf);
+ 			}
+ 		}

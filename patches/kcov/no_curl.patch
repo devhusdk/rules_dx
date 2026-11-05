@@ -1,0 +1,49 @@
+--- a/src/utils.cc
++++ b/src/utils.cc
+@@ -21,7 +21,6 @@
+ #include <algorithm>
+ #include <unordered_map>
+ 
+-#include <curl/curl.h>
+ 
+ 
+ int g_kcov_debug_mask = STATUS_MSG;
+@@ -533,24 +532,30 @@
+ 	std::vector<std::string> elems = split_string(s, "/");
+ 	std::string out;
+ 
+-	// Yes, inefficient, but the number of invocations is fairly limited in kcov
+-	CURL *curl = curl_easy_init();
+ 	std::string delim = "";
+ 
+ 	for (std::vector<std::string>::iterator it = elems.begin(); it != elems.end(); ++it)
+ 	{
+-		char *p = curl_easy_escape(curl, it->c_str(), 0);
+-		std::string cur = *it;
++		std::string cur;
+ 
+-		if (p)
++		for (size_t i = 0; i < it->size(); i++)
+ 		{
+-			cur = p;
++			unsigned char c = (*it)[i];
++
++			if (isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~')
++			{
++				cur += (char)c;
++			}
++			else
++			{
++				char buf[4];
++				snprintf(buf, sizeof(buf), "%%%02X", c);
++				cur += buf;
++			}
+ 		}
+ 		out = out + delim + cur;
+ 		delim = "/";
+-		free(p);
+ 	}
+-	curl_easy_cleanup(curl);
+ 
+ 	return out;
+ }

@@ -136,28 +136,28 @@ These fail: `disabled` without `extends`, a disabled ID the base lacks, a family
 
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
-| `astro` | `prettier` | disabled | `tsc` |
-| `cc` | `clang_format` | disabled | disabled |
-| `dockerfile` | disabled | `hadolint` | disabled |
-| `go` | `gofumpt` | `govet`, `staticcheck` | `gotype` |
-| `graphql` | `prettier` | disabled | disabled |
-| `html` | `prettier` | disabled | disabled |
-| `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | `javac` |
-| `javascript` | `biome` | `biome` | disabled |
+| `astro` | `prettier` | `typos` | `tsc` |
+| `cc` | `clang_format` | `typos` | disabled |
+| `dockerfile` | disabled | `hadolint`, `typos` | disabled |
+| `go` | `gofumpt` | `typos` | `gotype` |
+| `graphql` | `prettier` | `typos` | disabled |
+| `html` | `prettier` | `typos` | disabled |
+| `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs`, `typos` | `javac` |
+| `javascript` | `biome` | `biome`, `typos` | disabled |
 | `json` | `prettier` | `biome` | disabled |
-| `kotlin` | `ktfmt` | `ktlint` | `kotlinc` |
-| `markdown` | disabled | `markdown_check`, `vale` | disabled |
-| `mdx` | `remark` | disabled | disabled |
-| `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
-| `rust` | `rustfmt` | `clippy` | `rustc` |
-| `scala` | `scalafmt` | disabled | `scalac` |
-| `shell` | `shfmt` | `shellcheck` | disabled |
-| `starlark` | `buildifier` | `buildifier` | disabled |
-| `svelte` | `prettier` | disabled | disabled |
+| `kotlin` | `ktfmt` | `ktlint`, `typos` | `kotlinc` |
+| `markdown` | disabled | `markdown_check`, `typos`, `vale` | disabled |
+| `mdx` | `remark` | `typos` | disabled |
+| `python` | `ruff` | `pydoclint`, `ruff`, `typos` | `ty` |
+| `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
+| `scala` | `scalafmt` | `typos` | `scalac` |
+| `shell` | `shfmt` | `shellcheck`, `typos` | disabled |
+| `starlark` | `buildifier` | `buildifier`, `typos` | disabled |
+| `svelte` | `prettier` | `typos` | disabled |
 | `text` | disabled | `keep_sorted`, `typos` | disabled |
-| `toml` | `taplo` | `taplo` | disabled |
-| `typescript` | `biome` | `biome` | `tsc` |
-| `vue` | `prettier` | disabled | disabled |
+| `toml` | `taplo` | `taplo`, `typos` | disabled |
+| `typescript` | `biome` | `biome`, `typos` | `tsc` |
+| `vue` | `prettier` | `typos` | disabled |
 
 Families outside this table are opt-in: select their tools in your own policy.
 
@@ -316,7 +316,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `gplint` | Lint Gherkin | |
 | `notebook_outputs` | Lint Jupyter notebooks for stored outputs | |
 | `keep_sorted` | Lint `keep-sorted` blocks in text | |
-| `typos` | Spell check text and fix with `--fix` | |
+| `typos` | Spell check source, docs and text, and fix with `--fix`. Add words to a `_typos.toml` at the repo root | |
 
 ### Schema languages
 

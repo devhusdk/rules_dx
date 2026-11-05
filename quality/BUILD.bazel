@@ -121,21 +121,17 @@ workspace_policy(
 
 quality_family(
     name = "default_cc_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "cc",
     format = ["clang_format"],
+    lint = ["typos"],
 )
 
 quality_family(
     name = "default_go_family",
-    disabled = [
-        "lint",
-    ],
     family_id = "go",
     format = ["gofumpt"],
+    lint = ["typos"],
     typecheck = ["gotype"],
 )
 
@@ -143,7 +139,10 @@ quality_family(
     name = "default_rust_family",
     family_id = "rust",
     format = ["rustfmt"],
-    lint = ["clippy"],
+    lint = [
+        "clippy",
+        "typos",
+    ],
     typecheck = ["rustc"],
 )
 
@@ -152,7 +151,10 @@ quality_family(
     disabled = ["typecheck"],
     family_id = "starlark",
     format = ["buildifier"],
-    lint = ["buildifier"],
+    lint = [
+        "buildifier",
+        "typos",
+    ],
 )
 
 quality_family(
@@ -160,7 +162,10 @@ quality_family(
     disabled = ["typecheck"],
     family_id = "toml",
     format = ["taplo"],
-    lint = ["taplo"],
+    lint = [
+        "taplo",
+        "typos",
+    ],
 )
 
 quality_family(
@@ -172,6 +177,7 @@ quality_family(
     family_id = "markdown",
     lint = [
         "markdown_check",
+        "typos",
         "vale",
     ],
 )
@@ -183,6 +189,7 @@ quality_family(
     lint = [
         "pydoclint",
         "ruff",
+        "typos",
     ],
     typecheck = ["ty"],
 )
@@ -194,27 +201,26 @@ quality_family(
         "typecheck",
     ],
     family_id = "dockerfile",
-    lint = ["hadolint"],
+    lint = [
+        "hadolint",
+        "typos",
+    ],
 )
 
 quality_family(
     name = "default_graphql_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "graphql",
     format = ["prettier"],
+    lint = ["typos"],
 )
 
 quality_family(
     name = "default_html_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "html",
     format = ["prettier"],
+    lint = ["typos"],
 )
 
 quality_family(
@@ -222,7 +228,10 @@ quality_family(
     disabled = ["typecheck"],
     family_id = "javascript",
     format = ["biome"],
-    lint = ["biome"],
+    lint = [
+        "biome",
+        "typos",
+    ],
 )
 
 quality_family(
@@ -237,48 +246,43 @@ quality_family(
     name = "default_typescript_family",
     family_id = "typescript",
     format = ["biome"],
-    lint = ["biome"],
+    lint = [
+        "biome",
+        "typos",
+    ],
     typecheck = ["tsc"],
 )
 
 quality_family(
     name = "default_astro_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "astro",
     format = ["prettier"],
+    lint = ["typos"],
 )
 
 quality_family(
     name = "default_mdx_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "mdx",
     format = ["remark"],
+    lint = ["typos"],
 )
 
 quality_family(
     name = "default_svelte_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "svelte",
     format = ["prettier"],
+    lint = ["typos"],
 )
 
 quality_family(
     name = "default_vue_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "vue",
     format = ["prettier"],
+    lint = ["typos"],
 )
 
 quality_family(
@@ -289,6 +293,7 @@ quality_family(
         "checkstyle",
         "pmd",
         "spotbugs",
+        "typos",
     ],
     typecheck = ["javac"],
 )
@@ -300,26 +305,28 @@ quality_family(
     lint = [
         "detekt",
         "ktlint",
+        "typos",
     ],
     typecheck = ["kotlinc"],
 )
 
 quality_family(
     name = "default_scala_family",
-    disabled = ["lint"],
     family_id = "scala",
     format = ["scalafmt"],
+    lint = ["typos"],
     typecheck = ["scalac"],
 )
 
 quality_family(
     name = "default_shell_family",
-    disabled = [
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "shell",
     format = ["shfmt"],
-    lint = ["shellcheck"],
+    lint = [
+        "shellcheck",
+        "typos",
+    ],
 )
 
 quality_family(

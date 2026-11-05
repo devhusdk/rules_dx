@@ -19,7 +19,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["ruff"],
-                    "lint": ["pydoclint", "ruff"],
+                    "lint": ["pydoclint", "ruff", "typos"],
                     "typecheck": ["ty"],
                 },
             ),
@@ -29,7 +29,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["biome"],
-                    "lint": ["biome"],
+                    "lint": ["biome", "typos"],
                     "typecheck": ["tsc"],
                 },
             ),
@@ -39,7 +39,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["biome"],
-                    "lint": ["biome"],
+                    "lint": ["biome", "typos"],
                     "typecheck": [],
                 },
             ),
@@ -59,7 +59,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["prettier"],
-                    "lint": [],
+                    "lint": ["typos"],
                     "typecheck": [],
                 },
             ),
@@ -69,7 +69,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["prettier"],
-                    "lint": [],
+                    "lint": ["typos"],
                     "typecheck": [],
                 },
             ),
@@ -79,7 +79,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["prettier"],
-                    "lint": [],
+                    "lint": ["typos"],
                     "typecheck": ["tsc"],
                 },
             ),
@@ -89,7 +89,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["remark"],
-                    "lint": [],
+                    "lint": ["typos"],
                     "typecheck": ["tsc"],
                 },
             ),
@@ -99,7 +99,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["prettier"],
-                    "lint": [],
+                    "lint": ["typos"],
                     "typecheck": ["tsc"],
                 },
             ),
@@ -109,7 +109,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["prettier"],
-                    "lint": [],
+                    "lint": ["typos"],
                     "typecheck": ["tsc"],
                 },
             ),
@@ -119,7 +119,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": [],
-                    "lint": ["hadolint"],
+                    "lint": ["hadolint", "typos"],
                     "typecheck": [],
                 },
             ),
@@ -129,7 +129,7 @@ def curated_defaults_unit_tests(name):
                 {
                     "audit": [],
                     "format": ["rustfmt"],
-                    "lint": ["clippy"],
+                    "lint": ["clippy", "typos"],
                     "typecheck": ["rustc"],
                 },
             ),

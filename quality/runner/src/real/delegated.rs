@@ -210,7 +210,7 @@ pub(super) fn build_dep_diagnostics(
             ..Default::default()
         })
         .collect();
-    if matches!(tool_id, "javac" | "kotlinc") {
+    if matches!(tool_id, "javac" | "kotlinc" | "scalac") {
         for item in jvm_missing(tool_id, tool)? {
             found.push(Diagnostic {
                 severity: Severity::Warning as i32,
@@ -266,6 +266,15 @@ fn jvm_missing(
     tool_id: &str,
     tool: &RealTool,
 ) -> Result<Vec<jvm_unused_deps::MissingDependency>, RunnerError> {
+    if tool_id == "scalac" {
+        let Some((map, log)) = scalac_inputs(tool_id, tool)? else {
+            return Ok(Vec::new());
+        };
+        return parsed(
+            tool_id,
+            jvm_unused_deps::parse_scalac_missing_dependencies(&map, &log),
+        );
+    }
     let Some((name, map, jdeps)) = jvm_inputs(tool_id, tool)? else {
         return Ok(Vec::new());
     };
@@ -302,28 +311,37 @@ fn scalac_unused(
     tool_id: &str,
     tool: &RealTool,
 ) -> Result<Vec<rust_unused_deps::UnusedDependency>, RunnerError> {
+    let Some((map, log)) = scalac_inputs(tool_id, tool)? else {
+        return Ok(Vec::new());
+    };
+    parsed(
+        tool_id,
+        jvm_unused_deps::parse_scalac_unused_dependencies(&map, &log),
+    )
+}
+
+type ScalacInputs = Option<(Vec<u8>, Vec<u8>)>;
+
+fn scalac_inputs(tool_id: &str, tool: &RealTool) -> Result<ScalacInputs, RunnerError> {
     let Some(map) = tool
         .upstream_diagnostics
         .iter()
         .find(|path| path.to_string_lossy().ends_with(".unused_deps.json"))
     else {
-        return Ok(Vec::new());
+        return Ok(None);
     };
     let Some(log) = tool
         .upstream_diagnostics
         .iter()
         .find(|path| !path.to_string_lossy().ends_with(".unused_deps.json"))
     else {
-        return Ok(Vec::new());
+        return Ok(None);
     };
     let read = |path: &PathBuf| {
         std::fs::read(path)
             .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))
     };
-    parsed(
-        tool_id,
-        jvm_unused_deps::parse_scalac_unused_dependencies(&read(map)?, &read(log)?),
-    )
+    Ok(Some((read(map)?, read(log)?)))
 }
 
 /// The C# `deps` entries that ReferenceTrimmer reports as unused in every target framework.

@@ -2466,6 +2466,35 @@ fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
         .is_empty());
 }
 
+#[test]
+fn scalac_missing_dependency_is_a_missing_deps_diagnostic() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("lib.json");
+    std::fs::write(
+        &log,
+        r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"","line":0,"column":0,"severity":"warning","code":"scalac.missing.dep","message":"Target '//p:far' is used but isn't explicitly declared, please add it to the deps."}]}"#,
+    )
+    .expect("write log");
+    let map = scratch.path().join("lib.unused_deps.json");
+    std::fs::write(
+        &map,
+        r#"{"package":"p","target":"lib","deps":[],"indirect":[{"jar":"far.jar","label":"//p:far"}]}"#,
+    )
+    .expect("write map");
+    let mut tool = delegated_tool(log);
+    tool.upstream_diagnostics.push(map);
+    let found = delegated::build_dep_diagnostics("scalac", &tool).expect("diagnostics");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].path.is_empty());
+    assert_eq!(found[0].rule_id, "missing_deps");
+    let dep = found[0].build_dep.as_ref().expect("build dep");
+    assert!(dep.missing);
+    assert_eq!(
+        (&*dep.package, &*dep.target, &*dep.label),
+        ("p", "lib", "//p:far")
+    );
+}
+
 fn unused_reference_sarif(labels: &[&str]) -> String {
     let results: Vec<String> = labels
         .iter()

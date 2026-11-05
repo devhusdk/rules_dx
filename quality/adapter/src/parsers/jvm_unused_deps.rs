@@ -158,6 +158,55 @@ pub fn parse_scalac_unused_dependencies(
     Ok(found)
 }
 
+/// Code the scalac driver gives the dependency analyzer's missing-dependency warnings.
+const SCALAC_MISSING_DEP_CODE: &str = "scalac.missing.dep";
+
+/// Names every transitive dependency in `map` that the scalac log reports as used but not listed.
+///
+/// The warning reads `Target '<label>' is used but isn't explicitly declared, please add it to the deps.`
+pub fn parse_scalac_missing_dependencies(
+    map: &[u8],
+    log: &[u8],
+) -> Result<Vec<MissingDependency>, ParseError> {
+    let tool = "scalac";
+    let json = |err: serde_json::Error| ParseError::Json {
+        tool,
+        detail: err.to_string(),
+    };
+    let map: DepsMap = serde_json::from_slice(map).map_err(json)?;
+    let log: ScalacLog = serde_json::from_slice(log).map_err(json)?;
+    let bare = |label: &str| {
+        let label = label.trim_start_matches('@');
+        label.strip_suffix("_upstream").unwrap_or(label).to_owned()
+    };
+    let mut labels = BTreeSet::new();
+    for diagnostic in log
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == SCALAC_MISSING_DEP_CODE)
+    {
+        let Some((label, _)) = diagnostic
+            .message
+            .strip_prefix("Target '")
+            .and_then(|rest| rest.split_once('\''))
+        else {
+            continue;
+        };
+        let label = bare(label);
+        if let Some(item) = map.indirect.iter().find(|item| bare(&item.label) == label) {
+            labels.insert(item.label.clone());
+        }
+    }
+    Ok(labels
+        .into_iter()
+        .map(|label| MissingDependency {
+            package: map.package.clone(),
+            target: map.target.clone(),
+            label,
+        })
+        .collect())
+}
+
 /// Reads the `Dependencies` message of a jdeps file and returns the paths not marked unused.
 /// Kotlin marks an idle jar UNUSED (2) where JavaBuilder writes 3.
 fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
@@ -335,6 +384,25 @@ mod tests {
         let found = parse_scalac_unused_dependencies(MAP.as_bytes(), &log).unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].dependency, "idle");
+        assert_eq!(found[0].target, "lib");
+    }
+
+    #[test]
+    fn scalac_missing_warning_names_the_indirect_label() {
+        let map = r#"{"package":"p","target":"lib","deps":[],"indirect":[{"jar":"t.jar","label":"@@//b:transitive"}]}"#;
+        let log = scalac_log(&[
+            (
+                "scalac.missing.dep",
+                "Target '@@//b:transitive' is used but isn't explicitly declared, please add it to the deps.",
+            ),
+            (
+                "scalac.missing.dep",
+                "Target '//z:other' is used but isn't explicitly declared, please add it to the deps.",
+            ),
+        ]);
+        let found = parse_scalac_missing_dependencies(map.as_bytes(), &log).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].label, "@@//b:transitive");
         assert_eq!(found[0].target, "lib");
     }
 

@@ -55,8 +55,19 @@ def javac_options(tokens):
     """
     return [t for t in tokens if not any([t.startswith(p) for p in _JAVABUILDER_ONLY_PREFIXES])]
 
-def _unused_deps_map(target, ctx, attrs):
-    """Writes the direct dependencies with their compile jars, or returns None when none has a jar."""
+def _indirect_jars(target, direct):
+    """The transitive compile jars that are not in the `direct` path set, with their owner labels."""
+    indirect = []
+    for jar in target[JavaInfo].transitive_compile_time_jars.to_list():
+        if jar.path not in direct and jar.owner and jar.owner != target.label:
+            indirect.append({"jar": jar.path, "label": str(jar.owner).removesuffix("_upstream")})
+    return indirect
+
+def _unused_deps_map(target, ctx, attrs, implicit = []):
+    """Writes the direct dependencies with their compile jars and the transitive ones the rule does not list.
+
+    `implicit` holds jar paths the compiler may use without a dep, such as the Scala library.
+    """
     deps = []
     direct = {}
     for dep in getattr(attrs, "deps", []):
@@ -71,10 +82,9 @@ def _unused_deps_map(target, ctx, attrs):
     if toolchain:
         for jar in toolchain.jvm_stdlibs.transitive_compile_time_jars.to_list():
             direct[jar.path] = True
-    indirect = []
-    for jar in target[JavaInfo].transitive_compile_time_jars.to_list():
-        if jar.path not in direct and jar.owner:
-            indirect.append({"jar": jar.path, "label": str(jar.owner)})
+    for path in implicit:
+        direct[path] = True
+    indirect = _indirect_jars(target, direct)
     name = target.label.name.removesuffix("_upstream")
     out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.json" % target.label.name)
     ctx.actions.write(out, json.encode({"package": target.label.package, "target": name, "deps": deps, "indirect": indirect}))
@@ -90,34 +100,41 @@ def _unused_deps_files(target, ctx, attrs):
 def _plugin_param(values):
     return ";".join([v.replace(";", "\\;") for v in values])
 
-def _analyzer(target, ctx, attrs):
-    """The rules_scala dependency analyzer jars and options for a scala target, or None."""
+def _analyzer(target, ctx, attrs, implicit):
+    """The rules_scala dependency analyzer jars and options for a scala target, or None.
+
+    `implicit` holds the jar paths of the Scala library, which a target may use without listing it.
+    """
     plugin = ctx.attr._dependency_analyzer
     if JavaInfo not in plugin:
         return None
     direct = [d for d in getattr(attrs, "deps", []) if JavaInfo in d and d[JavaInfo].compile_jars.to_list()]
-    if not direct:
-        return None
-    info = plugin[JavaInfo]
-    jars = []
-    for jar in info.runtime_output_jars + info.transitive_runtime_jars.to_list():
-        if jar not in jars:
-            jars.append(jar)
     direct_jars = []
     direct_targets = []
     for dep in direct:
         for jar in dep[JavaInfo].compile_jars.to_list():
             direct_jars.append(jar.path)
             direct_targets.append(str(dep.label))
+    known = {path: True for path in direct_jars + implicit}
+    indirect = _indirect_jars(target, known)
+    if not direct and not indirect:
+        return None
+    info = plugin[JavaInfo]
+    jars = []
+    for jar in info.runtime_output_jars + info.transitive_runtime_jars.to_list():
+        if jar not in jars:
+            jars.append(jar)
     ignored = [str(t.label) for t in getattr(attrs, "exports", []) + getattr(attrs, "unused_dependency_checker_ignored_targets", [])]
     prefix = "-P:dependency-analyzer:"
     options = [
         prefix + "unused-deps-mode:warn",
-        prefix + "strict-deps-mode:off",
+        prefix + "strict-deps-mode:warn",
         prefix + "dependency-tracking-method:ast",
         prefix + "current-target:" + str(target.label),
         prefix + "direct-jars:" + _plugin_param(direct_jars),
         prefix + "direct-targets:" + _plugin_param(direct_targets),
+        prefix + "indirect-jars:" + _plugin_param([i["jar"] for i in indirect]),
+        prefix + "indirect-targets:" + _plugin_param([i["label"] for i in indirect]),
     ]
     if ignored:
         options.append(prefix + "unused-deps-ignored-targets:" + _plugin_param(ignored))
@@ -293,7 +310,8 @@ def _scalac_check(target, ctx, attrs):
     plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
 
     # The dependency analyzer is a Scala 2 compiler plugin.
-    analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs)
+    implicit = [j.path for j in jars.library.to_list()]
+    analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs, implicit)
     analyzer_jars = []
     if analyzer:
         options = options + analyzer.options
@@ -321,7 +339,7 @@ def _scalac_check(target, ctx, attrs):
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    unused_deps = [_unused_deps_map(target, ctx, attrs)] if analyzer else []
+    unused_deps = [_unused_deps_map(target, ctx, attrs, implicit)] if analyzer else []
     return [JvmCheckInfo(log = log, tool = "scalac", unused_deps = unused_deps)]
 
 def _jvm_check_impl(target, ctx):

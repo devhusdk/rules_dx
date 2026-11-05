@@ -401,6 +401,18 @@ REAL_RESULT_CASES = [
         "macos_arm64": True,
     },
     {
+        "name": "real_result_scalac_missing_dep",
+        "target": "//quality/testdata/jvm_owned:scala_missing_dep",
+        "policy": "//quality/testdata/jvm_owned:scala_policy",
+        "tool": "scalac",
+        "capability": "typecheck",
+        "class": "scala",
+        "contains": ["missing_deps", "sc_kept_helper"],
+        "absent": ["Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
         "name": "real_result_roslyn_unused_dep",
         "target": "//quality/testdata/dotnet_owned:unused_dep",
         "policy": "//quality/testdata/dotnet_owned:policy",

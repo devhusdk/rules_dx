@@ -122,3 +122,17 @@ scala_library(
         ":sc_dropped_helper",
     ],
 )
+
+scala_library(
+    name = "sc_wrapper",
+    srcs = ["ScWrapper.scala"],
+    unused_dependency_checker_mode = "off",
+    deps = [":sc_kept_helper"],
+)
+
+scala_library(
+    name = "scala_missing_dep",
+    srcs = ["ScalaMissingDep.scala"],
+    unused_dependency_checker_mode = "off",
+    deps = [":sc_wrapper"],
+)

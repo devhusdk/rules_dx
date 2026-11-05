@@ -74,6 +74,10 @@ pub fn parse_jvm_diagnostics(
     let mut findings = Vec::new();
     let mut dropped: Option<String> = None;
     for diagnostic in log.diagnostics {
+        // The dependency analyzer's missing-dependency warning is reported as a BUILD finding instead.
+        if diagnostic.code == "scalac.missing.dep" {
+            continue;
+        }
         let severity = match diagnostic.severity.as_str() {
             "error" => ToolSeverity::Error,
             "warning" if promote => ToolSeverity::Error,
@@ -147,6 +151,17 @@ mod tests {
             r#"{{"file":"{file}","line":{line},"column":{},"severity":"{severity}","code":"{code}","message":"m"}}"#,
             if line == 0 { 0 } else { 3 }
         )
+    }
+
+    #[test]
+    fn missing_dependency_warning_is_not_a_file_finding() {
+        let body = entry("s/A.scala", 4, "warning", "scalac.missing.dep");
+        let scala_log = String::from_utf8(log(0, &body))
+            .unwrap()
+            .replace("\"javac\"", "\"scalac\"")
+            .into_bytes();
+        let found = parse_jvm_diagnostics("scalac", &scala_log, Some(0), &["s/A.scala"]).unwrap();
+        assert!(found.is_empty());
     }
 
     #[test]

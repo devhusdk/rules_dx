@@ -42,6 +42,7 @@ public final class ScalacCheckTest {
     malformed();
     settleDropsDepOnlyWerror();
     settleKeepsMixedWerror();
+    missingDepWarningHasItsOwnCode();
     analyzerKeyIsAccepted(dir);
     System.out.println("ok");
   }
@@ -181,6 +182,23 @@ public final class ScalacCheckTest {
     entries.add(entry("error", ScalacCheck.WERROR_CODE));
     expect(ScalacCheck.settle(entries) == 0, "dep-only warnings exit 0", "");
     expect(entries.size() == 1, "werror entry is dropped", "");
+  }
+
+  private static void missingDepWarningHasItsOwnCode() {
+    String message =
+        "Target '//p:dep' is used but isn't explicitly declared, please add it to the deps.";
+    expect(
+        ScalacCheck.codeOf("warning", "", message).equals(ScalacCheck.MISSING_DEP_CODE),
+        "missing dep code",
+        "");
+    expect(
+        ScalacCheck.codeOf("warning", "A.scala", message).equals(ScalacCheck.MISSING_DEP_CODE),
+        "positioned missing dep code",
+        "");
+    List<ScalacCheck.Entry> entries = new ArrayList<>();
+    entries.add(entry("warning", ScalacCheck.MISSING_DEP_CODE));
+    entries.add(entry("error", ScalacCheck.WERROR_CODE));
+    expect(ScalacCheck.settle(entries) == 0, "missing dep only warnings exit 0", "");
   }
 
   private static void settleKeepsMixedWerror() {

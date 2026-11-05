@@ -41,6 +41,12 @@ public final class ScalacCheck {
    */
   static final String UNUSED_DEP_CODE = "scalac.unused.dep";
 
+  /**
+   * Code of the rules_scala dependency analyzer warning about a dependency the sources use but the
+   * rule does not list. The runner's parser looks for this exact code.
+   */
+  static final String MISSING_DEP_CODE = "scalac.missing.dep";
+
   /** Code of every scalac diagnostic: Scala 2 has no diagnostic ids. */
   static final String GENERIC_CODE = "scalac";
 
@@ -271,13 +277,15 @@ public final class ScalacCheck {
   }
 
   /**
-   * Returns the exit code for the collected entries. Unused-dependency warnings have no position,
+   * Returns the exit code for the collected entries. Unused and missing dependency warnings have no position,
    * so when they are the only warnings, the warnings-as-errors failure they caused is dropped.
    */
   static int settle(List<Entry> entries) {
     boolean onlyDeps = true;
     for (Entry entry : entries) {
-      if (entry.severity.equals("warning") && !entry.code.equals(UNUSED_DEP_CODE)) {
+      if (entry.severity.equals("warning")
+          && !entry.code.equals(UNUSED_DEP_CODE)
+          && !entry.code.equals(MISSING_DEP_CODE)) {
         onlyDeps = false;
       }
     }
@@ -339,17 +347,24 @@ public final class ScalacCheck {
         column = point - start + 1;
       }
     }
-    String code = GENERIC_CODE;
-    if (severity.equals("error") && file.isEmpty() && message.contains("-Werror")) {
-      code = WERROR_CODE;
-    }
-    if (severity.equals("warning")
-        && file.isEmpty()
-        && message.startsWith("Target '")
-        && message.contains("is specified as a dependency to")) {
-      code = UNUSED_DEP_CODE;
-    }
+    String code = codeOf(severity, file, message);
     entries.add(new Entry(file, line, column, severity, code, stable(message, names)));
+  }
+
+  /** The code of a scalac diagnostic: the analyzer and -Werror messages have their own. */
+  static String codeOf(String severity, String file, String message) {
+    if (severity.equals("error") && file.isEmpty() && message.contains("-Werror")) {
+      return WERROR_CODE;
+    }
+    boolean target = severity.equals("warning") && message.startsWith("Target '");
+    if (target && file.isEmpty() && message.contains("is specified as a dependency to")) {
+      return UNUSED_DEP_CODE;
+    }
+    // The analyzer reports a missing dependency at the line that uses it.
+    if (target && message.contains("is used but isn't explicitly declared")) {
+      return MISSING_DEP_CODE;
+    }
+    return GENERIC_CODE;
   }
 
   /**

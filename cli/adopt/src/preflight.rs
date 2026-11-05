@@ -29,6 +29,8 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_cuda", "0.4.0-beta1"),
     ("windows_support", "0.4.1"),
     ("rules_python", "2.4.6"),
+    ("elfutils", "0.195"),
+    ("zlib", "1.3.2.bcr.3"),
     ("rules_go", "0.65.0"),
     ("gazelle", "0.54.0"),
     ("rules_shell", "0.8.0"),

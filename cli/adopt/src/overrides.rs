@@ -288,6 +288,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "rules_dx_hosts.patch",
                 content: include_str!("../../../patches/windows_support/rules_dx_hosts.patch"),
             },
+            OverridePatch {
+                file: "hostarm64_packages.patch",
+                content: include_str!("../../../patches/windows_support/hostarm64_packages.patch"),
+            },
         ],
     },
 ];

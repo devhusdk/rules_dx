@@ -2483,7 +2483,6 @@ mod tests {
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
             "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan"
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, conan"
         );
     }
 

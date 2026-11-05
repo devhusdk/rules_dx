@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"rules_dx/go/tools/analysis/unit"
 	"sort"
 	"strings"
-	"rules_dx/go/tools/analysis/unit"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/appends"
@@ -44,50 +44,50 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
-	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/analysis/passes/waitgroup"
 )
 
 // defaults run unless removed with -NAME. optional ones run only when named.
 var defaults = []*analysis.Analyzer{
-		appends.Analyzer,
-		asmdecl.Analyzer,
-		assign.Analyzer,
-		atomic.Analyzer,
-		bools.Analyzer,
-		buildtag.Analyzer,
-		cgocall.Analyzer,
-		composite.Analyzer,
-		copylock.Analyzer,
-		defers.Analyzer,
-		directive.Analyzer,
-		errorsas.Analyzer,
-		framepointer.Analyzer,
-		httpresponse.Analyzer,
-		hostport.Analyzer,
-		ifaceassert.Analyzer,
-		loopclosure.Analyzer,
-		lostcancel.Analyzer,
-		nilfunc.Analyzer,
-		nilness.Analyzer,
-		printf.Analyzer,
-		shift.Analyzer,
-		sigchanyzer.Analyzer,
-		slog.Analyzer,
-		stdmethods.Analyzer,
-		stdversion.Analyzer,
-		stringintconv.Analyzer,
-		structtag.Analyzer,
-		tests.Analyzer,
-		testinggoroutine.Analyzer,
-		timeformat.Analyzer,
-		unmarshal.Analyzer,
-		unreachable.Analyzer,
-		unsafeptr.Analyzer,
-		unusedwrite.Analyzer,
-		unusedresult.Analyzer,
-		waitgroup.Analyzer,
+	appends.Analyzer,
+	asmdecl.Analyzer,
+	assign.Analyzer,
+	atomic.Analyzer,
+	bools.Analyzer,
+	buildtag.Analyzer,
+	cgocall.Analyzer,
+	composite.Analyzer,
+	copylock.Analyzer,
+	defers.Analyzer,
+	directive.Analyzer,
+	errorsas.Analyzer,
+	framepointer.Analyzer,
+	httpresponse.Analyzer,
+	hostport.Analyzer,
+	ifaceassert.Analyzer,
+	loopclosure.Analyzer,
+	lostcancel.Analyzer,
+	nilfunc.Analyzer,
+	nilness.Analyzer,
+	printf.Analyzer,
+	shift.Analyzer,
+	sigchanyzer.Analyzer,
+	slog.Analyzer,
+	stdmethods.Analyzer,
+	stdversion.Analyzer,
+	stringintconv.Analyzer,
+	structtag.Analyzer,
+	tests.Analyzer,
+	testinggoroutine.Analyzer,
+	timeformat.Analyzer,
+	unmarshal.Analyzer,
+	unreachable.Analyzer,
+	unsafeptr.Analyzer,
+	unusedwrite.Analyzer,
+	unusedresult.Analyzer,
+	waitgroup.Analyzer,
 }
 
 var optional = []*analysis.Analyzer{

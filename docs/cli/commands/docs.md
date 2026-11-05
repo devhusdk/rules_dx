@@ -8,6 +8,8 @@ Builds the documentation targets in scope with Bazel and the pinned upstream mdB
 A docs aspect selects the targets that make a site, a doc shard or an API reference, so the
 same command works in any repository that declares them.
 With no scope it covers `//...`; a scope with no docs targets builds nothing and exits `0`.
+When the scope builds no docs site but has Rust libraries, `dx docs` renders their API into one
+index at `.dx/docs/index` (ignored by `dx init`) and prints the path of its `index.html`.
 Args after `--` go to Bazel unchanged.
 The build also passes
 `--@rules_dx//config:clippy_output_diagnostics=true`
@@ -24,7 +26,8 @@ combined with explicit scopes (exit `2`).
 
 - `--serve`: build, then preview the built site tree locally with the server
   built into `dx`. It needs no `python3`. The scope must build exactly one site tree, with
-  an `index.html` entry page; pass a single site target if it builds more. A port already in use is a `serve_failed` error.
+  an `index.html` entry page; pass a single site target if it builds more. With no site in scope,
+  it previews the API index. A port already in use is a `serve_failed` error.
 - `--port <n>`: preview port, `1`-`65535`, default `8000`. `0` is a usage error.
 - `--host <addr>`: preview bind address, non-empty, default `127.0.0.1`.
 - `--open`: open the preview URL with the OS opener (`open` on macOS,

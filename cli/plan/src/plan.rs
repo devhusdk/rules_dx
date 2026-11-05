@@ -208,6 +208,12 @@ pub const OUTPUT_GROUP: &str = "dx_results";
 /// The output group of manifests naming the site trees `dx docs --serve` previews.
 pub const DOCS_SITE_OUTPUT_GROUP: &str = "dx_docs_sites";
 
+/// The output group of the Rust library shards `dx docs` turns into one index.
+pub const DOCS_SHARD_OUTPUT_GROUP: &str = "dx_docs_shards";
+
+/// The output group of the manifest naming the tools that build that index.
+pub const DOCS_TOOLS_OUTPUT_GROUP: &str = "dx_docs_tools";
+
 /// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
 

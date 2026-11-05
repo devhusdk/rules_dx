@@ -1,4 +1,5 @@
 use super::common::*;
+use super::docs_index::{build_index, built_shards};
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use dx_plan::args::Invocation;
 use dx_plan::plan::{bep_path, plan_docs, DOCS_SITE_OUTPUT_GROUP};
@@ -56,12 +57,8 @@ impl RunningPreview for StdRunning {
     }
 }
 
-/// The one site tree the docs aspect named in its site manifests, as a `(code, detail)` error otherwise.
-fn built_site_dir(
-    bep: &Path,
-    workspace: &Path,
-    scope_text: &str,
-) -> Result<PathBuf, (String, String)> {
+/// The site trees the docs aspect named in its site manifests.
+fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, (String, String)> {
     let account = collect_output_account(bep, DOCS_SITE_OUTPUT_GROUP, workspace)?;
     let mut sites: Vec<PathBuf> = account
         .targets
@@ -71,6 +68,18 @@ fn built_site_dir(
         .collect();
     sites.sort();
     sites.dedup();
+    Ok(sites)
+}
+
+/// The tree to preview: the one built site, else the API index, as a `(code, detail)` error otherwise.
+fn serve_tree(
+    sites: Vec<PathBuf>,
+    index: Option<PathBuf>,
+    scope_text: &str,
+) -> Result<PathBuf, (String, String)> {
+    if let (true, Some(index)) = (sites.is_empty(), index) {
+        return Ok(index);
+    }
     let [dir] = sites.as_slice() else {
         return Err((
             CODE_SERVE_FAILED.to_owned(),
@@ -167,10 +176,8 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         Ok(code) => code,
         Err(exit) => return exit,
     };
-    if bazel_code != 0 || !invocation.serve {
-        let _ = std::fs::remove_file(&bep);
-    }
     if bazel_code != 0 {
+        let _ = std::fs::remove_file(&bep);
         if json {
             if let Err(exit) = emit_built(out, bazel_exit_event(
                 CODE_BAZEL_FAILED,
@@ -191,7 +198,36 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         }
         return bazel_code;
     }
+    let sites = built_sites(&bep, workspace);
+    let mut index = None;
+    if matches!(&sites, Ok(sites) if sites.is_empty()) {
+        match built_shards(&bep, workspace) {
+            Ok(shards) if shards.is_empty() => {}
+            Ok(shards) => match build_index(&bep, workspace, &shards, runner) {
+                Ok(dir) => {
+                    if !json && invocation.chatty() {
+                        let page = dir.join("index.html");
+                        if let Err(exit) =
+                            check_stdout_write(writeln!(out, "Docs index: {}", page.display()))
+                        {
+                            return exit;
+                        }
+                    }
+                    index = Some(dir);
+                }
+                Err((code, detail)) => {
+                    let _ = std::fs::remove_file(&bep);
+                    return operational(invocation, out, err, &code, &detail);
+                }
+            },
+            Err((code, detail)) => {
+                let _ = std::fs::remove_file(&bep);
+                return operational(invocation, out, err, &code, &detail);
+            }
+        }
+    }
     if !invocation.serve {
+        let _ = std::fs::remove_file(&bep);
         if json {
             if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
                 return exit;
@@ -202,8 +238,8 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
     let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
     let url = preview_url(host, port);
-    let site = built_site_dir(&bep, workspace, &scope_text);
     let _ = std::fs::remove_file(&bep);
+    let site = sites.and_then(|sites| serve_tree(sites, index, &scope_text));
     let serve_dir = match site {
         Ok(dir) => dir,
         Err((code, detail)) => {
@@ -310,6 +346,107 @@ mod tests {
         lines
     }
 
+    /// One target per group, each reporting the given files.
+    fn group_bep(harness: &Harness, groups: &[(&str, &[&str])]) -> Vec<String> {
+        let mut lines = Vec::new();
+        for (index, (group, files)) in groups.iter().enumerate() {
+            let files: Vec<_> = files
+                .iter()
+                .map(|file| {
+                    serde_json::json!({
+                        "uri": format!("file://{}", harness.workspace.join(file).display())
+                    })
+                })
+                .collect();
+            lines.push(
+                serde_json::json!({
+                    "id": {"namedSet": {"id": index.to_string()}},
+                    "namedSetOfFiles": {"files": files},
+                })
+                .to_string(),
+            );
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetCompleted": {"label": format!("//t{index}:t")}},
+                    "completed": {
+                        "success": true,
+                        "outputGroup": [{"name": group, "fileSets": [{"id": index.to_string()}]}],
+                    },
+                })
+                .to_string(),
+            );
+        }
+        lines
+    }
+
+    fn shards_bep(harness: &Harness, with_site: bool) -> Vec<String> {
+        harness.write_source(
+            "bazel-bin/tools.dx_docs_tools",
+            "aggregate\tbazel-bin/agg\nmdbook\tbazel-bin/mdbook\nsite_build\tbazel-bin/site_build\n",
+        );
+        harness.write_source("bazel-bin/a/a.shard", "{}");
+        harness.write_source("bazel-bin/b/b.shard", "{}");
+        let mut groups: Vec<(&str, &[&str])> = vec![
+            ("dx_docs_tools", &["bazel-bin/tools.dx_docs_tools"]),
+            (
+                "dx_docs_shards",
+                &["bazel-bin/a/a.shard", "bazel-bin/b/b.shard"],
+            ),
+        ];
+        if with_site {
+            harness.write_source("bazel-bin/site.dx_docs_site", "bazel-bin/site");
+            harness.write_source("bazel-bin/site/index.html", "<!doctype html>\n");
+            groups.push(("dx_docs_sites", &["bazel-bin/site.dx_docs_site"]));
+        }
+        group_bep(harness, &groups)
+    }
+
+    fn tool_runs(harness: &Harness) -> Vec<Vec<String>> {
+        let runs = harness.build_argv.borrow();
+        runs.iter()
+            .filter(|argv| argv[0].ends_with("/agg") || argv[0].ends_with("/site_build"))
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn docs_without_a_site_aggregates_every_shard_in_scope() {
+        let mut harness = Harness::new("docs-index");
+        harness.raw_bep = Some(shards_bep(&harness, false));
+        let (code, out, err) = harness.run(&["docs", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("docs_index_failed") || err.contains("no index.html"),
+            "{err}"
+        );
+        let runs = tool_runs(&harness);
+        let aggregate = runs[0].join(" ");
+        assert!(
+            aggregate.contains("--shard ") && aggregate.contains("/a/a.shard"),
+            "{aggregate}"
+        );
+        assert!(aggregate.contains("/b/b.shard"), "{aggregate}");
+    }
+
+    #[test]
+    fn docs_with_a_site_writes_no_index() {
+        let mut harness = Harness::new("docs-index-site");
+        harness.raw_bep = Some(shards_bep(&harness, true));
+        let (code, out, err) = harness.run(&["docs", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(tool_runs(&harness).is_empty());
+        assert!(!harness.workspace.join(".dx/docs").exists());
+    }
+
+    #[test]
+    fn docs_without_shards_or_sites_exits_zero() {
+        let mut harness = Harness::new("docs-index-empty");
+        harness.raw_bep = Some(Vec::new());
+        let (code, out, err) = harness.run(&["docs", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(tool_runs(&harness).is_empty());
+    }
+
     fn script_site_tree(harness: &mut Harness, rel: &str) {
         harness.write_source(&format!("{rel}/index.html"), "<!doctype html>\n");
         harness.raw_bep = Some(site_bep(harness, &[rel]));
@@ -326,7 +463,7 @@ mod tests {
             "{argv:?}"
         );
         assert!(
-            argv.contains(&"--output_groups=dx_results,dx_docs_sites".to_owned()),
+            argv.contains(&"--output_groups=dx_results,dx_docs_sites,dx_docs_shards,dx_docs_tools,dx_docs_tool_files".to_owned()),
             "{argv:?}"
         );
         assert!(
@@ -379,7 +516,7 @@ mod tests {
     fn docs_no_scope_covers_the_repository() {
         let harness = Harness::new("docs-no-scope");
         let argv = docs_argv(&harness, &["docs", "--output=text"]);
-        assert_eq!(argv.last().map(String::as_str), Some("//..."));
+        assert_eq!(argv.get(argv.len() - 2).map(String::as_str), Some("//..."));
     }
 
     #[test]
@@ -387,7 +524,10 @@ mod tests {
         let harness = Harness::new("docs-dir-scope");
         harness.write_source("a/BUILD.bazel", "");
         let argv = docs_argv(&harness, &["docs", "a", "--output=text"]);
-        assert_eq!(argv.last().map(String::as_str), Some("//a/..."));
+        assert_eq!(
+            argv.get(argv.len() - 2).map(String::as_str),
+            Some("//a/...")
+        );
     }
 
     #[test]
@@ -399,7 +539,10 @@ mod tests {
             .query
             .script_graph(&[graph_rule("//a:site", &["//a:page.md"], &[])]);
         let argv = docs_argv(&harness, &["docs", "a/page.md", "--output=text"]);
-        assert_eq!(argv.last().map(String::as_str), Some("//a:site"));
+        assert_eq!(
+            argv.get(argv.len() - 2).map(String::as_str),
+            Some("//a:site")
+        );
     }
 
     #[test]
@@ -408,7 +551,10 @@ mod tests {
         harness.write_source("a/BUILD.bazel", "");
         harness.cwd = harness.workspace.join("a");
         let argv = docs_argv(&harness, &["docs", "--here", "--output=text"]);
-        assert_eq!(argv.last().map(String::as_str), Some("//a/..."));
+        assert_eq!(
+            argv.get(argv.len() - 2).map(String::as_str),
+            Some("//a/...")
+        );
     }
 
     #[test]

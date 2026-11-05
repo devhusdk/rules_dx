@@ -187,3 +187,27 @@ def docs_site(name, shards, prose, book_toml, prose_route = "prose.md", source_u
         routes = [prose_route],
         summary = ":" + name + "_SUMMARY.md",
     )
+
+def _docs_scope_tools_impl(ctx):
+    tools = [
+        ("aggregate", ctx.executable.aggregate),
+        ("mdbook", ctx.file.mdbook),
+        ("site_build", ctx.executable.site_build),
+    ]
+    manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_tools")
+    ctx.actions.write(manifest, "".join([name + "\t" + tool.path + "\n" for name, tool in tools]))
+    files = depset([tool for _, tool in tools])
+    return [
+        DefaultInfo(files = depset([manifest])),
+        OutputGroupInfo(dx_docs_tools = depset([manifest]), dx_docs_tool_files = files),
+    ]
+
+docs_scope_tools = rule(
+    doc = "Builds the tools that turn API shards into one index and names their paths in dx_docs_tools.",
+    implementation = _docs_scope_tools_impl,
+    attrs = {
+        "aggregate": attr.label(cfg = "exec", default = Label("//tools/docs/site/aggregate:site_aggregate"), executable = True),
+        "mdbook": attr.label(cfg = "exec", default = Label("//tools/docs/site/mdbook:mdbook"), allow_single_file = True, executable = True),
+        "site_build": attr.label(cfg = "exec", default = Label("//tools/docs/site/build:site_build"), executable = True),
+    },
+)

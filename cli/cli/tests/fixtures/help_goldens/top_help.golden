@@ -29,7 +29,7 @@ Commands:
   status      report workspace status; --capabilities adds command capabilities; without .dx/pins it exits 1 with status_pin_mismatch
   watch       watch for changes and rebuild (local only)
   completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell)
-  docs        build and serve the mdBook documentation site (non-mutating)
+  docs        build and serve the mdBook documentation site, or an API index of the Rust libraries in scope (non-mutating)
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   explain     explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)
 

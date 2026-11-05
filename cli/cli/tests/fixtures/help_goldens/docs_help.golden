@@ -1,4 +1,4 @@
-build and serve the mdBook documentation site (non-mutating)
+build and serve the mdBook documentation site, or an API index of the Rust libraries in scope (non-mutating)
 
 Usage: dx docs [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]
 

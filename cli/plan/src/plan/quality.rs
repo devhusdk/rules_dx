@@ -6,8 +6,9 @@ use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
     exec_log_options,
     registry::{spec, CommandSpec},
-    rules_dx_label, BuildPlan, DOCS_SITE_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP,
-    SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
+    rules_dx_label, BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP,
+    DOCS_TOOLS_OUTPUT_GROUP, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
+    SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -180,16 +181,21 @@ pub fn plan_docs(
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let aspects = joined_labels(spec(Command::Docs).aspects.iter().copied());
-    let groups = format!("{OUTPUT_GROUP},{DOCS_SITE_OUTPUT_GROUP}");
+    let groups = format!(
+        "{OUTPUT_GROUP},{DOCS_SITE_OUTPUT_GROUP},{DOCS_SHARD_OUTPUT_GROUP},{DOCS_TOOLS_OUTPUT_GROUP},dx_docs_tool_files"
+    );
     let required = shaped_options(&aspects, &groups, bazel_options, bep_path);
-    shaped_plan(
+    let mut plan = shaped_plan(
         Command::Docs,
         resolved,
         bazel_options,
         startup_options,
         &required,
         false,
-    )
+    )?;
+    plan.argv
+        .push(rules_dx_label("tools/docs/site:scope_tools"));
+    Ok(plan)
 }
 
 /// Plans the shard probe; its argv matches `plan_build`'s apart from the aspects, output group and event file.
@@ -900,7 +906,7 @@ mod tests {
             "{argv:?}"
         );
         assert!(
-            argv.contains(&"--output_groups=dx_results,dx_docs_sites"),
+            argv.contains(&"--output_groups=dx_results,dx_docs_sites,dx_docs_shards,dx_docs_tools,dx_docs_tool_files"),
             "{argv:?}"
         );
         assert!(
@@ -911,7 +917,8 @@ mod tests {
             argv.contains(&"--build_event_json_file=/tmp/bep.json"),
             "{argv:?}"
         );
-        assert_eq!(argv.last(), Some(&"//..."));
+        assert_eq!(argv[argv.len() - 2], "//...");
+        assert!(argv[argv.len() - 1].ends_with("//tools/docs/site:scope_tools"));
         let err = plan_docs(
             &resolved(&[]),
             &strings(&["--output_groups=other"]),

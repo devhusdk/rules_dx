@@ -365,7 +365,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         command: Command::Docs,
         name: "docs",
         scope_policy: "default-repo",
-        describe: "build and serve the mdBook documentation site (non-mutating)",
+        describe: "build and serve the mdBook documentation site, or an API index of the Rust libraries in scope (non-mutating)",
         usage: "Usage: dx docs [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects every docs site, shard and API target in the repository (//...). Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_managed: false,

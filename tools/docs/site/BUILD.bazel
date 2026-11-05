@@ -2,7 +2,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
-load(":site.bzl", "docs_api", "docs_site")
+load(":site.bzl", "docs_api", "docs_scope_tools", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
 load(":user/api.bzl", "user_api_shards")
 load(":user/book.bzl", "USER_BOOK")
@@ -29,6 +29,11 @@ exports_files(
         "demo/guide_steps.txt",
     ],
     visibility = ["//visibility:private"],
+)
+
+docs_scope_tools(
+    name = "scope_tools",
+    visibility = ["//visibility:public"],
 )
 
 docs_site(

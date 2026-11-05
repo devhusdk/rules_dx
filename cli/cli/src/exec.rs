@@ -12,6 +12,7 @@ mod delivery_sink;
 mod dep_edit;
 mod deploy;
 mod docs;
+mod docs_index;
 mod explain;
 mod explain_store;
 mod failure;

@@ -5,7 +5,6 @@ _BUILD_BAZEL = '''genrule(
     outs = [
         "crate_help.txt",
         "public_completion.txt",
-        "public_drift.txt",
         "public_help.txt",
         "public_status.txt",
         "public_version.txt",
@@ -26,12 +25,6 @@ ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" status --workspace "$$ws" > "$(location public_status.txt)"
 "$$public" --version > "$(location public_version.txt)"
 "$$public" completion bash --workspace "$$ws" > "$(location public_completion.txt)"
-echo '9.9.9' > "$(location workspace/.dx/pins)"
-if "$$public" status --workspace "$$ws" > "$(location public_drift.txt)" 2>&1; then
-  echo "dx status accepted a drifted pin" >&2
-  exit 1
-fi
-grep -q status_pin_mismatch "$(location public_drift.txt)"
 """,
     tools = [
         "@rules_dx//:dx",
@@ -116,7 +109,7 @@ rm "$$root/corrupt_tool/.dx/environments/$$env/artifacts/tool"
 echo 'not the pinned tool' > "$$root/corrupt_tool/.dx/environments/$$env/artifacts/tool"
 status corrupt_tool 1
 workspace pin 9.9.9 0.0.0
-status pin 1
+status pin 0
 """,
     tools = ["@rules_dx//:dx"],
     visibility = ["//visibility:public"],

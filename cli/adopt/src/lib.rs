@@ -65,8 +65,8 @@ pub use scaffold::{
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent};
 pub use version::{
-    local_path_overrides, module_dependency_status, module_rules_dx_version, pin_fix_hint,
-    pin_is_valid, pin_rewrite_hint, read_module_dependency, read_version_pin, read_version_pins,
+    local_path_overrides, module_dependency_status, module_rules_dx_version, pin_is_valid,
+    pin_rewrite_hint, read_module_dependency, read_version_pin, read_version_pins,
     render_module_dependency, version_pin_matches_module, write_version_pin, write_version_pins,
     DX_VERSION, MODULE_VERSION,
 };

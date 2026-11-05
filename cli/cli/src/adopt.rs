@@ -57,18 +57,22 @@ mod tests {
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
         let scratch = dx_test_scratch::scratch("status-missing-pipe-");
+        std::fs::write(
+            scratch.path().join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        )
+        .expect("module");
         let inv = invocation(&["status", "--output=json"]);
         let run =
             |out: &mut dyn Write| execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()));
         let mut baseline = Vec::new();
-        assert_eq!(run(&mut baseline), 1);
+        assert_eq!(run(&mut baseline), 0);
         let events: Vec<serde_json::Value> = String::from_utf8(baseline.clone())
             .expect("stdout")
             .lines()
             .map(|line| serde_json::from_str(line).expect("event"))
             .collect();
-        assert_eq!(events[1]["code"], "status_pin_mismatch");
-        assert_eq!(events[2]["exit_code"], 1);
+        assert_eq!(events.last().expect("finished")["exit_code"], 0);
         for remaining in [
             0,
             baseline
@@ -86,11 +90,16 @@ mod tests {
     fn status_drift_reports_propagate_broken_pipe() {
         let scratch = dx_test_scratch::scratch("adoption-live-pipe-");
         dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("drifted pin");
+        std::fs::write(
+            scratch.path().join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        )
+        .expect("module");
         let inv = invocation(&["status", "--output=json"]);
         let mut baseline = Vec::new();
         let run =
             |out: &mut dyn Write| execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()));
-        assert_eq!(run(&mut baseline), 1);
+        assert_eq!(run(&mut baseline), 0);
         for remaining in baseline
             .iter()
             .enumerate()

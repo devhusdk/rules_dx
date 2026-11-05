@@ -49,7 +49,7 @@ then: bazel mod deps --lockfile_mode=update
 Then:
 
 ```text
-dx: status_pin_mismatch: pin <pin> can move to <to> (run `dx upgrade --to <to> --apply`)
+dx: upgrade_pending: pin <pin> can move to <to> (run `dx upgrade --to <to> --apply`)
 ```
 
 `--apply` prints `pinned <to> (upgrade from <pin>)`, or `pinned <to> (upgrade current)` on a rerun, then `wrote <path>` for each changed file. During a handoff it prints only `wrote <path>` lines.
@@ -64,7 +64,7 @@ dx: upgrade_failed: pinned <to> but <step> not refreshed: <error>; recovery: rer
 
 After a move, run `dx init` and `dx env --apply` when an override file is missing and `MODULE.bazel` does not include the overrides.
 
-JSON streams `command_started`, one `status` event named `pin` (status `ok`, hint `dx status`), then `command_finished`. A refusal emits `upgrade_failed` instead of `pin`. A pending check emits `status_pin_mismatch`.
+JSON streams `command_started`, one `status` event named `pin` (status `ok`, hint `dx status`), then `command_finished`. A refusal emits `upgrade_failed` instead of `pin`. A pending upgrade emits `upgrade_pending`.
 
 ## Exit Codes
 

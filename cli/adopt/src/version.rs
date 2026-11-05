@@ -23,16 +23,6 @@ pub fn version_move_hint(from: &str, to: &str) -> String {
     }
 }
 
-pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
-    if !pin_is_valid(pinned) {
-        pin_rewrite_hint()
-    } else if version_pin_matches_module(pinned, module_version) {
-        "dx status".to_owned()
-    } else {
-        format!("dx upgrade --to {module_version} --apply")
-    }
-}
-
 pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> bool {
     if dx_version.is_empty() || module_version.is_empty() {
         return false;
@@ -395,22 +385,6 @@ mod tests {
             "1.2.3-alpha.2"
         ));
         assert!(!version_pin_matches_module("1.2.3", "1.2.3-alpha.1"));
-    }
-
-    #[test]
-    fn pin_fix_hint_names_only_surviving_commands() {
-        assert_eq!(pin_fix_hint("1.2.3", "1.2.3"), "dx status");
-        assert_eq!(
-            pin_fix_hint("1.2.3", "2.0.0"),
-            "dx upgrade --to 2.0.0 --apply"
-        );
-        assert_eq!(
-            pin_fix_hint("2.0.0", "1.2.3"),
-            "dx upgrade --to 1.2.3 --apply"
-        );
-        for bad in ["", "v1", "1.2", "garbage"] {
-            assert_eq!(pin_fix_hint(bad, "1.2.3"), "dx init --apply");
-        }
     }
 
     #[test]

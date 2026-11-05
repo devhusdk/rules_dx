@@ -26,7 +26,7 @@ Commands:
   env         collect managed tools and generated source (check by default; --apply writes managed state)
   init        start or adopt a dx workspace in this or a new directory (check by default; --apply scaffolds and is safe to re-run)
   upgrade     move the pin to any version, newer or older, and refresh existing launchers and the AGENTS.md block (check by default; --apply moves)
-  status      report workspace status; --capabilities adds command capabilities; without .dx/pins it exits 1 with status_pin_mismatch
+  status      report workspace status; --capabilities adds command capabilities
   watch       watch for changes and rebuild (local only)
   completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell)
   docs        build and serve the mdBook documentation site, or an API index of the Rust libraries in scope (non-mutating)

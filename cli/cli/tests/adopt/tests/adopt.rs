@@ -140,7 +140,7 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     let check = dx(&root, &home, &["upgrade", "--to", &built]);
     assert_eq!(check.code, 1, "{}", check.stderr);
     assert!(
-        check.stderr.contains("status_pin_mismatch"),
+        check.stderr.contains("upgrade_pending"),
         "{}",
         check.stderr
     );

@@ -2,15 +2,13 @@ use std::io::Write;
 
 use clap::ValueEnum;
 
-use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
     capability_event, command_finished, command_started, status_event, CapabilityEvent,
     FinishedCounts, OutputMode, StatusEvent,
 };
 use dx_plan::args::grammar::advertises_passthrough;
 use dx_plan::args::{Command, Invocation};
-
-pub(crate) const CODE_STATUS_PIN_MISMATCH: &str = "status_pin_mismatch";
 
 pub(crate) const CODE_STATUS_CHECK_FAILED: &str = "status_check_failed";
 
@@ -89,12 +87,6 @@ fn failure(checks: &[dx_adopt::StatusCheck]) -> Option<(&'static str, String)> {
         .filter(|check| check.status == "error")
         .map(|check| check.name.as_str())
         .collect();
-    if failed.contains(&"pin") {
-        return Some((
-            CODE_STATUS_PIN_MISMATCH,
-            "pin mismatch (see hint)".to_owned(),
-        ));
-    }
     if failed.is_empty() {
         return None;
     }
@@ -223,25 +215,14 @@ pub(crate) fn execute_status(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let pinned = match dx_adopt::read_version_pin(workspace) {
-        Ok(pin) => pin,
-        Err(error) => {
-            let message = error.to_string();
-            if invocation.output == OutputMode::Json {
-                if let Err(exit) = emit_started(invocation, out) {
-                    return exit;
-                }
-            }
-            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
-        }
-    };
     let tools = super::status_tools::managed_tools_check(workspace);
     let records = if invocation.capabilities {
         capabilities(&tools)
     } else {
         Vec::new()
     };
-    let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
+    let mut checks =
+        dx_adopt::observed_status_checks(workspace, dx_adopt::read_version_pin(workspace), tools);
     checks.push(init_check(workspace));
     if let Some(check) = lease_check(workspace) {
         checks.push(check);
@@ -546,91 +527,54 @@ mod tests {
         assert!(err.is_empty());
     }
 
+    fn assert_pin_warns(words: &[&str], root: &std::path::Path) {
+        let inv = invocation(words);
+        let (code, out, err) = run(&inv, root);
+        assert_eq!(code, 0, "words: {words:?}: {err}");
+        assert!(err.is_empty(), "{err}");
+        if words.contains(&"--output=json") {
+            let events = json_events(&out);
+            let pin = events
+                .iter()
+                .find(|event| event["name"] == serde_json::json!("pin"))
+                .expect("pin status event");
+            assert_eq!(pin["status"], serde_json::json!("warn"));
+            assert_eq!(pin["hint"], serde_json::json!("dx init --apply"));
+        } else {
+            assert!(out.contains("pin: warn"), "{out}");
+        }
+    }
+
     #[test]
-    fn status_pin_mismatch_fails_operational() {
+    fn status_other_version_pin_warns() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
-            let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-status-mismatch-");
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
             write_module(&root);
-            let (code, out, err) = run(&inv, &root);
-            assert_eq!(code, 1, "words: {words:?}");
-            assert!(err.contains("pin mismatch"), "words: {words:?}");
-            if words.contains(&"--output=json") {
-                let text = out;
-                let events = json_events(&text);
-                assert_eq!(
-                    events.last().expect("finished")["exit_code"],
-                    serde_json::json!(1)
-                );
-                let kinds = event_kinds(&events);
-                assert_eq!(kinds[0], "command_started");
-                assert_eq!(kinds[kinds.len() - 1], "command_finished");
-                assert!(kinds.contains(&"status"), "{kinds:?}");
-                let error_index = kinds
-                    .iter()
-                    .position(|kind| *kind == "error")
-                    .expect("status failure emits error");
-                assert_eq!(kinds[error_index + 1..], ["command_finished"]);
-                let error = &events[error_index];
-                assert_eq!(error["code"], serde_json::json!("status_pin_mismatch"));
-            }
+            assert_pin_warns(&words, &root);
         }
     }
 
     #[test]
-    fn status_missing_pin_fails_closed() {
+    fn status_missing_pin_warns() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
-            let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-status-missing-");
             let root = scratch.path().to_path_buf();
-            let (code, out, err) = run(&inv, &root);
-            assert_eq!(code, 1, "words: {words:?}");
-            assert!(err.contains(".dx/pins is missing"), "words: {words:?}");
-            assert!(err.contains("dx init --apply"), "words: {words:?}");
-            let stdout = out;
-            assert!(!stdout.contains("pin: ok"), "words: {words:?}");
-            if words.contains(&"--output=json") {
-                let events = json_events(&stdout);
-                assert_eq!(events[0]["event"], serde_json::json!("command_started"));
-                assert_eq!(
-                    events.last().expect("finished")["exit_code"],
-                    serde_json::json!(1)
-                );
-                let kinds = event_kinds(&events);
-                assert_eq!(kinds[0], "command_started");
-                assert_eq!(kinds[kinds.len() - 1], "command_finished");
-                assert!(!kinds.contains(&"status"), "{kinds:?}");
-                let error_index = kinds
-                    .iter()
-                    .position(|kind| *kind == "error")
-                    .expect("missing pin emits error");
-                assert_eq!(kinds[error_index + 1..], ["command_finished"]);
-                assert_eq!(
-                    events[error_index]["code"],
-                    serde_json::json!("status_pin_mismatch")
-                );
-                let message = events[error_index]["message"].to_string();
-                assert!(message.contains(".dx/pins is missing"), "{message}");
-                assert!(message.contains("dx init --apply"), "{message}");
-            }
+            write_module(&root);
+            assert_pin_warns(&words, &root);
         }
     }
 
     #[test]
-    fn status_empty_pin_reports_error() {
-        let inv = invocation(&["status"]);
+    fn status_empty_pin_warns() {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-empty-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "\n").expect("empty pin");
         write_module(&root);
-        let (code, out, err) = run(&inv, &root);
-        assert_eq!(code, 1);
-        assert!(err.contains("pin mismatch"));
-        assert!(!out.contains("pin: ok"));
+        assert_pin_warns(&["status"], &root);
     }
 
     #[test]
@@ -775,7 +719,7 @@ mod tests {
     }
 
     #[test]
-    fn health_findings_never_report_a_pin_mismatch() {
+    fn health_findings_report_check_failed() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
             let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-status-bare-");
@@ -786,21 +730,21 @@ mod tests {
             let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
             assert!(err.contains(CODE_STATUS_CHECK_FAILED), "{err}");
-            assert!(!err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
             assert!(out.contains("dx init"), "{out}");
         }
     }
 
     #[test]
-    fn a_real_pin_mismatch_wins_over_other_findings() {
+    fn a_pin_mismatch_does_not_mask_other_findings() {
         let inv = invocation(&["status"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-both-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
-        let (code, _, err) = run(&inv, &root);
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
+        assert!(err.contains(CODE_STATUS_CHECK_FAILED), "{err}");
+        assert!(out.contains("pin: warn"), "{out}");
     }
 
     #[test]
@@ -832,7 +776,7 @@ mod tests {
     }
 
     #[test]
-    fn status_reports_capabilities_alongside_a_pin_failure() {
+    fn status_reports_capabilities_alongside_a_pin_warning() {
         let inv = invocation(&["status", "--output=json", "--capabilities"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-fail-");
         let root = scratch.path().to_path_buf();
@@ -840,7 +784,7 @@ mod tests {
         std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
         write_module(&root);
         let (code, out, _) = run(&inv, &root);
-        assert_eq!(code, 1);
+        assert_eq!(code, 0);
         let events = json_events(&out);
         let kinds = event_kinds(&events);
         assert!(kinds.contains(&"capability"), "{kinds:?}");

@@ -39,15 +39,6 @@ fn the_public_label_runs_real_commands_over_a_consumer_workspace() {
     );
 }
 
-#[test]
-fn the_public_label_reports_a_drifted_consumer_pin() {
-    let drift = read("DX_PUBLIC_DRIFT");
-    assert!(
-        drift.contains("status_pin_mismatch"),
-        "a drifted pin must fail through the public label: {drift}"
-    );
-}
-
 struct StatusRun {
     exit: i32,
     events: Vec<dx_testing::serde_json::Value>,
@@ -137,11 +128,6 @@ fn consumer_status_findings_use_their_own_error_code() {
     let bare = status_run("DX_STATUS_BARE");
     assert_eq!(bare.exit, 1);
     assert_eq!(bare.error_code(), Some("status_check_failed"));
-    assert!(
-        !bare.stderr.contains("status_pin_mismatch"),
-        "{}",
-        bare.stderr
-    );
     assert_eq!(bare.check("module")["status"], "error");
     assert_eq!(bare.check("module")["hint"], "dx init");
     assert_eq!(bare.check("pin")["status"], "ok");
@@ -154,8 +140,8 @@ fn consumer_status_findings_use_their_own_error_code() {
         "{module}"
     );
     let pin = status_run("DX_STATUS_PIN");
-    assert_eq!(pin.exit, 1);
-    assert_eq!(pin.error_code(), Some("status_pin_mismatch"));
+    assert_eq!(pin.exit, 0);
+    assert_eq!(pin.check("pin")["status"], "warn");
 }
 
 #[test]

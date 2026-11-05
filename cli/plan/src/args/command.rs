@@ -323,7 +323,7 @@ pub static COMMANDS: [CommandMeta; 23] = [
         command: Command::Status,
         name: "status",
         scope_policy: "reject",
-        describe: "report workspace status; --capabilities adds command capabilities; without .dx/pins it exits 1 with status_pin_mismatch",
+        describe: "report workspace status; --capabilities adds command capabilities",
         usage: "Usage: dx status",
         scopes: "Scopes: none (status takes no scopes).",
         is_managed: false,

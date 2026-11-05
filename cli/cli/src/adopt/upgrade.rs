@@ -9,10 +9,10 @@ use dx_process::Runner;
 
 use dx_output::OutputMode;
 
-use super::status::CODE_STATUS_PIN_MISMATCH;
 use super::{init_files, operational, pre_exec, summaries_suppressed};
 
 pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
+pub(crate) const CODE_UPGRADE_PENDING: &str = "upgrade_pending";
 
 fn json_pin(
     invocation: &Invocation,
@@ -219,7 +219,7 @@ pub(crate) fn execute_upgrade(
                 return exit;
             }
         }
-        return fail(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+        return fail(invocation, out, err, CODE_UPGRADE_PENDING, &message);
     }
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
         return refuse(out, err, &error.to_string());
@@ -575,7 +575,7 @@ mod tests {
         let before = snapshot(&root);
         let (code, _out, err) = run(&upgrade(&[]), &root);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
+        assert!(err.contains(CODE_UPGRADE_PENDING), "{err}");
         assert!(err.contains(&format!("can move to {}", module())), "{err}");
         assert!(err.contains("--apply`"), "{err}");
         assert_eq!(snapshot(&root), before, "check must not write");

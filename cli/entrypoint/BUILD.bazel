@@ -10,7 +10,6 @@ rust_test(
         "@dx_consumer_entry//:consumer_dx_probe",
         "@dx_consumer_entry//:crate_help.txt",
         "@dx_consumer_entry//:public_completion.txt",
-        "@dx_consumer_entry//:public_drift.txt",
         "@dx_consumer_entry//:public_help.txt",
         "@dx_consumer_entry//:public_status.txt",
         "@dx_consumer_entry//:public_version.txt",
@@ -48,7 +47,6 @@ rust_test(
     env = {
         "DX_CRATE_HELP": "$(rootpath @dx_consumer_entry//:crate_help.txt)",
         "DX_PUBLIC_COMPLETION": "$(rootpath @dx_consumer_entry//:public_completion.txt)",
-        "DX_PUBLIC_DRIFT": "$(rootpath @dx_consumer_entry//:public_drift.txt)",
         "DX_PUBLIC_HELP": "$(rootpath @dx_consumer_entry//:public_help.txt)",
         "DX_PUBLIC_STATUS": "$(rootpath @dx_consumer_entry//:public_status.txt)",
         "DX_PUBLIC_VERSION": "$(rootpath @dx_consumer_entry//:public_version.txt)",

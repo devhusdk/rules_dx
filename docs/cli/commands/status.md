@@ -31,7 +31,7 @@ Scopes: none.
 | `host` | Host is linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 or windows_arm64. |
 | `exec_tools` | `warn` when `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`. |
 | `tools` | Tools selected by `dx env --apply`. `warn` when none; `error` when a link or `values.json` is missing or corrupt. |
-| `pin` | `.dx/pins` against the `dx` version. |
+| `pin` | `.dx/pins` against the `dx` version. `warn` when missing, empty or another version: launchers run `dx` through Bazel until `dx init --apply` refreshes it. |
 | `init` | Files `dx init` writes that are missing or out of date. |
 | `ide` | After `.dx/ide/state.json` exists: `ok`, or `error` with the failing plug-ins. Fix with `dx env --apply`. |
 | `lease` | Inside a `dx worktree` slot: holder and branch. |
@@ -52,7 +52,7 @@ With `--capabilities`, text adds one `capability <name>` line per command.
 
 JSON streams `command_started`, one `status` event per check (`name`, `status`, `detail`, `hint`), then `command_finished`. With `--capabilities` it adds one `capability` event per command (`name`, `source`, `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`, `effect`, `passthrough`). `source` is `cli-grammar` or `workspace-record`. `availability` is `available`, `unavailable` or `unknown`.
 
-A failed check emits `status_check_failed` naming the checks. A failed `pin` emits `status_pin_mismatch` instead. A missing or empty `.dx/pins` emits `status_pin_mismatch` before any check runs.
+A failed check emits `status_check_failed` naming the checks.
 
 ```text
 dx: status_check_failed: failed checks: module, tools (see hint)
@@ -65,5 +65,5 @@ dx: status_check_failed: failed checks: module, tools (see hint)
 | Code | Meaning |
 | --- | --- |
 | `0` | All checks pass. |
-| `1` | A check failed, or `.dx/pins` is missing. |
+| `1` | A check failed. |
 | `2` | Usage error. |

@@ -4,7 +4,7 @@ use dx_module_bazel::ModuleFile;
 
 use crate::AdoptError;
 
-use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
+use super::{read_module_dependency, version_pin_matches_module, MODULE_VERSION};
 use crate::version::version_move_hint;
 use dx_versions::{
     RULES_RUST_VERSION as CONSUMER_RULES_RUST_VERSION, RUST_VERSION as CONSUMER_RUST_VERSION,
@@ -26,17 +26,26 @@ pub fn render_status_text(checks: &[StatusCheck]) -> String {
         .join("\n")
 }
 
-fn pin_check(pinned: &str) -> StatusCheck {
-    let pin_status = if version_pin_matches_module(pinned, MODULE_VERSION) {
-        "ok"
-    } else {
-        "error"
-    };
-    StatusCheck {
-        name: "pin".to_owned(),
-        status: pin_status.to_owned(),
-        detail: format!("dx {pinned} vs module {MODULE_VERSION}"),
-        hint: pin_fix_hint(pinned, MODULE_VERSION),
+fn pin_check(pinned: Result<String, AdoptError>) -> StatusCheck {
+    match pinned {
+        Ok(pinned) if version_pin_matches_module(&pinned, MODULE_VERSION) => check(
+            "pin",
+            "ok",
+            format!("dx {pinned} vs module {MODULE_VERSION}"),
+            "dx status",
+        ),
+        Ok(pinned) => check(
+            "pin",
+            "warn",
+            format!("dx {pinned} vs module {MODULE_VERSION}; launchers run dx through Bazel until .dx/pins is refreshed"),
+            "dx init --apply",
+        ),
+        Err(_) => check(
+            "pin",
+            "warn",
+            format!("launchers run dx through Bazel until .dx/pins is refreshed (module {MODULE_VERSION})"),
+            "dx init --apply",
+        ),
     }
 }
 
@@ -407,7 +416,11 @@ fn ide_check(root: &Path) -> Option<StatusCheck> {
     ))
 }
 
-pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
+pub fn observed_status_checks(
+    root: &Path,
+    pinned: Result<String, AdoptError>,
+    tools: StatusCheck,
+) -> Vec<StatusCheck> {
     let mut checks = vec![
         toolchain_check(root),
         bazel_check(root, std::env::var_os("PATH")),
@@ -455,7 +468,10 @@ mod tests {
             crate::preflight::legacy_consumer_setup(),
         )
         .expect("module");
-        let checks = vec![toolchain_check(dir), pin_check(MODULE_VERSION)];
+        let checks = vec![
+            toolchain_check(dir),
+            pin_check(Ok(MODULE_VERSION.to_owned())),
+        ];
         let text = render_status_text(&checks);
         assert!(text.contains("pin: ok"), "{text}");
         assert!(text.contains("toolchain: ok"), "{text}");
@@ -551,8 +567,8 @@ mod tests {
 
     #[test]
     fn pin_check_hints_the_write_for_an_empty_pin() {
-        let check = pin_check("");
-        assert_eq!(check.status, "error");
+        let check = pin_check(Ok(String::new()));
+        assert_eq!(check.status, "warn");
         assert_eq!(check.hint, "dx init --apply");
     }
 
@@ -688,7 +704,8 @@ mod tests {
             detail: "unavailable: observed".to_owned(),
             hint: "dx env --apply".to_owned(),
         };
-        let checks = super::observed_status_checks(&dir, MODULE_VERSION, tools.clone());
+        let checks =
+            super::observed_status_checks(&dir, Ok(MODULE_VERSION.to_owned()), tools.clone());
         let names: Vec<&str> = checks.iter().map(|check| check.name.as_str()).collect();
         assert_eq!(
             names,

@@ -133,12 +133,14 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
+          failed=0
           for dir in families/*/; do
             [ -f "$dir/MODULE.bazel" ] || continue
             echo "::group::$dir"
-            (cd "$dir" && bazel test "$@" //...)
+            (cd "$dir" && bazel test --keep_going "$@" //...) || failed=1
             echo "::endgroup::"
           done
+          exit "$failed"
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
     timeout-minutes: 90

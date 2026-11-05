@@ -110,7 +110,7 @@ const EXEMPT: [(&str, &str); 4] = [
 ];
 
 /// Packages whose BUILD.bazel declares Rust targets; their :corpus_starlark is in the test data.
-const PACKAGES: [&str; 111] = [
+const PACKAGES: [&str; 110] = [
     ".devcontainer",
     "appimage/packer",
     "appimage/tests",
@@ -223,8 +223,19 @@ const PACKAGES: [&str; 111] = [
     "wasi/testing",
 ];
 
+/// Set by a family workspace to the comma-separated packages it checks; the size floors and EXEMPT then do not apply.
+const PACKAGES_ENV: &str = "RUSTFMT_COVERAGE_PACKAGES";
+
+/// The packages to check and whether this is the root list.
+fn packages() -> (Vec<String>, bool) {
+    match std::env::var(PACKAGES_ENV) {
+        Ok(list) => (list.split(',').map(str::to_owned).collect(), false),
+        Err(_) => (PACKAGES.iter().map(|pkg| (*pkg).to_owned()).collect(), true),
+    }
+}
+
 /// Fewer packages than this means the list lost its data.
-const MIN_PACKAGES: usize = 111;
+const MIN_PACKAGES: usize = 110;
 
 /// Fewer Rust targets than this means the sweep lost its data.
 const MIN_TARGETS: usize = 400;
@@ -718,7 +729,8 @@ fn every_rust_target_is_in_a_rustfmt_test() {
     let root = runfiles_root();
     let mut scans = Vec::new();
     let mut problems = Vec::new();
-    for pkg in PACKAGES {
+    let (packages, is_root) = packages();
+    for pkg in &packages {
         let path = format!("{pkg}/BUILD.bazel");
         let source = std::fs::read_to_string(root.join(&path))
             .unwrap_or_else(|error| panic!("read {path}: {error}"));
@@ -731,16 +743,19 @@ fn every_rust_target_is_in_a_rustfmt_test() {
         scans.push((path, result));
     }
     let targets: usize = scans.iter().map(|(_, scan)| scan.targets.len()).sum();
-    assert!(
-        PACKAGES.len() >= MIN_PACKAGES,
-        "only {} packages are listed",
-        PACKAGES.len()
-    );
-    assert!(
-        targets >= MIN_TARGETS,
-        "only {targets} Rust targets were checked"
-    );
-    problems.extend(findings(&scans, &EXEMPT));
+    if is_root {
+        assert!(
+            packages.len() >= MIN_PACKAGES,
+            "only {} packages are listed",
+            packages.len()
+        );
+        assert!(
+            targets >= MIN_TARGETS,
+            "only {targets} Rust targets were checked"
+        );
+    }
+    let exempt: &[(&str, &str)] = if is_root { &EXEMPT } else { &[] };
+    problems.extend(findings(&scans, exempt));
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 

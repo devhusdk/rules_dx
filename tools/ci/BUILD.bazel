@@ -501,6 +501,19 @@ rust_test(
     ],
 )
 
+# The same checks without the root data; a family workspace runs it over its own packages.
+# keep
+rust_test(
+    name = "rustfmt_coverage_family_test",
+    srcs = ["rustfmt_coverage_test.rs"],
+    tags = ["manual"],
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:starlark_syntax",
+    ],
+)
+
 # keep
 rust_test(
     name = "rustfmt_coverage_test",
@@ -917,8 +930,10 @@ rustfmt_test(
         ":release_cells_runners_test",
         ":reusable_callers_test",
         ":rustfmt_coverage_test",
+        ":rustfmt_coverage_family_test",
         ":setup_bazel_test",
         ":signing_pins_test",
+        ":starlark_docs_family_test",
         ":starlark_docs_test",
         ":tool_resolve_test",
         ":workflow_expressions_test",

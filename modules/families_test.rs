@@ -601,7 +601,7 @@ fn core_family_file_loads_no_family_rule_set() {
 }
 
 /// The source-check targets every moved family declares in its own `BUILD.bazel`.
-const FAMILY_CHECK_TARGETS: [&str; 1] = ["corpus_starlark"];
+const FAMILY_CHECK_TARGETS: [&str; 2] = ["corpus_starlark", "starlark_docs_test"];
 
 fn missing_check_targets(family: &str, build_file: Option<&str>) -> Vec<String> {
     let Some(text) = build_file else {
@@ -634,7 +634,15 @@ fn a_family_without_a_build_file_or_target_is_reported() {
     );
     assert_eq!(
         missing_check_targets("x", Some("")),
-        ["x: BUILD.bazel has no corpus_starlark target"]
+        [
+            "x: BUILD.bazel has no corpus_starlark target",
+            "x: BUILD.bazel has no starlark_docs_test target"
+        ]
     );
-    assert!(missing_check_targets("x", Some("name = \"corpus_starlark\"")).is_empty());
+    assert_eq!(
+        missing_check_targets("x", Some("name = \"corpus_starlark\"")),
+        ["x: BUILD.bazel has no starlark_docs_test target"]
+    );
+    let both = "name = \"corpus_starlark\" name = \"starlark_docs_test\"";
+    assert!(missing_check_targets("x", Some(both)).is_empty());
 }

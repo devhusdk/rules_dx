@@ -2,6 +2,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
 load("//ios:app.bzl", "apple_ios_xcframework")
+load("//ios:cell.bzl", "APPLE_HOSTS")
 
 _MACOS_ARM64 = [
     "@platforms//os:macos",
@@ -13,7 +14,7 @@ rust_static_library(
     srcs = ["share.rs"],
     edition = "2021",
     tags = ["manual"],
-    target_compatible_with = _MACOS_ARM64,
+    target_compatible_with = APPLE_HOSTS,
 )
 
 apple_ios_xcframework(

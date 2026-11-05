@@ -27,6 +27,11 @@ pub struct GithubConfig {
     pub deploy_name: String,
     pub tag: String,
     pub asset_rlocs: Vec<String>,
+    /// `commits`, `file` or `none`.
+    #[serde(default)]
+    pub notes: String,
+    #[serde(default)]
+    pub notes_rloc: String,
 }
 
 /// Pins one Homebrew tap formula: the GitHub release config it renders from and the tap.
@@ -308,9 +313,13 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             archive.size_budget_bytes,
             argv,
         ),
-        DeployConfig::Github(github) => {
-            crate::github_main(&github.asset_rlocs, &github.deploy_name, &github.tag, argv)
-        }
+        DeployConfig::Github(github) => crate::github::github_main_with_notes(
+            &github.asset_rlocs,
+            &github.deploy_name,
+            &github.tag,
+            &crate::github::Notes::from_config(&github.notes, &github.notes_rloc),
+            argv,
+        ),
         DeployConfig::HomebrewTap(tap) => crate::homebrew_tap_main(
             &crate::HomebrewLaunch {
                 release_rloc: &tap.release_rloc,
@@ -560,6 +569,8 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 tag: "v1.0.0".to_owned(),
                 asset_rlocs: vec!["_main/a".to_owned(), "x;y".to_owned()],
+                notes: String::new(),
+                notes_rloc: String::new(),
             }))
         );
     }
@@ -842,6 +853,8 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 tag: "v1.0.0".to_owned(),
                 asset_rlocs: vec!["a".to_owned()],
+                notes: String::new(),
+                notes_rloc: String::new(),
             }),
             DeployConfig::HomebrewTap(HomebrewTapConfig {
                 release_rloc: "a".to_owned(),

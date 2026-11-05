@@ -187,6 +187,7 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
+        "//cli/update:dx_update",
         "@rules_rust//rust/runfiles",
     ],
 )

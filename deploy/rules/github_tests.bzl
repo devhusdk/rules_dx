@@ -1,7 +1,7 @@
 """Unit and analysis tests for the GitHub Release publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":github.bzl", "github_asset_collision_error", "github_tag_error")
+load(":github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 
 def github_unit_tests(name):
     starlark_test(
@@ -28,6 +28,21 @@ def github_unit_tests(name):
                 "github_tag_error rejects shell-unsafe tag characters",
                 github_tag_error("v1.0;curl evil"),
                 "github_deploy: invalid tag 'v1.0;curl evil': want only [A-Za-z0-9._-]",
+            ),
+            expect_equal(
+                "github_tag_error accepts the current placeholder",
+                github_tag_error("current"),
+                "",
+            ),
+            expect_equal(
+                "github_notes_error accepts a label",
+                github_notes_error("//docs:notes.md"),
+                "",
+            ),
+            expect_equal(
+                "github_notes_error rejects an empty value",
+                github_notes_error(""),
+                "github_deploy: invalid notes '': want 'commits', 'none' or a file label",
             ),
             expect_equal(
                 "github_asset_collision_error accepts unique asset names",

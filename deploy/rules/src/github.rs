@@ -9,14 +9,100 @@ use crate::stage::*;
 use std::io;
 use std::path::Path;
 
+/// Where the release body comes from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Notes {
+    /// No body.
+    None,
+    /// The grouped conventional-commit list since the previous tag.
+    Commits,
+    /// A markdown file from the runfiles.
+    File(String),
+}
+
+impl Notes {
+    /// Reads the `notes` and `notes_rloc` config fields.
+    pub fn from_config(mode: &str, rloc: &str) -> Notes {
+        match mode {
+            "commits" => Notes::Commits,
+            "file" => Notes::File(rloc.to_owned()),
+            _ => Notes::None,
+        }
+    }
+}
+
 /// Formats one GitHub release command.
 pub fn github_release_command(tag: &str, asset_bases: &[String]) -> String {
+    release_command(tag, asset_bases, false)
+}
+
+fn release_command(tag: &str, asset_bases: &[String], with_notes: bool) -> String {
     let mut cmd = format!("gh release create {tag}");
     for base in asset_bases {
         cmd.push_str(&format!(" {base}"));
     }
     cmd.push_str(" --draft --verify-tag");
+    if with_notes {
+        cmd.push_str(" --notes-file notes.md");
+    }
     cmd
+}
+
+fn git_output(workspace: Option<&std::ffi::OsString>, args: &[&str]) -> Result<String, String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(args);
+    if let Some(dir) = workspace {
+        cmd.current_dir(dir);
+    }
+    let out = cmd.output().map_err(|error| format!("git: {error}"))?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        return Err(format!("git {} failed: {}", args[0], stderr.trim()));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// Resolves `current` to the tag that points at HEAD; other tags pass through.
+pub(crate) fn resolve_tag(
+    tag: &str,
+    workspace: Option<&std::ffi::OsString>,
+) -> Result<String, String> {
+    if tag != "current" {
+        return Ok(tag.to_owned());
+    }
+    let out = git_output(
+        workspace,
+        &["tag", "--points-at", "HEAD", "--sort=-v:refname"],
+    )?;
+    out.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| "tag = \"current\" but no tag points at HEAD".to_owned())
+}
+
+/// Renders the grouped commit list between the tag before `tag` and `tag`.
+pub(crate) fn commit_notes(
+    tag: &str,
+    workspace: Option<&std::ffi::OsString>,
+) -> Result<String, String> {
+    let previous = git_output(
+        workspace,
+        &["describe", "--tags", "--abbrev=0", &format!("{tag}^")],
+    )
+    .ok()
+    .map(|out| out.trim().to_owned())
+    .filter(|out| !out.is_empty());
+    let range = match previous {
+        Some(previous) => format!("{previous}..{tag}"),
+        None => tag.to_owned(),
+    };
+    let log = git_output(workspace, &["log", "--format=%H%x00%s%x00%b%x1e", &range])?;
+    let commits = dx_update::release::conventional::parse(&log);
+    Ok(dx_update::release::conventional::notes(
+        &commits,
+        dx_update::release::conventional::DEFAULT_GROUPS,
+    ))
 }
 
 /// Returns the asset names, rejecting two assets that share one.
@@ -60,6 +146,17 @@ pub fn github_build_staging(
     deploy_name: &str,
     tag: &str,
 ) -> io::Result<std::path::PathBuf> {
+    github_build_staging_with_notes(asset_srcs, outdir, deploy_name, tag, None)
+}
+
+/// Builds one GitHub release staging dir that also holds the release body.
+pub fn github_build_staging_with_notes(
+    asset_srcs: &[std::path::PathBuf],
+    outdir: &Path,
+    deploy_name: &str,
+    tag: &str,
+    notes: Option<&str>,
+) -> io::Result<std::path::PathBuf> {
     let mut sorted: Vec<&std::path::PathBuf> = asset_srcs.iter().collect();
     sorted.sort();
     let bases = github_asset_bases(&sorted)?;
@@ -71,7 +168,10 @@ pub fn github_build_staging(
         let digest = copy_verified(src, &dest)?;
         lines.push(format!("asset-sha256: {digest}  {base}"));
     }
-    lines.push(github_release_command(tag, &bases));
+    if let Some(notes) = notes {
+        std::fs::write(staging.join("notes.md"), notes.as_bytes())?;
+    }
+    lines.push(release_command(tag, &bases, notes.is_some()));
     std::fs::write(staging.join("would-run.txt"), lines.join("\n").as_bytes())?;
     Ok(staging)
 }
@@ -192,6 +292,17 @@ fn sbom_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> Vec<String> {
 
 /// Runs the GitHub deploy tool.
 pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
+    github_main_with_notes(asset_rlocs, deploy_name, tag, &Notes::None, argv)
+}
+
+/// Runs the GitHub deploy tool with a release body.
+pub fn github_main_with_notes(
+    asset_rlocs: &[String],
+    deploy_name: &str,
+    tag: &str,
+    notes: &Notes,
+    argv: &[String],
+) -> i32 {
     let Some(run) = DeployRun::start(
         "github_deploy",
         "the release is exactly the artifacts pinned at analysis time",
@@ -216,7 +327,39 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
             return 1;
         }
     };
-    if GITHUB_GATE.requested(env_or_empty) {
+    let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty());
+    let live = GITHUB_GATE.requested(env_or_empty);
+    let resolved = resolve_tag(tag, workspace.as_ref());
+    let tag_text = match &resolved {
+        Ok(tag) => tag.as_str(),
+        Err(_) if !live => tag,
+        Err(error) => {
+            eprintln!("github_deploy: {error}");
+            return 1;
+        }
+    };
+    let notes_text: Result<Option<String>, String> = match notes {
+        Notes::None => Ok(None),
+        Notes::Commits => resolved
+            .clone()
+            .and_then(|tag| commit_notes(&tag, workspace.as_ref()))
+            .map(Some),
+        Notes::File(rloc) => match run.resolve(rloc) {
+            Some(path) => std::fs::read_to_string(&path)
+                .map(Some)
+                .map_err(|error| format!("cannot read notes {}: {error}", path.display())),
+            None => return 1,
+        },
+    };
+    if live {
+        let tag = tag_text;
+        let notes_text = match notes_text {
+            Ok(text) => text,
+            Err(error) => {
+                eprintln!("github_deploy: {error}");
+                return 1;
+            }
+        };
         if let Some(error) = placeholder_refusal("github_deploy", tag) {
             eprintln!("{error}");
             return 1;
@@ -252,9 +395,18 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
             };
         }
         cmd.arg("--draft").arg("--verify-tag");
-        if let Some(workspace) =
-            std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
-        {
+        if let Some(text) = &notes_text {
+            let file = outdir.join("notes.md");
+            if let Err(error) =
+                std::fs::create_dir_all(outdir).and_then(|()| std::fs::write(&file, text))
+            {
+                eprintln!("github_deploy: cannot write {}: {error}", file.display());
+                return 1;
+            }
+            cmd.arg("--notes-file")
+                .arg(std::path::absolute(&file).unwrap_or(file));
+        }
+        if let Some(workspace) = workspace {
             cmd.current_dir(workspace);
         }
         match cmd.status() {
@@ -275,17 +427,31 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
             }
         }
     }
-    match github_build_staging(&assets, outdir, deploy_name, tag) {
+    let attached = notes_text.as_ref().ok().and_then(|text| text.as_deref());
+    match github_build_staging_with_notes(&assets, outdir, deploy_name, tag_text, attached) {
         Ok(staging) => {
             println!("github_deploy: staged draft release, publishing nothing:");
-            println!("  tag: {tag}");
+            println!("  tag: {tag_text}");
             for (src, base) in sorted.iter().zip(&bases) {
                 println!("  asset: {base} ({})", src.display());
             }
             for line in sbom_lines(&sorted, &bases) {
                 println!("{line}");
             }
-            println!("  command: {}", github_release_command(tag, &bases));
+            println!(
+                "  command: {}",
+                release_command(tag_text, &bases, attached.is_some())
+            );
+            match &notes_text {
+                Ok(Some(text)) => {
+                    println!("  notes:");
+                    for line in text.lines() {
+                        println!("    {line}");
+                    }
+                }
+                Ok(None) => {}
+                Err(reason) => println!("  notes: unavailable ({reason})"),
+            }
             println!("  staging: {}", staging.display());
             println!("  manifest: {}", staging.join("would-run.txt").display());
             for line in previous_release_lines(&bases) {
@@ -520,6 +686,80 @@ mod tests {
         assert!(
             lines[0].starts_with("  previous release: unavailable ("),
             "{lines:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    fn fake_git(bin: &Path) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::create_dir_all(bin).expect("bin");
+        let git = bin.join("git");
+        let script = r#"#!/bin/sh
+case "$1" in
+  tag) echo v1.1.0 ;;
+  describe) echo v1.0.0 ;;
+  log) printf 'aaaaaaa1\0feat(cli): add init\0\036bbbbbbb2\0fix: stop crash\0\036ccccccc3\0fix: second\0\036' ;;
+esac
+"#;
+        std::fs::write(&git, script).expect("write git");
+        std::fs::set_permissions(&git, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn current_tag_and_commit_notes_come_from_git() {
+        if env_test_in_child("github::tests::current_tag_and_commit_notes_come_from_git") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let bin = scratch.path().join("bin");
+        fake_git(&bin);
+        let (tag, notes) = with_env(&[("PATH", Some(bin.to_string_lossy().as_ref()))], || {
+            let tag = resolve_tag("current", None).expect("tag");
+            (tag.clone(), commit_notes(&tag, None).expect("notes"))
+        });
+        assert_eq!(tag, "v1.1.0");
+        assert!(
+            notes.contains("## Features\n\n- **cli**: add init (aaaaaaa)"),
+            "{notes}"
+        );
+        assert!(
+            notes.contains("## Fixes\n\n- stop crash (bbbbbbb)\n- second (ccccccc)"),
+            "{notes}"
+        );
+        assert_eq!(resolve_tag("v2", None), Ok("v2".to_owned()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn github_dry_run_stages_the_commit_notes() {
+        if env_test_in_child("github::tests::github_dry_run_stages_the_commit_notes") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let bin = scratch.path().join("bin");
+        fake_git(&bin);
+        let outdir = scratch.path().join("out");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let code = with_env(
+            &[
+                ("PATH", Some(bin.to_string_lossy().as_ref())),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("GH_RELEASE_LIVE", None),
+                ("GH_RELEASE_APPROVED", None),
+            ],
+            || github_main_with_notes(&[], "demo", "current", &Notes::Commits, &argv),
+        );
+        assert_eq!(code, 0);
+        let staging = outdir.join("demo-release");
+        let notes = std::fs::read_to_string(staging.join("notes.md")).expect("notes");
+        assert!(notes.contains("## Features"), "{notes}");
+        assert!(notes.contains("## Fixes"), "{notes}");
+        let manifest = std::fs::read_to_string(staging.join("would-run.txt")).expect("manifest");
+        assert!(
+            manifest
+                .ends_with("gh release create v1.1.0 --draft --verify-tag --notes-file notes.md"),
+            "{manifest}"
         );
     }
 }

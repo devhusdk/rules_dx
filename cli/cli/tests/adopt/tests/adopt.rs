@@ -181,3 +181,40 @@ fn fresh_clone_gets_layers_on_first_command() {
     tree(&layers, &root, &mut after);
     assert_eq!(before, after);
 }
+
+#[test]
+fn init_leaves_polyglot_locks_untouched_and_is_idempotent() {
+    let (_guard, root, home) = setup("adopt-polyglot");
+    let names = [
+        "Cargo.toml",
+        "Cargo.lock",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pyproject.toml",
+        "uv.lock",
+    ];
+    let mut originals = BTreeMap::new();
+    for name in names {
+        let rel = std::env::var(format!(
+            "DX_POLYGLOT_{}",
+            name.replace(['.', '-'], "_").to_uppercase()
+        ))
+        .unwrap_or_else(|_| panic!("missing path for {name}"));
+        let text = std::fs::read(resolve_runfiles(&rel)).expect("read fixture");
+        std::fs::write(root.join(name), &text).expect("stage fixture");
+        originals.insert(name, text);
+    }
+    init(&root, &home);
+    for (name, text) in &originals {
+        assert_eq!(
+            &std::fs::read(root.join(name)).expect("read"),
+            text,
+            "init changed {name}"
+        );
+    }
+    let before = snapshot(&root);
+    init(&root, &home);
+    assert_eq!(before, snapshot(&root));
+    let check = dx(&root, &home, &["init"]);
+    assert_eq!(check.code, 0, "{}", check.stderr);
+}

@@ -2,6 +2,7 @@ load("@rules_dx//cc/rules:defs.bzl", "cc_test")
 load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_files")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+load(":failure_tests.bzl", "unknown_generator_test")
 load(":transition.bzl", "arm64_files")
 
 package(
@@ -114,6 +115,22 @@ genrule(
     outs = ["gcc_configure.log"],
     cmd = "for f in $(locations :zlib_log_gcc); do case $$f in *CMake.log) cp $$f $@;; esac; done",
     tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+cmake(
+    name = "zlib_bogus_generator",
+    generate_args = ["-GBogus"],
+    lib_source = "@foreign_cmake_zlib//:all_srcs",
+    out_static_libs = ["libz.a"],
+    tags = _THIRD_PARTY + ["manual"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+unknown_generator_test(
+    name = "unknown_generator_test",
+    size = "small",
+    target_under_test = ":zlib_bogus_generator",
     target_compatible_with = _LINUX_X86_64,
 )
 

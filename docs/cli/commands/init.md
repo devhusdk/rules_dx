@@ -117,7 +117,7 @@ match the running dx.
 | `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
 | `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
-| `.bazelrc` | you | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |
+| `.bazelrc` | you | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists, and `try-import %workspace%/user.bazelrc` at the bottom when no line names it. Other lines stay. |
 | `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | you | Written in a fresh directory only. |
 | `.gitignore` | you | Written when missing. An existing file gets each line of the list above that no line covers appended. |
@@ -310,7 +310,8 @@ To adopt `rules_dx` in a repo that already uses upstream rules, see
 `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc` and `resources.bazelrc`,
 and puts three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines at the top
 of the root `.bazelrc` (created when missing; its other bytes, BOM and line
-endings stay as they are). The layers are gitignored. Before each command, dx writes
+endings stay as they are) and `try-import %workspace%/user.bazelrc` at the bottom
+when no line names `user.bazelrc`. The layers are gitignored. Before each command, dx writes
 any imported layer that is missing or out of date, so a fresh clone needs no extra step.
 Plain `bazel` skips layers that do not exist.
 
@@ -328,4 +329,13 @@ Plain `bazel` skips layers that do not exist.
 - Warnings are errors by default in the rules_dx wrappers. Add
   `common --@rules_dx//config:warnings_as_errors=false` to the root `.bazelrc` to
   turn that off repo-wide; a target can override it with `treat_warnings_as_errors`.
+- Machine-specific flags go in `user.bazelrc`:
+
+  ```sh
+  echo 'common --disk_cache=~/.cache/bazel-disk' >> user.bazelrc
+  echo 'common --remote_cache=grpcs://cache.example.com' >> user.bazelrc
+  echo 'common --remote_header=x-api-key=<key>' >> user.bazelrc
+  echo 'build --jobs=8' >> user.bazelrc
+  ```
+
 - In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.

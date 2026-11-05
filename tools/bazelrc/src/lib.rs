@@ -304,6 +304,10 @@ fn import_verb(dir: &str) -> &'static str {
     }
 }
 
+/// The per-user file that holds machine-specific flags.
+const USER_BAZELRC: &str = "user.bazelrc";
+const USER_IMPORT: &str = "try-import %workspace%/user.bazelrc";
+
 /// The comment `prepend_imports` writes above the import block.
 pub const IMPORT_COMMENT: &str = "# dx Bazel preset; comment out an import to drop that layer.";
 
@@ -344,6 +348,14 @@ pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
     if !rest.is_empty() {
         out.push_str(eol);
         out.push_str(rest);
+    }
+    if !rest.lines().any(|line| line.contains(USER_BAZELRC)) {
+        if !rest.is_empty() && !rest.ends_with('\n') {
+            out.push_str(eol);
+        }
+        out.push_str(eol);
+        out.push_str(USER_IMPORT);
+        out.push_str(eol);
     }
     out
 }
@@ -639,12 +651,17 @@ mod tests {
         let all = Layer::ALL;
         let crlf = prepend_imports("\u{feff}build --x\r\n", CONSUMER_DIR, &all);
         assert!(crlf.starts_with("\u{feff}# dx Bazel preset"));
-        assert!(crlf.ends_with("\r\n\r\nbuild --x\r\n"));
+        assert!(crlf.ends_with("\r\n\r\nbuild --x\r\n\r\ntry-import %workspace%/user.bazelrc\r\n"));
         assert!(!crlf.replace("\r\n", "").contains('\n'));
         let lf = prepend_imports("build --x\n", CONSUMER_DIR, &all);
-        assert!(lf.ends_with("\n\nbuild --x\n"));
+        assert!(lf.ends_with("\n\nbuild --x\n\ntry-import %workspace%/user.bazelrc\n"));
+        let kept = prepend_imports("try-import %workspace%/user.bazelrc\n", CONSUMER_DIR, &all);
+        assert_eq!(kept.matches("user.bazelrc").count(), 1);
         let empty = prepend_imports("", CONSUMER_DIR, &all);
-        assert_eq!(empty.lines().count(), 1 + all.len());
+        assert_eq!(empty.lines().count(), 3 + all.len());
+        assert!(empty
+            .trim_end()
+            .ends_with("try-import %workspace%/user.bazelrc"));
         for (_, state) in layer_import_state(&lf, CONSUMER_DIR) {
             assert_eq!(state, ImportState::Active);
         }

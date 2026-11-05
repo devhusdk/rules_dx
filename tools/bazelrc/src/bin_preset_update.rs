@@ -110,7 +110,11 @@ mod tests {
 
     fn write_all_layers(root: &std::path::Path) {
         for (layer, path) in dx_preset::preset_paths(root, dx_preset::REPO_DIR) {
-            std::fs::write(path, dx_preset::render_layer(layer, dx_preset::DEFAULT_REPO)).expect("layer");
+            std::fs::write(
+                path,
+                dx_preset::render_layer(layer, dx_preset::DEFAULT_REPO),
+            )
+            .expect("layer");
         }
     }
 

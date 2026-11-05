@@ -480,7 +480,10 @@ mod tests {
         std::fs::write(root.join(".bazelrc"), "build --jobs=2\r\n").expect("rc");
         apply(root);
         let text = std::fs::read_to_string(root.join(".bazelrc")).expect("read");
-        assert!(text.ends_with("\r\n\r\nbuild --jobs=2\r\n"), "{text:?}");
+        assert!(
+            text.ends_with("\r\n\r\nbuild --jobs=2\r\n\r\ntry-import %workspace%/user.bazelrc\r\n"),
+            "{text:?}"
+        );
         assert!(text.starts_with(dx_preset::IMPORT_COMMENT));
     }
 

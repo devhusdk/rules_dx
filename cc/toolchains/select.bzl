@@ -55,16 +55,21 @@ cc_toolchain_test = rule(
     test = True,
 )
 
-def _files_transition_impl(_settings, attr):
+def _files_transition_impl(settings, attr):
+    features = list(settings[_FEATURES])
+    for f in getattr(attr, "extra_features", []):
+        if f not in features:
+            features.append(f)
     return {
         _COMPILER: attr.compiler,
+        _FEATURES: features,
         _PLATFORMS: attr.platforms,
     }
 
 _files_transition = transition(
     implementation = _files_transition_impl,
-    inputs = [],
-    outputs = [_COMPILER, _PLATFORMS],
+    inputs = [_FEATURES],
+    outputs = [_COMPILER, _FEATURES, _PLATFORMS],
 )
 
 def _files_impl(ctx):
@@ -92,6 +97,7 @@ cc_toolchain_binary = rule(
     attrs = {
         "binary": attr.label(doc = "Executable to build.", executable = True, cfg = _files_transition, mandatory = True),
         "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
+        "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as dynamic_libstdcxx.", default = []),
         "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),
     },
     executable = True,

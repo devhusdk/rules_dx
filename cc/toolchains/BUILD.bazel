@@ -318,3 +318,41 @@ native_runtime(
     version = GCC_GLIBC.removeprefix("glibc_"),
     visibility = ["//visibility:public"],
 )
+
+# The dynamic_libstdcxx feature links against libstdc++ and libgcc_s, which
+# ship next to the app and are found through its $ORIGIN rpath.
+genrule(
+    name = "gcc_linux_libstdcxx_libs",
+    srcs = ["@dx_gcc_linux_x86_64//:lib"],
+    outs = [
+        "gcc_linux_libstdcxx/libgcc_s.so.1",
+        "gcc_linux_libstdcxx/libstdc++.so.6",
+    ],
+    cmd = """
+for f in $(SRCS); do
+  case "$$f" in
+    */lib64/libstdc++.so.6|*/lib64/libgcc_s.so.1) cp -L "$$f" "$(RULEDIR)/gcc_linux_libstdcxx/$$(basename "$$f")" ;;
+  esac
+done
+""",
+)
+
+genrule(
+    name = "gcc_linux_libstdcxx_notice",
+    srcs = [
+        "notices/GCC_RUNTIME_LIBRARY_EXCEPTION.txt",
+        "notices/GPL-3.txt",
+    ],
+    outs = ["gcc_linux_libstdcxx_NOTICE.txt"],
+    cmd = "cat $(SRCS) > $@",
+)
+
+native_runtime(
+    name = "gcc_linux_libstdcxx",
+    srcs = [":gcc_linux_libstdcxx_libs"],
+    notice = ":gcc_linux_libstdcxx_notice",
+    redistribution = "app_local",
+    source = "gcc " + GCC_VERSION,
+    version = GCC_VERSION,
+    visibility = ["//visibility:public"],
+)

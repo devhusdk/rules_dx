@@ -47,9 +47,18 @@ cc_nested_args(
     iterate_over = "@rules_cc//cc/toolchains/variables:runtime_library_search_directories",
 )
 
+cc_args(
+    name = "app_origin_rpath",
+    actions = _LINK_ACTIONS,
+    args = ["-Wl,-rpath,$ORIGIN"],
+)
+
 cc_feature(
     name = "dynamic_libstdcxx",
-    args = [":origin_rpath"],
+    args = [
+        ":origin_rpath",
+        ":app_origin_rpath",
+    ],
     feature_name = "dynamic_libstdcxx",
     implies = [":static_link_cpp_runtimes"],
 )

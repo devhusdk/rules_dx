@@ -322,6 +322,12 @@ native_runtime(
 - `version` and `source`: required and non-empty.
 - `notice`: required for `app_local`.
 
+`//cc/toolchains:gcc_linux_libstdcxx` is an `app_local` runtime with the
+pinned GCC's `libstdc++.so.6` and `libgcc_s.so.1` and the GCC Runtime Library
+Exception notice. Build the app with `extra_features = ["dynamic_libstdcxx"]`
+on `cc_toolchain_binary`, which adds `-Wl,-rpath,$ORIGIN`, and list it in
+`runtime` next to `gcc_linux_glibc`.
+
 Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
 builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
 other member with mode 0644, in both formats.

@@ -1,7 +1,7 @@
 """Run a test or build a binary under an explicitly selected C++ toolchain."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
-load("//libs/starlark:wrapper.bzl", "dx_gcov_tool", "dx_lcov_merger_attr", "dx_symlink_executable")
+load("//libs/starlark:wrapper.bzl", "dx_gcov_tool", "dx_lcov_merger_attr", "dx_symlink_executable", "dx_symlink_executable_name")
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
 
@@ -36,17 +36,21 @@ toolchain_transition = transition(
 )
 
 def _test_impl(ctx):
-    # Windows loads DLLs from the executable's directory, and the forwarder sits in another one.
     src = ctx.attr.test[0]
     inner = src[DefaultInfo].files_to_run.executable
-    exe = dx_symlink_executable(ctx, inner)
     upstream_runfiles = src[DefaultInfo].default_runfiles
+    dll_srcs = [f for f in upstream_runfiles.files.to_list() if f.extension == "dll"]
+    if dll_srcs:
+        # Windows loads DLLs from the executable's directory, so give each test its own.
+        exe = ctx.actions.declare_file(ctx.label.name + "_bin/" + dx_symlink_executable_name(ctx.label.name, inner))
+        ctx.actions.symlink(output = exe, target_file = inner, is_executable = True)
+    else:
+        exe = dx_symlink_executable(ctx, inner)
     dlls = []
-    for f in upstream_runfiles.files.to_list():
-        if f.extension == "dll":
-            dll = ctx.actions.declare_file(f.basename, sibling = exe)
-            ctx.actions.symlink(output = dll, target_file = f)
-            dlls.append(dll)
+    for f in dll_srcs:
+        dll = ctx.actions.declare_file(f.basename, sibling = exe)
+        ctx.actions.symlink(output = dll, target_file = f)
+        dlls.append(dll)
     runfiles = ctx.runfiles(files = [inner] + dlls).merge(upstream_runfiles)
     providers = [DefaultInfo(executable = exe, runfiles = runfiles)]
     if RunEnvironmentInfo in src:

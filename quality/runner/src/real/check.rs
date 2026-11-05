@@ -841,7 +841,7 @@ impl RealBackend {
                 };
                 let java = companion("java")?;
                 let jar = companion("pkl-lsp.jar")?;
-                let home = scratch.root().join(".dx-pkl-lsp").join("home");
+                let home = scratch.root().join(PKL_LSP_HOME_REL);
                 std::fs::create_dir_all(&home)
                     .map_err(|err| execution(tool_id, format!("stage pkl-lsp home: {err}")))?;
                 let invocation = commands::pkl_lsp_check(&tool.binary, &java, &jar, &home, &refs);

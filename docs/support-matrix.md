@@ -85,7 +85,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | Elixir | `credo` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` | no | `cover` |
-| Flutter | no | no | no | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
+| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | Fortran | `fortitude` | `ffmt` | `flang` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
 | F# | `fsharplint` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` | `go doc` | `go cover` |
@@ -121,22 +121,28 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Bicep | `bicep` | `bicep` | n/a | n/a | n/a |
 | Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a |
 | CloudFormation | `cfn_lint` | no | n/a | n/a | n/a |
+| CSS | `stylelint` | `prettier` | no | n/a | n/a |
 | CUE | n/a | `cue` | `cue` | n/a | n/a |
 | FlatBuffers | `flatc` | n/a | `flatc` | n/a | n/a |
 | Gherkin | `gplint` | `prettier` | n/a | n/a | n/a |
+| GraphQL | `graphql_eslint` | `prettier` | no | n/a | n/a |
 | Helm | `helm` | no | n/a | n/a | n/a |
 | HTML templates | `djlint` | `djlint` | n/a | n/a | n/a |
 | Jsonnet | `jsonnet_lint` | `jsonnetfmt` | n/a | n/a | n/a |
 | Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a |
 | Kubernetes | `kubeconform` | `prettier` | n/a | n/a | n/a |
 | LaTeX | `chktex` | `latexindent` | n/a | n/a | n/a |
+| Markdown | `markdown_check`, `vale` | no | no | n/a | n/a |
 | Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a |
 | Pkl | `pkl_lsp` | `pkl` | `pkl` | n/a | n/a |
 | Rego | `regal` | `opa` | `opa` | n/a | n/a |
 | reStructuredText | `vale` | no | n/a | n/a | n/a |
+| Shell | `shellcheck` | `shfmt` | no | n/a | n/a |
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a | n/a | n/a |
+| Starlark | `buildifier` | `buildifier` | no | n/a | n/a |
 | Terraform | `tflint` | `terraform` | `terraform` | n/a | n/a |
 | Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | n/a |
+| TOML | `taplo` | `taplo` | no | n/a | n/a |
 | Typst | `tinymist` | `typstyle` | n/a | n/a | n/a |
 | XML | `xmllint` | `prettier` | n/a | n/a | n/a |
 | YAML | `yamllint` | `yamlfmt` | n/a | n/a | n/a |

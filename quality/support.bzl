@@ -817,6 +817,54 @@ PROTOBUF_BUF_LINT_SUPPORT = support(
     transport = "batched",
 )
 
+TOML_TAPLO_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["toml"],
+    context = "owned",
+    family = "toml",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "taplo",
+    transport = "batched",
+)
+
+TOML_TAPLO_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["toml"],
+    context = "owned",
+    family = "toml",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "taplo",
+    transport = "batched",
+)
+
+STARLARK_BUILDIFIER_LINT_SUPPORT = support(
+    capability = "lint",
+    classes = ["starlark"],
+    context = "owned",
+    family = "starlark",
+    fix = "check_only",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "buildifier",
+    transport = "batched",
+)
+
+STARLARK_BUILDIFIER_FORMAT_SUPPORT = support(
+    capability = "format",
+    classes = ["starlark"],
+    context = "owned",
+    family = "starlark",
+    fix = "supported",
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    state = "supported",
+    tool = "buildifier",
+    transport = "batched",
+)
+
 FLATBUFFERS_FLATC_LINT_SUPPORT = support(
     capability = "lint",
     classes = ["flatbuffers"],
@@ -2107,6 +2155,10 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     RUST_RUSTC_TYPECHECK_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
+    TOML_TAPLO_LINT_SUPPORT,
+    TOML_TAPLO_FORMAT_SUPPORT,
+    STARLARK_BUILDIFIER_LINT_SUPPORT,
+    STARLARK_BUILDIFIER_FORMAT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,
     GRAPHQL_ESLINT_LINT_SUPPORT,
     API_SPEC_REDOCLY_LINT_SUPPORT,

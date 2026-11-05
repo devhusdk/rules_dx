@@ -114,7 +114,10 @@ filegroup(
 
 filegroup(
     name = "strip_files",
-    srcs = ["{ndk}:llvm_strip"],
+    srcs = [
+        "{ndk}:llvm_strip",
+        "llvm-strip",
+    ],
 )
 """
 
@@ -180,6 +183,7 @@ def _android_ndk_toolchain_repo_impl(ctx):
         if len(failures) > 0:
             fail("; ".join(failures))
         ndk = Label("@" + ndk_repository_name(_QUALIFIED_HOST) + "//:ndk_anchor")
+        ctx.symlink(ctx.path(ndk).dirname.get_child("extracted/" + NDK_PREBUILT + "/bin/llvm-strip"), "llvm-strip")
         ctx.file("BUILD.bazel", toolchain_build(
             str(ndk).removesuffix(":ndk_anchor"),
             ndk.workspace_root + "/extracted",
@@ -198,6 +202,7 @@ def _android_ndk_toolchain_repo_impl(ctx):
         if not ctx.path(path).exists:
             fail("android_ndk_toolchain: '" + path + "' is absent from the declared SDK")
     ctx.symlink(ctx.path(ctx.attr.local_path), "sdk")
+    ctx.symlink(ctx.path(ctx.attr.local_path + "/ndk/" + revision + "/" + NDK_PREBUILT + "/bin/llvm-strip"), "llvm-strip")
     local_root = "sdk/ndk/" + revision
     ctx.file("BUILD.bazel", toolchain_build(
         "",

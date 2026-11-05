@@ -67,6 +67,7 @@ load("//sql/rules:providers.bzl", "SqlDialectInfo")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
+load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
@@ -1642,6 +1643,16 @@ def _go_docs_shard(target, ctx):
         return None
     return go_shard_action(ctx, info, "", "_dx_docs/" + ctx.label.name, ctx.executable._driver, ctx.executable._go_extract).shard
 
+def _python_docs_shard(target, ctx):
+    if _PyInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    if not python_package_name_ok(ctx.label.name):
+        return None
+    action = python_shard_action(ctx, target[_PyInfo], ctx.label.name, "google", "_dx_docs/" + ctx.label.name, ctx.executable._py_driver, ctx.executable._py_extract)
+    return action.shard if action else None
+
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
@@ -1674,6 +1685,9 @@ def _real_docs_aspect_impl(target, ctx):
     go_shard = _go_docs_shard(target, ctx)
     if go_shard:
         parts.append({"dx_results": [go_shard], "dx_docs_shards": [go_shard]})
+    py_shard = _python_docs_shard(target, ctx)
+    if py_shard:
+        parts.append({"dx_results": [py_shard], "dx_docs_shards": [py_shard]})
     if not parts:
         return []
     groups = {}
@@ -1684,7 +1698,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust and Go library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go and Python library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_driver": attr.label(
             cfg = "exec",
@@ -1705,6 +1719,16 @@ real_docs_aspect = aspect(
         "_process_wrapper": attr.label(
             default = Label("@rules_rust//util/process_wrapper"),
             cfg = "exec",
+            executable = True,
+        ),
+        "_py_driver": attr.label(
+            cfg = "exec",
+            default = Label("//quality/tools/python:griffe_dump"),
+            executable = True,
+        ),
+        "_py_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/python/extract:python_extract"),
             executable = True,
         ),
     },

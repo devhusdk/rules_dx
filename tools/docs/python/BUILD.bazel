@@ -4,7 +4,10 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files(["defs.bzl"], visibility = VIS_TOOLS)
+exports_files(
+    ["defs.bzl", "shard.bzl"],
+    visibility = VIS_TOOLS,
+)
 
 # keep
 rust_test(
@@ -38,6 +41,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "shard.bzl",
     ],
     tags = ["corpus"],
 )

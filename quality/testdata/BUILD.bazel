@@ -2028,6 +2028,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_python_library_subject",
+    target = "//tools/docs/python/fixture:mylib",
+)
+
+real_docs_subject(
     name = "docs_plain_subject",
     target = ":plain",
 )
@@ -2039,6 +2044,7 @@ real_docs_tests(
         ":docs_demo_site_subject",
         ":docs_go_library_subject",
         ":docs_plain_subject",
+        ":docs_python_library_subject",
         ":docs_rust_library_subject",
         ":docs_rust_test_subject",
     ],

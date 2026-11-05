@@ -197,7 +197,10 @@ py_binary(
     dep_group = "dx-python-tools",
     imports = ["."],
     main = "griffe_dump.py",
-    visibility = ["//tools/docs/python:__subpackages__"],
+    visibility = [
+        "//quality:__pkg__",
+        "//tools/docs/python:__subpackages__",
+    ],
     deps = ["@pypi//griffelib"],
 )
 

@@ -133,3 +133,6 @@ The Windows archives are `.7z` files that use BCJ2, which Bazel cannot unpack, s
 extracted with the pinned 7-Zip in `//libs/starlark:seven_zip.bzl`. LDC has no native Windows
 arm64 compiler: that cell runs the x64 LDC under emulation with the arm64 runtime libraries of the
 LDC addon package, and compiles with `-mtriple=aarch64-windows-msvc`.
+
+The hello D tests (`greet_test`, `hello_output_test`) pass on Windows x86_64 (evidence run
+42057198949) and Windows arm64 (evidence run 42083243205).

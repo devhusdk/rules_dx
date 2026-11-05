@@ -1,10 +1,10 @@
 """MSVC layout assembly coverage."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//cc/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
 load(":repos.bzl", "HUB_NAME", "LICENSE", "UNACCEPTED", "hub_build", "layout_links", "missing_error")
-load("//cc/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load(":unavailable.bzl", "UNSUPPORTED")
 
 def _checks():

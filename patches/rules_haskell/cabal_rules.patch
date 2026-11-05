@@ -142,10 +142,20 @@ index 03ccd67..991b465 100644
      fragments = ["cpp"],
      doc = """\
 diff --git a/haskell/private/cabal_wrapper.py b/haskell/private/cabal_wrapper.py
-index 6e2a40e..9cfdc48 100755
+index 6e2a40e..f016952 100755
 --- a/haskell/private/cabal_wrapper.py
 +++ b/haskell/private/cabal_wrapper.py
-@@ -295,6 +295,7 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
+@@ -95,7 +95,8 @@ def canonicalize_path(path):
+ # Remove any relative entries, because we'll be changing CWD shortly.
+ os.environ["LD_LIBRARY_PATH"] = canonicalize_path(os.getenv("LD_LIBRARY_PATH", ""))
+ os.environ["LIBRARY_PATH"] = canonicalize_path(os.getenv("LIBRARY_PATH", ""))
+-os.environ["PATH"] = canonicalize_path(os.getenv("PATH", ""))
++if "PATH" in os.environ:
++    os.environ["PATH"] = canonicalize_path(os.environ["PATH"])
+ os.environ["RULES_HASKELL_GHC_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PATH", ""))
+ os.environ["RULES_HASKELL_GHC_PKG_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PKG_PATH", ""))
+ os.environ["RULES_HASKELL_LIBDIR_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_LIBDIR_PATH", ""))
+@@ -295,6 +296,7 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]

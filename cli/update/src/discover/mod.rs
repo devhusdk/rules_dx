@@ -9,6 +9,7 @@ pub mod go;
 pub mod maven;
 pub mod npm;
 pub mod nuget;
+pub mod pub_dev;
 pub mod pypi;
 pub mod ruby;
 
@@ -94,6 +95,7 @@ pub enum Registry {
     Nuget,
     Rubygems,
     Metacpan,
+    PubDev,
     GitHub,
     BazelReleases,
 }
@@ -116,6 +118,7 @@ impl Registry {
             Registry::Nuget => format!("https://www.nuget.org/packages/{package}"),
             Registry::Rubygems => format!("https://rubygems.org/gems/{package}"),
             Registry::Metacpan => format!("https://metacpan.org/pod/{package}"),
+            Registry::PubDev => format!("https://pub.dev/packages/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),
             Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),
         }

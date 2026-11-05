@@ -1,0 +1,225 @@
+//! Lists direct hosted packages whose newest release on pub.dev is newer than the one locked.
+
+use super::{release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+
+pub const DEFAULT_BASE: &str = "https://pub.dev";
+
+/// Checks each direct hosted package of the pubspec.lock files against the API at `base`.
+pub fn outdated(
+    set: &str,
+    lockfiles: &[String],
+    only: &[String],
+    prereleases: bool,
+    base: &str,
+    fetch: &dyn Fetch,
+) -> Findings {
+    let mut found = Findings::default();
+    let mut locked: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for text in lockfiles {
+        for (name, version) in direct_hosted(text) {
+            let versions = locked.entry(name).or_default();
+            if !versions.contains(&version) {
+                versions.push(version);
+            }
+        }
+    }
+    for (name, versions) in locked {
+        if !wanted(only, &name) {
+            continue;
+        }
+        let url = format!("{base}/api/packages/{name}");
+        let (latest, published) = match fetch.get(&url).and_then(|body| newest(&body, prereleases))
+        {
+            Ok(latest) => latest,
+            Err(reason) => {
+                found.errors.push(LookupError {
+                    set: set.to_owned(),
+                    package: name,
+                    reason,
+                });
+                continue;
+            }
+        };
+        for current in versions {
+            if release_cmp(&latest, &current) == Ordering::Greater {
+                found.candidates.push(Candidate {
+                    set: set.to_owned(),
+                    package: name.clone(),
+                    current,
+                    latest: latest.clone(),
+                    published: published.clone(),
+                    prerelease: latest.contains('-'),
+                    repo: None,
+                    tags: None,
+                });
+            }
+        }
+    }
+    found
+}
+
+/// Reads `(name, version)` of every direct package with `source: hosted`.
+fn direct_hosted(lock: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut in_packages = false;
+    let mut name = String::new();
+    let (mut direct, mut hosted, mut version) = (false, false, None::<String>);
+    let mut finish = |name: &str, direct: bool, hosted: bool, version: Option<String>| {
+        if let (true, true, Some(version)) = (direct, hosted, version) {
+            out.push((name.to_owned(), version));
+        }
+    };
+    for line in lock.lines() {
+        let indent = line.len() - line.trim_start().len();
+        let text = line.trim();
+        if text.is_empty() || text.starts_with('#') {
+            continue;
+        }
+        if indent == 0 {
+            finish(&name, direct, hosted, version.take());
+            (direct, hosted) = (false, false);
+            name.clear();
+            in_packages = text == "packages:";
+        } else if !in_packages {
+            continue;
+        } else if indent == 2 {
+            finish(&name, direct, hosted, version.take());
+            (direct, hosted) = (false, false);
+            name = text.trim_end_matches(':').trim_matches('"').to_owned();
+        } else if indent == 4 {
+            let Some((key, value)) = text.split_once(':') else {
+                continue;
+            };
+            let value = value.trim().trim_matches('"');
+            match key {
+                "dependency" => direct = value.starts_with("direct"),
+                "source" => hosted = value == "hosted",
+                "version" => version = Some(value.to_owned()),
+                _ => {}
+            }
+        }
+    }
+    finish(&name, direct, hosted, version);
+    out
+}
+
+fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), String> {
+    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+    let stable = json["latest"]["version"].as_str().map(str::to_owned);
+    let mut best = stable.clone().ok_or_else(|| "no version".to_owned())?;
+    if prereleases {
+        for entry in json["versions"].as_array().into_iter().flatten() {
+            if let Some(version) = entry["version"].as_str() {
+                if release_cmp(&strip_build(version), &strip_build(&best)) == Ordering::Greater {
+                    best = version.to_owned();
+                }
+            }
+        }
+    }
+    let published = [&json["latest"]]
+        .into_iter()
+        .chain(json["versions"].as_array().into_iter().flatten())
+        .find(|entry| entry["version"].as_str() == Some(best.as_str()))
+        .and_then(|entry| entry["published"].as_str())
+        .map(str::to_owned);
+    Ok((best, published))
+}
+
+fn strip_build(version: &str) -> String {
+    version.split('+').next().unwrap_or(version).to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LOCK: &str = r#"# Generated by pub
+packages:
+  old_pkg:
+    dependency: "direct main"
+    description:
+      name: old_pkg
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
+  current_pkg:
+    dependency: "direct dev"
+    description:
+      name: current_pkg
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
+  pre_pkg:
+    dependency: "direct main"
+    description:
+      name: pre_pkg
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
+  local_pkg:
+    dependency: "direct main"
+    description:
+      path: "../local"
+      relative: true
+    source: path
+    version: "0.0.1"
+  transitive:
+    dependency: transitive
+    description:
+      name: transitive
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
+sdks:
+  dart: ">=3.0.0 <4.0.0"
+"#;
+
+    fn api(url: &str) -> Result<String, String> {
+        let name = url
+            .strip_prefix("https://pub.dev/api/packages/")
+            .unwrap_or(url);
+        Ok(match name {
+            "old_pkg" => r#"{"latest":{"version":"1.2.0","published":"2026-03-01T00:00:00Z"},"versions":[]}"#,
+            "current_pkg" => r#"{"latest":{"version":"2.0.0"},"versions":[]}"#,
+            "pre_pkg" => r#"{"latest":{"version":"1.0.0"},"versions":[{"version":"1.0.0"},{"version":"2.0.0-beta.1","published":"2026-04-01T00:00:00Z"}]}"#,
+            _ => return Err(format!("unexpected lookup {name}")),
+        }
+        .to_owned())
+    }
+
+    #[test]
+    fn reads_only_direct_hosted_packages() {
+        let names: Vec<_> = direct_hosted(LOCK).into_iter().map(|(n, _)| n).collect();
+        assert_eq!(names, ["old_pkg", "current_pkg", "pre_pkg"]);
+    }
+
+    #[test]
+    fn lists_outdated_and_skips_current_and_non_hosted() {
+        let found = outdated("dart", &[LOCK.to_owned()], &[], false, DEFAULT_BASE, &api);
+        let listed: Vec<_> = found
+            .candidates
+            .iter()
+            .map(|c| (c.package.as_str(), c.current.as_str(), c.latest.as_str()))
+            .collect();
+        assert_eq!(listed, [("old_pkg", "1.0.0", "1.2.0")]);
+        assert_eq!(
+            found.candidates[0].published.as_deref(),
+            Some("2026-03-01T00:00:00Z")
+        );
+        assert!(found.errors.is_empty());
+    }
+
+    #[test]
+    fn prereleases_need_the_flag() {
+        let only = ["pre_pkg".to_owned()];
+        let text = [LOCK.to_owned()];
+        assert!(outdated("dart", &text, &only, false, DEFAULT_BASE, &api)
+            .candidates
+            .is_empty());
+        let found = outdated("dart", &text, &only, true, DEFAULT_BASE, &api);
+        assert_eq!(found.candidates[0].latest, "2.0.0-beta.1");
+        assert!(found.candidates[0].prerelease);
+    }
+}

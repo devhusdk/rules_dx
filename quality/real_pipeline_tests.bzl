@@ -304,7 +304,11 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("tsc", "lint"),
                     real_supported_classes("tsc", "format"),
                 ],
-                [["tsx", "typescript"], [], []],
+                [
+                    ["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"],
+                    [],
+                    [],
+                ],
             ),
             expect_equal(
                 "real_supported_classes returns rustc typecheck support only",

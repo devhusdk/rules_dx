@@ -571,6 +571,10 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         Constraint::DefaultIfUnset("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
     ),
     ("failure_test", Constraint::AsWritten),
+    (
+        "flutter_test",
+        Constraint::Appended("//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH"),
+    ),
     ("fsharp_test", Constraint::AsWritten),
     ("go_test", Constraint::AsWritten),
     ("haskell_test", Constraint::AsWritten),

@@ -1,0 +1,10 @@
+bazel_dep(name = "rules_dart", version = "0.8.1")
+bazel_dep(name = "rules_flutter", version = "0.0.8")
+
+flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
+flutter.toolchain(flutter_version = "3.47.8")
+flutter.pub(
+    name = "dx_flutter_app_deps",
+    lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
+)
+use_repo(flutter, "dx_flutter_app_deps")

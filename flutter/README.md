@@ -7,6 +7,8 @@ Pinned versions:
 
 The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one widget test. It needs no host Flutter, Dart, or Android SDK. It runs on Linux only.
 
+The app in `flutter/tests/fixtures/flutter-app` has a generated tips file, localized strings, a font, a web bundle with a browser test, and builds that fail on purpose. Its consumer qualification is `//tools/testing/hermetic:flutter`. Only Linux hosts are advertised for now.
+
 Consumers load the rules from `@rules_dx//flutter/rules:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
 
 Start a project:

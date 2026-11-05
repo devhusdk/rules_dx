@@ -572,6 +572,52 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "flutter",
+    failures = {
+        "//flutter/tests/fixtures/flutter-app/failures:missing_asset": "1 input file(s) do not exist",
+        "//flutter/tests/fixtures/flutter-app/failures:type_error": "The argument type 'int' can't be assigned to the parameter type 'String'",
+        "//flutter/tests/fixtures/flutter-app/failures:undeclared_dep": "is not a direct dependency of",
+    },
+    files = {
+        "//flutter/tests/fixtures/flutter-app:.dart_tool/package_config.json": "flutter/tests/fixtures/flutter-app/.dart_tool/package_config.json",
+        "//flutter/tests/fixtures/flutter-app:.dart_tool/package_graph.json": "flutter/tests/fixtures/flutter-app/.dart_tool/package_graph.json",
+        "//flutter/tests/fixtures/flutter-app:BUILD.bazel": "flutter/tests/fixtures/flutter-app/BUILD.bazel",
+        "//flutter/tests/fixtures/flutter-app/app:BUILD.bazel": "flutter/tests/fixtures/flutter-app/app/BUILD.bazel",
+        "//flutter/tests/fixtures/flutter-app/app:lib/app.dart": "flutter/tests/fixtures/flutter-app/app/lib/app.dart",
+        "//flutter/tests/fixtures/flutter-app/app:lib/l10n/app_da.arb": "flutter/tests/fixtures/flutter-app/app/lib/l10n/app_da.arb",
+        "//flutter/tests/fixtures/flutter-app/app:lib/l10n/app_en.arb": "flutter/tests/fixtures/flutter-app/app/lib/l10n/app_en.arb",
+        "//flutter/tests/fixtures/flutter-app/app:lib/main.dart": "flutter/tests/fixtures/flutter-app/app/lib/main.dart",
+        "//flutter/tests/fixtures/flutter-app/app:lib/src/count_label.dart": "flutter/tests/fixtures/flutter-app/app/lib/src/count_label.dart",
+        "//flutter/tests/fixtures/flutter-app/app:lib/src/home_page.dart": "flutter/tests/fixtures/flutter-app/app/lib/src/home_page.dart",
+        "//flutter/tests/fixtures/flutter-app/app:lib/src/parts_list.dart": "flutter/tests/fixtures/flutter-app/app/lib/src/parts_list.dart",
+        "//flutter/tests/fixtures/flutter-app/app:lib/src/parts_model.dart": "flutter/tests/fixtures/flutter-app/app/lib/src/parts_model.dart",
+        "//flutter/tests/fixtures/flutter-app/app:lib/src/tip_banner.dart": "flutter/tests/fixtures/flutter-app/app/lib/src/tip_banner.dart",
+        "//flutter/tests/fixtures/flutter-app/app:test/app_test.dart": "flutter/tests/fixtures/flutter-app/app/test/app_test.dart",
+        "//flutter/tests/fixtures/flutter-app/app:test/defines_test.dart": "flutter/tests/fixtures/flutter-app/app/test/defines_test.dart",
+        "//flutter/tests/fixtures/flutter-app/app:tips.txt": "flutter/tests/fixtures/flutter-app/app/tips.txt",
+        "//flutter/tests/fixtures/flutter-app:assets/fonts/DxSquare.ttf": "flutter/tests/fixtures/flutter-app/assets/fonts/DxSquare.ttf",
+        "//flutter/tests/fixtures/flutter-app:assets/items.json": "flutter/tests/fixtures/flutter-app/assets/items.json",
+        "//flutter/tests/fixtures/flutter-app/failures:BUILD.bazel": "flutter/tests/fixtures/flutter-app/failures/BUILD.bazel",
+        "//flutter/tests/fixtures/flutter-app/failures:lib/missing_asset.dart": "flutter/tests/fixtures/flutter-app/failures/lib/missing_asset.dart",
+        "//flutter/tests/fixtures/flutter-app/failures:lib/type_error.dart": "flutter/tests/fixtures/flutter-app/failures/lib/type_error.dart",
+        "//flutter/tests/fixtures/flutter-app/failures:lib/undeclared_dep.dart": "flutter/tests/fixtures/flutter-app/failures/lib/undeclared_dep.dart",
+        "//flutter/tests/fixtures/flutter-app/gen:BUILD.bazel": "flutter/tests/fixtures/flutter-app/gen/BUILD.bazel",
+        "//flutter/tests/fixtures/flutter-app/gen:bin/gen_tips.dart": "flutter/tests/fixtures/flutter-app/gen/bin/gen_tips.dart",
+        "//flutter/tests/fixtures/flutter-app:l10n.yaml": "flutter/tests/fixtures/flutter-app/l10n.yaml",
+        "//flutter/tests/fixtures/flutter-app:profile.bzl": "flutter/tests/fixtures/flutter-app/profile.bzl",
+        "//flutter/tests/fixtures/flutter-app:pubspec.lock": "flutter/tests/fixtures/flutter-app/pubspec.lock",
+        "//flutter/tests/fixtures/flutter-app:pubspec.yaml": "flutter/tests/fixtures/flutter-app/pubspec.yaml",
+    },
+    languages = [
+        "dart",
+        "flutter",
+    ],
+    module_fragment = "consumers/flutter/module_fragment.bazel",
+    patterns = ["//..."],
+    repo_name = "dx_rules",
+)
+
+hermetic_qualification(
     name = "cuda",
     files = {
         "consumers/cuda/apps/format.BUILD.bazel": "cuda/tests/fixtures/cuda-app/format/BUILD.bazel",

@@ -7,8 +7,11 @@ exports_files(
         "BUILD.bazel",
         "assets/fonts/DxSquare.ttf",
         "assets/items.json",
+        "l10n.yaml",
+        "profile.bzl",
         "pubspec.lock",
-    ],
+        "pubspec.yaml",
+    ] + glob([".dart_tool/*"]),
     visibility = [
         "//flutter/tests/fixtures/flutter-app:__subpackages__",
         "//tools/testing/hermetic:__pkg__",

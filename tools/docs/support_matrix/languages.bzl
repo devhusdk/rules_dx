@@ -40,6 +40,8 @@ COMPUTED_CONSTRAINTS = {
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
+    # Mirrors FLUTTER_COMPATIBLE_WITH in //flutter/rules:defs.bzl.
+    "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": [["@platforms//os:linux"]],
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
     # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
@@ -62,6 +64,7 @@ DOC_TOOLS = {
     "dart": None,
     "elixir": None,
     "erlang": None,
+    "flutter": None,
     "fortran": None,
     "fsharp": {"tool": "fsharp doc driver", "shard": "fsharp_doc_shard"},
     "go": {"tool": "go doc", "shard": "go_doc_shard"},
@@ -151,6 +154,14 @@ ROWS = [
         "name": "erlang",
         "section": "languages",
         "title": "Erlang",
+    },
+    {
+        "ci_tests": ["//flutter/tests/fixtures/flutter-app/app:app_test", "//flutter/tests/fixtures/flutter-app/web:browser_test"],
+        "consumer_tests": ["//tools/testing/hermetic:flutter"],
+        "families": [],
+        "name": "flutter",
+        "section": "languages",
+        "title": "Flutter",
     },
     {"ci_tests": ["//fortran/tests/runtime:stats_test"], "consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "title": "Fortran"},
     {"ci_tests": _hello("fsharp"), "consumer_tests": _starter_consumers("fsharp"), "name": "fsharp", "section": "languages", "title": "F#"},
@@ -286,7 +297,6 @@ ROWS = [
 ]
 
 NOT_LANGUAGES = [
-    "flutter",
     "swift",
     "bcr_test_module",
     "ci",
@@ -366,6 +376,7 @@ def support_matrix_inputs():
             files[_build_file(label)] = True
         for workflow in row.get("workflows", []):
             files["//.github:workflows/" + workflow] = True
+    files["//flutter/rules:defs.bzl"] = True
     files["//tools/testing:nested_bazel.bzl"] = True
     files["//tools/testing/hermetic:defs.bzl"] = True
     return sorted(files.keys())

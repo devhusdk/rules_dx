@@ -132,6 +132,16 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "rules_python",
+        version: "2.4.6",
+        patch_strip: 1,
+        archive: None,
+        patches: &[OverridePatch {
+            file: "single_import_lib.patch",
+            content: include_str!("../../../patches/rules_python/single_import_lib.patch"),
+        }],
+    },
+    Override {
         module: "rules_py",
         version: "2.0.0-alpha.11",
         patch_strip: 1,

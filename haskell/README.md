@@ -97,7 +97,7 @@ Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell
 | --- | --- | --- |
 | `linux_x86_64` | Qualified | |
 | `linux_arm64` | Qualified | |
-| `macos_arm64` | Qualified | CI job `checks (macos_arm64)`. |
+| `macos_arm64` | Qualified | |
 | `macos_x86_64` | Not qualified | No CI cell. |
 | `windows_x86_64` | Qualified | CI job `checks (windows_x86_64)`. |
 | `windows_arm64` | n/a | GHC 9.10.3 ships no Windows arm64 bindist. |

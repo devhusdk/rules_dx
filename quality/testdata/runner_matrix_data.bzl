@@ -13,7 +13,7 @@ DATA_CASES = [
     {
         "name": "matrix_starlark_lint_fail",
         "generated": {
-            "matrix/starlark_dirty.bzl": "x=1\n",
+            "matrix/starlark_dirty.bzl": "x=1\n\ndef f():\n    unused = 1\n",
         },
         "capability": "lint",
         "stages": ["buildifier;starlark;matrix/starlark_dirty.bzl"],

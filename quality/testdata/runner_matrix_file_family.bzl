@@ -317,7 +317,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_fortran_lint_fail",
         "generated": {
-            "matrix/fortran_dirty.f90": "program dirty\n  x = 1\n  print *, x\nend program dirty\n",
+            "matrix/fortran_dirty.f90": "program dirty\n  x = 1\n  print *, x\n  stop\n  print *, x\nend program dirty\n",
         },
         "capability": "lint",
         "stages": ["fortitude;fortran;matrix/fortran_dirty.f90"],
@@ -566,7 +566,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_lua_lint_fail",
         "generated": {
-            "matrix/selene_dirty.lua": "local greeting = \"é\" .. missing\nprint(greeting)\n",
+            "matrix/selene_dirty.lua": "local greeting = \"é\" .. missing\nprint(greeting)\nlocal unused = 1\n",
         },
         "capability": "lint",
         "stages": ["selene;lua;matrix/selene_dirty.lua"],
@@ -2097,7 +2097,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_perl_lint_fail",
         "generated": {
-            "matrix/perlcritic_dirty.pl": "print \"hello\\n\";\n",
+            "matrix/perlcritic_dirty.pl": "print \"hello\\n\";\nmy $unused;\n",
         },
         "capability": "lint",
         "stages": ["perlcritic;perl;matrix/perlcritic_dirty.pl"],
@@ -2342,7 +2342,7 @@ FILE_FAMILY_CASES = [
         "name": "matrix_powershell_lint_fail",
         "tags": ["no-remote-exec"],
         "generated": {
-            "matrix/psscriptanalyzer_dirty.ps1": "Write-Output \"a\"\nWrite-Output \"b\"\nWrite-Output \"c\"\nWrite-Host \"hello\"\n",
+            "matrix/psscriptanalyzer_dirty.ps1": "Write-Output \"a\"\nWrite-Output \"b\"\nWrite-Output \"c\"\nWrite-Host \"hello\"\n$unused = 1\n",
         },
         "capability": "lint",
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_dirty.ps1"],
@@ -2999,7 +2999,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_shell_lint_fail",
         "generated": {
-            "matrix/shellcheck_dirty.sh": "#!/usr/bin/env bash\necho \"start\"\necho $hello\n",
+            "matrix/shellcheck_dirty.sh": "#!/usr/bin/env bash\necho \"start\"\necho $hello\nunused=1\n",
         },
         "capability": "lint",
         "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],

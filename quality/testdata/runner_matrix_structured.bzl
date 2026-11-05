@@ -592,7 +592,7 @@ STRUCTURED_CASES = [
     {
         "name": "matrix_d_lint_fail",
         "generated": {
-            "matrix/dscanner_dirty.d": "module dscanner_dirty;\n\nint add(int a, int b)\n{\n    return a + b;\n}\n",
+            "matrix/dscanner_dirty.d": "module dscanner_dirty;\n\nint add(int a, int b)\n{\n    return a + b;\n}\n\nprivate void unusedLocal()\n{\n    int unused;\n}\n",
         },
         "capability": "lint",
         "stages": ["dscanner;d;matrix/dscanner_dirty.d"],

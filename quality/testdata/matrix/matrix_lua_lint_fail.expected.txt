@@ -4,8 +4,10 @@ stages 1
 stage selene classes=lua sources=matrix/selene_dirty.lua
 completed_rounds 1
 convergence STABLE
-initial 1
+initial 2
 initial ERROR selene undefined_variable matrix/selene_dirty.lua 25 32 fixable=false "`missing` is not defined"
-terminal 1
+initial WARNING selene unused_variable matrix/selene_dirty.lua 55 61 fixable=false "unused is assigned a value, but never used"
+terminal 2
 terminal ERROR selene undefined_variable matrix/selene_dirty.lua 25 32 fixable=false "`missing` is not defined"
+terminal WARNING selene unused_variable matrix/selene_dirty.lua 55 61 fixable=false "unused is assigned a value, but never used"
 replacements 0

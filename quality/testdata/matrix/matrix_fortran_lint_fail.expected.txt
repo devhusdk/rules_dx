@@ -4,8 +4,10 @@ stages 1
 stage fortitude classes=fortran sources=matrix/fortran_dirty.f90
 completed_rounds 1
 convergence STABLE
-initial 1
+initial 2
 initial ERROR fortitude C001 matrix/fortran_dirty.f90 0 14 fixable=false "program uses implicit typing"
-terminal 1
+initial ERROR fortitude C191 matrix/fortran_dirty.f90 44 54 fixable=false "code following `stop` is unreachable"
+terminal 2
 terminal ERROR fortitude C001 matrix/fortran_dirty.f90 0 14 fixable=false "program uses implicit typing"
+terminal ERROR fortitude C191 matrix/fortran_dirty.f90 44 54 fixable=false "code following `stop` is unreachable"
 replacements 0

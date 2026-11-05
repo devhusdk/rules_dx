@@ -4,8 +4,12 @@ stages 1
 stage dscanner classes=d sources=matrix/dscanner_dirty.d
 completed_rounds 1
 convergence STABLE
-initial 1
+initial 3
 initial WARNING dscanner undocumented_declaration_check matrix/dscanner_dirty.d 28 28 fixable=false "Public declaration 'add' is undocumented."
-terminal 1
+initial WARNING dscanner could_be_immutable_check matrix/dscanner_dirty.d 106 106 fixable=false "Variable unused is never modified and could have been declared const or immutable."
+initial WARNING dscanner unused_variable_check matrix/dscanner_dirty.d 106 106 fixable=false "Variable unused is never used."
+terminal 3
 terminal WARNING dscanner undocumented_declaration_check matrix/dscanner_dirty.d 28 28 fixable=false "Public declaration 'add' is undocumented."
+terminal WARNING dscanner could_be_immutable_check matrix/dscanner_dirty.d 106 106 fixable=false "Variable unused is never modified and could have been declared const or immutable."
+terminal WARNING dscanner unused_variable_check matrix/dscanner_dirty.d 106 106 fixable=false "Variable unused is never used."
 replacements 0

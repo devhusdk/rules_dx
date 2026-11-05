@@ -4,8 +4,10 @@ stages 1
 stage perlcritic classes=perl sources=matrix/perlcritic_dirty.pl
 completed_rounds 1
 convergence STABLE
-initial 1
+initial 2
 initial ERROR perlcritic TestingAndDebugging::RequireUseStrict matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before strictures are enabled"
-terminal 1
+initial WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_dirty.pl 17 17 fixable=false "\"$unused\" is declared but not used"
+terminal 2
 terminal ERROR perlcritic TestingAndDebugging::RequireUseStrict matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before strictures are enabled"
+terminal WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_dirty.pl 17 17 fixable=false "\"$unused\" is declared but not used"
 replacements 0

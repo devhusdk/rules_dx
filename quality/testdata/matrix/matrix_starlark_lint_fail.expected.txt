@@ -4,9 +4,11 @@ stages 1
 stage buildifier classes=starlark sources=matrix/starlark_dirty.bzl
 completed_rounds 2
 convergence STABLE
-initial 1
+initial 2
 initial WARNING buildifier module-docstring matrix/starlark_dirty.bzl 0 1 fixable=false "The file has no module docstring.\nA module docstring is a string literal (not a comment) which should be the first statement of a file (it may follow comment lines)."
-terminal 1
+initial WARNING buildifier unused-variable matrix/starlark_dirty.bzl 18 24 fixable=false "Variable \"unused\" is unused. Please remove it."
+terminal 2
 terminal WARNING buildifier module-docstring matrix/starlark_dirty.bzl 0 1 fixable=false "The file has no module docstring.\nA module docstring is a string literal (not a comment) which should be the first statement of a file (it may follow comment lines)."
+terminal WARNING buildifier unused-variable matrix/starlark_dirty.bzl 20 26 fixable=false "Variable \"unused\" is unused. Please remove it."
 replacements 1
 replacement matrix/starlark_dirty.bzl 1 2 " = "

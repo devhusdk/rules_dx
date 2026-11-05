@@ -96,6 +96,7 @@ exports_files(
         "dart_cfg/lints_package_config.json",
         "dart_cfg/package_config.json",
         "ruff.toml",
+        "stylelint_cfg/standard.stylelintrc.json",
         "styles/Dx/Markers.yml",
         "vale_test.ini",
         "yamllint_profile/standard/yamllint.yaml",

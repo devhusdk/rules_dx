@@ -2071,6 +2071,38 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_css_lint_fail.expected.txt",
     },
     {
+        "name": "matrix_css_lint_standard_order",
+        "generated": {
+            "matrix/stylelint_standard_order.css": ".sample {\n  color: #fff;\n  display: block;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["stylelint;css;matrix/stylelint_standard_order.css"],
+        "tool_names": ["stylelint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:stylelint"],
+        "toolfile_tools": ["stylelint", "stylelint", "stylelint"],
+        "toolfile_srcs": ["//cli/adopt:templates/config/stylelint/standard.json", "//cli/adopt:templates/config/stylelint/strict.json", ":stylelint_cfg/standard.stylelintrc.json"],
+        "toolfile_rels": [".dx/config/stylelint/standard.json", ".dx/config/stylelint/strict.json", ""],
+        "config_tools": ["stylelint"],
+        "config_files": [":stylelint_cfg/standard.stylelintrc.json"],
+        "expected_file": ":matrix/matrix_css_lint_standard_order.expected.txt",
+    },
+    {
+        "name": "matrix_css_lint_standard_rule",
+        "generated": {
+            "matrix/stylelint_standard_rule.css": ".Sample {\n  display: block;\n  color: #fff;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["stylelint;css;matrix/stylelint_standard_rule.css"],
+        "tool_names": ["stylelint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:stylelint"],
+        "toolfile_tools": ["stylelint", "stylelint", "stylelint"],
+        "toolfile_srcs": ["//cli/adopt:templates/config/stylelint/standard.json", "//cli/adopt:templates/config/stylelint/strict.json", ":stylelint_cfg/standard.stylelintrc.json"],
+        "toolfile_rels": [".dx/config/stylelint/standard.json", ".dx/config/stylelint/strict.json", ""],
+        "config_tools": ["stylelint"],
+        "config_files": [":stylelint_cfg/standard.stylelintrc.json"],
+        "expected_file": ":matrix/matrix_css_lint_standard_rule.expected.txt",
+    },
+    {
         "name": "matrix_less_lint_pass",
         "generated": {
             "matrix/stylelint_clean.less": ".sample {\n  color: #fff;\n}\n",

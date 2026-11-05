@@ -5,7 +5,6 @@ load("@dx_npm_tools//quality/tools/javascript:asciidoctor/package_json.bzl", asc
 load("@dx_npm_tools//quality/tools/javascript:esbuild/package_json.bzl", esbuild_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:knip/package_json.bzl", knip_bin = "bin")
-load("@dx_npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -151,7 +150,16 @@ gplint_bin.gplint_binary(name = "gplint_generated")
 
 knip_bin.knip_binary(name = "knip_generated")
 
-stylelint_bin.stylelint_binary(name = "stylelint_generated")
+js_binary(
+    name = "stylelint_generated",
+    data = [
+        "//quality/tools/javascript:node_modules/stylelint",
+        "//quality/tools/javascript:node_modules/stylelint-config-recess-order",
+        "//quality/tools/javascript:node_modules/stylelint-config-standard",
+        "//quality/tools/javascript:node_modules/stylelint-order",
+    ],
+    entry_point = "stylelint.mjs",
+)
 
 # Isolated launcher: never loads plugins or consumer typedocOptions.
 js_binary(
@@ -277,7 +285,7 @@ js_tool(
 
 js_tool(
     name = "stylelint",
-    entry_point = ":stylelint_generated__entry_point",
+    entry_point = "stylelint.mjs",
     js_binary = ":stylelint_generated",
 )
 

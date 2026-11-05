@@ -3,6 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
+# gazelle:dx_ignore_import powershell Pester
+
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
 exports_files([

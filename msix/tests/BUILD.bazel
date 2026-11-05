@@ -8,6 +8,7 @@ load(":cell_tests.bzl", "arch_on_arm64_test", "arch_on_x64_test", "arm64_action_
 load(":transition.bzl", "msix_variant")
 
 # gazelle:exclude argv_signtool.c
+# gazelle:exclude fake_makeappx.c
 
 _LINUX = ["@platforms//os:linux"]
 

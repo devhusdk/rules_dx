@@ -2,6 +2,8 @@ load("//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":wrapper_tests.bzl", "javascript_run_environment_tests", "javascript_wrapper_contract_tests")
 
+# gazelle:dx_ignore_import python pytest
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([

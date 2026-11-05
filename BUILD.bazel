@@ -16,6 +16,8 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:resolve rust dx_clean //cli/clean:dx_clean
 # gazelle:resolve rust dx_codegen //cli/codegen:dx_codegen
 # gazelle:resolve rust dx_diff //cli/diff:dx_diff
+# gazelle:resolve rust cc_context //cc/context:cc_context
+# gazelle:resolve rust dx_deploy_tools //deploy/rules:dx_deploy_tools
 # gazelle:resolve rust dx_digest //cli/digest:dx_digest
 # gazelle:resolve rust dx_env //cli/env:dx_env
 # gazelle:resolve rust dx_install_tools //deploy/install:dx_install_tools
@@ -60,6 +62,10 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:dx_corpus true
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven
 # gazelle:exclude gazelle/rust/testdata
+# gazelle:exclude csharp/tests/fixtures/adopt-csharp
+# gazelle:exclude go/tests/fixtures/gotype
+# gazelle:exclude go/tools/modfmt
+# gazelle:exclude tools/docs/components/fixture
 # gazelle:exclude quality/testdata
 # gazelle:exclude cli/entrypoint
 # gazelle:exclude tools/coverage

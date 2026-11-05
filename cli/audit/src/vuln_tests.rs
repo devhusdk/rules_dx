@@ -1250,7 +1250,7 @@ fn ruby_unsupported_syntax_is_incomplete_not_clean() {
 
 #[test]
 fn unparseable_scopes_and_versions_are_incomplete_per_ecosystem() {
-    use VersionScope::Incomplete;
+    use super::VersionScope::Incomplete;
     for (scope, version) in [(">=1.0, <banana", "1.0.0"), ("<2", "banana")] {
         assert_eq!(
             cargo_assess(scope, version),

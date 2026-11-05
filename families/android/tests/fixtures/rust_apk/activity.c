@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #ifdef __ANDROID__
 #include <android/asset_manager.h>
@@ -7,6 +8,7 @@
 #include <android/log.h>
 #include <android/looper.h>
 #include <android/native_activity.h>
+#include <android/native_window.h>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "DxRustApk", __VA_ARGS__)
 #else
@@ -97,6 +99,18 @@ static void on_input_queue_destroyed(ANativeActivity *activity,
   AInputQueue_detachLooper(queue);
 }
 
+static void on_window_created(ANativeActivity *activity,
+                              ANativeWindow *window) {
+  (void)activity;
+  ANativeWindow_setBuffersGeometry(window, 0, 0, WINDOW_FORMAT_RGBA_8888);
+  ANativeWindow_Buffer buffer;
+  if (ANativeWindow_lock(window, &buffer, NULL) != 0) {
+    return;
+  }
+  memset(buffer.bits, 0xff, (size_t)buffer.stride * (size_t)buffer.height * 4);
+  ANativeWindow_unlockAndPost(window);
+}
+
 static void load_asset(ANativeActivity *activity) {
   AAsset *asset = AAssetManager_open(activity->assetManager, "message.txt",
                                      AASSET_MODE_BUFFER);
@@ -127,6 +141,7 @@ ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state,
   activity->callbacks->onPause = on_pause;
   activity->callbacks->onStop = on_stop;
   activity->callbacks->onDestroy = on_destroy;
+  activity->callbacks->onNativeWindowCreated = on_window_created;
   activity->callbacks->onInputQueueCreated = on_input_queue_created;
   activity->callbacks->onInputQueueDestroyed = on_input_queue_destroyed;
   load_asset(activity);

@@ -21,6 +21,11 @@ alias(
 )
 
 alias(
+    name = "progenitor",
+    actual = "//quality/tools/rust/progenitor:dx_progenitor",
+)
+
+alias(
     name = "statix",
     actual = "@dx_statix_src//:statix",
 )

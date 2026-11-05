@@ -1,0 +1,47 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//visibility:public"])
+
+_DEPS = [
+    "@dx_quality_crates//:openapiv3",
+    "@dx_quality_crates//:prettyplease",
+    "@dx_quality_crates//:progenitor",
+    "@dx_quality_crates//:serde_json",
+    "@dx_quality_crates//:serde_yaml",
+    "@dx_quality_crates//:syn",
+]
+
+# keep
+rust_binary(
+    name = "dx_progenitor",
+    srcs = ["main.rs"],
+    crate_name = "dx_progenitor",
+    crate_root = "main.rs",
+    edition = "2021",
+    deps = _DEPS,
+)
+
+# keep
+rust_test(
+    name = "dx_progenitor_test",
+    crate = ":dx_progenitor",
+    deps = _DEPS,
+)
+
+rustfmt_test(
+    name = "dx_progenitor_fmt_test",
+    targets = [":dx_progenitor"],
+)
+
+rust_clippy_test(
+    name = "dx_progenitor_clippy_test",
+    targets = [":dx_progenitor"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

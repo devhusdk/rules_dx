@@ -1,4 +1,4 @@
-"""OpenAPI client generation: TypeScript (Redocly generate-client), Go (oapi-codegen) and Python (openapi-python-client)."""
+"""OpenAPI client generation: TypeScript (Redocly generate-client), Go (oapi-codegen), Python (openapi-python-client) and Rust (progenitor)."""
 
 load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
 load("//libs/starlark:defs.bzl", "display_label")
@@ -161,13 +161,41 @@ openapi_python_client = rule(
     },
 )
 
+def _rust_client_impl(ctx):
+    info = ctx.attr.spec[ApiSpecInfo]
+    root = _root(ctx, info)
+    out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".rs")
+    stamp = _preflight(ctx, info, root)
+    ctx.actions.run(
+        executable = ctx.executable._generator,
+        inputs = depset([stamp], transitive = [info.files]),
+        outputs = [out],
+        arguments = [root.path, out.path],
+        execution_requirements = {"block-network": "1"},
+        mnemonic = "OpenapiRustClient",
+        progress_message = "progenitor " + root.short_path,
+    )
+    return _client_providers(ctx, out)
+
+openapi_rust_client = rule(
+    implementation = _rust_client_impl,
+    doc = "Generates one Rust client file with progenitor from an OpenAPI root of an api_spec_library. The file needs progenitor-client, reqwest, serde and serde_json at compile time.",
+    attrs = {
+        "out": attr.string(doc = "Output file name; defaults to NAME.rs."),
+        "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
+        "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
+        "_generator": attr.label(default = Label("//quality/tools/rust:progenitor"), executable = True, cfg = "exec"),
+        "_preflight": attr.label(default = Label("//api_spec/codegen:preflight"), executable = True, cfg = "exec"),
+    },
+)
+
 def _shard_impl(ctx):
     client = ctx.attr.client
     if OutputGroupInfo not in client or OPENAPI_GENERATED_SRCS_GROUP not in client[OutputGroupInfo]:
         fail(
             "openapi_codegen_shard " + display_label(ctx.label) + ": " +
             display_label(client.label) + " has no " + OPENAPI_GENERATED_SRCS_GROUP +
-            " output group (want an openapi_typescript_client, openapi_go_client or openapi_python_client)",
+            " output group (want an openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client)",
         )
     return codegen_bound_shard_providers(
         ctx,
@@ -187,7 +215,7 @@ openapi_codegen_shard = rule(
             doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
             mandatory = True,
         ),
-        "language": attr.string(doc = "typescript, go or python.", mandatory = True),
+        "language": attr.string(doc = "typescript, go, python or rust.", mandatory = True),
         "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
     },
 )

@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_typescript_client")
+load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go/rules:defs.bzl", "go_library")
@@ -147,6 +147,47 @@ genrule(
 build_test(
     name = "petstore_py_check_test",
     targets = [":petstore_py_check"],
+)
+
+openapi_rust_client(
+    name = "petstore_rs",
+    out = "petstore.rs",
+    spec = ":petstore",
+)
+
+openapi_codegen_shard(
+    name = "petstore_rs_shard",
+    client = ":petstore_rs",
+    entries = ["gen/petstore/petstore.rs|gen|petstore|api_spec/tests/petstore.rs"],
+    language = "rust",
+)
+
+codegen_shard_argv_test(
+    name = "petstore_rs_shard_argv_test",
+    expected = [
+        "--producer",
+        "//api_spec/tests:petstore_rs_shard",
+        "--language",
+        "rust",
+        "--entry",
+        "gen/petstore/petstore.rs|gen|petstore|api_spec/tests/petstore.rs",
+        "--output",
+    ],
+    output = "api_spec/tests/petstore_rs_shard.dxcodegen.pb",
+    target_under_test = ":petstore_rs_shard",
+)
+
+genrule(
+    name = "petstore_rs_check",
+    testonly = True,
+    srcs = [":petstore_rs"],
+    outs = ["petstore_rs_check.txt"],
+    cmd = "grep -q 'pub struct Client' $< && grep -q 'fn list_pets' $< && echo ok > $@",
+)
+
+build_test(
+    name = "petstore_rs_check_test",
+    targets = [":petstore_rs_check"],
 )
 
 openapi_codegen_shard(

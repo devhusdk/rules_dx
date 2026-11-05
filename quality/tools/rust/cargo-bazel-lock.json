@@ -2,7 +2,7 @@
   "binary_crates": [
     "deadnix 1.3.1"
   ],
-  "checksum": "efd519e160b86f6e38805e5a1dd9ee5c4a8ec64b040d2341bc1a9a8db1b9c78c",
+  "checksum": "619b8279aeb115cbc4b600bfe2003482ef9527fae65c1e5ab72394d1f6f4b994",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1029,6 +1029,10 @@
     },
     "bytes 1.12.1": {
       "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
         "edition": "2021"
       },
       "library_target_name": "bytes",
@@ -2482,12 +2486,24 @@
             "target": "once_cell"
           },
           {
+            "id": "openapiv3 2.2.0",
+            "target": "openapiv3"
+          },
+          {
+            "id": "prettyplease 0.2.37",
+            "target": "prettyplease"
+          },
+          {
             "id": "proc-macro2 1.0.107",
             "target": "proc_macro2"
           },
           {
             "id": "profiling 1.0.18",
             "target": "profiling"
+          },
+          {
+            "id": "progenitor 0.15.1",
+            "target": "progenitor"
           },
           {
             "id": "quote 1.0.47",
@@ -2603,6 +2619,35 @@
         }
       ],
       "version": "0.0.0"
+    },
+    "dyn-clone 1.0.20": {
+      "common_attrs": {
+        "edition": "2018"
+      },
+      "library_target_name": "dyn_clone",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "dyn-clone",
+      "package_url": "https://github.com/dtolnay/dyn-clone",
+      "repository": {
+        "Http": {
+          "sha256": "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555",
+          "url": "https://static.crates.io/crates/dyn-clone/1.0.20/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dyn_clone",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.20"
     },
     "either 1.19.0": {
       "common_attrs": {
@@ -3613,6 +3658,49 @@
       ],
       "version": "0.4.3"
     },
+    "http 1.5.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "bytes 1.12.1",
+            "target": "bytes"
+          },
+          {
+            "id": "itoa 1.0.18",
+            "target": "itoa"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "http",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "http",
+      "package_url": "https://github.com/hyperium/http",
+      "repository": {
+        "Http": {
+          "sha256": "918d3568bebf352712bc2ef3d46a8bcf1a75b373be6539de198e9105cbbf9ce0",
+          "url": "https://static.crates.io/crates/http/1.5.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "http",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.5.0"
+    },
     "hybrid-array 0.4.15": {
       "common_attrs": {
         "deps": [
@@ -3988,6 +4076,7 @@
       "common_attrs": {
         "crate_features": [
           "default",
+          "serde",
           "std"
         ],
         "deps": [
@@ -3998,6 +4087,10 @@
           {
             "id": "hashbrown 0.17.1",
             "target": "hashbrown"
+          },
+          {
+            "id": "serde_core 1.0.229",
+            "target": "serde_core"
           }
         ],
         "edition": "2024"
@@ -4705,6 +4798,49 @@
       ],
       "version": "1.70.2"
     },
+    "openapiv3 2.2.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "indexmap 2.14.2",
+            "target": "indexmap"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.154",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "openapiv3",
+      "license": "MIT/Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "openapiv3",
+      "package_url": "https://github.com/glademiller/openapiv3",
+      "repository": {
+        "Http": {
+          "sha256": "5c8d427828b22ae1fff2833a03d8486c2c881367f1c336349f307f321e7f4d05",
+          "url": "https://static.crates.io/crates/openapiv3/2.2.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "openapiv3",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "2.2.0"
+    },
     "owo-colors 4.4.0": {
       "common_attrs": {
         "edition": "2021"
@@ -4877,6 +5013,57 @@
         }
       ],
       "version": "0.9.0"
+    },
+    "prettyplease 0.2.37": {
+      "build_script_attrs": {
+        "links": "prettyplease02"
+      },
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "prettyplease",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "prettyplease",
+      "package_url": "https://github.com/dtolnay/prettyplease",
+      "repository": {
+        "Http": {
+          "sha256": "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b",
+          "url": "https://static.crates.io/crates/prettyplease/0.2.37/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "prettyplease",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "0.2.37"
     },
     "proc-macro-error 1.0.4": {
       "build_script_attrs": {
@@ -5130,6 +5317,125 @@
         }
       ],
       "version": "1.0.18"
+    },
+    "progenitor 0.15.1": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "progenitor-impl 0.15.1",
+            "target": "progenitor_impl"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "progenitor",
+      "license": "MPL-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MPL-2.0"
+      ],
+      "name": "progenitor",
+      "package_url": "https://github.com/oxidecomputer/progenitor.git",
+      "repository": {
+        "Http": {
+          "sha256": "15bd395aa613c6491be9233fae4a870a35cd611655c0ef1cbaae7aa9e1c4c0e6",
+          "url": "https://static.crates.io/crates/progenitor/0.15.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "progenitor",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.15.1"
+    },
+    "progenitor-impl 0.15.1": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "heck 0.5.0",
+            "target": "heck"
+          },
+          {
+            "id": "http 1.5.0",
+            "target": "http"
+          },
+          {
+            "id": "indexmap 2.14.2",
+            "target": "indexmap"
+          },
+          {
+            "id": "openapiv3 2.2.0",
+            "target": "openapiv3"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "regex 1.13.1",
+            "target": "regex"
+          },
+          {
+            "id": "schemars 0.8.22",
+            "target": "schemars"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.154",
+            "target": "serde_json"
+          },
+          {
+            "id": "syn 3.0.9",
+            "target": "syn"
+          },
+          {
+            "id": "thiserror 2.0.21",
+            "target": "thiserror"
+          },
+          {
+            "id": "typify 0.8.0",
+            "target": "typify"
+          },
+          {
+            "id": "unicode-ident 1.0.27",
+            "target": "unicode_ident"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "progenitor_impl",
+      "license": "MPL-2.0",
+      "license_ids": [
+        "MPL-2.0"
+      ],
+      "name": "progenitor-impl",
+      "package_url": "https://github.com/oxidecomputer/progenitor.git",
+      "repository": {
+        "Http": {
+          "sha256": "3d9fbe5a1aa114c6c7c507a30ebeb0b12de383edab951ea27300210a3841917c",
+          "url": "https://static.crates.io/crates/progenitor-impl/0.15.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "progenitor_impl",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.15.1"
     },
     "quote 1.0.47": {
       "build_script_attrs": {},
@@ -5516,6 +5822,46 @@
         }
       ],
       "version": "0.8.11"
+    },
+    "regress 0.12.0": {
+      "common_attrs": {
+        "crate_features": [
+          "backend-pikevm",
+          "default",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "memchr 2.8.3",
+            "target": "memchr"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "regress",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "regress",
+      "package_url": "https://github.com/ridiculousfish/regress",
+      "repository": {
+        "Http": {
+          "sha256": "32eef8b209c3c1c15dbad02c1f30f9539f00dc7253e0cbcdaae442a50a09d7c1",
+          "url": "https://static.crates.io/crates/regress/0.12.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "regress",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.12.0"
     },
     "rnix 0.12.0": {
       "common_attrs": {
@@ -6071,6 +6417,148 @@
       ],
       "version": "1.0.6"
     },
+    "schemars 0.8.22": {
+      "build_script_attrs": {},
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "derive",
+          "schemars_derive"
+        ],
+        "deps": [
+          {
+            "id": "dyn-clone 1.0.20",
+            "target": "dyn_clone"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.154",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ],
+        "proc_macro_deps": [
+          {
+            "id": "schemars_derive 0.8.22",
+            "target": "schemars_derive"
+          }
+        ]
+      },
+      "library_target_name": "schemars",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "schemars",
+      "package_url": "https://github.com/GREsau/schemars",
+      "repository": {
+        "Http": {
+          "sha256": "3fbf2ae1b8bc8e02df939598064d22402220cd5bbcca1c76f7d6a310974d5615",
+          "url": "https://static.crates.io/crates/schemars/0.8.22/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "schemars",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "0.8.22"
+    },
+    "schemars_derive 0.8.22": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "serde_derive_internals 0.29.1",
+            "target": "serde_derive_internals"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "schemars_derive",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "schemars_derive",
+      "package_url": "https://github.com/GREsau/schemars",
+      "repository": {
+        "Http": {
+          "sha256": "32e265784ad618884abaea0600a9adf15393368d840e0222d101a072f3f7534d",
+          "url": "https://static.crates.io/crates/schemars_derive/0.8.22/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "schemars_derive",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.22"
+    },
+    "semver 1.0.28": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "semver",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "semver",
+      "package_url": "https://github.com/dtolnay/semver",
+      "repository": {
+        "Http": {
+          "sha256": "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd",
+          "url": "https://static.crates.io/crates/semver/1.0.28/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "semver",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.28"
+    },
     "serde 1.0.229": {
       "build_script_attrs": {},
       "common_attrs": {
@@ -6231,6 +6719,49 @@
       ],
       "version": "1.0.229"
     },
+    "serde_derive_internals 0.29.1": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2015"
+      },
+      "library_target_name": "serde_derive_internals",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "serde_derive_internals",
+      "package_url": "https://github.com/serde-rs/serde",
+      "repository": {
+        "Http": {
+          "sha256": "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711",
+          "url": "https://static.crates.io/crates/serde_derive_internals/0.29.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "serde_derive_internals",
+            "crate_root": "lib.rs"
+          }
+        }
+      ],
+      "version": "0.29.1"
+    },
     "serde_json 1.0.154": {
       "build_script_attrs": {},
       "common_attrs": {
@@ -6390,6 +6921,52 @@
         }
       ],
       "version": "1.1.2"
+    },
+    "serde_tokenstream 0.3.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "syn 3.0.9",
+            "target": "syn"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "serde_tokenstream",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "serde_tokenstream",
+      "package_url": "https://github.com/oxidecomputer/serde_tokenstream",
+      "repository": {
+        "Http": {
+          "sha256": "db95b8acf6eca5bc1bc771a7d7fb1a0d1485bdef0c46eec2f573bbaf4b4118f8",
+          "url": "https://static.crates.io/crates/serde_tokenstream/0.3.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "serde_tokenstream",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.3.0"
     },
     "serde_yaml 0.9.34+deprecated": {
       "common_attrs": {
@@ -8483,6 +9060,192 @@
       ],
       "version": "1.20.1"
     },
+    "typify 0.8.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "macro",
+          "typify-macro"
+        ],
+        "deps": [
+          {
+            "id": "typify-impl 0.8.0",
+            "target": "typify_impl"
+          }
+        ],
+        "edition": "2021",
+        "proc_macro_deps": [
+          {
+            "id": "typify-macro 0.8.0",
+            "target": "typify_macro"
+          }
+        ]
+      },
+      "library_target_name": "typify",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "typify",
+      "package_url": "https://github.com/oxidecomputer/typify",
+      "repository": {
+        "Http": {
+          "sha256": "71187d2e983363e9a6ca884f7b061620bc6da4316902058e74bbc9d61c347696",
+          "url": "https://static.crates.io/crates/typify/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "typify",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
+    "typify-impl 0.8.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "heck 0.5.0",
+            "target": "heck"
+          },
+          {
+            "id": "log 0.4.34",
+            "target": "log"
+          },
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "regress 0.12.0",
+            "target": "regress"
+          },
+          {
+            "id": "schemars 0.8.22",
+            "target": "schemars"
+          },
+          {
+            "id": "semver 1.0.28",
+            "target": "semver"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.154",
+            "target": "serde_json"
+          },
+          {
+            "id": "syn 3.0.9",
+            "target": "syn"
+          },
+          {
+            "id": "thiserror 2.0.21",
+            "target": "thiserror"
+          },
+          {
+            "id": "unicode-ident 1.0.27",
+            "target": "unicode_ident"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "typify_impl",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "typify-impl",
+      "package_url": "https://github.com/oxidecomputer/typify",
+      "repository": {
+        "Http": {
+          "sha256": "1cbc3132686085f84a068ad86fc281cb3d566dd940c8911fd3562013851e9ae8",
+          "url": "https://static.crates.io/crates/typify-impl/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "typify_impl",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
+    "typify-macro 0.8.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "schemars 0.8.22",
+            "target": "schemars"
+          },
+          {
+            "id": "semver 1.0.28",
+            "target": "semver"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.154",
+            "target": "serde_json"
+          },
+          {
+            "id": "serde_tokenstream 0.3.0",
+            "target": "serde_tokenstream"
+          },
+          {
+            "id": "syn 3.0.9",
+            "target": "syn"
+          },
+          {
+            "id": "typify-impl 0.8.0",
+            "target": "typify_impl"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "typify_macro",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "typify-macro",
+      "package_url": "https://github.com/oxidecomputer/typify",
+      "repository": {
+        "Http": {
+          "sha256": "b3a7f8d08ec85254fb8b383a6c66fe43b81f7f6b288fa71eb365f0867fc8f3a6",
+          "url": "https://static.crates.io/crates/typify-macro/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "typify_macro",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
     "unicode-ident 1.0.27": {
       "common_attrs": {
         "edition": "2021"
@@ -9790,9 +10553,12 @@
     "lazy_static 1.5.1",
     "num_cpus 1.17.0",
     "once_cell 1.21.4",
+    "openapiv3 2.2.0",
     "paste 1.0.15",
+    "prettyplease 0.2.37",
     "proc-macro2 1.0.107",
     "profiling 1.0.18",
+    "progenitor 0.15.1",
     "quote 1.0.47",
     "rayon 1.12.0",
     "regex 1.13.1",

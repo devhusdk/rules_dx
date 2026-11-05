@@ -116,6 +116,15 @@ def support_unpinned_tools(capability, records = None):
             unpinned[record["tool"]] = sorted(record["unsupported"].keys())
     return unpinned
 
+def support_unsupported_reasons(tools, records = None):
+    """Maps each tool to its unsupported-platform reasons joined into one line."""
+    reasons = {}
+    for record in (SUPPORT_RECORDS if records == None else records):
+        if record["tool"] in tools and record.get("unsupported"):
+            parts = [platform + ": " + why for platform, why in sorted(record["unsupported"].items())]
+            reasons.setdefault(record["tool"], "; ".join(parts))
+    return reasons
+
 def support_record_error(record):
     """Validates one support record against the adapter taxonomy."""
     for key in ["artifact", "capability", "classes", "context", "execution", "family", "fix", "platforms", "state", "tool", "transport"]:

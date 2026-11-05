@@ -47,7 +47,7 @@ load("//quality:families/rust.bzl", _real_rust_format_aspect = "real_rust_format
 load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _OCAML_HOOKS = "HOOKS", _OCAML_SHARD_SPECS = "SHARD_SPECS", _OCAML_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _stage = "stage", _without = "without")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "real_request_tool_env")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_tool_table_error = "real_tool_table_error", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_skip_notes = "real_skip_notes", _real_tool_table_error = "real_tool_table_error", _real_unavailable_tools = "real_unavailable_tools", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
 load("//quality:sources.bzl", "QualityToolsInfo")
 load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
 
@@ -156,6 +156,8 @@ def real_wired_capabilities():
     return _real_wired_capabilities(_CFG)
 
 real_tool_table_shape_error = _real_tool_table_shape_error
+real_skip_notes = _real_skip_notes
+real_unavailable_tools = _real_unavailable_tools
 RealShardProbeInfo = _RealShardProbeInfo
 
 def _make_real_aspect(shard_name):

@@ -7,7 +7,7 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_c
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_rust_typecheck_aspect", "real_typecheck_aspect", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_rust_typecheck_aspect", "real_skip_notes", "real_unavailable_tools", "real_typecheck_aspect", "rustc_diagnostics_group")
 
 def _f(path, is_source = True, extension = "rs", repo_name = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))
@@ -702,6 +702,29 @@ def real_pipeline_unit_tests(name):
                 "the table wires eslint for lint but not rustfmt",
                 ["eslint" in real_wired_tools()["lint"], "rustfmt" in real_wired_tools()["lint"]],
                 [True, False],
+            ),
+            expect_equal(
+                "an optional pin with no file is unavailable, a single file or an override is not",
+                real_unavailable_tools(
+                    {"hlint": _FILE_TOOL | {"fallback": "=x"}, "ormolu": _FILE_TOOL | {"fallback": "=x"}, "biome": _FILE_TOOL},
+                    ["hlint", "ormolu", "biome", "hlint"],
+                    {},
+                    {"hlint": 0, "ormolu": 1, "biome": 0},
+                ),
+                ["hlint"],
+            ),
+            expect_equal(
+                "a delegated optional pin is not unavailable",
+                real_unavailable_tools({"hlint": _FILE_TOOL | {"fallback": "=x"}}, ["hlint"], {"hlint": True}, {"hlint": 0}),
+                [],
+            ),
+            expect_equal(
+                "skip notes name the tool and the reason when known",
+                real_skip_notes(["hlint", "zanuda"], {"zanuda": "windows_arm64: no build"}),
+                [
+                    "hlint: skipped, no pinned artifact for this execution platform",
+                    "zanuda: skipped, no pinned artifact for this execution platform (windows_arm64: no build)",
+                ],
             ),
             expect_equal(
                 "a well-formed table passes",

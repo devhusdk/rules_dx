@@ -9,7 +9,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
-load("//quality:support.bzl", "support_unpinned_tools")
+load("//quality:support.bzl", "support_unpinned_tools", "support_unsupported_reasons")
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 
@@ -43,6 +43,24 @@ def _unique(items):
     """Returns items without repeats, in first-seen order."""
     return list({item: True for item in items}.keys())
 
+def real_unavailable_tools(tools, stage_tools, delegated, pinned_counts):
+    """Returns the optional pinned file tools of the stages that resolved to no file here."""
+    return sorted([
+        tool
+        for tool in _unique(stage_tools)
+        if tool not in delegated and tools[tool]["kind"] == "file" and "fallback" in tools[tool] and pinned_counts.get(tool, 1) == 0
+    ])
+
+def real_skip_notes(tools, reasons):
+    """Returns one skip note per unavailable tool, naming the unsupported reason when known."""
+    notes = []
+    for tool in tools:
+        note = tool + ": skipped, no pinned artifact for this execution platform"
+        if tool in reasons:
+            note += " (" + reasons[tool] + ")"
+        notes.append(note)
+    return notes
+
 def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, what):
     """Resolves each launched tool's binary, extra inputs, run tools and env from the tool table."""
     binaries = {}
@@ -62,6 +80,7 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
             # An optional pin: the hub resolves an empty file set on platforms without an artifact.
             files = getattr(ctx.files, "_" + tool)
             if len(files) != 1:
+                # Unreachable for stages real_unavailable_tools already dropped.
                 fail(what + ": " + tool + " has no pinned artifact for this execution platform; set --@rules_dx//config:tool_" + tool + spec["fallback"])
             binaries[tool] = files[0]
         elif kind == "file":
@@ -363,6 +382,19 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         contexts[tool] = found
 
     stage_tools = [stage["tool"] for stage in resolved]
+    delegated = {tool: True for tool, found in contexts.items() if found.delegated}
+    pinned_counts = {tool: len(getattr(ctx.files, "_" + tool)) for tool in stage_tools if cfg.tools[tool]["kind"] == "file" and "fallback" in cfg.tools[tool]}
+    unavailable = real_unavailable_tools(cfg.tools, stage_tools, delegated, pinned_counts)
+    skip_groups = {}
+    if len(unavailable) > 0:
+        resolved = [stage for stage in resolved if stage["tool"] not in unavailable]
+        notes = real_skip_notes(unavailable, support_unsupported_reasons(unavailable))
+        note_file = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + "-skips.txt")
+        ctx.actions.write(note_file, "\n".join(notes) + "\n")
+        skip_groups = {"dx_skips": depset([note_file])}
+        if len(resolved) == 0:
+            return [OutputGroupInfo(**skip_groups)]
+        stage_tools = [stage["tool"] for stage in resolved]
     contexts = {tool: found for tool, found in contexts.items() if tool in stage_tools}
 
     hints = []
@@ -377,7 +409,6 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         if config_error != "":
             fail(config_error)
 
-    delegated = {tool: True for tool, found in contexts.items() if found.delegated}
     launch = _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, what)
     tool_binaries = launch.binaries
     tool_extra = launch.extra
@@ -523,7 +554,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         toolchain = cfg.toolchain.type if has_toolchain else None,
     )
 
-    return [OutputGroupInfo(dx_results = depset([out]))]
+    return [OutputGroupInfo(dx_results = depset([out]), **skip_groups)]
 
 def real_quality_resource_set(cfg, tools):
     """Returns the resource_set callback for the costliest tier among the launched tools."""
@@ -560,7 +591,7 @@ def real_make_aspect(cfg, shard_name):
         crate = _workspace_crate(ctx)
         if crate == None or "dx_results" not in crate[OutputGroupInfo]:
             return found
-        own = found[0]["dx_results"] if len(found) > 0 else depset()
+        own = found[0]["dx_results"] if len(found) > 0 and "dx_results" in found[0] else depset()
         return [OutputGroupInfo(dx_results = depset(transitive = [own, crate[OutputGroupInfo]["dx_results"]]))]
 
     return aspect(

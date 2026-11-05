@@ -50,6 +50,10 @@ fn ledger_runs_from_the_extracted_archive() {
     let core = std::env::var("DX_QT_CORE_MEMBER").expect("DX_QT_CORE_MEMBER must be set");
     assert!(dir.join(&core).exists(), "{core} is not staged");
 
+    if cfg!(target_os = "macos") {
+        resign(&dir);
+    }
+
     let out = std::process::Command::new(dir.join("ledger"))
         .args(["5", "7"])
         .env_clear()
@@ -61,4 +65,33 @@ fn ledger_runs_from_the_extracted_archive() {
         String::from_utf8_lossy(&out.stdout),
         "added 5\nadded 7\n2 entries, total 12, adler32 004c000d\n"
     );
+}
+
+fn resign(dir: &std::path::Path) {
+    let mut files = Vec::new();
+    collect(dir, &mut files);
+    for file in files {
+        let status = std::process::Command::new("codesign")
+            .args(["--force", "--sign", "-"])
+            .arg(&file)
+            .status()
+            .expect("run codesign");
+        assert!(status.success(), "codesign {}", file.display());
+    }
+}
+
+fn collect(dir: &std::path::Path, files: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(dir).expect("read_dir").flatten() {
+        let path = entry.path();
+        let kind = entry.file_type().expect("file_type");
+        if kind.is_dir() {
+            collect(&path, files);
+        } else if kind.is_file() {
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            let in_framework = path.to_string_lossy().contains(".framework/Versions/");
+            if name.ends_with(".dylib") || in_framework || name == "ledger" {
+                files.push(path);
+            }
+        }
+    }
 }

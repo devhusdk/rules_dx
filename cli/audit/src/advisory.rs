@@ -42,7 +42,10 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
         "go" => Some("go"),
         "ruby" | "rubygems" => Some("rubygems"),
         PYPI_FAMILY => Some(PYPI_FAMILY),
-        _ => None,
+        _ => crate::vuln::VERSION_FAMILIES
+            .iter()
+            .copied()
+            .find(|family| *family == set),
     }
 }
 
@@ -57,6 +60,14 @@ pub fn advisory_source(family: &str) -> Option<&'static str> {
         "go" => Some("https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"),
         "rubygems" => Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
         "pypi" => Some("https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"),
+        "hex" => Some("https://osv-vulnerabilities.storage.googleapis.com/Hex/all.zip"),
+        "pub" => Some("https://osv-vulnerabilities.storage.googleapis.com/Pub/all.zip"),
+        "packagist" => Some("https://osv-vulnerabilities.storage.googleapis.com/Packagist/all.zip"),
+        "hackage" => Some("https://osv-vulnerabilities.storage.googleapis.com/Hackage/all.zip"),
+        "swifturl" => Some("https://osv-vulnerabilities.storage.googleapis.com/SwiftURL/all.zip"),
+        "julia" => Some("https://osv-vulnerabilities.storage.googleapis.com/Julia/all.zip"),
+        "opam" => Some("https://osv-vulnerabilities.storage.googleapis.com/opam/all.zip"),
+        "cran" => Some("https://osv-vulnerabilities.storage.googleapis.com/CRAN/all.zip"),
         _ => None,
     }
 }
@@ -260,6 +271,15 @@ mod tests {
             ("nuget", "NuGet"),
             ("go", "Go"),
             ("rubygems", "RubyGems"),
+            ("pypi", "PyPI"),
+            ("hex", "Hex"),
+            ("pub", "Pub"),
+            ("packagist", "Packagist"),
+            ("hackage", "Hackage"),
+            ("swifturl", "SwiftURL"),
+            ("julia", "Julia"),
+            ("opam", "opam"),
+            ("cran", "CRAN"),
         ] {
             let url = advisory_source(set).unwrap_or_else(|| panic!("{set} needs a source"));
             assert!(url.starts_with("https://"), "{set} must be https");
@@ -311,6 +331,14 @@ mod tests {
         );
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
+    }
+
+    #[test]
+    fn osv_only_sets_are_their_own_family() {
+        for set in crate::vuln::VERSION_FAMILIES {
+            assert_eq!(advisory_family(set), Some(*set));
+            assert_eq!(snapshot_rel(set), format!(".dx/advisory/{set}.json"));
+        }
     }
 
     #[test]

@@ -48,6 +48,7 @@ dx_rust_crate(
         "src/vuln_ruby.rs",
         "src/vuln_snapshot.rs",
         "src/vuln_types.rs",
+        "src/vuln_versions.rs",
     ],
     compile_data = [
         "schema/licenses.schema.json",

@@ -1,7 +1,8 @@
 use super::{
-    canonical_severity, go_assess, maven_assess, normalize_level, normalize_pypi_name,
-    nuget_assess, pypi_assess, ruby_assess, split_gem_lock_version, Advisory, LockedPackage,
-    Unassessed, VersionScope, VulnFinding, REASON_GIT, REASON_PRIVATE, REASON_VERSION_SYNTAX,
+    canonical_severity, family_assess, go_assess, is_version_family, maven_assess, normalize_level,
+    normalize_pypi_name, nuget_assess, pypi_assess, ruby_assess, split_gem_lock_version, Advisory,
+    LockedPackage, Unassessed, VersionScope, VulnFinding, REASON_GIT, REASON_PRIVATE,
+    REASON_VERSION_SYNTAX,
 };
 use crate::exception::{
     cargo_assess, check_expiry, npm_assess, validate_exception, ExceptionProblem, FindingRef,
@@ -21,6 +22,7 @@ pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
             ruby_assess(scope, bare, platform)
         }
         "uv" => pypi_assess(scope, version),
+        family if is_version_family(family) => family_assess(family, scope, version),
         _ => {
             if !scope.trim().is_empty() && scope.trim() == version.trim() {
                 VersionScope::Affected

@@ -1,10 +1,36 @@
-use super::Advisory;
+use super::{is_version_family, Advisory};
+
+/// The set opam advisories belong to. The osv crate has no opam ecosystem, so those entries are
+/// read under `GHC`, an ecosystem no snapshot family downloads.
+const OPAM_SET: &str = "opam";
 
 pub fn parse_snapshot(text: &str) -> Result<Vec<Advisory>, String> {
     if let Ok(vulns) = serde_json::from_str::<Vec<osv::schema::Vulnerability>>(text) {
         return Ok(project_osv_snapshot(&vulns));
     }
+    if text.contains("\"opam\"") {
+        if let Ok(vulns) = parse_opam_vulnerabilities(text) {
+            return Ok(project_osv_snapshot(&vulns));
+        }
+    }
     serde_json::from_str(text).map_err(|error| format!("invalid advisory snapshot: {error}"))
+}
+
+fn parse_opam_vulnerabilities(text: &str) -> serde_json::Result<Vec<osv::schema::Vulnerability>> {
+    let mut entries: Vec<serde_json::Value> = serde_json::from_str(text)?;
+    for entry in &mut entries {
+        let affected = entry
+            .get_mut("affected")
+            .and_then(|value| value.as_array_mut());
+        for item in affected.into_iter().flatten() {
+            if let Some(ecosystem) = item.pointer_mut("/package/ecosystem") {
+                if ecosystem == "opam" {
+                    *ecosystem = serde_json::Value::from("GHC");
+                }
+            }
+        }
+    }
+    serde_json::from_value(serde_json::Value::Array(entries))
 }
 
 fn ecosystem_to_set(ecosystem: &osv::schema::Ecosystem) -> Option<&'static str> {
@@ -16,6 +42,14 @@ fn ecosystem_to_set(ecosystem: &osv::schema::Ecosystem) -> Option<&'static str> 
         osv::schema::Ecosystem::NuGet => Some("nuget"),
         osv::schema::Ecosystem::RubyGems => Some("ruby"),
         osv::schema::Ecosystem::PyPI => Some("uv"),
+        osv::schema::Ecosystem::Hex => Some("hex"),
+        osv::schema::Ecosystem::Pub => Some("pub"),
+        osv::schema::Ecosystem::Packagist => Some("packagist"),
+        osv::schema::Ecosystem::Hackage => Some("hackage"),
+        osv::schema::Ecosystem::SwiftURL => Some("swifturl"),
+        osv::schema::Ecosystem::Julia => Some("julia"),
+        osv::schema::Ecosystem::CRAN => Some("cran"),
+        osv::schema::Ecosystem::GHC => Some(OPAM_SET),
         _ => None,
     }
 }
@@ -116,6 +150,27 @@ pub(crate) fn range_events_to_intervals(
     out
 }
 
+fn range_scope(lower: Option<&str>, upper: Option<&str>, upper_inclusive: bool) -> Option<String> {
+    match (lower, upper) {
+        (None, None) => Some("*".to_owned()),
+        (None, Some(upper)) => {
+            if upper_inclusive {
+                Some(format!("<={upper}"))
+            } else {
+                Some(format!("<{upper}"))
+            }
+        }
+        (Some(lower), None) => Some(format!(">={lower}")),
+        (Some(lower), Some(upper)) => {
+            if upper_inclusive {
+                Some(format!(">={lower}, <={upper}"))
+            } else {
+                Some(format!(">={lower}, <{upper}"))
+            }
+        }
+    }
+}
+
 pub(crate) fn interval_to_scope(
     set: &str,
     lower: &Option<String>,
@@ -131,24 +186,8 @@ pub(crate) fn interval_to_scope(
         .map(|value| value.trim())
         .filter(|value| !value.is_empty());
     match set {
-        "cargo" | "npm" | "go" | "ruby" | "uv" => match (lower, upper) {
-            (None, None) => Some("*".to_owned()),
-            (None, Some(upper)) => {
-                if upper_inclusive {
-                    Some(format!("<={upper}"))
-                } else {
-                    Some(format!("<{upper}"))
-                }
-            }
-            (Some(lower), None) => Some(format!(">={lower}")),
-            (Some(lower), Some(upper)) => {
-                if upper_inclusive {
-                    Some(format!(">={lower}, <={upper}"))
-                } else {
-                    Some(format!(">={lower}, <{upper}"))
-                }
-            }
-        },
+        "cargo" | "npm" | "go" | "ruby" | "uv" => range_scope(lower, upper, upper_inclusive),
+        _ if is_version_family(set) => range_scope(lower, upper, upper_inclusive),
         "maven" | "nuget" => match (lower, upper) {
             (None, None) => Some("[0,)".to_owned()),
             (None, Some(upper)) => {
@@ -215,9 +254,11 @@ fn project_osv_affected(
             if trimmed.is_empty() {
                 continue;
             }
-            let scope = match set {
-                "cargo" | "go" | "uv" if !trimmed.starts_with('=') => format!("={trimmed}"),
-                _ => trimmed.to_owned(),
+            let exact_prefix = matches!(set, "cargo" | "go" | "uv") || is_version_family(set);
+            let scope = if exact_prefix && !trimmed.starts_with('=') {
+                format!("={trimmed}")
+            } else {
+                trimmed.to_owned()
             };
             if !scopes.iter().any(|seen| seen == &scope) {
                 scopes.push(scope);

@@ -1014,7 +1014,7 @@ fn osv_typed_withdrawn_unsupported_and_git_skip() {
         "id": "GHSA-packagist-0001",
         "modified": "2026-09-18T00:00:00Z",
         "affected": [{
-            "package": {"name": "monolog/monolog", "ecosystem": "Packagist"},
+            "package": {"name": "Cake", "ecosystem": "Bioconductor"},
             "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0"}, {"fixed": "2.0"}]}]
         }]
     },
@@ -1541,4 +1541,62 @@ fn pypi_findings_carry_fixed_versions_and_skip_withdrawn() {
     assert!(advisories.iter().all(|entry| entry.set == "uv"));
     let (hit, _) = match_packages(&pypi_lock("X", "1.1"), &advisories);
     assert_eq!(hit.len(), 1);
+}
+
+#[test]
+fn each_osv_family_matches_one_advisory_from_its_snapshot() {
+    for (ecosystem, set, package, introduced, fixed, hit, miss) in [
+        ("Hex", "hex", "plug", "0", "1.5.1", "1.5.0", "1.5.1"),
+        ("Pub", "pub", "http", "0", "0.13.3", "0.13.2", "0.13.3"),
+        (
+            "Packagist",
+            "packagist",
+            "symfony/http-kernel",
+            "4.0.0",
+            "4.4.50",
+            "v4.4.49",
+            "4.4.50",
+        ),
+        (
+            "Hackage", "hackage", "warp", "0", "3.3.10", "3.3.9", "3.3.10",
+        ),
+        (
+            "SwiftURL",
+            "swifturl",
+            "github.com/vapor/vapor",
+            "0",
+            "4.50.0",
+            "4.49.9",
+            "4.50.0",
+        ),
+        ("Julia", "julia", "HTTP", "0", "1.10.4", "1.10.3", "1.10.4"),
+        (
+            "opam",
+            "opam",
+            "opam-client",
+            "0",
+            "2.1.5~rc1",
+            "2.1.4",
+            "2.1.5",
+        ),
+        ("CRAN", "cran", "xml2", "0", "1.3-4", "1.3.3", "1.3-4"),
+    ] {
+        let text = format!(
+            r#"[{{"id":"OSV-TEST-{set}","modified":"2026-09-18T00:00:00Z","affected":[{{"package":{{"ecosystem":"{ecosystem}","name":"{package}"}},"ranges":[{{"type":"ECOSYSTEM","events":[{{"introduced":"{introduced}"}},{{"fixed":"{fixed}"}}]}}]}}]}}]"#
+        );
+        let advisories = parse_snapshot(&text).unwrap_or_else(|error| panic!("{set}: {error}"));
+        assert_eq!(advisories.len(), 1, "{set}");
+        assert_eq!(advisories[0].set, set);
+        let (findings, unassessed) = match_packages(
+            &[
+                LockedPackage::new(set, package, hit),
+                LockedPackage::new(set, package, miss),
+            ],
+            &advisories,
+        );
+        assert!(unassessed.is_empty(), "{set}: {unassessed:?}");
+        assert_eq!(findings.len(), 1, "{set}: {findings:?}");
+        assert_eq!(findings[0].version, hit, "{set}");
+        assert_eq!(findings[0].fixed, vec![fixed.to_owned()], "{set}");
+    }
 }

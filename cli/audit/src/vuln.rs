@@ -14,6 +14,8 @@ mod vuln_ruby;
 mod vuln_snapshot;
 #[path = "vuln_types.rs"]
 mod vuln_types;
+#[path = "vuln_versions.rs"]
+mod vuln_versions;
 
 pub use vuln_go::*;
 pub use vuln_match::*;
@@ -23,6 +25,7 @@ pub use vuln_pypi::*;
 pub use vuln_ruby::*;
 pub use vuln_snapshot::*;
 pub use vuln_types::*;
+pub use vuln_versions::*;
 
 #[cfg(test)]
 pub(crate) use vuln_go::strip_go_v;

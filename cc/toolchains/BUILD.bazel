@@ -511,3 +511,46 @@ native_runtime(
     version = GCC_VERSION,
     visibility = ["//visibility:public"],
 )
+
+genrule(
+    name = "msvc_vcruntime_notice",
+    srcs = ["notices/MSVC_REDISTRIBUTABLE.txt"],
+    outs = ["msvc_vcruntime_NOTICE.txt"],
+    cmd = "cp $< $@",
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+# The distributable Visual C++ runtime ships next to the app. Building it
+# needs the dx_msvc license acceptance.
+native_runtime(
+    name = "msvc_vcruntime",
+    srcs = select({
+        ":windows_arm64": ["@dx_msvc//:vcruntime_arm64"],
+        "//conditions:default": ["@dx_msvc//:vcruntime_x64"],
+    }),
+    notice = ":msvc_vcruntime_notice",
+    redistribution = "app_local",
+    source = "Visual C++ Redistributable",
+    version = "14.50",
+    visibility = ["//visibility:public"],
+)
+
+# The Universal CRT is part of Windows 10 and later.
+native_runtime(
+    name = "windows_ucrt",
+    provides = [
+        "api-ms-win-*",
+        "ucrtbase.dll",
+    ],
+    redistribution = "os_supplied",
+    source = "Windows 10 Universal CRT",
+    version = "10.0",
+    visibility = ["//visibility:public"],
+)

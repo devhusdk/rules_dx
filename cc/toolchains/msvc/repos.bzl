@@ -7,6 +7,7 @@ load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
 HUB_NAME = "dx_msvc"
 LICENSE = "visual-studio-build-tools"
 LICENSE_URL = "https://visualstudio.microsoft.com/license-terms/"
+VCRUNTIME_DLLS = ["vcruntime140", "vcruntime140_1", "msvcp140"]
 
 UNACCEPTED = unaccepted("dx_msvc", "Visual Studio Build Tools license", LICENSE_URL, "msvc", LICENSE)
 
@@ -66,6 +67,9 @@ def hub_build(accepted, msvc_version, sdk_version, unavailable = {}):
             text += 'cc_toolchain_unavailable(\n    name = "{}",\n    error = {},\n)\n\n'.format(name, json.encode(error))
         else:
             text += 'msvc_cc_toolchain(\n    name = "{}",\n    msvc_version = "{}",\n    sdk_version = "{}",\n    exec_cpu = "{}",\n    target_cpu = "{}",\n)\n\n'.format(name, msvc_version, sdk_version, host, target)
+    for arch in ["x64", "arm64"]:
+        files = ["redist/{}/*/{}.dll".format(arch, dll) for dll in VCRUNTIME_DLLS] if accepted else []
+        text += 'filegroup(\n    name = "vcruntime_{}",\n    srcs = glob({}),\n)\n\n'.format(arch, json.encode(files))
     return text.rstrip("\n") + "\n"
 
 def _only_child(rctx, root):
@@ -84,6 +88,9 @@ def _layout_repo_impl(rctx):
         source = roots[link.repo].get_child(link.src)
         if source.exists:
             rctx.symlink(source, link.dst)
+    redist = rctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC")
+    if redist.exists:
+        rctx.symlink(redist.get_child(_only_child(rctx, redist)), "redist")
     unavailable = {}
     for host, target in SUPPORTED_CELLS:
         layout = msvc_layout(msvc_version, sdk_version, host, target)

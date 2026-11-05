@@ -2158,8 +2158,8 @@ real_docs_tests(
         ":docs_rust_library_subject",
         ":docs_rust_test_subject",
         ":docs_scala_library_subject",
-        ":docs_typescript_library_subject",
         ":docs_svelte_library_subject",
+        ":docs_typescript_library_subject",
         ":docs_vue_library_subject",
     ],
 )

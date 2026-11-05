@@ -544,6 +544,43 @@ fn add_leases_a_slot_in_a_separate_git_dir_clone() {
 }
 
 #[test]
+fn same_named_repositories_opening_together_get_separate_pools() {
+    let fixture = Fixture::new();
+    let root = fixture.cache.parent().expect("root").to_path_buf();
+    let origin = root.join("origin.git").to_string_lossy().into_owned();
+    let mains: Vec<PathBuf> = ["one", "two"]
+        .iter()
+        .map(|side| {
+            let main = root.join(side).join("shared");
+            std::fs::create_dir_all(&main).expect("parent");
+            git(
+                &root,
+                &["clone", "--quiet", &origin, &main.to_string_lossy()],
+            );
+            std::fs::canonicalize(main).expect("canonical")
+        })
+        .collect();
+    let gate = std::sync::Barrier::new(mains.len());
+    let bases: Vec<PathBuf> = std::thread::scope(|scope| {
+        let handles: Vec<_> = mains
+            .iter()
+            .map(|main| {
+                let (gate, cache) = (&gate, &fixture.cache);
+                scope.spawn(move || {
+                    gate.wait();
+                    Pool::open(main, cache).expect("pool opens").base
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| h.join().expect("join"))
+            .collect()
+    });
+    assert_ne!(bases[0], bases[1]);
+}
+
+#[test]
 fn open_refuses_a_bare_repository() {
     let fixture = Fixture::new();
     let origin = fixture.main.with_file_name("origin.git");

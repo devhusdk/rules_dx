@@ -395,13 +395,18 @@ impl Pool {
                 None if !create => return Ok(None),
                 None => {
                     std::fs::create_dir_all(base.join(".dx")).map_err(WorktreeError::io)?;
-                    dx_atomic_fs::write_atomic(&marker, &marker_bytes(&main))
-                        .map_err(WorktreeError::io)?;
-                    return Ok(Some(Pool {
-                        main,
-                        base,
-                        lock_wait: POOL_LOCK_WAIT,
-                    }));
+                    let ours = claim_marker(&marker, &marker_bytes(&main))
+                        .map_err(WorktreeError::io)?
+                        || std::fs::read(&marker)
+                            .map(|bytes| marker_matches(&bytes, &main))
+                            .unwrap_or(false);
+                    if ours {
+                        return Ok(Some(Pool {
+                            main,
+                            base,
+                            lock_wait: POOL_LOCK_WAIT,
+                        }));
+                    }
                 }
             }
         }
@@ -601,6 +606,21 @@ fn marker_bytes(main: &Path) -> Vec<u8> {
 #[cfg(not(unix))]
 fn marker_bytes(main: &Path) -> Vec<u8> {
     main.to_string_lossy().into_owned().into_bytes()
+}
+
+/// Publishes the marker whole, and only if no other repository claimed it first.
+fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
+    static CLAIMS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let claim = CLAIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let staged = marker.with_extension(format!("claim-{}-{claim}", std::process::id()));
+    std::fs::write(&staged, bytes)?;
+    let linked = std::fs::hard_link(&staged, marker);
+    let _ = std::fs::remove_file(&staged);
+    match linked {
+        Ok(()) => Ok(true),
+        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+        Err(err) => Err(err),
+    }
 }
 
 fn marker_matches(bytes: &[u8], main: &Path) -> bool {

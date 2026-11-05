@@ -38,10 +38,26 @@ def _crates_config_impl(ctx):
     semver_files = ctx.attr._semver_checks[DefaultInfo].files.to_list()
     semver_rloc = rlocation_path(ctx, semver_files[0]) if semver_files else ""
 
+    crate_dir = ""
+    if ctx.attr.api_baseline == "git" and ctx.attr.api_compat != "off":
+        manifests = [f for f in crate_files if f.basename == "Cargo.toml"]
+        if len(manifests) == 0:
+            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a Cargo.toml in crate " +
+                 str(ctx.attr.crate.label))
+        manifest = manifests[0]
+        if not manifest.is_source:
+            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a checked-in Cargo.toml, " +
+                 "but " + manifest.short_path + " is generated; use api_baseline = \"registry\"")
+        if manifest.owner.workspace_name != "":
+            fail("crates_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a Cargo.toml in this " +
+                 "repository, but " + manifest.short_path + " comes from an external repository")
+        crate_dir = manifest.short_path.rpartition("/")[0]
+
     return deploy_config(
         ctx,
         "crates",
         {
+            "crate_dir": crate_dir,
             "crate_name": ctx.attr.crate_name,
             "api_baseline": ctx.attr.api_baseline,
             "api_compat": ctx.attr.api_compat,
@@ -92,7 +108,8 @@ def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compa
     api_compat runs cargo-semver-checks against the last release (off, warn,
     fail); a breaking change fails unless the version bump is major.
     api_baseline picks that release from the registry or from the previous
-    v<version> git tag.
+    v<version> git tag; the git baseline needs a checked-in, standalone
+    Cargo.toml.
     """
     name_error = crates_name_error(name)
     if name_error != "":

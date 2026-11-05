@@ -1524,6 +1524,19 @@ crates_deploy(
     version = "0.0.0",
 )
 
+crates_deploy(
+    name = "crates_git_generated",
+    api_baseline = "git",
+    crate = ":crates_demo_crate",
+    version = "0.0.0",
+)
+
+failure_test(
+    name = "crates_git_generated_manifest_fails",
+    expected_failure_substring = "needs a checked-in Cargo.toml",
+    target = ":crates_git_generated_config",
+)
+
 genrule(
     name = "pub_demo_pubspec",
     outs = ["pub_demo_package/pubspec.yaml"],

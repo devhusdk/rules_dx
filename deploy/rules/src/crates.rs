@@ -1,7 +1,7 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
 use crate::api_compat::{
-    breaking_refusal, latest_published, previous_tag, required_bump, ApiCompatMode,
+    breaking_refusal, export_git_dir, latest_published, previous_tag, required_bump, ApiCompatMode,
 };
 use crate::run::{
     deploy_profile, env_or_empty, placeholder_refusal, scrubbed_command, DeployRun, OwnerGate,
@@ -312,6 +312,7 @@ fn crates_api_check(
     crate_name: &str,
     mode: ApiCompatMode,
     baseline: &str,
+    crate_dir: &str,
 ) -> Result<(), String> {
     if mode == ApiCompatMode::Off {
         return Ok(());
@@ -320,12 +321,33 @@ fn crates_api_check(
         println!("api compat: cargo-semver-checks not found on PATH; skipped");
         return Ok(());
     };
+    let mut export_dir = None;
     let (previous, baseline_args) = if baseline == "git" {
         match previous_git_tag(version) {
-            Ok(Some(tag)) => (
-                tag.trim_start_matches('v').to_owned(),
-                vec!["--baseline-rev".to_owned(), tag],
-            ),
+            Ok(Some(tag)) => {
+                let workspace =
+                    std::env::var("BUILD_WORKSPACE_DIRECTORY").unwrap_or_else(|_| ".".to_owned());
+                let dest = tempfile_stage_dir("crates-api-base-")
+                    .map_err(|error| format!("crates_deploy: {error}"))?;
+                match export_git_dir(Path::new(&workspace), crate_dir, &tag, &dest) {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        let _ = std::fs::remove_dir_all(&dest);
+                        println!("api compat: no Cargo.toml at {crate_dir} in {tag}; skipped");
+                        return Ok(());
+                    }
+                    Err(error) => {
+                        let _ = std::fs::remove_dir_all(&dest);
+                        return Err(format!("crates_deploy: api compat: {error}"));
+                    }
+                }
+                let root = dest.display().to_string();
+                export_dir = Some(dest);
+                (
+                    tag.trim_start_matches('v').to_owned(),
+                    vec!["--baseline-root".to_owned(), root],
+                )
+            }
             Ok(None) => {
                 println!("api compat: no earlier v<version> tag; skipped (first release)");
                 return Ok(());
@@ -348,8 +370,15 @@ fn crates_api_check(
             }
         }
     };
-    let staging =
-        tempfile_stage_dir("crates-api-").map_err(|error| format!("crates_deploy: {error}"))?;
+    let staging = match tempfile_stage_dir("crates-api-") {
+        Ok(dir) => dir,
+        Err(error) => {
+            if let Some(dir) = &export_dir {
+                let _ = std::fs::remove_dir_all(dir);
+            }
+            return Err(format!("crates_deploy: {error}"));
+        }
+    };
     let ran = crates_stage(mapped, &staging)
         .map_err(|error| format!("crates_deploy: {error}"))
         .and_then(|()| {
@@ -365,6 +394,9 @@ fn crates_api_check(
                 .map_err(|error| format!("crates_deploy: {error}"))
         });
     let _ = std::fs::remove_dir_all(&staging);
+    if let Some(dir) = &export_dir {
+        let _ = std::fs::remove_dir_all(dir);
+    }
     let output = ran?;
     let text = format!(
         "{}\n{}",
@@ -411,6 +443,7 @@ pub fn crates_main(
         "off",
         "registry",
         "",
+        "",
         argv,
     )
 }
@@ -423,6 +456,7 @@ pub fn crates_main_checked(
     api_compat: &str,
     api_baseline: &str,
     semver_checks_rloc: &str,
+    crate_dir: &str,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -524,6 +558,7 @@ pub fn crates_main_checked(
                 crate_name,
                 mode,
                 api_baseline,
+                crate_dir,
             )
         });
     if let Err(message) = checked {
@@ -863,8 +898,11 @@ mod tests {
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
+        write_crate_file(&repo, "pkg/Cargo.toml", "[package]\nname = \"pkg\"\n");
+        write_crate_file(&repo, "pkg/src/lib.rs", "pub fn hello() {}\n");
         for args in [
             vec!["init", "-q"],
+            vec!["add", "."],
             vec![
                 "-c",
                 "user.name=t",
@@ -872,7 +910,6 @@ mod tests {
                 "user.email=t@example.com",
                 "commit",
                 "-q",
-                "--allow-empty",
                 "-m",
                 "x",
             ],
@@ -888,30 +925,43 @@ mod tests {
         let files = nested_crate(&scratch.path().join("in/pkg"));
         let mapped = crates_package_paths(&files).expect("paths");
         let args_log = scratch.path().join("args");
+        let exported = scratch.path().join("exported");
         let fake = scratch.path().join("cargo-semver-checks");
         std::fs::write(
             &fake,
             format!(
-                "#!/bin/sh\necho \"$@\" > {}\necho '--- failure pub_function_missing'\nexit 1\n",
-                args_log.display()
+                "#!/bin/sh\necho \"$@\" > {}\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --baseline-root ]; then cp \"$2/Cargo.toml\" {}; fi; shift; done\necho '--- failure pub_function_missing'\nexit 1\n",
+                args_log.display(),
+                exported.display()
             ),
         )
         .expect("fake tool");
         set_mode(&fake, 0o755);
         let repo_dir = repo.display().to_string();
-        let run = |version: &str, mode: ApiCompatMode| {
+        let run_in = |dir: &str, version: &str, mode: ApiCompatMode| {
             with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
-                crates_api_check(Some(&fake), &mapped, version, "pkg", mode, "git")
+                crates_api_check(Some(&fake), &mapped, version, "pkg", mode, "git", dir)
             })
         };
+        let run = |version: &str, mode: ApiCompatMode| run_in("pkg", version, mode);
         let refused = run("1.2.1", ApiCompatMode::Fail).expect_err("patch bump refused");
         assert!(refused.contains("1.2.0 -> 1.2.1"), "{refused}");
         let logged = std::fs::read_to_string(&args_log).expect("args");
-        assert!(logged.contains("--baseline-rev v1.2.0"), "{logged}");
+        assert!(logged.contains("--baseline-root"), "{logged}");
+        assert!(!logged.contains("--baseline-rev"), "{logged}");
+        assert_eq!(
+            std::fs::read_to_string(&exported).expect("exported manifest"),
+            "[package]\nname = \"pkg\"\n"
+        );
         assert!(run("2.0.0", ApiCompatMode::Fail).is_ok());
         assert!(run("1.2.1", ApiCompatMode::Warn).is_ok());
         std::fs::remove_file(&args_log).expect("clear log");
         assert!(run("1.2.1", ApiCompatMode::Off).is_ok());
         assert!(!args_log.exists(), "off must not run the tool");
+        assert!(run_in("moved", "2.0.0", ApiCompatMode::Fail).is_ok());
+        assert!(
+            !args_log.exists(),
+            "a crate missing at the tag skips the tool"
+        );
     }
 }

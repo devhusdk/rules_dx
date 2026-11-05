@@ -100,6 +100,67 @@ pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
         .map(|(_, tag)| tag)
 }
 
+/// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `Cargo.toml`.
+/// Symlinks and submodules are skipped. The index and working tree are not touched.
+pub fn export_git_dir(
+    workspace: &std::path::Path,
+    rel_dir: &str,
+    rev: &str,
+    dest: &std::path::Path,
+) -> Result<bool, String> {
+    let git = |args: &[&str]| -> Result<Vec<u8>, String> {
+        let output = std::process::Command::new("git")
+            .arg("-C")
+            .arg(workspace)
+            .args(args)
+            .output()
+            .map_err(|error| format!("git: {error}"))?;
+        if !output.status.success() {
+            return Err(format!(
+                "git {} failed: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(output.stdout)
+    };
+    let dir = rel_dir.trim_matches('/');
+    let spec = if dir.is_empty() { "." } else { dir };
+    let listing = git(&["ls-tree", "-r", "-z", "--full-name", rev, "--", spec])?;
+    let mut found = false;
+    for entry in listing.split(|b| *b == 0).filter(|e| !e.is_empty()) {
+        let entry = String::from_utf8_lossy(entry);
+        let Some((meta, path)) = entry.split_once('\t') else {
+            continue;
+        };
+        let mut fields = meta.split(' ');
+        let (Some(mode), Some(_), Some(oid)) = (fields.next(), fields.next(), fields.next()) else {
+            continue;
+        };
+        let rel = if dir.is_empty() {
+            path
+        } else {
+            match path.strip_prefix(dir).and_then(|r| r.strip_prefix('/')) {
+                Some(rel) => rel,
+                None => continue,
+            }
+        };
+        if mode == "120000" || mode == "160000" {
+            println!("api compat: skipped {path} at {rev} (symlink or submodule)");
+            continue;
+        }
+        let blob = git(&["cat-file", "blob", oid])?;
+        let target = dest.join(rel);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| format!("{}: {error}", parent.display()))?;
+        }
+        std::fs::write(&target, blob).map_err(|error| format!("{}: {error}", target.display()))?;
+        found |= rel == "Cargo.toml";
+    }
+    Ok(found)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,5 +205,52 @@ mod tests {
         let tags = "v1.2.0\nv1.10.0\nv2.0.0\nnightly\n";
         assert_eq!(previous_tag(tags, "2.0.0").as_deref(), Some("v1.10.0"));
         assert_eq!(previous_tag(tags, "1.0.0"), None);
+    }
+
+    fn git_in(dir: &std::path::Path, args: &[&str]) {
+        let status = std::process::Command::new("git")
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .expect("git");
+        assert!(status.success(), "git {args:?}");
+    }
+
+    #[test]
+    fn export_git_dir_writes_only_the_directory() {
+        let root = std::env::temp_dir().join(format!("export-git-dir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let repo = root.join("repo");
+        std::fs::create_dir_all(repo.join("pkg/src")).expect("dirs");
+        std::fs::create_dir_all(repo.join("other")).expect("dirs");
+        std::fs::write(repo.join("pkg/Cargo.toml"), "[package]\n").expect("write");
+        std::fs::write(repo.join("pkg/src/lib.rs"), "pub fn a() {}\n").expect("write");
+        std::fs::write(repo.join("other/x.txt"), "x").expect("write");
+        git_in(&repo, &["init", "-q"]);
+        git_in(&repo, &["add", "."]);
+        git_in(&repo, &["commit", "-q", "-m", "x"]);
+        git_in(&repo, &["tag", "v1.0.0"]);
+        let dest = root.join("dest");
+        assert_eq!(export_git_dir(&repo, "pkg", "v1.0.0", &dest), Ok(true));
+        assert_eq!(
+            std::fs::read_to_string(dest.join("src/lib.rs")).expect("lib"),
+            "pub fn a() {}\n"
+        );
+        assert!(dest.join("Cargo.toml").exists());
+        assert!(!dest.join("other").exists() && !dest.join("x.txt").exists());
+        let missing = root.join("missing");
+        assert_eq!(
+            export_git_dir(&repo, "other", "v1.0.0", &missing),
+            Ok(false)
+        );
+        assert_eq!(export_git_dir(&repo, "nope", "v1.0.0", &missing), Ok(false));
+        let status = std::process::Command::new("git")
+            .args(["status", "--porcelain"])
+            .current_dir(&repo)
+            .output()
+            .expect("status");
+        assert!(status.stdout.is_empty(), "{:?}", status.stdout);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

@@ -271,6 +271,13 @@ pub struct Sizing {
     pub extras: usize,
 }
 
+impl Sizing {
+    /// Every slot index a held count looks at: the base slots, then the remote extras.
+    fn counted(&self) -> impl Iterator<Item = usize> {
+        (0..self.count).chain(self.pool..self.pool + self.extras)
+    }
+}
+
 /// The gate sizing for `setting` on a machine with `memory` bytes, `reserved` of them for nested Bazel.
 ///
 /// `Auto` sizes from memory. `Count(n)` takes exactly `n`, keeps the reserve's width above `n`,
@@ -339,7 +346,7 @@ pub fn share_report(
     let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
     let cpus = u64::try_from(cpus).unwrap_or(1);
     // `usize::MAX` is no slot, so `held` counts every held slot plus the new run.
-    let with_new = held(&dir, 0..size.count, usize::MAX);
+    let with_new = held(&dir, size.counted(), usize::MAX);
     Some(ShareReport {
         held: with_new - 1,
         count: size.count,
@@ -3052,6 +3059,19 @@ mod tests {
         assert_eq!(busy.held, 1);
         assert!(busy.next.cpus <= idle.next.cpus);
         assert!(!slot_path(&dir, 1).exists(), "the probe creates no slot");
+    }
+
+    #[test]
+    fn held_count_includes_extra_slots() {
+        let scratch = dx_test_scratch::scratch("dx-slots-extra-");
+        let size = Sizing {
+            count: 2,
+            pool: 3,
+            extras: 1,
+        };
+        assert_eq!(size.counted().collect::<Vec<_>>(), [0, 1, 3]);
+        let _extra = lock_slot(&slot_path(scratch.path(), 3), false).expect("lock");
+        assert_eq!(held(scratch.path(), size.counted(), usize::MAX), 2);
     }
 
     #[test]

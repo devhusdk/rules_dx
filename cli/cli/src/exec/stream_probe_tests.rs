@@ -450,6 +450,7 @@ fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn wait_for_file(run: &mut Run, path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !path.exists() {
@@ -465,6 +466,7 @@ fn wait_for_file(run: &mut Run, path: &Path) {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[derive(Debug, Clone, Copy)]
 enum Sender {
     Tty,
@@ -475,6 +477,7 @@ enum Sender {
     Unattributed,
 }
 
+#[cfg(target_os = "linux")]
 fn senders() -> Vec<Sender> {
     vec![
         Sender::Tty,
@@ -495,6 +498,7 @@ fn queue_unattributed(pid: i32, signo: i32) {
     assert_eq!(rc, 0, "rt_sigqueueinfo: {}", io::Error::last_os_error());
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn a_terminal_child_gets_each_sigint_once() {
     for sender in senders() {
@@ -559,6 +563,7 @@ fn a_terminal_child_gets_each_sigint_once() {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn assert_foreground_build(run: &Run, pty: &Pty, build: i32) -> i32 {
     let build_pgid = unsafe { libc::getpgid(build) };
     assert_ne!(
@@ -576,6 +581,7 @@ fn assert_foreground_build(run: &Run, pty: &Pty, build: i32) -> i32 {
     build_pgid
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn a_terminal_build_resumes_after_ctrl_z() {
     let pty = open_pty();
@@ -1004,6 +1010,7 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn a_failing_destination_is_an_operational_failure() {
     let scratch = dx_test_scratch::scratch("dx-stream-full-");
@@ -1087,6 +1094,7 @@ fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn quality_with_a_failing_destination_starts_nothing() {
     for words in QUALITY_WORDS {
@@ -1132,6 +1140,7 @@ fn generate_and_adoption_with_stdout_closed_start_nothing() {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn generate_and_adoption_with_a_failing_destination_start_nothing() {
     for words in DELIVERY_WORDS {

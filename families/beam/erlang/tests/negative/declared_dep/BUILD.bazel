@@ -1,0 +1,23 @@
+# gazelle:dx_corpus false
+
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_werror_test")
+
+erlang_app(
+    app_name = "needs_dep",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+)
+
+erlc_werror_test(
+    name = "erlc_fails_on_warnings_test",
+    target = ":beam_files",
+)
+
+erlc_input_test(
+    name = "declared_dep_shows_header_test",
+    file = "base_dep.hrl",
+    present = True,
+    target = ":beam_files",
+)

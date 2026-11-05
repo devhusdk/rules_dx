@@ -1,0 +1,94 @@
+# gazelle:dx_corpus false
+
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "erlang_bytecode", "erlc_opts", "eunit", "test_erlang_app")
+load("@rules_dx//erlang/rules:wrapper_tests.bzl", "erlang_beam_info_test", "erlang_coverage_env_test")
+load("@rules_dx//erlang/toolchain:pins.bzl", "OTP_VERSION")
+
+exports_files(
+    ["src/dx_runtime_probe.erl"],
+    visibility = ["@rules_dx//quality/tests:__pkg__"],
+)
+
+erlang_app(
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["@rules_dx//quality/testdata:__pkg__"],
+)
+
+test_erlang_app(
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_beam_info_test(
+    name = "beam_info_test",
+    app_name = "dx_runtime_probe",
+    owned = ["dx_runtime_probe.beam"],
+    target = ":erlang_app",
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "test_modules",
+    testonly = True,
+    srcs = ["test/dx_runtime_probe_tests.erl"],
+    outs = ["test/dx_runtime_probe_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+eunit(
+    name = "eunit",
+    compiled_suites = [":test_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    test_env = {"DX_OTP_VERSION": OTP_VERSION},
+)
+
+ct_suite(
+    name = "diagnostics_SUITE",
+    app_name = "dx_runtime_probe",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    test_env = {"DX_OTP_VERSION": OTP_VERSION},
+)
+
+[
+    erlang_coverage_env_test(
+        name = target + "_coverage_env_test",
+        apps_dirs = "erlang/tests",
+        source = "erlang/tests/runtime/src/dx_runtime_probe.erl",
+        target = ":" + target,
+    )
+    for target in [
+        "eunit",
+        "diagnostics_SUITE",
+    ]
+]
+
+erlang_coverage_env_test(
+    name = "nif_coverage_env_test",
+    apps_dirs = "erlang/tests/fixtures/erlang-app",
+    native = True,
+    source = "erlang/tests/fixtures/erlang-app/checksum/src/kv_checksum.erl",
+    target = "//erlang/tests/fixtures/erlang-app/checksum:eunit",
+)
+
+erlang_coverage_env_test(
+    name = "nif_cpp_coverage_env_test",
+    apps_dirs = "erlang/tests",
+    native = True,
+    source = "erlang/tests/nif_cpp/src/dx_cpp_a.erl",
+    target = "//erlang/tests/nif_cpp:eunit",
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)

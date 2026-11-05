@@ -167,8 +167,6 @@ load("//quality:policy.bzl", "workspace_policy")
 # gazelle:exclude swift/tests/fixtures/swift-app
 # gazelle:exclude cc/tests/fixtures/c-app
 # gazelle:exclude cc/tests/fixtures/cpp-app
-# gazelle:exclude elixir/tests/fixtures/elixir-app
-# gazelle:exclude erlang/tests/fixtures/erlang-app
 # gazelle:exclude haskell/tests/fixtures/haskell-app
 # gazelle:exclude dart/tests/cross
 # gazelle:exclude dart/tests/runtime
@@ -282,7 +280,6 @@ exports_files([
     "README.md",
     "cuda/README.md",
     "d/README.md",
-    "elixir/README.md",
     "fortran/README.md",
     "go/README.md",
     "javascript/README.md",
@@ -390,7 +387,6 @@ real_source_target(
         "README.md",
         "SECURITY.md",
         "d/README.md",
-        "elixir/README.md",
         "fortran/README.md",
         "go/README.md",
         "javascript/README.md",

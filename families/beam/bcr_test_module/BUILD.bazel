@@ -1,0 +1,3 @@
+load("@rules_dx_beam//erlang/tests/negative:negative_tests.bzl", "nif_header_test")
+
+filegroup(name = "loads")

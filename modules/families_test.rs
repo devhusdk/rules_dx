@@ -754,8 +754,20 @@ fn moved_families_declare_the_source_check_targets() {
     let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
     let mut problems = Vec::new();
     for (family, path) in &paths {
-        let text = std::fs::read_to_string(root.join(path).join("BUILD.bazel")).ok();
-        problems.extend(missing_check_targets(family, text.as_deref()));
+        let dir = root.join(path);
+        let text = std::fs::read_to_string(dir.join("BUILD.bazel")).ok();
+        let has_packages = checked_packages(&dir)
+            .iter()
+            .any(|(package, _)| !package.is_empty());
+        problems.extend(
+            missing_check_targets(family, text.as_deref())
+                .into_iter()
+                .filter(|problem| {
+                    has_packages
+                        || !(problem.contains("starlark_docs_test")
+                            || problem.contains("rustfmt_coverage_test"))
+                }),
+        );
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }

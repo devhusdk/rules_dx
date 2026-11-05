@@ -248,14 +248,14 @@ ROWS = [
     {"ci_tests": ["//d/tests/fixtures/hello:greet_test", "//d/tests/fixtures/d-app/diagnostics:diagnostics_test", "//d/tests/fixtures/d-app/source:app_output_test", "//d/tests/fixtures/d-app/source/base:base_test", "//d/tests/fixtures/d-app/source/cli:cli_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": "D"},
     {"ci_tests": ["//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": "Dart"},
     {
-        "ci_tests": ["//elixir/tests/runtime:probe_test"],
+        "ci_tests": ["@rules_dx_beam//elixir/tests/runtime:probe_test"],
         "consumer_tests": _starter_consumers("elixir"),
         "name": "elixir",
         "section": "languages",
         "title": "Elixir",
     },
     {
-        "ci_tests": ["//erlang/tests/runtime:eunit"],
+        "ci_tests": ["@rules_dx_beam//erlang/tests/runtime:eunit"],
         "consumer_tests": _starter_consumers("erlang"),
         "name": "erlang",
         "section": "languages",

@@ -1,0 +1,27 @@
+# gazelle:dx_corpus false
+
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_nif")
+load("//erlang/tests/negative:negative_tests.bzl", "nif_header_test")
+
+erlang_nif(
+    name = "probe_nif",
+    srcs = ["probe_nif.c"],
+    tags = ["manual"],
+)
+
+nif_header_test(
+    name = "nif_header_hidden_test",
+    file = "hidden.h",
+    present = False,
+    target = ":probe_nif_c_upstream",
+)
+
+# keep
+cc_library(
+    name = "undeclared_header",
+    testonly = True,
+    srcs = ["probe_nif.c"],
+    hdrs = ["hidden.h"],
+    deps = ["@dx_erlang_toolchains//:erl_nif"],
+)

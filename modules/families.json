@@ -98,14 +98,22 @@
         "real_erlang_typecheck_aspect",
         "real_erlang_unused_aspect"
       ],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "bazel_skylib",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
+        "rules_shell"
+      ],
       "dirs": [
+        "bcr_test_module",
         "elixir",
-        "erlang"
+        "erlang",
+        "third_party"
       ],
       "extensions": [
-        "//elixir/toolchain:repos.bzl%elixir",
-        "//erlang/toolchain:repos.bzl%erlang"
+        "@rules_dx//elixir/toolchain:repos.bzl%elixir",
+        "@rules_dx//erlang/toolchain:repos.bzl%erlang"
       ],
       "file_extensions": [
         ".erl",
@@ -113,17 +121,14 @@
         ".exs",
         ".hrl"
       ],
-      "gazelle": [
-        "//gazelle/elixir",
-        "//gazelle/erlang"
-      ],
+      "gazelle": [],
+      "module": "rules_dx_beam",
+      "path": "families/beam",
       "repo_rules": [
-        "//elixir/rules:hex.bzl%hex_package"
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+        "@rules_dx//elixir/rules:hex.bzl%hex_package"
       ],
-      "toolchains": [
-        "@dx_elixir_toolchains//:all",
-        "@dx_erlang_toolchains//:all"
-      ]
+      "toolchains": []
     },
     "cc": {
       "aspects": [
@@ -282,7 +287,9 @@
         "docs",
         "dotnet",
         "dx",
+        "elixir",
         "env",
+        "erlang",
         "examples",
         "families",
         "gazelle",
@@ -305,6 +312,8 @@
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
         "//dotnet:extensions.bzl%dotnet",
         "//dotnet:repos.bzl%dotnet_tools",
+        "//elixir/toolchain:repos.bzl%elixir",
+        "//erlang/toolchain:repos.bzl%erlang",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//quality/artifacts:extension.bzl%dx_tools",
         "//third_party/dotnet:extension.bzl%paket",
@@ -341,6 +350,8 @@
       ],
       "gazelle": [
         "//gazelle/csharp",
+        "//gazelle/elixir",
+        "//gazelle/erlang",
         "//gazelle/fsharp",
         "//gazelle/go"
       ],
@@ -352,7 +363,9 @@
       ],
       "toolchains": [
         "//tools/platforms:protoc_windows_arm64",
-        "@dotnet_toolchains//:all"
+        "@dotnet_toolchains//:all",
+        "@dx_elixir_toolchains//:all",
+        "@dx_erlang_toolchains//:all"
       ]
     },
     "d": {

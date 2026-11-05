@@ -1,12 +1,14 @@
 package golang
 
 import (
+	"go/ast"
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 )
@@ -31,6 +33,32 @@ func ParseImports(content []byte) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// HasBenchmarks reports whether the file declares a func BenchmarkXxx(b *testing.B).
+func HasBenchmarks(content []byte) bool {
+	f, err := parser.ParseFile(token.NewFileSet(), "source.go", content, 0)
+	if err != nil {
+		return false
+	}
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Recv != nil || !strings.HasPrefix(fn.Name.Name, "Benchmark") || len(fn.Type.Params.List) != 1 {
+			continue
+		}
+		rest := strings.TrimPrefix(fn.Name.Name, "Benchmark")
+		if rest != "" && unicode.IsLower([]rune(rest)[0]) {
+			continue
+		}
+		star, ok := fn.Type.Params.List[0].Type.(*ast.StarExpr)
+		if !ok {
+			continue
+		}
+		if sel, ok := star.X.(*ast.SelectorExpr); ok && sel.Sel.Name == "B" {
+			return true
+		}
+	}
+	return false
 }
 
 func ParsePackage(content []byte) (string, error) {

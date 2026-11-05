@@ -1010,3 +1010,33 @@ func TestGoRootHint(t *testing.T) {
 		t.Errorf("goRootHint(nil config) = %q, want empty", got)
 	}
 }
+
+func TestGenerateBenchmarkNextToTest(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.go":      "package demo\n",
+		"pkg/demo/demo_test.go": "package demo\n\nimport \"testing\"\n\nfunc BenchmarkParse(b *testing.B) {}\n",
+	}, []string{"demo.go", "demo_test.go"})
+	if len(result.Gen) != 3 || len(result.Imports) != 3 {
+		t.Fatalf("generated %d rules and %d import sets, want 3 each", len(result.Gen), len(result.Imports))
+	}
+	bench := result.Gen[2]
+	if bench.Kind() != BenchmarkKind || bench.Name() != "demo_bench" {
+		t.Fatalf("benchmark = %s(%s), want go_benchmark(demo_bench)", bench.Kind(), bench.Name())
+	}
+	if got := strings.Join(bench.AttrStrings("srcs"), ","); got != "demo_test.go" {
+		t.Errorf("benchmark srcs = %q, want demo_test.go", got)
+	}
+	if got := strings.Join(bench.AttrStrings("embed"), ","); got != ":demo" {
+		t.Errorf("benchmark embed = %q, want :demo", got)
+	}
+}
+
+func TestGenerateNoBenchmarkWithoutBenchmarkFunc(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.go":      "package demo\n",
+		"pkg/demo/demo_test.go": "package demo\n\nimport \"testing\"\n\nfunc benchmarkParse(b *testing.B) {}\n\nfunc Benchmarkparse(b *testing.B) {}\n\nfunc BenchmarkX(t *testing.T) {}\n",
+	}, []string{"demo.go", "demo_test.go"})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2 (library + test)", len(result.Gen))
+	}
+}

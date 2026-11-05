@@ -1,6 +1,7 @@
 """Minimal Go wrappers."""
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_binary = "go_binary", _go_library = "go_library", _go_test = "go_test")
 load(":cgo.bzl", "cgo_toolchain_error")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
@@ -94,6 +95,25 @@ def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwar
         srcs = [Label("//go/rules:fuzz_run.sh")],
         args = ["$(rootpath :" + name + ")", fuzz],
         data = [":" + name],
+        testonly = True,
+        visibility = visibility,
+    )
+
+def go_benchmark(name, srcs = None, visibility = None, tags = None, **kwargs):
+    """A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
+    go_test(
+        name = name + "_bin",
+        srcs = srcs,
+        visibility = visibility,
+        tags = (tags or []) + ["manual"],
+        **kwargs
+    )
+    sh_test(
+        name = name,
+        srcs = [Label("//go/rules:bench_run.sh")],
+        args = ["$(rootpath :" + name + "_bin)", "-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1"],
+        data = [":" + name + "_bin"],
+        tags = (tags or []) + ["dx-bench", "manual"],
         testonly = True,
         visibility = visibility,
     )

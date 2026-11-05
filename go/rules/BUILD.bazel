@@ -5,6 +5,7 @@ load(":cgo_tests.bzl", "cgo_toolchain_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "bench_run.sh",
     "cgo.bzl",
     "defs.bzl",
     "fuzz_run.sh",

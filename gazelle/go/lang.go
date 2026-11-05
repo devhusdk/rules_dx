@@ -19,6 +19,17 @@ import (
 
 const languageName = "go"
 
+var testKindInfo = rule.KindInfo{
+	MatchAttrs:    []string{"srcs"},
+	NonEmptyAttrs: map[string]bool{"srcs": true},
+	MergeableAttrs: map[string]bool{
+		"srcs":  true,
+		"deps":  true,
+		"embed": true,
+	},
+	ResolveAttrs: map[string]bool{"deps": true},
+}
+
 var goKinds = map[string]rule.KindInfo{
 	LibraryKind: rule.KindInfo{
 		MatchAttrs:    []string{"srcs"},
@@ -30,16 +41,8 @@ var goKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
-	TestKind: rule.KindInfo{
-		MatchAttrs:    []string{"srcs"},
-		NonEmptyAttrs: map[string]bool{"srcs": true},
-		MergeableAttrs: map[string]bool{
-			"srcs":  true,
-			"deps":  true,
-			"embed": true,
-		},
-		ResolveAttrs: map[string]bool{"deps": true},
-	},
+	TestKind:      testKindInfo,
+	BenchmarkKind: testKindInfo,
 }
 
 type goLang struct {
@@ -52,7 +55,7 @@ func newLang() *goLang {
 	return &goLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
-		ExtraKinds:     []string{TestKind},
+		ExtraKinds:     []string{TestKind, BenchmarkKind},
 		Kinds:          goKinds,
 		DefsPackage:    "go/rules:defs.bzl",
 		IsStdLib:       IsStdLib,
@@ -85,6 +88,7 @@ func isSupported(name string) bool {
 func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	var sources []string
 	var testSources []string
+	var benchSources []string
 	contents := make(map[string][]byte)
 	for _, name := range args.RegularFiles {
 		if !isSupported(name) {
@@ -106,6 +110,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		contents[name] = content
 		if IsTestSource(name) {
 			testSources = append(testSources, name)
+			if HasBenchmarks(content) {
+				benchSources = append(benchSources, name)
+			}
 			continue
 		}
 		sources = append(sources, name)
@@ -129,6 +136,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		return language.GenerateResult{}
 	}
 	testName := name + "_test"
+	benchName := name + "_bench"
 
 	packages := make(map[string]bool)
 	seen := make(map[string]bool)
@@ -220,6 +228,9 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	if len(testSources) > 0 {
 		claimants = append(claimants, Claimant{Name: testName, Source: args.Rel, Kind: TestKind})
 	}
+	if len(benchSources) > 0 {
+		claimants = append(claimants, Claimant{Name: benchName, Source: args.Rel, Kind: BenchmarkKind})
+	}
 	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(common.InPackage(args.Rel), "go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
@@ -238,6 +249,13 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		t.SetAttr("srcs", testSources)
 		t.SetAttr("embed", []string{":" + name})
 		result.Gen = append(result.Gen, t)
+		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
+	}
+	if len(benchSources) > 0 {
+		b := rule.NewRule(BenchmarkKind, benchName)
+		b.SetAttr("srcs", testSources)
+		b.SetAttr("embed", []string{":" + name})
+		result.Gen = append(result.Gen, b)
 		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}
 	if isFixturePath(args.Rel) {
@@ -308,7 +326,7 @@ func embeds(r *rule.Rule, from, dep label.Label) bool {
 
 func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	spec := l.ResolveSpecFor(c, r, from)
-	if r.Kind() == TestKind {
+	if r.Kind() == TestKind || r.Kind() == BenchmarkKind {
 		spec.SkipDep = func(dep label.Label) bool { return embeds(r, from, dep) }
 	}
 	unresolved := spec.FailUnresolved

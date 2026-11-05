@@ -1,0 +1,30 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//go/rules:defs.bzl", "go_benchmark", "go_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+go_library(
+    name = "parse",
+    srcs = ["parse.go"],
+    importpath = "rules_dx/go/tests/fixtures/bench",
+)
+
+go_benchmark(
+    name = "parse_bench",
+    srcs = ["parse_test.go"],
+    embed = [":parse"],
+)
+
+sh_test(
+    name = "parse_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_bench_bin)"],
+    data = [
+        ":parse_bench_bin",
+        "//go/rules:bench_run.sh",
+    ],
+    timeout = "short",
+)

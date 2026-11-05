@@ -160,3 +160,21 @@ func TestBuildExcluded(t *testing.T) {
 		})
 	}
 }
+
+func TestHasBenchmarks(t *testing.T) {
+	cases := []struct {
+		src  string
+		want bool
+	}{
+		{"package p\nimport \"testing\"\nfunc BenchmarkA(b *testing.B) {}\n", true},
+		{"package p\nimport \"testing\"\nfunc Benchmark(b *testing.B) {}\n", true},
+		{"package p\nimport \"testing\"\nfunc BenchmarkA(t *testing.T) {}\n", false},
+		{"package p\nimport \"testing\"\nfunc (x X) BenchmarkA(b *testing.B) {}\n", false},
+		{"package p\nfunc Other() {}\n", false},
+	}
+	for _, c := range cases {
+		if got := HasBenchmarks([]byte(c.src)); got != c.want {
+			t.Errorf("HasBenchmarks(%q) = %v, want %v", c.src, got, c.want)
+		}
+	}
+}

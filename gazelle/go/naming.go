@@ -15,6 +15,8 @@ const LibraryKind = "go_library"
 
 const TestKind = "go_test"
 
+const BenchmarkKind = "go_benchmark"
+
 func IsTestSource(name string) bool {
 	return strings.HasSuffix(path.Base(name), "_test.go")
 }

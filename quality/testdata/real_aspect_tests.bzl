@@ -523,6 +523,47 @@ def real_shard_probe_tests(name, subjects):
         expected_observations = EXPECTED_PROBE_OBSERVATIONS,
     )
 
+def real_family_probe_tests(name, subjects):
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = subjects,
+        expected_observations = EXPECTED_FAMILY_PROBE_OBSERVATIONS,
+    )
+
+EXPECTED_FAMILY_PROBE_OBSERVATIONS = """subject //quality/testdata:fixture_real_family_probe_subject
+field format_equal=True
+field format_facade=real_cc_format,real_format,real_js_format,real_python_format,real_rust_format
+field format_families=real_cc_format,real_format,real_js_format,real_python_format,real_rust_format
+field label=//quality/testdata:fixture_real_family_probe
+field lint_equal=True
+field lint_facade=real_lint,real_python_lint,real_rust_lint,real_text_lint
+field lint_families=real_lint,real_python_lint,real_rust_lint,real_text_lint
+field typecheck_equal=True
+field typecheck_facade=real_python_typecheck,real_rust_typecheck
+field typecheck_families=real_python_typecheck,real_rust_typecheck
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:fixture_real_family_probe_subject
+aspect_field transitive_count=0
+subject //quality/testdata:rust_test_crate_family_probe_subject
+field format_equal=True
+field format_facade=real_rust_format
+field format_families=real_rust_format
+field label=//quality/testdata:fake_format_test
+field lint_equal=True
+field lint_facade=(none)
+field lint_families=(none)
+field typecheck_equal=True
+field typecheck_facade=real_rust_typecheck
+field typecheck_families=real_rust_typecheck
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:rust_test_crate_family_probe_subject
+aspect_field transitive_count=0"""
+
 EXPECTED_DOCS_OBSERVATIONS = """subject //quality/testdata:docs_csharp_ledger_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/dotnet/fixture/csharp/_dx_docs/ledger.ir.pb

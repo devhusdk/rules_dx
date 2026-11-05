@@ -1,7 +1,7 @@
 """D real quality aspects."""
 
 load("//quality:compile_check.bzl", "compile_check_aspect")
-load("//quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "dfmt": {
@@ -63,3 +63,17 @@ real_d_format_aspect = real_make_aspect(_CFG, "real_d_format")
 real_d_lint_aspect = real_make_aspect(_CFG, "real_d_lint")
 
 real_d_typecheck_aspect = real_make_aspect(_CFG, "real_d_typecheck")
+
+DShardProbeInfo = provider(
+    doc = "Shard names the d shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_d_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "d", DShardProbeInfo)
+
+real_d_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "d", DShardProbeInfo)
+
+real_d_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "d", DShardProbeInfo)

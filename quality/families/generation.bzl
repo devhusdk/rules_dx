@@ -5,7 +5,7 @@ load("//avro/rules:defs.bzl", "AvroInfo")
 load("//capnproto/rules:defs.bzl", "CapnpInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:family_hooks.bzl", "upstream_files")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
 
 TOOLS = {
@@ -207,3 +207,17 @@ real_protobuf_lint_aspect = real_make_aspect(_CFG, "real_protobuf_lint")
 real_thrift_lint_aspect = real_make_aspect(_CFG, "real_thrift_lint")
 
 real_thrift_typecheck_aspect = real_make_aspect(_CFG, "real_thrift_typecheck")
+
+GenerationShardProbeInfo = provider(
+    doc = "Shard names the generation shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_generation_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "generation", GenerationShardProbeInfo)
+
+real_generation_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "generation", GenerationShardProbeInfo)
+
+real_generation_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "generation", GenerationShardProbeInfo)

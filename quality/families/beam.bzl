@@ -2,7 +2,7 @@
 
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo", "XrefToolInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "credo": {
@@ -172,3 +172,17 @@ real_erlang_lint_aspect = real_make_aspect(_CFG, "real_erlang_lint")
 real_erlang_unused_aspect = real_make_aspect(_CFG, "real_erlang_unused")
 
 real_erlang_typecheck_aspect = real_make_aspect(_CFG, "real_erlang_typecheck")
+
+BeamShardProbeInfo = provider(
+    doc = "Shard names the beam shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_beam_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "beam", BeamShardProbeInfo)
+
+real_beam_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "beam", BeamShardProbeInfo)
+
+real_beam_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "beam", BeamShardProbeInfo)

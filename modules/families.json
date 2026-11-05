@@ -87,6 +87,9 @@
     },
     "beam": {
       "aspects": [
+        "real_beam_format_probe_aspect",
+        "real_beam_lint_probe_aspect",
+        "real_beam_typecheck_probe_aspect",
         "real_elixir_format_aspect",
         "real_elixir_lint_aspect",
         "real_elixir_unused_aspect",
@@ -125,8 +128,11 @@
     "cc": {
       "aspects": [
         "real_cc_format_aspect",
+        "real_cc_format_probe_aspect",
         "real_cc_lint_aspect",
-        "real_cc_typecheck_aspect"
+        "real_cc_lint_probe_aspect",
+        "real_cc_typecheck_aspect",
+        "real_cc_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "gcc_toolchain",
@@ -197,6 +203,9 @@
         "real_cloudformation_lint_aspect",
         "real_cmake_format_aspect",
         "real_cmake_lint_aspect",
+        "real_core_format_probe_aspect",
+        "real_core_lint_probe_aspect",
+        "real_core_typecheck_probe_aspect",
         "real_cue_format_aspect",
         "real_cue_typecheck_aspect",
         "real_dockerfile_lint_aspect",
@@ -349,8 +358,11 @@
     "d": {
       "aspects": [
         "real_d_format_aspect",
+        "real_d_format_probe_aspect",
         "real_d_lint_aspect",
-        "real_d_typecheck_aspect"
+        "real_d_lint_probe_aspect",
+        "real_d_typecheck_aspect",
+        "real_d_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -373,8 +385,11 @@
     "dart": {
       "aspects": [
         "real_dart_format_aspect",
+        "real_dart_format_probe_aspect",
         "real_dart_lint_aspect",
-        "real_dart_typecheck_aspect"
+        "real_dart_lint_probe_aspect",
+        "real_dart_typecheck_aspect",
+        "real_dart_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "rules_dart",
@@ -401,8 +416,11 @@
     "dotnet": {
       "aspects": [
         "real_dotnet_format_aspect",
+        "real_dotnet_format_probe_aspect",
         "real_dotnet_lint_aspect",
-        "real_dotnet_typecheck_aspect"
+        "real_dotnet_lint_probe_aspect",
+        "real_dotnet_typecheck_aspect",
+        "real_dotnet_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "bazel_skylib",
@@ -436,8 +454,11 @@
     "fortran": {
       "aspects": [
         "real_fortran_format_aspect",
+        "real_fortran_format_probe_aspect",
         "real_fortran_lint_aspect",
-        "real_fortran_typecheck_aspect"
+        "real_fortran_lint_probe_aspect",
+        "real_fortran_typecheck_aspect",
+        "real_fortran_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -463,6 +484,9 @@
         "real_capnp_typecheck_aspect",
         "real_flatbuffers_lint_aspect",
         "real_flatbuffers_typecheck_aspect",
+        "real_generation_format_probe_aspect",
+        "real_generation_lint_probe_aspect",
+        "real_generation_typecheck_probe_aspect",
         "real_protobuf_format_aspect",
         "real_protobuf_lint_aspect",
         "real_thrift_lint_aspect",
@@ -501,8 +525,11 @@
     "haskell": {
       "aspects": [
         "real_haskell_format_aspect",
+        "real_haskell_format_probe_aspect",
         "real_haskell_lint_aspect",
-        "real_haskell_typecheck_aspect"
+        "real_haskell_lint_probe_aspect",
+        "real_haskell_typecheck_aspect",
+        "real_haskell_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -526,8 +553,11 @@
     "js": {
       "aspects": [
         "real_js_format_aspect",
+        "real_js_format_probe_aspect",
         "real_js_lint_aspect",
+        "real_js_lint_probe_aspect",
         "real_js_typecheck_aspect",
+        "real_js_typecheck_probe_aspect",
         "real_js_unused_aspect"
       ],
       "bazel_deps": [
@@ -575,8 +605,11 @@
     "julia": {
       "aspects": [
         "real_julia_format_aspect",
+        "real_julia_format_probe_aspect",
         "real_julia_lint_aspect",
-        "real_julia_typecheck_aspect"
+        "real_julia_lint_probe_aspect",
+        "real_julia_typecheck_aspect",
+        "real_julia_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "rules_julia"
@@ -600,8 +633,11 @@
     "jvm": {
       "aspects": [
         "real_jvm_format_aspect",
+        "real_jvm_format_probe_aspect",
         "real_jvm_lint_aspect",
+        "real_jvm_lint_probe_aspect",
         "real_jvm_typecheck_aspect",
+        "real_jvm_typecheck_probe_aspect",
         "real_scala_format_aspect",
         "real_scala_lint_aspect"
       ],
@@ -640,8 +676,11 @@
     "lua": {
       "aspects": [
         "real_lua_format_aspect",
+        "real_lua_format_probe_aspect",
         "real_lua_lint_aspect",
-        "real_lua_typecheck_aspect"
+        "real_lua_lint_probe_aspect",
+        "real_lua_typecheck_aspect",
+        "real_lua_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "lua"
@@ -682,8 +721,11 @@
     "ocaml": {
       "aspects": [
         "real_ocaml_format_aspect",
+        "real_ocaml_format_probe_aspect",
         "real_ocaml_lint_aspect",
-        "real_ocaml_typecheck_aspect"
+        "real_ocaml_lint_probe_aspect",
+        "real_ocaml_typecheck_aspect",
+        "real_ocaml_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -707,7 +749,9 @@
     "perl": {
       "aspects": [
         "real_perl_format_aspect",
-        "real_perl_lint_aspect"
+        "real_perl_format_probe_aspect",
+        "real_perl_lint_aspect",
+        "real_perl_lint_probe_aspect"
       ],
       "bazel_deps": [
         "rules_perl"
@@ -731,7 +775,9 @@
     "php": {
       "aspects": [
         "real_php_lint_aspect",
-        "real_php_typecheck_aspect"
+        "real_php_lint_probe_aspect",
+        "real_php_typecheck_aspect",
+        "real_php_typecheck_probe_aspect"
       ],
       "bazel_deps": [],
       "dirs": [
@@ -754,7 +800,9 @@
     "powershell": {
       "aspects": [
         "real_powershell_format_aspect",
-        "real_powershell_lint_aspect"
+        "real_powershell_format_probe_aspect",
+        "real_powershell_lint_aspect",
+        "real_powershell_lint_probe_aspect"
       ],
       "bazel_deps": [
         "rules_batch"
@@ -782,8 +830,11 @@
     "python": {
       "aspects": [
         "real_python_format_aspect",
+        "real_python_format_probe_aspect",
         "real_python_lint_aspect",
+        "real_python_lint_probe_aspect",
         "real_python_typecheck_aspect",
+        "real_python_typecheck_probe_aspect",
         "real_python_unused_aspect"
       ],
       "bazel_deps": [
@@ -812,8 +863,11 @@
     "ruby": {
       "aspects": [
         "real_ruby_format_aspect",
+        "real_ruby_format_probe_aspect",
         "real_ruby_lint_aspect",
+        "real_ruby_lint_probe_aspect",
         "real_ruby_typecheck_aspect",
+        "real_ruby_typecheck_probe_aspect",
         "real_ruby_unused_aspect"
       ],
       "bazel_deps": [],
@@ -840,8 +894,11 @@
     "rust": {
       "aspects": [
         "real_rust_format_aspect",
+        "real_rust_format_probe_aspect",
         "real_rust_lint_aspect",
-        "real_rust_typecheck_aspect"
+        "real_rust_lint_probe_aspect",
+        "real_rust_typecheck_aspect",
+        "real_rust_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "rules_rust",
@@ -870,7 +927,9 @@
     "swift": {
       "aspects": [
         "real_swift_format_aspect",
-        "real_swift_lint_aspect"
+        "real_swift_format_probe_aspect",
+        "real_swift_lint_aspect",
+        "real_swift_lint_probe_aspect"
       ],
       "bazel_deps": [
         "bazel_linux_packages",
@@ -897,8 +956,11 @@
     "zig": {
       "aspects": [
         "real_zig_format_aspect",
+        "real_zig_format_probe_aspect",
         "real_zig_lint_aspect",
-        "real_zig_typecheck_aspect"
+        "real_zig_lint_probe_aspect",
+        "real_zig_typecheck_aspect",
+        "real_zig_typecheck_probe_aspect"
       ],
       "bazel_deps": [
         "rules_zig"

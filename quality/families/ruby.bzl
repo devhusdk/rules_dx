@@ -3,7 +3,7 @@
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("//php/rules:php.bzl", "staged_path")
 load("//quality:family_hooks.bzl", "stage")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "sorbet": {
@@ -99,3 +99,17 @@ real_ruby_lint_aspect = real_make_aspect(_CFG, "real_ruby_lint")
 real_ruby_unused_aspect = real_make_aspect(_CFG, "real_ruby_unused")
 
 real_ruby_typecheck_aspect = real_make_aspect(_CFG, "real_ruby_typecheck")
+
+RubyShardProbeInfo = provider(
+    doc = "Shard names the ruby shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_ruby_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "ruby", RubyShardProbeInfo)
+
+real_ruby_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ruby", RubyShardProbeInfo)
+
+real_ruby_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "ruby", RubyShardProbeInfo)

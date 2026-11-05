@@ -3,7 +3,7 @@
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("//quality:family_hooks.bzl", "upstream_files")
 load("//quality:pipeline.bzl", "generated_source_paths", "prune_tool_generated_sources")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
@@ -192,3 +192,17 @@ real_rust_format_aspect = real_make_aspect(_CFG, "real_rust_format")
 real_rust_lint_aspect = real_make_aspect(_CFG, "real_rust_lint")
 
 real_rust_typecheck_aspect = real_make_aspect(_CFG, "real_rust_typecheck")
+
+RustShardProbeInfo = provider(
+    doc = "Shard names the rust shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_rust_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "rust", RustShardProbeInfo)
+
+real_rust_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "rust", RustShardProbeInfo)
+
+real_rust_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "rust", RustShardProbeInfo)

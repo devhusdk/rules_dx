@@ -15,11 +15,17 @@ load(
     "real_cc_format_aspect",
     "real_cc_lint_aspect",
     "real_cc_typecheck_aspect",
+    "real_cc_format_probe_aspect",
+    "real_cc_lint_probe_aspect",
+    "real_cc_typecheck_probe_aspect",
     "real_cloudformation_lint_aspect",
     "real_cmake_format_aspect",
     "real_cmake_lint_aspect",
     "real_cue_format_aspect",
     "real_cue_typecheck_aspect",
+    "real_core_format_probe_aspect",
+    "real_core_lint_probe_aspect",
+    "real_core_typecheck_probe_aspect",
     "real_d_typecheck_aspect",
     "real_docs_aspect",
     "real_dockerfile_lint_aspect",
@@ -42,6 +48,9 @@ load(
     "real_html_template_format_aspect",
     "real_html_template_lint_aspect",
     "real_js_format_aspect",
+    "real_js_format_probe_aspect",
+    "real_js_lint_probe_aspect",
+    "real_js_typecheck_probe_aspect",
     "real_js_lint_aspect",
     "real_js_typecheck_aspect",
     "real_jsonnet_format_aspect",
@@ -53,6 +62,12 @@ load(
     "real_latex_format_aspect",
     "real_lint_aspect",
     "real_lint_probe_aspect",
+    "real_python_format_probe_aspect",
+    "real_python_lint_probe_aspect",
+    "real_python_typecheck_probe_aspect",
+    "real_rust_format_probe_aspect",
+    "real_rust_lint_probe_aspect",
+    "real_rust_typecheck_probe_aspect",
     "real_lua_format_aspect",
     "real_lua_lint_aspect",
     "real_make_format_aspect",
@@ -124,6 +139,11 @@ load(
     "real_yaml_lint_aspect",
     "real_zig_typecheck_aspect",
 )
+load("//quality:families/cc.bzl", "CcShardProbeInfo")
+load("//quality:families/core_probe.bzl", "CoreShardProbeInfo")
+load("//quality:families/js.bzl", "JsShardProbeInfo")
+load("//quality:families/python.bzl", "PythonShardProbeInfo")
+load("//quality:families/rust.bzl", "RustShardProbeInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _label_text(label):
@@ -317,6 +337,86 @@ real_shard_probe_subject = rule(
         "typecheck_probe": attr.label(aspects = [real_typecheck_probe_aspect], mandatory = True),
     },
 )
+
+_FAMILY_PROBES = {
+    "format": {
+        "cc": real_cc_format_probe_aspect,
+        "core": real_core_format_probe_aspect,
+        "js": real_js_format_probe_aspect,
+        "python": real_python_format_probe_aspect,
+        "rust": real_rust_format_probe_aspect,
+    },
+    "lint": {
+        "cc": real_cc_lint_probe_aspect,
+        "core": real_core_lint_probe_aspect,
+        "js": real_js_lint_probe_aspect,
+        "python": real_python_lint_probe_aspect,
+        "rust": real_rust_lint_probe_aspect,
+    },
+    "typecheck": {
+        "cc": real_cc_typecheck_probe_aspect,
+        "core": real_core_typecheck_probe_aspect,
+        "js": real_js_typecheck_probe_aspect,
+        "python": real_python_typecheck_probe_aspect,
+        "rust": real_rust_typecheck_probe_aspect,
+    },
+}
+
+_FAMILY_INFOS = {
+    "cc": CcShardProbeInfo,
+    "core": CoreShardProbeInfo,
+    "js": JsShardProbeInfo,
+    "python": PythonShardProbeInfo,
+    "rust": RustShardProbeInfo,
+}
+
+_FACADE_PROBES = {
+    "format": real_format_probe_aspect,
+    "lint": real_lint_probe_aspect,
+    "typecheck": real_typecheck_probe_aspect,
+}
+
+def _real_family_probe_subject_impl(ctx):
+    fields = {"label": _label_text(ctx.attr.target.label)}
+    for capability in ["lint", "format", "typecheck"]:
+        facade = _probe_shards_of(getattr(ctx.attr, capability + "_facade"))
+        united = {}
+        for family, info in _FAMILY_INFOS.items():
+            dep = getattr(ctx.attr, capability + "_" + family)
+            if info in dep:
+                for shard in dep[info].shards:
+                    united[shard] = True
+        families = sorted(united.keys())
+        fields[capability + "_facade"] = _joined(facade)
+        fields[capability + "_families"] = _joined(families)
+        fields[capability + "_equal"] = str(families == list(facade))
+    return [
+        DefaultInfo(files = depset([])),
+        DxSubjectInfo(fields = fields),
+    ]
+
+def _family_probe_attrs():
+    attrs = {"target": attr.label(mandatory = True)}
+    for capability, aspect in _FACADE_PROBES.items():
+        attrs[capability + "_facade"] = attr.label(aspects = [aspect], mandatory = True)
+    for capability, probes in _FAMILY_PROBES.items():
+        for family, aspect in probes.items():
+            attrs[capability + "_" + family] = attr.label(aspects = [aspect], mandatory = True)
+    return attrs
+
+_real_family_probe_subject = rule(
+    implementation = _real_family_probe_subject_impl,
+    doc = "Compares the per-family shard probes with the facade probe for each capability.",
+    attrs = _family_probe_attrs(),
+)
+
+def real_family_probe_subject(name, target, **kwargs):
+    """Observes, per capability, the family probes of `target` next to the facade probe."""
+    attrs = {capability + "_facade": target for capability in _FACADE_PROBES}
+    for capability, probes in _FAMILY_PROBES.items():
+        for family in probes:
+            attrs[capability + "_" + family] = target
+    _real_family_probe_subject(name = name, target = target, **(attrs | kwargs))
 
 def _real_docs_subject_impl(ctx):
     target = ctx.attr.target

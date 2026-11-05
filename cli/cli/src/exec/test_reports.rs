@@ -1953,6 +1953,31 @@ mod tests {
         assert!(err.contains("coverage_below_minimum"), "{err}");
     }
 
+    #[test]
+    fn coverage_min_coverage_counts_d_sources() {
+        let harness = Harness::new("cov-threshold-d");
+        let source = harness.workspace.join("src/adder.d");
+        std::fs::create_dir_all(source.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&source, "int add(int a, int b) {\n    return a + b;\n}\n").expect("write");
+        let uri = write_bep_artifact(
+            &harness,
+            "coverage.dat",
+            b"SF:src/adder.d\nDA:1,1\nDA:2,0\nend_of_record\n",
+        );
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.lcov"), uri)],
+            )]),
+            ..harness
+        };
+        let harness = with_sources(harness, "v1 cell linux_x86_64\nprod source src/adder.d\n");
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("coverage_below_minimum"), "{err}");
+        assert!(err.contains("1/2 lines"), "{err}");
+    }
+
     const SOURCES_ASPECT: &str = "//quality:coverage_sources.bzl%dx_coverage_sources_aspect";
 
     const PY_SOURCES: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";

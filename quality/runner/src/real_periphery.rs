@@ -63,12 +63,18 @@ fn periphery_scans_the_staged_store_and_reports_own_files() {
     assert_eq!(findings[0].path, "pkg/a.swift");
     let argv = ARGV.with(|log| log.borrow().clone());
     assert!(argv.contains(&"--retain-public".to_owned()));
-    assert!(argv.last().expect("store").ends_with("periphery.indexstore"));
+    assert!(argv
+        .last()
+        .expect("store")
+        .ends_with("periphery.indexstore"));
     assert!(HOME.with(|slot| slot.borrow().ends_with("dx-periphery/home")));
 }
 
 #[test]
 fn periphery_without_an_index_store_names_the_feature() {
     let err = scan(periphery_tool(false)).expect_err("no store");
-    assert!(err.to_string().contains("swift.index_while_building"), "{err}");
+    assert!(
+        err.to_string().contains("swift.index_while_building"),
+        "{err}"
+    );
 }

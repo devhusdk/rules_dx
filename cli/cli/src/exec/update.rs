@@ -40,7 +40,13 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
         if invocation.add_missing {
-            if let Err(code) = add_missing(invocation, env.workspace, &registry, env.err) {
+            if let Err(code) = add_missing(
+                invocation,
+                env.workspace,
+                env.query_runner,
+                &registry,
+                env.err,
+            ) {
                 return code;
             }
         }
@@ -92,6 +98,7 @@ fn prune_unused(
 fn add_missing(
     invocation: &Invocation,
     workspace: &std::path::Path,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
     registry: &dx_adopt::dependency_sets::Registry,
     err: &mut dyn std::io::Write,
 ) -> Result<(), i32> {
@@ -108,7 +115,13 @@ fn add_missing(
         Err(error) => return fail(&error.to_string()),
     };
     let fetch = update_outdated::registry_fetch();
-    match update_add_missing::add_missing(workspace, &resolved, fetch.as_ref()) {
+    match update_add_missing::add_missing(
+        workspace,
+        &resolved,
+        fetch.as_ref(),
+        query_runner,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(added) => {
             for item in added {
                 let _ = writeln!(

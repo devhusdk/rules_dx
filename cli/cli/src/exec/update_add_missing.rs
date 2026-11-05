@@ -1,5 +1,6 @@
-use super::update_unused::{self, Missing};
+use super::update_unused::{self, Missing, Via};
 use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget};
+use dx_plan::resolve::QueryRunner;
 use dx_update::discover::{cargo, npm, pypi, ruby, Fetch};
 use dx_update::edit::{AddError, AddRequest, ConfiguredKind, UpdateRequest};
 use std::collections::BTreeMap;
@@ -53,7 +54,15 @@ fn plan(
     fetch: &dyn Fetch,
 ) -> Result<Option<Added>, String> {
     let set = &target.set;
-    let manifest = manifest_for(&set.manifests, &item.file)
+    let near = match &item.via {
+        Via::Import { file, .. } => file.as_str(),
+        Via::Label(label) => label
+            .trim_start_matches('/')
+            .split(':')
+            .next()
+            .unwrap_or_default(),
+    };
+    let manifest = manifest_for(&set.manifests, near)
         .ok_or_else(|| "the set has no manifest".to_owned())?
         .clone();
     let version = latest(set.ecosystem, &item.name, fetch)?;
@@ -92,11 +101,13 @@ pub(super) fn add_missing(
     workspace: &Path,
     resolved: &[ResolvedTarget],
     fetch: &dyn Fetch,
+    query: &dyn QueryRunner,
+    startup: &[String],
 ) -> Result<Vec<Added>, String> {
     let mut texts = BTreeMap::new();
     let mut added = Vec::new();
     let mut failures = Vec::new();
-    for item in update_unused::find_missing(workspace, resolved) {
+    for item in update_unused::find_missing(workspace, resolved, query, startup) {
         let Some(target) = resolved.iter().find(|target| target.set.name == item.set) else {
             continue;
         };
@@ -127,6 +138,18 @@ pub(super) fn add_missing(
 mod tests {
     use super::*;
     use dx_adopt::dependency_sets::{DependencySet, ResolvedSet, Selection};
+
+    struct NoQuery;
+
+    impl QueryRunner for NoQuery {
+        fn run_query(
+            &self,
+            _argv: &[String],
+            _cwd: &Path,
+        ) -> std::io::Result<dx_plan::resolve::QueryResult> {
+            Err(std::io::Error::other("no bazel"))
+        }
+    }
 
     fn target(set: &str, ecosystem: Ecosystem, manifest: &str, lock: &str) -> ResolvedTarget {
         ResolvedTarget {
@@ -201,7 +224,7 @@ mod tests {
                 "web/pnpm-lock.yaml",
             ),
         ];
-        let added = add_missing(root, &resolved, &registry).expect("added");
+        let added = add_missing(root, &resolved, &registry, &NoQuery, &[]).expect("added");
         let names: Vec<_> = added
             .iter()
             .map(|a| format!("{} {} {}", a.set, a.name, a.version))
@@ -211,8 +234,8 @@ mod tests {
         assert!(cargo.contains("regex = \"1.5.0\""), "{cargo}");
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
-        assert!(update_unused::find_missing(root, &resolved).is_empty());
-        assert!(add_missing(root, &resolved, &registry)
+        assert!(update_unused::find_missing(root, &resolved, &NoQuery, &[]).is_empty());
+        assert!(add_missing(root, &resolved, &registry, &NoQuery, &[])
             .expect("again")
             .is_empty());
     }
@@ -242,7 +265,7 @@ mod tests {
             "web/package.json",
             "web/pnpm-lock.yaml",
         )];
-        let error = add_missing(root, &resolved, &registry).expect_err("zzz fails");
+        let error = add_missing(root, &resolved, &registry, &NoQuery, &[]).expect_err("zzz fails");
         assert!(error.contains("npm:zzz"), "{error}");
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");

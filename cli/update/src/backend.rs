@@ -1309,7 +1309,6 @@ fn julia_env() -> Vec<(String, String)> {
     )]
 }
 
-
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
 ///
 /// Flutter sets are refused: the pinned Flutter toolchain ships no `flutter` command.
@@ -2046,7 +2045,6 @@ mod tests {
             Err(BackendError::OfflineRequired { .. })
         ));
     }
-
 
     fn pub_set() -> ResolvedSet {
         ResolvedSet {

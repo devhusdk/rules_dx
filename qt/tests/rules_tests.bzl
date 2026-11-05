@@ -409,6 +409,29 @@ def _rust_module_test_impl(ctx):
 
 _rust_module_test = analysistest.make(_rust_module_test_impl)
 
+def _library_link_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    found = False
+    for linker_input in target[CcInfo].linking_context.linker_inputs.to_list():
+        owner = str(linker_input.owner)
+        if "gui_upstream" in owner:
+            found = True
+            for library in linker_input.libraries:
+                if ctx.attr.static:
+                    asserts.equals(env, None, library.dynamic_library, "gui_upstream links as a dylib: " + owner)
+                else:
+                    asserts.true(env, library.dynamic_library != None, "gui_upstream has no dylib: " + owner)
+        for flag in linker_input.user_link_flags:
+            asserts.false(env, "-undefined" in flag, "dynamic_lookup flag on " + owner)
+    asserts.true(env, found, "gui_upstream is not in the linking context")
+    if ctx.attr.static:
+        for action in analysistest.target_actions(env):
+            asserts.false(env, action.mnemonic == "CppLink", "unexpected CppLink action")
+    return analysistest.end(env)
+
+_library_link_test = analysistest.make(_library_link_test_impl, attrs = {"static": attr.bool()})
+
 def _bridge_test_impl(ctx):
     env = analysistest.begin(ctx)
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
@@ -611,6 +634,18 @@ def qt_rules_tests(name):
         target_under_test = ":plain_test_upstream",
         target_compatible_with = _MACOS_ARM64,
     )
+    _library_link_test(
+        name = name + "_macos_library_link",
+        static = True,
+        target_under_test = ":gui_upstream",
+        target_compatible_with = _MACOS_ARM64,
+    )
+    _library_link_test(
+        name = name + "_linux_library_link",
+        static = False,
+        target_under_test = ":gui_upstream",
+        target_compatible_with = _LINUX,
+    )
     _frameworks_test(
         name = name + "_frameworks",
         files = ["qt/tests/frameworks_fixture/QtFake.framework/Versions/A/QtFake"],
@@ -666,5 +701,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset", "macos_runpath", "macos_test_runpath", "macos_bundle"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
     )

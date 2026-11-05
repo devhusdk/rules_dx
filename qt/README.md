@@ -174,7 +174,7 @@ qt_cc_binary(
 )
 ```
 
-The rules compile with `-fPIC` and link executables dynamically.
+The rules compile with `-fPIC` and link executables dynamically against Qt; `qt_cc_library` and `qt_qml_module` link into the executable statically on macOS and Windows.
 
 | Rule | Wraps | Default `modules` |
 | --- | --- | --- |

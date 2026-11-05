@@ -602,13 +602,6 @@ def _bundle_runpath():
         "//conditions:default": [QT_BUNDLE_RUNPATH],
     })
 
-def _dynamic_lookup_linkopts():
-    # The library's own dylib carries Qt references that the final binary resolves.
-    return select({
-        "@platforms//os:macos": ["-Wl,-undefined,dynamic_lookup"],
-        "//conditions:default": [],
-    })
-
 def _no_object_linkopts():
     # Executables that only wrap an alwayslink library link no object files of their own.
     return select({
@@ -617,8 +610,9 @@ def _no_object_linkopts():
     })
 
 def _link_static(static):
-    # A Windows DLL cannot carry the main of an executable, so the library goes into the binary.
+    # Windows DLLs cannot carry an executable's main and macOS dylibs cannot resolve their deps' symbols, so the library goes into the binary.
     return True if static else select({
+        "@platforms//os:macos": True,
         "@platforms//os:windows": True,
         "//conditions:default": False,
     })
@@ -691,7 +685,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
     compatible = kwargs.get("target_compatible_with", None)
-    upstream_linkopts = kwargs.pop("linkopts", []) + ([] if static else _dynamic_lookup_linkopts())
+    upstream_linkopts = kwargs.pop("linkopts", [])
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, compatible)
     _cc_library(
         name = name + "_upstream",

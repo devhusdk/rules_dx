@@ -225,8 +225,9 @@ jobs:
           bazel_bin="$(cygpath -w "$(command -v bazel)")"
           failed=0
           for c in llvm msvc; do
-            bazel run --noshow_progress //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --compiler "$c" --bazel "$bazel_bin" --output "$(cygpath -w "$RUNNER_TEMP/evidence/qualify-$c.json")" 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-$c.log"
-            [ "${PIPESTATUS[0]}" -eq 0 ] || failed=1
+            if ! bazel run --noshow_progress //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --compiler "$c" --bazel "$bazel_bin" --output "$(cygpath -w "$RUNNER_TEMP/evidence/qualify-$c.json")" 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-$c.log"; then
+              failed=1
+            fi
           done
           exit "$failed"
       - name: Build the APKs for the inspect tests

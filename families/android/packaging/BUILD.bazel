@@ -43,6 +43,7 @@ rust_android_apk(
 
 keystore_properties_test(
     name = "rotated_bundle_test",
+    oldest_key_short_path = "../rules_android+/tools/android/debug_keystore",
     tags = ["manual"],
     target_under_test = ":rotated_bundle",
 )

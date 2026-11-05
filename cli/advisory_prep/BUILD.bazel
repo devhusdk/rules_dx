@@ -37,6 +37,11 @@ rust_binary(
     ],
 )
 
+alias(
+    name = "trivy",
+    actual = "@dx_tools//:trivy",
+)
+
 rust_test(
     name = "dx_advisory_prep_test",
     srcs = [

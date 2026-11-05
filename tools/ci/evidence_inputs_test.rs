@@ -205,5 +205,8 @@ fn rejects_bad_relocate() {
     let bad = relocate_result("test", "yes").unwrap_err();
     assert!(bad.contains("'yes'"), "{bad}");
     let coverage = relocate_result("coverage", "true").unwrap_err();
-    assert!(coverage.contains("relocate supports test and build"), "{coverage}");
+    assert!(
+        coverage.contains("relocate supports test and build"),
+        "{coverage}"
+    );
 }

@@ -38,6 +38,11 @@ on:
         required: false
         default: false
         type: boolean
+      unused:
+        description: "Run dx unused on scheduled runs and open or update one issue titled dx unused report with the findings. Call this workflow from a weekly schedule to use it."
+        required: false
+        default: false
+        type: boolean
       fuzz:
         description: "Run dx fuzz on targets tagged dx-fuzz on Linux x86_64, with the corpus cached between runs. A crash fails the job and uploads the dx-fuzz-crashes artifact."
         required: false
@@ -680,6 +685,52 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           bazel run "$@" @rules_dx//:dx -- mutate --time 10m //...
+  unused:
+    name: unused
+    if: ${{ inputs.unused && github.event_name == 'schedule' }}
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Find the unused code
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          status=0
+          bazel run "$@" @rules_dx//:dx -- unused --output=json //... > "$RUNNER_TEMP/unused.ndjson" || status=$?
+          if [ "$status" -ne 0 ] && ! grep -q '"event":"diagnostic"' "$RUNNER_TEMP/unused.ndjson"; then
+            echo "dx unused failed with exit code $status and reported no findings" >&2
+            exit "$status"
+          fi
+      - name: Open or update the report issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          report="$RUNNER_TEMP/report.md"
+          jq -r -s '
+            [.[] | select(.event == "diagnostic")]
+            | unique_by([.tool, .location, .message]) as $found
+            | "Found \($found | length) unused items on \(env.GITHUB_SHA[0:12]).\n",
+              ($found | group_by(.tool)[] | "### \(.[0].tool)\n", (.[] | "- `\(.location)` \(.message)"), "")
+          ' "$RUNNER_TEMP/unused.ndjson" > "$report"
+          echo "[Workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" >> "$report"
+          number=$(gh issue list --state open --search '"dx unused report" in:title' --json number,title --jq '[.[] | select(.title == "dx unused report")][0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file "$report"
+          else
+            gh issue create --title "dx unused report" --body-file "$report"
+          fi
   fuzz:
     name: fuzz
     needs: [validate]

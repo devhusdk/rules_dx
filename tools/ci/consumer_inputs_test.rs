@@ -55,14 +55,14 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
         .chain(PLATFORM_JOBS.iter().map(|name| (*name).to_owned()))
         .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
-        .chain(["mutate".to_owned(), "fuzz".to_owned()])
+        .chain(["mutate".to_owned(), "fuzz".to_owned(), "unused".to_owned(), "commit-lint".to_owned()])
         .collect();
     wanted.sort();
     assert_eq!(
         job_names(),
         wanted,
         "{WORKFLOW} must name the validate job, the checks job, security-audit, the \
-shared advisory preparation, the aggregate, mutate and fuzz"
+shared advisory preparation, the aggregate, mutate, fuzz and unused"
     );
 }
 
@@ -430,6 +430,22 @@ fn mutate_is_off_by_default_and_runs_only_on_the_default_branch_schedule() {
         !condition.contains("pull_request"),
         "mutate if: {condition}"
     );
+}
+
+#[test]
+fn unused_is_off_by_default_and_only_its_job_may_write_issues() {
+    let doc = document(WORKFLOW);
+    let input = &doc["on"]["workflow_call"]["inputs"]["unused"];
+    assert_eq!(input["type"], json!("boolean"), "{WORKFLOW} type");
+    assert_eq!(input["default"], json!(false), "{WORKFLOW} default");
+    let condition = scope_text(&job(WORKFLOW, "unused")["if"]);
+    for needle in ["inputs.unused", "'schedule'"] {
+        assert!(condition.contains(needle), "unused if: {condition}");
+    }
+    for name in job_names() {
+        let writes = job(WORKFLOW, &name)["permissions"]["issues"] == json!("write");
+        assert_eq!(writes, name == "unused", "{WORKFLOW} job {name} issues: write");
+    }
 }
 
 #[test]

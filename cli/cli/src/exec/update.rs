@@ -1,4 +1,5 @@
 use super::common::*;
+use super::{update_prune, update_unused};
 use dx_output::{
     command_finished, error_event, notice_event, with_correlation, FinishedCounts, NoticeEvent,
     OutputMode,
@@ -27,9 +28,48 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(registry) => registry,
         Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     } {
+        if invocation.prune {
+            if let Err(code) = prune_unused(invocation, env.workspace, &registry, env.err) {
+                return code;
+            }
+        }
         return update_consumer::execute_configured(invocation, env, &registry, verbose, mode);
     }
     pre_exec(invocation.output, env.out, env.err, "no dependency sets")
+}
+
+fn prune_unused(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    registry: &dx_adopt::dependency_sets::Registry,
+    err: &mut dyn std::io::Write,
+) -> Result<(), i32> {
+    let mut fail = |message: &str| {
+        Err(pre_exec(
+            invocation.output,
+            &mut std::io::sink(),
+            err,
+            message,
+        ))
+    };
+    let resolved = match dx_adopt::dependency_sets::resolve(registry, &invocation.targets) {
+        Ok(resolved) => resolved,
+        Err(error) => return fail(&error.to_string()),
+    };
+    let unused = update_unused::find(workspace, &resolved);
+    match update_prune::prune(workspace, &unused) {
+        Ok(removed) => {
+            for item in removed {
+                let _ = writeln!(
+                    err,
+                    "dx: update_pruned: {}: {} (removed from {}:{})",
+                    item.set, item.name, item.manifest, item.line
+                );
+            }
+            Ok(())
+        }
+        Err(message) => fail(&message),
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

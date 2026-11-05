@@ -113,6 +113,7 @@ pub(crate) struct Flags {
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
     pub(crate) outdated: bool,
+    pub(crate) prune: bool,
     pub(crate) pr: bool,
     pub(crate) group: Option<String>,
     pub(crate) labels: Option<String>,
@@ -541,6 +542,14 @@ flag_group! {
     OutdatedFlag, {
         #[arg(long, overrides_with = "outdated")]
         outdated: bool,
+    }
+}
+
+flag_group! {
+    /// Remove unused dependencies from the manifests (needs --apply).
+    PruneFlag, {
+        #[arg(long, overrides_with = "prune")]
+        prune: bool,
     }
 }
 
@@ -1037,6 +1046,7 @@ command_args! {
         frozen: FrozenFlag,
         apply: ApplyFlag,
         outdated: OutdatedFlag,
+        prune: PruneFlag,
         pr: PrFlag,
         group: GroupFlag,
         labels: LabelsFlag,

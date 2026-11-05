@@ -327,6 +327,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         offline,
         frozen,
         outdated,
+        prune,
         pr,
         group,
         labels,
@@ -509,9 +510,21 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, option));
         }
     }
+    if command == Command::Update && prune && (!apply || frozen) {
+        return Err(unsupported(
+            command,
+            if apply {
+                "--prune with --frozen"
+            } else {
+                "--prune without --apply"
+            },
+        ));
+    }
     if command == Command::Update && pr {
         let culprit = if outdated {
             Some("--outdated")
+        } else if prune {
+            Some("--prune")
         } else if apply {
             Some("--apply")
         } else if floor {
@@ -680,6 +693,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         offline,
         frozen,
         outdated,
+        prune,
         pr,
         group,
         labels,

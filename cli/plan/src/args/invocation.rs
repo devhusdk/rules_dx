@@ -274,6 +274,8 @@ pub struct Invocation {
     pub frozen: bool,
     /// `dx update --outdated`: list packages whose newest stable version is out of range.
     pub outdated: bool,
+    /// `dx update --apply --prune`: remove unused dependencies from the manifests.
+    pub prune: bool,
     /// `dx update --pr`: open or refresh one pull request per group.
     pub pr: bool,
     /// `dx update --group`: `package`, `set` or `all`; `set` when absent.
@@ -695,6 +697,7 @@ mod tests {
             offline: false,
             frozen: false,
             outdated: false,
+            prune: false,
             pr: false,
             group: None,
             labels: None,

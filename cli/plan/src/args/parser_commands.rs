@@ -1095,7 +1095,11 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
     assert!(got.explain && got.affected);
     assert!(!parse(&strings(&["build"])).expect("plain").explain);
     for command in ["build", "test", "coverage"] {
-        assert!(parse(&strings(&[command, "--profile"])).expect(command).build_profile);
+        assert!(
+            parse(&strings(&[command, "--profile"]))
+                .expect(command)
+                .build_profile
+        );
         assert!(!parse(&strings(&[command])).expect(command).build_profile);
     }
     assert!(parse(&strings(&["lint", "--profile"])).is_err());
@@ -1246,4 +1250,23 @@ fn unsupported_flag_names_the_commands_that_take_it() {
         super::super::unsupported_hint("run", "--nope"),
         "run dx run --help"
     );
+}
+
+#[test]
+fn update_prune_needs_apply() {
+    let got = parse(&strings(&["update", "--apply", "--prune", "cargo"])).expect("prune");
+    assert!(got.prune && got.apply);
+    assert!(
+        !parse(&strings(&["update", "--apply"]))
+            .expect("apply")
+            .prune
+    );
+    for words in [
+        vec!["update", "--prune"],
+        vec!["update", "--apply", "--prune", "--frozen"],
+        vec!["update", "--pr", "--apply", "--prune"],
+        vec!["build", "--prune"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
 }

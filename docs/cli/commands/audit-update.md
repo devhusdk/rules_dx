@@ -214,7 +214,7 @@ tools/dx update --apply dx_crates:anyhow 1.0.100
 ```
 
 ```text
-dx update [--apply] [--offline] [--frozen] [selector ...]
+dx update [--apply [--prune]] [--offline] [--frozen] [selector ...]
 dx update --outdated [selector ...]
 dx update --pr [--group=package|set|all] [--labels=<a,b>] [--automerge=none|patch|minor|all]
   [--min-age=<days>] [--ignore=<set:package>] [--allow-major] [--prereleases]
@@ -225,6 +225,7 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Writes updates. |
+| `--prune` | With `--apply`: deletes the one-line declarations of unused dependencies (the entries `--outdated` lists as `unused:`) from `cargo`, `npm`, `uv`, `go` and `ruby` manifests, then refreshes the locks as usual. Each removal prints `dx: update_pruned: <set>: <name> (removed from <manifest>:<line>)` on stderr. Multi-line and table declarations are left in place. Does not combine with `--frozen`. |
 | `--outdated` | Lists packages whose newest stable version is outside the declared range. |
 | `--pr` | Opens or refreshes one pull request per group. |
 | `--offline` | Uses pinned cached snapshots. Fails with `offline_required` when missing. |
@@ -293,7 +294,7 @@ Other sets print an `update_outdated_unsupported` warning. A `set:package` selec
 
 Text prints one line per package: declared version, newest version, publish time, and the apply command. JSON emits `command_started`, one `update_outdated` notice per package (`scope` is `<set>:<package>`, `related_command` is `dx update <set>:<package> <version>`), one `update_outdated_lookup_failed` error per failed lookup, and `command_finished`. Ruby results have no `related_command`; text prints `edit Gemfile, then bundle lock`. Apply others with `dx update <set>:<package> <version> --apply`. Refresh in-range with `dx update --apply <set>`.
 
-After the version lines, `--outdated` also lists declared dependencies that no source file under the manifest's directory uses, for `cargo`, `npm`, `uv`, `go` and `ruby` sets: `unused: <set>: <name> (declared in <manifest>:<line>)`. JSON emits one `update_unused` warning per entry with `scope` `<set>:<name>`. The exit code is unchanged. Silence an entry with `[[exception]]` in `depcheck.toml` at the workspace root, with `set`, `name` and `reason`. Missing imports, `--prune` and `--add-missing` are not available yet.
+After the version lines, `--outdated` also lists declared dependencies that no source file under the manifest's directory uses, for `cargo`, `npm`, `uv`, `go` and `ruby` sets: `unused: <set>: <name> (declared in <manifest>:<line>)`. JSON emits one `update_unused` warning per entry with `scope` `<set>:<name>`. The exit code is unchanged. Silence an entry with `[[exception]]` in `depcheck.toml` at the workspace root, with `set`, `name` and `reason`. Missing imports, `--fail-on` and `--add-missing` are not available yet. `dx update --apply --prune` removes the unused entries.
 
 `--outdated` does not combine with `--apply`, `--floor`, `--reason` or a version. `--offline` fails with `offline_required`.
 

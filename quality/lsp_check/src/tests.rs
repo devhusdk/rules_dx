@@ -219,6 +219,15 @@ fn stray_header_line_is_reported() {
 }
 
 #[test]
+fn stray_output_includes_following_detail_lines() {
+    let mut input = Cursor::new(
+        b"Error occurred during initialization of VM\r\nCould not reserve heap\r\n".to_vec(),
+    );
+    let error = read_message(&mut input).unwrap_err().to_string();
+    assert!(error.contains("initialization of VM | Could not reserve heap"));
+}
+
+#[test]
 fn content_type_header_is_accepted() {
     let body = b"{}";
     let mut raw = format!("content-type: x\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();

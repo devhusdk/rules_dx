@@ -61,7 +61,7 @@ jobs:
           if [ -n "$DX_DEPLOYABLES" ]; then
             bazel run --lockfile_mode=error @rules_dx//tools/ci:input_validation_bin -- deployables > "$RUNNER_TEMP/deployables.txt"
           else
-            bazel query --output=label 'attr(tags, "release", kind(dx_deployment, //...))' > "$RUNNER_TEMP/deployables.txt"
+            bazel query --output=label 'attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))' > "$RUNNER_TEMP/deployables.txt"
           fi
           if [ ! -s "$RUNNER_TEMP/deployables.txt" ]; then
             echo "dx-release: no dx_deployment is tagged release; tag one or pass deployables." >&2
@@ -98,7 +98,11 @@ jobs:
           set -euo pipefail
           for label in $DX_LABELS; do
             echo "::group::dx deploy $label (dry run)"
-            tools/dx deploy "$label"
+            if [ "$RUNNER_OS" = Windows ]; then
+              cmd.exe //c tools\\dx.cmd deploy "$label"
+            else
+              tools/dx deploy "$label"
+            fi
             echo "::endgroup::"
           done
   release:
@@ -126,10 +130,40 @@ jobs:
           DX_LABELS: ${{ needs.plan.outputs.labels }}
         run: |
           set -euo pipefail
-          for registry in GH_RELEASE NPM_PUBLISH MAVEN_PUBLISH CRATES_PUBLISH PYPI_PUBLISH NUGET_PUBLISH OCI_PUBLISH HOMEBREW_TAP_PUBLISH OCTOPUS_PUBLISH CLOUDFLARE_PAGES; do
-            export "${registry}_LIVE=1"
-            export "${registry}_PUBLISH_APPROVED=1"
-            export "${registry}_APPROVED=1"
+          for gate in \
+            CLOUDFLARE_PAGES_APPROVED \
+            CLOUDFLARE_PAGES_LIVE \
+            CRATES_PUBLISH_APPROVED \
+            CRATES_PUBLISH_LIVE \
+            GH_RELEASE_APPROVED \
+            GH_RELEASE_LIVE \
+            HACKAGE_PUBLISH_APPROVED \
+            HACKAGE_PUBLISH_LIVE \
+            HEX_PUBLISH_APPROVED \
+            HEX_PUBLISH_LIVE \
+            HOMEBREW_TAP_PUBLISH_APPROVED \
+            HOMEBREW_TAP_PUBLISH_LIVE \
+            LUAROCKS_PUBLISH_APPROVED \
+            LUAROCKS_PUBLISH_LIVE \
+            MAVEN_PUBLISH_APPROVED \
+            MAVEN_PUBLISH_LIVE \
+            NPM_PUBLISH_APPROVED \
+            NPM_PUBLISH_LIVE \
+            NUGET_PUBLISH_APPROVED \
+            NUGET_PUBLISH_LIVE \
+            OCI_PUBLISH_APPROVED \
+            OCI_PUBLISH_LIVE \
+            OCTOPUS_PUBLISH_APPROVED \
+            OCTOPUS_PUBLISH_LIVE \
+            PROMOTION_APPROVED \
+            PROMOTION_LIVE \
+            PUB_PUBLISH_APPROVED \
+            PUB_PUBLISH_LIVE \
+            PYPI_PUBLISH_APPROVED \
+            PYPI_PUBLISH_LIVE \
+            RUBYGEMS_PUBLISH_APPROVED \
+            RUBYGEMS_PUBLISH_LIVE; do
+            export "${gate}=1"
           done
           published=()
           summary() {
@@ -146,7 +180,11 @@ jobs:
           trap summary EXIT
           for label in $DX_LABELS; do
             echo "::group::dx deploy --apply $label"
-            tools/dx deploy --apply "$label"
+            if [ "$RUNNER_OS" = Windows ]; then
+              cmd.exe //c tools\\dx.cmd deploy --apply "$label"
+            else
+              tools/dx deploy --apply "$label"
+            fi
             echo "::endgroup::"
             published+=("$label")
           done

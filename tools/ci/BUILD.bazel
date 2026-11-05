@@ -414,6 +414,21 @@ rust_test(
 
 # keep
 rust_test(
+    name = "release_workflow_test",
+    srcs = ["release_workflow_test.rs"],
+    data = [
+        "//.github:workflows/reusable-release.yml",
+        "//deploy/rules:gate_sources",
+    ],
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
     name = "pr_check_test",
     srcs = ["pr_check_test.rs"],
     data = [
@@ -957,6 +972,7 @@ rustfmt_test(
         ":bcr_outdated_test",
         ":dx_update_workflow_test",
         ":pr_check_test",
+        ":release_workflow_test",
         ":blocker_refs_test",
         ":review_paths_test",
         ":ci_workflow",

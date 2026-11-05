@@ -217,7 +217,10 @@ fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
                 continue;
             }
             let before = line[..start].trim_end_matches(repo_char);
-            if before.ends_with('@') || line[..start].ends_with(':') {
+            if before.ends_with('@')
+                || line[..start].ends_with(':')
+                || line[..start].trim_end().ends_with("cmd.exe")
+            {
                 continue;
             }
             let end = line[start..]
@@ -239,6 +242,7 @@ fn bare_main_repo_label_check_flags_only_unqualified_labels() {
         "scope: \"//\"",
         "default: \"//...\"",
         "# a plain // comment",
+        "cmd.exe //c tools\\dx.cmd completion",
     ] {
         assert_eq!(bare_main_repo_labels(good), vec![], "{good}");
     }

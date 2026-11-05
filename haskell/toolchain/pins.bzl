@@ -102,7 +102,7 @@ CELLS = {
         gmp_license = _GMP_LICENSE,
     ),
     "windows_x86_64": struct(
-        blocker = "Windows runtime DLLs and native test run not qualified yet (#5957)",
+        blocker = "",
         exe_suffix = ".exe",
         os_libraries = ["Win32"],
         ghc_libdir_triple = "x86_64-windows",

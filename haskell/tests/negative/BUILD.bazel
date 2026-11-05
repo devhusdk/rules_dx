@@ -17,7 +17,6 @@ rust_test(
     ],
     # A tampered GHC pin must reach the network to fail its checksum.
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    # Windows joins once its GHC cell is qualified (#5957).
     target_compatible_with = cells_compatible_with(
         CELLS,
         "//haskell/toolchain",

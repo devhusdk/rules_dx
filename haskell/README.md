@@ -93,9 +93,9 @@ with `locale -a | grep -i c.utf`.
 | --- | --- | --- |
 | `linux_x86_64` | Qualified | |
 | `linux_arm64` | Qualified | |
-| `macos_arm64` | Not qualified | Darwin bindist cell is pinned (no runtime closure). Needs a native macOS run. Tracked in #4311. |
+| `macos_arm64` | Qualified | CI job `checks (macos_arm64)`. |
 | `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Not qualified | mingw32 GHC 9.10.3 bindist is pinned; needs the mingw cc toolchain and a native Windows run. Tracked in #5956, #5957. |
+| `windows_x86_64` | Qualified | CI job `checks (windows_x86_64)`. |
 | `windows_arm64` | n/a | GHC 9.10.3 ships no Windows arm64 bindist. |
 
 On other platforms Haskell targets fail toolchain resolution.

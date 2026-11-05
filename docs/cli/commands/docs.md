@@ -94,7 +94,8 @@ tools/dx docs //lib:site
 | C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
 
-Rust libraries and `rlib` targets in scope that have no shard get one
-automatically.
+Rust, Go, Python, Java, Kotlin, Scala, C# and F# libraries in scope that have
+no shard get one automatically. A C# library needs `nullable = "disable"` and
+an F# library needs `generate_documentation_file = True`; others are skipped.
 
 A source error fails the build and writes no pages. Bazel's exit code is kept.

@@ -9,6 +9,8 @@ exports_files(
         "defs.bzl",
         "extract_test.rs",
         "fsharp_extract_test.rs",
+        "pinned_driver.sh",
+        "shard.bzl",
     ],
     visibility = VIS_TOOLS,
 )
@@ -65,6 +67,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "shard.bzl",
     ],
     tags = ["corpus"],
 )

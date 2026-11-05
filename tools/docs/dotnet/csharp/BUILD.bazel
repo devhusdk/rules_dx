@@ -1,6 +1,7 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//csharp/rules:defs.bzl", "csharp_binary")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK")
+load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK", "framework_pinned")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -17,6 +18,18 @@ csharp_binary(
         "@paket.docs_csharp//microsoft.codeanalysis.common",
         "@paket.docs_csharp//microsoft.codeanalysis.csharp",
     ],
+)
+
+framework_pinned(
+    name = "csharp_api_pinned_files",
+    actual = ":csharp_api_upstream",
+)
+
+sh_binary(
+    name = "csharp_api_pinned",
+    srcs = ["//tools/docs/dotnet:pinned_driver.sh"],
+    data = [":csharp_api_pinned_files"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
 real_source_target(

@@ -513,7 +513,18 @@ def real_shard_probe_tests(name, subjects):
         expected_observations = EXPECTED_PROBE_OBSERVATIONS,
     )
 
-EXPECTED_DOCS_OBSERVATIONS = """subject //quality/testdata:docs_demo_site_api_subject
+EXPECTED_DOCS_OBSERVATIONS = """subject //quality/testdata:docs_csharp_ledger_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/dotnet/fixture/csharp/_dx_docs/ledger.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ledger.ir.pb
+field label=//tools/docs/dotnet/fixture/csharp:ledger
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_csharp_ledger_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_demo_site_api_subject
 field docs_shard_count=0
 field docs_shards=(none)
 field dx_docs_sites=(none)
@@ -534,6 +545,28 @@ aspect_field aspect_seen=True
 aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_demo_site_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_fsharp_ledger_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/dotnet/fixture/fsharp/_dx_docs/ledger.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ledger.ir.pb
+field label=//tools/docs/dotnet/fixture/fsharp:ledger
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_fsharp_ledger_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_fsharp_xmldoc_off_subject
+field docs_shard_count=0
+field docs_shards=(none)
+field dx_docs_sites=(none)
+field dx_results=(none)
+field label=//tools/docs/dotnet/fixture/fsharp:xmldoc_off
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_fsharp_xmldoc_off_subject
 aspect_field transitive_count=0
 subject //quality/testdata:docs_go_library_subject
 field docs_shard_count=1

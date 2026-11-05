@@ -633,6 +633,11 @@ let run (context: Context) (scratch: string) =
 
 [<EntryPoint>]
 let main argv =
+    match Environment.GetEnvironmentVariable "DX_DRIVER_CWD" with
+    | null
+    | "" -> ()
+    | directory -> Directory.SetCurrentDirectory directory
+
     let mutable contextPath = ""
     let mutable outPath = ""
     let mutable scratch = ""

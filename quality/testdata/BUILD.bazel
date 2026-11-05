@@ -2048,6 +2048,21 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_csharp_ledger_subject",
+    target = "//tools/docs/dotnet/fixture/csharp:ledger",
+)
+
+real_docs_subject(
+    name = "docs_fsharp_ledger_subject",
+    target = "//tools/docs/dotnet/fixture/fsharp:ledger",
+)
+
+real_docs_subject(
+    name = "docs_fsharp_xmldoc_off_subject",
+    target = "//tools/docs/dotnet/fixture/fsharp:xmldoc_off",
+)
+
+real_docs_subject(
     name = "docs_plain_subject",
     target = ":plain",
 )
@@ -2055,8 +2070,11 @@ real_docs_subject(
 real_docs_tests(
     name = "real_docs_shards",
     subjects = [
+        ":docs_csharp_ledger_subject",
         ":docs_demo_site_api_subject",
         ":docs_demo_site_subject",
+        ":docs_fsharp_ledger_subject",
+        ":docs_fsharp_xmldoc_off_subject",
         ":docs_go_library_subject",
         ":docs_java_library_subject",
         ":docs_kotlin_library_subject",

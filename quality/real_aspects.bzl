@@ -63,6 +63,7 @@ load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
@@ -1241,6 +1242,17 @@ def _jvm_docs_shard(target, ctx):
             return action.shard
     return None
 
+def _dotnet_docs_shard(target, ctx):
+    if DocsShardInfo in target or DotnetDocsInfo not in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    info = target[DotnetDocsInfo]
+    if dotnet_docs_problem(info, info.language):
+        return None
+    driver = ctx.executable._csharp_driver if info.language == "csharp" else ctx.executable._fsharp_driver
+    return dotnet_shard_action(ctx, info, info.assembly, "_dx_docs/" + ctx.label.name, driver, ctx.executable._dotnet_extract).shard
+
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
@@ -1279,6 +1291,9 @@ def _real_docs_aspect_impl(target, ctx):
     jvm_shard = _jvm_docs_shard(target, ctx)
     if jvm_shard:
         parts.append({"dx_results": [jvm_shard], "dx_docs_shards": [jvm_shard]})
+    dotnet_shard = _dotnet_docs_shard(target, ctx)
+    if dotnet_shard:
+        parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
     if not parts:
         return []
     groups = {}
@@ -1289,8 +1304,18 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python and JVM library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C# and F# library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
+        "_csharp_driver": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/dotnet/csharp:csharp_api_pinned"),
+            executable = True,
+        ),
+        "_dotnet_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            executable = True,
+        ),
         "_driver": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/go/godoc:godoc_json"),
@@ -1300,6 +1325,11 @@ real_docs_aspect = aspect(
         "_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/rust/extract:rust_extract"),
+            executable = True,
+        ),
+        "_fsharp_driver": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/dotnet/fsharp:fsharp_api_pinned"),
             executable = True,
         ),
         "_go_extract": attr.label(
@@ -1344,7 +1374,7 @@ real_docs_aspect = aspect(
         ),
     },
     fragments = ["cpp"],
-    requires = [rust_doc_inputs_aspect],
+    requires = [rust_doc_inputs_aspect, dotnet_docs_collect_aspect],
     toolchains = [
         config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),

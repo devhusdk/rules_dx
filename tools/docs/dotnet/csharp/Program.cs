@@ -40,6 +40,11 @@ public static class Program
 
     public static int Main(string[] args)
     {
+        string workDirectory = Environment.GetEnvironmentVariable("DX_DRIVER_CWD");
+        if (!string.IsNullOrEmpty(workDirectory))
+        {
+            Directory.SetCurrentDirectory(workDirectory);
+        }
         string contextPath = "";
         string outPath = "";
         string scratch = "";

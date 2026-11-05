@@ -134,9 +134,11 @@ jobs:
       - name: Boot the emulator
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
-          mkdir -p "$RUNNER_TEMP/evidence"
+          mkdir -p "$RUNNER_TEMP/evidence" "$RUNNER_TEMP/avd"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n dx \
             -k "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI"
+          "$EMULATOR" -list-avds | grep -qx dx || { echo "android: the dx AVD was not created"; ls -la "$ANDROID_AVD_HOME" "$HOME/.android" 2>&1; exit 1; }
           nohup "$EMULATOR" -avd dx -port 5554 -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect > "$RUNNER_TEMP/evidence/emulator.log" 2>&1 &
           adb start-server

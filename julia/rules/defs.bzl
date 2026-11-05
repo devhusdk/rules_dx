@@ -2,6 +2,7 @@
 
 load("@rules_julia//julia:defs.bzl", _julia_binary = "julia_binary", _julia_library = "julia_library", _julia_standalone_binary = "julia_standalone_binary", _julia_test = "julia_test")
 load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
+load("//libs/starlark:cells.bzl", "unsupported_constraint")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -17,7 +18,7 @@ JULIA_SOURCE_EXTS = [".jl"]
 
 JULIA_COMPATIBLE_WITH = select({
     Label("//julia/rules:rules_julia_platform"): [],
-    "//conditions:default": [Label("@platforms//:incompatible")],
+    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//julia/rules")],
 })
 
 _DX_JULIA_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo, _JuliaInfo]

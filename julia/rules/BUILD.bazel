@@ -1,4 +1,5 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -6,6 +7,8 @@ load(":defs.bzl", "JULIA_COVERAGE_COLLECTOR", "JULIA_QUALITY_TOOLS", "JULIA_SOUR
 load(":platforms.bzl", "JULIA_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
+
+unsupported_value("unsupported")
 
 exports_files([
     "defs.bzl",

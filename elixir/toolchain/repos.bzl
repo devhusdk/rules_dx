@@ -1,6 +1,7 @@
 """Hermetic Elixir acquisition and toolchain registration."""
 
-load("//elixir/rules:hex.bzl", "hex_extract")
+load("//elixir/rules:hex.bzl", "hex_extract", "hex_package")
+load("//elixir/rules:mix_lock.bzl", "mix_lock_packages")
 load("//erlang/toolchain:pins.bzl", "CELLS")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
@@ -186,6 +187,50 @@ def hub_build(cells):
         toolchain_type = str(Label("//elixir/toolchain/type:toolchain_type")),
     ) for cell in cells])
 
+_APP_BUILD = """load("{defs}", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
+
+elixir_app(
+    name = "erlang_app",
+    app_name = "{package}",
+    app_version = "{version}",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    visibility = ["//visibility:public"],
+    deps = {deps},
+)
+"""
+
+_ALIAS = """alias(
+    name = "{package}",
+    actual = "@{repo}//:erlang_app",
+    visibility = ["//visibility:public"],
+)
+"""
+
+def mix_build(package, prefix):
+    """Returns the BUILD file of one package from a mix.lock."""
+    return _APP_BUILD.format(
+        defs = str(Label("//elixir/rules:defs.bzl")),
+        deps = repr(["@{}_{}//:erlang_app".format(prefix, dep) for dep in package["deps"]]),
+        package = package["package"],
+        version = package["version"],
+    )
+
+def mix_hub_build(packages, prefix):
+    """Returns the hub BUILD file with one alias per package."""
+    return "\n".join([_ALIAS.format(package = p["package"], repo = prefix + "_" + p["package"]) for p in packages])
+
+def _declare_mix(mctx, tag):
+    packages = mix_lock_packages(mctx.read(tag.lock))
+    for package in packages:
+        hex_package(
+            name = tag.name + "_" + package["package"],
+            build_file_content = mix_build(package, tag.name),
+            package = package["package"],
+            sha256 = package["sha256"],
+            version = package["version"],
+        )
+    hub_repo(name = tag.name, files = {"BUILD.bazel": mix_hub_build(packages, tag.name)})
+
 def _elixir_impl(mctx):
     pinned_archive(
         name = "rules_elixir",
@@ -206,9 +251,21 @@ def _elixir_impl(mctx):
     _dist(name = DIST_NAME)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(ELIXIR_CELLS)})
     _credo(name = CREDO_NAME)
+    for module in mctx.modules:
+        for tag in module.tags.mix:
+            _declare_mix(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
 elixir = module_extension(
     implementation = _elixir_impl,
     doc = "Creates rules_elixir, the pinned Elixir tree and the toolchain hub.",
+    tag_classes = {
+        "mix": tag_class(
+            doc = "Declares a hex_package per Hex entry of a mix.lock and a hub repo with one alias per package.",
+            attrs = {
+                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The mix.lock to read."),
+                "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),
+            },
+        ),
+    },
 )

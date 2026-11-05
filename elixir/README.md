@@ -89,17 +89,33 @@ The build file declares the package as an `elixir_app` with
 `visibility = ["//visibility:public"]`. Depend on it as
 `@jason//:erlang_app`. A wrong digest fails the fetch.
 
+### From mix.lock
+
+The `mix` tag reads a `mix.lock` and declares one `hex_package` per entry,
+named `<name>_<package>`, with the last checksum as `sha256`. The hub repo
+`<name>` has one alias per package.
+
+```python
+elixir = use_extension("@rules_dx//elixir/toolchain:repos.bzl", "elixir")
+elixir.mix(name = "hex_deps", lock = "//:mix.lock")
+use_repo(elixir, "hex_deps")
+```
+
+Depend on `@hex_deps//:jason`. Each package is an `elixir_app` with its
+required Hex dependencies; optional ones are skipped. An entry that is not
+from `hexpm` (`:git`, `:path`) fails with a message naming it. Erlang
+`rebar.lock` is not read yet.
+
 ## Adopt a Mix project
 
 rules_dx is not released yet. Install starts with the first BCR release.
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
 2. Run `bazel run @rules_dx//:dx -- generate --apply`.
-3. For each Hex entry in `mix.lock`, add a `hex_package`. Its `sha256` is the
-   last checksum in the `mix.lock` entry.
+3. Add the `elixir.mix` tag for your `mix.lock` (see above).
 4. For each Hex package, add
-   `# gazelle:resolve elixir <TopModule> @<package>//:erlang_app` to the root
-   `BUILD.bazel`, for example `# gazelle:resolve elixir Jason @jason//:erlang_app`.
+   `# gazelle:resolve elixir <TopModule> @<hub>//:<package>` to the root
+   `BUILD.bazel`, for example `# gazelle:resolve elixir Jason @hex_deps//:jason`.
    The line covers every module under `Jason`. Run `dx generate --apply` again.
 5. Run `bazel test //...`.
 

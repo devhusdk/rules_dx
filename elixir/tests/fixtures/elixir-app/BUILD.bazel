@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files(
-    ["jason.BUILD.bazel"],
+    ["mix.lock"],
     visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
@@ -19,7 +19,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "jason.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

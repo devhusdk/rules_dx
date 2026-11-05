@@ -34,7 +34,7 @@ elixir_app(
     app_version = "1.0.0",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     visibility = APPS,
-    deps = ["@elixir_app_jason//:erlang_app"],
+    deps = ["@elixir_app_deps//:jason"],
 )
 
 ex_unit_test(

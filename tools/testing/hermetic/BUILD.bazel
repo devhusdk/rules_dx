@@ -259,7 +259,7 @@ hermetic_qualification(
 hermetic_qualification(
     name = "elixir",
     files = {
-        "//elixir/tests/fixtures/elixir-app:jason.BUILD.bazel": "elixir/tests/fixtures/elixir-app/catalog/jason.BUILD.bazel",
+        "//elixir/tests/fixtures/elixir-app:mix.lock": "elixir/tests/fixtures/elixir-app/mix.lock",
         "//elixir/tests/fixtures/elixir-app/catalog:BUILD.bazel": "elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel",
         "//elixir/tests/fixtures/elixir-app/catalog:lib/catalog.ex": "elixir/tests/fixtures/elixir-app/catalog/lib/catalog.ex",
         "//elixir/tests/fixtures/elixir-app/catalog:lib/catalog/item.ex": "elixir/tests/fixtures/elixir-app/catalog/lib/catalog/item.ex",

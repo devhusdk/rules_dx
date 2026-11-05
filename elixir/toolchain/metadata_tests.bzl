@@ -4,7 +4,7 @@ load("//elixir/tools:launcher.bzl", "MIX_FORMAT_ENV", "launcher_preamble")
 load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
 load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
-load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build")
+load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build", "mix_build", "mix_hub_build")
 
 _BAT_SOURCE = """if x (
   echo "%ERTS_BIN%erl.exe" %ELIXIR_ERL_OPTIONS% %*
@@ -21,6 +21,8 @@ set -- "$ERTS_BIN$ERL_EXEC" -noshell -pa "$SCRIPT_PATH"/../lib/elixir/ebin $ELIX
 def _credo_checks():
     preamble = launcher_preamble("otp", "elixir")
     return [
+        expect_contains("mix package depends on its repo", mix_build({"deps": ["decimal"], "package": "jason", "version": "1.4.4"}, "hub"), '["@hub_decimal//:erlang_app"]'),
+        expect_contains("mix hub aliases each package", mix_hub_build([{"package": "jason"}], "hub"), 'actual = "@hub_jason//:erlang_app"'),
         expect_equal("credo packages", sorted(CREDO_PACKAGES.keys()), ["bunt", "credo", "file_system", "jason"]),
         expect_equal("credo pin", CREDO_PACKAGES["credo"].version, "1.7.19"),
         expect_equal("every credo digest is sha256", [len(pin.sha256) for pin in CREDO_PACKAGES.values()], [64, 64, 64, 64]),

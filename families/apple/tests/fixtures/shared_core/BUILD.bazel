@@ -83,8 +83,24 @@ apple_macos_app(
     version = "1.0",
 )
 
+apple_macos_app(
+    name = "bare_app",
+    srcs = ["bare.m"],
+    bundle_id = "com.example.bare",
+    deployment = "14.0",
+    library = ":core_rust",
+    tags = ["manual"],
+    version = "1.0",
+)
+
 build_test(
     name = "plain_build_test",
     target_compatible_with = _MACOS_ARM64,
     targets = [":plain_app"],
+)
+
+build_test(
+    name = "bare_build_test",
+    target_compatible_with = _MACOS_ARM64,
+    targets = [":bare_app"],
 )

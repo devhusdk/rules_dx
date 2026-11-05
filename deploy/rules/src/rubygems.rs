@@ -157,6 +157,21 @@ fn gem_failure(what: &str, output: &std::process::Output, token: &str) -> String
     message
 }
 
+/// Returns PATH with the gem's own directory first, so its `ruby` is the one found.
+fn gem_path(program: &Path) -> String {
+    let mut dirs: Vec<PathBuf> = program
+        .parent()
+        .map(Path::to_path_buf)
+        .into_iter()
+        .collect();
+    dirs.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    std::env::join_paths(dirs)
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 /// Runs `gem build` in the staged tree and returns the gem path.
 fn gem_build(
     program: &Path,
@@ -165,14 +180,19 @@ fn gem_build(
     version: &str,
 ) -> Result<PathBuf, String> {
     let gem = staging.join(format!("{gem_name}-{version}.gem"));
-    let output = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA], &[])
-        .current_dir(staging)
-        .arg("build")
-        .arg(format!("{gem_name}.gemspec"))
-        .arg("--output")
-        .arg(&gem)
-        .output()
-        .map_err(|error| format!("rubygems_deploy: {error}"))?;
+    let path = gem_path(program);
+    let output = scrubbed_command(
+        program,
+        &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA],
+        &[("PATH", path.as_str())],
+    )
+    .current_dir(staging)
+    .arg("build")
+    .arg(format!("{gem_name}.gemspec"))
+    .arg("--output")
+    .arg(&gem)
+    .output()
+    .map_err(|error| format!("rubygems_deploy: {error}"))?;
     if !output.status.success() {
         return Err(gem_failure("gem build", &output, ""));
     }
@@ -181,10 +201,11 @@ fn gem_build(
 
 /// Runs `gem push`; the key goes through GEM_HOST_API_KEY.
 fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), String> {
+    let path = gem_path(program);
     let output = scrubbed_command(
         program,
         &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA],
-        &[("GEM_HOST_API_KEY", token)],
+        &[("GEM_HOST_API_KEY", token), ("PATH", path.as_str())],
     )
     .arg("push")
     .arg(gem)
@@ -218,8 +239,35 @@ fn rubygems_build_checked(
     Ok(gem)
 }
 
+/// Finds `gem` next to the pinned `ruby`, or on PATH when none is pinned.
+fn find_gem(run: &DeployRun, ruby_rloc: &str) -> Option<PathBuf> {
+    if ruby_rloc.is_empty() {
+        let gem = which_on_path("gem");
+        if gem.is_none() {
+            eprintln!("rubygems_deploy: gem not found on PATH; install Ruby or set ruby");
+        }
+        return gem;
+    }
+    let ruby = run.resolve(ruby_rloc)?;
+    let name = if cfg!(windows) { "gem.cmd" } else { "gem" };
+    let gem = ruby
+        .parent()
+        .map(|bin| bin.join(name))
+        .filter(|gem| gem.is_file());
+    if gem.is_none() {
+        eprintln!("rubygems_deploy: no {name} next to {}", ruby.display());
+    }
+    gem
+}
+
 /// Runs the RubyGems deploy tool.
-pub fn rubygems_main(gem_rlocs: &[String], gem_name: &str, version: &str, argv: &[String]) -> i32 {
+pub fn rubygems_main(
+    gem_rlocs: &[String],
+    gem_name: &str,
+    version: &str,
+    ruby_rloc: &str,
+    argv: &[String],
+) -> i32 {
     let Some(run) = DeployRun::start(
         "rubygems_deploy",
         "the gem is exactly the files pinned at analysis time",
@@ -250,8 +298,7 @@ pub fn rubygems_main(gem_rlocs: &[String], gem_name: &str, version: &str, argv: 
         };
         files.push(path);
     }
-    let Some(gem_program) = which_on_path("gem") else {
-        eprintln!("rubygems_deploy: gem not found on PATH; install Ruby");
+    let Some(gem_program) = find_gem(&run, ruby_rloc) else {
         return 1;
     };
     let staging = match tempfile_stage_dir("rubygems-") {

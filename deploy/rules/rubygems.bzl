@@ -35,6 +35,8 @@ def _rubygems_config_impl(ctx):
         fail("rubygems_deploy " + str(ctx.label) + ": gem " +
              str(ctx.attr.gem.label) + " provides no files, want at least one source file")
     rlocs = [rlocation_path(ctx, f) for f in gem_files]
+    ruby = ctx.file.ruby
+    runfiles = ctx.runfiles(files = gem_files + ctx.files.ruby_files + ([ruby] if ruby else []))
 
     return deploy_config(
         ctx,
@@ -42,9 +44,10 @@ def _rubygems_config_impl(ctx):
         {
             "gem_name": ctx.attr.gem_name,
             "gem_rlocs": rlocs,
+            "ruby_rloc": rlocation_path(ctx, ruby) if ruby else "",
             "version": ctx.attr.version,
         },
-        ctx.runfiles(files = gem_files).merge(ctx.attr.gem[DefaultInfo].default_runfiles),
+        runfiles.merge(ctx.attr.gem[DefaultInfo].default_runfiles),
     )
 
 _rubygems_config = rule(
@@ -60,6 +63,16 @@ _rubygems_config = rule(
             doc = "Name the gem is published under on rubygems.org.",
             mandatory = True,
         ),
+        "ruby": attr.label(
+            doc = "Pinned ruby executable; its bin directory supplies gem. Empty takes gem from PATH.",
+            allow_single_file = True,
+            cfg = "exec",
+        ),
+        "ruby_files": attr.label(
+            doc = "Files the pinned ruby needs at run time.",
+            allow_files = True,
+            cfg = "exec",
+        ),
         "version": attr.string(
             doc = "Gem version published by the deployment.",
             mandatory = True,
@@ -67,7 +80,7 @@ _rubygems_config = rule(
     },
 )
 
-def rubygems_deploy(name, gem, version = "0.0.0", profile = "release"):
+def rubygems_deploy(name, gem, version = "0.0.0", ruby = None, ruby_files = None, profile = "release"):
     """Publishes staged gem sources as a local-first RubyGems deployment."""
     name_error = rubygems_name_error(name)
     if name_error != "":
@@ -81,6 +94,8 @@ def rubygems_deploy(name, gem, version = "0.0.0", profile = "release"):
         name = config_target,
         gem = gem,
         gem_name = name,
+        ruby = ruby,
+        ruby_files = ruby_files,
         version = version,
     )
 

@@ -1531,6 +1531,14 @@ crates_unit_tests(name = "crates_unit")
 rubygems_deploy(
     name = "rubygems_demo",
     gem = "//deploy/tests/fixtures/ruby_gem:rubygems_demo_gem",
+    ruby = select({
+        "@platforms//os:linux": "@ruby//:ruby_file",
+        "//conditions:default": None,
+    }),
+    ruby_files = select({
+        "@platforms//os:linux": "@ruby//:files",
+        "//conditions:default": None,
+    }),
     version = "0.0.0",
 )
 
@@ -1547,13 +1555,10 @@ rust_test(
     data = [
         ":rubygems_demo",
         ":rubygems_demo_config",
-        "@ruby//:files",
-        "@ruby//:ruby_file",
     ],
     env = {
         "DX_RUBYGEMS_CONFIG": "$(rootpath :rubygems_demo_config)",
         "DX_RUBYGEMS_PROG": "$(rootpath :rubygems_demo)",
-        "DX_RUBYGEMS_RUBY": "$(rootpath @ruby//:ruby_file)",
         "DX_VERIFY_MODE": "rubygems",
     },
     tags = [

@@ -158,6 +158,9 @@ pub struct RubygemsConfig {
     pub gem_rlocs: Vec<String>,
     pub gem_name: String,
     pub version: String,
+    /// Runfile of the pinned `ruby`; empty takes `gem` from PATH.
+    #[serde(default)]
+    pub ruby_rloc: String,
 }
 
 /// Pins one Maven publish: the jar, pom, optional extra jars and the repository.
@@ -387,6 +390,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &rubygems.gem_rlocs,
             &rubygems.gem_name,
             &rubygems.version,
+            &rubygems.ruby_rloc,
             argv,
         ),
         DeployConfig::Maven(maven) => crate::maven_main(
@@ -579,12 +583,13 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"rubygems","config":{"gem_rlocs":["a","b"],"gem_name":"g","version":"1.0.0"}}"#
+                r#"{"kind":"rubygems","config":{"gem_rlocs":["a","b"],"gem_name":"g","version":"1.0.0","ruby_rloc":"r/bin/ruby"}}"#
             ),
             Ok(DeployConfig::Rubygems(RubygemsConfig {
                 gem_rlocs: vec!["a".to_owned(), "b".to_owned()],
                 gem_name: "g".to_owned(),
                 version: "1.0.0".to_owned(),
+                ruby_rloc: "r/bin/ruby".to_owned(),
             }))
         );
         assert_eq!(
@@ -858,6 +863,7 @@ mod tests {
                 gem_rlocs: vec!["a".to_owned()],
                 gem_name: "demo".to_owned(),
                 version: "1.0.0".to_owned(),
+                ruby_rloc: String::new(),
             }),
             DeployConfig::Maven(MavenConfig {
                 jar_rloc: "a".to_owned(),

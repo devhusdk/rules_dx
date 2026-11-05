@@ -450,15 +450,18 @@ rubygems_deploy(
 - `gem`: required. The gemspec and the files it packs, such as a
   `ruby_library`.
 - `version`: defaults to `0.0.0`. Must equal `spec.version` in the gemspec.
+- `ruby`: optional pinned `ruby` executable, such as `@ruby//:ruby_file`. The
+  `gem` next to it is used instead of the one on `PATH`.
+- `ruby_files`: the files that ruby needs, such as `@ruby//:files`.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run needs `gem` on `PATH`. It stages the sources, runs
+Default run needs `gem` on `PATH` unless `ruby` is set. It stages the sources, runs
 `gem build`, checks that the gemspec name and version match the target and
 that the gem packs exactly the sources (the gemspec itself excluded), then
 writes `<name>-<version>.gem` to the output directory. It never pushes. No
 credentials needed.
 
-Push with `gem` on `PATH`:
+Push with `gem` on `PATH` or from `ruby`:
 
 ```
 RUBYGEMS_PUBLISH_LIVE=1 RUBYGEMS_PUBLISH_APPROVED=1 RUBYGEMS_API_TOKEN=... \

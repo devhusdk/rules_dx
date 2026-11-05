@@ -368,20 +368,12 @@ fn helm_case() {
 }
 
 fn rubygems_case() {
-    let ruby = data("DX_RUBYGEMS_RUBY");
-    let bin = ruby.parent().expect("ruby bin dir");
-    assert!(
-        bin.join("gem").is_file(),
-        "no gem next to {}",
-        ruby.display()
-    );
-    let path = format!("{}:/usr/bin:/bin", bin.display());
     let outdir = dx_testing::mkscratch("rubygems-demo").expect("scratch");
     let run = run_deploy(
         &data("DX_RUBYGEMS_PROG"),
         "DX_RUBYGEMS_CONFIG",
         &[outdir.to_string_lossy().as_ref()],
-        &[("PATH", path.as_str())],
+        &[("PATH", "/nonexistent")],
     )
     .expect("rubygems_deploy must execute");
     let out = run.combined();

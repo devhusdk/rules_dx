@@ -841,7 +841,7 @@ mod tests {
         let pypi: Main4 = crate::pypi_main;
         let nuget: Main5 = crate::nuget_main;
         let crates: fn(&[String], &str, &str, &[String]) -> i32 = crate::crates_main;
-        let rubygems: fn(&[String], &str, &str, &[String]) -> i32 = crate::rubygems_main;
+        let rubygems: fn(&[String], &str, &str, &str, &[String]) -> i32 = crate::rubygems_main;
         let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
         let homebrew: fn(&crate::HomebrewLaunch<'_>, &[String]) -> i32 = crate::homebrew_tap_main;
         let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;

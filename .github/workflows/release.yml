@@ -45,18 +45,20 @@ jobs:
 
   source:
     needs: cells
-    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
+    env:
+      RELEASE_TAG: ${{ inputs.dry_run && format('v{0}', needs.cells.outputs.version) || inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ inputs.dry_run && github.sha || env.RELEASE_TAG }}
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
       - name: Check the committed versions equal the tag
+        if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
           tag="${RELEASE_TAG#v}"
@@ -71,6 +73,7 @@ jobs:
           check "cli/adopt/src/version.rs DX_VERSION" "$(sed -n 's/^pub const DX_VERSION: &str = "\(.*\)";$/\1/p' cli/adopt/src/version.rs)"
           check "cli/adopt/src/version.rs MODULE_VERSION" "$(sed -n 's/^pub const MODULE_VERSION: &str = "\(.*\)";$/\1/p' cli/adopt/src/version.rs)"
       - name: Check the tag names the candidate commit
+        if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
           RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT"
@@ -266,7 +269,6 @@ jobs:
 
   attest:
     needs: [cells, source]
-    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -274,6 +276,8 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
+    env:
+      RELEASE_TAG: ${{ inputs.dry_run && format('v{0}', needs.cells.outputs.version) || inputs.tag || github.ref_name }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -299,6 +303,7 @@ jobs:
           test -s out/files.list
       - name: Reuse or plan the attestation
         id: plan
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -325,24 +330,24 @@ jobs:
           fi
       - name: List the attestation subjects
         id: subjects
-        if: steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG)
+        if: ${{ !inputs.dry_run && steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG) }}
         run: |
           set -euo pipefail
           { cat out/dx-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt); } > "$RUNNER_TEMP/subjects.txt"
       - name: Attest the checksum manifest
         id: attest
-        if: steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG)
+        if: ${{ !inputs.dry_run && steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG) }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-checksums: ${{ runner.temp }}/subjects.txt
       - name: Attest the source archive
         id: attest_source
-        if: steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG)
+        if: ${{ !inputs.dry_run && steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG) }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: out/rules_dx-${{ needs.cells.outputs.version }}.tar.gz
       - name: Keep the attestation bundles
-        if: steps.plan.outputs.attest == 'true'
+        if: ${{ !inputs.dry_run && steps.plan.outputs.attest == 'true' }}
         env:
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
           SOURCE_BUNDLE_PATH: ${{ steps.attest_source.outputs.bundle-path }}
@@ -353,6 +358,7 @@ jobs:
           cp "$BUNDLE_PATH" out/dx-sha256sums.txt.sigstore.json
           cp "$SOURCE_BUNDLE_PATH" "out/rules_dx-${RELEASE_TAG#v}.tar.gz.intoto.jsonl"
       - name: Verify the archives against the bundle
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -375,44 +381,60 @@ jobs:
           if-no-files-found: error
 
   assets:
-    needs: attest
+    needs: [cells, attest]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.dry_run && format('v{0}', needs.cells.outputs.version) || inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ !inputs.dry_run }}
         with:
           ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
+        if: ${{ !inputs.dry_run }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-assets
           path: out
+      - name: Collect the release asset paths
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          src="rules_dx-${RELEASE_TAG#v}.tar.gz"
+          sources=$(cd out && ls source.json rules_dx_*.source.json 2>/dev/null)
+          : > "$RUNNER_TEMP/paths.txt"
+          for file in $(cat out/files.list) "$src" "$src.sha256" "$src.intoto.jsonl" $sources; do
+            if [ "$DRY_RUN" = true ]; then
+              case "$file" in dx-sha256sums.txt.sigstore.json | "$src.intoto.jsonl") continue ;; esac
+            fi
+            test -s "out/$file" || { echo "want a non-empty out/$file" >&2; exit 1; }
+            echo "$PWD/out/$file" >> "$RUNNER_TEMP/paths.txt"
+          done
       - name: Upload release assets
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          src="rules_dx-${RELEASE_TAG#v}.tar.gz"
-          paths=()
-          sources=$(cd out && ls source.json rules_dx_*.source.json 2>/dev/null)
-          for file in $(cat out/files.list) "$src" "$src.sha256" "$src.intoto.jsonl" $sources; do
-            paths+=("$PWD/out/$file")
-          done
+          mapfile -t paths < "$RUNNER_TEMP/paths.txt"
           status=0
           RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" > "$RUNNER_TEMP/ledger.json" || status=$?
           { echo '```json'; cat "$RUNNER_TEMP/ledger.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        if: ${{ always() && !inputs.dry_run }}
         with:
           name: release-ledger
           path: ${{ runner.temp }}/ledger.json
           if-no-files-found: warn
       - name: Check the published assets
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

@@ -119,8 +119,9 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
     assert!(assets.contains("exit \"$status\""));
     assert!(assets.contains("name: release-ledger\n          path: ${{ runner.temp }}/ledger.json"));
-    assert!(assets.contains("if: always()"));
-    assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
+    assert!(assets.contains("if: ${{ always() && !inputs.dry_run }}"));
+    assert!(assets.contains("echo \"$PWD/out/$file\" >> \"$RUNNER_TEMP/paths.txt\""));
+    assert!(assets.contains("mapfile -t paths < \"$RUNNER_TEMP/paths.txt\""));
     assert!(
         assets.contains(
             "for file in $(cat out/files.list) \"$src\" \"$src.sha256\" \"$src.intoto.jsonl\" $sources; do"
@@ -146,11 +147,13 @@ fn only_the_attest_job_can_write_ids_and_only_the_assets_job_can_write_contents(
     let assets = text.find("\n  assets:\n").expect("assets job");
     let pins = text.find("\n  pins:\n").expect("pins job");
     assert!(attest < assets && assets < pins);
+    let source = text.find("\n  source:\n").expect("source job");
+    assert!(!text[source..pins].contains("\n    if: ${{ !inputs.dry_run }}"));
     let (attest_job, assets_job) = (&text[attest..assets], &text[assets..pins]);
     assert!(attest_job.contains("contents: read"));
     assert!(!attest_job.contains("contents: write"));
     assert!(!attest_job.contains("bazel"));
-    assert!(assets_job.contains("needs: attest"));
+    assert!(assets_job.contains("needs: [cells, attest]"));
     assert!(assets_job.contains("contents: write"));
     assert!(!assets_job.contains("id-token"));
     assert!(!assets_job.contains("attestations"));
@@ -487,7 +490,7 @@ fn the_attestation_is_signed_once_from_the_tag_in_the_upload_job() {
         assert!(head.contains("steps.plan.outputs.attest == 'true'"));
         assert!(head.contains("github.ref == format('refs/tags/{0}', env.RELEASE_TAG)"));
     }
-    assert!(text.contains("subject-checksums: out/dx-sha256sums.txt"));
+    assert!(text.contains("subject-checksums: ${{ runner.temp }}/subjects.txt"));
     assert!(text.contains("grep -Fxq dx-sha256sums.txt.sigstore.json"));
     assert!(text.contains("dispatch with --ref $RELEASE_TAG"));
     for permission in [
@@ -525,6 +528,7 @@ fn the_archives_are_verified_with_the_expected_flags() {
 #[test]
 fn a_published_release_is_checked_by_running_the_downloaded_dx() {
     let text = workflow();
+    let text = &text[text.find("\n  assets:\n").expect("assets job")..];
     let download = text
         .find("--pattern 'dx-*' --dir verify")
         .expect("download");
@@ -652,4 +656,52 @@ fn the_bcr_ledger_follows_the_bcr_job_and_records_failures() {
     assert!(ledger.contains("//deploy/release:bcr_ledger"));
     assert!(ledger.contains("name: bcr-ledger"));
     assert!(!ledger.contains("secrets."));
+}
+
+fn job_steps(job: &str) -> Vec<&str> {
+    job.split("\n      - ").skip(1).collect()
+}
+
+#[test]
+fn a_dry_run_never_signs_or_publishes() {
+    let text = workflow();
+    let assets = text.find("\n  assets:\n").expect("assets job");
+    let pins = text.find("\n  pins:\n").expect("pins job");
+    let attest = text.find("\n  attest:\n").expect("attest job");
+    for job in [&text[attest..assets], &text[assets..pins]] {
+        for step in job_steps(job) {
+            let writes = ["gh release", "actions/attest@", "gh attestation", "RELEASE_DRY_RUN=0", "actions/checkout"]
+                .iter()
+                .any(|needle| step.contains(needle));
+            if writes {
+                let cond = step
+                    .lines()
+                    .find(|line| line.trim_start().starts_with("if:"))
+                    .unwrap_or_else(|| panic!("no if: in step\n{step}"));
+                assert!(cond.contains("!inputs.dry_run"), "ungated step\n{step}");
+            }
+        }
+    }
+}
+
+#[test]
+fn the_asset_paths_are_collected_on_a_dry_run_too() {
+    let text = workflow();
+    let assets = &text[text.find("\n  assets:\n").expect("assets job")..];
+    let step = job_steps(assets)
+        .into_iter()
+        .find(|step| step.starts_with("name: Collect the release asset paths"))
+        .expect("collect step");
+    assert!(!step.contains("if:"));
+    assert!(step.contains("DRY_RUN: ${{ inputs.dry_run }}"));
+    assert!(step.contains("test -s \"out/$file\""));
+}
+
+#[test]
+fn the_tag_is_derived_once_in_three_job_envs() {
+    let text = workflow();
+    let expr = "RELEASE_TAG: ${{ inputs.dry_run && format('v{0}', needs.cells.outputs.version) || inputs.tag || github.ref_name }}";
+    assert_eq!(text.matches(expr).count(), 3);
+    let pins = text.find("\n  pins:\n").expect("pins job");
+    assert!(text[pins..].contains("\n    if: ${{ !inputs.dry_run }}"));
 }

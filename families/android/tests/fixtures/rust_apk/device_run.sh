@@ -93,6 +93,8 @@ send_until() {
         waited=$((waited + 2))
     done
     echo "device_run: logcat never showed '$want' after 60 s of sends" >&2
+    device shell dumpsys window windows > "$evidence/window-$$.txt" 2>&1
+    device shell dumpsys input > "$evidence/input-$$.txt" 2>&1
     return 1
 }
 
@@ -145,19 +147,24 @@ no_effect() {
     not_installed "$custom"
 }
 
-default_app() {
-    device logcat -c
-    "$DX" run "$pkg:install" "$pkg:start"
+drive_app() {
+    out="$1"
     wait_log "lifecycle=resume" 1
     wait_focus "$app"
-    send_until "input=touch" shell input tap 200 400
+    send_until "input=touch" shell input touchscreen tap 200 400
     send_until "input=key" shell input keyevent KEYCODE_ENTER
     device shell input keyevent KEYCODE_HOME
     wait_log "lifecycle=stop" 1
     "$DX" run "$pkg:start"
     wait_log "lifecycle=resume" 2
-    "$DX" run "$pkg:log" > "$evidence/logcat-default.txt"
-    "$DX" run "$pkg:device_check" -- logcat "$evidence/logcat-default.txt" "$bytes"
+    "$DX" run "$pkg:log" > "$out"
+    "$DX" run "$pkg:device_check" -- logcat "$out" "$bytes"
+}
+
+default_app() {
+    device logcat -c
+    "$DX" run "$pkg:install" "$pkg:start"
+    drive_app "$evidence/logcat-default.txt"
 }
 
 custom_app() {
@@ -174,9 +181,7 @@ custom_app() {
 apk_set_app() {
     device logcat -c
     "$DX" run "$pkg:install_set" "$pkg:start"
-    wait_log "lifecycle=resume" 1
-    "$DX" run "$pkg:log" > "$evidence/logcat-set.txt"
-    "$DX" run "$pkg:device_check" -- logcat "$evidence/logcat-set.txt" "$bytes"
+    drive_app "$evidence/logcat-set.txt"
 }
 
 record() {

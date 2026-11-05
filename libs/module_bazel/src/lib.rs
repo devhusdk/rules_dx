@@ -268,6 +268,14 @@ pub struct ComposerLock<'a> {
     pub line: usize,
 }
 
+/// One `ocaml.packages` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OpamPackages<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// One `pub.from_lock` tag of rules_dart or `flutter.pub` tag of rules_flutter.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
@@ -904,6 +912,22 @@ impl ModuleFile {
         self.tags(PERL_MODULE, "perl/cpan:extensions.bzl", "cpan", "install")
             .map(|call| {
                 Ok(CpanInstall {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `ocaml.packages` tag of this repository's OCaml extension in source order.
+    pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
+        const TAG: &str = "ocaml.packages";
+        let own = self.tags_of("//ocaml/toolchain:repos.bzl".to_owned(), "ocaml", "packages");
+        self.tags(RUBY_MODULE, "ocaml/toolchain:repos.bzl", "ocaml", "packages")
+            .chain(own)
+            .map(|call| {
+                Ok(OpamPackages {
                     name: required(call, TAG, "name")?,
                     lock: required(call, TAG, "lock")?,
                     line: call.line,

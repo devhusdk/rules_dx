@@ -31,8 +31,10 @@ pub const ECOSYSTEM_HEX: &str = "hex";
 
 pub const ECOSYSTEM_COMPOSER: &str = "composer";
 
+pub const ECOSYSTEM_OPAM: &str = "opam";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -98,6 +100,7 @@ pub enum Ecosystem {
     Julia,
     Hex,
     Composer,
+    Opam,
 }
 
 impl Ecosystem {
@@ -118,6 +121,7 @@ impl Ecosystem {
             Ecosystem::Julia => ECOSYSTEM_JULIA,
             Ecosystem::Hex => ECOSYSTEM_HEX,
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
+            Ecosystem::Opam => ECOSYSTEM_OPAM,
         }
     }
 
@@ -138,6 +142,7 @@ impl Ecosystem {
             ECOSYSTEM_JULIA => Some(Ecosystem::Julia),
             ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
+            ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
             _ => None,
         }
     }
@@ -158,7 +163,8 @@ impl Ecosystem {
             | Ecosystem::Conan
             | Ecosystem::Julia
             | Ecosystem::Hex
-            | Ecosystem::Composer => "pinned",
+            | Ecosystem::Composer
+            | Ecosystem::Opam => "pinned",
         }
     }
 
@@ -178,7 +184,8 @@ impl Ecosystem {
             | Ecosystem::Conan
             | Ecosystem::Julia
             | Ecosystem::Hex
-            | Ecosystem::Composer => "pinned",
+            | Ecosystem::Composer
+            | Ecosystem::Opam => "pinned",
         }
     }
 
@@ -212,7 +219,8 @@ impl Ecosystem {
             | Ecosystem::Conan
             | Ecosystem::Julia
             | Ecosystem::Hex
-            | Ecosystem::Composer => "audit",
+            | Ecosystem::Composer
+            | Ecosystem::Opam => "audit",
         }
     }
 
@@ -231,6 +239,7 @@ impl Ecosystem {
             Ecosystem::Julia => Some("julia"),
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
+            Ecosystem::Opam => Some("opam"),
             Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
     }
@@ -253,6 +262,7 @@ impl Ecosystem {
             Ecosystem::Julia => PROJECT_TOML,
             Ecosystem::Hex => MIX_EXS,
             Ecosystem::Composer => COMPOSER_JSON,
+            Ecosystem::Opam => "<name>.opam",
         }
     }
 
@@ -272,7 +282,8 @@ impl Ecosystem {
             | Ecosystem::Conan
             | Ecosystem::Julia
             | Ecosystem::Hex
-            | Ecosystem::Composer => false,
+            | Ecosystem::Composer
+            | Ecosystem::Opam => false,
         }
     }
 }
@@ -592,6 +603,19 @@ pub fn discover(
                 vec![lock, path(composer.digests)?],
             )?);
         }
+        for opam in module.opam_packages().map_err(hub)? {
+            let lock = path(opam.lock)?;
+            let manifest = lock
+                .strip_suffix(".locked")
+                .unwrap_or(&lock)
+                .to_owned();
+            sets.push(hub_set(
+                opam.name,
+                Ecosystem::Opam,
+                vec![manifest],
+                vec![lock],
+            )?);
+        }
         for label in module.conan_extensions() {
             let bzl = dx_module_bazel::label_path(label)
                 .map_err(|detail| DependencySetsError::Module { detail })?;
@@ -729,7 +753,11 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
     }
     for manifest in &set.manifests {
         let file = manifest.rsplit('/').next().unwrap_or(manifest);
-        let allowed = set.ecosystem == Ecosystem::Conan && CONANFILES.contains(&file);
+        let allowed = match set.ecosystem {
+            Ecosystem::Conan => CONANFILES.contains(&file),
+            Ecosystem::Opam => file.ends_with(".opam") && file != ".opam",
+            _ => false,
+        };
         if file != set.ecosystem.manifest_name() && !allowed {
             return Err(DependencySetsError::InvalidManifest {
                 name: name.clone(),
@@ -943,6 +971,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Julia
         | Ecosystem::Hex
         | Ecosystem::Composer
+        | Ecosystem::Opam
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1332,6 +1361,7 @@ pub fn check_backend_settings(
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
+        Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1878,6 +1908,21 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
     })
 }
 
+/// An opam set keeps `<name>.opam.locked` beside its `<name>.opam`.
+fn check_opam_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    for manifest in &set.manifests {
+        let lock = format!("{manifest}.locked");
+        if !set.locks.contains(&lock) {
+            return Err(DependencySetsError::MissingPinnedLock {
+                name: set.name.clone(),
+                path: lock,
+                ecosystem: set.ecosystem.name(),
+            });
+        }
+    }
+    Ok(())
+}
+
 /// The package manager a configured npm set runs, chosen by the lock its `locks` list.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NpmBackend {
@@ -2207,6 +2252,17 @@ mod tests {
         assert_eq!(set.ecosystem, Ecosystem::Go);
         assert_eq!(set.manifests, ["third_party/go/go.mod"]);
         assert_eq!(set.locks, ["third_party/go/go.sum"]);
+    }
+
+    #[test]
+    fn opam_packages_become_opam_sets() {
+        let module = "ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"app_opam\", lock = \"//ocaml/app:app.opam.locked\")\n";
+        let registry = found(module, &[]);
+        let set = registry.find("app_opam").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Opam);
+        assert_eq!(set.manifests, ["ocaml/app/app.opam"]);
+        assert_eq!(set.locks, ["ocaml/app/app.opam.locked"]);
+        assert!(check_opam_layout(&ResolvedSet::of(set)).is_ok());
     }
 
     #[test]
@@ -2969,7 +3025,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam"
         );
     }
 

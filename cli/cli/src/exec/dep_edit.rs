@@ -175,7 +175,8 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::Conan
             | dx_adopt::dependency_sets::Ecosystem::Julia
             | dx_adopt::dependency_sets::Ecosystem::Hex
-            | dx_adopt::dependency_sets::Ecosystem::Composer,
+            | dx_adopt::dependency_sets::Ecosystem::Composer
+            | dx_adopt::dependency_sets::Ecosystem::Opam,
             _,
         ) => Err(operational(
             invocation,

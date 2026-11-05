@@ -1191,6 +1191,18 @@ fn cpan_installs_follow_the_rules_perl_extension() {
 }
 
 #[test]
+fn opam_packages_follow_the_ocaml_extension() {
+    let file = parse("ocaml = use_extension(\"//ocaml/toolchain:repos.bzl\", \"ocaml\")\nocaml.packages(name = \"app\", lock = \"//app:app.opam.locked\")\nocaml.annotation(package = \"x\", build_file = \"//x:BUILD\")\n");
+    let found: Vec<_> = file
+        .opam_packages()
+        .expect("packages")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
+    assert_eq!(found, [("app", "//app:app.opam.locked")]);
+}
+
+#[test]
 fn paket_extensions_are_main_repository_paket_loaders() {
     let file = parse("paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n");
     assert_eq!(

@@ -73,9 +73,11 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cp
         supports_parse_showincludes = True,
         shorten_virtual_includes = True,
     )
+    # Payloads spell Hostx64 and HostX64 both and glob is case sensitive, so take the whole bin directory.
+    tool_dirs = {d.split("/bin/")[0] + "/bin" if d.startswith("VC/") else d: True for d in layout.bin_dirs}.keys()
     native.filegroup(
         name = name + "_files",
-        srcs = native.glob([p + "/**" for p in layout.include_dirs + layout.lib_dirs + layout.bin_dirs], allow_empty = True),
+        srcs = native.glob([p + "/**" for p in layout.include_dirs + layout.lib_dirs + list(tool_dirs)], allow_empty = True),
     )
     cc_toolchain(
         name = name,

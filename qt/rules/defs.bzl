@@ -940,8 +940,6 @@ def _qt_rust_runtime_files_impl(ctx):
 def _qt_always_link_impl(ctx):
     inputs = []
     for linker_input in ctx.attr.dep[CcInfo].linking_context.linker_inputs.to_list():
-        for l in linker_input.libraries:
-            print('DBG', ctx.label, l.static_library, l.pic_static_library, l.dynamic_library, l.alwayslink)
         libraries = [
             cc_common.create_library_to_link(
                 actions = ctx.actions,
@@ -953,7 +951,14 @@ def _qt_always_link_impl(ctx):
             if library.static_library != None or library.pic_static_library != None
         ]
         if libraries:
-            inputs.append(cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries)))
+            inputs.append(cc_common.create_linker_input(
+                owner = linker_input.owner,
+                libraries = depset(libraries),
+                user_link_flags = linker_input.user_link_flags,
+                additional_inputs = depset(linker_input.additional_inputs),
+            ))
+        else:
+            inputs.append(linker_input)
     return [CcInfo(linking_context = cc_common.create_linking_context(linker_inputs = depset(inputs)))]
 
 _qt_always_link = rule(
@@ -1051,9 +1056,9 @@ def qt_rust_cc_library(
         [],
         "/",
         [],
-        cc_deps + [rust, qt + "//:cxx_qt"] + select({
+        cc_deps + [qt + "//:cxx_qt"] + select({
             "@platforms//os:macos": [":" + name + "_rust_linked"],
-            "//conditions:default": [],
+            "//conditions:default": [rust],
         }),
         modules if modules != None else (["qml"] if uri != None else ["core"]),
         qt,

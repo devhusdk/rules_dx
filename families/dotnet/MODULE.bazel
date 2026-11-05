@@ -21,7 +21,7 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 dotnet_tools = use_extension("@rules_dx//dotnet:repos.bzl", "dotnet_tools")
 use_repo(dotnet_tools, "rules_dotnet")
 
-paket = use_extension("@rules_dx//third_party/dotnet:extension.bzl", "paket", dev_dependency = True)
+paket = use_extension("@rules_dx//third_party/dotnet:extension.bzl", "paket")
 use_repo(paket, "paket.main")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust", dev_dependency = True)

@@ -605,10 +605,7 @@ pub fn discover(
         }
         for opam in module.opam_packages().map_err(hub)? {
             let lock = path(opam.lock)?;
-            let manifest = lock
-                .strip_suffix(".locked")
-                .unwrap_or(&lock)
-                .to_owned();
+            let manifest = lock.strip_suffix(".locked").unwrap_or(&lock).to_owned();
             sets.push(hub_set(
                 opam.name,
                 Ecosystem::Opam,

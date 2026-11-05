@@ -923,17 +923,26 @@ impl ModuleFile {
     /// Every `ocaml.packages` tag of this repository's OCaml extension in source order.
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
         const TAG: &str = "ocaml.packages";
-        let own = self.tags_of("//ocaml/toolchain:repos.bzl".to_owned(), "ocaml", "packages");
-        self.tags(RUBY_MODULE, "ocaml/toolchain:repos.bzl", "ocaml", "packages")
-            .chain(own)
-            .map(|call| {
-                Ok(OpamPackages {
-                    name: required(call, TAG, "name")?,
-                    lock: required(call, TAG, "lock")?,
-                    line: call.line,
-                })
+        let own = self.tags_of(
+            "//ocaml/toolchain:repos.bzl".to_owned(),
+            "ocaml",
+            "packages",
+        );
+        self.tags(
+            RUBY_MODULE,
+            "ocaml/toolchain:repos.bzl",
+            "ocaml",
+            "packages",
+        )
+        .chain(own)
+        .map(|call| {
+            Ok(OpamPackages {
+                name: required(call, TAG, "name")?,
+                lock: required(call, TAG, "lock")?,
+                line: call.line,
             })
-            .collect()
+        })
+        .collect()
     }
 
     /// The main-repository .bzl labels of `use_extension` calls that load paket groups:

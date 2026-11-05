@@ -12,8 +12,8 @@ enum Token {
 /// The OCaml compiler packages and `base-*` packages are skipped.
 pub fn parse_opam_locked(text: &str) -> Result<Vec<LockedPackage>, String> {
     let tokens = tokenize(text)?;
-    let mut index = depends_start(&tokens)
-        .ok_or_else(|| "invalid opam.locked: missing depends".to_owned())?;
+    let mut index =
+        depends_start(&tokens).ok_or_else(|| "invalid opam.locked: missing depends".to_owned())?;
     let mut out = Vec::new();
     while let Some(token) = tokens.get(index) {
         let name = match token {
@@ -92,9 +92,7 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
     let mut chars = text.chars().peekable();
     while let Some(char) = chars.next() {
         match char {
-            '#' => {
-                while chars.next_if(|next| *next != '\n').is_some() {}
-            }
+            '#' => while chars.next_if(|next| *next != '\n').is_some() {},
             '(' if chars.peek() == Some(&'*') => {
                 chars.next();
                 let mut previous = ' ';
@@ -176,7 +174,8 @@ mod tests {
 
     #[test]
     fn a_pinned_package_with_a_known_advisory_is_reported() {
-        let locked = parse_opam_locked("depends: [ \"opam-client\" {= \"2.1.4\"} ]\n").expect("parsed");
+        let locked =
+            parse_opam_locked("depends: [ \"opam-client\" {= \"2.1.4\"} ]\n").expect("parsed");
         let snapshot = r#"[{"id":"OSV-TEST-opam","modified":"2026-09-18T00:00:00Z","affected":[{"package":{"ecosystem":"opam","name":"opam-client"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"2.1.5"}]}]}]}]"#;
         let advisories = crate::vuln::parse_snapshot(snapshot).expect("snapshot");
         let (findings, _) = crate::vuln::match_packages(&locked, &advisories);

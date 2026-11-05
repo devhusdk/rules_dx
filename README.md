@@ -6,28 +6,9 @@ Language toolchains come from Bazel. No separate installs.
 
 Status: rules_dx is not released yet. Install starts with the first BCR release.
 
-## Install
-
-Bazel via Bazelisk (reads `.bazelversion`).
-
-A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
-`.dx/pins` without Bazel. See
-[Global Shim](docs/cli/commands/README.md#global-shim).
-
-Once releases ship, run `dx` without Bazel: download a release archive with `gh`
-and unpack `dx` onto your `PATH`.
-
-Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-and-ca.md).
-
 ## Quickstart
 
-In an empty directory, create four files.
-
-`MODULE.bazel`:
-
-```starlark
-bazel_dep(name = "rules_dx", version = "<release>")
-```
+Bazel via Bazelisk is required. In an empty directory, create four files.
 
 `.bazelversion`:
 
@@ -35,10 +16,16 @@ bazel_dep(name = "rules_dx", version = "<release>")
 9.2.0
 ```
 
+`MODULE.bazel`:
+
+```starlark
+bazel_dep(name = "rules_dx", version = "<release>")
+```
+
 `BUILD.bazel`:
 
 ```starlark
-# Empty on purpose: rules_rust crate_universe needs a root package (rules_dx#6144).
+# Empty on purpose: rules_rust crate_universe needs a root package.
 ```
 
 `.bazelrc`:
@@ -47,29 +34,23 @@ bazel_dep(name = "rules_dx", version = "<release>")
 common --repo_env=DO_NOT_TRACK=1
 ```
 
-This opts out of `aspect_tools_telemetry` before `dx init` writes the preset.
-
 Then:
 
 ```sh
 bazel run @rules_dx//:dx -- init --apply
-bazel run @rules_dx//:dx -- test //...
+tools/dx test //...
 ```
 
-With the global shim (coming; needs [#1655](https://github.com/devhusdk/rules_dx/issues/1655)),
-you can skip these files:
+After that, run `dx` through the launcher:
 
 ```sh
-DX_VERSION=<release> dx init --apply
-dx test //...
+tools/dx --help
+tools/dx build //...
 ```
 
-After that, `dx` runs through Bazel:
+Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-and-ca.md).
 
-```sh
-bazel run @rules_dx//:dx -- --help
-bazel run @rules_dx//:dx -- build //...
-```
+## Which dx binary runs
 
 In your module, `@rules_dx//:dx` will run the `dx` binary for the target
 platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
@@ -91,7 +72,13 @@ and C toolchains. Only the root module's tags count.
 `dx init --apply` writes the overrides `rules_dx` needs; see
 [patches/README.md](patches/README.md).
 
-Next: [tutorial](docs/tutorial.md), [docs index](docs/README.md),
+A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
+`.dx/pins` without Bazel. See
+[Global Shim](docs/cli/commands/README.md#global-shim).
+
+## Next
+
+[tutorial](docs/tutorial.md), [docs index](docs/README.md),
 [Bazel for dx users](docs/bazel-for-dx-users.md),
 [adopting rules_dx in an existing Bazel repo](docs/adopting-existing-bazel.md),
 [adopting rules_dx without Bazel experience](docs/adopting-without-bazel.md),

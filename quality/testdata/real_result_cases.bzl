@@ -134,7 +134,7 @@ REAL_RESULT_CASES = [
     _go_case("gotype", "typecheck", "clean", "//go/tests/fixtures/gotype:clean", ["gotype"], ["cannot use"], _GO_TYPECHECK_POLICY),
     _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], [], _GO_TYPECHECK_POLICY),
     _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"], _GO_STATICCHECK_POLICY),
-    _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double"], [], _GO_STATICCHECK_POLICY),
+    _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], [], _GO_STATICCHECK_POLICY),
     _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"], _GO_LINT_ALL_POLICY),
     _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "Unmarshal", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["tagged_off.go", "gen.go"], _GO_LINT_ALL_POLICY),
     _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], _GO_GOVET_POLICY, tool_govet = "//go/tools/analysis/cmd/dx_errcheck"),

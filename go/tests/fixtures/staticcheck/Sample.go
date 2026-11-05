@@ -8,3 +8,7 @@ func Greet(name string) string {
 	double(len(name))
 	return "hello " + name
 }
+
+func unusedHelper() int {
+	return 1
+}

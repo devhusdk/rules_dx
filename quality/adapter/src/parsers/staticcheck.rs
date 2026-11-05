@@ -62,6 +62,7 @@ pub fn parse_staticcheck(
             ));
         }
         let severity = match item.get("severity").and_then(serde_json::Value::as_str) {
+            Some(_) if rule == "U1000" => ToolSeverity::Info,
             Some("error") => ToolSeverity::Error,
             Some("warning") => ToolSeverity::Warning,
             Some(other) => {
@@ -208,6 +209,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "U1000");
         assert!(findings[0].finding.end.is_none());
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
     }
 
     #[test]

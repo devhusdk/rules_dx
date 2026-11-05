@@ -9,6 +9,7 @@ import (
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
+	"honnef.co/go/tools/unused"
 )
 
 // disabled mirrors the staticcheck defaults that are off unless requested.
@@ -26,7 +27,7 @@ func analyzers() []*analysis.Analyzer {
 			}
 		}
 	}
-	return out
+	return append(out, unused.Analyzer.Analyzer)
 }
 
 func main() {

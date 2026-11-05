@@ -205,6 +205,7 @@ pub(super) fn build_dep_diagnostics(
                 package: item.package,
                 target: item.target,
                 dependency: item.dependency,
+                ..Default::default()
             }),
             ..Default::default()
         })

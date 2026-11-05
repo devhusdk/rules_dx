@@ -689,6 +689,7 @@ fn json_apply_removes_unused_build_deps() {
                 package: "p".to_owned(),
                 target: (*target).to_owned(),
                 dependency: (*dependency).to_owned(),
+                ..Default::default()
             });
             diagnostic
         })
@@ -736,4 +737,86 @@ fn unused_dep_is_reported_on_its_build_line_and_apply_removes_it() {
         !after.contains(":clean") && after.contains(":used"),
         "{after}"
     );
+}
+
+fn missing_and_unused_dep(name: &str, missing_label: &str) -> Harness {
+    let mut harness = Harness::new(name);
+    harness.write_source(
+        "p/BUILD.bazel",
+        "rust_library(\n    name = \"lib\",\n    deps = [\n        \":clean\",\n        \":used\",\n    ],\n)\n",
+    );
+    let found: Vec<proto::Diagnostic> = [("clean", false), ("needed", true)]
+        .iter()
+        .map(|(dependency, missing)| {
+            let mut diagnostic = Harness::diagnostic("deps", false);
+            diagnostic.path = String::new();
+            diagnostic.start_byte = None;
+            diagnostic.end_byte = None;
+            diagnostic.message = format!("dependency {dependency}");
+            diagnostic.build_dep = Some(proto::BuildDep {
+                package: "p".to_owned(),
+                target: "lib".to_owned(),
+                dependency: (*dependency).to_owned(),
+                missing: *missing,
+                label: if *missing {
+                    missing_label.to_owned()
+                } else {
+                    String::new()
+                },
+            });
+            diagnostic
+        })
+        .collect();
+    let result = harness.result_full(found.clone(), found, vec![], vec![]);
+    harness.results.insert("//test:corpus".to_owned(), result);
+    harness
+}
+
+#[test]
+fn missing_and_unused_deps_are_placed_and_apply_fixes_both() {
+    let harness = missing_and_unused_dep("missing-and-unused", "@@//q:needed");
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let lines: Vec<i64> = json_events(&out)
+        .into_iter()
+        .filter(|event| event["event"] == serde_json::json!("diagnostic"))
+        .filter(|event| {
+            event["message"]
+                .as_str()
+                .is_some_and(|m| m.ends_with("needed"))
+        })
+        .map(|event| event["range"]["start_line"].as_i64().expect("line"))
+        .collect();
+    assert_eq!(lines, vec![3], "{out}");
+
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert_eq!(
+        after,
+        "rust_library(\n    name = \"lib\",\n    deps = [\n        \":used\",\n        \"//q:needed\",\n    ],\n)\n"
+    );
+}
+
+#[test]
+fn external_missing_dep_is_reported_and_left_alone() {
+    let harness = missing_and_unused_dep("missing-external", "@@x//:y");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert!(
+        !after.contains("x//:y") && !after.contains(":clean"),
+        "{after}"
+    );
+    let finding = json_events(&out)
+        .into_iter()
+        .find(|event| {
+            event["message"]
+                .as_str()
+                .is_some_and(|m| m.ends_with("needed"))
+        })
+        .expect("the external finding stays");
+    assert_eq!(finding["path"], serde_json::json!("p/BUILD.bazel"), "{out}");
 }

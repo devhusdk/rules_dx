@@ -65,17 +65,22 @@ message Diagnostic {
   // Why `fixable` is false for an initial diagnostic with a path; empty
   // when fixable or unknown. One of: no_change, unstable, persists.
   string unfixable_reason = 16;
-  // An unused dependency of a build target. It has no path: the CLI finds
-  // the entry in the package's BUILD file and sets the path and range.
+  // An unused or missing dependency of a build target. It has no path: the CLI
+  // finds the entry (or the `deps` list) in the package's BUILD file and sets
+  // the path and range.
   BuildDep build_dep = 17;
 }
 
-// A `deps` entry of a build target that no source uses. `dependency` is the
-// target name of the entry, not its full label.
+// A `deps` problem of a build target. By default an entry that no source
+// uses; `dependency` is the target name of the entry, not its full label.
+// With `missing` set, a dependency the sources use but `deps` lacks, and
+// `label` is the full label to add.
 message BuildDep {
   string package = 1;
   string target = 2;
   string dependency = 3;
+  bool missing = 4;
+  string label = 5;
 }
 
 // One explanatory item attached to a diagnostic. `role` is the native

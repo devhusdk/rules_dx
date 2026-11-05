@@ -77,7 +77,7 @@ Failures:
 
 Several targets that fix the same file apply identical fixes once. Fixes that disagree leave the file unchanged and print a `Conflict:` line.
 
-`--apply` removes unused `deps` entries in one write per BUILD file.
+`--apply` removes unused `deps` entries and adds missing direct deps in one write per BUILD file. Missing deps are added only for main-repo labels; a finding for an external repository stays reported.
 
 `dx lint` without `--apply` also fails with exit `1` when the checkout holds build output or a file over 1 MiB, as `dx check` does.
 

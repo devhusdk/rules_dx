@@ -18,11 +18,43 @@ struct Staged {
     digests: Vec<(String, [u8; 32])>,
     originals: Vec<(String, [u8; 32])>,
     unstable: Vec<Unstable>,
-    build_deps: BTreeSet<BuildDepKey>,
+    build_deps: BTreeMap<BuildDepKey, Option<Insert>>,
 }
 
-/// Path, start, end, tool and rule of an unused dependency placed in a BUILD file.
-type BuildDepKey = (String, u64, u64, String, Option<String>);
+/// Path, start, end, tool, rule and message of a dependency finding placed in a BUILD file.
+type BuildDepKey = (String, u64, u64, String, Option<String>, String);
+
+/// A missing dependency to add: the target name and the label as written in its package.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Insert {
+    target: String,
+    label: String,
+}
+
+/// The fix for a dependency finding: None removes the entry, Some adds a label.
+/// A missing dependency that cannot be written in a BUILD file has no fix.
+fn build_dep_fix(dep: &proto::BuildDep) -> Option<Option<Insert>> {
+    if !dep.missing {
+        return Some(None);
+    }
+    let label = build_deps::short_label(&dep.package, &dep.label)?;
+    Some(Some(Insert {
+        target: dep.target.clone(),
+        label,
+    }))
+}
+
+fn stage_build_dep(staged: &mut Staged, diagnostic: &proto::Diagnostic, mapped: &DiagnosticEvent) {
+    let Some(dep) = &diagnostic.build_dep else {
+        return;
+    };
+    if !diagnostic.path.is_empty() {
+        return;
+    }
+    if let (Some(key), Some(fix)) = (build_dep_key(mapped), build_dep_fix(dep)) {
+        staged.build_deps.insert(key, fix);
+    }
+}
 
 fn build_dep_key(event: &DiagnosticEvent) -> Option<BuildDepKey> {
     let (start, end) = event.range?;
@@ -32,6 +64,7 @@ fn build_dep_key(event: &DiagnosticEvent) -> Option<BuildDepKey> {
         end,
         event.tool.clone(),
         event.rule.clone(),
+        event.message.clone(),
     ))
 }
 
@@ -120,17 +153,13 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
     for diagnostic in &result.initial_diagnostics {
         let mut mapped = map_diagnostic(diagnostic, Snapshot::Initial, workspace)?;
         mapped.origins.push(origin.clone());
-        if diagnostic.path.is_empty() && diagnostic.build_dep.is_some() {
-            staged.build_deps.extend(build_dep_key(&mapped));
-        }
+        stage_build_dep(&mut staged, diagnostic, &mapped);
         staged.initial.push(mapped);
     }
     for diagnostic in &result.terminal_diagnostics {
         let mut mapped = map_diagnostic(diagnostic, Snapshot::Terminal, workspace)?;
         mapped.origins.push(origin.clone());
-        if diagnostic.path.is_empty() && diagnostic.build_dep.is_some() {
-            staged.build_deps.extend(build_dep_key(&mapped));
-        }
+        stage_build_dep(&mut staged, diagnostic, &mapped);
         staged.terminal.push(mapped);
     }
     for file in &result.replacements {
@@ -174,7 +203,7 @@ fn map_severity(value: i32) -> Option<Severity> {
     }
 }
 
-/// Finds the `deps` entry of an unused dependency in the package's BUILD file.
+/// Finds the `deps` entry of an unused dependency, or the `deps` list a missing one belongs in.
 fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (u64, u64))> {
     for name in ["BUILD.bazel", "BUILD"] {
         let relative = if dep.package.is_empty() {
@@ -185,7 +214,11 @@ fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (
         let Ok(text) = std::fs::read_to_string(workspace.join(&relative)) else {
             continue;
         };
-        let (start, end) = build_deps::locate(&text, &dep.target, &dep.dependency)?;
+        let (start, end) = if dep.missing {
+            build_deps::locate_deps_list(&text, &dep.target)?
+        } else {
+            build_deps::locate(&text, &dep.target, &dep.dependency)?
+        };
         return Some((relative, (start as u64, end as u64)));
     }
     None
@@ -260,33 +293,37 @@ fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
     })
 }
 
-/// One producer that deletes every unused `deps` entry, with one change per BUILD file.
-fn build_dep_producer(workspace: &Path, keys: &BTreeSet<BuildDepKey>) -> Option<Producer> {
-    let mut by_path: BTreeMap<&str, Vec<(usize, usize)>> = BTreeMap::new();
-    for (path, start, end, _, _) in keys {
-        by_path
-            .entry(path)
-            .or_default()
-            .push((*start as usize, *end as usize));
+/// One producer that removes every unused `deps` entry and adds every missing one, with one
+/// change per BUILD file. Also returns the findings the change fixes.
+fn build_dep_producer(
+    workspace: &Path,
+    keys: &BTreeMap<BuildDepKey, Option<Insert>>,
+) -> (Option<Producer>, BTreeSet<BuildDepKey>) {
+    let mut by_path: BTreeMap<&str, Vec<(&BuildDepKey, &Option<Insert>)>> = BTreeMap::new();
+    for item @ (key, _) in keys {
+        by_path.entry(&key.0).or_default().push(item);
     }
     let mut producer = Producer {
-        label: "dx unused deps".to_owned(),
-        tools: keys.iter().map(|key| key.3.clone()).collect(),
+        label: "dx deps".to_owned(),
+        tools: keys.keys().map(|key| key.3.clone()).collect(),
         changes: Vec::new(),
         digests: Vec::new(),
         originals: Vec::new(),
         terminal: Vec::new(),
     };
     producer.tools.dedup();
-    for (path, ranges) in by_path {
+    let mut fixed = BTreeSet::new();
+    for (path, items) in by_path {
         let Ok(bytes) = std::fs::read(workspace.join(path)) else {
             continue;
         };
         let Ok(text) = std::str::from_utf8(&bytes) else {
             continue;
         };
-        let mut cuts: Vec<(usize, usize)> = ranges
-            .into_iter()
+        let mut cuts: Vec<(usize, usize)> = items
+            .iter()
+            .filter(|(_, fix)| fix.is_none())
+            .map(|(key, _)| (key.1 as usize, key.2 as usize))
             .filter(|(start, end)| start <= end && *end <= text.len())
             .filter(|(start, end)| text.is_char_boundary(*start) && text.is_char_boundary(*end))
             .map(|(start, end)| build_deps::removal(text, start, end))
@@ -302,21 +339,62 @@ fn build_dep_producer(workspace: &Path, keys: &BTreeSet<BuildDepKey>) -> Option<
             kept_end = to;
             edits.push((from as u64, to as u64, String::new()));
         }
-        let Some(after) = apply_to_bytes(&bytes, &edits) else {
+        let Some(removed) = apply_to_bytes(&bytes, &edits) else {
             continue;
         };
+        let Ok(mut after) = String::from_utf8(removed) else {
+            continue;
+        };
+        let removes = !edits.is_empty();
+        for (key, fix) in &items {
+            match fix {
+                None if removes => {
+                    fixed.insert((*key).clone());
+                }
+                None => {}
+                Some(insert) => {
+                    let Some((at, add)) =
+                        build_deps::insertion(&after, &insert.target, &insert.label)
+                    else {
+                        continue;
+                    };
+                    after.insert_str(at, &add);
+                    fixed.insert((*key).clone());
+                }
+            }
+        }
+        let Some(edit) = whole_edit(&bytes, after.as_bytes()) else {
+            continue;
+        };
+        let edits = vec![edit];
         let original = dx_digest::blake3(&bytes);
         producer.originals.push((path.to_owned(), original));
         producer
             .digests
-            .push((path.to_owned(), dx_digest::blake3(&after)));
+            .push((path.to_owned(), dx_digest::blake3(after.as_bytes())));
         producer.changes.push(FileChange {
             path: path.to_owned(),
             original_digest: original,
             edits,
         });
     }
-    (!producer.changes.is_empty()).then_some(producer)
+    ((!producer.changes.is_empty()).then_some(producer), fixed)
+}
+
+/// The one edit that turns `before` into `after`, or None when they are equal.
+fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
+    if before == after {
+        return None;
+    }
+    let prefix = before.iter().zip(after).take_while(|(a, b)| a == b).count();
+    let suffix = before[prefix..]
+        .iter()
+        .rev()
+        .zip(after[prefix..].iter().rev())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let middle = String::from_utf8(after[prefix..after.len() - suffix].to_vec()).ok()?;
+    Some((prefix as u64, (before.len() - suffix) as u64, middle))
 }
 
 pub(crate) fn collect_results(bep: &Path, workspace: &Path) -> Result<Collected, (String, String)> {
@@ -336,7 +414,7 @@ pub(crate) fn collect_results_in(
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
     let mut unstable = Vec::new();
-    let mut build_dep_keys = BTreeSet::new();
+    let mut build_dep_keys = BTreeMap::new();
     let mut complete = true;
     let mut seen = BTreeSet::new();
     let mut problems = Vec::new();
@@ -423,15 +501,13 @@ pub(crate) fn collect_results_in(
         });
     }
     unstable.sort_by(|a: &Unstable, b: &Unstable| a.label.cmp(&b.label));
-    let removal = build_dep_producer(workspace, &build_dep_keys);
+    let (removal, fixed) = build_dep_producer(workspace, &build_dep_keys);
     let removed: BTreeSet<&str> = removal
         .iter()
         .flat_map(|producer| producer.changes.iter().map(|change| change.path.as_str()))
         .collect();
-    let removes = |event: &DiagnosticEvent| {
-        build_dep_key(event)
-            .is_some_and(|key| removed.contains(key.0.as_str()) && build_dep_keys.contains(&key))
-    };
+    let removes =
+        |event: &DiagnosticEvent| build_dep_key(event).is_some_and(|key| fixed.contains(&key));
     for producer in &mut producers {
         producer.terminal.retain(|event| !removes(event));
     }
@@ -457,7 +533,7 @@ pub(crate) fn collect_results_in(
             .is_some_and(|path| reconciled.changes.iter().any(|change| &change.path == path));
         if applied
             && removed_paths.contains(event.path.as_deref().unwrap_or(""))
-            && build_dep_key(event).is_some_and(|key| build_dep_keys.contains(&key))
+            && build_dep_key(event).is_some_and(|key| fixed.contains(&key))
         {
             event.fixable = true;
         }
@@ -537,6 +613,7 @@ mod tests {
             package: "p".to_owned(),
             target: "lib".to_owned(),
             dependency: "a".to_owned(),
+            ..Default::default()
         });
         let placed = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");
         let (start, end) = placed.range.expect("range");
@@ -921,6 +998,7 @@ mod tests {
             package: "p".to_owned(),
             target: target.to_owned(),
             dependency: dependency.to_owned(),
+            ..Default::default()
         });
         diagnostic
     }
@@ -973,7 +1051,6 @@ mod tests {
         assert_eq!(collected.changes.len(), 1);
         let change = &collected.changes[0];
         assert_eq!(change.path, "p/BUILD.bazel");
-        assert_eq!(change.edits.len(), 2);
         let after = apply_to_bytes(TWO_DEPS.as_bytes(), &change.edits).expect("applied");
         let after = String::from_utf8(after).expect("utf8");
         assert!(
@@ -985,6 +1062,50 @@ mod tests {
             .iter()
             .all(|e| e.path.as_deref() != Some("p/BUILD.bazel")));
         assert!(collected.initial.iter().all(|e| e.fixable));
+    }
+
+    fn missing(target: &str, label: &str) -> proto::Diagnostic {
+        let mut diagnostic = unused(target, "");
+        if let Some(dep) = diagnostic.build_dep.as_mut() {
+            dep.missing = true;
+            dep.label = label.to_owned();
+        }
+        diagnostic.message = format!("missing {label}");
+        diagnostic
+    }
+
+    #[test]
+    fn missing_dep_is_added_while_the_only_entry_is_removed() {
+        let harness = Harness::new("missing-dep-swap");
+        harness.write_source("p/BUILD.bazel", TWO_DEPS);
+        let found = vec![
+            unused("one", "a"),
+            missing("one", "@@//q:needed"),
+            missing("two", "@@x//:y"),
+        ];
+        let bytes = harness.result_full(found.clone(), found, vec![], vec![]);
+        let collected = collect_artifacts(&harness, &[("//p:one", bytes)]);
+        assert_eq!(collected.changes.len(), 1);
+        let change = &collected.changes[0];
+        let after = apply_to_bytes(TWO_DEPS.as_bytes(), &change.edits).expect("applied");
+        let after = String::from_utf8(after).expect("utf8");
+        assert!(after.contains("deps = [\"//q:needed\"]"), "{after}");
+        assert!(
+            !after.contains("//a:a") && after.contains("//b:b"),
+            "{after}"
+        );
+        let on_list = |event: &DiagnosticEvent| event.message.contains("@@x//:y");
+        let external = collected
+            .initial
+            .iter()
+            .find(|e| on_list(e))
+            .expect("event");
+        assert!(external.path.is_some() && !external.fixable);
+        assert!(collected
+            .initial
+            .iter()
+            .filter(|e| !on_list(e))
+            .all(|e| e.fixable));
     }
 
     #[test]

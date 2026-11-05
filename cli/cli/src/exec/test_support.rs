@@ -1266,6 +1266,7 @@ pub(crate) fn unused_build_dep(name: &str) -> Harness {
         package: "p".to_owned(),
         target: "unused_dep".to_owned(),
         dependency: "clean".to_owned(),
+        ..Default::default()
     });
     let result = harness.result_full(vec![diagnostic.clone()], vec![diagnostic], vec![], vec![]);
     harness.results.insert("//test:corpus".to_owned(), result);

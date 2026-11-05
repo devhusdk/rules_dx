@@ -19,7 +19,6 @@ rust_library(
     crate_name = "documentation_ir",
     crate_root = "src/lib.rs",
     edition = "2021",
-    # keep: generator cannot merge this expression yet (#7638)
     deps = all_crate_deps(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,
@@ -37,7 +36,6 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":documentation_ir",
-    # keep: generator cannot merge this expression yet (#7638)
     deps = all_crate_deps(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,

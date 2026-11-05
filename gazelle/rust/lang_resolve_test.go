@@ -958,3 +958,18 @@ func TestResolveWindowsCfgPathDepSelect(t *testing.T) {
 		}
 	}
 }
+
+func TestDepsMergeKeepsHandCrateDepsCall(t *testing.T) {
+	src := depsConcatExpr{extra: []string{":dx_preset"}}
+	dst := allCrateDepsFileExpr("tools/dx_preset", ":dx_preset", ":hand")
+	merged := src.Merge(dst)
+	if handCrateDepsCall(merged) == nil {
+		t.Fatalf("merged deps lost the all_crate_deps call")
+	}
+	if got := tailStrings(t, merged); strings.Join(got, "\x00") != ":dx_preset\x00:hand" {
+		t.Errorf("merged tail = %q", got)
+	}
+	if again := src.Merge(merged); bzl.FormatString(again) != bzl.FormatString(merged) {
+		t.Errorf("merge not idempotent")
+	}
+}

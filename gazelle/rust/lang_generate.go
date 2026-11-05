@@ -526,7 +526,28 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 			managed[dep] = true
 		}
 	}
-	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform}.BzlExpr()
+	base := c.base
+	if base == nil {
+		base = handCrateDepsCall(other)
+	}
+	return depsConcatExpr{base: base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform}.BzlExpr()
+}
+
+// handCrateDepsCall returns the all_crate_deps(...) call a handwritten deps
+// expression adds to its labels, so merging does not drop it.
+func handCrateDepsCall(e bzl.Expr) bzl.Expr {
+	switch e := e.(type) {
+	case *bzl.CallExpr:
+		if id, ok := e.X.(*bzl.Ident); ok && id.Name == "all_crate_deps" {
+			return e
+		}
+	case *bzl.BinaryExpr:
+		if call := handCrateDepsCall(e.X); call != nil {
+			return call
+		}
+		return handCrateDepsCall(e.Y)
+	}
+	return nil
 }
 
 func unmanagedDepsLabels(other bzl.Expr, managed map[string]bool) []string {

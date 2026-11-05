@@ -481,7 +481,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	case nil:
 		r.SetAttr("deps", labels)
 	case *bzl.ListExpr:
-		r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
+		r.SetAttr("deps", depsConcatExpr{extra: unionStrings(r.AttrStrings("deps"), labels)})
 	default:
 		r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels})
 	}

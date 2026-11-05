@@ -32,7 +32,6 @@ rust_binary(
     crate_name = "dx_verify",
     crate_root = "src/main.rs",
     edition = "2021",
-    # keep: generator cannot merge this expression yet (#7638)
     deps = all_crate_deps(
         package_name = "deploy/dx_install_tools",
         normal = True,

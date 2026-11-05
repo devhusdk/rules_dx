@@ -1,12 +1,11 @@
 """Tests for the rst2html entry point."""
 
-import os
-import subprocess
+import io
 import sys
 import unittest
+from unittest import mock
 
 import rst2html_main
-import tool_bootstrap
 
 VALE_ARGV = [
     "rst2html",
@@ -24,27 +23,20 @@ VALE_ARGV = [
 class Rst2HtmlTest(unittest.TestCase):
     """Feeds Vale's exact argv and checks the HTML."""
 
-    def import_path(self) -> list:
-        """Returns this process's import roots plus the wheels the runfiles carry."""
-        wheels = [str(site) for site in tool_bootstrap.site_packages()]
-        return [path for path in sys.path if path] + wheels
-
     def run_main(self, body: bytes) -> str:
-        """Converts one body through stdin in a child process and returns stdout.
+        """Converts one body through stdin in this process and returns stdout.
 
-        The child gets this process's import path and the runfiles wheels because on Windows the
-        interpreter does not find the venv from its own location.
+        It runs in-process because on Windows a child interpreter does not find the venv.
         """
-        main = os.path.join(os.path.dirname(os.path.abspath(rst2html_main.__file__)), "rst2html_main.py")
-        result = subprocess.run(
-            [sys.executable, main] + VALE_ARGV[1:],
-            input=body,
-            capture_output=True,
-            env=dict(os.environ, PYTHONPATH=os.pathsep.join(self.import_path())),
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr.decode())
-        return result.stdout.decode("utf-8")
+        stdout = io.BytesIO()
+        stdin = io.TextIOWrapper(io.BytesIO(body), encoding="utf-8")
+        out = io.TextIOWrapper(stdout, encoding="utf-8")
+        with mock.patch.object(sys, "argv", VALE_ARGV), mock.patch.object(sys, "stdin", stdin), mock.patch.object(
+            sys, "stdout", out
+        ):
+            rst2html_main.main()
+            out.flush()
+        return stdout.getvalue().decode("utf-8")
 
     def test_converts_non_ascii_stdin_to_html(self):
         """A heading and non-ASCII text land in the HTML."""

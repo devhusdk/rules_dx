@@ -243,6 +243,9 @@ archive_deploy(
 - `app`: required. One executable target. It is the only tarball member.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
+For an app built with GCC on Linux, `@rules_dx//cc/toolchains:gcc_linux_glibc`
+is a reviewed `os_supplied` runtime that records the pinned glibc floor.
+
 Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
 builds `<name>.tar.gz.sha256`.
 

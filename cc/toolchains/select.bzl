@@ -1,4 +1,4 @@
-"""Run a test under an explicitly selected C++ toolchain."""
+"""Run a test or build a binary under an explicitly selected C++ toolchain."""
 
 load("//libs/starlark:wrapper.bzl", "dx_lcov_merger_attr", "dx_symlink_executable")
 
@@ -78,4 +78,20 @@ cc_toolchain_files = rule(
         "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),
         "srcs": attr.label_list(doc = "Targets to build.", cfg = _files_transition),
     },
+)
+
+def _binary_impl(ctx):
+    inner = ctx.attr.binary[0][DefaultInfo].files_to_run.executable
+    exe = dx_symlink_executable(ctx, inner)
+    return [DefaultInfo(executable = exe, files = depset([exe]), runfiles = ctx.runfiles(files = [inner]))]
+
+cc_toolchain_binary = rule(
+    implementation = _binary_impl,
+    doc = "Exposes one executable built with the selected compiler for the given platforms, so consumer_archive can package it.",
+    attrs = {
+        "binary": attr.label(doc = "Executable to build.", executable = True, cfg = _files_transition, mandatory = True),
+        "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
+        "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),
+    },
+    executable = True,
 )

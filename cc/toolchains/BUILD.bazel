@@ -1,9 +1,11 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//cc/rules:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
+load("//deploy/rules:native_runtime.bzl", "native_runtime")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":identity_tests.bzl", "cc_toolchain_identity_tests")
+load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION")
 load(":select.bzl", "cc_toolchain_test")
 load(":unavailable.bzl", "GCC_UNSUPPORTED", "cc_toolchain_unavailable")
 
@@ -301,4 +303,14 @@ exports_files(
 exports_files(
     ["pins.bzl"],
     visibility = ["//cc/tests/gcc_linux_x86_64:__pkg__"],
+)
+
+# The glibc and libgcc of the pinned GCC sysroot come from the host OS, and
+# libstdc++ is linked statically, so nothing ships with the app.
+native_runtime(
+    name = "gcc_linux_glibc",
+    redistribution = "os_supplied",
+    source = "gcc " + GCC_VERSION + " sysroot",
+    version = GCC_GLIBC.removeprefix("glibc_"),
+    visibility = ["//visibility:public"],
 )

@@ -61,6 +61,7 @@ real_source_target(
         "github-ci.md",
         "licenses.md",
         "remote-cache.md",
+        "remote-execution.md",
         "support-matrix.md",
         "tutorial.md",
         "proxy-and-ca.md",

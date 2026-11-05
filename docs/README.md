@@ -12,6 +12,7 @@ Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 
 - [Use a remote cache](remote-cache.md): share build outputs with your team and CI.
 - [Use your own C/C++ toolchain](own-cc-toolchain.md): register your own compiler and see which toolchain wins.
+- [Use remote execution](remote-execution.md): run actions on a REAPI executor.
 - [Use JetBrains IDEs and other editors](editors.md): point editors at the files `dx` writes.
 
 ## Support

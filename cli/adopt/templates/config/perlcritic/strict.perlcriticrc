@@ -1,0 +1,6 @@
+severity = 1
+
+[-CodeLayout::RequireTidyCode]
+
+[Variables::ProhibitUnusedVariables]
+severity = 5

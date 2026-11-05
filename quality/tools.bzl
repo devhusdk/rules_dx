@@ -1715,6 +1715,7 @@ TOOLS = [
     tool(
         id = "perlcritic",
         adapters = {"lint": ["perl"]},
+        config_suffix = [".perlcriticrc", "perlcriticrc"],
         support = [
             row(
                 capability = "lint",

@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_lua_selene_strict
+capability LINT
+stages 1
+stage selene classes=lua sources=matrix/selene_profile.lua
+completed_rounds 1
+convergence STABLE
+initial 2
+initial ERROR selene unused_variable matrix/selene_profile.lua 6 12 fixable=false "unused is assigned a value, but never used"
+initial ERROR selene high_cyclomatic_complexity matrix/selene_profile.lua 24 48 fixable=false "cyclomatic complexity is too high (4 > 3)"
+terminal 2
+terminal ERROR selene unused_variable matrix/selene_profile.lua 6 12 fixable=false "unused is assigned a value, but never used"
+terminal ERROR selene high_cyclomatic_complexity matrix/selene_profile.lua 24 48 fixable=false "cyclomatic complexity is too high (4 > 3)"
+replacements 0

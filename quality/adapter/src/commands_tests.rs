@@ -1710,12 +1710,29 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let perl = Path::new("/scratch/sample.pl");
     assert_eq!(
-        argv_strings(&perlcritic_check(Path::new(BIN), &[perl])),
+        argv_strings(&perlcritic_check(Path::new(BIN), &[perl], None)),
         vec![
             BIN,
             "--noprofile",
             "--severity=5",
             "--include=Variables::ProhibitUnusedVariables",
+            "--nocolor",
+            "--quiet",
+            "--verbose",
+            PERLCRITIC_FORMAT,
+            "/scratch/sample.pl"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&perlcritic_check(
+            Path::new(BIN),
+            &[perl],
+            Some(Path::new("/scratch/.perlcriticrc"))
+        )),
+        vec![
+            BIN,
+            "--profile",
+            "/scratch/.perlcriticrc",
             "--nocolor",
             "--quiet",
             "--verbose",

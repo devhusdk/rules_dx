@@ -308,6 +308,8 @@ elvis_config = _make_native_config_rule("elvis")
 
 luals_config = _make_native_config_rule("luals")
 
+perlcritic_config = _make_native_config_rule("perlcritic")
+
 phpcs_config = _make_native_config_rule("phpcs")
 
 phpstan_config = _make_native_config_rule("phpstan")

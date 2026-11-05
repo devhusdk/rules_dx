@@ -1,0 +1,28 @@
+std = "lua53+lua54"
+
+[config]
+high_cyclomatic_complexity = { maximum_complexity = 3 }
+
+[lints]
+bad_string_escape = "deny"
+constant_table_comparison = "deny"
+divide_by_zero = "deny"
+duplicate_keys = "deny"
+empty_if = "deny"
+global_usage = "deny"
+high_cyclomatic_complexity = "deny"
+ifs_same_cond = "deny"
+incorrect_standard_library_use = "deny"
+manual_table_clone = "deny"
+mismatched_arg_count = "deny"
+mixed_table = "deny"
+multiple_statements = "deny"
+must_use = "deny"
+parenthese_conditions = "deny"
+shadowing = "deny"
+suspicious_reverse_loop = "deny"
+type_check_inside_call = "deny"
+unbalanced_assignments = "deny"
+undefined_variable = "deny"
+unscoped_variables = "deny"
+unused_variable = "deny"

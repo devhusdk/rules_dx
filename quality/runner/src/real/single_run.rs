@@ -129,7 +129,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let out = run(
                 backend,
                 call,
-                &commands::perlcritic_check(&call.tool.binary, &refs),
+                &commands::perlcritic_check(&call.tool.binary, &refs, call.config),
             )?;
             parsed(
                 call.tool_id,

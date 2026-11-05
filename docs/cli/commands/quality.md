@@ -414,6 +414,9 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | `vale` | yes | `.vale.ini` | | `vale_config` |
 | `pmd` | no | `.xml` ruleset, default unused-code rules at info (`quality/tools/jvm/pmd_default.xml`); bases `standard.xml` (quickstart plus unused code) and `strict.xml` (adds the bestpractices, errorprone, multithreading and performance categories) in `cli/adopt/templates/config/pmd/` | | `pmd_config` |
 | `spotbugs` | no | No file. Set `--//config:spotbugs_effort` (`min`, `less`, `default`, `more`, `max`) and `--//config:spotbugs_threshold` (`high`, `medium`, `low`); strict means `max` and `low` | | `--//config:...` flags |
+| `perlcritic` | no | `.perlcriticrc`, replaces the default severity 5 plus unused-variable selection (`--profile`); bases `standard.perlcriticrc` (severity 3) and `strict.perlcriticrc` (severity 1, no `RequireTidyCode`) in `cli/adopt/templates/config/perlcritic/`; `Variables::ProhibitUnusedVariables` stays at 5 | | `perlcritic_config` |
+| `selene` | no | `.toml`; bases `standard.toml` and `strict.toml` (every lint `deny`, complexity limit 3) in `cli/adopt/templates/config/selene/` | | `selene_config` |
+| `luals` | no | `.json`, flat `.luarc.json` keys; bases `standard.json` and `strict.json` (errors for unused code, the `strong` group on) in `cli/adopt/templates/config/luals/` | | `luals_config` |
 | `clang-format` | no | `.clang-format` | | `clang_format_config` |
 | `djlint` | no | `djlint.toml` or `.djlintrc` | Workspace configs | `djlint_config` |
 | `latexindent` | no | YAML settings file | `localSettings.yaml` | `latexindent_config` |

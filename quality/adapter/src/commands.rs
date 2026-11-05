@@ -288,18 +288,15 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
 /// The sentinel, then tab-separated fields; the message is last. `%g` and `%L` are the physical
 /// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
 pub const PERLCRITIC_FORMAT: &str = "dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
-/// `--noprofile` is always first: it stops perlcritic reading `~/.perlcriticrc`, `./.perlcriticrc`
-/// and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the unused-variable policy,
-/// which `--include` loads whatever its severity.
-const PERLCRITIC_CHECK_ARGS: &[&str] = &[
+/// Without a bound profile, `--noprofile` is first: it stops perlcritic reading `~/.perlcriticrc`,
+/// `./.perlcriticrc` and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the
+/// unused-variable policy, which `--include` loads whatever its severity.
+const PERLCRITIC_DEFAULT_ARGS: &[&str] = &[
     "--noprofile",
     "--severity=5",
     "--include=Variables::ProhibitUnusedVariables",
-    "--nocolor",
-    "--quiet",
-    "--verbose",
-    PERLCRITIC_FORMAT,
 ];
+const PERLCRITIC_OUTPUT_ARGS: &[&str] = &["--nocolor", "--quiet", "--verbose", PERLCRITIC_FORMAT];
 /// Colon-separated fields: file, line, column, length, kind, number, message (last). `%c` is a
 /// 1-based byte offset.
 pub const CHKTEX_FORMAT: &str = "%f:%l:%c:%d:%k:%n:%m\n";
@@ -1941,9 +1938,19 @@ pub fn perltidy_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PERLTIDY_FIX_ARGS, files, "")
 }
 
-/// One batched check; Perl::Critic has no autofix.
-pub fn perlcritic_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, PERLCRITIC_CHECK_ARGS, files, "")
+/// One batched check; Perl::Critic has no autofix. A bound profile replaces the default
+/// severity and policy selection; the output flags stay.
+pub fn perlcritic_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    match config {
+        Some(path) => {
+            head.push(OsString::from("--profile"));
+            head.push(path.as_os_str().to_owned());
+        }
+        None => head.extend(PERLCRITIC_DEFAULT_ARGS.iter().map(OsString::from)),
+    }
+    head.extend(PERLCRITIC_OUTPUT_ARGS.iter().map(OsString::from));
+    assemble(binary, head, files, "")
 }
 
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

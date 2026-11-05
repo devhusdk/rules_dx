@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_lua_selene_standard
+capability LINT
+stages 1
+stage selene classes=lua sources=matrix/selene_profile.lua
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING selene unused_variable matrix/selene_profile.lua 6 12 fixable=false "unused is assigned a value, but never used"
+terminal 1
+terminal WARNING selene unused_variable matrix/selene_profile.lua 6 12 fixable=false "unused is assigned a value, but never used"
+replacements 0

@@ -1,21 +1,24 @@
 //! Lists Cargo dependencies whose newest stable crates.io version is outside the declared requirement.
 
-use super::{wanted, Candidate, Fetch, Findings, LookupError};
+use super::{github_repo, wanted, Candidate, Fetch, Findings, LookupError};
 use semver::{Version, VersionReq};
 use std::collections::BTreeMap;
 use toml_edit::{DocumentMut, Item, Table};
 
 pub const DEFAULT_BASE: &str = "https://index.crates.io";
+pub const API_BASE: &str = "https://crates.io";
 
 const DEP_TABLES: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
 
 /// Checks each registry dependency of the manifests against the sparse index at `base`.
+/// Outdated crates get their GitHub repository from the crates.io API at `api`.
 pub fn outdated(
     set: &str,
     manifests: &[String],
     only: &[String],
     prereleases: bool,
     base: &str,
+    api: &str,
     fetch: &dyn Fetch,
 ) -> Findings {
     let mut found = Findings::default();
@@ -45,6 +48,8 @@ pub fn outdated(
                 continue;
             }
         };
+        let mut repo = None;
+        let mut looked_up = false;
         for current in reqs {
             let Ok(req) = VersionReq::parse(&current) else {
                 found
@@ -53,6 +58,10 @@ pub fn outdated(
                 continue;
             };
             if !req.matches(&release.version) {
+                if !looked_up {
+                    looked_up = true;
+                    repo = repository(api, &name, fetch);
+                }
                 found.candidates.push(Candidate {
                     set: set.to_owned(),
                     package: name.clone(),
@@ -60,13 +69,19 @@ pub fn outdated(
                     latest: release.version.to_string(),
                     published: release.published.clone(),
                     prerelease: !release.version.pre.is_empty(),
-                    repo: None,
+                    repo: repo.clone(),
                     tags: None,
                 });
             }
         }
     }
     found
+}
+
+fn repository(api: &str, name: &str, fetch: &dyn Fetch) -> Option<String> {
+    let body = fetch.get(&format!("{api}/api/v1/crates/{name}")).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&body).ok()?;
+    json["crate"]["repository"].as_str().and_then(github_repo)
 }
 
 fn collect(root: &Table, into: &mut BTreeMap<String, Vec<String>>) {
@@ -196,7 +211,14 @@ wsdep = "1.0"
             only,
             prereleases,
             DEFAULT_BASE,
-            &|url: &str| index(url.strip_prefix("https://index.crates.io/").unwrap_or(url)),
+            API_BASE,
+            &|url: &str| match url.strip_prefix("https://crates.io/api/v1/crates/") {
+                Some("old") => {
+                    Ok(r#"{"crate":{"repository":"https://github.com/acme/old"}}"#.to_owned())
+                }
+                Some(_) => Err("HTTP 500".to_owned()),
+                None => index(url.strip_prefix("https://index.crates.io/").unwrap_or(url)),
+            },
         )
     }
 
@@ -238,11 +260,18 @@ wsdep = "1.0"
                 latest: "0.4.0".into(),
                 published: Some("2026-01-02T00:00:00Z".into()),
                 prerelease: false,
-                repo: None,
+                repo: Some("acme/old".into()),
                 tags: None,
             })
         );
         assert!(found.candidates.iter().any(|c| c.package == "wsdep"));
+    }
+
+    #[test]
+    fn a_failed_metadata_fetch_leaves_the_repository_empty() {
+        let found = run(&[]);
+        let wsdep = found.candidates.iter().find(|c| c.package == "wsdep");
+        assert_eq!(wsdep.map(|c| c.repo.clone()), Some(None));
     }
 
     #[test]

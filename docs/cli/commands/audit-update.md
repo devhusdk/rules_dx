@@ -330,7 +330,7 @@ For each group, dx:
 6. Edits the open pull request or creates one.
 7. Sets auto-merge by `--automerge`.
 
-The body lists each package as `old -> new` with its registry link, the compare and release links when the registry names a GitHub repository, a `prerelease` mark, and the changed lock files with line counts.
+The body lists each package as `old -> new` with its registry link, the compare and release links when the registry names a GitHub repository (cargo and ruby read it from the crates.io and rubygems.org metadata of outdated packages only; a failed metadata fetch leaves the registry link alone), a `prerelease` mark, and the changed lock files with line counts.
 
 Skips print `skipped <set>:<package> <old> -> <new>: <reason>` with `ignored`, `major` or `too new` (JSON notice `update_pr_skipped`). A group over `--max-prs` prints `skipped: --max-prs=<n> reached`. A push refused for workflow files prints `skipped: token cannot push workflow files`. Neither changes the exit code. If the token may not create pull requests, the run fails and names the setting "Allow GitHub Actions to create and approve pull requests".
 

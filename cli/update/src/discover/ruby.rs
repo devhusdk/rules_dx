@@ -1,6 +1,8 @@
 //! Lists gems whose newest release on rubygems.org is newer than the version in the Gemfile.
 
-use super::{numeric_cmp, release_cmp, wanted, Candidate, Fetch, Findings, LookupError};
+use super::{
+    github_repo, numeric_cmp, release_cmp, wanted, Candidate, Fetch, Findings, LookupError,
+};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -44,8 +46,14 @@ pub fn outdated(
                     continue;
                 }
             };
+        let mut repo = None;
+        let mut looked_up = false;
         for current in versions {
             if release_cmp(&latest, &current) == Ordering::Greater {
+                if !looked_up {
+                    looked_up = true;
+                    repo = repository(base, &name, fetch);
+                }
                 found.candidates.push(Candidate {
                     set: set.to_owned(),
                     package: name.clone(),
@@ -53,13 +61,21 @@ pub fn outdated(
                     latest: latest.clone(),
                     published: published.clone(),
                     prerelease,
-                    repo: None,
+                    repo: repo.clone(),
                     tags: None,
                 });
             }
         }
     }
     found
+}
+
+fn repository(base: &str, name: &str, fetch: &dyn Fetch) -> Option<String> {
+    let body = fetch.get(&format!("{base}/api/v1/gems/{name}.json")).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&body).ok()?;
+    ["source_code_uri", "homepage_uri"]
+        .iter()
+        .find_map(|key| json[key].as_str().and_then(github_repo))
 }
 
 fn declaration(line: &str) -> Option<(String, String)> {
@@ -120,6 +136,9 @@ mod tests {
             "api/v1/versions/rails.json" => {
                 r#"[{"number":"8.0.0.rc1","prerelease":true,"created_at":"2026-03-01T00:00:00Z"},{"number":"7.2.1","prerelease":false,"created_at":"2026-02-01T00:00:00Z"},{"number":"7.0.4","prerelease":false,"created_at":"2025-01-01T00:00:00Z"}]"#
             }
+            "api/v1/gems/rails.json" => {
+                r#"{"source_code_uri":"https://example.org/rails","homepage_uri":"https://github.com/rails/rails"}"#
+            }
             "api/v1/versions/fresh.json" => r#"[{"number":"2.0","prerelease":false}]"#,
             "api/v1/versions/nokogiri.json" => r#"[{"number":"1.16.0","prerelease":false}]"#,
             _ => return Err("HTTP 404".to_owned()),
@@ -165,10 +184,16 @@ mod tests {
                 latest: "7.2.1".into(),
                 published: Some("2026-02-01T00:00:00Z".into()),
                 prerelease: false,
-                repo: None,
+                repo: Some("rails/rails".into()),
                 tags: None,
             }]
         );
+    }
+
+    #[test]
+    fn a_failed_metadata_fetch_leaves_the_repository_empty() {
+        let found = run(&["nokogiri".to_owned()]);
+        assert_eq!(found.candidates[0].repo, None);
     }
 
     #[test]

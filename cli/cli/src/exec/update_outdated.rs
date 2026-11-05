@@ -207,7 +207,15 @@ pub(super) fn collect(
                 let texts = read_texts(workspace, &target.set.manifests);
                 merge(
                     &mut found,
-                    cargo::outdated(name, &texts, only, prereleases, cargo::DEFAULT_BASE, fetch),
+                    cargo::outdated(
+                        name,
+                        &texts,
+                        only,
+                        prereleases,
+                        cargo::DEFAULT_BASE,
+                        cargo::API_BASE,
+                        fetch,
+                    ),
                 );
             }
             Ecosystem::Go => {

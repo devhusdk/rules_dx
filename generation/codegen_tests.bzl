@@ -401,7 +401,7 @@ def _shard_argv_impl(ctx):
     actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "DxCodegenShard"]
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv
-    asserts.true(env, argv[0].endswith("/codegen_shard_writer"), "action runs " + argv[0])
+    asserts.true(env, argv[0].removesuffix(".exe").endswith("/codegen_shard_writer"), "action runs " + argv[0])
     asserts.equals(env, ctx.attr.expected, argv[1:-1])
     asserts.true(env, argv[-1].endswith("/" + ctx.attr.output), "output " + argv[-1])
     return analysistest.end(env)

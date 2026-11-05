@@ -1602,10 +1602,14 @@ PKL_PKL_LSP_LINT_SUPPORT = support(
     context = "owned",
     family = "pkl",
     fix = "check_only",
-    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
     state = "supported",
     tool = "pkl_lsp",
     transport = "batched",
+    unsupported = {
+        "windows_arm64": "pkl-lsp exits at start under the hermetic runner (#7292)",
+        "windows_x86_64": "pkl-lsp exits at start under the hermetic runner (#7292)",
+    },
 )
 
 LUA_SELENE_LINT_SUPPORT = support(

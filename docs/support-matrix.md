@@ -134,7 +134,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | LaTeX | `chktex` | `latexindent` | n/a | n/a | n/a |
 | Markdown | `markdown_check`, `vale` | no | no | n/a | n/a |
 | Nix | `deadnix`, `statix` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a |
-| Pkl | `pkl_lsp` | `pkl` | `pkl` | n/a | n/a |
+| Pkl | `pkl_lsp` (not on `windows_x86_64`: pkl-lsp exits at start under the hermetic runner (#7292); `windows_arm64`: pkl-lsp exits at start under the hermetic runner (#7292)) | `pkl` | `pkl` | n/a | n/a |
 | Rego | `regal` | `opa` | `opa` | n/a | n/a |
 | reStructuredText | `vale` | no | n/a | n/a | n/a |
 | Shell | `shellcheck` | `shfmt` | no | n/a | n/a |

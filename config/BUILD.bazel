@@ -182,6 +182,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_xref",
+    build_setting_default = "//erlang/tools:xref",
+)
+
+label_flag(
     name = "tool_mix_format",
     build_setting_default = "//elixir/tools:mix_format",
 )

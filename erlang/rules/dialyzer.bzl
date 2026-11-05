@@ -93,9 +93,17 @@ dialyzer_plt = rule(
     provides = [DefaultInfo, DialyzerPltInfo],
 )
 
-def _dialyzer_tool_impl(ctx):
-    binary = ctx.attr.binary[DefaultInfo]
-    plts = [dep[DialyzerPltInfo].plt for dep in ctx.attr.plts]
+def tool_launcher(ctx, binary_target):
+    """Links an otp_tool_binary as this rule's executable.
+
+    Args:
+      ctx: The rule context.
+      binary_target: The otp_tool_binary target.
+
+    Returns:
+      The launcher file and the runfiles it needs.
+    """
+    binary = binary_target[DefaultInfo]
     exe = binary.files_to_run.executable
     runfiles = binary.default_runfiles
     if exe.path.endswith(".exe"):
@@ -104,13 +112,18 @@ def _dialyzer_tool_impl(ctx):
         wanted = native_launch_descriptor_path(exe.path)
         descriptors = [f for f in binary.default_runfiles.files.to_list() if f.path == wanted]
         if not descriptors:
-            fail("dialyzer_tool " + ctx.label.name + ": " + wanted + " is not in the runfiles of " + str(ctx.attr.binary.label))
+            fail(str(ctx.label) + ": " + wanted + " is not in the runfiles of " + str(binary_target.label))
         descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
         ctx.actions.symlink(output = descriptor, target_file = descriptors[0])
         runfiles = ctx.runfiles(files = [launcher, descriptor]).merge(binary.default_runfiles)
     else:
         launcher = ctx.actions.declare_file(ctx.label.name)
         ctx.actions.symlink(output = launcher, target_file = exe, is_executable = True)
+    return launcher, runfiles
+
+def _dialyzer_tool_impl(ctx):
+    plts = [dep[DialyzerPltInfo].plt for dep in ctx.attr.plts]
+    launcher, runfiles = tool_launcher(ctx, ctx.attr.binary)
     return [
         DefaultInfo(
             executable = launcher,

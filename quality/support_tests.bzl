@@ -213,6 +213,7 @@ def _toolchain_platforms():
         "julia_format": sorted(JULIA_PLATFORMS.keys()),
         "julialint": sorted(JULIA_PLATFORMS.keys()),
         "mix_format": _canonical(ELIXIR_CELLS),
+        "xref": _canonical(ERLANG_CELLS.keys()),
         "qmlformat": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
         "qmllint": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
     }

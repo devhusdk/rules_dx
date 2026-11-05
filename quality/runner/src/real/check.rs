@@ -777,6 +777,48 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "xref" => {
+                let staged = |prefix: &str| -> Vec<PathBuf> {
+                    let mut rels: Vec<&String> = tool
+                        .tool_files
+                        .iter()
+                        .map(|(rel, _)| rel)
+                        .filter(|rel| rel.starts_with(prefix) && rel.ends_with(".beam"))
+                        .collect();
+                    rels.sort();
+                    rels.into_iter()
+                        .map(|rel| scratch.root().join(rel))
+                        .collect()
+                };
+                let owned = staged("dx-xref/owned/");
+                if owned.is_empty() {
+                    return Ok(Vec::new());
+                }
+                let deps = staged("dx-xref/aux/");
+                let code_dir = scratch.root().join("dx-xref/pa");
+                let code_dirs: Vec<&Path> = if staged("dx-xref/pa/").is_empty() {
+                    Vec::new()
+                } else {
+                    vec![code_dir.as_path()]
+                };
+                let script = scratch.root().join("dx-xref/dx_xref.escript");
+                let dep_refs: Vec<&Path> = deps.iter().map(PathBuf::as_path).collect();
+                let owned_refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+                let name_refs: Vec<&str> = pairs.iter().map(|(rel, _)| rel.as_str()).collect();
+                let invocation =
+                    commands::xref_check(&tool.binary, &script, &code_dirs, &dep_refs, &owned_refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_xref(&out.stdout, out.code, &name_refs),
+                )?;
+                for found in &mut findings {
+                    if let Some((_, absolute)) = pairs.iter().find(|(rel, _)| *rel == found.file) {
+                        found.file = absolute.to_string_lossy().into_owned();
+                    }
+                }
+                Ok(findings)
+            }
             "phpcs" => {
                 // phpcs reports the paths it was given, resolved; pass and match canonical ones.
                 let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());

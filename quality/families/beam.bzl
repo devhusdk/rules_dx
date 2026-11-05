@@ -1,6 +1,6 @@
 """Erlang and Elixir real quality aspects."""
 
-load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo", "XrefToolInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 
@@ -33,6 +33,13 @@ TOOLS = {
         "resources": "medium",
         "shard": "erlang",
     },
+    "xref": {
+        "attr": attr.label(default = "//config:tool_xref", allow_files = True, cfg = "exec"),
+        "fallback": "=@rules_dx//erlang/tools:xref",
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "erlang",
+    },
     "mix_format": {
         "attr": attr.label(default = "//config:tool_mix_format", allow_files = True, cfg = "exec"),
         "fallback": "=@rules_dx//elixir/tools:mix_format",
@@ -51,7 +58,7 @@ SHARD_SPECS = {
     },
     "real_erlang_lint": {
         "capability": "lint",
-        "doc": "Additive Erlang lint family aspect (elvis).",
+        "doc": "Additive Erlang lint family aspect (elvis, xref).",
         "shard": "erlang",
         "suffix": "-erlang",
     },
@@ -69,11 +76,40 @@ SHARD_SPECS = {
     },
     "real_elixir_lint": {
         "capability": "lint",
-        "doc": "Additive Elixir lint family aspect (credo).",
+        "doc": "Additive Elixir lint family aspect (credo, xref).",
         "shard": "elixir",
         "suffix": "-elixir",
     },
 }
+
+def _stage_beams(target, prefix, tool_files, inputs):
+    """Stages the owned beams, the compiler's own beams and the other dependency beams."""
+    code = sorted(target[BeamInfo].code, key = lambda f: f.basename)
+    owned = sorted(target[BeamInfo].owned.to_list(), key = lambda f: f.short_path)
+    owned_paths = {f.path: True for f in owned}
+    aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
+    for index, beam in enumerate(owned):
+        stage(tool_files, inputs, "%s/owned/%d/%s" % (prefix, index, beam.basename), beam)
+    for beam in code:
+        stage(tool_files, inputs, prefix + "/pa/" + beam.basename, beam)
+    seen_aux = {}
+    for index, beam in enumerate(aux):
+        if beam.path in seen_aux:
+            continue
+        seen_aux[beam.path] = True
+        stage(tool_files, inputs, "%s/aux/%d/%s" % (prefix, index, beam.basename), beam)
+
+def _xref_hook(target, ctx, resolved, _capability, what, _shared):
+    if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
+        return without(resolved, "xref")
+    tool_target = getattr(ctx.attr, "_xref")
+    if XrefToolInfo not in tool_target:
+        fail(what + ": xref needs its driver script; set --@rules_dx//config:tool_xref=@rules_dx//erlang/tools:xref")
+    tool_files = []
+    inputs = []
+    stage(tool_files, inputs, "dx-xref/dx_xref.escript", tool_target[XrefToolInfo].script)
+    _stage_beams(target, "dx-xref", tool_files, inputs)
+    return real_context(tool_files = tool_files, inputs = inputs)
 
 def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
     if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
@@ -89,29 +125,16 @@ def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
         if plt.path not in seen_plts:
             seen_plts[plt.path] = True
             plts.append(plt)
-    code = sorted(target[BeamInfo].code, key = lambda f: f.basename)
-    owned = sorted(target[BeamInfo].owned.to_list(), key = lambda f: f.short_path)
-    owned_paths = {f.path: True for f in owned}
-    aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
     tool_files = []
     inputs = []
     for index, plt in enumerate(plts):
         stage(tool_files, inputs, "dx-dialyzer/plt/%s-%s" % (("000" + str(index))[-3:], plt.basename), plt)
-    for index, beam in enumerate(owned):
-        stage(tool_files, inputs, "dx-dialyzer/owned/%d/%s" % (index, beam.basename), beam)
-    for beam in code:
-        stage(tool_files, inputs, "dx-dialyzer/pa/" + beam.basename, beam)
-    seen_aux = {}
-    for index, beam in enumerate(aux):
-        if beam.path in seen_aux:
-            continue
-        seen_aux[beam.path] = True
-        stage(tool_files, inputs, "dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam)
+    _stage_beams(target, "dx-dialyzer", tool_files, inputs)
     return real_context(tool_files = tool_files, inputs = inputs)
 
-HOOK_ORDER = ["dialyzer"]
+HOOK_ORDER = ["dialyzer", "xref"]
 
-HOOKS = {"dialyzer": _dialyzer_hook}
+HOOKS = {"dialyzer": _dialyzer_hook, "xref": _xref_hook}
 
 _CFG = real_config(
     tools = TOOLS,

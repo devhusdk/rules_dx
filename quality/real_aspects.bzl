@@ -84,6 +84,7 @@ def _compile_check_hook(tool):
 _HOOK_ORDER = [
     "spotbugs",
     "dialyzer",
+    "xref",
     "sorbet",
     "scalafix",
     "fsharplint",

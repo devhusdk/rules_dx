@@ -99,7 +99,7 @@ pub fn parse_dialyzer(
 /// The owned path a reported file name stands for: the longest owned path the report ends with at
 /// a `/` boundary, else the first owned path (in sorted order) that ends with the report, which is
 /// how a bare basename resolves.
-fn resolve<'a>(owned: &[&'a str], reported: &str) -> Option<&'a str> {
+pub(super) fn resolve<'a>(owned: &[&'a str], reported: &str) -> Option<&'a str> {
     let ends_with_path = |whole: &str, tail: &str| {
         whole == tail
             || whole

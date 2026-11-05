@@ -1142,6 +1142,31 @@ pub fn dialyzer_check(
     }
 }
 
+/// The xref driver script run by the escript launcher: `--pa` code directories, `--dep` beams
+/// analysed for their calls only, then the owned beams whose unused exports are reported.
+pub fn xref_check(
+    binary: &Path,
+    script: &Path,
+    code_dirs: &[&Path],
+    deps: &[&Path],
+    owned: &[&Path],
+) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned(), script.as_os_str().to_owned()];
+    for dir in code_dirs {
+        argv.push(OsString::from("--pa"));
+        argv.push(dir.as_os_str().to_owned());
+    }
+    for dep in deps {
+        argv.push(OsString::from("--dep"));
+        argv.push(dep.as_os_str().to_owned());
+    }
+    argv.extend(owned.iter().map(|b| b.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 /// `phpcs` over the owned sources, JSON on stdout. `standard` is a ruleset file or a bundled
 /// standard name; it is always passed, so phpcs never searches the working directory for a
 /// `phpcs.xml`.

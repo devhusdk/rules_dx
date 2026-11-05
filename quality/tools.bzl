@@ -2739,6 +2739,40 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "xref",
+        adapters = {"lint": ["erlang", "elixir"]},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["erlang"],
+                context = "target_coupled",
+                family = "erlang",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "No OTP Windows cell is pinned",
+                    "windows_x86_64": "No OTP Windows cell is pinned",
+                },
+            ),
+            row(
+                capability = "lint",
+                classes = ["elixir"],
+                context = "target_coupled",
+                family = "elixir",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "No OTP Windows cell is pinned",
+                    "windows_x86_64": "No OTP Windows cell is pinned",
+                },
+            ),
+        ],
+    ),
+    tool(
         id = "yamlfmt",
         adapters = {"format": ["github_workflow", "yaml"]},
         config_suffix = [".yaml", ".yml", ".yamlfmt"],

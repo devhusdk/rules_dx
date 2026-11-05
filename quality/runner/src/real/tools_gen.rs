@@ -129,6 +129,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "vale",
     "vulture",
     "xmllint",
+    "xref",
     "yamlfmt",
     "yamllint",
     "zanuda",

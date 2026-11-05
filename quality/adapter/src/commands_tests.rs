@@ -1727,6 +1727,24 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "src/sample.erl"
         ]
     );
+    assert_eq!(
+        argv_strings(&xref_check(
+            Path::new(BIN),
+            Path::new("/scratch/x.escript"),
+            &[Path::new("/scratch/pa")],
+            &[Path::new("/scratch/dep.beam")],
+            &[Path::new("/scratch/a.beam")]
+        )),
+        vec![
+            BIN,
+            "/scratch/x.escript",
+            "--pa",
+            "/scratch/pa",
+            "--dep",
+            "/scratch/dep.beam",
+            "/scratch/a.beam"
+        ]
+    );
     let ex = Path::new("/scratch/sample.ex");
     assert_eq!(
         argv_strings(&mix_format_check(Path::new(BIN), &[ex])),

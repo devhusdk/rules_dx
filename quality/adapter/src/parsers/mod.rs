@@ -129,6 +129,7 @@ pub mod typstyle;
 pub mod vale;
 pub mod vulture;
 pub mod xmllint;
+pub mod xref;
 pub mod yamlfmt;
 pub mod yamllint;
 pub mod zanuda;
@@ -264,6 +265,7 @@ pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
 pub use vulture::parse_vulture;
 pub use xmllint::parse_xmllint;
+pub use xref::parse_xref;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
 pub use zanuda::parse_zanuda;
@@ -2962,6 +2964,14 @@ mod tests {
         super::vulture::parse_vulture(input, code, files)
     }
 
+    fn fuzz_xref(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::xref::parse_xref(input, code, files)
+    }
+
     fn fuzz_xmllint(
         input: &[u8],
         code: Option<i32>,
@@ -3132,6 +3142,7 @@ mod tests {
         ("vale", fuzz_vale),
         ("vulture", fuzz_vulture),
         ("xmllint", fuzz_xmllint),
+        ("xref", fuzz_xref),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
         ("zanuda", fuzz_zanuda),
@@ -3272,6 +3283,7 @@ mod tests {
         ("vale", include_str!("vale.rs")),
         ("vulture", include_str!("vulture.rs")),
         ("xmllint", include_str!("xmllint.rs")),
+        ("xref", include_str!("xref.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
         ("zanuda", include_str!("zanuda.rs")),

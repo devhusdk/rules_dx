@@ -6180,6 +6180,50 @@ fn dialyzer_stages_owned_directories_and_reports_each_source_path() {
     assert_eq!(seen, vec!["pkg/lib/a/w.ex", "pkg/lib/b/w.ex"]);
 }
 
+fn xref_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert!(text[1].ends_with("dx-xref/dx_xref.escript"), "{text:?}");
+    let dep = text.iter().position(|a| a == "--dep").expect("dep flag");
+    assert!(text[dep + 1].ends_with("/dep.beam"), "{text:?}");
+    assert!(
+        text[dep + 2].ends_with("dx-xref/owned/0/a.beam"),
+        "{text:?}"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"/w/lib/src/a.erl:3: a:f/0\nother.erl:1: other:g/0\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn xref_passes_dependencies_and_keeps_owned_findings() {
+    let tool = RealTool {
+        tool_files: vec![
+            ("dx-xref/dx_xref.escript".to_owned(), b"s".to_vec()),
+            ("dx-xref/aux/0/dep.beam".to_owned(), b"d".to_vec()),
+            ("dx-xref/owned/0/a.beam".to_owned(), b"a".to_vec()),
+        ],
+        ..plain_tool()
+    };
+    let backend = backend_for("xref", tool, xref_report);
+    let findings = backend
+        .diagnose("xref", "lint", &single("lib/src/a.erl", DIALYZER_SRC))
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(seen, vec![("lib/src/a.erl", "unused_export")]);
+}
+
 #[test]
 fn dialyzer_skips_an_app_without_beams() {
     let tool = RealTool {

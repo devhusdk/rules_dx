@@ -672,3 +672,42 @@ fn write_failure_keeps_the_original_finding_in_sarif() {
         "the unwritten file keeps its original finding: {document}"
     );
 }
+
+#[test]
+fn json_apply_removes_unused_build_deps() {
+    let mut harness = Harness::new("unused-build-deps");
+    let build = "rust_library(\n    name = \"one\",\n    deps = [\"//a:a\"],\n)\n\nrust_library(\n    name = \"two\",\n    deps = [\"//b:b\"],\n)\n";
+    harness.write_source("p/BUILD.bazel", build);
+    let found: Vec<proto::Diagnostic> = [("one", "a"), ("two", "b")]
+        .iter()
+        .map(|(target, dependency)| {
+            let mut diagnostic = Harness::diagnostic("unused", false);
+            diagnostic.path = String::new();
+            diagnostic.start_byte = None;
+            diagnostic.end_byte = None;
+            diagnostic.build_dep = Some(proto::BuildDep {
+                package: "p".to_owned(),
+                target: (*target).to_owned(),
+                dependency: (*dependency).to_owned(),
+            });
+            diagnostic
+        })
+        .collect();
+    let result = harness.result_full(found.clone(), found, vec![], vec![]);
+    harness.results.insert("//test:corpus".to_owned(), result);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert!(
+        !after.contains("//a:a") && !after.contains("//b:b"),
+        "{after}"
+    );
+    let events = json_events(&out);
+    assert!(
+        !events
+            .iter()
+            .any(|event| event["event"] == serde_json::json!("diagnostic")),
+        "{out}"
+    );
+}

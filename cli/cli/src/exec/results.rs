@@ -5,7 +5,7 @@ use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use dx_plan::plan::OUTPUT_GROUP;
 use quality_result::{build_deps, decode_validated, proto};
 
-use super::common::{collect_output_account, FileChange};
+use super::common::{apply_to_bytes, collect_output_account, FileChange};
 use super::quality_reconcile::{reconcile, Conflict, Producer};
 
 #[derive(Default)]
@@ -18,6 +18,21 @@ struct Staged {
     digests: Vec<(String, [u8; 32])>,
     originals: Vec<(String, [u8; 32])>,
     unstable: Vec<Unstable>,
+    build_deps: BTreeSet<BuildDepKey>,
+}
+
+/// Path, start, end, tool and rule of an unused dependency placed in a BUILD file.
+type BuildDepKey = (String, u64, u64, String, Option<String>);
+
+fn build_dep_key(event: &DiagnosticEvent) -> Option<BuildDepKey> {
+    let (start, end) = event.range?;
+    Some((
+        event.path.clone()?,
+        start,
+        end,
+        event.tool.clone(),
+        event.rule.clone(),
+    ))
 }
 
 impl Staged {
@@ -30,6 +45,7 @@ impl Staged {
         self.digests.extend(other.digests);
         self.originals.extend(other.originals);
         self.unstable.extend(other.unstable);
+        self.build_deps.extend(other.build_deps);
     }
 }
 
@@ -104,11 +120,17 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
     for diagnostic in &result.initial_diagnostics {
         let mut mapped = map_diagnostic(diagnostic, Snapshot::Initial, workspace)?;
         mapped.origins.push(origin.clone());
+        if diagnostic.path.is_empty() && diagnostic.build_dep.is_some() {
+            staged.build_deps.extend(build_dep_key(&mapped));
+        }
         staged.initial.push(mapped);
     }
     for diagnostic in &result.terminal_diagnostics {
         let mut mapped = map_diagnostic(diagnostic, Snapshot::Terminal, workspace)?;
         mapped.origins.push(origin.clone());
+        if diagnostic.path.is_empty() && diagnostic.build_dep.is_some() {
+            staged.build_deps.extend(build_dep_key(&mapped));
+        }
         staged.terminal.push(mapped);
     }
     for file in &result.replacements {
@@ -238,6 +260,65 @@ fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
     })
 }
 
+/// One producer that deletes every unused `deps` entry, with one change per BUILD file.
+fn build_dep_producer(workspace: &Path, keys: &BTreeSet<BuildDepKey>) -> Option<Producer> {
+    let mut by_path: BTreeMap<&str, Vec<(usize, usize)>> = BTreeMap::new();
+    for (path, start, end, _, _) in keys {
+        by_path
+            .entry(path)
+            .or_default()
+            .push((*start as usize, *end as usize));
+    }
+    let mut producer = Producer {
+        label: "dx unused deps".to_owned(),
+        tools: keys.iter().map(|key| key.3.clone()).collect(),
+        changes: Vec::new(),
+        digests: Vec::new(),
+        originals: Vec::new(),
+        terminal: Vec::new(),
+    };
+    producer.tools.dedup();
+    for (path, ranges) in by_path {
+        let Ok(bytes) = std::fs::read(workspace.join(path)) else {
+            continue;
+        };
+        let Ok(text) = std::str::from_utf8(&bytes) else {
+            continue;
+        };
+        let mut cuts: Vec<(usize, usize)> = ranges
+            .into_iter()
+            .filter(|(start, end)| start <= end && *end <= text.len())
+            .filter(|(start, end)| text.is_char_boundary(*start) && text.is_char_boundary(*end))
+            .map(|(start, end)| build_deps::removal(text, start, end))
+            .collect();
+        cuts.sort_unstable();
+        cuts.dedup();
+        let mut edits: Vec<(u64, u64, String)> = Vec::new();
+        let mut kept_end = 0;
+        for (from, to) in cuts {
+            if from < kept_end {
+                continue;
+            }
+            kept_end = to;
+            edits.push((from as u64, to as u64, String::new()));
+        }
+        let Some(after) = apply_to_bytes(&bytes, &edits) else {
+            continue;
+        };
+        let original = dx_digest::blake3(&bytes);
+        producer.originals.push((path.to_owned(), original));
+        producer
+            .digests
+            .push((path.to_owned(), dx_digest::blake3(&after)));
+        producer.changes.push(FileChange {
+            path: path.to_owned(),
+            original_digest: original,
+            edits,
+        });
+    }
+    (!producer.changes.is_empty()).then_some(producer)
+}
+
 pub(crate) fn collect_results(bep: &Path, workspace: &Path) -> Result<Collected, (String, String)> {
     collect_results_in(bep, OUTPUT_GROUP, workspace)
 }
@@ -255,6 +336,7 @@ pub(crate) fn collect_results_in(
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
     let mut unstable = Vec::new();
+    let mut build_dep_keys = BTreeSet::new();
     let mut complete = true;
     let mut seen = BTreeSet::new();
     let mut problems = Vec::new();
@@ -329,6 +411,7 @@ pub(crate) fn collect_results_in(
                 })
                 .or_insert(Some(*digest));
         }
+        build_dep_keys.extend(staged.build_deps);
         initial.extend(staged.initial);
         producers.push(Producer {
             label: target.label.clone(),
@@ -340,7 +423,45 @@ pub(crate) fn collect_results_in(
         });
     }
     unstable.sort_by(|a: &Unstable, b: &Unstable| a.label.cmp(&b.label));
+    let removal = build_dep_producer(workspace, &build_dep_keys);
+    let removed: BTreeSet<&str> = removal
+        .iter()
+        .flat_map(|producer| producer.changes.iter().map(|change| change.path.as_str()))
+        .collect();
+    let removes = |event: &DiagnosticEvent| {
+        build_dep_key(event)
+            .is_some_and(|key| removed.contains(key.0.as_str()) && build_dep_keys.contains(&key))
+    };
+    for producer in &mut producers {
+        producer.terminal.retain(|event| !removes(event));
+    }
+    let removed_paths: BTreeSet<String> = removed.iter().map(|path| (*path).to_owned()).collect();
+    if let Some(producer) = removal {
+        for (path, digest) in &producer.originals {
+            originals
+                .entry(path.clone())
+                .and_modify(|held| {
+                    if *held != Some(*digest) {
+                        *held = None;
+                    }
+                })
+                .or_insert(Some(*digest));
+        }
+        producers.push(producer);
+    }
     let reconciled = reconcile(workspace, producers);
+    for event in &mut initial {
+        let applied = event
+            .path
+            .as_ref()
+            .is_some_and(|path| reconciled.changes.iter().any(|change| &change.path == path));
+        if applied
+            && removed_paths.contains(event.path.as_deref().unwrap_or(""))
+            && build_dep_key(event).is_some_and(|key| build_dep_keys.contains(&key))
+        {
+            event.fixable = true;
+        }
+    }
     analyzed.retain(|(_, path)| reconciled.digests.contains_key(path));
     Ok(Collected {
         tools: tools.into_iter().collect(),
@@ -787,5 +908,125 @@ mod tests {
             collected.problems
         );
         assert!(!collected.tools.is_empty(), "{:?}", collected.tools);
+    }
+
+    const TWO_DEPS: &str = "rust_library(\n    name = \"one\",\n    deps = [\"//a:a\"],\n)\n\nrust_library(\n    name = \"two\",\n    deps = [\"//b:b\"],\n)\n";
+
+    fn unused(target: &str, dependency: &str) -> proto::Diagnostic {
+        let mut diagnostic = Harness::diagnostic("unused", false);
+        diagnostic.path = String::new();
+        diagnostic.start_byte = None;
+        diagnostic.end_byte = None;
+        diagnostic.build_dep = Some(proto::BuildDep {
+            package: "p".to_owned(),
+            target: target.to_owned(),
+            dependency: dependency.to_owned(),
+        });
+        diagnostic
+    }
+
+    fn collect_artifacts(harness: &Harness, artifacts: &[(&str, Vec<u8>)]) -> Collected {
+        let mut lines = vec![configured(
+            &artifacts
+                .iter()
+                .map(|(label, _)| *label)
+                .collect::<Vec<_>>(),
+        )];
+        for (index, (label, bytes)) in artifacts.iter().enumerate() {
+            let set = index.to_string();
+            let artifact = harness.temp.join(format!("{set}.pb"));
+            std::fs::write(&artifact, bytes).expect("artifact");
+            lines.push(
+                serde_json::json!({
+                    "id": {"namedSet": {"id": set}},
+                    "namedSetOfFiles": {"files": [{"uri": format!("file://{}", artifact.display())}]},
+                })
+                .to_string(),
+            );
+            lines.push(
+                serde_json::json!({
+                    "id": completion_id(label),
+                    "completed": {
+                        "success": true,
+                        "outputGroup": [{"name": "dx_results", "fileSets": [{"id": set}]}],
+                    },
+                })
+                .to_string(),
+            );
+        }
+        lines.push(LAST_EVENT.to_owned());
+        collect(harness, &lines)
+    }
+
+    fn unused_deps_artifact(harness: &Harness, deps: &[(&str, &str)]) -> Vec<u8> {
+        let found: Vec<proto::Diagnostic> = deps.iter().map(|(t, d)| unused(t, d)).collect();
+        harness.result_full(found.clone(), found, vec![], vec![])
+    }
+
+    #[test]
+    fn unused_deps_in_one_build_file_become_one_change() {
+        let harness = Harness::new("unused-deps-one");
+        harness.write_source("p/BUILD.bazel", TWO_DEPS);
+        let bytes = unused_deps_artifact(&harness, &[("one", "a"), ("two", "b"), ("one", "a")]);
+        let collected = collect_artifacts(&harness, &[("//p:one", bytes)]);
+        assert!(collected.conflicts.is_empty());
+        assert_eq!(collected.changes.len(), 1);
+        let change = &collected.changes[0];
+        assert_eq!(change.path, "p/BUILD.bazel");
+        assert_eq!(change.edits.len(), 2);
+        let after = apply_to_bytes(TWO_DEPS.as_bytes(), &change.edits).expect("applied");
+        let after = String::from_utf8(after).expect("utf8");
+        assert!(
+            !after.contains("//a:a") && !after.contains("//b:b"),
+            "{after}"
+        );
+        assert!(collected
+            .terminal
+            .iter()
+            .all(|e| e.path.as_deref() != Some("p/BUILD.bazel")));
+        assert!(collected.initial.iter().all(|e| e.fixable));
+    }
+
+    #[test]
+    fn unused_dep_edit_conflicts_with_another_editor() {
+        let harness = Harness::new("unused-deps-conflict");
+        harness.write_source("p/BUILD.bazel", TWO_DEPS);
+        let digest = dx_digest::blake3(TWO_DEPS.as_bytes()).to_vec();
+        let snapshot = proto::FileSnapshot {
+            path: "p/BUILD.bazel".to_owned(),
+            digest,
+        };
+        let editor = harness.result_full(
+            vec![],
+            vec![],
+            vec![harness.replacement_in("p/BUILD.bazel", b"X")],
+            vec![snapshot],
+        );
+        let unused = unused_deps_artifact(&harness, &[("one", "a")]);
+        let collected = collect_artifacts(&harness, &[("//p:fmt", editor), ("//p:one", unused)]);
+        assert!(collected.changes.is_empty());
+        assert_eq!(collected.conflicts.len(), 1);
+        assert_eq!(collected.conflicts[0].path, "p/BUILD.bazel");
+    }
+
+    #[test]
+    fn rewritten_build_file_makes_the_unused_dep_change_stale() {
+        let harness = Harness::new("unused-deps-stale");
+        harness.write_source("p/BUILD.bazel", TWO_DEPS);
+        let bytes = unused_deps_artifact(&harness, &[("one", "a")]);
+        let collected = collect_artifacts(&harness, &[("//p:one", bytes)]);
+        harness.write_source("p/BUILD.bazel", "# changed\n");
+        let outcome = crate::exec::quality_apply::apply_collected_changes(
+            &dx_apply::RealFileSystem,
+            &harness.workspace,
+            true,
+            true,
+            &collected.changes,
+        );
+        assert_eq!(outcome.applied.get("p/BUILD.bazel"), Some(&false));
+        assert_eq!(
+            outcome.not_applied,
+            vec![("p/BUILD.bazel".to_owned(), "stale_source")]
+        );
     }
 }

@@ -77,6 +77,8 @@ Failures:
 
 Several targets that fix the same file apply identical fixes once. Fixes that disagree leave the file unchanged and print a `Conflict:` line.
 
+`--apply` removes unused `deps` entries in one write per BUILD file.
+
 `dx lint` without `--apply` also fails with exit `1` when the checkout holds build output or a file over 1 MiB, as `dx check` does.
 
 ## Exit codes
@@ -320,7 +322,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `gplint` | Lint Gherkin | |
 | `notebook_outputs` | Lint Jupyter notebooks for stored outputs | |
 | `keep_sorted` | Lint `keep-sorted` blocks in text | |
-| `typos` | Spell check source, docs and text, and fix with `--fix`. Add words to a `_typos.toml` at the repo root | |
+| `typos` | Spell check source, docs and text, and fix with `--apply`. Add words to a `_typos.toml` at the repo root | |
 
 ### Schema languages
 

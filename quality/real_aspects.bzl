@@ -138,6 +138,31 @@ _REAL_TOOL_TABLE = {
 
 _JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
 
+# Converters Vale shells out to, by source class: (tool name, owner rule, defs.bzl).
+# The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
+# never load Python or Node.
+_REAL_SHARD_SPECS = {
+    "real_js_format": {
+        "capability": "format",
+        "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).",
+        "shard": "js",
+        "suffix": "-js",
+    },
+    "real_js_lint": {
+        "capability": "lint",
+        "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).",
+        "shard": "js",
+        "suffix": "-js",
+    },
+    "real_js_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive TypeScript typecheck family aspect (delegated tsc over typescript_project and js_library).",
+        "requires": [tsc_aspect],
+        "shard": "js",
+        "suffix": "-js",
+    },
+}
+
 def _compile_check_hook(tool):
     def _hook(target, _ctx, resolved, _capability, _what, _shared):
         if CompileCheckInfo not in target or target[CompileCheckInfo].tool != tool:

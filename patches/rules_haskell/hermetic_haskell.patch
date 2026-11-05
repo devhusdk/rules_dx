@@ -325,7 +325,7 @@ index 0fa4fd9..28cd3d1 100644
              pkg_info_inputs,
              depset(static_libs + dynamic_libs),
 +            cc.files,
-+            depset([f for l in cc.transitive_libraries for f in [l.static_library, l.pic_static_library, l.dynamic_library] if f]),
++            depset([f for l in cc.transitive_libraries for f in [l.static_library, l.pic_static_library, l.dynamic_library, l.resolved_symlink_dynamic_library, l.interface_library, l.resolved_symlink_interface_library] if f]),
          ]),
          outputs = [executable],
          mnemonic = "HaskellLinkBinary",

@@ -8,14 +8,11 @@ package(
     default_visibility = ["//swift/tests/fixtures/swift-app:__subpackages__"],
 )
 
-_LINUX = ["@platforms//os:linux"]
-
 swift_library(
     name = "core",
     testonly = False,
     srcs = ["ledger.swift"],
     module_name = "LedgerCore",
-    target_compatible_with = _LINUX,
     deps = ["//swift/tests/fixtures/swift-app/ledger/cdigest"],
 )
 
@@ -23,7 +20,6 @@ swift_test(
     name = "xctest",
     srcs = ["ledger_xctest.swift"],
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
     deps = [":core"],
 )
 
@@ -31,14 +27,12 @@ swift_test(
     name = "testing",
     srcs = ["ledger_testing.swift"],
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
     deps = [":core"],
 )
 
 swift_library_provider_test(
     name = "core_providers_test",
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
     target_under_test = ":core",
 )
 
@@ -52,7 +46,6 @@ swift_library(
     srcs = ["ledger.swift"],
     module_name = "BadDep",
     tags = ["manual"],
-    target_compatible_with = _LINUX,
     deps = [":a_filegroup"],
 )
 
@@ -61,7 +54,6 @@ failure_test(
     expected_failure_substring = "does not have mandatory providers: 'CcInfo'",
     tags = ["block-network"],
     target = ":bad_dep",
-    target_compatible_with = _LINUX,
 )
 
 real_source_target(

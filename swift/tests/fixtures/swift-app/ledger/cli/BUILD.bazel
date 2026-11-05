@@ -16,7 +16,6 @@ swift_binary(
     testonly = False,
     srcs = ["main.swift"],
     copts = ["-DLEDGER_STRICT"],
-    target_compatible_with = _LINUX,
     deps = [
         "//swift/tests/fixtures/swift-app/ledger/core",
         "@swiftpkg_swift_argument_parser//:ArgumentParser",
@@ -26,7 +25,6 @@ swift_binary(
 swift_binary_provider_test(
     name = "ledger_providers_test",
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
     target_under_test = ":ledger",
 )
 
@@ -35,7 +33,6 @@ dx_hello_output_test(
     binary = ":ledger",
     expected = "mode: strict\ntotal: 0\ndigest: 2166136261",
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
 )
 
 sh_test(
@@ -44,7 +41,6 @@ sh_test(
     args = ["$(location :ledger)"],
     data = [":ledger"],
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
 )
 
 sh_test(

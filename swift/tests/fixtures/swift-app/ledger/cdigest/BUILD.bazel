@@ -14,7 +14,6 @@ cc_library(
     srcs = ["digest.c"],
     hdrs = ["digest.h"],
     aspect_hints = [":cdigest_hint"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 real_source_target(

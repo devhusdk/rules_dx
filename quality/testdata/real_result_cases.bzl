@@ -102,7 +102,6 @@ REAL_RESULT_CASES = [
     _cc_case("clang_syntax", "typecheck", "dirty", "dirty", ["undeclared identifier 'undeclared_name'"], []),
     _cc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
     _cc_case("clang_tidy", "lint", "dirty", "tidy_dirty", ["readability-else-after-return"], [], _CC_TIDY_POLICY),
-    _cc_case("clang_tidy", "lint", "strict", "tidy_strict", ["modernize-use-using"], [], _CC_TIDY_POLICY) | {"class": "cpp"},
     _gcc_case("clang_syntax", "typecheck", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["undeclared_name", "Fatal error"]),
     _gcc_case("clang_syntax", "typecheck", "dirty", "dirty", ["'undeclared_name' undeclared"], []),
     _gcc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),

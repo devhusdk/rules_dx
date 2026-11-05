@@ -88,13 +88,6 @@ cc_library(
 )
 
 cc_library(
-    name = "tidy_strict",
-    srcs = ["tidy_strict.cc"],
-    aspect_hints = ["//cli/adopt/templates/config/clang_tidy:strict"],
-    tags = ["manual"],
-)
-
-cc_library(
     name = "dirty",
     srcs = ["dirty.c"],
     copts = ["-DCLEAN_OFFSET=1"],

@@ -169,8 +169,8 @@ See `docs/cli/commands/quality.md`.
 | `linux_x86_64` | Qualified |
 | `linux_arm64` | Qualified |
 | `macos_arm64` | Qualified |
-| `windows_x86_64` | Pending CI. No `mix_format`, `credo` or dialyzer yet. |
-| `windows_arm64` | Pending CI. No `mix_format`, `credo` or dialyzer yet. |
+| `windows_x86_64` | Qualified for build and `ex_unit_test`. No dialyzer yet. |
+| `windows_arm64` | Qualified for build and `ex_unit_test`. No dialyzer yet. |
 
 On other platforms Elixir targets fail toolchain resolution.
 

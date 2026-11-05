@@ -1,7 +1,9 @@
 use super::super::test_support::{closed_pipe, hang_up, reader_gone};
 use std::ffi::{CStr, CString};
 use std::fs;
-use std::io::{self, Write};
+use std::io;
+#[cfg(target_os = "linux")]
+use std::io::Write;
 use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
@@ -81,6 +83,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
 }
 
 struct Pty {
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     master: fs::File,
     slave: CString,
 }

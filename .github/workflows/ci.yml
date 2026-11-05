@@ -909,11 +909,23 @@ jobs:
             fi
             exit 0
           fi
-          failed=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | "- " + .name] | join("\n")')
+          failed=""
+          while IFS=$'\t' read -r job_id job_name step_name; do
+            [ -n "$job_id" ] || continue
+            failed="$failed${failed:+$'\n'}- $job_name (step: ${step_name:-unknown})"
+            lines=$(gh api "repos/$GH_REPO/actions/jobs/$job_id/logs" 2>/dev/null \
+              | sed -E 's/^[0-9T:.Z-]+ //' \
+              | grep -E '^ERROR:|panicked at|FAILED|^##\[error\]' \
+              | cut -c1-300 | head -n 5 || true)
+            if [ -n "$lines" ]; then
+              failed="$failed"$'\n'"$(printf '%s\n' "$lines" | sed 's/^/    /')"
+            fi
+          done < <(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | [(.databaseId | tostring), .name, ([.steps[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .name][0] // "")] | @tsv')
           if [ -z "$failed" ]; then
             failed="- (no failed job recorded; see the run)"
           fi
           body="Scheduled ci run failed: $RUN_URL"$'\n\n'"Failed jobs:"$'\n'"$failed"
+          body=${body:0:60000}
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"
           else

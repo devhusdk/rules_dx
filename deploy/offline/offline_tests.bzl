@@ -60,6 +60,16 @@ def offline_unit_tests(name):
                 "offline_bundle: advisory_meta set 'npm' has no snapshot in advisory",
             ),
             expect_equal(
+                "offline_launcher_error rejects compiler and SDK files",
+                [offline_launcher_error(f) != "" for f in ["cl.exe", "link.exe", "gcc", "libstdc++.so.6", "vcruntime140.dll"]],
+                [True, True, True, True, True],
+            ),
+            expect_equal(
+                "offline_set_error rejects a toolchain cache",
+                offline_set_error("toolchain") != "",
+                True,
+            ),
+            expect_equal(
                 "offline_set_error accepts every vendored set",
                 [offline_set_error(set) for set in ["cargo", "npm", "maven", "nuget", "go", "rubygems"]],
                 ["", "", "", "", "", ""],

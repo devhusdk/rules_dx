@@ -294,6 +294,8 @@ dx rule that wraps it.
 | `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig/rules:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
 |  |  | `@rules_dx//ansible/rules:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/rules:defs.bzl` | `api_spec_library` |
+|  |  | `@rules_dx//appimage:defs.bzl` | `dx_appimage` |
+|  |  | `@rules_dx//appimage:defs.bzl` | `name_errors` |
 |  |  | `@rules_dx//asciidoc/rules:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_check` |
@@ -329,6 +331,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `app_kwargs` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `app_mod_entry` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `app_sources` |
+|  |  | `@rules_dx//elixir/rules:defs.bzl` | `cover_opts` |
+|  |  | `@rules_dx//elixir/rules:defs.bzl` | `cover_sources` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `escript_headers` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `helper_first` |
 |  |  | `@rules_dx//elixir/rules:defs.bzl` | `nif_priv` |
@@ -347,6 +351,19 @@ dx rule that wraps it.
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `otp_launcher_text` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `otp_tool_binary_impl` |
 |  |  | `@rules_dx//erlang/rules:defs.bzl` | `runfiles_path` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `aab_check_errors` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `abi_transition_settings` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_install` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_log` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_start` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_apk_set` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_check` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_sign` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `apk_manifest_errors` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `apk_set_errors` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `release_sign_errors` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `rust_android_apk` |
+|  |  | `@rules_dx_android//packaging:defs.bzl` | `rust_android_apk_errors` |
 |  |  | `@rules_dx_android//rules:defs.bzl` | `android_native_library` |
 |  |  | `@rules_dx_android//rules:defs.bzl` | `split_native_kwargs` |
 |  |  | `@rules_dx_apple//ios:app.bzl` | `app_errors` |
@@ -409,6 +426,17 @@ dx rule that wraps it.
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_build` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_check` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_library` |
+|  |  | `@rules_dx//msix:defs.bzl` | `alias_errors` |
+|  |  | `@rules_dx//msix:defs.bzl` | `application_errors` |
+|  |  | `@rules_dx//msix:defs.bzl` | `compatible_with` |
+|  |  | `@rules_dx//msix:defs.bzl` | `dx_msix` |
+|  |  | `@rules_dx//msix:defs.bzl` | `identity_errors` |
+|  |  | `@rules_dx//msix:defs.bzl` | `msix_sign` |
+|  |  | `@rules_dx//msix:defs.bzl` | `named_version_errors` |
+|  |  | `@rules_dx//msix:defs.bzl` | `platform_errors` |
+|  |  | `@rules_dx//msix:defs.bzl` | `publisher_cn` |
+|  |  | `@rules_dx//msix:defs.bzl` | `publisher_errors` |
+|  |  | `@rules_dx//msix:defs.bzl` | `version_errors` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `binary_forward_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `binary_upstream_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `default_module_name` |
@@ -484,6 +512,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_scoped_tsconfig_out` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_is_source` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `playwright_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_declaration_srcs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_project_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_forward_kwargs` |

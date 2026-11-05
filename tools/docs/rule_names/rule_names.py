@@ -2,7 +2,7 @@
 """Keep the Rule names table in docs/cli/commands/README.md in step with defs.bzl.
 
 Rows with an upstream rule are written by hand. Every other public rule or
-macro a rules/defs.bzl or families/*/*/app.bzl exports gets a generated row
+macro a rules/defs.bzl, families/*/*/app.bzl or packaging defs.bzl exports gets a generated row
 with an empty upstream column. Run with --write to regenerate, or without to
 check.
 """
@@ -30,6 +30,7 @@ def exports(root):
         glob.glob("*/rules/defs.bzl", root_dir=root)
         + glob.glob("families/*/rules/defs.bzl", root_dir=root)
         + glob.glob("families/*/*/app.bzl", root_dir=root)
+        + ["appimage/defs.bzl", "msix/defs.bzl", "families/android/packaging/defs.bzl"]
     )
     for path in sorted(paths):
         with open(os.path.join(root, path), encoding="utf-8") as f:

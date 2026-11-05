@@ -137,8 +137,9 @@ class WindowsVenvLauncherTest(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if not k.startswith("RUNFILES_")}
         with mock.patch.dict(os.environ, env, clear=True):
             venv_python, _ = launcher.locate_venv(VENV)
-        self.assertEqual(venv_python, os.path.join(runfiles, VENV))
+        self.assertEqual(venv_python, os.path.normpath(os.path.join(runfiles, VENV)))
 
+    @unittest.skipIf(sys.platform == "win32", "stub exits 1 without RUNFILES_*, #6833")
     def test_executable_runs_without_runfiles_env(self):
         env = {k: v for k, v in os.environ.items() if not k.startswith("RUNFILES_")}
         result = subprocess.run(

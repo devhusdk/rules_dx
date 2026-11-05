@@ -602,10 +602,15 @@ fn is_forbidden(forbidden: &[Range<usize>], index: usize) -> bool {
     forbidden.iter().any(|range| range.contains(&index))
 }
 
+/// How long ago `time` was; a time in the future counts as infinitely old.
+fn age(time: SystemTime) -> Duration {
+    time.elapsed().unwrap_or(Duration::MAX)
+}
+
 fn waiting(path: &Path) -> bool {
     let fresh = std::fs::metadata(path)
         .and_then(|meta| meta.modified())
-        .is_ok_and(|time| time.elapsed().unwrap_or_default() < STALE);
+        .is_ok_and(|time| age(time) < STALE);
     fresh && matches!(dx_atomic_fs::lease::try_lock_file(path, false), Ok(None))
 }
 
@@ -778,7 +783,7 @@ fn extra_mark(dir: &Path) -> PathBuf {
 fn extra_recent(dir: &Path) -> bool {
     std::fs::metadata(extra_mark(dir))
         .and_then(|meta| meta.modified())
-        .is_ok_and(|time| time.elapsed().unwrap_or_default() < EXTRA_SPACING)
+        .is_ok_and(|time| age(time) < EXTRA_SPACING)
 }
 
 /// Whether any slot in `extras` is free right now.
@@ -829,6 +834,7 @@ struct Admission<'a> {
     remote: bool,
     pause: PressurePause,
     now: &'a dyn Fn() -> Instant,
+    on_unqueued: &'a dyn Fn(&Path, &io::Error),
 }
 
 impl Admission<'static> {
@@ -839,6 +845,7 @@ impl Admission<'static> {
             remote: false,
             pause: PressurePause::new(PRESSURE_WAIT),
             now: &Instant::now,
+            on_unqueued: &|_, _| {},
         }
     }
 }
@@ -940,7 +947,13 @@ fn acquire_reserving(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    let ticket = enqueue_wanting(dir, label, &Want::of(layout, admission.remote)).ok();
+    let ticket = match enqueue_wanting(dir, label, &Want::of(layout, admission.remote)) {
+        Ok(ticket) => Some(ticket),
+        Err(error) => {
+            (admission.on_unqueued)(&queue_dir(dir), &error);
+            None
+        }
+    };
     let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
@@ -1349,6 +1362,17 @@ impl Gate {
             remote: self.remote,
             pause: PressurePause::new(PRESSURE_WAIT),
             now: &*self.clock.0,
+            on_unqueued: &|path, error| {
+                if path.parent().is_none_or(|dir| !dir.is_dir()) {
+                    return;
+                }
+                let (err, _) = &mut *out.borrow_mut();
+                let _ = writeln!(
+                    err,
+                    "dx: could not join the build slot queue in {}: {error}",
+                    path.display()
+                );
+            },
         };
         let result = acquire_reserving(
             &self.dir,
@@ -3794,6 +3818,38 @@ mod tests {
                 assert!(events.is_empty(), "{events}");
             }
         }
+    }
+
+    #[test]
+    fn a_future_mtime_is_stale() {
+        let scratch = dx_test_scratch::scratch("dx-slots-future-");
+        let path = scratch.path().join("mark");
+        let file = File::create(&path).expect("file");
+        file.set_modified(SystemTime::now() + Duration::from_secs(3600))
+            .expect("mtime");
+        let time = file.metadata().expect("meta").modified().expect("time");
+        assert_eq!(age(time), Duration::MAX);
+        let _held = lock_slot(&path, false).expect("lock");
+        assert!(!waiting(&path));
+    }
+
+    #[test]
+    fn an_unwritable_queue_still_runs_and_warns() {
+        let scratch = dx_test_scratch::scratch("dx-slots-queue-warn-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(queue_dir(&dir), "").expect("blocker");
+        let gate = Gate::new(dir.clone(), 2, "a".to_owned(), false);
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        let slot = gate.take(Command::Test, &mut err, &mut events);
+        assert!(matches!(slot, Ok(Some(_))));
+        let text = String::from_utf8(err).expect("utf8");
+        assert_eq!(text.lines().count(), 1, "{text}");
+        assert!(
+            text.contains(&queue_dir(&dir).display().to_string()),
+            "{text}"
+        );
     }
 
     #[test]

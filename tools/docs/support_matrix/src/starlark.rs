@@ -615,6 +615,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("scala_test", Constraint::AsWritten),
     ("sh_test", Constraint::AsWritten),
     ("starter_consumer_test", Constraint::AsWritten),
+    ("swift_test", Constraint::AsWritten),
     ("typescript_test", Constraint::AsWritten),
     ("zig_test", Constraint::AsWritten),
     ("nested_bazel_test", Constraint::AsWritten),

@@ -240,16 +240,14 @@ The build fails before linking when:
 ### Swift apps
 
 `entry` takes any `CcInfo` or `SwiftInfo` target that holds the `@main`
-module, such as a rules_swift `swift_library`. rules_dx adds no
-rules_swift dependency; pin `rules_swift` in your own `MODULE.bazel`.
+module, such as a `swift_library` from `@rules_dx//swift/rules:defs.bzl`.
 `swift_library` keeps `alwayslink` on, so the `@main` module stays
 linked. Name the file something other than `main.swift`.
 
-Your `MODULE.bazel` needs `rules_swift` and the Apple C++ toolchain
-registration next to `rules_dx`:
+Your `MODULE.bazel` needs the Apple C++ toolchain registration next to
+`rules_dx`:
 
 ```python
-bazel_dep(name = "rules_swift", version = "4.2.2")
 bazel_dep(name = "apple_support", version = "2.10.1")
 
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_swift_consumer_test."
+        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests/fixtures/swift_app/...."
         required: true
       task:
         description: "One of test, build or coverage."

@@ -107,3 +107,8 @@ sh_test(
     data = [":ledger_app"],
     target_compatible_with = _MACOS_ARM64,
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

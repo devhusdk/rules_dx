@@ -1,0 +1,49 @@
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+
+package(default_visibility = VIS_QUALITY)
+
+rust_library(
+    name = "lsp_check_lib",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    crate_name = "lsp_check",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = ["@crates//:serde_json"],
+)
+
+rust_binary(
+    name = "lsp_check",
+    srcs = ["src/main.rs"],
+    crate_name = "lsp_check_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":lsp_check_lib"],
+)
+
+rust_test(
+    name = "lsp_check_test",
+    crate = ":lsp_check_lib",
+    edition = "2021",
+    deps = ["@crates//:serde_json"],
+)
+
+rustfmt_test(
+    name = "lsp_check_fmt_test",
+    targets = [
+        ":lsp_check",
+        ":lsp_check_lib",
+        ":lsp_check_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "lsp_check_clippy_test",
+    targets = [
+        ":lsp_check",
+        ":lsp_check_lib",
+    ],
+)

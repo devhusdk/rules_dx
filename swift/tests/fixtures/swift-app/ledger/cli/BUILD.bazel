@@ -19,7 +19,7 @@ swift_binary(
     target_compatible_with = _LINUX,
     deps = [
         "//swift/tests/fixtures/swift-app/ledger/core",
-        "@swift_app_argument_parser//:ArgumentParser",
+        "@swiftpkg_swift_argument_parser//:ArgumentParser",
     ],
 )
 

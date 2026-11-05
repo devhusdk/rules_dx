@@ -1,7 +1,7 @@
 # Swift app
 
 A small ledger command line on Linux. It shows a Swift binary that uses
-a pinned third-party package (swift-argument-parser), a C library imported
+a third-party package (swift-argument-parser) that Swift Package Manager fetches from `Package.resolved`, a C library imported
 as a Swift module, and the Swift test frameworks.
 
 - `ledger/cdigest` is a C library that Swift imports as `CDigest`.

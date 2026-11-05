@@ -737,7 +737,24 @@ use_repo(
 
 swift = use_extension("//swift/toolchain:repos.bzl", "swift")
 swift.toolchain(swift_version = "6.4.1")
-use_repo(swift, "dx_swift_linux_aarch64", "dx_swift_linux_x86_64")
+use_repo(swift, "dx_swift_host", "dx_swift_linux_aarch64", "dx_swift_linux_x86_64")
+
+# floor: equals tested; dev only, for the swift-app fixture packages
+bazel_dep(name = "rules_swift_package_manager", version = "1.25.0", dev_dependency = True)
+single_version_override(
+    module_name = "rules_swift_package_manager",
+    patch_strip = 1,
+    patches = ["//patches/rules_swift_package_manager:swift_executable.patch"],
+    version = "1.25.0",
+)
+
+swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swift_deps", dev_dependency = True)
+swift_deps.from_package(
+    resolved = "//swift/tests/fixtures/swift-app:Package.resolved",
+    swift = "//swift/tests/fixtures/swift-app:Package.swift",
+    swift_executable = "@dx_swift_host//:swift",
+)
+use_repo(swift_deps, "swift_package", "swiftpkg_swift_argument_parser")
 
 register_toolchains("//swift/toolchain:all")
 
@@ -1815,15 +1832,6 @@ _http_archive(
     strip_prefix = "adler2-2.0.1",
     type = "tar.gz",
     urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
-)
-
-_http_archive(
-    name = "swift_app_argument_parser",
-    build_file = "//swift/tests/fixtures/swift-app:argument_parser.BUILD.bazel",
-    dev_dependency = True,
-    sha256 = "62bb12fb84d07d7f9ebbbbae205d32f941bcfecdcebdd09889f6e7f7f96f04ac",
-    strip_prefix = "swift-argument-parser-1.8.2",
-    urls = ["https://github.com/apple/swift-argument-parser/archive/refs/tags/1.8.2.tar.gz"],
 )
 
 _shared_consumer_repo = use_repo_rule("//rust/tests/fixtures/shared-rust-checks:repos.bzl", "shared_consumer_repo")

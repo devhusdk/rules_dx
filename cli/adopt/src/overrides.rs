@@ -862,6 +862,12 @@ mod tests {
             let patches = call.str_list("patches");
             let name = call.str("module_name").expect("literal module_name");
             let in_table = OVERRIDES.iter().any(|row| row.module == name);
+            let dev_only = module.bazel_dep(name).is_ok_and(
+                |dep| matches!(dep.arg("dev_dependency"), Some(Value::Ident(v)) if v == "True"),
+            );
+            if dev_only && !in_table {
+                continue;
+            }
             if !in_table && !patches.iter().any(|label| label.starts_with("//patches/")) {
                 continue;
             }

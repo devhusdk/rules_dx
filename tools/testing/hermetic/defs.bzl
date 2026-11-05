@@ -162,7 +162,7 @@ def hermetic_qualification(
         return
     rust_test(
         name = name,
-        size = "enormous",
+        timeout = "moderate",
         srcs = ["//tools/testing/hermetic:qualification_test.rs"],
         data = [":" + name + "_manifest"],
         env = {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},

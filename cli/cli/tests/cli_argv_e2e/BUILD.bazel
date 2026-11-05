@@ -6,6 +6,7 @@ package(default_testonly = True)
 
 rust_test(
     name = "cli_argv_e2e_test",
+    timeout = "moderate",
     testonly = True,
     srcs = [
         "tests/cli_argv_e2e.rs",

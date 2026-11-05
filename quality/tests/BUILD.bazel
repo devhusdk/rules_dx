@@ -89,6 +89,7 @@ rust_clippy_test(
 rust_test(
     name = "quality_check_smoke_test",
     size = "large",
+    timeout = "moderate",
     srcs = [
         "quality_check_smoke_common.rs",
         "quality_check_smoke_test.rs",

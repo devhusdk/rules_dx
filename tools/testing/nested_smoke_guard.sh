@@ -24,10 +24,9 @@ if [ -n "$added" ]; then
   printf '%s\n' "$added" | sed 's/^/  /' >&2
   status=1
 fi
-enormous="$(bazel query --noshow_progress --output=label "$@" "attr(size, enormous, $query) except attr(tags, \"hermetic-consumer|requires-gpu\", $query)" | LC_ALL=C sort -u)"
+enormous="$(bazel query --noshow_progress --output=label "$@" 'attr(size, enormous, tests(//...))' | LC_ALL=C sort -u)"
 if [ -n "$enormous" ]; then
-  echo "nested Bazel tests must not be size enormous (exempt: tags hermetic-consumer, requires-gpu):" >&2
-  printf '%s\n' "$enormous" | sed 's/^/  /' >&2
+  echo "enormous tests: $(printf '%s\n' "$enormous" | paste -sd' ' -)" >&2
   status=1
 fi
 stale="$(LC_ALL=C comm -13 <(printf '%s\n' "$queried") <(printf '%s\n' "$listed"))"

@@ -10,6 +10,7 @@ package(
 # keep
 rust_test(
     name = "release_candidate_smoke_test",
+    timeout = "moderate",
     srcs = ["candidate_consumer_test.rs"],
     data = [
         "//cli/cli:dx",
@@ -33,6 +34,7 @@ rust_test(
 # keep
 rust_test(
     name = "readme_quickstart_smoke_test",
+    timeout = "moderate",
     srcs = ["quickstart_consumer_test.rs"],
     data = [
         "//:README.md",

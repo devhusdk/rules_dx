@@ -5,6 +5,7 @@ load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_
 # keep
 rust_test(
     name = "svelte_consumer_smoke_test",
+    timeout = "moderate",
     srcs = ["app_consumer_test.rs"],
     crate_root = "app_consumer_test.rs",
     data = [

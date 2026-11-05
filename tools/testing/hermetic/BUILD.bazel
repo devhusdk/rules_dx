@@ -697,7 +697,7 @@ rust_test(
 # Needs a CUDA GPU; run it by hand: bazel test //tools/testing/hermetic:cuda_gpu_nested_test
 nested_bazel_test(
     name = "cuda_gpu_nested_test",
-    size = "enormous",
+    timeout = "moderate",
     srcs = ["cuda_gpu_test.rs"],
     args = ["--ignored"],
     data = [

@@ -483,7 +483,7 @@ def _build_checks():
         expect_contains("arm64 core closure links zlib-ng", arm64, '"lib/libz.so.1"'),
         expect_false("arm64 core closure skips pcre", '"lib/libpcre.so.1"' in arm64),
         expect_contains("hub guards other platforms", hub, no_match_error()),
-        expect_contains("no-match names blocked cells", no_match_error(), "windows_x86_64 (MSVC toolchain and Windows probe evidence pending (#4815, #5972))"),
+        expect_contains("no-match names blocked cells", no_match_error(), "windows_x86_64 (MSVC toolchain and Windows probe evidence pending (#4815, #5104))"),
         expect_contains("no-match names the arm64 blocker", no_match_error(), "windows_arm64 (MSVC arm64 toolchain"),
         expect_true("windows arm64 archives resolve under their cell", "/windows_arm64/desktop/" in url_for("windows_arm64", "qtbase")),
         expect_equal("windows arm64 cell passes the pin checks", cell_errors("windows_arm64", CELLS["windows_arm64"]), []),

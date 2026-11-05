@@ -113,12 +113,14 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     assert!(!text.contains("gh release upload"));
     assert!(!text.contains("cmp -s"));
     let assets = &text[text.find("\n  assets:\n").expect("assets job")..];
-    let call = "RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"${paths[@]}\" > ledger.json || status=$?";
+    let call = "RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"${paths[@]}\" > \"$RUNNER_TEMP/ledger.json\" || status=$?";
     let driver = assets.find(call).expect("driver call with the assets");
-    assert!(assets.contains("echo '```json'; cat ledger.json; echo '```'"));
+    assert!(assets.contains("echo '```json'; cat \"$RUNNER_TEMP/ledger.json\"; echo '```'"));
     assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
     assert!(assets.contains("exit \"$status\""));
-    assert!(assets.contains("name: release-ledger\n          path: ledger.json"));
+    assert!(
+        assets.contains("name: release-ledger\n          path: ${{ runner.temp }}/ledger.json")
+    );
     assert!(assets.contains("if: always()"));
     assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
     assert!(

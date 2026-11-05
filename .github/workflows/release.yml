@@ -397,14 +397,14 @@ jobs:
             paths+=("$PWD/out/$file")
           done
           status=0
-          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" > ledger.json || status=$?
-          { echo '```json'; cat ledger.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" > "$RUNNER_TEMP/ledger.json" || status=$?
+          { echo '```json'; cat "$RUNNER_TEMP/ledger.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: release-ledger
-          path: ledger.json
+          path: ${{ runner.temp }}/ledger.json
           if-no-files-found: warn
       - name: Check the published assets
         env:

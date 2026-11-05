@@ -1,7 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
 load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
@@ -219,19 +218,6 @@ rust_test(
 
 # keep
 # size: large, nested Bazel consumer build, see #5689
-nested_bazel_test(
-    name = "nested_seed_lock_test",
-    size = "large",
-    srcs = ["nested_seed_lock_test.rs"],
-    data = ["//:module_srcs"],
-    deps = [
-        ":dx_nested",
-        ":dx_testing",
-    ],
-)
-
-# keep
-# size: large, nested Bazel consumer build, see #5689
 rust_test(
     name = "nested_bazel_leak_test",
     size = "large",
@@ -271,11 +257,17 @@ rust_test(
 # keep
 # size: large, nested Bazel consumer build, see #5689
 rust_test(
-    name = "nested_bazel_pinned_test",
+    name = "nested_bazel_harness_test",
     size = "large",
-    srcs = ["nested_bazel_pinned_test.rs"],
-    data = ["//:.bazelversion"] + NESTED_BAZEL_DATA,
-    env = NESTED_BAZEL_ENV | {"PATH": "/usr/bin:/bin"},
+    srcs = ["nested_bazel_harness_test.rs"],
+    data = [
+        "//:.bazelversion",
+        "//:module_srcs",
+    ] + NESTED_BAZEL_DATA,
+    env = NESTED_BAZEL_ENV | {
+        "PATH": "/usr/bin:/bin",
+        "RUST_TEST_THREADS": "1",
+    },
     tags = NESTED_BAZEL_TAGS,
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -293,10 +285,9 @@ rustfmt_test(
         ":dx_testing",
         ":module_srcs_test",
         ":nested_bazel_leak_test",
-        ":nested_bazel_pinned_test",
+        ":nested_bazel_harness_test",
         ":nested_bazel_probe",
         ":nested_bazel_shim",
-        ":nested_seed_lock_test",
         ":preflight_smoke_test",
         ":starlark_harness",
         ":starlark_harness_exit_test",
@@ -312,10 +303,9 @@ rust_clippy_test(
         ":dx_testing",
         ":module_srcs_test",
         ":nested_bazel_leak_test",
-        ":nested_bazel_pinned_test",
+        ":nested_bazel_harness_test",
         ":nested_bazel_probe",
         ":nested_bazel_shim",
-        ":nested_seed_lock_test",
         ":preflight_smoke_test",
         ":starlark_harness",
         ":starlark_harness_exit_test",

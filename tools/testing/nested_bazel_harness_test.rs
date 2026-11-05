@@ -1,5 +1,29 @@
-use dx_nested as nested;
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), and a seeded consumer resolves rules_dx extensions (#2978).
+
+use dx_nested::{self as nested, Case};
 use dx_testing::{read_runfiles, rlocation};
+
+/// The facts key rules_py's `python_interpreters` extension stores its SHA256SUMS under.
+const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
+
+#[test]
+fn seeded_consumer_resolves_python_interpreters_offline() {
+    let case = Case::consumer("seed", "");
+    let run = case.bazel(&[
+        "query",
+        "--color=no",
+        "--curses=no",
+        "@@rules_py++python_interpreters+python_interpreters//:all",
+    ]);
+    assert!(run.status.success(), "{}", run.combined());
+
+    let lock = dx_testing::read_json(&case.root().join("MODULE.bazel.lock"))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(
+        lock["facts"].get(PYTHON_FACTS).is_some(),
+        "the consumer lock lost the python_interpreters facts: {lock}"
+    );
+}
 
 #[test]
 fn nested_bazel_runs_the_pinned_binary_without_bazelisk() {

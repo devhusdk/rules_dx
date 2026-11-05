@@ -865,6 +865,35 @@ fn gplint_consumer_config_replaces_the_defaults() {
         .is_empty());
 }
 
+#[test]
+fn scalafix_without_a_config_stages_the_remove_unused_default() {
+    let mirrors = RealBackend::mirror_tool_files("scalafix", &plain_tool(), &[], Path::new("/s"));
+    let default = mirrors
+        .iter()
+        .find(|mirror| mirror.mirror_rel == Path::new("dx-scalafix-default/.scalafix.conf"))
+        .expect("default config is staged");
+    let MirrorContents::Bytes(bytes) = &default.contents else {
+        panic!("default config is written as bytes");
+    };
+    assert_eq!(bytes.as_slice(), b"rules = [RemoveUnused]\n");
+}
+
+#[test]
+fn scalafix_consumer_config_replaces_the_default() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.scalafix.conf".to_owned()),
+        tool_files: vec![(
+            "cfg/.scalafix.conf".to_owned(),
+            b"rules = [ExplicitResultTypes]\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let mirrors = RealBackend::mirror_tool_files("scalafix", &tool, &[], Path::new("/s"));
+    assert!(mirrors
+        .iter()
+        .all(|mirror| mirror.mirror_rel != Path::new("dx-scalafix-default/.scalafix.conf")));
+}
+
 fn selene_mirrors(tool: &RealTool, staged: &[MirrorFile]) -> Vec<String> {
     RealBackend::mirror_tool_files("selene", tool, staged, Path::new("/s"))
         .iter()

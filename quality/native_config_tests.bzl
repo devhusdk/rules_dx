@@ -27,7 +27,6 @@ _RUNNER_CONFIG_REQUIRED_TOOLS = [
     "checkstyle",
     "eslint",
     "graphql_eslint",
-    "scalafix",
     "sqlfluff",
     "vale",
 ]
@@ -423,7 +422,7 @@ def native_config_unit_tests(name):
                     native_config_extension(tool)
                     for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
                 ],
-                [".xml", ".js", ".json", ".conf", ".sqlfluff", ".ini"],
+                [".xml", ".js", ".json", ".sqlfluff", ".ini"],
             ),
             expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",
@@ -433,12 +432,13 @@ def native_config_unit_tests(name):
                     missing_required_config_error("biome", "lint", {"biome": _HINTS[0]}, "//q:t"),
                     missing_required_config_error("eslint", "lint", {"eslint": _HINTS[4]}, "//q:t"),
                     missing_required_config_error("scalafmt", "lint", {"scalafmt": _HINTS[5]}, "//q:t"),
+                    missing_required_config_error("scalafix", "lint", {}, "//q:t"),
                     missing_required_config_error("taplo", "lint", {}, "//q:t"),
                     missing_required_config_error("pmd", "lint", {}, "//q:t"),
                     missing_required_config_error("prettier", "format", {}, "//q:t"),
                     missing_required_config_error("remark", "format", {}, "//q:t"),
                 ],
-                ["", "", "", "", "", "", "", "", ""],
+                ["", "", "", "", "", "", "", "", "", ""],
             ),
         ],
         file_checks = {

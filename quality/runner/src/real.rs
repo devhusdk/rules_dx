@@ -257,6 +257,10 @@ const SELENE_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/lua/selene.toml
 const SELENE_STD_FILE: &str = "lua54.yml";
 const SELENE_STD_BYTES: &[u8] = include_bytes!("../../tools/lua/lua54.yml");
 
+/// scalafix's default config when the consumer binds none.
+const SCALAFIX_DEFAULTS_REL: &str = "dx-scalafix-default/.scalafix.conf";
+const SCALAFIX_DEFAULTS_BYTES: &[u8] = b"rules = [RemoveUnused]\n";
+
 const GPLINT_DEFAULTS_REL: &str = "dx-gplint-default/gplint.json";
 const GPLINT_DEFAULTS_BYTES: &[u8] = br#"{
   "no-background-only-scenario": "error",

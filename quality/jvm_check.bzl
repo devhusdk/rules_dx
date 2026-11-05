@@ -201,7 +201,7 @@ def _scalac_check(target, ctx, attrs):
     srcjars = [f for f in ctx.rule.files.srcs if f.extension == "srcjar"]
     if not [f for f in sources if f.extension == "scala"] and not srcjars:
         return []
-    options = list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
+    options = ["-Wunused:all"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
 
     # Make variables and $(location) in scalacopts are not expanded here, so the options would be wrong.
     if [o for o in options if "$(" in o]:

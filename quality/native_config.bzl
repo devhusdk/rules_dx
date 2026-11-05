@@ -38,7 +38,6 @@ CONFIG_REQUIRED_TOOLS = {
         hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
     ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
-    "scalafix": struct(name = "Scalafix", src = ".scalafix.conf"),
     "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
     "sqlfluff": struct(
         name = "sqlfluff",

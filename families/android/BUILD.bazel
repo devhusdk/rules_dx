@@ -1,12 +1,22 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
 
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["@rules_dx//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_siblings = ["//tests/fixtures/adopt-android:README.md"],
+    markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )
 
@@ -23,4 +33,17 @@ sh_test(
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
     env = {"STARLARK_DOCS_PACKAGES": "packaging,platforms,rules,sdk,toolchain"},
+)
+
+sh_test(
+    name = "rustfmt_coverage_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:rustfmt_coverage_family_test)"],
+    data = [
+        "//tests/fixtures/adopt-android/native:corpus_starlark",
+        "//tests/fixtures/native_lib:corpus_starlark",
+        "//tests/fixtures/rust_apk:corpus_starlark",
+        "@rules_dx//tools/ci:rustfmt_coverage_family_test",
+    ],
+    env = {"RUSTFMT_COVERAGE_PACKAGES": "tests/fixtures/adopt-android/native,tests/fixtures/native_lib,tests/fixtures/rust_apk"},
 )

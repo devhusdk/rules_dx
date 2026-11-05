@@ -133,10 +133,13 @@ impl starlark::Loader for BuildLoader<'_> {
     }
 }
 
-fn split_label(label: &str) -> Result<(&str, &str), String> {
-    label
-        .strip_prefix("//")
-        .and_then(|rest| rest.split_once(':'))
+fn split_label(label: &str) -> Result<(String, &str), String> {
+    let (prefix, rest) = match label.strip_prefix("@rules_dx_android//") {
+        Some(rest) => ("@rules_dx_android/", rest),
+        None => ("", label.strip_prefix("//").unwrap_or("")),
+    };
+    rest.split_once(':')
+        .map(|(package, name)| (format!("{prefix}{package}"), name))
         .ok_or_else(|| format!("test label {label} is not //package:name"))
 }
 
@@ -158,7 +161,7 @@ impl Context<'_> {
             let file = starlark::parse(&path, &self.source.read(&path)?)?;
             let loader = BuildLoader {
                 source: self.source,
-                package: package.to_owned(),
+                package: package.clone(),
                 computed: self.computed,
             };
             let facts = starlark::test_facts(&file, name, &loader)?;

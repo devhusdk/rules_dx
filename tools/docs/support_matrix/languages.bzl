@@ -134,6 +134,24 @@ ROWS = [
         "section": "compilers",
         "title": "LLVM " + LLVM_CLANG_VERSION + " (`llvm`, default)",
     },
+    {
+        "ci_tests": [
+            "//cc/toolchains:msvc_c_test",
+            "//cc/toolchains:msvc_hello_c_test",
+            "//cc/toolchains:msvc_hello_lib_test",
+            "//cc/toolchains:msvc_hello_test",
+            "//cc/toolchains:msvc_shared_dbg_test",
+            "//cc/toolchains:msvc_shared_opt_test",
+            "//cc/toolchains:msvc_shared_test",
+            "//cc/toolchains:msvc_spaced_test",
+            "//cc/toolchains:msvc_static_crt_test",
+        ],
+        "compiler": "msvc",
+        "families": [],
+        "name": "cc_msvc",
+        "section": "compilers",
+        "title": "Microsoft cl.exe (`msvc`)",
+    },
     {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {
         "ci_tests": ["//cuda/tests:saxpy_device_code_test", "//cuda/tests:saxpy_gpu_test"],
@@ -310,6 +328,7 @@ NOT_LANGUAGES = [
     "dx",
     "env",
     "examples",
+    "families",
     "gazelle",
     "generation",
     "libs",
@@ -320,9 +339,7 @@ NOT_LANGUAGES = [
     "tools",
 ]
 
-PENDING_COMPILERS = {
-    "msvc": "Not qualified until the clean Windows x64 run in #5954; row tracked in #6093",
-}
+PENDING_COMPILERS = {}
 
 # A platform a row does not support, with the reason.
 PLATFORM_NOT_APPLICABLE = {
@@ -339,6 +356,11 @@ PLATFORM_NOT_APPLICABLE = {
         "macos_arm64": "The GCC backend builds only for Linux",
         "windows_arm64": "The GCC backend builds only for Linux",
         "windows_x86_64": "The GCC backend builds only for Linux",
+    },
+    "cc_msvc": {
+        "linux_arm64": "Microsoft cl.exe runs only on Windows",
+        "linux_x86_64": "Microsoft cl.exe runs only on Windows",
+        "macos_arm64": "Microsoft cl.exe runs only on Windows",
     },
     "cuda": {
         "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",

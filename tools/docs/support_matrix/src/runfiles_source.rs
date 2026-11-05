@@ -2,7 +2,7 @@
 
 use crate::Source;
 
-/// Reads `_main/<path>` through the runfiles library.
+/// Reads `_main/<path>`, or `<repo>/<path>` for `@repo/<path>`, through the runfiles library.
 pub struct RunfilesSource {
     runfiles: runfiles::Runfiles,
 }
@@ -18,7 +18,10 @@ impl RunfilesSource {
 
 impl Source for RunfilesSource {
     fn read(&self, path: &str) -> Result<String, String> {
-        let key = format!("_main/{path}");
+        let key = match path.strip_prefix('@') {
+            Some(external) => external.replacen('/', "+/", 1),
+            None => format!("_main/{path}"),
+        };
         let Some(found) = self.runfiles.rlocation(&key) else {
             return Err(format!("{path} is not in the runfiles"));
         };

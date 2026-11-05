@@ -17,7 +17,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Astro | none |
 | C and C++ | none |
 | C# | none |
-| CUDA | `windows_x86_64`, `windows_arm64`: not tested yet; `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_x86_64`, `windows_arm64`: not tested yet |
 | D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
 | Elixir | none |
@@ -68,8 +68,7 @@ Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
 | --- | --- | --- | --- |
 | GCC 16.2.0 (`gcc`) | gnu | gcov | `macos_arm64`, `windows_x86_64`, `windows_arm64`: The GCC backend builds only for Linux |
 | LLVM 23.1.2 (`llvm`, default) | gnu | llvm | none |
-
-Pending `msvc`: Not qualified until the clean Windows x64 run in #5954; row tracked in #6093
+| Microsoft cl.exe (`msvc`) | msvc | no | `linux_x86_64`, `linux_arm64`, `macos_arm64`: Microsoft cl.exe runs only on Windows; `windows_arm64`: not tested yet |
 
 ## Quality
 

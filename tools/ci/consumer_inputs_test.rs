@@ -401,6 +401,21 @@ fn affected_on_pr_is_a_boolean_defaulting_to_true() {
 }
 
 #[test]
+fn link_check_online_is_off_by_default_and_never_runs_on_pull_requests() {
+    let doc = document(WORKFLOW);
+    let input = &doc["on"]["workflow_call"]["inputs"]["link_check_online"];
+    assert_eq!(input["type"], json!("boolean"), "{WORKFLOW} type");
+    assert_eq!(input["default"], json!(false), "{WORKFLOW} default");
+    let checks = job(WORKFLOW, MATRIX_JOB);
+    let online = scope_text(&checks["env"]["DX_LINK_CHECK_ONLINE"]);
+    for needle in ["!= 'pull_request'", "inputs.link_check_online"] {
+        assert!(online.contains(needle), "DX_LINK_CHECK_ONLINE: {online}");
+    }
+    let script = text_at(&matrix_step("Run the checks")["run"], "checks run step");
+    assert!(script.contains("args+=(--online)"), "{script}");
+}
+
+#[test]
 fn the_checks_scope_is_affected_only_for_scoped_checks_on_pull_request() {
     let checks = job(WORKFLOW, MATRIX_JOB);
     let affected = scope_text(&checks["env"]["DX_AFFECTED"]);

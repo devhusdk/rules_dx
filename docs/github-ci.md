@@ -139,6 +139,7 @@ The repository cache is keyed on `MODULE.bazel` and `MODULE.bazel.lock`. Without
 | `min_coverage` | Whole number 0 to 100. Fails below it. Empty sets no threshold. |
 | `min_changed_line_coverage` | Whole number 0 to 100. Pull requests only. Fails when fewer of the added executable lines are covered. Empty skips it. |
 | `affected_on_pr` | Default `true`. Use `--affected` on pull requests. |
+| `link_check_online` | Default `false`. Run `lint` with `--online` so lychee checks external links. Ignored on pull requests; call the workflow from a `schedule` trigger to use it. |
 | `remote_cache` | REAPI cache URL. |
 | `invocation_id` | 1 to 40 letters, digits, underscores or hyphens. Set one per call when a run has several calls. |
 

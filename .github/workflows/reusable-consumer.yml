@@ -28,6 +28,11 @@ on:
         required: false
         default: true
         type: boolean
+      link_check_online:
+        description: "Run dx lint with --online so lychee also checks external links. Pull requests always stay offline; call this workflow from a schedule to use it."
+        required: false
+        default: false
+        type: boolean
       remote_cache:
         description: "URL of an REAPI remote cache, for example grpc://cache.example.com:9092. Empty keeps BUILDBUDDY_API_KEY as the only way to enable a cache."
         required: false
@@ -151,6 +156,7 @@ jobs:
       pull-requests: write
     env:
       DX_AFFECTED: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr }}
+      DX_LINK_CHECK_ONLINE: ${{ github.event_name != 'pull_request' && inputs.link_check_online }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -233,6 +239,9 @@ jobs:
             for token in "${tokens[@]}"; do
               args+=(--report "${token%%=*}=$reports/${token#*=}")
             done
+            if [ "$id" = "lint" ] && [ "$DX_LINK_CHECK_ONLINE" = "true" ]; then
+              args+=(--online)
+            fi
             args+=("$scope")
             if [ "$passthrough" = "true" ]; then
               args+=(-- "$@")

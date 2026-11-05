@@ -521,8 +521,9 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 37] = [
+const FAMILY_FILES: [&str; 38] = [
     "ansible",
+    "beam",
     "bicep",
     "cloudformation",
     "cmake",

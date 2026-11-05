@@ -8,7 +8,6 @@ load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
-load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
@@ -51,6 +50,7 @@ load("//quality:families/fortran.bzl", _real_fortran_format_aspect = "real_fortr
 load("//quality:families/haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS")
 load("//quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect", _GENERATION_HOOKS = "HOOKS", _GENERATION_RECOGNIZERS = "RECOGNIZERS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS")
 load("//quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _ZIG_SHARD_SPECS = "SHARD_SPECS", _ZIG_TOOLS = "TOOLS")
+load("//quality:families/beam.bzl", _real_elixir_format_aspect = "real_elixir_format_aspect", _real_elixir_lint_aspect = "real_elixir_lint_aspect", _real_erlang_format_aspect = "real_erlang_format_aspect", _real_erlang_lint_aspect = "real_erlang_lint_aspect", _real_erlang_typecheck_aspect = "real_erlang_typecheck_aspect", _BEAM_HOOKS = "HOOKS", _BEAM_SHARD_SPECS = "SHARD_SPECS", _BEAM_TOOLS = "TOOLS")
 load("//quality:families/ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _OCAML_HOOKS = "HOOKS", _OCAML_SHARD_SPECS = "SHARD_SPECS", _OCAML_TOOLS = "TOOLS")
 load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _upstream_files = "upstream_files", _without = "without")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
@@ -112,44 +112,12 @@ _REAL_TOOL_TABLE = {
         "shard": "rust",
         "toolchain_file": "clippy_driver",
     },
-    "credo": {
-        "attr": attr.label(default = "//config:tool_credo", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "fallback": "=@rules_dx//elixir/tools:credo",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "elixir",
-    },
     "csharpier": {
         "attr": attr.label(default = "//quality/tools/dotnet:csharpier", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "dotnet",
-    },
-    "dialyzer": {
-        "attr": attr.label(default = "//config:tool_dialyzer", allow_files = True, cfg = "exec"),
-        "capabilities": ["typecheck"],
-        "fallback": "=@rules_dx//erlang/tools:dialyzer",
-        "kind": "setting",
-        "resources": "heavy",
-        "shard": "erlang",
-    },
-    "elvis": {
-        "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "fallback": "=@rules_dx//erlang/tools:elvis",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "erlang",
-    },
-    "erlfmt": {
-        "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "fallback": "=@rules_dx//erlang/tools:erlfmt",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "erlang",
     },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
@@ -228,14 +196,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
-    },
-    "mix_format": {
-        "attr": attr.label(default = "//config:tool_mix_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "fallback": "=@rules_dx//elixir/tools:mix_format",
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "elixir",
     },
     "nvcc_syntax": {
         "capabilities": ["typecheck"],
@@ -606,36 +566,6 @@ _REAL_SHARD_SPECS = {
         "shard": "dotnet",
         "suffix": "-dotnet",
     },
-    "real_erlang_format": {
-        "capability": "format",
-        "doc": "Additive Erlang format family aspect (erlfmt).",
-        "shard": "erlang",
-        "suffix": "-erlang",
-    },
-    "real_erlang_lint": {
-        "capability": "lint",
-        "doc": "Additive Erlang lint family aspect (elvis).",
-        "shard": "erlang",
-        "suffix": "-erlang",
-    },
-    "real_erlang_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Erlang typecheck family aspect (dialyzer).",
-        "shard": "erlang",
-        "suffix": "-erlang",
-    },
-    "real_elixir_format": {
-        "capability": "format",
-        "doc": "Additive Elixir format family aspect (mix format).",
-        "shard": "elixir",
-        "suffix": "-elixir",
-    },
-    "real_elixir_lint": {
-        "capability": "lint",
-        "doc": "Additive Elixir lint family aspect (credo).",
-        "shard": "elixir",
-        "suffix": "-elixir",
-    },
     "real_go_lint": {
         "capability": "lint",
         "doc": "Additive Go lint family aspect (delegated dx_govet, dx_errcheck and dx_staticcheck over rules_go packages).",
@@ -760,40 +690,6 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
         _stage(tool_files, inputs, "dx-spotbugs/owned/" + jar.short_path, jar)
     for index, jar in enumerate(sorted(auxiliary.values(), key = lambda f: f.short_path)):
         _stage(tool_files, inputs, "dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar)
-    return real_context(tool_files = tool_files, inputs = inputs)
-
-def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
-    if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
-        return _without(resolved, "dialyzer")
-    tool_target = getattr(ctx.attr, "_dialyzer")
-    if DialyzerToolInfo not in tool_target:
-        fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer")
-
-    # The tool's PLTs come first; a language's own follow, without repeating one.
-    plts = []
-    seen_plts = {}
-    for plt in tool_target[DialyzerToolInfo].plts + target[BeamInfo].plts:
-        if plt.path not in seen_plts:
-            seen_plts[plt.path] = True
-            plts.append(plt)
-    code = sorted(target[BeamInfo].code, key = lambda f: f.basename)
-    owned = sorted(target[BeamInfo].owned.to_list(), key = lambda f: f.short_path)
-    owned_paths = {f.path: True for f in owned}
-    aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
-    tool_files = []
-    inputs = []
-    for index, plt in enumerate(plts):
-        _stage(tool_files, inputs, "dx-dialyzer/plt/%s-%s" % (("000" + str(index))[-3:], plt.basename), plt)
-    for index, beam in enumerate(owned):
-        _stage(tool_files, inputs, "dx-dialyzer/owned/%d/%s" % (index, beam.basename), beam)
-    for beam in code:
-        _stage(tool_files, inputs, "dx-dialyzer/pa/" + beam.basename, beam)
-    seen_aux = {}
-    for index, beam in enumerate(aux):
-        if beam.path in seen_aux:
-            continue
-        seen_aux[beam.path] = True
-        _stage(tool_files, inputs, "dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam)
     return real_context(tool_files = tool_files, inputs = inputs)
 
 def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):
@@ -1050,7 +946,6 @@ _HOOK_ORDER = [
 
 _CONTEXT_HOOKS = {
     "spotbugs": _spotbugs_hook,
-    "dialyzer": _dialyzer_hook,
     "scalafix": _scalafix_hook,
     "fsharplint": _fsharplint_hook,
     "tsc": _tsc_hook,
@@ -1067,7 +962,7 @@ _CONTEXT_HOOKS = {
     "qmllint": _qmllint_hook,
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
     "gofumpt": _gofumpt_hook,
-} | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _BEAM_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -1076,8 +971,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS | _PYTHON_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS | _PYTHON_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _BEAM_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS | _PYTHON_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _BEAM_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS | _PYTHON_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = _GENERATION_RECOGNIZERS + [_rust_sources, _cc_sources],
@@ -1143,16 +1038,6 @@ real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
 
 real_dotnet_typecheck_aspect = _make_real_aspect("real_dotnet_typecheck")
-
-real_erlang_format_aspect = _make_real_aspect("real_erlang_format")
-
-real_erlang_lint_aspect = _make_real_aspect("real_erlang_lint")
-
-real_erlang_typecheck_aspect = _make_real_aspect("real_erlang_typecheck")
-
-real_elixir_format_aspect = _make_real_aspect("real_elixir_format")
-
-real_elixir_lint_aspect = _make_real_aspect("real_elixir_lint")
 
 real_dart_format_aspect = _real_dart_format_aspect
 
@@ -1242,6 +1127,16 @@ real_ocaml_format_aspect = _real_ocaml_format_aspect
 real_ocaml_typecheck_aspect = _real_ocaml_typecheck_aspect
 
 real_ocaml_lint_aspect = _real_ocaml_lint_aspect
+
+real_erlang_format_aspect = _real_erlang_format_aspect
+
+real_erlang_lint_aspect = _real_erlang_lint_aspect
+
+real_erlang_typecheck_aspect = _real_erlang_typecheck_aspect
+
+real_elixir_format_aspect = _real_elixir_format_aspect
+
+real_elixir_lint_aspect = _real_elixir_lint_aspect
 
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 

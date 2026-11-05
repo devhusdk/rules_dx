@@ -59,6 +59,7 @@ rust_test(
         "families.json",
         "//:MODULE.bazel",
         "//quality:families/ansible.bzl",
+        "//quality:families/beam.bzl",
         "//quality:families/bicep.bzl",
         "//quality:families/cloudformation.bzl",
         "//quality:families/cmake.bzl",

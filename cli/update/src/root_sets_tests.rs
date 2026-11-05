@@ -6,11 +6,12 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 15] = [
+const EXPECTED_NAMES: [&str; 16] = [
     "dx_crates",
     "dx_dokka",
     "dx_npm",
     "dx_npm_tools",
+    "dx_perl_cpan",
     "dx_pypi-hello",
     "dx_pypi-python",
     "dx_pypi-python-service",

@@ -7,6 +7,8 @@ mod locks_bazel;
 mod locks_cargo;
 #[path = "locks_conan.rs"]
 mod locks_conan;
+#[path = "locks_cpan.rs"]
+mod locks_cpan;
 #[path = "locks_licenses.rs"]
 mod locks_licenses;
 #[path = "locks_npm.rs"]
@@ -23,6 +25,7 @@ mod locks_uv;
 pub use locks_bazel::*;
 pub use locks_cargo::*;
 pub use locks_conan::*;
+pub use locks_cpan::*;
 pub use locks_licenses::*;
 pub use locks_npm::*;
 pub use locks_paket::*;

@@ -206,7 +206,8 @@ fn run_configured_target(
         | Ecosystem::Cargo
         | Ecosystem::Maven
         | Ecosystem::Nuget
-        | Ecosystem::Go => dx_update::backend::UvClosure::default(),
+        | Ecosystem::Go
+        | Ecosystem::Cpan => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {

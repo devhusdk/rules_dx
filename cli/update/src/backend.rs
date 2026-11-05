@@ -500,6 +500,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Ruby => {
                 "dx does not resolve gems; edit Gemfile and regenerate Gemfile.lock with `bundle lock`"
             }
+            Ecosystem::Cpan => {
+                "dx does not resolve CPAN modules; edit cpanfile and regenerate cpanfile.snapshot with `carton install`"
+            }
             _ => {
                 "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
             }
@@ -614,8 +617,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Uv, Selection::Full) => {
@@ -803,8 +806,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {

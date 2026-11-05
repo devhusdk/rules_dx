@@ -19,7 +19,10 @@ pub const ECOSYSTEM_NUGET: &str = "nuget";
 
 pub const ECOSYSTEM_GO: &str = "go";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go";
+pub const ECOSYSTEM_CPAN: &str = "cpan";
+
+pub const SUPPORTED_ECOSYSTEMS: &str =
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -30,6 +33,10 @@ pub const GEMFILE_LOCK: &str = "Gemfile.lock";
 pub const GO_MOD: &str = "go.mod";
 
 pub const GO_SUM: &str = "go.sum";
+
+pub const CPANFILE: &str = "cpanfile";
+
+pub const CPANFILE_SNAPSHOT: &str = "cpanfile.snapshot";
 
 pub const PAKET_LOCK: &str = "paket.lock";
 
@@ -54,6 +61,7 @@ pub enum Ecosystem {
     Maven,
     Nuget,
     Go,
+    Cpan,
 }
 
 impl Ecosystem {
@@ -68,6 +76,7 @@ impl Ecosystem {
             Ecosystem::Maven => ECOSYSTEM_MAVEN,
             Ecosystem::Nuget => ECOSYSTEM_NUGET,
             Ecosystem::Go => ECOSYSTEM_GO,
+            Ecosystem::Cpan => ECOSYSTEM_CPAN,
         }
     }
 
@@ -82,6 +91,7 @@ impl Ecosystem {
             ECOSYSTEM_MAVEN => Some(Ecosystem::Maven),
             ECOSYSTEM_NUGET => Some(Ecosystem::Nuget),
             ECOSYSTEM_GO => Some(Ecosystem::Go),
+            ECOSYSTEM_CPAN => Some(Ecosystem::Cpan),
             _ => None,
         }
     }
@@ -94,7 +104,9 @@ impl Ecosystem {
             | Ecosystem::Maven
             | Ecosystem::Nuget
             | Ecosystem::Go => "check",
-            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
+            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan => {
+                "pinned"
+            }
         }
     }
 
@@ -106,7 +118,9 @@ impl Ecosystem {
             | Ecosystem::Maven
             | Ecosystem::Nuget
             | Ecosystem::Go => "update",
-            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
+            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan => {
+                "pinned"
+            }
         }
     }
 
@@ -134,7 +148,8 @@ impl Ecosystem {
             | Ecosystem::Cargo
             | Ecosystem::Maven
             | Ecosystem::Nuget
-            | Ecosystem::Go => "audit",
+            | Ecosystem::Go
+            | Ecosystem::Cpan => "audit",
         }
     }
 
@@ -148,7 +163,7 @@ impl Ecosystem {
             Ecosystem::Maven => Some("maven"),
             Ecosystem::Nuget => Some("nuget"),
             Ecosystem::Go => Some("go"),
-            Ecosystem::Bazel | Ecosystem::PowerShell => None,
+            Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Cpan => None,
         }
     }
 
@@ -164,6 +179,7 @@ impl Ecosystem {
             Ecosystem::Maven => MODULE_BAZEL,
             Ecosystem::Nuget => "paket.dependencies",
             Ecosystem::Go => GO_MOD,
+            Ecosystem::Cpan => CPANFILE,
         }
     }
 
@@ -177,7 +193,8 @@ impl Ecosystem {
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
             | Ecosystem::Nuget
-            | Ecosystem::Go => false,
+            | Ecosystem::Go
+            | Ecosystem::Cpan => false,
         }
     }
 }
@@ -439,6 +456,15 @@ pub fn discover(
                 Ecosystem::Ruby,
                 vec![path(bundle.gemfile)?],
                 vec![path(bundle.gemfile_lock)?],
+            )?);
+        }
+        for cpan in module.cpan_installs().map_err(hub)? {
+            let dir = manifest_dir(std::slice::from_ref(&path(cpan.lock)?));
+            sets.push(hub_set(
+                cpan.name,
+                Ecosystem::Cpan,
+                vec![in_dir(&dir, CPANFILE)],
+                vec![in_dir(&dir, CPANFILE_SNAPSHOT)],
             )?);
         }
         let mut groups = BTreeSet::new();
@@ -743,6 +769,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Bazel
         | Ecosystem::Ruby
         | Ecosystem::PowerShell
+        | Ecosystem::Cpan
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1126,6 +1153,7 @@ pub fn check_backend_settings(
         Ecosystem::Bazel => Ok(()),
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
+        Ecosystem::Cpan => check_pinned_lock(set, CPANFILE_SNAPSHOT),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1817,6 +1845,18 @@ mod tests {
     }
 
     #[test]
+    fn cpan_installs_become_cpan_sets() {
+        let module = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_cpan\", lock = \"//perl/tools:cpanfile.snapshot.lock.json\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("perl_cpan").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Cpan);
+        assert_eq!(set.manifests, ["perl/tools/cpanfile"]);
+        assert_eq!(set.locks, ["perl/tools/cpanfile.snapshot"]);
+    }
+
+    #[test]
     fn bundle_fetches_become_ruby_sets() {
         let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
         let registry = found(module, &[]);
@@ -2348,7 +2388,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan"
         );
     }
 

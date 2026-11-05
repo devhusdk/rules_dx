@@ -1552,3 +1552,16 @@ fn conan_lock_rejects_malformed_input() {
         assert!(parse_conan_lock(text).is_err(), "{text}");
     }
 }
+
+#[test]
+fn cpanfile_snapshot_lists_distribution_names_and_versions() {
+    let text = "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Text-CSV-2.06\n    pathname: I/IS/ISHIGAKI/Text-CSV-2.06.tar.gz\n    provides:\n      Text::CSV 2.06\n    requirements:\n      perl 5.006001\n  Try-Tiny-v0.31\n    pathname: E/ET/ETHER/Try-Tiny-0.31.tar.gz\n";
+    let packages = parse_cpanfile_snapshot(text).expect("parses");
+    let found: Vec<(&str, &str)> = packages
+        .iter()
+        .map(|package| (package.name.as_str(), package.version.as_str()))
+        .collect();
+    assert_eq!(found, [("Text-CSV", "2.06"), ("Try-Tiny", "v0.31")]);
+    assert!(packages.iter().all(|package| package.set == "cpan"));
+    assert!(parse_cpanfile_snapshot("").is_err());
+}

@@ -35,6 +35,7 @@ dx_rust_crate(
         "src/locks_paket.rs",
         "src/locks_pnpm.rs",
         "src/locks_conan.rs",
+        "src/locks_cpan.rs",
         "src/locks_ruby.rs",
         "src/locks_uv.rs",
         "src/notice_manifest.rs",

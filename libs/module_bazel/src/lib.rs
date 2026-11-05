@@ -243,6 +243,14 @@ pub struct BundleFetch<'a> {
     pub line: usize,
 }
 
+/// One `cpan.install` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CpanInstall<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// A parsed MODULE.bazel with its top-level calls in source order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleFile {
@@ -256,6 +264,7 @@ const JS_MODULE: &str = "aspect_rules_js";
 const PY_MODULE: &str = "rules_py";
 const GAZELLE_MODULE: &str = "gazelle";
 const RUBY_MODULE: &str = "rules_dx";
+const PERL_MODULE: &str = "rules_perl";
 
 fn dialect() -> Dialect {
     Dialect {
@@ -754,6 +763,20 @@ impl ModuleFile {
                     name: literal(call, TAG, "name")?.unwrap_or("bundle"),
                     gemfile: required(call, TAG, "gemfile")?,
                     gemfile_lock: required(call, TAG, "gemfile_lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `cpan.install` tag of the rules_perl extension in source order.
+    pub fn cpan_installs(&self) -> Result<Vec<CpanInstall<'_>>, ModuleError> {
+        const TAG: &str = "cpan.install";
+        self.tags(PERL_MODULE, "perl/cpan:extensions.bzl", "cpan", "install")
+            .map(|call| {
+                Ok(CpanInstall {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
                     line: call.line,
                 })
             })

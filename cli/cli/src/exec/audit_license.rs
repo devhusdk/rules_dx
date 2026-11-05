@@ -331,7 +331,8 @@ pub(super) fn run_license(
             | dx_adopt::dependency_sets::Ecosystem::Go => {
                 selected_sets.insert(set.ecosystem.name());
             }
-            dx_adopt::dependency_sets::Ecosystem::Uv => {}
+            dx_adopt::dependency_sets::Ecosystem::Uv
+            | dx_adopt::dependency_sets::Ecosystem::Cpan => {}
         }
     }
     let mut exception_problems: Vec<String> = Vec::new();

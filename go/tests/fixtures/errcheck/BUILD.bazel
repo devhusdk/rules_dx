@@ -18,3 +18,10 @@ go_library(
     importpath = "rules_dx/go/tests/fixtures/errcheck/dirty",
     tags = ["manual"],
 )
+
+go_library(
+    name = "blank",
+    srcs = ["blank.go"],
+    importpath = "rules_dx/go/tests/fixtures/errcheck/blank",
+    tags = ["manual"],
+)

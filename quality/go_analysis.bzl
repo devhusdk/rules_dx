@@ -1,8 +1,11 @@
 """Runs the dx_gotype driver over one rules_go package and records its report."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_go//go/private:providers.bzl", "GoStdLib")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs")
+load("//quality:policy.bzl", "QualityPolicyInfo")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
@@ -74,6 +77,36 @@ def _importpath(attrs, ctx):
         return declared
     return "test/" + ctx.label.package + "/" + ctx.label.name
 
+def _staticcheck_config(target, ctx):
+    """Returns the staticcheck.conf bound to the target, or None."""
+    hints = []
+    for hint_target in getattr(ctx.rule.attr, "aspect_hints", []):
+        if DxNativeConfigInfo in hint_target:
+            hints.append(hint_target[DxNativeConfigInfo])
+    bound = collect_native_configs(hints, ["staticcheck"], str(target.label), ctx.attr._policy[QualityPolicyInfo].configs)
+    if "staticcheck" not in bound:
+        return None
+    info = bound["staticcheck"]
+    if info.config.basename != "staticcheck.conf":
+        fail("staticcheck config for %s must be named staticcheck.conf, got %s" % (target.label, info.config.basename))
+    return info
+
+def _tool_arguments(target, ctx, tool):
+    """Returns the driver arguments and extra inputs for one tool."""
+    if tool == "staticcheck":
+        info = _staticcheck_config(target, ctx)
+        if info != None:
+            return (["-config", info.config.path], info.closure)
+    elif tool == "govet":
+        names = ctx.attr._govet_analyzers[BuildSettingInfo].value
+        if names:
+            return ["-analyzers=" + ",".join(names)], depset()
+    elif tool == "errcheck":
+        names = ctx.attr._errcheck_flags[BuildSettingInfo].value
+        if names:
+            return ["-flags=" + ",".join(names)], depset()
+    return [], depset()
+
 def _go_analysis_impl(target, ctx):
     attrs = ctx.rule.attr
     if hasattr(attrs, "upstream"):
@@ -124,12 +157,13 @@ def _go_analysis_impl(target, ctx):
     reports = {}
     for tool in sorted(_DRIVERS):
         report = ctx.actions.declare_file("dx_%s/%s.json" % (tool, target.label.name))
+        (extra_args, extra_inputs) = _tool_arguments(target, ctx, tool)
         ctx.actions.run(
             mnemonic = _MNEMONICS[tool],
             progress_message = tool + " %{label}",
             executable = getattr(ctx.attr, _DRIVERS[tool]).files_to_run,
-            arguments = ["-out", report.path, config_file.path],
-            inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs]),
+            arguments = ["-out", report.path, config_file.path] + extra_args,
+            inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs, extra_inputs]),
             outputs = [report],
             resource_set = dx_heavy_resources,
             toolchain = None,
@@ -143,6 +177,12 @@ go_analysis_aspect = aspect(
     attr_aspects = ["upstream"],
     attrs = {
         "_go_stdlib": attr.label(default = "@rules_go//:stdlib"),
+        "_policy": attr.label(
+            default = "//config:workspace",
+            providers = [QualityPolicyInfo],
+        ),
+        "_govet_analyzers": attr.label(default = "//config:govet_analyzers"),
+        "_errcheck_flags": attr.label(default = "//config:errcheck_flags"),
         "_errcheck": attr.label(
             default = "//config:tool_errcheck",
             cfg = "exec",

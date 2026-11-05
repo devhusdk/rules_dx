@@ -18,3 +18,10 @@ go_library(
     importpath = "rules_dx/go/tests/fixtures/govet/dirty",
     tags = ["manual"],
 )
+
+go_library(
+    name = "shadowed",
+    srcs = ["shadow.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/shadowed",
+    tags = ["manual"],
+)

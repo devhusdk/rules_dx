@@ -1,4 +1,6 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//go/rules:defs.bzl", "go_library")
+load("//quality:native_config.bzl", "staticcheck_config")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -39,4 +41,44 @@ real_source_target(
         "BUILD.bazel",
     ],
     tags = ["corpus"],
+)
+
+copy_file(
+    name = "standard_conf",
+    src = "//cli/adopt/templates/config:staticcheck/standard.conf",
+    out = "standard/staticcheck.conf",
+)
+
+copy_file(
+    name = "strict_conf",
+    src = "//cli/adopt/templates/config:staticcheck/strict.conf",
+    out = "strict/staticcheck.conf",
+)
+
+staticcheck_config(
+    name = "standard_config",
+    src = ":standard_conf",
+    allow_generated = True,
+)
+
+staticcheck_config(
+    name = "strict_config",
+    src = ":strict_conf",
+    allow_generated = True,
+)
+
+go_library(
+    name = "strict_only_standard",
+    srcs = ["strict_only.go"],
+    aspect_hints = [":standard_config"],
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "strict_only_strict",
+    srcs = ["strict_only.go"],
+    aspect_hints = [":strict_config"],
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
+    tags = ["manual"],
 )

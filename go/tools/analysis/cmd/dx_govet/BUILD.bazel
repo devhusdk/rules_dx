@@ -1,4 +1,4 @@
-load("//go/rules:defs.bzl", "go_binary", "go_library")
+load("//go/rules:defs.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "dx_govet_lib",
@@ -27,7 +27,9 @@ go_library(
         "@org_golang_x_tools//go/analysis/passes/loopclosure",
         "@org_golang_x_tools//go/analysis/passes/lostcancel",
         "@org_golang_x_tools//go/analysis/passes/nilfunc",
+        "@org_golang_x_tools//go/analysis/passes/nilness",
         "@org_golang_x_tools//go/analysis/passes/printf",
+        "@org_golang_x_tools//go/analysis/passes/shadow",
         "@org_golang_x_tools//go/analysis/passes/shift",
         "@org_golang_x_tools//go/analysis/passes/sigchanyzer",
         "@org_golang_x_tools//go/analysis/passes/slog",
@@ -41,6 +43,7 @@ go_library(
         "@org_golang_x_tools//go/analysis/passes/unmarshal",
         "@org_golang_x_tools//go/analysis/passes/unreachable",
         "@org_golang_x_tools//go/analysis/passes/unsafeptr",
+        "@org_golang_x_tools//go/analysis/passes/unusedwrite",
         "@org_golang_x_tools//go/analysis/passes/unusedresult",
         "@org_golang_x_tools//go/analysis/passes/waitgroup",
     ],
@@ -50,4 +53,11 @@ go_binary(
     name = "dx_govet",
     embed = [":dx_govet_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "dx_govet_test",
+    srcs = ["main_test.go"],
+    embed = [":dx_govet_lib"],
+    deps = ["@org_golang_x_tools//go/analysis"],
 )

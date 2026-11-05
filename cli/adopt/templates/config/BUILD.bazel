@@ -4,6 +4,8 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 _VISIBILITY = [
     "//cli/adopt:__subpackages__",
     "//quality/runner:__subpackages__",
+    "//go/tests:__subpackages__",
+    "//go/tools/analysis:__subpackages__",
     "//quality/testdata:__subpackages__",
     "//typescript/tests:__subpackages__",
     "//tools/testing/hermetic:__subpackages__",

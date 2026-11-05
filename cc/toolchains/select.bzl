@@ -36,10 +36,18 @@ toolchain_transition = transition(
 )
 
 def _test_impl(ctx):
+    # Windows loads DLLs from the executable's directory, and the forwarder sits in another one.
     src = ctx.attr.test[0]
     inner = src[DefaultInfo].files_to_run.executable
     exe = dx_symlink_executable(ctx, inner)
-    runfiles = ctx.runfiles(files = [inner]).merge(src[DefaultInfo].default_runfiles)
+    upstream_runfiles = src[DefaultInfo].default_runfiles
+    dlls = []
+    for f in upstream_runfiles.files.to_list():
+        if f.extension == "dll":
+            dll = ctx.actions.declare_file(f.basename, sibling = exe)
+            ctx.actions.symlink(output = dll, target_file = f)
+            dlls.append(dll)
+    runfiles = ctx.runfiles(files = [inner] + dlls).merge(upstream_runfiles)
     providers = [DefaultInfo(executable = exe, runfiles = runfiles)]
     if RunEnvironmentInfo in src:
         providers.append(src[RunEnvironmentInfo])

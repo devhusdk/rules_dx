@@ -940,6 +940,8 @@ def _qt_rust_runtime_files_impl(ctx):
 def _qt_always_link_impl(ctx):
     inputs = []
     for linker_input in ctx.attr.dep[CcInfo].linking_context.linker_inputs.to_list():
+        for l in linker_input.libraries:
+            print('DBG', ctx.label, l.static_library, l.pic_static_library, l.dynamic_library, l.alwayslink)
         libraries = [
             cc_common.create_library_to_link(
                 actions = ctx.actions,

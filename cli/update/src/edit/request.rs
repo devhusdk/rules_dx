@@ -34,6 +34,8 @@ pub enum ConfiguredKind {
     Go,
     /// A ruby set; only the gem's line in the Gemfile is edited, then `bundle lock` runs.
     Ruby,
+    /// A cpan set; only the module's `requires` line in the cpanfile is edited.
+    Cpan,
 }
 
 impl ConfiguredKind {
@@ -45,6 +47,7 @@ impl ConfiguredKind {
             ConfiguredKind::Nuget => UpdateSet::NuGet,
             ConfiguredKind::Go => UpdateSet::Go,
             ConfiguredKind::Ruby => UpdateSet::Ruby,
+            ConfiguredKind::Cpan => UpdateSet::Cpan,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -248,7 +251,7 @@ fn configured_refresh_selector(
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
         | ConfiguredKind::Go => set.name.clone(),
-        ConfiguredKind::Ruby => format!("{}:{package}", set.name),
+        ConfiguredKind::Ruby | ConfiguredKind::Cpan => format!("{}:{package}", set.name),
     })
 }
 
@@ -279,6 +282,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Maven
         | UpdateSet::Npm
         | UpdateSet::NuGet
+        | UpdateSet::Cpan
         | UpdateSet::Ruby => "",
     }
 }
@@ -361,7 +365,8 @@ impl UpdateRequest {
             | ConfiguredKind::Maven
             | ConfiguredKind::Nuget
             | ConfiguredKind::Go
-            | ConfiguredKind::Ruby => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Ruby
+            | ConfiguredKind::Cpan => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -538,6 +543,7 @@ impl UpdateRequest {
                 plan_paket_dependencies(manifest, content, &self.package, &self.version)
             }
             UpdateSet::Ruby => plan_gemfile(manifest, content, &self.package, &self.version),
+            UpdateSet::Cpan => plan_cpanfile(manifest, content, &self.package, &self.version),
             UpdateSet::GithubActions => plan_github_workflow(
                 content,
                 &self.package,

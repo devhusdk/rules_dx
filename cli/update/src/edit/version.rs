@@ -7,6 +7,8 @@ pub enum WidenVersion {
     GitCommit(String),
     /// A gem version such as `1.5` or `7.0.8.1`, which semver cannot hold.
     Gem(String),
+    /// A CPAN version such as `2.06`, `1.002_003` or `v1.0.35`.
+    Cpan(String),
     /// An image digest such as `sha256:` followed by 64 hex digits.
     Digest(String),
 }
@@ -18,6 +20,7 @@ impl WidenVersion {
             WidenVersion::GitTag(tag) => tag.clone(),
             WidenVersion::GitCommit(sha) => sha.clone(),
             WidenVersion::Gem(version) => version.clone(),
+            WidenVersion::Cpan(version) => version.clone(),
             WidenVersion::Digest(digest) => digest.clone(),
         }
     }
@@ -63,6 +66,7 @@ pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
         | UpdateSet::NuGet => parse_semver(set.name(), trimmed),
         UpdateSet::GithubActions => parse_git(set.name(), trimmed),
         UpdateSet::Ruby => parse_gem(set.name(), trimmed),
+        UpdateSet::Cpan => parse_cpan(set.name(), trimmed),
         UpdateSet::Containers => parse_digest(set.name(), trimmed),
     }
 }
@@ -109,6 +113,30 @@ fn parse_gem(set: &'static str, text: &str) -> Result<WidenVersion, VersionError
         .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()));
     if valid {
         Ok(WidenVersion::Gem(candidate.to_owned()))
+    } else {
+        Err(VersionError::InvalidSemver {
+            set,
+            version: text.to_owned(),
+        })
+    }
+}
+
+fn parse_cpan(set: &'static str, text: &str) -> Result<WidenVersion, VersionError> {
+    let digits = |part: &str| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit());
+    let valid = match text.strip_prefix('v') {
+        Some(dotted) => {
+            let parts: Vec<&str> = dotted.split('.').collect();
+            parts.len() >= 2 && parts.iter().all(|part| digits(part))
+        }
+        None => match text.split_once('.') {
+            None => digits(text),
+            Some((whole, fraction)) => {
+                digits(whole) && fraction.split('_').count() <= 2 && fraction.split('_').all(digits)
+            }
+        },
+    };
+    if valid {
+        Ok(WidenVersion::Cpan(text.to_owned()))
     } else {
         Err(VersionError::InvalidSemver {
             set,

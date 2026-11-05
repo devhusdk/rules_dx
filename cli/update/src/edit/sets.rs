@@ -3,6 +3,7 @@ pub enum UpdateSet {
     Bazel,
     Cargo,
     Containers,
+    Cpan,
     GithubActions,
     Go,
     Maven,
@@ -12,10 +13,11 @@ pub enum UpdateSet {
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 9] = [
+    pub const ALL: [UpdateSet; 10] = [
         UpdateSet::Bazel,
         UpdateSet::Cargo,
         UpdateSet::Containers,
+        UpdateSet::Cpan,
         UpdateSet::GithubActions,
         UpdateSet::Go,
         UpdateSet::Maven,
@@ -39,6 +41,7 @@ impl UpdateSet {
             UpdateSet::Bazel => "bazel",
             UpdateSet::Cargo => "cargo",
             UpdateSet::Containers => "containers",
+            UpdateSet::Cpan => "cpan",
             UpdateSet::GithubActions => "github-actions",
             UpdateSet::Go => "go",
             UpdateSet::Maven => "maven",
@@ -53,6 +56,7 @@ impl UpdateSet {
             "bazel" => Some(UpdateSet::Bazel),
             "cargo" => Some(UpdateSet::Cargo),
             "containers" => Some(UpdateSet::Containers),
+            "cpan" => Some(UpdateSet::Cpan),
             "github-actions" => Some(UpdateSet::GithubActions),
             "go" => Some(UpdateSet::Go),
             "maven" => Some(UpdateSet::Maven),
@@ -96,7 +100,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 9);
+        assert_eq!(seen.len(), 10);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
@@ -126,6 +130,7 @@ mod tests {
                 "bazel",
                 "cargo",
                 "containers",
+                "cpan",
                 "github-actions",
                 "go",
                 "maven",
@@ -165,6 +170,7 @@ mod tests {
         assert!(UpdateSet::Maven.needs_update_refresh());
         assert!(UpdateSet::NuGet.needs_update_refresh());
         assert!(UpdateSet::Ruby.needs_update_refresh());
+        assert!(UpdateSet::Cpan.needs_update_refresh());
     }
 
     #[test]

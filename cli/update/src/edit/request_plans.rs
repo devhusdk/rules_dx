@@ -414,7 +414,7 @@ pub(super) fn plan_gemfile(
     let lines: Vec<&str> = content.split_inclusive('\n').collect();
     let hits: Vec<usize> = (0..lines.len())
         .filter(|&i| {
-            gem_literals(lines[i])
+            literals(lines[i], "gem ")
                 .first()
                 .is_some_and(|l| l.text == package)
         })
@@ -436,7 +436,7 @@ pub(super) fn plan_gemfile(
         }
     };
     let line = lines[index];
-    let requirements: Vec<GemLiteral<'_>> = gem_literals(line)
+    let requirements: Vec<Literal<'_>> = literals(line, "gem ")
         .into_iter()
         .skip(1)
         .take_while(|l| {
@@ -462,22 +462,22 @@ pub(super) fn plan_gemfile(
     Ok(edited)
 }
 
-struct GemLiteral<'a> {
+struct Literal<'a> {
     text: &'a str,
     /// Byte range of the text inside the quotes, relative to the line.
     start: usize,
     end: usize,
 }
 
-/// The leading quoted strings of a `gem` line, in order; empty when it is not one.
-fn gem_literals(line: &str) -> Vec<GemLiteral<'_>> {
-    let Some(rest) = line.trim_start().strip_prefix("gem ") else {
+/// The leading quoted strings of a line that starts with `keyword`, in order; empty when it is not one.
+fn literals<'a>(line: &'a str, keyword: &str) -> Vec<Literal<'a>> {
+    let Some(rest) = line.trim_start().strip_prefix(keyword) else {
         return Vec::new();
     };
     let mut found = Vec::new();
     let mut cursor = line.len() - rest.len();
     loop {
-        let after = line[cursor..].trim_start_matches([' ', ',']);
+        let after = line[cursor..].trim_start_matches([' ', ',', '=', '>']);
         let start = line.len() - after.len();
         let Some(quote) = after.chars().next().filter(|c| matches!(c, '"' | '\'')) else {
             return found;
@@ -485,13 +485,74 @@ fn gem_literals(line: &str) -> Vec<GemLiteral<'_>> {
         let Some(close) = after[1..].find(quote) else {
             return found;
         };
-        found.push(GemLiteral {
+        found.push(Literal {
             text: &after[1..1 + close],
             start: start + 1,
             end: start + 1 + close,
         });
         cursor = start + close + 2;
     }
+}
+
+/// Rewrites the version of the one `requires '<Module>', '<op> <version>'` line of a cpanfile.
+pub(super) fn plan_cpanfile(
+    manifest: &str,
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Cpan(new) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: "expected a cpan version".to_owned(),
+        });
+    };
+    let lines: Vec<&str> = content.split_inclusive('\n').collect();
+    let hits: Vec<usize> = (0..lines.len())
+        .filter(|&i| {
+            literals(lines[i], "requires ")
+                .first()
+                .is_some_and(|l| l.text == package)
+        })
+        .collect();
+    let index = match hits.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [index] => *index,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: manifest.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let found = literals(lines[index], "requires ");
+    let requirement = match found.as_slice() {
+        [_, requirement] if requirement.text.contains(|c: char| c.is_ascii_digit()) => requirement,
+        _ => {
+            return Err(EditError::UnsupportedManifest {
+                manifest: manifest.to_owned(),
+                reason: "the requires line needs exactly one literal version requirement"
+                    .to_owned(),
+            });
+        }
+    };
+    let number = requirement
+        .text
+        .trim_start_matches(['>', '<', '=', '!', ' ']);
+    let operator = &requirement.text[..requirement.text.len() - number.len()];
+    let mut edited = lines.concat();
+    let offset: usize = lines[..index].iter().map(|l| l.len()).sum();
+    edited.replace_range(
+        offset + requirement.start..offset + requirement.end,
+        &format!("{operator}{new}"),
+    );
+    Ok(edited)
 }
 
 pub(super) fn plan_maven_module_bazel(
@@ -820,12 +881,13 @@ pub(super) fn plan_github_workflow(
                 }),
             }
         }
-        WidenVersion::Semver(_) | WidenVersion::Gem(_) | WidenVersion::Digest(_) => {
-            Err(EditError::UnsupportedManifest {
-                manifest: WORKFLOW_DIR.to_owned(),
-                reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
-            })
-        }
+        WidenVersion::Semver(_)
+        | WidenVersion::Gem(_)
+        | WidenVersion::Cpan(_)
+        | WidenVersion::Digest(_) => Err(EditError::UnsupportedManifest {
+            manifest: WORKFLOW_DIR.to_owned(),
+            reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
+        }),
     }
 }
 
@@ -879,6 +941,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("gem names use letters, digits, '-', '_' and '.'")
+            }
+        }
+        UpdateSet::Cpan => {
+            if !package.is_empty()
+                && package.split("::").all(|part| {
+                    !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                })
+            {
+                Ok(())
+            } else {
+                Err("cpan module names are words joined by '::'")
             }
         }
         UpdateSet::Containers => {

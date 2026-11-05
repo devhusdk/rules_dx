@@ -764,6 +764,7 @@ fn check_conflicts(sets: &[DependencySet]) -> Result<(), DependencySetsError> {
 
 const BAZEL_PACKAGE_CHARSET: &str = "bazel module names use [A-Za-z0-9_.-] only";
 
+const CPAN_PACKAGE_CHARSET: &str = "cpan module names are words joined by '::'";
 const UV_PACKAGE_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
 
 const RUBY_PACKAGE_CHARSET: &str = "gem names use [A-Za-z0-9_.-] only";
@@ -834,11 +835,20 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
             }
         }
         Ecosystem::Go => dx_module_bazel::identity::validate_go(package),
+        Ecosystem::Cpan => {
+            let word = |part: &str| {
+                !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            };
+            if package.split("::").all(word) {
+                Ok(())
+            } else {
+                Err(CPAN_PACKAGE_CHARSET)
+            }
+        }
         Ecosystem::Uv
         | Ecosystem::Bazel
         | Ecosystem::Ruby
         | Ecosystem::PowerShell
-        | Ecosystem::Cpan
         | Ecosystem::Pub
         | Ecosystem::Conan
         | Ecosystem::Nuget => {
@@ -2821,6 +2831,16 @@ mod tests {
                 &["tools/ps/PSGallery.lock.json"],
             ),
         ])
+    }
+
+    #[test]
+    fn cpan_module_names_allow_double_colons() {
+        for good in ["Moo", "Text::CSV", "Text::CSV_XS"] {
+            assert!(validate_package(Ecosystem::Cpan, good).is_ok(), "{good}");
+        }
+        for bad in ["Text::", "::CSV", "Text:CSV", "Text::CSV-XS", ""] {
+            assert!(validate_package(Ecosystem::Cpan, bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

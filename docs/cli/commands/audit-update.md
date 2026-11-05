@@ -252,7 +252,7 @@ Scopes: selectors are a set name (`dx_crates`), `set:package` (`dx_npm:vue`), or
 
 - A check validates the selected sets and writes nothing. It takes no [build slot](README.md#build-slots).
 - `uv` sets run a read-only lock check: current, or failed when stale.
-- `go` and `ruby` sets report `pinned` and change nothing. Widen them with `dx update go:<module> <version>` or `dx update <set>:<gem> <version>`.
+- `go` and `ruby` sets report `pinned` and change nothing. Widen them with `dx update go:<module> <version>` or `dx update <set>:<gem> <version>`. Edit a `cpan` set the same way with `dx update <set>:<Module> <version>`: it rewrites the version of the module's `requires` line in the cpanfile (keeping the operator), then runs `carton update <Module>` and the set's `cpan_compiler --incremental`. The version is decimal (`2.06`, `1.002_003`) or dotted (`v1.0.35`).
 - Other sets report `unsupported` and fail the run. Refresh them with `dx update --apply <set>`.
 - A bare `dx update` therefore exits `1` when any set is unsupported.
 - `--apply` runs Bazel for `cargo`, `maven`, `npm` and `nuget` sets.

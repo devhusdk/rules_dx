@@ -591,7 +591,11 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
             "3d3d42e5aac5ba805825da76410c181273ba90b1",
         ),
     ];
-    assert_eq!(cases.len(), UpdateSet::ALL.len(), "one case per set");
+    assert_eq!(
+        cases.len() + 1,
+        UpdateSet::ALL.len(),
+        "one case per set but cpan, which only configured sets edit"
+    );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");
         let name = update.set.name();
@@ -1695,6 +1699,70 @@ fn ruby_versions_are_dotted_numbers() {
         "1.0.0.rc1",
     )
     .is_err());
+}
+
+fn cpan_request(module: &str, version: &str) -> Result<UpdateRequest, EditError> {
+    configured(
+        ConfiguredKind::Cpan,
+        &["app/cpanfile"],
+        None,
+        &format!("set:{module}"),
+        version,
+    )
+}
+
+const CPANFILE: &str =
+    "requires 'Text::CSV', '== 2.00';\nrequires 'Moo', '>= 2.003';\nrequires 'Path::Tiny';\n";
+
+#[test]
+fn cpan_edit_keeps_the_operator_and_quotes() {
+    let request = cpan_request("Text::CSV", "2.06").expect("cpan");
+    assert_eq!(request.package, "Text::CSV");
+    assert_eq!(request.set, UpdateSet::Cpan);
+    assert_eq!(
+        request.plan_edit(CPANFILE).expect("eq"),
+        CPANFILE.replace("== 2.00", "== 2.06")
+    );
+    let edited = cpan_request("Moo", "v2.5.1")
+        .expect("cpan")
+        .plan_edit(CPANFILE)
+        .expect("ge");
+    assert_eq!(edited, CPANFILE.replace(">= 2.003", ">= v2.5.1"));
+}
+
+#[test]
+fn cpan_refuses_undeclared_and_unversioned_modules() {
+    assert!(matches!(
+        cpan_request("Other::Mod", "1.0")
+            .expect("cpan")
+            .plan_edit(CPANFILE),
+        Err(EditError::NotFound { .. })
+    ));
+    assert!(matches!(
+        cpan_request("Path::Tiny", "1.0")
+            .expect("cpan")
+            .plan_edit(CPANFILE),
+        Err(EditError::UnsupportedManifest { .. })
+    ));
+}
+
+#[test]
+fn cpan_versions_are_decimal_or_dotted() {
+    for good in ["2.06", "1.002_003", "v1.0.35", "3"] {
+        assert!(cpan_request("Moo", good).is_ok(), "{good}");
+    }
+    for bad in ["1.0.35", "v1", "1.2_3_4", "2.0-rc1", "latest", "^2.0"] {
+        assert!(cpan_request("Moo", bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn cpan_selectors_split_at_the_first_colon_only() {
+    let request = cpan_request("Text::CSV_XS", "1.0").expect("cpan");
+    assert_eq!(request.package, "Text::CSV_XS");
+    assert_eq!(request.target().refresh_selector(), "set:Text::CSV_XS");
+    assert!(cpan_request("Text::", "1.0").is_err());
+    assert!(cpan_request("Text:CSV", "1.0").is_err());
 }
 
 const OCI_MODULE: &str = "oci.pull(

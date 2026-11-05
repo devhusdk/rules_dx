@@ -18,6 +18,8 @@ bigPower = 2 ^ (100 :: Int)
 platform :: String
 #ifdef DX_LINUX
 platform = "linux"
+#elif defined(DX_MACOS)
+platform = "macos"
 #else
 platform = "other"
 #endif

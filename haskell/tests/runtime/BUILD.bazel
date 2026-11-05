@@ -19,6 +19,7 @@ haskell_library(
         "-Werror",
     ] + select({
         "@platforms//os:linux": ["-DDX_LINUX"],
+        "@platforms//os:macos": ["-DDX_MACOS"],
         "//conditions:default": [],
     }),
     target_compatible_with = HASKELL_COMPATIBLE_WITH,

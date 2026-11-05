@@ -11,7 +11,7 @@ main :: IO ()
 main = do
   check "the C function adds" (add 40 2 == 42)
   check "Integer arithmetic runs on GMP" (show bigPower == "1267650600228229401496703205376")
-  check "select() picked linux" (platform == "linux")
+  check "select() picked a supported OS" (platform /= "other")
   contents <- readFile "haskell/tests/runtime/data.txt"
   check "the data runfile is readable" (lines contents == ["ledger"])
   putStrLn "PASS"

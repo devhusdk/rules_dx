@@ -375,19 +375,20 @@ index f98b9e5..49db94d 100644
      libraries = dict(cc_libraries_info.libraries)
  
      linker_inputs = cc_info.linking_context.linker_inputs.to_list() if cc_info else []
-@@ -423,6 +423,11 @@ def _haskell_cc_libraries_aspect_impl(target, ctx):
+@@ -423,6 +423,12 @@ def _haskell_cc_libraries_aspect_impl(target, ctx):
          for attr in ["deps", "exports", "plugins"]
          for dep in getattr(ctx.rule.attr, attr, [])
          if HaskellCcLibrariesInfo in dep
 +    ] + [
-+        # dx wrappers forward one private upstream target.
++        # dx wrappers forward one private upstream target, a list under a transition.
 +        dep[HaskellCcLibrariesInfo]
-+        for dep in [getattr(ctx.rule.attr, "upstream", None)]
++        for upstream in [getattr(ctx.rule.attr, "upstream", None)]
++        for dep in (upstream if type(upstream) == "list" else [upstream])
 +        if type(dep) == "Target" and HaskellCcLibrariesInfo in dep
      ])
  
      cc_info = target[CcInfo] if CcInfo in target else None
-@@ -440,12 +445,11 @@ def _haskell_cc_libraries_aspect_impl(target, ctx):
+@@ -440,12 +446,11 @@ def _haskell_cc_libraries_aspect_impl(target, ctx):
  
  haskell_cc_libraries_aspect = aspect(
      implementation = _haskell_cc_libraries_aspect_impl,

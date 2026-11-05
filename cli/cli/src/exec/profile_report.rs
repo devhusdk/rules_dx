@@ -2,11 +2,14 @@
 
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub(crate) const CODE_PROFILE_REPORT: &str = "profile_report";
 pub(crate) const CODE_PROFILE_UNREADABLE: &str = "profile_unreadable";
 
+const TRACE_SUFFIX: &str = ".json.gz";
+const KEPT_TRACES: usize = 5;
 const CRITICAL_SHOWN: usize = 5;
 const SLOWEST_SHOWN: usize = 10;
 
@@ -14,8 +17,37 @@ pub(crate) fn dir(workspace: &Path) -> PathBuf {
     workspace.join(".dx").join("profile")
 }
 
-pub(crate) fn profile_path(workspace: &Path) -> PathBuf {
-    dir(workspace).join("trace.json")
+pub(crate) fn profile_path(workspace: &Path, run_id: &str) -> PathBuf {
+    dir(workspace).join(format!("{run_id}{TRACE_SUFFIX}"))
+}
+
+/// Deletes the oldest traces so that, with the one about to be written, `KEPT_TRACES` remain.
+pub(crate) fn prune(workspace: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir(workspace)) else {
+        return;
+    };
+    let mut traces: Vec<(std::time::SystemTime, PathBuf)> = entries
+        .flatten()
+        .filter(|entry| entry.file_name().to_string_lossy().ends_with(TRACE_SUFFIX))
+        .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
+        .collect();
+    traces.sort();
+    let surplus = (traces.len() + 1).saturating_sub(KEPT_TRACES);
+    for (_, path) in traces.into_iter().take(surplus) {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+/// Reads a trace file, unpacking it when Bazel wrote it gzipped.
+pub(crate) fn read_trace(path: &Path) -> std::io::Result<String> {
+    let bytes = std::fs::read(path)?;
+    if !bytes.starts_with(&[0x1f, 0x8b]) {
+        return String::from_utf8(bytes)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error));
+    }
+    let mut text = String::new();
+    flate2::read::GzDecoder::new(bytes.as_slice()).read_to_string(&mut text)?;
+    Ok(text)
 }
 
 pub(crate) fn report_path(workspace: &Path) -> PathBuf {
@@ -232,6 +264,43 @@ mod tests {
             remote: 5,
             local: 2,
         })
+    }
+
+    #[test]
+    fn prune_keeps_the_newest_traces_and_other_files() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let dir = dir(root.path());
+        std::fs::create_dir_all(&dir).expect("dir");
+        let epoch = std::time::SystemTime::UNIX_EPOCH;
+        for number in 1..=7u64 {
+            let file = std::fs::File::create(dir.join(format!("{number}.json.gz"))).expect("file");
+            file.set_modified(epoch + std::time::Duration::from_secs(number))
+                .expect("mtime");
+        }
+        std::fs::write(dir.join("report.json"), "{}").expect("report");
+        prune(root.path());
+        let mut kept: Vec<String> = std::fs::read_dir(&dir)
+            .expect("read")
+            .map(|entry| entry.expect("entry").file_name().to_string_lossy().into_owned())
+            .collect();
+        kept.sort();
+        assert_eq!(
+            kept,
+            ["4.json.gz", "5.json.gz", "6.json.gz", "7.json.gz", "report.json"]
+        );
+    }
+
+    #[test]
+    fn read_trace_takes_plain_and_gzipped_files() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let plain = root.path().join("a.json");
+        std::fs::write(&plain, TRACE).expect("plain");
+        assert_eq!(read_trace(&plain).expect("plain"), TRACE);
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        std::io::Write::write_all(&mut gz, TRACE.as_bytes()).expect("gzip");
+        let packed = root.path().join("a.json.gz");
+        std::fs::write(&packed, gz.finish().expect("finish")).expect("packed");
+        assert_eq!(read_trace(&packed).expect("packed"), TRACE);
     }
 
     #[test]

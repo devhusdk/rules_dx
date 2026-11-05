@@ -1488,6 +1488,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "clap",
+ "flate2",
  "libc",
  "predicates",
  "ruzstd 0.9.1",

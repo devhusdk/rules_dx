@@ -1,5 +1,5 @@
 {
-  "checksum": "f4edb3330ef6eee0888753658d6f3e2ad262e5e29efe765be0f00870b7830ee4",
+  "checksum": "7423732097b692ee348bf3b2b380b202c8c855e8fe0195b2428d8fca20261222",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6863,6 +6863,10 @@
           {
             "id": "clap 4.6.7",
             "target": "clap"
+          },
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
           },
           {
             "id": "libc 0.2.189",

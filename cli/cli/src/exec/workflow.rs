@@ -229,7 +229,7 @@ fn execute_checked(
         }
     }
     let trace = if invocation.build_profile {
-        match prepare_trace(workspace) {
+        match prepare_trace(workspace, &run_id) {
             Ok(path) => {
                 bazel_options.push(format!("--profile={path}"));
                 Some(path)
@@ -364,11 +364,12 @@ fn execute_checked(
 }
 
 /// Creates `.dx/profile` and returns the trace file Bazel should write.
-fn prepare_trace(workspace: &std::path::Path) -> Result<String, String> {
+fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, String> {
     let dir = profile_report::dir(workspace);
     std::fs::create_dir_all(&dir)
         .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
-    profile_report::profile_path(workspace)
+    profile_report::prune(workspace);
+    profile_report::profile_path(workspace, run_id)
         .to_str()
         .map(ToOwned::to_owned)
         .ok_or_else(|| "profile path is not UTF-8".to_owned())
@@ -394,7 +395,7 @@ fn announce_profile(
     let bytes = std::fs::File::open(bep)
         .ok()
         .and_then(|file| dx_bep::collect_bytes_received(std::io::BufReader::new(file)));
-    let report = std::fs::read_to_string(trace)
+    let report = profile_report::read_trace(std::path::Path::new(trace))
         .map_err(|error| error.to_string())
         .and_then(|text| {
             profile_report::build(&text, cache, bytes).map_err(|error| error.to_string())
@@ -641,14 +642,15 @@ mod tests {
         let harness = Harness::new("build-profile");
         let dir = harness.workspace.join(".dx").join("profile");
         std::fs::create_dir_all(&dir).expect("dir");
-        std::fs::write(
-            dir.join("trace.json"),
-            r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#,
-        )
-        .expect("trace");
+        let id = dx_plan::plan::run_id(std::process::id(), 0, &harness.temp);
+        let trace = dir.join(format!("{id}.json.gz"));
+        let json = r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#;
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        std::io::Write::write_all(&mut gz, json.as_bytes()).expect("gzip");
+        std::fs::write(&trace, gz.finish().expect("finish")).expect("trace");
         let inv = invocation(&["build", "--profile", "--output=json"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
-        let flag = format!("--profile={}", dir.join("trace.json").display());
+        let flag = format!("--profile={}", trace.display());
         assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
         let notice = run
             .out

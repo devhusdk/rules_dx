@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
-load(":repos.bzl", "HUB_NAME", "LICENSE", "UNACCEPTED", "hub_build", "layout_links", "missing_error")
+load(":repos.bzl", "HUB_NAME", "LICENSE", "UNACCEPTED", "hub_build", "layout_links", "missing_error", "versions_bzl")
 load(":unavailable.bzl", "UNSUPPORTED")
 
 def _checks():
@@ -53,6 +53,8 @@ def _checks():
         expect_contains("accepted hub globs the x64 runtime", accepted_hub, 'name = "vcruntime_x64",\n    srcs = glob(["redist/x64/*/vcruntime140.dll","redist/x64/*/vcruntime140_1.dll","redist/x64/*/msvcp140.dll"])'),
         expect_contains("unaccepted hub ships no runtime", hub_build(False, "", ""), 'name = "vcruntime_arm64",\n    srcs = glob([])'),
         expect_true("unaccepted hub builds no toolchain", "msvc_cc_toolchain(" not in hub_build(False, "", "")),
+        expect_equal("redist version text", versions_bzl("14.50.35710"), 'MSVC_REDIST_VERSION = "14.50.35710"\n'),
+        expect_equal("unaccepted redist version is empty", versions_bzl(""), 'MSVC_REDIST_VERSION = ""\n'),
     ]
 
 def msvc_repos_tests(name):

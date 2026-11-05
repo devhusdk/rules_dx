@@ -113,12 +113,17 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     assert!(!text.contains("gh release upload"));
     assert!(!text.contains("cmp -s"));
     let assets = &text[text.find("\n  assets:\n").expect("assets job")..];
-    let call = "RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"${paths[@]}\"";
+    let call = "RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- \"$RELEASE_TAG\" \"$CANDIDATE_COMMIT\" \"${paths[@]}\" > ledger.json || status=$?";
     let driver = assets.find(call).expect("driver call with the assets");
+    assert!(assets.contains("echo '```json'; cat ledger.json; echo '```'"));
     assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
+    assert!(assets.contains("exit \"$status\""));
+    assert!(assets.contains("name: release-ledger\n          path: ledger.json"));
+    assert!(assets.contains("if: always()"));
     assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
-    assert!(assets
-        .contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do"));
+    assert!(
+        assets.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" $sources; do")
+    );
     assert!(
         driver
             < assets
@@ -233,7 +238,7 @@ fn the_source_archive_is_uploaded_without_clobber() {
     let text = workflow();
     assert!(text.contains("test -s \"out/$src\""));
     assert!(
-        text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" source.json; do")
+        text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" $sources; do")
     );
     assert!(!text.contains("--clobber"));
     assert!(text.contains("sha256sum -c \"$src.sha256\""));

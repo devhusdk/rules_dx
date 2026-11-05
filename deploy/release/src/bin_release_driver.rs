@@ -89,12 +89,12 @@ fn stage_assets(
     Ok((staged, paths))
 }
 
-fn ledger_with(
+fn asset_records(
     backend: &dyn ReleaseBackend,
     tag: &str,
     assets: &[String],
     approved: bool,
-) -> (String, i32) {
+) -> Vec<OpRecord> {
     let mut records = match stage_assets(assets) {
         Ok((staged, paths)) => sync_assets(backend, tag, &staged, &paths, approved),
         Err(err) => vec![OpRecord::new("asset-stage", tag, OpState::Failed, &err)],
@@ -105,6 +105,17 @@ fn ledger_with(
         OpState::NotAuthorized,
         "the owner publishes the draft release by hand",
     ));
+    records
+}
+
+#[cfg(test)]
+fn ledger_with(
+    backend: &dyn ReleaseBackend,
+    tag: &str,
+    assets: &[String],
+    approved: bool,
+) -> (String, i32) {
+    let records = asset_records(backend, tag, assets, approved);
     (render_ledger(&records), ledger_exit(&records))
 }
 
@@ -146,18 +157,25 @@ fn run_with(
     }
 }
 
-fn remote_with(candidate: &Candidate, ls_remote: Result<String, String>) -> i32 {
-    match dx_release_tools::release_remote_error(candidate, ls_remote) {
-        Ok(sha) => {
-            println!(
-                "release: remote tag {} verified at {sha} ({})",
-                candidate.tag(),
-                candidate.remote()
-            );
-            0
-        }
-        Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
+fn live_with(
+    tag: &str,
+    commit: Option<&str>,
+    approve: &str,
+    git_state: impl FnOnce() -> Result<GitState, String>,
+    ls_remote: impl FnOnce(&Candidate) -> Result<String, String>,
+    backend: &dyn ReleaseBackend,
+    assets: &[String],
+) -> Result<(String, i32), String> {
+    let mut records = dx_release_tools::release_live_records(tag, commit, approve, git_state)?;
+    if ledger_exit(&records) == 0 {
+        let candidate = dx_release_tools::release_candidate(tag, commit)?;
+        let output = ls_remote(&candidate);
+        records.push(dx_release_tools::release_remote_record(&candidate, output));
     }
+    if ledger_exit(&records) == 0 && !assets.is_empty() {
+        records.extend(asset_records(backend, tag, assets, approve == "1"));
+    }
+    Ok((render_ledger(&records), ledger_exit(&records)))
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
@@ -167,32 +185,32 @@ fn run(argv: &[String]) -> i32 {
     let approve = approve_of(std::env::var("RELEASE_APPROVE").ok());
     let dry = dry_of(std::env::var("RELEASE_DRY_RUN").ok());
     let dir = workspace_dir_of(std::env::var_os("BUILD_WORKSPACE_DIRECTORY"));
-    let code = run_with(&tag, commit.as_deref(), &approve, dry, || {
-        candidate::read_git_state(dir.as_deref(), &tag)
-    });
-    if code != 0 || dry {
-        return code;
+    if dry {
+        return run_with(&tag, commit.as_deref(), &approve, dry, || {
+            candidate::read_git_state(dir.as_deref(), &tag)
+        });
     }
-    match dx_release_tools::release_candidate(&tag, commit.as_deref()) {
-        Ok(candidate) => {
-            let output =
-                candidate::ls_remote_output(dir.as_deref(), candidate.remote(), &candidate);
-            let code = remote_with(&candidate, output);
-            let assets = resolve_assets(argv);
-            if code != 0 || assets.is_empty() {
-                return code;
-            }
-            let backend = GhBackend {
-                program: "gh".to_owned(),
-                token: std::env::var("GH_TOKEN").ok(),
-                api: release_api(
-                    std::env::var("GH_REPO")
-                        .ok()
-                        .filter(|r| !r.is_empty())
-                        .or_else(|| std::env::var("GITHUB_REPOSITORY").ok()),
-                ),
-            };
-            let (text, code) = ledger_with(&backend, &tag, assets, approve == "1");
+    let backend = GhBackend {
+        program: "gh".to_owned(),
+        token: std::env::var("GH_TOKEN").ok(),
+        api: release_api(
+            std::env::var("GH_REPO")
+                .ok()
+                .filter(|r| !r.is_empty())
+                .or_else(|| std::env::var("GITHUB_REPOSITORY").ok()),
+        ),
+    };
+    let result = live_with(
+        &tag,
+        commit.as_deref(),
+        &approve,
+        || candidate::read_git_state(dir.as_deref(), &tag),
+        |candidate| candidate::ls_remote_output(dir.as_deref(), candidate.remote(), candidate),
+        &backend,
+        resolve_assets(argv),
+    );
+    match result {
+        Ok((text, code)) => {
             print!("{text}");
             code
         }
@@ -261,7 +279,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "git state read")]
     fn live_dispatch_reads_git_after_the_gates() {
-        let _ = run_with("v1.2.3", Some(SHA), "1", false, git_unread);
+        let _ = live("v1.2.3", Some(SHA), "1", git_unread);
     }
 
     fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
@@ -277,103 +295,133 @@ mod tests {
         assert_eq!(run_with("v0.0.0-dryrun", None, "0", true, git_unread), 0);
     }
 
-    #[test]
-    fn live_dispatch_without_approval_fails() {
-        assert_eq!(run_with("v1.2.3", Some(SHA), "0", false, git_unread), 1);
+    fn unused_backend() -> GhBackend {
+        GhBackend {
+            program: "/nonexistent/gh".to_owned(),
+            token: None,
+            api: release_api(None),
+        }
+    }
+
+    fn live(
+        tag: &str,
+        commit: Option<&str>,
+        approve: &str,
+        git: impl FnOnce() -> Result<GitState, String>,
+    ) -> Result<(String, i32), String> {
+        live_with(
+            tag,
+            commit,
+            approve,
+            git,
+            |_| Ok(format!("{SHA}\trefs/tags/v1.2.3\n")),
+            &unused_backend(),
+            &[],
+        )
+    }
+
+    fn states(text: &str) -> Vec<(String, String)> {
+        let value: serde_json::Value = serde_json::from_str(text).expect("ledger json");
+        assert_eq!(value["schema"], "release-ledger/v1");
+        value["records"]
+            .as_array()
+            .expect("records")
+            .iter()
+            .map(|r| {
+                (
+                    r["operation"].as_str().unwrap().to_owned(),
+                    r["state"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
     }
 
     #[test]
-    fn live_dispatch_with_placeholder_tag_fails() {
+    fn live_dispatch_input_gates_are_errors() {
+        assert!(live("v1.2.3", Some(SHA), "0", git_unread).is_err());
+        assert!(live("v0.0.0-dryrun", Some(SHA), "1", git_unread).is_err());
+        assert!(live("v1.2.3", None, "1", git_unread).is_err());
+    }
+
+    #[test]
+    fn live_dispatch_tag_failures_are_failed_records() {
+        let cases = [
+            git_ok(true, SHA, Some(SHA)),
+            git_ok(false, OTHER, Some(SHA)),
+            git_ok(false, SHA, None),
+            git_ok(false, SHA, Some(OTHER)),
+            Err("release: cannot read git state: x".to_owned()),
+        ];
+        for case in cases {
+            let (text, code) = live("v1.2.3", Some(SHA), "1", || case).expect("ledger");
+            assert_eq!(code, 1);
+            assert_eq!(states(&text), [("tag-local".into(), "failed".into())]);
+        }
+    }
+
+    #[test]
+    fn live_dispatch_with_pushed_tag_validates_both_checks() {
+        let (text, code) =
+            live("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, Some(SHA))).expect("ledger");
+        assert_eq!(code, 0);
         assert_eq!(
-            run_with("v0.0.0-dryrun", Some(SHA), "1", false, git_unread),
-            1
+            states(&text),
+            [
+                ("tag-local".into(), "validated".into()),
+                ("tag-remote".into(), "validated".into())
+            ]
         );
     }
 
     #[test]
-    fn live_dispatch_without_commit_fails() {
-        assert_eq!(run_with("v1.2.3", None, "1", false, git_unread), 1);
+    fn live_dispatch_remote_mismatch_and_error_fail() {
+        for output in [
+            Ok(format!("{OTHER}\trefs/tags/v1.2.3\n")),
+            Ok(String::new()),
+            Err("fatal: offline".to_owned()),
+        ] {
+            let (text, code) = live_with(
+                "v1.2.3",
+                Some(SHA),
+                "1",
+                || git_ok(false, SHA, Some(SHA)),
+                |_| output,
+                &unused_backend(),
+                &[],
+            )
+            .expect("ledger");
+            assert_eq!(code, 1);
+            assert_eq!(states(&text)[1], ("tag-remote".into(), "failed".into()));
+        }
     }
 
+    #[cfg(unix)]
     #[test]
-    fn live_dispatch_with_dirty_tree_fails() {
-        assert_eq!(
-            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
-                true,
-                SHA,
-                Some(SHA)
-            )),
-            1
-        );
-    }
-
-    #[test]
-    fn live_dispatch_with_stale_head_fails() {
-        assert_eq!(
-            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
-                false,
-                OTHER,
-                Some(SHA)
-            )),
-            1
-        );
-    }
-
-    #[test]
-    fn live_dispatch_with_missing_tag_fails() {
-        assert_eq!(
-            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(false, SHA, None)),
-            1
-        );
-    }
-
-    #[test]
-    fn live_dispatch_with_tag_elsewhere_fails() {
-        assert_eq!(
-            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
-                false,
-                SHA,
-                Some(OTHER)
-            )),
-            1
-        );
-    }
-
-    #[test]
-    fn live_dispatch_with_approval_and_pushed_tag_succeeds() {
-        assert_eq!(
-            run_with("v1.2.3", Some(SHA), "1", false, || git_ok(
-                false,
-                SHA,
-                Some(SHA)
-            )),
-            0
-        );
-    }
-
-    #[test]
-    fn live_dispatch_with_git_error_fails() {
-        assert_eq!(
-            run_with("v1.2.3", Some(SHA), "1", false, || Err(
-                "release: cannot read git state: x".to_owned()
-            )),
-            1
-        );
-    }
-
-    #[test]
-    fn live_dispatch_remote_check_compares_the_candidate_commit() {
-        let candidate = Candidate::new("1.2.3", SHA).expect("candidate");
-        assert_eq!(
-            remote_with(&candidate, Ok(format!("{SHA}\trefs/tags/v1.2.3\n"))),
-            0
-        );
-        assert_eq!(
-            remote_with(&candidate, Ok(format!("{OTHER}\trefs/tags/v1.2.3\n"))),
-            1
-        );
-        assert_eq!(remote_with(&candidate, Ok(String::new())), 1);
-        assert_eq!(remote_with(&candidate, Err("fatal: offline".to_owned())), 1);
+    fn failed_tag_check_uploads_nothing() {
+        let dir = std::env::temp_dir().join(format!("rd-noup-{}", std::process::id()));
+        let mark = dir.join("called");
+        let asset = dir.join("a.bin");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(&asset, b"x").expect("asset");
+        let backend = GhBackend {
+            program: fake_gh(&dir.join("bin"), &format!("touch {}", mark.display())),
+            token: None,
+            api: release_api(None),
+        };
+        let (text, code) = live_with(
+            "v1.2.3",
+            Some(SHA),
+            "1",
+            || git_ok(true, SHA, Some(SHA)),
+            |_| Ok(String::new()),
+            &backend,
+            &[asset.to_string_lossy().into_owned()],
+        )
+        .expect("ledger");
+        assert_eq!(code, 1);
+        assert_eq!(states(&text), [("tag-local".into(), "failed".into())]);
+        assert!(!mark.exists());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -428,6 +428,22 @@ pub fn release_remote_error(
     Ok(sha)
 }
 
+pub fn release_remote_record(
+    candidate: &candidate::Candidate,
+    ls_remote: Result<String, String>,
+) -> OpRecord {
+    let tag = candidate.tag();
+    match release_remote_error(candidate, ls_remote) {
+        Ok(sha) => OpRecord::new(
+            "tag-remote",
+            &tag,
+            OpState::Validated,
+            &format!("remote tag at {sha}"),
+        ),
+        Err(error) => OpRecord::new("tag-remote", &tag, OpState::Failed, &error),
+    }
+}
+
 pub const BCR_WANT_MODULE: &str = "rules_dx";
 pub const SIGNING_TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
 pub const SIGNING_BUNDLE_MEDIA_TYPE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
@@ -822,16 +838,12 @@ pub fn release_candidate(
     candidate::Candidate::new(version, commit).map_err(|error| format!("release: {error}"))
 }
 
-pub fn release_run(
+pub fn release_live_records(
     tag: &str,
     candidate_commit: Option<&str>,
     approve: &str,
-    dry_run: bool,
     git_state: impl FnOnce() -> Result<GitState, String>,
-) -> Result<String, String> {
-    if dry_run {
-        return Ok(render_release_dry_run(tag, approve));
-    }
+) -> Result<Vec<OpRecord>, String> {
     if approve != "1" {
         return Err(
             "release: real release needs RELEASE_APPROVE=1 plus explicit owner approval".to_owned(),
@@ -845,37 +857,57 @@ pub fn release_run(
     }
     let candidate = release_candidate(tag, candidate_commit)?;
     let commit = candidate.commit();
-    let state = git_state()?;
+    let failed = |detail: String| {
+        Ok(vec![OpRecord::new(
+            "tag-local",
+            tag,
+            OpState::Failed,
+            &detail,
+        )])
+    };
+    let state = match git_state() {
+        Ok(state) => state,
+        Err(error) => return failed(error),
+    };
     if state.tree_dirty {
-        return Err("release: tree is dirty; release requires a clean tree".to_owned());
+        return failed("release: tree is dirty; release requires a clean tree".to_owned());
     }
     if state.head != commit {
-        return Err(format!(
+        return failed(format!(
             "release: HEAD is {}, candidate is {commit}; check out the candidate commit",
             state.head
         ));
     }
-    let tag_commit = state.tag_commit.ok_or_else(|| {
-        format!(
+    let Some(tag_commit) = state.tag_commit else {
+        return failed(format!(
             "release: local tag {tag} missing; push it beforehand with owner approval (this program never creates tags)"
-        )
-    })?;
+        ));
+    };
     if tag_commit != commit {
-        return Err(format!(
+        return failed(format!(
             "release: local tag {tag} points at {tag_commit}, candidate is {commit}"
         ));
     }
-    let mut out = String::new();
-    out.push_str(&format!(
-        "release: owner-approved human-run release for {tag}\n"
-    ));
-    out.push_str(&format!(
-        "release: checked clean tree, explicit approval, HEAD and local tag {tag} at {commit}; executed no release step\n"
-    ));
-    out.push_str(&format!(
-        "release: verify the remote tag SHA with `git ls-remote --tags {RELEASE_REMOTE} {tag}` before any publish; this program never creates or pushes tags\n"
-    ));
-    Ok(out)
+    Ok(vec![OpRecord::new(
+        "tag-local",
+        tag,
+        OpState::Validated,
+        &format!("clean tree, HEAD and local tag at {commit}"),
+    )])
+}
+
+pub fn release_run(
+    tag: &str,
+    candidate_commit: Option<&str>,
+    approve: &str,
+    dry_run: bool,
+    git_state: impl FnOnce() -> Result<GitState, String>,
+) -> Result<String, String> {
+    if dry_run {
+        return Ok(render_release_dry_run(tag, approve));
+    }
+    let records = release_live_records(tag, candidate_commit, approve, git_state)?;
+    Ok(render_ledger(&records))
 }
 
 pub fn sbom_verify_files(
@@ -1441,22 +1473,23 @@ mod tests {
         assert!(release_run("v1.2.3", Some(SHA), "0", false, git_unread).is_err());
         assert!(release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread).is_err());
         assert_eq!(
-            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
-                true,
-                SHA,
-                Some(SHA)
-            )),
-            Err("release: tree is dirty; release requires a clean tree".to_owned())
+            release_live_records("v1.2.3", Some(SHA), "1", || git_ok(true, SHA, Some(SHA))),
+            Ok(vec![OpRecord::new(
+                "tag-local",
+                "v1.2.3",
+                OpState::Failed,
+                "release: tree is dirty; release requires a clean tree"
+            )])
         );
         assert_eq!(
-            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(false, SHA, None)),
-            Err("release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)".to_owned())
+            release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, None)),
+            Ok(vec![OpRecord::new("tag-local", "v1.2.3", OpState::Failed, "release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)")])
         );
         let live = release_run("v1.2.3", Some(SHA), "1", false, || {
             git_ok(false, SHA, Some(SHA))
         })
         .expect("live");
-        assert!(live.contains("owner-approved human-run release for v1.2.3"));
+        assert!(live.contains("release-ledger/v1"));
     }
 
     const SHA: &str = "a948904f2f0f479b8f8197694b30184b0d2ed1c1";
@@ -1483,28 +1516,28 @@ mod tests {
     #[test]
     fn release_run_rejects_a_stale_head() {
         assert_eq!(
-            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
-                false,
-                OTHER,
-                Some(SHA)
-            )),
-            Err(format!(
-                "release: HEAD is {OTHER}, candidate is {SHA}; check out the candidate commit"
-            ))
+            release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, OTHER, Some(SHA))),
+            Ok(vec![OpRecord::new(
+                "tag-local",
+                "v1.2.3",
+                OpState::Failed,
+                &format!(
+                    "release: HEAD is {OTHER}, candidate is {SHA}; check out the candidate commit"
+                )
+            )])
         );
     }
 
     #[test]
     fn release_run_rejects_a_local_tag_pointing_elsewhere() {
         assert_eq!(
-            release_run("v1.2.3", Some(SHA), "1", false, || git_ok(
-                false,
-                SHA,
-                Some(OTHER)
-            )),
-            Err(format!(
-                "release: local tag v1.2.3 points at {OTHER}, candidate is {SHA}"
-            ))
+            release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, Some(OTHER))),
+            Ok(vec![OpRecord::new(
+                "tag-local",
+                "v1.2.3",
+                OpState::Failed,
+                &format!("release: local tag v1.2.3 points at {OTHER}, candidate is {SHA}")
+            )])
         );
     }
 
@@ -1529,26 +1562,44 @@ mod tests {
     #[test]
     fn release_git_error_blocks_live_release() {
         assert_eq!(
-            release_run("v1.2.3", Some(SHA), "1", false, || Err(
+            release_live_records("v1.2.3", Some(SHA), "1", || Err(
                 "release: cannot read git state: x".to_owned()
             )),
-            Err("release: cannot read git state: x".to_owned())
+            Ok(vec![OpRecord::new(
+                "tag-local",
+                "v1.2.3",
+                OpState::Failed,
+                "release: cannot read git state: x"
+            )])
         );
     }
 
     #[test]
-    fn release_live_reports_checks_not_execution() {
+    fn release_live_prints_one_ledger() {
         let live = release_run("v1.2.3", Some(SHA), "1", false, || {
             git_ok(false, SHA, Some(SHA))
         })
         .expect("live");
-        assert!(live.contains("executed no release step"));
-        assert!(
-            live.contains("git ls-remote --tags https://github.com/devhusdk/rules_dx.git v1.2.3")
-        );
-        assert!(!live.contains("origin"));
-        assert!(live.contains("never creates or pushes tags"));
-        assert!(!live.contains("proceeding step by step"));
+        let value: serde_json::Value = serde_json::from_str(&live).expect("json");
+        assert_eq!(value["schema"], "release-ledger/v1");
+        assert_eq!(value["records"][0]["operation"], "tag-local");
+        assert_eq!(value["records"][0]["state"], "validated");
+        assert!(live.contains(&format!("clean tree, HEAD and local tag at {SHA}")));
+        assert!(!live.contains("executed no release step"));
+    }
+
+    #[test]
+    fn release_remote_record_validates_or_fails() {
+        let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
+        let ok = release_remote_record(&candidate, Ok(format!("{SHA}\trefs/tags/v1.2.3\n")));
+        assert_eq!(ok.operation, "tag-remote");
+        assert_eq!(ok.state, OpState::Validated);
+        let bad = release_remote_record(&candidate, Ok(format!("{OTHER}\trefs/tags/v1.2.3\n")));
+        assert_eq!(bad.state, OpState::Failed);
+        assert!(bad.detail.contains("points at"));
+        let err = release_remote_record(&candidate, Err("fatal: offline".to_owned()));
+        assert_eq!(err.state, OpState::Failed);
+        assert!(err.detail.contains("fatal: offline"));
     }
 
     #[test]
@@ -1678,7 +1729,7 @@ mod tests {
         );
         assert!(write_bcr_source_for_archive(
             &dst,
-            "rules_dx",
+            &modules::ReleaseModule::core(),
             "1.2.3-rc1",
             &scratch.path().join("missing")
         )

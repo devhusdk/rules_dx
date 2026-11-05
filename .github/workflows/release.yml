@@ -379,7 +379,16 @@ jobs:
           for file in $(cat out/files.list) "$src" "$src.sha256" $sources; do
             paths+=("$PWD/out/$file")
           done
-          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" | tee ledger.json >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" > ledger.json || status=$?
+          { echo '```json'; cat ledger.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: release-ledger
+          path: ledger.json
+          if-no-files-found: warn
       - name: Check the published assets
         env:
           GH_TOKEN: ${{ github.token }}

@@ -76,6 +76,7 @@ REAL_ADAPTERS = {
     "jsonnet_lint": {"lint": ["jsonnet"]},
     "jsonnetfmt": {"format": ["jsonnet"]},
     "julia_format": {"format": ["julia"]},
+    "julialint": {"lint": ["julia"]},
     "keep_sorted": {"lint": ["text"]},
     "kotlinc": {"typecheck": ["kotlin"]},
     "ktfmt": {"format": ["kotlin"]},

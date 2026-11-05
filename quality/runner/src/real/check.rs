@@ -826,6 +826,29 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "julialint" => {
+                let work = scratch.root().join(".dx-julialint");
+                std::fs::create_dir_all(&work).map_err(|err| {
+                    execution(tool_id, format!("stage julialint work dir: {err}"))
+                })?;
+                let report = work.join("report.json");
+                let invocation = commands::julialint_check(&tool.binary, &work, &report, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let body = std::fs::read(&report).map_err(|err| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "no report (exit {:?}): {err}: {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr)
+                                .lines()
+                                .next()
+                                .unwrap_or("")
+                        ),
+                    )
+                })?;
+                parsed(tool_id, parsers::parse_julialint(&body, out.code, &strs))
+            }
             "luals" => {
                 // LuaLS reports file URIs of the real paths, so analyse and match canonical ones.
                 let root = std::fs::canonicalize(scratch.root()).map_err(|err| {

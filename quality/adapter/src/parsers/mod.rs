@@ -50,6 +50,7 @@ pub mod jet;
 pub mod jsonnet_lint;
 pub mod jsonnetfmt;
 pub mod julia_format;
+pub mod julialint;
 pub mod jvm_diagnostics;
 pub mod keep_sorted;
 pub mod ktfmt;
@@ -175,6 +176,7 @@ pub use jet::parse_jet;
 pub use jsonnet_lint::parse_jsonnet_lint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use julia_format::parse_julia_format;
+pub use julialint::parse_julialint;
 pub use jvm_diagnostics::parse_jvm_diagnostics;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
@@ -1924,6 +1926,14 @@ mod tests {
         super::jet::parse_jet(input, files)
     }
 
+    fn fuzz_julialint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::julialint::parse_julialint(input, code, files)
+    }
+
     fn fuzz_jsonnet_lint(
         input: &[u8],
         code: Option<i32>,
@@ -2919,6 +2929,7 @@ mod tests {
         ("dart", fuzz_dart_format),
         ("dart_analyze", fuzz_dart_analyze),
         ("julia_format", fuzz_julia_format),
+        ("julialint", fuzz_julialint),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("ansible_lint", fuzz_ansible_lint),
@@ -3058,6 +3069,7 @@ mod tests {
         ("dart", include_str!("dart_format.rs")),
         ("dart_analyze", include_str!("dart_analyze.rs")),
         ("julia_format", include_str!("julia_format.rs")),
+        ("julialint", include_str!("julialint.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ansible_lint", include_str!("ansible_lint.rs")),
         ("capnp", include_str!("capnp.rs")),

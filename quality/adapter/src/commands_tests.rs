@@ -3204,6 +3204,28 @@ fn jet_check_writes_only_the_report() {
 }
 
 #[test]
+fn julialint_check_names_the_files_and_writes_only_the_report() {
+    let invocation = julialint_check(
+        Path::new(BIN),
+        Path::new("/s"),
+        Path::new("/s/.dx-julialint/report.json"),
+        &[Path::new("/s/a.jl"), Path::new("/s/b.jl")],
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--scratch",
+            "/s",
+            "--report",
+            "/s/.dx-julialint/report.json",
+            "/s/a.jl",
+            "/s/b.jl",
+        ]
+    );
+}
+
+#[test]
 fn thrift_check_is_strict_verbose_and_writes_only_to_out() {
     let invocation = thrift_check(
         Path::new(BIN),

@@ -758,6 +758,10 @@ julia_pkg.from_manifest(
     name = "dx_julia_jet",
     lockfile = "//julia/tools/jet:Manifest.bazel.json",
 )
+julia_pkg.from_manifest(
+    name = "dx_julia_lint",
+    lockfile = "//julia/tools/lint:Manifest.bazel.json",
+)
 julia_pkg.pkg_annotation(
     dep = "Preferences",
     patch_args = ["-p1"],
@@ -776,7 +780,27 @@ julia_pkg.pkg_annotation(
     patch_args = ["-p1"],
     patches = ["//julia/tools/jet/patches:MacroTools.patch"],
 )
-use_repo(julia_pkg, "dx_julia_format", "dx_julia_jet")
+julia_pkg.pkg_annotation(
+    dep = "ExceptionUnwrapping",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/lint/patches:ExceptionUnwrapping.patch"],
+)
+julia_pkg.pkg_annotation(
+    dep = "CommonMark",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/lint/patches:CommonMark.patch"],
+)
+julia_pkg.pkg_annotation(
+    dep = "JuliaWorkspaces",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/lint/patches:JuliaWorkspaces.patch"],
+)
+julia_pkg.pkg_annotation(
+    dep = "JSON",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/lint/patches:JSON.patch"],
+)
+use_repo(julia_pkg, "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
 julia_pkg_dev = use_extension(
     "@rules_julia//julia/pkg:extensions.bzl",

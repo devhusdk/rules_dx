@@ -669,6 +669,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "ocaml",
     },
+    "julialint": {
+        "attr": attr.label(default = "//config:tool_julialint", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "fallback": "=@rules_dx//julia/tools/lint:julialint",
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "julia",
+    },
     "julia_format": {
         "attr": attr.label(default = "//config:tool_julia_format", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1178,6 +1186,12 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive Zig format family aspect (zig fmt).",
         "shard": "zig",
         "suffix": "-zig",
+    },
+    "real_julia_lint": {
+        "capability": "lint",
+        "doc": "Additive Julia lint family aspect (JuliaWorkspaces).",
+        "shard": "julia",
+        "suffix": "-julia",
     },
     "real_zig_lint": {
         "capability": "lint",
@@ -2142,6 +2156,8 @@ real_swift_lint_aspect = _real_swift_lint_aspect
 real_zig_format_aspect = _make_real_aspect("real_zig_format")
 
 real_zig_lint_aspect = _make_real_aspect("real_zig_lint")
+
+real_julia_lint_aspect = _make_real_aspect("real_julia_lint")
 
 real_php_lint_aspect = _make_real_aspect("real_php_lint")
 

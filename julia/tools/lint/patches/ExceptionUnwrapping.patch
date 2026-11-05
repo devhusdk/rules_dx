@@ -1,0 +1,14 @@
+--- a/src/ExceptionUnwrapping.jl
++++ b/src/ExceptionUnwrapping.jl
+@@ -1,11 +1,5 @@
+ module ExceptionUnwrapping
+ 
+-# Document this Module via the README.md file.
+-@doc let path = joinpath(dirname(@__DIR__), "README.md")
+-    include_dependency(path)
+-    read(path, String)
+-end ExceptionUnwrapping
+-
+ export unwrap_exception, has_wrapped_exception, is_wrapped_exception,
+     unwrap_exception_until, unwrap_exception_to_root, @test_throws_wrapped,
+     summarize_current_exceptions

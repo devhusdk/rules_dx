@@ -2088,6 +2088,23 @@ JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
     },
 }
 
+JULIA_JULIALINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["julia"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "julia",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "julialint",
+    "transport": "single",
+    "unsupported": {
+        "windows_arm64": "Julia ships no windows_arm64 runtime",
+    },
+}
+
 D_DFMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2445,6 +2462,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     ERLANG_ELVIS_LINT_SUPPORT,
     ERLANG_ERLFMT_FORMAT_SUPPORT,
     JULIA_JULIA_FORMAT_FORMAT_SUPPORT,
+    JULIA_JULIALINT_LINT_SUPPORT,
     SWIFT_SWIFT_FORMAT_FORMAT_SUPPORT,
     SWIFT_SWIFT_LINT_LINT_SUPPORT,
     ZIG_ZIG_FMT_FORMAT_SUPPORT,

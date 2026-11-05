@@ -56,6 +56,14 @@ a name alone. Third-party packages need a `# gazelle:resolve julia` line.
 `julia_format`. The formatter and its packages are fetched only for Julia
 targets. Syntax errors are reported with line and column and are never written.
 
+## Linting
+
+`dx lint` runs the Julia VS Code linter (JuliaWorkspaces.jl 13.5.0) when a
+`julia` family selects `julialint`. `--@rules_dx//config:tool_julialint`
+overrides the pinned binary. Findings are reported as `julialint/<code>` at
+their line and column. It works offline and only reads the files dx passes.
+See `docs/cli/commands/quality.md`.
+
 ## Type checking
 
 `dx typecheck` runs JET 0.13.1 when a `julia` family selects `jet`.

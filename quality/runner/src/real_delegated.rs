@@ -661,6 +661,67 @@ pub(super) fn zig_ast_check_runs_one_process_per_file_and_never_trusts_a_failed_
     assert_eq!(both.len(), 2);
 }
 
+fn julialint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let after = |name: &str| {
+        let at = text.iter().position(|a| a == name).expect("flag");
+        text[at + 1].clone()
+    };
+    assert!(after("--scratch").contains(".dx-julialint"));
+    let report = after("--report");
+    assert!(report.contains(".dx-julialint"));
+    let file = last_file(argv);
+    let source = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, body) = if source.contains("crash") {
+        (2, String::new())
+    } else if source.contains("stray") {
+        let line = r#"{"v":1,"file":"/elsewhere/b.jl","line":1,"col":1,"severity":"error","rule":"r","message":"m"}"#;
+        (0, format!("{line}\n"))
+    } else if source.contains("missing") {
+        let line = format!(
+            r#"{{"v":1,"file":"{file}","line":1,"col":3,"severity":"error","rule":"missing-reference","message":"Missing reference: x"}}"#
+        );
+        (0, format!("{line}\n"))
+    } else {
+        (0, String::new())
+    };
+    if code == 0 {
+        std::fs::write(&report, body)?;
+    }
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn julialint_maps_findings_and_never_trusts_a_failed_run() {
+    let backend = backend_for("julialint", plain_tool(), julialint_behavior);
+    let lint = |text: &str| backend.diagnose("julialint", "lint", &single("a.jl", text));
+    assert!(lint("x = 1\n").expect("check").is_empty());
+    let found = lint("f() = missing\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "a.jl");
+    assert_eq!(found[0].rule_id, "julialint/missing-reference");
+    assert!(lint("crash\n").is_err());
+    assert!(lint("stray\n").is_err());
+    assert_eq!(
+        backend
+            .apply_fix("julialint", "a.jl", "x = 1\n", "lint")
+            .expect("check-only"),
+        "x = 1\n"
+    );
+}
+
 fn dart_behavior(
     argv: &[OsString],
     _cwd: &Path,

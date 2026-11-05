@@ -1,0 +1,6 @@
+exports_files([
+    "CommonMark.patch",
+    "ExceptionUnwrapping.patch",
+    "JSON.patch",
+    "JuliaWorkspaces.patch",
+])

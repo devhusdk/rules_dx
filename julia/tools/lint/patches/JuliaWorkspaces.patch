@@ -1,0 +1,52 @@
+diff --git a/shared/julia_dynamic_analysis_process_protocol.jl b/deps/shared/julia_dynamic_analysis_process_protocol.jl
+similarity index 100%
+rename from shared/julia_dynamic_analysis_process_protocol.jl
+rename to deps/shared/julia_dynamic_analysis_process_protocol.jl
+diff --git a/shared/symbolserver/faketypes.jl b/deps/shared/symbolserver/faketypes.jl
+similarity index 100%
+rename from shared/symbolserver/faketypes.jl
+rename to deps/shared/symbolserver/faketypes.jl
+diff --git a/shared/symbolserver/serialize.jl b/deps/shared/symbolserver/serialize.jl
+similarity index 100%
+rename from shared/symbolserver/serialize.jl
+rename to deps/shared/symbolserver/serialize.jl
+diff --git a/shared/symbolserver/symbols.jl b/deps/shared/symbolserver/symbols.jl
+similarity index 100%
+rename from shared/symbolserver/symbols.jl
+rename to deps/shared/symbolserver/symbols.jl
+diff --git a/shared/symbolserver/utils.jl b/deps/shared/symbolserver/utils.jl
+similarity index 100%
+rename from shared/symbolserver/utils.jl
+rename to deps/shared/symbolserver/utils.jl
+diff --git a/src/SymbolServer/SymbolServer.jl b/src/SymbolServer/SymbolServer.jl
+index c043c5c..9886301 100644
+--- a/src/SymbolServer/SymbolServer.jl
++++ b/src/SymbolServer/SymbolServer.jl
+@@ -10,10 +10,10 @@ import Sockets, UUIDs
+ # moved there
+ using REPL
+ 
+-include("../../shared/symbolserver/faketypes.jl")
+-include("../../shared/symbolserver/symbols.jl")
+-include("../../shared/symbolserver/utils.jl")
+-include("../../shared/symbolserver/serialize.jl")
++include("../../deps/shared/symbolserver/faketypes.jl")
++include("../../deps/shared/symbolserver/symbols.jl")
++include("../../deps/shared/symbolserver/utils.jl")
++include("../../deps/shared/symbolserver/serialize.jl")
+ using .CacheStore
+ 
+ include("availability.jl")
+diff --git a/src/packagedef.jl b/src/packagedef.jl
+index ea66e4f..0e14da2 100644
+--- a/src/packagedef.jl
++++ b/src/packagedef.jl
+@@ -14,7 +14,7 @@ using .URIs2: filepath2uri, uri2filepath
+ using .URIs2: URI, @uri_str
+ 
+ include("exception_types.jl")
+-include("../shared/julia_dynamic_analysis_process_protocol.jl")
++include("../deps/shared/julia_dynamic_analysis_process_protocol.jl")
+ include("dynamic_feature/dynamic_fsm.jl")
+ include("dynamic_feature/dynamic_messages.jl")
+ include("dynamic_feature/djp_runtime.jl")

@@ -173,7 +173,7 @@ Every tool runs from a managed executable. To use your own build, pass its targe
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_<name>=//tools:my_tool
 ```
 
-Tools with an override flag: `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
+Tools with an override flag: `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `julialint`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
 
 The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates must be a single executable file. The others must be executable targets. Anything else fails analysis with the tool named.
 
@@ -249,6 +249,7 @@ The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alter
 | `selene` | Lint Lua | |
 | `luals` | Typecheck Lua | |
 | `julia_format` | Format Julia | `windows_arm64` |
+| `julialint` | Lint Julia | `windows_arm64` |
 | `jet` | Typecheck Julia | |
 | `mix_format` | Format Elixir | |
 | `credo` | Lint Elixir | |

@@ -1630,6 +1630,25 @@ pub fn jet_check(binary: &Path, config: &Path, scratch: &Path, report: &Path) ->
     }
 }
 
+/// `lint.jl --scratch DIR --report OUT FILE...`; the report is the only write.
+pub fn julialint_check(
+    binary: &Path,
+    scratch: &Path,
+    report: &Path,
+    files: &[&Path],
+) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.push(OsString::from("--scratch"));
+    argv.push(scratch.as_os_str().to_owned());
+    argv.push(OsString::from("--report"));
+    argv.push(report.as_os_str().to_owned());
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JULIA_FORMAT_CHECK_ARGS, files, "")
 }

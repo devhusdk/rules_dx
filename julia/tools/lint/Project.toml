@@ -1,0 +1,7 @@
+[deps]
+JuliaWorkspaces = "e554591c-7f10-434f-9f27-2097f62a04fd"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+
+[compat]
+JuliaWorkspaces = "=13.5.0"
+Preferences = "=1.5.0"

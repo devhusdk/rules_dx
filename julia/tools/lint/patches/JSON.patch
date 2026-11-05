@@ -1,0 +1,17 @@
+--- a/Project.toml
++++ b/Project.toml
+@@ -11,14 +11,6 @@
+ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+ Unicode = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+ 
+-[weakdeps]
+-ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+-Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+-
+-[extensions]
+-JSONArrowExt = ["ArrowTypes"]
+-JSONSerializationExt = ["Serialization"]
+-
+ [compat]
+ Arrow = "2.8.0"
+ ArrowTypes = "2.2"

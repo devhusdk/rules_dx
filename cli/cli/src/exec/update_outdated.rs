@@ -1,5 +1,5 @@
 use super::common::*;
-use super::update_unused::{self, Unused};
+use super::update_unused::{self, Missing, Unused};
 use dx_adopt::dependency_sets::{self, Ecosystem, Selection};
 use dx_output::{
     command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
@@ -151,10 +151,18 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     } = collect(workspace, &resolved, &builtins, false, fetch);
     let exit = i32::from(!found.errors.is_empty());
     let unused = update_unused::find(workspace, &resolved);
+    let missing = update_unused::find_missing(workspace, &resolved);
     if let Err(code) = if json {
-        emit_json(out, &found, &unsupported, &ecosystems, &unused, exit)
+        emit_json(
+            out,
+            &found,
+            &unsupported,
+            &ecosystems,
+            (&unused, &missing),
+            exit,
+        )
     } else {
-        emit_text(out, &found, &unsupported, &ecosystems, &unused)
+        emit_text(out, &found, &unsupported, &ecosystems, (&unused, &missing))
     } {
         return code;
     }
@@ -405,7 +413,7 @@ fn emit_json(
     found: &Findings,
     unsupported: &[String],
     ecosystems: &BTreeMap<String, Ecosystem>,
-    unused: &[Unused],
+    (unused, missing): (&[Unused], &[Missing]),
     exit: i32,
 ) -> Result<(), i32> {
     for candidate in &found.candidates {
@@ -458,6 +466,7 @@ fn emit_json(
         )?;
     }
     update_unused::emit_json(out, unused)?;
+    update_unused::emit_missing_json(out, missing)?;
     emit_built(
         out,
         Ok(command_finished(
@@ -486,7 +495,7 @@ fn emit_text(
     found: &Findings,
     unsupported: &[String],
     ecosystems: &BTreeMap<String, Ecosystem>,
-    unused: &[Unused],
+    (unused, missing): (&[Unused], &[Missing]),
 ) -> Result<(), i32> {
     for candidate in &found.candidates {
         let published = candidate
@@ -521,7 +530,8 @@ fn emit_text(
     if found.candidates.is_empty() && found.errors.is_empty() && found.unknown.is_empty() {
         check_stdout_write(writeln!(out, "nothing is outdated"))?;
     }
-    update_unused::emit_text(out, unused)
+    update_unused::emit_text(out, unused)?;
+    update_unused::emit_missing_text(out, missing)
 }
 
 pub(super) struct DirFetch(pub(super) PathBuf);
@@ -681,7 +691,14 @@ mod tests {
     #[test]
     fn text_output_lists_candidates_or_says_nothing() {
         let mut out = Vec::new();
-        emit_text(&mut out, &Findings::default(), &[], &BTreeMap::new(), &[]).expect("text");
+        emit_text(
+            &mut out,
+            &Findings::default(),
+            &[],
+            &BTreeMap::new(),
+            (&[], &[]),
+        )
+        .expect("text");
         assert_eq!(String::from_utf8_lossy(&out), "nothing is outdated\n");
         let found = Findings {
             candidates: vec![Candidate {
@@ -698,7 +715,14 @@ mod tests {
             unknown: Vec::new(),
         };
         let mut out = Vec::new();
-        emit_text(&mut out, &found, &["gradle".into()], &BTreeMap::new(), &[]).expect("text");
+        emit_text(
+            &mut out,
+            &found,
+            &["gradle".into()],
+            &BTreeMap::new(),
+            (&[], &[]),
+        )
+        .expect("text");
         let text = String::from_utf8_lossy(&out);
         assert!(text.contains(
             "cargo:serde 1 -> 2.0.0 (published 2026-01-01T00:00:00Z): dx update cargo:serde 2.0.0"
@@ -787,7 +811,7 @@ mod tests {
             ..Findings::default()
         };
         let mut out = Vec::new();
-        emit_text(&mut out, &found, &[], &BTreeMap::new(), &[]).expect("text");
+        emit_text(&mut out, &found, &[], &BTreeMap::new(), (&[], &[])).expect("text");
         assert_eq!(
             String::from_utf8_lossy(&out),
             "github-actions:o/r: unknown (no GitHub release)\n"

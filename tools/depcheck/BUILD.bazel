@@ -20,6 +20,7 @@ rust_library(
         "src/ecosystem/rust.rs",
         "src/exceptions.rs",
         "src/lib.rs",
+        "src/missing.rs",
         "src/tests.rs",
         "src/toml_util.rs",
         "src/types.rs",

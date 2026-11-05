@@ -12,6 +12,7 @@ pub mod ecosystem;
 
 mod consistency;
 mod exceptions;
+mod missing;
 mod toml_util;
 mod types;
 mod unused;
@@ -32,6 +33,7 @@ pub use exceptions::parse_exceptions;
 pub use types::{
     DepInfo, DepcheckError, Ecosystem, Exception, LockVersions, Usage, WorkspaceLocks,
 };
+pub use missing::{find_missing_go, MissingDep};
 pub use unused::{find_unused, parse_set_exceptions, SetException, UnusedDep};
 pub use usage::{cmd_usage, find_usages, is_test_file};
 pub use version::satisfies_for;

@@ -10,6 +10,7 @@ go_library(
         "doc.go",
         "lang.go",
         "naming.go",
+        "workspace.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/javascript",
     visibility = [

@@ -964,3 +964,19 @@ func TestGenerateLinksNpmPackagesAtLockDirectory(t *testing.T) {
 		t.Errorf("package without a lock generated %v", other.Gen)
 	}
 }
+
+func TestGenerateLinksNpmPackagesInWorkspaceMembers(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	writeFixture(t, root, "pnpm-workspace.yaml", "packages:\n  - 'apps/*'\n  - '!apps/skip'\n")
+	for _, d := range []string{"apps/web", "apps/skip", "libs/x"} {
+		writeFixture(t, root, d+"/package.json", "{}\n")
+	}
+	lang := NewLanguage()
+	for rel, want := range map[string]int{"apps/web": 1, "apps/skip": 0, "libs/x": 0} {
+		result := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel})
+		if len(result.Gen) != want {
+			t.Errorf("%s generated %v, want %d rules", rel, result.Gen, want)
+		}
+	}
+}

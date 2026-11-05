@@ -395,7 +395,7 @@ maven.install(
         "https://repo1.maven.org/maven2",
     ],
 )
-use_repo(maven, "maven")
+use_repo(maven, "maven", "rules_android_maven")
 
 maven_tools = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven_tools.install(
@@ -649,7 +649,7 @@ bazel_dep(name = "rules_flutter", version = "0.0.8")
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.8")
-use_repo(flutter, "flutter_toolchains", "flutter_web_sdk")
+use_repo(flutter, "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_toolchains", "flutter_web_sdk")
 
 flutter_dev = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
 flutter_dev.pub(

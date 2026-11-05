@@ -1,4 +1,4 @@
-load("@rules_dx//flutter/rules:defs.bzl", "flutter_application")
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_android_app", "flutter_application")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
@@ -33,6 +33,14 @@ flutter_application(
     main = "lib/missing_asset.dart",
     tags = ["manual"],
     deps = ["@dx_flutter_app_deps//:flutter"],
+)
+
+flutter_android_app(
+    name = "bad_abi",
+    android_abi = "riscv",
+    application = "//flutter/tests/fixtures/flutter-app/app:native",
+    package_name = "dk.devhus.flutterapp",
+    tags = ["manual"],
 )
 
 real_source_target(

@@ -33,8 +33,10 @@ bazel test //flutter/tests/fixtures/flutter-app/android:inspect_apk_test //flutt
 `FLUTTER_COMPATIBLE_WITH` admits the iOS target platform, so `:ios_app` is compatible when built with `--ios_multi_cpus=sim_arm64` on a macOS arm64 host. The simulator runs debug builds only, so build with `-c dbg`.
 
 ```sh
-bazel build //flutter/tests/fixtures/flutter-app:ios_app -c dbg --ios_multi_cpus=sim_arm64
-bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test -c dbg --ios_multi_cpus=sim_arm64
+bazel build //flutter/tests/fixtures/flutter-app:ios_app --config=ios_sim
+bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test --config=ios_sim
 ```
+
+`--config=ios_sim` in `.bazelrc` sets `-c dbg --ios_multi_cpus=sim_arm64`, so evidence.yml can pass it. `:ios_app` builds on the `macos_arm64` runner. The launchers read `DX_SIMCTL_DEVICE` to name the simulator, so set it when running the smoke test by hand.
 
 The macOS, Xcode, simulator runtime and device model go here once a macOS run passes.

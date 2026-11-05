@@ -5,6 +5,8 @@ LLVM_CLANG_VERSION = "23.1.2"
 
 GCC_VERSION = "16.2.0"
 
+CC_COMPILER_VERSIONS = {"gcc": GCC_VERSION, "llvm": LLVM_CLANG_VERSION}
+
 # The glibc of the pinned sysroot.
 GCC_GLIBC = "glibc_2.28"
 

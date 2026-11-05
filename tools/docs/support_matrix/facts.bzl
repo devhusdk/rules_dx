@@ -1,10 +1,11 @@
 """Writes the support matrix facts JSON from the language list and the quality registry."""
 
 load("//cc/toolchains:bindings.bzl", "CC_COMPILERS", "cc_compiler_identity")
+load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPUTED_CONSTRAINTS", "DOC_TOOLS", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
+load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "DOC_TOOLS", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -37,7 +38,13 @@ def _identity(row):
     if "compiler" not in row:
         return {}
     identity = cc_compiler_identity(CC_COMPILERS[row["compiler"]], "")
-    return {"coverage": identity.coverage, "driver": identity.driver}
+    return {
+        "compiler": row["compiler"],
+        "coverage": identity.coverage,
+        "driver": identity.driver,
+        "probe": COMPILER_PROBES.get(row["compiler"], ""),
+        "version": CC_COMPILER_VERSIONS.get(row["compiler"], ""),
+    }
 
 def tool_not_applicable(records):
     """Merges the unsupported platforms of the records into reasons per family, capability and tool."""
@@ -93,6 +100,9 @@ def support_matrix_facts_dict():
     for compiler in PENDING_COMPILERS:
         if compiler not in CC_COMPILERS:
             fail("support matrix: PENDING_COMPILERS names unknown compiler " + compiler)
+    for compiler in COMPILER_PROBES:
+        if compiler not in CC_COMPILERS:
+            fail("support matrix: COMPILER_PROBES names unknown compiler " + compiler)
     row_names = {row["name"]: True for row in ROWS}
     platform_ids = {platform["id"]: True for platform in PLATFORMS}
     tool_na = tool_not_applicable(SUPPORT_RECORDS)

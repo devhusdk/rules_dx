@@ -890,6 +890,7 @@ rustfmt_test(
         ":coverage_cells",
         ":coverage_cells_bin",
         ":coverage_cells_test",
+        ":compiler_evidence_test",
         ":bcr_outdated",
         ":bcr_outdated_bin",
         ":action_pins_test",
@@ -946,6 +947,19 @@ rust_test(
     data = ["//tools/coverage:cells.txt"],
     deps = [
         ":coverage_cells",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
+    name = "compiler_evidence_test",
+    srcs = ["compiler_evidence_test.rs"],
+    data = ["compiler_evidence.sh"],
+    tags = ["no-remote"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

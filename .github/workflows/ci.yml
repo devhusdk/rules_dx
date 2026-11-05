@@ -190,15 +190,22 @@ jobs:
           out="$RUNNER_TEMP/compiler-evidence/linux_x86_64.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
-          bazel build --noshow_progress --output_groups=starlark_manifest "$@" //cc/toolchains:identity //cc/toolchains:identity_gcc || true
-          bazel test --noshow_progress --test_output=errors "$@" //cc/toolchains:identity //cc/toolchains:identity_gcc || true
-          tools/ci/compiler_evidence.sh "$out" linux_x86_64 gcc //cc/toolchains:identity_gcc //tools/testing/hermetic:c_fixture_gcc //tools/testing/hermetic:cpp_fixture_gcc
-          tools/ci/compiler_evidence.sh "$out" linux_x86_64 llvm //cc/toolchains:identity //cc/tests/fixtures/hello:hello_test
+          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts
+          DX_BIN="$(bazel info "$@" bazel-bin)"
+          DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
+          export DX_BIN DX_TESTLOGS
+          facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
+          targets="$(jq -r '.rows[] | select(.section == "compilers") | .identity.probe, .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ')"
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets || true
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $targets || true
+          tools/ci/compiler_evidence.sh "$out" linux_x86_64 "$facts"
           {
             echo "#### Compiler evidence"
-            echo "| compiler | probe compiler | target | outcome |"
-            echo "| --- | --- | --- | --- |"
-            jq -r '"| \(.compiler_flag) | \(.compiler) | \(.target) | \(.outcome) |"' "$out"
+            echo "| row | version | probe compiler | target | ran/total | outcome |"
+            echo "| --- | --- | --- | --- | --- | --- |"
+            jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -412,17 +419,22 @@ jobs:
           out="$RUNNER_TEMP/compiler-evidence/${PLATFORM}.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
-          ids="//cc/toolchains:identity //cc/toolchains:identity_gcc"
-          bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $ids || true
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $ids //cc/tests/fixtures/hello:hello_test || true
-          export DX_BIN="$(bazel info "$@" bazel-bin)" DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
-          tools/ci/compiler_evidence.sh "$out" "$PLATFORM" gcc //cc/toolchains:identity_gcc
-          tools/ci/compiler_evidence.sh "$out" "$PLATFORM" llvm //cc/toolchains:identity //cc/tests/fixtures/hello:hello_test
+          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts
+          DX_BIN="$(bazel info "$@" bazel-bin)"
+          DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
+          export DX_BIN DX_TESTLOGS
+          facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
+          targets="$(jq -r '.rows[] | select(.section == "compilers") | .identity.probe, .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ')"
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets || true
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $targets || true
+          tools/ci/compiler_evidence.sh "$out" "$PLATFORM" "$facts"
           {
             echo "#### Compiler evidence"
-            echo "| compiler | probe compiler | target | outcome |"
-            echo "| --- | --- | --- | --- |"
-            jq -r '"| \(.compiler_flag) | \(.compiler) | \(.target) | \(.outcome) |"' "$out"
+            echo "| row | version | probe compiler | target | ran/total | outcome |"
+            echo "| --- | --- | --- | --- | --- | --- |"
+            jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && matrix.shard == 0

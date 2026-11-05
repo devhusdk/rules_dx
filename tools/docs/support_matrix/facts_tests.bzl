@@ -1,5 +1,6 @@
 """Schema tests for the support matrix facts."""
 
+load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//quality:adapters.bzl", "NOT_APPLICABLE")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
@@ -119,7 +120,11 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "compiler identity",
                 {row["name"]: row["identity"] for row in facts["rows"] if row["section"] == "compilers"},
-                {"cc_gcc": {"coverage": "gcov", "driver": "gnu"}, "cc_llvm": {"coverage": "llvm", "driver": "gnu"}, "cc_msvc": {"coverage": "", "driver": "msvc"}},
+                {
+                    "cc_gcc": {"compiler": "gcc", "coverage": "gcov", "driver": "gnu", "probe": "//cc/toolchains:identity_gcc", "version": GCC_VERSION},
+                    "cc_llvm": {"compiler": "llvm", "coverage": "llvm", "driver": "gnu", "probe": "//cc/toolchains:identity", "version": LLVM_CLANG_VERSION},
+                    "cc_msvc": {"compiler": "msvc", "coverage": "", "driver": "msvc", "probe": "", "version": ""},
+                },
             ),
             expect_equal("pending compilers", sorted(facts["pending_compilers"].keys()), []),
             expect_true("rows are listed", len(facts["rows"]) > 0),

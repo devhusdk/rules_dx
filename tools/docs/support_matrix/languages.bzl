@@ -341,6 +341,9 @@ NOT_LANGUAGES = [
 
 PENDING_COMPILERS = {}
 
+# The identity test of each compiler that has one.
+COMPILER_PROBES = {"gcc": "//cc/toolchains:identity_gcc", "llvm": "//cc/toolchains:identity"}
+
 # A platform a row does not support, with the reason.
 PLATFORM_NOT_APPLICABLE = {
     "appimage": {

@@ -158,7 +158,7 @@ fn defaulted_config_tools(source: &str) -> Vec<String> {
 
 #[test]
 fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
-    let refusals = runner_config_refusals(&read_runfiles("quality/runner/src/real/check.rs"));
+    let refusals = runner_config_refusals(&read_runfiles("quality/runner/real_sources.txt"));
     assert!(
         !refusals.is_empty(),
         "the runner refuses no tool without a config"

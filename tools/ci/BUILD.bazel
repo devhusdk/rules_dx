@@ -520,7 +520,7 @@ rust_test(
         "//quality:native_config.bzl",
         "//quality:native_config_tests.bzl",
         "//quality/artifacts:scalafmt.bzl",
-        "//quality/runner:src/real/check.rs",
+        "//quality/runner:real_sources.txt",
         "//quality/runner:src/real/staging.rs",
         "//quality/testdata:biome_cfg/biome.json",
         "//quality/tools/jvm:scalafmt_default.conf",

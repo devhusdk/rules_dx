@@ -457,6 +457,6 @@ def native_config_unit_tests(name):
             ),
         ],
         file_checks = {
-            "//quality/runner:src/real/check.rs": _RUNNER_CONFIG_REFUSALS,
+            "//quality/runner:real_sources.txt": _RUNNER_CONFIG_REFUSALS,
         },
     )

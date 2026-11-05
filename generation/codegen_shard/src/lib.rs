@@ -166,12 +166,14 @@ pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
                 path: entry.logical_path.clone(),
             });
         }
-        dx_path::proto_validate::check_unique_insert(&mut seen, &entry.logical_path, |existing| {
-            Error::DuplicateLogicalPath {
+        dx_path::proto_validate::check_unique_insert(
+            &mut seen,
+            entry.logical_path.to_lowercase(),
+            |_| Error::DuplicateLogicalPath {
                 producer: shard.producer.clone(),
-                path: (*existing).clone(),
-            }
-        })?;
+                path: entry.logical_path.clone(),
+            },
+        )?;
     }
     Ok(())
 }
@@ -434,6 +436,20 @@ mod tests {
         assert_eq!(
             validate(&shard),
             Err(Error::NotReadOnly {
+                producer: "//gen:alpha".into(),
+                path: "src/beta.rs".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_paths_that_differ_only_by_case() {
+        let mut shard = sample();
+        shard.entries[0].logical_path = "src/Beta.rs".into();
+        shard.entries[1].logical_path = "src/beta.rs".into();
+        assert_eq!(
+            validate(&shard),
+            Err(Error::DuplicateLogicalPath {
                 producer: "//gen:alpha".into(),
                 path: "src/beta.rs".into(),
             })

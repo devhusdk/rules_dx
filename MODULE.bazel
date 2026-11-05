@@ -140,7 +140,7 @@ single_version_override(
     version = "0.65.0",
 )
 
-# floor: forced by rules_dart 0.8.1 MVS (#1783)
+# floor: equals tested; forced by rules_dart 0.8.1 MVS (#1783)
 bazel_dep(name = "gazelle", version = "0.54.0")
 single_version_override(
     module_name = "gazelle",
@@ -340,7 +340,7 @@ dx_terraform.provider(
 )
 use_repo(dx_terraform, "dx_terraform_providers")
 
-# floor: forced by rules_dart 0.8.1 MVS (#1783)
+# floor: equals tested; forced by rules_dart 0.8.1 MVS (#1783)
 bazel_dep(name = "bazel_lib", version = "3.7.2")
 single_version_override(
     module_name = "bazel_lib",
@@ -1017,6 +1017,10 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
+single_version_override(
+    module_name = "aspect_rules_jest",
+    version = "0.26.0",
+)
 
 # floor: equals tested
 bazel_dep(name = "rules_nodejs", version = "6.7.7", dev_dependency = True)

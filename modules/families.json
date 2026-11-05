@@ -201,6 +201,7 @@
         "real_nix_format_aspect",
         "real_nix_lint_aspect",
         "real_pkl_format_aspect",
+        "real_pkl_lint_aspect",
         "real_pkl_typecheck_aspect",
         "real_rego_format_aspect",
         "real_rego_lint_aspect",
@@ -275,6 +276,7 @@
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//quality/artifacts:extension.bzl%dx_tools",
+        "@apple_support//crosstool:setup.bzl%apple_cc_configure_extension",
         "@gazelle//:extensions.bzl%go_deps",
         "@rules_go//go:extensions.bzl%go_sdk",
         "@rules_python//python/extensions:python.bzl%python",
@@ -755,6 +757,7 @@
         "real_python_typecheck_aspect"
       ],
       "bazel_deps": [
+        "hermetic_launcher",
         "rules_py"
       ],
       "dirs": [

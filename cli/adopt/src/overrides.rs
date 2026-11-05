@@ -96,6 +96,12 @@ pub const OVERRIDES: &[Override] = &[
         archive: None,
         patches: &[
             OverridePatch {
+                file: "package_annotation_version.patch",
+                content: include_str!(
+                    "../../../patches/rules_julia/package_annotation_version.patch"
+                ),
+            },
+            OverridePatch {
                 file: "package_name.patch",
                 content: include_str!("../../../patches/rules_julia/package_name.patch"),
             },
@@ -136,6 +142,10 @@ pub const OVERRIDES: &[Override] = &[
             OverridePatch {
                 file: "pep517_msvc.patch",
                 content: include_str!("../../../patches/rules_py/pep517_msvc.patch"),
+            },
+            OverridePatch {
+                file: "venv_bin_files.patch",
+                content: include_str!("../../../patches/rules_py/venv_bin_files.patch"),
             },
         ],
     },
@@ -189,6 +199,10 @@ pub const OVERRIDES: &[Override] = &[
                     "../../../patches/gcc_toolchain/target_identity_extension.patch"
                 ),
             },
+            OverridePatch {
+                file: "native_include_layout.patch",
+                content: include_str!("../../../patches/gcc_toolchain/native_include_layout.patch"),
+            },
         ],
     },
     Override {
@@ -206,6 +220,28 @@ pub const OVERRIDES: &[Override] = &[
         patches: &[OverridePatch {
             file: "redist_cccl_key.patch",
             content: include_str!("../../../patches/rules_cuda/redist_cccl_key.patch"),
+        }],
+    },
+    Override {
+        module: "rules_flutter",
+        version: "0.0.8",
+        patch_strip: 1,
+        archive: None,
+        patches: &[OverridePatch {
+            file: "missing_font.patch",
+            content: include_str!("../../../patches/rules_flutter/missing_font.patch"),
+        }],
+    },
+    Override {
+        module: "hermetic_launcher",
+        version: "0.0.17",
+        patch_strip: 1,
+        archive: None,
+        patches: &[OverridePatch {
+            file: "windows_arm64_toolchains.patch",
+            content: include_str!(
+                "../../../patches/hermetic_launcher/windows_arm64_toolchains.patch"
+            ),
         }],
     },
     Override {
@@ -858,6 +894,7 @@ archive_override(
         "//third_party/rules_dx:rules_py.py_cc_toolchain_platform.patch",
         "//third_party/rules_dx:rules_py.native_sdist_toolchain_flags.patch",
         "//third_party/rules_dx:rules_py.pep517_msvc.patch",
+        "//third_party/rules_dx:rules_py.venv_bin_files.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
@@ -980,14 +1017,14 @@ archive_override(
         apply_overrides(root).expect("applies");
         let patch = root
             .join(OVERRIDES_DIR)
-            .join("rules_rust.clippy_metadata_inputs.patch");
+            .join("windows_support.host_tools.patch");
         let mut bytes = std::fs::read(&patch).expect("patch");
         bytes[0] ^= 1;
         std::fs::write(&patch, bytes).expect("corrupt");
         match check_overrides(root) {
             OverridesState::Error(detail) => {
                 assert!(
-                    detail.contains("rules_rust.clippy_metadata_inputs.patch"),
+                    detail.contains("windows_support.host_tools.patch"),
                     "{detail}"
                 )
             }

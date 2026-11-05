@@ -148,7 +148,7 @@ fn the_configuration_variation_is_observable() {
         config(&loose)
     );
     assert!(config(&strict)
-        .contains(";meta-json=dx-component-meta/1;vue-component-meta=3.3.13;typescript=5.9.3"));
+        .contains(";meta-json=dx-component-meta/1;vue-component-meta=3.3.14;typescript=5.9.3"));
 }
 
 #[test]

@@ -22,20 +22,26 @@ def _archive_pin(sha256, strip_prefix, url):
         "    strip_prefix = \"" + strip_prefix + "\",",
     ]) + "\n" + "    urls = [\"" + url + "\"],"
 
+def _redist_pins(cells):
+    return [
+        "\n".join([
+            "components = [" + ", ".join(["\"" + name + "\"" for name in _CUDA_COMPONENTS]) + "],",
+            "platforms = [" + ", ".join(["\"" + _CUDA_CELLS[cell].rules_cuda_platform + "\"" for cell in cells]) + "],",
+            "sha256 = \"" + _CUDA_REDIST_SHA256 + "\",",
+            "version = \"" + _CUDA_REDIST_VERSION + "\",",
+        ]),
+    ]
+
 def versions_contract_tests(name):
     """Fails when a tracked copy drifts from its canonical pin."""
     go_archive_pins = []
     for platform in _GO_SDK_SDKS:
         for pin in _GO_SDK_SDKS[platform]:
             go_archive_pins.append(pin)
-    cuda_pins = [
-        "\n".join([
-            "components = [" + ", ".join(["\"" + name + "\"" for name in _CUDA_COMPONENTS]) + "],",
-            "platforms = [" + ", ".join(["\"" + _CUDA_CELLS[cell].rules_cuda_platform + "\"" for cell in _cuda_qualified_cells()]) + "],",
-            "sha256 = \"" + _CUDA_REDIST_SHA256 + "\",",
-            "version = \"" + _CUDA_REDIST_VERSION + "\",",
-        ]),
-    ]
+    cuda_pins = _redist_pins(_cuda_qualified_cells())
+
+    # The root module also fetches the Windows x86_64 redist (#7017).
+    root_cuda_pins = _redist_pins(["linux_x86_64", "linux_arm64", "windows_x86_64"])
     redist_prefix = "https://developer.download.nvidia.com/compute/cuda/redist/"
     cuda_manifest_blocks = [
         "            \"relative_path\": \"" + pin.url.removeprefix(redist_prefix) + "\",\n            \"sha256\": \"" + pin.sha256 + "\","
@@ -126,7 +132,7 @@ def versions_contract_tests(name):
                                "name = \"llvm\", version = \"" + _LLVM_VERSION + "\"\n" +
                                "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"\n" +
                                "nvcc_version = \"" + _CUDA_VERSION + "\"\n" +
-                               "\n".join(cuda_pins) + "\n" +
+                               "\n".join(root_cuda_pins) + "\n" +
                                "name = \"googletest\", version = \"" + _GOOGLETEST_VERSION + "\"\n" +
                                "name = \"rules_python\", version = \"" + _RULES_PYTHON_VERSION + "\"\n" +
                                "name = \"rules_go\", version = \"" + _RULES_GO_VERSION + "\"\n" +

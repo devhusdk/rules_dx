@@ -1,0 +1,11 @@
+diff -ru a/py/private/interpreter/runtime.bzl b/py/private/interpreter/runtime.bzl
+--- a/py/private/interpreter/runtime.bzl	2026-11-05 11:29:07.601503365 +0100
++++ b/py/private/interpreter/runtime.bzl	2026-11-05 11:29:07.602636938 +0100
+@@ -32,6 +32,7 @@
+         # https://github.com/python/cpython/blob/v3.15.0a5/Python/sysmodule.c#L3570-L3576
+         pyc_tag = "cpython-{}{}".format(int(version_info["major"]), int(version_info["minor"])),
+         supports_build_time_venv = True,
++        venv_bin_files = ctx.files.venv_dlls,
+         python_version = "PY3",
+         # rules_python's own public-for-implicit-deps template files — label
+         # references, not .bzl loads.

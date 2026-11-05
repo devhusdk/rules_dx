@@ -938,7 +938,7 @@ mod tests {
         assert_eq!(run(&inv, &root).0, 0);
         let ci = root.join(".github/workflows/ci.yml");
         let fresh = std::fs::read_to_string(&ci).expect("read");
-        let stale = fresh.replace(dx_adopt::DX_VERSION, "0.0.1");
+        let stale = fresh.replace(dx_adopt::CONSUMER_WORKFLOW_PIN, "0.0.1");
         std::fs::write(&ci, &stale).expect("stale");
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");

@@ -601,7 +601,7 @@ dependencies = ["anyio>=4"]
     const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     #[test]
-    fn consumer_pinned_set_refuses_update_without_mutation() {
+    fn consumer_ruby_set_refuses_an_unversioned_gem_without_mutation() {
         let harness = Harness::new("update-consumer-pinned");
         harness.write_source("MODULE.bazel", PINNED_MODULE);
         let files = [
@@ -617,10 +617,7 @@ dependencies = ["anyio>=4"]
         let (code, _, err) = harness.run(&["update", "gems:rack", "1.0", "--apply"]);
         assert_eq!(code, 1, "{err}");
         assert!(
-            err.contains(
-                "update is not supported for ecosystem ruby set gems \
-(supported operations: audit; check and update report pinned)"
-            ),
+            err.contains("the gem line needs exactly one literal version requirement"),
             "{err}"
         );
         for (rel, text) in files {

@@ -323,7 +323,7 @@ fn configured_go_set_add_check_names_its_go_mod() {
 }
 
 #[test]
-fn configured_ruby_set_reports_unsupported_add() {
+fn configured_ruby_set_refuses_an_add_to_an_unreadable_gemfile() {
     let harness = Harness::new("update-add-consumer-unsupported");
     harness.write_source(
         "MODULE.bazel",
@@ -333,7 +333,7 @@ fn configured_ruby_set_reports_unsupported_add() {
     let (code, _, err) = harness.run(&["update", "other:thing", "1.0.0", "--apply"]);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains("update is not supported for ecosystem"),
+        err.contains("unsupported manifest shape in Gemfile"),
         "{err}"
     );
     assert_unchanged(&harness, &[("Gemfile", "x\n")]);

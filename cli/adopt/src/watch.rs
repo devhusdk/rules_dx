@@ -42,7 +42,10 @@ pub fn should_watch_path(relative: &Path) -> bool {
     let root_ignored = names
         .first()
         .is_some_and(|name| name == ".dx" || name.starts_with("bazel-"));
-    !root_ignored && !names.iter().any(|name| name == ".git")
+    let probe = names
+        .last()
+        .is_some_and(|name| name.to_lowercase().starts_with(".dx-case-probe-"));
+    !root_ignored && !probe && !names.iter().any(|name| name == ".git")
 }
 
 /// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
@@ -437,6 +440,12 @@ mod tests {
         assert!(should_watch_path(Path::new("src/main.rs")));
         assert!(should_watch_path(Path::new("BUILD.bazel")));
         assert!(should_watch_path(Path::new(".github/workflows/ci.yml")));
+    }
+
+    #[test]
+    fn watch_ignores_case_probe_files() {
+        assert!(!should_watch_path(Path::new("src/.dx-case-probe-1-0")));
+        assert!(!should_watch_path(Path::new(".DX-CASE-PROBE-1-0")));
     }
 
     #[test]

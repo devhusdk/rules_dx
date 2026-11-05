@@ -510,7 +510,7 @@ mod tests {
         let ci = root.join(".github/workflows/ci.yml");
         std::fs::create_dir_all(ci.parent().expect("parent")).expect("dir");
         let fresh = dx_adopt::render_consumer_caller();
-        let stale = fresh.replace(dx_adopt::DX_VERSION, "0.0.1");
+        let stale = fresh.replace(dx_adopt::CONSUMER_WORKFLOW_PIN, "0.0.1");
         std::fs::write(&ci, &stale).expect("stale");
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
@@ -533,7 +533,7 @@ mod tests {
         legacy_launcher(&root, OLD);
         let ci = root.join(".github/workflows/ci.yml");
         let fresh = dx_adopt::render_consumer_caller();
-        std::fs::write(&ci, fresh.replace(dx_adopt::DX_VERSION, "0.0.1")).expect("stale");
+        std::fs::write(&ci, fresh.replace(dx_adopt::CONSUMER_WORKFLOW_PIN, "0.0.1")).expect("stale");
         let mut gone = vec![
             "tools/dx.cmd".to_owned(),
             ".vscode/settings.json".to_owned(),

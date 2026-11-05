@@ -73,6 +73,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
         .env_clear()
         .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
         .env("HOME", base)
+        .env("DX_BUILD_SLOTS", "auto")
         .env("TMPDIR", &tmp)
         .env("FAKE_BAZEL_LOG", &log)
         .env("FAKE_PROBE", dx_testing::process_probe())

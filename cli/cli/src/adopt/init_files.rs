@@ -638,14 +638,17 @@ mod tests {
             let Ok(kept) = std::fs::read(&full) else {
                 continue;
             };
+            let mode = std::fs::metadata(&full).expect("metadata").permissions();
             std::fs::remove_file(&full).expect("remove");
             let missing = super::drift(root, &files).missing.contains(&file.path);
             assert_eq!(missing, file.essential, "{}", file.path);
             if file.path != "MODULE.bazel" {
-                let (code, _out, _err) = run(&invocation(&["init"]), root);
+                let (code, _out, _err) =
+                    run(&invocation(&["init", "--agents=claude,codex,gemini"]), root);
                 assert_eq!(code == 0, !file.essential, "{}", file.path);
             }
             std::fs::write(&full, kept).expect("restore");
+            std::fs::set_permissions(&full, mode).expect("mode");
         }
         scratch.close().expect("cleanup");
     }

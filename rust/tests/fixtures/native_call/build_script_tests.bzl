@@ -261,6 +261,9 @@ def _link_gcc_impl(ctx):
     asserts.true(env, ctx.attr.gcc in linker, "linker is not the pinned GCC: {}".format(linker))
     asserts.false(env, "_cross" in linker, "linker is a cross GCC: {}".format(linker))
     asserts.true(env, "-l:libstdc++.a" in link_args, "libstdc++.a is not linked: {}".format(link_args))
+    asserts.true(env, "-l:libgcc.a" in link_args, "libgcc.a is not linked: {}".format(link_args))
+    if "-l:libstdc++.a" in link_args and "-l:libgcc.a" in link_args:
+        asserts.true(env, link_args.index("-l:libgcc.a") > link_args.index("-l:libstdc++.a"), "libgcc.a must follow libstdc++.a: {}".format(link_args))
     for arg in link_args:
         if arg.startswith("-L") or arg.startswith("-B"):
             asserts.true(env, arg[2:].startswith("external/+gcc+" + ctx.attr.gcc), "search path outside the pinned GCC: {}".format(arg))

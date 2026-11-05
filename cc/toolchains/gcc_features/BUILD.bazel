@@ -87,6 +87,8 @@ cc_args(
     args = [
         "-static-libgcc",
         "-l:libstdc++.a",
+        # -nodefaultlibs linkers (rustc) need libgcc.a for the ARM64 outline atomics in libstdc++.a.
+        "-l:libgcc.a",
     ],
     requires_any_of = [
         ":static_cxx_runtime_wanted",

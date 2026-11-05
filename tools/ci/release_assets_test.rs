@@ -122,7 +122,9 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     assert!(assets.contains("if: always()"));
     assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
     assert!(
-        assets.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" $sources; do")
+        assets.contains(
+            "for file in $(cat out/files.list) \"$src\" \"$src.sha256\" \"$src.intoto.jsonl\" $sources; do"
+        )
     );
     assert!(
         driver
@@ -238,7 +240,7 @@ fn the_source_archive_is_uploaded_without_clobber() {
     let text = workflow();
     assert!(text.contains("test -s \"out/$src\""));
     assert!(
-        text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" $sources; do")
+        text.contains("for file in $(cat out/files.list) \"$src\" \"$src.sha256\" \"$src.intoto.jsonl\" $sources; do")
     );
     assert!(!text.contains("--clobber"));
     assert!(text.contains("sha256sum -c \"$src.sha256\""));
@@ -453,13 +455,16 @@ fn the_archives_are_named_per_platform() {
 fn the_attestation_is_signed_once_from_the_tag_in_the_upload_job() {
     let text = workflow();
     let step = "uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2";
-    assert_eq!(text.matches("actions/attest@").count(), 1);
+    assert_eq!(text.matches("actions/attest@").count(), 2);
+    assert!(text.contains("subject-path: out/rules_dx-${{ needs.cells.outputs.version }}.tar.gz"));
+    assert!(text.contains(".tar.gz.intoto.jsonl\"\n"));
     let upload = text.find("\n  attest:\n").expect("attest job");
-    let at = text.find(step).expect("pinned attest step");
-    assert!(at > upload);
-    let head = &text[text[..at].rfind("      - name:").expect("step")..at];
-    assert!(head.contains("steps.plan.outputs.attest == 'true'"));
-    assert!(head.contains("github.ref == format('refs/tags/{0}', env.RELEASE_TAG)"));
+    for (at, _) in text.match_indices(step) {
+        assert!(at > upload);
+        let head = &text[text[..at].rfind("      - name:").expect("step")..at];
+        assert!(head.contains("steps.plan.outputs.attest == 'true'"));
+        assert!(head.contains("github.ref == format('refs/tags/{0}', env.RELEASE_TAG)"));
+    }
     assert!(text.contains("subject-checksums: out/dx-sha256sums.txt"));
     assert!(text.contains("grep -Fxq dx-sha256sums.txt.sigstore.json"));
     assert!(text.contains("dispatch with --ref $RELEASE_TAG"));
@@ -572,12 +577,18 @@ fn consumer_job(name: &str) -> String {
 }
 
 #[test]
-fn the_bcr_submission_waits_for_the_consumer_check_and_stays_read_only() {
+fn the_bcr_submission_waits_for_the_consumer_check_and_alone_can_attest() {
     let bcr = consumer_job("bcr");
     assert!(bcr.contains("needs: consumer\n"));
-    assert!(bcr.contains("contents: read"));
-    assert!(!bcr.contains("contents: write"));
-    assert!(bcr.contains("attest: false"));
+    for permission in ["contents: write", "id-token: write", "attestations: write"] {
+        assert!(bcr.contains(permission), "{permission}");
+    }
+    assert!(bcr.contains("attest: true"));
+    let text = read_runfiles(CONSUMER);
+    assert!(text.contains("permissions:\n  contents: read\n"));
+    for permission in ["contents: write", "id-token: write", "attestations: write"] {
+        assert_eq!(text.matches(permission).count(), 1, "{permission}");
+    }
     let uses = bcr
         .lines()
         .find_map(|line| line.trim().strip_prefix("uses: "))

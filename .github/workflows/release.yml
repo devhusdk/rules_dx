@@ -307,6 +307,9 @@ jobs:
           existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
           if printf '%s\n' "$existing_names" | grep -Fxq dx-sha256sums.txt.sigstore.json; then
             gh release download "$RELEASE_TAG" --pattern dx-sha256sums.txt.sigstore.json --dir out
+            if printf '%s\n' "$existing_names" | grep -Fxq "rules_dx-${RELEASE_TAG#v}.tar.gz.intoto.jsonl"; then
+              gh release download "$RELEASE_TAG" --pattern "rules_dx-${RELEASE_TAG#v}.tar.gz.intoto.jsonl" --dir out
+            fi
             echo "attest=false" >> "$GITHUB_OUTPUT"
           else
             if [ "$GITHUB_REF_FULL" != "refs/tags/$RELEASE_TAG" ]; then
@@ -321,14 +324,23 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-checksums: out/dx-sha256sums.txt
-      - name: Keep the attestation bundle
+      - name: Attest the source archive
+        id: attest_source
+        if: steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: out/rules_dx-${{ needs.cells.outputs.version }}.tar.gz
+      - name: Keep the attestation bundles
         if: steps.plan.outputs.attest == 'true'
         env:
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+          SOURCE_BUNDLE_PATH: ${{ steps.attest_source.outputs.bundle-path }}
         run: |
           set -euo pipefail
           test -n "$BUNDLE_PATH"
+          test -n "$SOURCE_BUNDLE_PATH"
           cp "$BUNDLE_PATH" out/dx-sha256sums.txt.sigstore.json
+          cp "$SOURCE_BUNDLE_PATH" "out/rules_dx-${RELEASE_TAG#v}.tar.gz.intoto.jsonl"
       - name: Verify the archives against the bundle
         env:
           GH_TOKEN: ${{ github.token }}
@@ -376,7 +388,7 @@ jobs:
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           paths=()
           sources=$(cd out && ls source.json rules_dx_*.source.json 2>/dev/null)
-          for file in $(cat out/files.list) "$src" "$src.sha256" $sources; do
+          for file in $(cat out/files.list) "$src" "$src.sha256" "$src.intoto.jsonl" $sources; do
             paths+=("$PWD/out/$file")
           done
           status=0

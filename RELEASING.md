@@ -39,7 +39,7 @@ gh workflow run release.yml --ref vX.Y.Z
 
 The release has one source archive, `rules_dx-X.Y.Z.tar.gz`, and one source file per module: `source.json` for `rules_dx` and `rules_dx_<family>.source.json` for each module under `families/`. A family's `strip_prefix` is `rules_dx-X.Y.Z/families/<f>`, so every module points at the same archive.
 
-The workflow builds every cell, writes `dx-sha256sums.txt`, fills the sha256 values into the `cli/prebuilt/pins.bzl` of the release source archive, attests the manifest, and uploads the assets to the draft through `release_driver`. `main` keeps the pins empty. The assets job writes the `release-ledger/v1` JSON to `ledger.json` and uploads it as the `release-ledger` artifact. It fails when:
+The workflow builds every cell, writes `dx-sha256sums.txt`, fills the sha256 values into the `cli/prebuilt/pins.bzl` of the release source archive, attests the manifest and the source archive (`rules_dx-X.Y.Z.tar.gz.intoto.jsonl`), and uploads the assets to the draft through `release_driver`. `main` keeps the pins empty. The assets job writes the `release-ledger/v1` JSON to `ledger.json` and uploads it as the `release-ledger` artifact. It fails when:
 
 - there is no release for the tag (go back to step 3)
 - the release already holds a different file of the same name (delete that asset by hand)
@@ -54,7 +54,7 @@ Publishing starts `release-consumer.yml`. It builds the quickstart consumer agai
 
 ## 6. Submit to the Bazel Central Registry
 
-Submission is automatic. When every `consumer` cell in `release-consumer.yml` is green, its `bcr` job calls the `bazel-contrib/publish-to-bcr` reusable workflow (pinned by SHA, `attest: false`). It reads `.bcr/config.yml` for the module roots, pushes a branch to the registry fork and opens one pull request that adds every module at `X.Y.Z`. The `bcr-ledger` job then records the pull request URL in the `bcr-ledger` artifact and the run summary, or records `failed` when the submission did not succeed.
+Submission is automatic. When every `consumer` cell in `release-consumer.yml` is green, its `bcr` job calls the `bazel-contrib/publish-to-bcr` reusable workflow (pinned by SHA, `attest: true`; that job alone holds `contents: write`, `id-token: write` and `attestations: write`). It reads `.bcr/config.yml` for the module roots, pushes a branch to the registry fork and opens one pull request that adds every module at `X.Y.Z`. The `bcr-ledger` job then records the pull request URL in the `bcr-ledger` artifact and the run summary, or records `failed` when the submission did not succeed.
 
 One-time setup, done by the owner:
 

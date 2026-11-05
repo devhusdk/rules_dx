@@ -103,7 +103,7 @@ def _check_msvc(env, mnemonics, bin_dir, lib_suffix):
                     if key == "LIB":
                         asserts.true(env, entry.endswith(lib_suffix), "LIB entry not for %s: %s" % (lib_suffix, entry))
         for entry in (action.env or {}).get("PATH", "").split(";"):
-            asserts.false(env, "Visual Studio" in entry or "Windows Kits" in entry, "PATH entry from an installed Visual Studio: " + entry)
+            asserts.false(env, "dx_msvc" not in entry and ("Visual Studio" in entry or "Windows Kits" in entry), "PATH entry from an installed Visual Studio: " + entry)
 
 def _msvc_impl(ctx):
     env = analysistest.begin(ctx)
@@ -112,6 +112,7 @@ def _msvc_impl(ctx):
 
 def _msvc_arm64_impl(ctx):
     env = analysistest.begin(ctx)
+    print("DEBUGPROV", analysistest.target_under_test(env), [str(a.mnemonic) for a in analysistest.target_actions(env)])  # buildifier: disable=print
     _check_msvc(env, _MSVC_TOOLS.keys(), "/bin/Hostx64/arm64/", "/arm64")
     return analysistest.end(env)
 

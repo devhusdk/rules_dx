@@ -193,6 +193,14 @@ fn crashed_server_fails_closed() {
 }
 
 #[test]
+fn uri_for_windows_path_has_an_empty_authority() {
+    assert_eq!(
+        file_uri(Path::new("C:\\a b\\c.pkl")),
+        "file:///C:/a%20b/c.pkl"
+    );
+}
+
+#[test]
 fn uri_escapes_spaces() {
     assert_eq!(file_uri(Path::new("/a b/c.pkl")), "file:///a%20b/c.pkl");
 }

@@ -126,6 +126,7 @@ match the running dx.
 | `.bazelversion` | you | Written in a fresh directory only. |
 | `.gitignore` | you | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/extensions.json` | you | Written when missing. Never rewritten. |
+| `.editorconfig`, `.gitattributes` | you | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
 | `.vscode/settings.json` | you, and dx for its own keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
 | `.github/workflows/ci.yml` | you, and dx for the pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
 | `.github/workflows/dx-update.yml` | you | Written when missing. Never rewritten. |

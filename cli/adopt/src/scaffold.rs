@@ -56,6 +56,37 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
+/// Content `dx init` writes to a new `.editorconfig`.
+const EDITORCONFIG_CONTENT: &str = concat!(
+    "root = true\n",
+    "\n",
+    "[*]\n",
+    "end_of_line = lf\n",
+    "insert_final_newline = true\n",
+    "charset = utf-8\n",
+    "indent_style = space\n",
+    "\n",
+    "[*.{rs,py,java,kt,kts,cs}]\n",
+    "indent_size = 4\n",
+    "\n",
+    "[{BUILD,*.bzl,*.bazel,*.star,*.yaml,*.yml,*.json,*.ts,*.tsx}]\n",
+    "indent_size = 2\n",
+    "\n",
+    "[*.go]\n",
+    "indent_style = tab\n",
+    "\n",
+    "[{Makefile,makefile,GNUmakefile,*.mk}]\n",
+    "indent_style = tab\n",
+);
+
+/// Content `dx init` writes to a new `.gitattributes`.
+const GITATTRIBUTES_CONTENT: &str = concat!(
+    "* text=auto eol=lf\n",
+    "*.bat text eol=crlf\n",
+    "*.cmd text eol=crlf\n",
+    "*.ps1 text eol=crlf\n",
+);
+
 /// VS Code extension that every workspace gets.
 const BAZEL_EDITOR_EXTENSION: &str = "bazelbuild.vscode-bazel";
 
@@ -393,6 +424,16 @@ fn plan_init_files_full(
             kind: FileKind::WriteOnce,
         },
         ScaffoldFile {
+            path: ".editorconfig".to_owned(),
+            content: EDITORCONFIG_CONTENT.to_owned(),
+            kind: FileKind::WriteOnce,
+        },
+        ScaffoldFile {
+            path: ".gitattributes".to_owned(),
+            content: GITATTRIBUTES_CONTENT.to_owned(),
+            kind: FileKind::WriteOnce,
+        },
+        ScaffoldFile {
             path: ".envrc".to_owned(),
             content: ENVRC_CONTENT.to_owned(),
             kind: FileKind::WriteOnce,
@@ -644,6 +685,8 @@ mod tests {
             ".dx/pins",
             ".devcontainer/devcontainer.json",
             ".bazelignore",
+            ".editorconfig",
+            ".gitattributes",
             ".envrc",
             ".vscode/settings.json",
             ".vscode/extensions.json",
@@ -896,6 +939,53 @@ mod tests {
             "custom\n"
         );
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn editorconfig_and_gitattributes_are_written_once() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-editor-files-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(&root).expect("tmp");
+        let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
+        for path in [".editorconfig", ".gitattributes"] {
+            assert!(first.iter().any(|p| p == path), "{path}");
+        }
+        std::fs::write(root.join(".editorconfig"), "mine\n").expect("custom");
+        let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
+        assert!(second.iter().any(|p| p == "refused:.editorconfig"));
+        assert_eq!(
+            std::fs::read_to_string(root.join(".editorconfig")).expect("read"),
+            "mine\n"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn scaffolded_eol_and_indent_rules_match_the_formatters() {
+        let files = plan_init_files("demo").expect("init plans");
+        let text = |path: &str| {
+            files
+                .iter()
+                .find(|f| f.path == path)
+                .expect(path)
+                .content
+                .clone()
+        };
+        let attributes = text(".gitattributes");
+        for line in [
+            "* text=auto eol=lf",
+            "*.bat text eol=crlf",
+            "*.cmd text eol=crlf",
+            "*.ps1 text eol=crlf",
+        ] {
+            assert!(attributes.lines().any(|l| l == line), "{line}");
+        }
+        let editorconfig = text(".editorconfig");
+        assert!(editorconfig.contains("end_of_line = lf\n"));
+        assert!(editorconfig.contains("[*.go]\nindent_style = tab\n"));
+        assert!(
+            editorconfig.contains("[{Makefile,makefile,GNUmakefile,*.mk}]\nindent_style = tab\n")
+        );
     }
 
     #[test]

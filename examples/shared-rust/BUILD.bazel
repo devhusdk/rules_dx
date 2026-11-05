@@ -403,7 +403,6 @@ rust_test(
 
 rust_test(
     name = "browser_test",
-    size = "large",
     srcs = ["tests/browser_test.rs"],
     aspect_hints = ["//:rustfmt_config"],
     data = [
@@ -420,6 +419,8 @@ rust_test(
         "block-network",
         "no-coverage",
         "no-remote-exec",
+        "resources:cpu:2",
+        "resources:memory:2048",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -430,7 +431,6 @@ rust_test(
 
 rust_test(
     name = "consumer_browser_test",
-    size = "large",
     srcs = ["tests/consumer_browser_test.rs"],
     aspect_hints = ["//:rustfmt_config"],
     data = [
@@ -447,6 +447,8 @@ rust_test(
         "block-network",
         "no-coverage",
         "no-remote-exec",
+        "resources:cpu:2",
+        "resources:memory:2048",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [

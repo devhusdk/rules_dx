@@ -18,7 +18,6 @@ _FORMATTED = [
 
 rust_test(
     name = "diagnostics_test",
-    size = "medium",
     srcs = ["diagnostics_test.rs"],
     data = [
         "clean.jl",

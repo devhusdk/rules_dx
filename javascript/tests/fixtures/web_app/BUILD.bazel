@@ -135,7 +135,6 @@ rust_test(
 
 rust_test(
     name = "web_browser_test",
-    size = "large",
     srcs = ["src/web_browser_test.rs"],
     data = [
         ":app",
@@ -150,6 +149,8 @@ rust_test(
     tags = [
         "no-coverage",
         "no-remote-exec",
+        "resources:cpu:2",
+        "resources:memory:2048",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [

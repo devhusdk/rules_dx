@@ -407,6 +407,19 @@ flag_group! {
 }
 
 flag_group! {
+    /// Fail on unused or missing dependencies.
+    UpdateFailOnFlag, {
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "fail_on",
+            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "unused"])
+        )]
+        fail_on: Option<String>,
+    }
+}
+
+flag_group! {
     /// Suppress findings already in this workspace-relative JSON baseline.
     BaselineFlag, {
         #[arg(
@@ -1136,6 +1149,7 @@ command_args! {
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: OutputFlag,
+        fail_on: UpdateFailOnFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         apply: ApplyFlag,

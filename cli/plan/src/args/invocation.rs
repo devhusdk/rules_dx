@@ -245,6 +245,8 @@ pub struct Invocation {
     pub fail_on_uncovered: bool,
     /// `dx coverage --fail-on=no-collector`: tests without a coverage collector fail the run.
     pub fail_on_no_collector: bool,
+    /// `dx update --outdated --fail-on=unused`: unused or missing dependencies fail the run.
+    pub fail_on_unused: bool,
     /// How many build slots this process sizes its gate with; `None` when neither flag nor env set it.
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
     /// `dx watch --poll`: poll the tree on every platform.
@@ -681,6 +683,7 @@ mod tests {
             fail_on: Threshold::Warning,
             fail_on_uncovered: false,
             fail_on_no_collector: false,
+            fail_on_unused: false,
             build_slots: None,
             poll: false,
             baseline: None,

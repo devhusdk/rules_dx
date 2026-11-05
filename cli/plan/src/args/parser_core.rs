@@ -573,13 +573,12 @@ fn audit_update_parse_and_reject_unsupported_options() {
     assert_eq!(update.command.name(), "update");
     let selected = parse(&strings(&["update", "crates"])).expect("parse update selector");
     assert_eq!(selected.targets, vec!["crates".to_owned()]);
-    assert_eq!(
-        parse(&strings(&["update", "--fail-on=error"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "update",
-            option: "--fail-on".to_owned(),
-        })
+    assert!(
+        parse(&strings(&["update", "--outdated", "--fail-on=unused"]))
+            .expect("update fail-on")
+            .fail_on_unused
     );
+    assert!(parse(&strings(&["lint", "--fail-on=unused"])).is_err());
     let got = parse(&strings(&["update", "--output=json"])).expect("update json");
     assert_eq!(got.command, Command::Update);
     assert_eq!(got.output, OutputMode::Json);

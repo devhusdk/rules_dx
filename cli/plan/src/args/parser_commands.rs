@@ -17,7 +17,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         };
         for option in ["--fail-on=error", "--report=junit=report.xml", "--bazel"] {
             let supported = match option {
-                "--fail-on=error" => command == "security" || command == "license",
+                "--fail-on=error" => matches!(command, "security" | "license" | "update"),
                 "--report=junit=report.xml" => command == "security" || command == "license",
                 _ => false,
             };

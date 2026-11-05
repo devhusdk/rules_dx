@@ -242,8 +242,9 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 | `--reason <text>` | Why the floor is the oldest supported version. Needs `--floor`. |
 | `--bazel-startup-option <token>` | Passed to the cargo, maven, npm and nuget Bazel runs. Repeatable. |
 | `--output text\|json` | Sets the output format. |
+| `--fail-on unused` | With `--outdated`, exits `1` when an unused or missing dependency is listed. |
 
-`--fail-on`, `--report` and Bazel options do not apply.
+`--report` and Bazel options do not apply. `--fail-on info\|warning\|error` is accepted and changes nothing.
 
 Scopes: selectors are a set name (`dx_crates`), `set:package` (`dx_npm:vue`), or a label or path (`quality/tools/python`, `//quality/tools/python/...`, `//...`). No selector selects every set. Unknown names and unowned paths exit `2`. See [Dependency sets](#dependency-sets).
 
@@ -294,7 +295,7 @@ Other sets print an `update_outdated_unsupported` warning. A `set:package` selec
 
 Text prints one line per package: declared version, newest version, publish time, and the apply command. JSON emits `command_started`, one `update_outdated` notice per package (`scope` is `<set>:<package>`, `related_command` is `dx update <set>:<package> <version>`), one `update_outdated_lookup_failed` error per failed lookup, and `command_finished`. Ruby results have no `related_command`; text prints `edit Gemfile, then bundle lock`. Apply others with `dx update <set>:<package> <version> --apply`. Refresh in-range with `dx update --apply <set>`.
 
-After the version lines, `--outdated` also lists declared dependencies that no source file under the manifest's directory uses, for `cargo`, `npm`, `uv`, `go` and `ruby` sets: `unused: <set>: <name> (declared in <manifest>:<line>)`. JSON emits one `update_unused` warning per entry with `scope` `<set>:<name>`. The exit code is unchanged. Silence an entry with `[[exception]]` in `depcheck.toml` at the workspace root, with `set`, `name` and `reason`. For `go` sets it also lists imports under the manifest's directory that neither the module nor a `require` covers: `missing: <set>: <import> (imported in <file>:<line>)`; JSON emits an `update_missing` warning. Nested modules, `vendor` and `testdata` are skipped, and `[[exception]]` also silences a missing import by module path. Missing imports for other ecosystems, `--fail-on` and `--add-missing` are not available yet. `dx update --apply --prune` removes the unused entries.
+After the version lines, `--outdated` also lists declared dependencies that no source file under the manifest's directory uses, for `cargo`, `npm`, `uv`, `go` and `ruby` sets: `unused: <set>: <name> (declared in <manifest>:<line>)`. JSON emits one `update_unused` warning per entry with `scope` `<set>:<name>`. The exit code is unchanged. Silence an entry with `[[exception]]` in `depcheck.toml` at the workspace root, with `set`, `name` and `reason`. For `go` sets it also lists imports under the manifest's directory that neither the module nor a `require` covers: `missing: <set>: <import> (imported in <file>:<line>)`; JSON emits an `update_missing` warning. Nested modules, `vendor` and `testdata` are skipped, and `[[exception]]` also silences a missing import by module path. With `--fail-on=unused` the run exits `1` when any unused or missing entry is listed. Missing imports for other ecosystems and `--add-missing` are not available yet. `dx update --apply --prune` removes the unused entries.
 
 `--outdated` does not combine with `--apply`, `--floor`, `--reason` or a version. `--offline` fails with `offline_required`.
 

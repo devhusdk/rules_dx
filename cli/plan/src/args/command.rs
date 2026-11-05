@@ -658,7 +658,8 @@ mod tests {
                 Command::Typecheck,
                 Command::Format,
                 Command::Coverage,
-                Command::Check
+                Command::Check,
+                Command::Update
             ])
         );
     }

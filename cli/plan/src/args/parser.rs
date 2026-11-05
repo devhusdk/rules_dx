@@ -457,7 +457,13 @@ fn parse_inner<S: AsRef<OsStr>>(
             value: fail_on_name,
         });
     }
-    let mut fail_on = if fail_on_name == "uncovered" || fail_on_name == "no-collector" {
+    let fail_on_unused = fail_on_name == "unused" && command == Command::Update;
+    if fail_on_name == "unused" && !fail_on_unused && fail_on_from_flag {
+        return Err(ArgsError::BadFailOn {
+            value: fail_on_name,
+        });
+    }
+    let mut fail_on = if matches!(fail_on_name.as_str(), "uncovered" | "no-collector" | "unused") {
         Threshold::Warning
     } else {
         Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
@@ -678,6 +684,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         fail_on,
         fail_on_uncovered,
         fail_on_no_collector,
+        fail_on_unused,
         build_slots,
         poll,
         baseline,

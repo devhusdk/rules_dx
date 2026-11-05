@@ -44,6 +44,8 @@ load(":pub.bzl", "pub_deploy")
 load(":pub_tests.bzl", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_unit_tests")
+load(":rubygems.bzl", "rubygems_deploy")
+load(":rubygems_tests.bzl", "rubygems_unit_tests")
 load(":resources.bzl", "dx_resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
@@ -95,6 +97,8 @@ exports_files([
     "pub_tests.bzl",
     "pypi.bzl",
     "pypi_tests.bzl",
+    "rubygems.bzl",
+    "rubygems_tests.bzl",
     "src/archive.rs",
     "src/bin_archiver.rs",
     "src/bin_cloudflare_verify.rs",
@@ -122,6 +126,7 @@ exports_files([
     "src/pub_dev.rs",
     "src/pypi.rs",
     "src/registry.rs",
+    "src/rubygems.rs",
     "src/run.rs",
     "src/stage.rs",
     "src/test_support.rs",
@@ -155,6 +160,7 @@ rust_library(
         "src/pub_dev.rs",
         "src/pypi.rs",
         "src/registry.rs",
+        "src/rubygems.rs",
         "src/run.rs",
         "src/stage.rs",
         "src/test_support.rs",
@@ -449,6 +455,7 @@ config_runfiles_tests(
             "CHANGELOG.md",
         ],
         "pypi.dotted_demo": ["pypi_demo-0.0.0-py3-none-any.whl"],
+        "rubygems_demo": ["rubygems_demo.gemspec", "rubygems_demo.rb"],
         "pypi_demo": [
             "pypi_demo-0.0.0-py3-none-any.whl",
             "pypi_demo-0.0.0.tar.gz",
@@ -774,6 +781,8 @@ test_suite(
         ":consumer_archive_unit",
         ":crates_analysis",
         ":crates_unit",
+        ":rubygems_analysis",
+        ":rubygems_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
         ":deploy_config",
@@ -1489,6 +1498,19 @@ deploy_analysis_test(
 
 crates_unit_tests(name = "crates_unit")
 
+rubygems_deploy(
+    name = "rubygems_demo",
+    gem = "//deploy/tests/fixtures/ruby_gem:rubygems_demo_gem",
+    version = "0.0.0",
+)
+
+rubygems_unit_tests(name = "rubygems_unit")
+
+deploy_analysis_test(
+    name = "rubygems_analysis",
+    subject = "rubygems_demo",
+)
+
 deploy_analysis_test(
     name = "crates_analysis",
     subject = "crates_demo",
@@ -1774,6 +1796,8 @@ real_source_target(
         "pub_tests.bzl",
         "pypi.bzl",
         "pypi_tests.bzl",
+        "rubygems.bzl",
+        "rubygems_tests.bzl",
         "native_probe.bzl",
         "native_runtime.bzl",
         "native_runtime_tests.bzl",

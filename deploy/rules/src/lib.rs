@@ -29,6 +29,7 @@ mod promotion;
 mod pub_dev;
 mod pypi;
 mod registry;
+mod rubygems;
 mod run;
 mod stage;
 #[cfg(test)]
@@ -53,6 +54,7 @@ pub use octopus::*;
 pub use promotion::*;
 pub use pub_dev::*;
 pub use pypi::*;
+pub use rubygems::*;
 pub use run::{deploy_profile, DeployRun};
 pub use stage::*;
 
@@ -220,6 +222,7 @@ mod tests {
             &luarocks::LUAROCKS_GATE,
             &CRATES_GATE,
             &HEX_GATE,
+            &RUBYGEMS_GATE,
             &GITHUB_GATE,
             &maven::MAVEN_GATE,
             &OCI_GATE,
@@ -836,6 +839,7 @@ mod tests {
         let pypi: Main4 = crate::pypi_main;
         let nuget: Main5 = crate::nuget_main;
         let crates: fn(&[String], &str, &str, &[String]) -> i32 = crate::crates_main;
+        let rubygems: fn(&[String], &str, &str, &[String]) -> i32 = crate::rubygems_main;
         let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
         let homebrew: fn(&crate::HomebrewLaunch<'_>, &[String]) -> i32 = crate::homebrew_tap_main;
         let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;
@@ -846,7 +850,8 @@ mod tests {
         let npm_pack: fn(&[String]) -> i32 = crate::npm_pack_main;
         let pages: fn(&crate::PagesLaunch<'_>, &[String]) -> i32 = crate::cloudflare_pages_main;
         let _ = (
-            archive, pypi, nuget, crates, github, homebrew, maven, oci, promotion, octopus,
+            archive, pypi, nuget, crates, rubygems, github, homebrew, maven, oci,
+            promotion, octopus,
             npm_deploy, npm_pack, pages,
         );
         let _ = crate::MavenLaunch {

@@ -147,6 +147,15 @@ pub struct HexConfig {
     pub tool: String,
 }
 
+/// Pins one RubyGems push: the gem source files, name and version.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RubygemsConfig {
+    pub gem_rlocs: Vec<String>,
+    pub gem_name: String,
+    pub version: String,
+}
+
 /// Pins one Maven publish: the jar, pom, optional extra jars and the repository.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -223,6 +232,7 @@ pub enum DeployConfig {
     Crates(CratesConfig),
     Pub(PubConfig),
     Hex(HexConfig),
+    Rubygems(RubygemsConfig),
     Maven(MavenConfig),
     Oci(OciConfig),
     Octopus(OctopusConfig),
@@ -364,6 +374,12 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &hex.package_name,
             &hex.version,
             &hex.tool,
+            argv,
+        ),
+        DeployConfig::Rubygems(rubygems) => crate::rubygems_main(
+            &rubygems.gem_rlocs,
+            &rubygems.gem_name,
+            &rubygems.version,
             argv,
         ),
         DeployConfig::Maven(maven) => crate::maven_main(
@@ -548,6 +564,16 @@ mod tests {
             Ok(DeployConfig::Crates(CratesConfig {
                 crate_rlocs: vec!["a;b".to_owned(), "c,d".to_owned()],
                 crate_name: "c".to_owned(),
+                version: "1.0.0".to_owned(),
+            }))
+        );
+        assert_eq!(
+            parse(
+                r#"{"kind":"rubygems","config":{"gem_rlocs":["a","b"],"gem_name":"g","version":"1.0.0"}}"#
+            ),
+            Ok(DeployConfig::Rubygems(RubygemsConfig {
+                gem_rlocs: vec!["a".to_owned(), "b".to_owned()],
+                gem_name: "g".to_owned(),
                 version: "1.0.0".to_owned(),
             }))
         );
@@ -813,6 +839,11 @@ mod tests {
             DeployConfig::Crates(CratesConfig {
                 crate_rlocs: vec!["a".to_owned()],
                 crate_name: "demo".to_owned(),
+                version: "1.0.0".to_owned(),
+            }),
+            DeployConfig::Rubygems(RubygemsConfig {
+                gem_rlocs: vec!["a".to_owned()],
+                gem_name: "demo".to_owned(),
                 version: "1.0.0".to_owned(),
             }),
             DeployConfig::Maven(MavenConfig {

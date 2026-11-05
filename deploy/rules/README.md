@@ -426,6 +426,43 @@ A live run refuses version `0.0.0`. It runs `mix hex.publish --yes`
 `HEX_API_KEY` as the credential. `ERL_LIBS`, `ERL_ROOTDIR`, `HEX_HOME` and
 `MIX_HOME` pass through, so point them at the pinned OTP.
 
+# rubygems_deploy
+
+Builds a gem from its sources and pushes it to rubygems.org.
+
+```starlark
+load("@rules_dx//deploy/rules:rubygems.bzl", "rubygems_deploy")
+
+rubygems_deploy(
+    name = "rubygems_demo",
+    gem = ":rubygems_demo_gem",
+    version = "1.0.0",
+)
+```
+
+- `name`: the gem name. The gemspec must be `<name>.gemspec`.
+- `gem`: required. The gemspec and the files it packs, such as a
+  `ruby_library`.
+- `version`: defaults to `0.0.0`. Must equal `spec.version` in the gemspec.
+- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+
+Default run needs `gem` on `PATH`. It stages the sources, runs
+`gem build`, checks that the gemspec name and version match the target and
+that the gem packs exactly the sources (the gemspec itself excluded), then
+writes `<name>-<version>.gem` to the output directory. It never pushes. No
+credentials needed.
+
+Push with `gem` on `PATH`:
+
+```
+RUBYGEMS_PUBLISH_LIVE=1 RUBYGEMS_PUBLISH_APPROVED=1 RUBYGEMS_API_TOKEN=... \
+dx deploy --apply //pkg:rubygems_demo
+```
+
+`RUBYGEMS_API_TOKEN` is sent to `gem push` as `GEM_HOST_API_KEY`. A live run
+refuses version `0.0.0`. Rerunning a pushed version: rubygems.org refuses
+it, the run prints the last `gem` output lines and exits 1.
+
 # github_deploy
 
 Stages pinned files for a draft GitHub Release and creates the draft.

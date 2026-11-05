@@ -1,0 +1,8 @@
+filegroup(
+    name = "rubygems_demo_gem",
+    srcs = [
+        "lib/rubygems_demo.rb",
+        "rubygems_demo.gemspec",
+    ],
+    visibility = ["//deploy/rules:__pkg__"],
+)

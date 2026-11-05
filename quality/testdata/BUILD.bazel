@@ -98,6 +98,8 @@ exports_files(
         "ruff.toml",
         "styles/Dx/Markers.yml",
         "vale_test.ini",
+        "yamllint_profile/standard/yamllint.yaml",
+        "yamllint_profile/strict/yamllint.yaml",
     ],
     visibility = [
         "//quality:__pkg__",

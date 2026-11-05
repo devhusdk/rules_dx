@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_yaml_lint_profile_strict
+capability LINT
+stages 1
+stage yamllint classes=yaml sources=matrix/yamllint_profile_strict.yaml
+completed_rounds 1
+convergence STABLE
+initial 2
+initial WARNING yamllint truthy matrix/yamllint_profile_strict.yaml 4 4 fixable=false "truthy value should be one of [false, true]"
+initial ERROR yamllint line-length matrix/yamllint_profile_strict.yaml 93 93 fixable=false "line too long (100 > 80 characters)"
+terminal 2
+terminal WARNING yamllint truthy matrix/yamllint_profile_strict.yaml 4 4 fixable=false "truthy value should be one of [false, true]"
+terminal ERROR yamllint line-length matrix/yamllint_profile_strict.yaml 93 93 fixable=false "line too long (100 > 80 characters)"
+replacements 0

@@ -103,22 +103,53 @@ _foreign_cc_tools.ninja(
     target = "@ninja",
 )
 
+# make, m4 and pkgconfig are not needed by the Ninja generator on Windows and do not build with cl.exe, so they are noop there (#6220)
 # the pinned ninja source does not build with clang-cl (std::set_terminate), so Windows uses the prebuilt binary; the linux and macos tags above win elsewhere (#6220)
 _foreign_cc_tools.ninja(
     mode = "binary",
     version = "1.13.2",
 )
 _foreign_cc_tools.make(
+    exec_compatible_with = ["@platforms//os:linux"],
     mode = "custom",
     target = "@make",
 )
+_foreign_cc_tools.make(
+    exec_compatible_with = ["@platforms//os:macos"],
+    mode = "custom",
+    target = "@make",
+)
+_foreign_cc_tools.make(
+    exec_compatible_with = ["@platforms//os:windows"],
+    mode = "noop",
+)
 _foreign_cc_tools.m4(
+    exec_compatible_with = ["@platforms//os:linux"],
     mode = "custom",
     target = "@m4",
 )
+_foreign_cc_tools.m4(
+    exec_compatible_with = ["@platforms//os:macos"],
+    mode = "custom",
+    target = "@m4",
+)
+_foreign_cc_tools.m4(
+    exec_compatible_with = ["@platforms//os:windows"],
+    mode = "noop",
+)
 _foreign_cc_tools.pkgconfig(
+    exec_compatible_with = ["@platforms//os:linux"],
     mode = "custom",
     target = "@pkgconf//:pkg-config",
+)
+_foreign_cc_tools.pkgconfig(
+    exec_compatible_with = ["@platforms//os:macos"],
+    mode = "custom",
+    target = "@pkgconf//:pkg-config",
+)
+_foreign_cc_tools.pkgconfig(
+    exec_compatible_with = ["@platforms//os:windows"],
+    mode = "noop",
 )
 
 # floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975)

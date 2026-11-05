@@ -90,6 +90,31 @@ pub(crate) fn execute_release(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
 }
 
+fn refresh_locks(workspace: &Path, changed: &[String]) -> Result<Vec<String>, String> {
+    let mut locks = Vec::new();
+    for path in changed
+        .iter()
+        .filter(|path| path.rsplit('/').next() == Some("MODULE.bazel"))
+    {
+        let dir = Path::new(path).parent().unwrap_or(Path::new(""));
+        let status = Process::new("bazel")
+            .args(["mod", "deps", "--lockfile_mode=update"])
+            .current_dir(workspace.join(dir))
+            .status()
+            .map_err(|error| format!("cannot run bazel mod deps for {path}: {error}"))?;
+        if !status.success() {
+            return Err(format!(
+                "bazel mod deps failed for {path}; the manifests are already rewritten"
+            ));
+        }
+        let lock = dir.join("MODULE.bazel.lock");
+        if workspace.join(&lock).is_file() {
+            locks.push(lock.to_string_lossy().replace('\\', "/"));
+        }
+    }
+    Ok(locks)
+}
+
 fn commit_and_tag(
     workspace: &Path,
     prefix: &str,
@@ -120,8 +145,10 @@ fn commit_and_tag(
         return Err(format!("tag {tag} already exists"));
     }
     let changed = apply(workspace, version)?;
+    let mut files = changed.clone();
+    files.extend(refresh_locks(workspace, &changed)?);
     let mut add = vec!["add", "--"];
-    add.extend(changed.iter().map(String::as_str));
+    add.extend(files.iter().map(String::as_str));
     git(workspace, &add).ok_or("git add failed")?;
     let message = format!("release: {tag}");
     git(workspace, &["commit", "-m", &message]).ok_or("git commit failed")?;

@@ -155,6 +155,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: "edit the Gemfile and run `bundle lock`",
             }),
+            UpdateSet::Opam => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "edit the .opam file and run `opam lock`",
+            }),
             UpdateSet::Cpan => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the cpanfile and run `carton install`",

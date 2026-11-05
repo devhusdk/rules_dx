@@ -36,6 +36,8 @@ pub enum ConfiguredKind {
     Ruby,
     /// A cpan set; only the module's `requires` line in the cpanfile is edited.
     Cpan,
+    /// An opam set; only the package's constraint in `depends:` of the `.opam` file is edited.
+    Opam,
 }
 
 impl ConfiguredKind {
@@ -48,6 +50,7 @@ impl ConfiguredKind {
             ConfiguredKind::Go => UpdateSet::Go,
             ConfiguredKind::Ruby => UpdateSet::Ruby,
             ConfiguredKind::Cpan => UpdateSet::Cpan,
+            ConfiguredKind::Opam => UpdateSet::Opam,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -251,7 +254,9 @@ fn configured_refresh_selector(
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
         | ConfiguredKind::Go => set.name.clone(),
-        ConfiguredKind::Ruby | ConfiguredKind::Cpan => format!("{}:{package}", set.name),
+        ConfiguredKind::Ruby | ConfiguredKind::Cpan | ConfiguredKind::Opam => {
+            format!("{}:{package}", set.name)
+        }
     })
 }
 
@@ -283,6 +288,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Npm
         | UpdateSet::NuGet
         | UpdateSet::Cpan
+        | UpdateSet::Opam
         | UpdateSet::Ruby => "",
     }
 }
@@ -366,7 +372,8 @@ impl UpdateRequest {
             | ConfiguredKind::Nuget
             | ConfiguredKind::Go
             | ConfiguredKind::Ruby
-            | ConfiguredKind::Cpan => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Cpan
+            | ConfiguredKind::Opam => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -544,6 +551,7 @@ impl UpdateRequest {
             }
             UpdateSet::Ruby => plan_gemfile(manifest, content, &self.package, &self.version),
             UpdateSet::Cpan => plan_cpanfile(manifest, content, &self.package, &self.version),
+            UpdateSet::Opam => plan_opam(manifest, content, &self.package, &self.version),
             UpdateSet::GithubActions => plan_github_workflow(
                 content,
                 &self.package,
@@ -685,12 +693,15 @@ pub(crate) fn parse_foreign_selector(
 
 #[path = "request_cargo.rs"]
 mod cargo;
+#[path = "request_opam.rs"]
+mod opam;
 #[path = "request_plans.rs"]
 pub(crate) mod plans;
 #[path = "request_pyproject.rs"]
 pub(crate) mod pyproject;
 
 use cargo::*;
+use opam::plan_opam;
 use plans::*;
 use pyproject::plan_pyproject_toml;
 

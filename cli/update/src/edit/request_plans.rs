@@ -884,6 +884,7 @@ pub(super) fn plan_github_workflow(
         WidenVersion::Semver(_)
         | WidenVersion::Gem(_)
         | WidenVersion::Cpan(_)
+        | WidenVersion::Opam(_)
         | WidenVersion::Digest(_) => Err(EditError::UnsupportedManifest {
             manifest: WORKFLOW_DIR.to_owned(),
             reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
@@ -952,6 +953,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("cpan module names are words joined by '::'")
+            }
+        }
+        UpdateSet::Opam => {
+            if !package.is_empty()
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '+'))
+            {
+                Ok(())
+            } else {
+                Err("opam package names use letters, digits, '-', '_' and '+'")
             }
         }
         UpdateSet::Containers => {

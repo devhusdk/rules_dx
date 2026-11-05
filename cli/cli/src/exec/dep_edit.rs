@@ -110,6 +110,9 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Cpan if foreign => {
             Some(dx_update::edit::ConfiguredKind::Cpan)
         }
+        dx_adopt::dependency_sets::Ecosystem::Opam if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Opam)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -139,6 +142,7 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Go => "exactly one go.mod",
                             dx_update::edit::ConfiguredKind::Ruby => "exactly one Gemfile",
                             dx_update::edit::ConfiguredKind::Cpan => "exactly one cpanfile",
+                            dx_update::edit::ConfiguredKind::Opam => "exactly one .opam file",
                         },
                         set.name
                     ),
@@ -753,7 +757,9 @@ fn refresh_plan(
             );
             return Some((name, plan.map(RefreshPlan::InDir)));
         }
-        dx_update::edit::ConfiguredKind::Npm | dx_update::edit::ConfiguredKind::Cpan => (
+        dx_update::edit::ConfiguredKind::Npm
+        | dx_update::edit::ConfiguredKind::Cpan
+        | dx_update::edit::ConfiguredKind::Opam => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),

@@ -592,9 +592,9 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ),
     ];
     assert_eq!(
-        cases.len() + 1,
+        cases.len() + 2,
         UpdateSet::ALL.len(),
-        "one case per set but cpan, which only configured sets edit"
+        "one case per set but cpan and opam, which only configured sets edit"
     );
     for (selector, version) in cases {
         let update = UpdateRequest::parse_grammar(selector, version).expect("parse");
@@ -1800,5 +1800,76 @@ fn containers_update_refuses_tags_and_short_digests() {
             UpdateRequest::parse("containers:distroless_cc", bad).is_err(),
             "{bad}"
         );
+    }
+}
+
+fn opam_request(package: &str, version: &str) -> Result<UpdateRequest, EditError> {
+    configured(
+        ConfiguredKind::Opam,
+        &["app/app.opam"],
+        None,
+        &format!("set:{package}"),
+        version,
+    )
+}
+
+const OPAM: &str = r#"opam-version: "2.0"
+depends: [
+  "ocaml" {>= "4.14"}
+  "astring" {>= "0.8.5"}
+  "cmdliner" {>= "1.1.0" & with-test}
+  "alcotest" {with-test & = "1.7.0" & os = "linux"}
+  "dune"
+  "fmt" {>= "0.8" & < "1.0"}
+]
+build: ["dune" "build"]
+"#;
+
+#[test]
+fn opam_edit_keeps_the_operator_and_filters() {
+    let request = opam_request("astring", "0.8.10").expect("opam");
+    assert_eq!(request.set, UpdateSet::Opam);
+    assert_eq!(
+        request.plan_edit(OPAM).expect("ge"),
+        OPAM.replace("\"0.8.5\"", "\"0.8.10\"")
+    );
+    let filtered = opam_request("cmdliner", "1.3.0")
+        .expect("opam")
+        .plan_edit(OPAM)
+        .expect("filtered");
+    assert_eq!(filtered, OPAM.replace("\"1.1.0\"", "\"1.3.0\""));
+    let tail = opam_request("alcotest", "1.8.0~rc1")
+        .expect("opam")
+        .plan_edit(OPAM)
+        .expect("filter first");
+    assert_eq!(tail, OPAM.replace("\"1.7.0\"", "\"1.8.0~rc1\""));
+}
+
+#[test]
+fn opam_refuses_undeclared_and_unconstrained_packages() {
+    assert!(matches!(
+        opam_request("lwt", "5.7.0").expect("opam").plan_edit(OPAM),
+        Err(EditError::NotFound { .. })
+    ));
+    for package in ["dune", "fmt"] {
+        assert!(
+            matches!(
+                opam_request(package, "1.0.0")
+                    .expect("opam")
+                    .plan_edit(OPAM),
+                Err(EditError::UnsupportedManifest { .. })
+            ),
+            "{package}"
+        );
+    }
+}
+
+#[test]
+fn opam_versions_start_with_a_digit() {
+    for good in ["1.2.0", "0.9.0~rc1", "2.0+dev", "5"] {
+        assert!(opam_request("astring", good).is_ok(), "{good}");
+    }
+    for bad in ["v1.0", "latest", ">=1.0", "1 0"] {
+        assert!(opam_request("astring", bad).is_err(), "{bad}");
     }
 }

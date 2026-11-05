@@ -132,6 +132,16 @@ FlatBuffersJavaAspectInfo = provider(
     fields = {
         "java_info": "JavaInfo of the compiled generated sources of the closure.",
         "srcjar": "File: srcjar of this library's own schemas.",
+        "stage_roots": "depset of the exec paths of the private include roots flatc reads.",
+        "staged": "depset of the staged schema files flatc reads.",
+    },
+)
+
+FlatBuffersJavaStageInfo = provider(
+    doc = "The private include roots and staged schemas the Java flatc actions read, for tests.",
+    fields = {
+        "stage_roots": "depset of include root exec paths.",
+        "staged": "depset of staged schema files.",
     },
 )
 
@@ -178,7 +188,13 @@ def _java_aspect_impl(target, ctx):
         java_toolchain = ctx.toolchains[_JAVA_TOOLCHAIN].java,
         javac_opts = ["-Xlint:none", "-nowarn"],
     )
-    return [FlatBuffersJavaAspectInfo(java_info = java_info, srcjar = srcjar)]
+    deps = [dep[FlatBuffersJavaAspectInfo] for dep in ctx.rule.attr.deps]
+    return [FlatBuffersJavaAspectInfo(
+        java_info = java_info,
+        srcjar = srcjar,
+        stage_roots = depset([stage.root], transitive = [d.stage_roots for d in deps]),
+        staged = depset(stage.files, transitive = [d.staged for d in deps]),
+    )]
 
 _java_aspect = aspect(
     implementation = _java_aspect_impl,
@@ -203,6 +219,10 @@ def _java_library_impl(ctx):
         dx_quality_sources([], [], str(ctx.label)),
         OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset(srcjars)}),
         FlatBuffersCodegenInfo(language = "java"),
+        FlatBuffersJavaStageInfo(
+            stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
+            staged = depset(transitive = [info.staged for info in aspect_infos]),
+        ),
     ]
 
 flatbuffers_java_library = rule(

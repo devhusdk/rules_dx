@@ -86,6 +86,26 @@ pub struct NugetConfig {
     pub source: String,
 }
 
+/// Pins one Hackage upload: the sdist and its expected package and version.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HackageConfig {
+    pub sdist_rloc: String,
+    pub deploy_name: String,
+    pub package: String,
+    pub version: String,
+}
+
+/// Pins one LuaRocks upload: the rockspec and its expected package and version.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LuarocksConfig {
+    pub rockspec_rloc: String,
+    pub deploy_name: String,
+    pub package: String,
+    pub version: String,
+}
+
 /// Pins one crates.io publish: the crate files, name and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -165,6 +185,8 @@ pub enum DeployConfig {
     Pypi(PypiConfig),
     Npm(NpmConfig),
     Nuget(NugetConfig),
+    Hackage(HackageConfig),
+    Luarocks(LuarocksConfig),
     Crates(CratesConfig),
     Maven(MavenConfig),
     Oci(OciConfig),
@@ -262,6 +284,20 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &nuget.package_id,
             &nuget.version,
             &nuget.source,
+            argv,
+        ),
+        DeployConfig::Hackage(hackage) => crate::hackage_main(
+            &hackage.sdist_rloc,
+            &hackage.deploy_name,
+            &hackage.package,
+            &hackage.version,
+            argv,
+        ),
+        DeployConfig::Luarocks(luarocks) => crate::luarocks_main(
+            &luarocks.rockspec_rloc,
+            &luarocks.deploy_name,
+            &luarocks.package,
+            &luarocks.version,
             argv,
         ),
         DeployConfig::Crates(crates) => crate::crates_main(
@@ -693,6 +729,18 @@ mod tests {
                 package_id: String::new(),
                 version: String::new(),
                 source: "https://nuget.invalid".to_owned(),
+            }),
+            DeployConfig::Hackage(HackageConfig {
+                sdist_rloc: "a".to_owned(),
+                deploy_name: "demo".to_owned(),
+                package: String::new(),
+                version: String::new(),
+            }),
+            DeployConfig::Luarocks(LuarocksConfig {
+                rockspec_rloc: "a".to_owned(),
+                deploy_name: "demo".to_owned(),
+                package: String::new(),
+                version: String::new(),
             }),
             DeployConfig::Crates(CratesConfig {
                 crate_rlocs: vec!["a".to_owned()],

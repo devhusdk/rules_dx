@@ -526,6 +526,72 @@ A default run checks the nuspec id and version against `package_id` and
 skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
 <source>` and exits 0.
 
+# hackage_deploy
+
+Stages one cabal sdist locally and uploads it to Hackage.
+
+```starlark
+load("@rules_dx//deploy/rules:hackage.bzl", "hackage_deploy")
+
+hackage_deploy(
+    name = "hackage-demo",
+    sdist = ":hackage_demo_sdist",
+)
+```
+
+- `sdist`: required. One `<package>-<version>.tar.gz` made by `cabal sdist`.
+- `package`: optional. Must match the `name` in the `.cabal` file.
+- `version`: optional. Must match the `version` in the `.cabal` file.
+- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+
+Every run checks that the sdist holds `<package>-<version>/<package>.cabal`
+and that the file declares the name and version in the sdist file name. A
+default run stages `<name>-sdist/` with the sdist. No credentials needed.
+
+Upload with `cabal` on `PATH`:
+
+```
+HACKAGE_PUBLISH_LIVE=1 HACKAGE_PUBLISH_APPROVED=1 HACKAGE_API_TOKEN=... \
+dx deploy --apply //pkg:hackage-demo
+```
+
+This runs `cabal upload --publish --token=...`, so the token is visible in the
+`cabal` command line while it runs. A live run refuses version `0.0.0`.
+
+# luarocks_deploy
+
+Stages one rockspec locally and uploads it to LuaRocks.
+
+```starlark
+load("@rules_dx//deploy/rules:luarocks.bzl", "luarocks_deploy")
+
+luarocks_deploy(
+    name = "luarocks_demo",
+    rockspec = ":luarocks_demo_rockspec",
+)
+```
+
+- `rockspec`: required. One `<package>-<version>.rockspec`.
+- `package`: optional. Must match the rockspec `package`.
+- `version`: optional. Must match the rockspec `version`, with or without the
+  `-<revision>` suffix.
+- `profile`: `debug`, `dev` or `release`. Defaults to `release`.
+
+Every run checks that the rockspec file name is `<package>-<version>.rockspec`
+for the package and version it declares. A default run stages `<name>-rock/`
+with the rockspec; it does not run `luarocks`. No credentials needed.
+
+Upload with `luarocks` on `PATH`:
+
+```
+LUAROCKS_PUBLISH_LIVE=1 LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_KEY=... \
+dx deploy --apply //pkg:luarocks_demo
+```
+
+This runs `luarocks upload <rockspec> --api-key=...`, which packs the source
+rock and uploads it, so the key is visible in the `luarocks` command line while
+it runs. A live run refuses upstream version `0.0.0`.
+
 # oci_deploy
 
 Stages one image as a local OCI layout and pushes it to a registry.

@@ -13,9 +13,11 @@ mod cloudflare;
 mod config;
 mod crates;
 mod github;
+mod hackage;
 mod homebrew;
 pub mod http;
 mod imports;
+mod luarocks;
 mod maven;
 mod npm;
 mod nuget;
@@ -34,8 +36,10 @@ pub use cloudflare::*;
 pub use config::*;
 pub use crates::*;
 pub use github::*;
+pub use hackage::*;
 pub use homebrew::*;
 pub use imports::*;
+pub use luarocks::*;
 pub use maven::*;
 pub use npm::*;
 pub use nuget::*;
@@ -206,6 +210,8 @@ mod tests {
         let gates = [
             &PYPI_GATE,
             &NUGET_GATE,
+            &hackage::HACKAGE_GATE,
+            &luarocks::LUAROCKS_GATE,
             &CRATES_GATE,
             &GITHUB_GATE,
             &maven::MAVEN_GATE,

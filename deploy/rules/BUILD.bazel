@@ -16,9 +16,13 @@ load(":defs.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
+load(":hackage.bzl", "hackage_deploy")
+load(":hackage_tests.bzl", "hackage_unit_tests")
 load(":homebrew.bzl", "homebrew_tap_deploy")
 load(":homebrew_tests.bzl", "homebrew_unit_tests")
 load(":linux_package_tests.bzl", "linux_package_unit_tests")
+load(":luarocks.bzl", "luarocks_deploy")
+load(":luarocks_tests.bzl", "luarocks_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_unit_tests")
 load(":native_runtime_tests.bzl", "native_runtime_unit_tests")
@@ -55,10 +59,14 @@ exports_files([
     "deploy_tests.bzl",
     "github.bzl",
     "github_tests.bzl",
+    "hackage.bzl",
+    "hackage_tests.bzl",
     "homebrew.bzl",
     "homebrew_tests.bzl",
     "linux_package.bzl",
     "linux_package_tests.bzl",
+    "luarocks.bzl",
+    "luarocks_tests.bzl",
     "maven.bzl",
     "maven_tests.bzl",
     "native_probe.bzl",
@@ -86,10 +94,12 @@ exports_files([
     "src/config.rs",
     "src/crates.rs",
     "src/github.rs",
+    "src/hackage.rs",
     "src/homebrew.rs",
     "src/http.rs",
     "src/imports.rs",
     "src/lib.rs",
+    "src/luarocks.rs",
     "src/maven.rs",
     "src/npm.rs",
     "src/nuget.rs",
@@ -114,10 +124,12 @@ rust_library(
         "src/config.rs",
         "src/crates.rs",
         "src/github.rs",
+        "src/hackage.rs",
         "src/homebrew.rs",
         "src/http.rs",
         "src/imports.rs",
         "src/lib.rs",
+        "src/luarocks.rs",
         "src/maven.rs",
         "src/npm.rs",
         "src/nuget.rs",
@@ -731,11 +743,15 @@ test_suite(
         ":github_demo_verify",
         ":github_duplicate_basename_fails",
         ":github_unit",
+        ":hackage_analysis",
+        ":hackage_unit",
         ":homebrew_analysis",
         ":homebrew_demo_verify",
         ":homebrew_unit",
         ":linux_package_demo_verify",
         ":linux_package_unit",
+        ":luarocks_analysis",
+        ":luarocks_unit",
         ":maven_analysis",
         ":maven_unit",
         ":npm_analysis",
@@ -1431,6 +1447,42 @@ nuget_unit_tests(name = "nuget_unit")
 deploy_analysis_test(
     name = "nuget_analysis",
     subject = "nuget_demo",
+)
+
+genrule(
+    name = "hackage_demo_sdist",
+    outs = ["hackage-demo-0.0.0.tar.gz"],
+    cmd = "mkdir -p $(@D)/stage/hackage-demo-0.0.0 && printf 'name: hackage-demo\\nversion: 0.0.0\\n' > $(@D)/stage/hackage-demo-0.0.0/hackage-demo.cabal && tar -czf $@ -C $(@D)/stage hackage-demo-0.0.0",
+)
+
+hackage_deploy(
+    name = "hackage-demo",
+    sdist = ":hackage_demo_sdist",
+)
+
+hackage_unit_tests(name = "hackage_unit")
+
+deploy_analysis_test(
+    name = "hackage_analysis",
+    subject = "hackage-demo",
+)
+
+genrule(
+    name = "luarocks_demo_rockspec",
+    outs = ["luarocks_demo-0.0.0-1.rockspec"],
+    cmd = "printf 'package = \"luarocks_demo\"\\nversion = \"0.0.0-1\"\\n' > $@",
+)
+
+luarocks_deploy(
+    name = "luarocks_demo",
+    rockspec = ":luarocks_demo_rockspec",
+)
+
+luarocks_unit_tests(name = "luarocks_unit")
+
+deploy_analysis_test(
+    name = "luarocks_analysis",
+    subject = "luarocks_demo",
 )
 
 java_library(

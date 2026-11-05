@@ -2393,3 +2393,40 @@ fn rustc_unused_dependency_is_a_diagnostic_without_a_path() {
         .expect("diagnostics")
         .is_empty());
 }
+
+fn unused_reference_sarif(labels: &[&str]) -> String {
+    let results: Vec<String> = labels
+        .iter()
+        .map(|label| {
+            format!(
+                r#"{{"ruleId":"RT0001","level":"warning","message":{{"text":"Reference {label} can be removed"}}}}"#
+            )
+        })
+        .collect();
+    roslyn_sarif(&results)
+}
+
+#[test]
+fn roslyn_unused_dependency_is_reported_only_when_every_framework_agrees() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let net8 = unused_reference_sarif(&["//p:gone", "//p:partly"]);
+    let net10 = unused_reference_sarif(&["//p:gone"]);
+    let mut tool = roslyn_pivots(
+        scratch.path(),
+        &[("net8.0", &net8, None), ("net10.0", &net10, None)],
+    );
+    let map = r#"{"package":"p","target":"app","deps":[{"label":"//p:gone","refs":["gone.dll"]},{"label":"//p:partly","refs":["partly.dll"]}]}"#;
+    for tfm in ["net8.0", "net10.0"] {
+        tool.tool_files
+            .push((format!("dx-roslyn/{tfm}/deps.json"), map.as_bytes().to_vec()));
+    }
+    let found = delegated::build_dep_diagnostics("roslyn", &tool).expect("diagnostics");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].path.is_empty());
+    assert_eq!(found[0].rule_id, "RT0001");
+    let dep = found[0].build_dep.as_ref().expect("build dep");
+    assert_eq!(
+        (&*dep.package, &*dep.target, &*dep.dependency),
+        ("p", "app", "gone")
+    );
+}

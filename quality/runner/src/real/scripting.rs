@@ -220,16 +220,16 @@ fn phpcs(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, Ru
     // phpcs reports the paths it was given, resolved; pass and match canonical ones.
     let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
     for (workspace, absolute) in pairs {
-        let real = std::fs::canonicalize(absolute)
-            .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+        let real = real_launcher(absolute);
+        if !real.exists() {
+            return Err(execution(tool_id, format!("resolve {workspace}: missing")));
+        }
         owned.push((real, absolute));
     }
     // Always name a standard: without one phpcs would pick up a phpcs.xml from the
     // working directory.
     let standard: std::ffi::OsString = match config {
-        Some(path) => std::fs::canonicalize(path)
-            .map_err(|err| execution(tool_id, format!("resolve phpcs config: {err}")))?
-            .into_os_string(),
+        Some(path) => real_launcher(path).into_os_string(),
         None => PHPCS_STANDARD.into(),
     };
     let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
@@ -470,12 +470,13 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
     let pairs = &call.staged.pairs;
     let config = call.config;
     // PHPStan reports realpaths, so analyse and match the canonical ones.
-    let root = std::fs::canonicalize(scratch.root())
-        .map_err(|err| execution(tool_id, format!("canonicalize scratch root: {err}")))?;
+    let root = real_launcher(scratch.root());
     let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
     for (workspace, absolute) in pairs {
-        let real = std::fs::canonicalize(absolute)
-            .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+        let real = real_launcher(absolute);
+        if !real.exists() {
+            return Err(execution(tool_id, format!("resolve {workspace}: missing")));
+        }
         owned.push((real, absolute));
     }
     let work = root.join(".dx-phpstan");
@@ -493,10 +494,7 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
         .collect();
     let scan_refs: Vec<&Path> = scan_dirs.iter().map(PathBuf::as_path).collect();
     let consumer = match config {
-        Some(path) => Some(
-            std::fs::canonicalize(path)
-                .map_err(|err| execution(tool_id, format!("resolve phpstan config: {err}")))?,
-        ),
+        Some(path) => Some(real_launcher(path)),
         None => None,
     };
     let extension = tool

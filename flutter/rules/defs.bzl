@@ -2,6 +2,7 @@
 
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("@rules_dart//dart:utils.bzl", "dart_analyzable_info_with_package", "derive_lib_root")
+load("@rules_flutter//flutter:android.bzl", _flutter_android_app = "flutter_android_app")
 load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_application", _flutter_gen_l10n = "flutter_gen_l10n", _flutter_library = "flutter_library", _flutter_test = "flutter_test")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
@@ -114,3 +115,16 @@ def flutter_application(name, main, srcs = None, visibility = None, target = "na
 def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""
     _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
+
+def flutter_android_app(name, application, package_name, android_abi = "x64", visibility = None, **kwargs):
+    """Thin wrapper over flutter_android_app."""
+    if android_abi not in ["arm64", "x64"]:
+        fail('flutter_android_app: android_abi must be "arm64" or "x64", got "{}"'.format(android_abi))
+    _flutter_android_app(
+        name = name,
+        application = application,
+        package_name = package_name,
+        android_abi = android_abi,
+        visibility = visibility,
+        **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    )

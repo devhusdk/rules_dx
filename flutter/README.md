@@ -9,6 +9,14 @@ The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one wid
 
 The app in `flutter/tests/fixtures/flutter-app` has a generated tips file, localized strings, a font, a web bundle with a browser test, and builds that fail on purpose. Its consumer qualification is `//tools/testing/hermetic:flutter`. Only Linux hosts are advertised for now.
 
+Build the fixture as an Android APK on Linux:
+
+```sh
+bazel build //flutter/tests/fixtures/flutter-app/android:apk
+```
+
+`flutter_android_app` wraps the upstream rule and uses `android_binary`, so no Gradle runs. Set `android_abi` to `x64` (default) or `arm64`. Device and emulator runs are not covered yet.
+
 Consumers load the rules from `@rules_dx//flutter/rules:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
 
 Start a project:

@@ -1,0 +1,50 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_android_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+flutter_android_app(
+    name = "apk",
+    application = "//flutter/tests/fixtures/flutter-app/app:native",
+    package_name = "dk.devhus.flutterapp",
+    pub_hub_name = "dx_flutter_app_deps",
+)
+
+flutter_android_app(
+    name = "apk_arm64",
+    android_abi = "arm64",
+    application = "//flutter/tests/fixtures/flutter-app/app:native",
+    package_name = "dk.devhus.flutterapp",
+    pub_hub_name = "dx_flutter_app_deps",
+)
+
+build_test(
+    name = "apk_build_test",
+    size = "small",
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    targets = [
+        ":apk",
+        ":apk_arm64",
+    ],
+)
+
+sh_test(
+    name = "inspect_apk_test",
+    size = "small",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :apk)",
+        "dk.devhus.flutterapp",
+    ],
+    data = [":apk"],
+    tags = ["block-network"],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

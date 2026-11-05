@@ -314,8 +314,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
 |  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_template` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
-|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
-|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_binary` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_gpu_env` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_split_srcs` |
@@ -470,6 +468,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx_apple//signing:defs.bzl` | `apple_macos_notarize` |
 |  |  | `@rules_dx_apple//signing:defs.bzl` | `apple_macos_sign` |
 |  |  | `@rules_dx_apple//signing:defs.bzl` | `macos_bundle_errors` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
+|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_tfm_with_defaults` |
 |  |  | `@rules_dx//flatbuffers/rules:defs.bzl` | `flatbuffers_library` |
 |  |  | `@rules_dx//flatbuffers/rules:defs.bzl` | `resolve_root` |
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_android_app` |
@@ -485,7 +487,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `library_name` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `link_kwargs` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `with_defaults` |
-|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_tfm_with_defaults` |
+|  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `upstream_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
@@ -625,6 +627,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` |
 |  |  | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` |
 |  |  | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` |
+|  |  | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_shard_action` |
 |  |  | `@rules_dx//tools/docs/python:defs.bzl` | `docs_python_shard` |
 |  |  | `@rules_dx//tools/docs/python:defs.bzl` | `python_doc_shard` |
 |  |  | `@rules_dx//tools/docs/python:defs.bzl` | `python_docs` |

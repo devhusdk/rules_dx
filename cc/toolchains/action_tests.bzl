@@ -29,6 +29,16 @@ def _gcc_arm64_impl(ctx):
             asserts.false(env, arg.startswith("/usr/") or arg.startswith("/lib"), "host path in %s: %s" % (action.mnemonic, arg))
     return analysistest.end(env)
 
+def _gcc_arm64_native_impl(ctx):
+    env = analysistest.begin(ctx)
+    for action in _actions(env, ctx.attr.mnemonics):
+        tool = action.argv[0]
+        asserts.true(env, "dx_gcc_linux_aarch64/" in tool or "dx_gcc_linux_aarch64_16" in tool, "tool outside the pinned native GCC: " + tool)
+        asserts.false(env, "_cross" in tool or "x86_64" in tool, "cross or x86_64 GCC used natively: " + tool)
+        for arg in action.argv:
+            asserts.false(env, arg.startswith("/usr/") or arg.startswith("/lib"), "host path in %s: %s" % (action.mnemonic, arg))
+    return analysistest.end(env)
+
 def _llvm_impl(ctx):
     env = analysistest.begin(ctx)
     for action in _actions(env, ctx.attr.mnemonics):
@@ -43,7 +53,11 @@ _gcc_arm64_test = analysistest.make(
     attrs = _ATTRS,
     config_settings = {_COMPILER: "gcc", "//command_line_option:platforms": [str(Label("//cc/tests/gcc_cross:linux_arm64"))]},
 )
+_gcc_arm64_native_test = analysistest.make(_gcc_arm64_native_impl, attrs = _ATTRS, config_settings = {_COMPILER: "gcc"})
 _llvm_test = analysistest.make(_llvm_impl, attrs = _ATTRS, config_settings = {_COMPILER: "llvm"})
+
+_LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+_LINUX_ARM64 = ["@platforms//os:linux", "@platforms//cpu:arm64"]
 
 def cc_action_tests(name, compile_target, link_target):
     """Asserts compile and link actions use the pinned GCC under gcc and not under llvm.
@@ -55,14 +69,19 @@ def cc_action_tests(name, compile_target, link_target):
     """
     tests = []
     for kind, target, mnemonics in [("compile", compile_target, ["CppCompile"]), ("link", link_target, ["CppLink"])]:
-        for compiler, rule in [("gcc", _gcc_test), ("gcc_arm64", _gcc_arm64_test), ("llvm", _llvm_test)]:
+        for compiler, rule, compatible in [
+            ("gcc", _gcc_test, _LINUX_X86_64),
+            ("gcc_arm64", _gcc_arm64_test, _LINUX_X86_64),
+            ("gcc_arm64_native", _gcc_arm64_native_test, _LINUX_ARM64),
+            ("llvm", _llvm_test, _LINUX_X86_64),
+        ]:
             test = "%s_%s_%s" % (name, kind, compiler)
             rule(
                 name = test,
                 size = "small",
                 mnemonics = mnemonics,
                 testonly = True,
-                target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+                target_compatible_with = compatible,
                 target_under_test = target,
             )
             tests.append(test)

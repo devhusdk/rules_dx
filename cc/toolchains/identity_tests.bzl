@@ -57,6 +57,8 @@ aspect_field has_subject=True
 aspect_field subject_label=//cc/toolchains:identity_under_test_gcc_arm64
 aspect_field transitive_count=0"""
 
+EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = "TODO from CI"
+
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
 def cc_toolchain_identity_tests(name):
@@ -147,4 +149,11 @@ def cc_toolchain_identity_tests(name):
         subjects = [":identity_under_test_gcc_arm64"],
         expected_observations = EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS,
         target_compatible_with = _LINUX_X86_64,
+    )
+    starlark_test(
+        name = name + "_gcc_arm64_native",
+        mode = "analysis",
+        subjects = [":identity_under_test_gcc_arm64_native"],
+        expected_observations = EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS,
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:arm64"],
     )

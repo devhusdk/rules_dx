@@ -47,6 +47,7 @@ go_library(
         "manifest.go",
         "naming.go",
         "nodestdlib.go",
+        "npmhub.go",
         "pnpmworkspace.go",
         "registry.go",
         "remedy.go",
@@ -95,6 +96,7 @@ go_library(
     ],
     deps = [
         "//gazelle/common/treesitter",
+        "@com_github_bazelbuild_buildtools//build",
         "@com_github_odvcencio_gotreesitter//:gotreesitter",
         "@com_github_odvcencio_gotreesitter//grammars/tsx",
         "@com_github_odvcencio_gotreesitter//grammars/typescript",
@@ -128,6 +130,7 @@ go_test(
         "jstestconfig_test.go",
         "manifest_test.go",
         "naming_test.go",
+        "npmhub_test.go",
         "registry_test.go",
         "remedy_test.go",
         "singlelang_test.go",

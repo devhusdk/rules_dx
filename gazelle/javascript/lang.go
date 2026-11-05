@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
@@ -89,11 +90,37 @@ func newLang() *common.SingleLang {
 		PathIdentity:   true,
 		IsStdLib:       common.IsNodeBuiltin,
 		Find:           common.JSFind(languageName),
-		ConfigureExt:   common.ConfigureTSPathsExt,
+		ConfigureExt:   configureExt,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
 		External:       "npm",
 		Generate:       generateRules,
 	})
+}
+
+const npmHubKey = "javascript:npm_hub"
+
+func configureExt(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
+	common.ConfigureTSPathsExt(c, rel, f, rep)
+	if !fileExists(filepath.Join(c.RepoRoot, filepath.FromSlash(rel), "pnpm-lock.yaml")) {
+		return
+	}
+	ours := c.Exts[npmHubKey] == true
+	if _, set := c.KindMap[linkKind]; set && !ours {
+		return
+	}
+	hub := common.NpmHub(c.RepoRoot, path.Join(rel, "pnpm-lock.yaml"))
+	if hub == "npm" {
+		if ours {
+			delete(c.KindMap, linkKind)
+			c.Exts[npmHubKey] = false
+		}
+		return
+	}
+	if c.KindMap == nil {
+		c.KindMap = map[string]config.MappedKind{}
+	}
+	c.KindMap[linkKind] = config.MappedKind{FromKind: linkKind, KindName: linkKind, KindLoad: "@" + hub + "//:defs.bzl"}
+	c.Exts[npmHubKey] = true
 }
 
 func isSupported(name string) bool {

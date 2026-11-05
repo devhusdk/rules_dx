@@ -99,6 +99,9 @@ pub fn bazelversion(text: &str, base: &str, fetch: &dyn Fetch) -> Findings {
         Some(&release),
         &mut found,
     );
+    for candidate in &mut found.candidates {
+        candidate.repo = Some("bazelbuild/bazel".to_owned());
+    }
     found
 }
 
@@ -344,6 +347,10 @@ mod tests {
         let found = bazelversion("8.3.1\n", "b", &fetch);
         assert_eq!(found.candidates[0].latest, "8.4.0");
         assert_eq!(found.candidates[0].package, ".bazelversion");
+        assert_eq!(
+            found.candidates[0].repo.as_deref(),
+            Some("bazelbuild/bazel")
+        );
         assert_eq!(bazelversion("9.0.0", "b", &fetch), Findings::default());
         assert_eq!(bazelversion("latest", "b", &fetch).unknown.len(), 1);
     }

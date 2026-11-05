@@ -552,8 +552,8 @@ prerelease versions with `prerelease`, then the
 lock files changed with added and removed line counts.
 
 When the registry names a GitHub repository, the line also links the compare view
-and the release for the new version. npm, PyPI, the Bazel registry and GitHub
-items do this; crates.io's index does not name a repository, so cargo lines
+and the release for the new version. npm, PyPI, the Bazel registry, GitHub
+actions and the `.bazelversion` pin do this; crates.io's index does not name a repository, so cargo lines
 keep the registry link only.
 
 After the groups, `dx update --pr` closes open `dx-update/` pull requests on the

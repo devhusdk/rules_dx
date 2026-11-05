@@ -199,6 +199,7 @@ mod tests {
             .map(|(p, c, l)| Item {
                 candidate: candidate(p, c, l, None),
                 registry: Registry::Crates,
+                untagged: false,
             })
             .collect();
         let plans = plan(&items, Group::All);
@@ -216,6 +217,7 @@ mod tests {
         let items = vec![Item {
             candidate: pre,
             registry: Registry::Crates,
+            untagged: false,
         }];
         let plans = plan(&items, Group::All);
         assert!(!automerge(Some(Level::Major), &plans[0]));

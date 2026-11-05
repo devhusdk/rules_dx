@@ -75,6 +75,8 @@ impl Scope {
 pub struct Item {
     pub candidate: Candidate,
     pub registry: Registry,
+    /// The repository's tags were listed and none matched the versions.
+    pub untagged: bool,
 }
 
 /// One pull request: its branch, title and packages.
@@ -147,7 +149,9 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
             c.latest,
             item.registry.url(&c.package)
         );
-        if let Some(repo) = &c.repo {
+        if let (Some(repo), true) = (&c.repo, item.untagged) {
+            let _ = write!(text, ": [releases](https://github.com/{repo}/releases)");
+        } else if let Some(repo) = &c.repo {
             let (old, new) = c
                 .tags
                 .clone()
@@ -166,6 +170,26 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
         }
     }
     text
+}
+
+/// Picks the old and new tag names from `git ls-remote --tags --refs` output.
+pub fn pick_tags(listing: &str, package: &str, old: &str, new: &str) -> Option<(String, String)> {
+    let tags: std::collections::BTreeSet<&str> = listing
+        .lines()
+        .filter_map(|line| line.split_once("refs/tags/").map(|(_, tag)| tag.trim()))
+        .collect();
+    let name = package.rsplit('/').next().unwrap_or(package);
+    let forms: [fn(&str, &str) -> String; 5] = [
+        |_, v| v.to_owned(),
+        |_, v| format!("v{v}"),
+        |n, v| format!("{n}@{v}"),
+        |n, v| format!("{n}-v{v}"),
+        |n, v| format!("{n}-{v}"),
+    ];
+    forms.iter().find_map(|form| {
+        let (old, new) = (form(name, old), form(name, new));
+        (tags.contains(old.as_str()) && tags.contains(new.as_str())).then_some((old, new))
+    })
 }
 
 /// Reads `git diff --numstat` lines, keeping lock files.
@@ -239,6 +263,7 @@ mod tests {
                 tags: None,
             },
             registry,
+            untagged: false,
         }
     }
 
@@ -352,5 +377,41 @@ mod tests {
         assert_eq!(Group::parse("all"), Some(Group::All));
         assert_eq!(Group::parse("x"), None);
         assert_eq!(Group::default(), Group::Set);
+    }
+
+    const LISTING: &str = "a\trefs/tags/v1.0.0\nb\trefs/tags/v1.1.0\nc\trefs/tags/pkg@1.0.0\nd\trefs/tags/pkg@1.1.0\n";
+
+    #[test]
+    fn picks_the_first_matching_tag_form() {
+        let pick = |pkg, old, new| pick_tags(LISTING, pkg, old, new);
+        assert_eq!(
+            pick("other", "1.0.0", "1.1.0"),
+            Some(("v1.0.0".into(), "v1.1.0".into()))
+        );
+        assert_eq!(
+            pick("pkg", "1.0.0", "1.1.0").map(|t| t.0),
+            Some("v1.0.0".into())
+        );
+        let scoped = "a\trefs/tags/pkg@1.0.0\nb\trefs/tags/pkg@2.0.0\n";
+        assert_eq!(
+            pick_tags(scoped, "@s/pkg", "1.0.0", "2.0.0"),
+            Some(("pkg@1.0.0".into(), "pkg@2.0.0".into()))
+        );
+        assert_eq!(pick_tags(LISTING, "pkg", "1.0.0", "3.0.0"), None);
+    }
+
+    #[test]
+    fn an_untagged_repository_links_releases_only() {
+        let mut item = item("npm", "left-pad", "2.0.0", Registry::Crates);
+        item.candidate.repo = Some("o/r".into());
+        item.untagged = true;
+        let plan = GroupPlan {
+            branch: "b".into(),
+            title: "t".into(),
+            items: vec![item],
+        };
+        let text = body(&plan, &[]);
+        assert!(text.contains("[releases](https://github.com/o/r/releases)"));
+        assert!(!text.contains("compare"));
     }
 }

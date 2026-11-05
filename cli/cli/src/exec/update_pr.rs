@@ -8,7 +8,8 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_update::discover::Fetch;
 use dx_update::policy::{automerge, filter, Level, Policy};
-use dx_update::pr::{body, lock_numstat, plan, Group, GroupPlan, Item, Scope};
+use dx_update::pr::{body, lock_numstat, pick_tags, plan, Group, GroupPlan, Item, Scope};
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -142,6 +143,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         max_prs: invocation.max_prs.map_or(DEFAULT_MAX_PRS, usize::from),
     };
     let mut items: Vec<Item> = Vec::new();
+    let mut listings: BTreeMap<String, String> = BTreeMap::new();
     for candidate in &kept {
         let registry = registry_for(&registries, candidate).ok_or("no registry");
         let registry = match registry {
@@ -169,9 +171,30 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
                 continue;
             }
         };
+        let mut candidate = candidate.clone();
+        let mut untagged = false;
+        if let (Some(repo), None) = (&candidate.repo, &candidate.tags) {
+            let listing = listings.entry(repo.clone()).or_insert_with(|| {
+                let url = format!("https://github.com/{repo}");
+                program(
+                    &tools.git,
+                    workspace,
+                    &["ls-remote", "--tags", "--refs", &url],
+                )
+                .unwrap_or_default()
+            });
+            candidate.tags = pick_tags(
+                listing,
+                &candidate.package,
+                &candidate.current,
+                &candidate.latest,
+            );
+            untagged = candidate.tags.is_none();
+        }
         items.push(Item {
-            candidate: candidate.clone(),
+            candidate,
             registry,
+            untagged,
         });
     }
     let group = invocation
@@ -735,6 +758,7 @@ mod tests {
                     tags: None,
                 },
                 registry: Registry::Crates,
+                untagged: false,
             }],
             Group::Set,
         )
@@ -1330,6 +1354,7 @@ mod tests {
                 tags: None,
             },
             registry: Registry::Crates,
+            untagged: false,
         };
         plan(
             &[

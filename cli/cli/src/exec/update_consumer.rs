@@ -229,6 +229,9 @@ fn run_configured_target(
             dx_update::backend::BackendPlan::Staged(run) => {
                 dx_update::backend::CheckPlan::Staged(run)
             }
+            dx_update::backend::BackendPlan::Sequence(runs) => {
+                dx_update::backend::CheckPlan::Sequence(runs)
+            }
             dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
         }),
         RunMode::Check => dx_update::backend::check_configured(
@@ -241,7 +244,7 @@ fn run_configured_target(
             &closure,
         ),
     };
-    let (argv, extra) = match planned {
+    let runs = match planned {
         Err(error) => {
             record_backend_error(attempted, details, &error, verb, &set.name);
             return Ok(());
@@ -269,12 +272,23 @@ fn run_configured_target(
         Ok(dx_update::backend::CheckPlan::Staged(run)) => {
             return run_staged(outcomes, target, &run, runner, workspace, mode, gate);
         }
-        Ok(dx_update::backend::CheckPlan::Run { argv, env }) => (argv, env),
+        Ok(dx_update::backend::CheckPlan::Run { argv, env }) => {
+            vec![dx_update::backend::Run { argv, env }]
+        }
+        Ok(dx_update::backend::CheckPlan::Sequence(runs)) => runs,
     };
-    let bazel = dx_update::backend::runs_bazel(&argv);
-    gate.before(&argv)?;
+    let bazel = runs
+        .iter()
+        .any(|run| dx_update::backend::runs_bazel(&run.argv));
     let guarded = (mode == RunMode::Check && bazel).then(|| CheckGuard::take(workspace, set));
-    let launched = launch(gate, runner, workspace, &argv, &extra);
+    let mut launched = Ok(dx_process::ChildStatus::exited(0));
+    for run in &runs {
+        gate.before(&run.argv)?;
+        launched = launch(gate, runner, workspace, &run.argv, &run.env);
+        if !matches!(&launched, Ok(status) if status.code == Some(0)) {
+            break;
+        }
+    }
     let ok = match mode {
         RunMode::Update => (
             dx_update::outcome::SetStatus::Updated,

@@ -288,8 +288,21 @@ fn dialect() -> Dialect {
 impl ModuleFile {
     /// Parses MODULE.bazel source without evaluating it.
     pub fn parse(source: &str) -> Result<ModuleFile, ModuleError> {
+        Self::parse_with(source, &dialect())
+    }
+
+    /// Parses a BUILD file the same way, accepting `load` statements and ignoring them.
+    pub fn parse_build(source: &str) -> Result<ModuleFile, ModuleError> {
+        let build = Dialect {
+            enable_load: true,
+            ..dialect()
+        };
+        Self::parse_with(source, &build)
+    }
+
+    fn parse_with(source: &str, dialect: &Dialect) -> Result<ModuleFile, ModuleError> {
         let ast =
-            AstModule::parse("MODULE.bazel", source.to_owned(), &dialect()).map_err(|error| {
+            AstModule::parse("MODULE.bazel", source.to_owned(), dialect).map_err(|error| {
                 ModuleError::Syntax {
                     line: error
                         .span()

@@ -354,6 +354,12 @@ pub enum DependencySetsError {
         path: String,
         ecosystem: &'static str,
     },
+    #[error("dependency set {name:?} has a stale {lock}: {detail}; run the cpan_compiler next to the cpanfile")]
+    StaleCpanLock {
+        name: String,
+        lock: String,
+        detail: String,
+    },
     #[error("dependency set {name:?} cannot resolve maven hub {repository:?}: {detail}")]
     UnsupportedMavenHub {
         name: String,
@@ -491,12 +497,13 @@ pub fn discover(
             )?);
         }
         for cpan in module.cpan_installs().map_err(hub)? {
-            let dir = manifest_dir(std::slice::from_ref(&path(cpan.lock)?));
+            let lock = path(cpan.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
                 cpan.name,
                 Ecosystem::Cpan,
                 vec![in_dir(&dir, CPANFILE)],
-                vec![in_dir(&dir, CPANFILE_SNAPSHOT)],
+                vec![in_dir(&dir, CPANFILE_SNAPSHOT), lock],
             )?);
         }
         for pub_lock in module.pub_locks().map_err(hub)? {
@@ -1217,7 +1224,7 @@ pub fn check_backend_settings(
         Ecosystem::Bazel => Ok(()),
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
-        Ecosystem::Cpan => check_pinned_lock(set, CPANFILE_SNAPSHOT),
+        Ecosystem::Cpan => check_cpan_layout(workspace, set),
         Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Cargo => {
@@ -1228,6 +1235,79 @@ pub fn check_backend_settings(
         Ecosystem::Nuget => check_nuget_layout(workspace, set),
         Ecosystem::Go => check_go_layout(workspace, set),
     }
+}
+
+/// The `.json` lock `cpan.install` reads, beside `cpanfile.snapshot`.
+fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
+    set.locks.iter().find(|lock| lock.ends_with(".json"))
+}
+
+/// The `//pkg:name` of the `cpan_compiler` that writes the set's lock JSON.
+///
+/// Reads `BUILD.bazel` or `BUILD` in the lock's package; None when no call names the lock.
+pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String> {
+    let lock = cpan_json_lock(set)?;
+    let (package, file) = match lock.rsplit_once('/') {
+        Some((package, file)) => (package, file),
+        None => ("", lock.as_str()),
+    };
+    let text = ["BUILD.bazel", "BUILD"]
+        .iter()
+        .find_map(|name| std::fs::read_to_string(workspace.join(package).join(name)).ok())?;
+    let build = dx_module_bazel::ModuleFile::parse_build(&text).ok()?;
+    let label = build.calls_named("cpan_compiler").find_map(|call| {
+        let named = call.str("lockfile")?;
+        let named = named.rsplit([':', '/']).next().unwrap_or(named);
+        (named == file).then(|| format!("//{package}:{}", call.str("name").unwrap_or_default()))
+    });
+    label
+}
+
+fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    check_pinned_lock(set, CPANFILE_SNAPSHOT)?;
+    let Some(lock) = cpan_json_lock(set) else {
+        return Ok(());
+    };
+    let stale = |detail: String| DependencySetsError::StaleCpanLock {
+        name: set.name.clone(),
+        lock: lock.clone(),
+        detail,
+    };
+    let snapshot = in_dir(&set.dir, CPANFILE_SNAPSHOT);
+    let snapshot_text = std::fs::read_to_string(workspace.join(&snapshot))
+        .map_err(|error| stale(format!("cannot read {snapshot}: {error}")))?;
+    let lock_text = std::fs::read_to_string(workspace.join(lock))
+        .map_err(|error| stale(format!("cannot read {lock}: {error}")))?;
+    let json: serde_json::Value = serde_json::from_str(&lock_text)
+        .map_err(|error| stale(format!("cannot parse it: {error}")))?;
+    let in_lock: std::collections::BTreeSet<&str> = json
+        .as_object()
+        .map(|entries| {
+            entries
+                .values()
+                .filter_map(|entry| entry.get("strip_prefix")?.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut in_snapshot = std::collections::BTreeSet::new();
+    let mut distributions = false;
+    for line in snapshot_text.lines() {
+        let indent = line.len() - line.trim_start().len();
+        if indent == 0 {
+            distributions = line.trim() == "DISTRIBUTIONS";
+        } else if distributions && indent == 2 {
+            in_snapshot.insert(line.trim());
+        }
+    }
+    if let Some(missing) = in_snapshot.difference(&in_lock).next() {
+        return Err(stale(format!(
+            "{snapshot} has {missing}, which the lock lacks"
+        )));
+    }
+    if let Some(extra) = in_lock.difference(&in_snapshot).next() {
+        return Err(stale(format!("it has {extra}, which {snapshot} lacks")));
+    }
+    Ok(())
 }
 
 /// The name `@<name>` resolves the set's crate_universe hub by in the root module.
@@ -1919,7 +1999,66 @@ mod tests {
         let set = registry.find("perl_cpan").expect("set");
         assert_eq!(set.ecosystem, Ecosystem::Cpan);
         assert_eq!(set.manifests, ["perl/tools/cpanfile"]);
-        assert_eq!(set.locks, ["perl/tools/cpanfile.snapshot"]);
+        assert_eq!(
+            set.locks,
+            [
+                "perl/tools/cpanfile.snapshot",
+                "perl/tools/cpanfile.snapshot.lock.json"
+            ]
+        );
+    }
+
+    const CPAN_SNAPSHOT: &str = "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Try-Tiny-0.31\n    pathname: E/ET/ETHER/Try-Tiny-0.31.tar.gz\n";
+
+    fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-cpan-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("perl")).expect("dir");
+        std::fs::write(root.join("perl/cpanfile.snapshot"), CPAN_SNAPSHOT).expect("snapshot");
+        std::fs::write(root.join("perl/cpanfile.snapshot.lock.json"), lock).expect("lock");
+        std::fs::write(
+            root.join("perl/BUILD.bazel"),
+            "load(\"@rules_perl//perl/cpan:cpan_compiler.bzl\", \"cpan_compiler\")\n\ncpan_compiler(\n    name = \"compiler\",\n    cpanfile = \"cpanfile\",\n    lockfile = \"cpanfile.snapshot.lock.json\",\n)\n",
+        )
+        .expect("build");
+        let set = ResolvedSet {
+            name: "perl_cpan".to_owned(),
+            ecosystem: Ecosystem::Cpan,
+            dir: "perl".to_owned(),
+            manifests: vec!["perl/cpanfile".to_owned()],
+            locks: vec![
+                "perl/cpanfile.snapshot".to_owned(),
+                "perl/cpanfile.snapshot.lock.json".to_owned(),
+            ],
+            repository: None,
+        };
+        (scratch, set)
+    }
+
+    #[test]
+    fn cpan_compiler_label_reads_the_build_file_beside_the_lock() {
+        let (scratch, set) = cpan_workspace("{}");
+        assert_eq!(
+            cpan_compiler_label(scratch.path(), &set).as_deref(),
+            Some("//perl:compiler")
+        );
+        std::fs::write(scratch.path().join("perl/BUILD.bazel"), "").expect("build");
+        assert_eq!(cpan_compiler_label(scratch.path(), &set), None);
+    }
+
+    #[test]
+    fn cpan_layout_accepts_a_lock_that_matches_the_snapshot() {
+        let (scratch, set) = cpan_workspace("{\"Try-Tiny\":{\"strip_prefix\":\"Try-Tiny-0.31\"}}");
+        assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+    }
+
+    #[test]
+    fn cpan_layout_rejects_a_stale_lock_json() {
+        let (scratch, set) = cpan_workspace("{\"Try-Tiny\":{\"strip_prefix\":\"Try-Tiny-0.30\"}}");
+        let error = check_backend_settings(scratch.path(), &set).expect_err("stale");
+        let message = error.to_string();
+        assert!(message.contains("Try-Tiny-0.31"), "{message}");
+        assert!(message.contains("run the cpan_compiler"), "{message}");
     }
 
     #[test]

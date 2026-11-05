@@ -494,6 +494,20 @@ pub(crate) fn write_and_refresh(
             );
             finish(result, refreshed("resolver-owned"))
         }
+        RefreshPlan::Backend(dx_update::backend::BackendPlan::Sequence(runs)) => {
+            let result = runs.iter().try_for_each(|run| {
+                launch_refresh(
+                    runner,
+                    &run.argv,
+                    &run.env,
+                    workspace,
+                    &update_selector,
+                    "updater",
+                    kept,
+                )
+            });
+            finish(result, refreshed("resolver-owned"))
+        }
         RefreshPlan::InDir(run) => {
             let lock_name = if request.is_configured_ruby() {
                 "Gemfile.lock"

@@ -1309,3 +1309,12 @@ fn insert_extension_block_refuses_unsafe_values() {
         );
     }
 }
+
+#[test]
+fn build_files_parse_with_load_statements() {
+    let text = "load(\"@rules_perl//perl/cpan:cpan_compiler.bzl\", \"cpan_compiler\")\ncpan_compiler(name = \"compiler\", lockfile = \"l.json\")\n";
+    assert!(ModuleFile::parse(text).is_err());
+    let file = ModuleFile::parse_build(text).expect("parses");
+    let call = file.calls_named("cpan_compiler").next().expect("call");
+    assert_eq!(call.str("name"), Some("compiler"));
+}

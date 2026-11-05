@@ -9,7 +9,16 @@ pub enum BackendPlan {
     },
     /// Runs a generator against a staged copy of its inputs; the caller compares the output.
     Staged(StagedRun),
+    /// Commands run in order; the first failure stops the rest.
+    Sequence(Vec<Run>),
     Noop,
+}
+
+/// One command of a [`BackendPlan::Sequence`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Run {
+    pub argv: Vec<String>,
+    pub env: Vec<(String, String)>,
 }
 
 /// The generator a [`StagedRun`] launches.
@@ -301,6 +310,7 @@ pub enum CheckPlan {
     Pinned,
     Unavailable,
     Staged(StagedRun),
+    Sequence(Vec<Run>),
 }
 
 pub const NPM_CONFIG_ENV: [&str; 2] = ["npm_config_globalconfig", "npm_config_userconfig"];
@@ -639,12 +649,24 @@ pub fn plan_configured(
                     set: set.name.clone(),
                 });
             }
+            let Some(compiler) = dependency_sets::cpan_compiler_label(workspace, set) else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: "add a cpan_compiler next to the cpanfile; it keeps cpanfile.snapshot.lock.json in step with cpanfile.snapshot",
+                });
+            };
             let mut command = vec!["update"];
             command.extend(modules.iter().map(String::as_str));
-            Ok(BackendPlan::Run {
-                argv: carton_argv(workspace, set, head, &command)?,
-                env: carton_env(),
-            })
+            Ok(BackendPlan::Sequence(vec![
+                Run {
+                    argv: carton_argv(workspace, set, head, &command)?,
+                    env: carton_env(),
+                },
+                Run {
+                    argv: bazel(head, "run", &[&compiler, "--", "--incremental"]),
+                    env: carton_env(),
+                },
+            ]))
         }
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
@@ -1449,55 +1471,81 @@ mod tests {
             ecosystem: Ecosystem::Cpan,
             dir: "app".to_owned(),
             manifests: vec!["app/cpanfile".to_owned()],
-            locks: vec!["app/cpanfile.snapshot".to_owned()],
+            locks: vec![
+                "app/cpanfile.snapshot".to_owned(),
+                "app/cpanfile.snapshot.lock.json".to_owned(),
+            ],
             repository: None,
         }
     }
 
-    #[test]
-    fn cpan_update_runs_carton_update_in_the_set_dir() {
-        let plan = plan_configured(
-            ws(),
+    fn cpan_workspace(build: &str) -> dx_test_scratch::TempDir {
+        let dir = dx_test_scratch::scratch("cpan_backend");
+        dx_test_scratch::write(dir.path(), "app/BUILD.bazel", build);
+        dir
+    }
+
+    const COMPILER_BUILD: &str = "cpan_compiler(name = \"compiler\", cpanfile = \"cpanfile\", lockfile = \"cpanfile.snapshot.lock.json\")\n";
+
+    fn cpan_update(
+        workspace: &Path,
+        offline: bool,
+        frozen: bool,
+    ) -> Result<BackendPlan, BackendError> {
+        plan_configured(
+            workspace,
             &cpan_set(),
             &Selection::Packages(vec!["Try::Tiny".to_owned()]),
-            false,
-            false,
+            offline,
+            frozen,
             &no_head(),
             &UvClosure::default(),
         )
-        .expect("plan");
-        let BackendPlan::Run { argv, env } = plan else {
-            panic!("expected a run");
+    }
+
+    #[test]
+    fn cpan_update_runs_carton_then_the_compiler() {
+        let dir = cpan_workspace(COMPILER_BUILD);
+        let BackendPlan::Sequence(runs) = cpan_update(dir.path(), false, false).expect("plan")
+        else {
+            panic!("expected a sequence");
         };
-        let tail = argv.iter().position(|arg| arg.starts_with("--run_under="));
+        assert_eq!(runs.len(), 2);
+        let carton = &runs[0].argv;
+        let tail = carton
+            .iter()
+            .position(|arg| arg.starts_with("--run_under="));
         assert_eq!(
-            argv[tail.expect("run_under")..],
-            [
-                "--run_under=cd '/dx-workspace/app' &&",
-                "@rules_dx//perl/tools:carton",
-                "--",
-                "update",
-                "Try::Tiny"
-            ]
+            carton[tail.expect("run_under") + 1..],
+            ["@rules_dx//perl/tools:carton", "--", "update", "Try::Tiny"]
         );
-        assert_eq!(env[0].0, "PERL_CARTON_PATH");
+        assert_eq!(runs[0].env[0].0, "PERL_CARTON_PATH");
+        assert_eq!(
+            runs[1].argv[runs[1].argv.len() - 3..],
+            ["//app:compiler", "--", "--incremental"]
+        );
+    }
+
+    #[test]
+    fn cpan_update_refuses_without_a_compiler() {
+        let dir = cpan_workspace("");
+        let error = cpan_update(dir.path(), false, false).expect_err("refused");
+        assert!(error
+            .to_string()
+            .contains("add a cpan_compiler next to the cpanfile"));
     }
 
     #[test]
     fn cpan_update_refuses_frozen_and_offline() {
-        let request = Selection::Packages(vec!["Try::Tiny".to_owned()]);
-        for (offline, frozen) in [(true, false), (false, true)] {
-            assert!(plan_configured(
-                ws(),
-                &cpan_set(),
-                &request,
-                offline,
-                frozen,
-                &no_head(),
-                &UvClosure::default()
-            )
-            .is_err());
-        }
+        let dir = cpan_workspace(COMPILER_BUILD);
+        assert!(matches!(
+            cpan_update(dir.path(), true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        assert!(matches!(
+            cpan_update(dir.path(), false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
     }
 
     #[test]

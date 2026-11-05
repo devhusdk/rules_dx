@@ -88,7 +88,10 @@ cc_library(
         "greet_static.cc",
         "greet_static_suffix.cc",
     ],
-    features = ["static_link_msvcrt"],
+    features = [
+        "-dynamic_link_msvcrt",
+        "static_link_msvcrt",
+    ],
     tags = ["manual"],
     target_compatible_with = _MSVC_ONLY,
     deps = [":greet_api"],

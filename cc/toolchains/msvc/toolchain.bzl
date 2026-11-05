@@ -66,7 +66,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cp
             "ld": layout.link,
         },
         archiver_flags = [machine],
-        default_link_flags = [machine],
+        default_link_flags = [machine, "/PDBALTPATH:%_PDB%"],
         cxx_flags = MSVC_CXX_CONFORMANCE_FLAGS,
         dbg_mode_debug_flag = "/DEBUG",
         fastbuild_mode_debug_flag = "/DEBUG",

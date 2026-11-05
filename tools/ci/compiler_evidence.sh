@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # Appends one JSON line of compiler evidence for a compiler row to a file.
 # usage: compiler_evidence.sh OUT PLATFORM COMPILER IDENTITY_TEST ROW_TEST...
-# Run from the workspace root after the tests, with bazel-bin and bazel-testlogs in place.
+# Run after the tests. Reads bazel-bin and bazel-testlogs, or DX_BIN and DX_TESTLOGS when set.
 set -euo pipefail
 
 out="$1"; platform="$2"; compiler="$3"; identity="$4"
 shift 4
+bin="${DX_BIN:-bazel-bin}"
+testlogs="${DX_TESTLOGS:-bazel-testlogs}"
 
 outcome_of() {
   local path="${1#//}"
-  local xml="bazel-testlogs/${path/:/\/}/test.xml"
+  local xml="${testlogs}/${path/:/\/}/test.xml"
   if [ ! -f "$xml" ]; then
     echo skipped
   elif grep -Eq '<(failure|error)' "$xml"; then
@@ -28,7 +30,7 @@ for label in "$@"; do
 done
 
 path="${identity#//}"
-manifest="bazel-bin/${path/:/\/}_starlark_manifest.json"
+manifest="${bin}/${path/:/\/}_starlark_manifest.json"
 probe=""
 if [ -f "$manifest" ]; then
   probe="$(jq -r '.. | strings | select(contains("field cc.compiler="))' "$manifest")"

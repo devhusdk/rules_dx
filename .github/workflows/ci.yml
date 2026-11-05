@@ -402,6 +402,34 @@ jobs:
             echo "::error::Every starter consumer test was skipped on ${PLATFORM}, shard ${SHARD}."
             exit 1
           fi
+      - name: Record compiler evidence
+        if: always() && matrix.shard == 0
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          out="$RUNNER_TEMP/compiler-evidence/${PLATFORM}.jsonl"
+          mkdir -p "$(dirname "$out")"
+          : > "$out"
+          ids="//cc/toolchains:identity //cc/toolchains:identity_gcc"
+          bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $ids || true
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $ids //cc/tests/fixtures/hello:hello_test || true
+          export DX_BIN="$(bazel info "$@" bazel-bin)" DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
+          tools/ci/compiler_evidence.sh "$out" "$PLATFORM" gcc //cc/toolchains:identity_gcc
+          tools/ci/compiler_evidence.sh "$out" "$PLATFORM" llvm //cc/toolchains:identity //cc/tests/fixtures/hello:hello_test
+          {
+            echo "#### Compiler evidence"
+            echo "| compiler | probe compiler | target | outcome |"
+            echo "| --- | --- | --- | --- |"
+            jq -r '"| \(.compiler_flag) | \(.compiler) | \(.target) | \(.outcome) |"' "$out"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && matrix.shard == 0
+        with:
+          name: compiler-evidence-starter-${{ matrix.platform }}
+          path: ${{ runner.temp }}/compiler-evidence
+          retention-days: 7
       - name: Write job summary
         if: always()
         env:

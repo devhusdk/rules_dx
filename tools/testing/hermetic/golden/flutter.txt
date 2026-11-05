@@ -30,6 +30,7 @@ file flutter/tests/fixtures/flutter-app/profile.bzl
 file flutter/tests/fixtures/flutter-app/pubspec.lock
 file flutter/tests/fixtures/flutter-app/pubspec.yaml
 failure //flutter/tests/fixtures/flutter-app/failures:missing_asset
+failure //flutter/tests/fixtures/flutter-app/failures:missing_font
 failure //flutter/tests/fixtures/flutter-app/failures:type_error
 failure //flutter/tests/fixtures/flutter-app/failures:undeclared_dep
 bazel_dep rules_dart

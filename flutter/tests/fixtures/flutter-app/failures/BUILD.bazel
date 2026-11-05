@@ -1,4 +1,4 @@
-load("@rules_dx//flutter/rules:defs.bzl", "flutter_application")
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_application", "flutter_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
@@ -33,6 +33,16 @@ flutter_application(
     main = "lib/missing_asset.dart",
     tags = ["manual"],
     deps = ["@dx_flutter_app_deps//:flutter"],
+)
+
+flutter_library(
+    name = "missing_font",
+    package_name = "flutter_app_failures",
+    fonts_json = json.encode([{
+        "family": "Missing",
+        "fonts": [{"asset": "assets/fonts/Missing.ttf"}],
+    }]),
+    tags = ["manual"],
 )
 
 real_source_target(

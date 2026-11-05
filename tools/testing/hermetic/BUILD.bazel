@@ -574,6 +574,7 @@ hermetic_qualification(
 hermetic_qualification(
     name = "flutter",
     failures = {
+        "//flutter/tests/fixtures/flutter-app/failures:missing_font": "font_files does not provide it",
         "//flutter/tests/fixtures/flutter-app/failures:missing_asset": "1 input file(s) do not exist",
         "//flutter/tests/fixtures/flutter-app/failures:type_error": "The argument type 'int' can't be assigned to the parameter type 'String'",
         "//flutter/tests/fixtures/flutter-app/failures:undeclared_dep": "is not a direct dependency of",

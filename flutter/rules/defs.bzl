@@ -75,8 +75,32 @@ _flutter_application_forward = dx_library_forward_rule(
     runtime = "besteffort",
 )
 
+def _missing_font_impl(ctx):
+    out = ctx.actions.declare_file(ctx.label.name + ".missing_font")
+    ctx.actions.run_shell(
+        outputs = [out],
+        command = "echo 'flutter_library {}: fonts_json names font asset \"{}\" but font_files does not provide it' >&2; exit 1".format(ctx.label.name, ctx.attr.asset),
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+_missing_font = rule(implementation = _missing_font_impl, attrs = {"asset": attr.string()})
+
+def _missing_font_asset(font_files, fonts_json):
+    if type(fonts_json) != "string":
+        return None
+    provided = (font_files or {}).values()
+    for family in json.decode(fonts_json):
+        for font in family.get("fonts", []):
+            if font.get("asset") not in provided:
+                return font.get("asset")
+    return None
+
 def flutter_library(name, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over flutter_library."""
+    """Thin wrapper over flutter_library; fonts_json assets must come from font_files."""
+    missing = _missing_font_asset(kwargs.get("font_files"), kwargs.get("fonts_json"))
+    if missing:
+        _missing_font(name = name, asset = missing, tags = kwargs.get("tags", []), visibility = visibility)
+        return
     dx_wrap(name, _flutter_library, _flutter_library_forward, srcs or [], visibility = visibility, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
 
 def flutter_test(name, main, srcs = None, visibility = None, **kwargs):

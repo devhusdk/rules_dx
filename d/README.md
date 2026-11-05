@@ -117,8 +117,8 @@ A package without a matching entry fails the fetch and prints the entry to commi
 | Host | LDC | Qualified |
 | --- | --- | --- |
 | Linux x86_64 | yes | yes |
-| Linux arm64 | yes | no |
-| macOS arm64 | yes | no |
+| Linux arm64 | yes | yes |
+| macOS arm64 | yes | yes |
 | Windows x86_64 | yes | no |
 | Windows arm64 | via emulation | no |
 

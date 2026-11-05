@@ -1851,6 +1851,26 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "periphery": {
+        "upstream_version": "3.8.0",
+        "release_page": "https://github.com/peripheryapp/periphery/releases/tag/3.8.0",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/peripheryapp/periphery/blob/3.8.0/LICENSE.md",
+            },
+        ],
+        "platforms": {
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "periphery-3.8.0.zip",
+                "url": "https://github.com/peripheryapp/periphery/releases/download/3.8.0/periphery-3.8.0.zip",
+                "kind": "zip",
+                "executable": "periphery",
+            },
+        },
+    },
     "pkl": {
         "upstream_version": "0.32.1",
         "release_page": "https://github.com/apple/pkl/releases/tag/0.32.1",

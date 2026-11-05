@@ -148,7 +148,8 @@ def _unit_checks():
         arm64_repo = "dx_%s_windows_arm64" % tool if "windows_arm64" in released[tool] else "dx_%s_windows_x86_64" % tool
         if "windows_x86_64" in released[tool] or "windows_arm64" in released[tool]:
             checks.append(expect_contains(tool + " resolves windows_arm64", rendered, '":windows_arm64": "@%s//:tool",' % arm64_repo))
-        checks.append(expect_contains(tool + " renders its linux_x86_64 branch", rendered, '":linux_x86_64": "@dx_%s_linux_x86_64//:tool",' % tool))
+        if "linux_x86_64" in released[tool]:
+            checks.append(expect_contains(tool + " renders its linux_x86_64 branch", rendered, '":linux_x86_64": "@dx_%s_linux_x86_64//:tool",' % tool))
     return checks
 
 def _platform_transition_impl(_settings, attr):

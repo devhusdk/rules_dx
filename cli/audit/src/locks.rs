@@ -13,6 +13,8 @@ mod locks_cpan;
 mod locks_licenses;
 #[path = "locks_npm.rs"]
 mod locks_npm;
+#[path = "locks_opam.rs"]
+mod locks_opam;
 #[path = "locks_paket.rs"]
 mod locks_paket;
 #[path = "locks_pnpm.rs"]
@@ -30,6 +32,7 @@ pub use locks_conan::*;
 pub use locks_cpan::*;
 pub use locks_licenses::*;
 pub use locks_npm::*;
+pub use locks_opam::*;
 pub use locks_paket::*;
 pub use locks_pnpm::*;
 pub use locks_pub::*;

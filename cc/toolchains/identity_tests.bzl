@@ -2,10 +2,13 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
+load(":pins.bzl", "LLVM_CLANG_VERSION")
+
+_CLANG_MAJOR = LLVM_CLANG_VERSION.split(".")[0]
 
 EXPECTED_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test
 field cc.abi=itanium
-field cc.builtin_includes=external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include | external/llvm++kernel_headers+linux_kernel_headers_x86.4.19.325/include | external/llvm++llvm+llvm-project/compiler-rt/include | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/23 | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/23/include
+field cc.builtin_includes=external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include | external/llvm++kernel_headers+linux_kernel_headers_x86.4.19.325/include | external/llvm++llvm+llvm-project/compiler-rt/include | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/%s | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/%s/include
 field cc.compiler=clang
 field cc.coverage=llvm
 field cc.driver=gnu
@@ -18,7 +21,7 @@ aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/toolchains:identity_under_test
-aspect_field transitive_count=0"""
+aspect_field transitive_count=0""" % (_CLANG_MAJOR, _CLANG_MAJOR)
 
 EXPECTED_GCC_IDENTITY_OBSERVATIONS = """subject //cc/toolchains:identity_under_test_gcc
 field cc.abi=itanium

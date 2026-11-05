@@ -1,6 +1,6 @@
 """The language list behind docs/support-matrix.md."""
 
-load("//cc/toolchains:pins.bzl", "GCC_VERSION")
+load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
@@ -129,7 +129,7 @@ ROWS = [
         "families": [],
         "name": "cc_llvm",
         "section": "compilers",
-        "title": "LLVM (`llvm`, default)",
+        "title": "LLVM " + LLVM_CLANG_VERSION + " (`llvm`, default)",
     },
     {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {

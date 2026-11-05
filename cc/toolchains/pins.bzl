@@ -1,4 +1,7 @@
-"""Pinned GCC release for the Linux x86_64 backend."""
+"""Pinned compiler releases for the C and C++ toolchains."""
+
+# The clang release shipped by the pinned `llvm` module.
+LLVM_CLANG_VERSION = "23.1.2"
 
 GCC_VERSION = "16.2.0"
 

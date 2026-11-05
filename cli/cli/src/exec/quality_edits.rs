@@ -820,3 +820,58 @@ fn external_missing_dep_is_reported_and_left_alone() {
         .expect("the external finding stays");
     assert_eq!(finding["path"], serde_json::json!("p/BUILD.bazel"), "{out}");
 }
+
+fn mapping_call(harness: &Harness) -> Vec<Vec<String>> {
+    harness
+        .query
+        .calls
+        .borrow()
+        .iter()
+        .filter(|argv| argv.iter().any(|arg| arg == "dump_repo_mapping"))
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn apply_inserts_an_external_dep_by_its_apparent_name() {
+    let harness = missing_and_unused_dep("missing-apparent", "@@+maven+maven//:guava");
+    harness.query.script_stdout("{\"maven\": \"+maven+maven\"}");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert_eq!(
+        after,
+        "rust_library(\n    name = \"lib\",\n    deps = [\n        \":used\",\n        \"@maven//:guava\",\n    ],\n)\n"
+    );
+    assert_eq!(mapping_call(&harness).len(), 1);
+}
+
+#[test]
+fn external_dep_without_a_mapping_stays_unfixable() {
+    let harness = missing_and_unused_dep("missing-unmapped", "@@+maven+maven//:guava");
+    harness.query.script_stdout("{\"other\": \"+other+other\"}");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let after =
+        std::fs::read_to_string(harness.workspace.join("p/BUILD.bazel")).expect("BUILD file");
+    assert!(!after.contains("guava"), "{after}");
+    let finding = json_events(&out)
+        .into_iter()
+        .find(|event| {
+            event["message"]
+                .as_str()
+                .is_some_and(|m| m.ends_with("needed"))
+        })
+        .expect("the finding stays");
+    assert_ne!(finding["fixable"], serde_json::json!(true), "{out}");
+    assert_eq!(mapping_call(&harness).len(), 1);
+}
+
+#[test]
+fn main_repo_missing_dep_runs_no_repo_mapping() {
+    let harness = missing_and_unused_dep("missing-no-mapping-call", "@@//q:needed");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(mapping_call(&harness).is_empty());
+}

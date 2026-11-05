@@ -9,7 +9,7 @@ use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
     verified_snapshots, write_standard_reports, Snapshots, StandardReports,
 };
-use super::results::collect_results;
+use super::results::{collect_results, invert_repo_mapping};
 use super::unused_shared::keep_shared;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
@@ -457,7 +457,15 @@ fn run_quality_request(
             }
         }
     };
-    let mut collected = match collect_results(&bep, workspace) {
+    let repo_mapping = || {
+        let mut argv = dx_process::startup_argv(&request.bazel_startup_options);
+        argv.extend(["mod", "dump_repo_mapping", ""].map(str::to_owned));
+        let result = query_runner.run_query(&argv, workspace).ok()?;
+        (result.code == Some(0))
+            .then(|| invert_repo_mapping(&result.stdout))
+            .flatten()
+    };
+    let mut collected = match collect_results(&bep, workspace, &repo_mapping) {
         Ok(collected) => collected,
         Err((code, message)) => {
             let _ = std::fs::remove_file(&bep);

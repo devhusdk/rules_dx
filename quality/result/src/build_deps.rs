@@ -1,5 +1,7 @@
 //! Finds `deps` entries in BUILD file text and the bytes that remove them.
 
+use std::collections::BTreeMap;
+
 /// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
 pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
     let rule = text.find(&format!("name = \"{target}\""))?;
@@ -145,8 +147,26 @@ pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String
     }
 }
 
-/// The label as written in a BUILD file of `package`. External repositories give None.
-pub fn short_label(package: &str, label: &str) -> Option<String> {
+/// The repo of a canonical external label such as `@@maven//:guava`. Main-repo labels give None.
+pub fn canonical_repo(label: &str) -> Option<&str> {
+    let rest = label.strip_prefix("@@")?;
+    let (repo, _) = rest.split_once("//")?;
+    (!repo.is_empty()).then_some(repo)
+}
+
+/// The label as written in a BUILD file of `package`.
+/// A canonical external label is written by its apparent name, so it needs `apparent`, a map
+/// from canonical to apparent repo name; without a name for the repo the result is None.
+pub fn short_label(
+    package: &str,
+    label: &str,
+    apparent: Option<&BTreeMap<String, String>>,
+) -> Option<String> {
+    if let Some(repo) = canonical_repo(label) {
+        let name = apparent?.get(repo)?;
+        let (_, rest) = label.split_once("//")?;
+        return Some(format!("@{name}//{rest}"));
+    }
     let rest = label
         .strip_prefix("@@")
         .or_else(|| label.strip_prefix('@'))
@@ -276,10 +296,16 @@ mod tests {
 
     #[test]
     fn shortens_main_repo_labels() {
-        assert_eq!(short_label("p", "//p:a").as_deref(), Some(":a"));
-        assert_eq!(short_label("p", "@//p:a").as_deref(), Some(":a"));
-        assert_eq!(short_label("p", "@@//q:a").as_deref(), Some("//q:a"));
-        assert_eq!(short_label("p", "@@x//:y"), None);
-        assert_eq!(short_label("p", "@x//:y"), None);
+        assert_eq!(short_label("p", "//p:a", None).as_deref(), Some(":a"));
+        assert_eq!(short_label("p", "@//p:a", None).as_deref(), Some(":a"));
+        assert_eq!(short_label("p", "@@//q:a", None).as_deref(), Some("//q:a"));
+        assert_eq!(short_label("p", "@@x//:y", None), None);
+        assert_eq!(short_label("p", "@x//:y", None), None);
+        let apparent = BTreeMap::from([("+maven+maven".to_owned(), "maven".to_owned())]);
+        assert_eq!(
+            short_label("p", "@@+maven+maven//:guava", Some(&apparent)).as_deref(),
+            Some("@maven//:guava")
+        );
+        assert_eq!(short_label("p", "@@+other//:x", Some(&apparent)), None);
     }
 }

@@ -25,6 +25,7 @@ struct Staged {
 type BuildDepKey = (String, u64, u64, String, Option<String>, String);
 
 /// A missing dependency to add: the target name and the label as written in its package.
+/// A canonical external label stays as is until its apparent repo name is known.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Insert {
     target: String,
@@ -37,7 +38,13 @@ fn build_dep_fix(dep: &proto::BuildDep) -> Option<Option<Insert>> {
     if !dep.missing {
         return Some(None);
     }
-    let label = build_deps::short_label(&dep.package, &dep.label)?;
+    let label = match build_deps::short_label(&dep.package, &dep.label, None) {
+        Some(label) => label,
+        None => {
+            build_deps::canonical_repo(&dep.label)?;
+            dep.label.clone()
+        }
+    };
     Some(Some(Insert {
         target: dep.target.clone(),
         label,
@@ -398,14 +405,53 @@ fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
     Some((prefix as u64, (before.len() - suffix) as u64, middle))
 }
 
-pub(crate) fn collect_results(bep: &Path, workspace: &Path) -> Result<Collected, (String, String)> {
-    collect_results_in(bep, OUTPUT_GROUP, workspace)
+/// Reads canonical to apparent repo names, or None when they cannot be read.
+pub(crate) type RepoMapping<'a> = &'a dyn Fn() -> Option<BTreeMap<String, String>>;
+
+/// Inverts the JSON object of apparent to canonical names `bazel mod dump_repo_mapping` prints.
+pub(crate) fn invert_repo_mapping(json: &[u8]) -> Option<BTreeMap<String, String>> {
+    let map: BTreeMap<String, String> = serde_json::from_slice(json).ok()?;
+    let mut inverted = BTreeMap::new();
+    for (apparent, canonical) in map {
+        if !apparent.is_empty() && !canonical.is_empty() {
+            inverted.entry(canonical).or_insert(apparent);
+        }
+    }
+    Some(inverted)
+}
+
+/// Writes external missing deps by their apparent repo name; those without one stay unfixed.
+fn name_external_repos(
+    keys: &mut BTreeMap<BuildDepKey, Option<Insert>>,
+    repo_mapping: RepoMapping<'_>,
+) {
+    let external = |insert: &Insert| build_deps::canonical_repo(&insert.label).is_some();
+    if !keys.values().flatten().any(external) {
+        return;
+    }
+    let mapping = repo_mapping();
+    keys.retain(|_, fix| {
+        let Some(insert) = fix.as_mut().filter(|insert| external(insert)) else {
+            return true;
+        };
+        let named = build_deps::short_label("", &insert.label, mapping.as_ref());
+        named.map(|label| insert.label = label).is_some()
+    });
+}
+
+pub(crate) fn collect_results(
+    bep: &Path,
+    workspace: &Path,
+    repo_mapping: RepoMapping<'_>,
+) -> Result<Collected, (String, String)> {
+    collect_results_in(bep, OUTPUT_GROUP, workspace, repo_mapping)
 }
 
 pub(crate) fn collect_results_in(
     bep: &Path,
     group: &str,
     workspace: &Path,
+    repo_mapping: RepoMapping<'_>,
 ) -> Result<Collected, (String, String)> {
     let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
@@ -507,6 +553,7 @@ pub(crate) fn collect_results_in(
         });
     }
     unstable.sort_by(|a: &Unstable, b: &Unstable| a.label.cmp(&b.label));
+    name_external_repos(&mut build_dep_keys, repo_mapping);
     let (removal, fixed) = build_dep_producer(workspace, &build_dep_keys);
     let removed: BTreeSet<&str> = removal
         .iter()
@@ -715,7 +762,7 @@ mod tests {
         let dir = temp_dir("group-tmp");
         let bep = dir.path().join("empty.json");
         std::fs::write(&bep, "").expect("bep");
-        let Err((code, message)) = collect_results_in(&bep, "", dir.path()) else {
+        let Err((code, message)) = collect_results_in(&bep, "", dir.path(), &|| None) else {
             panic!("empty output group must fail"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         };
         assert_eq!(code, CODE_INVALID_BEP);
@@ -765,7 +812,7 @@ mod tests {
     fn collect(harness: &Harness, lines: &[String]) -> Collected {
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        collect_results_in(&bep, "dx_results", &harness.workspace).expect("collected")
+        collect_results_in(&bep, "dx_results", &harness.workspace, &|| None).expect("collected")
     }
 
     #[test]
@@ -981,7 +1028,7 @@ mod tests {
         lines.push(LAST_EVENT.to_owned());
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        let collected = collect_results_in(&bep, "dx_results", &harness.workspace)
+        let collected = collect_results_in(&bep, "dx_results", &harness.workspace, &|| None)
             .expect("a garbled line must not fail the run");
         assert!(
             collected

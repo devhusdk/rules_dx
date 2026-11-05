@@ -202,10 +202,17 @@ impl CacheUse {
 }
 
 impl Report {
+    fn wall_micros(&self) -> u64 {
+        match self.totals.as_ref().and_then(|totals| totals.wall_ms) {
+            Some(ms) => ms.saturating_mul(1000),
+            None => self.wall_micros,
+        }
+    }
+
     pub(crate) fn text(&self) -> String {
         let mut lines = vec![format!(
             "dx: profile, wall time {}",
-            seconds(self.wall_micros)
+            seconds(self.wall_micros())
         )];
         lines.push(format!(
             "dx: critical path {}",
@@ -288,6 +295,7 @@ impl Report {
             json!({
                 "wall_ms": totals.wall_ms,
                 "peak_heap_bytes": totals.peak_heap_bytes,
+                "critical_path_ms": totals.critical_path_ms,
                 "mnemonics": totals.mnemonics.iter().map(|row| json!({
                     "mnemonic": row.mnemonic,
                     "executed": row.executed,
@@ -297,7 +305,7 @@ impl Report {
         });
         json!({
             "build_metrics": totals,
-            "wall_micros": self.wall_micros,
+            "wall_micros": self.wall_micros(),
             "critical_path_micros": self.critical_micros,
             "critical_path": timed(&self.critical),
             "slowest_actions": timed(&self.slowest),
@@ -438,6 +446,7 @@ mod tests {
         report.totals = Some(dx_bep::BuildTotals {
             wall_ms: Some(4200),
             peak_heap_bytes: Some(3_000_000),
+            critical_path_ms: Some(900),
             mnemonics: vec![dx_bep::MnemonicTime {
                 mnemonic: "CppCompile".to_owned(),
                 executed: 7,
@@ -445,6 +454,9 @@ mod tests {
             }],
         });
         let text = report.text();
+        assert!(text.contains("wall time 4.2s"), "{text}");
+        assert_eq!(report.json()["wall_micros"], 4_200_000);
+        assert_eq!(report.json()["build_metrics"]["critical_path_ms"], 900);
         assert!(text.contains("peak heap 3.0 MB"), "{text}");
         assert!(text.contains("1.5s  CppCompile x7"), "{text}");
         assert_eq!(

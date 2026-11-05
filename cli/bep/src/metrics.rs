@@ -69,6 +69,7 @@ pub struct MnemonicTime {
 pub struct BuildTotals {
     pub wall_ms: Option<u64>,
     pub peak_heap_bytes: Option<u64>,
+    pub critical_path_ms: Option<u64>,
     /// Sorted by CPU time, longest first.
     pub mnemonics: Vec<MnemonicTime>,
 }
@@ -107,8 +108,8 @@ fn parse_totals(metrics: &Value) -> BuildTotals {
                         .unwrap_or_default()
                         .to_owned(),
                     executed: count_of(row.get("actionsExecuted")),
-                    cpu_ms: count_of(row.get("userTime"))
-                        .saturating_add(count_of(row.get("systemTime"))),
+                    cpu_ms: duration_ms(row.get("userTime"))
+                        .saturating_add(duration_ms(row.get("systemTime"))),
                 })
                 .collect()
         })
@@ -121,6 +122,9 @@ fn parse_totals(metrics: &Value) -> BuildTotals {
     BuildTotals {
         wall_ms: present("/timingMetrics/wallTimeInMs"),
         peak_heap_bytes: present("/memoryMetrics/peakPostGcHeapSize"),
+        critical_path_ms: metrics
+            .pointer("/timingMetrics/criticalPathTime")
+            .map(|value| duration_ms(Some(value))),
         mnemonics,
     }
 }
@@ -146,6 +150,27 @@ fn parse_summary(summary: &Value) -> ActionSummary {
         remote_cache_hits: remote,
         local_cache_hits: count_of(summary.pointer("/actionCacheStatistics/hits")),
     }
+}
+
+/// Reads a proto3 Duration in its JSON form such as `"1.250s"`; anything else is 0.
+fn duration_ms(value: Option<&Value>) -> u64 {
+    let Some(Value::String(text)) = value else {
+        return 0;
+    };
+    let Some(seconds) = text.strip_suffix('s') else {
+        return 0;
+    };
+    let (whole, fraction) = seconds.split_once('.').unwrap_or((seconds, ""));
+    let Ok(whole) = whole.parse::<u64>() else {
+        return 0;
+    };
+    if !fraction.bytes().all(|b| b.is_ascii_digit()) {
+        return 0;
+    }
+    let millis: String = fraction.chars().chain("000".chars()).take(3).collect();
+    whole
+        .saturating_mul(1000)
+        .saturating_add(millis.parse().unwrap_or(0))
 }
 
 fn count_of(value: Option<&Value>) -> u64 {
@@ -190,10 +215,11 @@ mod tests {
 
     #[test]
     fn metrics_reads_totals_and_orders_mnemonics_by_cpu_time() {
-        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"timingMetrics":{"wallTimeInMs":"4200"},"memoryMetrics":{"peakPostGcHeapSize":"1048576"},"actionSummary":{"actionData":[{"mnemonic":"Genrule","actionsExecuted":"1","userTime":"10","systemTime":"5"},{"mnemonic":"CppCompile","actionsExecuted":"7","userTime":"900","systemTime":"100"}]}}}"#;
+        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"timingMetrics":{"wallTimeInMs":"4200","criticalPathTime":"3.500s"},"memoryMetrics":{"peakPostGcHeapSize":"1048576"},"actionSummary":{"actionData":[{"mnemonic":"Genrule","actionsExecuted":"1","userTime":"0.010s","systemTime":"0.005s"},{"mnemonic":"CppCompile","actionsExecuted":"7","userTime":"0.900s","systemTime":"0.100s"}]}}}"#;
         let totals = collect_build_totals(line.as_bytes()).expect("totals");
         assert_eq!(totals.wall_ms, Some(4200));
         assert_eq!(totals.peak_heap_bytes, Some(1_048_576));
+        assert_eq!(totals.critical_path_ms, Some(3500));
         assert_eq!(totals.mnemonics[0].mnemonic, "CppCompile");
         assert_eq!(totals.mnemonics[0].executed, 7);
         assert_eq!(totals.mnemonics[0].cpu_ms, 1000);
@@ -202,6 +228,18 @@ mod tests {
             collect_build_totals(r#"{"id":{"started":{}}}"#.as_bytes()),
             None
         );
+    }
+
+    #[test]
+    fn metrics_reads_durations_in_whole_seconds_and_ignores_garbage() {
+        let text = |value: &str| duration_ms(Some(&Value::String(value.to_owned())));
+        assert_eq!(text("12s"), 12_000);
+        assert_eq!(text("1.250s"), 1250);
+        assert_eq!(text("0.000001s"), 0);
+        for bad in ["", "s", "12", "1.2.3s", "-1s", "abcs", "1.x5s"] {
+            assert_eq!(text(bad), 0, "{bad}");
+        }
+        assert_eq!(duration_ms(None), 0);
     }
 
     #[test]

@@ -9,6 +9,7 @@ const HALF_LCOV: &str = "SF:src/a.py\nDA:1,1\nDA:2,0\nend_of_record\n";
 
 fn gate_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
     let harness = Harness::new(name);
+    write_manifest_sources(&harness, manifest);
     let lcov_uri = write_bep_artifact(&harness, "coverage.dat", lcov.as_bytes());
     let manifest_uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
     let set = serde_json::json!({

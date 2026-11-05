@@ -413,12 +413,12 @@ mod tests {
         assert_eq!(code, 0);
         std::fs::write(
             root.join("tools/dx"),
-            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+            "#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n",
         )
         .expect("legacy sh");
         std::fs::write(
             root.join("tools/dx.cmd"),
-            "@echo off\r\nsetlocal\r\nset \"VERSION=1.2.3\"\r\n",
+            "@echo off\r\nsetlocal\r\nset \"DX_PINS=.dx\\pins\"\r\n",
         )
         .expect("legacy cmd");
         let (code, _out, err) = run(&invocation(&["init"]), &root);
@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn init_full_applies_every_part() {
-        let inv = invocation(&["init", "--apply"]);
+        let inv = invocation(&["init", "--apply", "--agents=claude,codex,gemini"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
@@ -843,7 +843,10 @@ mod tests {
     fn init_apply_writes_every_file_and_check_follows_them() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-full-");
         let root = scratch.path().to_path_buf();
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        let (code, _out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini"]),
+            &root,
+        );
         assert_eq!(code, 0, "{err}");
         for path in [
             ".dx/pins",

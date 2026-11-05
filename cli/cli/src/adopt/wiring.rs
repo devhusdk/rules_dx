@@ -119,7 +119,7 @@ mod tests {
         assert!(err.contains("tools/dx (absent-only, left untouched)"));
         std::fs::write(
             root.join("tools/dx"),
-            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+            "#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n",
         )
         .expect("stale");
         std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
@@ -201,7 +201,7 @@ mod tests {
         assert_eq!(code, 0);
         assert_eq!(
             out,
-            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
+            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
             overrides = dx_adopt::render_overrides(&Default::default())
                 .iter()
                 .map(|(path, _)| format!("wrote demo/{path}\n"))

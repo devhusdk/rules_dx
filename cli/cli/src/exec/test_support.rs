@@ -952,6 +952,21 @@ pub(crate) fn write_bep_artifact(harness: &Harness, name: &str, bytes: &[u8]) ->
     format!("file://{}", path.display())
 }
 
+/// Writes a few lines for every source a coverage manifest names, so LCOV_EXCL scanning can read it.
+pub(crate) fn write_manifest_sources(harness: &Harness, manifest: &str) {
+    for path in manifest.lines().filter_map(|line| {
+        line.strip_prefix("prod source ")
+            .or_else(|| line.strip_prefix("test source "))
+    }) {
+        let file = harness.workspace.join(path);
+        if file.exists() {
+            continue;
+        }
+        std::fs::create_dir_all(file.parent().expect("parent")).expect("source dir");
+        std::fs::write(file, "x\n".repeat(5)).expect("source");
+    }
+}
+
 /// A final `buildMetrics` event with one action summary, int64 values written as strings.
 pub(crate) fn build_metrics_line(
     created: u64,

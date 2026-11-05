@@ -694,7 +694,7 @@ mod tests {
         std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("ignore");
         std::fs::write(
             root.join("tools/dx"),
-            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+            "#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n",
         )
         .expect("dx");
         std::fs::write(root.join(".dx/pins"), "4.5.6\n").expect("pin");

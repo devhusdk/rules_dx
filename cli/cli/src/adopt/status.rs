@@ -496,7 +496,7 @@ mod tests {
         assert!(!out.contains("init: error"), "{out}");
         std::fs::write(
             root.join("tools/dx"),
-            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+            "#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n",
         )
         .expect("stale");
         let (code, out, err) = run(&inv, &root);

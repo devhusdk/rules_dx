@@ -331,7 +331,7 @@ mod tests {
 
     fn legacy_launcher(root: &Path, version: &str) {
         std::fs::create_dir_all(root.join("tools")).expect("tools");
-        let text = format!("#!/bin/sh\nset -eu\nVERSION=\"{version}\"\n");
+        let text = format!("#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n# {version}\n");
         std::fs::write(root.join("tools/dx"), text).expect("legacy launcher");
     }
 

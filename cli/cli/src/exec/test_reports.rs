@@ -1914,6 +1914,7 @@ mod tests {
 
     /// Adds one `//a:lib` source manifest to a harness's build events.
     fn with_sources(harness: Harness, manifest: &str) -> Harness {
+        write_manifest_sources(&harness, manifest);
         let uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
         let mut lines = vec![
             sources_set("s1", &uri),
@@ -1949,6 +1950,7 @@ mod tests {
 
     /// Prepends a manifest owning `src/a.py`, so `--min-coverage` can account the run's sources.
     fn owning_a(mut harness: Harness) -> Harness {
+        write_manifest_sources(&harness, "prod source src/a.py\n");
         let uri = write_bep_artifact(
             &harness,
             "sources.txt",
@@ -1966,6 +1968,7 @@ mod tests {
 
     fn sources_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
         let harness = Harness::new(name);
+        write_manifest_sources(&harness, manifest);
         let lcov_uri = write_bep_artifact(&harness, "coverage.dat", lcov.as_bytes());
         let manifest_uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
         Harness {

@@ -829,6 +829,7 @@ test_suite(
         ":github_analysis",
         ":github_demo_verify",
         ":github_duplicate_basename_fails",
+        ":github_sbom_demo_verify",
         ":github_unit",
         ":hackage_analysis",
         ":hackage_unit",
@@ -940,6 +941,25 @@ rust_test(
         "DX_GITHUB_ASSETS": "release_demo.tar.gz release_demo.tar.gz.sha256",
         "DX_GITHUB_CONFIG": "$(rootpath :github_demo_config)",
         "DX_GITHUB_PROG": "$(rootpath :github_demo)",
+        "DX_GITHUB_TAG": "v0.0.0-dryrun",
+        "DX_VERIFY_MODE": "github",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "github_sbom_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        "//deploy/rules/sbom_demo:app_release",
+        "//deploy/rules/sbom_demo:app_release_config",
+    ],
+    env = {
+        "DX_GITHUB_ASSETS": "app app_sbom.spdx.json",
+        "DX_GITHUB_CONFIG": "$(rootpath //deploy/rules/sbom_demo:app_release_config)",
+        "DX_GITHUB_PROG": "$(rootpath //deploy/rules/sbom_demo:app_release)",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
         "DX_VERIFY_MODE": "github",
     },

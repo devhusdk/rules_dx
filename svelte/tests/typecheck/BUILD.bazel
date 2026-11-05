@@ -46,10 +46,6 @@ svelte_library(
         name = "%s_%s_test" % (case, kind),
         file1 = "%s.%s.expected" % (case, kind),
         file2 = ":%s_%s_report" % (case, kind),
-        target_compatible_with = select({
-            "@platforms//os:windows": ["@platforms//:incompatible"] if kind == "stdout" else [],
-            "//conditions:default": [],
-        }),
     )
     for case in ["bad", "broken", "clean"]
     for kind in ["stdout", "exit"]

@@ -69,8 +69,14 @@ single_version_override(
 bazel_dep(name = "llvm", version = "0.8.26")
 single_version_override(
     module_name = "llvm",
+    patch_strip = 1,
+    patches = ["//patches/llvm:libunwind_copy.patch"],
     version = "0.8.26",
 )
+
+# dev only: libunwind_copy_test reads the patched libunwind.a (#7781)
+_llvm_runtimes = use_extension("@llvm//extensions:llvm.bzl", "llvm", dev_dependency = True)
+use_repo(_llvm_runtimes, "llvm-project")
 
 # dev only: qualifies a real foreign CMake build (#4830); cmake_library stays quality-only
 bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)

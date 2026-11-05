@@ -265,6 +265,16 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "llvm",
+        version: "0.8.26",
+        patch_strip: 1,
+        archive: None,
+        patches: &[OverridePatch {
+            file: "libunwind_copy.patch",
+            content: include_str!("../../../patches/llvm/libunwind_copy.patch"),
+        }],
+    },
+    Override {
         module: "windows_support",
         version: "0.4.1",
         patch_strip: 1,

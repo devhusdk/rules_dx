@@ -213,7 +213,8 @@ fn run_configured_target(
         | Ecosystem::Julia
         | Ecosystem::Hex
         | Ecosystem::Composer
-        | Ecosystem::Opam => dx_update::backend::UvClosure::default(),
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {

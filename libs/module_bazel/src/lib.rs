@@ -276,6 +276,14 @@ pub struct OpamPackages<'a> {
     pub line: usize,
 }
 
+/// One `from_package` tag of the rules_swift_package_manager `swift_deps` extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SwiftPackage<'a> {
+    pub swift: &'a str,
+    pub resolved: &'a str,
+    pub line: usize,
+}
+
 /// One `pub.from_lock` tag of rules_dart or `flutter.pub` tag of rules_flutter.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
@@ -309,6 +317,7 @@ const PERL_MODULE: &str = "rules_perl";
 const DART_MODULE: &str = "rules_dart";
 const FLUTTER_MODULE: &str = "rules_flutter";
 const JULIA_MODULE: &str = "rules_julia";
+const SWIFT_PM_MODULE: &str = "rules_swift_package_manager";
 
 fn dialect() -> Dialect {
     Dialect {
@@ -900,6 +909,25 @@ impl ModuleFile {
             Ok(JuliaManifest {
                 name: required(call, TAG, "name")?,
                 lockfile: required(call, TAG, "lockfile")?,
+                line: call.line,
+            })
+        })
+        .collect()
+    }
+
+    /// Every `from_package` tag of the rules_swift_package_manager `swift_deps` extension in source order.
+    pub fn swift_packages(&self) -> Result<Vec<SwiftPackage<'_>>, ModuleError> {
+        const TAG: &str = "swift_deps.from_package";
+        self.tags(
+            SWIFT_PM_MODULE,
+            ":extensions.bzl",
+            "swift_deps",
+            "from_package",
+        )
+        .map(|call| {
+            Ok(SwiftPackage {
+                swift: required(call, TAG, "swift")?,
+                resolved: required(call, TAG, "resolved")?,
                 line: call.line,
             })
         })

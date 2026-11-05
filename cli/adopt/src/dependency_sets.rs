@@ -33,8 +33,10 @@ pub const ECOSYSTEM_COMPOSER: &str = "composer";
 
 pub const ECOSYSTEM_OPAM: &str = "opam";
 
+pub const ECOSYSTEM_SWIFTPM: &str = "swiftpm";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -71,6 +73,10 @@ pub const COMPOSER_JSON: &str = "composer.json";
 
 pub const COMPOSER_LOCK: &str = "composer.lock";
 
+pub const PACKAGE_SWIFT: &str = "Package.swift";
+
+pub const PACKAGE_RESOLVED: &str = "Package.resolved";
+
 pub const PAKET_LOCK: &str = "paket.lock";
 
 pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
@@ -101,6 +107,7 @@ pub enum Ecosystem {
     Hex,
     Composer,
     Opam,
+    SwiftPm,
 }
 
 impl Ecosystem {
@@ -122,6 +129,7 @@ impl Ecosystem {
             Ecosystem::Hex => ECOSYSTEM_HEX,
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
+            Ecosystem::SwiftPm => ECOSYSTEM_SWIFTPM,
         }
     }
 
@@ -143,6 +151,7 @@ impl Ecosystem {
             ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
+            ECOSYSTEM_SWIFTPM => Some(Ecosystem::SwiftPm),
             _ => None,
         }
     }
@@ -164,7 +173,8 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
-            | Ecosystem::Opam => "pinned",
+            | Ecosystem::Opam
+            | Ecosystem::SwiftPm => "pinned",
         }
     }
 
@@ -185,7 +195,8 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
-            | Ecosystem::Opam => "pinned",
+            | Ecosystem::Opam
+            | Ecosystem::SwiftPm => "pinned",
         }
     }
 
@@ -220,7 +231,8 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
-            | Ecosystem::Opam => "audit",
+            | Ecosystem::Opam
+            | Ecosystem::SwiftPm => "audit",
         }
     }
 
@@ -240,6 +252,7 @@ impl Ecosystem {
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
             Ecosystem::Opam => Some("opam"),
+            Ecosystem::SwiftPm => Some("swifturl"),
             Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
     }
@@ -263,6 +276,7 @@ impl Ecosystem {
             Ecosystem::Hex => MIX_EXS,
             Ecosystem::Composer => COMPOSER_JSON,
             Ecosystem::Opam => "<name>.opam",
+            Ecosystem::SwiftPm => PACKAGE_SWIFT,
         }
     }
 
@@ -283,7 +297,8 @@ impl Ecosystem {
             | Ecosystem::Julia
             | Ecosystem::Hex
             | Ecosystem::Composer
-            | Ecosystem::Opam => false,
+            | Ecosystem::Opam
+            | Ecosystem::SwiftPm => false,
         }
     }
 }
@@ -645,6 +660,23 @@ pub fn discover(
                 ],
             )?);
         }
+        for (index, swift) in module
+            .swift_packages()
+            .map_err(hub)?
+            .into_iter()
+            .enumerate()
+        {
+            let name = match index {
+                0 => "swiftpm".to_owned(),
+                _ => format!("swiftpm-{}", index + 1),
+            };
+            sets.push(hub_set(
+                &name,
+                Ecosystem::SwiftPm,
+                vec![path(swift.swift)?],
+                vec![path(swift.resolved)?],
+            )?);
+        }
         let mut groups = BTreeSet::new();
         for label in module.paket_extensions() {
             groups.extend(paket_groups(label, read)?);
@@ -969,6 +1001,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Hex
         | Ecosystem::Composer
         | Ecosystem::Opam
+        | Ecosystem::SwiftPm
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1359,6 +1392,7 @@ pub fn check_backend_settings(
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Opam => check_opam_layout(set),
+        Ecosystem::SwiftPm => check_pinned_lock(set, PACKAGE_RESOLVED),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -2403,6 +2437,18 @@ mod tests {
     }
 
     #[test]
+    fn swift_from_package_tags_become_swiftpm_sets() {
+        let module = "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("swiftpm").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::SwiftPm);
+        assert_eq!(set.manifests, ["app/Package.swift"]);
+        assert_eq!(set.locks, ["app/Package.resolved"]);
+    }
+
+    #[test]
     fn julia_from_manifest_tags_become_julia_sets() {
         let module = "pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"jl_deps\", lockfile = \"//third_party/julia:Manifest.bazel.json\")\n";
         let registry = discover(module, &|_: &str| Err("none".to_owned()))
@@ -3033,7 +3079,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm"
         );
     }
 

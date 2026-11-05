@@ -1179,6 +1179,18 @@ fn composer_locks_follow_the_rules_dx_extension() {
 }
 
 #[test]
+fn swift_packages_follow_the_swift_deps_extension() {
+    let file = parse("swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\nother = use_extension(\"//x:extensions.bzl\", \"swift_deps\")\nother.from_package(resolved = \"//y:Package.resolved\", swift = \"//y:Package.swift\")\n");
+    let found: Vec<_> = file
+        .swift_packages()
+        .expect("packages")
+        .iter()
+        .map(|package| (package.swift, package.resolved))
+        .collect();
+    assert_eq!(found, [("//app:Package.swift", "//app:Package.resolved")]);
+}
+
+#[test]
 fn cpan_installs_follow_the_rules_perl_extension() {
     let file = parse("cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"tools\", lock = \"//perl:cpanfile.snapshot.lock.json\")\nother = use_extension(\"//perl/cpan:extensions.bzl\", \"cpan_dev\")\nother.install(name = \"dev\", lock = \"//x:l.json\")\n");
     let found: Vec<_> = file

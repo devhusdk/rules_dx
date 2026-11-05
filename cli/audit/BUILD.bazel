@@ -43,6 +43,7 @@ dx_rust_crate(
         "src/locks_julia.rs",
         "src/locks_hex.rs",
         "src/locks_composer.rs",
+        "src/locks_swift.rs",
         "src/locks_pub.rs",
         "src/locks_ruby.rs",
         "src/locks_uv.rs",

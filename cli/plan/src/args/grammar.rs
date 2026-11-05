@@ -1136,6 +1136,7 @@ command_args! {
     Run => 10, AppTail, {
         output: OutputFlag,
         own: ProfileArgs,
+        build_profile: BuildProfileFlag,
         bazel_option: BazelOptionFlag,
     };
     /// The flags `dx deploy` accepts.

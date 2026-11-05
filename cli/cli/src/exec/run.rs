@@ -27,9 +27,9 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         workspace,
         runner,
         query_runner,
-        temp_dir: _,
-        pid: _,
-        nonce: _,
+        temp_dir,
+        pid,
+        nonce,
         out,
         err,
         ci: _,
@@ -59,11 +59,13 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
             return resolve_failed(invocation.output, out, err, &error);
         }
     };
+    let run_id = dx_plan::plan::run_id(pid, nonce, temp_dir);
     let launcher = Launcher {
         invocation,
         workspace,
         runner,
         withdraw,
+        run_id: &run_id,
     };
     run_targets(&launcher, out, err, &targets)
 }
@@ -74,6 +76,7 @@ struct Launcher<'a> {
     workspace: &'a Path,
     runner: &'a dyn dx_process::Runner,
     withdraw: Option<&'a dyn Fn() -> bool>,
+    run_id: &'a str,
 }
 
 impl Launcher<'_> {
@@ -90,9 +93,23 @@ impl Launcher<'_> {
         if let Err(signo) = phase.need(true, &mut *err, &mut *out) {
             return Some(super::failure::cancel(invocation.output, out, err, signo));
         }
+        let mut options = invocation.quiet_bazel_options();
+        let trace = if invocation.build_profile {
+            match super::workflow::prepare_trace(self.workspace, self.run_id) {
+                Ok(path) => {
+                    options.push(format!("--profile={path}"));
+                    Some(path)
+                }
+                Err(message) => {
+                    return Some(pre_exec(invocation.output, out, err, &message));
+                }
+            }
+        } else {
+            None
+        };
         let plan = match plan_run_build(
             targets,
-            &invocation.quiet_bazel_options(),
+            &options,
             invocation.profile(),
             &invocation.bazel_startup_options,
         ) {
@@ -113,6 +130,19 @@ impl Launcher<'_> {
             Ok(None) => return Some(withdrawn(invocation, out, err)),
             Err(exit) => return Some(exit),
         };
+        if let Some(trace) = &trace {
+            if let Err(exit) = super::workflow::announce_profile(
+                invocation,
+                self.workspace,
+                out,
+                err,
+                trace,
+                None,
+                None,
+            ) {
+                return Some(kept_child(err, code, exit));
+            }
+        }
         if code == 0 {
             return None;
         }
@@ -1012,6 +1042,18 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn run_profile_writes_a_trace_for_the_build_only() {
+        let harness = Harness::new("run-trace");
+        let inv = invocation(&["run", "--profile", "//app:bin"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0);
+        let traced = |argv: &Vec<String>| argv.iter().any(|arg| arg.starts_with("--profile="));
+        assert!(traced(&run.argv[0]), "{:?}", run.argv);
+        assert!(!traced(&run.argv[1]), "{:?}", run.argv);
+        assert!(harness.workspace.join(".dx").join("profile").is_dir());
     }
 
     #[test]

@@ -291,7 +291,7 @@ fn execute_checked(
     }
     let action_counts = read_actions(&bep, actions);
     if let Some(trace) = &trace {
-        if let Err(exit) = announce_profile(invocation, workspace, out, err, trace, &bep, action_counts)
+        if let Err(exit) = announce_profile(invocation, workspace, out, err, trace, Some(&bep), action_counts)
         {
             let _ = std::fs::remove_file(&bep);
             return kept_child(err, bazel_code, exit);
@@ -365,7 +365,7 @@ fn execute_checked(
 }
 
 /// Creates `.dx/profile` and returns the trace file Bazel should write.
-fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, String> {
+pub(super) fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, String> {
     let dir = profile_report::dir(workspace);
     std::fs::create_dir_all(&dir)
         .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
@@ -378,13 +378,13 @@ fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, St
 
 /// Reads the trace Bazel wrote and reports where the time went: text on stderr, or a notice
 /// pointing at `.dx/profile/report.json` in JSON.
-fn announce_profile(
+pub(super) fn announce_profile(
     invocation: &Invocation,
     workspace: &std::path::Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
     trace: &str,
-    bep: &std::path::Path,
+    bep: Option<&std::path::Path>,
     counts: Option<ActionCounts>,
 ) -> Result<(), i32> {
     let cache = counts.map(|counts| profile_report::CacheUse {
@@ -393,8 +393,8 @@ fn announce_profile(
         remote: counts.remote,
         local: counts.local,
     });
-    let bytes = std::fs::File::open(bep)
-        .ok()
+    let bytes = bep
+        .and_then(|bep| std::fs::File::open(bep).ok())
         .and_then(|file| dx_bep::collect_bytes_received(std::io::BufReader::new(file)));
     let report = profile_report::read_trace(std::path::Path::new(trace))
         .map_err(|error| error.to_string())
@@ -690,7 +690,7 @@ mod tests {
             &mut out,
             &mut err,
             trace,
-            &bep,
+            Some(&bep),
             None,
         )
         .expect("announce");
@@ -707,7 +707,7 @@ mod tests {
             &mut Vec::new(),
             &mut err,
             trace,
-            &bep,
+            Some(&bep),
             None,
         )
         .expect("announce");

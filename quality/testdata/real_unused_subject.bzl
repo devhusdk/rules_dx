@@ -4,9 +4,11 @@ load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(
     "//quality:real_aspects.bzl",
+    "real_cc_unused_aspect",
     "real_elixir_unused_aspect",
     "real_erlang_unused_aspect",
     "real_js_unused_aspect",
+    "real_php_unused_aspect",
     "real_python_unused_aspect",
     "real_ruby_unused_aspect",
 )
@@ -32,9 +34,11 @@ real_unused_subject = rule(
     attrs = {
         "target": attr.label(
             aspects = [
+                real_cc_unused_aspect,
                 real_elixir_unused_aspect,
                 real_erlang_unused_aspect,
                 real_js_unused_aspect,
+                real_php_unused_aspect,
                 real_python_unused_aspect,
                 real_ruby_unused_aspect,
             ],

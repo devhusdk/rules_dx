@@ -149,6 +149,18 @@ fn close_error(open: &mut Option<OpenError>) -> Result<(), ParseError> {
     }
 }
 
+/// Under `dx unused` only the cross-file unusedFunction findings count, and they are warnings.
+pub fn keep_unused_function(findings: Vec<FileFinding>) -> Vec<FileFinding> {
+    findings
+        .into_iter()
+        .filter(|found| found.finding.rule_id == "unusedFunction")
+        .map(|mut found| {
+            found.finding.severity = ToolSeverity::Warning;
+            found
+        })
+        .collect()
+}
+
 pub fn parse_cppcheck(
     stderr: &[u8],
     code: Option<i32>,
@@ -226,6 +238,23 @@ mod tests {
 
     const DIRTY: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<results version=\"2\">\n  <cppcheck version=\"2.21.0\"/>\n  <errors>\n    <error id=\"nullPointer\" severity=\"error\" msg=\"Possible null pointer dereference: slot\" verbose=\"Possible null pointer dereference: slot\">\n      <location file=\"cc/tests/fixtures/cppcheck/Sample.c\" line=\"8\" column=\"10\"/>\n    </error>\n  </errors>\n</results>\n";
     const CLEAN: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<results version=\"2\">\n  <cppcheck version=\"2.21.0\"/>\n  <errors>\n  </errors>\n</results>\n";
+
+    #[test]
+    fn unused_keeps_only_unused_function_as_a_warning() {
+        let unused = DIRTY
+            .replace("nullPointer", "unusedFunction")
+            .replace("severity=\"error\"", "severity=\"style\"");
+        let files = ["cc/tests/fixtures/cppcheck/Sample.c"];
+        let kept = keep_unused_function(
+            parse_cppcheck(unused.as_bytes(), Some(0), &files).expect("parsed"),
+        );
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].finding.severity, ToolSeverity::Warning);
+        let other = keep_unused_function(
+            parse_cppcheck(DIRTY.as_bytes(), Some(0), &files).expect("parsed"),
+        );
+        assert!(other.is_empty());
+    }
 
     #[test]
     fn cppcheck_reports_unused_function_as_info() {

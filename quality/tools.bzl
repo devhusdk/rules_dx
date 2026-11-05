@@ -517,11 +517,24 @@ TOOLS = [
     ),
     tool(
         id = "cppcheck",
-        adapters = {"lint": ["c", "cpp"]},
+        adapters = {
+            "lint": ["c", "cpp"],
+            "unused": ["c", "cpp"],
+        },
         config_suffix = [".txt"],
         support = [
             row(
                 capability = "lint",
+                classes = ["c", "cpp"],
+                context = "owned",
+                family = "cc",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                state = "supported",
+                transport = "batched",
+            ),
+            row(
+                capability = "unused",
                 classes = ["c", "cpp"],
                 context = "owned",
                 family = "cc",
@@ -1709,11 +1722,27 @@ TOOLS = [
     ),
     tool(
         id = "phpstan",
-        adapters = {"typecheck": ["php"]},
+        adapters = {
+            "typecheck": ["php"],
+            "unused": ["php"],
+        },
         config_suffix = [".neon", ".neon.dist"],
         support = [
             row(
                 capability = "typecheck",
+                classes = ["php"],
+                context = "target_coupled",
+                family = "php",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+                state = "supported",
+                transport = "batched",
+                unsupported = {
+                    "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
+                },
+            ),
+            row(
+                capability = "unused",
                 classes = ["php"],
                 context = "target_coupled",
                 family = "php",

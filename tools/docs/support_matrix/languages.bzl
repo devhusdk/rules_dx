@@ -94,6 +94,7 @@ DOC_TOOLS = {
 
 # The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
 DEAD_CODE = {
+    "cc": ["cppcheck unusedFunction (dx unused)"],
     "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
     "cuda": ["none"],
     "d": ["dscanner unused_variable_check, unused_parameter_check"],
@@ -107,6 +108,7 @@ DEAD_CODE = {
     "nix": ["deadnix"],
     "ocaml": ["ocamlc warnings 26, 27, 32 to 39"],
     "perl": ["perlcritic ProhibitUnusedVariables"],
+    "php": ["phpstan unused-public (dx unused)"],
     "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
     "python": ["vulture (dx unused)", "ruff F401, F841"],
     "ruby": ["debride (dx unused)", "rubocop Lint/UselessAssignment"],

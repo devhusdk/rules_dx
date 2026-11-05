@@ -1,0 +1,26 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "cc_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cc",
+    unused = ["cppcheck"],
+)
+
+workspace_policy(
+    name = "cc_policy",
+    families = [":cc_family"],
+)
+
+cc_library(
+    name = "lib",
+    srcs = ["lib.c"],
+)

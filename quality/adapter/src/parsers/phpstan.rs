@@ -98,6 +98,18 @@ const UNUSED_PUBLIC: [&str; 3] = [
     "phpstan/public.classConstant.unused",
 ];
 
+/// Under `dx unused` only the unused-public rules count, and they are warnings.
+pub fn keep_unused_public(findings: Vec<FileFinding>) -> Vec<FileFinding> {
+    findings
+        .into_iter()
+        .filter(|found| UNUSED_PUBLIC.contains(&found.finding.rule_id.as_str()))
+        .map(|mut found| {
+            found.finding.severity = ToolSeverity::Warning;
+            found
+        })
+        .collect()
+}
+
 fn one(path: &str, message: &serde_json::Value) -> Result<FileFinding, ParseError> {
     let text = message
         .get("message")
@@ -193,6 +205,15 @@ mod tests {
         let found = parse_phpstan(out, Some(1), &["/s/a.php"]).expect("parsed");
         assert_eq!(found[0].finding.severity, ToolSeverity::Info);
         assert_eq!(found[1].finding.severity, ToolSeverity::Error);
+    }
+
+    #[test]
+    fn phpstan_unused_keeps_only_unused_public_as_warnings() {
+        let out = br#"{"totals":{"errors":0,"file_errors":2},"files":{"/s/a.php":{"errors":2,"messages":[{"message":"Public method A::f() is never used","line":3,"identifier":"public.method.unused"},{"message":"bad","line":4,"identifier":"x.y"}]}},"errors":[]}"#;
+        let found = keep_unused_public(parse_phpstan(out, Some(1), &["/s/a.php"]).expect("parsed"));
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.rule_id, "phpstan/public.method.unused");
+        assert_eq!(found[0].finding.severity, ToolSeverity::Warning);
     }
 
     #[test]

@@ -1,0 +1,26 @@
+load("//php/rules:defs.bzl", "php_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "php_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "php",
+    unused = ["phpstan"],
+)
+
+workspace_policy(
+    name = "php_policy",
+    families = [":php_family"],
+)
+
+php_library(
+    name = "lib",
+    srcs = ["Lib.php"],
+)

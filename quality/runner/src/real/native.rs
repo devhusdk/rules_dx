@@ -250,12 +250,19 @@ pub(super) const TOOLS: &[ToolDef] = &[
             }
             let (refs, names) = paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            let invocation = commands::cppcheck_check(&call.tool.binary, &refs, call.config);
+            let unused = call.capability == "unused";
+            let invocation =
+                commands::cppcheck_check(&call.tool.binary, &refs, call.config, unused);
             let out = run(backend, call, &invocation)?;
-            parsed(
+            let found = parsed(
                 call.tool_id,
                 parsers::parse_cppcheck(&out.stderr, out.code, &strs),
-            )
+            )?;
+            Ok(if unused {
+                parsers::keep_unused_function(found)
+            } else {
+                found
+            })
         },
     },
     ToolDef {

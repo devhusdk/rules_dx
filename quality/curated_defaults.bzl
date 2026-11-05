@@ -21,7 +21,7 @@ CURATED_DEFAULTS = {
         "format": ["clang_format"],
         "lint": ["typos"],
         "typecheck": [],
-        "unused": [],
+        "unused": ["cppcheck"],
     },
     "cloudformation": {
         "audit": [],

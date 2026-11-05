@@ -83,6 +83,8 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:families/ruby.bzl%real_ruby_unused_aspect",
                 "quality:families/beam.bzl%real_erlang_unused_aspect",
                 "quality:families/beam.bzl%real_elixir_unused_aspect",
+                "quality:families/cc.bzl%real_cc_unused_aspect",
+                "quality:families/php.bzl%real_php_unused_aspect",
             ],
             probe: None,
             reports: &[],

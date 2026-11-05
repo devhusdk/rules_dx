@@ -448,7 +448,7 @@ impl RealBackend {
                     tool.edition.as_deref().unwrap_or("default"),
                     tool.dialect.as_deref().unwrap_or("medium"),
                 )
-                    .map_err(|err| execution(tool_id, err.to_string()))?;
+                .map_err(|err| execution(tool_id, err.to_string()))?;
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
@@ -841,6 +841,9 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_phpstan(&out.stdout, out.code, &real_strs),
                 )?;
+                if capability == "unused" {
+                    findings = parsers::keep_unused_public(findings);
+                }
                 for found in &mut findings {
                     if let Some((_, absolute)) = owned
                         .iter()

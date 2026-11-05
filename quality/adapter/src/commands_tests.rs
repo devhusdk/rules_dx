@@ -992,9 +992,15 @@ fn clang_tidy_check_carries_config_and_compile_commands() {
 #[test]
 fn cppcheck_check_is_xml_with_optional_suppressions() {
     let file = Path::new("/scratch/Sample.c");
-    let bare = cppcheck_check(Path::new(BIN), &[file], None);
+    let bare = cppcheck_check(Path::new(BIN), &[file], None, false);
     assert_eq!(
         argv_strings(&bare),
+        vec![BIN, "--xml", "--xml-version=2", "/scratch/Sample.c"]
+    );
+    assert_eq!(bare.cwd_rel, "");
+    let unused = cppcheck_check(Path::new(BIN), &[file], None, true);
+    assert_eq!(
+        argv_strings(&unused),
         vec![
             BIN,
             "--xml",
@@ -1003,11 +1009,11 @@ fn cppcheck_check_is_xml_with_optional_suppressions() {
             "/scratch/Sample.c"
         ]
     );
-    assert_eq!(bare.cwd_rel, "");
     let hinted = cppcheck_check(
         Path::new(BIN),
         &[file],
         Some(Path::new("/scratch/suppressions.txt")),
+        false,
     );
     assert!(
         argv_strings(&hinted)

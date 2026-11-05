@@ -98,6 +98,12 @@ SHARD_SPECS = {
         "shard": "cc",
         "suffix": "-cc",
     },
+    "real_cc_unused": {
+        "capability": "unused",
+        "doc": "Additive C/C++ unused-code family aspect (cppcheck unusedFunction).",
+        "shard": "cc",
+        "suffix": "-cc",
+    },
     "real_cc_typecheck": {
         "capability": "typecheck",
         "doc": "Additive C/C++/Objective-C/CUDA typecheck family aspect (compiler -fsyntax-only replay, nvcc -cuda replay).",
@@ -196,3 +202,5 @@ real_cc_format_aspect = real_make_aspect(_CFG, "real_cc_format")
 real_cc_lint_aspect = real_make_aspect(_CFG, "real_cc_lint")
 
 real_cc_typecheck_aspect = real_make_aspect(_CFG, "real_cc_typecheck")
+
+real_cc_unused_aspect = real_make_aspect(_CFG, "real_cc_unused")

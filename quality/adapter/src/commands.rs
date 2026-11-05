@@ -397,7 +397,8 @@ const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
-const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2", "--enable=unusedFunction"];
+const CPPCHECK_PREFIX: &[&str] = &["--xml", "--xml-version=2"];
+const CPPCHECK_UNUSED_FLAG: &[&str] = &["--enable=unusedFunction"];
 const FSHARPLINT_CONFIG_FLAG: &[&str] = &["--config"];
 const SCALAFIX_CHECK_FLAGS: &[&str] = &["--check", "--no-stale-semanticdb"];
 
@@ -1039,8 +1040,14 @@ pub fn clang_tidy_check(
     assemble(binary, head, files, "")
 }
 
-pub fn cppcheck_check(binary: &Path, files: &[&Path], suppressions: Option<&Path>) -> Invocation {
-    optional_joined(
+/// `unused` turns on the cross-file unusedFunction check, which lint leaves off.
+pub fn cppcheck_check(
+    binary: &Path,
+    files: &[&Path],
+    suppressions: Option<&Path>,
+    unused: bool,
+) -> Invocation {
+    let mut invocation = optional_joined(
         binary,
         CPPCHECK_PREFIX,
         "--suppressions-list=",
@@ -1048,7 +1055,14 @@ pub fn cppcheck_check(binary: &Path, files: &[&Path], suppressions: Option<&Path
         SCALAFMT_EMPTY,
         files,
         "",
-    )
+    );
+    if unused {
+        let at = 1 + CPPCHECK_PREFIX.len();
+        for (offset, flag) in CPPCHECK_UNUSED_FLAG.iter().enumerate() {
+            invocation.argv.insert(at + offset, OsString::from(flag));
+        }
+    }
+    invocation
 }
 
 pub fn staticcheck_check(

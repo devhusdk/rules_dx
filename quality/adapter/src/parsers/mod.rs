@@ -71,6 +71,7 @@ pub mod nvcc_syntax;
 pub mod ocaml_compile;
 pub mod opa;
 pub mod ormolu;
+pub mod periphery;
 pub mod perlcritic;
 pub mod perltidy;
 pub mod phpcs;
@@ -201,6 +202,7 @@ pub use nvcc_syntax::parse_nvcc_syntax;
 pub use ocaml_compile::parse_ocaml_compile;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
+pub use periphery::parse_periphery;
 pub use perlcritic::parse_perlcritic;
 pub use perltidy::parse_perltidy;
 pub use phpcs::parse_phpcs;
@@ -2397,6 +2399,14 @@ mod tests {
         )
     }
 
+    fn fuzz_periphery(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::periphery::parse_periphery(input, input, code, files)
+    }
+
     fn fuzz_swift_lint(
         input: &[u8],
         code: Option<i32>,
@@ -3009,6 +3019,7 @@ mod tests {
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
         ("perlcritic", fuzz_perlcritic),
+        ("periphery", fuzz_periphery),
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
         ("pkl_eval", fuzz_pkl_eval),
@@ -3149,6 +3160,7 @@ mod tests {
         ("ocaml_compile", include_str!("ocaml_compile.rs")),
         ("opa", include_str!("opa.rs")),
         ("perlcritic", include_str!("perlcritic.rs")),
+        ("periphery", include_str!("periphery.rs")),
         ("perltidy", include_str!("perltidy.rs")),
         ("phpcs", include_str!("phpcs.rs")),
         ("phpstan", include_str!("phpstan.rs")),

@@ -1,10 +1,16 @@
 use crate::ColumnEncoding;
 use serde_json::Value;
 
+use super::rust_unused_deps::UnusedDependency;
 use super::sarif::{file_url_path, parse_sarif, suppressed};
 use super::{check_output_size, FileFinding, ParseError};
 
 const TOOL: &str = "roslyn";
+
+pub const UNUSED_REFERENCE_RULE: &str = "RT0001";
+
+// ReferenceTrimmer reports unused references without a source location.
+const REFERENCE_TRIMMER_RULES: [&str; 3] = ["RT0001", "RT0002", "RT0003"];
 
 const EXEC_ROOT: &str = "/execroot/_main/";
 
@@ -215,6 +221,9 @@ fn parse_scoped(
                 continue;
             }
             let rule = result["ruleId"].as_str().unwrap_or_default();
+            if REFERENCE_TRIMMER_RULES.contains(&rule) {
+                continue;
+            }
             if !rule.starts_with("AD")
                 && suppressed(
                     result
@@ -275,6 +284,84 @@ fn parse_scoped(
         code
     };
     parse_sarif(tool, &bytes, code, files, ColumnEncoding::Utf16)
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct DepsMap {
+    package: String,
+    target: String,
+    deps: Vec<MappedDep>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct MappedDep {
+    label: String,
+    refs: Vec<String>,
+}
+
+/// Names the direct dependencies whose every reference assembly ReferenceTrimmer reports as unused.
+///
+/// `map` is the aspect's list of direct dependencies. ReferenceTrimmer words each finding
+/// "Reference <label> can be removed", with the label the aspect wrote as the spec.
+pub fn parse_unused_references(
+    sarif: &[u8],
+    map: &[u8],
+) -> Result<Vec<UnusedDependency>, ParseError> {
+    check_output_size(TOOL, sarif)?;
+    let log: Value = serde_json::from_slice(sarif).map_err(|err| ParseError::Json {
+        tool: TOOL,
+        detail: err.to_string(),
+    })?;
+    let map: DepsMap = serde_json::from_slice(map).map_err(|err| ParseError::Json {
+        tool: TOOL,
+        detail: format!("dependency map: {err}"),
+    })?;
+    let mut reported: Vec<&str> = Vec::new();
+    for run in log
+        .get("runs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        for result in run
+            .get("results")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if result.get("ruleId").and_then(Value::as_str) != Some(UNUSED_REFERENCE_RULE) {
+                continue;
+            }
+            let text = result
+                .pointer("/message/text")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if let Some(label) = text
+                .strip_prefix("Reference ")
+                .and_then(|rest| rest.strip_suffix(" can be removed"))
+            {
+                reported.push(label);
+            }
+        }
+    }
+    Ok(map
+        .deps
+        .iter()
+        .filter(|dep| {
+            reported.iter().filter(|label| **label == dep.label).count() >= dep.refs.len()
+        })
+        .map(|dep| UnusedDependency {
+            package: map.package.clone(),
+            target: map.target.clone(),
+            dependency: dep
+                .label
+                .rsplit(':')
+                .next()
+                .unwrap_or(&dep.label)
+                .to_owned(),
+            crate_name: dep.label.clone(),
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -576,5 +663,58 @@ mod tests {
         let found = parse_csc(log.as_bytes(), Some(0), &["a.cs"]).expect("parsed");
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].finding.rule_id, "CS0168");
+    }
+
+    const DEPS: &str = r#"{"package":"app","target":"lib","deps":[{"label":"@@//app:used","refs":["a.dll"]},{"label":"@@//app:unused","refs":["b.dll"]},{"label":"@@//app:pair","refs":["c.dll","d.dll"]}]}"#;
+
+    fn trimmer(messages: &[&str]) -> String {
+        let results = messages
+            .iter()
+            .map(|text| {
+                format!(r#"{{"ruleId":"RT0001","level":"warning","message":{{"text":"{text}"}}}}"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"csc"}}}},"results":[{results}]}}]}}"#
+        )
+    }
+
+    #[test]
+    fn reference_trimmer_findings_name_the_unused_dependency() {
+        let log = trimmer(&["Reference @@//app:unused can be removed"]);
+        let found = parse_unused_references(log.as_bytes(), DEPS.as_bytes()).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].package, "app");
+        assert_eq!(found[0].target, "lib");
+        assert_eq!(found[0].dependency, "unused");
+        assert_eq!(found[0].crate_name, "@@//app:unused");
+    }
+
+    #[test]
+    fn reference_trimmer_keeps_a_dependency_with_one_used_assembly() {
+        let log = trimmer(&["Reference @@//app:pair can be removed"]);
+        let found = parse_unused_references(log.as_bytes(), DEPS.as_bytes()).expect("parsed");
+        assert!(found.is_empty());
+        let both = trimmer(&[
+            "Reference @@//app:pair can be removed",
+            "Reference @@//app:pair can be removed",
+        ]);
+        let found = parse_unused_references(both.as_bytes(), DEPS.as_bytes()).expect("parsed");
+        assert_eq!(found.len(), 1);
+    }
+
+    #[test]
+    fn reference_trimmer_results_are_not_roslyn_failures() {
+        let log = trimmer(&["Reference @@//app:unused can be removed"]);
+        let findings = parse_exit_zero(log.as_bytes(), &["a.cs"]).expect("parsed");
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn reference_trimmer_rejects_a_malformed_dependency_map() {
+        let log = trimmer(&[]);
+        assert!(parse_unused_references(log.as_bytes(), b"{").is_err());
+        assert!(parse_unused_references(b"not json", DEPS.as_bytes()).is_err());
     }
 }

@@ -71,3 +71,16 @@ rustfmt_test(
         ":roslyn_aggregation_test",
     ],
 )
+
+csharp_library(
+    name = "roslyn_dep",
+    testonly = True,
+    srcs = ["Dep.cs"],
+)
+
+csharp_library(
+    name = "roslyn_unused_dep",
+    testonly = True,
+    srcs = ["Sample.cs"],
+    deps = [":roslyn_dep"],
+)

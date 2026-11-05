@@ -398,6 +398,7 @@ use_repo(
     "paket.fsharplint",
     "paket.main",
     "paket.paket2bazel_dependencies",
+    "paket.referencetrimmer",
     "paket.rules_dotnet_nuget_packages",
 )
 

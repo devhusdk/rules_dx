@@ -9,6 +9,7 @@ load("//third_party/dotnet/deps:paket.docs_csharp.bzl", "docs_csharp")
 load("//third_party/dotnet/deps:paket.docs_fsharp.bzl", "docs_fsharp")
 load("//third_party/dotnet/deps:paket.fsharplint.bzl", "fsharplint")
 load("//third_party/dotnet/deps:paket.main.bzl", "main")
+load("//third_party/dotnet/deps:paket.referencetrimmer.bzl", "referencetrimmer")
 
 def _paket_impl(module_ctx):
     paket2bazel_dependencies()
@@ -20,6 +21,7 @@ def _paket_impl(module_ctx):
     fsharplint()
     docs_csharp()
     docs_fsharp()
+    referencetrimmer()
     return module_ctx.extension_metadata(reproducible = True)
 
 paket = module_extension(

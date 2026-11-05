@@ -3,12 +3,14 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
+load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
 RoslynInfo = provider(
     doc = "SARIF logs from compiling one C# target with the SDK analyzers, one per target framework.",
     fields = {
+        "deps_maps": "list of File: direct dependencies with their reference assemblies per target framework.",
         "sarifs": "list of File: SARIF 2.1 log per target framework.",
         "statuses": "list of File: csc exit code per target framework.",
         "tfms": "list of string: target framework per entry, in ascending version order.",
@@ -42,9 +44,10 @@ def _merged_roslyn(infos):
     for info in infos:
         for i in range(len(info.tfms)):
             if info.tfms[i] not in by_tfm:
-                by_tfm[info.tfms[i]] = (info.sarifs[i], info.statuses[i])
+                by_tfm[info.tfms[i]] = (info.sarifs[i], info.statuses[i], info.deps_maps[i])
     tfms = sorted(by_tfm.keys(), key = tfm_sort_key)
     return RoslynInfo(
+        deps_maps = [by_tfm[tfm][2] for tfm in tfms],
         sarifs = [by_tfm[tfm][0] for tfm in tfms],
         statuses = [by_tfm[tfm][1] for tfm in tfms],
         tfms = tfms,
@@ -100,6 +103,22 @@ def _roslyn_impl(target, ctx):
     sarif = ctx.actions.declare_file("dx_roslyn/%s/%s.sarif" % (target.label.name, tfm))
     status = ctx.actions.declare_file("dx_roslyn/%s/%s.exit" % (target.label.name, tfm))
     out_tree = ctx.actions.declare_directory("dx_roslyn/%s/%s.out" % (target.label.name, tfm))
+    deps_map = ctx.actions.declare_file("dx_roslyn/%s/%s.deps.json" % (target.label.name, tfm))
+    declared = ctx.actions.declare_file("dx_roslyn/%s/%s/_ReferenceTrimmer_DeclaredReferences.tsv" % (target.label.name, tfm))
+
+    rows = []
+    mapped = []
+    for dep in attrs.deps:
+        if DotnetAssemblyCompileInfo not in dep:
+            continue
+        paths = [ref.path for ref in dep[DotnetAssemblyCompileInfo].refs]
+        if not paths:
+            continue
+        mapped.append({"label": str(dep.label), "refs": paths})
+        rows += ["%s\tReference\t%s\t" % (path, dep.label) for path in paths]
+    ctx.actions.write(declared, "".join([row + "\n" for row in rows]))
+    ctx.actions.write(deps_map, json.encode({"package": target.label.package, "target": target.label.name.removesuffix("_upstream"), "deps": mapped}))
+    trimmer = [f for f in ctx.files._reference_trimmer if f.basename == "ReferenceTrimmer.Analyzer.dll"]
 
     args = ctx.actions.args()
     args.add("/nologo")
@@ -121,9 +140,12 @@ def _roslyn_impl(target, ctx):
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.NetAnalyzers.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/build/config/analysislevel_" + level + "_default.globalconfig", format = "/analyzerconfig:%s")
+    args.add_all(trimmer, format_each = "/analyzer:%s")
     args.add(ctx.file._default_config, format = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.analyzer_configs, format_each = "/analyzerconfig:%s")
     args.add_all(ctx.rule.files.additionalfiles, format_each = "/additionalfile:%s")
+    args.add(declared, format = "/additionalfile:%s")
+    args.add("%s/%s.xml" % (out_tree.path, assembly_name), format = "/doc:%s")
     args.add("/warnaserror-")
     args.add_all(attrs.compiler_options)
     args.add("%s/%s.dll" % (out_tree.path, assembly_name), format = "/out:%s")
@@ -133,7 +155,7 @@ def _roslyn_impl(target, ctx):
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, ctx.file._default_config],
+        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, ctx.file._default_config, declared] + trimmer,
         transitive = [
             refs,
             analyzers,
@@ -168,7 +190,7 @@ def _roslyn_impl(target, ctx):
             resource_set = dx_heavy_resources,
             toolchain = _TOOLCHAIN,
         )
-    return [RoslynInfo(sarifs = [sarif], statuses = [status], tfms = [tfm])]
+    return [RoslynInfo(deps_maps = [deps_map], sarifs = [sarif], statuses = [status], tfms = [tfm])]
 
 roslyn_aspect = aspect(
     implementation = _roslyn_impl,
@@ -179,6 +201,11 @@ roslyn_aspect = aspect(
             allow_single_file = True,
             default = "//quality:roslyn_status.bat",
             doc = "Windows launcher that records the csc exit code.",
+        ),
+        "_reference_trimmer": attr.label(
+            default = "@paket.referencetrimmer//referencetrimmer:files",
+            allow_files = True,
+            doc = "ReferenceTrimmer analyzer that reports the deps no source uses.",
         ),
         "_default_config": attr.label(
             allow_single_file = True,

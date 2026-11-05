@@ -7,6 +7,7 @@ exports_files([
     "paket.docs_fsharp.bzl",
     "paket.fsharplint.bzl",
     "paket.main.bzl",
+    "paket.referencetrimmer.bzl",
 ])
 
 real_source_target(

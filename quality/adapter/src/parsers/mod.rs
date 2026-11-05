@@ -230,7 +230,7 @@ pub use qmllint::{parse_qmllint, parse_qmllint_report, QmllintView};
 pub use redocly::parse_redocly;
 pub use regal::parse_regal;
 pub use remark::parse_remark;
-pub use roslyn::{parse_csc, parse_roslyn};
+pub use roslyn::{parse_csc, parse_roslyn, parse_unused_references, UNUSED_REFERENCE_RULE};
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
 pub use rust::{parse_clippy, parse_rustc};

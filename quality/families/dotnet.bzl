@@ -110,6 +110,7 @@ def _roslyn_hook(target, _ctx, _resolved, _capability, what, _shared):
     inputs = []
     for i in range(len(info.tfms)):
         inputs.append(info.sarifs[i])
+        stage(tool_files, inputs, "dx-roslyn/" + info.tfms[i] + "/deps.json", info.deps_maps[i])
         stage(tool_files, inputs, "dx-roslyn/" + info.tfms[i] + "/exit", info.statuses[i])
     return real_context(upstream = info.sarifs, late_tool_files = tool_files, late_inputs = inputs)
 

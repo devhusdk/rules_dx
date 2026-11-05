@@ -49,10 +49,15 @@ fn unused_dependency_findings(
         );
         stream.push(b'\n');
     }
-    let unused = parsed(tool_id, rust_unused_deps::parse_unused_dependencies(&stream))?;
+    let unused = parsed(
+        tool_id,
+        rust_unused_deps::parse_unused_dependencies(&stream),
+    )?;
     let Some(root) = pairs.iter().find_map(|(workspace, absolute)| {
         let mut root = absolute.clone();
-        workspace.split('/').try_for_each(|_| root.pop().then_some(()))?;
+        workspace
+            .split('/')
+            .try_for_each(|_| root.pop().then_some(()))?;
         Some(root)
     }) else {
         return Ok(Vec::new());
@@ -104,6 +109,21 @@ fn jvm_unused_dependency_findings(
         tool_id,
         jvm_unused_deps::parse_unused_dependencies(name, &read(map)?, &read(jdeps)?),
     )?;
+    Ok(place_in_build_files(
+        tool_id,
+        jvm_unused_deps::RULE_ID,
+        &unused,
+        pairs,
+    ))
+}
+
+/// Places each unused dependency on its `deps` entry in the BUILD file next to the sources.
+fn place_in_build_files(
+    tool_id: &str,
+    rule_id: &str,
+    unused: &[rust_unused_deps::UnusedDependency],
+    pairs: &[(String, PathBuf)],
+) -> Vec<FileFinding> {
     let Some(root) = pairs.iter().find_map(|(workspace, absolute)| {
         let mut root = absolute.clone();
         workspace
@@ -111,10 +131,10 @@ fn jvm_unused_dependency_findings(
             .try_for_each(|_| root.pop().then_some(()))?;
         Some(root)
     }) else {
-        return Ok(Vec::new());
+        return Vec::new();
     };
     let mut findings = Vec::new();
-    for item in &unused {
+    for item in unused {
         for build in ["BUILD.bazel", "BUILD"] {
             let relative = if item.package.is_empty() {
                 build.to_owned()
@@ -125,20 +145,50 @@ fn jvm_unused_dependency_findings(
             let Ok(text) = std::fs::read_to_string(&absolute) else {
                 continue;
             };
-            if let Some(mut found) = rust_unused_deps::place_dependency_finding(
-                item,
-                &relative,
-                &text,
-                tool_id,
-                jvm_unused_deps::RULE_ID,
-            ) {
+            if let Some(mut found) =
+                rust_unused_deps::place_dependency_finding(item, &relative, &text, tool_id, rule_id)
+            {
                 found.file = absolute.to_string_lossy().into_owned();
                 findings.push(found);
             }
             break;
         }
     }
-    Ok(findings)
+    findings
+}
+
+/// Finds the C# `deps` entries that ReferenceTrimmer reports as unused in every target framework.
+fn unused_reference_findings(
+    tool_id: &str,
+    tool: &RealTool,
+    pairs: &[(String, PathBuf)],
+) -> Result<Vec<FileFinding>, RunnerError> {
+    let mut common: Option<Vec<rust_unused_deps::UnusedDependency>> = None;
+    for path in &tool.upstream_diagnostics {
+        let Some(tfm) = path.file_stem().and_then(|stem| stem.to_str()) else {
+            continue;
+        };
+        let key = format!("dx-roslyn/{tfm}/deps.json");
+        let Some((_, map)) = tool.tool_files.iter().find(|(rel, _)| *rel == key) else {
+            continue;
+        };
+        let sarif = std::fs::read(path)
+            .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+        let unused = parsed(tool_id, parsers::parse_unused_references(&sarif, map))?;
+        common = Some(match common {
+            None => unused,
+            Some(kept) => kept
+                .into_iter()
+                .filter(|item| unused.contains(item))
+                .collect(),
+        });
+    }
+    Ok(place_in_build_files(
+        tool_id,
+        parsers::UNUSED_REFERENCE_RULE,
+        &common.unwrap_or_default(),
+        pairs,
+    ))
 }
 
 impl RealBackend {
@@ -202,12 +252,14 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
-        self.check_dotnet_log(
+        let mut findings = self.check_dotnet_log(
             tool_id,
             tool,
             pairs,
             &DotnetLog::csc_sarif(parsers::parse_roslyn),
-        )
+        )?;
+        findings.extend(unused_reference_findings(tool_id, tool, pairs)?);
+        Ok(findings)
     }
 
     pub(super) fn check_csc_delegated(

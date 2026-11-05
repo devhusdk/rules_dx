@@ -1,13 +1,15 @@
 """No-install, network-denied consumer qualification targets."""
 
-load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
-# The ELF .comment string each compiler leaves in the binaries it builds.
+# The string each compiler leaves in the binaries it builds: the ELF .comment entry, or the
+# PE Rich header entry of cl.exe compiling C++.
 COMPILER_PRODUCERS = {
     "gcc": "GCC: (GNU) " + GCC_VERSION,
     "llvm": "clang version " + LLVM_CLANG_VERSION,
+    "msvc": "msvc 261." + MSVC_CL_BUILD,
 }
 
 def _hermetic_manifest_impl(ctx):
@@ -49,7 +51,7 @@ hermetic_manifest = rule(
     implementation = _hermetic_manifest_impl,
     doc = "Describes one consumer workspace for hermetic qualification.",
     attrs = {
-        "compiler": attr.string(doc = "Compiler the consumer artifacts must be built by (gcc or llvm); empty skips the check."),
+        "compiler": attr.string(doc = "Compiler the consumer artifacts must be built by (gcc, llvm or msvc); empty skips the check."),
         "coverage": attr.string_list(doc = "Consumer target patterns to run under coverage with the network denied."),
         "covered": attr.string_list(doc = "Consumer source paths the coverage report must show as hit."),
         "failures": attr.string_dict(doc = "Manual consumer targets that must fail to build, mapped to the log marker of the failure."),

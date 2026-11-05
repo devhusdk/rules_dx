@@ -5,6 +5,9 @@ LLVM_CLANG_VERSION = "23.1.2"
 
 GCC_VERSION = "16.2.0"
 
+# The cl.exe build of the MSVC toolset, as the Rich header of its output records it.
+MSVC_CL_BUILD = "35717"
+
 CC_COMPILER_VERSIONS = {"gcc": GCC_VERSION, "llvm": LLVM_CLANG_VERSION}
 
 # The glibc of the pinned sysroot.

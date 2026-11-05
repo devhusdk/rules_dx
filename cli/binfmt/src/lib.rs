@@ -229,15 +229,57 @@ pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
     }
 }
 
-/// Lists the strings in an ELF `.comment` section, which compilers and linkers use to sign their output.
+/// Lists how an image names the tools that built it.
 ///
-/// Other formats and ELF files without the section yield an empty list.
+/// ELF files give the strings of the `.comment` section. PE files give one `msvc <prodid>.<build>`
+/// per entry of the Rich header. Anything else, or an image without either, yields an empty list.
 pub fn producers(bytes: &[u8]) -> Vec<String> {
     match FileKind::parse(bytes) {
         Ok(FileKind::Elf32) => elf_producers::<elf::FileHeader32<object::Endianness>>(bytes),
         Ok(FileKind::Elf64) => elf_producers::<elf::FileHeader64<object::Endianness>>(bytes),
+        Ok(FileKind::Pe32 | FileKind::Pe64) => rich_producers(bytes),
         _ => Vec::new(),
     }
+}
+
+fn rich_producers(bytes: &[u8]) -> Vec<String> {
+    const DANS: u32 = 0x536e_6144;
+    let word = |at: usize| {
+        bytes
+            .get(at..at + 4)
+            .map(|raw| u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]))
+    };
+    let Some(lfanew) = word(0x3c).map(|raw| raw as usize) else {
+        return Vec::new();
+    };
+    let stub = &bytes[..lfanew.min(bytes.len())];
+    let Some(rich) = stub.windows(4).rposition(|window| window == b"Rich") else {
+        return Vec::new();
+    };
+    let Some(key) = word(rich + 4) else {
+        return Vec::new();
+    };
+    let Some(start) = (0x40..rich)
+        .step_by(4)
+        .find(|at| word(*at).is_some_and(|raw| raw ^ key == DANS))
+    else {
+        return Vec::new();
+    };
+    let mut found = Vec::new();
+    for at in (start + 16..rich.saturating_sub(7)).step_by(8) {
+        let (Some(id), Some(count)) = (word(at), word(at + 4)) else {
+            break;
+        };
+        let id = id ^ key;
+        if count ^ key == 0 {
+            continue;
+        }
+        let producer = format!("msvc {}.{}", id >> 16, id & 0xffff);
+        if !found.contains(&producer) {
+            found.push(producer);
+        }
+    }
+    found
 }
 
 fn elf_producers<H: object::read::elf::FileHeader<Endian = object::Endianness>>(

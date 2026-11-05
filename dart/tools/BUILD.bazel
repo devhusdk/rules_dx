@@ -1,16 +1,21 @@
+load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":dart_tool.bzl", "dart_tool")
 
 package(default_visibility = ["//visibility:public"])
 
-dart_tool(name = "dart")
+dart_tool(
+    name = "dart",
+    target_compatible_with = DART_COMPATIBLE_WITH,
+)
 
 rust_test(
     name = "format_cli_test",
     srcs = ["format_cli_test.rs"],
     data = [":dart"],
     env = {"DART": "$(rootpath :dart)"},
+    target_compatible_with = DART_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -29,6 +34,7 @@ rust_test(
     srcs = ["analyze_cli_test.rs"],
     data = [":dart"],
     env = {"DART": "$(rootpath :dart)"},
+    target_compatible_with = DART_COMPATIBLE_WITH,
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:serde_json",

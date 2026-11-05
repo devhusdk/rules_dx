@@ -311,6 +311,15 @@ fn the_upload_job_downloads_the_source_artifact() {
 }
 
 #[test]
+fn the_assets_job_downloads_the_release_assets_into_out() {
+    let text = workflow();
+    let assets = &text[text.find("\n  assets:\n").expect("assets job")..];
+    let assets = &assets[..assets.find("\n  pins:\n").expect("pins job")];
+    assert!(assets.contains("name: release-assets\n          path: out\n"));
+    assert!(!assets.contains("path: .\n"));
+}
+
+#[test]
 fn every_upload_download_matches_an_uploaded_artifact() {
     let (release, cells) = (workflow(), read_runfiles(CELLS_WORKFLOW));
     assert_eq!(unmatched_downloads(&release, &cells), Vec::<String>::new());

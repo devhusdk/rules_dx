@@ -9,12 +9,6 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":rules_tests.bzl", "qt_rules_tests")
 
-_LINUX = select({
-    "@platforms//cpu:arm64": ["@platforms//os:linux"],
-    "@platforms//cpu:x86_64": ["@platforms//os:linux"],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
-
 _MACOS_ARM64 = [
     "@platforms//os:macos",
     "@platforms//cpu:arm64",

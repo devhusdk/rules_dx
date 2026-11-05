@@ -1,7 +1,7 @@
 import * as nodeModule from "node:module";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readlinkSync, rmSync, symlinkSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const MANAGED = ["stylelint-config-recess-order", "stylelint-config-standard", "stylelint-order"];
@@ -14,10 +14,23 @@ const modules = join(global, "lib", "node_modules");
 mkdirSync(modules, { recursive: true });
 const require = nodeModule.createRequire(import.meta.url);
 const links = [];
+// rules_js patches fs so links leaving its sandbox read as plain files. Keep each link's real
+// target here, found by following the store's own links by hand.
+const targets = new Map();
+const follow = (path) => {
+  for (;;) {
+    try {
+      path = resolve(dirname(path), readlinkSync(path));
+    } catch {
+      return path;
+    }
+  }
+};
 const link = (target, name) => {
   const path = join(modules, name);
   if (!existsSync(path)) {
-    symlinkSync(target, path, "dir");
+    targets.set(name, follow(target));
+    symlinkSync(targets.get(name), path, "dir");
     links.push(path);
   }
 };
@@ -46,8 +59,13 @@ nodeModule.registerHooks({
   resolve(specifier, context, nextResolve) {
     const parent = context.parentURL?.startsWith("file:") ? fileURLToPath(context.parentURL) : "";
     if (parent.startsWith(modules + sep)) {
-      const [first, ...rest] = parent.slice(modules.length + 1).split(sep);
-      const parentURL = pathToFileURL(join(realpathSync(join(modules, first)), ...rest)).href;
+      const parts = parent.slice(modules.length + 1).split(sep);
+      const depth = parts[0].startsWith("@") ? 2 : 1;
+      let base = targets.get(parts[0]) ?? join(modules, parts[0]);
+      if (depth === 2) {
+        base = follow(join(base, parts[1]));
+      }
+      const parentURL = pathToFileURL(join(base, ...parts.slice(depth))).href;
       return nextResolve(specifier, { ...context, parentURL });
     }
     return nextResolve(specifier, context);

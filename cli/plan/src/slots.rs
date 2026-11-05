@@ -609,10 +609,15 @@ fn is_forbidden(forbidden: &[Range<usize>], index: usize) -> bool {
     forbidden.iter().any(|range| range.contains(&index))
 }
 
+/// How long ago `time` was; a time in the future counts as infinitely old.
+fn age(time: SystemTime) -> Duration {
+    time.elapsed().unwrap_or(Duration::MAX)
+}
+
 fn waiting(path: &Path) -> bool {
     let fresh = std::fs::metadata(path)
         .and_then(|meta| meta.modified())
-        .is_ok_and(|time| time.elapsed().unwrap_or_default() < STALE);
+        .is_ok_and(|time| age(time) < STALE);
     fresh && matches!(dx_atomic_fs::lease::try_lock_file(path, false), Ok(None))
 }
 
@@ -788,7 +793,7 @@ fn extra_mark(dir: &Path) -> PathBuf {
 fn extra_recent(dir: &Path) -> bool {
     std::fs::metadata(extra_mark(dir))
         .and_then(|meta| meta.modified())
-        .is_ok_and(|time| time.elapsed().unwrap_or_default() < EXTRA_SPACING)
+        .is_ok_and(|time| age(time) < EXTRA_SPACING)
 }
 
 /// Whether any slot in `extras` is free right now.
@@ -950,7 +955,16 @@ fn acquire_reserving(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    let ticket = enqueue_wanting(dir, label, &Want::of(layout, admission.remote)).ok();
+    let ticket = match enqueue_wanting(dir, label, &Want::of(layout, admission.remote)) {
+        Ok(ticket) => Some(ticket),
+        Err(error) => {
+            // A slot directory that cannot be opened at all is reported by the caller.
+            if dir.is_dir() {
+                on_skip(&queue_dir(dir), &error);
+            }
+            None
+        }
+    };
     let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
@@ -3649,6 +3663,53 @@ mod tests {
         std::fs::write(&orphan, "x").expect("orphan");
         drop(enqueue(&dir, "").expect("ticket"));
         assert!(!orphan.exists());
+    }
+
+    #[test]
+    fn a_future_mtime_is_not_recent_and_not_a_live_waiter() {
+        let scratch = dx_test_scratch::scratch("dx-slots-future-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let future = SystemTime::now() + Duration::from_secs(3600);
+        let set = |path: &Path| {
+            let file = File::options().write(true).open(path).expect("open");
+            file.set_modified(future).expect("set mtime");
+        };
+        std::fs::write(extra_mark(&dir), "").expect("mark");
+        assert!(extra_recent(&dir));
+        set(&extra_mark(&dir));
+        assert!(!extra_recent(&dir));
+        let ticket = dir.join("ticket");
+        std::fs::write(&ticket, "").expect("ticket");
+        assert!(!waiting(&ticket));
+        set(&ticket);
+        assert!(!waiting(&ticket));
+    }
+
+    #[test]
+    fn an_unwritable_queue_dir_warns_and_the_run_still_gets_a_slot() {
+        let scratch = dx_test_scratch::scratch("dx-slots-queue-warn-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(queue_dir(&dir), "not a directory").expect("block queue");
+        let layout = Layout {
+            count: 1,
+            reserve: 1..1,
+            extras: 1..1,
+        };
+        let mut skipped = Vec::new();
+        let slot = acquire_reserving(
+            &dir,
+            &layout,
+            Admission::none(),
+            "r",
+            &mut |_, _| {},
+            &mut || {},
+            &mut |path, _| skipped.push(path.to_path_buf()),
+        )
+        .expect("slot");
+        assert_eq!(slot.index, 0);
+        assert_eq!(skipped, vec![queue_dir(&dir)]);
     }
 
     #[test]

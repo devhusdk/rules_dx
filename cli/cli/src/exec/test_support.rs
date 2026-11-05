@@ -1281,11 +1281,16 @@ pub(crate) fn failed_action(
 pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
     let mut fd = libc::pollfd {
         fd: writer.as_raw_fd(),
-        events: 0,
+        events: libc::POLLOUT,
         revents: 0,
     };
     let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
-    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
+    let gone = ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0;
+    if ready > 0 && !gone {
+        // A writable pipe with a live reader answers at once; macOS reports a gone reader only when POLLOUT is asked for.
+        std::thread::sleep(Duration::from_millis(timeout_ms.clamp(0, 20) as u64));
+    }
+    gone
 }
 
 /// Drops `reader` and waits until no process holds a copy of the read end.

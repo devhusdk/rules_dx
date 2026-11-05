@@ -1529,3 +1529,87 @@ fn sending_a_signal_keeps_the_callers_errno() {
         Some(libc::EINTR)
     );
 }
+
+#[test]
+fn stream_stdin_is_null_only_for_an_inherited_terminal_in_an_own_group() {
+    for requested in [StreamStdin::Inherit, StreamStdin::Null] {
+        for own_group in [false, true] {
+            for tty in [false, true] {
+                let expected = if requested == StreamStdin::Inherit && own_group && tty {
+                    StreamStdin::Null
+                } else {
+                    requested
+                };
+                assert_eq!(
+                    stream_stdin(requested, own_group, tty),
+                    expected,
+                    "{requested:?} own_group={own_group} tty={tty}"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_stop_reaches_only_the_runs_still_registered() {
+    static TABLE: [Slot; FORWARD_SLOTS] = [const { Slot::new() }; FORWARD_SLOTS];
+    fn ignore(_: i32) {}
+    let scratch = dx_test_scratch::scratch("dx-forward-table");
+    let (mut a, a_log) = counting_probe(scratch.path());
+    let other = dx_test_scratch::scratch("dx-forward-table-b");
+    let (b, b_log) = counting_probe(other.path());
+    let first = Forwarding::register_in(&TABLE, -(a.0.id() as i32));
+    let mut second = Forwarding::register_in(&TABLE, -(b.0.id() as i32));
+    second.clear();
+    forward_from(&TABLE, 2, ignore);
+    assert_eq!(sigints(&a_log, 1), 1);
+    assert_eq!(sigints(&b_log, 1), 0);
+    assert!(first.claimed());
+    assert!(!second.claimed());
+    assert_survived(&mut a);
+}
+
+#[test]
+fn a_full_forwarding_table_registers_without_a_slot() {
+    static TABLE: [Slot; 1] = [Slot::new()];
+    let first = Forwarding::register_in(&TABLE, 4242);
+    let second = Forwarding::register_in(&TABLE, 4243);
+    assert!(second.slot.is_none());
+    assert!(!second.claimed());
+    drop(first);
+    assert_eq!(TABLE[0].target.load(Ordering::SeqCst), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_stop_seen_after_registering_sends_one_sigint() {
+    let scratch = dx_test_scratch::scratch("dx-forward-once");
+    let log = scratch.path().join("owned.sigint");
+    let sink = Sink::default();
+    let spec = streamed(
+        vec![
+            dx_testing::process_probe().into(),
+            format!("--count-sigint={}", log.display()).into(),
+            "--sleep-ms=30000".into(),
+        ],
+        &sink,
+        StreamGroup::Owned,
+    );
+    let calls = std::sync::atomic::AtomicUsize::new(0);
+    let stop = || {
+        if calls.fetch_add(1, Ordering::SeqCst) == 0 {
+            return None;
+        }
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !log.exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        Some(2)
+    };
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &stop).expect("stop is an outcome"),
+        StreamOutcome::Cancelled { signal: 2 }
+    );
+    assert_eq!(sigints(&log, 1), 1);
+}

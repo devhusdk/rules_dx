@@ -2,10 +2,12 @@
 
 use std::ffi::OsString;
 use std::io;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 /// How the child sees the environment.
@@ -418,7 +420,26 @@ pub enum StreamOutcome {
 
 const WITHDRAW_SIGNAL: i32 = 15;
 
-static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
+/// How many streamed runs can have stop signals forwarded to them at once.
+/// A run that finds the table full is not forwarded to.
+const FORWARD_SLOTS: usize = 8;
+
+struct Slot {
+    target: AtomicI32,
+    claimed: AtomicBool,
+}
+
+impl Slot {
+    const fn new() -> Slot {
+        Slot {
+            target: AtomicI32::new(0),
+            claimed: AtomicBool::new(false),
+        }
+    }
+}
+
+static FORWARDS: [Slot; FORWARD_SLOTS] = [const { Slot::new() }; FORWARD_SLOTS];
+static REGISTER: Mutex<()> = Mutex::new(());
 
 /// The stop signals dx forwards to a streamed child: SIGINT, SIGTERM and SIGHUP.
 pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
@@ -435,10 +456,26 @@ pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
     }
 }
 
-/// Records a stop signal and forwards it once to the running child's group; safe inside a signal handler.
+/// Records a stop signal and forwards it once to each running child's group; safe inside a signal handler.
 pub fn forward_stop(signo: i32) {
-    crate::record_interrupt(signo);
-    forward(FORWARD_TARGET.load(Ordering::SeqCst), signo);
+    forward_from(&FORWARDS, signo, crate::record_interrupt);
+}
+
+fn forward_from(slots: &[Slot], signo: i32, record: fn(i32)) {
+    let mut targets = [0; FORWARD_SLOTS];
+    for (copy, slot) in targets.iter_mut().zip(slots) {
+        let target = slot.target.load(Ordering::SeqCst);
+        if target != 0 {
+            slot.claimed.store(true, Ordering::SeqCst);
+            *copy = target;
+        }
+    }
+    record(signo);
+    for target in targets {
+        if target != 0 {
+            forward(target, signo);
+        }
+    }
 }
 
 fn forward(target: i32, signo: i32) {
@@ -459,30 +496,64 @@ pub fn stream_group() -> StreamGroup {
     }
 }
 
+/// The only writer to `FORWARDS`.
 struct Forwarding {
     target: i32,
+    slot: Option<&'static Slot>,
 }
 
 impl Forwarding {
     fn register(target: i32) -> Forwarding {
+        Self::register_in(&FORWARDS, target)
+    }
+
+    fn register_in(slots: &'static [Slot], target: i32) -> Forwarding {
+        let mut slot = None;
         if target != 0 {
-            FORWARD_TARGET.store(target, Ordering::SeqCst);
+            let _guard = REGISTER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            for candidate in slots {
+                if candidate.target.load(Ordering::SeqCst) == 0 {
+                    candidate.claimed.store(false, Ordering::SeqCst);
+                    candidate.target.store(target, Ordering::SeqCst);
+                    slot = Some(candidate);
+                    break;
+                }
+            }
         }
-        Forwarding { target }
+        Forwarding { target, slot }
+    }
+
+    /// Whether the signal handler already sent a stop signal to this run.
+    fn claimed(&self) -> bool {
+        self.slot
+            .is_some_and(|slot| slot.claimed.load(Ordering::SeqCst))
     }
 
     fn clear(&mut self) {
-        if self.target != 0 {
+        if let Some(slot) = self.slot.take() {
             let _ =
-                FORWARD_TARGET.compare_exchange(self.target, 0, Ordering::SeqCst, Ordering::SeqCst);
-            self.target = 0;
+                slot.target
+                    .compare_exchange(self.target, 0, Ordering::SeqCst, Ordering::SeqCst);
         }
+        self.target = 0;
     }
 }
 
 impl Drop for Forwarding {
     fn drop(&mut self) {
         self.clear();
+    }
+}
+
+/// The stdin a streamed child gets. A child alone in a background group would be stopped by
+/// SIGTTIN on a terminal it does not own, so it reads nothing there.
+fn stream_stdin(requested: StreamStdin, own_group: bool, stdin_tty: bool) -> StreamStdin {
+    if requested == StreamStdin::Inherit && own_group && stdin_tty {
+        StreamStdin::Null
+    } else {
+        requested
     }
 }
 
@@ -527,10 +598,6 @@ pub(crate) fn run_streamed_in(
     command
         .args(args)
         .current_dir(&spec.cwd)
-        .stdin(match spec.stdin {
-            StreamStdin::Inherit => Stdio::inherit(),
-            StreamStdin::Null => Stdio::null(),
-        })
         .stdout(output_stdio(&spec.stdout))
         .stderr(output_stdio(&spec.stderr));
     apply_env(&mut command, &spec.env);
@@ -549,6 +616,13 @@ pub(crate) fn run_streamed_in(
         (Some(job), false) => backend::Group::Join(job.pgid()),
         (None, false) => backend::Group::Own,
     };
+    let own_group = matches!(group, backend::Group::Own);
+    command.stdin(
+        match stream_stdin(spec.stdin, own_group, std::io::stdin().is_terminal()) {
+            StreamStdin::Inherit => Stdio::inherit(),
+            StreamStdin::Null => Stdio::null(),
+        },
+    );
     let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
     if let Some(lease) = lease.as_mut() {
         lease.record(child.id() as i32);
@@ -559,7 +633,7 @@ pub(crate) fn run_streamed_in(
         record_reported(job);
     }
     let mut stopped = stop();
-    if let Some(signal) = stopped {
+    if let Some(signal) = stopped.filter(|_| !forwarding.claimed()) {
         backend::send(target, signal);
     }
     let mut withdrawn = false;
@@ -945,7 +1019,6 @@ mod backend {
     }
 
     #[cfg(windows)]
-    #[allow(dead_code)]
     mod windows {
         use super::super::{Command, Descendants, ExitStatus};
         use std::ffi::c_void;
@@ -1359,9 +1432,9 @@ mod backend {
 
     #[cfg(unix)]
     pub use unix::{
-        end_owned_descendants, force_stream, send, send_kill, spawn_owned, spawn_streamed, stream_target,
-        terminal_foreground, terminate_forced, terminate_graceful, termination_signal, tree_alive,
-        OwnedChild,
+        end_owned_descendants, force_stream, send, send_kill, spawn_owned, spawn_streamed,
+        stream_target, terminal_foreground, terminate_forced, terminate_graceful,
+        termination_signal, tree_alive, OwnedChild,
     };
 
     #[cfg(not(unix))]
@@ -1438,7 +1511,6 @@ mod backend {
     pub fn end_owned_descendants(_owned: &mut OwnedChild) {}
 
     #[cfg(windows)]
-    #[allow(unused_imports)]
     pub use windows::{
         install_console_stop, spawn_owned, spawn_streamed, terminate_forced, terminate_graceful,
         termination_signal, OwnedChild,

@@ -29,6 +29,19 @@ pub use rc::{
 };
 pub use runner::{BinaryRunner, Holding};
 
+/// This thread's `errno`, for a signal handler to save on entry and restore on exit.
+#[cfg(unix)]
+pub fn errno_slot() -> *mut libc::c_int {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    unsafe {
+        libc::__errno_location()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    unsafe {
+        libc::__error()
+    }
+}
+
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {

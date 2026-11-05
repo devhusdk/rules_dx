@@ -237,9 +237,15 @@ unsafe fn from_parent(info: *const libc::siginfo_t) -> bool {
 }
 
 extern "C" fn report_signal(signo: libc::c_int, info: *mut libc::siginfo_t, _: *mut libc::c_void) {
-    if unsafe { from_parent(info) } {
-        return;
+    let errno = crate::errno_slot();
+    let saved = unsafe { *errno };
+    if !unsafe { from_parent(info) } {
+        unsafe { report(signo) };
     }
+    unsafe { *errno = saved };
+}
+
+unsafe fn report(signo: libc::c_int) {
     let byte = signo as u8;
     unsafe {
         libc::write(

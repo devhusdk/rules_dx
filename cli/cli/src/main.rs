@@ -23,7 +23,10 @@ use dx_process::{discover_real, operational_code, pre_exec_code, stdout_io_code}
 
 #[cfg(unix)]
 extern "C" fn forward_to_child(signo: libc::c_int) {
+    let errno = dx_process::errno_slot();
+    let saved = unsafe { *errno };
     lifecycle::forward_stop(signo);
+    unsafe { *errno = saved };
 }
 
 #[cfg(unix)]

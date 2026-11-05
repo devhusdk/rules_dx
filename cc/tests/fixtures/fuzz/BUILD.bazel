@@ -1,0 +1,24 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//cc/rules:defs.bzl", "cc_fuzz_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse.cc"],
+)
+
+sh_test(
+    name = "parse_fuzz_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_fuzz)"],
+    data = [
+        ":parse_fuzz",
+        "//cc/rules:fuzz_run.sh",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    timeout = "short",
+)

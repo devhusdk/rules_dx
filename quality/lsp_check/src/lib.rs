@@ -169,7 +169,10 @@ where
         json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
             "processId": std::process::id(),
             "rootUri": Value::Null,
-            "capabilities": {"textDocument": {"publishDiagnostics": {}}},
+            "capabilities": {
+                "textDocument": {"publishDiagnostics": {}},
+                "workspace": {"workspaceFolders": true},
+            },
         }}),
     )?;
     loop {

@@ -1,0 +1,7 @@
+function greet(): String =
+  let (unused = 1)
+  "hello"
+
+output {
+  text = greet()
+}

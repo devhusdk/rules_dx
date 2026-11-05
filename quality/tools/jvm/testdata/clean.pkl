@@ -1,0 +1,5 @@
+name: String = "clean"
+
+output {
+  text = name
+}

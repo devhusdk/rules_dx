@@ -1,5 +1,7 @@
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality/tools/jvm:java_runtime_pin.bzl", "pinned_java_runtime")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -82,6 +84,40 @@ java_binary(
     name = "ktlint",
     main_class = "com.pinterest.ktlint.Main",
     runtime_deps = [":ktlint_import"],
+)
+
+pinned_java_runtime(
+    name = "jdk25",
+    version = "25",
+)
+
+rust_test(
+    name = "pkl_lsp_smoke_test",
+    srcs = ["pkl_lsp_smoke_test.rs"],
+    data = [
+        "testdata/clean.pkl",
+        "testdata/unused.pkl",
+        ":jdk25",
+        "//quality/lsp_check",
+        "@jvm_pkl_lsp//file",
+    ],
+    env = {
+        "LSP_CHECK": "$(rootpath //quality/lsp_check)",
+        "PKL_LSP_JAR": "$(rootpath @jvm_pkl_lsp//file)",
+        "PKL_LSP_JAVA": "$(JAVA_ROOTPATH)",
+    },
+    toolchains = [":jdk25"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "pkl_lsp_smoke_fmt_test",
+    targets = [":pkl_lsp_smoke_test"],
+)
+
+rust_clippy_test(
+    name = "pkl_lsp_smoke_clippy_test",
+    targets = [":pkl_lsp_smoke_test"],
 )
 
 real_source_target(

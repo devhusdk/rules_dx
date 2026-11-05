@@ -27,3 +27,9 @@ def default_files_hook(extensions, only_capability = None, except_capability = N
         return real_context(resolve_pairs = pairs)
 
     return _hook
+
+def upstream_files(srcs, kind):
+    """Source recognizer result for an upstream target's srcs, or an ownership error."""
+    if srcs == None:
+        return struct(files = [], error = "upstream " + kind + " target has no readable srcs; unsupported ownership is unchecked, not clean")
+    return struct(files = list(srcs), error = "")

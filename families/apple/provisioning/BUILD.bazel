@@ -385,6 +385,7 @@ probe_failure_test(
 
 probe_failure_test(
     name = "managed_without_xcode_config_test",
+    target_compatible_with = ["@platforms//os:linux"],
     config = "unconfigured",
     expected_failure_substring = "the managed route needs --xcode_version_config naming the Xcode on grpcs://mac.example.com",
     target = ":managed_simulator_probe",
@@ -392,6 +393,7 @@ probe_failure_test(
 
 probe_failure_test(
     name = "no_apple_platform_test",
+    target_compatible_with = ["@platforms//os:linux"],
     config = "host",
     expected_failure_substring = "provisioning selects iphonesimulator but this build targets no Apple platform; build with --platforms=",
     target = ":managed_simulator_probe",

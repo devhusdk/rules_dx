@@ -444,7 +444,7 @@ def apple_macos_app(
         name = name + "_entry",
         srcs = srcs,
         hdrs = hdrs,
-        deps = entry_deps + frameworks + deps,
+        deps = entry_deps + deps,
         tags = ["manual"],
         testonly = testonly,
         target_compatible_with = _MACOS,

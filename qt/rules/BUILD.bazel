@@ -1,4 +1,5 @@
 load("//deploy/rules:native_runtime.bzl", "native_runtime")
+load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES")
@@ -7,6 +8,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 
 package(default_visibility = ["//visibility:public"])
+
+unsupported_value("unsupported")
 
 exports_files([
     "defs.bzl",

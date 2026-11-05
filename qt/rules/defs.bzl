@@ -15,6 +15,7 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
+load("//libs/starlark:cells.bzl", "unsupported_constraint")
 load("//qt/sdk:needs.bzl", "QtNeedsInfo")
 load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
@@ -1051,13 +1052,13 @@ def _cell_setting(cell):
 # consumer cell, including macOS. Packaging has its own gate, QT_BUNDLE_COMPATIBLE_WITH.
 QT_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible")]},
+    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
 )
 
 # target_compatible_with added to every qt_bundle: cells with a needs table.
 QT_BUNDLE_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible")]},
+    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
 )
 
 # consumer_archive os of the qualified cell the build targets.

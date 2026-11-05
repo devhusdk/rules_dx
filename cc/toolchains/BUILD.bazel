@@ -587,6 +587,7 @@ genrule(
     srcs = ["notices/MSVC_REDISTRIBUTABLE.txt"],
     outs = ["msvc_vcruntime_NOTICE.txt"],
     cmd = "cp $< $@",
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
@@ -597,26 +598,11 @@ config_setting(
     ],
 )
 
-config_setting(
-    name = "windows_arm64",
-    constraint_values = [
-        "@platforms//os:windows",
-        "@platforms//cpu:arm64",
-    ],
-)
-
 # The distributable Visual C++ runtime ships next to the app. Building it
 # needs the dx_msvc license acceptance.
-native_runtime(
+alias(
     name = "msvc_vcruntime",
-    srcs = select({
-        ":windows_arm64": ["@dx_msvc//:vcruntime_arm64"],
-        "//conditions:default": ["@dx_msvc//:vcruntime_x64"],
-    }),
-    notice = ":msvc_vcruntime_notice",
-    redistribution = "app_local",
-    source = "Visual C++ Redistributable",
-    version = "14.50",
+    actual = "@dx_msvc//:msvc_vcruntime",
     visibility = ["//visibility:public"],
 )
 

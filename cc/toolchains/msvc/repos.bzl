@@ -9,6 +9,8 @@ LICENSE = "visual-studio-build-tools"
 LICENSE_URL = "https://visualstudio.microsoft.com/license-terms/"
 VCRUNTIME_DLLS = ["vcruntime140", "vcruntime140_1", "msvcp140"]
 
+NO_REDIST = "dx_msvc: msvc_runtime has no VC/Redist/MSVC folder; the Visual C++ runtime cannot ship"
+
 UNACCEPTED = unaccepted("dx_msvc", "Visual Studio Build Tools license", LICENSE_URL, "msvc", LICENSE)
 
 def layout_links(msvc_version, sdk_version):
@@ -43,7 +45,7 @@ def cell_name(host, target):
     """Returns the hub target name for a host and target architecture."""
     return "cc_toolchain_{}_{}".format(host, target)
 
-def hub_build(accepted, msvc_version, sdk_version, unavailable = {}):
+def hub_build(accepted, msvc_version, sdk_version, unavailable = {}, redist_version = ""):
     """Returns the BUILD text of the layout repository.
 
     Args:
@@ -51,11 +53,12 @@ def hub_build(accepted, msvc_version, sdk_version, unavailable = {}):
         msvc_version: MSVC toolset version directory.
         sdk_version: Windows SDK version directory.
         unavailable: Map of cell target name to the error for cells whose tools are missing.
+        redist_version: Visual C++ redistributable version directory, or "" when none ships.
 
     Returns:
         The BUILD file text with one target per supported (host, target) cell.
     """
-    text = 'package(default_visibility = ["//visibility:public"])\n\n'
+    text = 'load("{}", "native_runtime")\n\npackage(default_visibility = ["//visibility:public"])\n\n'.format(str(Label("//deploy/rules:native_runtime.bzl")))
     if accepted:
         text = 'load("{}", "msvc_cc_toolchain")\nload("{}", "cc_toolchain_unavailable")\n\n'.format(str(Label(":toolchain.bzl")), str(Label("//cc/toolchains:unavailable.bzl"))) + text
     else:
@@ -70,18 +73,12 @@ def hub_build(accepted, msvc_version, sdk_version, unavailable = {}):
     for arch in ["x64", "arm64"]:
         files = ["redist/{}/*/{}.dll".format(arch, dll) for dll in VCRUNTIME_DLLS] if accepted else []
         text += 'filegroup(\n    name = "vcruntime_{}",\n    srcs = glob({}),\n)\n\n'.format(arch, json.encode(files))
+    text += 'config_setting(\n    name = "windows_arm64",\n    constraint_values = [\n        "@platforms//os:windows",\n        "@platforms//cpu:arm64",\n    ],\n)\n\n'
+    if accepted and redist_version:
+        text += 'native_runtime(\n    name = "msvc_vcruntime",\n    srcs = select({{\n        ":windows_arm64": [":vcruntime_arm64"],\n        "//conditions:default": [":vcruntime_x64"],\n    }}),\n    notice = "{}",\n    redistribution = "app_local",\n    source = "Visual C++ Redistributable",\n    version = "{}",\n)\n\n'.format(str(Label("//cc/toolchains:msvc_vcruntime_notice")), redist_version)
+    else:
+        text += 'cc_toolchain_unavailable(\n    name = "msvc_vcruntime",\n    error = {},\n)\n\n'.format(json.encode(NO_REDIST if accepted else UNACCEPTED))
     return text.rstrip("\n") + "\n"
-
-def versions_bzl(redist_version):
-    """Returns the versions.bzl text that names the Visual C++ redistributable shipped.
-
-    Args:
-        redist_version: Redist version directory, or "" when the license is not accepted.
-
-    Returns:
-        The versions.bzl file text.
-    """
-    return 'MSVC_REDIST_VERSION = "{}"\n'.format(redist_version)
 
 def _only_child(rctx, root):
     names = [p.basename for p in root.readdir()]
@@ -104,7 +101,6 @@ def _layout_repo_impl(rctx):
     if redist.exists:
         redist_version = _only_child(rctx, redist)
         rctx.symlink(redist.get_child(redist_version), "redist")
-    rctx.file("versions.bzl", versions_bzl(redist_version))
     unavailable = {}
     for host, target in SUPPORTED_CELLS:
         layout = msvc_layout(msvc_version, sdk_version, host, target)
@@ -113,7 +109,7 @@ def _layout_repo_impl(rctx):
             unavailable[cell_name(host, target)] = missing_error(missing)
     rctx.file("NOTICE", "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, msvc_version, sdk_version))
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable))
+    rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable, redist_version))
     return rctx.repo_metadata(reproducible = True)
 
 _layout_repo = repository_rule(
@@ -125,7 +121,7 @@ def _extension_impl(mctx):
     if accepted(mctx, "dx_msvc", LICENSE):
         _layout_repo(name = HUB_NAME)
     else:
-        hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(False, "", ""), "versions.bzl": versions_bzl("")})
+        hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(False, "", "")})
     return mctx.extension_metadata(reproducible = True)
 
 _license = license_tag("Accepts the Visual Studio Build Tools license for this build.")

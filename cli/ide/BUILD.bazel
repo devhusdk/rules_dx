@@ -14,6 +14,7 @@ dx_rust_crate(
         "src/lib.rs",
         "src/link.rs",
         "src/python.rs",
+        "src/rust_analyzer.rs",
         "src/typescript.rs",
     ],
     extra_deps = [

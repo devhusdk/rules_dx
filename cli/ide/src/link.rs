@@ -57,3 +57,14 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 }
+
+#[cfg(unix)]
+pub(crate) fn make_executable(path: &Path) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+}
+
+#[cfg(not(unix))]
+pub(crate) fn make_executable(_path: &Path) -> io::Result<()> {
+    Ok(())
+}

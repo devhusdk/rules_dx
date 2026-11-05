@@ -54,13 +54,6 @@ pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
 /// Bazel output base that rust-analyzer flycheck builds in.
 pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/ide/rust_check";
 
-/// Public rules_rust target that prints the rust-analyzer project.
-pub const RUST_DISCOVER_LABEL: &str =
-    "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project";
-
-/// Public rules_rust target that runs the rust-analyzer check.
-pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck";
-
 /// The `.dx` subdirectories Bazel must skip, one per line in a new `.bazelignore`.
 ///
 /// `.dx/ide` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`).
@@ -302,11 +295,7 @@ fn editor_settings_value() -> serde_json::Value {
     let settings = serde_json::json!({
         "rust-analyzer.workspace.discoverConfig": {
             "command": [
-                "bazel",
-                base,
-                "run",
-                RUST_DISCOVER_LABEL,
-                "--",
+                format!("{ide}/rust_analyzer/discover_bazel_rust_project.exe"),
                 format!("--bazel_startup_option={base}"),
                 "{arg}",
             ],
@@ -314,11 +303,7 @@ fn editor_settings_value() -> serde_json::Value {
             "filesToWatch": ["BUILD", "BUILD.bazel", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
         },
         "rust-analyzer.check.overrideCommand": [
-            "bazel",
-            base,
-            "run",
-            RUST_FLYCHECK_LABEL,
-            "--",
+            format!("{ide}/rust_analyzer/flycheck.exe"),
             format!("--output-base=${{workspaceFolder}}/{IDE_CHECK_OUTPUT_BASE}"),
             "--saved-file",
             "$saved_file",
@@ -1393,6 +1378,14 @@ mod tests {
             let rel = path.strip_prefix(&base).expect(path);
             assert!(dx_ide::OUTPUTS.contains(&rel), "{path}");
         }
+        for command in [
+            &value["rust-analyzer.workspace.discoverConfig"]["command"][0],
+            &value["rust-analyzer.check.overrideCommand"][0],
+        ] {
+            let path = command.as_str().expect("rust command");
+            let rel = path.strip_prefix(&base).expect(path);
+            assert!(dx_ide::OUTPUTS.contains(&rel), "{path}");
+        }
         let arg = value["clangd.arguments"][0].as_str().expect("arguments");
         let dir = arg.strip_prefix("--compile-commands-dir=").expect(arg);
         let rel = dir.strip_prefix(&base).expect(dir);
@@ -1403,20 +1396,12 @@ mod tests {
     fn rust_analyzer_settings_match_rules_rust_setup_shape() {
         let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
         let discover_argv = serde_json::json!([
-            "bazel",
-            "--output_base=${workspaceFolder}/.dx/ide/rust",
-            "run",
-            "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
-            "--",
+            "${workspaceFolder}/.dx/ide/rust_analyzer/discover_bazel_rust_project.exe",
             "--bazel_startup_option=--output_base=${workspaceFolder}/.dx/ide/rust",
             "{arg}"
         ]);
         let check_argv = serde_json::json!([
-            "bazel",
-            "--output_base=${workspaceFolder}/.dx/ide/rust",
-            "run",
-            "@rules_rust//tools/rust_analyzer:flycheck",
-            "--",
+            "${workspaceFolder}/.dx/ide/rust_analyzer/flycheck.exe",
             "--output-base=${workspaceFolder}/.dx/ide/rust_check",
             "--saved-file",
             "$saved_file"
@@ -1670,6 +1655,23 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         );
         assert!(text.contains("clangd.path"), "{text}");
         assert!(!root.join(".github").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn an_old_bazel_run_rust_command_is_replaced_by_the_launcher() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-rust-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".vscode")).expect("dir");
+        let old = "{\"rust-analyzer.check.overrideCommand\": [\"bazel\", \"run\", \"@rules_rust//tools/rust_analyzer:flycheck\", \"--\", \"--saved-file\", \"$saved_file\"]}\n";
+        std::fs::write(root.join(".vscode/settings.json"), old).expect("write");
+        refreshed(root);
+        let text = std::fs::read_to_string(root.join(".vscode/settings.json")).expect("read");
+        let parsed: serde_json::Value = serde_json::from_str(&text).expect("json");
+        assert_eq!(
+            parsed["rust-analyzer.check.overrideCommand"],
+            editor_settings_value()["rust-analyzer.check.overrideCommand"]
+        );
         scratch.close().expect("cleanup");
     }
 

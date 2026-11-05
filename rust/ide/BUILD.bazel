@@ -6,6 +6,16 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["BUILD.bazel"])
 
+alias(
+    name = "flycheck",
+    actual = "@rules_rust//tools/rust_analyzer:flycheck",
+)
+
+alias(
+    name = "discover",
+    actual = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
+)
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
     binary = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",

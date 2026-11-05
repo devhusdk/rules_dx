@@ -5,6 +5,7 @@ mod go;
 mod jdk;
 mod link;
 mod python;
+mod rust_analyzer;
 mod typescript;
 
 use std::collections::BTreeMap;
@@ -15,11 +16,13 @@ pub use link::link;
 pub const IDE_DIR: &str = ".dx/ide";
 pub const STATE_FILE: &str = ".dx/ide/state.json";
 /// Paths under `IDE_DIR` that the plug-ins write and editor settings point at.
-pub const OUTPUTS: [&str; 5] = [
+pub const OUTPUTS: [&str; 7] = [
     "cc",
     "cc/clangd",
     "jdk/home",
     "python/python",
+    "rust_analyzer/flycheck.exe",
+    "rust_analyzer/discover_bazel_rust_project.exe",
     "typescript/lib",
 ];
 
@@ -76,6 +79,7 @@ const PLUGINS: &[&Plugin] = &[
     &cc::PLUGIN,
     &jdk::PLUGIN,
     &go::PLUGIN,
+    &rust_analyzer::PLUGIN,
 ];
 
 /// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
@@ -498,6 +502,64 @@ mod tests {
         assert_eq!(mode & 0o111, 0o111);
         assert!(!refresh(root, &runner).expect("second").ran);
         assert_eq!(runner.calls.get(), 1);
+        scratch.close().expect("cleanup");
+    }
+
+    struct RustRunner {
+        files: Vec<PathBuf>,
+    }
+
+    impl Runner for RustRunner {
+        fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
+            Ok(self.files.clone())
+        }
+
+        fn aquery(&self, _expr: &str) -> Result<String, String> {
+            Ok(String::new())
+        }
+
+        fn execution_root(&self) -> Result<PathBuf, String> {
+            Ok(PathBuf::new())
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn rust_analyzer_copies_the_launchers_and_a_rerun_is_a_no_op() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-ide-rust-");
+        let root = scratch.path();
+        std::fs::write(root.join("lib.rs"), "").expect("rs");
+        let store = root.join("store");
+        std::fs::create_dir_all(&store).expect("store");
+        let flycheck = store.join("flycheck");
+        let discover = store.join("discover_bazel_rust_project");
+        std::fs::write(&flycheck, "fly").expect("flycheck");
+        std::fs::write(&discover, "disc").expect("discover");
+        std::fs::create_dir_all(root.join(".dx/ide/rust")).expect("base");
+        std::fs::write(root.join(".dx/ide/rust/keep"), "").expect("keep");
+        let runner = RustRunner {
+            files: vec![flycheck, discover],
+        };
+        let first = refresh(root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        let dir = root.join(".dx/ide/rust_analyzer");
+        for (name, text) in [
+            ("flycheck.exe", "fly"),
+            ("discover_bazel_rust_project.exe", "disc"),
+        ] {
+            let path = dir.join(name);
+            let meta = std::fs::symlink_metadata(&path).expect("meta");
+            assert!(!meta.file_type().is_symlink(), "{name}");
+            assert_eq!(meta.permissions().mode() & 0o111, 0o111, "{name}");
+            assert_eq!(std::fs::read_to_string(&path).expect("read"), text);
+        }
+        assert_eq!(
+            std::fs::read_to_string(dir.join("user_config.json")).expect("config"),
+            "{\"clippy\": true}\n"
+        );
+        assert!(root.join(".dx/ide/rust/keep").exists());
+        assert!(!refresh(root, &runner).expect("second").ran);
         scratch.close().expect("cleanup");
     }
 }

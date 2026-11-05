@@ -1,3 +1,4 @@
+use crate::link::make_executable;
 use crate::{Ctx, Plugin};
 
 pub const PLUGIN: Plugin = Plugin {
@@ -30,15 +31,4 @@ fn write(ctx: &Ctx<'_>) -> Result<(), String> {
 
 fn quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
-}
-
-#[cfg(unix)]
-fn make_executable(path: &std::path::Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-}
-
-#[cfg(not(unix))]
-fn make_executable(_path: &std::path::Path) -> std::io::Result<()> {
-    Ok(())
 }

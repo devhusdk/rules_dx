@@ -76,9 +76,9 @@ The CI caller pins the
 warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/ide`, `.dx/bazelrc`, `.dx/docs`, `.dx/explain`, `.dx/profile`, `.dx/fuzz`, `.dx/mutate`, `.dx/advisory`, `.dx/bench`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
 to stderr if it does not list `.dx`. The editor settings point at the managed
-interpreter and tools with host-native names. For Rust they set up
-rust-analyzer with the `rules_rust` discover and flycheck targets. Both run
-with `bazel run` on separate output bases under `.dx/ide/`, and the file
+interpreter and tools with host-native names. For Rust they point
+rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx env --apply` copies to
+`.dx/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
 Flags: `--apply`, `--agents=<list>`.

@@ -1,5 +1,6 @@
 """Target-scoped real capability aspects over real adapters."""
 
+load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
@@ -60,6 +61,7 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
+load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
@@ -874,6 +876,20 @@ def _dotnet_docs_shard(target, ctx):
     driver = ctx.executable._csharp_driver if info.language == "csharp" else ctx.executable._fsharp_driver
     return dotnet_shard_action(ctx, info, info.assembly, "_dx_docs/" + ctx.label.name, driver, ctx.executable._dotnet_extract).shard
 
+def _powershell_docs_shard(target, ctx):
+    if _PwshInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    files = sorted(target[_PwshInfo].srcs.to_list(), key = lambda f: f.path)
+    sources = [f for f in files if f.extension in ("ps1", "psm1")]
+    manifests = [f for f in files if f.extension == "psd1"]
+    if not sources or len(manifests) > 1:
+        return None
+    package = manifests[0].basename[:-len(".psd1")] if manifests else ctx.label.name
+    pwsh = ctx.attr._pwsh[platform_common.ToolchainInfo]
+    return powershell_shard_action(ctx, sources, manifests[0] if manifests else None, package, "", "_dx_docs/" + ctx.label.name, pwsh, ctx.file._pwsh_script, ctx.executable._pwsh_extract).shard
+
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
@@ -915,6 +931,9 @@ def _real_docs_aspect_impl(target, ctx):
     dotnet_shard = _dotnet_docs_shard(target, ctx)
     if dotnet_shard:
         parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
+    pwsh_shard = _powershell_docs_shard(target, ctx)
+    if pwsh_shard:
+        parts.append({"dx_results": [pwsh_shard], "dx_docs_shards": [pwsh_shard]})
     if not parts:
         return []
     groups = {}
@@ -925,7 +944,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C# and F# library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F# and PowerShell library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_csharp_driver": attr.label(
             cfg = "exec",
@@ -977,6 +996,19 @@ real_docs_aspect = aspect(
             cfg = "exec",
             default = Label("//tools/docs/jvm/dokka:dokka_extract"),
             executable = True,
+        ),
+        "_pwsh": attr.label(
+            cfg = "exec",
+            default = Label("@rules_powershell//powershell:current_pwsh_toolchain"),
+        ),
+        "_pwsh_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/powershell/extract:powershell_extract"),
+            executable = True,
+        ),
+        "_pwsh_script": attr.label(
+            allow_single_file = True,
+            default = Label("//tools/docs/powershell:extract.ps1"),
         ),
         "_py_driver": attr.label(
             cfg = "exec",

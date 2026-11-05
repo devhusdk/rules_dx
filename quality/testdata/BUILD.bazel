@@ -2063,6 +2063,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_powershell_library_subject",
+    target = "//tools/docs/powershell/fixture:tally_library",
+)
+
+real_docs_subject(
     name = "docs_plain_subject",
     target = ":plain",
 )
@@ -2079,6 +2084,7 @@ real_docs_tests(
         ":docs_java_library_subject",
         ":docs_kotlin_library_subject",
         ":docs_plain_subject",
+        ":docs_powershell_library_subject",
         ":docs_python_library_subject",
         ":docs_rust_library_subject",
         ":docs_rust_test_subject",

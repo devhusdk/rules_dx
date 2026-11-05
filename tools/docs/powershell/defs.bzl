@@ -15,40 +15,41 @@ def _manifest(ctx, files):
         fail(_where(ctx) + ": srcs has more than one .psd1; set manifest")
     return manifests[0] if manifests else None
 
-def _powershell_doc_shard_impl(ctx):
-    files = sorted(
-        depset(transitive = [src[DefaultInfo].files for src in ctx.attr.srcs]).to_list(),
-        key = lambda f: repo_relative(f.short_path),
-    )
-    sources = [f for f in files if ("." + f.extension) in _SOURCE_EXTENSIONS]
-    if not sources:
-        fail(_where(ctx) + ": srcs has no .ps1 or .psm1 file")
-    manifest = _manifest(ctx, files)
-    package = ctx.attr.package
-    if not package and manifest:
-        package = manifest.basename[:-len(".psd1")]
-    if not package:
-        fail(_where(ctx) + ": package is required")
+def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, script, extract_tool):
+    """Parses a PowerShell module and extracts its DocIr shard.
 
-    srcs_manifest = ctx.actions.declare_file(ctx.label.name + ".srcs.tsv")
+    Args:
+        ctx: The rule or aspect context.
+        files: The module's source files, `.ps1` and `.psm1`.
+        manifest: The module's `.psd1` file, or None.
+        package: Package segment of the symbol ids.
+        config: Extra configuration identity recorded on every symbol.
+        stem: Output name prefix.
+        pwsh: The ToolchainInfo of the pinned pwsh runtime.
+        script: The extractor script file.
+        extract_tool: The DocIr extractor executable.
+
+    Returns:
+        A struct with the DocIr `shard`, the `api_json` and `srcs_manifest` files.
+    """
+    srcs_manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(
         output = srcs_manifest,
-        content = "".join([f.path + "\t" + repo_relative(f.short_path) + "\n" for f in sources]),
+        content = "".join([f.path + "\t" + repo_relative(f.short_path) + "\n" for f in files]),
     )
-    api_json = ctx.actions.declare_file(ctx.label.name + ".api.json")
-    pwsh = ctx.attr._pwsh[platform_common.ToolchainInfo]
+    api_json = ctx.actions.declare_file(stem + ".api.json")
     arguments = [
         "-NoLogo",
         "-NoProfile",
         "-NonInteractive",
         "-File",
-        ctx.file._script.path,
+        script.path,
         "-Sources",
         srcs_manifest.path,
         "-Out",
         api_json.path,
     ]
-    inputs = sources + [srcs_manifest, ctx.file._script]
+    inputs = files + [srcs_manifest, script]
     if manifest:
         arguments.extend(["-Manifest", manifest.path, "-ManifestRel", repo_relative(manifest.short_path)])
         inputs.append(manifest)
@@ -67,27 +68,54 @@ def _powershell_doc_shard_impl(ctx):
         },
     )
 
-    shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
+    shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
     args.add("--api", api_json)
     args.add("--out", shard)
     args.add("--package", package)
-    args.add("--config", ctx.attr.config)
+    args.add("--config", config)
     ctx.actions.run(
-        executable = ctx.executable._extract,
+        executable = extract_tool,
         arguments = [args],
         inputs = [api_json],
         outputs = [shard],
         mnemonic = "DxDocsPowershellExtract",
         progress_message = "Extracting PowerShell API docs for %{label}",
     )
+    return struct(api_json = api_json, shard = shard, srcs_manifest = srcs_manifest)
+
+def _powershell_doc_shard_impl(ctx):
+    files = sorted(
+        depset(transitive = [src[DefaultInfo].files for src in ctx.attr.srcs]).to_list(),
+        key = lambda f: repo_relative(f.short_path),
+    )
+    sources = [f for f in files if ("." + f.extension) in _SOURCE_EXTENSIONS]
+    if not sources:
+        fail(_where(ctx) + ": srcs has no .ps1 or .psm1 file")
+    manifest = _manifest(ctx, files)
+    package = ctx.attr.package
+    if not package and manifest:
+        package = manifest.basename[:-len(".psd1")]
+    if not package:
+        fail(_where(ctx) + ": package is required")
+    action = powershell_shard_action(
+        ctx,
+        sources,
+        manifest,
+        package,
+        ctx.attr.config,
+        ctx.label.name,
+        ctx.attr._pwsh[platform_common.ToolchainInfo],
+        ctx.file._script,
+        ctx.executable._extract,
+    )
     return [
-        DefaultInfo(files = depset([shard])),
+        DefaultInfo(files = depset([action.shard])),
         OutputGroupInfo(
-            api_json = depset([api_json]),
-            srcs_manifest = depset([srcs_manifest]),
+            api_json = depset([action.api_json]),
+            srcs_manifest = depset([action.srcs_manifest]),
         ),
-        DocsShardInfo(language = "powershell", package = package, shard = shard),
+        DocsShardInfo(language = "powershell", package = package, shard = action.shard),
     ]
 
 powershell_doc_shard = rule(

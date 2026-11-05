@@ -25,6 +25,7 @@ fn accepts_whitespace_separated_patterns() {
             "//cli/process/... //tools/testing/process_probe/...",
         ),
         ("//a/...\t//b:t\n//c:*", "//a/... //b:t //c:*"),
+        ("@rules_dx_apple//ios/... //a:t", "@rules_dx_apple//ios/... //a:t"),
     ];
     for (scope, expected) in cases {
         let outputs = run(scope, OK, "600").unwrap_or_else(|e| panic!("{scope:?}: {e}"));
@@ -47,6 +48,7 @@ fn rejects_bad_inputs_naming_the_value() {
         ("//$(id)", OK, "600", "'//$(id)'"),
         ("//a`id`", OK, "600", "'//a`id`'"),
         ("//a;id", OK, "600", "'//a;id'"),
+        ("@other//a", OK, "600", "'@other//a'"),
         ("//a|b", OK, "600", "'//a|b'"),
         ("//\"a\"", OK, "600", "'//\"a\"'"),
         ("-//a", OK, "600", "'-//a'"),

@@ -24,12 +24,17 @@ class Rst2HtmlTest(unittest.TestCase):
     """Feeds Vale's exact argv and checks the HTML."""
 
     def run_main(self, body: bytes) -> str:
-        """Converts one body through stdin in a child process and returns stdout."""
+        """Converts one body through stdin in a child process and returns stdout.
+
+        The child hands on this process's import path because on Windows the
+        interpreter does not find the venv from its own location.
+        """
         main = os.path.join(os.path.dirname(os.path.abspath(rst2html_main.__file__)), "rst2html_main.py")
         result = subprocess.run(
             [sys.executable, main] + VALE_ARGV[1:],
             input=body,
             capture_output=True,
+            env=dict(os.environ, PYTHONPATH=os.pathsep.join(path for path in sys.path if path)),
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode())

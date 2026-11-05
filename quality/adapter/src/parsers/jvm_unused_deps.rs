@@ -17,6 +17,14 @@ struct DepsMap {
     package: String,
     target: String,
     deps: Vec<Dep>,
+    #[serde(default)]
+    indirect: Vec<Indirect>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Indirect {
+    jar: String,
+    label: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,6 +56,48 @@ pub fn parse_unused_dependencies(
                 dependency: name.to_owned(),
                 crate_name: dep.label.clone(),
             }
+        })
+        .collect())
+}
+
+/// A dependency the compiler used that the rule does not list in `deps`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MissingDependency {
+    pub package: String,
+    pub target: String,
+    pub label: String,
+}
+
+impl MissingDependency {
+    pub fn message(&self) -> String {
+        format!(
+            "`{}` is used by `{}` but is not in its deps",
+            self.label, self.target
+        )
+    }
+}
+
+/// Names every transitive dependency in `map` whose jar the compiler used, once per label.
+pub fn parse_missing_dependencies(
+    tool: &'static str,
+    map: &[u8],
+    jdeps: &[u8],
+) -> Result<Vec<MissingDependency>, ParseError> {
+    let map: DepsMap = serde_json::from_slice(map).map_err(|err| ParseError::Json {
+        tool,
+        detail: err.to_string(),
+    })?;
+    let used = used_jars(jdeps).map_err(|detail| ParseError::Shape { tool, detail })?;
+    let mut labels = BTreeSet::new();
+    for item in map.indirect.iter().filter(|item| used.contains(&item.jar)) {
+        labels.insert(item.label.clone());
+    }
+    Ok(labels
+        .into_iter()
+        .map(|label| MissingDependency {
+            package: map.package.clone(),
+            target: map.target.clone(),
+            label,
         })
         .collect())
 }
@@ -229,6 +279,35 @@ mod tests {
     fn a_truncated_jdeps_file_is_an_error() {
         assert!(parse_unused_dependencies("javac", MAP.as_bytes(), &[0x0a, 0x09, 0x01]).is_err());
         assert!(parse_unused_dependencies("javac", b"{", &[]).is_err());
+    }
+
+    const INDIRECT_MAP: &str = r#"{"package":"p","target":"lib","deps":[
+        {"label":"//a:direct","jars":["a.jar"]}],
+        "indirect":[
+        {"jar":"u.jar","label":"//u:used"},
+        {"jar":"u2.jar","label":"//u:used"},
+        {"jar":"i.jar","label":"//i:idle"}]}"#;
+
+    #[test]
+    fn used_indirect_jar_is_missing_once_per_label() {
+        let mut jdeps = dependency("a.jar", 0);
+        jdeps.extend(dependency("u.jar", 0));
+        jdeps.extend(dependency("u2.jar", 1));
+        jdeps.extend(dependency("i.jar", 2));
+        let found = parse_missing_dependencies("kotlinc", INDIRECT_MAP.as_bytes(), &jdeps).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].label, "//u:used");
+        assert_eq!(found[0].target, "lib");
+    }
+
+    #[test]
+    fn jar_of_a_direct_dep_or_export_is_not_missing() {
+        let jdeps = dependency("a.jar", 0);
+        let found = parse_missing_dependencies("javac", INDIRECT_MAP.as_bytes(), &jdeps).unwrap();
+        assert!(found.is_empty());
+        assert!(parse_missing_dependencies("javac", MAP.as_bytes(), &jdeps)
+            .unwrap()
+            .is_empty());
     }
 
     fn scalac_log(entries: &[(&str, &str)]) -> Vec<u8> {

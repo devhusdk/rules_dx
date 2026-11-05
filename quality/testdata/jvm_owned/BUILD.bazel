@@ -86,6 +86,18 @@ kotlin_library(
     ],
 )
 
+kotlin_library(
+    name = "kt_wrapper",
+    srcs = ["KtWrapper.kt"],
+    deps = [":kt_kept_helper"],
+)
+
+kotlin_library(
+    name = "kotlin_missing_dep",
+    srcs = ["KotlinMissingDep.kt"],
+    deps = [":kt_wrapper"],
+)
+
 workspace_policy(
     name = "scala_policy",
     families = [":scala_family"],

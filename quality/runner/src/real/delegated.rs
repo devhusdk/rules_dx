@@ -194,7 +194,7 @@ pub(super) fn build_dep_diagnostics(
         ),
         _ => return Ok(Vec::new()),
     };
-    Ok(unused
+    let mut found: Vec<Diagnostic> = unused
         .into_iter()
         .map(|item| Diagnostic {
             severity: Severity::Warning as i32,
@@ -209,7 +209,26 @@ pub(super) fn build_dep_diagnostics(
             }),
             ..Default::default()
         })
-        .collect())
+        .collect();
+    if matches!(tool_id, "javac" | "kotlinc") {
+        for item in jvm_missing(tool_id, tool)? {
+            found.push(Diagnostic {
+                severity: Severity::Warning as i32,
+                message: item.message(),
+                tool_id: tool_id.to_owned(),
+                rule_id: "missing_deps".to_owned(),
+                build_dep: Some(BuildDep {
+                    package: item.package,
+                    target: item.target,
+                    missing: true,
+                    label: item.label,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            });
+        }
+    }
+    Ok(found)
 }
 
 fn rust_unused(
@@ -234,6 +253,31 @@ fn jvm_unused(
     tool_id: &str,
     tool: &RealTool,
 ) -> Result<Vec<rust_unused_deps::UnusedDependency>, RunnerError> {
+    let Some((name, map, jdeps)) = jvm_inputs(tool_id, tool)? else {
+        return Ok(Vec::new());
+    };
+    parsed(
+        tool_id,
+        jvm_unused_deps::parse_unused_dependencies(name, &map, &jdeps),
+    )
+}
+
+fn jvm_missing(
+    tool_id: &str,
+    tool: &RealTool,
+) -> Result<Vec<jvm_unused_deps::MissingDependency>, RunnerError> {
+    let Some((name, map, jdeps)) = jvm_inputs(tool_id, tool)? else {
+        return Ok(Vec::new());
+    };
+    parsed(
+        tool_id,
+        jvm_unused_deps::parse_missing_dependencies(name, &map, &jdeps),
+    )
+}
+
+type JvmInputs = Option<(&'static str, Vec<u8>, Vec<u8>)>;
+
+fn jvm_inputs(tool_id: &str, tool: &RealTool) -> Result<JvmInputs, RunnerError> {
     let name = if tool_id == "javac" {
         "javac"
     } else {
@@ -245,16 +289,13 @@ fn jvm_unused(
             .find(|path| path.to_string_lossy().ends_with(suffix))
     };
     let (Some(map), Some(jdeps)) = (find(".unused_deps.json"), find(".jdeps")) else {
-        return Ok(Vec::new());
+        return Ok(None);
     };
     let read = |path: &PathBuf| {
         std::fs::read(path)
             .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))
     };
-    parsed(
-        tool_id,
-        jvm_unused_deps::parse_unused_dependencies(name, &read(map)?, &read(jdeps)?),
-    )
+    Ok(Some((name, read(map)?, read(jdeps)?)))
 }
 
 fn scalac_unused(

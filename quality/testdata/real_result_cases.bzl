@@ -358,6 +358,18 @@ REAL_RESULT_CASES = [
         "macos_arm64": True,
     },
     {
+        "name": "real_result_kotlinc_missing_dep",
+        "target": "//quality/testdata/jvm_owned:kotlin_missing_dep",
+        "policy": "//quality/testdata/jvm_owned:kotlin_policy",
+        "tool": "kotlinc",
+        "capability": "typecheck",
+        "class": "kotlin",
+        "contains": ["missing_deps", "kt_kept_helper"],
+        "absent": ["Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
         "name": "real_result_scalac_unused_dep",
         "target": "//quality/testdata/jvm_owned:scala_unused_dep",
         "policy": "//quality/testdata/jvm_owned:scala_policy",

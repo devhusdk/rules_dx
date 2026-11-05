@@ -58,15 +58,26 @@ def javac_options(tokens):
 def _unused_deps_map(target, ctx, attrs):
     """Writes the direct dependencies with their compile jars, or returns None when none has a jar."""
     deps = []
+    direct = {}
     for dep in getattr(attrs, "deps", []):
         if JavaInfo not in dep:
             continue
         jars = [j.path for j in dep[JavaInfo].compile_jars.to_list()]
+        for jar in jars:
+            direct[jar] = True
         if jars:
             deps.append({"label": str(dep.label), "jars": jars})
+    toolchain = ctx.toolchains[_KT_TOOLCHAIN_TYPE]
+    if toolchain:
+        for jar in toolchain.jvm_stdlibs.transitive_compile_time_jars.to_list():
+            direct[jar.path] = True
+    indirect = []
+    for jar in target[JavaInfo].transitive_compile_time_jars.to_list():
+        if jar.path not in direct and jar.owner:
+            indirect.append({"jar": jar.path, "label": str(jar.owner)})
     name = target.label.name.removesuffix("_upstream")
     out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.json" % target.label.name)
-    ctx.actions.write(out, json.encode({"package": target.label.package, "target": name, "deps": deps}))
+    ctx.actions.write(out, json.encode({"package": target.label.package, "target": name, "deps": deps, "indirect": indirect}))
     return out
 
 def _unused_deps_files(target, ctx, attrs):

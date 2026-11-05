@@ -1,0 +1,16 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//rust/rules:mutate.bzl", "rust_mutate")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_mutate(name = "fixture_mutate")
+
+sh_test(
+    name = "mutate_run_test",
+    srcs = ["run_test.sh"],
+    data = ["//rust/rules:mutate_run.sh"],
+    timeout = "short",
+)

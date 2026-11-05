@@ -67,3 +67,7 @@ Reports: none.
 | `0` | No limit was crossed. Also when no target in scope carries `dx-mutate`. |
 | `1` | A runner failed, or a target went over `--fail-on=survived`. |
 | `2` | Usage error. |
+
+## Rust
+
+`rust_mutate(name = "mutate")` from `@rules_dx//rust/rules:mutate.bzl` declares the `dx-mutate` target and its runner. The runner runs `cargo-mutants` (from `PATH`, or `CARGO_MUTANTS`) in the package directory, which needs a `Cargo.toml`, and converts its `caught.txt`, `missed.txt` and `timeout.txt` into `mutants.json`.

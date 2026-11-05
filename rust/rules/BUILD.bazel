@@ -43,6 +43,8 @@ exports_files(
 exports_files([
     "README.md",
     "defs.bzl",
+    "mutate.bzl",
+    "mutate_run.sh",
 ])
 
 exports_files(

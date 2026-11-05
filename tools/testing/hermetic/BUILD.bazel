@@ -242,6 +242,7 @@ hermetic_qualification(
         "//examples/node-app/registry/...",
     ],
     smoke = True,
+    compatible_with = LINUX_MACOS,
 )
 
 hermetic_qualification(

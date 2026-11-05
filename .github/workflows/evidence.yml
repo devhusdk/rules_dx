@@ -210,12 +210,13 @@ jobs:
         run: |
           set -o pipefail
           read -ra patterns <<< "$DX_SCOPE"
+          export DX_HERMETIC_BAZELISK="$(command -v bazel)"
           if [ "$DX_TASK" = "build" ]; then
             bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
           elif [ "$DX_TASK" = "coverage" ]; then
             bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" 2>&1 | tee evidence.log
           else
-            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
+            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}

@@ -6,7 +6,7 @@ load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_r
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 # False while zig tests write empty LCOV under `bazel coverage`; the public
-# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308).
+# test then carries dx-no-coverage-collector and `dx coverage` skips it with a summary line, or fails with --fail-on=no-collector (#2308).
 ZIG_COVERAGE_COLLECTOR = False
 
 _DX_ZIG_LIBRARY_PROVIDES = [

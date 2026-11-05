@@ -349,6 +349,19 @@ flag_group! {
 }
 
 flag_group! {
+    /// Fail on this severity, or on tests that have no coverage collector.
+    CoverageFailOnFlag, {
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "fail_on",
+            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error", "no-collector"])
+        )]
+        fail_on: Option<String>,
+    }
+}
+
+flag_group! {
     /// Suppress findings already in this workspace-relative JSON baseline.
     BaselineFlag, {
         #[arg(
@@ -971,6 +984,7 @@ command_args! {
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
         output: OutputFlag,
+        fail_on: CoverageFailOnFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
         explain: ExplainFlag,

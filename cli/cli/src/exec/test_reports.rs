@@ -655,8 +655,8 @@ struct Collected {
     sources: Sources,
     reported: Vec<TestOutcome>,
     gap: Option<String>,
-    /// Sorted, deduplicated labels that ran under coverage without a collector.
-    no_collector: Vec<String>,
+    /// Sorted, deduplicated (label, language) pairs that ran under coverage without a collector.
+    no_collector: Vec<(String, String)>,
 }
 
 /// Reads every result's test.xml into suites and outcomes for `dx test`.
@@ -862,27 +862,51 @@ fn collect_lcov(
     }
 }
 
-/// Labels tagged as having no coverage collector that produced a test result, once each.
-fn no_collector_labels(events: &TestEvents) -> Vec<String> {
-    let mut labels: Vec<String> = events
+/// Tests tagged as having no coverage collector that produced a result, as (label, language), once each.
+fn no_collector_labels(events: &TestEvents) -> Vec<(String, String)> {
+    let mut tests: Vec<(String, String)> = events
         .results
         .iter()
-        .filter(|result| events.no_coverage_collector.contains(&result.label))
-        .map(|result| result.label.clone())
+        .filter_map(|result| {
+            let language = events.no_coverage_collector.get(&result.label)?;
+            Some((result.label.clone(), language.clone()))
+        })
         .collect();
-    labels.sort();
-    labels.dedup();
-    labels
+    tests.sort();
+    tests.dedup();
+    tests
 }
 
-/// Reports each test that ran under coverage with no collector; true when there were none.
+/// Reports tests that ran under coverage with no collector; true when none should fail the run.
+/// Without `strict` they are skipped with one summary line per language.
 fn announce_no_collector(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-    labels: &[String],
+    tests: &[(String, String)],
+    strict: bool,
 ) -> Result<bool, i32> {
-    for label in labels {
+    if !strict {
+        let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+        for (_, language) in tests {
+            *counts.entry(language.as_str()).or_default() += 1;
+        }
+        for (language, count) in counts {
+            let noun = if count == 1 { "test" } else { "tests" };
+            let message =
+                format!("skipped {count} {language} {noun}: no coverage collector (#7298)");
+            if output == OutputMode::Json {
+                emit_built(
+                    out,
+                    notice_event(&NoticeEvent::info(CODE_NO_COVERAGE_COLLECTOR, message)),
+                )?;
+            } else {
+                let _ = writeln!(err, "dx: {message}");
+            }
+        }
+        return Ok(true);
+    }
+    for (label, _) in tests {
         let message = format!("no coverage collector for {label}");
         if output == OutputMode::Json {
             emit_built(
@@ -893,7 +917,7 @@ fn announce_no_collector(
             let _ = writeln!(err, "dx: {CODE_NO_COVERAGE_COLLECTOR}: {message}");
         }
     }
-    Ok(labels.is_empty())
+    Ok(tests.is_empty())
 }
 
 /// Prints each outcome in the run's output mode and counts the ones that were not superseded.
@@ -1458,7 +1482,13 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     if let Err(exit) = announce_incomplete(invocation.output, out, err, &detail) {
         return kept_child(err, bazel_code, exit);
     }
-    let collector_ok = match announce_no_collector(invocation.output, out, err, &no_collector) {
+    let collector_ok = match announce_no_collector(
+        invocation.output,
+        out,
+        err,
+        &no_collector,
+        invocation.fail_on_no_collector,
+    ) {
         Ok(ok) => ok,
         Err(exit) => return kept_child(err, bazel_code, exit),
     };
@@ -5565,7 +5595,7 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--fail-on=no-collector"]);
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains("dx: no_coverage_collector: no coverage collector for //z:t"),
@@ -5588,11 +5618,42 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, _, err) = harness.run(&["coverage", "--output=text", "--report=lcov=out.lcov"]);
+        let (code, _, err) = harness.run(&[
+            "coverage",
+            "--output=text",
+            "--fail-on=no-collector",
+            "--report=lcov=out.lcov",
+        ]);
         assert_eq!(code, 1, "{err}");
         assert_eq!(err.matches("no_coverage_collector").count(), 1, "{err}");
         let document = std::fs::read(harness.workspace.join("out.lcov")).expect("lcov");
         assert_eq!(document, MINIMAL_LCOV.as_bytes());
+    }
+
+    #[test]
+    fn coverage_skips_collectorless_tests_with_one_line_per_language() {
+        let harness = Harness::new("cov-no-collector-skip");
+        let empty = write_bep_artifact(&harness, "zig4.dat", b"");
+        let ok = write_bep_artifact(&harness, "rust2.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                no_collector_configured("//z:a"),
+                no_collector_configured("//z:b"),
+                test_result_line("//z:a", &[(String::from("coverage.dat"), empty.clone())]),
+                test_result_line("//z:b", &[(String::from("coverage.dat"), empty)]),
+                test_result_line("//r:t", &[(String::from("coverage.dat"), ok)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(
+            err.matches("dx: skipped 2 zig tests: no coverage collector (#7298)")
+                .count(),
+            1,
+            "{err}"
+        );
+        assert!(!err.contains("dx: no_coverage_collector"), "{err}");
     }
 
     #[test]
@@ -5617,7 +5678,7 @@ mod tests {
             ]),
             ..harness
         };
-        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        let (code, out, _) = harness.run(&["coverage", "--output=json", "--fail-on=no-collector"]);
         assert_eq!(code, 1, "{out}");
         let events = json_events(&out);
         assert!(

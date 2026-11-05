@@ -590,6 +590,7 @@ mod tests {
                 Command::Lint,
                 Command::Typecheck,
                 Command::Format,
+                Command::Coverage,
                 Command::Check
             ])
         );

@@ -1,5 +1,5 @@
 use std::cell::LazyCell;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::BufRead;
 use std::path::PathBuf;
 
@@ -66,7 +66,8 @@ pub struct TestEvents {
     pub problem: Option<String>,
     /// Test labels whose configured target carries
     /// [`NO_COVERAGE_COLLECTOR_TAG`]: their language writes empty LCOV.
-    pub no_coverage_collector: BTreeSet<String>,
+    /// The value is the language taken from the rule kind.
+    pub no_coverage_collector: BTreeMap<String, String>,
 }
 
 /// The tag dx test macros put on a test whose language has no coverage
@@ -235,7 +236,7 @@ fn read_test_events(
     let mut shard_counts: HashMap<String, u32> = HashMap::new();
     let mut ledger = EventLedger::default();
     let mut test_labels: HashSet<String> = HashSet::new();
-    let mut no_coverage_collector: BTreeSet<String> = BTreeSet::new();
+    let mut no_coverage_collector: BTreeMap<String, String> = BTreeMap::new();
     let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
     let mut passed_completions: Vec<UnbuiltTest> = Vec::new();
     let mut mnemonics: HashMap<String, String> = HashMap::new();
@@ -262,7 +263,7 @@ fn read_test_events(
         if let Some(label) = test_label(id, object) {
             test_labels.insert(label.to_owned());
             if has_tag(object, NO_COVERAGE_COLLECTOR_TAG) {
-                no_coverage_collector.insert(label.to_owned());
+                no_coverage_collector.insert(label.to_owned(), rule_language(object));
             }
         }
         if let Some((target, success)) = target_completion(id, object) {
@@ -494,6 +495,22 @@ fn has_tag(object: &serde_json::Map<String, Value>, tag: &str) -> bool {
         .and_then(|body| body.get("tag"))
         .and_then(Value::as_array)
         .is_some_and(|tags| tags.iter().any(|value| value.as_str() == Some(tag)))
+}
+
+/// The language a `targetConfigured` rule kind such as `_zig_forward_test rule` belongs to.
+fn rule_language(object: &serde_json::Map<String, Value>) -> String {
+    let kind = object
+        .get("configured")
+        .and_then(|body| body.get("targetKind"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let name = kind.trim_start_matches('_');
+    let language = name.split('_').next().unwrap_or_default();
+    if language.is_empty() {
+        "other".to_owned()
+    } else {
+        language.to_owned()
+    }
 }
 
 /// One `testSummary` body beside its id, with unknown fields left unknown.
@@ -1588,7 +1605,7 @@ mod tests {
         let events = collect_test_events(Cursor::new(stream), || None).expect("events");
         let labels: Vec<&str> = events
             .no_coverage_collector
-            .iter()
+            .keys()
             .map(String::as_str)
             .collect();
         assert_eq!(labels, ["//a:zig"]);

@@ -793,3 +793,16 @@ fn fail_on_uncovered_is_a_security_option() {
     assert!(parse(&strings(&["license", "--fail-on=uncovered"])).is_err());
     assert!(parse(&strings(&["lint", "--fail-on=uncovered"])).is_err());
 }
+
+#[test]
+fn fail_on_no_collector_is_a_coverage_option() {
+    let got = parse(&strings(&["coverage", "--fail-on=no-collector"])).expect("coverage parses");
+    assert!(got.fail_on_no_collector);
+    assert!(
+        !parse(&strings(&["coverage"]))
+            .expect("plain")
+            .fail_on_no_collector
+    );
+    assert!(parse(&strings(&["test", "--fail-on=no-collector"])).is_err());
+    assert!(parse(&strings(&["lint", "--fail-on=no-collector"])).is_err());
+}

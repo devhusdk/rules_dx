@@ -432,7 +432,13 @@ fn parse_inner<S: AsRef<OsStr>>(
             value: fail_on_name,
         });
     }
-    let mut fail_on = if fail_on_name == "uncovered" {
+    let fail_on_no_collector = fail_on_name == "no-collector" && command == Command::Coverage;
+    if fail_on_name == "no-collector" && !fail_on_no_collector && fail_on_from_flag {
+        return Err(ArgsError::BadFailOn {
+            value: fail_on_name,
+        });
+    }
+    let mut fail_on = if fail_on_name == "uncovered" || fail_on_name == "no-collector" {
         Threshold::Warning
     } else {
         Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
@@ -637,6 +643,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         reports,
         fail_on,
         fail_on_uncovered,
+        fail_on_no_collector,
         build_slots,
         baseline,
         include_edits,

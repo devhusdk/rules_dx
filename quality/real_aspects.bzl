@@ -4,7 +4,7 @@ load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
-load("@rules_go//go:def.bzl", "GoArchive")
+load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
@@ -67,6 +67,7 @@ load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_ru
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
@@ -1779,6 +1780,16 @@ def _rust_docs_shard(target, ctx):
         return None
     return rust_shard_action(ctx, target, "", stem = "_dx_docs/" + ctx.label.name).shard
 
+def _go_docs_shard(target, ctx):
+    if GoInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    info = target[GoInfo]
+    if not info.importpath:
+        return None
+    return go_shard_action(ctx, info, "", "_dx_docs/" + ctx.label.name, ctx.executable._driver, ctx.executable._go_extract).shard
+
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
@@ -1803,6 +1814,9 @@ def _real_docs_aspect_impl(target, ctx):
     rust_shard = _rust_docs_shard(target, ctx)
     if rust_shard:
         parts.append({"dx_results": [rust_shard], "dx_docs_shards": [rust_shard]})
+    go_shard = _go_docs_shard(target, ctx)
+    if go_shard:
+        parts.append({"dx_results": [go_shard], "dx_docs_shards": [go_shard]})
     if not parts:
         return []
     groups = {}
@@ -1813,12 +1827,22 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust library shards go in dx_docs_shards.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust and Go library shards go in dx_docs_shards.",
     attrs = {
+        "_driver": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/go/godoc:godoc_json"),
+            executable = True,
+        ),
         "_error_format": attr.label(default = Label("@rules_rust//rust/settings:error_format")),
         "_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/rust/extract:rust_extract"),
+            executable = True,
+        ),
+        "_go_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/go/extract:go_extract"),
             executable = True,
         ),
         "_process_wrapper": attr.label(

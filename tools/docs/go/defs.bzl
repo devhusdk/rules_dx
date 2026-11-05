@@ -3,49 +3,78 @@
 load("@rules_go//go:def.bzl", "GoInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
-def _docs_go_shard_impl(ctx):
-    info = ctx.attr.library[GoInfo]
-    importpath = ctx.attr.package or info.importpath
+def go_shard_action(ctx, info, package, stem, driver_tool, extract_tool, goos = "linux", goarch = "amd64", tags = []):
+    """Runs the go/doc driver and the extractor for one Go library.
+
+    Args:
+        ctx: The rule or aspect context.
+        info: The GoInfo of the documented library.
+        package: Package segment of the symbol ids; empty means the importpath.
+        stem: Output name prefix.
+        driver_tool: The go/doc driver executable.
+        extract_tool: The DocIr extractor executable.
+        goos: GOOS the build constraints are evaluated for.
+        goarch: GOARCH the build constraints are evaluated for.
+        tags: Go build tags the build constraints are evaluated with.
+
+    Returns:
+        A struct with the DocIr `shard`, the `json` and `manifest` files and the resolved `package`.
+    """
+    importpath = package or info.importpath
     if not importpath:
-        fail("docs_go_shard " + str(ctx.label) + ": the library has no importpath; set package")
+        fail("go docs " + str(ctx.label) + ": the library has no importpath; set package")
     lines = []
     for src in info.srcs:
         if src.extension == "go":
             lines.append(srcs_manifest_line(src.path, repo_relative(src.short_path), not src.is_source))
-    manifest = ctx.actions.declare_file(ctx.label.name + ".srcs.tsv")
+    manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted(lines)))
-    json = ctx.actions.declare_file(ctx.label.name + ".godoc.json")
+    json = ctx.actions.declare_file(stem + ".godoc.json")
     driver = ctx.actions.args()
     driver.add("--importpath", importpath)
-    driver.add("--goos", ctx.attr.goos)
-    driver.add("--goarch", ctx.attr.goarch)
-    driver.add("--tags", ",".join(ctx.attr.tags_go))
+    driver.add("--goos", goos)
+    driver.add("--goarch", goarch)
+    driver.add("--tags", ",".join(tags))
     driver.add("--srcs-file", manifest)
     driver.add("--out", json)
     ctx.actions.run(
-        executable = ctx.executable._driver,
+        executable = driver_tool,
         arguments = [driver],
         inputs = [manifest] + [src for src in info.srcs if src.extension == "go"],
         outputs = [json],
         mnemonic = "DxDocsGoDriver",
         progress_message = "Reading Go API docs for %{label}",
     )
-    shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
+    shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
     extract.add("--json", json)
     extract.add("--out", shard)
     ctx.actions.run(
-        executable = ctx.executable._extract,
+        executable = extract_tool,
         arguments = [extract],
         inputs = [json],
         outputs = [shard],
         mnemonic = "DxDocsGoExtract",
         progress_message = "Extracting Go API docs for %{label}",
     )
+    return struct(json = json, manifest = manifest, package = importpath, shard = shard)
+
+def _docs_go_shard_impl(ctx):
+    action = go_shard_action(
+        ctx,
+        ctx.attr.library[GoInfo],
+        ctx.attr.package,
+        ctx.label.name,
+        ctx.executable._driver,
+        ctx.executable._extract,
+        goos = ctx.attr.goos,
+        goarch = ctx.attr.goarch,
+        tags = ctx.attr.tags_go,
+    )
     return [
-        DefaultInfo(files = depset([shard])),
-        OutputGroupInfo(godoc_json = depset([json]), srcs_manifest = depset([manifest])),
-        DocsShardInfo(language = "go", package = importpath, shard = shard),
+        DefaultInfo(files = depset([action.shard])),
+        OutputGroupInfo(godoc_json = depset([action.json]), srcs_manifest = depset([action.manifest])),
+        DocsShardInfo(language = "go", package = action.package, shard = action.shard),
     ]
 
 docs_go_shard = rule(

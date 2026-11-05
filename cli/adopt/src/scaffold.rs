@@ -1532,6 +1532,24 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
     }
 
     #[test]
+    fn pin_update_repins_release_and_keeps_added_jobs() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-release-pin-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
+        let release = root.join(".github/workflows/release.yml");
+        let stale = "0123456789abcdef0123456789abcdef01234567";
+        let old = format!(
+            "{}  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n",
+            super::render_release_caller().replace(CONSUMER_WORKFLOW_PIN, stale)
+        );
+        std::fs::write(&release, &old).expect("write");
+        refreshed(root);
+        let new = std::fs::read_to_string(&release).expect("read");
+        assert_eq!(new, old.replace(stale, CONSUMER_WORKFLOW_PIN));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn ci_without_the_workflow_call_is_left_untouched() {
         let scratch = dx_test_scratch::scratch("dx-adopt-owned-refused-");
         let root = scratch.path();

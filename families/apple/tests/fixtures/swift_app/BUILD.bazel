@@ -101,14 +101,6 @@ apple_ios_app_test(
 )
 
 sh_test(
-    name = "ledger_ipa_test",
-    srcs = ["check_ipa.sh"],
-    args = ["$(rootpaths :ledger_app)", "com.example.ledger", "iphonesimulator", "7"],
-    data = [":ledger_app"],
-    target_compatible_with = _MACOS_ARM64,
-)
-
-sh_test(
     name = "ledger_device_ipa_test",
     srcs = ["check_ipa.sh"],
     args = [

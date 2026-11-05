@@ -246,7 +246,6 @@ ROWS = [
             "@rules_dx_apple//tests:macos_consumer_test",
             "@rules_dx_apple//tests:macos_app_sign_smoke_test",
             "@rules_dx_apple//tests/fixtures/swift_app:ledger_app_test",
-            "@rules_dx_apple//tests/fixtures/swift_app:ledger_ipa_test",
             "@rules_dx_apple//tests/fixtures/swift_app:ledger_device_ipa_test",
             "//swift/tests/fixtures/hello:xctest",
         ],

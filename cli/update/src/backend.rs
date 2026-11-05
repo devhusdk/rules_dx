@@ -636,8 +636,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Composer, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Composer, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, request) => {
@@ -659,6 +659,45 @@ pub fn plan_configured(
                 argv: pub_argv(workspace, set, head, &command)?,
                 env: pub_env(),
             })
+        }
+        (Ecosystem::Composer, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Composer, Selection::Packages(packages)) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let mut command = vec!["update"];
+            command.extend(packages.iter().map(String::as_str));
+            command.extend(["--with-all-dependencies", "--no-install"]);
+            let mut runs = vec![Run {
+                argv: composer_argv(workspace, set, head, "composer", &command)?,
+                env: composer_env(),
+            }];
+            let digests = set
+                .locks
+                .iter()
+                .find(|lock| lock.ends_with(".json"))
+                .and_then(|lock| Path::new(lock).file_name())
+                .and_then(|name| name.to_str());
+            if let Some(digests) = digests {
+                runs.push(Run {
+                    argv: composer_argv(
+                        workspace,
+                        set,
+                        head,
+                        "@rules_dx//php/tools/digests:refresh_digests",
+                        &["composer.lock", digests],
+                    )?,
+                    env: composer_env(),
+                });
+            }
+            Ok(BackendPlan::Sequence(runs))
         }
         (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Cpan, Selection::Packages(modules)) => {
@@ -876,8 +915,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Composer, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Composer, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, Selection::Full) => {
@@ -893,6 +932,20 @@ pub fn check_configured(
         (Ecosystem::Pub, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "dart pub get checks the whole pubspec.lock; select the set without a package",
+        }),
+        (Ecosystem::Composer, Selection::Full) => Ok(CheckPlan::Run {
+            argv: composer_argv(
+                workspace,
+                set,
+                head,
+                "@rules_dx//php/tools:composer",
+                &["validate", "--check-lock", "--no-check-publish"],
+            )?,
+            env: composer_env(),
+        }),
+        (Ecosystem::Composer, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "composer validates the whole composer.lock; select the set without a package",
         }),
         (Ecosystem::Cpan, Selection::Full) => {
             if offline {
@@ -1150,6 +1203,35 @@ fn carton_argv(
     let mut argv = bazel(head, "run", &[&under, "@rules_dx//perl/tools:carton", "--"]);
     argv.extend(strings(command));
     Ok(argv)
+}
+
+fn composer_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    label: &str,
+    command: &[&str],
+) -> Result<Vec<String>, BackendError> {
+    let dir = set_dir(workspace, set)?;
+    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let mut argv = bazel(head, "run", &[&under, label, "--"]);
+    argv.extend(strings(command));
+    Ok(argv)
+}
+
+/// Keeps Composer's home and download cache out of the workspace.
+fn composer_env() -> Vec<(String, String)> {
+    let root = std::env::temp_dir().join("dx-composer");
+    vec![
+        (
+            "COMPOSER_HOME".to_owned(),
+            root.join("home").to_string_lossy().into_owned(),
+        ),
+        (
+            "COMPOSER_CACHE_DIR".to_owned(),
+            root.join("cache").to_string_lossy().into_owned(),
+        ),
+    ]
 }
 
 /// Keeps carton's `local/` install tree out of the workspace.
@@ -1532,6 +1614,136 @@ mod tests {
             plan_ruby_lock(&ruby_set(), "rake", true, false, &no_head()),
             Err(BackendError::OfflineRequired { .. })
         ));
+    }
+
+    fn composer_set(locks: &[&str]) -> ResolvedSet {
+        ResolvedSet {
+            name: "php".to_owned(),
+            ecosystem: Ecosystem::Composer,
+            dir: "php".to_owned(),
+            manifests: vec!["php/composer.json".to_owned()],
+            locks: locks.iter().map(|lock| (*lock).to_owned()).collect(),
+            repository: None,
+        }
+    }
+
+    fn composer_update(
+        set: &ResolvedSet,
+        offline: bool,
+        frozen: bool,
+    ) -> Result<BackendPlan, BackendError> {
+        plan_configured(
+            ws(),
+            set,
+            &Selection::Packages(vec!["psr/log".to_owned()]),
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    }
+
+    const COMPOSER_LOCKS: [&str; 2] = ["php/composer.lock", "php/composer.digests.json"];
+
+    #[test]
+    fn composer_update_runs_composer_then_the_digest_refresh() {
+        let set = composer_set(&COMPOSER_LOCKS);
+        let BackendPlan::Sequence(runs) = composer_update(&set, false, false).expect("plan") else {
+            panic!("expected a sequence");
+        };
+        assert_eq!(runs.len(), 2);
+        assert_eq!(
+            runs[0].argv[runs[0].argv.len() - 5..],
+            [
+                "@rules_dx//php/tools:composer",
+                "--",
+                "update",
+                "psr/log",
+                "--with-all-dependencies",
+            ]
+        );
+        assert_eq!(
+            runs[0].argv.last().map(String::as_str),
+            Some("--no-install")
+        );
+        assert_eq!(runs[0].env[0].0, "COMPOSER_HOME");
+        assert_eq!(runs[0].env[1].0, "COMPOSER_CACHE_DIR");
+        assert_eq!(
+            runs[1].argv[runs[1].argv.len() - 4..],
+            [
+                "@rules_dx//php/tools/digests:refresh_digests",
+                "--",
+                "composer.lock",
+                "composer.digests.json"
+            ]
+        );
+    }
+
+    #[test]
+    fn composer_update_without_digests_runs_only_composer() {
+        let set = composer_set(&["php/composer.lock"]);
+        let BackendPlan::Sequence(runs) = composer_update(&set, false, false).expect("plan") else {
+            panic!("expected a sequence");
+        };
+        assert_eq!(runs.len(), 1);
+    }
+
+    #[test]
+    fn composer_update_refuses_frozen_and_offline() {
+        let set = composer_set(&COMPOSER_LOCKS);
+        assert!(matches!(
+            composer_update(&set, true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        assert!(matches!(
+            composer_update(&set, false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+    }
+
+    #[test]
+    fn composer_check_validates_the_lock() {
+        let set = composer_set(&COMPOSER_LOCKS);
+        let plan = check_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect("plan");
+        let CheckPlan::Run { argv, env } = plan else {
+            panic!("expected a run");
+        };
+        assert_eq!(
+            argv[argv.len() - 5..],
+            [
+                "@rules_dx//php/tools:composer",
+                "--",
+                "validate",
+                "--check-lock",
+                "--no-check-publish"
+            ]
+        );
+        assert_eq!(env[0].0, "COMPOSER_HOME");
+    }
+
+    #[test]
+    fn composer_check_refuses_a_package_selection() {
+        let set = composer_set(&COMPOSER_LOCKS);
+        let error = check_configured(
+            ws(),
+            &set,
+            &Selection::Packages(vec!["psr/log".to_owned()]),
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect_err("refused");
+        assert!(error.to_string().contains("whole composer.lock"));
     }
 
     fn cpan_set() -> ResolvedSet {

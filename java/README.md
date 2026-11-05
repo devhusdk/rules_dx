@@ -45,3 +45,18 @@ parameters and assignments as info. See the
 ## Platforms
 
 See the [support matrix](../docs/support-matrix.md).
+
+## Benchmarks
+
+`java_benchmark` runs JMH benchmarks for `dx bench`. List `org.openjdk.jmh:jmh-core` and `jmh-generator-annprocess` in `maven_install.json`.
+
+```python
+load("@rules_dx//java/rules:bench.bzl", "java_benchmark")
+
+java_benchmark(
+    name = "sum_bench",
+    srcs = ["Sum.java"],
+)
+```
+
+The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. Set `jmh` and `jmh_processor` to other labels if your artifacts are not in `@maven`. `kotlin_benchmark` in `@rules_dx//kotlin/rules:bench.bzl` takes Kotlin sources the same way.

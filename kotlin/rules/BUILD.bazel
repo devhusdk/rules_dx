@@ -19,6 +19,7 @@ kotlin_werror_opts(
 )
 
 exports_files([
+    "bench.bzl",
     "defs.bzl",
 ])
 

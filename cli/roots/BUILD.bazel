@@ -39,7 +39,7 @@ filegroup(
 
 filegroup(
     name = "cli_reaches_tools_file_probe",
-    srcs = ["//tools/depcheck:Cargo.toml"],
+    srcs = ["//cli/depcheck:Cargo.toml"],
     tags = ["manual"],
     visibility = ["//tools/visibility:__pkg__"],
 )

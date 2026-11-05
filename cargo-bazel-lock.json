@@ -1,5 +1,5 @@
 {
-  "checksum": "7423732097b692ee348bf3b2b380b202c8c855e8fe0195b2428d8fca20261222",
+  "checksum": "dbc42ef735e23b6d2a8de8aea13c70e5ead5f6e6576c750d63b43933fba110b3",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -27760,7 +27760,7 @@
     "dx_clean 0.0.0": "cli/dx_clean",
     "dx_cli 0.0.0": "cli/dx_cli",
     "dx_codegen 0.0.0": "cli/dx_codegen",
-    "dx_depcheck 0.0.0": "tools/dx_depcheck",
+    "dx_depcheck 0.0.0": "cli/dx_depcheck",
     "dx_deploy_tools 0.0.0": "deploy/dx_deploy_tools",
     "dx_diff 0.0.0": "cli/dx_diff",
     "dx_digest 0.0.0": "cli/dx_digest",

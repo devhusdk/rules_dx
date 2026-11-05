@@ -651,7 +651,7 @@ rust_test(
         "//tools/coverage/d:corpus_starlark",
         "//tools/coverage/dotnet:corpus_starlark",
         "//tools/coverage/haskell:corpus_starlark",
-        "//tools/depcheck:corpus_starlark",
+        "//cli/depcheck:corpus_starlark",
         "//tools/docs/dotnet/extract:corpus_starlark",
         "//tools/docs/go:corpus_starlark",
         "//tools/docs/go/extract:corpus_starlark",

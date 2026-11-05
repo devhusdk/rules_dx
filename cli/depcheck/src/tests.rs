@@ -6,14 +6,14 @@ fn testdata_root() -> PathBuf {
         std::env::var("TEST_SRCDIR")
             .ok()
             .zip(std::env::var("TEST_WORKSPACE").ok())
-            .map(|(root, ws)| PathBuf::from(root).join(ws).join("tools/depcheck/testdata")),
+            .map(|(root, ws)| PathBuf::from(root).join(ws).join("cli/depcheck/testdata")),
         std::env::var("RUNFILES_DIR")
             .ok()
-            .map(|root| PathBuf::from(root).join("_main/tools/depcheck/testdata")),
+            .map(|root| PathBuf::from(root).join("_main/cli/depcheck/testdata")),
         std::env::var("CARGO_MANIFEST_DIR")
             .ok()
             .map(|root| PathBuf::from(root).join("testdata")),
-        Some(PathBuf::from("tools/depcheck/testdata")),
+        Some(PathBuf::from("cli/depcheck/testdata")),
     ]
     .into_iter()
     .flatten()
@@ -22,7 +22,7 @@ fn testdata_root() -> PathBuf {
             return candidate;
         }
     }
-    PathBuf::from("tools/depcheck/testdata")
+    PathBuf::from("cli/depcheck/testdata")
 }
 
 fn write_file(path: &Path, text: &str) {

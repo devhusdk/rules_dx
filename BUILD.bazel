@@ -114,7 +114,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/components/fixture/bad/src/TypeError.mdx
 # gazelle:exclude tools/docs/ruby/fixture
 # gazelle:exclude tools/docs/go/godoc
-# gazelle:exclude tools/depcheck/testdata
+# gazelle:exclude cli/depcheck/testdata
 # gazelle:exclude go/tools/analysis
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude go/tests/fixtures/golint
@@ -216,7 +216,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude quality/artifacts
 # gazelle:exclude quality/tools/python
-# gazelle:exclude tools/depcheck
+# gazelle:exclude cli/depcheck
 # gazelle:exclude go/tests/fixtures/gofumpt
 # gazelle:exclude go/tests/fixtures/staticcheck
 # gazelle:exclude go/tests/fixtures/godeps

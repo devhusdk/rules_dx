@@ -29,14 +29,14 @@ rust_library(
         "src/version.rs",
     ],
     aliases = aliases(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
     ),
     crate_name = "dx_depcheck",
     crate_root = "src/lib.rs",
     edition = "2021",
     deps = all_crate_deps(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
     ) + [
         "//cli/path:dx_path",
@@ -48,14 +48,14 @@ rust_binary(
     name = "depcheck",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
     ),
     crate_name = "depcheck",
     crate_root = "src/main.rs",
     edition = "2021",
     deps = all_crate_deps(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
     ) + [
         ":depcheck_lib",
@@ -66,7 +66,7 @@ rust_binary(
 rust_test(
     name = "depcheck_test",
     aliases = aliases(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
         normal_dev = True,
     ),
@@ -86,7 +86,7 @@ rust_test(
         ":ts_testdata",
     ],
     deps = all_crate_deps(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
         normal_dev = True,
     ) + [
@@ -99,7 +99,7 @@ rust_test(
     name = "depcheck_bin_test",
     crate = ":depcheck",
     deps = all_crate_deps(
-        package_name = "tools/dx_depcheck",
+        package_name = "cli/dx_depcheck",
         normal = True,
         normal_dev = True,
     ) + [

@@ -5,6 +5,8 @@ use dx_gomod::GoReplacementTarget;
 mod locks_bazel;
 #[path = "locks_cargo.rs"]
 mod locks_cargo;
+#[path = "locks_composer.rs"]
+mod locks_composer;
 #[path = "locks_conan.rs"]
 mod locks_conan;
 #[path = "locks_cpan.rs"]
@@ -30,6 +32,7 @@ mod locks_uv;
 
 pub use locks_bazel::*;
 pub use locks_cargo::*;
+pub use locks_composer::*;
 pub use locks_conan::*;
 pub use locks_cpan::*;
 pub use locks_julia::*;

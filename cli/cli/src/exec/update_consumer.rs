@@ -211,7 +211,8 @@ fn run_configured_target(
         | Ecosystem::Pub
         | Ecosystem::Conan
         | Ecosystem::Julia
-        | Ecosystem::Hex => dx_update::backend::UvClosure::default(),
+        | Ecosystem::Hex
+        | Ecosystem::Composer => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {

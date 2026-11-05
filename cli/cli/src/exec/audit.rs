@@ -512,6 +512,12 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
+            dx_adopt::dependency_sets::Ecosystem::Composer => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::COMPOSER_LOCK) => {
+                    dx_audit::locks::parse_composer_lock(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::PowerShell => {
                 dx_audit::locks::parse_psgallery_lock(text)
             }

@@ -13,7 +13,6 @@ load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//avro/rules:defs.bzl", "AvroInfo")
-load("//bicep/rules:providers.bzl", "BicepInfo")
 load("//capnproto/rules:defs.bzl", "CapnpInfo")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
@@ -45,6 +44,13 @@ load("//quality:families/text.bzl", _real_text_lint_aspect = "real_text_lint_asp
 load("//quality:families/typst.bzl", _real_typst_format_aspect = "real_typst_format_aspect", _real_typst_lint_aspect = "real_typst_lint_aspect", _TYPST_SHARD_SPECS = "SHARD_SPECS", _TYPST_TOOLS = "TOOLS")
 load("//quality:families/xml.bzl", _real_xml_lint_aspect = "real_xml_lint_aspect", _XML_SHARD_SPECS = "SHARD_SPECS", _XML_TOOLS = "TOOLS")
 load("//quality:families/yaml.bzl", _real_yaml_format_aspect = "real_yaml_format_aspect", _real_yaml_lint_aspect = "real_yaml_lint_aspect", _YAML_SHARD_SPECS = "SHARD_SPECS", _YAML_TOOLS = "TOOLS")
+load("//quality:families/cue.bzl", _real_cue_format_aspect = "real_cue_format_aspect", _real_cue_typecheck_aspect = "real_cue_typecheck_aspect", _CUE_HOOKS = "HOOKS", _CUE_SHARD_SPECS = "SHARD_SPECS", _CUE_TOOLS = "TOOLS")
+load("//quality:families/pkl.bzl", _real_pkl_format_aspect = "real_pkl_format_aspect", _real_pkl_typecheck_aspect = "real_pkl_typecheck_aspect", _PKL_HOOKS = "HOOKS", _PKL_SHARD_SPECS = "SHARD_SPECS", _PKL_TOOLS = "TOOLS")
+load("//quality:families/jsonnet.bzl", _real_jsonnet_format_aspect = "real_jsonnet_format_aspect", _real_jsonnet_lint_aspect = "real_jsonnet_lint_aspect", _JSONNET_HOOKS = "HOOKS", _JSONNET_SHARD_SPECS = "SHARD_SPECS", _JSONNET_TOOLS = "TOOLS")
+load("//quality:families/rego.bzl", _real_rego_format_aspect = "real_rego_format_aspect", _real_rego_lint_aspect = "real_rego_lint_aspect", _real_rego_typecheck_aspect = "real_rego_typecheck_aspect", _REGO_HOOKS = "HOOKS", _REGO_SHARD_SPECS = "SHARD_SPECS", _REGO_TOOLS = "TOOLS")
+load("//quality:families/bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect", _BICEP_HOOKS = "HOOKS", _BICEP_SHARD_SPECS = "SHARD_SPECS", _BICEP_TOOLS = "TOOLS")
+load("//quality:families/terraform.bzl", _real_terraform_format_aspect = "real_terraform_format_aspect", _real_terraform_lint_aspect = "real_terraform_lint_aspect", _real_terraform_typecheck_aspect = "real_terraform_typecheck_aspect", _TERRAFORM_HOOKS = "HOOKS", _TERRAFORM_SHARD_SPECS = "SHARD_SPECS", _TERRAFORM_TOOLS = "TOOLS")
+load("//quality:family_hooks.bzl", _default_files_hook = "default_files_hook", _stage = "stage", _without = "without")
 load("//quality:native_config.bzl", "DxDartConfigInfo")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:pipeline.bzl", "drop_pipeline_tool", "generated_source_paths", "prune_tool_generated_sources", "real_request_tool_env")
@@ -52,11 +58,9 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:sources.bzl", "QualityToolsInfo")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
-load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
-load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
 load("//thrift/rules:defs.bzl", "ThriftInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
@@ -69,13 +73,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "core",
-    },
-    "bicep": {
-        "attr": attr.label(default = "@dx_tools//:bicep", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
-        "kind": "file",
-        "resources": "medium",
-        "shard": "bicep",
     },
     "buf": {
         "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),
@@ -156,29 +153,6 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "dotnet",
-    },
-    "cue": {
-        "attr": attr.label(default = "@dx_tools//:cue", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
-        "env": [["CUE_REGISTRY", "none"]],
-        "kind": "file",
-        "resources": "light",
-        "shard": "cue",
-    },
-    "opa": {
-        "attr": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "rego",
-    },
-    "regal": {
-        "attr": attr.label(default = "//config:tool_regal", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "env": [["REGAL_DISABLE_VERSION_CHECK", "1"]],
-        "kind": "file",
-        "resources": "light",
-        "shard": "rego",
     },
     "dialyzer": {
         "attr": attr.label(default = "//config:tool_dialyzer", allow_files = True, cfg = "exec"),
@@ -410,20 +384,6 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "fortran",
     },
-    "jsonnetfmt": {
-        "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "jsonnet",
-    },
-    "jsonnet_lint": {
-        "attr": attr.label(default = "@dx_tools//:jsonnet_lint", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "jsonnet",
-    },
     "ktfmt": {
         "attr": attr.label(default = "//quality/tools/jvm:ktfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -481,13 +441,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "medium",
         "shard": "haskell",
-    },
-    "pkl": {
-        "attr": attr.label(default = "//config:tool_pkl", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
-        "kind": "file",
-        "resources": "medium",
-        "shard": "pkl",
     },
     "pmd": {
         "attr": attr.label(default = "//quality/tools/jvm:pmd", cfg = "exec", executable = True),
@@ -722,22 +675,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "core",
-    },
-    "terraform": {
-        "attr": attr.label(default = "//config:tool_terraform", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "typecheck"],
-        "env": [["CHECKPOINT_DISABLE", "1"], ["TF_IN_AUTOMATION", "1"], ["TF_INPUT", "0"]],
-        "kind": "file",
-        "resources": "light",
-        "shard": "terraform",
-    },
-    "tflint": {
-        "attr": attr.label(default = "@dx_tools//:tflint", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "env": [["CHECKPOINT_DISABLE", "1"]],
-        "kind": "file",
-        "resources": "light",
-        "shard": "terraform",
     },
     "topiary": {
         "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
@@ -1495,54 +1432,6 @@ _REAL_SHARD_SPECS = {
         "shard": "kubernetes",
         "suffix": "-kubernetes",
     },
-    "real_cue_format": {
-        "capability": "format",
-        "doc": "Additive CUE format family aspect (cue fmt).",
-        "shard": "cue",
-        "suffix": "-cue",
-    },
-    "real_cue_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive CUE typecheck family aspect (cue vet -c=false).",
-        "shard": "cue",
-        "suffix": "-cue",
-    },
-    "real_bicep_format": {
-        "capability": "format",
-        "doc": "Additive Bicep format family aspect (bicep format).",
-        "shard": "bicep",
-        "suffix": "-bicep",
-    },
-    "real_bicep_lint": {
-        "capability": "lint",
-        "doc": "Additive Bicep lint family aspect (bicep lint).",
-        "shard": "bicep",
-        "suffix": "-bicep",
-    },
-    "real_rego_format": {
-        "capability": "format",
-        "doc": "Additive Rego format family aspect (opa fmt).",
-        "shard": "rego",
-        "suffix": "-rego",
-    },
-    "real_rego_lint": {
-        "capability": "lint",
-        "doc": "Additive Rego lint family aspect (regal lint).",
-        "shard": "rego",
-        "suffix": "-rego",
-    },
-    "real_rego_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Rego typecheck family aspect (opa check).",
-        "shard": "rego",
-        "suffix": "-rego",
-    },
-    "real_jsonnet_format": {
-        "capability": "format",
-        "doc": "Additive Jsonnet format family aspect (jsonnetfmt).",
-        "shard": "jsonnet",
-        "suffix": "-jsonnet",
-    },
     "real_fortran_format": {
         "capability": "format",
         "doc": "Additive Fortran format family aspect (ffmt).",
@@ -1561,12 +1450,6 @@ _REAL_SHARD_SPECS = {
         "requires": [compile_check_aspect],
         "shard": "fortran",
         "suffix": "-fortran",
-    },
-    "real_jsonnet_lint": {
-        "capability": "lint",
-        "doc": "Additive Jsonnet lint family aspect (jsonnet-lint).",
-        "shard": "jsonnet",
-        "suffix": "-jsonnet",
     },
     "real_lua_lint": {
         "capability": "lint",
@@ -1599,18 +1482,6 @@ _REAL_SHARD_SPECS = {
         "shard": "haskell",
         "suffix": "-haskell",
     },
-    "real_pkl_format": {
-        "capability": "format",
-        "doc": "Additive Pkl format family aspect (pkl format).",
-        "shard": "pkl",
-        "suffix": "-pkl",
-    },
-    "real_pkl_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Pkl typecheck family aspect (pkl eval, offline, one module per run).",
-        "shard": "pkl",
-        "suffix": "-pkl",
-    },
     "real_ocaml_lint": {
         "capability": "lint",
         "doc": "Additive OCaml lint family aspect (zanuda; target-coupled via OCamlCmtInfo).",
@@ -1637,24 +1508,6 @@ _REAL_SHARD_SPECS = {
         "shard": "ocaml",
         "suffix": "-ocaml",
     },
-    "real_terraform_format": {
-        "capability": "format",
-        "doc": "Additive Terraform format family aspect (terraform fmt).",
-        "shard": "terraform",
-        "suffix": "-terraform",
-    },
-    "real_terraform_lint": {
-        "capability": "lint",
-        "doc": "Additive Terraform lint family aspect (tflint).",
-        "shard": "terraform",
-        "suffix": "-terraform",
-    },
-    "real_terraform_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Terraform typecheck family aspect (terraform init and validate, offline).",
-        "shard": "terraform",
-        "suffix": "-terraform",
-    },
     "real_zig_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Zig typecheck family aspect (zig -fno-emit-bin replay of the compile action).",
@@ -1670,15 +1523,6 @@ _REAL_SHARD_SPECS = {
         "suffix": "",
     },
 }
-
-def _stage(files, inputs, rel, f):
-    """Stages f at rel for the tool and lists it as an action input."""
-    files.append((rel, f))
-    inputs.append(f)
-
-def _without(resolved, tool):
-    """Context that drops a tool from the pipeline."""
-    return real_context(resolved = drop_pipeline_tool(resolved, tool))
 
 def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
     if JavaInfo not in target:
@@ -2084,68 +1928,6 @@ def _qmllint_hook(target, _ctx, _resolved, _capability, _what, _shared):
         pairs.append((ws_path, f, False))
     return real_context(resolve_pairs = pairs)
 
-def _default_files_hook(extensions, only_capability = None, except_capability = None):
-    def _hook(target, _ctx, _resolved, capability, _what, _shared):
-        if only_capability != None and capability != only_capability:
-            return real_context()
-        if capability == except_capability:
-            return real_context()
-        pairs = []
-        for f in target[DefaultInfo].files.to_list():
-            ws_path = f.short_path
-            if ".." in ws_path.split("/") or f.extension not in extensions:
-                continue
-            pairs.append((ws_path, f, False))
-        return real_context(resolve_pairs = pairs)
-
-    return _hook
-
-def _terraform_hook(target, ctx, resolved, capability, what, shared):
-    if capability != "typecheck":
-        return real_context()
-
-    # Local module sources of deps are staged next to the owned files; the providers
-    # are offline mirrors whose roots reach the runner as -plugin-dir values.
-    pairs = _default_files_hook(["tf", "json", "hcl"])(target, ctx, resolved, capability, what, shared).resolve_pairs
-    mirror_roots = {}
-    provider_files = []
-    if TerraformModuleInfo in target:
-        for provider in target[TerraformModuleInfo].transitive_providers.to_list():
-            mirror_roots[provider.mirror_root] = True
-            provider_files.extend(provider.files.to_list())
-
-    # Relative to the execution root; the runner makes each root absolute. May be empty.
-    env = [real_request_tool_env("DX_TERRAFORM_PLUGIN_DIRS", "|".join(sorted(mirror_roots.keys())))]
-    return real_context(early_inputs = provider_files, resolve_pairs = pairs, env = env)
-
-def _opa_hook(target, _ctx, _resolved, _capability, _what, _shared):
-    if RegoInfo not in target:
-        return real_context()
-    pairs = []
-    for f in target[RegoInfo].transitive_srcs.to_list():
-        ws_path = f.short_path
-        if ".." in ws_path.split("/") or f.extension != "rego":
-            continue
-        pairs.append((ws_path, f, False))
-    return real_context(resolve_pairs = pairs)
-
-def _bicep_hook(target, _ctx, _resolved, _capability, _what, _shared):
-    if BicepInfo not in target:
-        return real_context()
-    tool_files = []
-    inputs = []
-    for f in target[BicepInfo].transitive_registry.to_list():
-        rel = f.short_path.partition("/home/.bicep/")[2]
-        if rel:
-            _stage(tool_files, inputs, "dx-bicep/home/.bicep/" + rel, f)
-    pairs = []
-    for f in depset(transitive = [target[BicepInfo].transitive_srcs, target[BicepInfo].transitive_data]).to_list():
-        ws_path = f.short_path
-        if ".." in ws_path.split("/"):
-            continue
-        pairs.append((ws_path, f, False))
-    return real_context(tool_files = tool_files, inputs = inputs, resolve_pairs = pairs)
-
 def _closure_hook(tool):
     (provider, closure_files, strict) = _CLOSURE_STAGING[tool]
 
@@ -2331,19 +2113,12 @@ _CONTEXT_HOOKS = {
     "rustc": _rustc_hook,
     "ty": _ty_hook,
     "qmllint": _qmllint_hook,
-    "cue": _default_files_hook(["cue"]),
-    "pkl": _default_files_hook(["pkl"], except_capability = "format"),
-    "terraform": _terraform_hook,
-    "opa": _opa_hook,
-    "bicep": _bicep_hook,
-    "jsonnetfmt": _default_files_hook(["jsonnet", "libsonnet", "json"]),
-    "jsonnet_lint": _default_files_hook(["jsonnet", "libsonnet", "json"]),
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
     "buf": _buf_hook,
     "psscriptanalyzer": _psscriptanalyzer_hook,
     "vale": _vale_hook,
     "gofumpt": _gofumpt_hook,
-} | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -2355,8 +2130,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -2552,21 +2327,11 @@ real_thrift_lint_aspect = _make_real_aspect("real_thrift_lint")
 real_thrift_typecheck_aspect = _make_real_aspect("real_thrift_typecheck")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
-real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
-real_terraform_lint_aspect = _make_real_aspect("real_terraform_lint")
-real_terraform_typecheck_aspect = _make_real_aspect("real_terraform_typecheck")
-
 real_go_format_aspect = _make_real_aspect("real_go_format")
 
 real_go_lint_aspect = _make_real_aspect("real_go_lint")
 
 real_go_typecheck_aspect = _make_real_aspect("real_go_typecheck")
-
-real_cue_format_aspect = _make_real_aspect("real_cue_format")
-
-real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
-
-real_jsonnet_lint_aspect = _make_real_aspect("real_jsonnet_lint")
 
 real_fortran_format_aspect = _make_real_aspect("real_fortran_format")
 real_fortran_lint_aspect = _make_real_aspect("real_fortran_lint")
@@ -2589,21 +2354,6 @@ real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
 real_latex_lint_aspect = _real_latex_lint_aspect
 real_haskell_typecheck_aspect = _make_real_aspect("real_haskell_typecheck")
-
-real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")
-
-real_bicep_format_aspect = _make_real_aspect("real_bicep_format")
-
-real_bicep_lint_aspect = _make_real_aspect("real_bicep_lint")
-
-real_rego_format_aspect = _make_real_aspect("real_rego_format")
-
-real_rego_typecheck_aspect = _make_real_aspect("real_rego_typecheck")
-
-real_rego_lint_aspect = _make_real_aspect("real_rego_lint")
-
-real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
-real_pkl_typecheck_aspect = _make_real_aspect("real_pkl_typecheck")
 
 real_text_lint_aspect = _real_text_lint_aspect
 
@@ -2681,3 +2431,31 @@ real_docs_aspect = aspect(
         config_common.toolchain_type(_CC_DOCS_TOOLCHAIN, mandatory = False),
     ],
 )
+
+real_cue_format_aspect = _real_cue_format_aspect
+
+real_cue_typecheck_aspect = _real_cue_typecheck_aspect
+
+real_pkl_format_aspect = _real_pkl_format_aspect
+
+real_pkl_typecheck_aspect = _real_pkl_typecheck_aspect
+
+real_jsonnet_format_aspect = _real_jsonnet_format_aspect
+
+real_jsonnet_lint_aspect = _real_jsonnet_lint_aspect
+
+real_rego_format_aspect = _real_rego_format_aspect
+
+real_rego_lint_aspect = _real_rego_lint_aspect
+
+real_rego_typecheck_aspect = _real_rego_typecheck_aspect
+
+real_bicep_format_aspect = _real_bicep_format_aspect
+
+real_bicep_lint_aspect = _real_bicep_lint_aspect
+
+real_terraform_format_aspect = _real_terraform_format_aspect
+
+real_terraform_lint_aspect = _real_terraform_lint_aspect
+
+real_terraform_typecheck_aspect = _real_terraform_typecheck_aspect

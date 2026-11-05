@@ -29,6 +29,7 @@ _CFG = real_config(
     source_recognizers = [],
     harness_sources = lambda _target, _capability, direct_sources: direct_sources,
     toolchain = None,
+    check_policy = False,
 )
 
 real_dockerfile_lint_aspect = real_make_aspect(_CFG, "real_dockerfile_lint")

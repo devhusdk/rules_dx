@@ -16,7 +16,10 @@ command -v adb >/dev/null || { echo "interaction: adb is not on PATH"; exit 1; }
 adb -s "$serial" get-state >/dev/null 2>&1 || { echo "interaction: no emulator $serial"; exit 1; }
 adb -s "$serial" install -r "$apk" >/dev/null
 adb -s "$serial" shell am force-stop "$app_id"
-adb -s "$serial" shell am start -n "$app_id/$activity" >/dev/null
+started="$(adb -s "$serial" shell am start -W -n "$app_id/$activity" 2>&1)"
+case "$started" in
+*Error*) echo "$started"; exit 1 ;;
+esac
 
 dump() {
     adb -s "$serial" shell uiautomator dump /sdcard/dx_ui.xml >/dev/null 2>&1 || return 1
@@ -32,8 +35,8 @@ wait_for() {
         sleep 1
         n=$((n + 1))
     done
-    echo "interaction: ui never showed $1"
     adb -s "$serial" logcat -d -t 80
+    echo "interaction: ui never showed $1"
     return 1
 }
 

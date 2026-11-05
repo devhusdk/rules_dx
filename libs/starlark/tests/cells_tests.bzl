@@ -1,6 +1,6 @@
 """Shared cell setting tests."""
 
-load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting", "unknown_cells")
+load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 
 _DEFAULT = "//conditions:default"
@@ -15,6 +15,7 @@ def _checks():
         expect_equal("one case per cell", sorted([str(key) for key in cases if key != _DEFAULT]), sorted([str(cell_setting(_PACKAGE, cell)) for cell in _PINNED])),
         expect_equal("pinned cells allow the target", [cases[key] for key in cases if key != _DEFAULT], [[] for _ in _PINNED]),
         expect_equal("other cells are incompatible", [str(label) for label in cases[_DEFAULT]], [str(Label("@platforms//:incompatible"))]),
+        expect_equal("unsupported default names the language", [str(label) for label in cell_cases(_PACKAGE, _PINNED.keys(), True)[_DEFAULT]], [str(Label("@platforms//:incompatible")), str(unsupported_constraint(_PACKAGE))]),
         expect_equal("settings live in the given package", str(cell_setting(_PACKAGE, "linux_arm64")), str(Label("//libs/starlark/tests:cell_linux_arm64"))),
         expect_equal("unknown cells are reported", unknown_cells(_PINNED, ["linux_amd64", "linux_riscv64"]), ["linux_riscv64"]),
         expect_equal("no cells is always incompatible", list(cell_cases(_PACKAGE, []).keys()), [_DEFAULT]),

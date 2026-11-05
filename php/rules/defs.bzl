@@ -13,7 +13,7 @@ PHP_COVERAGE_COLLECTOR = False
 
 PHP_SOURCE_SPECS = [("php", ["php"])]
 
-PHP_COMPATIBLE_WITH = cells_compatible_with(PHP_CELLS, "//php/toolchain", sorted(PHP_CELLS.keys()))
+PHP_COMPATIBLE_WITH = cells_compatible_with(PHP_CELLS, "//php/toolchain", sorted(PHP_CELLS.keys()), unsupported = True)
 
 PHP_DEFERRED_SKIP_TAGS = ["no-format"]
 

@@ -26,27 +26,55 @@ def unknown_cells(pinned, cells):
     """
     return [cell for cell in cells if cell not in pinned]
 
-def cell_cases(package, cells):
+def unsupported_constraint(package):
+    """Returns the constraint_value that no platform sets, marking a language as unsupported.
+
+    Args:
+        package: Package that declares the settings.
+
+    Returns:
+        The constraint_value label.
+    """
+    return Label(package + ":unsupported")
+
+def unsupported_value(name):
+    """Declares the unsupported constraint_value and its setting.
+
+    Args:
+        name: Name of the constraint_value, normally "unsupported".
+    """
+    native.constraint_setting(name = name + "_setting")
+    native.constraint_value(
+        name = name,
+        constraint_setting = ":" + name + "_setting",
+        visibility = ["//visibility:public"],
+    )
+
+def cell_cases(package, cells, unsupported = False):
     """Returns the select cases that accept only the given cells.
 
     Args:
         package: Package that declares the settings.
         cells: Cell keys to accept.
+        unsupported: Also require the package's unsupported constraint in the default, so dx can name the language.
 
     Returns:
         Select cases, with an incompatible default.
     """
     cases = {cell_setting(package, cell): [] for cell in sorted(cells)}
     cases["//conditions:default"] = [_INCOMPATIBLE]
+    if unsupported:
+        cases["//conditions:default"].append(unsupported_constraint(package))
     return cases
 
-def cells_compatible_with(pinned, package, cells):
+def cells_compatible_with(pinned, package, cells, unsupported = False):
     """Returns a target_compatible_with select for the given cells.
 
     Args:
         pinned: Dict of pinned cells.
         package: Package that declares the settings.
         cells: Cell keys to accept.
+        unsupported: Also require the package's unsupported constraint on other platforms.
 
     Returns:
         A select that fails analysis-compat for every other platform.
@@ -54,7 +82,7 @@ def cells_compatible_with(pinned, package, cells):
     unknown = unknown_cells(pinned, cells)
     if unknown:
         fail("unknown cells: " + ", ".join(unknown))
-    return select(cell_cases(package, cells))
+    return select(cell_cases(package, cells, unsupported))
 
 def cell_settings(name, cells):
     """Declares one config_setting per cell, named name_<cell>.

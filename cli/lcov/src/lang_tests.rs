@@ -50,6 +50,7 @@ fn covered_languages_include_wrapped_langs() {
         "elf.jl",
         "elf.erl",
         "elf.hrl",
+        "elf.zig",
     ] {
         assert!(is_covered_language(path), "{path}");
     }

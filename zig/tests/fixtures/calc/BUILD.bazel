@@ -2,10 +2,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//zig/rules:defs.bzl", "zig_library", "zig_test")
 load("//zig/rules:wrapper_tests.bzl", "zig_kcov_env_test")
 
-package(
-    default_testonly = True,
-    default_visibility = ["//:__subpackages__"],
-)
+package(default_visibility = ["//:__subpackages__"])
 
 zig_library(
     name = "calc",

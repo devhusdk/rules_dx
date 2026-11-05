@@ -44,6 +44,7 @@ pub(crate) const COVERED_LANGUAGES: &[(&str, LineComment)] = &[
     (".hh", LineComment::SlashSlash),
     (".hpp", LineComment::SlashSlash),
     (".hxx", LineComment::SlashSlash),
+    (".zig", LineComment::SlashSlash),
 ];
 
 /// Declaration stubs carry no executable lines, so the gate never counts them.

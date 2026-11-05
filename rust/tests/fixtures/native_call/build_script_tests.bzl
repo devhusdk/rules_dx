@@ -55,9 +55,12 @@ def _gcc_impl(ctx):
 def _llvm_impl(ctx):
     env = analysistest.begin(ctx)
     action = _run_action(env)
+    inputs = {f.path: True for f in action.inputs.to_list()}
     for name in ["CC", "CXX", "AR"]:
-        value = action.env.get(name, "")
+        value = _relative(action.env.get(name, ""))
         asserts.false(env, "dx_gcc" in value, "{} is GCC under llvm: {}".format(name, value))
+        asserts.true(env, "llvm_toolchain" in value, "{} is not the LLVM toolchain: {}".format(name, value))
+        asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
     return analysistest.end(env)
 
 def _msvc_impl(ctx):
@@ -132,6 +135,59 @@ cross_build_script_tool_inputs_test = analysistest.make(
     _tool_inputs_test_impl,
     config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))},
 )
+
+def _cross_gcc_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    for name in ["CC", "CXX", "AR", "TARGET_CC", "TARGET_CXX", "TARGET_AR"]:
+        value = action.env.get(name, "")
+        asserts.true(env, "dx_gcc_linux_aarch64_cross" in value, "{} is not the aarch64 cross GCC: {}".format(name, value))
+    for name in ["HOST_CC", "HOST_CXX", "HOST_AR"]:
+        value = action.env.get(name, "")
+        asserts.true(env, "dx_gcc_linux_x86_64" in value, "{} is not the exec GCC: {}".format(name, value))
+        asserts.false(env, "aarch64" in value, "{} is the target toolchain: {}".format(name, value))
+    cflags = action.env.get("CFLAGS", "")
+    asserts.true(env, "aarch64-linux" in cflags, "CFLAGS does not target aarch64: {}".format(cflags))
+    asserts.false(env, "dx_gcc_linux_x86_64" in cflags, "CFLAGS uses the exec GCC: {}".format(cflags))
+    for name, value in action.env.items():
+        for part in value.split(" "):
+            asserts.false(env, part.startswith("/usr") or part.startswith("-L/usr"), "host path in {}: {}".format(name, value))
+    return analysistest.end(env)
+
+def _cross_llvm_impl(ctx):
+    env = analysistest.begin(ctx)
+    action = _run_action(env)
+    for name in ["CFLAGS", "CXXFLAGS"]:
+        parts = action.env.get(name, "").split(" ")
+        asserts.true(env, "aarch64-linux-gnu" in parts, "{} does not target aarch64: {}".format(name, parts))
+        asserts.false(env, "x86_64-linux-gnu" in parts, "{} targets x86_64: {}".format(name, parts))
+    for name in ["HOST_CC", "HOST_CXX", "HOST_AR", "TARGET_CC", "TARGET_CXX", "TARGET_AR"]:
+        value = action.env.get(name, "")
+        asserts.false(env, "dx_gcc" in value, "{} is GCC under llvm: {}".format(name, value))
+    return analysistest.end(env)
+
+_CROSS = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))}
+_cross_gcc_test = analysistest.make(_cross_gcc_impl, config_settings = dict(_CROSS, **{_COMPILER: "gcc"}))
+_cross_llvm_test = analysistest.make(_cross_llvm_impl, config_settings = dict(_CROSS, **{_COMPILER: "llvm"}))
+
+def cross_build_script_identity_tests(name, target):
+    """Asserts a cross build script gets the target toolchain and HOST_* the exec toolchain.
+
+    Args:
+        name: Name of the test suite.
+        target: A cargo_build_script that uses the cc toolchain.
+    """
+    tests = []
+    for compiler, rule in [("gcc", _cross_gcc_test), ("llvm", _cross_llvm_test)]:
+        test = "{}_{}".format(name, compiler)
+        rule(
+            name = test,
+            size = "small",
+            target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+        tests.append(test)
+    native.test_suite(name = name, tests = tests)
 
 def build_script_msvc_test(name, target):
     """Asserts the build script runs with the provisioned cl.exe and lib.exe on Windows x64.

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_COMPATIBLE_WITH", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -490,12 +490,12 @@ def qt_rules_tests(name):
     _rust_module_test(
         name = name + "_rust_module",
         target_under_test = "//qt/tests/fixtures/qt-rust/model",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _bridge_test(
         name = name + "_bridge",
         target_under_test = "//qt/tests/fixtures/qt-rust/model:model_bridge",
-        target_compatible_with = _LINUX,
+        target_compatible_with = QT_COMPATIBLE_WITH,
     )
     failures = {
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
@@ -512,7 +512,7 @@ def qt_rules_tests(name):
             name = name + "_" + fixture,
             target_under_test = ":" + fixture,
             message = failures[fixture],
-            target_compatible_with = _LINUX if fixture.startswith("bundle_") or fixture == "rust_foreign" else QT_COMPATIBLE_WITH,
+            target_compatible_with = QT_BUNDLE_COMPATIBLE_WITH if fixture.startswith("bundle_") else QT_COMPATIBLE_WITH,
         )
     native.test_suite(
         name = name,

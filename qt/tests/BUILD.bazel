@@ -287,7 +287,7 @@ qt_rust_library(
     name = "rust_foreign",
     bridges = ["//qt/tests/other:bridge.rs"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Foreign.Rust",
 )
 
@@ -345,7 +345,6 @@ qt_bundle(
     binary = "//qt/tests/fixtures/qt-tasks/app:tasks",
     licenses = ["probe.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
 )
 
 qt_bundle(
@@ -353,7 +352,6 @@ qt_bundle(
     binary = "//qt/tests/fixtures/qt-tasks/app:tasks",
     qml_modules = ["Tasks.Missing"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
 )
 
 cc_library(

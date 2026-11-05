@@ -972,6 +972,7 @@ def qt_rust_runtime(name, core, **kwargs):
         includes = [name + "_files"],
         deps = [core],
         alwayslink = True,
+        linkopts = kwargs.pop("linkopts", []) + _dynamic_lookup_linkopts(),
         **kwargs
     )
 

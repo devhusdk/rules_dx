@@ -1009,6 +1009,10 @@ def qt_rust_cc_library(
     _output_group(name + "_bridge_hdrs", ":" + name + "_bridge", "qt_rust_hdrs", testonly)
     _output_group(name + "_bridge_moc", ":" + name + "_bridge", "qt_rust_moc_hdrs", testonly)
     _output_group(name + "_bridge_srcs", ":" + name + "_bridge", "qt_rust_srcs", testonly)
+    kwargs["linkopts"] = kwargs.get("linkopts", []) + select({
+        "@platforms//os:macos": ["-Wl,-all_load"],
+        "//conditions:default": [],
+    })
     _library(
         name,
         [":" + name + "_bridge_srcs"],
@@ -1145,7 +1149,7 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
             members["plugins/" + plugin[0]] = path
             roots.extend(needs.runtime_plugin[plugin[0]])
             continue
-        if _soname(name) or name.endswith(".so"):
+        if _soname(name) or name.endswith(".so") or name.endswith(".dylib"):
             libraries.setdefault(name, path)
             if linked:
                 roots.append(name)

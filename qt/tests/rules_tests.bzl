@@ -175,6 +175,24 @@ def _unit_checks():
                 ("plugins/platforms/libqcocoa.dylib", "../qt/plugins/platforms/libqcocoa.dylib"),
             ],
         ),
+        expect_equal(
+            "bundle stages linked macos dylibs",
+            qt_bundle_members(
+                [
+                    "app/tool",
+                    "app/_solib_darwin_arm64/libapp_Smodel_Slibmodel_Uupstream.dylib",
+                    "app/_solib_darwin_arm64/libapp_Sui_Slibui_Uupstream.dylib",
+                    "../qt/lib/QtCore.framework/Versions/A/QtCore",
+                ],
+                [],
+                None,
+                CELLS["macos_arm64"].needs,
+            ),
+            [
+                ("lib/libapp_Smodel_Slibmodel_Uupstream.dylib", "app/_solib_darwin_arm64/libapp_Smodel_Slibmodel_Uupstream.dylib"),
+                ("lib/libapp_Sui_Slibui_Uupstream.dylib", "app/_solib_darwin_arm64/libapp_Sui_Slibui_Uupstream.dylib"),
+            ],
+        ),
         # The linked rule (a DLL not under ../) is confirmed on a Windows host by #6520.
         expect_equal(
             "bundle stages windows dlls",

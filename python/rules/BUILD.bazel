@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "python_main", "python_main_rejection", "python_test_rejection")
+load(":defs.bzl", "python_library", "python_main", "python_main_rejection", "python_test_rejection")
 load(":runtime_tests.bzl", "python_runtime_unit_tests")
 load(":sdist_cargo_vendor.bzl", "parse_cargo_lock", "parse_uv_lock_sdist")
 
@@ -33,6 +33,12 @@ source = "git+https://example.com/dep"
 """
 
 package(default_visibility = ["//visibility:public"])
+
+python_library(
+    name = "bench_plugin",
+    srcs = ["dx_bench_plugin.py"],
+    imports = ["."],
+)
 
 exports_files([
     "defs.bzl",

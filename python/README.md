@@ -26,6 +26,10 @@ python_test(
 `python_test` runs pytest by default. Set `runner = "plain"` to run a `main`
 script instead.
 
+`python_benchmark` is a `python_test` for `dx bench`. List `pytest-benchmark`
+in the project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
+benchmark becomes one row, in seconds.
+
 ## Dependencies
 
 Declare a `uv` hub named `pypi` in `MODULE.bazel`:

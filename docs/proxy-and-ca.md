@@ -38,7 +38,7 @@ rewrite github.com/(.*) mirror.example.com/github/$1
 
 ## tools/dx
 
-`tools/dx` downloads the pinned binary with `curl`, or `wget` when `curl` is missing. Both read `HTTPS_PROXY` and `NO_PROXY`. When the download fails, `tools/dx` runs the command through `bazel run @rules_dx//:dx` instead.
+`tools/dx` downloads the pinned binary with `curl`, or `wget` when `curl` is missing. Both read `HTTPS_PROXY` and `NO_PROXY`. When the download fails, `tools/dx` prints why on stderr and runs the command through `bazel run @rules_dx//:dx` instead.
 
 Add a company CA with the tool's own setting.
 

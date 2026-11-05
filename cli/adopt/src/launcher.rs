@@ -246,6 +246,8 @@ fail() {
   exit 1
 }
 via_bazel() {
+  echo "dx: $1, building from source through Bazel" >&2
+  shift
   exec bazel run @rules_dx//:dx -- "$@"
 }
 root=$(CDPATH="" cd -- "$(dirname -- "$0")/.." && pwd)
@@ -296,21 +298,21 @@ if [ "${1:-}" != worktree ] || [ "${2:-}" != hook ]; then
 fi
 pins="$root/$DX_PINS"
 module="$root/MODULE.bazel"
-[ -f "$module" ] || via_bazel "$@"
+[ -f "$module" ] || via_bazel "no MODULE.bazel" "$@"
 if grep -Eq 'module_name *= *"rules_dx"' "$module"; then
-  via_bazel "$@"
+  via_bazel "MODULE.bazel is rules_dx itself" "$@"
 fi
 dep='^bazel_dep\(name = "rules_dx", version = "[^"]*"\)[[:space:]]*$'
-[ "$(grep -Ec "$dep" "$module" || true)" = 1 ] || via_bazel "$@"
+[ "$(grep -Ec "$dep" "$module" || true)" = 1 ] || via_bazel "MODULE.bazel needs exactly one plain rules_dx bazel_dep" "$@"
 VERSION=$(grep -E "$dep" "$module" | sed 's/^.*version = "\([^"]*\)".*$/\1/')
 case "$VERSION" in
-  "" | .* | *[!0-9A-Za-z.+-]*) via_bazel "$@" ;;
+  "" | .* | *[!0-9A-Za-z.+-]*) via_bazel "cannot read the rules_dx version in MODULE.bazel" "$@" ;;
 esac
-[ -n "$os" ] || via_bazel "$@"
+[ -n "$os" ] || via_bazel "unknown OS $(uname -s)" "$@"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
   aarch64 | arm64) arch=arm64 ;;
-  *) via_bazel "$@" ;;
+  *) via_bazel "unknown machine $(uname -m)" "$@" ;;
 esac
 if [ "$os-$arch" = macos-x86_64 ]; then
   for key in hw.optional.arm64 sysctl.proc_translated; do
@@ -322,7 +324,7 @@ if [ "$os-$arch" = macos-x86_64 ]; then
 fi
 case "$os-$arch" in
   linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
-  *) via_bazel "$@" ;;
+  *) via_bazel "no release binary for $os-$arch" "$@" ;;
 esac
 if [ -n "${DX_CACHE_DIR:-}" ]; then
   cache="$DX_CACHE_DIR"
@@ -363,7 +365,7 @@ if [ "$os" = linux ]; then
       ;;
   esac
 fi
-[ -f "$pins" ] || via_bazel "$@"
+[ -f "$pins" ] || via_bazel "no pinned binary for $os-$arch at $VERSION" "$@"
 cr=$(printf '\r')
 want=
 while read -r ver sum asset || [ -n "$ver" ]; do
@@ -372,7 +374,7 @@ while read -r ver sum asset || [ -n "$ver" ]; do
     want=$sum
   fi
 done < "$pins"
-[ -n "$want" ] || via_bazel "$@"
+[ -n "$want" ] || via_bazel "no pinned binary for $os-$arch at $VERSION" "$@"
 url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
 mkdir -p "$dir"
 tmp="$dir/.dx-$os-$arch.$$"
@@ -386,11 +388,12 @@ fetch() {
     return 1
   fi
 }
-if ! fetch "$url" "$tmp"; then
+fetch "$url" "$tmp" || {
+  status=$?
   rm -f "$tmp"
   rmdir "$dir" 2> /dev/null || true
-  via_bazel "$@"
-fi
+  via_bazel "download of $url failed (exit $status)" "$@"
+}
 if command -v sha256sum > /dev/null 2>&1; then
   got=$(sha256sum "$tmp" | cut -d' ' -f1)
 elif command -v shasum > /dev/null 2>&1; then
@@ -1250,13 +1253,19 @@ mod tests {
                     .unwrap_or_default()
             }
 
-            fn assert_via_bazel(&self, args: &[&str]) {
+            fn assert_via_bazel(&self, args: &[&str]) -> String {
                 let (code, out, err) = self.run(args);
                 assert_eq!(code, Some(0), "{out}{err}");
-                assert!(out.is_empty() && err.is_empty(), "{out}{err}");
+                assert!(out.is_empty(), "{out}{err}");
+                assert!(
+                    err.starts_with("dx: ")
+                        && err.ends_with(", building from source through Bazel\n"),
+                    "{err}"
+                );
                 let want = format!("run @rules_dx//:dx -- {}", args.join(" "));
                 assert_eq!(self.bazel_calls(), vec![want]);
                 assert!(self.cached().is_empty(), "{:?}", self.cached());
+                err
             }
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
@@ -1769,8 +1778,23 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn a_missing_pins_file_runs_through_bazel() {
             let fx = Fixture::new("dx-launcher-nopin-", true, None);
             std::fs::remove_file(fx.base.join("repo/.dx/pins")).expect("remove pin");
-            fx.assert_via_bazel(&["version"]);
+            let err = fx.assert_via_bazel(&["version"]);
+            assert_eq!(
+                err,
+                "dx: no pinned binary for linux-x86_64 at 1.2.3, building from source through Bazel\n"
+            );
             assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn a_failed_download_names_the_url_and_exit_code() {
+            let fx = Fixture::new("dx-launcher-fetch-reason-", false, None);
+            let err = fx.assert_via_bazel(&["version"]);
+            assert_eq!(
+                err,
+                "dx: download of https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-linux-x86_64 failed (exit 6), building from source through Bazel\n"
+            );
+            assert_eq!(fx.downloads(), 1);
         }
 
         #[test]

@@ -299,6 +299,8 @@ pub struct Invocation {
     pub capabilities: bool,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
+    /// `build`/`test`/`coverage --profile`: print where build time went.
+    pub build_profile: bool,
     /// An umbrella phase's execution log file; set instead of `explain` so the umbrella owns the store entry.
     pub exec_log: Option<String>,
     /// `dx explain --old`.
@@ -702,6 +704,7 @@ mod tests {
             bases: false,
             capabilities: false,
             explain: false,
+            build_profile: false,
             exec_log: None,
             old_log: None,
             new_log: None,

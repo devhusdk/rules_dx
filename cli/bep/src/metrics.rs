@@ -36,6 +36,25 @@ pub fn collect_action_summary(reader: impl BufRead) -> Option<ActionSummary> {
     found
 }
 
+/// Returns the last `buildMetrics` system network bytes received, or `None` when Bazel reported none.
+pub fn collect_bytes_received(reader: impl BufRead) -> Option<u64> {
+    let mut found = None;
+    for line in reader.lines() {
+        let Ok(line) = line else { break };
+        if !line.contains("\"bytesRecv\"") {
+            continue;
+        }
+        let Ok(event) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
+        if let Some(bytes) = event.pointer("/buildMetrics/networkMetrics/systemNetworkStats/bytesRecv")
+        {
+            found = Some(count_of(Some(bytes)));
+        }
+    }
+    found
+}
+
 fn parse_summary(summary: &Value) -> ActionSummary {
     let mut disk = 0u64;
     let mut remote = 0u64;
@@ -90,6 +109,13 @@ mod tests {
                 local_cache_hits: 5,
             })
         );
+    }
+
+    #[test]
+    fn metrics_reads_bytes_received_from_network_stats() {
+        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"networkMetrics":{"systemNetworkStats":{"bytesRecv":"2048"}}}}"#;
+        assert_eq!(collect_bytes_received(line.as_bytes()), Some(2048));
+        assert_eq!(collect_bytes_received(FULL.as_bytes()), None);
     }
 
     #[test]

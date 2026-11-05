@@ -3,6 +3,7 @@ use super::common::*;
 use super::deploy::execute_deploy;
 use super::explain_store;
 use super::failure_reports::write_failure_reports;
+use super::profile_report;
 use super::run::execute_run;
 use super::skipped_targets::{count_skipped, skipped_notice};
 use super::test_reports::{execute_test_reports, TestReportsRequest};
@@ -227,6 +228,26 @@ fn execute_checked(
             }
         }
     }
+    let trace = if invocation.build_profile {
+        match prepare_trace(workspace) {
+            Ok(path) => {
+                bazel_options.push(format!("--profile={path}"));
+                Some(path)
+            }
+            Err(message) => {
+                discard_log();
+                return operational(
+                    invocation,
+                    out,
+                    err,
+                    profile_report::CODE_PROFILE_UNREADABLE,
+                    &message,
+                );
+            }
+        }
+    } else {
+        None
+    };
     let plan = match plan_workflow(
         verb,
         &resolved,
@@ -269,6 +290,13 @@ fn execute_checked(
         }
     }
     let action_counts = read_actions(&bep, actions);
+    if let Some(trace) = &trace {
+        if let Err(exit) = announce_profile(invocation, workspace, out, err, trace, &bep, action_counts)
+        {
+            let _ = std::fs::remove_file(&bep);
+            return kept_child(err, bazel_code, exit);
+        }
+    }
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {
             if let Err(exit) = report_build_failures(&bep, invocation.output, out, err) {
@@ -333,6 +361,76 @@ fn execute_checked(
         actions: action_counts,
         whole_repo: resolved.targets == ["//..."],
     })
+}
+
+/// Creates `.dx/profile` and returns the trace file Bazel should write.
+fn prepare_trace(workspace: &std::path::Path) -> Result<String, String> {
+    let dir = profile_report::dir(workspace);
+    std::fs::create_dir_all(&dir)
+        .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
+    profile_report::profile_path(workspace)
+        .to_str()
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| "profile path is not UTF-8".to_owned())
+}
+
+/// Reads the trace Bazel wrote and reports where the time went: text on stderr, or a notice
+/// pointing at `.dx/profile/report.json` in JSON.
+fn announce_profile(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    trace: &str,
+    bep: &std::path::Path,
+    counts: Option<ActionCounts>,
+) -> Result<(), i32> {
+    let cache = counts.map(|counts| profile_report::CacheUse {
+        executed: counts.executed,
+        disk: counts.disk,
+        remote: counts.remote,
+    });
+    let bytes = std::fs::File::open(bep)
+        .ok()
+        .and_then(|file| dx_bep::collect_bytes_received(std::io::BufReader::new(file)));
+    let report = std::fs::read_to_string(trace)
+        .map_err(|error| error.to_string())
+        .and_then(|text| {
+            profile_report::build(&text, cache, bytes).map_err(|error| error.to_string())
+        });
+    let report = match report {
+        Ok(report) => report,
+        Err(error) => {
+            let message = format!("could not read the build profile {trace}: {error}");
+            if invocation.output == OutputMode::Json {
+                let notice = NoticeEvent {
+                    related_command: Some(invocation.command.name().to_owned()),
+                    path: Some(trace.to_owned()),
+                    ..NoticeEvent::warning(profile_report::CODE_PROFILE_UNREADABLE, message)
+                };
+                return emit_built(out, notice_event(&notice));
+            }
+            if invocation.chatty() {
+                let _ = writeln!(err, "dx: {message}");
+            }
+            return Ok(());
+        }
+    };
+    let report_file = profile_report::report_path(workspace);
+    let value = report.json();
+    let _ = std::fs::write(&report_file, format!("{value}\n"));
+    if invocation.output == OutputMode::Json {
+        let notice = NoticeEvent {
+            related_command: Some(invocation.command.name().to_owned()),
+            path: Some(report_file.display().to_string()),
+            ..NoticeEvent::info(profile_report::CODE_PROFILE_REPORT, value.to_string())
+        };
+        return emit_built(out, notice_event(&notice));
+    }
+    if invocation.chatty() {
+        let _ = writeln!(err, "{}", report.text());
+    }
+    Ok(())
 }
 
 /// Names the saved execution log: a notice in JSON, one stderr line in text.
@@ -535,6 +633,36 @@ mod tests {
         assert!(out.contains("\"failing_cases\""), "{out}");
         assert!(out.contains("boom"), "{out}");
         assert!(harness.workspace.join(".dx/results.json").is_file());
+    }
+
+    #[test]
+    fn profile_passes_the_trace_flag_and_reports_json_and_text() {
+        let harness = Harness::new("build-profile");
+        let dir = harness.workspace.join(".dx/profile");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(
+            dir.join("trace.json"),
+            r#"{"traceEvents":[{"cat":"action processing","name":"slow","ts":0,"dur":2000000}]}"#,
+        )
+        .expect("trace");
+        let inv = invocation(&["build", "--profile", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        let flag = format!("--profile={}", dir.join("trace.json").display());
+        assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
+        let notice = run
+            .out
+            .lines()
+            .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("json"))
+            .find(|event| event["code"] == "profile_report")
+            .expect("notice");
+        assert_eq!(notice["path"], dir.join("report.json").display().to_string());
+        assert!(notice["message"].as_str().expect("message").contains("slow"));
+        assert!(dir.join("report.json").is_file());
+        let (code, _, err) = harness.run(&["build", "--profile"]);
+        assert_eq!(code, 0);
+        assert!(err.contains("dx: profile, wall time 2.0s"), "{err}");
+        let run = harness.probe_with(&invocation(&["build"]), &[Some(0)]);
+        assert!(!run.argv[0].iter().any(|arg| arg.starts_with("--profile")));
     }
 
     #[test]

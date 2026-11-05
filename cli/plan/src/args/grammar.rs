@@ -128,6 +128,7 @@ pub(crate) struct Flags {
     pub(crate) bases: bool,
     pub(crate) capabilities: bool,
     pub(crate) explain: bool,
+    pub(crate) build_profile: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
     pub(crate) bazel_startup_options: Vec<String>,
@@ -693,6 +694,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// Print where build time went.
+    BuildProfileFlag, {
+        #[arg(long = "profile", overrides_with = "build_profile")]
+        build_profile: bool,
+    }
+}
+
+flag_group! {
     /// Older execution log (default: the second newest saved log).
     OldLogFlag, {
         #[arg(long = "old", value_name = "LOG", overrides_with = "old_log", value_parser = non_empty)]
@@ -929,6 +938,7 @@ command_args! {
         output: OutputFlag,
         own: ProfileArgs,
         explain: ExplainFlag,
+        build_profile: BuildProfileFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -938,6 +948,7 @@ command_args! {
         output: OutputFlag,
         own: ProfileArgs,
         explain: ExplainFlag,
+        build_profile: BuildProfileFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -948,6 +959,7 @@ command_args! {
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
         explain: ExplainFlag,
+        build_profile: BuildProfileFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

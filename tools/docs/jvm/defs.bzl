@@ -1,11 +1,8 @@
 """JVM API reference shards built from public sources by Javadoc, Dokka and Scaladoc."""
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
-
-_JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
-_KOTLIN_TOOLCHAIN = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 
 _JvmDirectSrcsInfo = provider(
     doc = "The sources one JVM library lists in its own srcs.",
@@ -50,81 +47,14 @@ def _shard_impl(ctx):
             fail(_where(ctx) + ": dep " + str(dep.label) + " uses the same package '" + package + "'")
         dep_shards.append(shard_info.shard)
 
-    java_info = lib[JavaInfo]
-    own_jars = {}
-    compiled = []
-    for output in java_info.java_outputs:
-        if output.compile_jar:
-            own_jars[output.compile_jar.path] = True
-            compiled.append(output.compile_jar)
-        if output.class_jar:
-            own_jars[output.class_jar.path] = True
-
-    # The adapter reads the sources alone. The library's own compile jar is only an input, so a
-    # library that does not compile fails the build before extraction, in every language.
-    classpath_jars = {f.path: f for f in java_info.transitive_compile_time_jars.to_list()}
-    if language == "kotlin":
-        # The Kotlin toolchain adds its stdlib to a library's compile classpath only privately.
-        for f in ctx.toolchains[_KOTLIN_TOOLCHAIN].jvm_stdlibs.transitive_compile_time_jars.to_list():
-            classpath_jars[f.path] = f
-    classpath = sorted([
-        f
-        for path, f in classpath_jars.items()
-        if path not in own_jars
-    ], key = lambda f: f.path)
-
-    manifest = ctx.actions.declare_file(ctx.label.name + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted([
-        srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source)
-        for f in own
-    ])))
-    classpath_file = ctx.actions.declare_file(ctx.label.name + ".classpath.txt")
-    ctx.actions.write(classpath_file, "".join([f.path + "\n" for f in classpath]))
-
-    api_json = ctx.actions.declare_file(ctx.label.name + ".api.json")
-    release = ctx.toolchains[_JAVA_TOOLCHAIN].java.source_version
-    adapter = ctx.actions.args()
-    adapter.add("--srcs-manifest", manifest)
-    adapter.add("--classpath-file", classpath_file)
-    adapter.add("--release", release)
-    adapter.add("--out", api_json)
-    ctx.actions.run(
-        executable = ctx.executable._adapter,
-        arguments = [adapter],
-        inputs = own + classpath + compiled + [manifest, classpath_file],
-        outputs = [api_json],
-        mnemonic = ctx.attr._mnemonic,
-        toolchain = None,
-        resource_set = dx_heavy_resources,
-        progress_message = "Reading " + language + " API docs for %{label}",
-        use_default_shell_env = False,
-    )
-
-    shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
-    convert = ctx.actions.args()
-    convert.add("--json", api_json)
-    convert.add("--language", language)
-    convert.add("--package", package)
-    convert.add("--srcs-manifest", manifest)
-    for dep_shard in dep_shards:
-        convert.add("--dep-shard", dep_shard)
-    convert.add("--out", shard)
-    ctx.actions.run(
-        executable = ctx.executable._convert,
-        arguments = [convert],
-        inputs = [api_json, manifest] + dep_shards,
-        outputs = [shard],
-        mnemonic = "DxDocsJvmConvert",
-        toolchain = None,
-        progress_message = "Converting " + language + " API docs for %{label}",
-    )
+    action = jvm_shard_action(ctx, language, lib[JavaInfo], own, package, dep_shards, ctx.label.name, ctx.executable._adapter, ctx.executable._convert)
     return [
-        DefaultInfo(files = depset([shard])),
+        DefaultInfo(files = depset([action.shard])),
         OutputGroupInfo(
-            api_json = depset([api_json]),
-            srcs_manifest = depset([manifest]),
+            api_json = depset([action.api_json]),
+            srcs_manifest = depset([action.manifest]),
         ),
-        DocsShardInfo(language = language, package = package, shard = shard),
+        DocsShardInfo(language = language, package = package, shard = action.shard),
     ]
 
 def _jvm_shard_rule(language, adapter, mnemonic, extensions, toolchains = []):
@@ -158,7 +88,7 @@ def _jvm_shard_rule(language, adapter, mnemonic, extensions, toolchains = []):
             "_mnemonic": attr.string(default = mnemonic),
         },
         provides = [DocsShardInfo],
-        toolchains = [_JAVA_TOOLCHAIN] + toolchains,
+        toolchains = [JAVA_TOOLCHAIN] + toolchains,
     )
 
 docs_java_shard = _jvm_shard_rule(
@@ -191,7 +121,7 @@ docs_kotlin_shard = _jvm_shard_rule(
     adapter = "//tools/docs/jvm/dokka:dokka_extract",
     mnemonic = "DxDocsDokka",
     extensions = ["kt"],
-    toolchains = [_KOTLIN_TOOLCHAIN],
+    toolchains = [KOTLIN_TOOLCHAIN],
 )
 
 def kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs):

@@ -63,6 +63,7 @@ load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_ru
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
+load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
 load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action")
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
@@ -1401,6 +1402,23 @@ def _python_docs_shard(target, ctx):
     action = python_shard_action(ctx, target[_PyInfo], ctx.label.name, "google", "_dx_docs/" + ctx.label.name, ctx.executable._py_driver, ctx.executable._py_extract)
     return action.shard if action else None
 
+def _jvm_docs_shard(target, ctx):
+    if JavaInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
+        return None
+    srcs = sorted(getattr(ctx.rule.files, "srcs", []), key = lambda f: f.path)
+    if not srcs or getattr(ctx.rule.attr, "plugins", []):
+        return None
+    for language, spec in JVM_LANGUAGES.items():
+        if all([f.extension == spec.extension for f in srcs]):
+            if ctx.toolchains[JAVA_TOOLCHAIN] == None or (language == "kotlin" and ctx.toolchains[KOTLIN_TOOLCHAIN] == None):
+                return None
+            adapter = getattr(ctx.executable, "_" + language + "_extract")
+            action = jvm_shard_action(ctx, language, target[JavaInfo], srcs, ctx.label.name, [], "_dx_docs/" + ctx.label.name, adapter, ctx.executable._jvm_convert)
+            return action.shard
+    return None
+
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_site")
@@ -1436,6 +1454,9 @@ def _real_docs_aspect_impl(target, ctx):
     py_shard = _python_docs_shard(target, ctx)
     if py_shard:
         parts.append({"dx_results": [py_shard], "dx_docs_shards": [py_shard]})
+    jvm_shard = _jvm_docs_shard(target, ctx)
+    if jvm_shard:
+        parts.append({"dx_results": [jvm_shard], "dx_docs_shards": [jvm_shard]})
     if not parts:
         return []
     groups = {}
@@ -1446,7 +1467,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go and Python library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python and JVM library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_driver": attr.label(
             cfg = "exec",
@@ -1469,6 +1490,21 @@ real_docs_aspect = aspect(
             cfg = "exec",
             executable = True,
         ),
+        "_java_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/jvm/javadoc:javadoc_extract"),
+            executable = True,
+        ),
+        "_jvm_convert": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/jvm/convert:jvm_convert"),
+            executable = True,
+        ),
+        "_kotlin_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/jvm/dokka:dokka_extract"),
+            executable = True,
+        ),
         "_py_driver": attr.label(
             cfg = "exec",
             default = Label("//quality/tools/python:griffe_dump"),
@@ -1479,10 +1515,17 @@ real_docs_aspect = aspect(
             default = Label("//tools/docs/python/extract:python_extract"),
             executable = True,
         ),
+        "_scala_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/jvm/scaladoc:scaladoc_extract"),
+            executable = True,
+        ),
     },
     fragments = ["cpp"],
     requires = [rust_doc_inputs_aspect],
     toolchains = [
+        config_common.toolchain_type(JAVA_TOOLCHAIN, mandatory = False),
+        config_common.toolchain_type(KOTLIN_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_RUST_DOCS_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(_CC_DOCS_TOOLCHAIN, mandatory = False),
     ],

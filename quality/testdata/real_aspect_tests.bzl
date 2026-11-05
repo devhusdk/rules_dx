@@ -546,6 +546,28 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_go_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_java_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/jvm/fixture/_dx_docs/shapes.ir.pb
+field dx_docs_sites=(none)
+field dx_results=shapes.ir.pb
+field label=//tools/docs/jvm/fixture:shapes
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_java_library_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_kotlin_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/jvm/fixture/_dx_docs/kotlin_shapes.ir.pb
+field dx_docs_sites=(none)
+field dx_results=kotlin_shapes.ir.pb
+field label=//tools/docs/jvm/fixture:kotlin_shapes
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_kotlin_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_plain_subject
 field docs_shard_count=0
 field docs_shards=(none)
@@ -589,6 +611,17 @@ aspect_field aspect_seen=True
 aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_rust_test_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_scala_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/jvm/fixture/_dx_docs/scala_shapes.ir.pb
+field dx_docs_sites=(none)
+field dx_results=scala_shapes.ir.pb
+field label=//tools/docs/jvm/fixture:scala_shapes
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_scala_library_subject
 aspect_field transitive_count=0"""
 
 def real_docs_tests(name, subjects):

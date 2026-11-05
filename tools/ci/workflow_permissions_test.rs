@@ -5,7 +5,7 @@ use dx_testing::read_runfiles;
 /// Text that shows a step uses a write scope, one entry per scope GitHub grants.
 /// A scope missing here fails the check, so a new grant needs a reviewed marker.
 const MARKERS: &[(&str, &[&str])] = &[
-    ("actions", &["/cancel", "/force-cancel", "gh cache delete"]),
+    ("actions", &["/cancel", "/force-cancel", "gh cache delete", "gh workflow run"]),
     ("attestations", &["actions/attest@"]),
     ("artifact-metadata", &["actions/attest@"]),
     ("checks", &["check-runs"]),

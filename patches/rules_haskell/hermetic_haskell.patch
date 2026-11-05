@@ -277,7 +277,7 @@ diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
 index 0fa4fd9..eba5803 100644
 --- a/haskell/private/actions/link.bzl
 +++ b/haskell/private/actions/link.bzl
-@@ -90,17 +90,15 @@ def darwin_flags_for_linking_indirect_cc_deps(hs, cc, posix, basename, dynamic):
+@@ -90,17 +90,16 @@ def darwin_flags_for_linking_indirect_cc_deps(hs, cc, posix, basename, dynamic):
      # -p     Don't sort; display in symbol-table order.
      # -U     Don't display undefined symbols.
      hs.actions.run_shell(
@@ -291,7 +291,8 @@ index 0fa4fd9..eba5803 100644
 +            {nm} -Ujpg "$lib" | {{ IFS= read -r s && printf -- '-u %s\\n' "$s"; }} >> {out}
          done
          """.format(
-             nm = cc.tools.nm,
+-            nm = cc.tools.nm,
++            nm = cc.tools.nm or "/usr/bin/nm",
 -            head = posix.commands["head"],
 -            sed = posix.commands["sed"],
              solibs = " ".join(["\"" + lib.path + "\"" for lib in cc_dynamic_libs]),

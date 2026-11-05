@@ -7,9 +7,9 @@ load("//deploy/rules:validate.bzl", "genrule_arg")
 
 def bcr_source_error(module_name, version):
     """Validates the BCR module name + version pair."""
-    if module_name != "rules_dx":
+    if module_name != "rules_dx" and not (type(module_name) == "string" and module_name.startswith("rules_dx_") and len(module_name) > len("rules_dx_")):
         return ("bcr: invalid module '" + str(module_name) +
-                "': want 'rules_dx'")
+                "': want 'rules_dx' or 'rules_dx_<family>'")
     if type(version) != "string" or version == "":
         return ("bcr: invalid version '" + str(version) +
                 "': want SemVer MAJOR.MINOR.PATCH (for example '1.0.0')")

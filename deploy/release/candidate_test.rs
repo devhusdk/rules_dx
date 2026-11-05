@@ -888,3 +888,42 @@ fn release_source_refuses_a_family_dep_at_another_version() {
     assert!(error.ends_with("land the version bump first"), "{error}");
     assert!(!out.join("source.json").exists());
 }
+
+#[test]
+fn registry_stage_serves_family_modules_from_the_one_archive() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let good = fixture.archive("good.tar.gz");
+    let prefix = format!("rules_dx-{VERSION}");
+    let mut all = members(&good);
+    all.push((
+        format!("{prefix}/families/go/MODULE.bazel"),
+        b"module(name = \"rules_dx_go\", version = \"0.0.0\")\n".to_vec(),
+        0o644,
+    ));
+    let archive = fixture.path("family.tar.gz");
+    repack(&all, &archive);
+    let digest = dx_digest::sha256_file_hex(&archive).expect("digest");
+    let registry = fixture.path("registry");
+    stage_local_registry(&registry, &candidate, &archive).expect("registry");
+    let dir = registry.join("modules/rules_dx_go").join(VERSION);
+    let source = std::fs::read_to_string(dir.join("source.json")).expect("source");
+    assert!(
+        source.contains(&format!("\"strip_prefix\": \"{prefix}/families/go\"")),
+        "{source}"
+    );
+    assert!(
+        source.contains(&bcr_integrity_of_digest(&digest).expect("integrity")),
+        "{source}"
+    );
+    let module = std::fs::read_to_string(dir.join("MODULE.bazel")).expect("module");
+    assert!(
+        module.contains(&format!("version = \"{VERSION}\"")),
+        "{module}"
+    );
+    assert!(registry
+        .join("modules/rules_dx")
+        .join(VERSION)
+        .join("source.json")
+        .exists());
+}

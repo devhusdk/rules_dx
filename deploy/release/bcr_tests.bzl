@@ -21,7 +21,12 @@ def bcr_unit_tests(name):
             expect_equal(
                 "bcr source rejects a foreign module",
                 bcr_source_error("other_rules", "1.2.3"),
-                "bcr: invalid module 'other_rules': want 'rules_dx'",
+                "bcr: invalid module 'other_rules': want 'rules_dx' or 'rules_dx_<family>'",
+            ),
+            expect_equal(
+                "bcr source accepts a family module",
+                bcr_source_error("rules_dx_go", "1.2.3"),
+                "",
             ),
             expect_equal(
                 "bcr source rejects a non-SemVer version",

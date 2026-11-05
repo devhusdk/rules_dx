@@ -146,7 +146,7 @@ impl Config {
             &base,
         );
         let repository_cache = env_path(lookup, "DX_NESTED_BAZEL_REPOSITORY_CACHE")
-            .or_else(|| rc_path(rc, "repository_cache", home))
+            .or_else(|| bazelrc_path(rc, "repository_cache", home))
             .or_else(|| home.and_then(default_repository_cache))
             .unwrap_or_else(|| base.join("repository-cache"));
         Ok(Config {
@@ -215,12 +215,12 @@ fn default_base() -> Result<PathBuf, String> {
 
 /// Returns the configured disk cache, or one cache shared by every slot under the base.
 pub fn disk_cache(env: Option<PathBuf>, rc: &str, home: Option<&Path>, base: &Path) -> PathBuf {
-    env.or_else(|| rc_path(rc, "disk_cache", home))
+    env.or_else(|| bazelrc_path(rc, "disk_cache", home))
         .unwrap_or_else(|| base.join("disk-cache"))
 }
 
 /// Returns the last `--<flag>=<path>` value in a bazelrc, expanding `~/`.
-pub fn rc_path(rc: &str, flag: &str, home: Option<&Path>) -> Option<PathBuf> {
+pub fn bazelrc_path(rc: &str, flag: &str, home: Option<&Path>) -> Option<PathBuf> {
     let prefix = format!("--{flag}=");
     let mut found = None;
     for line in rc.lines() {
@@ -531,20 +531,25 @@ pub fn bazelrc(config: &Config, downloader: &Path) -> String {
     if config.offline {
         text.push_str(&format!(
             "common --downloader_config={}\n",
-            downloader.display()
+            slashed(downloader)
         ));
     }
     text.push_str(&format!(
         "common --disk_cache={}\n",
-        config.disk_cache.display()
+        slashed(&config.disk_cache)
     ));
     let cache = &config.repository_cache;
-    text.push_str(&format!("common --repository_cache={}\n", cache.display()));
+    text.push_str(&format!("common --repository_cache={}\n", slashed(cache)));
     text.push_str(&format!(
         "common --repo_contents_cache={}\n",
-        cache.join("contents").display()
+        slashed(&cache.join("contents"))
     ));
     text
+}
+
+/// Bazel reads a backslash in a bazelrc as an escape, so Windows paths use slashes.
+fn slashed(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
 }
 
 #[cfg(unix)]
@@ -2248,11 +2253,11 @@ common --repository_cache=/rc/repos
         let rc = "# common --disk_cache=/ignored\ncommon --disk_cache=/one\nbuild --disk_cache=~/two --jobs=2\ncommon --repository_cache=relative\n";
         let home = Path::new("/home/me");
         assert_eq!(
-            rc_path(rc, "disk_cache", Some(home)),
+            bazelrc_path(rc, "disk_cache", Some(home)),
             Some(PathBuf::from("/home/me/two"))
         );
-        assert_eq!(rc_path(rc, "repository_cache", Some(home)), None);
-        assert_eq!(rc_path(rc, "disk_cache", None), Some(PathBuf::from("/one")));
+        assert_eq!(bazelrc_path(rc, "repository_cache", Some(home)), None);
+        assert_eq!(bazelrc_path(rc, "disk_cache", None), Some(PathBuf::from("/one")));
     }
 
     #[test]

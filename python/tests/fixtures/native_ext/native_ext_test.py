@@ -64,7 +64,10 @@ class NativeExtTest(unittest.TestCase):
                 self.assertEqual(set(dlls), set(CRT_DLLS))
                 for dll in dlls.values():
                     shutil.copy(dll, tmp)
-                code = "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'"
+                code = (
+                    f"import sys; sys.path.insert(0, {tmp!r}); import dxnative; "
+                    "assert dxnative.join(['x', 'y'], '+') == 'x+y'"
+                )
             else:
                 code = (
                     "import dxnative; assert dxnative.join(['x', 'y'], '+') == 'x+y'; "

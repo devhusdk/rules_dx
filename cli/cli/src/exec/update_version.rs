@@ -1411,7 +1411,7 @@ dependencies = ["anyio>=4"]
         let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
         assert_eq!(code, 2, "{err}");
         assert!(
-            err.contains("expected pypi-frontend, bazel, github-actions"),
+            err.contains("expected pypi-frontend, bazel, containers, github-actions"),
             "{err}"
         );
     }

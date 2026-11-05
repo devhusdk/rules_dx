@@ -583,6 +583,10 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
         ("ruby:rake", "13.2.1"),
         ("bazel:rules_rust", "0.74.0"),
         (
+            "containers:distroless_static",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ),
+        (
             "github-actions:actions/checkout",
             "3d3d42e5aac5ba805825da76410c181273ba90b1",
         ),
@@ -1691,4 +1695,42 @@ fn ruby_versions_are_dotted_numbers() {
         "1.0.0.rc1",
     )
     .is_err());
+}
+
+const OCI_MODULE: &str = "oci.pull(
+    name = \"distroless_static\",
+    digest = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\",
+    image = \"gcr.io/distroless/static-debian12\",
+)
+oci.pull(
+    name = \"distroless_cc\",
+    digest = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\",
+    image = \"gcr.io/distroless/cc-debian12\",
+)
+";
+
+#[test]
+fn containers_update_rewrites_only_the_named_pull_digest() {
+    let new = format!("sha256:{}", "b".repeat(64));
+    let update = UpdateRequest::parse("containers:distroless_cc", &new).expect("parse");
+    assert_eq!(update.target_manifest(), "MODULE.bazel");
+    let out = update.plan_edit(OCI_MODULE).expect("edit");
+    assert_eq!(
+        out,
+        OCI_MODULE
+            .replacen(&"1".repeat(64), &"b".repeat(64), 2)
+            .replacen(&"b".repeat(64), &"1".repeat(64), 1)
+    );
+    let missing = UpdateRequest::parse("containers:nope", &new).expect("parse");
+    assert!(missing.plan_edit(OCI_MODULE).is_err());
+}
+
+#[test]
+fn containers_update_refuses_tags_and_short_digests() {
+    for bad in ["latest", "sha256:abc", "v1.2.3"] {
+        assert!(
+            UpdateRequest::parse("containers:distroless_cc", bad).is_err(),
+            "{bad}"
+        );
+    }
 }

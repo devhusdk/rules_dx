@@ -100,6 +100,50 @@ pub(super) fn plan_module_bazel(
     }
 }
 
+/// Sets the `digest` of the `oci.pull` named `package` in MODULE.bazel.
+pub(super) fn plan_oci_pull(
+    content: &str,
+    package: &str,
+    version: &WidenVersion,
+) -> Result<String, EditError> {
+    let WidenVersion::Digest(digest) = version else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: "MODULE.bazel".to_owned(),
+            reason: "expected a sha256 digest".to_owned(),
+        });
+    };
+    let module = dx_module_bazel::ModuleFile::parse(content).map_err(module_error(package))?;
+    let pulls: Vec<_> = module
+        .calls_named("oci.pull")
+        .filter(|call| call.str("name") == Some(package))
+        .collect();
+    let call = match pulls.as_slice() {
+        [] => {
+            return Err(EditError::NotFound {
+                manifest: "MODULE.bazel".to_owned(),
+                package: package.to_owned(),
+            })
+        }
+        [call] => call,
+        many => {
+            return Err(EditError::Ambiguous {
+                manifest: "MODULE.bazel".to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            })
+        }
+    };
+    let Some(dx_module_bazel::Value::Str(literal)) = call.arg("digest") else {
+        return Err(EditError::UnsupportedManifest {
+            manifest: "MODULE.bazel".to_owned(),
+            reason: format!("oci.pull {package} has no literal digest"),
+        });
+    };
+    module
+        .replace(literal, digest)
+        .map_err(module_error(package))
+}
+
 fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> EditError + '_ {
     move |error| match error {
         dx_module_bazel::ModuleError::NotFound { .. } => EditError::NotFound {
@@ -776,10 +820,12 @@ pub(super) fn plan_github_workflow(
                 }),
             }
         }
-        WidenVersion::Semver(_) | WidenVersion::Gem(_) => Err(EditError::UnsupportedManifest {
-            manifest: WORKFLOW_DIR.to_owned(),
-            reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
-        }),
+        WidenVersion::Semver(_) | WidenVersion::Gem(_) | WidenVersion::Digest(_) => {
+            Err(EditError::UnsupportedManifest {
+                manifest: WORKFLOW_DIR.to_owned(),
+                reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
+            })
+        }
     }
 }
 
@@ -833,6 +879,17 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("gem names use letters, digits, '-', '_' and '.'")
+            }
+        }
+        UpdateSet::Containers => {
+            if !package.is_empty()
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            {
+                Ok(())
+            } else {
+                Err("oci.pull names use letters, digits, '-', '_' and '.'")
             }
         }
         UpdateSet::GithubActions => match package.split_once('/') {

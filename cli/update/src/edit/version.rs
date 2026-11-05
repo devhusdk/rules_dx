@@ -7,6 +7,8 @@ pub enum WidenVersion {
     GitCommit(String),
     /// A gem version such as `1.5` or `7.0.8.1`, which semver cannot hold.
     Gem(String),
+    /// An image digest such as `sha256:` followed by 64 hex digits.
+    Digest(String),
 }
 
 impl WidenVersion {
@@ -16,6 +18,7 @@ impl WidenVersion {
             WidenVersion::GitTag(tag) => tag.clone(),
             WidenVersion::GitCommit(sha) => sha.clone(),
             WidenVersion::Gem(version) => version.clone(),
+            WidenVersion::Digest(digest) => digest.clone(),
         }
     }
 }
@@ -32,6 +35,10 @@ pub enum VersionError {
     Prerelease { version: String },
     #[error("invalid version {version:?} for set {set}: expected a Git tag (e.g. v4) or a 40/64-char commit SHA")]
     InvalidGit { set: &'static str, version: String },
+    #[error(
+        "invalid digest {version:?} for set {set}: expected sha256: followed by 64 hex digits"
+    )]
+    InvalidDigest { set: &'static str, version: String },
 }
 
 pub fn is_stable(version: &semver::Version) -> bool {
@@ -56,6 +63,21 @@ pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
         | UpdateSet::NuGet => parse_semver(set.name(), trimmed),
         UpdateSet::GithubActions => parse_git(set.name(), trimmed),
         UpdateSet::Ruby => parse_gem(set.name(), trimmed),
+        UpdateSet::Containers => parse_digest(set.name(), trimmed),
+    }
+}
+
+fn parse_digest(set: &'static str, text: &str) -> Result<WidenVersion, VersionError> {
+    let valid = text
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit()));
+    if valid {
+        Ok(WidenVersion::Digest(text.to_ascii_lowercase()))
+    } else {
+        Err(VersionError::InvalidDigest {
+            set,
+            version: text.to_owned(),
+        })
     }
 }
 

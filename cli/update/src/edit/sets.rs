@@ -2,6 +2,7 @@
 pub enum UpdateSet {
     Bazel,
     Cargo,
+    Containers,
     GithubActions,
     Go,
     Maven,
@@ -11,9 +12,10 @@ pub enum UpdateSet {
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 8] = [
+    pub const ALL: [UpdateSet; 9] = [
         UpdateSet::Bazel,
         UpdateSet::Cargo,
+        UpdateSet::Containers,
         UpdateSet::GithubActions,
         UpdateSet::Go,
         UpdateSet::Maven,
@@ -22,7 +24,11 @@ impl UpdateSet {
         UpdateSet::Ruby,
     ];
 
-    pub const BUILTIN: [UpdateSet; 2] = [UpdateSet::Bazel, UpdateSet::GithubActions];
+    pub const BUILTIN: [UpdateSet; 3] = [
+        UpdateSet::Bazel,
+        UpdateSet::Containers,
+        UpdateSet::GithubActions,
+    ];
 
     pub fn builtin_names() -> Vec<&'static str> {
         Self::BUILTIN.iter().map(|set| set.name()).collect()
@@ -32,6 +38,7 @@ impl UpdateSet {
         match self {
             UpdateSet::Bazel => "bazel",
             UpdateSet::Cargo => "cargo",
+            UpdateSet::Containers => "containers",
             UpdateSet::GithubActions => "github-actions",
             UpdateSet::Go => "go",
             UpdateSet::Maven => "maven",
@@ -45,6 +52,7 @@ impl UpdateSet {
         match text {
             "bazel" => Some(UpdateSet::Bazel),
             "cargo" => Some(UpdateSet::Cargo),
+            "containers" => Some(UpdateSet::Containers),
             "github-actions" => Some(UpdateSet::GithubActions),
             "go" => Some(UpdateSet::Go),
             "maven" => Some(UpdateSet::Maven),
@@ -69,7 +77,10 @@ impl UpdateSet {
     }
 
     pub fn needs_update_refresh(self) -> bool {
-        !matches!(self, UpdateSet::Bazel | UpdateSet::GithubActions)
+        !matches!(
+            self,
+            UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions
+        )
     }
 }
 
@@ -85,15 +96,18 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 8);
+        assert_eq!(seen.len(), 9);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
     }
 
     #[test]
-    fn builtin_sets_are_bazel_and_github_actions() {
-        assert_eq!(UpdateSet::builtin_names(), vec!["bazel", "github-actions"]);
+    fn builtin_sets_are_bazel_containers_and_github_actions() {
+        assert_eq!(
+            UpdateSet::builtin_names(),
+            vec!["bazel", "containers", "github-actions"]
+        );
     }
 
     #[test]
@@ -111,6 +125,7 @@ mod tests {
             vec![
                 "bazel",
                 "cargo",
+                "containers",
                 "github-actions",
                 "go",
                 "maven",

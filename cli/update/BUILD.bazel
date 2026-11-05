@@ -15,6 +15,7 @@ dx_rust_crate(
         "src/backend.rs",
         "src/discover/bcr.rs",
         "src/discover/cargo.rs",
+        "src/discover/containers.rs",
         "src/discover/github.rs",
         "src/discover/go.rs",
         "src/discover/maven.rs",

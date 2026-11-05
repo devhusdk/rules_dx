@@ -147,6 +147,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: GITHUB_ACTIONS_HINT,
             }),
+            UpdateSet::Containers => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "add an oci.pull to MODULE.bazel",
+            }),
             UpdateSet::Ruby => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "edit the Gemfile and run `bundle lock`",

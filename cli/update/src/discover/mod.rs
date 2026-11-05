@@ -2,6 +2,7 @@
 
 pub mod bcr;
 pub mod cargo;
+pub mod containers;
 pub mod github;
 pub mod go;
 pub mod maven;
@@ -14,6 +15,11 @@ pub mod ruby;
 pub trait Fetch {
     /// Returns the body, or a short reason the lookup failed.
     fn get(&self, url: &str) -> Result<String, String>;
+
+    /// Returns the `Docker-Content-Digest` a registry reports for a manifest URL.
+    fn digest(&self, _url: &str) -> Result<String, String> {
+        Err("this fetcher cannot read image digests".to_owned())
+    }
 }
 
 impl<F: Fn(&str) -> Result<String, String>> Fetch for F {

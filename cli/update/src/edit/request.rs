@@ -255,7 +255,7 @@ fn configured_refresh_selector(
 fn refresh_selector(set: UpdateSet, package: &str) -> String {
     match set {
         UpdateSet::Npm => format!("{}:{}", set.name(), package),
-        UpdateSet::Bazel | UpdateSet::GithubActions => String::new(),
+        UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions => String::new(),
         set => set.name().to_owned(),
     }
 }
@@ -273,6 +273,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
             }
         }
         UpdateSet::GithubActions => WORKFLOW_DIR,
+        UpdateSet::Containers => "MODULE.bazel",
         UpdateSet::Cargo
         | UpdateSet::Go
         | UpdateSet::Maven
@@ -520,6 +521,7 @@ impl UpdateRequest {
                     plan_module_bazel(content, &self.package, &self.version, &self.dep_version)
                 }
             }
+            UpdateSet::Containers => plan_oci_pull(content, &self.package, &self.version),
             UpdateSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
             UpdateSet::Npm => plan_package_json(content, &self.package, &self.version),
             UpdateSet::Go => plan_go_mod(manifest, content, &self.package, &self.version),

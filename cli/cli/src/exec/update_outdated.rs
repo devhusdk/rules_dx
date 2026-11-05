@@ -7,7 +7,8 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    bcr, cargo, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings, Registry,
+    bcr, cargo, containers, github, go, maven, npm, nuget, pypi, ruby, Candidate, Fetch, Findings,
+    Registry,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -23,16 +24,22 @@ pub(crate) const CODE_UPDATE_OUTDATED_UNKNOWN: &str = "update_outdated_unknown";
 
 const ACTIONS_SELECTOR: &str = "github-actions";
 const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
+const CONTAINERS_SELECTOR: &str = containers::SET;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub(super) struct Builtins {
     actions: Option<Vec<String>>,
     bazelversion: bool,
+    containers: Option<Vec<String>>,
 }
 
 impl Builtins {
     pub(super) fn selects_all_actions(&self) -> bool {
         self.actions.as_ref().is_some_and(Vec::is_empty)
+    }
+
+    pub(super) fn selects_all_containers(&self) -> bool {
+        self.containers.as_ref().is_some_and(Vec::is_empty)
     }
 }
 
@@ -42,6 +49,7 @@ pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
     if targets.is_empty() {
         builtins.actions = Some(Vec::new());
         builtins.bazelversion = true;
+        builtins.containers = Some(Vec::new());
         return (builtins, rest);
     }
     for target in targets {
@@ -57,6 +65,19 @@ pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
                 }
             } else {
                 builtins.actions = Some(vec![repo.to_owned()]);
+            }
+        } else if target == CONTAINERS_SELECTOR {
+            builtins.containers = Some(Vec::new());
+        } else if let Some(name) = target
+            .strip_prefix(CONTAINERS_SELECTOR)
+            .and_then(|r| r.strip_prefix(':'))
+        {
+            if let Some(only) = builtins.containers.as_mut() {
+                if !only.is_empty() {
+                    only.push(name.to_owned());
+                }
+            } else {
+                builtins.containers = Some(vec![name.to_owned()]);
             }
         } else if target == BAZELVERSION_SELECTOR {
             builtins.bazelversion = true;
@@ -337,6 +358,18 @@ fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found:
             github::actions(&flows, only, github::DEFAULT_BASE, fetch),
         );
     }
+    if let Some(only) = &builtins.containers {
+        if let Ok(text) = std::fs::read_to_string(workspace.join("MODULE.bazel")) {
+            match dx_module_bazel::ModuleFile::parse(&text) {
+                Ok(module) => merge(found, containers::outdated(&module, only, fetch)),
+                Err(error) => found.errors.push(dx_update::discover::LookupError {
+                    set: containers::SET.to_owned(),
+                    package: "MODULE.bazel".to_owned(),
+                    reason: error.to_string(),
+                }),
+            }
+        }
+    }
     if builtins.bazelversion {
         if let Ok(text) = std::fs::read_to_string(workspace.join(".bazelversion")) {
             merge(
@@ -494,6 +527,10 @@ fn emit_text(
 pub(super) struct DirFetch(pub(super) PathBuf);
 
 impl Fetch for DirFetch {
+    fn digest(&self, url: &str) -> Result<String, String> {
+        self.get(url).map(|text| text.trim().to_owned())
+    }
+
     fn get(&self, url: &str) -> Result<String, String> {
         let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
         let path: &Path = &self.0.join(rest);
@@ -502,6 +539,8 @@ impl Fetch for DirFetch {
 }
 
 struct HttpFetch(ureq::Agent, Option<String>);
+
+const MANIFEST_ACCEPT: &str = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
 
 impl HttpFetch {
     fn new() -> HttpFetch {
@@ -525,6 +564,21 @@ impl HttpFetch {
 }
 
 impl Fetch for HttpFetch {
+    fn digest(&self, url: &str) -> Result<String, String> {
+        let response = self
+            .0
+            .head(url)
+            .header("Accept", MANIFEST_ACCEPT)
+            .call()
+            .map_err(|e| e.to_string())?;
+        response
+            .headers()
+            .get("docker-content-digest")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+            .ok_or_else(|| "no Docker-Content-Digest header".to_owned())
+    }
+
     fn get(&self, url: &str) -> Result<String, String> {
         let mut request = self.0.get(url);
         if let Some((name, value)) = github_auth(url, self.1.as_deref()) {
@@ -664,6 +718,33 @@ mod tests {
         let (bazel, rest) = split_builtin(&list(&["bazel:.bazelversion", "github-actions"]));
         assert!(bazel.bazelversion && rest.is_empty());
         assert_eq!(bazel.actions, Some(Vec::new()));
+    }
+
+    #[test]
+    fn containers_builtin_reports_a_moved_latest_digest() {
+        let old = format!("sha256:{}", "1".repeat(64));
+        let new = format!("sha256:{}", "2".repeat(64));
+        let root = std::env::temp_dir().join(format!("dx-containers-{}", std::process::id()));
+        let manifest = root.join("mirror/gcr.io/v2/distroless/static-debian12/manifests");
+        std::fs::create_dir_all(&manifest).expect("mirror");
+        std::fs::write(manifest.join("latest"), format!("{new}\n")).expect("digest");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            format!(
+                "oci.pull(name = \"distroless_static\", image = \"gcr.io/distroless/static-debian12\", digest = \"{old}\")\n"
+            ),
+        )
+        .expect("module");
+        let (builtins, rest) = split_builtin(&["containers".to_owned()]);
+        assert!(builtins.selects_all_containers() && rest.is_empty());
+        let fetch = DirFetch(root.join("mirror"));
+        let collected = collect(&root, &[], &builtins, false, &fetch);
+        let _ = std::fs::remove_dir_all(&root);
+        let candidate = &collected.found.candidates[0];
+        assert_eq!(candidate.set, "containers");
+        assert_eq!(candidate.package, "distroless_static");
+        assert_eq!((&candidate.current, &candidate.latest), (&old, &new));
+        assert!(collected.found.errors.is_empty());
     }
 
     #[test]

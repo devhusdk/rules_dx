@@ -290,7 +290,7 @@ It reads registries, writes nothing and starts no Bazel. Yanked versions and pre
 
 Other sets print an `update_outdated_unsupported` warning. A `set:package` selector limits the lookup.
 
-`github-actions` checks every remote `uses:` pin in `.github/workflows`. `github-actions:<owner>/<repo>` checks one repo. `bazel:.bazelversion` checks `.bazelversion`. With no selector they run with the sets. A pin is read from its tag (`@v4`) or from a trailing comment (`@<sha> # v4.1.0`). Pins with no readable version, and repos with no release, print `<set>:<package>: unknown (<reason>)` and an `update_outdated_unknown` warning; the exit code is unchanged. Set `GH_TOKEN` or `GITHUB_TOKEN` to raise the 60 requests an hour limit. The token goes to `api.github.com` only.
+`github-actions` checks every remote `uses:` pin in `.github/workflows`. `github-actions:<owner>/<repo>` checks one repo. `bazel:.bazelversion` checks `.bazelversion`. `containers` compares each `oci.pull` digest in `MODULE.bazel` with the digest its image's `latest` tag has now; `containers:<name>` checks one pull. Apply a new digest with `dx update containers:<name> sha256:<digest> --apply`. With no selector they run with the sets. A pin is read from its tag (`@v4`) or from a trailing comment (`@<sha> # v4.1.0`). Pins with no readable version, and repos with no release, print `<set>:<package>: unknown (<reason>)` and an `update_outdated_unknown` warning; the exit code is unchanged. Set `GH_TOKEN` or `GITHUB_TOKEN` to raise the 60 requests an hour limit. The token goes to `api.github.com` only.
 
 Text prints one line per package: declared version, newest version, publish time, and the apply command. JSON emits `command_started`, one `update_outdated` notice per package (`scope` is `<set>:<package>`, `related_command` is `dx update <set>:<package> <version>`), one `update_outdated_lookup_failed` error per failed lookup, and `command_finished`. Ruby results have no `related_command`; text prints `edit Gemfile, then bundle lock`. Apply others with `dx update <set>:<package> <version> --apply`. Refresh in-range with `dx update --apply <set>`.
 
@@ -358,7 +358,7 @@ tools/dx update --apply --floor --reason "needs 0.3 API" bazel-modules:rules_cc 
 tools/dx update --apply npm:vue 3.5.42
 ```
 
-One `set:package` and one version widen that requirement, or declare it when missing. A version starts with a digit, `v` plus a digit, or is a commit SHA. The set is a [dependency set](#dependency-sets) or the built-in `bazel` or `github-actions`. Any other set exits `2` and lists valid names.
+One `set:package` and one version widen that requirement, or declare it when missing. A version starts with a digit, `v` plus a digit, or is a commit SHA. The set is a [dependency set](#dependency-sets) or the built-in `bazel`, `containers` or `github-actions`. Any other set exits `2` and lists valid names.
 
 Without `--apply` it exits `0` when the manifest already declares the version, and `1` with `update drift` (widen) or `update pending` (add). `github-actions`, `bazel:.bazelversion` and `uv` sets cannot add.
 
@@ -383,7 +383,7 @@ A missing package is inserted in the same manifest and shape: a `bazel_dep` afte
 
 Duplicate declarations, a missing or computed version or name, and an unparsable `MODULE.bazel` fail without writing. A plain `dx update` never touches a `bazel_dep` floor or override.
 
-`cargo`, `go`, `maven`, `npm` and `nuget` refresh through `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel` and `github-actions` refresh nothing; review the diff and run `bazel build //...`. A version already declared reports `update_no_change`, writes nothing and exits `0`, also under `--frozen` or `--offline`. When a widen is pending, a set that needs a refresh fails before widening with `offline_required` under `--offline` and `frozen_locked` under `--frozen`.
+`cargo`, `go`, `maven`, `npm` and `nuget` refresh through `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`, `containers` and `github-actions` refresh nothing; review the diff and run `bazel build //...`. A version already declared reports `update_no_change`, writes nothing and exits `0`, also under `--frozen` or `--offline`. When a widen is pending, a set that needs a refresh fails before widening with `offline_required` under `--offline` and `frozen_locked` under `--frozen`.
 
 JSON emits an `add_declared` notice for an insert, an `update_widened` notice per written manifest, and an `update_set_success` notice after the lock refresh.
 

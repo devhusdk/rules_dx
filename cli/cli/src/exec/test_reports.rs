@@ -5780,6 +5780,35 @@ mod tests {
     }
 
     #[test]
+    fn coverage_reports_kcov_lcov_from_untagged_zig_tests() {
+        let harness = Harness::new("cov-zig-kcov");
+        let kcov = "SF:zig/calc.zig\nDA:1,2\nDA:6,0\nLF:2\nLH:1\nend_of_record\n";
+        let uri = write_bep_artifact(&harness, "kcov.dat", kcov.as_bytes());
+        let configured = serde_json::json!({
+            "id": {"targetConfigured": {"label": "//z:t"}},
+            "configured": {"targetKind": "_zig_forward_test rule", "testSize": "SMALL", "tag": []},
+        })
+        .to_string();
+        let harness = Harness {
+            raw_bep: Some(vec![
+                configured,
+                test_result_line("//z:t", &[(String::from("coverage.dat"), uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&[
+            "coverage",
+            "--output=text",
+            "--fail-on=no-collector",
+            "--report=lcov=out.lcov",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("no coverage collector"), "{err}");
+        let document = std::fs::read(harness.workspace.join("out.lcov")).expect("lcov");
+        assert_eq!(document, kcov.as_bytes());
+    }
+
+    #[test]
     fn test_ignores_the_no_collector_tag() {
         let harness = Harness::new("test-no-collector");
         let uri = write_bep_artifact(&harness, "zig.xml", MINIMAL_TEST_XML.as_bytes());

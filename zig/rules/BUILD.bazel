@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
@@ -9,6 +10,16 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "defs.bzl",
 ])
+
+bool_flag(
+    name = "kcov",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "kcov_build",
+    flag_values = {":kcov": "true"},
+)
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
@@ -57,9 +68,9 @@ dx_wrapper_contract_tests(
             "greet",
         ),
         expect_equal(
-            "zig tests have no coverage collector yet",
+            "zig tests collect coverage with kcov",
             ZIG_COVERAGE_COLLECTOR,
-            False,
+            True,
         ),
         expect_equal(
             "no-collector tag is appended after user tags",
@@ -100,6 +111,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

@@ -48,7 +48,7 @@ pub struct Row {
     pub workflows: Vec<String>,
 }
 
-/// The coverage collectors of a row, or the reason it has none.
+/// The coverage collectors of a row with a note on them, or the reason it has none.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Coverage {
     pub collectors: Vec<String>,

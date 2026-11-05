@@ -6,11 +6,13 @@ use crate::LcovError;
 /// Converts a Cobertura XML report (kcov, coverage.py) to LCOV text.
 ///
 /// Only class-level `line` elements count; lines listed under `methods` repeat them.
+/// A relative `filename` is joined to the first `source`.
 /// Files appear in path order, lines in line order.
 pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
     let mut files: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
     let mut current: Option<String> = None;
     let mut in_methods = false;
+    let mut source: Option<String> = None;
     let mut rest = xml;
     while let Some(start) = rest.find('<') {
         let after = &rest[start + 1..];
@@ -21,10 +23,20 @@ pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
         rest = &after[end + 1..];
         let (name, attrs) = tag.split_once(char::is_whitespace).unwrap_or((tag, ""));
         match name {
+            "source" if source.is_none() => {
+                let text = &rest[..rest.find('<').unwrap_or(rest.len())];
+                source = Some(text.trim().trim_end_matches('/').to_owned());
+            }
             "class" => {
                 let path = attribute(attrs, "filename")
                     .filter(|path| !path.is_empty())
                     .ok_or_else(|| cobertura_error("class element without a filename"))?;
+                let path = match &source {
+                    Some(dir) if !path.starts_with('/') && !dir.is_empty() => {
+                        format!("{dir}/{path}")
+                    }
+                    _ => path,
+                };
                 files.entry(path.clone()).or_default();
                 current = Some(path);
             }

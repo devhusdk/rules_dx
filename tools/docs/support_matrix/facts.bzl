@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -21,7 +21,7 @@ def _doc(name):
 
 def _coverage(name):
     if name in COVERAGE_COLLECTORS:
-        return {"collectors": COVERAGE_COLLECTORS[name], "reason": ""}
+        return {"collectors": COVERAGE_COLLECTORS[name], "reason": COVERAGE_NOTES.get(name, "")}
     if name in NO_COVERAGE:
         return {"collectors": [], "reason": NO_COVERAGE[name]}
     return None
@@ -114,6 +114,9 @@ def support_matrix_facts_dict():
     for name in COVERAGE_COLLECTORS:
         if name not in row_names or name in NO_COVERAGE:
             fail("support matrix: COVERAGE_COLLECTORS names " + name + " which is unknown or also in NO_COVERAGE")
+    for name in COVERAGE_NOTES:
+        if name not in COVERAGE_COLLECTORS:
+            fail("support matrix: COVERAGE_NOTES names " + name + " which has no coverage collector")
     for name in NO_COVERAGE:
         if name not in row_names:
             fail("support matrix: NO_COVERAGE names unknown row " + name)

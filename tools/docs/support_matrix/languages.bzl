@@ -115,6 +115,12 @@ COVERAGE_COLLECTORS = {
     "rust": ["llvm-cov"],
     "scala": ["jacoco"],
     "typescript": ["jest"],
+    "zig": ["kcov"],
+}
+
+# A note on where a row's coverage collector runs.
+COVERAGE_NOTES = {
+    "zig": "kcov runs on Linux only",
 }
 
 # The reason a row's tests have no coverage collector.
@@ -132,7 +138,6 @@ NO_COVERAGE = {
     "svelte": "js_test has no dx coverage wiring",
     "vue": "js_test has no dx coverage wiring",
     "wasi": "the WASI guest test has no coverage collector",
-    "zig": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
 }
 
 def _hello(lang, repo = ""):

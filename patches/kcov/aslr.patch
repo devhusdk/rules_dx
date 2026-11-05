@@ -1,0 +1,12 @@
+--- a/src/engines/ptrace.cc
++++ b/src/engines/ptrace.cc
+@@ -355,8 +355,7 @@
+ 			int res;
+ 
+ 			/* Avoid address randomization */
+-			if (!ptrace_sys::disable_aslr())
+-				return false;
++			ptrace_sys::disable_aslr();
+ 
+ 			/* And launch the process */
+ 			res = ptrace_sys::trace_me();

@@ -182,17 +182,24 @@ fn doc_cell(row: &Row) -> String {
     }
 }
 
-/// Names the collector that writes the row's LCOV, or `no` with the reason it has none.
+/// Names the collector that writes the row's LCOV with its note, or `no` with the reason it has none.
 fn coverage_cell(row: &Row) -> String {
     match &row.coverage {
         None => "n/a".to_owned(),
         Some(coverage) if coverage.collectors.is_empty() => format!("no: {}", coverage.reason),
-        Some(coverage) => coverage
-            .collectors
-            .iter()
-            .map(|collector| format!("`{collector}`"))
-            .collect::<Vec<_>>()
-            .join(", "),
+        Some(coverage) => {
+            let collectors = coverage
+                .collectors
+                .iter()
+                .map(|collector| format!("`{collector}`"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            if coverage.reason.is_empty() {
+                collectors
+            } else {
+                format!("{collectors} ({})", coverage.reason)
+            }
+        }
     }
 }
 
@@ -361,6 +368,16 @@ mod tests {
             "{page}"
         );
         assert!(!page.to_lowercase().contains("experimental"));
+    }
+
+    #[test]
+    fn appends_the_coverage_note_to_the_collector() {
+        let mut facts = parse_facts(FACTS).expect("facts");
+        facts.rows[0].coverage.as_mut().expect("coverage").reason = "runs on Linux only".to_owned();
+        assert_eq!(
+            coverage_cell(&facts.rows[0]),
+            "`go cover` (runs on Linux only)"
+        );
     }
 
     #[test]

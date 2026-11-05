@@ -1,4 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -16,6 +17,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "kcov.BUILD",
+        "kcov.bzl",
     ],
     tags = ["corpus"],
 )
@@ -23,6 +25,32 @@ real_source_target(
 alias(
     name = "kcov",
     actual = "@kcov//:kcov",
+    visibility = VIS_TOOLS_PUBLIC,
+)
+
+alias(
+    name = "kcov_or_none",
+    actual = select({
+        "@platforms//os:linux": "@kcov//:kcov",
+        "//conditions:default": ":none",
+    }),
+    visibility = VIS_TOOLS_PUBLIC,
+)
+
+alias(
+    name = "to_lcov_or_none",
+    actual = select({
+        "@platforms//os:linux": "//cli/lcov:to_lcov",
+        "//conditions:default": ":none",
+    }),
+    visibility = VIS_TOOLS_PUBLIC,
+)
+
+filegroup(name = "none")
+
+sh_binary(
+    name = "kcov_launcher",
+    srcs = ["kcov_launcher.sh"],
     visibility = VIS_TOOLS_PUBLIC,
 )
 

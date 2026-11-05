@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_CLI_TOOLS)
 
@@ -37,6 +38,35 @@ dx_rust_crate(
         "lcov",
         "regex",
         "thiserror",
+    ],
+)
+
+rust_binary(
+    name = "to_lcov",
+    srcs = ["src/to_lcov.rs"],
+    crate_root = "src/to_lcov.rs",
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":dx_lcov"],
+)
+
+rust_test(
+    name = "to_lcov_test",
+    crate = ":to_lcov",
+)
+
+rustfmt_test(
+    name = "to_lcov_fmt_test",
+    targets = [
+        ":to_lcov",
+        ":to_lcov_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "to_lcov_clippy_test",
+    targets = [
+        ":to_lcov",
+        ":to_lcov_test",
     ],
 )
 

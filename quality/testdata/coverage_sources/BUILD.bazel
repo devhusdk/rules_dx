@@ -2,6 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//perl/rules:defs.bzl", "perl_test")
 load("//quality:coverage_sources_tests.bzl", "coverage_fixture")
+load("//zig/rules:defs.bzl", "zig_library", "zig_test")
 
 package(default_visibility = ["//quality:__subpackages__"])
 
@@ -77,4 +78,18 @@ perl_test(
     name = "perl_probe_test",
     srcs = ["perl_probe.t"],
     tags = ["manual"],
+)
+
+zig_library(
+    name = "calc_lib",
+    import_name = "calc",
+    main = "calc.zig",
+    tags = ["manual"],
+)
+
+zig_test(
+    name = "calc_test",
+    main = "calc_test.zig",
+    tags = ["manual"],
+    deps = [":calc_lib"],
 )

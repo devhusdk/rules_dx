@@ -4,10 +4,10 @@ load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 
-# False while zig tests write empty LCOV under `bazel coverage`; the public
-# test then carries dx-no-coverage-collector and `dx coverage` skips it with a summary line, or fails with --fail-on=no-collector (#2308).
-ZIG_COVERAGE_COLLECTOR = False
+# Set False to tag zig tests dx-no-coverage-collector instead of running kcov.
+ZIG_COVERAGE_COLLECTOR = True
 
 _DX_ZIG_LIBRARY_PROVIDES = [
     _ZigModuleInfo,
@@ -34,6 +34,7 @@ _zig_library_forward = dx_library_forward_rule(
     upstream_providers = [[_ZigModuleInfo]],
     runtime = "besteffort",
     quality_tools = ZIG_QUALITY_TOOLS,
+    instrument_srcs = True,
 )
 
 def _no_coverage_impl(_settings, _attr):
@@ -44,6 +45,28 @@ _no_coverage = transition(
     implementation = _no_coverage_impl,
     inputs = [],
     outputs = ["//command_line_option:collect_code_coverage"],
+)
+
+def _kcov_upstream_impl(settings, _attr):
+    """Builds the Zig test upstream for kcov under coverage: LLVM DWARF, unstripped, uninstrumented."""
+    coverage = settings["//command_line_option:collect_code_coverage"]
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        "//command_line_option:strip": "never" if coverage else settings["//command_line_option:strip"],
+        "//zig/rules:kcov": coverage,
+    }
+
+_kcov_upstream = transition(
+    implementation = _kcov_upstream_impl,
+    inputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:strip",
+    ],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:strip",
+        "//zig/rules:kcov",
+    ],
 )
 
 _zig_binary_forward = dx_executable_forward_rule(
@@ -59,6 +82,12 @@ _zig_binary_forward = dx_executable_forward_rule(
     upstream_cfg = _no_coverage,
 )
 
+def _zig_test_coverage(ctx, upstream):
+    """Runs the upstream Zig test under kcov on Linux."""
+    deps = [dep[_ZigModuleInfo].transitive_inputs for dep in ctx.attr.deps if _ZigModuleInfo in dep]
+    sources = [f for f in depset(ctx.files.srcs, transitive = deps).to_list() if f.extension == "zig"]
+    return dx_kcov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
+
 _zig_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = _DX_ZIG_EXEC_PROVIDES,
@@ -67,10 +96,13 @@ _zig_forward_test = dx_executable_forward_rule(
     what = "zig_*",
     allow_files = _DX_ZIG_SOURCE_EXTS,
     upstream_providers = None,
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | {
+        "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
+    },
     runtime = "besteffort",
     quality_tools = ZIG_QUALITY_TOOLS,
-    upstream_cfg = _no_coverage,
+    upstream_cfg = _kcov_upstream,
+    coverage_providers = _zig_test_coverage,
 )
 
 def zig_quality_srcs(main, srcs):
@@ -93,4 +125,8 @@ def zig_binary(name, main = None, srcs = None, visibility = None, **kwargs):
 
 def zig_test(name, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_test."""
-    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, quality_srcs = zig_quality_srcs(main, srcs), main = main, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
+    upstream = dict(kwargs, main = main, zigopts = kwargs.get("zigopts", []) + select({
+        Label("//zig/rules:kcov_build"): ["-fllvm"],
+        "//conditions:default": [],
+    }))
+    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = zig_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)

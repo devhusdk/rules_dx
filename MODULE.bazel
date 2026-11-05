@@ -1749,6 +1749,7 @@ _http_archive(
     build_file = "//tools/coverage/kcov:kcov.BUILD",
     patch_args = ["-p1"],
     patches = [
+        "//patches/kcov:aslr.patch",
         "//patches/kcov:elf_checksum_lock.patch",
         "//patches/kcov:no_curl.patch",
     ],

@@ -45,3 +45,13 @@ fn rejects_reports_without_classes() {
 fn rejects_lines_outside_a_class() {
     assert!(cobertura_to_lcov(r#"<line number="1" hits="1"/>"#).is_err());
 }
+
+#[test]
+fn joins_relative_filenames_to_the_source() {
+    let report = r#"<coverage>
+  <sources><source>/w/src/</source></sources>
+  <classes><class name="a" filename="a.zig"><lines><line number="2" hits="3"/></lines></class></classes>
+</coverage>"#;
+    let lcov = cobertura_to_lcov(report).expect("converts");
+    assert_eq!(lcov, "SF:/w/src/a.zig\nDA:2,3\nLF:1\nLH:1\nend_of_record\n");
+}

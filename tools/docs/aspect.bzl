@@ -1,5 +1,6 @@
 """Docs aspect: puts docs sites, shards and API trees of a target in output groups."""
 
+load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
@@ -9,6 +10,7 @@ load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
@@ -142,6 +144,58 @@ def _typescript_docs_shard(target, ctx):
     )
     config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";typedoc-json=" + TYPEDOC_JSON_SCHEMA + ";options="
     return typescript_shard_action(ctx, typedoc_json, package, ctx.label.package, config, stem, ctx.executable._ts_extract)
+def _component_docs_shard(target, ctx):
+    if _JsInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    srcs = sorted(getattr(ctx.rule.files, "srcs", []), key = lambda f: f.path)
+    for language, spec in COMPONENT_LANGUAGES.items():
+        if srcs and all([f.extension == spec.extension for f in srcs]):
+            return _component_shard(target[_JsInfo], ctx, language, srcs)
+    return None
+
+def _component_shard(js, ctx, language, srcs):
+    inputs = depset(transitive = [js.transitive_sources, js.npm_sources])
+    package = ctx.label.package
+    tsconfigs = [f for f in js.transitive_sources.to_list() if f.basename == "tsconfig.json" and f.dirname.endswith("/" + package if package else "")]
+    if len(tsconfigs) != 1:
+        return None
+    stem = "_dx_docs/" + ctx.label.name
+    meta = ctx.actions.declare_file(stem + ".component_meta.json")
+    entry_points = [f.short_path[len(package) + 1:] if package else f.short_path for f in srcs]
+    tsconfig = tsconfigs[0].basename
+    args = ctx.actions.args()
+    args.add("--bazel-bindir", ctx.bin_dir.path)
+    args.add("--tsconfig", tsconfig)
+    args.add("--out", stem + ".component_meta.json")
+    for entry in entry_points:
+        args.add("--entry", entry)
+    tool = getattr(ctx.attr, "_" + language + "_meta")
+    ctx.actions.run(
+        executable = getattr(ctx.executable, "_" + language + "_meta"),
+        arguments = [args],
+        inputs = inputs,
+        tools = [tool[DefaultInfo].files_to_run],
+        outputs = [meta],
+        mnemonic = COMPONENT_LANGUAGES[language].mnemonic,
+        progress_message = "Reading component metadata of %{label}",
+        env = {"JS_BINARY__CHDIR": package, "JS_BINARY__PATCH_NODE_FS": "1"},
+        resource_set = _mem_2g,
+    )
+    shard = ctx.actions.declare_file(stem + ".ir.pb")
+    component_shard_action(ctx, ctx.executable._component_extract, meta, shard, language, ctx.label.name, package, component_config(language, tsconfig, entry_points))
+    return shard
+
+def _mem_2g(_os, _inputs):
+    return {"memory": 2048}
+
+def _component_meta_attr(language):
+    return attr.label(
+        cfg = "exec",
+        default = Label("//quality/tools/javascript/bin:" + language + "_component_meta"),
+        executable = True,
+    )
 
 def _docs_site_groups(target, ctx):
     tree = target[DocsSiteInfo].tree
@@ -193,6 +247,9 @@ def _real_docs_aspect_impl(target, ctx):
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
+    component_shard = _component_docs_shard(target, ctx)
+    if component_shard:
+        parts.append({"dx_results": [component_shard], "dx_docs_shards": [component_shard]})
     if not parts:
         return []
     groups = {}
@@ -203,8 +260,14 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell, Ruby and TypeScript library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C#, F#, PowerShell, Ruby, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
+        "_astro_meta": _component_meta_attr("astro"),
+        "_component_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/components/extract:component_extract"),
+            executable = True,
+        ),
         "_csharp_driver": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/dotnet/csharp:csharp_api_pinned"),
@@ -236,6 +299,7 @@ real_docs_aspect = aspect(
             default = Label("//tools/docs/go/extract:go_extract"),
             executable = True,
         ),
+        "_mdx_meta": _component_meta_attr("mdx"),
         "_process_wrapper": attr.label(
             default = Label("@rules_rust//util/process_wrapper"),
             cfg = "exec",
@@ -306,6 +370,8 @@ real_docs_aspect = aspect(
             default = Label("//quality/tools/javascript/bin:typedoc"),
             executable = True,
         ),
+        "_svelte_meta": _component_meta_attr("svelte"),
+        "_vue_meta": _component_meta_attr("vue"),
     },
     fragments = ["cpp"],
     requires = [rust_doc_inputs_aspect, dotnet_docs_collect_aspect],

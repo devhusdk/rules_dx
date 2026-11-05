@@ -564,7 +564,18 @@ aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:rust_test_crate_family_probe_subject
 aspect_field transitive_count=0"""
 
-EXPECTED_DOCS_OBSERVATIONS = """subject //quality/testdata:docs_csharp_ledger_subject
+EXPECTED_DOCS_OBSERVATIONS = """subject //quality/testdata:docs_astro_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/components/fixture/astro/_dx_docs/ui_library.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ui_library.ir.pb
+field label=//tools/docs/components/fixture/astro:ui_library
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_astro_library_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_csharp_ledger_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/dotnet/fixture/csharp/_dx_docs/ledger.ir.pb
 field dx_docs_sites=(none)
@@ -652,6 +663,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_kotlin_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_mdx_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/components/fixture/mdx/_dx_docs/ui_library.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ui_library.ir.pb
+field label=//tools/docs/components/fixture/mdx:ui_library
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_mdx_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_plain_subject
 field docs_shard_count=0
 field docs_shards=(none)
@@ -729,6 +751,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_scala_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_svelte_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/components/fixture/svelte/_dx_docs/ui_library.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ui_library.ir.pb
+field label=//tools/docs/components/fixture/svelte:ui_library
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_svelte_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_typescript_library_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/typescript/fixture/_dx_docs/geometry_library.ir.pb
@@ -739,6 +772,17 @@ aspect_field aspect_seen=True
 aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_typescript_library_subject
+aspect_field transitive_count=0
+subject //quality/testdata:docs_vue_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/components/fixture/vue/_dx_docs/ui_library.ir.pb
+field dx_docs_sites=(none)
+field dx_results=ui_library.ir.pb
+field label=//tools/docs/components/fixture/vue:ui_library
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_vue_library_subject
 aspect_field transitive_count=0"""
 
 def real_docs_tests(name, subjects):

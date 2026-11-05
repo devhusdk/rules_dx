@@ -2,6 +2,7 @@
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//tools/docs/components:shard.bzl", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _VUE_COMPONENT_META = Label("//quality/tools/javascript/bin:vue_component_meta")
@@ -12,25 +13,8 @@ _META_SCHEMA = "dx-component-meta/1"
 
 def _component_doc_shard_impl(ctx):
     shard = ctx.actions.declare_file(ctx.label.name + ".ir.pb")
-    args = ctx.actions.args()
-    args.add("--meta", ctx.file.meta)
-    args.add("--out", shard)
-    args.add("--language", ctx.attr.language)
-    args.add("--package", ctx.attr.package)
-    args.add("--source-prefix", ctx.attr.source_prefix)
-    args.add("--config", ctx.attr.config)
-    ctx.actions.run(
-        executable = ctx.executable._extract,
-        arguments = [args],
-        inputs = [ctx.file.meta],
-        outputs = [shard],
-        mnemonic = "DxDocsComponentExtract",
-        progress_message = "Extracting component API docs for %{label}",
-    )
-    return [
-        DefaultInfo(files = depset([shard])),
-        DocsShardInfo(language = ctx.attr.language, package = ctx.attr.package, shard = shard),
-    ]
+    info = component_shard_action(ctx, ctx.executable._extract, ctx.file.meta, shard, ctx.attr.language, ctx.attr.package, ctx.attr.source_prefix, ctx.attr.config)
+    return [DefaultInfo(files = depset([shard])), info]
 
 component_doc_shard = rule(
     doc = "Converts one project's dx-component-meta/1 JSON into a DocIr shard.",

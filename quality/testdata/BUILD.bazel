@@ -2114,6 +2114,26 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_vue_library_subject",
+    target = "//tools/docs/components/fixture/vue:ui_library",
+)
+
+real_docs_subject(
+    name = "docs_svelte_library_subject",
+    target = "//tools/docs/components/fixture/svelte:ui_library",
+)
+
+real_docs_subject(
+    name = "docs_astro_library_subject",
+    target = "//tools/docs/components/fixture/astro:ui_library",
+)
+
+real_docs_subject(
+    name = "docs_mdx_library_subject",
+    target = "//tools/docs/components/fixture/mdx:ui_library",
+)
+
+real_docs_subject(
     name = "docs_plain_subject",
     target = ":plain",
 )
@@ -2126,9 +2146,11 @@ real_docs_tests(
         ":docs_demo_site_subject",
         ":docs_fsharp_ledger_subject",
         ":docs_fsharp_xmldoc_off_subject",
+        ":docs_astro_library_subject",
         ":docs_go_library_subject",
         ":docs_java_library_subject",
         ":docs_kotlin_library_subject",
+        ":docs_mdx_library_subject",
         ":docs_plain_subject",
         ":docs_powershell_library_subject",
         ":docs_python_library_subject",
@@ -2137,6 +2159,8 @@ real_docs_tests(
         ":docs_rust_test_subject",
         ":docs_scala_library_subject",
         ":docs_typescript_library_subject",
+        ":docs_svelte_library_subject",
+        ":docs_vue_library_subject",
     ],
 )
 

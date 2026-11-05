@@ -2257,6 +2257,21 @@ mod tests {
     }
 
     #[test]
+    fn coverage_sources_counts_perl_sources() {
+        let harness = sources_harness(
+            "cov-sources-perl",
+            "v1 cell linux_x86_64\nprod source src/a.pm\ntest source src/a_test.pl\n",
+            "SF:src/a.pm\nDA:1,1\nend_of_record\n",
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("1 eligible, 1 covered lines; 1 eligible, 1 support, 0 excluded, 0 unsupported files"),
+            "{err}"
+        );
+    }
+
+    #[test]
     fn coverage_sources_notice_is_a_json_event() {
         let harness = sources_harness(
             "cov-sources-json",

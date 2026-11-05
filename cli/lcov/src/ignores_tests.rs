@@ -354,6 +354,17 @@ fn hash_comment_markers_are_honored_for_ruby() {
 }
 
 #[test]
+fn hash_comment_markers_are_honored_for_perl() {
+    let source = file_lines(&[
+        "my $x = 1;  # ".to_string() + &marker("_LINE") + " - reason: fixture, issue: 7324.",
+        "my $y = 2;".to_string(),
+    ]);
+    let ignores = find_ignores("t.pm", &source).unwrap();
+    assert!(ignores.singles.contains_key(&1));
+    assert!(!is_ignored(&ignores, 2));
+}
+
+#[test]
 fn slash_comment_markers_are_honored_for_kts() {
     let source = file_lines(&[
         "val x = 1 // ".to_string() + &marker("_LINE") + " - reason: fixture, issue: 1055.",

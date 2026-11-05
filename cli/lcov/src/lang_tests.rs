@@ -42,6 +42,8 @@ fn covered_languages_include_wrapped_langs() {
         "elf.kts",
         "elf.rb",
         "elf.d",
+        "elf.pl",
+        "elf.pm",
         "elf.erl",
         "elf.hrl",
     ] {

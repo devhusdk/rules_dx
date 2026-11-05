@@ -8,8 +8,13 @@ on:
         required: false
         default: ""
         type: string
+      platforms:
+        description: 'JSON array of platforms that dry-run every deployable before anything is published. Empty uses linux_x86_64.'
+        required: false
+        default: ""
+        type: string
       runner:
-        description: "Runner label for the release job."
+        description: "Runner label for the publish job."
         required: false
         default: "ubuntu-latest"
         type: string
@@ -22,16 +27,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: release
+  plan:
+    name: plan
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
-      packages: write
+      contents: read
+    outputs:
+      labels: ${{ steps.list.outputs.labels }}
+      platforms: ${{ steps.platforms.outputs.platforms }}
+      runners: ${{ steps.platforms.outputs.runners }}
     env:
       DX_DEPLOYABLES: ${{ inputs.deployables }}
     steps:
@@ -42,6 +48,11 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-cache: true
+      - name: Validate platforms
+        id: platforms
+        env:
+          DX_PLATFORMS: ${{ inputs.platforms }}
+        run: bazel run --lockfile_mode=error @rules_dx//tools/ci:input_validation_bin
       - name: List the deployables
         id: list
         shell: bash
@@ -58,21 +69,61 @@ jobs:
           fi
           echo "Deployables for ${GITHUB_REF_NAME}:"
           cat "$RUNNER_TEMP/deployables.txt"
+          echo "labels=$(tr '\n' ' ' < "$RUNNER_TEMP/deployables.txt")" >> "$GITHUB_OUTPUT"
+  dry-run:
+    name: dry run (${{ matrix.platform }})
+    needs: [plan]
+    runs-on: ${{ fromJSON(needs.plan.outputs.runners)[matrix.platform] }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        platform: ${{ fromJSON(needs.plan.outputs.platforms) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-cache: true
       - name: Dry run
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          DX_LABELS: ${{ needs.plan.outputs.labels }}
         run: |
           set -euo pipefail
-          while IFS= read -r label; do
+          for label in $DX_LABELS; do
             echo "::group::dx deploy $label (dry run)"
             tools/dx deploy "$label"
             echo "::endgroup::"
-          done < "$RUNNER_TEMP/deployables.txt"
+          done
+  release:
+    name: release
+    needs: [plan, dry-run]
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-cache: true
       - name: Publish
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          DX_LABELS: ${{ needs.plan.outputs.labels }}
         run: |
           set -euo pipefail
           for registry in GH_RELEASE NPM_PUBLISH MAVEN_PUBLISH CRATES_PUBLISH PYPI_PUBLISH NUGET_PUBLISH OCI_PUBLISH HOMEBREW_TAP_PUBLISH OCTOPUS_PUBLISH CLOUDFLARE_PAGES; do
@@ -93,9 +144,9 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           }
           trap summary EXIT
-          while IFS= read -r label; do
+          for label in $DX_LABELS; do
             echo "::group::dx deploy --apply $label"
             tools/dx deploy --apply "$label"
             echo "::endgroup::"
             published+=("$label")
-          done < "$RUNNER_TEMP/deployables.txt"
+          done

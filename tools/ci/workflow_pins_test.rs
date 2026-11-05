@@ -12,7 +12,7 @@ const REUSABLE: [&str; 3] = [
 ];
 
 const SCRIPTS: [(&str, &[&str]); 2] = [
-    ("tools/ci/input_validation.rs", &["reusable-consumer.yml"]),
+    ("tools/ci/input_validation.rs", &["reusable-consumer.yml", "reusable-release.yml"]),
     ("tools/ci/docs_scope.rs", &["reusable-docs.yml"]),
 ];
 

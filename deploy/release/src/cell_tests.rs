@@ -1203,7 +1203,7 @@ fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
         "consumer.BUILD.bazel"
     );
     assert_eq!(
-        std::fs::read_to_string(dir.join("lib.rs")).expect("lib"),
+        std::fs::read_to_string(dir.join("src/lib.rs")).expect("lib"),
         "lib.rs"
     );
     assert_eq!(

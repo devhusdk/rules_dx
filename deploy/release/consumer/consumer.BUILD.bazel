@@ -2,10 +2,11 @@ load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust
 
 rust_library(
     name = "dx_release_consumer",
-    srcs = ["lib.rs"],
+    srcs = ["src/lib.rs"],
     crate_name = "dx_release_consumer",
-    crate_root = "lib.rs",
+    crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = ["//visibility:public"],
 )
 
 rust_test(

@@ -19,7 +19,7 @@ pub const CONSUMER_MODULE: &str = "dx_release_consumer";
 /// Template file and the name it takes in the staged consumer workspace.
 pub const CONSUMER_FILES: [(&str, &str); 2] = [
     ("consumer.BUILD.bazel", "BUILD.bazel"),
-    ("lib.rs", "lib.rs"),
+    ("lib.rs", "src/lib.rs"),
 ];
 
 /// Every check `qualify` records, in run order.
@@ -368,7 +368,12 @@ pub fn stage_consumer(
     std::fs::create_dir_all(&dir)
         .map_err(|error| format!("stage: cannot create {}: {error}", dir.display()))?;
     let copy = |from: PathBuf, to: &str| {
-        std::fs::copy(&from, dir.join(to))
+        let to = dir.join(to);
+        if let Some(parent) = to.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| format!("stage: cannot create {}: {error}", parent.display()))?;
+        }
+        std::fs::copy(&from, to)
             .map(drop)
             .map_err(|error| format!("stage: cannot copy {}: {error}", from.display()))
     };

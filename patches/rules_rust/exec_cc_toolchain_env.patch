@@ -13,7 +13,7 @@
  # These get replaced with the non-hermetic values magically, and result in
  # absolute paths, so they shouldn't have PWD prefixed.
  # https://github.com/bazelbuild/apple_support/blob/20913e2a9ad4a00a1849a464b856d04b5cd3bdcb/lib/apple_support.bzl#L174-L198
-@@ -569,6 +575,38 @@
+@@ -569,6 +575,43 @@
          # that doing so is more likely to hurt than help. If you need to change
          # ARFLAGS, make changes to cc-rs.
  
@@ -42,9 +42,14 @@
 +                action_name = ACTION_NAMES.cpp_link_static_library,
 +            ) or exec_cc_toolchain.ar_executable,
 +        }
++        exec_c_args, exec_cxx_args, _ = get_cc_compile_args_and_env(exec_cc_toolchain, exec_feature_configuration)
 +        for name, tool in exec_tools.items():
 +            if tool and "libtool" not in tool:
 +                env["HOST_" + name] = _pwd_tool(tool)
++        env["HOST_CFLAGS"] = " ".join(_pwd_flags(exec_c_args))
++        env["HOST_CXXFLAGS"] = " ".join(_pwd_flags(exec_cxx_args))
++        env["TARGET_CFLAGS"] = env["CFLAGS"]
++        env["TARGET_CXXFLAGS"] = env["CXXFLAGS"]
 +        for name in ["CC", "CXX", "AR"]:
 +            if env.get(name) and "libtool" not in env[name]:
 +                env["TARGET_" + name] = _pwd_tool(env[name])
@@ -52,7 +57,7 @@
      # Inform build scripts of rustc flags
      # https://github.com/rust-lang/cargo/issues/9600
      env["CARGO_ENCODED_RUSTFLAGS"] = "\\x1f".join([
-@@ -941,6 +979,10 @@
+@@ -941,6 +984,10 @@
              allow_files = True,
              default = Label("//cargo/private:no_cxx"),
          ),

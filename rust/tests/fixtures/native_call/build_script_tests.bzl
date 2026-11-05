@@ -45,6 +45,8 @@ def _gcc_impl(ctx):
         value = _relative(action.env.get(name, ""))
         asserts.true(env, "dx_gcc_linux_x86_64" in value, "{} is not the pinned GCC: {}".format(name, value))
         asserts.true(env, value in inputs, "{} is not a declared input: {}".format(name, value))
+    for name in ["HOST_CFLAGS", "HOST_CXXFLAGS", "TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
+        asserts.true(env, name in action.env, "{} is not set".format(name))
     for name, value in action.env.items():
         if name in ["CC", "CXX", "AR"]:
             continue

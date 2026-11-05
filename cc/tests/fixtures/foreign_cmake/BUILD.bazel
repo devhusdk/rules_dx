@@ -83,6 +83,14 @@ filegroup(
     target_compatible_with = _LINUX_X86_64,
 )
 
+filegroup(
+    name = "zlib_include",
+    srcs = [":zlib_static"],
+    output_group = "include",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _LINUX_X86_64,
+)
+
 platform(
     name = "linux_x86_64",
     constraint_values = _LINUX_X86_64,

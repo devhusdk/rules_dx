@@ -114,7 +114,7 @@ The `failures` file has `record_version`, `exit_code`, `complete`, `truncated`, 
 
 A whole-repository run (`//...`) also fails on a tracked source no Bazel target owns. Add the file to a rule or delete it.
 
-Tests in these languages fail with `no_coverage_collector`: Zig, PHP, Fortran, OCaml, and Dart. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
+Tests in these languages fail with `no_coverage_collector`: Zig, PHP, Fortran, and OCaml. Tag a test `no-coverage` to skip it, or add `coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to `.bazelrc`.
 
 Exclude code with `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`. Each marker needs `reason: <text>` (up to 120 characters) on the marker line or the line before, and `issue: <text>` containing a digit. Use `//` in Rust, Go, JS/TS, JVM languages, .NET, D, and C/C++. Use `#` in Python, Ruby, Julia, and Elixir. Use `%` in Erlang.
 

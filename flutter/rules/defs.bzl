@@ -26,7 +26,6 @@ FLUTTER_COMPATIBLE_WITH = select({
 })
 
 FLUTTER_ANDROID_ABIS = ["arm64", "x64"]
-FLUTTER_COVERAGE_COLLECTOR = False
 
 _flutter_library_forward = dx_library_forward_rule(
     provides = [DartAnalyzableInfo, DartInfo, DefaultInfo, FlutterInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
@@ -115,7 +114,7 @@ def flutter_library(name, srcs = None, visibility = None, **kwargs):
 def flutter_test(name, main, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_test."""
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
-    dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), coverage_collector = FLUTTER_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
 
 def flutter_application(name, main, srcs = None, visibility = None, target = "native", **kwargs):
     """Thin wrapper over flutter_application; target is native or web."""

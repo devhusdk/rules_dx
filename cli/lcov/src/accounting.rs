@@ -156,6 +156,62 @@ pub(crate) fn source_key(path: &str) -> String {
     normalized
 }
 
+const DART_ROOT_URI: &str = "org-dartlang-root:///";
+
+/// Rewrites the `SF:` URIs the Dart and Flutter test runners report into the workspace paths `owned` holds.
+///
+/// `org-dartlang-root:///a/b.dart` is `a/b.dart`. `package:name/x.dart` is the one owned `lib/x.dart`.
+/// A package URI that names no owned file is a pub dependency and its record is dropped.
+pub(crate) fn resolve_dart_uris(document: &str, owned: &BTreeSet<String>) -> String {
+    let mut out = String::with_capacity(document.len());
+    let mut dropping = false;
+    for line in document.split_inclusive('\n') {
+        if let Some(uri) = line.strip_prefix("SF:") {
+            match resolve_dart_uri(uri.trim_end(), owned) {
+                Resolved::Path(path) => {
+                    out.push_str(&format!("SF:{path}\n"));
+                    continue;
+                }
+                Resolved::Dependency => dropping = true,
+                Resolved::Other => {}
+            }
+        }
+        if !dropping {
+            out.push_str(line);
+        } else if line.trim() == "end_of_record" {
+            dropping = false;
+        }
+    }
+    out
+}
+
+enum Resolved {
+    Path(String),
+    Dependency,
+    Other,
+}
+
+fn resolve_dart_uri(uri: &str, owned: &BTreeSet<String>) -> Resolved {
+    if let Some(path) = uri.strip_prefix(DART_ROOT_URI) {
+        return Resolved::Path(path.to_string());
+    }
+    let Some((_, rest)) = uri
+        .strip_prefix("package:")
+        .and_then(|rest| rest.split_once('/'))
+    else {
+        return Resolved::Other;
+    };
+    let lib = format!("lib/{rest}");
+    let suffix = format!("/{lib}");
+    let mut found = owned
+        .iter()
+        .filter(|key| **key == lib || key.ends_with(&suffix));
+    match (found.next(), found.next()) {
+        (Some(key), None) => Resolved::Path(key.clone()),
+        _ => Resolved::Dependency,
+    }
+}
+
 /// Parses one source manifest: a `v1 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
 pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
     let mut lines = text.lines();
@@ -288,7 +344,12 @@ pub fn account(
             .or_insert_with(|| (row.path.clone(), row.test));
         slot.1 = slot.1 && row.test;
     }
-    let report = match merge_lcov_reports(lcov_documents) {
+    let owned_keys: BTreeSet<String> = owned.keys().cloned().collect();
+    let lcov_documents: Vec<String> = lcov_documents
+        .iter()
+        .map(|document| resolve_dart_uris(document, &owned_keys))
+        .collect();
+    let report = match merge_lcov_reports(&lcov_documents) {
         Ok(report) => report,
         Err(error) => {
             result

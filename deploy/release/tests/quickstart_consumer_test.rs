@@ -1,8 +1,8 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::rules_dx_override;
-use dx_nested::{self as nested, Case};
-use dx_testing::{read_text, rules_dx_source, write_text, Run};
+use dx_nested::{self as nested, footprint, Case};
+use dx_testing::{read_text, resolve_runfiles, rules_dx_source, write_text, Run};
 
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
@@ -54,6 +54,18 @@ fn presubmit_list(presubmit: &str, key: &str) -> Vec<String> {
     items
 }
 
+fn footprint_of(case: &Case) -> footprint::Footprint {
+    let graph = run_in(case, &["mod", "graph", "--output=json"], "mod graph");
+    let info = run_in(case, &["info", "output_base"], "info output_base");
+    let external = std::path::PathBuf::from(info.stdout.trim()).join("external");
+    footprint::measure(
+        &graph.stdout,
+        &read_text(&case.root().join("MODULE.bazel.lock")),
+        &external,
+    )
+    .unwrap_or_else(|error| panic!("{error}"))
+}
+
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     let run = case.bazel(args);
     ok(&run, what);
@@ -91,6 +103,29 @@ fn the_readme_quickstart_runs_as_written() {
         &["run", "@rules_dx//:dx", "--", "test", "//..."],
         "dx test //...",
     );
+    let budget_path = std::env::var("DX_CORE_BUDGET")
+        .unwrap_or_else(|_| panic!("DX_CORE_BUDGET must name the budget"));
+    let budget: serde_json::Value =
+        serde_json::from_str(&read_text(&resolve_runfiles(&budget_path)))
+            .unwrap_or_else(|error| panic!("{budget_path}: {error}"));
+    let mut failures = Vec::new();
+    let mut within_budget = |stage: &str| {
+        let measured = footprint_of(&case);
+        eprintln!("footprint {stage}: {}", measured.to_json());
+        if cfg!(target_os = "linux") {
+            if let Err(error) = footprint::check_budget(&measured, &budget[stage]) {
+                failures.push(format!("{stage}:\n{error}"));
+            }
+        }
+    };
+    within_budget("after_test");
+    run_in(
+        &case,
+        &["run", "@rules_dx//:dx", "--", "check", "//..."],
+        "dx check //...",
+    );
+    within_budget("after_check");
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 
     let graph = run_in(&case, &["mod", "graph", "--output=json"], "mod graph");
     let table =

@@ -40,8 +40,12 @@ rust_test(
         "//:module_srcs",
         "//bcr_test_module:files",
         "//modules:consumer_graph.json",
+        "//modules:core_budget.json",
     ] + NESTED_BAZEL_DATA,
-    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env = {
+        "DX_CORE_BUDGET": "$(rootpath //modules:core_budget.json)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
     # The consumer fetches the rust and GCC toolchains and bcr modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
@@ -49,6 +53,7 @@ rust_test(
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
         "//tools/testing/floor:dx_floor",
+        "@crates//:serde_json",
     ],
 )
 

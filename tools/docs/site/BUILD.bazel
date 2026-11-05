@@ -98,10 +98,9 @@ exports_files(
 )
 
 # keep
-# size: medium, Firefox docs-site run, measured 87.8s linux_x86_64 2026-11-05
 rust_test(
     name = "browser_test",
-    size = "medium",
+    size = "small",
     srcs = [
         "browser_test.rs",
         "preview_server.rs",

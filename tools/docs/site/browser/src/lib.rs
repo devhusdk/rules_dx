@@ -139,7 +139,6 @@ impl Browser {
     /// Loads one absolute URL and waits until the page finished loading.
     pub fn navigate(&mut self, url: &str) -> Result<(), String> {
         self.call("WebDriver:Navigate", serde_json::json!({ "url": url }))?;
-        settle()?;
         let loaded = format!(
             "return document.readyState === 'complete' && window.location.href === {};",
             serde_json::to_string(url).unwrap_or_else(|_| "\"\"".to_string())
@@ -147,7 +146,7 @@ impl Browser {
         if !wait_for(self, &loaded, 60)? {
             return Err(format!("browser: '{url}' never finished loading"));
         }
-        settle()
+        Ok(())
     }
 
     /// Sends one key press to whatever element holds the focus.

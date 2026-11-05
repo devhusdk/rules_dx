@@ -74,6 +74,8 @@ pub enum Error {
     },
     #[error("compilation_db: msvc action for '{target}' has no {missing} to project")]
     MissingMsvcContext { target: String, missing: String },
+    #[error("compilation_db: '{target}' is not qualified: {reason}")]
+    Unqualified { target: String, reason: String },
     #[error("compilation_db: {0}")]
     Usage(String),
 }
@@ -99,6 +101,17 @@ pub struct Action {
     pub action_key: String,
     #[serde(default, rename = "environmentVariables")]
     pub environment_variables: Vec<EnvironmentVariable>,
+    #[serde(default, rename = "paramFiles")]
+    pub param_files: Vec<ParamFile>,
+}
+
+/// One param file Bazel wrote for an action, as aquery reports it.
+#[derive(Debug, Deserialize)]
+pub struct ParamFile {
+    #[serde(default, rename = "execPath")]
+    pub exec_path: String,
+    #[serde(default)]
+    pub arguments: Vec<String>,
 }
 
 /// One aquery action environment entry.
@@ -472,6 +485,99 @@ pub fn clang_tidy_projection(commands: &[CompileCommand]) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// One exported command proven equal to Bazel's own action argv.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Qualified {
+    pub target: String,
+    pub configuration: String,
+    pub compiler: String,
+    pub driver: String,
+    pub expected: Vec<String>,
+    pub exported: Vec<String>,
+}
+
+/// Checks exported commands against the argv Bazel recorded, with param files
+/// taken from aquery `paramFiles` and never from this crate's tokenizer.
+pub fn qualify(graph: &AqueryGraph, commands: &[CompileCommand]) -> Result<Vec<Qualified>, Error> {
+    let mut qualified = Vec::new();
+    for command in commands {
+        let fail = |reason: String| Error::Unqualified {
+            target: command.target.clone(),
+            reason,
+        };
+        let action = graph
+            .actions
+            .iter()
+            .find(|action| {
+                action.mnemonic == COMPILE_MNEMONIC && action.action_key == command.action_key
+            })
+            .ok_or_else(|| fail(format!("no action with key '{}'", command.action_key)))?;
+        let identity = match &command.identity {
+            Some(identity) if identity.driver != Driver::Unknown => identity,
+            _ => return Err(fail("no compiler identity with a known driver".to_string())),
+        };
+        let mut expected = Vec::new();
+        for argument in &action.arguments {
+            match argument.strip_prefix('@') {
+                Some(path) => {
+                    let file = action
+                        .param_files
+                        .iter()
+                        .find(|file| file.exec_path == path)
+                        .ok_or_else(|| fail(format!("param file '{path}' not in aquery")))?;
+                    expected.extend(file.arguments.iter().cloned());
+                }
+                None => expected.push(argument.clone()),
+            }
+        }
+        let exported = &command.arguments;
+        if exported.first() != expected.first() {
+            return Err(fail(format!(
+                "argv0 {:?} differs from {:?}",
+                exported.first(),
+                expected.first()
+            )));
+        }
+        match identity.driver {
+            Driver::Msvc => {
+                let tail = expected.get(1..).unwrap_or(&[]);
+                let middle_len = exported.len().checked_sub(1 + tail.len());
+                let middle = middle_len.and_then(|len| exported.get(1..1 + len));
+                let ok = match middle {
+                    Some(middle) => {
+                        exported.ends_with(tail)
+                            && middle.iter().all(|flag| {
+                                flag.starts_with("/imsvc")
+                                    || flag == "/X"
+                                    || flag.starts_with("--target=")
+                            })
+                    }
+                    None => false,
+                };
+                if !ok {
+                    return Err(fail(
+                        "msvc argv differs from the action beyond the projected prefix".to_string(),
+                    ));
+                }
+            }
+            _ => {
+                if *exported != expected {
+                    return Err(fail("argv differs from the action argv".to_string()));
+                }
+            }
+        }
+        qualified.push(Qualified {
+            target: command.target.clone(),
+            configuration: command.configuration.clone(),
+            compiler: identity.compiler.clone(),
+            driver: format!("{:?}", identity.driver),
+            expected,
+            exported: exported.clone(),
+        });
+    }
+    Ok(qualified)
 }
 
 /// Expands every `@response` argument against the execroot.

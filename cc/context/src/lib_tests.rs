@@ -624,3 +624,121 @@ fn an_invalid_utf8_response_file_fails() {
     );
     fs::remove_dir_all(&root).ok();
 }
+
+fn qualify_graph(arguments: &str, param_files: &str) -> AqueryGraph {
+    let text = format!(
+        r#"{{"actions":[{{"mnemonic":"CppCompile","arguments":[{arguments}],"targetId":1,"configurationId":1,"actionKey":"k1","paramFiles":[{param_files}]}}],"targets":[{{"id":1,"label":"//pkg:probe"}}],"configuration":[{{"id":1,"mnemonic":"k8-fastbuild","checksum":"c"}}]}}"#
+    );
+    AqueryGraph::parse(&text).expect("record decodes")
+}
+
+fn exported(arguments: &[&str], identity: Option<CompilerIdentity>) -> CompileCommand {
+    CompileCommand {
+        target: "//pkg:probe".to_string(),
+        configuration: "k8-fastbuild (c)".to_string(),
+        execution_platform: String::new(),
+        action_key: "k1".to_string(),
+        source: "pkg/probe.cc".to_string(),
+        arguments: arguments.iter().map(|a| a.to_string()).collect(),
+        inputs: Vec::new(),
+        outputs: Vec::new(),
+        identity,
+    }
+}
+
+const PLAIN: &str = r#""/usr/bin/gcc","-c","pkg/probe.cc""#;
+
+#[test]
+fn qualify_accepts_exact_gnu_argv() {
+    let graph = qualify_graph(PLAIN, "");
+    let command = exported(&["/usr/bin/gcc", "-c", "pkg/probe.cc"], Some(gnu()));
+    let done = qualify(&graph, &[command]).expect("qualified");
+    assert_eq!(done.len(), 1);
+    assert_eq!(done[0].driver, "Gnu");
+}
+
+#[test]
+fn qualify_expands_param_file_with_spaced_backslash_path() {
+    let graph = qualify_graph(
+        r#""cl.exe","@bazel-out/p.params""#,
+        r#"{"execPath":"bazel-out/p.params","arguments":["/c","C:\\Program Files\\x y\\a.cc"]}"#,
+    );
+    let command = exported(
+        &["cl.exe", "/c", "C:\\Program Files\\x y\\a.cc"],
+        Some(gnu()),
+    );
+    qualify(&graph, &[command]).expect("qualified");
+}
+
+#[test]
+fn qualify_rejects_dropped_argument() {
+    let graph = qualify_graph(PLAIN, "");
+    let command = exported(&["/usr/bin/gcc", "pkg/probe.cc"], Some(gnu()));
+    assert!(matches!(
+        qualify(&graph, &[command]),
+        Err(Error::Unqualified { .. })
+    ));
+}
+
+#[test]
+fn qualify_rejects_changed_argv0() {
+    let graph = qualify_graph(PLAIN, "");
+    let command = exported(&["/usr/bin/cc", "-c", "pkg/probe.cc"], Some(gnu()));
+    assert!(matches!(
+        qualify(&graph, &[command]),
+        Err(Error::Unqualified { .. })
+    ));
+}
+
+fn msvc() -> CompilerIdentity {
+    identity("k8-fastbuild", Driver::Msvc)
+}
+
+#[test]
+fn qualify_accepts_msvc_projected_prefix() {
+    let graph = qualify_graph(r#""clang-cl.exe","/c","a.cc""#, "");
+    let command = exported(
+        &[
+            "clang-cl.exe",
+            "/imsvcC:/inc",
+            "/X",
+            "--target=x86_64-pc-windows-msvc",
+            "/c",
+            "a.cc",
+        ],
+        Some(msvc()),
+    );
+    qualify(&graph, &[command]).expect("qualified");
+}
+
+#[test]
+fn qualify_rejects_extra_injected_flag() {
+    let graph = qualify_graph(r#""clang-cl.exe","/c","a.cc""#, "");
+    let command = exported(
+        &["clang-cl.exe", "/imsvcC:/inc", "-DEVIL", "/c", "a.cc"],
+        Some(msvc()),
+    );
+    assert!(matches!(
+        qualify(&graph, &[command]),
+        Err(Error::Unqualified { .. })
+    ));
+}
+
+#[test]
+fn qualify_rejects_unknown_driver_and_missing_identity() {
+    let graph = qualify_graph(PLAIN, "");
+    let args = ["/usr/bin/gcc", "-c", "pkg/probe.cc"];
+    let unknown = exported(&args, Some(identity("k8-fastbuild", Driver::Unknown)));
+    assert!(qualify(&graph, &[unknown]).is_err());
+    assert!(qualify(&graph, &[exported(&args, None)]).is_err());
+}
+
+#[test]
+fn qualify_rejects_missing_param_file() {
+    let graph = qualify_graph(r#""cl.exe","@bazel-out/p.params""#, "");
+    let command = exported(&["cl.exe", "/c"], Some(gnu()));
+    assert!(matches!(
+        qualify(&graph, &[command]),
+        Err(Error::Unqualified { .. })
+    ));
+}

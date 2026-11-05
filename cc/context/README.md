@@ -46,6 +46,23 @@ Studio, and `--target=<identity target>` unless the arguments carry a target. `@
 the quoting of the selected driver. A flag the
 clang driver does not know is a clang-tidy error, never a run without flags.
 
+## Qualification
+
+`bazel run //cc/context:qualify` runs the exporter on real configured actions and
+checks every exported command against Bazel's own argv, with `@param` files taken from
+aquery `paramFiles` rather than this crate's tokenizer. Run it from a host that has the
+compiler:
+
+```sh
+bazel run //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
+  --compiler llvm --output /tmp/qualify.json
+bazel run //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
+  --compiler msvc --output qualify-msvc.json   # Windows host
+```
+
+Extra Bazel flags (for a custom toolchain) go after `--`. The evidence JSON records the
+git SHA, Bazel version, compiler banner, every command run and every qualified entry.
+
 ## Fixture records
 
 `//cc/tests/fixtures/compilation_db` holds one aquery record per fixture target, taken

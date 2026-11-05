@@ -9,6 +9,7 @@ pub enum Command {
     Build,
     Test,
     Coverage,
+    Bench,
     Run,
     Deploy,
     Check,
@@ -46,6 +47,7 @@ pub enum WorkflowVerb {
     Build,
     Test,
     Coverage,
+    Bench,
     Run,
 }
 
@@ -55,12 +57,24 @@ impl WorkflowVerb {
             WorkflowVerb::Build => "build",
             WorkflowVerb::Test => "test",
             WorkflowVerb::Coverage => "coverage",
+            WorkflowVerb::Bench => "bench",
             WorkflowVerb::Run => "run",
         }
     }
 
+    /// The Bazel command this verb runs; `bench` is `bazel test` over the tagged tests.
+    pub fn bazel_command(self) -> &'static str {
+        match self {
+            WorkflowVerb::Bench => "test",
+            other => other.name(),
+        }
+    }
+
     pub fn collects_reports(self) -> bool {
-        matches!(self, WorkflowVerb::Test | WorkflowVerb::Coverage)
+        matches!(
+            self,
+            WorkflowVerb::Test | WorkflowVerb::Coverage | WorkflowVerb::Bench
+        )
     }
 }
 
@@ -80,7 +94,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 23] = [
+pub static COMMANDS: [CommandMeta; 24] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -204,6 +218,20 @@ pub static COMMANDS: [CommandMeta; 23] = [
         is_adoption: false,
         default_release: false,
         workflow_verb: Some(WorkflowVerb::Coverage),
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+    },
+    CommandMeta {
+        command: Command::Bench,
+        name: "bench",
+        scope_policy: "default-//...",
+        describe: "run dx-bench tagged tests and print their numbers",
+        usage: "Usage: dx bench [--here] [scope ...] [-- bazel-options ...]",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; only tests tagged dx-bench run. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes.",
+        is_managed: false,
+        is_adoption: false,
+        default_release: false,
+        workflow_verb: Some(WorkflowVerb::Bench),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
     },
@@ -578,6 +606,7 @@ mod tests {
                 Command::Build,
                 Command::Test,
                 Command::Coverage,
+                Command::Bench,
                 Command::Check,
                 Command::Docs
             ])
@@ -625,6 +654,7 @@ mod tests {
         assert_eq!(Command::Build.name(), "build");
         assert_eq!(Command::Test.name(), "test");
         assert_eq!(Command::Coverage.name(), "coverage");
+        assert_eq!(Command::Bench.name(), "bench");
         assert_eq!(Command::Run.name(), "run");
         assert_eq!(Command::Env.name(), "env");
         assert!(Command::Env.is_managed());
@@ -651,6 +681,7 @@ mod tests {
             Command::Build,
             Command::Test,
             Command::Coverage,
+            Command::Bench,
             Command::Run,
             Command::Deploy,
             Command::Check,
@@ -754,7 +785,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain",
             "pipe_list order must match declaration order"
         );
     }
@@ -1018,7 +1049,7 @@ mod tests {
             verbs.push(verb.name());
         }
         verbs.sort_unstable();
-        assert_eq!(verbs, ["build", "coverage", "run", "test"]);
+        assert_eq!(verbs, ["bench", "build", "coverage", "run", "test"]);
         assert!(WorkflowVerb::Test.collects_reports());
         assert!(WorkflowVerb::Coverage.collects_reports());
         assert!(!WorkflowVerb::Build.collects_reports());

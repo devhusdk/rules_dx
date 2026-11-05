@@ -28,6 +28,7 @@ Find your task.
 - [Command reference](cli/commands/README.md)
 - [Scope defaults](cli/commands/scope-defaults.md)
 - [Build, test, coverage](cli/commands/build-test-coverage.md)
+- [Bench](cli/commands/bench.md)
 - [Quality](cli/commands/quality.md)
 - [Check, clean](cli/commands/check-clean.md)
 - [Generate](cli/commands/generate.md)

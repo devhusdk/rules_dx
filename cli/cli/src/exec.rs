@@ -1,5 +1,6 @@
 mod affected;
 mod audit;
+mod bench;
 mod build_failures;
 mod changed_coverage;
 mod clean;
@@ -256,6 +257,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check => umbrella::execute_umbrella(invocation, env),
+        Command::Bench => bench::execute_bench(invocation, env),
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             workflow::execute_workflow(invocation, env)
         }
@@ -317,7 +319,7 @@ mod tests {
         assert_ne!(code, 141);
     }
 
-    const QUIET_ROWS: [(Command, &[&str]); 11] = [
+    const QUIET_ROWS: [(Command, &[&str]); 12] = [
         (Command::Generate, &["generate"]),
         (Command::Docs, &["docs"]),
         (Command::Env, &["env"]),
@@ -334,6 +336,7 @@ mod tests {
         (Command::Build, &["build"]),
         (Command::Test, &["test"]),
         (Command::Coverage, &["coverage"]),
+        (Command::Bench, &["bench"]),
         (Command::Lint, &["lint"]),
         (Command::Typecheck, &["typecheck"]),
         (Command::Format, &["format"]),
@@ -363,6 +366,9 @@ mod tests {
         let mut inv = super::test_support::invocation(&words);
         inv.agent = agent;
         let harness = Harness::new(&format!("agent-quiet-{}", words[0]));
+        if words[0] == "bench" {
+            harness.query.script_stdout("//app:bench\n");
+        }
         let run = harness.probe_with(&inv, &[Some(0)]);
         run.argv
             .into_iter()

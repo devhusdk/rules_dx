@@ -219,6 +219,7 @@ pub fn needs_slot(command: Command) -> bool {
         Command::Build
             | Command::Test
             | Command::Coverage
+            | Command::Bench
             | Command::Lint
             | Command::Typecheck
             | Command::Format

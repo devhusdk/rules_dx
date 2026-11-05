@@ -31,6 +31,7 @@ pub const IGNORE_LINES: [&str; 15] = [
     "/.dx/explain/",
     "/.dx/profile/",
     "/.dx/advisory/",
+    "/.dx/bench/",
     // rules_rust 0.75.0 discover writes last_warnings.log here (WARNINGS_LOG_REL in
     // tools/rust_analyzer/lib.rs); keep while dx wires the rules_rust discover binary.
     "/.vscode/.rules_rust_analyzer/",

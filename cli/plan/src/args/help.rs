@@ -247,6 +247,10 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         ],
     ),
     (
+        Command::Bench,
+        &["bench //...", "bench //app:parse_bench --output=json"],
+    ),
+    (
         Command::Run,
         &["run //app", "run --release //app -- --port 8080"],
     ),

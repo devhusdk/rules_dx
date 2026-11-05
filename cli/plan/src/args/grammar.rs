@@ -1002,16 +1002,21 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
     };
+    /// The flags `dx bench` accepts.
+    Bench => 9, BazelTail, {
+        output: OutputFlag,
+        here: HereFlag,
+    };
     /// The flags `dx run` accepts.
-    Run => 9, AppTail, {
+    Run => 10, AppTail, {
         output: OutputFlag,
         own: ProfileArgs,
         bazel_option: BazelOptionFlag,
     };
     /// The flags `dx deploy` accepts.
-    Deploy => 10, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
+    Deploy => 11, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
-    Check => 11, BazelTail, {
+    Check => 12, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
@@ -1024,9 +1029,9 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 12, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
-    Update => 13, NoPassthroughTail, {
+    Update => 14, NoPassthroughTail, {
         output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
@@ -1044,22 +1049,22 @@ command_args! {
         floor: FloorArgs,
     };
     /// The flags `dx env` accepts.
-    Env => 14, BazelTail, { output: OutputFlag, apply: ApplyFlag, shell: EnvShellFlag, };
+    Env => 15, BazelTail, { output: OutputFlag, apply: ApplyFlag, shell: EnvShellFlag, };
     /// The flags `dx init` accepts.
-    Init => 15, NoPassthroughTail, {
+    Init => 16, NoPassthroughTail, {
         output: OutputFlag,
         apply: ApplyFlag,
         agents: AgentsFlag,
     };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };
+    Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.
-    Status => 17, NoScopeTail, {
+    Status => 18, NoScopeTail, {
         output: OutputFlag,
         capabilities: CapabilitiesFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 18, BazelTail, {
+    Watch => 19, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
@@ -1073,15 +1078,15 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 19, NoPassthroughTail, {};
+    Completion => 20, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 20, BazelTail, {
+    Docs => 21, BazelTail, {
         output: OutputFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx worktree` accepts.
-    Worktree => 21, NoPassthroughTail, {
+    Worktree => 22, NoPassthroughTail, {
         output: OutputFlag,
         path_only: PathOnlyFlag,
         apply: ApplyFlag,
@@ -1091,7 +1096,7 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 22, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
+    Explain => 23, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
 }
 
 #[derive(Parser)]

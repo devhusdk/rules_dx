@@ -18,6 +18,7 @@ Commands:
   build       run Bazel build over resolved targets
   test        run Bazel test over resolved targets
   coverage    collect LCOV coverage with optional threshold
+  bench       run dx-bench tagged tests and print their numbers
   run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
   deploy      build and run a single deployable target
   check       run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)

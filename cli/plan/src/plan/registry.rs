@@ -218,7 +218,8 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: None,
             reports: &[],
         },
-        Command::Init
+        Command::Bench
+        | Command::Init
         | Command::Upgrade
         | Command::Worktree
         | Command::Explain

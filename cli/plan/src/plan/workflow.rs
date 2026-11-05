@@ -13,6 +13,15 @@ pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 pub const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
 pub const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
 
+/// The flags that make `dx bench` run each tagged test once, alone, and uncached.
+pub const BENCH_FLAGS: [&str; 5] = [
+    "--runs_per_test=1",
+    "--nocache_test_results",
+    "--local_test_jobs=1",
+    "--test_output=errors",
+    "--test_env=DX_BENCH=1",
+];
+
 /// The `--aspects` flag that writes the coverage source manifests.
 pub fn coverage_sources_aspect_flag() -> String {
     format!(
@@ -23,7 +32,7 @@ pub fn coverage_sources_aspect_flag() -> String {
 
 fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     match verb {
-        WorkflowVerb::Build | WorkflowVerb::Test | WorkflowVerb::Coverage => {
+        WorkflowVerb::Build | WorkflowVerb::Test | WorkflowVerb::Coverage | WorkflowVerb::Bench => {
             &[SKIP_INCOMPATIBLE_FLAG]
         }
         WorkflowVerb::Run => &[],
@@ -42,6 +51,9 @@ pub fn workflow_options(
         required.push(COVERAGE_ALL_TARGETS_FLAG.to_owned());
         required.push(coverage_sources_aspect_flag());
         required.push(COVERAGE_SOURCES_GROUP_FLAG.to_owned());
+    }
+    if verb == WorkflowVerb::Bench {
+        required.extend(BENCH_FLAGS.map(ToOwned::to_owned));
     }
     if verb.collects_reports() {
         required.push(download_flag(bazel_options).to_owned());
@@ -73,6 +85,20 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
             ],
         });
     }
+    if verb == WorkflowVerb::Bench {
+        for (name, required) in [
+            ("runs_per_test", Some("--runs_per_test=1")),
+            ("nocache_test_results", Some("--nocache_test_results")),
+            ("cache_test_results", None),
+            ("local_test_jobs", Some("--local_test_jobs=1")),
+        ] {
+            protected.push(ProtectedFlag {
+                name: name.to_owned(),
+                required: required.map(ToOwned::to_owned),
+                allowed: Vec::new(),
+            });
+        }
+    }
     if verb.collects_reports() {
         protected.extend(download_guards());
     }
@@ -102,7 +128,7 @@ pub fn plan_workflow(
     let bazel_options = profile_options(profile, &options);
     let (scope, labels) = workflow_scope_labels(resolved);
     let argv = bazel_argv(
-        verb.name(),
+        verb.bazel_command(),
         &bazel_options,
         &required,
         &protected,
@@ -976,5 +1002,39 @@ mod tests {
                 .any(|arg| arg.starts_with("--execution_log_compact_file")),
             "{plan:?}"
         );
+    }
+
+    #[test]
+    fn bench_runs_bazel_test_with_the_bench_flags_and_guards_them() {
+        let plan = plan_workflow(
+            WorkflowVerb::Bench,
+            &resolved(&["//app:b"]),
+            &[],
+            None,
+            None,
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("plan");
+        assert!(plan.argv.iter().any(|arg| arg == "test"), "{plan:?}");
+        for flag in BENCH_FLAGS {
+            assert!(plan.argv.iter().any(|arg| arg == flag), "{flag}: {plan:?}");
+        }
+        for flag in [
+            "--runs_per_test=5",
+            "--cache_test_results",
+            "--local_test_jobs=8",
+        ] {
+            let got = plan_workflow(
+                WorkflowVerb::Bench,
+                &resolved(&["//app:b"]),
+                &strings(&[flag]),
+                None,
+                None,
+                Some(Profile::Dev),
+                &[],
+            );
+            assert!(got.is_err(), "{flag} must conflict");
+        }
     }
 }

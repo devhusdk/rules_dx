@@ -121,6 +121,7 @@ pub fn first_run_notice(
         Command::Build
             | Command::Test
             | Command::Coverage
+            | Command::Bench
             | Command::Run
             | Command::Deploy
             | Command::Check

@@ -10,6 +10,7 @@ tools/dx lint //... -- --jobs=4
 - [`dx build`](build-test-coverage.md): build targets.
 - [`dx test`](build-test-coverage.md): run tests.
 - [`dx coverage`](build-test-coverage.md): collect LCOV coverage.
+- [`dx bench`](bench.md): run `dx-bench` tests and print their numbers.
 - [`dx run`](build-test-coverage.md): build and run a target.
 - [`dx deploy`](build-test-coverage.md): build and run a deployable target.
 - [`dx lint`](quality.md): run linters.

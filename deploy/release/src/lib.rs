@@ -483,6 +483,14 @@ pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> Str
     out
 }
 
+/// Accepts `rules_dx` and `rules_dx_<family>`, the names `bcr_source_error` takes.
+fn bcr_module_is_valid(module: &str) -> bool {
+    module == BCR_WANT_MODULE
+        || module
+            .strip_prefix("rules_dx_")
+            .is_some_and(|family| !family.is_empty())
+}
+
 pub fn bcr_run(
     module: &str,
     version: &str,
@@ -490,8 +498,10 @@ pub fn bcr_run(
     dry_run: bool,
     approved: bool,
 ) -> Result<String, String> {
-    if module != BCR_WANT_MODULE {
-        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
+    if !bcr_module_is_valid(module) {
+        return Err(format!(
+            "bcr: invalid module '{module}': want 'rules_dx' or 'rules_dx_<family>'"
+        ));
     }
     if dry_run {
         return Ok(render_bcr_dry_run(module, version, inputs));
@@ -1436,6 +1446,19 @@ mod tests {
         assert!(live.contains("\"subject\": \"rules_dx@1.2.3\""));
         assert!(live.contains("\"state\": \"validated\""));
         assert!(live.contains("never pushes itself"));
+    }
+
+    #[test]
+    fn bcr_run_accepts_family_modules_and_rejects_other_names() {
+        let ok = bcr_run("rules_dx_android", "0.0.0", &[], true, false).expect("family dry run");
+        assert!(ok.contains("  module: rules_dx_android\n"));
+        for module in ["rules_dxx", "rules_dx_", "rules_dx-android", "other"] {
+            let err = bcr_run(module, "0.0.0", &[], true, false).expect_err(module);
+            assert!(
+                err.contains("want 'rules_dx' or 'rules_dx_<family>'"),
+                "{module}: {err}"
+            );
+        }
     }
 
     #[test]

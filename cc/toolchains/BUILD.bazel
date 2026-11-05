@@ -496,6 +496,7 @@ test_suite(
         "//cc/tests/fixtures/msvc_shared:toolchain_action_tests",
         "//cc/tests/gcc_cross:cross_arm64_test",
         "//cc/tests/gcc_linux_x86_64:all",
+        "//cc/tests/msvc_x86_64:all",
         "//cc/toolchains/msvc:msvc_arm64_arm64_toolchain",
         "//cc/toolchains/msvc:msvc_layout",
         "//cc/toolchains/msvc:msvc_layout_arm64",

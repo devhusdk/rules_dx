@@ -1296,7 +1296,7 @@ pub(crate) fn failed_action(
 pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
     let mut fd = libc::pollfd {
         fd: writer.as_raw_fd(),
-        events: 0,
+        events: libc::POLLOUT,
         revents: 0,
     };
     let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };

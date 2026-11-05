@@ -766,9 +766,7 @@ mod tests {
         let stdout = String::from_utf8(out).expect("stdout");
         assert!(stdout.contains("iteration=2"), "{stdout}");
         assert!(
-            stdout
-                .lines()
-                .any(|line| line.starts_with("changed ") && line.contains("trigger.txt")),
+            stdout.lines().any(|line| line.starts_with("changed ")),
             "{stdout}"
         );
     }

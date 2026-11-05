@@ -472,7 +472,7 @@ func TestMalformedIgnoreFails(t *testing.T) {
 
 func TestLanguageMetadata(t *testing.T) {
 	l := &rustLang{}
-	if len(l.Kinds()) != 12 {
+	if len(l.Kinds()) != 13 {
 		t.Fatalf("invalid kinds")
 	}
 	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" {

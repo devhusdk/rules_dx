@@ -255,7 +255,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		} else {
 			resultImports = localCargoImports(args.Config, manifest, imports, includeDev)
 		}
-		if dxKindFor(target) == binaryKind || target.kind == testKind {
+		if dxKindFor(target) == binaryKind || dxKindFor(target) == benchmarkKind || target.kind == testKind {
 			resultImports.siblingLib = siblingLibName(manifest, target)
 		}
 		if target.kind == testKind && !target.harness {
@@ -299,8 +299,10 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 
 func dxKindFor(target cargoTarget) string {
 	switch target.kind {
-	case exampleKind, benchKind:
+	case exampleKind:
 		return binaryKind
+	case benchKind:
+		return benchmarkKind
 	case libraryKind:
 		switch target.flavor {
 		case "proc-macro":

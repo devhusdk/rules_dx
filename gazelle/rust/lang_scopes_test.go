@@ -114,7 +114,7 @@ func TestDxKindForFlavors(t *testing.T) {
 		{cargoTarget{kind: binaryKind}, binaryKind},
 		{cargoTarget{kind: testKind}, testKind},
 		{cargoTarget{kind: exampleKind}, binaryKind},
-		{cargoTarget{kind: benchKind}, binaryKind},
+		{cargoTarget{kind: benchKind}, benchmarkKind},
 	}
 	for _, tc := range cases {
 		if got := dxKindFor(tc.target); got != tc.want {

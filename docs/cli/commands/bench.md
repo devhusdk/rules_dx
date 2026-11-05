@@ -34,3 +34,5 @@ Text output prints one table per target with name, mean, stddev and unit. `--out
 A target that passes but wrote no `dx-bench.json`, or wrote an invalid one, fails the run. With no `dx-bench` test in scope, `dx bench` exits 1 with `no_tests`.
 
 Scopes: same as `dx test`. With no scope, it runs `//...`.
+
+Rust: `rust_benchmark` from `//rust/rules:defs.bzl` runs a criterion or `#[bench]` target with `--output-format bencher` and writes `dx-bench.json` in ns/iter. Gazelle turns `[[bench]]` entries with `harness = false` into `rust_benchmark` targets.

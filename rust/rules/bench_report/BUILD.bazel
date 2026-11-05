@@ -1,0 +1,28 @@
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "bench_report",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+)
+
+rust_test(
+    name = "bench_report_test",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+)
+
+rustfmt_test(
+    name = "bench_report_fmt_test",
+    targets = [
+        ":bench_report",
+        ":bench_report_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "bench_report_clippy_test",
+    targets = [":bench_report"],
+)

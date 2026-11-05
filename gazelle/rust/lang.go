@@ -24,6 +24,7 @@ const (
 	libraryKind   = "rust_library"
 	binaryKind    = "rust_binary"
 	testKind      = "rust_test"
+	benchmarkKind = "rust_benchmark"
 	procMacroKind = "rust_proc_macro"
 	sharedKind    = "rust_shared_library"
 	staticKind    = "rust_static_library"
@@ -35,6 +36,7 @@ var rustKinds = map[string]rule.KindInfo{
 	libraryKind:   kindInfo(),
 	binaryKind:    kindInfo(),
 	testKind:      kindInfo(),
+	benchmarkKind: kindInfo(),
 	procMacroKind: kindInfo(),
 	sharedKind:    kindInfo(),
 	staticKind:    kindInfo(),
@@ -210,7 +212,7 @@ func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rul
 
 func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
 	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//rust/rules:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, procMacroKind, sharedKind, staticKind}},
+		{Name: "@" + rulesRepo + "//rust/rules:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, benchmarkKind, procMacroKind, sharedKind, staticKind}},
 		{Name: "@" + rulesRepo + "//rust/rules:crate.bzl", Symbols: []string{dxCrateKind}},
 		{Name: "@" + rulesRustRepo + "//cargo:defs.bzl", Symbols: []string{scriptKind}},
 		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "all_crate_deps"}},

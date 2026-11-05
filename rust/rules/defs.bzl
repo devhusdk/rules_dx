@@ -1,6 +1,7 @@
 """Minimal Rust wrappers."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
@@ -292,6 +293,35 @@ def rust_test(
     if crate != None:
         forward_kwargs["crate"] = crate
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
+
+def rust_benchmark(
+        name,
+        srcs = None,
+        crate = None,
+        crate_features = [],
+        tags = [],
+        data = [],
+        visibility = None,
+        **kwargs):
+    """A rust_test run by `dx bench`; it reports its bencher output as dx-bench.json."""
+    binary = name + "_bin"
+    rust_test(
+        name = binary,
+        srcs = srcs,
+        crate = crate,
+        crate_features = crate_features + ["dx_bench"],
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+        **kwargs
+    )
+    native_test(
+        name = name,
+        src = Label("//rust/rules/bench_report"),
+        args = ["$(rootpath :%s)" % binary, "--bench", "--output-format", "bencher"],
+        data = data + [":" + binary],
+        tags = tags + ["dx-bench", "manual"],
+        visibility = visibility,
+    )
 
 def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs):
     """Builds the test crate for WASI preview 1 and runs it under Wasmtime."""

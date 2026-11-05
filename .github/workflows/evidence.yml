@@ -153,6 +153,8 @@ jobs:
       - name: Install the Android SDK packages
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libpulse0
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdkmanager" --licenses > /dev/null || true
           "$sdkmanager" --install \

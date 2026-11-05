@@ -35,8 +35,12 @@ fn failed(root: &Path, label: &str) {
 }
 
 fn run(root: &Path) -> Vec<Value> {
+    run_with(root, &mut Command::new("bash"))
+}
+
+fn run_with(root: &Path, command: &mut Command) -> Vec<Value> {
     write(root, "facts.json", &facts().to_string());
-    let status = Command::new("bash")
+    let status = command
         .arg(runfiles_root().join(SCRIPT))
         .arg(root.join("out.jsonl"))
         .arg("linux_x86_64")
@@ -123,4 +127,59 @@ fn version_is_copied_through() {
     assert_eq!(a["version"], "1.2.3");
     assert_eq!(a["compiler_flag"], "a");
     assert_eq!(a["bazel"], "bazel 9");
+}
+
+fn observe(root: &Path, signatures: &[&str]) -> Vec<Value> {
+    write(root, "bin/p/a1", "binary");
+    write(
+        root,
+        "producers.sh",
+        &format!("#!/bin/sh\necho '{}'\n", json!({"x": signatures})),
+    );
+    let producers = root.join("producers.sh");
+    let mut mode = std::fs::metadata(&producers).expect("stat").permissions();
+    std::os::unix::fs::PermissionsExt::set_mode(&mut mode, 0o755);
+    std::fs::set_permissions(&producers, mode).expect("chmod");
+    let mut command = Command::new("bash");
+    command.env("DX_PRODUCERS", root.join("producers.sh"));
+    for label in ["//p:probe_a", "//p:a1", "//p:a2", "//q:a3"] {
+        passed(root, label);
+    }
+    run_with(root, &mut command)
+}
+
+#[test]
+fn observed_producer_with_the_version_passes() {
+    let dir = scratch("compiler_evidence");
+    let a = &observe(dir.path(), &["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"])[0];
+    assert_eq!(a["outcome"], "passed");
+    assert_eq!(a["observed_producers"], json!(["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"]));
+}
+
+#[test]
+fn observed_producer_with_another_version_is_a_mismatch() {
+    let dir = scratch("compiler_evidence");
+    let a = &observe(dir.path(), &["GCC: (GNU) 9.9.9"])[0];
+    assert_eq!(a["outcome"], "mismatch");
+}
+
+#[test]
+fn no_observed_producer_keeps_the_outcome() {
+    let dir = scratch("compiler_evidence");
+    let a = &observe(dir.path(), &[])[0];
+    assert_eq!(a["outcome"], "passed");
+    assert_eq!(a["observed_producers"], json!([]));
+}
+
+#[test]
+fn producers_bin_lists_nothing_for_a_non_elf_file() {
+    let dir = scratch("compiler_evidence");
+    write(dir.path(), "text", "plain");
+    let bin = runfiles_root().join(std::env::var("DX_PRODUCERS_BIN").expect("DX_PRODUCERS_BIN"));
+    let output = Command::new(bin)
+        .arg(dir.path().join("text"))
+        .output()
+        .expect("run producers_bin");
+    let found: Value = serde_json::from_slice(&output.stdout).expect("json");
+    assert_eq!(found[dir.path().join("text").to_str().unwrap()], json!([]));
 }

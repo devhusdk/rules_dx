@@ -921,6 +921,7 @@ rustfmt_test(
         ":coverage_cells_bin",
         ":coverage_cells_test",
         ":compiler_evidence_test",
+        ":producers_bin",
         ":bcr_outdated",
         ":bcr_outdated_bin",
         ":action_pins_test",
@@ -986,10 +987,25 @@ rust_test(
 )
 
 # keep
+rust_binary(
+    name = "producers_bin",
+    testonly = True,
+    srcs = ["producers_main.rs"],
+    deps = [
+        "//cli/binfmt:dx_binfmt",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
 rust_test(
     name = "compiler_evidence_test",
     srcs = ["compiler_evidence_test.rs"],
-    data = ["compiler_evidence.sh"],
+    data = [
+        "compiler_evidence.sh",
+        ":producers_bin",
+    ],
+    env = {"DX_PRODUCERS_BIN": "$(rootpath :producers_bin)"},
     tags = ["no-remote"],
     deps = [
         "//cli/test_scratch:dx_test_scratch",

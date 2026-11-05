@@ -2,6 +2,8 @@
 # Appends one JSON line of compiler evidence per compiler row of the support matrix facts.
 # usage: compiler_evidence.sh OUT PLATFORM FACTS
 # Run after the tests. Reads bazel-bin and bazel-testlogs, or DX_BIN and DX_TESTLOGS when set.
+# With DX_PRODUCERS set to producers_bin, it also records the compiler signatures found in the row's test executables
+# and marks a passing row mismatch when none of them carries the expected compiler and version.
 # A row is failed if any test failed, passed if its probe (when it has one) and at least one test passed, else skipped.
 set -euo pipefail
 
@@ -54,12 +56,34 @@ while IFS= read -r row; do
     printf '%s\n' "$probe_fields" | sed -n "s/^field cc\.$1=//p" | head -n 1
   }
 
+  observed='[]'
+  if [ -n "${DX_PRODUCERS:-}" ]; then
+    files=()
+    while IFS= read -r label; do
+      [ -n "$label" ] || continue
+      path="${label#//}"; path="${bin}/${path/:/\/}"
+      for candidate in "$path" "$path.exe"; do
+        [ ! -f "$candidate" ] || files+=("$candidate")
+      done
+    done < <(jq -r '.ci_tests[]' <<<"$row" | tr -d '\r')
+    if [ "${#files[@]}" -gt 0 ]; then
+      observed="$("$DX_PRODUCERS" "${files[@]}" | tr -d '\r' | jq -c '[.[][]] | unique')"
+    fi
+  fi
+  marker=""
+  case "$flag" in gcc) marker="GCC" ;; llvm) marker="clang" ;; esac
+  matched="$(jq -r --arg marker "$marker" --arg version "$version" \
+    'any(.[]; contains($marker) and contains($version))' <<<"$observed")"
+
   if [ "$failed" = 1 ]; then
     outcome=failed
   elif [ "$ran" -gt 0 ] && { [ -z "$probe" ] || [ "$probe_outcome" = passed ]; }; then
     outcome=passed
   else
     outcome=skipped
+  fi
+  if [ "$outcome" = passed ] && [ "$observed" != '[]' ] && [ "$matched" != true ]; then
+    outcome=mismatch
   fi
 
   jq -cn \
@@ -78,5 +102,6 @@ while IFS= read -r row; do
     --argjson ran "$ran" \
     --argjson total "$total" \
     --arg outcome "$outcome" \
-    '{platform: $platform, row: $row, compiler_flag: $flag, version: $version, sha: $sha, compiler: $compiler, target: $target, bazel: $bazel, job: $job, probe: $probe, probe_outcome: $probe_outcome, tests: $tests, ran: $ran, total: $total, outcome: $outcome}' >> "$out"
+    --argjson observed "$observed" \
+    '{platform: $platform, row: $row, compiler_flag: $flag, version: $version, sha: $sha, compiler: $compiler, target: $target, bazel: $bazel, job: $job, probe: $probe, probe_outcome: $probe_outcome, tests: $tests, ran: $ran, total: $total, observed_producers: $observed, outcome: $outcome}' >> "$out"
 done < <(jq -c '.rows[] | select(.section == "compilers")' "$facts" | tr -d '\r')

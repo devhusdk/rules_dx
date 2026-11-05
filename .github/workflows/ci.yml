@@ -191,10 +191,12 @@ jobs:
           out="$RUNNER_TEMP/compiler-evidence/linux_x86_64.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
-          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts
+          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci:producers_bin
           DX_BIN="$(bazel info "$@" bazel-bin)"
           DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
-          export DX_BIN DX_TESTLOGS
+          DX_PRODUCERS="$DX_BIN/tools/ci/producers_bin"
+          [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
+          export DX_BIN DX_TESTLOGS DX_PRODUCERS
           facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
           targets="$(jq -r '.rows[] | select(.section == "compilers") | .identity.probe, .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ')"
           # shellcheck disable=SC2086
@@ -204,9 +206,9 @@ jobs:
           tools/ci/compiler_evidence.sh "$out" linux_x86_64 "$facts"
           {
             echo "#### Compiler evidence"
-            echo "| row | version | probe compiler | target | ran/total | outcome |"
-            echo "| --- | --- | --- | --- | --- | --- |"
-            jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
+            echo "| row | version | probe compiler | target | observed producers | ran/total | outcome |"
+            echo "| --- | --- | --- | --- | --- | --- | --- |"
+            jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -471,10 +473,12 @@ jobs:
           out="$RUNNER_TEMP/compiler-evidence/starter-${PLATFORM}.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
-          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts
+          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci:producers_bin
           DX_BIN="$(bazel info "$@" bazel-bin)"
           DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
-          export DX_BIN DX_TESTLOGS
+          DX_PRODUCERS="$DX_BIN/tools/ci/producers_bin"
+          [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
+          export DX_BIN DX_TESTLOGS DX_PRODUCERS
           facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
           if [ "$PLATFORM" = linux_arm64 ]; then
             # identity_gcc only runs on x86_64; the native ARM64 probe reports aarch64-linux-gnu.
@@ -489,9 +493,9 @@ jobs:
           tools/ci/compiler_evidence.sh "$out" "$PLATFORM" "$facts"
           {
             echo "#### Compiler evidence"
-            echo "| row | version | probe compiler | target | ran/total | outcome |"
-            echo "| --- | --- | --- | --- | --- | --- |"
-            jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
+            echo "| row | version | probe compiler | target | observed producers | ran/total | outcome |"
+            echo "| --- | --- | --- | --- | --- | --- | --- |"
+            jq -r '"| \(.row) | \(.version) | \(.compiler) | \(.target) | \(.observed_producers | join("; ")) | \(.ran)/\(.total) | \(.outcome) |"' "$out"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && matrix.shard == 0

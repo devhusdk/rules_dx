@@ -2,7 +2,13 @@ load("@rules_dx//cc/rules:defs.bzl", "cc_test")
 load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_files")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
-load(":failure_tests.bzl", "unknown_generator_test")
+load(
+    ":failure_tests.bzl",
+    "cmake_toolchain_present_test",
+    "cmake_toolchain_probe",
+    "missing_cmake_toolchain_test",
+    "unknown_generator_test",
+)
 load(":transition.bzl", "arm64_files")
 
 package(
@@ -131,6 +137,39 @@ unknown_generator_test(
     name = "unknown_generator_test",
     size = "small",
     target_under_test = ":zlib_bogus_generator",
+    target_compatible_with = _LINUX_X86_64,
+)
+
+platform(
+    name = "linux_riscv64_exec",
+    constraint_values = [
+        "@platforms//cpu:riscv64",
+        "@platforms//os:linux",
+    ],
+)
+
+cmake_toolchain_probe(
+    name = "cmake_probe",
+    tags = _THIRD_PARTY,
+)
+
+cmake_toolchain_probe(
+    name = "cmake_probe_riscv64",
+    exec_compatible_with = ["@platforms//cpu:riscv64"],
+    tags = _THIRD_PARTY + ["manual"],
+)
+
+cmake_toolchain_present_test(
+    name = "cmake_toolchain_present_test",
+    size = "small",
+    target_under_test = ":cmake_probe",
+    target_compatible_with = _LINUX_X86_64,
+)
+
+missing_cmake_toolchain_test(
+    name = "missing_cmake_toolchain_test",
+    size = "small",
+    target_under_test = ":cmake_probe_riscv64",
     target_compatible_with = _LINUX_X86_64,
 )
 

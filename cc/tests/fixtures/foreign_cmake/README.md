@@ -14,6 +14,11 @@ cell runs cmake with `--trace-expand` so its log shows `CMAKE_CROSSCOMPILING`.
 `unknown_generator_test` checks that `-GBogus` fails analysis with a clear
 message and no fallback generator.
 
-Not covered yet (part of #6222): analysis failure tests for a missing cmake
-toolchain (a riscv64 exec platform fails earlier on the LLVM glibc stubs
-select) and a wrong-architecture `cc_import`.
+`missing_cmake_toolchain_test` resolves an optional cmake toolchain probe on a
+riscv64 exec platform with no pinned cmake and expects rules_foreign_cc's "No
+toolchain found" failure, so `tools.explicit()` has no system fallback.
+`cmake_toolchain_present_test` is the positive control on the host. A real
+`cmake` target on riscv64 would fail earlier on the LLVM glibc stubs select.
+
+Not covered yet (part of #6222): a wrong-architecture `cc_import`, tracked in
+#7246.

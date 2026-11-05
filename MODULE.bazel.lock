@@ -14936,7 +14936,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "0Ln3WSTg3ADNdv9uzHWpvSYYWmej0Ar9jw5+45LxjoQ=",
+        "bzlTransitiveDigest": "20oMK4To4wiBGYeOr80kcPV0D1ipSYyi8nJxMLYWCyI=",
         "usagesDigest": "0BOTD+RFF/F8wEwkEkeUKp8CTf/m/XNqplFokg6LSlU=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"

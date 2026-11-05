@@ -1,132 +1,69 @@
 # `dx status`
 
+Reports workspace health. Reads only; it downloads, installs and repairs nothing.
+
 ```sh
 bazel run @rules_dx//:dx -- status
-bazel run @rules_dx//:dx -- status --output=json
+bazel run @rules_dx//:dx -- status --output json
+bazel run @rules_dx//:dx -- status --capabilities
 bazel run @rules_dx//:dx -- --version
 ```
-
-## `dx status`
 
 ```text
 dx status [--capabilities] [--output text|json]
 ```
 
-Reports toolchain, Bazel, module, init_plan, host, exec_tools, tools, pin, and init
-health. With `--capabilities` it adds one capability record per `dx` command. Takes no scopes. Runs anywhere with a workspace. It is read-only: it
-downloads, installs, repairs, and runs nothing.
+| Flag | What it does |
+| --- | --- |
+| `--capabilities` | Adds one capability record per command and one for `workspace:tools`. |
+| `--output text\|json` | Sets the output format. |
 
-Output: `--output text|json`. `--capabilities` adds the capability records.
+Scopes: none.
 
-Exit codes: `0` all checks pass, `2` usage error, `1` a check failed or
-`.dx/pins` is missing.
+## Checks
 
-## Failure Explainer
+| Check | Reports |
+| --- | --- |
+| `toolchain` | Rust and `rules_rust` versions declared in `MODULE.bazel`. `warn` when missing, unparsed, overridden or different from the tested versions. |
+| `bazel` | `.bazelversion` and `bazel` or `bazelisk` on `PATH`. |
+| `module` | `rules_dx` version in `MODULE.bazel` (or an `include()`d file) against the `dx` version. A `single_version_override` version wins over `bazel_dep`. |
+| `init_plan` | Read-only `dx init` plan. `warn` names hard conflicts. |
+| `host` | Host is linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 or windows_arm64. |
+| `exec_tools` | `warn` when `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`. |
+| `tools` | Tools selected by `dx env --apply`. `warn` when none; `error` when a link or `values.json` is missing or corrupt. |
+| `pin` | `.dx/pins` against the `dx` version. |
+| `init` | Files `dx init` writes that are missing or out of date. |
+| `ide` | After `.dx/ide/state.json` exists: `ok`, or `error` with the failing plug-ins. Fix with `dx env --apply`. |
+| `lease` | Inside a `dx worktree` slot: holder and branch. |
+| `share` | While build slots are held: held slots and the CPUs and memory a new run gets. |
+| `slots` | `warn` for each `slot-N.lock` file dx cannot open. |
 
-`dx status` prints one line per check, for example:
+`ok` passes. `warn` does not fail. `error` fails; the hint is the fix.
+
+## Output
+
+Text prints one line per check:
 
 ```text
 toolchain: ok (available: rust 1.99.1 via rules_rust 0.75.0 declared in MODULE.bazel) hint: bazel build //...
 ```
 
-Inside a `dx worktree` slot it adds a `lease` check that names the holder and branch.
+With `--capabilities`, text adds one `capability <name>` line per command.
 
-The checks are `toolchain`, `bazel`, `module`, `init_plan`, `host`, `exec_tools`,
-`tools`, `pin`, and `init`.
-Inside a worktree slot there is also `lease`.
-The `share` check appears only while build slots are held.
-The `slots` check appears only when a `slot-N.lock` file under the dx slots
-directory cannot be opened.
+JSON streams `command_started`, one `status` event per check (`name`, `status`, `detail`, `hint`), then `command_finished`. With `--capabilities` it adds one `capability` event per command (`name`, `source`, `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`, `effect`, `passthrough`). `source` is `cli-grammar` or `workspace-record`. `availability` is `available`, `unavailable` or `unknown`.
 
-- `slots`: `warn` and names each `slot-N.lock` file dx cannot open, the files
-  the once-per-run skip warning also mentions. It only reads; it creates and
-  locks nothing.
-- `share`: `ok` and appears only while build slots are held. It names how many
-  slots are held and the CPUs and memory a run started now would get (the
-  machine split over the held slots plus that run), assuming the default slot
-  setting. It only reads; it creates and locks nothing.
-- `toolchain`: reads the rust toolchain versions and the `rules_rust` version
-  declared in `MODULE.bazel`. `ok` when they match the versions `dx` is tested
-  with. `warn` when `MODULE.bazel` is missing, does not parse, declares no rust
-  toolchain, takes `rules_rust` from an override, or declares other versions.
-  It never fails `dx status`, and it reports what `MODULE.bazel` declares, not
-  what Bazel resolves.
-- `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
-- `module`: compares the `rules_dx` version in `MODULE.bazel`, or in a file it `include()`s, with the `dx` version. It reports `error` with the parser message when either cannot be read or parsed.
-  A `single_version_override` version wins over `bazel_dep`. An override
-  without a version falls back to the `bazel_dep` version. The check is `warn`
-  only when neither declares a version.
-- `init_plan`: runs the read-only `dx init` plan against `MODULE.bazel` without Bazel.
-  `ok` with `none:` when no hard conflicts exist, `ok` with `not applicable:` without a
-  `MODULE.bazel` or in the rules_dx workspace, `warn` naming the hard conflicts otherwise.
-- `host`: checks the machine is a v1 execution platform: linux_x86_64,
-  linux_arm64, macos_arm64, windows_x86_64, or windows_arm64. The target platform never
-  selects tools. This is not native qualification.
-- `exec_tools`: reads `.bazelrc` and the preset files it imports. `warn` when
-  `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.
-- `tools`: reads the managed tools `dx env --apply` selected under
-  `.dx/setups/current`. `warn` when none is selected. `error` when the
-  selection is foreign, its environment or `values.json` is missing or
-  corrupt, or a tool link is missing, is not a link, or points at a missing
-  Bazel artifact. Pinned quality tools resolve at build time and are not
-  probed.
-- `pin`: compares `.dx/pins` with the rules_dx module version this `dx`
-  was built from. An empty or invalid (non-semver) pin hints
-  `dx init --apply`.
-- `init`: names each file `dx init` writes that is missing or out of date: the
-  launcher, preset, overrides, `.bazelignore`, `AGENTS.md` block, `CLAUDE.md`
-  import, or agent hooks. `warn`, or `error` when a launcher or override file
-  is out of date; `error` fails `dx status` with `status_check_failed`.
-  `dx init --apply` writes it.
-
-`ok` passes. `warn` means unknown and does not fail. `error` fails, and
-the hint is the fix, for example `dx upgrade --to <version> --apply`.
-The `toolchain`, `bazel`, `module`, `init_plan`, `host`, `exec_tools`, and `tools` detail text starts with
-`available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
-never healthy.
-
-With `--capabilities`, text output then prints one `capability <name>` line per
-command, then `capability workspace:tools`.
-
-`--output=json` streams `command_started`, one `status` event per check with
-`name`, `status`, `detail`, and `hint`, then `command_finished`. With
-`--capabilities` it adds one `capability` event per command and one for
-`workspace:tools` before `command_finished`. A `capability` event
-has `name`, `source`, `availability`, `detail`, `flags`, `outputs`,
-`reports`, `scope_policy`, `effect`, and `passthrough`. `source` is
-`cli-grammar` for commands and `workspace-record` for `workspace:tools`.
-`availability` is `available`, `unavailable`, or `unknown`, and
-`workspace:tools` follows the `tools` check. A grammar record says the
-command is accepted, not that its tools are installed.
-
-A failure emits exactly one error event and exits `1`. If `pin` fails, the
-event is `status_pin_mismatch`, even when other checks fail too. Otherwise
-any failed check adds `status_check_failed`, which names the failed checks.
-An empty `.dx/pins` fails the `pin` check.
-
-A missing `.dx/pins` stops `dx status` with `status_pin_mismatch`
-(`.dx/pins is missing`, with the next step `tools/dx init --apply`) before any check runs. It prints no check lines.
-JSON output has only `command_started`, `error`, and `command_finished`.
+A failed check emits `status_check_failed` naming the checks. A failed `pin` emits `status_pin_mismatch` instead. A missing or empty `.dx/pins` emits `status_pin_mismatch` before any check runs.
 
 ```text
 dx: status_check_failed: failed checks: module, tools (see hint)
 ```
 
-`dx --version` prints the binary version and exits `0`. `dx status` reports
-the pin, the module version, and the `rules_dx` dependency. To change the pin,
-run `dx upgrade --to <module version> --apply`. When the pin is not semver,
-write the module version to `.dx/pins`.
+`dx --version` prints the binary version and exits `0`.
 
-The [global shim](README.md#global-shim) sets `DX_SHIM=1` for the dx binary
-it runs.
+## Exit Codes
 
-A missing `.dx/pins` makes `dx status` exit `1` with `status_pin_mismatch`,
-and an empty one fails the `pin` check.
-
-Once `.dx/ide/state.json` exists, the `ide` check reports `ok`, or `error` with the failing editor plug-ins and the hint `tools/dx env --apply`.
-
-```sh
-bazel run @rules_dx//:dx -- status
-bazel run @rules_dx//:dx -- upgrade --to 1.3.0 --apply
-bazel run @rules_dx//:dx -- build //...
-```
+| Code | Meaning |
+| --- | --- |
+| `0` | All checks pass. |
+| `1` | A check failed, or `.dx/pins` is missing. |
+| `2` | Usage error. |

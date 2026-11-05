@@ -2,7 +2,7 @@
 
 use super::common::*;
 use dx_output::{
-    command_finished, error_event, notice_event, FinishedCounts, NoticeEvent, OutputMode,
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, error_event, notice_event,
 };
 use dx_plan::args::Invocation;
 
@@ -169,7 +169,8 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::Pub
             | dx_adopt::dependency_sets::Ecosystem::Conan
             | dx_adopt::dependency_sets::Ecosystem::Julia
-            | dx_adopt::dependency_sets::Ecosystem::Hex,
+            | dx_adopt::dependency_sets::Ecosystem::Hex
+            | dx_adopt::dependency_sets::Ecosystem::SwiftPm,
             _,
         ) => Err(operational(
             invocation,

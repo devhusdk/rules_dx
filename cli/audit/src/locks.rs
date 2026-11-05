@@ -25,6 +25,8 @@ mod locks_hex;
 mod locks_pub;
 #[path = "locks_ruby.rs"]
 mod locks_ruby;
+#[path = "locks_swift.rs"]
+mod locks_swift;
 #[path = "locks_uv.rs"]
 mod locks_uv;
 
@@ -40,6 +42,7 @@ pub use locks_pnpm::*;
 pub use locks_hex::*;
 pub use locks_pub::*;
 pub use locks_ruby::*;
+pub use locks_swift::*;
 pub use locks_uv::*;
 
 /// Reads the Go packages a `go.mod` pins, with its `replace` directives applied.

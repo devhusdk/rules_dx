@@ -519,6 +519,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Julia => {
                 "dx does not resolve Julia packages; edit Project.toml and regenerate Manifest.toml and Manifest.bazel.json with Pkg"
             }
+            Ecosystem::SwiftPm => {
+                "dx does not resolve Swift packages; edit Package.swift and regenerate Package.resolved with `swift package resolve`"
+            }
             _ => {
                 "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
             }
@@ -633,8 +636,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::SwiftPm, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::SwiftPm, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, request) => {
@@ -873,8 +876,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::SwiftPm, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::SwiftPm, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, Selection::Full) => {

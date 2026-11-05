@@ -512,6 +512,9 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
+            dx_adopt::dependency_sets::Ecosystem::SwiftPm => {
+                dx_audit::locks::parse_package_resolved(text)
+            }
             dx_adopt::dependency_sets::Ecosystem::PowerShell => {
                 dx_audit::locks::parse_psgallery_lock(text)
             }

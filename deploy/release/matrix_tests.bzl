@@ -97,7 +97,10 @@ def matrix_unit_tests(name):
                     "      \"machine\": \"x86_64\",\n" +
                     "      \"name\": \"dx-windows-x86_64\",\n" +
                     "      \"os\": \"windows\",\n" +
-                    "      \"runtime\": []\n" +
+                    "      \"runtime\": [\n" +
+                    "        \"msvc_vcruntime\",\n" +
+                    "        \"windows_ucrt\"\n" +
+                    "      ]\n" +
                     "    },\n" +
                     "    {\n" +
                     "      \"arch\": \"arm64\",\n" +
@@ -106,7 +109,10 @@ def matrix_unit_tests(name):
                     "      \"machine\": \"aarch64\",\n" +
                     "      \"name\": \"dx-windows-arm64\",\n" +
                     "      \"os\": \"windows\",\n" +
-                    "      \"runtime\": []\n" +
+                    "      \"runtime\": [\n" +
+                    "        \"msvc_vcruntime\",\n" +
+                    "        \"windows_ucrt\"\n" +
+                    "      ]\n" +
                     "    }\n" +
                     "  ],\n" +
                     "  \"schema\": \"release-matrix/v1\"\n" +

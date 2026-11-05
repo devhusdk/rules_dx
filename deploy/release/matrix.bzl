@@ -21,7 +21,7 @@ def _cell(os, arch, min_runtime):
         "min_runtime": min_runtime,
         "name": "dx-" + os + "-" + arch,
         "os": os,
-        "runtime": [],
+        "runtime": ["//cc/toolchains:msvc_vcruntime", "//cc/toolchains:windows_ucrt"] if windows else [],
     }
 
 RELEASE_MATRIX = [

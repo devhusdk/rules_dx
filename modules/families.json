@@ -60,7 +60,8 @@
         "rules_cc",
         "rules_dx",
         "rules_rust",
-        "rules_shell"
+        "rules_shell",
+        "rules_swift"
       ],
       "dirs": [
         "bcr_test_module",

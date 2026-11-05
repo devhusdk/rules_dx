@@ -1,0 +1,5 @@
+[project]
+name = "grpc-tests"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = ["grpcio", "grpcio-tools", "protobuf", "pytest", "coverage"]

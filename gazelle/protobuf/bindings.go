@@ -23,6 +23,8 @@ const (
 
 	javaGRPCKind = "java_grpc_library"
 	javaGRPCDefs = "@grpc-java//:java_grpc_library.bzl"
+	pyGRPCKind   = "py_grpc_library"
+	pyGRPCDefs   = "@rules_dx//python/rules:grpc.bzl"
 )
 
 // binding is a language rule that wraps a proto_library. It is generated when
@@ -65,11 +67,16 @@ func bindingKinds() map[string]rule.KindInfo {
 		NonEmptyAttrs:  map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "visibility": true, "testonly": true},
 	}
+	kinds[pyGRPCKind] = rule.KindInfo{
+		MatchAttrs:     []string{"proto"},
+		NonEmptyAttrs:  map[string]bool{"proto": true},
+		MergeableAttrs: map[string]bool{"proto": true, "py_proto": true, "visibility": true, "testonly": true},
+	}
 	return kinds
 }
 
 func bindingKindDefs() map[string]string {
-	defs := map[string]string{javaGRPCKind: javaGRPCDefs}
+	defs := map[string]string{javaGRPCKind: javaGRPCDefs, pyGRPCKind: pyGRPCDefs}
 	for _, b := range bindings {
 		defs[b.kind] = b.defs
 	}
@@ -77,7 +84,7 @@ func bindingKindDefs() map[string]string {
 }
 
 func bindingExtraKinds() []string {
-	kinds := []string{javaGRPCKind}
+	kinds := []string{javaGRPCKind, pyGRPCKind}
 	for _, b := range bindings {
 		kinds = append(kinds, b.kind)
 	}
@@ -148,6 +155,18 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 				imports = append(imports, nil)
 				desired[javaGRPCKind+"\x00"+g.Name()] = true
 			}
+			if b.kind == pyKind && deps["rules_dx"] && hasService(args.Dir, lib.AttrStrings("srcs")) {
+				g := rule.NewRule(pyGRPCKind, base+"_py_grpc")
+				g.SetAttr("proto", ":"+lib.Name())
+				g.SetAttr("py_proto", ":"+r.Name())
+				if lib.AttrBool("testonly") {
+					g.SetAttr("testonly", true)
+				}
+				g.SetAttr("visibility", []string{"//visibility:public"})
+				gen = append(gen, g)
+				imports = append(imports, nil)
+				desired[pyGRPCKind+"\x00"+g.Name()] = true
+			}
 		}
 	}
 	result.Gen, result.Imports = gen, imports
@@ -160,9 +179,9 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 		}
 	}
 	for _, existing := range args.File.Rules {
-		if existing.Kind() == javaGRPCKind && !desired[javaGRPCKind+"\x00"+existing.Name()] {
+		if (existing.Kind() == javaGRPCKind || existing.Kind() == pyGRPCKind) && !desired[existing.Kind()+"\x00"+existing.Name()] {
 			for _, base := range names {
-				if existing.Name() == base+"_java_grpc" {
+				if existing.Name() == base+"_java_grpc" || existing.Name() == base+"_py_grpc" {
 					result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
 				}
 			}

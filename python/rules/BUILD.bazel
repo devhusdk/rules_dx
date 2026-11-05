@@ -252,3 +252,4 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+exports_files(["grpc_protoc.py"])

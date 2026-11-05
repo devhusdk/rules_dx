@@ -1,0 +1,23 @@
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_dx//python/rules:grpc.bzl", "py_grpc_library")
+
+proto_library(
+    name = "api_proto",
+    srcs = ["greeter.proto"],
+    strip_import_prefix = "/",
+    visibility = ["//visibility:public"],
+)
+
+py_proto_library(
+    name = "api_py_proto",
+    visibility = ["//visibility:public"],
+    deps = [":api_proto"],
+)
+
+py_grpc_library(
+    name = "api_py_grpc",
+    proto = ":api_proto",
+    py_proto = ":api_py_proto",
+    visibility = ["//visibility:public"],
+)

@@ -501,7 +501,7 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
                 "dx does not resolve gems; edit Gemfile and regenerate Gemfile.lock with `bundle lock`"
             }
             Ecosystem::Cpan => {
-                "dx does not resolve CPAN modules; edit cpanfile and regenerate cpanfile.snapshot with `carton install`"
+                "dx refreshes cpanfile.snapshot with `carton update`; edit cpanfile and run `carton install`"
             }
             Ecosystem::Pub => {
                 "dx does not resolve pub packages; edit pubspec.yaml and regenerate pubspec.lock with `dart pub get`"
@@ -623,9 +623,28 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
+        }
+        (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Cpan, Selection::Packages(modules)) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let mut command = vec!["update"];
+            command.extend(modules.iter().map(String::as_str));
+            Ok(BackendPlan::Run {
+                argv: carton_argv(workspace, set, head, &command)?,
+                env: carton_env(),
+            })
         }
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
@@ -812,10 +831,25 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Cpan | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Pub | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
+        (Ecosystem::Cpan, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            Ok(CheckPlan::Run {
+                argv: carton_argv(workspace, set, head, &["install", "--deployment"])?,
+                env: carton_env(),
+            })
+        }
+        (Ecosystem::Cpan, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "carton checks the whole cpanfile.snapshot; select the set without a package",
+        }),
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
             argv: configured_uv_argv(set, closure, true, offline)?,
             env: vec![],
@@ -1041,6 +1075,31 @@ pub fn runs_bazel(argv: &[String]) -> bool {
 
 fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
+}
+
+/// A `carton` run from the toolchain in the set's directory.
+///
+/// `bazel run` starts in the runfiles tree, so `--run_under` moves into the set first.
+fn carton_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    command: &[&str],
+) -> Result<Vec<String>, BackendError> {
+    let dir = set_dir(workspace, set)?;
+    let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//perl/tools:carton", "--"]);
+    argv.extend(strings(command));
+    Ok(argv)
+}
+
+/// Keeps carton's `local/` install tree out of the workspace.
+fn carton_env() -> Vec<(String, String)> {
+    let path = std::env::temp_dir().join("dx-carton-local");
+    vec![(
+        "PERL_CARTON_PATH".to_owned(),
+        path.to_string_lossy().into_owned(),
+    )]
 }
 
 fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String> {
@@ -1380,6 +1439,93 @@ mod tests {
         ));
         assert!(matches!(
             plan_ruby_lock(&ruby_set(), "rake", true, false, &no_head()),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+    }
+
+    fn cpan_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "perl".to_owned(),
+            ecosystem: Ecosystem::Cpan,
+            dir: "app".to_owned(),
+            manifests: vec!["app/cpanfile".to_owned()],
+            locks: vec!["app/cpanfile.snapshot".to_owned()],
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn cpan_update_runs_carton_update_in_the_set_dir() {
+        let plan = plan_configured(
+            ws(),
+            &cpan_set(),
+            &Selection::Packages(vec!["Try::Tiny".to_owned()]),
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect("plan");
+        let BackendPlan::Run { argv, env } = plan else {
+            panic!("expected a run");
+        };
+        let tail = argv.iter().position(|arg| arg.starts_with("--run_under="));
+        assert_eq!(
+            argv[tail.expect("run_under")..],
+            [
+                "--run_under=cd '/dx-workspace/app' &&",
+                "@rules_dx//perl/tools:carton",
+                "--",
+                "update",
+                "Try::Tiny"
+            ]
+        );
+        assert_eq!(env[0].0, "PERL_CARTON_PATH");
+    }
+
+    #[test]
+    fn cpan_update_refuses_frozen_and_offline() {
+        let request = Selection::Packages(vec!["Try::Tiny".to_owned()]);
+        for (offline, frozen) in [(true, false), (false, true)] {
+            assert!(plan_configured(
+                ws(),
+                &cpan_set(),
+                &request,
+                offline,
+                frozen,
+                &no_head(),
+                &UvClosure::default()
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn cpan_check_installs_the_snapshot_in_deployment_mode() {
+        let plan = check_configured(
+            ws(),
+            &cpan_set(),
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect("plan");
+        let CheckPlan::Run { argv, .. } = plan else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv[argv.len() - 2..], ["install", "--deployment"]);
+        assert!(matches!(
+            check_configured(
+                ws(),
+                &cpan_set(),
+                &Selection::Full,
+                true,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
             Err(BackendError::OfflineRequired { .. })
         ));
     }

@@ -1772,7 +1772,7 @@ _http_archive(
     urls = ["https://github.com/apple/swift-argument-parser/archive/refs/tags/1.8.2.tar.gz"],
 )
 
-_shared_consumer_repo = use_repo_rule("//examples/shared-rust:repos.bzl", "shared_consumer_repo")
+_shared_consumer_repo = use_repo_rule("//rust/tests/fixtures/shared-rust-checks:repos.bzl", "shared_consumer_repo")
 
 _shared_consumer_repo(
     name = "shared_consumer",

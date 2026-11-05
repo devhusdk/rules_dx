@@ -1,4 +1,3 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library", "cc_test")
 load("//deploy/rules:archive.bzl", "archive_deploy")
@@ -183,87 +182,6 @@ android_adb_log(
     serial = "emulator-5554",
 )
 
-sh_test(
-    name = "inspect_apk_test",
-    srcs = ["inspect_apk.sh"],
-    args = [
-        "$(location :tasks_apk_file)",
-        "com.example.dxsharedtasks",
-        "tasks_apk_bin",
-        "arm64-v8a,x86_64",
-        "$(location @android_ndk_toolchain//:llvm_readelf)",
-        "31",
-        "'DX Shared Tasks'",
-        "$(location assets/board.txt)",
-        "$(location assets/notes.txt)",
-    ],
-    data = [
-        "@dx_android_sdk//:aapt",
-        "@dx_android_sdk//:apksigner_jar",
-        "@rules_java//toolchains:current_java_runtime",
-        "assets/board.txt",
-        "assets/notes.txt",
-        ":tasks_apk_file",
-        "@android_ndk_toolchain//:llvm_readelf",
-    ],
-    env = {
-        "DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)",
-        "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
-        "DX_JAVA": "$(JAVA_ROOTPATH)",
-    },
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-    toolchains = ["@rules_java//toolchains:current_java_runtime"],
-)
-
-sh_test(
-    name = "inspect_consumer_apk_test",
-    srcs = ["inspect_apk.sh"],
-    args = [
-        "$(location @shared_consumer//:consumer_apk_file)",
-        "org.example.consumer.tasks",
-        "consumer_apk_bin",
-        "x86_64",
-        "$(location @android_ndk_toolchain//:llvm_readelf)",
-        "33",
-        "'Consumer Tasks'",
-        "$(location @shared_consumer//:assets/board.txt)",
-        "$(location @shared_consumer//:assets/notes.txt)",
-    ],
-    data = [
-        "@dx_android_sdk//:aapt",
-        "@dx_android_sdk//:apksigner_jar",
-        "@rules_java//toolchains:current_java_runtime",
-        "@android_ndk_toolchain//:llvm_readelf",
-        "@shared_consumer//:assets/board.txt",
-        "@shared_consumer//:assets/notes.txt",
-        "@shared_consumer//:consumer_apk_file",
-    ],
-    env = {
-        "DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)",
-        "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
-        "DX_JAVA": "$(JAVA_ROOTPATH)",
-    },
-    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-    toolchains = ["@rules_java//toolchains:current_java_runtime"],
-)
-
-sh_test(
-    name = "lifecycle_check_test",
-    srcs = ["check_lifecycle.sh"],
-    args = ["$(location testdata/lifecycle_ok.log)"],
-    data = ["testdata/lifecycle_ok.log"],
-)
-
-sh_test(
-    name = "lifecycle_check_missing_destroy_test",
-    srcs = ["check_lifecycle.sh"],
-    args = [
-        "$(location testdata/lifecycle_no_destroy.log)",
-        "--expect-fail",
-    ],
-    data = ["testdata/lifecycle_no_destroy.log"],
-)
-
 # keep
 rust_binary(
     name = "tasks_wasi",
@@ -430,58 +348,6 @@ rust_test(
     ],
 )
 
-rust_test(
-    name = "consumer_browser_test",
-    srcs = ["tests/consumer_browser_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
-    data = [
-        "//tools/docs/site/browser:firefox",
-        "//tools/docs/site/browser:firefox_tree",
-        "@shared_consumer//:consumer_app",
-        "@shared_consumer//:consumer_serve",
-    ],
-    env = {
-        "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
-        "DX_SHARED_CONSUMER_SERVE": "$(rootpath @shared_consumer//:consumer_serve)",
-    },
-    tags = [
-        "block-network",
-        "no-coverage",
-        "no-remote-exec",
-        "resources:cpu:2",
-        "resources:memory:2048",
-    ],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//tools/docs/site/browser:dx_site_browser",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
-    name = "consumer_native_test",
-    srcs = ["tests/consumer_native_test.rs"],
-    aspect_hints = ["//:rustfmt_config"],
-    data = [
-        "@shared_consumer//:consumer_probe",
-        "@shared_consumer//:consumer_release",
-    ],
-    env = {
-        "DX_SHARED_CONSUMER_PROBE": "$(rootpath @shared_consumer//:consumer_probe)",
-        "DX_SHARED_CONSUMER_RELEASE": "$(rootpath @shared_consumer//:consumer_release)",
-    },
-    tags = ["block-network"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-test_suite(
-    name = "consumer_wasi_test",
-    tests = [
-        "@shared_consumer//:consumer_wasi_runtime_test",
-        "@shared_consumer//:consumer_wasi_test",
-    ],
-)
-
 javascript_web_app(
     name = "app_without_interface",
     bindgen = ":tasks_core",
@@ -543,7 +409,6 @@ real_source_target(
         "BUILD.bazel",
         "adler2.BUILD.bazel",
         "release.bzl",
-        "repos.bzl",
     ],
     tags = ["corpus"],
 )
@@ -552,8 +417,7 @@ rustfmt_test(
     name = "shared_rust_fmt_test",
     targets = [
         ":asset_test",
-        ":consumer_native_test",
-        ":native_test",
+            ":native_test",
         ":tasks",
         ":tasks_core",
         ":tasks_core_test",
@@ -572,7 +436,6 @@ rustfmt_test(
     name = "shared_rust_linux_fmt_test",
     targets = [
         ":browser_test",
-        ":consumer_browser_test",
         ":release_test",
         ":tasks_deploy_verify",
     ],

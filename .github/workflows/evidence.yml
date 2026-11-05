@@ -276,7 +276,7 @@ jobs:
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |
           set -o pipefail
-          bazel test --noshow_progress --test_output=errors --test_timeout=120 //examples/shared-rust:inspect_apk_test //examples/shared-rust:inspect_consumer_apk_test 2>&1 | tail -n 120
+          bazel test --noshow_progress --test_output=errors --test_timeout=120 //rust/tests/fixtures/shared-rust-checks:inspect_apk_test //rust/tests/fixtures/shared-rust-checks:inspect_consumer_apk_test 2>&1 | tail -n 120
       - name: Wait for the emulator to boot
         id: boot
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
@@ -374,7 +374,7 @@ jobs:
           adb -s emulator-5554 shell input keyevent KEYCODE_BACK
           sleep 2
           adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
-          sh examples/shared-rust/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
+          sh rust/tests/fixtures/shared-rust-checks/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
       - name: Run the flutter-app interaction test on the emulator
         if: ${{ !cancelled() && inputs.android && matrix.platform == 'linux_x86_64' && steps.boot.outcome == 'success' }}
         run: |

@@ -1331,3 +1331,15 @@ fn build_files_parse_with_load_statements() {
     let call = file.calls_named("cpan_compiler").next().expect("call");
     assert_eq!(call.str("name"), Some("compiler"));
 }
+
+#[test]
+fn mix_locks_follow_the_elixir_mix_tag() {
+    let file = parse("elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n");
+    let found: Vec<_> = file
+        .mix_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
+    assert_eq!(found, [("deps", "//app:mix.lock")]);
+}

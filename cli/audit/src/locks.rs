@@ -19,6 +19,8 @@ mod locks_paket;
 mod locks_pnpm;
 #[path = "locks_julia.rs"]
 mod locks_julia;
+#[path = "locks_hex.rs"]
+mod locks_hex;
 #[path = "locks_pub.rs"]
 mod locks_pub;
 #[path = "locks_ruby.rs"]
@@ -35,6 +37,7 @@ pub use locks_licenses::*;
 pub use locks_npm::*;
 pub use locks_paket::*;
 pub use locks_pnpm::*;
+pub use locks_hex::*;
 pub use locks_pub::*;
 pub use locks_ruby::*;
 pub use locks_uv::*;

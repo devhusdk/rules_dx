@@ -335,7 +335,8 @@ pub(super) fn run_license(
             | dx_adopt::dependency_sets::Ecosystem::Cpan
             | dx_adopt::dependency_sets::Ecosystem::Pub
             | dx_adopt::dependency_sets::Ecosystem::Conan
-            | dx_adopt::dependency_sets::Ecosystem::Julia => {}
+            | dx_adopt::dependency_sets::Ecosystem::Julia
+            | dx_adopt::dependency_sets::Ecosystem::Hex => {}
         }
     }
     let mut exception_problems: Vec<String> = Vec::new();

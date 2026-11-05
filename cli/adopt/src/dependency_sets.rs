@@ -27,8 +27,10 @@ pub const ECOSYSTEM_CONAN: &str = "conan";
 
 pub const ECOSYSTEM_JULIA: &str = "julia";
 
+pub const ECOSYSTEM_HEX: &str = "hex";
+
 pub const SUPPORTED_ECOSYSTEMS: &str =
-    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia";
+    "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -43,6 +45,10 @@ pub const GO_SUM: &str = "go.sum";
 pub const CPANFILE: &str = "cpanfile";
 
 pub const CPANFILE_SNAPSHOT: &str = "cpanfile.snapshot";
+
+pub const MIX_EXS: &str = "mix.exs";
+
+pub const MIX_LOCK: &str = "mix.lock";
 
 pub const PUBSPEC_YAML: &str = "pubspec.yaml";
 
@@ -85,6 +91,7 @@ pub enum Ecosystem {
     Pub,
     Conan,
     Julia,
+    Hex,
 }
 
 impl Ecosystem {
@@ -103,6 +110,7 @@ impl Ecosystem {
             Ecosystem::Pub => ECOSYSTEM_PUB,
             Ecosystem::Conan => ECOSYSTEM_CONAN,
             Ecosystem::Julia => ECOSYSTEM_JULIA,
+            Ecosystem::Hex => ECOSYSTEM_HEX,
         }
     }
 
@@ -121,6 +129,7 @@ impl Ecosystem {
             ECOSYSTEM_PUB => Some(Ecosystem::Pub),
             ECOSYSTEM_CONAN => Some(Ecosystem::Conan),
             ECOSYSTEM_JULIA => Some(Ecosystem::Julia),
+            ECOSYSTEM_HEX => Some(Ecosystem::Hex),
             _ => None,
         }
     }
@@ -139,7 +148,8 @@ impl Ecosystem {
             | Ecosystem::Cpan
             | Ecosystem::Pub
             | Ecosystem::Conan
-            | Ecosystem::Julia => "pinned",
+            | Ecosystem::Julia
+            | Ecosystem::Hex => "pinned",
         }
     }
 
@@ -157,7 +167,8 @@ impl Ecosystem {
             | Ecosystem::Cpan
             | Ecosystem::Pub
             | Ecosystem::Conan
-            | Ecosystem::Julia => "pinned",
+            | Ecosystem::Julia
+            | Ecosystem::Hex => "pinned",
         }
     }
 
@@ -189,7 +200,8 @@ impl Ecosystem {
             | Ecosystem::Cpan
             | Ecosystem::Pub
             | Ecosystem::Conan
-            | Ecosystem::Julia => "audit",
+            | Ecosystem::Julia
+            | Ecosystem::Hex => "audit",
         }
     }
 
@@ -206,6 +218,7 @@ impl Ecosystem {
             Ecosystem::Cpan => Some("cpan"),
             Ecosystem::Pub => Some("pub"),
             Ecosystem::Julia => Some("julia"),
+            Ecosystem::Hex => Some("hex"),
             Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Conan => None,
         }
     }
@@ -226,6 +239,7 @@ impl Ecosystem {
             Ecosystem::Pub => PUBSPEC_YAML,
             Ecosystem::Conan => "conanfile.txt",
             Ecosystem::Julia => PROJECT_TOML,
+            Ecosystem::Hex => MIX_EXS,
         }
     }
 
@@ -243,7 +257,8 @@ impl Ecosystem {
             | Ecosystem::Cpan
             | Ecosystem::Pub
             | Ecosystem::Conan
-            | Ecosystem::Julia => false,
+            | Ecosystem::Julia
+            | Ecosystem::Hex => false,
         }
     }
 }
@@ -536,6 +551,15 @@ pub fn discover(
                 Ecosystem::Pub,
                 vec![in_dir(&dir, PUBSPEC_YAML)],
                 vec![in_dir(&dir, PUBSPEC_LOCK)],
+            )?);
+        }
+        for mix in module.mix_locks().map_err(hub)? {
+            let dir = manifest_dir(std::slice::from_ref(&path(mix.lock)?));
+            sets.push(hub_set(
+                mix.name,
+                Ecosystem::Hex,
+                vec![in_dir(&dir, MIX_EXS)],
+                vec![in_dir(&dir, MIX_LOCK)],
             )?);
         }
         for label in module.conan_extensions() {
@@ -887,6 +911,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Pub
         | Ecosystem::Conan
         | Ecosystem::Julia
+        | Ecosystem::Hex
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
@@ -1272,6 +1297,7 @@ pub fn check_backend_settings(
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
         Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
+        Ecosystem::Hex => check_pinned_lock(set, MIX_LOCK),
         Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Cargo => {
@@ -2234,6 +2260,18 @@ mod tests {
     }
 
     #[test]
+    fn elixir_mix_tags_become_hex_sets() {
+        let module = "elixir = use_extension(\"//elixir/toolchain:repos.bzl\", \"elixir\")\nelixir.mix(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+        let registry = discover(module, &|_: &str| Err("none".to_owned()))
+            .expect("discovers")
+            .expect("registry");
+        let set = registry.find("deps").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Hex);
+        assert_eq!(set.manifests, ["third_party/elixir/mix.exs"]);
+        assert_eq!(set.locks, ["third_party/elixir/mix.lock"]);
+    }
+
+    #[test]
     fn the_repos_own_dart_hub_becomes_a_pub_set() {
         let module = "pub = use_extension(\"//dart:extensions.bzl\", \"pub\", dev_dependency = True)\npub.from_lock(name = \"dx_dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
         let registry = discover(module, &|_: &str| Err("none".to_owned()))
@@ -2792,7 +2830,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex"
         );
     }
 

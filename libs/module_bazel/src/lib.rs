@@ -267,6 +267,14 @@ pub struct PubLock<'a> {
     pub line: usize,
 }
 
+/// One `elixir.mix` tag of rules_dx or this repository.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MixLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
 /// A parsed MODULE.bazel with its top-level calls in source order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleFile {
@@ -819,6 +827,23 @@ impl ModuleFile {
                 Ok(PubLock {
                     name: required(call, tag, "name")?,
                     lock: required(call, tag, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `elixir.mix` tag of rules_dx or this repository's `//elixir/toolchain:repos.bzl`.
+    pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
+        const TAG: &str = "elixir.mix";
+        let external = self.tags(RUBY_MODULE, "elixir/toolchain:repos.bzl", "elixir", "mix");
+        let own = self.tags_of("//elixir/toolchain:repos.bzl".to_owned(), "elixir", "mix");
+        external
+            .chain(own)
+            .map(|call| {
+                Ok(MixLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
                     line: call.line,
                 })
             })

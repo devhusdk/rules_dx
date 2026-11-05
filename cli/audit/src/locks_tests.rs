@@ -1594,3 +1594,33 @@ fn julia_manifest_format_one_is_refused() {
     let error = parse_julia_manifest("[[HTTP]]\nversion = \"1.10.4\"\n").unwrap_err();
     assert!(error.contains("format 1.0"), "{error}");
 }
+
+#[test]
+fn mix_lock_lists_hex_entries_only() {
+    let text = "%{\n  \"jason\": {:hex, :jason, \"1.4.1\", \"abc\", [:mix], [{:decimal, \"~> 1.0\",\n    [hex: :decimal, repo: \"hexpm\", optional: true]}], \"hexpm\", \"def\"},\n  \"mylib\": {:git, \"https://example.com/mylib.git\", \"abc123\", []},\n  # {:hex, :commented, \"9.9.9\"}\n  \"plug\": {:hex, :plug, \"1.15.0\", \"h\", [:mix], [], \"hexpm\", \"h2\"},\n}\n";
+    let packages = parse_mix_lock(text).expect("parses");
+    let found: Vec<_> = packages
+        .iter()
+        .map(|p| (p.name.as_str(), p.version.as_str()))
+        .collect();
+    assert_eq!(found, [("jason", "1.4.1"), ("plug", "1.15.0")]);
+    assert!(packages.iter().all(|package| package.set == "hex"));
+}
+
+#[test]
+fn mix_lock_rejects_malformed_text() {
+    assert!(parse_mix_lock("%{\n  \"a\": {:hex, :a, \"1.0.0\"\n").is_err());
+    assert!(parse_mix_lock("%{\"a\": {:hex, :a, \"1.0").is_err());
+    assert!(parse_mix_lock("not a map").is_err());
+}
+
+#[test]
+fn rebar_lock_lists_pkg_entries() {
+    let text = "{\"1.2.0\",\n[{<<\"cowlib\">>,{pkg,<<\"cowlib\">>,<<\"2.12.1\">>},1},\n {<<\"local\">>,{git,\"https://example.com/l.git\",{ref,\"abc\"}},0}]}.\n";
+    let packages = parse_rebar_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(
+        (packages[0].name.as_str(), packages[0].version.as_str()),
+        ("cowlib", "2.12.1")
+    );
+}

@@ -469,6 +469,14 @@ qt_cc_test(
     ]
 ]
 
+# board_release is incompatible on macOS; ledger_release waits on #5985.
+platform_transition_filegroup(
+    name = "consumer_archives_macos_arm64",
+    srcs = ["//qt/tests/fixtures/qt-tasks/app:tasks_release_archive"],
+    tags = ["manual"],
+    target_platform = "//qt/platforms:macos_arm64",
+)
+
 [
     rust_test(
         name = "consumer_identity_test_" + cell,

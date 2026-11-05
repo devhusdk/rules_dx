@@ -27,6 +27,15 @@ config_setting(
     flag_values = {":static_runtime": "True"},
 )
 
+# rules_cuda ships a static cudart for Linux only; Windows links the import library.
+alias(
+    name = "runtime",
+    actual = select({
+        "@platforms//os:windows": "@cuda//:cuda_runtime",
+        "//conditions:default": "@cuda//:cuda_runtime_static",
+    }),
+)
+
 cuda_toolkit_check(
     name = "toolkit_check",
     target_compatible_with = cells_compatible_with(

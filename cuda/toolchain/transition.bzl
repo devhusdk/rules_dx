@@ -6,7 +6,7 @@ _RUNTIME = "@rules_cuda//cuda:runtime"
 def _impl(_settings, _attr):
     return {
         _STATIC_RUNTIME: True,
-        _RUNTIME: Label("@cuda//:cuda_runtime_static"),
+        _RUNTIME: Label("//cuda/toolchain:runtime"),
     }
 
 cuda_host_transition = transition(

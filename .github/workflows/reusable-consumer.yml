@@ -93,7 +93,17 @@ jobs:
       - name: Write the Bazel preset layers
         # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
         # none until dx runs. Any dx command that reaches the workspace writes them.
-        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+        # With a pinned release the launcher runs the cached dx without Bazel.
+        run: |
+          if [ -s .dx/pins ] && [ -f tools/dx ]; then
+            if [ "$RUNNER_OS" = Windows ]; then
+              cmd.exe //c tools\\dx.cmd completion bash > /dev/null
+            else
+              tools/dx completion bash > /dev/null
+            fi
+          else
+            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+          fi
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash
@@ -173,7 +183,17 @@ jobs:
       - name: Write the Bazel preset layers
         # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
         # none until dx runs. Any dx command that reaches the workspace writes them.
-        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+        # With a pinned release the launcher runs the cached dx without Bazel.
+        run: |
+          if [ -s .dx/pins ] && [ -f tools/dx ]; then
+            if [ "$RUNNER_OS" = Windows ]; then
+              cmd.exe //c tools\\dx.cmd completion bash > /dev/null
+            else
+              tools/dx completion bash > /dev/null
+            fi
+          else
+            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+          fi
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash
@@ -478,7 +498,17 @@ jobs:
       - name: Write the Bazel preset layers
         # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
         # none until dx runs. Any dx command that reaches the workspace writes them.
-        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+        # With a pinned release the launcher runs the cached dx without Bazel.
+        run: |
+          if [ -s .dx/pins ] && [ -f tools/dx ]; then
+            if [ "$RUNNER_OS" = Windows ]; then
+              cmd.exe //c tools\\dx.cmd completion bash > /dev/null
+            else
+              tools/dx completion bash > /dev/null
+            fi
+          else
+            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+          fi
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash
@@ -542,7 +572,17 @@ jobs:
       - name: Write the Bazel preset layers
         # .dx/bazelrc is gitignored and written by dx, so a fresh checkout has
         # none until dx runs. Any dx command that reaches the workspace writes them.
-        run: bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+        # With a pinned release the launcher runs the cached dx without Bazel.
+        run: |
+          if [ -s .dx/pins ] && [ -f tools/dx ]; then
+            if [ "$RUNNER_OS" = Windows ]; then
+              cmd.exe //c tools\\dx.cmd completion bash > /dev/null
+            else
+              tools/dx completion bash > /dev/null
+            fi
+          else
+            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+          fi
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash

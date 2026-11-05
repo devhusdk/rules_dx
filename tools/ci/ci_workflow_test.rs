@@ -215,3 +215,34 @@ fn consumer_jobs_write_the_preset_layers_before_the_first_bazel_call() {
         );
     }
 }
+
+#[test]
+fn consumer_jobs_write_the_preset_layers_through_the_launcher_before_bazel_info() {
+    for (id, script) in run_scripts(CONSUMER) {
+        if script.is_empty() {
+            continue;
+        }
+        let job_steps = steps(CONSUMER, &id);
+        let run_of = |step: &serde_json::Value| step["run"].as_str().unwrap_or("").to_owned();
+        let Some(write) = job_steps
+            .iter()
+            .position(|step| run_of(step).contains("completion bash"))
+        else {
+            continue;
+        };
+        let script = run_of(&job_steps[write]);
+        assert!(
+            script.contains("tools/dx completion bash")
+                && script.contains("tools\\\\dx.cmd completion bash")
+                && script.contains("bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash"),
+            "{CONSUMER} job {id} must prefer the launcher and keep the bazel run fallback: {script}"
+        );
+        let info = job_steps
+            .iter()
+            .position(|step| run_of(step).contains("bazel info"));
+        assert!(
+            info.is_none_or(|info| write < info),
+            "{CONSUMER} job {id} must write the preset layers before `bazel info`"
+        );
+    }
+}

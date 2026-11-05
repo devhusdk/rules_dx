@@ -34,6 +34,8 @@ pub enum ConfiguredKind {
     Go,
     /// A ruby set; only the gem's line in the Gemfile is edited, then `bundle lock` runs.
     Ruby,
+    /// A composer set; only the constraint in composer.json is edited, then composer.lock is refreshed.
+    Composer,
 }
 
 impl ConfiguredKind {
@@ -45,6 +47,7 @@ impl ConfiguredKind {
             ConfiguredKind::Nuget => UpdateSet::NuGet,
             ConfiguredKind::Go => UpdateSet::Go,
             ConfiguredKind::Ruby => UpdateSet::Ruby,
+            ConfiguredKind::Composer => UpdateSet::Composer,
             ConfiguredKind::Npm => UpdateSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
@@ -248,7 +251,7 @@ fn configured_refresh_selector(
         | ConfiguredKind::Maven
         | ConfiguredKind::Nuget
         | ConfiguredKind::Go => set.name.clone(),
-        ConfiguredKind::Ruby => format!("{}:{package}", set.name),
+        ConfiguredKind::Ruby | ConfiguredKind::Composer => format!("{}:{package}", set.name),
     })
 }
 
@@ -279,7 +282,8 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         | UpdateSet::Maven
         | UpdateSet::Npm
         | UpdateSet::NuGet
-        | UpdateSet::Ruby => "",
+        | UpdateSet::Ruby
+        | UpdateSet::Composer => "",
     }
 }
 
@@ -361,7 +365,8 @@ impl UpdateRequest {
             | ConfiguredKind::Maven
             | ConfiguredKind::Nuget
             | ConfiguredKind::Go
-            | ConfiguredKind::Ruby => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Ruby
+            | ConfiguredKind::Composer => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -538,6 +543,9 @@ impl UpdateRequest {
                 plan_paket_dependencies(manifest, content, &self.package, &self.version)
             }
             UpdateSet::Ruby => plan_gemfile(manifest, content, &self.package, &self.version),
+            UpdateSet::Composer => {
+                plan_composer_json(manifest, content, &self.package, &self.version)
+            }
             UpdateSet::GithubActions => plan_github_workflow(
                 content,
                 &self.package,

@@ -107,6 +107,9 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Ruby if foreign => {
             Some(dx_update::edit::ConfiguredKind::Ruby)
         }
+        dx_adopt::dependency_sets::Ecosystem::Composer if foreign => {
+            Some(dx_update::edit::ConfiguredKind::Composer)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -135,6 +138,8 @@ pub(crate) fn configured_set(
                                 "exactly one paket.dependencies",
                             dx_update::edit::ConfiguredKind::Go => "exactly one go.mod",
                             dx_update::edit::ConfiguredKind::Ruby => "exactly one Gemfile",
+                            dx_update::edit::ConfiguredKind::Composer =>
+                                "exactly one composer.json",
                         },
                         set.name
                     ),
@@ -749,7 +754,7 @@ fn refresh_plan(
             );
             return Some((name, plan.map(RefreshPlan::InDir)));
         }
-        dx_update::edit::ConfiguredKind::Npm => (
+        dx_update::edit::ConfiguredKind::Npm | dx_update::edit::ConfiguredKind::Composer => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),

@@ -43,6 +43,9 @@ dx() { bazel run @rules_dx//:dx -- "$@"; }
 expect_version() {
   grep -q "version = \"$1\"" MODULE.bazel || { echo "MODULE.bazel is not at $1"; exit 1; }
   grep -q "$1" .dx/pins || { echo ".dx/pins is not at $1"; exit 1; }
+  grep -q "uses: .*rules_dx" .github/workflows/ci.yml || { echo "ci.yml has no rules_dx uses: ref"; exit 1; }
+  [ -f tools/dx ] || { echo "tools/dx is missing"; exit 1; }
+  dx upgrade --to "$1" || { echo "dx upgrade --to $1 still reports stale files"; exit 1; }
 }
 
 dx init

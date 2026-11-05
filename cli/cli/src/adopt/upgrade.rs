@@ -187,7 +187,12 @@ pub(crate) fn execute_upgrade(
     };
     let edits_module = edit.old != edit.new;
     if !invocation.applies() {
-        if rerun && !edits_module {
+        let files = match init_files::plan(workspace, "refresh", false, &[]) {
+            Ok(files) => files,
+            Err(error) => return refuse(out, err, &error.to_string()),
+        };
+        let stale = init_files::drift(workspace, &files).stale;
+        if rerun && !edits_module && stale.is_empty() {
             if is_json {
                 return json_pin(invocation, out, "check", to, None)
                     .map_or_else(|exit| exit, |()| 0);
@@ -206,13 +211,19 @@ pub(crate) fn execute_upgrade(
                 ..intent
             },
         );
-        let mut message = if rerun {
+        let mut message = if rerun && !edits_module {
+            format!("pin {to} has stale files (run `{retry}`)")
+        } else if rerun {
             format!("rules_dx in {} can move to {to} (run `{retry}`)", edit.path)
         } else {
             format!("pin {pin} can move to {to} (run `{retry}`)")
         };
+        let mut plan = Vec::new();
         if edits_module {
-            let plan = planned_lines(&edit, to);
+            plan = planned_lines(&edit, to);
+        }
+        plan.extend(stale.iter().map(|path| format!("{path}: refresh")));
+        if !plan.is_empty() {
             if is_json {
                 message = format!("{message}; {}", plan.join("; "));
             } else if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.join("\n"))) {
@@ -533,7 +544,8 @@ mod tests {
         legacy_launcher(&root, OLD);
         let ci = root.join(".github/workflows/ci.yml");
         let fresh = dx_adopt::render_consumer_caller();
-        std::fs::write(&ci, fresh.replace(dx_adopt::CONSUMER_WORKFLOW_PIN, "0.0.1")).expect("stale");
+        std::fs::write(&ci, fresh.replace(dx_adopt::CONSUMER_WORKFLOW_PIN, "0.0.1"))
+            .expect("stale");
         let mut gone = vec![
             "tools/dx.cmd".to_owned(),
             ".vscode/settings.json".to_owned(),
@@ -583,6 +595,27 @@ mod tests {
         let (code, out, err) = run(&upgrade(&[]), &root);
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, format!("upgrade current: {}\n", module()));
+    }
+
+    #[test]
+    fn check_mode_lists_the_stale_files_apply_would_touch() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-preview-", OLD);
+        set_module_version(&root, OLD);
+        legacy_launcher(&root, OLD);
+        let (code, out, err) = run(&upgrade(&[]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(out.contains("MODULE.bazel: rules_dx"), "{out}");
+        assert!(out.contains("tools/dx: refresh\n"), "{out}");
+    }
+
+    #[test]
+    fn check_mode_at_the_current_version_reports_a_stale_launcher() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-half-", module());
+        legacy_launcher(&root, OLD);
+        let (code, out, err) = run(&upgrade(&[]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert_eq!(out, "tools/dx: refresh\n");
+        assert!(err.contains(CODE_UPGRADE_PENDING), "{err}");
     }
 
     #[test]
@@ -772,7 +805,7 @@ mod tests {
         assert_eq!(
             out,
             format!(
-                "MODULE.bazel: rules_dx {OLD} -> {}\nthen: bazel mod deps --lockfile_mode=update\n",
+                "MODULE.bazel: rules_dx {OLD} -> {}\nthen: bazel mod deps --lockfile_mode=update\n.dx/pins: refresh\n",
                 module()
             )
         );

@@ -2,7 +2,7 @@ use super::common::*;
 use dx_adopt::dependency_sets::{cargo_fetch_repository, Ecosystem, ResolvedTarget, Selection};
 use dx_output::{notice_event, NoticeEvent};
 use dx_plan::resolve::{run_label_query_file, QueryRunner};
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -23,8 +23,22 @@ pub(super) struct Unused {
 pub(super) struct Missing {
     pub set: String,
     pub name: String,
-    pub file: String,
-    pub line: usize,
+    pub via: Via,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum Via {
+    Import { file: String, line: usize },
+    Label(String),
+}
+
+impl Via {
+    fn describe(&self) -> String {
+        match self {
+            Via::Import { file, line } => format!("imported in {file}:{line}"),
+            Via::Label(label) => format!("used by {label}"),
+        }
+    }
 }
 
 fn depcheck_ecosystem(ecosystem: Ecosystem) -> Option<dx_depcheck::Ecosystem> {
@@ -110,15 +124,15 @@ fn manifest_dir(manifest: &str) -> &str {
     manifest.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
 
-/// Keys of the labels that some target in the workspace depends on, or `None` when the set has
-/// no hub to ask or the query fails.
+/// Keys of the labels that some target in the workspace depends on, each with the first label
+/// seen for it, or `None` when the set has no hub to ask or the query fails.
 fn used_labels(
     target: &ResolvedTarget,
     manifest: &str,
     workspace: &Path,
     query: &dyn QueryRunner,
     startup: &[String],
-) -> Option<BTreeSet<String>> {
+) -> Option<BTreeMap<String, String>> {
     let scope = match target.set.ecosystem {
         Ecosystem::Cargo => {
             format!("@{}//...", cargo_fetch_repository(workspace, &target.set)?)
@@ -143,14 +157,21 @@ fn used_labels(
     let expression = format!("deps(//..., 1) intersect ({scope})");
     let labels = run_label_query_file(&expression, &expression, workspace, query, startup).ok()?;
     if target.set.ecosystem == Ecosystem::Cargo {
-        let used: BTreeSet<String> = labels
-            .iter()
-            .filter_map(|label| crate_name(label))
-            .map(|name| format!(":{name}"))
-            .collect();
+        let mut used = BTreeMap::new();
+        for label in &labels {
+            if let Some(name) = crate_name(label) {
+                used.entry(format!(":{name}")).or_insert_with(|| label.clone());
+            }
+        }
         return (!used.is_empty()).then_some(used);
     }
-    Some(labels.iter().filter_map(|label| label_key(label)).collect())
+    let mut used = BTreeMap::new();
+    for label in &labels {
+        if let Some(key) = label_key(label) {
+            used.entry(key).or_insert_with(|| label.clone());
+        }
+    }
+    Some(used)
 }
 
 fn maven_declared(workspace: &Path, repository: &str) -> Option<Vec<dx_depcheck::DeclaredDep>> {
@@ -209,7 +230,7 @@ fn find_unused_in_graph(
     manifest: &str,
     path: &Path,
     workspace: &Path,
-    used: &BTreeSet<String>,
+    used: &BTreeMap<String, String>,
 ) -> Option<Vec<dx_depcheck::UnusedDep>> {
     let ecosystem = target.set.ecosystem;
     let declared = if ecosystem == Ecosystem::Maven {
@@ -224,7 +245,7 @@ fn find_unused_in_graph(
             .filter(|dep| {
                 !dep_keys(ecosystem, dir, dep)
                     .iter()
-                    .any(|key| used.contains(key))
+                    .any(|key| used.contains_key(key))
             })
             .map(|dep| dx_depcheck::UnusedDep {
                 name: dep.name,
@@ -306,9 +327,15 @@ fn lock_file_name(ecosystem: Ecosystem) -> &'static str {
     }
 }
 
-/// Imports under the manifest's directory that no declared dependency covers. Go reads
-/// `go.mod`; the other sets compare their lock's packages with the manifest.
-pub(super) fn find_missing(workspace: &Path, resolved: &[ResolvedTarget]) -> Vec<Missing> {
+/// Imports under the manifest's directory that no declared dependency covers, and hub labels
+/// that BUILD targets use but the manifest does not declare. Go reads `go.mod`; the other sets
+/// compare their lock's packages with the manifest.
+pub(super) fn find_missing(
+    workspace: &Path,
+    resolved: &[ResolvedTarget],
+    query: &dyn QueryRunner,
+    startup: &[String],
+) -> Vec<Missing> {
     let exceptions =
         dx_depcheck::parse_set_exceptions(&workspace.join(EXCEPTIONS_FILE)).unwrap_or_default();
     let mut out = Vec::new();
@@ -317,6 +344,15 @@ pub(super) fn find_missing(workspace: &Path, resolved: &[ResolvedTarget]) -> Vec
             continue;
         };
         let ecosystem = target.set.ecosystem;
+        let set = target.set.name.as_str();
+        let excepted: Vec<String> = exceptions
+            .iter()
+            .filter(|exception| exception.set == set)
+            .map(|exception| exception.name.clone())
+            .collect();
+        if ecosystem == Ecosystem::Cargo {
+            missing_hubs(workspace, target, eco, &excepted, query, startup, &mut out);
+        }
         let lock = target.set.locks.iter().find(|lock| {
             Path::new(lock.as_str())
                 .file_name()
@@ -326,12 +362,6 @@ pub(super) fn find_missing(workspace: &Path, resolved: &[ResolvedTarget]) -> Vec
         if ecosystem != Ecosystem::Go && lock.is_none() {
             continue;
         }
-        let set = target.set.name.as_str();
-        let excepted: Vec<String> = exceptions
-            .iter()
-            .filter(|exception| exception.set == set)
-            .map(|exception| exception.name.clone())
-            .collect();
         for manifest in &target.set.manifests {
             let path = workspace.join(manifest);
             let root = path.parent().unwrap_or(workspace);
@@ -356,23 +386,85 @@ pub(super) fn find_missing(workspace: &Path, resolved: &[ResolvedTarget]) -> Vec
                 out.push(Missing {
                     set: set.to_owned(),
                     name: dep.name,
-                    file: dir.join(&dep.file).to_string_lossy().replace('\\', "/"),
-                    line: dep.line,
+                    via: Via::Import {
+                        file: dir.join(&dep.file).to_string_lossy().replace('\\', "/"),
+                        line: dep.line,
+                    },
                 });
             }
         }
     }
     out.sort_by(|a, b| (&a.set, &a.name).cmp(&(&b.set, &b.name)));
-    out.dedup();
+    out.dedup_by(|later, kept| {
+        let same = later.set == kept.set && later.name == kept.name;
+        if same && matches!(later.via, Via::Label(_)) {
+            std::mem::swap(later, kept);
+        }
+        same
+    });
     out
+}
+
+/// Hub labels that a BUILD target depends on and the manifest does not declare.
+fn missing_hubs(
+    workspace: &Path,
+    target: &ResolvedTarget,
+    eco: dx_depcheck::Ecosystem,
+    excepted: &[String],
+    query: &dyn QueryRunner,
+    startup: &[String],
+    out: &mut Vec<Missing>,
+) {
+    let ecosystem = target.set.ecosystem;
+    for manifest in &target.set.manifests {
+        let Some(used) = used_labels(target, manifest, workspace, query, startup) else {
+            continue;
+        };
+        let Ok(declared) = dx_depcheck::declared(eco, &workspace.join(manifest)) else {
+            continue;
+        };
+        let dir = manifest_dir(manifest);
+        let known: Vec<String> = declared
+            .iter()
+            .flat_map(|dep| dep_keys(ecosystem, dir, dep))
+            .collect();
+        for (key, label) in &used {
+            let name = key.trim_start_matches(':');
+            if known.contains(key)
+                || name.ends_with(".bzl")
+                || name.ends_with(".bazel")
+                || excepted.iter().any(|e| e == name)
+            {
+                continue;
+            }
+            let wanted = match &target.request {
+                Selection::Full => true,
+                Selection::Packages(names) => names.iter().any(|n| n == name),
+            };
+            if !wanted {
+                continue;
+            }
+            let expression = format!("rdeps(//..., {label}, 1) - {label}");
+            let user = run_label_query_file(&expression, &expression, workspace, query, startup)
+                .ok()
+                .and_then(|labels| labels.into_iter().next());
+            out.push(Missing {
+                set: target.set.name.clone(),
+                name: name.to_owned(),
+                via: Via::Label(user.unwrap_or_else(|| label.clone())),
+            });
+        }
+    }
 }
 
 pub(super) fn emit_missing_text(out: &mut dyn Write, missing: &[Missing]) -> Result<(), i32> {
     for item in missing {
         check_stdout_write(writeln!(
             out,
-            "missing: {}: {} (imported in {}:{})",
-            item.set, item.name, item.file, item.line
+            "missing: {}: {} ({})",
+            item.set,
+            item.name,
+            item.via.describe()
         ))?;
     }
     Ok(())
@@ -387,8 +479,13 @@ pub(super) fn emit_missing_json(out: &mut dyn Write, missing: &[Missing]) -> Res
                 ..NoticeEvent::warning(
                     CODE_UPDATE_MISSING,
                     format!(
-                        "{} is imported but not declared (imported in {}:{})",
-                        item.name, item.file, item.line
+                        "{} is {} but not declared ({})",
+                        item.name,
+                        match item.via {
+                            Via::Import { .. } => "imported",
+                            Via::Label(_) => "used",
+                        },
+                        item.via.describe()
                     ),
                 )
             }),
@@ -738,6 +835,48 @@ mod tests {
     }
 
     #[test]
+    fn lists_a_hub_label_the_manifest_does_not_declare() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let resolved = cargo_set(
+            root,
+            "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\n",
+        );
+        let query = Labels("@crates//:serde\n@crates//:regex\n");
+        let found = find_missing(root, &resolved, &query, &[]);
+        let mut out = Vec::new();
+        emit_missing_text(&mut out, &found).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "missing: crates: regex (used by @crates//:serde)\n"
+        );
+        assert!(find_missing(root, &resolved, &NoQuery, &[]).is_empty());
+    }
+
+    #[test]
+    fn a_crate_found_by_import_and_by_label_is_listed_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let resolved = cargo_set(
+            root,
+            "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\n",
+        );
+        write(
+            root,
+            "rs/Cargo.lock",
+            "version = 3\n\n[[package]]\nname = \"regex\"\nversion = \"1.0.0\"\n",
+        );
+        write(root, "rs/src/lib.rs", "use regex::Regex;\n");
+        let by_import = find_missing(root, &resolved, &NoQuery, &[]);
+        assert_eq!(by_import.len(), 1);
+        assert!(matches!(by_import[0].via, Via::Import { .. }));
+        let query = Labels("@crates//:regex\n");
+        let found = find_missing(root, &resolved, &query, &[]);
+        assert_eq!(found.len(), 1);
+        assert!(matches!(found[0].via, Via::Label(_)));
+    }
+
+    #[test]
     fn lists_a_go_import_that_no_require_covers() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
@@ -748,7 +887,7 @@ mod tests {
             "package main\n\nimport (\n\t\"fmt\"\n\t\"github.com/c/d\"\n)\n",
         );
         let resolved = [target("go", Ecosystem::Go, "svc/go.mod")];
-        let found = find_missing(root, &resolved);
+        let found = find_missing(root, &resolved, &NoQuery, &[]);
         let mut out = Vec::new();
         emit_missing_text(&mut out, &found).unwrap();
         assert_eq!(

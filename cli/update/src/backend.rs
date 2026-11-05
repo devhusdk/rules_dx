@@ -1653,18 +1653,15 @@ mod tests {
         };
         assert_eq!(runs.len(), 2);
         assert_eq!(
-            runs[0].argv[runs[0].argv.len() - 5..],
+            runs[0].argv[runs[0].argv.len() - 6..],
             [
                 "@rules_dx//php/tools:composer",
                 "--",
                 "update",
                 "psr/log",
                 "--with-all-dependencies",
+                "--no-install",
             ]
-        );
-        assert_eq!(
-            runs[0].argv.last().map(String::as_str),
-            Some("--no-install")
         );
         assert_eq!(runs[0].env[0].0, "COMPOSER_HOME");
         assert_eq!(runs[0].env[1].0, "COMPOSER_CACHE_DIR");

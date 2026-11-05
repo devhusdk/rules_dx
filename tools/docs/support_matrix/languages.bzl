@@ -108,9 +108,14 @@ ROWS = [
     },
     {
         "ci_tests": [
+            "//cc/tests/gcc_linux_arm64:native_arm64_test",
+            "//cc/toolchains:gcc_arm64_asan_test",
+            "//cc/toolchains:gcc_arm64_c_test",
+            "//cc/toolchains:gcc_arm64_dynamic_libstdcxx_test",
             "//cc/toolchains:gcc_arm64_hello_c_test",
             "//cc/toolchains:gcc_arm64_hello_test",
             "//cc/toolchains:gcc_arm64_shared_test",
+            "//cc/toolchains:gcc_arm64_ubsan_test",
             "//cc/toolchains:gcc_asan_test",
             "//cc/toolchains:gcc_c_test",
             "//cc/toolchains:gcc_hello_test",

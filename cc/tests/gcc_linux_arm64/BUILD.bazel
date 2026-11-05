@@ -1,5 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_binary")
 load("//cc/toolchains:select.bzl", "cc_toolchain_binary")
+load("//deploy/rules:archive.bzl", "consumer_archive")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
@@ -23,6 +24,101 @@ cc_toolchain_binary(
     binary = ":hello_c",
     compiler = "gcc",
     platforms = ["//cc/tests/gcc_linux_arm64:linux_arm64"],
+)
+
+consumer_archive(
+    name = "hello_gcc_release",
+    app = ":hello_gcc",
+    arch = "aarch64",
+    min_runtime = "glibc-2.28",
+    notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
+    os = "linux",
+    runtime = ["//cc/toolchains:gcc_linux_glibc"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+cc_binary(
+    name = "hello_cxx",
+    srcs = ["hello_cxx.cc"],
+    linkstatic = False,
+)
+
+cc_toolchain_binary(
+    name = "hello_cxx_gcc",
+    binary = ":hello_cxx",
+    compiler = "gcc",
+    extra_features = ["dynamic_libstdcxx"],
+    platforms = ["//cc/tests/gcc_linux_arm64:linux_arm64"],
+)
+
+consumer_archive(
+    name = "hello_cxx_release",
+    app = ":hello_cxx_gcc",
+    arch = "aarch64",
+    min_runtime = "glibc-2.28",
+    notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
+    os = "linux",
+    runtime = [
+        "//cc/toolchains:gcc_linux_glibc",
+        "//cc/toolchains:gcc_linux_libstdcxx",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+rust_test(
+    name = "libstdcxx_archive_test",
+    srcs = ["libstdcxx_archive_test.rs"],
+    data = [":hello_cxx_release_archive"],
+    env = {"ARCHIVE": "$(rootpath :hello_cxx_release_archive)"},
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "libstdcxx_archive_fmt_test",
+    targets = [":libstdcxx_archive_test"],
+)
+
+rust_clippy_test(
+    name = "libstdcxx_archive_clippy_test",
+    targets = [":libstdcxx_archive_test"],
+)
+
+rust_test(
+    name = "archive_test",
+    srcs = ["archive_test.rs"],
+    data = [":hello_gcc_release_archive"],
+    env = {"ARCHIVE": "$(rootpath :hello_gcc_release_archive)"},
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "archive_fmt_test",
+    targets = [":archive_test"],
+)
+
+rust_clippy_test(
+    name = "archive_clippy_test",
+    targets = [":archive_test"],
 )
 
 rust_test(
@@ -52,4 +148,24 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+test_suite(
+    name = "all",
+    tests = [
+        ":archive_clippy_test",
+        ":archive_fmt_test",
+        ":archive_test",
+        ":libstdcxx_archive_clippy_test",
+        ":libstdcxx_archive_fmt_test",
+        ":libstdcxx_archive_test",
+        ":native_arm64_clippy_test",
+        ":native_arm64_fmt_test",
+        ":native_arm64_test",
+    ],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
 )

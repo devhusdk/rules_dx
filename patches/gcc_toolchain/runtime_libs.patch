@@ -9,7 +9,7 @@
      toolchain_config = ":cc_toolchain_config",
      toolchain_identifier = "gcc-toolchain",
  )
-@@ -1001,6 +1003,22 @@
+@@ -1001,6 +1003,24 @@
  )
  
  filegroup(
@@ -18,6 +18,8 @@
 +        include = [
 +            "lib64/libstdc++.so.6",
 +            "lib64/libgcc_s.so.1",
++            "*/lib64/libstdc++.so.6",
++            "*/lib64/libgcc_s.so.1",
 +        ],
 +        allow_empty = True,
 +    ),

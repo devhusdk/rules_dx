@@ -530,10 +530,15 @@ native_runtime(
 )
 
 # The dynamic_libstdcxx feature links against libstdc++ and libgcc_s, which
-# ship next to the app and are found through its $ORIGIN rpath.
+# ship next to the app and are found through its $ORIGIN rpath. They come from
+# the GCC archive of the target CPU; the ARM64 one is the cross repo, which
+# also builds on x86_64.
 genrule(
     name = "gcc_linux_libstdcxx_libs",
-    srcs = ["@dx_gcc_linux_x86_64//:lib"],
+    srcs = select({
+        ":linux_arm64": ["@dx_gcc_linux_aarch64_cross//:lib"],
+        "//conditions:default": ["@dx_gcc_linux_x86_64//:lib"],
+    }),
     outs = [
         "gcc_linux_libstdcxx/libgcc_s.so.1",
         "gcc_linux_libstdcxx/libstdc++.so.6",
@@ -572,6 +577,14 @@ genrule(
     srcs = ["notices/MSVC_REDISTRIBUTABLE.txt"],
     outs = ["msvc_vcruntime_NOTICE.txt"],
     cmd = "cp $< $@",
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
 )
 
 config_setting(

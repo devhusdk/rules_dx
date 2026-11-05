@@ -292,19 +292,22 @@ impl RealBackend {
                     )
                 },
             ),
-            "vulture" => self.check_files(
-                tool_id,
-                tool,
-                scratch,
-                pairs,
-                |files| Ok(commands::vulture_check(&tool.binary, files)),
-                |out, names| {
-                    parsed(
-                        tool_id,
-                        parsers::parse_vulture(&out.stdout, out.code, names),
-                    )
-                },
-            ),
+            "vulture" => {
+                let roots = unused_roots(tool_id, tool, pairs)?;
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::vulture_check(&tool.binary, files)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_vulture_unused(&out.stdout, out.code, names, &roots),
+                        )
+                    },
+                )
+            }
             "flake8" => self.check_files(
                 tool_id,
                 tool,
@@ -2254,6 +2257,39 @@ impl RealBackend {
         });
         Ok(merged)
     }
+}
+
+/// Reads the roots file the unused shard stages; without one nothing is kept alive.
+fn unused_roots(
+    tool_id: &str,
+    tool: &RealTool,
+    pairs: &[(String, PathBuf)],
+) -> Result<parsers::UnusedRoots, RunnerError> {
+    let mut roots = parsers::UnusedRoots::default();
+    let Some((_, bytes)) = tool
+        .tool_files
+        .iter()
+        .find(|(rel, _)| rel == "dx-unused/roots.json")
+    else {
+        return Ok(roots);
+    };
+    let lists: std::collections::BTreeMap<String, Vec<String>> = serde_json::from_slice(bytes)
+        .map_err(|err| execution(tool_id, format!("unused roots: {err}")))?;
+    let named = |workspace: &String| {
+        pairs
+            .iter()
+            .find(|(path, _)| path == workspace)
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+    };
+    for key in ["mains", "public"] {
+        roots
+            .exported
+            .extend(lists.get(key).into_iter().flatten().filter_map(named));
+    }
+    roots
+        .keep
+        .extend(lists.get("keep").into_iter().flatten().filter_map(named));
+    Ok(roots)
 }
 
 /// Drops the scratch directory from `file://` links so messages read the same on every host.

@@ -11,6 +11,7 @@ load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
 load(":dart_context_tests.bzl", "dart_context_unit_tests")
+load(":unused_roots_tests.bzl", "unused_roots_unit_tests")
 load(":fixtures_tests.bzl", "fixtures_unit_tests")
 load(":js_responsibilities_tests.bzl", "js_responsibilities_unit_tests")
 load(":native_config.bzl", "checkstyle_config", "vale_config")
@@ -38,6 +39,7 @@ exports_files([
     "compile_check_exec.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
+    "unused_roots.bzl",
     "execution_requirements.bzl",
     "family_hooks.bzl",
     "fixtures.bzl",
@@ -411,6 +413,8 @@ real_pipeline_unit_tests(name = "real_pipeline_unit")
 rustc_request_analysis_tests(name = "rustc_request_analysis")
 
 dart_context_unit_tests(name = "dart_context_unit")
+
+unused_roots_unit_tests(name = "unused_roots_unit")
 
 native_config_unit_tests(name = "native_config_unit")
 
@@ -834,6 +838,7 @@ real_source_target(
         "execution_requirements_tests.bzl",
         "dart_context.bzl",
         "dart_context_tests.bzl",
+        "unused_roots_tests.bzl",
         "family_hooks.bzl",
         "fixtures.bzl",
         "fixtures_tests.bzl",

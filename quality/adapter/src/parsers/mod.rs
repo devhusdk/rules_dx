@@ -265,7 +265,7 @@ pub use ty::parse_ty;
 pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
-pub use vulture::parse_vulture;
+pub use vulture::{parse_vulture, parse_vulture_unused, UnusedRoots};
 pub use xmllint::parse_xmllint;
 pub use xref::parse_xref;
 pub use yamlfmt::parse_yamlfmt;

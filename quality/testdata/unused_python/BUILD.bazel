@@ -1,0 +1,48 @@
+load("//python/rules:defs.bzl", "python_binary", "python_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "python_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "python",
+    unused = ["vulture"],
+)
+
+workspace_policy(
+    name = "python_policy",
+    families = [":python_family"],
+)
+
+python_library(
+    name = "private_lib",
+    srcs = ["private_lib.py"],
+)
+
+python_library(
+    name = "public_lib",
+    srcs = ["public_lib.py"],
+    visibility = ["//visibility:public"],
+)
+
+python_library(
+    name = "keep_lib",
+    srcs = ["keep_lib.py"],
+    tags = ["dx-keep"],
+)
+
+python_binary(
+    name = "app",
+    srcs = ["app.py"],
+    deps = [
+        ":keep_lib",
+        ":private_lib",
+        ":public_lib",
+    ],
+)

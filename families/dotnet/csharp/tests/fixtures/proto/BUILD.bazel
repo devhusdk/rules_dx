@@ -1,0 +1,57 @@
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("//csharp/rules:defs.bzl", "csharp_proto_library", "csharp_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+proto_library(
+    name = "order_proto",
+    srcs = [
+        "a.proto",
+        "b.proto",
+    ],
+    deps = ["@protobuf//:timestamp_proto"],
+)
+
+csharp_proto_library(
+    name = "order_cs_proto",
+    proto = ":order_proto",
+    deps = ["@paket.main//google.protobuf"],
+)
+
+csharp_test(
+    name = "proto_test",
+    srcs = [
+        "ProtoTest.cs",
+        "SelfRegisteredExtensions.cs",
+        "XunitEntryPoint.cs",
+    ],
+    deps = [
+        ":order_cs_proto",
+        "@paket.main//google.protobuf",
+        "@paket.main//microsoft.testing.extensions.telemetry",
+        "@paket.main//microsoft.testing.extensions.trxreport.abstractions",
+        "@paket.main//microsoft.testing.platform",
+        "@paket.main//microsoft.testing.platform.msbuild",
+        "@paket.main//xunit.analyzers",
+        "@paket.main//xunit.v3",
+        "@paket.main//xunit.v3.assert",
+        "@paket.main//xunit.v3.common",
+        "@paket.main//xunit.v3.core.mtp-v2",
+        "@paket.main//xunit.v3.extensibility.core",
+        "@paket.main//xunit.v3.mtp-v2",
+        "@paket.main//xunit.v3.runner.common",
+        "@paket.main//xunit.v3.runner.inproc.console",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

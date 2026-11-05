@@ -123,6 +123,7 @@ def versions_contract_tests(name):
             "//quality/tools/javascript:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",
             "//rust/rules:README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
+            "//third_party/dotnet:paket.lock": "Google.Protobuf (3." + _PROTOBUF_VERSION + ")",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +

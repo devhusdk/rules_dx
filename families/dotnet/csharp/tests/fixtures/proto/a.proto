@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package protofixture;
+
+option csharp_namespace = "ProtoFixture";
+
+message Item {
+  string name = 1;
+}

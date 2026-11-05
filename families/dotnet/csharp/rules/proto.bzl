@@ -34,10 +34,10 @@ def _path(file):
 def _csharp_proto_srcs_impl(ctx):
     proto_info = ctx.attr.proto[ProtoInfo]
     protos = _paths(proto_info)
-    outs = [ctx.actions.declare_file(pascal_case(path.rsplit("/", 1)[-1][:-len(".proto")]) + ".cs") for path in protos]
+    outs = [ctx.actions.declare_file(ctx.label.name + "/" + pascal_case(path.rsplit("/", 1)[-1][:-len(".proto")]) + ".cs") for path in protos]
     descriptors = proto_info.transitive_descriptor_sets
     args = ctx.actions.args()
-    args.add("--csharp_out=" + ctx.bin_dir.path)
+    args.add("--csharp_out=" + "/".join([ctx.bin_dir.path, ctx.label.package, ctx.label.name]).replace("//", "/"))
     args.add_joined("--descriptor_set_in", descriptors, join_with = ":", format_each = "%s", omit_if_empty = True, map_each = _path)
     args.add_all(protos)
     ctx.actions.run(

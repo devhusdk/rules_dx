@@ -72,6 +72,8 @@ dotnet_nuget = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl
 use_repo(dotnet_nuget, "paket.main")
 ```
 
+For `csharp_proto_library`, add `nuget Google.Protobuf 3.36.2` to your `paket.dependencies` to get `@paket.main//google.protobuf`.
+
 Depend on a package as `@paket.main//<lowercase package id>`. `dx update nuget`
 bumps the pins.
 

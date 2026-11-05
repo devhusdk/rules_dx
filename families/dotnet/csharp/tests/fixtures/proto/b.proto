@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package protofixture;
+
+import "google/protobuf/timestamp.proto";
+import "csharp/tests/fixtures/proto/a.proto";
+
+option csharp_namespace = "ProtoFixture";
+
+message Order {
+  Item item = 1;
+  google.protobuf.Timestamp placed = 2;
+}

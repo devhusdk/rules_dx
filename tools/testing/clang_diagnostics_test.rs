@@ -78,3 +78,27 @@ fn lint_finding_is_an_error() {
         run.combined()
     );
 }
+
+#[test]
+fn default_policy_reports_unused_function_and_parameter() {
+    let tool = file("DX_CLANG_TIDY");
+    let policy = file("DX_TIDY_DEFAULT").to_string_lossy().into_owned();
+    let config = format!("--config-file={policy}");
+    let std_flag = text("DX_STD");
+    let path = file("DX_UNUSED").to_string_lossy().into_owned();
+    let run = dx_testing::run(
+        &tool,
+        &[
+            config.as_str(),
+            path.as_str(),
+            "--",
+            "-Wall",
+            std_flag.as_str(),
+        ],
+        &[],
+    )
+    .expect("clang-tidy runs");
+    let out = run.combined();
+    assert!(out.contains("misc-unused-parameters"), "{out}");
+    assert!(out.contains("clang-diagnostic-unused-function"), "{out}");
+}

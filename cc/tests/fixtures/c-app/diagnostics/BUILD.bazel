@@ -11,6 +11,8 @@ rust_test(
         "lint_error.c",
         "syntax_error.c",
         "type_error.c",
+        "unused.c",
+        "//quality:default.clang-tidy",
         "@llvm//tools:clang",
         "@llvm//tools:clang-tidy",
     ],
@@ -21,7 +23,9 @@ rust_test(
         "DX_LINT": "$(rootpath lint_error.c)",
         "DX_STD": "-std=c11",
         "DX_SYNTAX": "$(rootpath syntax_error.c)",
+        "DX_TIDY_DEFAULT": "$(rootpath //quality:default.clang-tidy)",
         "DX_TYPE": "$(rootpath type_error.c)",
+        "DX_UNUSED": "$(rootpath unused.c)",
     },
     target_compatible_with = [
         "@platforms//cpu:x86_64",

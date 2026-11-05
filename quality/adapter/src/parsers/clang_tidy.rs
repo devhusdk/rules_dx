@@ -3,6 +3,7 @@ use super::{finding, lines, missing, require_findings, FileFinding, ParseError};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const INFO_RULES: &[&str] = &[
+    "clang-diagnostic-unused-function",
     "misc-unused-parameters",
     "misc-unused-using-decls",
     "readability-redundant-declaration",
@@ -127,10 +128,11 @@ mod tests {
 
     #[test]
     fn clang_tidy_reports_unused_code_rules_as_info() {
-        let text = "a.c:1:14: warning: parameter 'x' is unused [misc-unused-parameters]\na.c:2:3: warning: do not use 'else' after 'return' [readability-else-after-return]\n";
+        let text = "a.c:1:14: warning: parameter 'x' is unused [misc-unused-parameters]\na.c:4:12: warning: unused function 'f' [clang-diagnostic-unused-function]\na.c:2:3: warning: do not use 'else' after 'return' [readability-else-after-return]\n";
         let findings = parse_clang_tidy(text.as_bytes(), Some(0), &["a.c"]).expect("parsed");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
-        assert_eq!(findings[1].finding.severity, ToolSeverity::Warning);
+        assert_eq!(findings[1].finding.severity, ToolSeverity::Info);
+        assert_eq!(findings[2].finding.severity, ToolSeverity::Warning);
     }
 
     #[test]

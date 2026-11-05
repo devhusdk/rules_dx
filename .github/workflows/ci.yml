@@ -182,6 +182,30 @@ jobs:
             mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
             cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
           done < "$RUNNER_TEMP/hermetic-targets"
+      - name: Record compiler evidence
+        if: always()
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          out="$RUNNER_TEMP/compiler-evidence/linux_x86_64.jsonl"
+          mkdir -p "$(dirname "$out")"
+          : > "$out"
+          bazel build --noshow_progress --output_groups=starlark_manifest "$@" //cc/toolchains:identity //cc/toolchains:identity_gcc || true
+          bazel test --noshow_progress --test_output=errors "$@" //cc/toolchains:identity //cc/toolchains:identity_gcc || true
+          tools/ci/compiler_evidence.sh "$out" linux_x86_64 gcc //cc/toolchains:identity_gcc //tools/testing/hermetic:c_fixture_gcc //tools/testing/hermetic:cpp_fixture_gcc
+          tools/ci/compiler_evidence.sh "$out" linux_x86_64 llvm //cc/toolchains:identity //cc/tests/fixtures/hello:hello_test
+          {
+            echo "#### Compiler evidence"
+            echo "| compiler | probe compiler | target | outcome |"
+            echo "| --- | --- | --- | --- |"
+            jq -r '"| \(.compiler_flag) | \(.compiler) | \(.target) | \(.outcome) |"' "$out"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: compiler-evidence-linux_x86_64
+          path: ${{ runner.temp }}/compiler-evidence
+          retention-days: 7
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

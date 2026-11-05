@@ -12,6 +12,13 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 bazel_dep(name = "aspect_rules_js", version = "ASPECT_RULES_JS")
+bazel_dep(name = "rules_py", version = "RULES_PY")
+archive_override(
+    module_name = "rules_py",
+    integrity = "RULES_PY_INTEGRITY",
+    strip_prefix = "rules_py-RULES_PY",
+    urls = ["https://github.com/aspect-build/rules_py/releases/download/vRULES_PY/rules_py-vRULES_PY.tar.gz"],
+)
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
@@ -75,6 +82,11 @@ fn pin(text: &str, name: &str) -> String {
 fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
     let rules = rules_dx_root();
     let versions = String::from_utf8_lossy(&read(&rules.join("modules/versions.bzl"))).into_owned();
+    let module = String::from_utf8_lossy(&read(&rules.join("MODULE.bazel"))).into_owned();
+    let rules_py = &module[module
+        .find("module_name = \"rules_py\"")
+        .expect("rules_py override")..];
+    let rules_py_integrity = pin(rules_py, "integrity");
     let case = nested::case("svelte-consumer");
     let root = case.root().to_path_buf();
     write(
@@ -86,6 +98,8 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
         MODULE
             .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
             .replace("RULES_DX", &rules.display().to_string())
+            .replace("RULES_PY_INTEGRITY", &rules_py_integrity)
+            .replace("RULES_PY", &pin(&versions, "RULES_PY_VERSION"))
             .replace(
                 "ASPECT_RULES_JS",
                 &pin(&versions, "ASPECT_RULES_JS_VERSION"),
@@ -105,7 +119,9 @@ fn consumer() -> (Case, Vec<(PathBuf, Vec<u8>)>) {
     write(&root.join("BUILD.bazel"), build.as_bytes());
     let mut own = Vec::new();
     for file in FILES.iter().chain(MORE_FILES.iter()) {
-        let bytes = read(&resolve_runfiles(&format!("svelte/tests/fixtures/svelte-app/{file}")));
+        let bytes = read(&resolve_runfiles(&format!(
+            "svelte/tests/fixtures/svelte-app/{file}"
+        )));
         write(&root.join(file), &bytes);
         own.push((root.join(file), bytes));
     }

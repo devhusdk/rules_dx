@@ -40,7 +40,7 @@ bazel test //examples/shared-rust:wasi_test
 For Android, install the NDK and set `ANDROID_HOME`, then use
 `//examples/shared-rust:install`, `:start`, and `:log` against an emulator.
 For Apple, `@rules_dx_apple//tests/fixtures/shared_core:core_build_test` builds
-the same core into a macOS app, a macOS CLI, and an XCFramework.
+the same core into a macOS CLI and an XCFramework.
 
 ## Deploy
 

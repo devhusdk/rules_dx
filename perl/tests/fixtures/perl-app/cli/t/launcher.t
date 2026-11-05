@@ -15,7 +15,8 @@ if ( defined $mf && -e $mf ) {
 
 sub stockctl {
     my (@args) = @_;
-    my $quoted = join ' ', map { "'$_'" } @args;
+    my $q      = $^O eq 'MSWin32' ? '"' : "'";
+    my $quoted = join ' ', map { "$q$_$q" } @args;
     my $out    = qx{"$stockctl" $quoted 2>&1};
     return ( $? >> 8, $out );
 }

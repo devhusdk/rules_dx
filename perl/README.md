@@ -123,11 +123,11 @@ evidence.yml run 42002623118 (`//perl/tests/fixtures/perl-app/...`,
 cell is qualified by evidence.yml run 42083319727: the example and runtime
 tests pass, a build and test pass rather than a hermetic one, since the
 hermetic qualification is linux only. The `windows_x86_64` cell stays Not
-qualified: in the same run the `cli:launcher_test` and
-`//perl/tests/runtime:launcher_test` fail because the `.bat` launcher cannot
-find its `.runfiles_manifest`. Handing the child the test's manifest with
-backslashes did not change that (evidence.yml runs 42092655665 and
-42094340334).
+qualified. The `.bat` launcher needs `RUNFILES_MANIFEST_FILE` with backslashes
+and no `RUNFILES_DIR`; with that, `//perl/tests/runtime:launcher_test` passes
+there (evidence.yml runs 42104011544 and 42105688162). The
+`cli:launcher_test` failed in the second run because `cmd` does not accept
+single quotes; it now uses double quotes on Windows and has not run again.
 
 rules_perl has no toolchain for other platforms. The wrappers mark their
 targets incompatible there, so a build fails instead of running the host

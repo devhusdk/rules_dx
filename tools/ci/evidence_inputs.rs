@@ -48,7 +48,10 @@ fn is_flag(text: &str) -> bool {
     if let Some(name) = text.strip_prefix("--config=") {
         return !name.is_empty() && name.chars().all(name_char);
     }
-    match text.strip_prefix("--//").and_then(|rest| rest.split_once('=')) {
+    match text
+        .strip_prefix("--//")
+        .and_then(|rest| rest.split_once('='))
+    {
         Some((label, value)) => {
             !label.is_empty()
                 && label.chars().all(|c| name_char(c) || c == ':')

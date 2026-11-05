@@ -10,5 +10,8 @@ fn main() {
             .unwrap_or_default();
         found.insert(path, producers);
     }
-    println!("{}", serde_json::to_string(&found).expect("serialize producers"));
+    println!(
+        "{}",
+        serde_json::to_string(&found).expect("serialize producers")
+    );
 }

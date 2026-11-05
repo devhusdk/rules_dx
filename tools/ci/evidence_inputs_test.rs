@@ -25,14 +25,24 @@ fn accepts_whitespace_separated_patterns() {
             "//cli/process/... //tools/testing/process_probe/...",
         ),
         ("//a/...\t//b:t\n//c:*", "//a/... //b:t //c:*"),
-        ("@rules_dx_apple//ios/... //a:t", "@rules_dx_apple//ios/... //a:t"),
+        (
+            "@rules_dx_apple//ios/... //a:t",
+            "@rules_dx_apple//ios/... //a:t",
+        ),
     ];
     for (scope, expected) in cases {
         let outputs = run(scope, OK, "600").unwrap_or_else(|e| panic!("{scope:?}: {e}"));
         let keys: Vec<&str> = outputs.iter().map(|(key, _)| key.as_str()).collect();
         assert_eq!(
             keys,
-            ["scope", "task", "platforms", "runners", "test_timeout", "flags"]
+            [
+                "scope",
+                "task",
+                "platforms",
+                "runners",
+                "test_timeout",
+                "flags"
+            ]
         );
         assert_eq!(outputs[0].1, expected);
     }

@@ -70,9 +70,9 @@ impl ReleaseBackend for GhBackend {
     }
 }
 
-fn stage_assets(
-    assets: &[String],
-) -> Result<(Vec<(String, String)>, BTreeMap<String, String>), String> {
+type StagedAssets = (Vec<(String, String)>, BTreeMap<String, String>);
+
+fn stage_assets(assets: &[String]) -> Result<StagedAssets, String> {
     let mut staged = Vec::new();
     let mut paths = BTreeMap::new();
     for asset in assets {

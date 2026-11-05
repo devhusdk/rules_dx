@@ -153,7 +153,10 @@ fn observed_producer_with_the_version_passes() {
     let dir = scratch("compiler_evidence");
     let a = &observe(dir.path(), &["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"])[0];
     assert_eq!(a["outcome"], "passed");
-    assert_eq!(a["observed_producers"], json!(["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"]));
+    assert_eq!(
+        a["observed_producers"],
+        json!(["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"])
+    );
 }
 
 #[test]

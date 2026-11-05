@@ -118,9 +118,7 @@ fn the_assets_go_through_the_release_driver_without_clobber() {
     assert!(assets.contains("echo '```json'; cat \"$RUNNER_TEMP/ledger.json\"; echo '```'"));
     assert!(assets.contains(">> \"$GITHUB_STEP_SUMMARY\""));
     assert!(assets.contains("exit \"$status\""));
-    assert!(
-        assets.contains("name: release-ledger\n          path: ${{ runner.temp }}/ledger.json")
-    );
+    assert!(assets.contains("name: release-ledger\n          path: ${{ runner.temp }}/ledger.json"));
     assert!(assets.contains("if: always()"));
     assert!(assets.contains("paths+=(\"$PWD/out/$file\")"));
     assert!(

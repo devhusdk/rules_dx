@@ -378,11 +378,9 @@ fn platform_parity_catches_a_drifted_copy() {
         .iter()
         .any(|problem| problem.contains(CONSUMER_WORKFLOW)));
     let actionlint = actionlint.replace("windows-11-arm", "x");
-    assert!(
-        platform_drift(&ci, &release, &consumer, &actionlint)
-            .iter()
-            .any(|problem| problem.contains(ACTIONLINT_CONFIG))
-    );
+    assert!(platform_drift(&ci, &release, &consumer, &actionlint)
+        .iter()
+        .any(|problem| problem.contains(ACTIONLINT_CONFIG)));
 }
 
 #[test]

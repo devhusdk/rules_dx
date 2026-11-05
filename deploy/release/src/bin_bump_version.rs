@@ -74,9 +74,7 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
         ),
         (
             "examples/consumer-ci/caller.yml",
-            vec![
-                pin("reusable-consumer.yml@"),
-            ],
+            vec![pin("reusable-consumer.yml@")],
         ),
         (
             "examples/docs-ci/caller.yml",

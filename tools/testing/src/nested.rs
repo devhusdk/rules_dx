@@ -2257,7 +2257,10 @@ common --repository_cache=/rc/repos
             Some(PathBuf::from("/home/me/two"))
         );
         assert_eq!(bazelrc_path(rc, "repository_cache", Some(home)), None);
-        assert_eq!(bazelrc_path(rc, "disk_cache", None), Some(PathBuf::from("/one")));
+        assert_eq!(
+            bazelrc_path(rc, "disk_cache", None),
+            Some(PathBuf::from("/one"))
+        );
     }
 
     #[test]

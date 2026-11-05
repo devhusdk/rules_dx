@@ -158,6 +158,17 @@ fn the_network_job_selects_opted_in_consumers() {
 }
 
 #[test]
+fn the_gate_job_has_a_bounded_timeout() {
+    let minutes = job(CI, "gate")["timeout-minutes"]
+        .as_i64()
+        .unwrap_or_else(|| panic!("{CI} job gate needs an integer timeout-minutes"));
+    assert!(
+        (1..=60).contains(&minutes),
+        "{CI} job gate timeout-minutes must be at most 60: {minutes}"
+    );
+}
+
+#[test]
 fn the_gate_job_raises_the_bazel_heap_before_its_first_bazel_call() {
     let all = document(GATE_ACTION)["runs"]["steps"]
         .as_array()

@@ -163,7 +163,8 @@ impl Ecosystem {
             Ecosystem::Maven => Some("maven"),
             Ecosystem::Nuget => Some("nuget"),
             Ecosystem::Go => Some("go"),
-            Ecosystem::Bazel | Ecosystem::PowerShell | Ecosystem::Cpan => None,
+            Ecosystem::Cpan => Some("cpan"),
+            Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
 

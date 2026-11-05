@@ -361,3 +361,16 @@ fn cpan_audit_database_becomes_cpan_advisories() {
     assert_eq!(hit, ["7.57", "v7.9.1"]);
     assert!(cpan_audit_payload("{}").is_err());
 }
+
+#[test]
+fn cpan_audit_output_splits_into_version_and_snapshot() {
+    let output = "1.002\n{\"M\":{\"advisories\":[{\"id\":\"CPANSA-M-1\",\"affected_versions\":[\"<2\"],\"fixed_versions\":[\">=2\"]}]}}";
+    let (version, database) = split_cpan_audit_output(output).expect("splits");
+    assert_eq!(version, "1.002");
+    let prepared = cpan_snapshot(database, version, "2026-09-22").expect("builds");
+    assert_eq!(prepared.advisories, 1);
+    assert_eq!(prepared.snapshot.set, "cpan");
+    assert!(prepared.snapshot.url.ends_with("?version=1.002"));
+    assert!(split_cpan_audit_output("{}").is_err());
+    assert!(cpan_snapshot(database, version, "yesterday").is_err());
+}

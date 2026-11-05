@@ -140,6 +140,7 @@ fn options(workspace: &TempDir) -> PrepareOptions {
         retrieved_at: "2026-09-22".to_owned(),
         limits: DEFAULT_LIMITS,
         archives: BTreeMap::new(),
+        cpan_audit_output: None,
     }
 }
 
@@ -706,4 +707,55 @@ fn a_planted_file_at_the_old_temp_path_has_no_effect() {
     let prepared = prepare_from_url(&workspace(), &one);
     assert_eq!(prepared.advisories, 1);
     assert_eq!(std::fs::read(&target).expect("untouched"), b"victim");
+}
+
+const CPAN_OUTPUT: &str = "1.002\n{\"Mojolicious\":{\"distribution\":\"Mojolicious\",\"advisories\":[{\"id\":\"CPANSA-Mojolicious-2018-03\",\"affected_versions\":[\">=7.0,<7.58\"],\"fixed_versions\":[\">=7.58\"],\"severity\":\"high\"}]}}";
+
+#[test]
+fn a_cpan_set_is_prepared_from_the_cpan_audit_output() {
+    let workspace = workspace();
+    for (rel, text) in [
+        (
+            "MODULE.bazel",
+            "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"cpan\", lock = \"//pl:cpanfile.snapshot.lock.json\")\n",
+        ),
+        ("pl/cpanfile", "requires 'Mojolicious';\n"),
+        ("pl/cpanfile.snapshot", "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n"),
+    ] {
+        let path = workspace.path().join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
+        std::fs::write(&path, text).expect("writes");
+    }
+    let output = workspace.path().join("cpan-audit.txt");
+    std::fs::write(&output, CPAN_OUTPUT).expect("writes the output");
+    let mut options = options(&workspace);
+    options.cpan_audit_output = Some(output);
+    let urls: Vec<_> = plan(&options)
+        .expect("plans")
+        .into_iter()
+        .filter(|(family, _)| *family == "cpan")
+        .collect();
+    assert_eq!(urls.len(), 1, "the cpan family is planned once");
+    let archive = with_archive(
+        &workspace,
+        options,
+        &archive(&[Fixture::stored(
+            "all/1/GHSA-a.json",
+            &advisory("GHSA-a", "aaa"),
+        )]),
+    );
+    let prepared = prepare(&archive).expect("prepares");
+    let cpan = prepared
+        .iter()
+        .find(|entry| entry.family == "cpan")
+        .expect("a cpan snapshot");
+    assert_eq!(cpan.advisories, 1);
+    let out = workspace.path().join(DEFAULT_OUT);
+    let payload = std::fs::read(out.join("cpan.json")).expect("reads the payload");
+    let identity = parse_identity(
+        &std::fs::read_to_string(out.join("cpan.meta.json")).expect("reads the sidecar"),
+    )
+    .expect("parses");
+    assert!(identity_matches_bytes(&identity, &payload));
+    assert!(identity.url.ends_with("?version=1.002"), "{}", identity.url);
 }

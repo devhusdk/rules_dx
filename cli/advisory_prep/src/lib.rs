@@ -17,7 +17,8 @@ use std::process::Command as Process;
 
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::{
-    convert_entries, fetch_plan, identity_bytes, needed_families, FetchLimits, PrepError,
+    convert_entries, cpan_snapshot, fetch_plan, identity_bytes, needed_families,
+    split_cpan_audit_output, FetchLimits, PrepError, CPAN_AUDIT_SCRIPT, CPAN_AUDIT_URL,
     DEFAULT_LIMITS,
 };
 
@@ -31,6 +32,8 @@ pub struct PrepareOptions {
     pub retrieved_at: String,
     pub limits: FetchLimits,
     pub archives: BTreeMap<String, PathBuf>,
+    /// File holding the CPAN::Audit output instead of running perl.
+    pub cpan_audit_output: Option<PathBuf>,
 }
 
 impl Default for PrepareOptions {
@@ -41,6 +44,7 @@ impl Default for PrepareOptions {
             retrieved_at: String::new(),
             limits: DEFAULT_LIMITS,
             archives: BTreeMap::new(),
+            cpan_audit_output: None,
         }
     }
 }
@@ -95,10 +99,12 @@ pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, Pre
     families.dedup();
     let mut out = Vec::new();
     for family in families {
-        let url = dx_audit::advisory::advisory_source(family).ok_or_else(|| {
-            PrepError::UnsupportedSet {
-                set: family.to_owned(),
-            }
+        let url = match family {
+            "cpan" => Some(CPAN_AUDIT_URL),
+            _ => dx_audit::advisory::advisory_source(family),
+        }
+        .ok_or_else(|| PrepError::UnsupportedSet {
+            set: family.to_owned(),
         })?;
         out.push((family, url.to_owned()));
     }
@@ -136,12 +142,16 @@ fn prepare_family(
     family: &str,
     url: &str,
 ) -> Result<Prepared, PrepError> {
-    let archive = read_archive(options, family, url)?;
-    let entries = archive::json_entries(&archive).map_err(|error| PrepError::Archive {
-        family: family.to_owned(),
-        detail: error.to_string(),
-    })?;
-    let prepared = convert_entries(family, url, &options.retrieved_at, &entries)?;
+    let prepared = if family == "cpan" {
+        prepare_cpan(options)?
+    } else {
+        let archive = read_archive(options, family, url)?;
+        let entries = archive::json_entries(&archive).map_err(|error| PrepError::Archive {
+            family: family.to_owned(),
+            detail: error.to_string(),
+        })?;
+        convert_entries(family, url, &options.retrieved_at, &entries)?
+    };
     let identity = identity_bytes(&prepared.snapshot)?;
     let meta_path = options.out.join(format!("{family}.meta.json"));
     match std::fs::remove_file(&meta_path) {
@@ -172,6 +182,45 @@ fn prepare_family(
         path: prepared.snapshot.path,
         identity: prepared.snapshot.sha256,
         advisories: prepared.advisories,
+    })
+}
+
+fn prepare_cpan(
+    options: &PrepareOptions,
+) -> Result<dx_audit::advisory_prep::PreparedSnapshot, PrepError> {
+    let output = match &options.cpan_audit_output {
+        Some(path) => std::fs::read_to_string(path).map_err(|error| PrepError::ArchiveRead {
+            family: "cpan".to_owned(),
+            path: path.display().to_string(),
+            detail: error.to_string(),
+        })?,
+        None => run_cpan_audit()?,
+    };
+    let (version, database) = split_cpan_audit_output(&output)?;
+    cpan_snapshot(database, version, &options.retrieved_at)
+}
+
+fn run_cpan_audit() -> Result<String, PrepError> {
+    let done = Process::new("perl")
+        .args(["-e", CPAN_AUDIT_SCRIPT])
+        .output()
+        .map_err(|error| PrepError::Fetch {
+            program: "perl".to_owned(),
+            detail: error.to_string(),
+        })?;
+    if !done.status.success() {
+        return Err(PrepError::Fetch {
+            program: "perl".to_owned(),
+            detail: format!(
+                "CPAN::Audit exited with {}: {}",
+                exit_text(done.status),
+                String::from_utf8_lossy(&done.stderr).trim()
+            ),
+        });
+    }
+    String::from_utf8(done.stdout).map_err(|error| PrepError::Fetch {
+        program: "perl".to_owned(),
+        detail: error.to_string(),
     })
 }
 

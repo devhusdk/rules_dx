@@ -265,6 +265,53 @@ pub fn fetch_plan(
         argv,
     })
 }
+
+pub const CPAN_AUDIT_URL: &str = "https://metacpan.org/release/CPAN-Audit";
+
+/// Perl program that prints the CPAN::Audit version, a newline, then its database as JSON.
+pub const CPAN_AUDIT_SCRIPT: &str = "use CPAN::Audit; use CPAN::Audit::DB; use JSON::PP; \
+print $CPAN::Audit::VERSION, qq{\\n}, JSON::PP->new->canonical->encode(CPAN::Audit::DB->db->{dists});";
+
+/// Splits the output of `CPAN_AUDIT_SCRIPT` into the CPAN::Audit version and the database text.
+pub fn split_cpan_audit_output(output: &str) -> Result<(&str, &str), PrepError> {
+    match output.split_once('\n') {
+        Some((version, database)) if !version.trim().is_empty() => Ok((version.trim(), database)),
+        _ => Err(PrepError::Usage {
+            detail: "the CPAN::Audit output does not start with a version line".to_owned(),
+        }),
+    }
+}
+
+/// Builds the cpan snapshot; the CPAN::Audit release that produced it is recorded in the sidecar URL.
+pub fn cpan_snapshot(
+    database: &str,
+    version: &str,
+    retrieved_at: &str,
+) -> Result<PreparedSnapshot, PrepError> {
+    if !advisory::is_audit_date(retrieved_at) {
+        return Err(PrepError::BadDate {
+            retrieved_at: retrieved_at.to_owned(),
+        });
+    }
+    let payload = cpan_audit_payload(database)?;
+    let advisories = serde_json::from_slice::<Vec<serde_json::Value>>(&payload)
+        .map(|items| items.len())
+        .unwrap_or_default();
+    let snapshot = AdvisorySnapshot {
+        set: "cpan".to_owned(),
+        url: format!("{CPAN_AUDIT_URL}?version={version}"),
+        sha256: dx_digest::sha256_hex(&payload),
+        retrieved_at: retrieved_at.to_owned(),
+        path: advisory::snapshot_rel("cpan"),
+    };
+    validate_prepared(&snapshot, &payload)?;
+    Ok(PreparedSnapshot {
+        snapshot,
+        payload,
+        advisories,
+    })
+}
+
 /// Turns the CPAN::Audit advisory database, keyed by distribution, into the cpan snapshot payload.
 pub fn cpan_audit_payload(text: &str) -> Result<Vec<u8>, PrepError> {
     let bad = |detail: String| PrepError::BadEntryJson {

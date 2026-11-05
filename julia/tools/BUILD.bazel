@@ -31,6 +31,19 @@ dx_julia_tool(
     target_compatible_with = JULIA_COMPATIBLE_WITH,
 )
 
+julia_binary(
+    name = "pkg_update_bin",
+    srcs = ["pkg_update.jl"],
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    visibility = ["//visibility:private"],
+)
+
+dx_julia_tool(
+    name = "pkg_update",
+    binary = ":pkg_update_bin",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
 julia_pkg_resolve(
     name = "resolve",
     manifest_bazel_json = "Manifest.bazel.json",

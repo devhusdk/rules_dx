@@ -1395,6 +1395,17 @@ pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String
     label
 }
 
+/// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
+pub fn julia_target_label(workspace: &Path, set: &ResolvedSet, rule: &str) -> Option<String> {
+    let package = if set.dir == "." { "" } else { set.dir.as_str() };
+    let text = ["BUILD.bazel", "BUILD"]
+        .iter()
+        .find_map(|name| std::fs::read_to_string(workspace.join(package).join(name)).ok())?;
+    let build = dx_module_bazel::ModuleFile::parse_build(&text).ok()?;
+    let name = build.calls_named(rule).find_map(|call| call.str("name"))?;
+    Some(format!("//{package}:{name}"))
+}
+
 fn check_cpan_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     check_pinned_lock(set, CPANFILE_SNAPSHOT)?;
     let Some(lock) = cpan_json_lock(set) else {

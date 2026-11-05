@@ -516,9 +516,6 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Conan => {
                 "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
             }
-            Ecosystem::Julia => {
-                "dx does not resolve Julia packages; edit Project.toml and regenerate Manifest.toml and Manifest.bazel.json with Pkg"
-            }
             Ecosystem::Composer => {
                 "dx does not resolve Composer packages; edit composer.json and regenerate composer.lock with `composer update`"
             }
@@ -639,8 +636,8 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, request) => {
@@ -701,6 +698,40 @@ pub fn plan_configured(
                 });
             }
             Ok(BackendPlan::Sequence(runs))
+        }
+        (Ecosystem::Julia, request) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let Some(resolve) = dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve")
+            else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: "add a julia_pkg_resolve next to Manifest.bazel.json; it keeps Manifest.bazel.json in step with Manifest.toml",
+                });
+            };
+            let dir = set_dir(workspace, set)?;
+            let mut update = vec!["@rules_dx//julia/tools:pkg_update", "--", dir.as_str()];
+            if let Selection::Packages(packages) = request {
+                update.extend(packages.iter().map(String::as_str));
+            }
+            Ok(BackendPlan::Sequence(vec![
+                Run {
+                    argv: bazel(head, "run", &update),
+                    env: julia_env(),
+                },
+                Run {
+                    argv: bazel(head, "run", &[resolve.as_str()]),
+                    env: julia_env(),
+                },
+            ]))
         }
         (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Cpan, Selection::Packages(modules)) => {
@@ -918,8 +949,8 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Julia | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex | Ecosystem::Opam, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
         (Ecosystem::Pub, Selection::Full) => {
@@ -949,6 +980,29 @@ pub fn check_configured(
         (Ecosystem::Composer, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "composer validates the whole composer.lock; select the set without a package",
+        }),
+        (Ecosystem::Julia, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            let Some(test) =
+                dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve_test")
+            else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: "add a julia_pkg_resolve_test next to Manifest.bazel.json; dx checks the set by running it",
+                });
+            };
+            Ok(CheckPlan::Run {
+                argv: bazel(head, "test", &[test.as_str()]),
+                env: Vec::new(),
+            })
+        }
+        (Ecosystem::Julia, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "julia_pkg_resolve_test checks the whole Manifest.toml; select the set without a package",
         }),
         (Ecosystem::Cpan, Selection::Full) => {
             if offline {
@@ -1245,6 +1299,16 @@ fn carton_env() -> Vec<(String, String)> {
         path.to_string_lossy().into_owned(),
     )]
 }
+
+/// Keeps the Julia package depot out of the workspace.
+fn julia_env() -> Vec<(String, String)> {
+    let path = std::env::temp_dir().join("dx-julia-depot");
+    vec![(
+        "JULIA_DEPOT_PATH".to_owned(),
+        path.to_string_lossy().into_owned(),
+    )]
+}
+
 
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
 ///
@@ -1858,6 +1922,131 @@ mod tests {
             Err(BackendError::OfflineRequired { .. })
         ));
     }
+
+    fn julia_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "julia".to_owned(),
+            ecosystem: Ecosystem::Julia,
+            dir: "app".to_owned(),
+            manifests: vec!["app/Project.toml".to_owned()],
+            locks: vec![
+                "app/Manifest.toml".to_owned(),
+                "app/Manifest.bazel.json".to_owned(),
+            ],
+            repository: None,
+        }
+    }
+
+    const JULIA_BUILD: &str = "julia_pkg_resolve(name = \"resolve\")\njulia_pkg_resolve_test(name = \"resolve_test\", resolver = \":resolve\")\n";
+
+    fn julia_workspace(build: &str) -> dx_test_scratch::TempDir {
+        let dir = dx_test_scratch::scratch("julia_backend");
+        dx_test_scratch::write(dir.path(), "app/BUILD.bazel", build);
+        dir
+    }
+
+    fn julia_update(
+        workspace: &Path,
+        request: Selection,
+        offline: bool,
+        frozen: bool,
+    ) -> Result<BackendPlan, BackendError> {
+        plan_configured(
+            workspace,
+            &julia_set(),
+            &request,
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    }
+
+    #[test]
+    fn julia_update_runs_pkg_update_then_the_resolver() {
+        let dir = julia_workspace(JULIA_BUILD);
+        let request = Selection::Packages(vec!["JSON".to_owned()]);
+        let BackendPlan::Sequence(runs) =
+            julia_update(dir.path(), request, false, false).expect("plan")
+        else {
+            panic!("expected a sequence");
+        };
+        assert_eq!(runs.len(), 2);
+        let app = dir.path().join("app").to_string_lossy().into_owned();
+        assert_eq!(
+            runs[0].argv[runs[0].argv.len() - 4..],
+            [
+                "@rules_dx//julia/tools:pkg_update",
+                "--",
+                app.as_str(),
+                "JSON"
+            ]
+        );
+        assert_eq!(runs[0].env[0].0, "JULIA_DEPOT_PATH");
+        assert_eq!(
+            runs[1].argv.last().map(String::as_str),
+            Some("//app:resolve")
+        );
+    }
+
+    #[test]
+    fn julia_full_update_names_no_package() {
+        let dir = julia_workspace(JULIA_BUILD);
+        let BackendPlan::Sequence(runs) =
+            julia_update(dir.path(), Selection::Full, false, false).expect("plan")
+        else {
+            panic!("expected a sequence");
+        };
+        assert_eq!(
+            runs[0].argv.last().map(String::as_str),
+            dir.path().join("app").to_str()
+        );
+    }
+
+    #[test]
+    fn julia_update_refuses_without_a_resolver_frozen_and_offline() {
+        let bare = julia_workspace("");
+        let error = julia_update(bare.path(), Selection::Full, false, false).expect_err("refused");
+        assert!(error.to_string().contains("add a julia_pkg_resolve"));
+        let dir = julia_workspace(JULIA_BUILD);
+        assert!(matches!(
+            julia_update(dir.path(), Selection::Full, true, false),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        assert!(matches!(
+            julia_update(dir.path(), Selection::Full, false, true),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+    }
+
+    #[test]
+    fn julia_check_runs_the_resolve_test() {
+        let check = |workspace: &Path, request: &Selection, offline: bool| {
+            check_configured(
+                workspace,
+                &julia_set(),
+                request,
+                offline,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let dir = julia_workspace(JULIA_BUILD);
+        let CheckPlan::Run { argv, .. } = check(dir.path(), &Selection::Full, false).expect("plan")
+        else {
+            panic!("expected a run");
+        };
+        assert_eq!(argv.last().map(String::as_str), Some("//app:resolve_test"));
+        let bare = julia_workspace("");
+        let error = check(bare.path(), &Selection::Full, false).expect_err("refused");
+        assert!(error.to_string().contains("add a julia_pkg_resolve_test"));
+        assert!(matches!(
+            check(dir.path(), &Selection::Full, true),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+    }
+
 
     fn pub_set() -> ResolvedSet {
         ResolvedSet {

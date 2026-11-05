@@ -93,6 +93,7 @@ rust_test(
         "//quality:families/html_template.bzl",
         "//quality:families/jsonnet.bzl",
         "//quality:families/julia.bzl",
+        "//quality:families/js.bzl",
         "//quality:families/jvm.bzl",
         "//quality:families/kubernetes.bzl",
         "//quality:families/latex.bzl",

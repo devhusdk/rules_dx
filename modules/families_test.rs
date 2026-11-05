@@ -530,7 +530,7 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 43] = [
+const FAMILY_FILES: [&str; 44] = [
     "ansible",
     "beam",
     "cc",
@@ -559,6 +559,7 @@ const FAMILY_FILES: [&str; 43] = [
     "php",
     "powershell",
     "python",
+    "js",
     "julia",
     "jvm",
     "ruby",

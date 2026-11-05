@@ -83,7 +83,7 @@ def _dsym_pair_impl(ctx):
     if dsyms == None or len(dsyms.to_list()) != 1:
         fail("%s did not produce one dSYM bundle; the dx_dsym binary must be a macOS cc_binary" % ctx.attr.binary.label)
     bundle = dsyms.to_list()[0]
-    dsymutil = ctx.executable._dsymutil
+    dsymutil = ctx.file._dsymutil
     manifest = ctx.actions.declare_file(ctx.label.name + ".dsym.json")
     ctx.actions.run(
         executable = ctx.executable._dsym,
@@ -120,7 +120,7 @@ _dsym_pair = rule(
         ),
         "_dsymutil": attr.label(
             default = Label("@llvm//tools:dsymutil"),
-            executable = True,
+            allow_single_file = True,
             cfg = "exec",
         ),
         "_dsym": attr.label(

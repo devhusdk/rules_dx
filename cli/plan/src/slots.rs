@@ -458,14 +458,14 @@ struct Ticket {
 }
 
 impl Ticket {
-    /// Removes the ticket path, runs `between`, then releases the lock. Does
-    /// nothing once the file is gone, so a later drop cannot remove a path a
-    /// newer waiter has reused.
+    /// Removes the want file, runs `between`, then removes the ticket path and
+    /// releases the lock. Does nothing once the file is gone, so a later drop
+    /// cannot remove a path a newer waiter has reused.
     fn leave(&mut self, between: impl FnOnce()) {
         if let Some(file) = self.file.take() {
-            let _ = std::fs::remove_file(&self.path);
             let _ = std::fs::remove_file(want_path(&self.path));
             between();
+            let _ = std::fs::remove_file(&self.path);
             drop(file);
         }
     }
@@ -3186,15 +3186,18 @@ mod tests {
     }
 
     #[test]
-    fn a_leaving_ticket_never_deletes_the_next_waiters_ticket() {
+    fn a_leaving_ticket_never_deletes_the_next_waiters_want() {
         let scratch = dx_test_scratch::scratch("dx-slots-leave-");
         let dir = scratch.path().join("slots");
         let mut first = enqueue(&dir, "").expect("first");
+        let first_number = first.number;
         let mut next = None;
         first.leave(|| next = Some(enqueue(&dir, "").expect("next")));
         let next = next.expect("next ticket");
+        assert_ne!(next.number, first_number);
         drop(first);
         assert!(next.path.exists());
+        assert!(want_path(&next.path).exists());
         let listed = tickets(&dir);
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].1, next.path);

@@ -250,7 +250,7 @@ Language rules:
 
 ### Rule names
 
-dx names rules `<language>_<kind>`. This table maps each upstream rule to the
+dx names rules `<language>_<kind>` throughout, so `py_library` is `python_library`, `ts_project` is `typescript_project` and `kt_jvm_library` is `kotlin_library`. This table maps each upstream rule to the
 dx rule that wraps it.
 
 | Upstream load | Upstream rule | dx load | dx rule |
@@ -313,6 +313,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_mismatch` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_probe` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
+|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_template` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//cuda/rules:defs.bzl` | `cuda_binary` |

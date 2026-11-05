@@ -123,3 +123,9 @@ OCAML_CELLS = {
         ],
     ),
 }
+
+OPAM_REPOSITORY_COMMIT = "691408b00730fcedbd3e30ccdb42c388a83fd304"
+
+OPAM_REPOSITORY_SHA256 = "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a"
+
+OPAM_REPOSITORY_URL = "https://github.com/ocaml/opam-repository/archive/" + OPAM_REPOSITORY_COMMIT + ".tar.gz"

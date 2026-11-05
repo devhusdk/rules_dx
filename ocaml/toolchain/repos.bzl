@@ -1,10 +1,14 @@
 """Hermetic OCaml acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load(":opam.bzl", "is_toolchain_package", "parse_depends", "parse_url")
 load(
     ":pins.bzl",
     "OCAML_CELLS",
     "OCAML_VERSION",
+    "OPAM_REPOSITORY_SHA256",
+    "OPAM_REPOSITORY_URL",
+    "OPAM_REPOSITORY_COMMIT",
     "RULES_OCAML_COMMIT",
     "RULES_OCAML_SHA256",
     "RULES_OCAML_URL",
@@ -193,6 +197,46 @@ def hub_build():
         content.append(_ALIAS.format(name = alias, cases = repr(cases)))
     return "\n".join(content)
 
+def package_repo_name(group, package):
+    """Returns the repository name of one opam package in a packages group."""
+    return "dx_opam_{}_{}".format(group, package.replace("-", "_").replace(".", "_"))
+
+def packages_hub_build(group, packages):
+    """Returns the BUILD file of a packages hub with one alias per package."""
+    return "\n".join([
+        'alias(name = "{p}", actual = "@{repo}//:{p}", visibility = ["//visibility:public"])\n'.format(
+            p = package,
+            repo = package_repo_name(group, package),
+        )
+        for package in sorted(packages)
+    ])
+
+def _snapshot_opam(mctx, package, version):
+    path = "opam_snapshot/packages/{p}/{p}.{v}/opam".format(p = package, v = version)
+    if not mctx.path(path).exists:
+        fail("opam-repository {} has no {} {}".format(OPAM_REPOSITORY_COMMIT, package, version))
+    return mctx.read(path)
+
+def _declare_packages(mctx, tag, annotations):
+    packages = {}
+    for package, version in parse_depends(mctx.read(tag.lock)).items():
+        if is_toolchain_package(package):
+            continue
+        url = parse_url(_snapshot_opam(mctx, package, version))
+        annotation = annotations.get(package)
+        if annotation == None:
+            fail(("{} {} needs an ocaml.annotation(package = \"{}\", build_file = ...): " +
+                  "building opam packages without one is not supported yet").format(package, version, package))
+        pinned_archive(
+            name = package_repo_name(tag.name, package),
+            files = {"BUILD.bazel": mctx.read(annotation.build_file)},
+            sha256 = url.sha256,
+            strip_prefix = annotation.strip_prefix,
+            urls = [url.src],
+        )
+        packages[package] = version
+    hub_repo(name = tag.name, files = {"BUILD.bazel": packages_hub_build(tag.name, packages)})
+
 def _ocaml_impl(mctx):
     pinned_archive(
         name = "rules_ocaml",
@@ -210,9 +254,37 @@ def _ocaml_impl(mctx):
     for cell in sorted(OCAML_CELLS.keys()):
         _dist(name = DIST_PREFIX + cell, cell = cell)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
+    tags = [tag for module in mctx.modules for tag in module.tags.packages]
+    if tags:
+        mctx.download_and_extract(
+            url = [OPAM_REPOSITORY_URL],
+            output = "opam_snapshot",
+            sha256 = OPAM_REPOSITORY_SHA256,
+            strip_prefix = "opam-repository-" + OPAM_REPOSITORY_COMMIT,
+        )
+    annotations = {tag.package: tag for module in mctx.modules for tag in module.tags.annotation}
+    for tag in tags:
+        _declare_packages(mctx, tag, annotations)
     return mctx.extension_metadata(reproducible = True)
 
 ocaml = module_extension(
     implementation = _ocaml_impl,
-    doc = "Creates rules_ocaml, the pinned OCaml compilers and the toolchain hub.",
+    doc = "Creates rules_ocaml, the pinned OCaml compilers, the toolchain hub and opam package hubs.",
+    tag_classes = {
+        "annotation": tag_class(
+            doc = "Names the BUILD file of one opam package that is not built with dune.",
+            attrs = {
+                "build_file": attr.label(mandatory = True, allow_single_file = True, doc = "BUILD file placed in the package repository."),
+                "package": attr.string(mandatory = True, doc = "Opam package name."),
+                "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),
+            },
+        ),
+        "packages": tag_class(
+            doc = "Creates a hub repository with one alias per package pinned in an opam lock file.",
+            attrs = {
+                "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The `.opam.locked` file."),
+                "name": attr.string(mandatory = True, doc = "Hub repository name."),
+            },
+        ),
+    },
 )

@@ -164,6 +164,16 @@ findings report the same workspace path.
   `ZANUDA_OCAML_RANGES`; `pins_test` fails if the toolchain leaves the range,
   because `.cmt` files only load with the compiler that wrote them.
 
+## Opam packages
+
+`ocaml.packages(name, lock)` reads the pinned versions from the `depends:` list
+of a `.opam.locked` file and creates a hub with one alias per package. Sources
+and sha256 digests come from the opam-repository snapshot pinned in
+`ocaml/toolchain/pins.bzl`; nothing runs opam. Compiler and `base-*` packages
+and `dune` come from the toolchain and get no alias. A package needs
+`ocaml.annotation(package, build_file, strip_prefix)`; building dune packages
+without one is not supported yet.
+
 ## Platforms
 
 | Cell | Emitter | Status |

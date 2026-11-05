@@ -2,8 +2,34 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":ocaml.bzl", "COMPILERS", "TOOLS", "native_cc_env", "toolchain_fields")
-load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")
-load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "hub_build", "placeholder_files", "relative_prefix")
+load(":opam.bzl", "is_toolchain_package", "parse_depends", "parse_url")
+load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION", "OPAM_REPOSITORY_COMMIT", "OPAM_REPOSITORY_SHA256", "OPAM_REPOSITORY_URL", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")
+load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
+
+_LOCK = """opam-version: "2.0"
+name: "app"
+depends: [
+  "astring" {= "0.8.5"}
+  "cmdliner" {with-test & = "1.2.0"}
+  "cmdliner" {= "1.3.0"}
+  "alcotest" {with-test & = "1.7.0"}
+  "odoc" {dev}
+  "dune" {= "3.16.0"}
+  "ocaml" {= "5.5.2" & post}
+  "lwt" {>= "5.0"}
+]
+build: ["dune" "build"]
+"""
+
+_URL_OPAM = """opam-version: "2.0"
+url {
+  src: "https://example.org/a-1.tbz"
+  checksum: [
+    "sha256=ab12"
+    "md5=ff"
+  ]
+}
+"""
 
 def _checks():
     linux = OCAML_CELLS["linux_amd64"]
@@ -52,6 +78,18 @@ def _checks():
             ], "text"),
             ["t"],
         ),
+        expect_equal("opam snapshot digest", len(OPAM_REPOSITORY_SHA256), 64),
+        expect_contains("opam snapshot url names the commit", OPAM_REPOSITORY_URL, OPAM_REPOSITORY_COMMIT),
+        expect_equal("locked versions are read", parse_depends(_LOCK), {"astring": "0.8.5", "cmdliner": "1.3.0", "dune": "3.16.0", "ocaml": "5.5.2"}),
+        expect_equal("a file without depends pins nothing", parse_depends("opam-version: \"2.0\"\n"), {}),
+        expect_equal("an unpinned entry is skipped", parse_depends("depends: [\"a\" {>= \"1\"}]"), {}),
+        expect_equal("a version after a build filter is kept", parse_depends("depends: [\"a\" {build & = \"2\"}]"), {"a": "2"}),
+        expect_equal("url and sha256 are read", parse_url(_URL_OPAM), struct(src = "https://example.org/a-1.tbz", sha256 = "ab12")),
+        expect_equal("single checksum string", parse_url("url {\n  src: \"https://x/a.tgz\"\n  checksum: \"sha256=cd\"\n}\n").sha256, "cd"),
+        expect_true("compiler packages come from the toolchain", all([is_toolchain_package(n) for n in ["ocaml", "ocaml-base-compiler", "base-unix", "dune"]])),
+        expect_true("libraries do not", not any([is_toolchain_package(n) for n in ["astring", "dune-configurator", "ocaml-compiler-libs"]])),
+        expect_equal("package repository name", package_repo_name("deps", "ppx-base.v"), "dx_opam_deps_ppx_base_v"),
+        expect_contains("hub aliases a package", packages_hub_build("deps", {"astring": "1"}), "alias(name = \"astring\", actual = \"@dx_opam_deps_astring//:astring\""),
         expect_equal("toolchain fields gain extras", toolchain_fields(struct(a = 1), {"b": 2}), {"a": 1, "b": 2}),
     ]
 

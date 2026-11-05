@@ -15,9 +15,9 @@ The policy in `BUILD.bazel` selects the tools. `docs.vale.ini` binds a non-defau
 ## Check
 
 ```sh
-dx lint //examples/prose-docs/... -- --@rules_dx//config:workspace=//examples/prose-docs:policy
-dx format //examples/prose-docs/... -- --@rules_dx//config:workspace=//examples/prose-docs:policy
-bazel test //examples/prose-docs:bundle_test
+dx lint //quality/tests/fixtures/prose-docs/... -- --@rules_dx//config:workspace=//quality/tests/fixtures/prose-docs:policy
+dx format //quality/tests/fixtures/prose-docs/... -- --@rules_dx//config:workspace=//quality/tests/fixtures/prose-docs:policy
+bazel test //quality/tests/fixtures/prose-docs:bundle_test
 ```
 
 Both commands exit 0 on the clean packages and never edit files.
@@ -27,8 +27,8 @@ Both commands exit 0 on the clean packages and never edit files.
 `drafts` shows what a failure looks like. Name its targets to run them:
 
 ```sh
-dx lint //examples/prose-docs/drafts:todo_rst -- --@rules_dx//config:workspace=//examples/prose-docs:policy
-dx format //examples/prose-docs/drafts:messy -- --@rules_dx//config:workspace=//examples/prose-docs:policy
+dx lint //quality/tests/fixtures/prose-docs/drafts:todo_rst -- --@rules_dx//config:workspace=//quality/tests/fixtures/prose-docs:policy
+dx format //quality/tests/fixtures/prose-docs/drafts:messy -- --@rules_dx//config:workspace=//quality/tests/fixtures/prose-docs:policy
 ```
 
 `dx lint` exits 1 and names `drafts/todo.rst`. `dx format` exits 1 and names `drafts/messy.typ`. Add `--apply` to `dx format` to rewrite that file.

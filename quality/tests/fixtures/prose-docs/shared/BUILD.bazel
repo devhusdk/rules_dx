@@ -1,5 +1,6 @@
 load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rst/rules:defs.bzl", "rst_library")
 
 _PUBLIC = ["//visibility:public"]
 
@@ -14,19 +15,21 @@ filegroup(
     name = "files",
     srcs = glob(["*"]),
     visibility = [
-        "//examples/prose-docs:__pkg__",
+        "//quality/tests/fixtures/prose-docs:__pkg__",
         "//quality/tests:__pkg__",
     ],
 )
 
+rst_library(
+    name = "glossary",
+    srcs = ["glossary.rst"],
+    aspect_hints = ["//quality/tests/fixtures/prose-docs:docs_vale"],
+)
+
 asciidoc_library(
-    name = "pages",
-    srcs = [
-        "intro.adoc",
-        "ops.adoc",
-    ],
-    aspect_hints = ["//examples/prose-docs:docs_vale"],
-    deps = ["//examples/prose-docs/shared:terms"],
+    name = "terms",
+    srcs = ["terms.adoc"],
+    aspect_hints = ["//quality/tests/fixtures/prose-docs:docs_vale"],
 )
 
 real_source_target(

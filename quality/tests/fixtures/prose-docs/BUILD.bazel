@@ -78,10 +78,10 @@ sh_test(
     name = "bundle_test",
     srcs = ["bundle_test.sh"],
     data = [
-        "//examples/prose-docs/guide:pages",
-        "//examples/prose-docs/handbook:pages",
-        "//examples/prose-docs/paper:latex",
-        "//examples/prose-docs/paper:typst",
+        "//quality/tests/fixtures/prose-docs/guide:pages",
+        "//quality/tests/fixtures/prose-docs/handbook:pages",
+        "//quality/tests/fixtures/prose-docs/paper:latex",
+        "//quality/tests/fixtures/prose-docs/paper:typst",
     ],
 )
 
@@ -90,11 +90,11 @@ filegroup(
     testonly = True,
     srcs = glob(["*"]) + [
         "styles/House/Todo.yml",
-        "//examples/prose-docs/drafts:files",
-        "//examples/prose-docs/guide:files",
-        "//examples/prose-docs/handbook:files",
-        "//examples/prose-docs/paper:files",
-        "//examples/prose-docs/shared:files",
+        "//quality/tests/fixtures/prose-docs/drafts:files",
+        "//quality/tests/fixtures/prose-docs/guide:files",
+        "//quality/tests/fixtures/prose-docs/handbook:files",
+        "//quality/tests/fixtures/prose-docs/paper:files",
+        "//quality/tests/fixtures/prose-docs/shared:files",
     ],
     visibility = ["//quality/tests:__pkg__"],
 )

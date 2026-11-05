@@ -1,6 +1,6 @@
-load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
+load("@rules_dx//quality/rules:defs.bzl", "latex_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rst/rules:defs.bzl", "rst_library")
+load("@rules_dx//quality/rules:defs.bzl", "typst_library")
 
 _PUBLIC = ["//visibility:public"]
 
@@ -15,21 +15,26 @@ filegroup(
     name = "files",
     srcs = glob(["*"]),
     visibility = [
-        "//examples/prose-docs:__pkg__",
+        "//quality/tests/fixtures/prose-docs:__pkg__",
         "//quality/tests:__pkg__",
     ],
 )
 
-rst_library(
-    name = "glossary",
-    srcs = ["glossary.rst"],
-    aspect_hints = ["//examples/prose-docs:docs_vale"],
+typst_library(
+    name = "typst",
+    srcs = [
+        "common.typ",
+        "main.typ",
+    ],
 )
 
-asciidoc_library(
-    name = "terms",
-    srcs = ["terms.adoc"],
-    aspect_hints = ["//examples/prose-docs:docs_vale"],
+latex_library(
+    name = "latex",
+    srcs = [
+        "body.tex",
+        "main.tex",
+    ],
+    aspect_hints = ["//quality/tests/fixtures/prose-docs:docs_latexindent"],
 )
 
 real_source_target(

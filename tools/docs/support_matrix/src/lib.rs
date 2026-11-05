@@ -38,6 +38,9 @@ pub struct Row {
     /// The API doc tool; empty when the language has none, absent when docs do not apply.
     #[serde(default)]
     pub doc: Option<String>,
+    /// The unused-code tools and rules; empty when the language has none yet, absent when it does not apply.
+    #[serde(default)]
+    pub dead_code: Option<Vec<String>>,
     #[serde(default)]
     pub identity: BTreeMap<String, String>,
     /// The coverage collector; absent when coverage does not apply to the row.
@@ -153,7 +156,7 @@ impl starlark::Loader for BuildLoader<'_> {
 }
 
 fn split_label(label: &str) -> Result<(String, &str), String> {
-    let external = ["@rules_dx_android", "@rules_dx_apple"]
+    let external = ["@rules_dx_android", "@rules_dx_apple", "@rules_dx_dotnet"]
         .into_iter()
         .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
     let (prefix, rest) = match external {

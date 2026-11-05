@@ -92,6 +92,26 @@ DOC_TOOLS = {
     "zig": None,
 }
 
+# The tool and rule that report unused code per row. A language row missing here has no dead-code tool yet; "none" marks a language where none exists.
+DEAD_CODE = {
+    "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
+    "cuda": ["none"],
+    "dart": ["dart unused_element"],
+    "javascript": ["knip"],
+    "julia": ["none"],
+    "kotlin": ["detekt"],
+    "lua": ["selene unused_variable"],
+    "nix": ["deadnix"],
+    "powershell": ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
+    "python": ["vulture"],
+    "ruby": ["debride"],
+    "rust": ["rustc dead_code"],
+    "scala": ["scalac -Wunused"],
+    "shell": ["shellcheck SC2034"],
+    "starlark": ["buildifier unused-variable"],
+    "typescript": ["knip"],
+}
+
 # The coverage collector each row's tests write LCOV with. A row in neither dict has no coverage to report.
 COVERAGE_COLLECTORS = {
     "cc": ["gcov", "llvm-cov"],

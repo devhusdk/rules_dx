@@ -74,81 +74,81 @@ Select one with `--@rules_dx//cc/toolchains:compiler=<value>`.
 
 ## Quality
 
-Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise. Coverage names the collector that writes the LCOV for the row's tests, or `no` with the reason it has none.
+Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise. Coverage names the collector that writes the LCOV for the row's tests, or `no` with the reason it has none. Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.
 
-| Name | Lint | Format | Typecheck | API docs | Coverage |
-| --- | --- | --- | --- | --- | --- |
-| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring |
-| Avro | `avro_tools`, `typos` | n/a | `avro_tools` | no | n/a |
-| C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` |
-| C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` |
-| CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring |
-| D | `dscanner`, `typos` | `dfmt` | `ldc` | no | `ldc --coverage` |
-| Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `package:test` |
-| Elixir | `credo`, `typos`, `xref` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no | `cover` |
-| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned), `typos`, `xref` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` | no | `cover` |
-| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `flutter_tester` |
-| Fortran | `fortitude`, `typos` | `ffmt` | `flang` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
-| F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` |
-| Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` |
-| Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists), `typos` | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` |
-| Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` |
-| JavaScript | `biome`, `eslint`, `knip`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` |
-| Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` |
-| Kotlin | `detekt`, `ktlint`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` |
-| Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` |
-| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring |
-| OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
-| Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) |
-| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | `pcov (Linux only)` |
-| PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows), `typos` | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a | `pwsh` | `pester` |
-| Protobuf | `buf`, `typos` | `buf` | no | no | n/a |
-| Python | `flake8`, `pydoclint`, `pylint`, `ruff`, `typos`, `vulture` | `ruff` | `ty` | `griffe` | `coverage.py` |
-| Ruby | `debride` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` |
-| Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` |
-| Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` |
-| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring |
-| TypeScript | `biome`, `knip`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` |
-| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring |
-| Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) |
-| Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules |
-| CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a |
-| Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a |
-| Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a |
-| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker), `typos` | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a | no: no dx coverage wiring in the Qt rules |
-| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `prettier` | n/a | n/a | n/a |
-| API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a |
-| AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a |
-| Bicep | `bicep`, `typos` | `bicep` | n/a | n/a | n/a |
-| Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64), `typos` | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a |
-| CloudFormation | `cfn_lint`, `typos` | no | n/a | n/a | n/a |
-| CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a |
-| CUE | n/a | `cue` | `cue` | n/a | n/a |
-| FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a |
-| Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a |
-| GitHub workflows | no | `yamlfmt` | no | n/a | n/a |
-| GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a |
-| Helm | `helm`, `typos` | no | n/a | n/a | n/a |
-| HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a |
-| Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a |
-| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a |
-| Kubernetes | `kubeconform`, `typos` | `prettier` | n/a | n/a | n/a |
-| LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a |
-| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a |
-| Nix | `deadnix`, `statix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a |
-| OCI images | no | no | no | n/a | n/a |
-| Pkl | `pkl_lsp` (not on `windows_x86_64`: pkl-lsp exits at start under the hermetic runner (#7292); `windows_arm64`: pkl-lsp exits at start under the hermetic runner (#7292)), `typos` | `pkl` | `pkl` | n/a | n/a |
-| Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a |
-| reStructuredText | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a |
-| Shell | `shellcheck`, `typos` | `shfmt` | no | n/a | n/a |
-| SQL | `sqlfluff`, `typos` | `prettier`, `sqlfluff` | n/a | n/a | n/a |
-| Starlark | `buildifier`, `typos` | `buildifier` | no | n/a | n/a |
-| Terraform | `tflint`, `typos` | `terraform` | `terraform` | n/a | n/a |
-| Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64), `typos` | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | n/a |
-| TOML | `taplo`, `typos` | `taplo` | no | n/a | n/a |
-| Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a |
-| XML | `typos`, `xmllint` | `prettier` | n/a | n/a | n/a |
-| YAML | `typos`, `yamllint` | `yamlfmt` | n/a | n/a | n/a |
+| Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
+| --- | --- | --- | --- | --- | --- | --- |
+| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | no |
+| Avro | `avro_tools`, `typos` | n/a | `avro_tools` | no | n/a | no |
+| C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | no |
+| C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
+| CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
+| D | `dscanner`, `typos` | `dfmt` | `ldc` | no | `ldc --coverage` | no |
+| Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `package:test` | `dart unused_element` |
+| Elixir | `credo`, `typos`, `xref` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no | `cover` | no |
+| Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned), `typos`, `xref` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` | no | `cover` | no |
+| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `flutter_tester` | no |
+| Fortran | `fortitude`, `typos` | `ffmt` | `flang` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) | no |
+| F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | no |
+| Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | no |
+| Haskell | `hlint` (not on `linux_arm64`: hlint publishes no linux_arm64 build; `macos_arm64`: hlint v3.10 ships only x86_64-osx and no macOS fallback exists), `typos` | `ormolu` (not on `linux_arm64`: ormolu publishes no linux_arm64 build; `macos_arm64`: The aarch64-darwin zip needs sibling dylibs the standalone artifact model does not expose) | `ghc` | no | `hpc` | no |
+| Java | `checkstyle`, `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | no |
+| JavaScript | `biome`, `eslint`, `knip`, `typos` | `biome`, `prettier` | `tsc` | no | `jest` | `knip` |
+| Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | no | `CoverageTools` | none |
+| Kotlin | `detekt`, `ktlint`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
+| Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
+| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring | no |
+| OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) | no |
+| Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no | no: no collector yet; tests carry dx-no-coverage-collector (#2308) | no |
+| PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | `pcov (Linux only)` | no |
+| PowerShell | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows), `typos` | `psscriptanalyzer` (not on `windows_x86_64`: No PSScriptAnalyzer artifact is pinned for Windows; `windows_arm64`: No PSScriptAnalyzer artifact is pinned for Windows) | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
+| Protobuf | `buf`, `typos` | `buf` | no | no | n/a | no |
+| Python | `flake8`, `pydoclint`, `pylint`, `ruff`, `typos`, `vulture` | `ruff` | `ty` | `griffe` | `coverage.py` | `vulture` |
+| Ruby | `debride` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `debride` |
+| Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
+| Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
+| Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | no |
+| TypeScript | `biome`, `knip`, `typos` | `biome`, `prettier` | `tsc` | `typedoc` | `jest` | `knip` |
+| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | no |
+| Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | no |
+| Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | no: no dx coverage wiring in the Apple rules | n/a |
+| CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |
+| Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a | n/a |
+| Qt | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker), `typos` | `qmlformat` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | `qmllint` (not on `windows_x86_64`: The Qt Windows x86_64 cell has a blocker; `windows_arm64`: The Qt Windows arm64 cell has a blocker) | n/a | no: no dx coverage wiring in the Qt rules | n/a |
+| Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
+| Bicep | `bicep`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
+| Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64), `typos` | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a | n/a |
+| CloudFormation | `cfn_lint`, `typos` | no | n/a | n/a | n/a | n/a |
+| CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a | n/a |
+| CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
+| FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
+| Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| GitHub workflows | no | `yamlfmt` | no | n/a | n/a | n/a |
+| GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a | n/a |
+| Helm | `helm`, `typos` | no | n/a | n/a | n/a | n/a |
+| HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
+| Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a | n/a |
+| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` | n/a | n/a | n/a |
+| Kubernetes | `kubeconform`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
+| LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
+| Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a | n/a |
+| Nix | `deadnix`, `statix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
+| OCI images | no | no | no | n/a | n/a | n/a |
+| Pkl | `pkl_lsp` (not on `windows_x86_64`: pkl-lsp exits at start under the hermetic runner (#7292); `windows_arm64`: pkl-lsp exits at start under the hermetic runner (#7292)), `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
+| Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
+| reStructuredText | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
+| Shell | `shellcheck`, `typos` | `shfmt` | no | n/a | n/a | `shellcheck SC2034` |
+| SQL | `sqlfluff`, `typos` | `prettier`, `sqlfluff` | n/a | n/a | n/a | n/a |
+| Starlark | `buildifier`, `typos` | `buildifier` | no | n/a | n/a | `buildifier unused-variable` |
+| Terraform | `tflint`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
+| Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64), `typos` | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | n/a | n/a |
+| TOML | `taplo`, `typos` | `taplo` | no | n/a | n/a | n/a |
+| Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a | n/a |
+| XML | `typos`, `xmllint` | `prettier` | n/a | n/a | n/a | n/a |
+| YAML | `typos`, `yamllint` | `yamlfmt` | n/a | n/a | n/a | n/a |
 
 ### Not applicable
 

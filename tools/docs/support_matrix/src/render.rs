@@ -203,6 +203,25 @@ fn coverage_cell(row: &Row) -> String {
     }
 }
 
+/// Names the unused-code tools of the row, or `no` when it has none yet.
+fn dead_code_cell(row: &Row) -> String {
+    match &row.dead_code {
+        None => "n/a".to_owned(),
+        Some(tools) if tools.is_empty() => "no".to_owned(),
+        Some(tools) => tools
+            .iter()
+            .map(|tool| {
+                if tool == "none" {
+                    tool.clone()
+                } else {
+                    format!("`{tool}`")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", "),
+    }
+}
+
 fn quality_table(facts: &Facts) -> String {
     let rows: Vec<Vec<String>> = facts
         .sections
@@ -217,6 +236,7 @@ fn quality_table(facts: &Facts) -> String {
                 quality_cell(facts, row, "typecheck"),
                 doc_cell(row),
                 coverage_cell(row),
+                dead_code_cell(row),
             ]
         })
         .collect();
@@ -228,6 +248,7 @@ fn quality_table(facts: &Facts) -> String {
             "Typecheck",
             "API docs",
             "Coverage",
+            "Dead code",
         ],
         &rows,
     )
@@ -266,7 +287,8 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str(
         "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. \
          A tool runs on every platform its row supports unless a note says otherwise. \
-         Coverage names the collector that writes the LCOV for the row's tests, or `no` with the reason it has none.\n\n",
+         Coverage names the collector that writes the LCOV for the row's tests, or `no` with the reason it has none. \
+         Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.\n\n",
     );
     out.push_str(&quality_table(facts));
     out.push_str(&not_applicable_section(facts));
@@ -306,6 +328,7 @@ mod tests {
       "rows": [
         {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
          "coverage": {"collectors": ["go cover"], "reason": ""},
+         "dead_code": [],
          "ci_tests": [], "consumer_tests": [], "workflows": []},
         {"name": "cc_llvm", "title": "LLVM", "section": "compilers", "families": [],
          "identity": {"driver": "gnu", "coverage": ""},
@@ -358,12 +381,12 @@ mod tests {
             "{page}"
         );
         assert!(
-            page.contains("| Go | `govet` | `gofumpt` | no | n/a | `go cover` |\n"),
+            page.contains("| Go | `govet` | `gofumpt` | no | n/a | `go cover` | no |\n"),
             "{page}"
         );
         assert!(
             page.contains(
-                "| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a | n/a | no: no collector |\n"
+                "| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a | n/a | no: no collector | n/a |\n"
             ),
             "{page}"
         );

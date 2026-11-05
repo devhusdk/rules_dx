@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DOC_TOOLS", "NO_COVERAGE", "NOT_LANGUAGES", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -18,6 +18,13 @@ def _doc(name):
         return None
     entry = DOC_TOOLS[name]
     return entry["tool"] if entry else ""
+
+def _dead_code(row):
+    if row["name"] in DEAD_CODE:
+        return DEAD_CODE[row["name"]]
+    if row["section"] == "languages":
+        return []
+    return None
 
 def _coverage(name):
     if name in COVERAGE_COLLECTORS:
@@ -162,6 +169,7 @@ def support_matrix_facts_dict():
                 "ci_tests": row.get("ci_tests", []),
                 "consumer_tests": row.get("consumer_tests", []),
                 "coverage": _coverage(row["name"]),
+                "dead_code": _dead_code(row),
                 "doc": _doc(row["name"]),
                 "families": row.get("families", [row["name"]]),
                 "identity": _identity(row),

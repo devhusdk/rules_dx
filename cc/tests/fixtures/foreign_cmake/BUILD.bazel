@@ -108,6 +108,59 @@ filegroup(
     target_compatible_with = _LINUX_X86_64,
 )
 
+_WINDOWS_X86_64 = [
+    "@platforms//cpu:x86_64",
+    "@platforms//os:windows",
+]
+
+cmake(
+    name = "zlib_msvc_static",
+    build_args = ["--verbose"],
+    generate_args = [
+        "-GNinja",
+        "--trace-expand",
+    ],
+    lib_source = "@foreign_cmake_zlib//:all_srcs",
+    out_static_libs = ["zlibstatic.lib"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+)
+
+cmake(
+    name = "zlib_msvc_shared",
+    build_args = ["--verbose"],
+    generate_args = ["-GNinja"],
+    lib_source = "@foreign_cmake_zlib//:all_srcs",
+    out_interface_libs = ["zlib.lib"],
+    out_shared_libs = ["zlib1.dll"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+)
+
+cc_test(
+    name = "zlib_msvc_static_test",
+    srcs = ["zlib_test.cc"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+    deps = [":zlib_msvc_static"],
+)
+
+cc_test(
+    name = "zlib_msvc_shared_test",
+    srcs = ["zlib_test.cc"],
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+    deps = [":zlib_msvc_shared"],
+)
+
+filegroup(
+    name = "zlib_msvc_log",
+    srcs = [":zlib_msvc_static"],
+    output_group = "CMake_logs",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+)
+
 platform(
     name = "linux_x86_64",
     constraint_values = _LINUX_X86_64,

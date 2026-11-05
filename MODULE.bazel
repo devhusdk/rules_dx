@@ -93,8 +93,20 @@ _foreign_cc_tools.cmake(
     version = "3.31.12",
 )
 _foreign_cc_tools.ninja(
+    exec_compatible_with = ["@platforms//os:linux"],
     mode = "custom",
     target = "@ninja",
+)
+_foreign_cc_tools.ninja(
+    exec_compatible_with = ["@platforms//os:macos"],
+    mode = "custom",
+    target = "@ninja",
+)
+
+# the pinned ninja source does not build with clang-cl (std::set_terminate), so Windows uses the prebuilt binary; the linux and macos tags above win elsewhere (#6220)
+_foreign_cc_tools.ninja(
+    mode = "binary",
+    version = "1.13.2",
 )
 _foreign_cc_tools.make(
     mode = "custom",

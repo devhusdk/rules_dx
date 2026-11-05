@@ -65,6 +65,26 @@ rustfmt_test(
 )
 
 rust_test(
+    name = "foreign_cmake_msvc_log_test",
+    srcs = ["foreign_cmake_msvc_log.rs"],
+    crate_name = "foreign_cmake_msvc_log_test",
+    crate_root = "foreign_cmake_msvc_log.rs",
+    data = ["//cc/tests/fixtures/foreign_cmake:zlib_msvc_log"],
+    edition = "2021",
+    env = {"DX_FOREIGN_CMAKE_MSVC_LOG": "$(rootpaths //cc/tests/fixtures/foreign_cmake:zlib_msvc_log)"},
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+)
+
+rustfmt_test(
+    name = "foreign_cmake_msvc_log_fmt_test",
+    targets = [":foreign_cmake_msvc_log_test"],
+)
+
+rust_test(
     name = "foreign_cmake_cross_test",
     srcs = ["foreign_cmake_cross.rs"],
     crate_name = "foreign_cmake_cross_test",

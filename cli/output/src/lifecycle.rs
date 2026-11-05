@@ -739,6 +739,7 @@ pub struct TestOutcome {
     pub cases: Vec<TestCase>,
     pub log_path: Option<String>,
     pub log_tail: Option<String>,
+    pub outputs_path: Option<String>,
 }
 
 /// One test case read from a native test report.
@@ -874,6 +875,7 @@ pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
     }
     opt_str(&mut map, "log_path", &outcome.log_path);
     opt_str(&mut map, "log_tail", &outcome.log_tail);
+    opt_str(&mut map, "outputs_path", &outcome.outputs_path);
     Ok(Value::Object(map))
 }
 
@@ -894,6 +896,7 @@ pub fn test_result_record(outcome: &TestOutcome) -> Result<Value, OutputError> {
         );
     }
     opt_str(&mut map, "log_path", &outcome.log_path);
+    opt_str(&mut map, "outputs_path", &outcome.outputs_path);
     Ok(Value::Object(map))
 }
 

@@ -53,7 +53,8 @@ export default defineConfig({
 ```
 
 `dx test` reads the JUnit `test.xml`. Traces and screenshots of failed tests are
-written to `playwright/` in the undeclared outputs. Linux needs the system
+written to `playwright/` in the undeclared outputs. `dx test --output=json` lists
+the outputs zip as `outputs_path` on each failed `test_outcome`. Linux needs the system
 libraries Chromium links against, such as `libnss3` and `libnspr4`.
 Supported hosts are Linux x86_64, Linux arm64 and macOS arm64. Windows is not
 supported.

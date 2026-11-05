@@ -1814,6 +1814,9 @@
         },
         "log_tail": {
           "type": "string"
+        },
+        "outputs_path": {
+          "type": "string"
         }
       },
       "required": [

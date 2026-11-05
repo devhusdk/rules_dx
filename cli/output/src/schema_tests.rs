@@ -149,6 +149,7 @@ fn outcome(full: bool) -> TestOutcome {
         t.evidence_complete = false;
         t.log_path = Some("l".to_owned());
         t.log_tail = Some("tail".to_owned());
+        t.outputs_path = Some("o".to_owned());
         t.cases = vec![TestCase {
             classname: Some("C".to_owned()),
             name: "n".to_owned(),

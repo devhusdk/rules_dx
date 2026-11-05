@@ -272,7 +272,8 @@ fn tally_cases(outcome: &mut TestOutcome, cases: &[JunitCase], cases_seen: &mut 
     }
 }
 
-/// Points a result that did not pass at its test.log and keeps the log's tail.
+/// Points a result that did not pass at its test.log and keeps the log's tail. The undeclared
+/// outputs zip, where traces and screenshots land, is listed beside it.
 fn attach_log(outcome: &mut TestOutcome, result: &TestResultRecord, reader: &dyn ArtifactReader) {
     if outcome.outcome == "passed" {
         return;
@@ -283,6 +284,13 @@ fn attach_log(outcome: &mut TestOutcome, result: &TestResultRecord, reader: &dyn
             .read_artifact(&log.exec_path)
             .ok()
             .and_then(|bytes| log_tail(&bytes));
+    }
+    if let Some(zip) = result
+        .files
+        .iter()
+        .find(|file| file.name.ends_with("outputs.zip"))
+    {
+        outcome.outputs_path = Some(zip.exec_path.to_string_lossy().into_owned());
     }
 }
 
@@ -4888,6 +4896,10 @@ mod tests {
             String::from("test.log"),
             write_bep_artifact(harness, "test.log", b"first\nboom happened\n"),
         ));
+        files.push((
+            String::from("test.outputs__outputs.zip"),
+            write_bep_artifact(harness, "outputs.zip", b"zip"),
+        ));
         files
     }
 
@@ -4906,6 +4918,13 @@ mod tests {
         let events = json_events(&out);
         let outcome = event(&events, "test_outcome");
         assert!(outcome["log_path"].as_str().is_some(), "{out}");
+        assert!(
+            outcome["outputs_path"]
+                .as_str()
+                .expect("outputs")
+                .ends_with("outputs.zip"),
+            "{out}"
+        );
         assert!(
             outcome["log_tail"]
                 .as_str()

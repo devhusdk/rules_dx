@@ -29,9 +29,11 @@ type externalParser struct {
 	// DefaultRepo is the hub repository a source uses when the directive
 	// names none. An empty DefaultRepo means the ecosystem takes no repo.
 	DefaultRepo string
-	// RootOnly limits discovery to the repository root, for ecosystems whose
-	// targets are only defined there.
-	RootOnly bool
+	// BelowRoot, when set, is a file a non-root directory must also hold for
+	// Discover to feed it. The root needs no such file.
+	BelowRoot string
+	// Place adjusts a discovered manifest for the directory it was found in.
+	Place func(m externalManifest, rel string) externalManifest
 	Parse    func(content []byte, path string) (externalManifest, error)
 	// Sibling names a file next to Discover that ParseWithSibling also reads.
 	// It is nil when the file is absent.
@@ -74,8 +76,9 @@ var externalParsers = map[string]externalParser{
 	},
 	"npm": {
 		Discover: "package.json",
-		RootOnly: true,
-		Parse:    parseNpmManifest,
+		BelowRoot: "pnpm-lock.yaml",
+		Place:     placeNpmManifest,
+		Parse:     parseNpmManifest,
 	},
 }
 
@@ -137,7 +140,7 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 	sort.Strings(ecos)
 	for _, eco := range ecos {
 		parser := externalParsers[eco]
-		if parser.RootOnly && rel != "" {
+		if rel != "" && parser.BelowRoot != "" && !hasFile(c.RepoRoot, path.Join(rel, parser.BelowRoot)) {
 			continue
 		}
 		relPath := path.Join(rel, parser.Discover)
@@ -150,6 +153,9 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 			// A discovered file that does not parse is left alone; only a
 			// file a directive names is an error.
 			continue
+		}
+		if parser.Place != nil {
+			manifest = parser.Place(manifest, rel)
 		}
 		set(eco, []externalSource{{Repo: parser.DefaultRepo, Path: relPath, Manifest: manifest}})
 	}
@@ -204,6 +210,11 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 	}
 	c.Exts[ExternalDirective] = &externalIndex{rel: rel, sources: sources}
 	return errs
+}
+
+func hasFile(root, rel string) bool {
+	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
+	return err == nil && !info.IsDir()
 }
 
 // ExternalLabels returns the labels the ecosystem's sources give name. More

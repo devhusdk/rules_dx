@@ -10,6 +10,14 @@ import (
 // npmManifest holds the packages a package.json declares.
 type npmManifest struct {
 	packages map[string]bool
+	// dir is the package holding the pnpm lock the packages link from.
+	dir string
+}
+
+func placeNpmManifest(m externalManifest, rel string) externalManifest {
+	placed := *m.(*npmManifest)
+	placed.dir = rel
+	return &placed
 }
 
 func parseNpmManifest(content []byte, _ string) (externalManifest, error) {
@@ -40,11 +48,11 @@ func npmPackageName(spec string) string {
 	return parts[0]
 }
 
-// Lookup resolves a declared package to its //:node_modules/<pkg> target.
+// Lookup resolves a declared package to its //<lockdir>:node_modules/<pkg> target.
 func (m *npmManifest) Lookup(_, name string) ([]label.Label, string) {
 	pkg := npmPackageName(name)
 	if !m.packages[pkg] {
 		return nil, ""
 	}
-	return []label.Label{{Name: "node_modules/" + pkg}}, ""
+	return []label.Label{{Pkg: m.dir, Name: "node_modules/" + pkg}}, ""
 }

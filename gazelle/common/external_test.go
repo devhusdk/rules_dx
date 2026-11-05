@@ -304,16 +304,25 @@ source = { virtual = "." }
 	}
 }
 
-func TestExternalNpmRootOnly(t *testing.T) {
+func TestExternalNpmLockDirs(t *testing.T) {
 	cfg, root := externalConfig(t)
 	dotFile(t, root, "package.json", `{"dependencies":{"react":"1"},"devDependencies":{"@scope/pkg":"1"}}`)
 	dotFile(t, root, "sub/package.json", `{"dependencies":{"vue":"1"}}`)
+	dotFile(t, root, "web/package.json", `{"dependencies":{"vite":"1"}}`)
+	dotFile(t, root, "web/pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
 	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
 		t.Fatal(errs)
 	}
 	sub := cfg.Clone()
 	if errs := ConfigureExternal(sub, "sub", nil); errs != nil {
 		t.Fatal(errs)
+	}
+	web := cfg.Clone()
+	if errs := ConfigureExternal(web, "web", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	if got, _ := ExternalLabels(web, "npm", "vite"); labelStrings(got) != "//web:node_modules/vite" {
+		t.Errorf("vite: got %v", got)
 	}
 	for imp, want := range map[string]string{"react": "//:node_modules/react", "react/jsx-runtime": "//:node_modules/react", "@scope/pkg/x": "//:node_modules/@scope/pkg", "vue": ""} {
 		got, _ := ExternalLabels(sub, "npm", imp)

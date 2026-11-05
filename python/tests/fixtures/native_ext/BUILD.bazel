@@ -39,7 +39,7 @@ python_test(
     srcs = ["native_ext_test.py"],
     aspect_hints = ["//:ruff_config"],
     data = select({
-        "@platforms//os:windows": ["@msvc_runtime//:vc_redist_x64"],
+        "@platforms//os:windows": ["@msvc_runtime//:vc_redist"],
         "//conditions:default": [],
     }),
     env = select({
@@ -48,14 +48,14 @@ python_test(
         "@rules_cc//cc/compiler:msvc-cl": {"DX_EXPECTED_COMPILER": "msvc"},
         "@rules_cc//cc/compiler:clang-cl": {"DX_EXPECTED_COMPILER": "clang-cl"},
     }) | select({
-        "@platforms//os:windows": {"DX_VC_REDIST": "$(rlocationpaths @msvc_runtime//:vc_redist_x64)"},
+        "@platforms//os:windows": {"DX_VC_REDIST": "$(rlocationpaths @msvc_runtime//:vc_redist)"},
         "//conditions:default": {},
     }),
     imports = ["."],
     runner = "plain",
     target_compatible_with = select({
         "@platforms//os:linux": [],
-        "@platforms//os:windows": ["@platforms//cpu:x86_64"],
+        "@platforms//os:windows": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     deps = [

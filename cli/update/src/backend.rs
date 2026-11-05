@@ -26,6 +26,7 @@ pub struct Run {
 pub enum StagedTool {
     Paket2Bazel,
     GoModDownload,
+    MixDeps,
 }
 
 /// A generator run on copies of `inputs` in a scratch directory, never in the workspace.
@@ -92,6 +93,16 @@ impl StagedRun {
                 argv.push(scratch.join("out").to_string_lossy().into_owned());
                 argv.extend(["mod", "download", "all"].map(str::to_owned));
             }
+            StagedTool::MixDeps => {
+                // mix has no -C; run the target from the staged directory.
+                let target = argv
+                    .iter()
+                    .position(|arg| arg == "--")
+                    .map_or(0, |at| at - 1);
+                let dir = scratch.join("out").to_string_lossy().into_owned();
+                let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
+                argv.insert(target, under);
+            }
         }
         argv
     }
@@ -111,6 +122,15 @@ impl StagedRun {
                 ("GOCACHE".to_owned(), under("gocache")),
             ]);
         }
+        if self.tool == StagedTool::MixDeps {
+            let under = |name: &str| scratch.join(name).to_string_lossy().into_owned();
+            env.extend([
+                ("MIX_HOME".to_owned(), under("mix_home")),
+                ("HEX_HOME".to_owned(), under("hex_home")),
+                ("MIX_DEPS_PATH".to_owned(), under("deps")),
+                ("MIX_BUILD_PATH".to_owned(), under("build")),
+            ]);
+        }
         env
     }
 
@@ -119,6 +139,7 @@ impl StagedRun {
         match self.tool {
             StagedTool::Paket2Bazel => "paket2bazel",
             StagedTool::GoModDownload => "go",
+            StagedTool::MixDeps => "mix",
         }
     }
 
@@ -149,7 +170,7 @@ impl StagedRun {
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
         match self.tool {
             StagedTool::Paket2Bazel => scratch.to_path_buf(),
-            StagedTool::GoModDownload => scratch.join("out"),
+            StagedTool::GoModDownload | StagedTool::MixDeps => scratch.join("out"),
         }
     }
 }
@@ -639,9 +660,23 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
+        }
+        (Ecosystem::Hex, request) => {
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let packages = match request {
+                Selection::Full => vec!["--all".to_owned()],
+                Selection::Packages(packages) => packages.clone(),
+            };
+            Ok(BackendPlan::Staged(hex_staged(
+                set, head, offline, "deps.update", &packages,
+            )?))
         }
         (Ecosystem::Pub, request) => {
             if offline {
@@ -1030,10 +1065,17 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Hex, Selection::Packages(_)) => {
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan, Selection::Packages(_)) => {
             Err(pinned_selective(set))
         }
+        (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
+            set, head, offline, "deps.get", &[],
+        )?)),
+        (Ecosystem::Hex, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "mix deps.get checks the whole mix.lock; select the set without a package",
+        }),
         (Ecosystem::Pub, Selection::Full) => {
             let mut command = vec!["pub", "get", "--enforce-lockfile"];
             if offline {
@@ -1320,6 +1362,50 @@ fn go_staged(
         env: Vec::new(),
         inputs,
         outputs: vec![sum],
+    })
+}
+
+/// Plans a mix deps command on a staged copy of mix.exs and mix.lock, with the pinned Elixir
+/// and empty mix and hex homes.
+fn hex_staged(
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    offline: bool,
+    command: &str,
+    packages: &[String],
+) -> Result<StagedRun, BackendError> {
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    let pin_head = dx_process::BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    let lock = set
+        .locks
+        .iter()
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::MIX_LOCK))
+        .cloned()
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "a hex set must list mix.lock in locks; rebar.lock sets are not refreshed",
+        })?;
+    let mut inputs = set.manifests.clone();
+    inputs.push(lock.clone());
+    let mut argv_head = bazel(
+        &pin_head,
+        "run",
+        &["@rules_dx//elixir/tools:mix", "--", command],
+    );
+    argv_head.extend(packages.iter().cloned());
+    Ok(StagedRun {
+        tool: StagedTool::MixDeps,
+        argv_head,
+        env: Vec::new(),
+        inputs,
+        outputs: vec![lock],
     })
 }
 
@@ -3448,6 +3534,99 @@ mod tests {
         );
         assert_eq!(expected.inputs_dir(scratch), Path::new("/scratch/1/out"));
         assert_eq!(expected.tool_name(), "go");
+    }
+
+    fn hex_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "deps".to_owned(),
+            ecosystem: Ecosystem::Hex,
+            dir: "third_party/elixir".to_owned(),
+            manifests: vec!["third_party/elixir/mix.exs".to_owned()],
+            locks: vec!["third_party/elixir/mix.lock".to_owned()],
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn hex_check_stages_deps_get_and_update_names_the_packages() {
+        let head = no_head();
+        let closure = UvClosure::default();
+        let set = hex_set();
+        let Ok(CheckPlan::Staged(check)) =
+            check_configured(ws(), &set, &Selection::Full, false, true, &head, &closure)
+        else {
+            panic!("staged check");
+        };
+        let scratch = Path::new("/scratch/1");
+        let argv = check.argv(scratch);
+        let under = "--run_under=cd '/scratch/1/out' &&".to_owned();
+        let target = argv
+            .iter()
+            .position(|arg| *arg == under)
+            .expect("run_under");
+        assert_eq!(
+            argv[target + 1..],
+            strings(&["@rules_dx//elixir/tools:mix", "--", "deps.get"])
+        );
+        assert_eq!(check.outputs, ["third_party/elixir/mix.lock"]);
+        assert_eq!(
+            check.inputs,
+            ["third_party/elixir/mix.exs", "third_party/elixir/mix.lock"]
+        );
+        let env = check.env(scratch);
+        assert!(env.contains(&("MIX_HOME".to_owned(), "/scratch/1/mix_home".to_owned())));
+        assert!(env.contains(&("HEX_HOME".to_owned(), "/scratch/1/hex_home".to_owned())));
+        assert_eq!(check.tool_name(), "mix");
+
+        let packages = Selection::Packages(vec!["jason".to_owned(), "plug".to_owned()]);
+        let Ok(BackendPlan::Staged(update)) =
+            plan_configured(ws(), &set, &packages, false, false, &head, &closure)
+        else {
+            panic!("staged update");
+        };
+        let argv = update.argv(scratch);
+        assert_eq!(
+            argv[argv.len() - 4..],
+            strings(&["--", "deps.update", "jason", "plug"])
+        );
+        let Ok(BackendPlan::Staged(all)) =
+            plan_configured(ws(), &set, &Selection::Full, false, false, &head, &closure)
+        else {
+            panic!("staged full update");
+        };
+        assert_eq!(
+            all.argv_head[all.argv_head.len() - 2..],
+            strings(&["deps.update", "--all"])
+        );
+    }
+
+    #[test]
+    fn hex_refuses_offline_frozen_and_checks_with_packages() {
+        let set = hex_set();
+        let head = no_head();
+        let closure = UvClosure::default();
+        let offline = BackendError::OfflineRequired {
+            set: "deps".to_owned(),
+        };
+        assert_eq!(
+            check_configured(ws(), &set, &Selection::Full, true, false, &head, &closure),
+            Err(offline.clone())
+        );
+        assert_eq!(
+            plan_configured(ws(), &set, &Selection::Full, true, false, &head, &closure),
+            Err(offline)
+        );
+        assert_eq!(
+            plan_configured(ws(), &set, &Selection::Full, false, true, &head, &closure),
+            Err(BackendError::FrozenLocked {
+                set: "deps".to_owned()
+            })
+        );
+        let packages = Selection::Packages(vec!["jason".to_owned()]);
+        assert!(matches!(
+            check_configured(ws(), &set, &packages, false, false, &head, &closure),
+            Err(BackendError::Unsupported { .. })
+        ));
     }
 
     #[test]

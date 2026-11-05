@@ -18,6 +18,13 @@ mix_format(
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
+mix_format(
+    name = "mix",
+    inherit_env = True,
+    mix_args = [],
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
 credo(
     name = "credo",
     apps = ["@dx_credo//credo:erlang_app"],

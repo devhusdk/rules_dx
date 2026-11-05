@@ -8,6 +8,7 @@ pub mod containers;
 pub mod cpan;
 pub mod github;
 pub mod go;
+pub mod hex;
 pub mod maven;
 pub mod npm;
 pub mod nuget;
@@ -104,6 +105,7 @@ pub enum Registry {
     SwiftUrl,
     Opam,
     PubDev,
+    Hex,
     GitHub,
     BazelReleases,
 }
@@ -131,6 +133,7 @@ impl Registry {
             Registry::SwiftUrl => format!("https://{package}/tags"),
             Registry::Opam => format!("https://opam.ocaml.org/packages/{package}"),
             Registry::PubDev => format!("https://pub.dev/packages/{package}"),
+            Registry::Hex => format!("https://hex.pm/packages/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),
             Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),
         }

@@ -32,6 +32,7 @@ const EXPECTED_NAMES: [&str; 35] = [
     "dx_scala3_test",
     "dx_scalafix",
     "dx_thrift_crates",
+    "elixir_app_deps",
     "go",
     "haskell_app_hackage",
     "haskell_exe_hackage",

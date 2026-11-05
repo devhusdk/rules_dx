@@ -427,7 +427,16 @@ fn stage(
 
 fn kept_env(command: &mut std::process::Command) {
     command.env_clear();
-    for key in ["PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE"] {
+    if let Some(path) = std::env::var_os("PATH") {
+        let kept: Vec<PathBuf> = std::env::split_paths(&path)
+            .filter(|dir| {
+                let text = dir.to_string_lossy();
+                !text.contains("Visual Studio") && !text.contains("Windows Kits")
+            })
+            .collect();
+        command.env("PATH", std::env::join_paths(kept).expect("join PATH"));
+    }
+    for key in ["SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE"] {
         if let Some(value) = std::env::var_os(key) {
             command.env(key, value);
         }
@@ -657,7 +666,12 @@ fn pypi_native_case() {
         "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))",
     );
     assert_eq!(version, "cp312", "native probe wheel is built for cp312");
-    let wheel = format!("dx_native_probe-1.0-{version}-{version}-linux_x86_64.whl");
+    let (platform, ext_name) = if cfg!(windows) {
+        ("win_amd64", "pyd")
+    } else {
+        ("linux_x86_64", "so")
+    };
+    let wheel = format!("dx_native_probe-1.0-{version}-{version}-{platform}.whl");
     let house = stage(
         "DX_NATIVE_PROG",
         "DX_NATIVE_CONFIG",
@@ -673,7 +687,7 @@ fn pypi_native_case() {
     native_files(&target, &mut files);
     let ext: Vec<&PathBuf> = files
         .iter()
-        .filter(|path| path.extension().is_some_and(|ext| ext == "so"))
+        .filter(|path| path.extension().is_some_and(|ext| ext == ext_name))
         .collect();
     assert_eq!(ext.len(), 1, "{files:?}");
     assert_eq!(

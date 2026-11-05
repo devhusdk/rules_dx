@@ -29,16 +29,12 @@ load(":octopus.bzl", "octopus_deploy")
 load(":octopus_tests.bzl", "octopus_unit_tests")
 load(":promotion.bzl", "promotion_deploy")
 load(":promotion_tests.bzl", "promotion_unit_tests")
+load(":native_probe.bzl", "NATIVE_PROBE_COMPATIBLE", "NATIVE_PROBE_PLATFORM")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_unit_tests")
 load(":resources.bzl", "dx_resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
-
-NATIVE_PROBE_COMPATIBLE = [
-    "@platforms//os:linux",
-    "@platforms//cpu:x86_64",
-]
 
 package(default_visibility = ["//visibility:public"])
 
@@ -58,6 +54,7 @@ exports_files([
     "github_tests.bzl",
     "maven.bzl",
     "maven_tests.bzl",
+    "native_probe.bzl",
     "native_runtime.bzl",
     "native_runtime_tests.bzl",
     "npm.bzl",
@@ -959,7 +956,7 @@ py_wheel_rule(
     name = "native_probe_wheel",
     abi = "cp312",
     distribution = "dx_native_probe",
-    platform = "linux_x86_64",
+    platform = NATIVE_PROBE_PLATFORM,
     python_tag = "cp312",
     strip_path_prefixes = ["deploy/rules/native_probe/"],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
@@ -971,7 +968,7 @@ py_wheel_rule(
     name = "native_probe_wrongabi_wheel",
     abi = "cp311",
     distribution = "dx_native_probe",
-    platform = "linux_x86_64",
+    platform = NATIVE_PROBE_PLATFORM,
     python_tag = "cp311",
     strip_path_prefixes = ["deploy/rules/native_probe/"],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
@@ -983,7 +980,7 @@ py_wheel_rule(
     name = "native_probe_nocore_wheel",
     abi = "cp312",
     distribution = "dx_native_probe",
-    platform = "linux_x86_64",
+    platform = NATIVE_PROBE_PLATFORM,
     python_tag = "cp312",
     strip_path_prefixes = ["deploy/rules/native_probe/"],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
@@ -1437,6 +1434,7 @@ real_source_target(
         "promotion_tests.bzl",
         "pypi.bzl",
         "pypi_tests.bzl",
+        "native_probe.bzl",
         "native_runtime.bzl",
         "native_runtime_tests.bzl",
         "resources.bzl",

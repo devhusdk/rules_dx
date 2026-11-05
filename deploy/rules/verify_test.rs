@@ -946,6 +946,74 @@ fn pypi_native_linked_case() {
     );
 }
 
+fn tar_listing(bytes: &[u8], name: &str) -> Vec<String> {
+    let dir = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set"));
+    let file = dir.join(name);
+    std::fs::write(&file, bytes).expect("write member");
+    let run = dx_testing::run(
+        &PathBuf::from("tar"),
+        &["-tif", file.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("tar must execute");
+    assert!(run.status.success(), "cannot list {name}\n{}", run.combined());
+    let mut names: Vec<String> = run
+        .stdout
+        .lines()
+        .map(|line| line.trim_start_matches("./").to_owned())
+        .filter(|line| !line.is_empty() && !line.ends_with('/') && !line.starts_with('.'))
+        .collect();
+    names.sort();
+    names
+}
+
+fn deb_files(deb: &[u8]) -> Vec<String> {
+    assert!(deb.starts_with(b"!<arch>\n"), "deb is not an ar archive");
+    let mut at = 8;
+    while at + 60 <= deb.len() {
+        let header = &deb[at..at + 60];
+        let member = String::from_utf8_lossy(&header[..16]).trim().to_owned();
+        let size: usize = String::from_utf8_lossy(&header[48..58])
+            .trim()
+            .parse()
+            .expect("ar member size");
+        let body = &deb[at + 60..at + 60 + size];
+        if member.starts_with("data.tar") {
+            return tar_listing(body, &member);
+        }
+        at += 60 + size + size % 2;
+    }
+    panic!("deb has no data.tar member");
+}
+
+fn linux_package_case() {
+    github_case();
+    let want: Vec<String> = {
+        let mut files: Vec<String> = std::env::var("DX_PKG_FILES")
+            .expect("DX_PKG_FILES must list the installed files")
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect();
+        files.sort();
+        files
+    };
+    let deb = std::fs::read(data("DX_PKG_DEB")).expect("read deb");
+    assert_eq!(deb_files(&deb), want, "deb contents");
+
+    let apk = std::fs::read(data("DX_PKG_APK")).expect("read apk");
+    assert_eq!(tar_listing(&apk, "demo.apk.tar"), want, "apk contents");
+
+    let rpm = std::fs::read(data("DX_PKG_RPM")).expect("read rpm");
+    assert!(rpm.starts_with(&[0xed, 0xab, 0xee, 0xdb]), "rpm lead magic");
+    for path in &want {
+        let base = path.rsplit('/').next().unwrap_or(path);
+        assert!(
+            rpm.windows(base.len()).any(|window| window == base.as_bytes()),
+            "rpm does not list {base}"
+        );
+    }
+}
+
 #[test]
 fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
@@ -954,6 +1022,7 @@ fn deploy_verify() {
         "cloudflare" => cloudflare_case(),
         "github" => github_case(),
         "homebrew" => homebrew_case(),
+        "linux_package" => linux_package_case(),
         "oci" => oci_case(),
         "pypi" => pypi_case(),
         "pypi_native" => pypi_native_case(),

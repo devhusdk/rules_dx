@@ -458,6 +458,36 @@ dx deploy --apply //pkg:tool_tap
 
 This commits `Formula/<formula>.rb` to the tap's default branch through the contents API. The token needs write access to the tap. A live run refuses placeholder tags such as `v0.0.0-dryrun`.
 
+# linux_package_deploy
+
+Builds `.deb`, `.rpm` and `.apk` packages from one binary with a pinned
+`nfpm` and attaches them to a draft GitHub Release through `github_deploy`.
+
+```starlark
+load("@rules_dx//deploy/rules:linux_package.bzl", "linux_package_deploy")
+
+linux_package_deploy(
+    name = "demo",
+    binary = ":demo_bin",
+    extra_files = {":demo_conf": "/etc/demo/demo.conf"},
+    formats = ["deb", "rpm"],
+    maintainer = "Demo <demo@example.com>",
+    version = "1.2.3",
+)
+```
+
+- `binary`: executable installed at `install_path`, default `/usr/bin/<name>`.
+- `formats`: any of `deb`, `rpm`, `apk`. Defaults to `["deb", "rpm"]`.
+- `version`, `arch` (Go names such as `amd64`, `arm64`), `maintainer`, `description`: package metadata.
+- `extra_files`: more files, mapped to absolute install paths, installed as `0644`.
+- `tag`, `profile`, `tags`: as for `github_deploy`.
+
+`bazel build //pkg:demo_deb` writes `demo_<version>_<arch>.deb`; each format
+has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
+packages like `github_deploy`, and the live run (`GH_RELEASE_LIVE=1
+GH_RELEASE_APPROVED=1`) attaches them to the draft release. `nfpm` runs on
+Linux x86_64, Linux arm64 and macOS arm64 hosts.
+
 # nuget_deploy
 
 Stages one nupkg as a local folder feed and pushes it to a NuGet source.

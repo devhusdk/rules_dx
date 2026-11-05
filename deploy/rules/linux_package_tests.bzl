@@ -1,0 +1,53 @@
+"""Unit tests for the Linux package deploy helpers."""
+
+load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load(":linux_package.bzl", "linux_package_dst_error", "linux_package_filename", "linux_package_formats_error", "linux_package_name_error")
+
+def linux_package_unit_tests(name):
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [
+            expect_equal(
+                "linux_package_name_error accepts a plain name",
+                linux_package_name_error("demo-app"),
+                "",
+            ),
+            expect_equal(
+                "linux_package_name_error rejects unsafe characters",
+                linux_package_name_error("a b"),
+                "linux_package_deploy: invalid package name 'a b': want only [A-Za-z0-9._-]",
+            ),
+            expect_equal(
+                "linux_package_formats_error accepts deb and rpm",
+                linux_package_formats_error(["deb", "rpm"]),
+                "",
+            ),
+            expect_equal(
+                "linux_package_formats_error rejects unknown formats",
+                linux_package_formats_error(["zip"]),
+                "linux_package_deploy: invalid format 'zip': want one of [\"deb\", \"rpm\", \"apk\"]",
+            ),
+            expect_equal(
+                "linux_package_formats_error rejects duplicates",
+                linux_package_formats_error(["deb", "deb"]),
+                "linux_package_deploy: duplicate format 'deb'",
+            ),
+            expect_equal(
+                "linux_package_dst_error accepts an absolute path",
+                linux_package_dst_error("/usr/bin/demo"),
+                "",
+            ),
+            expect_equal(
+                "linux_package_dst_error rejects a relative path",
+                linux_package_dst_error("demo"),
+                "linux_package_deploy: invalid install path 'demo': want an absolute file path " +
+                "(for example '/usr/bin/demo')",
+            ),
+            expect_equal(
+                "linux_package_filename joins name, version, arch and format",
+                linux_package_filename("demo", "1.2.3", "amd64", "deb"),
+                "demo_1.2.3_amd64.deb",
+            ),
+        ],
+    )

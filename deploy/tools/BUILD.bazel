@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "nfpm",
+    actual = select({
+        "@platforms//os:macos": "@nfpm_macos_arm64//:nfpm",
+        "@platforms//cpu:aarch64": "@nfpm_linux_arm64//:nfpm",
+        "//conditions:default": "@nfpm_linux_x86_64//:nfpm",
+    }),
+)

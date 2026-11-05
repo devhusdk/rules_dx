@@ -1619,6 +1619,27 @@ _http_file(
 )
 
 _http_archive(
+    name = "nfpm_linux_x86_64",
+    build_file_content = 'exports_files(["nfpm"])',
+    sha256 = "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750",
+    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz"],
+)
+
+_http_archive(
+    name = "nfpm_linux_arm64",
+    build_file_content = 'exports_files(["nfpm"])',
+    sha256 = "a9a75213763783b7669719e505474c748c5ad7dc66591a195619deb50f85c2f4",
+    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_arm64.tar.gz"],
+)
+
+_http_archive(
+    name = "nfpm_macos_arm64",
+    build_file_content = 'exports_files(["nfpm"])',
+    sha256 = "ae23377895437b18d4727b362e7ec4c2d38295eb9adf96008e0cbc813038df81",
+    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Darwin_arm64.tar.gz"],
+)
+
+_http_archive(
     name = "dx_statix_src",
     build_file = "//quality/tools/rust:statix.BUILD.bazel",
     sha256 = "97c97e9b2fc855cb36178234fc787990a65ff92b3ebaadc6356b3711f5b0a742",

@@ -1,0 +1,30 @@
+load("//deploy/rules:linux_package.bzl", "linux_package_deploy")
+
+package(default_visibility = ["//deploy/rules:__pkg__"])
+
+genrule(
+    name = "demo_bin",
+    outs = ["demo_exe"],
+    cmd = "printf '#!/bin/sh\\necho demo\\n' > $@",
+    executable = True,
+)
+
+genrule(
+    name = "demo_conf",
+    outs = ["demo.conf"],
+    cmd = "echo key=value > $@",
+)
+
+linux_package_deploy(
+    name = "demo",
+    binary = ":demo_bin",
+    description = "Fixture package for linux_package_deploy",
+    extra_files = {":demo_conf": "/etc/demo/demo.conf"},
+    formats = [
+        "deb",
+        "rpm",
+        "apk",
+    ],
+    maintainer = "Demo <demo@example.com>",
+    version = "1.2.3",
+)

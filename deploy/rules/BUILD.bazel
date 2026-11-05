@@ -18,6 +18,7 @@ load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":homebrew.bzl", "homebrew_tap_deploy")
 load(":homebrew_tests.bzl", "homebrew_unit_tests")
+load(":linux_package_tests.bzl", "linux_package_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_unit_tests")
 load(":native_runtime_tests.bzl", "native_runtime_unit_tests")
@@ -56,6 +57,8 @@ exports_files([
     "github_tests.bzl",
     "homebrew.bzl",
     "homebrew_tests.bzl",
+    "linux_package.bzl",
+    "linux_package_tests.bzl",
     "maven.bzl",
     "maven_tests.bzl",
     "native_probe.bzl",
@@ -731,6 +734,8 @@ test_suite(
         ":homebrew_analysis",
         ":homebrew_demo_verify",
         ":homebrew_unit",
+        ":linux_package_demo_verify",
+        ":linux_package_unit",
         ":maven_analysis",
         ":maven_unit",
         ":npm_analysis",
@@ -827,6 +832,34 @@ rust_test(
         "DX_GITHUB_PROG": "$(rootpath :github_demo)",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
         "DX_VERIFY_MODE": "github",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+linux_package_unit_tests(name = "linux_package_unit")
+
+rust_test(
+    name = "linux_package_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        "//deploy/tests/fixtures/linux_package:demo",
+        "//deploy/tests/fixtures/linux_package:demo_apk",
+        "//deploy/tests/fixtures/linux_package:demo_config",
+        "//deploy/tests/fixtures/linux_package:demo_deb",
+        "//deploy/tests/fixtures/linux_package:demo_rpm",
+    ],
+    env = {
+        "DX_GITHUB_ASSETS": "demo_1.2.3_amd64.deb demo_1.2.3_amd64.rpm demo_1.2.3_amd64.apk",
+        "DX_GITHUB_CONFIG": "$(rootpath //deploy/tests/fixtures/linux_package:demo_config)",
+        "DX_GITHUB_PROG": "$(rootpath //deploy/tests/fixtures/linux_package:demo)",
+        "DX_GITHUB_TAG": "v0.0.0-dryrun",
+        "DX_PKG_APK": "$(rootpath //deploy/tests/fixtures/linux_package:demo_apk)",
+        "DX_PKG_DEB": "$(rootpath //deploy/tests/fixtures/linux_package:demo_deb)",
+        "DX_PKG_FILES": "usr/bin/demo etc/demo/demo.conf",
+        "DX_PKG_RPM": "$(rootpath //deploy/tests/fixtures/linux_package:demo_rpm)",
+        "DX_VERIFY_MODE": "linux_package",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],

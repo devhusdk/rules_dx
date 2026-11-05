@@ -1009,10 +1009,6 @@ def qt_rust_cc_library(
     _output_group(name + "_bridge_hdrs", ":" + name + "_bridge", "qt_rust_hdrs", testonly)
     _output_group(name + "_bridge_moc", ":" + name + "_bridge", "qt_rust_moc_hdrs", testonly)
     _output_group(name + "_bridge_srcs", ":" + name + "_bridge", "qt_rust_srcs", testonly)
-    kwargs["linkopts"] = kwargs.get("linkopts", []) + select({
-        "@platforms//os:macos": ["-Wl,-all_load"],
-        "//conditions:default": [],
-    })
     _library(
         name,
         [":" + name + "_bridge_srcs"],

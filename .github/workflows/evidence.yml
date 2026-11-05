@@ -36,6 +36,11 @@ on:
         type: boolean
         required: false
         default: false
+      relocate:
+        description: "test or build only: run the task a second time under a fresh output base with caches bypassed, logged to relocated.log."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -61,6 +66,7 @@ jobs:
       task: ${{ steps.inputs.outputs.task }}
       test_timeout: ${{ steps.inputs.outputs.test_timeout }}
       flags: ${{ steps.inputs.outputs.flags }}
+      relocate: ${{ steps.inputs.outputs.relocate }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -84,6 +90,7 @@ jobs:
           DX_DISPLAYS: ${{ inputs.displays }}
           DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
           DX_FLAGS: ${{ inputs.flags }}
+          DX_RELOCATE: ${{ inputs.relocate }}
         run: bazel run --noshow_progress //tools/ci:evidence_inputs_bin
 
   evidence:
@@ -219,18 +226,33 @@ jobs:
           DX_TASK: ${{ needs.validate.outputs.task }}
           DX_TEST_TIMEOUT: ${{ needs.validate.outputs.test_timeout }}
           DX_FLAGS: ${{ needs.validate.outputs.flags }}
+          DX_RELOCATE: ${{ needs.validate.outputs.relocate }}
         run: |
           set -o pipefail
           read -ra patterns <<< "$DX_SCOPE"
           read -ra flags <<< "$DX_FLAGS"
           DX_HERMETIC_BAZELISK="$(command -v bazel)"
           export DX_HERMETIC_BAZELISK
-          if [ "$DX_TASK" = "build" ]; then
-            bazel build --noshow_progress "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
-          elif [ "$DX_TASK" = "coverage" ]; then
-            bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
-          else
-            bazel test --keep_going --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
+          startup=()
+          extra=()
+          run_task() {
+            log="$1"
+            if [ "$DX_TASK" = "build" ]; then
+              bazel "${startup[@]}" build --noshow_progress "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+            elif [ "$DX_TASK" = "coverage" ]; then
+              bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+            else
+              bazel "${startup[@]}" test --keep_going --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+            fi
+          }
+          run_task evidence.log
+          if [ "$DX_RELOCATE" = true ]; then
+            base="$RUNNER_TEMP/relocated-base"
+            rm -rf "$base"
+            startup=("--output_base=$base")
+            extra=(--disk_cache= --noremote_accept_cached)
+            run_task relocated.log
+            bazel "--output_base=$base" shutdown
           fi
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
@@ -361,6 +383,7 @@ jobs:
           out="$RUNNER_TEMP/evidence/testlogs"
           mkdir -p "$out"
           cp evidence.log "$RUNNER_TEMP/evidence/"
+          cp relocated.log "$RUNNER_TEMP/evidence/" 2>/dev/null || true
           [ -e bazel-testlogs ] || exit 0
           find -L bazel-testlogs/ -name test.log -print | while read -r log; do
             dir="$(dirname "$log")"
@@ -395,6 +418,10 @@ jobs:
               if [ "$DX_TASK" = coverage ]; then
                 grep -E 'coverage sources|coverage_sources_incomplete' evidence.log | tail -n 40
               fi
+            fi
+            if [ -f relocated.log ]; then
+              printf '\nRelocated output base:\n'
+              tail -n 20 relocated.log
             fi
             for log in "$RUNNER_TEMP"/evidence/qualify-*.log; do
               [ -f "$log" ] || continue

@@ -41,7 +41,8 @@ fn accepts_whitespace_separated_patterns() {
                 "platforms",
                 "runners",
                 "test_timeout",
-                "flags"
+                "flags",
+                "relocate"
             ]
         );
         assert_eq!(outputs[0].1, expected);
@@ -168,4 +169,41 @@ fn rejects_other_flags() {
         let error = with_flags(flag).unwrap_err();
         assert!(error.contains("flags holds"), "{flag}: {error}");
     }
+}
+
+fn relocate_result(task: &str, relocate: &str) -> Result<Vec<(String, String)>, String> {
+    validate(|name| {
+        match name {
+            "DX_SCOPE" => "//a:t",
+            "DX_TASK" => task,
+            "DX_PLATFORMS" => OK,
+            "DX_TEST_TIMEOUT" => "600",
+            "DX_RELOCATE" => relocate,
+            _ => "",
+        }
+        .to_string()
+    })
+    .map(|validated| validated.outputs)
+}
+
+#[test]
+fn accepts_relocate_for_test_and_build() {
+    for (task, value, expected) in [
+        ("test", "true", "true"),
+        ("build", "true", "true"),
+        ("test", "false", "false"),
+        ("test", "", "false"),
+    ] {
+        let outputs = relocate_result(task, value).unwrap();
+        let (key, shown) = outputs.last().unwrap();
+        assert_eq!((key.as_str(), shown.as_str()), ("relocate", expected));
+    }
+}
+
+#[test]
+fn rejects_bad_relocate() {
+    let bad = relocate_result("test", "yes").unwrap_err();
+    assert!(bad.contains("'yes'"), "{bad}");
+    let coverage = relocate_result("coverage", "true").unwrap_err();
+    assert!(coverage.contains("relocate supports test and build"), "{coverage}");
 }

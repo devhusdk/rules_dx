@@ -170,6 +170,14 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
         }
     }
     let flags = flag_list.join(" ");
+    let relocate = get("DX_RELOCATE");
+    if !["", "true", "false"].contains(&relocate.as_str()) {
+        return Err(format!("relocate must be true or false, got '{relocate}'"));
+    }
+    if relocate == "true" && task == "coverage" {
+        return Err("relocate supports test and build".to_string());
+    }
+    let relocate = if relocate == "true" { "true" } else { "false" };
     let runners: serde_json::Map<String, Value> = PLATFORMS
         .iter()
         .map(|(name, runner)| (name.to_string(), json!(runner)))
@@ -183,6 +191,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
             ("runners".into(), Value::Object(runners).to_string()),
             ("test_timeout".into(), timeout),
             ("flags".into(), flags),
+            ("relocate".into(), relocate.into()),
         ],
         summary: format!("evidence inputs accepted: {task} {scope} on {platforms_json}"),
     })

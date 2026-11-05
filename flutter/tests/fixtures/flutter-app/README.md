@@ -25,3 +25,15 @@ The font is a one-glyph font made for this fixture, so no test fetches fonts fro
 bazel build //flutter/tests/fixtures/flutter-app/android:all --sandbox_default_allow_network=false
 bazel test //flutter/tests/fixtures/flutter-app/android:inspect_apk_test //flutter/tests/fixtures/flutter-app/android:inspect_apk_arm64_test
 ```
+
+## iOS simulator
+
+`:ios_app` builds the native app for the iOS simulator, which needs no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. On macOS arm64, `:ios_boot`, `:ios_install` and `:ios_launch` use the `iPhone 16` simulator, and `:ios_simulator_smoke_test` runs the three in order. The test is manual and tagged `macos-arm64`.
+
+```sh
+bazel build //flutter/tests/fixtures/flutter-app:ios_app --ios_multi_cpus=sim_arm64
+bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test
+```
+
+Tested on: not yet recorded. Fill in the macOS, Xcode, simulator runtime and device model from the CI run.
+

@@ -3,6 +3,7 @@
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("@rules_dart//dart:utils.bzl", "dart_analyzable_info_with_package", "derive_lib_root")
 load("@rules_flutter//flutter:android.bzl", _flutter_android_app = "flutter_android_app")
+load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_application", _flutter_gen_l10n = "flutter_gen_l10n", _flutter_library = "flutter_library", _flutter_test = "flutter_test")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
@@ -149,4 +150,13 @@ def flutter_android_app(name, application, package_name, android_abi = "arm64", 
         android_abi = android_abi,
         visibility = visibility,
         **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    )
+
+def flutter_ios_app(name, application, bundle_id, **kwargs):
+    """Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package and builds only for iOS."""
+    _flutter_ios_app(
+        name = name,
+        application = application,
+        bundle_id = bundle_id,
+        **kwargs
     )

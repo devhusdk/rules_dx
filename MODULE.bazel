@@ -696,7 +696,7 @@ flutter_dev.pub(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
 )
-use_repo(flutter_dev, "dx_flutter_app_deps", "dx_flutter_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64")
+use_repo(flutter_dev, "dx_flutter_app_deps", "dx_flutter_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_ios_engine")
 
 bazel_dep(name = "tar.bzl", version = "0.10.4")
 # needed: @dx_rules_dart_pub (root dart_tools extension) loads @yaml.bzl

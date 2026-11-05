@@ -1,3 +1,6 @@
+load("@rules_dx//apple/ios:simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_ios_app")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -15,6 +18,52 @@ exports_files(
     visibility = [
         "//flutter/tests/fixtures/flutter-app:__subpackages__",
         "//tools/testing/hermetic:__pkg__",
+    ],
+)
+
+flutter_ios_app(
+    name = "ios_app",
+    application = "//flutter/tests/fixtures/flutter-app/app:native",
+    bundle_id = "dk.devhus.flutterapp",
+    visibility = ["//visibility:private"],
+)
+
+apple_simulator_boot(
+    name = "ios_boot",
+    simulator = "iPhone 16",
+)
+
+apple_simulator_install(
+    name = "ios_install",
+    app = ":ios_app",
+    simulator = "iPhone 16",
+)
+
+apple_simulator_launch(
+    name = "ios_launch",
+    bundle_id = "dk.devhus.flutterapp",
+    simulator = "iPhone 16",
+)
+
+sh_test(
+    name = "ios_simulator_smoke_test",
+    size = "small",
+    srcs = ["ios/simulator_smoke.sh"],
+    args = [
+        "$(rootpath :ios_boot)",
+        "$(rootpath :ios_install)",
+        "$(rootpath :ios_launch)",
+    ],
+    data = [
+        ":ios_boot",
+        ":ios_install",
+        ":ios_launch",
+    ],
+    tags = [
+        "exclusive",
+        "local",
+        "macos-arm64",
+        "manual",
     ],
 )
 

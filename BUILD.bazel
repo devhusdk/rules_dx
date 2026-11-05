@@ -65,6 +65,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/testing/hermetic
+# gazelle:exclude flutter/tests/fixtures/flutter-app/ios
 # gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture

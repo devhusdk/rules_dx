@@ -70,7 +70,10 @@ flutter_application(
     name = "native",
     package_name = "flutter_app",
     main = "lib/main.dart",
-    visibility = ["//flutter/tests/fixtures/flutter-app/android:__pkg__"],
+    visibility = [
+        "//flutter/tests/fixtures/flutter-app:__pkg__",
+        "//flutter/tests/fixtures/flutter-app/android:__pkg__",
+    ],
     deps = [":app"] + _PUB,
 )
 

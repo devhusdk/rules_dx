@@ -11,7 +11,7 @@ _CELLS = [
     "macos_arm64",
 ]
 
-package(default_visibility = ["//examples/d-app:__subpackages__"])
+package(default_visibility = ["//d/tests/fixtures/d-app:__subpackages__"])
 
 alias(
     name = "ldc",

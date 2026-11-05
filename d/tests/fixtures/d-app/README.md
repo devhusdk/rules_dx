@@ -5,8 +5,8 @@ A D command line program with three module directories and one DUB package,
 once the package is fetched.
 
 ```sh
-tools/dx test //examples/d-app/...
-bazel run //examples/d-app/source
+tools/dx test //d/tests/fixtures/d-app/...
+bazel run //d/tests/fixtures/d-app/source
 ```
 
 Expected output:

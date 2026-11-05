@@ -134,7 +134,7 @@ ROWS = [
         "section": "languages",
         "title": "CUDA",
     },
-    {"ci_tests": ["//d/tests/fixtures/hello:greet_test", "//examples/d-app/diagnostics:diagnostics_test", "//examples/d-app/source:app_output_test", "//examples/d-app/source/base:base_test", "//examples/d-app/source/cli:cli_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": "D"},
+    {"ci_tests": ["//d/tests/fixtures/hello:greet_test", "//d/tests/fixtures/d-app/diagnostics:diagnostics_test", "//d/tests/fixtures/d-app/source:app_output_test", "//d/tests/fixtures/d-app/source/base:base_test", "//d/tests/fixtures/d-app/source/cli:cli_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": "D"},
     {"ci_tests": ["//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": "Dart"},
     {
         "ci_tests": ["//elixir/tests/runtime:probe_test"],

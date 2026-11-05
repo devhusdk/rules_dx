@@ -30,7 +30,7 @@ real_source_target(
         "//scala/tests/fixtures/adopt-scala:README.md",
         "//appimage/tests/fixtures/appimage-app:README.md",
         "//cuda/tests/fixtures/cuda-app:README.md",
-        "//examples/d-app:README.md",
+        "//d/tests/fixtures/d-app:README.md",
         "//dart/tests/fixtures/dart-app:README.md",
         "//elixir/tests/fixtures/elixir-app:README.md",
         "//erlang/tests/fixtures/erlang-app:README.md",

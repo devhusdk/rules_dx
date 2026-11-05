@@ -871,8 +871,8 @@ dub.lock(
 dub.lock(
     name = "d_app_dub",
     dev = True,
-    digests = "//examples/d-app:dub.digests.json",
-    selections = "//examples/d-app:dub.selections.json",
+    digests = "//d/tests/fixtures/d-app:dub.digests.json",
+    selections = "//d/tests/fixtures/d-app:dub.selections.json",
 )
 use_repo(
     dub,

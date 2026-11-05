@@ -7,8 +7,8 @@ d_binary(
     srcs = ["app.d"],
     target_compatible_with = D_COMPATIBLE_WITH,
     deps = [
-        "//examples/d-app/source/base",
-        "//examples/d-app/source/cli",
+        "//d/tests/fixtures/d-app/source/base",
+        "//d/tests/fixtures/d-app/source/cli",
         "@d_app_deps//semver",
     ],
 )

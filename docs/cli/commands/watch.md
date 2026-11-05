@@ -22,6 +22,7 @@ Flags go to the wrapped command and are checked as `dx <command>` checks them. A
 | `--debug`, `--release` | Pick the build profile. |
 | `--here` | Resolve the scope once from the current directory. |
 | `--affected` | Re-resolve the affected targets each iteration. |
+| `--poll` | Poll the tree every second instead of using the platform watcher, on any platform. `DX_WATCH_POLL=1` makes polling the default. |
 | `--fail-on`, `--baseline`, `--report`, `--diff`, `--include-edits` | Passed to the wrapped command when it takes them. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
@@ -36,6 +37,7 @@ Local only. `CI=true` is refused.
 - Changes made during a run queue one more iteration, except under `run`. Iterations never overlap. A failing command does not stop the watch.
 - `watch run` restarts the app on each change. The old app and its children get `SIGTERM`, then are killed after 10 seconds. The app gets no stdin. An app that exits on its own is relaunched on the next change.
 - Each iteration takes a build slot. Watch holds none while it waits.
+- If nothing arrives for 30 s but `git status` shows a change, watch prints one line suggesting `--poll`. Network mounts and containers often miss inotify events.
 
 ## Output
 

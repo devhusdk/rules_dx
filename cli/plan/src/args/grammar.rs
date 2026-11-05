@@ -88,6 +88,7 @@ pub(crate) struct Flags {
     pub(crate) color: Option<String>,
     pub(crate) output: Option<String>,
     pub(crate) diff: bool,
+    pub(crate) poll: bool,
     pub(crate) path_only: bool,
     pub(crate) shell: Option<String>,
     pub(crate) report: Vec<ReportRequest>,
@@ -248,6 +249,14 @@ flag_group! {
     DiffFlag, {
         #[arg(long, overrides_with = "diff")]
         diff: bool,
+    }
+}
+
+flag_group! {
+    /// Poll for changes instead of using the platform watcher.
+    PollFlag, {
+        #[arg(long, overrides_with = "poll")]
+        poll: bool,
     }
 }
 
@@ -1060,6 +1069,7 @@ command_args! {
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
+        poll: PollFlag,
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.

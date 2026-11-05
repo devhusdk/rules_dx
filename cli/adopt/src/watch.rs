@@ -186,6 +186,7 @@ pub struct WatchSession {
     root: PathBuf,
     canonical_root: PathBuf,
     reports: Vec<PathBuf>,
+    polling: bool,
     _debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
     events: std::sync::mpsc::Receiver<
         Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
@@ -193,8 +194,18 @@ pub struct WatchSession {
 }
 
 impl WatchSession {
-    pub fn start(watch_root: &Path, reports: &[PathBuf]) -> Result<Self, AdoptError> {
-        Self::start_with(watch_root, reports, should_poll(watch_root))
+    /// Whether this session polls the tree instead of using the platform watcher.
+    pub fn polling(&self) -> bool {
+        self.polling
+    }
+
+    /// `force_poll` is `dx watch --poll`; otherwise `DX_WATCH_POLL=1` or the filesystem decides.
+    pub fn start(
+        watch_root: &Path,
+        reports: &[PathBuf],
+        force_poll: bool,
+    ) -> Result<Self, AdoptError> {
+        Self::start_with(watch_root, reports, force_poll || should_poll(watch_root))
     }
 
     fn start_with(watch_root: &Path, reports: &[PathBuf], poll: bool) -> Result<Self, AdoptError> {
@@ -204,7 +215,7 @@ impl WatchSession {
             .with_timeout(Duration::from_millis(WATCH_DEBOUNCE_MS));
         if poll {
             eprintln!(
-                "watching by polling every {}s because this filesystem does not report changes",
+                "watching by polling every {}s",
                 WATCH_POLL_INTERVAL.as_secs()
             );
             config = config.with_notify_config(
@@ -240,6 +251,7 @@ impl WatchSession {
             root: watch_root.to_path_buf(),
             canonical_root,
             reports,
+            polling: poll,
             _debouncer: debouncer,
             events,
         })
@@ -547,7 +559,7 @@ mod tests {
     fn session_observes_writes_made_while_it_lives() {
         let scratch = dx_test_scratch::scratch("dx-watch-session-");
         let root = scratch.path().to_path_buf();
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         let writer = root.clone();
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(100));
@@ -565,7 +577,7 @@ mod tests {
     fn session_coalesces_a_burst_into_one_trigger() {
         let scratch = dx_test_scratch::scratch("dx-watch-burst-");
         let root = scratch.path().to_path_buf();
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         for name in ["one.txt", "two.txt", "three.txt"] {
             std::fs::write(root.join(name), "burst").expect("write burst file");
         }
@@ -590,7 +602,7 @@ mod tests {
     fn session_merges_a_burst_split_across_debounce_batches() {
         let scratch = dx_test_scratch::scratch("dx-watch-split-");
         let root = scratch.path().to_path_buf();
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("a.txt"), "first").expect("first write");
         std::thread::sleep(Duration::from_millis(120));
         std::fs::write(root.join("b.txt"), "second").expect("second write");
@@ -616,7 +628,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-watch-mutations-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("before.txt"), "renamed").expect("seed file");
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::rename(root.join("before.txt"), root.join("after.txt")).expect("rename");
         let trigger = session.wait(Duration::from_secs(5)).expect("rename wait");
         assert!(
@@ -693,7 +705,7 @@ mod tests {
         let _ = std::fs::read_dir(root.join("src"))
             .expect("warm list")
             .count();
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("warm.txt"), "warm").expect("warm");
         let _ = wait_for(&session, "warm.txt");
         let _ = std::fs::read(root.join("src/main.rs")).expect("read");
@@ -714,7 +726,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("bazel-bin")).expect("generated dir");
         std::fs::create_dir_all(root.join(".dx")).expect("state dir");
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("bazel-bin/output.rs"), "generated").expect("generated write");
         std::fs::write(root.join(".dx/current"), "state").expect("state write");
         std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
@@ -733,7 +745,7 @@ mod tests {
         let root = scratch.path().join("bazel-x").join("ws");
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::create_dir_all(root.join(".git")).expect("git dir");
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join(".git/index"), "index").expect("git write");
         std::fs::write(root.join("src/a.rs"), "fn a() {}").expect("source write");
         let trigger = wait_for(&session, "a.rs");
@@ -752,7 +764,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-watch-root-gone-");
         let root = scratch.path().join("ws");
         std::fs::create_dir_all(&root).expect("watch root");
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::remove_dir_all(&root).expect("remove root");
         let error = session
             .wait(Duration::from_secs(5))
@@ -769,7 +781,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let reports = [root.join("out.sarif"), root.join("reports/lint.sarif")];
         std::fs::create_dir_all(root.join("reports")).expect("reports dir");
-        let session = WatchSession::start(&root, &reports).expect("session starts");
+        let session = WatchSession::start(&root, &reports, false).expect("session starts");
         for report in &reports {
             dx_atomic_fs::write_atomic(report, b"report").expect("write report");
         }
@@ -801,7 +813,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("sub")).expect("mkdir");
         let session =
-            WatchSession::start(&root, &[root.join("out.sarif")]).expect("session starts");
+            WatchSession::start(&root, &[root.join("out.sarif")], false).expect("session starts");
         std::fs::write(root.join("sub/out.sarif"), "x").expect("write");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         assert!(
@@ -823,7 +835,7 @@ mod tests {
         let missing = scratch.path().join("missing");
         assert!(
             matches!(
-                WatchSession::start(&missing, &[]),
+                WatchSession::start(&missing, &[], false),
                 Err(AdoptError::WatchSpawn { .. })
             ),
             "a missing watch root must fail to start"
@@ -834,7 +846,7 @@ mod tests {
     fn session_reports_created_files_and_times_out_when_idle() {
         let scratch = dx_test_scratch::scratch("dx-adopt-watch-");
         let root = scratch.path().to_path_buf();
-        let session = WatchSession::start(&root, &[]).expect("session starts");
+        let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("trigger.txt"), "change").expect("write trigger");
         let trigger = session.wait(Duration::from_secs(5)).expect("watch create");
         assert!(
@@ -842,7 +854,7 @@ mod tests {
             "created file must trigger a rebuild: {trigger:?}"
         );
         drop(session);
-        let idle = WatchSession::start(&root, &[])
+        let idle = WatchSession::start(&root, &[], false)
             .expect("idle session starts")
             .wait(Duration::from_millis(300))
             .expect("watch idle");

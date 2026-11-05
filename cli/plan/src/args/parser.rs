@@ -166,15 +166,28 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
         .skip(watch_at + 1)
         .find(|(_, word)| word.as_ref().to_str() == Some(wrapped.as_str()))?
         .0;
+    // `--poll` is watch's own flag, so the wrapped command never sees it; words after `--` go to Bazel.
+    let dashes_at = args
+        .iter()
+        .position(|word| word.as_ref().to_str() == Some("--"))
+        .unwrap_or(args.len());
+    let poll = args[..dashes_at]
+        .iter()
+        .any(|word| word.as_ref().to_str() == Some("--poll"));
     let mut rest: Vec<&OsStr> = vec![OsStr::new(&wrapped)];
     rest.extend(
         args.iter()
             .enumerate()
-            .filter(|(index, _)| *index != watch_at && *index != wrapped_at)
+            .filter(|(index, word)| {
+                *index != watch_at
+                    && *index != wrapped_at
+                    && !(*index < dashes_at && word.as_ref().to_str() == Some("--poll"))
+            })
             .map(|(_, word)| word.as_ref()),
     );
     Some(parse_inner(&rest, env_get).map(|mut inner| {
         inner.command = Command::Watch;
+        inner.poll = poll;
         inner.targets.insert(0, wrapped);
         inner
     }))
@@ -290,6 +303,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         color: color_name,
         output,
         diff,
+        poll,
         path_only,
         shell,
         report,
@@ -645,6 +659,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         fail_on_uncovered,
         fail_on_no_collector,
         build_slots,
+        poll,
         baseline,
         include_edits,
         min_coverage,

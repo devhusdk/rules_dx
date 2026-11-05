@@ -247,6 +247,8 @@ pub struct Invocation {
     pub fail_on_no_collector: bool,
     /// How many build slots this process sizes its gate with; `None` when neither flag nor env set it.
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
+    /// `dx watch --poll`: poll the tree on every platform.
+    pub poll: bool,
     pub baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
@@ -672,6 +674,7 @@ mod tests {
             fail_on_uncovered: false,
             fail_on_no_collector: false,
             build_slots: None,
+            poll: false,
             baseline: None,
             include_edits: false,
             min_coverage: None,
@@ -996,6 +999,17 @@ mod tests {
     fn parsed(words: &[&str]) -> Invocation {
         crate::args::parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>())
             .expect("parse")
+    }
+
+    #[test]
+    fn watch_poll_is_watchs_own_flag_and_stays_off_the_wrapped_command() {
+        let polled = parsed(&["watch", "test", "--poll", "//a:one"]);
+        assert_eq!(polled.command, Command::Watch);
+        assert!(polled.poll);
+        assert_eq!(polled.targets, ["test", "//a:one"]);
+        assert!(parsed(&["watch", "--poll", "test", "//a:one"]).poll);
+        assert!(!parsed(&["watch", "test", "//a:one"]).poll);
+        assert!(crate::args::parse(&["build", "--poll"]).is_err());
     }
 
     #[test]

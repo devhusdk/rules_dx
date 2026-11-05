@@ -2,7 +2,7 @@ use crate::exec::{print_actions, ActionTally};
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use dx_adopt::AdoptError;
 use dx_output::OutputMode;
@@ -10,10 +10,55 @@ use dx_output::OutputMode;
 use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
 use dx_plan::args::{Command, Invocation};
+use dx_plan::resolve::QueryRunner;
 
 use super::{operational, pre_exec, summaries_suppressed};
 
 const WATCH_POLL: Duration = Duration::from_millis(100);
+
+/// Quiet time with no watcher event before watch asks git whether a save got past it.
+const POLL_HINT_AFTER: Duration = Duration::from_secs(30);
+
+const POLL_HINT: &str = "no file events for 30s but git status changed; if saves are missed (network mount, container), try dx watch --poll";
+
+/// One stretch without events: the git status when it began and whether it was already checked.
+struct QuietStretch<'a> {
+    query: &'a dyn QueryRunner,
+    workspace: &'a Path,
+    since: Instant,
+    status: Vec<u8>,
+    checked: bool,
+}
+
+impl<'a> QuietStretch<'a> {
+    fn begin(query: &'a dyn QueryRunner, workspace: &'a Path, now: Instant) -> Self {
+        Self {
+            query,
+            workspace,
+            since: now,
+            status: git_status(query, workspace),
+            checked: false,
+        }
+    }
+
+    /// Whether git now shows a change the watcher never reported. Checks once per stretch.
+    fn missed_save(&mut self, now: Instant) -> bool {
+        if self.checked || now.duration_since(self.since) < POLL_HINT_AFTER {
+            return false;
+        }
+        self.checked = true;
+        git_status(self.query, self.workspace) != self.status
+    }
+}
+
+/// `git status` output for the workspace; empty when git fails, as outside a checkout.
+fn git_status(query: &dyn QueryRunner, workspace: &Path) -> Vec<u8> {
+    let argv = ["git", "--no-optional-locks", "status", "--porcelain"].map(str::to_owned);
+    match query.run_query(&argv, workspace) {
+        Ok(result) if result.code == Some(0) => result.stdout,
+        _ => Vec::new(),
+    }
+}
 
 /// Runs the wrapped command, then reruns it after every change until interrupted.
 pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -123,14 +168,16 @@ fn watch(
         Err(message) => return refuse(invocation, out, err, &message),
     };
     let scope = scope_label(&iteration);
-    let session =
-        match dx_adopt::watch::WatchSession::start(workspace, &report_paths(&iteration, workspace))
-        {
-            Ok(session) => session,
-            Err(error) => {
-                return operational(invocation, out, err, "watch_failed", &error.to_string());
-            }
-        };
+    let session = match dx_adopt::watch::WatchSession::start(
+        workspace,
+        &report_paths(&iteration, workspace),
+        invocation.poll,
+    ) {
+        Ok(session) => session,
+        Err(error) => {
+            return operational(invocation, out, err, "watch_failed", &error.to_string());
+        }
+    };
     let wait = RefCell::new(wait_for_change);
     let mut round = 0u32;
     loop {
@@ -205,12 +252,22 @@ fn watch(
             }
         }
         let mut change = pending.into_inner();
+        let mut quiet = (!session.polling())
+            .then(|| QuietStretch::begin(query_runner, workspace, Instant::now()));
         loop {
             let paths = match change.take() {
                 Some(change) => change,
                 None => {
                     if let Some(signo) = stop() {
                         return stopped(progress, out, err, signo);
+                    }
+                    if quiet
+                        .as_mut()
+                        .is_some_and(|quiet| quiet.missed_save(Instant::now()))
+                    {
+                        if let Err(exit) = progress.say(&mut *out, &mut *err, POLL_HINT) {
+                            return exit;
+                        }
                     }
                     (wait.borrow_mut())(&session, WATCH_POLL)
                 }
@@ -273,10 +330,63 @@ mod tests {
         event_kinds, events_of_kind, invocation, json_events, NullQuery, Truncated,
     };
     use dx_plan::args::OperationMode;
+    use dx_plan::resolve::QueryResult;
     use std::cell::RefCell;
+    use std::collections::VecDeque;
     use std::io;
     use std::path::Path;
     use std::time::Duration;
+
+    /// Answers each `git status` with the next scripted output; empty once the script runs out.
+    struct GitStatus {
+        outputs: RefCell<VecDeque<&'static str>>,
+    }
+
+    impl GitStatus {
+        fn new(outputs: &[&'static str]) -> Self {
+            Self {
+                outputs: RefCell::new(outputs.iter().copied().collect()),
+            }
+        }
+    }
+
+    impl QueryRunner for GitStatus {
+        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            let stdout = self.outputs.borrow_mut().pop_front().unwrap_or("");
+            Ok(QueryResult {
+                code: Some(0),
+                stdout: stdout.as_bytes().to_vec(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn quiet_stretch_hints_once_when_git_saw_a_save_the_watcher_missed() {
+        let git = GitStatus::new(&["", " M src/main.rs\n"]);
+        let start = Instant::now();
+        let mut quiet = QuietStretch::begin(&git, Path::new("/ws"), start);
+        assert!(
+            !quiet.missed_save(start + Duration::from_secs(29)),
+            "too early"
+        );
+        assert!(
+            quiet.missed_save(start + Duration::from_secs(30)),
+            "git saw the save"
+        );
+        assert!(
+            !quiet.missed_save(start + Duration::from_secs(90)),
+            "once per stretch"
+        );
+    }
+
+    #[test]
+    fn quiet_stretch_stays_silent_when_git_status_did_not_change() {
+        let git = GitStatus::new(&[" M src/main.rs\n", " M src/main.rs\n"]);
+        let start = Instant::now();
+        let mut quiet = QuietStretch::begin(&git, Path::new("/ws"), start);
+        assert!(!quiet.missed_save(start + Duration::from_secs(31)));
+    }
 
     struct CountingRunner {
         seen: RefCell<Vec<String>>,

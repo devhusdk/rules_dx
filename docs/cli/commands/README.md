@@ -145,6 +145,7 @@ A flag on the command line wins over these defaults.
 | `DX_OUTPUT=<mode>` | Default for `--output`. |
 | `DX_FAIL_ON=<level>` | Default for `--fail-on`. |
 | `DX_BUILD_SLOTS=auto\|<n>\|off` | Default for `--build-slots`. |
+| `DX_WATCH_POLL=1` | Default for `dx watch --poll`. |
 | `NO_COLOR=<non-empty>` | Disable color in `auto` mode. |
 | `BUILD_WORKSPACE_DIRECTORY=<dir>` | Workspace start under `bazel run`. |
 | `BUILD_WORKING_DIRECTORY=<dir>` | Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |

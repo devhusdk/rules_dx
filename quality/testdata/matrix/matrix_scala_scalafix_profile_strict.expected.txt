@@ -5,8 +5,7 @@ stage scalafix classes=scala sources=quality/testdata/profiles/scala/Strict.scal
 completed_rounds 2
 convergence STABLE
 initial 1
-initial ERROR scalafix Patch quality/testdata/profiles/scala/Strict.scala 26 91 fixable=true "scalafix would rewrite this code"
-terminal 1
-terminal WARNING scalafix OrganizeImports quality/testdata/profiles/scala/Strict.scala 33 37 fixable=false "Could not determine whether 'java' is fully-qualified because the symbol information is missing. We will continue processing assuming that it is fully-qualified. Please check whether the corresponding .semanticdb file is properly generated."
+initial ERROR scalafix Patch quality/testdata/profiles/scala/Strict.scala 43 96 fixable=true "scalafix would rewrite this code"
+terminal 0
 replacements 1
-replacement quality/testdata/profiles/scala/Strict.scala 26 74 "import java.io.File\n\nobject Strict {\n  def greet: In"
+replacement quality/testdata/profiles/scala/Strict.scala 45 79 "\n\n  def greet: In"

@@ -5,7 +5,7 @@ stage scalafix classes=scala sources=quality/testdata/profiles/scala/Strict.scal
 completed_rounds 2
 convergence STABLE
 initial 1
-initial ERROR scalafix Patch quality/testdata/profiles/scala/Strict.scala 27 46 fixable=true "scalafix would rewrite this code"
+initial ERROR scalafix Patch quality/testdata/profiles/scala/Strict.scala 43 67 fixable=true "scalafix would rewrite this code"
 terminal 0
 replacements 1
-replacement quality/testdata/profiles/scala/Strict.scala 27 47 ""
+replacement quality/testdata/profiles/scala/Strict.scala 45 67 ""

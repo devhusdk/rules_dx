@@ -676,7 +676,7 @@ pub fn plan_configured(
             command.extend(packages.iter().map(String::as_str));
             command.extend(["--with-all-dependencies", "--no-install"]);
             let mut runs = vec![Run {
-                argv: composer_argv(workspace, set, head, "composer", &command)?,
+                argv: composer_argv(workspace, set, head, "@rules_dx//php/tools:composer", &command)?,
                 env: composer_env(),
             }];
             let digests = set

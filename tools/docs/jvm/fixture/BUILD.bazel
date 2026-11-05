@@ -203,7 +203,7 @@ docs_site(
     name = "jvm_site",
     book_toml = "book.toml",
     prose = ["jvm_prose.md"],
-    shards = [
+    libraries = [
         ":kotlin_paint_docs",
         ":kotlin_shapes_docs",
         ":paint_docs",

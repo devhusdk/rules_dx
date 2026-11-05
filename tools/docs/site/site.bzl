@@ -1,6 +1,7 @@
 """Docs site rules that render DocIr shards and prose with mdBook."""
 
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//quality:real_aspects.bzl", "real_docs_aspect")
 load(":render.bzl", "DocsApiInfo", "mdbook_site", "mdbook_text")
 
 def site_symbol_id(language, package, qualified):
@@ -91,13 +92,24 @@ def site_guide_step_error(step):
         return "docs_site: unexecuted guide step '" + step + "'"
     return ""
 
+def _library_shards(libraries):
+    shards = []
+    for library in libraries:
+        if DocsShardInfo in library:
+            shards.append(library[DocsShardInfo].shard)
+        elif OutputGroupInfo in library and hasattr(library[OutputGroupInfo], "dx_docs_shards"):
+            shards.extend(library[OutputGroupInfo].dx_docs_shards.to_list())
+        else:
+            fail("docs_site: {} has no docs shard".format(library.label))
+    return shards
+
 def _docs_api_impl(ctx):
     name = ctx.label.name
     tree = ctx.actions.declare_directory(name)
     summary = ctx.actions.declare_file(site_summary_name(name))
     api = ctx.actions.declare_file(site_api_name(name))
     records = ctx.actions.declare_file(site_records_name(name))
-    shards = [shard[DocsShardInfo].shard for shard in ctx.attr.shards]
+    shards = _library_shards(ctx.attr.libraries)
     args = ctx.actions.args()
     args.add_all(shards, before_each = "--shard")
     if ctx.attr.source_url:
@@ -144,12 +156,12 @@ def _docs_api_impl(ctx):
     ]
 
 docs_api = rule(
-    doc = "Renders DocIr shards into API pages and checks the site's links.",
+    doc = "Renders the API of libraries into API pages and checks the site's links.",
     implementation = _docs_api_impl,
     attrs = {
         "book_toml": attr.label(doc = "The book's book.toml.", allow_single_file = True, mandatory = True),
         "prose": attr.label_list(doc = "The prose pages beside the API reference.", allow_files = [".md"], mandatory = True),
-        "shards": attr.label_list(doc = "The DocIr shards to render.", mandatory = True, providers = [DocsShardInfo]),
+        "libraries": attr.label_list(doc = "The libraries to document, or targets that already return a DocsShardInfo.", mandatory = True, aspects = [real_docs_aspect]),
         "source_url": attr.string(doc = "URL prefix that source paths link under."),
         "_aggregate": attr.label(
             cfg = "exec",
@@ -165,13 +177,13 @@ docs_api = rule(
     provides = [DocsApiInfo],
 )
 
-def docs_site(name, shards, prose, book_toml, prose_route = "prose.md", source_url = ""):
-    """Renders one prose page and the API reference of some shards."""
+def docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = ""):
+    """Renders one prose page and the API reference of some libraries."""
     docs_api(
         name = name + "_docs",
         book_toml = book_toml,
         prose = prose,
-        shards = shards,
+        libraries = libraries,
         source_url = source_url,
     )
     mdbook_text(

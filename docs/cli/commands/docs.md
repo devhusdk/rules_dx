@@ -55,23 +55,19 @@ events and `command_finished`. A failure adds one `error`. `--diff` and
 
 ## Doc shard rules
 
-Each rule documents one library and produces a shard. Pass the shards to
-`docs_site` from `@rules_dx//tools/docs/site:site.bzl`, then build the site:
+Rust libraries go straight into `docs_site` from
+`@rules_dx//tools/docs/site:site.bzl`. The other languages have a rule that
+documents one library and produces a shard; list the shard in `libraries` too.
+Then build the site:
 
 ```starlark
-load("@rules_dx//tools/docs/rust:defs.bzl", "rust_doc_shard")
 load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
-
-rust_doc_shard(
-    name = "api_docs",
-    crate = ":mylib",
-)
 
 docs_site(
     name = "site",
     book_toml = "book.toml",
     prose = ["guide.md"],
-    shards = [":api_docs"],
+    libraries = [":mylib"],
     source_url = "https://github.com/me/mylib/blob/main/",
 )
 ```
@@ -82,7 +78,7 @@ tools/dx docs //lib:site
 
 | Language | Load | Rule | Attributes |
 | --- | --- | --- | --- |
-| Rust | `@rules_dx//tools/docs/rust:defs.bzl` | `rust_doc_shard` | `crate` |
+| Rust | `@rules_dx//tools/docs/site:site.bzl` | `docs_site` | `libraries` |
 | TypeScript | `@rules_dx//tools/docs/typescript:defs.bzl` | `typescript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig`, `options` |
 | Vue | `@rules_dx//tools/docs/components:defs.bzl` | `vue_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
 | Svelte | `@rules_dx//tools/docs/components:defs.bzl` | `svelte_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |

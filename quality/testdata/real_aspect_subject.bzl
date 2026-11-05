@@ -347,12 +347,13 @@ real_docs_subject = rule(
 )
 
 def _real_docs_shard_files_impl(ctx):
-    return [DefaultInfo(files = ctx.attr.target[OutputGroupInfo].dx_docs_shards)]
+    return [DefaultInfo(files = ctx.attr.target[OutputGroupInfo][ctx.attr.group])]
 
 real_docs_shard_files = rule(
     implementation = _real_docs_shard_files_impl,
-    doc = "Exposes the docs shards that real_docs_aspect builds for a target.",
+    doc = "Exposes one output group that real_docs_aspect builds for a target.",
     attrs = {
+        "group": attr.string(default = "dx_docs_shards"),
         "target": attr.label(aspects = [real_docs_aspect], mandatory = True),
     },
 )

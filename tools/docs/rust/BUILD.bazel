@@ -1,4 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
@@ -9,18 +10,18 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-filegroup(
+real_docs_shard_files(
     name = "fixture_rustdoc_json",
     testonly = True,
-    srcs = ["//tools/docs/rust/fixture:docs_fixture_docs"],
-    output_group = "rustdoc_json",
+    group = "rustdoc_json",
+    target = "//tools/docs/rust/fixture:docs_fixture",
 )
 
-filegroup(
+real_docs_shard_files(
     name = "fixture_srcs_file",
     testonly = True,
-    srcs = ["//tools/docs/rust/fixture:docs_fixture_docs"],
-    output_group = "srcs_manifest",
+    group = "srcs_manifest",
+    target = "//tools/docs/rust/fixture:docs_fixture",
 )
 
 # keep

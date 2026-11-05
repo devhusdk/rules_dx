@@ -1778,7 +1778,7 @@ def _rust_docs_shard(target, ctx):
         return None
     if not ctx.toolchains[_RUST_DOCS_TOOLCHAIN] or not ctx.toolchains[_CC_DOCS_TOOLCHAIN]:
         return None
-    return rust_shard_action(ctx, target, "", stem = "_dx_docs/" + ctx.label.name).shard
+    return rust_shard_action(ctx, target, "", stem = "_dx_docs/" + ctx.label.name)
 
 def _go_docs_shard(target, ctx):
     if GoInfo not in target or DocsShardInfo in target:
@@ -1811,9 +1811,14 @@ def _real_docs_aspect_impl(target, ctx):
         parts.append(_docs_api_groups(target))
     if DocsShardInfo in target:
         parts.append(_docs_shard_groups(target))
-    rust_shard = _rust_docs_shard(target, ctx)
-    if rust_shard:
-        parts.append({"dx_results": [rust_shard], "dx_docs_shards": [rust_shard]})
+    rust = _rust_docs_shard(target, ctx)
+    if rust:
+        parts.append({
+            "dx_results": [rust.shard],
+            "dx_docs_shards": [rust.shard],
+            "rustdoc_json": rust.outputs["rustdoc_json"].to_list(),
+            "srcs_manifest": rust.outputs["srcs_manifest"].to_list(),
+        })
     go_shard = _go_docs_shard(target, ctx)
     if go_shard:
         parts.append({"dx_results": [go_shard], "dx_docs_shards": [go_shard]})
@@ -1827,7 +1832,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust and Go library shards go in dx_docs_shards.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust and Go library shards go in dx_docs_shards. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_driver": attr.label(
             cfg = "exec",

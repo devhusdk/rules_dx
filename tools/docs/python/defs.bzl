@@ -136,6 +136,6 @@ def python_docs(name, library, book_toml, prose, package = "", docstyle = "googl
         book_toml = book_toml,
         prose = prose,
         prose_route = prose_route,
-        shards = [":" + name + "_shard"],
+        libraries = [":" + name + "_shard"],
         source_url = source_url,
     )

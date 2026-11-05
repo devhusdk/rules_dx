@@ -54,7 +54,7 @@ COMPUTED_CONSTRAINTS = {
     "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
-# The API doc tool per language and the *_doc_shard macro or rule that runs it. None marks a gap.
+# The API doc tool per language and the *_doc_shard macro or rule that runs it (docs_site for Rust, which takes the crate itself). None marks a gap.
 DOC_TOOLS = {
     "astro": {"tool": "astro-compiler", "shard": "astro_doc_shard"},
     "cc": None,
@@ -81,7 +81,7 @@ DOC_TOOLS = {
     "powershell": {"tool": "pwsh", "shard": "powershell_doc_shard"},
     "python": {"tool": "griffe", "shard": "python_doc_shard"},
     "ruby": {"tool": "yard", "shard": "ruby_doc_shard"},
-    "rust": {"tool": "rustdoc", "shard": "rust_doc_shard"},
+    "rust": {"tool": "rustdoc", "shard": "docs_site"},
     "scala": {"tool": "scaladoc", "shard": "scala_doc_shard"},
     "svelte": {"tool": "svelte2tsx", "shard": "svelte_doc_shard"},
     "typescript": {"tool": "typedoc", "shard": "typescript_doc_shard"},

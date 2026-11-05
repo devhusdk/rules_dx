@@ -1,10 +1,10 @@
-"""Rust API reference shards built from stable rustdoc JSON."""
+"""Rust API reference shard actions built from stable rustdoc JSON."""
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust//rust/private:rustdoc.bzl", "rustdoc_compile_action")
 load("@rules_rust//rust/private:utils.bzl", "find_toolchain")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", _repo_relative = "repo_relative", _srcs_manifest_line = "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", _repo_relative = "repo_relative", _srcs_manifest_line = "srcs_manifest_line")
 
 _RUSTDOC_FLAGS = ["-Zunstable-options", "--output-format=json"]
 
@@ -136,69 +136,4 @@ def rust_shard_action(ctx, target, package, stem = None):
         shard = shard,
         package = package,
         outputs = {"rustdoc_json": depset([rustdoc_dir]), "srcs_manifest": depset([manifest])},
-    )
-
-def _docs_rust_shard_impl(ctx):
-    result = rust_shard_action(ctx, ctx.attr.crate, ctx.attr.package)
-    return [
-        DefaultInfo(files = depset([result.shard])),
-        OutputGroupInfo(**result.outputs),
-        DocsShardInfo(language = "rust", package = result.package, shard = result.shard),
-    ]
-
-docs_rust_shard = rule(
-    doc = "Converts one crate's rustdoc JSON into a DocIr shard.",
-    implementation = _docs_rust_shard_impl,
-    attrs = {
-        "crate": attr.label(
-            doc = "The documented Rust library.",
-            aspects = [rust_doc_inputs_aspect],
-            mandatory = True,
-            providers = [rust_common.crate_info],
-        ),
-        "crate_features": attr.string_list(doc = "Features enabled when documenting the crate."),
-        "package": attr.string(doc = "Package segment of the symbol ids; defaults to the crate name."),
-        "_error_format": attr.label(default = Label("@rules_rust//rust/settings:error_format")),
-        "_extract": attr.label(
-            cfg = "exec",
-            default = Label("//tools/docs/rust/extract:rust_extract"),
-            executable = True,
-        ),
-        "_process_wrapper": attr.label(
-            default = Label("@rules_rust//util/process_wrapper"),
-            cfg = "exec",
-            executable = True,
-        ),
-    },
-    fragments = ["cpp"],
-    toolchains = [
-        str(Label("@rules_rust//rust:toolchain_type")),
-        "@bazel_tools//tools/cpp:toolchain_type",
-    ],
-    provides = [DocsShardInfo],
-)
-
-def _local_features(crate):
-    label = crate
-    if label.startswith("//") and ":" in label:
-        pkg, target = label.split(":", 1)
-        if pkg != "//" + native.package_name():
-            fail("rust_doc_shard: crate {} is outside this package, so its crate_features cannot be read; pass crate_features explicitly (use [] for none)".format(crate))
-        label = ":" + target
-    elif not label.startswith(":"):
-        fail("rust_doc_shard: crate {} is outside this package, so its crate_features cannot be read; pass crate_features explicitly (use [] for none)".format(crate))
-    for name in [label[1:], label[1:] + "_upstream"]:
-        rule = native.existing_rule(name)
-        if rule and rule.get("crate_features"):
-            return list(rule["crate_features"])
-    return []
-
-def rust_doc_shard(name, crate, package = "", crate_features = None, **kwargs):
-    """Declares the DocIr shard of one crate built from stable rustdoc JSON."""
-    docs_rust_shard(
-        name = name,
-        crate = crate,
-        crate_features = _local_features(crate) if crate_features == None else crate_features,
-        package = package,
-        **kwargs
     )

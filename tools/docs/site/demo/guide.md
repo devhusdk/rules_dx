@@ -6,19 +6,13 @@ the pipeline instead of silently going stale.
 
 ## Steps
 
-1. Build the fixture crate's API shard:
-
-   ```sh
-   bazel build //tools/docs/rust/fixture:docs_fixture_docs
-   ```
-
-2. Render the shard and the prose into a site:
+1. Render the fixture crate's API and the prose into a site:
 
    ```sh
    bazel build //tools/docs/site:demo_site
    ```
 
-3. Run the site unit checks:
+2. Run the site unit checks:
 
    ```sh
    bazel test //tools/docs/site:site_unit

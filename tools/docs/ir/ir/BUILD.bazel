@@ -1,4 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -44,13 +45,25 @@ rust_test(
     ],
 )
 
+real_docs_shard_files(
+    name = "docs_fixture_shard",
+    testonly = True,
+    target = "//tools/docs/rust/fixture:docs_fixture",
+)
+
+real_docs_shard_files(
+    name = "docs_fixture_changed_shard",
+    testonly = True,
+    target = "//tools/docs/rust/fixture:docs_fixture_changed",
+)
+
 # keep
 rust_test(
     name = "site_shard_test",
     srcs = ["site_shard_test.rs"],
     data = [
-        "//tools/docs/rust/fixture:docs_fixture_changed_docs",
-        "//tools/docs/rust/fixture:docs_fixture_docs",
+        ":docs_fixture_changed_shard",
+        ":docs_fixture_shard",
     ],
     deps = [
         ":documentation_ir",

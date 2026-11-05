@@ -43,8 +43,7 @@ language = "en"
 src = "src"
 '''
 
-_BUILD_BAZEL = '''load("@rules_dx//tools/docs/rust:defs.bzl", "rust_doc_shard")
-load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
+_BUILD_BAZEL = '''load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -59,16 +58,11 @@ rust_library(
     edition = "2021",
 )
 
-rust_doc_shard(
-    name = "api_docs",
-    crate = ":consumer_greeting",
-)
-
 docs_site(
     name = "site",
     book_toml = "book.toml",
     prose = ["guide.md"],
-    shards = [":api_docs"],
+    libraries = [":consumer_greeting"],
     source_url = "https://example.invalid/consumer/blob/main/",
 )
 '''

@@ -1,6 +1,4 @@
-"""The API reference shards the user documentation site publishes."""
-
-load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
+"""The Rust crates whose API reference the user documentation site publishes."""
 
 PUBLIC_RUST_CRATES = [
     "//cli/advisory_prep:dx_advisory_prep",
@@ -17,12 +15,3 @@ PUBLIC_RUST_CRATES = [
     "//tools/docs/typescript/extract:dx_docs_typescript_extract",
     "//wasi/testing:wasi_run",
 ]
-
-def user_api_shards():
-    """Declares one DocIr shard per public crate and returns their labels."""
-    shards = []
-    for crate in PUBLIC_RUST_CRATES:
-        name = crate.split(":")[1] + "_docs"
-        rust_doc_shard(name = name, crate = crate, crate_features = [])
-        shards.append(":" + name)
-    return shards

@@ -535,17 +535,6 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_demo_site_subject
 aspect_field transitive_count=0
-subject //quality/testdata:docs_fixture_shard_subject
-field docs_shard_count=0
-field docs_shards=(none)
-field dx_docs_sites=(none)
-field dx_results=docs_fixture_docs.ir.pb
-field label=//tools/docs/rust/fixture:docs_fixture_docs
-aspect_field aspect_seen=True
-aspect_field field_count=5
-aspect_field has_subject=True
-aspect_field subject_label=//quality/testdata:docs_fixture_shard_subject
-aspect_field transitive_count=0
 subject //quality/testdata:docs_go_library_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/go/fixture/_dx_docs/money.ir.pb

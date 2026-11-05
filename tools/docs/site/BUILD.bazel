@@ -4,7 +4,7 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
 load(":site.bzl", "docs_api", "docs_scope_tools", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
-load(":user/api.bzl", "user_api_shards")
+load(":user/api.bzl", "PUBLIC_RUST_CRATES")
 load(":user/book.bzl", "USER_BOOK")
 
 package(default_visibility = VIS_TOOLS)
@@ -40,7 +40,7 @@ docs_site(
     name = "demo_site",
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],
-    shards = ["//tools/docs/rust/fixture:docs_fixture_docs"],
+    libraries = ["//tools/docs/rust/fixture:docs_fixture"],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
@@ -48,14 +48,14 @@ docs_site(
     name = "demo_polyglot_site",
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],
-    shards = [
+    libraries = [
         "//tools/docs/go/fixture:money_docs",
         "//tools/docs/jvm/fixture:paint_docs",
         "//tools/docs/jvm/fixture:shapes_docs",
         "//tools/docs/ruby/fixture:geometry_docs",
         "//tools/docs/ruby/fixture:geometry_ext_docs",
         "//tools/docs/powershell/fixture:ledger_docs",
-        "//tools/docs/rust/fixture:docs_fixture_docs",
+        "//tools/docs/rust/fixture:docs_fixture",
         "//tools/docs/typescript/fixture:geometry_docs",
     ],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
@@ -65,7 +65,7 @@ docs_site(
     name = "demo_changed_site",
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],
-    shards = ["//tools/docs/rust/fixture:docs_fixture_changed_docs"],
+    libraries = ["//tools/docs/rust/fixture:docs_fixture_changed"],
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
@@ -73,7 +73,7 @@ docs_api(
     name = "user_api",
     book_toml = "user/book.toml",
     prose = [page for page in mdbook_page_list(USER_BOOK)[1] if page],
-    shards = user_api_shards(),
+    libraries = PUBLIC_RUST_CRATES,
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 

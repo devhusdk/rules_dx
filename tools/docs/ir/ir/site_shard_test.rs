@@ -1,8 +1,8 @@
 use documentation_ir::{decode_shard, proto};
 use proto::{DocIr, Symbol, SymbolKind};
 
-const SHARD: &str = "tools/docs/rust/fixture/docs_fixture_docs.ir.pb";
-const CHANGED: &str = "tools/docs/rust/fixture/docs_fixture_changed_docs.ir.pb";
+const SHARD: &str = "tools/docs/rust/fixture/_dx_docs/docs_fixture.ir.pb";
+const CHANGED: &str = "tools/docs/rust/fixture/_dx_docs/docs_fixture_changed.ir.pb";
 
 fn decoded(rel: &str) -> DocIr {
     let path = dx_testing::resolve_runfiles(rel);

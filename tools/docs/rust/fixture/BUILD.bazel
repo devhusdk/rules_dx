@@ -1,7 +1,6 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -56,16 +55,6 @@ rust_test(
     name = "docs_fixture_test",
     crate = ":docs_fixture",
     tags = ["manual"],
-)
-
-rust_doc_shard(
-    name = "docs_fixture_docs",
-    crate = ":docs_fixture",
-)
-
-rust_doc_shard(
-    name = "docs_fixture_changed_docs",
-    crate = ":docs_fixture_changed",
 )
 
 real_source_target(

@@ -11,7 +11,7 @@ load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_d
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
 load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
-load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
+load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 load(":languages.bzl", "DOC_TOOLS", "PLATFORMS")
 
@@ -27,7 +27,7 @@ _SHARD_RULES = {
     "powershell_doc_shard": powershell_doc_shard,
     "python_doc_shard": python_doc_shard,
     "ruby_doc_shard": ruby_doc_shard,
-    "rust_doc_shard": rust_doc_shard,
+    "docs_site": docs_site,
     "scala_doc_shard": scala_doc_shard,
     "svelte_doc_shard": svelte_doc_shard,
     "typescript_doc_shard": typescript_doc_shard,

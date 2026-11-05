@@ -18,3 +18,12 @@ def _undeclared_impl(ctx):
 
 declared_dep_test = analysistest.make(_declared_impl)
 undeclared_dep_test = analysistest.make(_undeclared_impl)
+
+def _no_click_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    bad = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list() if "/click/" in f.short_path]
+    asserts.equals(env, [], bad, "click found in runfiles")
+    return analysistest.end(env)
+
+no_click_runfiles_test = analysistest.make(_no_click_impl)

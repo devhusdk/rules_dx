@@ -778,7 +778,9 @@ fn dylib_needed(path: &Path, frameworks: &BTreeSet<String>) -> BTreeSet<String> 
         .skip(1)
         .filter_map(|line| {
             let install = line.trim().split(" (").next()?;
-            let name = install.split('/').find(|part| part.ends_with(".framework"))?;
+            let name = install
+                .split('/')
+                .find(|part| part.ends_with(".framework"))?;
             frameworks.contains(name).then(|| name.to_owned())
         })
         .collect()
@@ -813,16 +815,17 @@ fn the_pinned_dependency_tables_match_the_shipped_frameworks() {
         }
     }
     let frameworks: BTreeSet<String> = libraries.keys().cloned().collect();
-    let table = |paths: Vec<(String, PathBuf)>| -> std::collections::BTreeMap<String, BTreeSet<String>> {
-        paths
-            .into_iter()
-            .map(|(name, path)| {
-                let mut needed = dylib_needed(&path, &frameworks);
-                needed.remove(&name);
-                (name, needed)
-            })
-            .collect()
-    };
+    let table =
+        |paths: Vec<(String, PathBuf)>| -> std::collections::BTreeMap<String, BTreeSet<String>> {
+            paths
+                .into_iter()
+                .map(|(name, path)| {
+                    let mut needed = dylib_needed(&path, &frameworks);
+                    needed.remove(&name);
+                    (name, needed)
+                })
+                .collect()
+        };
     let library = table(libraries.into_iter().collect());
 
     let mut files = Vec::new();

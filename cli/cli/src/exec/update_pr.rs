@@ -833,7 +833,7 @@ mod tests {
             &scope(),
             &["deps".into()],
             &rules(),
-            &[],
+            &["Cargo.lock".to_owned()],
             &mut step,
         )
         .expect("publish");

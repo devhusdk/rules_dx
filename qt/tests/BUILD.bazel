@@ -239,6 +239,9 @@ qt_cc_test(
 qt_cc_binary(
     name = "gui_check",
     testonly = True,
+    srcs = ["gui_test.cc"],
+    forms = ["fixtures/dialog.ui"],
+    moc_hdrs = ["gui_test.h"],
     modules = [
         "quick",
         "test",
@@ -246,7 +249,6 @@ qt_cc_binary(
     ],
     tags = ["manual"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = [":gui"],
 )
 
 platform_transition_binary(

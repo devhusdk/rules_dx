@@ -2084,6 +2084,15 @@ use_repo(
 yard = use_extension("//tools/docs/ruby:repos.bzl", "yard", dev_dependency = True)
 use_repo(yard, "dx_yard")
 
+playwright = use_extension("//typescript/playwright:repos.bzl", "playwright")
+use_repo(
+    playwright,
+    "dx_playwright_chromium",
+    "dx_playwright_chromium_linux_arm64",
+    "dx_playwright_chromium_linux_x86_64",
+    "dx_playwright_chromium_macos_arm64",
+)
+
 firefox = use_extension("//tools/docs/site/browser:repos.bzl", "firefox", dev_dependency = True)
 use_repo(
     firefox,

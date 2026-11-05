@@ -326,3 +326,24 @@ def typescript_test(name, srcs, runner = "jest", node_modules = None, entry_poin
         upstream = _jest_test
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
     node_wrap_test(name, upstream, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, visibility, kwargs)
+
+_playwright_test = node_test_forward_rule("playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
+
+def playwright_test(name, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+    """Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT."""
+    rejection = typescript_srcs_rejection(srcs)
+    if rejection != None:
+        fail(rejection)
+    env = dict(kwargs.pop("env", None) or {})
+    env["DX_PLAYWRIGHT_CONFIG"] = "$(rlocationpath %s)" % config
+    env["DX_PLAYWRIGHT_MARKER"] = "$(rlocationpath %s)" % Label("@dx_playwright_chromium//:marker")
+    upstream_data = [config, Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker"), node_modules] + list(srcs) + list(data or [])
+    if app != None:
+        env["DX_PLAYWRIGHT_APP"] = "$(rlocationpath %s)" % app
+        upstream_data.append(app)
+    upstream_kwargs = {
+        "entry_point": Label("//typescript/playwright:runner"),
+        "env": env,
+        "no_copy_to_bin": [Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker")],
+    }
+    node_wrap_test(name, _js_test, _playwright_test, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, visibility, kwargs)

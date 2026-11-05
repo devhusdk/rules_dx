@@ -42,6 +42,7 @@ struct FakeHost {
     used: Mutex<BTreeMap<u32, Option<u64>>>,
     footprint: Mutex<BTreeMap<u32, u64>>,
     stopped: Mutex<Vec<u32>>,
+    edit_on_scan: Mutex<Option<PathBuf>>,
 }
 
 impl FakeHost {
@@ -70,6 +71,7 @@ impl FakeHost {
             used: Mutex::new(BTreeMap::new()),
             footprint: Mutex::new(BTreeMap::new()),
             stopped: Mutex::new(Vec::new()),
+            edit_on_scan: Mutex::new(None),
         }
     }
 
@@ -204,6 +206,9 @@ impl Host for FakeHost {
 
     fn output_roots(&self, _servers: &[Server]) -> Vec<PathBuf> {
         self.root_scans.fetch_add(1, Ordering::SeqCst);
+        if let Some(file) = self.edit_on_scan.lock().expect("edit").take() {
+            std::fs::write(file, "x").expect("edit");
+        }
         self.roots.lock().expect("roots").clone()
     }
 
@@ -4034,6 +4039,19 @@ fn release_refuses_a_dirty_or_unpushed_external_worktree_until_forced() {
     std::fs::write(hand.join("wip.txt"), "x").expect("wip");
     ops::release(&pool, &host, &me, &hand, true).expect("forced");
     assert!(!hand.exists());
+}
+
+#[test]
+fn release_rechecks_an_external_worktree_after_taking_the_lock() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = hand_checkout(&fixture, "by-hand");
+    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    *host.edit_on_scan.lock().expect("edit") = Some(hand.join("late.txt"));
+    let dirty = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("dirty");
+    assert_eq!(dirty.code, "dirty_slot");
+    assert!(hand.join("late.txt").exists());
 }
 
 #[test]

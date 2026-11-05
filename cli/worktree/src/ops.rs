@@ -1150,6 +1150,8 @@ fn release_external(
             ),
         )
     })?;
+    let _lock = pool.lock()?;
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
     if !force {
         if git::dirty(&checkout.path, &|| host.interrupted())? {
             return Err(WorktreeError::refused(
@@ -1171,8 +1173,6 @@ fn release_external(
             ));
         }
     }
-    let _lock = pool.lock()?;
-    let bases = scan_output_bases(&host.output_roots(&host.servers()));
     if !remove_external(pool, host, &checkout.path, &bases)? {
         return Err(WorktreeError::refused(
             "busy",

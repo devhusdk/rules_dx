@@ -6,6 +6,7 @@ use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers, ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
+use super::check::ToolDef;
 use super::*;
 
 /// One preflight problem as an error finding on the root it was found from.
@@ -28,6 +29,11 @@ fn preflight_finding(root: &Path, problem: Problem) -> FileFinding {
         },
     }
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "redocly",
+    run: |backend, call| backend.check_redocly(call.tool_id, call.tool, call.staged, call.config),
+};
 
 impl RealBackend {
     /// Lints each owned root on its own, after the offline preflight clears it.

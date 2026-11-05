@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers, sqlfluff_config, sqlfluff_preflight};
 
+use super::check::ToolDef;
 use super::*;
 
 /// One sqlfluff run: a config and the files it applies to.
@@ -94,6 +95,23 @@ pub(super) fn plan_sqlfluff(
     }
     Ok(runs)
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "sqlfluff",
+    run: |backend, call| match call.config {
+        Some(bound) => backend.check_sqlfluff(
+            call.tool_id,
+            call.tool,
+            call.staged,
+            bound,
+            call.capability == "format",
+        ),
+        None => Err(execution(
+            call.tool_id,
+            "sqlfluff requires a config".to_owned(),
+        )),
+    },
+};
 
 impl RealBackend {
     /// Preflights the bound and nested configs, then lints every owned file, one sqlfluff run per

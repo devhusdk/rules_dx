@@ -4,6 +4,7 @@ use quality_adapter::kubernetes_preflight::{self, Document};
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers, TextPosition};
 
+use super::check::ToolDef;
 use super::kubeconform::preflight_finding;
 use super::*;
 
@@ -47,6 +48,11 @@ fn join_rel(root: &str, rel: &str) -> String {
         format!("{root}/{rel}")
     }
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "helm",
+    run: |backend, call| backend.check_helm(call.tool_id, call.tool, call.staged, call.config),
+};
 
 impl RealBackend {
     /// Lints the chart, renders it offline, and validates the rendered documents with kubeconform.

@@ -12,6 +12,32 @@ const PHPCS_STANDARD: &str = "PSR12";
 /// The rule level PHPStan runs at when the consumer binds no config.
 const PHPSTAN_LEVEL: u8 = 5;
 
+/// What a tool module needs to launch one check.
+pub(super) struct CheckCall<'a> {
+    pub tool_id: &'a str,
+    pub tool: &'a RealTool,
+    pub capability: &'a str,
+    pub staged: &'a StagedScratch,
+    pub config: Option<&'a Path>,
+}
+
+/// A tool that owns its launch and parse in its own module.
+pub(super) struct ToolDef {
+    pub id: &'static str,
+    pub run: fn(&RealBackend, &CheckCall) -> Result<Vec<FileFinding>, RunnerError>,
+}
+
+pub(super) const TOOL_DEFS: &[&ToolDef] = &[
+    &super::bicep::TOOL,
+    &super::cfn_lint::TOOL,
+    &super::cmakelint::TOOL,
+    &super::helm::TOOL,
+    &super::kubeconform::TOOL,
+    &super::redocly::TOOL,
+    &super::rustfmt::TOOL,
+    &super::sqlfluff::TOOL,
+];
+
 impl RealBackend {
     pub(super) fn run_check(
         &self,
@@ -35,6 +61,16 @@ impl RealBackend {
         let strs: Vec<&str> = names.iter().map(String::as_str).collect();
         let config = self.config_abs(tool_id, tool, scratch)?;
         let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
+        if let Some(def) = TOOL_DEFS.iter().find(|def| def.id == tool_id) {
+            let call = CheckCall {
+                tool_id,
+                tool,
+                capability,
+                staged,
+                config: config.as_deref(),
+            };
+            return (def.run)(self, &call);
+        }
         match tool_id {
             "buildifier" => {
                 let hint = hint_dir(tool.config_rel.as_deref(), &cwd_rel);
@@ -95,7 +131,6 @@ impl RealBackend {
                 }
                 Ok(rerooted)
             }
-            "rustfmt" => self.check_rustfmt(tool, staged),
             "ruff" => {
                 let config_ref = config.as_deref();
                 let format = capability == "format";
@@ -472,7 +507,6 @@ impl RealBackend {
                 };
                 parsed(tool_id, parsers::parse_stylelint(report, out.code, &strs))
             }
-            "redocly" => self.check_redocly(tool_id, tool, staged, config.as_deref()),
             "graphql_eslint" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                 let Some(cfg) = config.as_ref() else {
@@ -2298,17 +2332,6 @@ impl RealBackend {
                     parsers::parse_ansible_lint(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
-            "bicep" => self.check_bicep(tool_id, tool, capability, staged),
-            "cfn_lint" => self.check_cfn_lint(tool_id, tool, staged, config.as_deref()),
-            "cmakelint" => self.check_cmakelint(tool_id, tool, staged, config.as_deref()),
-            "sqlfluff" => match config.as_deref() {
-                Some(bound) => {
-                    self.check_sqlfluff(tool_id, tool, staged, bound, capability == "format")
-                }
-                None => Err(execution(tool_id, "sqlfluff requires a config".to_owned())),
-            },
-            "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
-            "helm" => self.check_helm(tool_id, tool, staged, config.as_deref()),
             "typos" => self.check_files(
                 tool_id,
                 tool,

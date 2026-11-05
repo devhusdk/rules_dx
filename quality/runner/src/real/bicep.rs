@@ -1,11 +1,17 @@
 use quality_adapter::commands;
 use quality_adapter::parsers::{self, FileFinding};
 
+use super::check::ToolDef;
 use super::*;
 
 /// What a `br:` module reference means for the user; Bicep itself only says "not restored".
 const UNRESTORED_HINT: &str =
     " (declare the module with bicep.registry_module in MODULE.bazel and add it to deps)";
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "bicep",
+    run: |backend, call| backend.check_bicep(call.tool_id, call.tool, call.capability, call.staged),
+};
 
 impl RealBackend {
     /// Formats (stdout compared to the file) or lints (SARIF) each owned Bicep file in turn.

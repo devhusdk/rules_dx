@@ -4,6 +4,7 @@ use quality_adapter::kubernetes_preflight::{self, Document, Problem};
 use quality_adapter::parsers::{FileFinding, KubeconformTarget};
 use quality_adapter::{commands, parsers, ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
+use super::check::ToolDef;
 use super::*;
 
 const DOCS_REL: &str = "dx-kubeconform/docs";
@@ -28,6 +29,13 @@ pub(super) fn preflight_finding(file: &Path, problem: Problem) -> FileFinding {
         },
     }
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "kubeconform",
+    run: |backend, call| {
+        backend.check_kubeconform(call.tool_id, call.tool, call.staged, call.config)
+    },
+};
 
 impl RealBackend {
     /// Preflights each owned file, then validates every document in one kubeconform run.

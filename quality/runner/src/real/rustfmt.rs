@@ -3,6 +3,7 @@ use quality_adapter::exec::ChildOutput;
 use quality_adapter::parsers::{self, FileFinding};
 use quality_adapter::ToolSeverity;
 
+use super::check::ToolDef;
 use super::real_fix::Outcome;
 use super::*;
 
@@ -56,6 +57,11 @@ fn parse_staged(
         Err(err) => parsed(TOOL_ID, Err(err)),
     }
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "rustfmt",
+    run: |backend, call| backend.check_rustfmt(call.tool, call.staged),
+};
 
 impl RealBackend {
     pub(super) fn check_rustfmt(

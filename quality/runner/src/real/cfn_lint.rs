@@ -4,6 +4,7 @@ use quality_adapter::cloudformation_preflight::{self, Problem};
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers, ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
+use super::check::ToolDef;
 use super::*;
 
 const EMPTY_CONFIG_REL: &str = "dx-cfn-lint/empty.yaml";
@@ -28,6 +29,11 @@ fn preflight_finding(file: &Path, problem: Problem) -> FileFinding {
         },
     }
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "cfn_lint",
+    run: |backend, call| backend.check_cfn_lint(call.tool_id, call.tool, call.staged, call.config),
+};
 
 impl RealBackend {
     /// Preflights the config and each owned file, then lints the templates left in one cfn-lint run.

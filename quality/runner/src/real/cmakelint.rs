@@ -3,6 +3,7 @@ use std::path::Path;
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
+use super::check::ToolDef;
 use super::*;
 
 const DEFAULT_CONFIG_REL: &str = "dx-cmakelint-default/.cmakelintrc";
@@ -37,6 +38,11 @@ fn check_config(text: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+pub(super) const TOOL: ToolDef = ToolDef {
+    id: "cmakelint",
+    run: |backend, call| backend.check_cmakelint(call.tool_id, call.tool, call.staged, call.config),
+};
 
 impl RealBackend {
     /// Lints every staged CMake file in one cmakelint run, with a preflighted config.

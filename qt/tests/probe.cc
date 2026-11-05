@@ -3,11 +3,13 @@
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QString>
+#include <QThread>
 #include <QStringList>
 #include <QUrl>
 #include <QtGlobal>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -188,6 +190,8 @@ int main(int argc, char **argv) {
         "DX_QT_QMLDIR and TEST_SRCDIR must name the pinned QML imports");
   }
   QCoreApplication app(argc, argv);
+  // Exported since Qt 6.6 with a std:: type in its signature: links only on a matching STL ABI.
+  QThread::sleep(std::chrono::nanoseconds{0});
   QQmlEngine engine;
   engine.setImportPathList(QStringList{QString::fromStdString(imports)});
   QQmlComponent component(&engine);

@@ -119,6 +119,7 @@ def _pin_checks():
             [],
         ),
         expect_equal("macos cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "macos" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),
+        expect_true("qualified windows cells carry the msvc abi", all([("@llvm//constraints/windows/abi:msvc" in CELLS[cell].constraints) for cell in qualified_cells() if CELLS[cell].layout.os == "windows"])),
         expect_equal("windows cells pin no runtime or needs", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "windows" and (CELLS[cell].runtime != None or CELLS[cell].needs != None)], []),
         expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and CELLS[cell].layout != LINUX_LAYOUT], []),
         expect_equal("windows layout names import libraries", [WINDOWS_LAYOUT.library("Core"), WINDOWS_LAYOUT.shared("Core")], ["Qt6Core.lib", "bin/Qt6Core.dll"]),

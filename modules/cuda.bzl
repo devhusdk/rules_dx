@@ -233,7 +233,7 @@ CUDA_CELLS = {
     ),
     "windows_x86_64": struct(
         rules_cuda_platform = "windows-x86_64",
-        blocker = "nvcc rejects the clang-cl host compiler; nvcc_msvc needs the real cl.exe from the MSVC toolchain (#4815, #4704)",
+        blocker = "nvcc_msvc now selects the hermetic cl.exe, but nvcc fails with 'Host compiler targets unsupported OS' on the probe compile (#4704)",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         components = _WINDOWS_X86_64_COMPONENTS,

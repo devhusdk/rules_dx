@@ -246,7 +246,11 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 		if index < 0 {
 			return r.Errorf("ignored import %q matches no %s scope element", ignore.Value, EnvGenerateScope)
 		}
-		key := [3]string{ignore.Path, ignore.Language, ignore.Value}
+		ignorePath := ignore.Path
+		if ignorePath == "" {
+			ignorePath = "BUILD.bazel"
+		}
+		key := [3]string{ignorePath, ignore.Language, ignore.Value}
 		if at, ok := seenIgnore[key]; ok {
 			if index < manifest.IgnoredImports[at].ScopeIndex {
 				manifest.IgnoredImports[at].ScopeIndex = index
@@ -255,7 +259,7 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 		}
 		seenIgnore[key] = len(manifest.IgnoredImports)
 		manifest.IgnoredImports = append(manifest.IgnoredImports, IntendedIgnoredImport{
-			Path:       ignore.Path,
+			Path:       ignorePath,
 			Language:   ignore.Language,
 			Import:     ignore.Value,
 			ScopeIndex: index,

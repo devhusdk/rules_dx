@@ -718,6 +718,21 @@ func TestEmitMatchesFinalizeGolden(t *testing.T) {
 	t.Fatalf("Emit output differs from testdata/intended_manifest.json; new output in %s", regenerated)
 }
 
+func TestEmitNamesTheRootBuildFileForRootIgnores(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := manifestRecorder(t, "svelte")
+	rec.OutPath = out
+	rec.Scopes = []ScopeElement{{Element: "//:all", Dirs: []string{""}}}
+	if err := rec.Emit([]IgnoredImport{{Path: "", Language: "svelte", Value: "clsx", UsedBy: []string{""}}}); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	got := readIntended(t, out).IgnoredImports
+	want := []IntendedIgnoredImport{{Path: "BUILD.bazel", Language: "svelte", Import: "clsx", ScopeIndex: 0}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ignored imports = %+v, want %+v", got, want)
+	}
+}
+
 func TestEmitScopesIgnoredImportByUsingPackage(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
 	rec := manifestRecorder(t, "rust")

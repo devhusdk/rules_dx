@@ -78,3 +78,21 @@ func TestBindingImports(t *testing.T) {
 		}
 	}
 }
+
+func TestCSharpImportsIndexProtoLibrary(t *testing.T) {
+	c := &config.Config{RepoRoot: t.TempDir(), RepoName: "repo"}
+	f := rule.EmptyFile("api/BUILD.bazel", "api")
+	lib := rule.NewRule(LibraryKind, "api_proto")
+	lib.SetAttr("srcs", []string{"user.proto"})
+	lib.Insert(f)
+	cs := rule.NewRule(csKind, "api_proto_cs")
+	cs.SetAttr("proto", ":api_proto")
+	var got []string
+	for _, spec := range csImports(c, cs, f) {
+		got = append(got, spec.Imp)
+	}
+	want := []string{"cs_proto:@repo//api:api_proto"}
+	if !slices.Equal(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
+	}
+}

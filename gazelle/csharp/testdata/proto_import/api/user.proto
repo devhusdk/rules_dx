@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package api;
 
+import "common/money.proto";
+
 message User {
   string name = 1;
+  common.Money balance = 2;
 }

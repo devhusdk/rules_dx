@@ -48,7 +48,7 @@ var kinds = withBindings(map[string]rule.KindInfo{
 	},
 	rustKind: protoRefKind(),
 	tsKind:   tsKindInfo(),
-	csKind:   tsKindInfo(),
+	csKind:   csKindInfo(),
 })
 
 func protoRefKind() rule.KindInfo {
@@ -62,6 +62,12 @@ func protoRefKind() rule.KindInfo {
 func tsKindInfo() rule.KindInfo {
 	info := protoRefKind()
 	info.MergeableAttrs = map[string]bool{"proto": true, "deps": true}
+	return info
+}
+
+func csKindInfo() rule.KindInfo {
+	info := tsKindInfo()
+	info.ResolveAttrs = map[string]bool{"deps": true}
 	return info
 }
 
@@ -110,7 +116,11 @@ func NewLanguage() language.Language {
 // when no local proto_library owns them.
 func (l *protoLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	if r.Kind() == goKind {
-		l.resolveGoBinding(c, ix, r, raw, from)
+		l.resolveBinding(c, ix, r, raw, from, keyGoProto, "the proto_library has no Go binding; add option go_package to it", nil)
+		return
+	}
+	if r.Kind() == csKind {
+		l.resolveBinding(c, ix, r, raw, from, keyCSProto, "the proto_library has no C# binding", []string{csRuntime})
 		return
 	}
 	spec := l.ResolveSpecFor(c, r, from)
@@ -138,7 +148,7 @@ func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []reso
 		return tsImports(r, f)
 	}
 	if r.Kind() == csKind {
-		return csImports(r, f, c.RepoRoot)
+		return csImports(c, r, f)
 	}
 	for _, b := range bindings {
 		if r.Kind() == b.kind {
@@ -148,15 +158,19 @@ func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []reso
 	return l.SingleLang.Imports(c, r, f)
 }
 
-// resolveGoBinding sets the deps of a go_proto_library to the Go bindings of
-// the proto_library targets its proto imports.
-func (l *protoLang) resolveGoBinding(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw interface{}, from label.Label) {
+// resolveBinding sets the deps of a binding rule to base plus the bindings,
+// found under key, of the proto_library targets its proto imports. hint is
+// the error when an imported proto_library has no binding.
+func (l *protoLang) resolveBinding(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw interface{}, from label.Label, key, hint string, base []string) {
 	names, ok := common.UnwrapImportSet(raw)
 	if !ok {
 		return
 	}
 	spec := l.ResolveSpecFor(c, r, from)
 	deps := map[string]bool{}
+	for _, dep := range base {
+		deps[dep] = true
+	}
 	for _, name := range names {
 		if strings.HasPrefix(name, "google/protobuf/") {
 			continue
@@ -165,11 +179,11 @@ func (l *protoLang) resolveGoBinding(c *config.Config, ix *resolve.RuleIndex, r 
 		if len(owners) != 1 {
 			continue
 		}
-		own := bindingKey(keyGoProto, owners[0].Label.String())
+		own := bindingKey(key, owners[0].Label.String())
 		found := ix.FindRulesByImportWithConfig(c, resolve.ImportSpec{Lang: languageName, Imp: own}, languageName)
 		switch len(found) {
 		case 0:
-			spec.FailUnresolved(from, name, "the proto_library has no Go binding; add option go_package to it")
+			spec.FailUnresolved(from, name, hint)
 		case 1:
 			if found[0].Label != from {
 				deps[found[0].Label.Rel(from.Repo, from.Pkg).String()] = true
@@ -237,6 +251,8 @@ func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, mo
 	if !common.ModuleDeps(args.Config.RepoRoot)[module] {
 		return result
 	}
+	var refs []*rule.Rule
+	var refImports []any
 	for _, lib := range result.Gen {
 		if lib.Kind() != LibraryKind {
 			continue
@@ -252,9 +268,15 @@ func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, mo
 		if common.ShouldSetVisibility(args) {
 			r.SetAttr("visibility", []string{"//visibility:public"})
 		}
-		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, nil)
+		var imp any
+		if kind == csKind {
+			imp = common.WrapImportSet(libImports(result, lib))
+		}
+		refs = append(refs, r)
+		refImports = append(refImports, imp)
 	}
+	result.Gen = append(result.Gen, refs...)
+	result.Imports = append(result.Imports, refImports...)
 	for _, r := range result.Empty {
 		if r.Kind() == LibraryKind {
 			result.Empty = append(result.Empty, rule.NewRule(kind, r.Name()+suffix))
@@ -284,7 +306,7 @@ func tsImports(r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 
 // csImports indexes a csharp_proto_library by the namespaces protoc writes for
 // the sources of its proto_library.
-func csImports(r *rule.Rule, f *rule.File, repoRoot string) []resolve.ImportSpec {
+func csImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if f == nil {
 		return nil
 	}
@@ -294,8 +316,9 @@ func csImports(r *rule.Rule, f *rule.File, repoRoot string) []resolve.ImportSpec
 		if ":"+lib.Name() != r.AttrString("proto") || lib.Kind() != LibraryKind {
 			continue
 		}
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: bindingKey(keyCSProto, protoLabel(c, f.Pkg, lib.Name()))})
 		for _, src := range lib.AttrStrings("srcs") {
-			content, err := os.ReadFile(filepath.Join(repoRoot, f.Pkg, src))
+			content, err := os.ReadFile(filepath.Join(c.RepoRoot, f.Pkg, src))
 			if err != nil {
 				continue
 			}

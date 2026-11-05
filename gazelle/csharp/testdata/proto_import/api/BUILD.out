@@ -6,11 +6,15 @@ proto_library(
     srcs = ["user.proto"],
     strip_import_prefix = "/",
     visibility = ["//visibility:public"],
+    deps = ["//common:common_proto"],
 )
 
 csharp_proto_library(
     name = "api_proto_cs",
     proto = ":api_proto",
     visibility = ["//visibility:public"],
-    deps = ["@paket.main//google.protobuf"],
+    deps = [
+        "//common:common_proto_cs",
+        "@paket.main//google.protobuf",
+    ],
 )

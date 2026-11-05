@@ -237,6 +237,7 @@ func pascalCase(name string) string {
 const (
 	keyGo      = "go"
 	keyGoProto = "go_proto"
+	keyCSProto = "cs_proto"
 	keyPython  = "python"
 	keyJava    = "java"
 	keyCC      = "cc"

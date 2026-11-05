@@ -39,6 +39,10 @@ Add this to `.bazelrc` or `user.bazelrc`:
 startup:windows --windows_enable_symlinks
 ```
 
+## Linker
+
+The consumer preset links Rust with rust-lld on Windows.
+
 ## Long paths
 
 Use a short output root. Add this to `.bazelrc`:

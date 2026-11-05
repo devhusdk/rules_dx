@@ -280,6 +280,11 @@ alias(
     actual = "@rules_rust//rust/settings:rustc_output_diagnostics",
 )
 
+alias(
+    name = "toolchain_linker_preference",
+    actual = "@rules_rust//rust/settings:toolchain_linker_preference",
+)
+
 settings_subject(name = "settings_under_test")
 
 settings_tests(name = "settings")

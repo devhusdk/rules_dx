@@ -115,10 +115,16 @@ const RUNFILES_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const WINDOWS_FLAGS: [Flag; 1] = [(
-    "build:windows --enable_runfiles",
-    "On Windows, give tests a runfiles directory instead of only a manifest.",
-)];
+const WINDOWS_FLAGS: [Flag; 2] = [
+    (
+        "build:windows --enable_runfiles",
+        "On Windows, give tests a runfiles directory instead of only a manifest.",
+    ),
+    (
+        "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
+        "On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.",
+    ),
+];
 
 const TELEMETRY_FLAGS: [Flag; 1] = [(
     "common --repo_env=DO_NOT_TRACK=1",
@@ -674,6 +680,7 @@ mod tests {
         let text = render_layer(Layer::Correctness, "my_dx");
         assert!(text.contains("build --@my_dx//config:clippy_output_diagnostics=true\n"));
         assert!(text.contains("build --@my_dx//config:rustc_output_diagnostics=true\n"));
+        assert!(text.contains("build:windows --@my_dx//config:toolchain_linker_preference=rust\n"));
         assert!(!text.contains("@rules_dx//"));
         assert!(layer_is_current(&text, Layer::Correctness, "my_dx"));
         assert!(!layer_is_current(&text, Layer::Correctness, DEFAULT_REPO));
@@ -701,6 +708,7 @@ mod tests {
                 "common --nolegacy_external_runfiles",
                 "build:windows --nobuild_runfile_links",
                 "build:windows --enable_runfiles",
+                "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",

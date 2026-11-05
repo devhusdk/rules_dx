@@ -51,6 +51,7 @@ fn preset_parity() {
             "build:dx_dev_remote --compilation_mode=fastbuild",
             "build:dx_toolchain --compilation_mode=fastbuild",
             "build:windows --enable_runfiles",
+            "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
             "common --repo_env=DO_NOT_TRACK=1",
             "build --@rules_dx//config:clippy_output_diagnostics=true",
             "build --@rules_dx//config:rustc_output_diagnostics=true",

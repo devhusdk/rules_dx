@@ -262,6 +262,7 @@ fn ambient_tools_resolve_links_once() {
     assert_eq!(found, vec![("cc".to_owned(), real)]);
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn isolation_script_masks_before_dropping_to_the_real_user() {
     let isolation = Isolation {
@@ -652,6 +653,7 @@ fn the_consumer_materializes_from_dx_init() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn materialize_reports_each_missing_input() {
     let real = runfiles_manifest();
@@ -705,6 +707,7 @@ fn fake_host() -> FakeHost {
     FakeHost { dir, host }
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
     let fake = fake_host();
@@ -734,6 +737,7 @@ fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
     assert_eq!(isolation.tools, vec![real.join("cc"), real.join("gcc-13")]);
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn plan_with_fails_without_ip() {
     let mut fake = fake_host();
@@ -997,6 +1001,7 @@ fn remove_root_clears_read_only_trees_without_following_links() {
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o700)).unwrap();
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn host_names_this_machine() {
     let host = host();

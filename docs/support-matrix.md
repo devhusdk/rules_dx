@@ -22,7 +22,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK |
 | Elixir | none |
 | Erlang | none |
-| Flutter | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
 | F# | none |
 | Go | none |

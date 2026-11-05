@@ -194,6 +194,18 @@ pub struct OciConfig {
     pub sbom_rloc: String,
 }
 
+/// Describes the SBOM kept with an OCI deployment, with its package count.
+fn oci_sbom_line(rloc: &str) -> String {
+    let base = rloc.rsplit('/').next().unwrap_or(rloc);
+    let count = crate::stage::resolve_runfile(rloc)
+        .ok()
+        .and_then(|path| crate::github::spdx_package_count(&path));
+    match count {
+        Some(count) => format!("  sbom: {base} {count} packages"),
+        None => format!("  sbom: {base} is not a readable SPDX document"),
+    }
+}
+
 /// Pins one Octopus release: the package, project and target environments.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -408,15 +420,21 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             },
             argv,
         ),
-        DeployConfig::Oci(oci) => crate::oci_main(
-            &oci.image_rloc,
-            &oci.registry,
-            &oci.repository,
-            &oci.tag,
-            &oci.platform,
-            oci.size_budget_bytes,
-            argv,
-        ),
+        DeployConfig::Oci(oci) => {
+            let code = crate::oci_main(
+                &oci.image_rloc,
+                &oci.registry,
+                &oci.repository,
+                &oci.tag,
+                &oci.platform,
+                oci.size_budget_bytes,
+                argv,
+            );
+            if code == 0 && !oci.sbom_rloc.is_empty() {
+                println!("{}", oci_sbom_line(&oci.sbom_rloc));
+            }
+            code
+        }
         DeployConfig::Octopus(octopus) => crate::octopus_main(
             &crate::OctopusLaunch {
                 package_rloc: &octopus.package_rloc,
@@ -501,6 +519,14 @@ mod tests {
                 checksum_rloc: "_main/a.tar.gz.sha256".to_owned(),
                 size_budget_bytes: 25_000_000,
             }))
+        );
+    }
+
+    #[test]
+    fn an_oci_sbom_line_names_an_unreadable_document() {
+        assert_eq!(
+            oci_sbom_line("_main/none/s.spdx.json"),
+            "  sbom: s.spdx.json is not a readable SPDX document"
         );
     }
 

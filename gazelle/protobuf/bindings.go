@@ -25,6 +25,7 @@ const (
 	javaGRPCDefs = "@grpc-java//:java_grpc_library.bzl"
 	pyGRPCKind   = "py_grpc_library"
 	pyGRPCDefs   = "@rules_dx//python/rules:grpc.bzl"
+	ccGRPCKind   = "cc_grpc_library"
 )
 
 // binding is a language rule that wraps a proto_library. It is generated when
@@ -44,7 +45,13 @@ var bindings = []binding{
 }
 
 func bindingKinds() map[string]rule.KindInfo {
-	kinds := map[string]rule.KindInfo{}
+	kinds := map[string]rule.KindInfo{
+		ccGRPCKind: {
+			MatchAttrs:     []string{"srcs"},
+			NonEmptyAttrs:  map[string]bool{"srcs": true},
+			MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "grpc_only": true, "visibility": true, "testonly": true},
+		},
+	}
 	for _, b := range bindings {
 		attrs := map[string]bool{"deps": true, "visibility": true, "testonly": true}
 		attr := "deps"
@@ -80,6 +87,7 @@ func bindingKindDefs() map[string]string {
 	for _, b := range bindings {
 		defs[b.kind] = b.defs
 	}
+	defs[ccGRPCKind] = "@grpc//bazel:cc_grpc_library.bzl"
 	return defs
 }
 
@@ -88,7 +96,7 @@ func bindingExtraKinds() []string {
 	for _, b := range bindings {
 		kinds = append(kinds, b.kind)
 	}
-	return kinds
+	return append(kinds, ccGRPCKind)
 }
 
 var goPackage = regexp.MustCompile(`(?m)^\s*option\s+go_package\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')\s*;`)
@@ -155,6 +163,19 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 				imports = append(imports, nil)
 				desired[javaGRPCKind+"\x00"+g.Name()] = true
 			}
+			if b.kind == ccKind && deps["grpc"] && hasService(args.Dir, lib.AttrStrings("srcs")) {
+				g := rule.NewRule(ccGRPCKind, base+"_cc_grpc")
+				g.SetAttr("srcs", []string{":" + lib.Name()})
+				g.SetAttr("deps", []string{":" + r.Name()})
+				g.SetAttr("grpc_only", true)
+				if lib.AttrBool("testonly") {
+					g.SetAttr("testonly", true)
+				}
+				g.SetAttr("visibility", []string{"//visibility:public"})
+				gen = append(gen, g)
+				imports = append(imports, nil)
+				desired[ccGRPCKind+"\x00"+g.Name()] = true
+			}
 			if b.kind == pyKind && deps["rules_dx"] && hasService(args.Dir, lib.AttrStrings("srcs")) {
 				g := rule.NewRule(pyGRPCKind, base+"_py_grpc")
 				g.SetAttr("proto", ":"+lib.Name())
@@ -179,9 +200,9 @@ func addBindings(args language.GenerateArgs, result language.GenerateResult) lan
 		}
 	}
 	for _, existing := range args.File.Rules {
-		if (existing.Kind() == javaGRPCKind || existing.Kind() == pyGRPCKind) && !desired[existing.Kind()+"\x00"+existing.Name()] {
+		if (existing.Kind() == javaGRPCKind || existing.Kind() == pyGRPCKind || existing.Kind() == ccGRPCKind) && !desired[existing.Kind()+"\x00"+existing.Name()] {
 			for _, base := range names {
-				if existing.Name() == base+"_java_grpc" || existing.Name() == base+"_py_grpc" {
+				if existing.Name() == base+"_java_grpc" || existing.Name() == base+"_py_grpc" || existing.Name() == base+"_cc_grpc" {
 					result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
 				}
 			}

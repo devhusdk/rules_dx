@@ -333,6 +333,9 @@ single_version_override(
 )
 
 # floor: equals tested
+bazel_dep(name = "grpc", version = "1.85.1", dev_dependency = True)
+
+# floor: equals tested
 bazel_dep(name = "rules_rust_prost", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust_prost",

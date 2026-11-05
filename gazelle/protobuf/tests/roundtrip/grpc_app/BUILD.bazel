@@ -1,0 +1,36 @@
+load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_dx//cc/rules:defs.bzl", "cc_test")
+
+proto_library(
+    name = "greeter_proto",
+    testonly = True,
+    srcs = ["greeter.proto"],
+    strip_import_prefix = "/",
+)
+
+cc_proto_library(
+    name = "greeter_cc_proto",
+    testonly = True,
+    deps = [":greeter_proto"],
+)
+
+cc_grpc_library(
+    name = "greeter_cc_grpc",
+    testonly = True,
+    srcs = [":greeter_proto"],
+    grpc_only = True,
+    deps = [":greeter_cc_proto"],
+)
+
+cc_test(
+    name = "greeter_test",
+    srcs = ["greeter_test.cc"],
+    deps = [
+        ":greeter_cc_grpc",
+        ":greeter_cc_proto",
+        "@googletest//:gtest_main",
+        "@grpc//:grpc++",
+    ],
+)

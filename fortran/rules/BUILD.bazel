@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -39,6 +40,16 @@ _ALL = {
     "tags": ["t"],
     "timeout": "short",
 }
+
+bool_flag(
+    name = "kcov",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "kcov_build",
+    flag_values = {":kcov": "true"},
+)
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
@@ -115,6 +126,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

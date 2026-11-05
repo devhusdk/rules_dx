@@ -2,6 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_test")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_test")
+load("//fortran/rules:defs.bzl", "fortran_library", "fortran_test")
 load("//perl/rules:defs.bzl", "perl_test")
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:coverage_sources_tests.bzl", "coverage_fixture")
@@ -116,4 +117,17 @@ d_test(
     srcs = ["d_probe.d"],
     tags = ["manual"],
     target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+fortran_library(
+    name = "fcalc_lib",
+    srcs = ["calc.f90"],
+    tags = ["manual"],
+)
+
+fortran_test(
+    name = "fcalc_test",
+    srcs = ["calc_test.f90"],
+    tags = ["manual"],
+    deps = [":fcalc_lib"],
 )

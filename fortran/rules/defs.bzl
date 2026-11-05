@@ -7,6 +7,7 @@ load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 
 FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/toolchain", sorted(FORTRAN_CELLS.keys()))
 
@@ -30,6 +31,7 @@ _library_forward = dx_library_forward_rule(
     allow_files = _SOURCE_EXTS,
     upstream_providers = [[FortranInfo]],
     runtime = "besteffort",
+    instrument_srcs = True,
 )
 
 _binary_forward = dx_executable_forward_rule(
@@ -43,6 +45,34 @@ _binary_forward = dx_executable_forward_rule(
     runtime = "besteffort",
 )
 
+def _kcov_upstream_impl(settings, _attr):
+    """Builds the test upstream for kcov under coverage: debug info, unstripped, uninstrumented."""
+    coverage = settings["//command_line_option:collect_code_coverage"]
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        "//command_line_option:strip": "never" if coverage else settings["//command_line_option:strip"],
+        "//fortran/rules:kcov": coverage,
+    }
+
+_kcov_upstream = transition(
+    implementation = _kcov_upstream_impl,
+    inputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:strip",
+    ],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:strip",
+        "//fortran/rules:kcov",
+    ],
+)
+
+def _fortran_test_coverage(ctx, upstream):
+    """Runs the upstream Fortran test under kcov on Linux."""
+    deps = [dep[FortranInfo].transitive_sources for dep in ctx.attr.deps if FortranInfo in dep]
+    sources = [f for f in depset(ctx.files.srcs, transitive = deps).to_list() if "." + f.extension in _SOURCE_EXTS]
+    return dx_kcov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
+
 _fortran_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES,
@@ -51,8 +81,12 @@ _fortran_forward_test = dx_executable_forward_rule(
     what = "fortran_*",
     allow_files = _SOURCE_EXTS,
     upstream_providers = None,
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | {
+        "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
+    },
     runtime = "besteffort",
+    upstream_cfg = _kcov_upstream,
+    coverage_providers = _fortran_test_coverage,
 )
 
 def with_defaults(kwargs):
@@ -60,6 +94,10 @@ def with_defaults(kwargs):
     out = dict(kwargs)
     if out.get("target_compatible_with") == None:
         out["target_compatible_with"] = FORTRAN_COMPATIBLE_WITH
+    out["copts"] = (out.get("copts") or []) + select({
+        Label("//fortran/rules:kcov_build"): ["-g"],
+        "//conditions:default": [],
+    })
     tags = list(out.get("tags") or [])
     out["tags"] = tags + [tag for tag in SKIP_TAGS if tag not in tags]
     return out
@@ -98,4 +136,4 @@ def fortran_binary(name, srcs = None, visibility = None, **kwargs):
 
 def fortran_test(name, srcs = None, visibility = None, **kwargs):
     """Compiles Fortran sources with rules_fortran and links them with cc_test."""
-    dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, coverage_collector = False, **with_defaults(kwargs))
+    dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, **with_defaults(kwargs))

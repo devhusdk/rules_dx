@@ -1,0 +1,39 @@
+load("//fortran/rules:defs.bzl", "fortran_library", "fortran_test")
+load("//fortran/rules:wrapper_tests.bzl", "fortran_kcov_env_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+fortran_library(
+    name = "calc",
+    srcs = ["calc.f90"],
+)
+
+fortran_test(
+    name = "calc_test",
+    srcs = ["calc_test.f90"],
+    deps = [":calc"],
+)
+
+fortran_kcov_env_test(
+    name = "calc_test_kcov_test",
+    instrumented = ["fortran/tests/fixtures/calc/calc.f90"],
+    target = ":calc_test",
+    upstream = "calc_test_upstream",
+)
+
+platform(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -126,6 +126,7 @@ COVERAGE_COLLECTORS = {
     "elixir": ["cover"],
     "erlang": ["cover"],
     "flutter": ["flutter_tester"],
+    "fortran": ["kcov"],
     "fsharp": ["coverlet"],
     "go": ["go cover"],
     "haskell": ["hpc"],
@@ -146,6 +147,7 @@ COVERAGE_COLLECTORS = {
 
 # A note on where a row's coverage collector runs.
 COVERAGE_NOTES = {
+    "fortran": "kcov runs on Linux only",
     "zig": "kcov runs on Linux only",
 }
 
@@ -155,7 +157,6 @@ NO_COVERAGE = {
     "apple": "no dx coverage wiring in the Apple rules",
     "astro": "js_test has no dx coverage wiring",
     "cuda": "cuda_test has no dx coverage wiring",
-    "fortran": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "mdx": "js_test has no dx coverage wiring",
     "ocaml": "no collector yet; tests carry dx-no-coverage-collector (#2308)",
     "perl": "no collector yet; tests carry dx-no-coverage-collector (#2308)",

@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
 load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_OS", "QT_CONSUMER_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -25,6 +26,20 @@ qt_cc_test(
         "//qt/tests/fixtures/qt-rust/model",
         "//qt/tests/fixtures/qt-rust/ui",
     ],
+)
+
+sh_test(
+    name = "ledger_symbols_test",
+    srcs = ["ledger_symbols_test.sh"],
+    args = [
+        "$(rootpath @llvm//tools:llvm-nm)",
+        "$(rootpath :ledger_test)",
+    ],
+    data = [
+        ":ledger_test",
+        "@llvm//tools:llvm-nm",
+    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_bundle(
@@ -55,6 +70,7 @@ consumer_archive(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
+    shell_srcs = ["ledger_symbols_test.sh"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

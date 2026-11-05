@@ -671,12 +671,12 @@ def _qt_deps(qt, deps, modules, forms):
     wanted = modules + ["widgets"] if forms and "widgets" not in modules else modules
     return deps + [qt + "//:" + module for module in wanted]
 
-def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs, owned = True):
+def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs, owned = True, static = False):
     effective_deps = _qt_deps(qt, deps, modules, forms)
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
     compatible = kwargs.get("target_compatible_with", None)
-    upstream_linkopts = kwargs.pop("linkopts", []) + _dynamic_lookup_linkopts()
+    upstream_linkopts = kwargs.pop("linkopts", []) + ([] if static else _dynamic_lookup_linkopts())
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, compatible)
     _cc_library(
         name = name + "_upstream",
@@ -685,6 +685,7 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
         copts = copts + _include_copts(name),
         deps = effective_deps,
         alwayslink = True,
+        linkstatic = static,
         linkopts = upstream_linkopts,
         tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],
@@ -973,7 +974,8 @@ def qt_rust_runtime(name, core, **kwargs):
         includes = [name + "_files"],
         deps = [core],
         alwayslink = True,
-        linkopts = kwargs.pop("linkopts", []) + _dynamic_lookup_linkopts(),
+        linkstatic = True,
+        linkopts = kwargs.pop("linkopts", []),
         **kwargs
     )
 
@@ -1029,6 +1031,7 @@ def qt_rust_cc_library(
         visibility,
         kwargs,
         owned = False,
+        static = True,
     )
 
 def _soname(basename):

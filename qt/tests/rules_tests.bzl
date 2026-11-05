@@ -392,6 +392,13 @@ def _rust_module_test_impl(ctx):
         asserts.true(env, "qt/tests/fixtures/qt-rust/model/" + want in paths, "missing " + want + " in " + str(paths))
     asserts.equals(env, ["model_metatypes.json"], _basenames(target[QtInfo].metatypes.to_list()))
     asserts.true(env, CcInfo in target, "CcInfo is not forwarded")
+    for linker_input in target[CcInfo].linking_context.linker_inputs.to_list():
+        owner = str(linker_input.owner)
+        for library in linker_input.libraries:
+            if "model_upstream" in owner:
+                asserts.equals(env, None, library.dynamic_library, "model_upstream links as a dylib: " + owner)
+        for flag in linker_input.user_link_flags:
+            asserts.false(env, "-undefined" in flag, "dynamic_lookup flag on " + owner)
     return analysistest.end(env)
 
 _rust_module_test = analysistest.make(_rust_module_test_impl)

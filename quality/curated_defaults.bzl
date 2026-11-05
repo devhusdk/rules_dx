@@ -1,7 +1,7 @@
 """Curated quality defaults."""
 
 
-# Not curated yet: haskell, ocaml, fortran, swift and powershell (#8045, #8047).
+# Not curated yet: ocaml, fortran, swift and powershell (#8045, #8047).
 # Julia stays out: julialint runs on the Julia 1.12.5 toolchain tarball plus the dx_julia_lint
 # package set, so dx lint on one julia_library would fetch a runtime and packages that a plain
 # typos lint does not. The cold fetch was not measured in a clean cache (#8048).
@@ -73,6 +73,13 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
+        "typecheck": [],
+        "unused": [],
+    },
+    "haskell": {
+        "audit": [],
+        "format": ["ormolu"],
+        "lint": ["hlint", "typos"],
         "typecheck": [],
         "unused": [],
     },

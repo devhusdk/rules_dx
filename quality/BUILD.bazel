@@ -200,6 +200,16 @@ consumer_policy_tests(
             "subject": "//dart/tests/fixtures/dart-app/cli:inventory_cli",
         },
         {
+            "case": "default_haskell",
+            "expected_dx_results": [
+                "cli-real-format-haskell.pb",
+                "cli-real-lint-haskell.pb",
+                "cli-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//haskell/tests/fixtures/haskell-app/cli:cli",
+        },
+        {
             "case": "default_nix",
             "expected_dx_results": [
                 "clean_nix-real-lint-nix.pb",

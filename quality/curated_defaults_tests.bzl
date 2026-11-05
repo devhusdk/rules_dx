@@ -146,6 +146,17 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "haskell curated defaults are ormolu + hlint",
+                CURATED_DEFAULTS["haskell"],
+                {
+                    "audit": [],
+                    "format": ["ormolu"],
+                    "lint": ["hlint", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
                 "d curated defaults are dfmt + D-Scanner",
                 CURATED_DEFAULTS["d"],
                 {

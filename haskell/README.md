@@ -85,7 +85,7 @@ with `locale -a | grep -i c.utf`.
 
 ## Formatting
 
-`dx format` runs `ormolu` 0.9.0.0 on Haskell sources in a `haskell` quality family on Linux x86_64. See the Haskell section of `docs/cli/commands/quality.md`. `dx typecheck` runs `ghc -fno-code` when a `haskell` family opts in with `typecheck = ["ghc"]`. `dx lint` runs `hlint` 3.10 in the same `haskell` family, on Linux x86_64 only.
+`dx format` runs `ormolu` 0.9.0.0 on Haskell sources by default, on Linux x86_64. See the Haskell section of `docs/cli/commands/quality.md`. `dx typecheck` runs `ghc -fno-code` when a `haskell` family opts in with `typecheck = ["ghc"]`. `dx lint` runs `hlint` 3.10 by default, on Linux x86_64 only; other platforms skip it with a note.
 
 ## Coverage
 

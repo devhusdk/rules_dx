@@ -244,6 +244,51 @@ cc_toolchain_test(
 )
 
 cc_toolchain_test(
+    name = "gcc_arm64_dynamic_libstdcxx_test",
+    compiler = "gcc",
+    extra_features = ["dynamic_libstdcxx"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/gcc_shared:shared_dynamic_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_c_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/gcc_shared:c_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_asan_test",
+    compiler = "gcc",
+    extra_features = ["asan"],
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/gcc_sanitize:asan_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_ubsan_test",
+    compiler = "gcc",
+    extra_features = ["ubsan"],
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
+)
+
+cc_toolchain_test(
     name = "msvc_hello_test",
     compiler = "msvc",
     target_compatible_with = [
@@ -349,9 +394,13 @@ cc_gcov_coverage_env_test(
 test_suite(
     name = "all",
     tests = [
+        ":gcc_arm64_asan_test",
+        ":gcc_arm64_c_test",
+        ":gcc_arm64_dynamic_libstdcxx_test",
         ":gcc_arm64_hello_c_test",
         ":gcc_arm64_hello_test",
         ":gcc_arm64_shared_test",
+        ":gcc_arm64_ubsan_test",
         ":gcc_asan_test",
         ":gcc_c_test",
         ":gcc_coverage_env_test",

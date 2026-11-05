@@ -26,6 +26,18 @@ bazel build //flutter/tests/fixtures/flutter-app/android:all --sandbox_default_a
 bazel test //flutter/tests/fixtures/flutter-app/android:inspect_apk_test //flutter/tests/fixtures/flutter-app/android:inspect_apk_arm64_test
 ```
 
+`android:install`, `android:start` and `android:log` target `emulator-5554` with the x64 APK. `android:interaction_test` installs the APK, taps the add button with `adb shell input` and checks the count through `uiautomator dump`. It is tagged `linux-kvm` and `manual`, and it fails when no emulator or no `adb` is present. The app starts `io.flutter.embedding.android.FlutterActivity`, the activity in the manifest rules_flutter generates, and `inspect_apk_test` checks that the manifest names it.
+
+The evidence workflow with `android=true` boots the emulator on a `linux_x86_64` runner and prints the versions it ran with. The flutter-app step passed in [run 42064365680](https://github.com/devhusdk/rules_dx/actions/runs/42064365680).
+
+| Item | Value |
+| --- | --- |
+| Host | Ubuntu 26.04.1 LTS, Linux 7.0.0-1019-azure, x86_64 |
+| KVM | enabled through the udev rule in `evidence.yml` |
+| System image | `system-images;android-34;google_apis;x86_64` |
+| Emulator | 37.2.13.0 |
+| adb | 1.0.41, platform-tools 37.0.1 |
+
 ## iOS simulator
 
 `:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use the `iPhone 16` simulator, and `:ios_simulator_smoke_test` runs the three in order. The test is manual and tagged `macos-arm64`.

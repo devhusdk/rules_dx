@@ -318,6 +318,7 @@ scala_deps.scala()
 scala_deps.scalatest()
 
 register_toolchains(
+    "//kotlin/toolchain:unused_deps",
     "//scala/toolchain:semanticdb",
     dev_dependency = True,
 )

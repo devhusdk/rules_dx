@@ -46,6 +46,7 @@ build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+cr
 
 build --javacopt=-Werror
 build --javacopt=-Xlint:all
+build --experimental_strict_java_deps=error
 
 build --features=treat_warnings_as_errors
 

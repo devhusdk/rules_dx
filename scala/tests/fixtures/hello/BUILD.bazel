@@ -50,7 +50,6 @@ scala_test(
     deps = [
         ":hello_lib",
         "@maven//:org_scalactic_scalactic_2_13",
-        "@maven//:org_scalatest_scalatest_2_13",
         "@maven//:org_scalatest_scalatest_flatspec_2_13",
     ],
 )

@@ -73,6 +73,7 @@ flutter_application(
     visibility = [
         "//flutter/tests/fixtures/flutter-app:__pkg__",
         "//flutter/tests/fixtures/flutter-app/android:__pkg__",
+        "//flutter/tests/fixtures/flutter-app/failures:__pkg__",
     ],
     deps = [":app"] + _PUB,
 )

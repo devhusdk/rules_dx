@@ -1,9 +1,13 @@
 language dart
 language flutter
 pattern //...
+file .bazelrc
 file flutter/tests/fixtures/flutter-app/.dart_tool/package_config.json
 file flutter/tests/fixtures/flutter-app/.dart_tool/package_graph.json
 file flutter/tests/fixtures/flutter-app/BUILD.bazel
+file flutter/tests/fixtures/flutter-app/android/BUILD.bazel
+file flutter/tests/fixtures/flutter-app/android/inspect_apk.sh
+file flutter/tests/fixtures/flutter-app/android/interaction.sh
 file flutter/tests/fixtures/flutter-app/app/BUILD.bazel
 file flutter/tests/fixtures/flutter-app/app/lib/app.dart
 file flutter/tests/fixtures/flutter-app/app/lib/l10n/app_da.arb
@@ -29,9 +33,12 @@ file flutter/tests/fixtures/flutter-app/l10n.yaml
 file flutter/tests/fixtures/flutter-app/profile.bzl
 file flutter/tests/fixtures/flutter-app/pubspec.lock
 file flutter/tests/fixtures/flutter-app/pubspec.yaml
+failure //flutter/tests/fixtures/flutter-app/failures:bad_abi
 failure //flutter/tests/fixtures/flutter-app/failures:missing_asset
 failure //flutter/tests/fixtures/flutter-app/failures:missing_font
 failure //flutter/tests/fixtures/flutter-app/failures:type_error
 failure //flutter/tests/fixtures/flutter-app/failures:undeclared_dep
 bazel_dep rules_dart
 bazel_dep rules_flutter
+bazel_dep rules_android
+bazel_dep rules_shell

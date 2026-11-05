@@ -7,4 +7,14 @@ flutter.pub(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
 )
-use_repo(flutter, "dx_flutter_app_deps")
+use_repo(flutter, "dx_flutter_app_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64")
+
+bazel_dep(name = "rules_android", version = "0.8.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+android_sdk = use_extension("@rules_dx_android//sdk:repos.bzl", "android_sdk")
+android_sdk.configure(accept_licenses = ["android-sdk-license"])
+use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
+
+android_sdk_repository = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
+override_repo(android_sdk_repository, androidsdk = "dx_androidsdk")

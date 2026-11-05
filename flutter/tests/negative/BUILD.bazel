@@ -1,6 +1,7 @@
 # gazelle:ignore
 
 load("//flutter/rules:defs.bzl", "flutter_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 flutter_library(
@@ -11,6 +12,12 @@ flutter_library(
     tags = ["manual"],
     visibility = ["//:__subpackages__"],
     deps = ["@dx_flutter_deps//:flutter"],
+)
+
+failure_test(
+    name = "unknown_android_abi_fails_test",
+    expected_failure_substring = "android_abi 'x86' is unknown",
+    target = "//flutter/tests/fixtures/flutter-app/failures:bad_abi",
 )
 
 quality_family(

@@ -25,6 +25,7 @@ FLUTTER_COMPATIBLE_WITH = select({
     "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//flutter/rules")],
 })
 
+FLUTTER_ANDROID_ABIS = ["arm64", "x64"]
 FLUTTER_COVERAGE_COLLECTOR = False
 
 _flutter_library_forward = dx_library_forward_rule(
@@ -147,8 +148,26 @@ def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""
     _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
 
+def _bad_abi_impl(ctx):
+    fail(ctx.attr.message)
+
+_bad_abi = rule(
+    implementation = _bad_abi_impl,
+    attrs = {"message": attr.string(mandatory = True)},
+)
+
 def flutter_android_app(name, application, package_name, android_abi = "arm64", visibility = None, **kwargs):
-    """Thin wrapper over flutter_android_app."""
+    """Thin wrapper over flutter_android_app. An unknown android_abi fails when the target is analyzed."""
+    if android_abi not in FLUTTER_ANDROID_ABIS:
+        checked = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+        _bad_abi(
+            name = name,
+            message = "flutter_android_app: android_abi '{}' is unknown: want {}".format(android_abi, ", ".join(FLUTTER_ANDROID_ABIS)),
+            tags = checked.get("tags", []),
+            target_compatible_with = checked["target_compatible_with"],
+            visibility = visibility,
+        )
+        return
     _flutter_android_app(
         name = name,
         application = application,

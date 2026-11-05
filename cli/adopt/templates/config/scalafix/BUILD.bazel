@@ -1,0 +1,16 @@
+exports_files(
+    [
+        "standard.conf",
+        "strict.conf",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "files",
+    srcs = [
+        "standard.conf",
+        "strict.conf",
+    ],
+    visibility = ["//visibility:public"],
+)

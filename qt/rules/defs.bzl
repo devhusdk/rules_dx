@@ -761,7 +761,8 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     tags = upstream_kwargs.pop("tags", None)
     upstream_kwargs.pop("visibility", None)
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
-    upstream_kwargs.setdefault("linkstatic", False)
+    # Windows has no executable-to-DLL main lookup: a source-less test links its library's main from the static archive.
+    upstream_kwargs.setdefault("linkstatic", select({"@platforms//os:windows": True, "//conditions:default": False}))
     if not test:
         upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + _bundle_runpath()
     qt_frameworks(

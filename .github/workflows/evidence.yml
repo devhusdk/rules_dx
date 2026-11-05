@@ -230,7 +230,7 @@ jobs:
           elif [ "$DX_TASK" = "coverage" ]; then
             bazel run --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
           else
-            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
+            bazel test --keep_going --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${patterns[@]}" "${flags[@]}" 2>&1 | tee evidence.log
           fi
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}

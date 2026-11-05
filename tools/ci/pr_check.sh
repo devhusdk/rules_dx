@@ -25,7 +25,10 @@ preflight() {
 }
 
 # Toolchain resolution for windows_arm64 only shows up when that platform is the target.
-# Rust targets (#7384) are left out: no rust toolchain resolves for it from a linux exec platform.
+# The labels in WINDOWS_ARM64_BLOCKED are left out; pr_check_test fails when a preflight label is in neither place.
+# #7384: no rust toolchain for windows_arm64 from linux
+# shellcheck disable=SC2034
+WINDOWS_ARM64_BLOCKED='//cli/cli:dx //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //deploy/rules:pypi_probe_verify //zig/tests/fixtures/hello:all //zig/tests/fixtures/zig-app/... //julia/tests/fixtures/hello:all //quality/testdata:runner_matrix_windows_arm64'
 preflight-windows-arm64() {
   bazel build --nobuild --skip_incompatible_explicit_targets --lockfile_mode=error "$@" \
     --platforms=//msix/platforms:windows_arm64 \

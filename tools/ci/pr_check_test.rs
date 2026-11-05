@@ -85,6 +85,49 @@ fn windows_arm64_set_targets_the_platform() {
 }
 
 #[test]
+fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
+    let script = read_runfiles(SCRIPT);
+    let start = script
+        .find("preflight-windows-arm64() {")
+        .expect("windows_arm64 set");
+    let body = &script[start..];
+    let body = &body[..body.find("\n}\n").expect("end of set")];
+    let blocked = script
+        .lines()
+        .find(|line| line.starts_with("WINDOWS_ARM64_BLOCKED="))
+        .expect("WINDOWS_ARM64_BLOCKED line");
+    let mut wanted = Vec::new();
+    for step in steps(CI, "preflight") {
+        let run = step["run"].as_str().unwrap_or_default();
+        if run.contains("bazel build --noshow_progress")
+            || run.contains("bazel test --noshow_progress")
+        {
+            wanted.extend(labels(run));
+        }
+    }
+    let matrix = job(CI, "preflight")["strategy"]["matrix"]["include"]
+        .as_array()
+        .expect("preflight matrix")
+        .clone();
+    let cell = matrix
+        .iter()
+        .find(|cell| cell["platform"] == "windows_arm64")
+        .expect("windows_arm64 cell");
+    wanted.extend(labels(cell["quality"].as_str().expect("quality labels")));
+    assert!(wanted.len() > 10, "found only {} labels", wanted.len());
+    let uncovered: Vec<_> = wanted
+        .iter()
+        .filter(|label| {
+            !labels(body).contains(label) && !labels(blocked).contains(label)
+        })
+        .collect();
+    assert!(
+        uncovered.is_empty(),
+        "preflight-windows-arm64 and WINDOWS_ARM64_BLOCKED lack {uncovered:?}"
+    );
+}
+
+#[test]
 fn workflow_runs_every_set_in_its_own_step() {
     let names: Vec<String> = steps(WORKFLOW, "analysis")
         .iter()

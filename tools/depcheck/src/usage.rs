@@ -16,8 +16,13 @@ fn collect_sources(root: &Path) -> Vec<PathBuf> {
         }
         children.sort();
         for child in children.into_iter().rev() {
+            let name = child.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if child.is_dir() {
-                stack.push(child);
+                if !matches!(name, ".git" | "node_modules" | "target")
+                    && !name.starts_with("bazel-")
+                {
+                    stack.push(child);
+                }
             } else if child.is_file() {
                 out.push(child);
             }

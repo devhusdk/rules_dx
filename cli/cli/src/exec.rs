@@ -53,6 +53,7 @@ pub(crate) mod test_support;
 mod umbrella;
 mod update;
 mod update_outdated;
+mod update_unused;
 mod update_pr;
 mod update_version;
 mod update_version_add;

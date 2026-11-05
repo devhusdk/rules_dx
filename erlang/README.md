@@ -135,7 +135,7 @@ The `wx` application, sources and docs are dropped on every cell.
 | `macos_arm64` | Qualified | |
 | `macos_x86_64` | Not qualified | No CI cell. |
 | `windows_x86_64` | Qualified | Tools and escripts run through the native launcher, including dialyzer. |
-| `windows_arm64` | Qualified | x64 OTP under emulation; NIFs and dialyzer pending in #6321. |
+| `windows_arm64` | Qualified | x64 OTP under emulation; NIFs pending in #6321. |
 
 On other platforms Erlang and Elixir targets are skipped.
 

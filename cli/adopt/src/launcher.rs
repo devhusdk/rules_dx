@@ -570,6 +570,15 @@ fn static_launcher(rel: &str) -> String {
     }
 }
 
+/// The command that runs `dx init --apply` in `root`: the launcher when it is there, else Bazel.
+pub fn init_apply_command(root: &Path) -> String {
+    if root.join(LAUNCHER_SH_REL).is_file() {
+        format!("{LAUNCHER_SH_REL} init --apply")
+    } else {
+        "bazel run @rules_dx//:dx -- init --apply".to_owned()
+    }
+}
+
 /// `None` when the file is absent or custom; dx-owned files are `Current` or `Stale`.
 pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;

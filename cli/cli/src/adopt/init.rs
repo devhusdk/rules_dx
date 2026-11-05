@@ -139,7 +139,11 @@ pub(crate) fn execute_init(
     {
         let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
         if !hard.is_empty() {
-            let _ = write!(err, "{}", dx_adopt::render_plan_text(&target.module, &plan));
+            let _ = write!(
+                err,
+                "{}",
+                dx_adopt::render_plan_text(&target.module, &target.apply_command(), &plan)
+            );
             return operational(
                 invocation,
                 out,
@@ -235,9 +239,11 @@ fn check_init(
         }
     } else if let Some(plan) = &plan {
         if !summaries_suppressed(invocation) {
-            if let Err(exit) =
-                check_stdout_write(write!(out, "{}", dx_adopt::render_plan_text(module, plan)))
-            {
+            if let Err(exit) = check_stdout_write(write!(
+                out,
+                "{}",
+                dx_adopt::render_plan_text(module, &target.apply_command(), plan)
+            )) {
                 return exit;
             }
         }

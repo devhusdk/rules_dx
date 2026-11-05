@@ -66,7 +66,7 @@ fn resolve_logical_entries(
         };
         if replaces.as_ref().is_some_and(|declared| *declared != path) {
             return Err(invalid_plan(format!(
-                "entry {:?} carries a replacement contract for {:?}, want the logical path itself",
+                "entry {} carries a replacement contract for {}, want the logical path itself",
                 entry.logical_path, entry.replaces,
             )));
         }
@@ -82,13 +82,13 @@ fn resolve_logical_entries(
         if let Some(previous) = seen.insert(folded, resolved) {
             if previous.path.as_str() != resolved.path.as_str() {
                 return Err(invalid_plan(format!(
-                    "generated logical paths {:?} and {:?} differ only by case",
+                    "generated logical paths {} and {} differ only by case",
                     previous.entry.logical_path, resolved.entry.logical_path
                 )));
             }
             if previous.entry.artifact != resolved.entry.artifact {
                 return Err(invalid_plan(format!(
-                    "generated logical path {:?} maps to multiple artifacts",
+                    "generated logical path {} maps to multiple artifacts",
                     resolved.entry.logical_path
                 )));
             }
@@ -116,14 +116,14 @@ pub(crate) fn stage_codegen_generation(
             && resolved.replaces.is_none()
         {
             return Err(invalid_plan(format!(
-                "generated logical path {:?} collides with a workspace source",
+                "generated logical path {} collides with a workspace source",
                 entry.logical_path
             )));
         }
         let artifact = Path::new(&entry.artifact);
         if artifact.symlink_metadata().is_err() {
             return Err(invalid_plan(format!(
-                "referenced artifact {:?} is missing; Bazel owns materialization",
+                "referenced artifact {} is missing; Bazel owns materialization",
                 entry.artifact
             )));
         }
@@ -140,7 +140,7 @@ pub(crate) fn stage_codegen_generation(
             Ok(meta) => {
                 if meta.file_type().is_dir() && !meta.file_type().is_symlink() {
                     return Err(invalid_plan(format!(
-                        "generated logical path {:?} collides within its generation",
+                        "generated logical path {} collides within its generation",
                         entry.logical_path
                     )));
                 }

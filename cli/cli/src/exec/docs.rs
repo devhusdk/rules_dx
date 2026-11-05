@@ -276,11 +276,16 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         match runner.run(&open_argv, workspace, &[]) {
             Ok(status) if status.code == Some(0) => {}
             Ok(status) => {
-                let _ = writeln!(
-                    err,
-                    "dx: warning: browser open exited with {:?} for {url} (continuing preview)",
-                    status.code,
-                );
+                let _ = match status.code {
+                    Some(code) => writeln!(
+                        err,
+                        "dx: warning: browser open exited with code {code} for {url} (continuing preview)"
+                    ),
+                    None => writeln!(
+                        err,
+                        "dx: warning: browser open was terminated by a signal for {url} (continuing preview)"
+                    ),
+                };
             }
             Err(error) => {
                 let _ = writeln!(

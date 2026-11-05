@@ -662,7 +662,8 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
 }
 
 /// The plan as text: one section per kind, `none` when empty, then the next step.
-pub fn render_plan_text(module: &str, plan: &Preflight) -> String {
+/// `apply` is the command the user runs to apply the plan.
+pub fn render_plan_text(module: &str, apply: &str, plan: &Preflight) -> String {
     let mut out = format!("init plan: {module}\n");
     for (title, kind) in [
         ("version raises", Kind::VersionRaise),
@@ -689,10 +690,10 @@ pub fn render_plan_text(module: &str, plan: &Preflight) -> String {
     let hard = plan.hard().count();
     if hard > 0 {
         out.push_str(&format!(
-            "next: resolve {hard} hard conflict(s), then run `dx init {module} --apply`\n"
+            "next: resolve {hard} hard conflict(s), then run `{apply}`\n"
         ));
     } else {
-        out.push_str(&format!("next: run `dx init {module} --apply`\n"));
+        out.push_str(&format!("next: run `{apply}`\n"));
     }
     out
 }
@@ -751,7 +752,8 @@ mod tests {
         let dir = scratch(&[("MODULE.bazel", "module(name = \"app\")\n")]);
         let plan = preflight(dir.path(), &snippet());
         assert!(plan.applicable && plan.findings.is_empty());
-        assert!(render_plan_text("app", &plan).contains("version raises:\n  none\n"));
+        assert!(render_plan_text("app", "dx init app --apply", &plan)
+            .contains("version raises:\n  none\n"));
     }
 
     #[test]
@@ -768,7 +770,8 @@ mod tests {
             ("rules_rust", "0.60.0", 1)
         );
         assert!(!f.hard);
-        assert!(render_plan_text("app", &plan).contains("rules_rust 0.60.0 -> 0.75.0"));
+        assert!(render_plan_text("app", "dx init app --apply", &plan)
+            .contains("rules_rust 0.60.0 -> 0.75.0"));
     }
 
     #[test]
@@ -1179,9 +1182,9 @@ mod tests {
     fn toolchain_section_renders() {
         let module = format!("{RUST_EXT}my.toolchain(versions = [\"1.80.0\"])\n");
         let dir = scratch(&[("MODULE.bazel", &module)]);
-        let text = render_plan_text("m", &preflight(dir.path(), &snippet()));
+        let text = render_plan_text("m", "dx init m --apply", &preflight(dir.path(), &snippet()));
         assert!(text.contains("toolchain conflicts:\n  rust "), "{text}");
-        let clean = render_plan_text("m", &Preflight::default());
+        let clean = render_plan_text("m", "dx init m --apply", &Preflight::default());
         assert!(clean.contains("toolchain conflicts:\n  none\n"), "{clean}");
     }
 }

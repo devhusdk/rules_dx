@@ -41,9 +41,9 @@ pub use init_dir::{
     FRESH_BAZEL_VERSION,
 };
 pub use launcher::{
-    launcher_state, plan_launcher_files, refresh_launcher_files, release_pins, render_launcher_cmd,
-    render_launcher_sh, stale_launchers, write_launcher_files, LauncherPins, LauncherState,
-    LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
+    init_apply_command, launcher_state, plan_launcher_files, refresh_launcher_files, release_pins,
+    render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files, LauncherPins,
+    LauncherState, LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
 };
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
 pub use lock_hubs::{plan_lock_hubs, LockHubs};

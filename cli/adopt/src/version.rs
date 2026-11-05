@@ -55,7 +55,9 @@ pub fn read_version_pins(root: &Path) -> Result<crate::LauncherPins, AdoptError>
 
 fn read_pin_file(root: &Path) -> Result<String, AdoptError> {
     std::fs::read_to_string(root.join(".dx/pins")).map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => AdoptError::MissingVersionPin,
+        std::io::ErrorKind::NotFound => AdoptError::MissingVersionPin {
+            command: crate::init_apply_command(root),
+        },
         _ => AdoptError::ReadVersionPin {
             detail: format!(".dx/pins: {e}"),
         },
@@ -76,7 +78,10 @@ pub fn refresh_stale_pins(
     pins: impl FnOnce() -> Result<crate::LauncherPins, AdoptError>,
 ) {
     let Some(root) = workspace else { return };
-    if matches!(read_version_pin(root), Err(AdoptError::MissingVersionPin)) {
+    if matches!(
+        read_version_pin(root),
+        Err(AdoptError::MissingVersionPin { .. })
+    ) {
         return;
     }
     let has_all_hashes = |held: &crate::LauncherPins| {

@@ -62,20 +62,21 @@ impl Fs for RealFs {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DiscoverError {
     #[error(
-        "workspace_not_found: no MODULE.bazel in {searched_len} directorie(s); pass --workspace <path>",
-        searched_len = searched.len()
+        "no MODULE.bazel in {searched_len} {directories}; run inside a workspace or pass --workspace <path> (workspace_not_found)",
+        searched_len = searched.len(),
+        directories = if searched.len() == 1 { "directory" } else { "directories" }
     )]
     NotFound { searched: Vec<PathBuf> },
     #[error(
-        "unsupported_workspace: {dir} has WORKSPACE without MODULE.bazel; migrate to Bzlmod",
+        "{dir} has a WORKSPACE file but no MODULE.bazel; add MODULE.bazel to use dx (unsupported_workspace)",
         dir = dir.display()
     )]
     UnsupportedLegacy { dir: PathBuf },
-    #[error("workspace_not_found: --workspace {path} has no MODULE.bazel", path = path.display())]
+    #[error("--workspace {path} has no MODULE.bazel (workspace_not_found)", path = path.display())]
     InvalidOverride { path: PathBuf },
-    #[error("workspace_unreadable: --workspace {path} MODULE.bazel is unreadable ({reason}); check the symlink target or permissions", path = path.display())]
+    #[error("--workspace {path}: MODULE.bazel is unreadable ({reason}); check the symlink target or permissions (workspace_unreadable)", path = path.display())]
     UnreadableOverride { path: PathBuf, reason: String },
-    #[error("workspace_unreadable: {path}/MODULE.bazel is unreadable ({reason}); check the symlink target or permissions", path = path.display())]
+    #[error("{path}/MODULE.bazel is unreadable ({reason}); check the symlink target or permissions (workspace_unreadable)", path = path.display())]
     UnreadableMarker { path: PathBuf, reason: String },
 }
 

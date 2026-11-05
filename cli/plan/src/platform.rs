@@ -68,7 +68,7 @@ pub fn refusal(os: &str, arch: &str) -> Option<String> {
     match platform_key(os, arch) {
         Some(key) if supported_execution_keys().contains(&key) => None,
         _ => Some(format!(
-            "unsupported_platform: {os}/{arch} is not a supported host; dx runs on {}",
+            "{os}/{arch} is not a supported host; dx runs on {} (unsupported_platform)",
             qualified_host_list()
         )),
     }
@@ -126,7 +126,7 @@ mod tests {
     fn unqualified_hosts_are_refused_with_pointer() {
         for (os, arch) in [("linux", "riscv64"), ("macos", "x86_64")] {
             let message = refusal(os, arch).expect("unqualified host must be refused");
-            assert!(message.starts_with("unsupported_platform"), "{message}");
+            assert!(message.ends_with("(unsupported_platform)"), "{message}");
             assert!(message.contains(&format!("{os}/{arch}")), "{message}");
         }
     }
@@ -155,7 +155,7 @@ mod tests {
         let message = refusal("linux", "riscv64").expect("riscv64 must be refused");
         assert!(
             message.ends_with(
-                "dx runs on Linux x86_64, Linux arm64, macOS arm64, Windows x86_64, and Windows arm64"
+                "dx runs on Linux x86_64, Linux arm64, macOS arm64, Windows x86_64, and Windows arm64 (unsupported_platform)"
             ),
             "{message}"
         );
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn macos_x86_64_is_refused_not_planned() {
         let message = refusal("macos", "x86_64").expect("macOS x86_64 must be refused");
-        assert!(message.starts_with("unsupported_platform"), "{message}");
+        assert!(message.ends_with("(unsupported_platform)"), "{message}");
         assert!(message.contains("macos/x86_64"), "{message}");
     }
 

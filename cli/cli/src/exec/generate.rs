@@ -46,7 +46,7 @@ fn finish_incomplete_generate(
     code
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files and the rules_dx family modules
+/// Adds the `MODULE.bazel` stanzas for the root lock files and the rules_dx modules
 /// with `--apply`; otherwise says what `--apply` would add. Problems are reported on `err`
 /// and never change the exit code.
 fn wire_module(workspace: &Path, apply: bool, err: &mut dyn Write) {
@@ -65,8 +65,8 @@ fn wire_module(workspace: &Path, apply: bool, err: &mut dyn Write) {
         workspace,
         apply,
         err,
-        "family modules",
-        "the rules_dx family modules it needs",
+        "rules_dx modules",
+        "the rules_dx modules it needs",
         deps,
     );
 }

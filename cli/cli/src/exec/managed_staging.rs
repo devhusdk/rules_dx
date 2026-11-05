@@ -13,7 +13,9 @@ fn generation_use(dir_name: &str) -> Result<GenerationUse, (String, String)> {
     } else {
         Err((
             CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!("{dir_name} is not a managed generation family"),
+            format!(
+                "{dir_name} is not a managed directory; expected {ENVIRONMENTS_DIR_NAME} or {GENERATED_DIR_NAME}"
+            ),
         ))
     }
 }

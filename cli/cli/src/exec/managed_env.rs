@@ -62,7 +62,7 @@ pub(crate) fn stage_env_generation(
             if value != entry.value.as_str() || artifact != entry.artifact.as_str() {
                 return Err((
                     CODE_INVALID_RESULT.to_owned(),
-                    format!("env identity key {:?} maps to multiple inputs", entry.key),
+                    format!("env identity key {} maps to multiple inputs", entry.key),
                 ));
             }
         }
@@ -80,7 +80,7 @@ pub(crate) fn stage_env_generation(
             return Err((
                 CODE_INVALID_RESULT.to_owned(),
                 format!(
-                    "invalid env plan: referenced artifact {:?} is missing; Bazel owns materialization",
+                    "invalid env plan: referenced artifact {} is missing; Bazel owns materialization",
                     entry.artifact
                 ),
             ));
@@ -92,7 +92,7 @@ pub(crate) fn stage_env_generation(
                     return Err((
                         CODE_INVALID_RESULT.to_owned(),
                         format!(
-                            "invalid env plan: env identity key {:?} collides within its generation",
+                            "invalid env plan: env identity key {} collides within its generation",
                             entry.key
                         ),
                     ));

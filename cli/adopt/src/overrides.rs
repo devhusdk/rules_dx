@@ -12,7 +12,7 @@ use dx_families::Family;
 
 use dx_module_bazel::ModuleFile;
 
-use super::{AdoptError, DX_VERSION};
+use super::{init_apply_command, AdoptError, DX_VERSION};
 
 /// One patch of an override: the rules_dx label it comes from and its bytes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -523,7 +523,8 @@ pub fn check_overrides_in(root: &Path, owned: Option<&[String]>) -> OverridesSta
             ));
         }
         return OverridesState::Warn(format!(
-            "MODULE.bazel does not include {OVERRIDES_INCLUDE}; run `tools/dx init --apply`"
+            "MODULE.bazel does not include {OVERRIDES_INCLUDE}; run `{}`",
+            init_apply_command(root)
         ));
     }
     if !observed.owned.is_empty() {
@@ -535,13 +536,15 @@ pub fn check_overrides_in(root: &Path, owned: Option<&[String]>) -> OverridesSta
     let stale = stale_files(root, owned);
     if !stale.is_empty() {
         return OverridesState::Error(format!(
-            "stale or missing: {}; run `tools/dx init --apply` to regenerate",
-            stale.join(", ")
+            "stale or missing: {}; run `{}` to regenerate",
+            stale.join(", "),
+            init_apply_command(root)
         ));
     }
     match &observed.pin {
         Some(pin) if pin != DX_VERSION && !observed.pin_overridden => OverridesState::Warn(format!(
-            "rules_dx is pinned at {pin} but these overrides come from dx {DX_VERSION}; run `tools/dx init --apply` with the matching dx"
+            "rules_dx is pinned at {pin} but these overrides come from dx {DX_VERSION}; run `{}` with the matching dx",
+            init_apply_command(root)
         )),
         _ => OverridesState::Ok,
     }
@@ -942,7 +945,10 @@ archive_override(
             bazel_deps: vec!["rules_rust".to_owned()],
             ..Family::default()
         };
-        let families = vec![family("rust", None), family("apple", Some("rules_dx_apple"))];
+        let families = vec![
+            family("rust", None),
+            family("apple", Some("rules_dx_apple")),
+        ];
         let files = render_in(&families, &BTreeSet::new());
         assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
     }

@@ -121,7 +121,10 @@ fn run_tool(
     let name = argv.first().map_or("", String::as_str);
     match runner.run(argv, workspace, &[]) {
         Ok(status) if status.code == Some(0) => Ok(()),
-        Ok(status) => Err(failed(format!("{name} exited with {:?}", status.code))),
+        Ok(status) => Err(failed(match status.code {
+            Some(code) => format!("{name} exited with code {code}"),
+            None => format!("{name} was terminated by a signal"),
+        })),
         Err(error) => Err(failed(format!("cannot run {name}: {error}"))),
     }
 }

@@ -168,7 +168,7 @@ pub(super) fn record_backend_error(
 
 fn unavailable_message(name: &str) -> String {
     format!(
-        "cannot check {name}: no qualified check backend; refresh with `dx update --apply {name}`"
+        "cannot check {name}: no check tool is set up for it; refresh with `dx update --apply {name}`"
     )
 }
 

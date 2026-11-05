@@ -1112,14 +1112,16 @@ fn coverage_threshold(
     let summary = if errors > 0 {
         let noun = if errors == 1 { "gap" } else { "gaps" };
         format!(
-            "coverage_below_minimum: {lines} in cell {cell} has {errors} coverage source {noun} (see {CODE_COVERAGE_SOURCES_INCOMPLETE}); minimum {minimum}%"
+            "{lines} in package {cell} has {errors} coverage source {noun} (see {CODE_COVERAGE_SOURCES_INCOMPLETE}); minimum {minimum}% (coverage_below_minimum)"
         )
     } else if eligible == 0 {
-        format!("coverage_below_minimum: no executable lines in the owned sources of cell {cell}")
+        format!(
+            "no executable lines in the owned sources of package {cell} (coverage_below_minimum)"
+        )
     } else if threshold_ok {
-        format!("{lines} meets minimum {minimum}% in cell {cell}")
+        format!("{lines} meets minimum {minimum}% in package {cell}")
     } else {
-        format!("coverage_below_minimum: {lines} below minimum {minimum}% in cell {cell}")
+        format!("{lines} below minimum {minimum}% in package {cell} (coverage_below_minimum)")
     };
     if output == OutputMode::Json {
         if !threshold_ok {
@@ -2140,7 +2142,7 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains(
-                "dx: coverage_below_minimum: coverage 50.00% (1/2 lines) below minimum 100% in cell linux_x86_64"
+                "dx: coverage 50.00% (1/2 lines) below minimum 100% in package linux_x86_64 (coverage_below_minimum)"
             ),
             "{err}"
         );
@@ -2282,7 +2284,7 @@ mod tests {
         assert!(!err.contains("meets minimum"), "{err}");
         assert!(
             err.contains(
-                "dx: coverage_below_minimum: coverage 100.00% (1/1 lines) in cell linux_x86_64 has 1 coverage source gap"
+                "dx: coverage 100.00% (1/1 lines) in package linux_x86_64 has 1 coverage source gap (see"
             ),
             "{err}"
         );

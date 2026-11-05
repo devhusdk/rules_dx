@@ -71,7 +71,7 @@ fn override_with_legacy_reports_migration() {
             dir: PathBuf::from("/other"),
         }
     );
-    assert!(err.to_string().contains("Bzlmod"));
+    assert!(err.to_string().contains("add MODULE.bazel"));
 }
 
 #[test]

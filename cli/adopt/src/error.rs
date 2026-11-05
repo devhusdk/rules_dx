@@ -8,8 +8,8 @@ pub enum AdoptError {
     ReadFile { path: String, detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
-    #[error(".dx/pins is missing; run `tools/dx init --apply`")]
-    MissingVersionPin,
+    #[error(".dx/pins is missing; run `{command}`")]
+    MissingVersionPin { command: String },
     #[error("read MODULE.bazel: {detail}")]
     ReadModuleFile { detail: String },
     #[error("MODULE.bazel or its includes: {detail}")]
@@ -141,7 +141,10 @@ mod tests {
             "read version pin: denied"
         );
         assert_eq!(
-            AdoptError::MissingVersionPin.to_string(),
+            AdoptError::MissingVersionPin {
+                command: "tools/dx init --apply".to_owned()
+            }
+            .to_string(),
             ".dx/pins is missing; run `tools/dx init --apply`"
         );
         assert_eq!(

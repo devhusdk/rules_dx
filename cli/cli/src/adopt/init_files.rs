@@ -136,10 +136,13 @@ pub(super) fn plan(
 /// Refuses when `MODULE.bazel` asks for another rules_dx than this dx binary.
 fn check_module_version(root: &Path) -> Result<(), String> {
     match dx_adopt::module_rules_dx_version(root) {
-        Some(pinned) if !dx_adopt::version_pin_matches_module(&pinned, dx_adopt::MODULE_VERSION) => {
+        Some(pinned)
+            if !dx_adopt::version_pin_matches_module(&pinned, dx_adopt::MODULE_VERSION) =>
+        {
             Err(format!(
-                "MODULE.bazel pins rules_dx {pinned}, dx is {}; run `bazel run @rules_dx//:dx -- init --apply`",
-                dx_adopt::MODULE_VERSION
+                "MODULE.bazel pins rules_dx {pinned}, dx is {}; run `{}`",
+                dx_adopt::MODULE_VERSION,
+                dx_adopt::init_apply_command(root)
             ))
         }
         _ => Ok(()),

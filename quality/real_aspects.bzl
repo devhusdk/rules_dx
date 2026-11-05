@@ -29,6 +29,7 @@ load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
+load("//quality:families/core.bzl", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load("//quality:families/ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _ANSIBLE_SHARD_SPECS = "SHARD_SPECS", _ANSIBLE_TOOLS = "TOOLS")
 load("//quality:families/cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS")
 load("//quality:families/cmake.bzl", _real_cmake_format_aspect = "real_cmake_format_aspect", _real_cmake_lint_aspect = "real_cmake_lint_aspect", _CMAKE_SHARD_SPECS = "SHARD_SPECS", _CMAKE_TOOLS = "TOOLS")
@@ -67,13 +68,6 @@ load("//tools/docs/rust:defs.bzl", "rust_doc_inputs_aspect", "rust_shard_action"
 load("//tools/docs/site:render.bzl", "DocsApiInfo", "DocsSiteInfo")
 
 _REAL_TOOL_TABLE = {
-    "biome": {
-        "attr": attr.label(default = "@dx_tools//:biome", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "core",
-    },
     "buf": {
         "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format", "lint"],
@@ -81,13 +75,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "protobuf",
-    },
-    "buildifier": {
-        "attr": attr.label(default = "@dx_tools//:buildifier", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "core",
     },
     "capnp": {
         "attr": attr.label(default = "//config:tool_capnp", allow_files = True, cfg = "exec", executable = True),
@@ -398,13 +385,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "jvm",
     },
-    "markdown_check": {
-        "attr": attr.label(default = "//quality/markdown:quality_markdown", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "core",
-    },
     "mix_format": {
         "attr": attr.label(default = "//config:tool_mix_format", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -412,13 +392,6 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "medium",
         "shard": "elixir",
-    },
-    "notebook_outputs": {
-        "attr": attr.label(default = "//quality/notebook:quality_notebook", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "core",
     },
     "hlint": {
         "attr": attr.label(default = "//config:tool_hlint", allow_files = True, cfg = "exec"),
@@ -669,13 +642,6 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "lua",
     },
-    "taplo": {
-        "attr": attr.label(default = "@dx_tools//:taplo", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format", "lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "core",
-    },
     "topiary": {
         "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -689,13 +655,6 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "medium",
         "shard": "py",
-    },
-    "vale": {
-        "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["lint"],
-        "kind": "file",
-        "resources": "light",
-        "shard": "core",
     },
     "ocaml": {
         "capabilities": ["typecheck"],
@@ -1016,23 +975,6 @@ def _dart_context(target, ctx, what, capability, config_packages = []):
 # Converters Vale shells out to, by source class: (tool name, owner rule, defs.bzl).
 # The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
 # never load Python or Node.
-_VALE_CONVERTERS = {
-    "asciidoc": ("asciidoctor", "asciidoc_library", "@rules_dx//asciidoc/rules:defs.bzl"),
-    "rst": ("rst2html", "rst_library", "@rules_dx//rst/rules:defs.bzl"),
-}
-
-def _vale_converters(target, stage_classes, what):
-    """Returns (name, FilesToRunProvider) for each converter the stage's classes need."""
-    found = []
-    for cls in sorted(_VALE_CONVERTERS.keys()):
-        if cls not in stage_classes:
-            continue
-        name, owner, defs = _VALE_CONVERTERS[cls]
-        if QualityToolsInfo not in target or name not in target[QualityToolsInfo].tools:
-            fail(what + ": vale: " + cls + " files need " + name + "; own them with " + owner + " from " + defs)
-        found.append((name, target[QualityToolsInfo].tools[name]))
-    return found
-
 def _gofumpt_lang(ctx, what):
     """Derives gofumpt -lang from the resolved rules_go SDK."""
     toolchain = ctx.toolchains[GO_TOOLCHAIN_TYPE]
@@ -1243,13 +1185,6 @@ _REAL_SHARD_SPECS = {
         "shard": "zig",
         "suffix": "-zig",
     },
-    "real_format": {
-        "capability": "format",
-        "doc": "Registers the exact-input real format pipeline action in dx_results.",
-        "shard": "core",
-        "shared_attrs": True,
-        "suffix": "",
-    },
     "real_js_format": {
         "capability": "format",
         "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).",
@@ -1294,13 +1229,6 @@ _REAL_SHARD_SPECS = {
         },
         "shard": "jvm",
         "suffix": "-jvm",
-    },
-    "real_lint": {
-        "capability": "lint",
-        "doc": "Registers the exact-input real lint pipeline action in dx_results.",
-        "shard": "core",
-        "shared_attrs": True,
-        "suffix": "",
     },
     "real_powershell_format": {
         "capability": "format",
@@ -1514,13 +1442,6 @@ _REAL_SHARD_SPECS = {
         "requires": [compile_check_aspect],
         "shard": "zig",
         "suffix": "-zig",
-    },
-    "real_typecheck": {
-        "capability": "typecheck",
-        "doc": "Registers the exact-input real typecheck pipeline action in dx_results.",
-        "shard": "core",
-        "shared_attrs": True,
-        "suffix": "",
     },
 }
 
@@ -1978,19 +1899,6 @@ def _psscriptanalyzer_hook(target, ctx, _resolved, _capability, _what, _shared):
     env = [real_request_tool_env("DX_PWSH_MODULE_ROOTS", "|".join(sorted(module_roots.keys())))]
     return real_context(resolve_pairs = pairs, env = env)
 
-def _vale_hook(target, _ctx, resolved, _capability, what, _shared):
-    converters = []
-    for stage in resolved:
-        if stage["tool"] == "vale":
-            for converter in _vale_converters(target, stage["classes"], what):
-                if converter[0] not in [c[0] for c in converters]:
-                    converters.append(converter)
-    return real_context(
-        inputs = [converter.executable for (_, converter) in converters],
-        run_tools = [converter for (_, converter) in converters],
-        options = {"path_tools": [(name, converter.executable) for (name, converter) in converters]},
-    )
-
 def _gofumpt_hook(_target, ctx, _resolved, _capability, what, _shared):
     return real_context(options = {"edition": _gofumpt_lang(ctx, what)})
 
@@ -2116,9 +2024,8 @@ _CONTEXT_HOOKS = {
     "redocly": _default_files_hook(["yaml", "yml", "json"]),
     "buf": _buf_hook,
     "psscriptanalyzer": _psscriptanalyzer_hook,
-    "vale": _vale_hook,
     "gofumpt": _gofumpt_hook,
-} | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
+} | _CORE_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | {tool: _jvm_check_hook(tool) for tool in _JVM_CHECK_TOOLS} | {
     tool: _go_analysis_hook(tool)
     for tool in _GO_ANALYSIS_TOOLS
 } | {
@@ -2130,8 +2037,8 @@ _CONTEXT_HOOKS = {
 }
 
 _CFG = real_config(
-    tools = _REAL_TOOL_TABLE | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS,
-    shard_specs = _REAL_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS,
+    tools = _REAL_TOOL_TABLE | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS,
+    shard_specs = _REAL_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = [_proto_sources, _rust_sources, _cc_sources],
@@ -2176,11 +2083,11 @@ def _make_real_aspect(shard_name):
 def _make_real_probe_aspect(capability):
     return real_make_probe_aspect(_CFG, capability)
 
-real_lint_aspect = _make_real_aspect("real_lint")
+real_lint_aspect = _real_lint_aspect
 
-real_format_aspect = _make_real_aspect("real_format")
+real_format_aspect = _real_format_aspect
 
-real_typecheck_aspect = _make_real_aspect("real_typecheck")
+real_typecheck_aspect = _real_typecheck_aspect
 
 real_zig_typecheck_aspect = _make_real_aspect("real_zig_typecheck")
 

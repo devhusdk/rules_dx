@@ -473,11 +473,12 @@ fn real_core_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 21] = [
+const FAMILY_FILES: [&str; 22] = [
     "ansible",
     "bicep",
     "cloudformation",
     "cmake",
+    "core",
     "cue",
     "dockerfile",
     "html_template",
@@ -525,6 +526,16 @@ fn family_files_define_aspects_listed_in_families_json() {
             assert!(listed.contains(name), "{name} is not in families.json");
         }
     }
+}
+
+#[test]
+fn core_family_file_loads_no_family_rule_set() {
+    let source = dx_testing::read_runfiles("quality/families/core.bzl");
+    let foreign = source
+        .lines()
+        .filter(|line| line.starts_with("load(\"@") && !line.starts_with("load(\"@bazel_skylib"))
+        .collect::<Vec<_>>();
+    assert!(foreign.is_empty(), "core.bzl loads {foreign:?}");
 }
 
 /// The source-check targets every moved family declares in its own `BUILD.bazel`.

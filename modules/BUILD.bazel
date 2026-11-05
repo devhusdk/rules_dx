@@ -62,6 +62,7 @@ rust_test(
         "//quality:families/bicep.bzl",
         "//quality:families/cloudformation.bzl",
         "//quality:families/cmake.bzl",
+        "//quality:families/core.bzl",
         "//quality:families/cue.bzl",
         "//quality:families/dockerfile.bzl",
         "//quality:families/html_template.bzl",

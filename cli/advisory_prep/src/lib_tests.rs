@@ -141,6 +141,7 @@ fn options(workspace: &TempDir) -> PrepareOptions {
         limits: DEFAULT_LIMITS,
         archives: BTreeMap::new(),
         cpan_audit_output: None,
+        trivy: None,
     }
 }
 

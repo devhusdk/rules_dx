@@ -12,6 +12,8 @@ exports_files([
     "src/lib_tests.rs",
     "src/main.rs",
     "src/main_tests.rs",
+    "src/trivy.rs",
+    "src/trivy_tests.rs",
 ])
 
 rust_binary(
@@ -39,6 +41,8 @@ rust_test(
         "src/archive.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
+        "src/trivy.rs",
+        "src/trivy_tests.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",
@@ -120,6 +124,7 @@ rust_library(
     srcs = [
         "src/archive.rs",
         "src/lib.rs",
+        "src/trivy.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",

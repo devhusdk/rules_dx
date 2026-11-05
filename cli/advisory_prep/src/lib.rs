@@ -10,6 +10,8 @@
 
 #[path = "archive.rs"]
 pub mod archive;
+#[path = "trivy.rs"]
+pub mod trivy;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -34,6 +36,8 @@ pub struct PrepareOptions {
     pub archives: BTreeMap<String, PathBuf>,
     /// File holding the CPAN::Audit output instead of running perl.
     pub cpan_audit_output: Option<PathBuf>,
+    /// The pinned trivy binary; set, it downloads the trivy databases under `out`.
+    pub trivy: Option<PathBuf>,
 }
 
 impl Default for PrepareOptions {
@@ -45,6 +49,7 @@ impl Default for PrepareOptions {
             limits: DEFAULT_LIMITS,
             archives: BTreeMap::new(),
             cpan_audit_output: None,
+            trivy: None,
         }
     }
 }
@@ -133,6 +138,9 @@ pub fn prepare(options: &PrepareOptions) -> Result<Vec<Prepared>, PrepError> {
     let mut out = Vec::new();
     for (family, url) in plan(options)? {
         out.push(prepare_family(options, family, &url)?);
+    }
+    if let Some(binary) = &options.trivy {
+        trivy::prepare_trivy(binary, &options.out, &options.retrieved_at)?;
     }
     Ok(out)
 }

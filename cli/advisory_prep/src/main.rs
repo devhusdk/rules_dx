@@ -33,7 +33,7 @@ set locks (default the workspace root); --out DIR writes the snapshots (default 
 under it); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \
-archive instead of fetching it; --cpan-audit-output FILE reads the CPAN::Audit output instead of running perl (the cpan family has no OSV archive: perl with the pinned CPAN::Audit prints its database); --status-file FILE appends status, ecosystems and families \
+archive instead of fetching it; --cpan-audit-output FILE reads the CPAN::Audit output instead of running perl (the cpan family has no OSV archive: perl with the pinned CPAN::Audit prints its database); --trivy BINARY runs the pinned trivy to download its vulnerability and checks databases into --out/trivy and writes trivy.meta.json (a second run on the same day downloads nothing); --status-file FILE appends status, ecosystems and families \
 as key=value lines (status is empty when no dependency set needs an ecosystem).\n\nExit codes: 0 success, 2 usage error, 1 preparation \
 failure."
 )]
@@ -65,6 +65,9 @@ struct Cli {
     /// File holding the CPAN::Audit output (version line, then the database JSON) instead of running perl.
     #[arg(long)]
     cpan_audit_output: Option<PathBuf>,
+    /// The pinned trivy binary; downloads its vulnerability and checks databases under --out.
+    #[arg(long, value_name = "BINARY")]
+    trivy: Option<PathBuf>,
     /// File the status, ecosystem count and families are appended to.
     #[arg(long)]
     status_file: Option<PathBuf>,
@@ -177,6 +180,7 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
         limits,
         archives,
         cpan_audit_output: cli.cpan_audit_output.map(|path| anchor(root, path)),
+        trivy: cli.trivy.map(|path| anchor(root, path)),
     })
 }
 

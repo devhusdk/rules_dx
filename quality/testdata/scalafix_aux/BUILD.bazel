@@ -54,6 +54,15 @@ scala_library(
 )
 
 scala_library(
+    name = "unused3_lib",
+    srcs = ["Unused3.scala"],
+    aspect_hints = [":unused"],
+    scala_version = "3.3.9",
+    tags = ["manual"],
+    treat_warnings_as_errors = False,
+)
+
+scala_library(
     name = "core",
     srcs = ["Core.scala"],
     aspect_hints = [":types"],
@@ -87,11 +96,17 @@ scalafix_results(
     target = ":unused_lib",
 )
 
+scalafix_results(
+    name = "unused3_lib_results",
+    target = ":unused3_lib",
+)
+
 sh_test(
     name = "scalafix_aux_test",
     srcs = ["check.sh"],
     data = [
         ":core_test_results",
+        ":unused3_lib_results",
         ":unused_lib_results",
         ":uses_api_results",
     ],

@@ -1,0 +1,27 @@
+load("@rules_py//py:defs.bzl", "py_unittest_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["deps_resolve.py"])
+
+py_unittest_test(
+    name = "deps_resolve_test",
+    srcs = [
+        "deps_resolve.py",
+        "deps_resolve_test.py",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

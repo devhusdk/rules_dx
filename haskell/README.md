@@ -104,6 +104,20 @@ Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell
 
 On other platforms Haskell targets fail toolchain resolution.
 
+## Resolving Hackage dependencies
+
+The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale.
+
+```starlark
+load("@rules_dx//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+
+haskell_deps_resolve(name = "resolve", srcs = ["cabal.project", "app.cabal"])
+
+haskell_deps_resolve_test(name = "resolve_test", srcs = ["cabal.project", "app.cabal"])
+```
+
+The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC names none.
+
 ## Example
 
 See [haskell-app](tests/fixtures/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

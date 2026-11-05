@@ -97,6 +97,7 @@ def coverage_sources_analysis_tests(name):
         (_manifest_test, "header", "header_lib", "", _rows("prod", "source", ["header.cc", "header.h"])),
         (_manifest_test, "testonly", "helper_lib", "", _rows("test", "source", ["helper.cc"])),
         (_test_target_test, "perl_test", "perl_probe_test", "", _rows("test", "source", ["perl_probe.t"])),
+        (_test_target_test, "d_test", "d_probe_test", "", _rows("test", "source", ["d_probe.d"])),
         (_test_target_test, "haskell_test", "haskell_probe_test", "", _rows("test", "source", ["haskell_probe.hs"])),
 
         (_test_target_test, "pwsh_test", "pwsh_probe_test", "", _rows("test", "source", ["pwsh_probe.ps1"])),

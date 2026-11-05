@@ -1242,12 +1242,14 @@ pub fn phpstan_check(binary: &Path, neon: &Path, paths: &[&Path]) -> Invocation 
 
 /// The generated PHPStan config: the consumer's, when there is one, is included first so the
 /// values below (the cache directory, the scan directories, one process) always win.
-/// Without a consumer config the analysis runs at `level`.
+/// Without a consumer config the analysis runs at `level`, with the unused-public extension from
+/// `extension` when it is staged.
 pub fn phpstan_neon(
     consumer: Option<&Path>,
     level: u8,
     tmp_dir: &Path,
     scan_dirs: &[&Path],
+    extension: Option<&Path>,
 ) -> String {
     let quote = |path: &Path| {
         let text = path
@@ -1256,13 +1258,27 @@ pub fn phpstan_neon(
             .replace('"', "\\\"");
         format!("\"{text}\"")
     };
+    let extension = extension.filter(|_| consumer.is_none());
     let mut out = String::new();
     if let Some(consumer) = consumer {
         out.push_str("includes:\n    - ");
         out.push_str(&quote(consumer));
         out.push('\n');
+    } else if let Some(dir) = extension {
+        out.push_str("includes:\n    - ");
+        out.push_str(&quote(
+            &dir.join("unused-public")
+                .join("config")
+                .join("extension.neon"),
+        ));
+        out.push('\n');
     }
     out.push_str("parameters:\n");
+    if let Some(dir) = extension {
+        out.push_str("    bootstrapFiles:\n        - ");
+        out.push_str(&quote(&dir.join("autoload.php")));
+        out.push_str("\n    unused_public:\n        methods: true\n        constants: true\n        properties: true\n");
+    }
     if consumer.is_none() {
         out.push_str(&format!("    level: {level}\n"));
     }

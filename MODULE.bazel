@@ -959,7 +959,7 @@ lua_tools = use_extension("//lua/toolchain:repos.bzl", "lua")
 use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_luals")
 
 php = use_extension("//php/toolchain:repos.bzl", "php")
-use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpcs", "dx_phpstan", "dx_phpunit")
+use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpcs", "dx_phpstan", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
 
 register_toolchains("@dx_php_toolchains//:all")
 

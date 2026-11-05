@@ -32,12 +32,17 @@ SHARD_SPECS = {
     "real_php_typecheck": {
         "capability": "typecheck",
         "doc": "Additive PHP typecheck family aspect (phpstan).",
+        "extra_attrs": {
+            "_phpstan_unused_public": attr.label(default = "@dx_unused_public//:files", cfg = "exec", doc = "The pinned unused-public extension."),
+            "_phpstan_assert": attr.label(default = "@dx_webmozart_assert//:files", cfg = "exec", doc = "The pinned webmozart/assert the extension needs."),
+            "_phpstan_autoload": attr.label(default = "//php/tools:phpstan_autoload.php", allow_single_file = True, cfg = "exec", doc = "Autoloads the extension classes inside the phar run."),
+        },
         "shard": "php",
         "suffix": "-php",
     },
 }
 
-def _phpstan_hook(target, _ctx, resolved, _capability, _what, shared):
+def _phpstan_hook(target, ctx, resolved, _capability, _what, shared):
     if PhpInfo not in target:
         return without(resolved, "phpstan")
 
@@ -56,6 +61,11 @@ def _phpstan_hook(target, _ctx, resolved, _capability, _what, shared):
         if pkg_file.path.endswith(".php") and pkg_file.path not in owned_paths and pkg_file.path not in seen_scan:
             seen_scan[pkg_file.path] = True
             stage(tool_files, inputs, "dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file)
+    for f in ctx.files._phpstan_unused_public:
+        stage(tool_files, inputs, "dx-phpstan/ext/unused-public/" + f.short_path.split("/", 2)[2], f)
+    for f in ctx.files._phpstan_assert:
+        stage(tool_files, inputs, "dx-phpstan/ext/assert/" + f.short_path.split("/", 2)[2], f)
+    stage(tool_files, inputs, "dx-phpstan/ext/autoload.php", ctx.file._phpstan_autoload)
     return real_context(tool_files = tool_files, inputs = inputs)
 
 HOOK_ORDER = ["phpstan"]

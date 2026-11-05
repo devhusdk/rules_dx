@@ -91,6 +91,13 @@ pub fn parse_phpstan(
     Ok(findings)
 }
 
+/// The identifiers of the unused-public extension's rules.
+const UNUSED_PUBLIC: [&str; 3] = [
+    "phpstan/public.method.unused",
+    "phpstan/public.property.unused",
+    "phpstan/public.classConstant.unused",
+];
+
 fn one(path: &str, message: &serde_json::Value) -> Result<FileFinding, ParseError> {
     let text = message
         .get("message")
@@ -116,12 +123,17 @@ fn one(path: &str, message: &serde_json::Value) -> Result<FileFinding, ParseErro
         full.push(' ');
         full.push_str(tip);
     }
+    let severity = if UNUSED_PUBLIC.contains(&rule.as_str()) {
+        ToolSeverity::Info
+    } else {
+        ToolSeverity::Error
+    };
     Ok(finding(
         TOOL,
         path,
         rule,
         full,
-        ToolSeverity::Error,
+        severity,
         TextPosition { line, column: 1 },
         ColumnEncoding::Scalars,
     ))
@@ -173,6 +185,14 @@ mod tests {
             found[0].finding.message,
             "Call to an undefined method A::g(). Did you mean f?"
         );
+    }
+
+    #[test]
+    fn phpstan_unused_public_findings_are_info() {
+        let out = br#"{"totals":{"errors":0,"file_errors":2},"files":{"/s/a.php":{"errors":2,"messages":[{"message":"Public method A::f() is never used","line":3,"identifier":"public.method.unused"},{"message":"bad","line":4,"identifier":"x.y"}]}},"errors":[]}"#;
+        let found = parse_phpstan(out, Some(1), &["/s/a.php"]).expect("parsed");
+        assert_eq!(found[0].finding.severity, ToolSeverity::Info);
+        assert_eq!(found[1].finding.severity, ToolSeverity::Error);
     }
 
     #[test]

@@ -1036,6 +1036,11 @@ impl RealBackend {
                     })?),
                     None => None,
                 };
+                let extension = tool
+                    .tool_files
+                    .iter()
+                    .any(|(rel, _)| rel.starts_with("dx-phpstan/ext/"))
+                    .then(|| root.join("dx-phpstan/ext"));
                 let neon = work.join("dx.neon");
                 std::fs::write(
                     &neon,
@@ -1044,6 +1049,7 @@ impl RealBackend {
                         PHPSTAN_LEVEL,
                         &tmp_dir,
                         &scan_refs,
+                        extension.as_deref(),
                     ),
                 )
                 .map_err(|err| execution(tool_id, format!("write phpstan config: {err}")))?;

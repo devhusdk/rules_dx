@@ -1,7 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION")
+load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 
 HUB_NAME = "dx_php_toolchains"
 
@@ -80,6 +80,14 @@ def hub_build(cells):
         ))
     return "\n".join(content)
 
+_SOURCES_BUILD = """package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "files",
+    srcs = glob(["src/**", "config/**"]),
+)
+"""
+
 def phar_build(file):
     """Returns the BUILD file that exports one downloaded phar."""
     return 'package(default_visibility = ["//visibility:public"])\n\nexports_files([{}])\n'.format(repr(file))
@@ -130,6 +138,18 @@ def _php_impl(mctx):
         ("dx_phpstan", "phpstan.phar", PHPSTAN),
     ]:
         pinned_archive(name = name, download_as = file, files = {"BUILD.bazel": phar_build(file)}, sha256 = pin.sha256, urls = pin.urls)
+    for name, pin in [
+        ("dx_unused_public", UNUSED_PUBLIC),
+        ("dx_webmozart_assert", WEBMOZART_ASSERT),
+    ]:
+        pinned_archive(
+            name = name,
+            files = {"BUILD.bazel": _SOURCES_BUILD},
+            required = ["src"],
+            sha256 = pin.sha256,
+            strip_prefix = pin.strip_prefix,
+            urls = pin.urls,
+        )
     return mctx.extension_metadata(reproducible = True)
 
 php = module_extension(

@@ -3162,19 +3162,51 @@ fn phpstan_neon_includes_the_consumer_config_and_pins_our_values() {
         5,
         Path::new("/s/.tmp"),
         &[Path::new("/s/scan"), Path::new("/s/pkg")],
+        Some(Path::new("/s/ext")),
     );
     assert_eq!(
         neon,
         "includes:\n    - \"/s/phpstan.neon\"\nparameters:\n    tmpDir: \"/s/.tmp\"\n    scanDirectories:\n        - \"/s/scan\"\n        - \"/s/pkg\"\n    parallel:\n        maximumNumberOfProcesses: 1\n"
     );
-    let bare = phpstan_neon(None, 5, Path::new("/s/.tmp"), &[]);
+    let bare = phpstan_neon(None, 5, Path::new("/s/.tmp"), &[], None);
     assert!(
         bare.contains("level: 5")
             && !bare.contains("includes")
             && !bare.contains("scanDirectories")
     );
-    let odd = phpstan_neon(None, 5, Path::new("/s/a\"b"), &[]);
+    let odd = phpstan_neon(None, 5, Path::new("/s/a\"b"), &[], None);
     assert!(odd.contains("\"/s/a\\\"b\""), "{odd}");
+}
+
+#[test]
+fn phpstan_neon_adds_unused_public_only_without_a_consumer_config() {
+    let neon = phpstan_neon(
+        None,
+        5,
+        Path::new("/s/.tmp"),
+        &[],
+        Some(Path::new("/s/ext")),
+    );
+    assert!(
+        neon.starts_with("includes:\n    - \"/s/ext/unused-public/config/extension.neon\"\n"),
+        "{neon}"
+    );
+    assert!(
+        neon.contains("bootstrapFiles:\n        - \"/s/ext/autoload.php\""),
+        "{neon}"
+    );
+    assert!(
+        neon.contains("unused_public:\n        methods: true"),
+        "{neon}"
+    );
+    let consumer = phpstan_neon(
+        Some(Path::new("/s/phpstan.neon")),
+        5,
+        Path::new("/s/.tmp"),
+        &[],
+        Some(Path::new("/s/ext")),
+    );
+    assert!(!consumer.contains("unused"), "{consumer}");
 }
 
 #[test]

@@ -6,7 +6,7 @@ load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/rules:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load(":php.bzl", "TOOLCHAIN_TYPE")
-load(":pins.bzl", "COMPOSER", "PCOV", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "STATIC_PHP")
+load(":pins.bzl", "COMPOSER", "PCOV", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "STATIC_PHP", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
 def _checks():
@@ -54,6 +54,11 @@ def _checks():
         expect_equal("phpstan version", PHPSTAN.version, "2.3.3"),
         expect_equal("phpstan digest", len(PHPSTAN.sha256), 64),
         expect_true("phpstan urls name the version", all([PHPSTAN.version in url for url in PHPSTAN.urls])),
+        expect_equal("unused-public version", UNUSED_PUBLIC.version, "2.2.1"),
+        expect_equal("unused-public digest", len(UNUSED_PUBLIC.sha256), 64),
+        expect_true("unused-public urls name the version", all([UNUSED_PUBLIC.version in url for url in UNUSED_PUBLIC.urls])),
+        expect_equal("webmozart assert digest", len(WEBMOZART_ASSERT.sha256), 64),
+        expect_true("webmozart assert urls name the version", all([WEBMOZART_ASSERT.version in url for url in WEBMOZART_ASSERT.urls])),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),
         expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "8.5.12",'),
         expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2 * len(PHP_CELLS)),

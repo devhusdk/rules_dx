@@ -70,6 +70,20 @@ PHPCS = struct(
     urls = ["https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/4.0.4/phpcs.phar"],
 )
 
+UNUSED_PUBLIC = struct(
+    version = "2.2.1",
+    sha256 = "12b24273cc1745c2ab8ba1f49dbb7f5984296bb41fd1fac0de8cb30cfde72543",
+    strip_prefix = "unused-public-2.2.1",
+    urls = ["https://github.com/TomasVotruba/unused-public/archive/refs/tags/2.2.1.tar.gz"],
+)
+
+WEBMOZART_ASSERT = struct(
+    version = "2.5.0",
+    sha256 = "4dc1ffd9e4060770b1a8dd582427ce2394bd5164557cf07ce55928e00eeab184",
+    strip_prefix = "assert-2.5.0",
+    urls = ["https://github.com/webmozart/assert/archive/refs/tags/2.5.0.tar.gz"],
+)
+
 PHPSTAN = struct(
     version = "2.3.3",
     sha256 = "aa5cc7543f0de0ae7997deb24f654a3b2454b6ba4ba2c4552957a175886b60b1",

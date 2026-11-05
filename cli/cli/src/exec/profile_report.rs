@@ -116,6 +116,7 @@ pub(crate) struct Report {
     pub(crate) fetches: u64,
     pub(crate) cache: Option<CacheUse>,
     pub(crate) bytes_downloaded: Option<u64>,
+    pub(crate) totals: Option<dx_bep::BuildTotals>,
 }
 
 /// Builds the report from the trace profile text.
@@ -134,6 +135,7 @@ pub(crate) fn build(
         fetches: 0,
         cache,
         bytes_downloaded,
+        totals: None,
     };
     for event in trace.events {
         let (Some(cat), Some(micros)) = (event.cat.as_deref(), event.dur) else {
@@ -224,6 +226,22 @@ impl Report {
             Some(bytes) => lines.push(format!("dx: downloaded {}", megabytes(bytes))),
             None => lines.push("dx: downloaded unknown (Bazel reported no network usage)".to_owned()),
         }
+        if let Some(totals) = &self.totals {
+            if let Some(heap) = totals.peak_heap_bytes {
+                lines.push(format!("dx: peak heap {}", megabytes(heap)));
+            }
+            if !totals.mnemonics.is_empty() {
+                lines.push("dx: executed actions by mnemonic (cpu time)".to_owned());
+            }
+            for row in totals.mnemonics.iter().take(CRITICAL_SHOWN) {
+                lines.push(format!(
+                    "dx:   {:>8}  {} x{}",
+                    seconds(row.cpu_ms.saturating_mul(1000)),
+                    row.mnemonic,
+                    row.executed
+                ));
+            }
+        }
         lines.push("dx: slowest actions".to_owned());
         for item in &self.slowest {
             lines.push(format!("dx:   {:>8}  {}", seconds(item.micros), item.label()));
@@ -253,7 +271,19 @@ impl Report {
                 "hit_percent": cache.hit_percent(),
             })
         });
+        let totals = self.totals.as_ref().map(|totals| {
+            json!({
+                "wall_ms": totals.wall_ms,
+                "peak_heap_bytes": totals.peak_heap_bytes,
+                "mnemonics": totals.mnemonics.iter().map(|row| json!({
+                    "mnemonic": row.mnemonic,
+                    "executed": row.executed,
+                    "cpu_ms": row.cpu_ms,
+                })).collect::<Vec<_>>(),
+            })
+        });
         json!({
+            "build_metrics": totals,
             "wall_micros": self.wall_micros,
             "critical_path_micros": self.critical_micros,
             "critical_path": timed(&self.critical),
@@ -371,6 +401,26 @@ mod tests {
         let report = build(&trace, None, None).expect("report");
         assert_eq!(report.slowest.len(), SLOWEST_SHOWN);
         assert_eq!(report.slowest[0].name, "a19");
+    }
+
+    #[test]
+    fn report_shows_bep_totals_when_present() {
+        let mut report = build(TRACE, None, None).expect("report");
+        assert!(!report.text().contains("peak heap"));
+        assert_eq!(report.json()["build_metrics"], Value::Null);
+        report.totals = Some(dx_bep::BuildTotals {
+            wall_ms: Some(4200),
+            peak_heap_bytes: Some(3_000_000),
+            mnemonics: vec![dx_bep::MnemonicTime {
+                mnemonic: "CppCompile".to_owned(),
+                executed: 7,
+                cpu_ms: 1500,
+            }],
+        });
+        let text = report.text();
+        assert!(text.contains("peak heap 3.0 MB"), "{text}");
+        assert!(text.contains("1.5s  CppCompile x7"), "{text}");
+        assert_eq!(report.json()["build_metrics"]["mnemonics"][0]["cpu_ms"], 1500);
     }
 
     #[test]

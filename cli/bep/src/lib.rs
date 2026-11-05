@@ -18,7 +18,10 @@ pub use failures::{
     collect_build_failures, BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef,
 };
 pub use ledger::{EventGap, EventLedger};
-pub use metrics::{collect_action_summary, collect_bytes_received, ActionSummary};
+pub use metrics::{
+    collect_action_summary, collect_build_totals, collect_bytes_received, ActionSummary,
+    BuildTotals, MnemonicTime,
+};
 pub use outputs::{collect_account, OutputAccount};
 pub use test_outputs::{
     collect_test_events, TestEvents, TestResultFile, TestResultRecord, TestSummaryRecord,

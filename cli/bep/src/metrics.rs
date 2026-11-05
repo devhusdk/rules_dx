@@ -55,6 +55,71 @@ pub fn collect_bytes_received(reader: impl BufRead) -> Option<u64> {
     found
 }
 
+/// Executed actions and CPU time for one mnemonic, from `actionSummary.actionData`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MnemonicTime {
+    pub mnemonic: String,
+    pub executed: u64,
+    pub cpu_ms: u64,
+}
+
+/// Timing and memory figures from the last `buildMetrics` event.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BuildTotals {
+    pub wall_ms: Option<u64>,
+    pub peak_heap_bytes: Option<u64>,
+    /// Sorted by CPU time, longest first.
+    pub mnemonics: Vec<MnemonicTime>,
+}
+
+/// Returns wall time, peak heap and per-mnemonic action time from the last `buildMetrics`
+/// event, or `None` when the stream has none.
+pub fn collect_build_totals(reader: impl BufRead) -> Option<BuildTotals> {
+    let mut found = None;
+    for line in reader.lines() {
+        let Ok(line) = line else { break };
+        if !line.contains("\"buildMetrics\"") {
+            continue;
+        }
+        let Ok(event) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
+        let Some(metrics) = event.get("buildMetrics") else {
+            continue;
+        };
+        found = Some(parse_totals(metrics));
+    }
+    found
+}
+
+fn parse_totals(metrics: &Value) -> BuildTotals {
+    let present = |pointer: &str| metrics.pointer(pointer).map(|value| count_of(Some(value)));
+    let mut mnemonics: Vec<MnemonicTime> = metrics
+        .pointer("/actionSummary/actionData")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .map(|row| MnemonicTime {
+                    mnemonic: row
+                        .get("mnemonic")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                    executed: count_of(row.get("actionsExecuted")),
+                    cpu_ms: count_of(row.get("userTime"))
+                        .saturating_add(count_of(row.get("systemTime"))),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    mnemonics.sort_by(|a, b| b.cpu_ms.cmp(&a.cpu_ms).then_with(|| a.mnemonic.cmp(&b.mnemonic)));
+    BuildTotals {
+        wall_ms: present("/timingMetrics/wallTimeInMs"),
+        peak_heap_bytes: present("/memoryMetrics/peakPostGcHeapSize"),
+        mnemonics,
+    }
+}
+
 fn parse_summary(summary: &Value) -> ActionSummary {
     let mut disk = 0u64;
     let mut remote = 0u64;
@@ -116,6 +181,19 @@ mod tests {
         let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"networkMetrics":{"systemNetworkStats":{"bytesRecv":"2048"}}}}"#;
         assert_eq!(collect_bytes_received(line.as_bytes()), Some(2048));
         assert_eq!(collect_bytes_received(FULL.as_bytes()), None);
+    }
+
+    #[test]
+    fn metrics_reads_totals_and_orders_mnemonics_by_cpu_time() {
+        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"timingMetrics":{"wallTimeInMs":"4200"},"memoryMetrics":{"peakPostGcHeapSize":"1048576"},"actionSummary":{"actionData":[{"mnemonic":"Genrule","actionsExecuted":"1","userTime":"10","systemTime":"5"},{"mnemonic":"CppCompile","actionsExecuted":"7","userTime":"900","systemTime":"100"}]}}}"#;
+        let totals = collect_build_totals(line.as_bytes()).expect("totals");
+        assert_eq!(totals.wall_ms, Some(4200));
+        assert_eq!(totals.peak_heap_bytes, Some(1_048_576));
+        assert_eq!(totals.mnemonics[0].mnemonic, "CppCompile");
+        assert_eq!(totals.mnemonics[0].executed, 7);
+        assert_eq!(totals.mnemonics[0].cpu_ms, 1000);
+        assert_eq!(totals.mnemonics[1].cpu_ms, 15);
+        assert_eq!(collect_build_totals(r#"{"id":{"started":{}}}"#.as_bytes()), None);
     }
 
     #[test]

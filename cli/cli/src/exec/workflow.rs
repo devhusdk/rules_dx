@@ -396,11 +396,15 @@ pub(super) fn announce_profile(
     let bytes = bep
         .and_then(|bep| std::fs::File::open(bep).ok())
         .and_then(|file| dx_bep::collect_bytes_received(std::io::BufReader::new(file)));
+    let totals = bep
+        .and_then(|bep| std::fs::File::open(bep).ok())
+        .and_then(|file| dx_bep::collect_build_totals(std::io::BufReader::new(file)));
     let report = profile_report::read_trace(std::path::Path::new(trace))
         .map_err(|error| error.to_string())
         .and_then(|text| {
             profile_report::build(&text, cache, bytes).map_err(|error| error.to_string())
-        });
+        })
+        .map(|report| profile_report::Report { totals, ..report });
     let report = match report {
         Ok(report) => report,
         Err(error) => {

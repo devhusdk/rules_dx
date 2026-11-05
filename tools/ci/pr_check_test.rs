@@ -57,6 +57,20 @@ fn script_covers_the_ci_preflight_labels() {
 }
 
 #[test]
+fn starter_set_runs_the_golden_presence_test() {
+    let script = read_runfiles(SCRIPT);
+    let starter = script
+        .split("starter() {")
+        .nth(1)
+        .and_then(|rest| rest.split("\n}\n").next())
+        .expect("starter set");
+    assert!(
+        starter.contains("bazel test \"$@\" //tools/testing/starters:starter_goldens_test"),
+        "starter set does not run starter_goldens_test: {starter}"
+    );
+}
+
+#[test]
 fn workflow_runs_every_set_in_its_own_step() {
     let names: Vec<String> = steps(WORKFLOW, "analysis")
         .iter()

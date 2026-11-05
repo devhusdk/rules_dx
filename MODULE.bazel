@@ -957,6 +957,15 @@ use_repo(
     d_app_deps = "d_app_dub",
 )
 
+# floor: equals tested; patched, consumers are pinned by the dx include (#7035)
+bazel_dep(name = "hermetic_launcher", version = "0.0.17")
+single_version_override(
+    module_name = "hermetic_launcher",
+    patch_strip = 1,
+    patches = ["//patches/hermetic_launcher:windows_arm64_toolchains.patch"],
+    version = "0.0.17",
+)
+
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 archive_override(

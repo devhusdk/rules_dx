@@ -1,0 +1,50 @@
+diff -ru a/launcher/private/prebuilt/BUILD.bazel b/launcher/private/prebuilt/BUILD.bazel
+--- a/launcher/private/prebuilt/BUILD.bazel
++++ b/launcher/private/prebuilt/BUILD.bazel
+@@ -11,6 +11,7 @@
+     finalizers = {
+         "aarch64_linux": "@finalize_stub_aarch64_linux//file",
+         "aarch64_macos": "@finalize_stub_aarch64_macos//file",
++        "aarch64_windows": "@finalize_stub_aarch64_windows//file",
+         "s390x_linux": "@finalize_stub_s390x_linux//file",
+         "x86_64_linux": "@finalize_stub_x86_64_linux//file",
+         "x86_64_macos": "@finalize_stub_x86_64_macos//file",
+@@ -19,6 +20,7 @@
+     templates = {
+         "aarch64_linux": "@runfiles_stub_aarch64_linux//file",
+         "aarch64_macos": "@runfiles_stub_aarch64_macos//file",
++        "aarch64_windows": "@runfiles_stub_aarch64_windows//file",
+         "s390x_linux": "@runfiles_stub_s390x_linux//file",
+         "x86_64_linux": "@runfiles_stub_x86_64_linux//file",
+         "x86_64_macos": "@runfiles_stub_x86_64_macos//file",
+diff -ru a/launcher/private/toolchains.bzl b/launcher/private/toolchains.bzl
+--- a/launcher/private/toolchains.bzl
++++ b/launcher/private/toolchains.bzl
+@@ -22,14 +22,14 @@
+     attrs = {"src": attr.label(mandatory = True)},
+ )
+ 
+-# The platforms toolchains are registered for. Windows/aarch64 ships for
+-# standalone use but has no auto-registered Bazel toolchain (see README
+-# "Supported platforms").
++# The platforms toolchains are registered for. A platform missing from the
++# templates or finalizers dict of a stub source is skipped for that source.
+ #
+ # (name, cpu, os)
+ PLATFORMS = [
+     ("aarch64_linux", "aarch64", "linux"),
+     ("aarch64_macos", "aarch64", "macos"),
++    ("aarch64_windows", "aarch64", "windows"),
+     ("s390x_linux", "s390x", "linux"),
+     ("x86_64_linux", "x86_64", "linux"),
+     ("x86_64_macos", "x86_64", "macos"),
+@@ -56,6 +56,9 @@
+     target_settings = ["//launcher/private:stub_source_" + name]
+ 
+     for (platform, cpu, os) in PLATFORMS:
++        if platform not in templates or platform not in finalizers:
++            continue
++
+         constraints = [
+             "@platforms//cpu:" + cpu,
+             "@platforms//os:" + os,

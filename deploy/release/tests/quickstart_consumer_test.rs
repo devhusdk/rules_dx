@@ -77,7 +77,10 @@ fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source();
     let files = quickstart_files(&read_text(&source.join("README.md")));
     let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, ["MODULE.bazel", ".bazelversion", "BUILD.bazel"]);
+    assert_eq!(
+        names,
+        [".bazelversion", "MODULE.bazel", "BUILD.bazel", ".bazelrc"]
+    );
 
     let case = nested::case("quickstart_readme");
     for (name, text) in &files {

@@ -1,6 +1,7 @@
 """Typed native-configuration targets for adapters."""
 
 load("//dart/rules:providers.bzl", "DartInfo")
+load(":tools.bzl", "TOOLS")
 
 DxNativeConfigInfo = provider(
     doc = "One tool-owned native config file plus its checked-in closure.",
@@ -48,65 +49,7 @@ CONFIG_REQUIRED_TOOLS = {
 
 CONFIG_TOOL_ALIASES = {"helm": "kubeconform"}
 
-_NATIVE_CONFIG_SUFFIXES = {
-    "ansible_lint": [".ansible-lint", ".yml", ".yaml"],
-    "bicep": ["bicepconfig.json"],
-    "biome": [".json"],
-    "buf": [".yaml"],
-    "buildifier": [".json"],
-    "cfn_lint": [".cfnlintrc", ".yaml", ".yml"],
-    "checkstyle": [".xml"],
-    "clang_format": [".clang-format"],
-    "clang_tidy": [".clang-tidy"],
-    "cmakelint": [".cmakelintrc"],
-    "cppcheck": [".txt"],
-    "csharpier": [".yaml"],
-    "djlint": ["djlint.toml", ".djlintrc"],
-    "elvis": ["elvis.config", ".config"],
-    "eslint": [".js", ".mjs", ".cjs"],
-    "credo": [".exs"],
-    "dart": [".yaml"],
-    "detekt": [".yml", ".yaml"],
-    "ffmt": [".toml"],
-    "fsharplint": [".json"],
-    "gersemi": [".gersemirc", ".yaml", ".yml"],
-    "gplint": [".gplintrc", ".json"],
-    "mbake": [".bake.toml", ".toml"],
-    "graphql_eslint": [".json"],
-    "hadolint": [".yaml", ".yml"],
-    "kubeconform": [".kubeconform.json"],
-    "latexindent": [".yaml", ".yml"],
-    "luals": [".json"],
-    "checkmake": [".ini"],
-    "phpcs": [".xml", ".xml.dist"],
-    "phpstan": [".neon", ".neon.dist"],
-    "pmd": [".xml"],
-    "tflint": [".hcl"],
-    "prettier": [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
-    "psscriptanalyzer": [".psd1"],
-    "qmlformat": [".qmlformat.ini"],
-    "qmllint": [".qmllint.ini"],
-    "redocly": [".yaml", ".yml"],
-    "regal": [".yaml", ".yml"],
-    "remark": [".json"],
-    "rubocop": [".yml", ".yaml"],
-    "ruff": [".toml"],
-    "rustfmt": [".toml"],
-    "scalafix": [".conf"],
-    "scalafmt": [".conf"],
-    "selene": [".toml"],
-    "shellcheck": [".shellcheckrc", "shellcheckrc"],
-    "standardrb": [".yml", ".yaml"],
-    "sqlfluff": [".sqlfluff", ".cfg", ".ini"],
-    "staticcheck": [".conf"],
-    "statix": [".toml"],
-    "stylelint": [".json"],
-    "stylua": [".toml"],
-    "taplo": [".toml"],
-    "vale": [".ini"],
-    "yamlfmt": [".yaml", ".yml", ".yamlfmt"],
-    "yamllint": [".yaml", ".yml", ".yamllint"],
-}
+_NATIVE_CONFIG_SUFFIXES = {tool.id: tool.config_suffix for tool in TOOLS if tool.config_suffix}
 
 def native_config_extensions(tool_id):
     """Returns the accepted config suffixes for a real tool ID."""

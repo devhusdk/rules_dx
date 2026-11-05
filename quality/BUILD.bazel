@@ -52,6 +52,7 @@ exports_files([
     "result.proto",
     "sources.bzl",
     "support.bzl",
+    "tools.bzl",
 ] + glob(["families/*.bzl"]))
 
 exports_files([
@@ -709,6 +710,11 @@ js_responsibilities_unit_tests(name = "js_responsibilities_unit")
 
 support_unit_tests(name = "support_unit")
 
+alias(
+    name = "update_tools",
+    actual = "//quality/runner:update_tools",
+)
+
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
 clang_syntax_analysis_tests(name = "clang_syntax_analysis")
@@ -841,6 +847,8 @@ real_source_target(
         "sources_tests.bzl",
         "support.bzl",
         "support_tests.bzl",
+        "tools.bzl",
+        "tools_gen.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
         "go_analysis.bzl",

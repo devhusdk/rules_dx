@@ -1,9 +1,12 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:tools_gen.bzl", "tools_gen")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 
 package(default_visibility = VIS_QUALITY)
+
+tools_gen(name = "update_tools")
 
 rust_library(
     name = "quality_runner_lib",
@@ -22,6 +25,7 @@ rust_library(
         "src/real/rustfmt.rs",
         "src/real/sqlfluff.rs",
         "src/real/staging.rs",
+        "src/real/tools_gen.rs",
         "src/real_fix.rs",
         "src/request.rs",
     ],
@@ -140,6 +144,7 @@ rust_test(
         "src/real/rustfmt.rs",
         "src/real/sqlfluff.rs",
         "src/real/staging.rs",
+        "src/real/tools_gen.rs",
         "src/real_core.rs",
         "src/real_delegated.rs",
         "src/real_fix.rs",

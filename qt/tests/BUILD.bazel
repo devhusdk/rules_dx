@@ -476,16 +476,9 @@ qt_cc_test(
     for cell in [
         "linux_x86_64",
         "linux_arm64",
+        "macos_arm64",
     ]
 ]
-
-# board_release is incompatible on macOS; ledger_release waits on #5985.
-platform_transition_filegroup(
-    name = "consumer_archives_macos_arm64",
-    srcs = ["//qt/tests/fixtures/qt-tasks/app:tasks_release_archive"],
-    tags = ["manual"],
-    target_platform = "//qt/platforms:macos_arm64",
-)
 
 [
     rust_test(
@@ -495,16 +488,18 @@ platform_transition_filegroup(
         data = [":consumer_archives_" + cell],
         env = {
             "DX_QT_ARCHIVES": "$(rootpaths :consumer_archives_" + cell + ")",
-            "DX_QT_RUNTIME_RECORD": "os_runtime_" + cell + " " + glibc + " os_supplied",
+            "DX_QT_CORE_MEMBER": core,
+            "DX_QT_RUNTIME_RECORD": "os_runtime_" + cell + " " + glibc + " os_supplied" if glibc else "",
         },
-        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + cpu],
+        target_compatible_with = ["@platforms//os:" + os, "@platforms//cpu:" + cpu],
         deps = [
             "//deploy/rules:dx_deploy_tools",
             "//tools/testing:dx_testing",
         ],
     )
-    for (cell, cpu, glibc) in [
-        ("linux_x86_64", "x86_64", "glibc-2.34"),
-        ("linux_arm64", "arm64", "glibc-2.39"),
+    for (cell, os, cpu, glibc, core) in [
+        ("linux_x86_64", "linux", "x86_64", "glibc-2.34", "resources/lib/libQt6Core.so.6"),
+        ("linux_arm64", "linux", "arm64", "glibc-2.39", "resources/lib/libQt6Core.so.6"),
+        ("macos_arm64", "macos", "arm64", "", "resources/lib/QtCore.framework/Versions/A/QtCore"),
     ]
 ]

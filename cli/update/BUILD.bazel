@@ -25,6 +25,7 @@ dx_rust_crate(
         "src/discover/mod.rs",
         "src/discover/npm.rs",
         "src/discover/nuget.rs",
+        "src/discover/opam.rs",
         "src/discover/pub_dev.rs",
         "src/discover/pypi.rs",
         "src/discover/ruby.rs",

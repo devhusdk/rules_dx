@@ -1865,6 +1865,42 @@ _http_archive(
     urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Darwin_arm64.tar.gz"],
 )
 
+_http_file(
+    name = "dx_opam_linux_x86_64",
+    executable = True,
+    sha256 = "b533d393a6967150d6ef41cb3d71e147e93ecbabeb59e921aa412c0ae79ebe3d",
+    urls = ["https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-x86_64-linux"],
+)
+
+_http_file(
+    name = "dx_opam_linux_arm64",
+    executable = True,
+    sha256 = "8b24ef2f3f44a31763f54878454fb52afa1f2db7e00abed58b8d4e7ee7e290a6",
+    urls = ["https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-arm64-linux"],
+)
+
+_http_file(
+    name = "dx_opam_macos_x86_64",
+    executable = True,
+    sha256 = "c5bb19c813ae9a4317b5ff2845ba52a51c96648c08faa0ecc14900fb61b198c7",
+    urls = ["https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-x86_64-macos"],
+)
+
+_http_file(
+    name = "dx_opam_macos_arm64",
+    executable = True,
+    sha256 = "3e7f67bda3ba0bf72f597917b17dc337ed5a1bd48224df8b747bb35ce05c569e",
+    urls = ["https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-arm64-macos"],
+)
+
+_http_archive(
+    name = "dx_opam_repository",
+    build_file_content = 'exports_files(["repo"])',
+    sha256 = "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a",
+    strip_prefix = "opam-repository-691408b00730fcedbd3e30ccdb42c388a83fd304",
+    urls = ["https://github.com/ocaml/opam-repository/archive/691408b00730fcedbd3e30ccdb42c388a83fd304.tar.gz"],
+)
+
 _http_archive(
     name = "kcov",
     build_file = "//tools/coverage/kcov:kcov.BUILD",

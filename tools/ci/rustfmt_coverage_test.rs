@@ -110,11 +110,10 @@ const EXEMPT: [(&str, &str); 4] = [
 ];
 
 /// Packages whose BUILD.bazel declares Rust targets; their :corpus_starlark is in the test data.
-const PACKAGES: [&str; 112] = [
+const PACKAGES: [&str; 111] = [
     ".devcontainer",
     "appimage/packer",
     "appimage/tests",
-    "apple/tests",
     "cc/context",
     "cc/tests",
     "cli/advisory_prep",
@@ -226,7 +225,7 @@ const PACKAGES: [&str; 112] = [
 ];
 
 /// Fewer packages than this means the list lost its data.
-const MIN_PACKAGES: usize = 112;
+const MIN_PACKAGES: usize = 111;
 
 /// Fewer Rust targets than this means the sweep lost its data.
 const MIN_TARGETS: usize = 400;

@@ -1,0 +1,301 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("@rules_dx//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+
+# keep
+rust_test(
+    name = "device_script_test",
+    srcs = ["device_script_test.rs"],
+    data = ["//ios:export_ops.sh"],
+    env = {"DX_EXPORT_OPS": "$(rootpath //ios:export_ops.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "probe_script_test",
+    srcs = ["probe_script_test.rs"],
+    data = ["//provisioning:probe.sh"],
+    env = {"DX_APPLE_PROBE": "$(rootpath //provisioning:probe.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "simulator_script_test",
+    srcs = ["simulator_script_test.rs"],
+    data = [
+        "//bundle:library_check.sh",
+        "//ios:create_test_simulator.sh",
+        "//ios:delete_test_simulator.sh",
+        "//ios:simctl_ops.sh",
+    ],
+    env = {
+        "DX_CREATE_TEST_SIMULATOR": "$(rootpath //ios:create_test_simulator.sh)",
+        "DX_DELETE_TEST_SIMULATOR": "$(rootpath //ios:delete_test_simulator.sh)",
+        "DX_LIBRARY_CHECK": "$(rootpath //bundle:library_check.sh)",
+        "DX_SIMCTL_OPS": "$(rootpath //ios:simctl_ops.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "xcframework_script_test",
+    srcs = ["xcframework_script_test.rs"],
+    data = ["//ios:xcframework_check.sh"],
+    env = {"DX_XCFRAMEWORK_CHECK": "$(rootpath //ios:xcframework_check.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "signing_script_test",
+    srcs = ["signing_script_test.rs"],
+    data = [
+        "//signing:codesign_app.sh",
+        "//signing:notarize_app.sh",
+    ],
+    env = {
+        "DX_CODESIGN_APP": "$(rootpath //signing:codesign_app.sh)",
+        "DX_NOTARIZE_APP": "$(rootpath //signing:notarize_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "macos_app_script_test",
+    srcs = ["macos_app_script_test.rs"],
+    data = [
+        "//macos:app_check.sh",
+        "//macos:run_app.sh",
+    ],
+    env = {
+        "DX_MACOS_APP_CHECK": "$(rootpath //macos:app_check.sh)",
+        "DX_MACOS_RUN_APP": "$(rootpath //macos:run_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+# keep
+# size: large, nested Bazel consumer build, see #5689
+rust_test(
+    name = "macos_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos_consumer_test.rs",
+    ],
+    crate_root = "macos_consumer_test.rs",
+    data = ["//:module_srcs", "@rules_dx//:module_srcs"] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "@rules_dx//tools/testing:dx_nested",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+# size: large, nested Bazel consumer build, see #5689
+rust_test(
+    name = "macos_app_sign_smoke_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_app_consumer_test.rs",
+        "signing.rs",
+    ],
+    crate_root = "macos_app_consumer_test.rs",
+    data = ["//:module_srcs", "@rules_dx//:module_srcs"] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "@rules_dx//tools/testing:dx_nested",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+# size: large, nested Bazel consumer build, see #5689
+rust_test(
+    name = "macos_framework_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_framework_consumer_test.rs",
+    ],
+    crate_root = "macos_framework_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "@rules_dx//:module_srcs",
+        "//ios:xcframework_check.sh",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_XCFRAMEWORK_CHECK": "$(rootpath //ios:xcframework_check.sh)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "@rules_dx//tools/testing:dx_nested",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+# size: large, nested Bazel consumer build, see #5689
+rust_test(
+    name = "macos_bundle_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_bundle_consumer_test.rs",
+    ],
+    crate_root = "macos_bundle_consumer_test.rs",
+    data = ["//:module_srcs", "@rules_dx//:module_srcs"] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "@rules_dx//tools/testing:dx_nested",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+# size: large, nested Bazel consumer build, see #5689
+rust_test(
+    name = "macos_shared_rust_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_shared_rust_consumer_test.rs",
+    ],
+    crate_root = "macos_shared_rust_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "@rules_dx//:module_srcs",
+        "@rules_dx//examples/shared-rust:core_srcs",
+    ] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple and Rust toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "@rules_dx//tools/testing:dx_nested",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "linux_tests_fmt_test",
+    targets = [
+        ":device_script_test",
+        ":macos_app_script_test",
+        ":probe_script_test",
+        ":signing_script_test",
+        ":simulator_script_test",
+        ":xcframework_script_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "linux_tests_clippy_test",
+    targets = [
+        ":device_script_test",
+        ":macos_app_script_test",
+        ":probe_script_test",
+        ":signing_script_test",
+        ":simulator_script_test",
+        ":xcframework_script_test",
+    ],
+)
+
+rustfmt_test(
+    name = "macos_consumer_fmt_test",
+    targets = [
+        ":macos_app_sign_smoke_test",
+        ":macos_bundle_consumer_test",
+        ":macos_consumer_test",
+        ":macos_framework_consumer_test",
+        ":macos_shared_rust_consumer_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "macos_consumer_clippy_test",
+    targets = [
+        ":macos_app_sign_smoke_test",
+        ":macos_bundle_consumer_test",
+        ":macos_consumer_test",
+        ":macos_framework_consumer_test",
+        ":macos_shared_rust_consumer_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["@rules_dx//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)

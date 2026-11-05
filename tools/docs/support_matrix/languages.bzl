@@ -223,15 +223,15 @@ ROWS = [
     },
     {
         "ci_tests": [
-            "//apple/provisioning:managed_without_xcode_config_test",
-            "//apple/tests:macos_consumer_test",
-            "//apple/tests:macos_app_sign_smoke_test",
-            "//apple/tests/fixtures/swift_app:ledger_ipa_test",
+            "@rules_dx_apple//provisioning:managed_without_xcode_config_test",
+            "@rules_dx_apple//tests:macos_consumer_test",
+            "@rules_dx_apple//tests:macos_app_sign_smoke_test",
+            "@rules_dx_apple//tests/fixtures/swift_app:ledger_ipa_test",
             "//swift/tests/fixtures/hello:xctest",
         ],
         "consumer_tests": [
-            "//apple/tests:macos_consumer_test",
-            "//apple/tests:macos_app_sign_smoke_test",
+            "@rules_dx_apple//tests:macos_consumer_test",
+            "@rules_dx_apple//tests:macos_app_sign_smoke_test",
         ],
         "families": ["objc"],
         "name": "apple",

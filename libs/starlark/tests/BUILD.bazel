@@ -224,9 +224,9 @@ real_source_target(
 starlark_test(
     name = "resource_set_wiring",
     file_checks = {
-        "//apple/bundle:defs.bzl": "resource_set = dx_heavy_resources",
-        "//apple/ios:app.bzl": "resource_set = dx_heavy_resources",
-        "//apple/macos:app.bzl": "resource_set = dx_heavy_resources",
+        "@rules_dx_apple//bundle:defs.bzl": "resource_set = dx_heavy_resources",
+        "@rules_dx_apple//ios:app.bzl": "resource_set = dx_heavy_resources",
+        "@rules_dx_apple//macos:app.bzl": "resource_set = dx_heavy_resources",
         "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:fsc.bzl": "resource_set = dx_heavy_resources",
         "//quality:roslyn.bzl": "resource_set = dx_heavy_resources",

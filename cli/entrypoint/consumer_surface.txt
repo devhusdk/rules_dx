@@ -1,14 +1,6 @@
 ansible/rules:defs.bzl
 api_spec/rules:defs.bzl
 appimage:defs.bzl
-apple/ios:app.bzl
-apple/ios:defs.bzl
-apple/ios:device.bzl
-apple/ios:simulator.bzl
-apple/macos:app.bzl
-apple/provisioning:defs.bzl
-apple/provisioning:probe.bzl
-apple/signing:defs.bzl
 bicep/rules:defs.bzl
 cc/rules:defs.bzl
 cloudformation/rules:defs.bzl

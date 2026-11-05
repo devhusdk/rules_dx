@@ -53,7 +53,7 @@ Per-language guides in the repository:
 
 - [Android](https://github.com/devhusdk/rules_dx/blob/main/android/README.md)
 - [AppImage](https://github.com/devhusdk/rules_dx/blob/main/appimage/README.md)
-- [Apple](https://github.com/devhusdk/rules_dx/blob/main/apple/README.md)
+- [Apple](https://github.com/devhusdk/rules_dx/blob/main/families/apple/README.md)
 - [C#](https://github.com/devhusdk/rules_dx/blob/main/csharp/README.md)
 - [C/C++](https://github.com/devhusdk/rules_dx/blob/main/cc/rules/README.md)
 - [CUDA](https://github.com/devhusdk/rules_dx/blob/main/cuda/README.md)

@@ -54,10 +54,23 @@
       "aspects": [],
       "bazel_deps": [
         "apple_support",
-        "rules_apple"
+        "bazel_skylib",
+        "platforms",
+        "rules_apple",
+        "rules_cc",
+        "rules_dx",
+        "rules_rust",
+        "rules_shell"
       ],
       "dirs": [
-        "apple"
+        "bcr_test_module",
+        "bundle",
+        "ios",
+        "macos",
+        "provisioning",
+        "signing",
+        "tests",
+        "third_party"
       ],
       "extensions": [],
       "file_extensions": [
@@ -66,6 +79,8 @@
         ".plist"
       ],
       "gazelle": [],
+      "module": "rules_dx_apple",
+      "path": "families/apple",
       "repo_rules": [],
       "toolchains": []
     },
@@ -204,6 +219,7 @@
         "real_yaml_lint_aspect"
       ],
       "bazel_deps": [
+        "apple_support",
         "bazel_features",
         "bazel_lib",
         "bazel_skylib",
@@ -211,6 +227,7 @@
         "libxml2",
         "platforms",
         "rules_android",
+        "rules_apple",
         "rules_go",
         "rules_python",
         "rules_shell",

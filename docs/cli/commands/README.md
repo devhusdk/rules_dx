@@ -200,9 +200,9 @@ Language rules:
 
 - `@rules_dx_android//rules:defs.bzl`: Android libraries.
 - `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
-- `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
-- `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
-- `@rules_dx//apple/macos:app.bzl`: macOS apps.
+- `@rules_dx_apple//ios:app.bzl`: iOS apps, tests and frameworks.
+- `@rules_dx_apple//ios:defs.bzl`: iOS libraries.
+- `@rules_dx_apple//macos:app.bzl`: macOS apps.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.
@@ -251,10 +251,10 @@ dx rule that wraps it.
 | --- | --- | --- | --- |
 | `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx_android//rules:defs.bzl` | `java_android_library` |
 | `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx_android//rules:defs.bzl` | `kotlin_android_library` |
-| `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_app` |
-| `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_app_test` |
-| `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx//apple/ios:app.bzl` | `apple_ios_xcframework` |
-| `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx//apple/macos:app.bzl` | `apple_macos_app` |
+| `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_app` |
+| `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_app_test` |
+| `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_xcframework` |
+| `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx_apple//macos:app.bzl` | `apple_macos_app` |
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc/rules:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc/rules:defs.bzl` | `objc_library` |
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
@@ -295,10 +295,10 @@ Packaging and deploy:
 
 - `@rules_dx_android//packaging:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
-- `@rules_dx//apple/ios:device.bzl`: signed iOS IPA export.
-- `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
-- `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
-- `@rules_dx//apple/signing:defs.bzl`: macOS app signing and notarization.
+- `@rules_dx_apple//ios:device.bzl`: signed iOS IPA export.
+- `@rules_dx_apple//provisioning:defs.bzl`: Apple provisioning.
+- `@rules_dx_apple//provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx_apple//signing:defs.bzl`: macOS app signing and notarization.
 - `@rules_dx//deploy/offline:offline.bzl`: offline bundles.
 - `@rules_dx//deploy/rules:archive.bzl`: release archives.
 - `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
@@ -317,7 +317,7 @@ SDK and toolchain extensions:
 
 - `@rules_dx_android//sdk:repos.bzl`: Android SDK.
 - `@rules_dx_android//toolchain:repos.bzl`: Android NDK toolchain.
-- `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx_apple//ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//cuda/toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.

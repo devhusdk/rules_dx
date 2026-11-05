@@ -94,7 +94,7 @@ emulator 37.2.12.0, system image `android-34;default;x86_64`.
 ## Apple
 
 ```sh
-bazel test //apple/tests:macos_shared_rust_consumer_test
+bazel test @rules_dx_apple//tests:macos_shared_rust_consumer_test
 ```
 
 Runs on an arm64 Mac with Xcode 16. A separate consumer workspace

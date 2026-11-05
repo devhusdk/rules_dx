@@ -1,9 +1,4 @@
 # Tests that run a nested Bazel. The cap in nested_smoke_guard.sh may only go down.
-//apple/tests:macos_app_sign_smoke_test
-//apple/tests:macos_bundle_consumer_test
-//apple/tests:macos_consumer_test
-//apple/tests:macos_framework_consumer_test
-//apple/tests:macos_shared_rust_consumer_test
 //cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
 //deploy/release/tests:release_candidate_smoke_test
 //deploy/release/tests:readme_quickstart_smoke_test

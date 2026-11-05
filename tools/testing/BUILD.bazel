@@ -49,6 +49,7 @@ rust_library(
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
     ],
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 rust_test(
@@ -95,6 +96,7 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ),
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 # keep
@@ -178,6 +180,7 @@ alias(
         ":nested_bazel_windows_x86_64": "@nested_bazel_windows_x86_64//file",
         "//conditions:default": ":nested_bazel_unpinned",
     }),
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 filegroup(
@@ -201,6 +204,7 @@ rust_binary(
     srcs = ["nested_bazel_shim.rs"],
     edition = "2021",
     deps = [":dx_nested"],
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 # keep
@@ -208,7 +212,6 @@ rust_test(
     name = "module_srcs_test",
     srcs = ["module_srcs_test.rs"],
     data = [
-        "//apple:module_srcs",
         "//deploy:module_srcs",
         "//erlang:module_srcs",
         "//qt:module_srcs",

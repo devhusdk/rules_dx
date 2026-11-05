@@ -276,6 +276,45 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
     assert_released(&lock);
 }
 
+#[cfg(unix)]
+#[test]
+fn timeout_kills_a_group_whose_leader_exits_on_term() {
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-term-group");
+    let pidfile = scratch.path().join("child.pid");
+    let script = format!(
+        "sh -c 'trap \"\" TERM; echo $$ > {pid}; while :; do sleep 1; done' & wait",
+        pid = pidfile.display()
+    );
+    let spec = controlled_spec(
+        vec!["sh".into(), "-c".into(), script.into()],
+        Duration::from_millis(1000),
+    );
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    let pid = std::fs::read_to_string(&pidfile)
+        .expect("the descendant recorded its pid")
+        .trim()
+        .to_owned();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let alive = std::process::Command::new("kill")
+            .args(["-0", &pid])
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success());
+        if !alive {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "descendant {pid} survived the run"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn daemon_probe(lock: &std::path::Path, sleep_ms: u32, descendants: Descendants) -> SpawnSpec {
     let mut spec = controlled_spec(
         probe_argv(&[

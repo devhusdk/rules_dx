@@ -252,8 +252,8 @@ pub fn run_command_until(
         None => {
             backend::terminate_graceful(&mut owned);
             let exit = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
+            backend::terminate_forced(&mut owned);
             if exit.is_none() {
-                backend::terminate_forced(&mut owned);
                 let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
             }
             let _ = collect(&stdout_rx, hard);

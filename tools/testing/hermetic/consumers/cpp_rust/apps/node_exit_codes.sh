@@ -28,7 +28,7 @@ bad bad_version '[{"name":"core","versions":["1.0"]}]' "package core has an inva
 bad duplicate '[{"name":"core","versions":[]},{"name":"core","versions":[]}]' "duplicate package core"
 
 check 4 "registry: no package absent" latest absent
-check 4 "registry: no version of core satisfies >=9.0.0" satisfy core ">=9.0.0"
+check 4 "registry: no version of core satisfies 9.x" satisfy core 9.x
 check 2 "registry: not a range is not a valid range" satisfy core "not a range"
 check 3 "registry: cannot read registry file" --file "$tmp/absent.json" list
 
@@ -40,7 +40,7 @@ edge none" ]; then
   failures=$((failures + 1))
 fi
 
-where=$("$bin" where one "two words")
+where=$("$bin" where one "two words" | tr '\\' /)
 has() {
   if ! printf '%s\n' "$where" | grep -F -q -e "$2"; then
     echo "FAIL: where $1 -> '$where'"

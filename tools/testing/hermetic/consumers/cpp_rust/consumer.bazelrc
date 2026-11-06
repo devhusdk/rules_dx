@@ -5,6 +5,8 @@ build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 build --jvmopt=-Ddx.consumer.choice=kept
 build --enable_platform_specific_config
+# The exit code sh_tests run instrumented JVM binaries; instrumenting the sh_test too breaks their coverage collection.
+coverage --noinstrument_test_targets
 common:windows --experimental_override_platform_cpu_name=@my_dx//tools/platforms:windows_msvc_host=wx
 common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
 common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1

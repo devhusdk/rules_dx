@@ -34,7 +34,7 @@ bad single_quoted "[{'name':'ada','scores':[1]}]" "grade file is not valid JSON"
 check 4 "grades: no student zed" show zed
 check 3 "grades: cannot read grade file" --file "$tmp/absent.json" list
 
-ranks=$("$bin" ranks)
+ranks=$("$bin" ranks | tr -d '\r')
 if [ "$ranks" != "$(printf '1 cy 96.7 A\n2 ada 91.7 A\n3 bo 72.3 C')" ]; then
   echo "FAIL: ranks -> '$ranks'"
   failures=$((failures + 1))

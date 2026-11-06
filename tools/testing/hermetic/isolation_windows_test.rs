@@ -1,4 +1,5 @@
-//! Probes the Windows user backend: network denial, loopback, file grants and the MSVC denies.
+//! Probes the Windows user backend: network denial, loopback, explicit file denies and the MSVC
+//! denies. Like the Linux and macOS masks, the user backend hides only what `denies` lists.
 #![cfg(windows)]
 
 use std::path::{Path, PathBuf};
@@ -106,16 +107,13 @@ fn icacls(path: &Path) -> String {
 }
 
 #[test]
-fn directories_above_a_grant_are_listable_but_not_readable() {
+fn directories_above_a_grant_keep_their_acls() {
     let _shared = shared();
     let scene = scene("above");
-    let above = scene.root.join("above.txt");
-    std::fs::write(&above, "hidden").expect("above");
     let before = icacls(&scene.root);
     let canon = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
     assert_eq!(canon.exit, 0, "{}", canon.stderr);
-    let read = scene.run(Net::Denied, &["read", &text(&above)]);
-    assert_ne!(read.exit, 0, "{}{}", read.stdout, icacls(&scene.root));
+    // The run user can read what `denies` leaves out, so nothing above the grant is hidden (#8699).
     assert_eq!(icacls(&scene.root), before);
 }
 

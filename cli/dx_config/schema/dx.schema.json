@@ -64,6 +64,21 @@
       },
       "type": "object"
     },
+    "LargeFiles": {
+      "additionalProperties": false,
+      "description": "Oversized files a change may keep. Lock files are always allowed.",
+      "properties": {
+        "allow": {
+          "default": [],
+          "description": "Paths, or `dir/` prefixes, that the large-file check skips.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "Profile": {
       "enum": [
         "standard",
@@ -94,6 +109,9 @@
       },
       "description": "Per-family overrides, keyed by family id.",
       "type": "object"
+    },
+    "large_files": {
+      "$ref": "#/definitions/LargeFiles"
     },
     "profile": {
       "anyOf": [

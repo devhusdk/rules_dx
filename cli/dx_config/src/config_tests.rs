@@ -81,3 +81,10 @@ fn tempfile_dir() -> std::path::PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
+
+#[test]
+fn large_files_allow_parses_and_rejects_unknown_keys() {
+    let config = parse("schema_version = 1\n[large_files]\nallow = [\"data/\"]\n").unwrap();
+    assert_eq!(config.large_files.allow, ["data/"]);
+    assert!(parse("schema_version = 1\n[large_files]\nallw = []\n").is_err());
+}

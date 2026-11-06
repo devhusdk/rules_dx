@@ -36,6 +36,17 @@ pub struct DxConfig {
     pub families: BTreeMap<String, FamilyConfig>,
     #[serde(default)]
     pub scope: Scope,
+    #[serde(default)]
+    pub large_files: LargeFiles,
+}
+
+/// Oversized files a change may keep. Lock files are always allowed.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LargeFiles {
+    /// Paths, or `dir/` prefixes, that the large-file check skips.
+    #[serde(default)]
+    pub allow: Vec<String>,
 }
 
 /// Replaces the curated tools of one family. A capability left out keeps the curated tools.

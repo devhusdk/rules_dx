@@ -7,7 +7,7 @@ mod curated_defaults_gen;
 pub mod schema;
 pub mod select;
 
-pub use config::{load, DxConfig, FamilyConfig, LoadProblem, Profile, Scope};
+pub use config::{load, DxConfig, FamilyConfig, LargeFiles, LoadProblem, Profile, Scope};
 pub use select::{effective, FamilySelection, Selection, SelectionProblem};
 
 #[cfg(test)]

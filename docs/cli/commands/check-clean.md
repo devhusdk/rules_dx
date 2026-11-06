@@ -43,7 +43,7 @@ Scopes: no scope means `//...`. `--here` and `--affected` do not combine with sc
 
 ### Build output check
 
-Before any phase, `dx check` fails when your change adds build output. That is a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`, `.gradle/`, or a `build/` directory, or a file over 1 MiB. List paths or `dir/` prefixes to keep in `.dx-large-files`, one per line. The check is skipped outside a Git checkout.
+Before any phase, `dx check` fails when your change adds build output. That is a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`, `.gradle/`, or a `build/` directory, or a file over 1 MiB. List paths or `dir/` prefixes to keep in `[large_files] allow` in `dx.toml`; lock files such as `MODULE.bazel.lock` are always skipped. A leftover `.dx-large-files` file fails the check. The check is skipped outside a Git checkout.
 
 ### Generated overrides
 

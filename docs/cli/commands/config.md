@@ -9,6 +9,12 @@ base that ships with dx; the top-level `profile` in `dx.toml` picks it:
 In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
 `versions` uses the range syntax of the `set` ecosystem.
 
+## dx.toml `[large_files]`
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `allow` | array of strings | `[]` | Paths or `dir/` prefixes the large-file check skips. Lock files are always skipped. |
+
 ## security.toml
 
 Used by `dx security`. See [Audit, Update](audit-update.md).

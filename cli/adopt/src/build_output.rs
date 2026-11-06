@@ -6,11 +6,32 @@ use crate::git_changes::{
     dedupe_changes, parse_name_status_nul, ChangeKind, DEFAULT_BRANCH_CANDIDATES,
 };
 
-/// Largest file a change may add without being listed in the allow file.
+/// Largest file a change may add without being listed in `[large_files] allow` of dx.toml.
 pub const MAX_FILE_BYTES: u64 = 1_048_576;
 
-/// Root file that lists oversized paths a change may keep, one per line.
-pub const ALLOW_FILE: &str = ".dx-large-files";
+/// Obsolete root file; the allow list lives in dx.toml now.
+pub const OBSOLETE_ALLOW_FILE: &str = ".dx-large-files";
+
+/// Lock files are generated and often large, so the size limit skips them.
+const LOCK_FILES: [&str; 17] = [
+    "MODULE.bazel.lock",
+    "cargo-bazel-lock.json",
+    "Cargo.lock",
+    "uv.lock",
+    "poetry.lock",
+    "pdm.lock",
+    "Pipfile.lock",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+    "bun.lock",
+    "go.sum",
+    "gradle.lockfile",
+    "maven_install.json",
+    "composer.lock",
+    "Gemfile.lock",
+];
 
 /// Directory names that always hold build output.
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
@@ -88,13 +109,28 @@ fn output_dir(root: &Path, path: &str) -> Option<String> {
 }
 
 fn allowed(root: &Path) -> Vec<String> {
-    std::fs::read_to_string(root.join(ALLOW_FILE))
+    let Ok(text) = std::fs::read_to_string(root.join("dx.toml")) else {
+        return Vec::new();
+    };
+    let Ok(table) = text.parse::<toml::Table>() else {
+        return Vec::new();
+    };
+    table
+        .get("large_files")
+        .and_then(|section| section.get("allow"))
+        .and_then(toml::Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|entry| entry.as_str().map(ToOwned::to_owned))
+                .collect()
+        })
         .unwrap_or_default()
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(ToOwned::to_owned)
-        .collect()
+}
+
+fn is_lock_file(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    LOCK_FILES.contains(&name)
 }
 
 fn is_allowed(allow: &[String], path: &str) -> bool {
@@ -130,12 +166,12 @@ fn classify_kinds(root: &Path, paths: &[(String, bool)]) -> Vec<(BuildOutputFind
             }
         }
         if let Ok(meta) = std::fs::symlink_metadata(root.join(path)) {
-            if meta.is_file() && meta.len() > MAX_FILE_BYTES {
+            if meta.is_file() && meta.len() > MAX_FILE_BYTES && !is_lock_file(path) {
                 findings.push((
                     BuildOutputFinding {
                         path: path.clone(),
                         reason: format!(
-                            "{} bytes is over the {MAX_FILE_BYTES} byte limit; list it in {ALLOW_FILE} to keep it",
+                            "{} bytes is over the {MAX_FILE_BYTES} byte limit; add it to [large_files] allow in dx.toml to keep it",
                             meta.len()
                         ),
                     },
@@ -286,6 +322,13 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     }
     paths.sort();
     paths.dedup_by(|next, current| next.0 == current.0);
+    if root.join(OBSOLETE_ALLOW_FILE).is_file() {
+        report.findings.push(BuildOutputFinding {
+            path: OBSOLETE_ALLOW_FILE.to_owned(),
+            reason: "obsolete; move its entries to [large_files] allow in dx.toml and delete it"
+                .to_owned(),
+        });
+    }
     let found = classify_kinds(root, &paths);
     let oversized: Vec<String> = found
         .iter()
@@ -297,11 +340,12 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     } else {
         lfs_paths(git, &oversized)?
     };
-    report.findings = found
-        .into_iter()
-        .map(|(finding, _)| finding)
-        .filter(|finding| !lfs.contains(&finding.path))
-        .collect();
+    report.findings.extend(
+        found
+            .into_iter()
+            .map(|(finding, _)| finding)
+            .filter(|finding| !lfs.contains(&finding.path)),
+    );
     Ok(report)
 }
 
@@ -434,18 +478,24 @@ mod tests {
         std::fs::write(root.join("big.bin"), &big).expect("big");
         std::fs::write(root.join("kept.bin"), &big).expect("kept");
         std::fs::write(root.join("small.txt"), "x").expect("small");
-        std::fs::write(root.join(ALLOW_FILE), "# kept\nkept.bin\n").expect("allow");
+        std::fs::write(
+            root.join("dx.toml"),
+            "schema_version = 1\n[large_files]\nallow = [\"kept.bin\"]\n",
+        )
+        .expect("allow");
+        std::fs::write(root.join("MODULE.bazel.lock"), &big).expect("lock");
         let findings = classify(
             &root,
             &[
                 ("big.bin".to_owned(), true),
                 ("kept.bin".to_owned(), true),
                 ("small.txt".to_owned(), true),
+                ("MODULE.bazel.lock".to_owned(), true),
             ],
         );
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].path, "big.bin");
-        assert!(findings[0].reason.contains(ALLOW_FILE));
+        assert!(findings[0].reason.contains("dx.toml"));
     }
 
     fn git(root: &Path, args: &[&str]) {
@@ -554,10 +604,21 @@ mod tests {
         write(&root, "target/a", b"x");
         write(&root, "big.bin", &big());
         write(&root, "vendor/big2.bin", &big());
-        write(&root, ALLOW_FILE, b"target/a\nvendor/\n");
+        let toml = |allow: &str| {
+            format!("schema_version = 1\n[large_files]\nallow = [{allow}]\n").into_bytes()
+        };
+        write(&root, "dx.toml", &toml("\"target/a\", \"vendor/\""));
         assert_eq!(found(&root), ["big.bin"]);
-        write(&root, ALLOW_FILE, b"vendor\n");
+        write(&root, "dx.toml", &toml("\"vendor\""));
         assert_eq!(found(&root), ["big.bin", "target/a", "vendor/big2.bin"]);
+    }
+
+    #[test]
+    fn obsolete_allow_file_is_reported() {
+        let root = repo_on_main();
+        git(&root, &["switch", "-q", "-c", "feature"]);
+        write(&root, OBSOLETE_ALLOW_FILE, b"vendor/\n");
+        assert_eq!(found(&root), [OBSOLETE_ALLOW_FILE]);
     }
 
     #[cfg(unix)]

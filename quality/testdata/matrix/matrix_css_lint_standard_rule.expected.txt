@@ -5,7 +5,7 @@ stage stylelint classes=css sources=matrix/stylelint_standard_rule.css
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR stylelint selector-class-pattern matrix/stylelint_standard_rule.css 0 0 fixable=false "Expected class selector \".Sample\" to be kebab-case (selector-class-pattern)"
+initial WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_standard_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
 terminal 1
-terminal ERROR stylelint selector-class-pattern matrix/stylelint_standard_rule.css 0 0 fixable=false "Expected class selector \".Sample\" to be kebab-case (selector-class-pattern)"
+terminal WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_standard_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
 replacements 0

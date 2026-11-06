@@ -13,6 +13,21 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "biome",
+        crate::severity::ToolSeverityMap {
+            default: None,
+            categories: &[
+                ("lint/a11y", crate::ToolSeverity::Warning),
+                ("lint/complexity", crate::ToolSeverity::Warning),
+                ("lint/correctness", crate::ToolSeverity::Error),
+                ("lint/performance", crate::ToolSeverity::Warning),
+                ("lint/security", crate::ToolSeverity::Error),
+                ("lint/style", crate::ToolSeverity::Warning),
+                ("lint/suspicious", crate::ToolSeverity::Warning),
+            ],
+        },
+    ),
+    (
         "buf",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -215,6 +230,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "eslint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[("security/", crate::ToolSeverity::Error)],
+        },
+    ),
+    (
         "fortitude",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -376,6 +398,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "stylelint",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
         "tflint",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
@@ -386,6 +415,13 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         "tinymist",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
+            categories: &[],
+        },
+    ),
+    (
+        "tsc",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
             categories: &[],
         },
     ),

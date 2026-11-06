@@ -284,6 +284,15 @@ TOOLS = [
             "lint": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
         },
         config = config(suffixes = [".json"], tier_active = True),
+        severity = severity(categories = {
+            "lint/a11y": "warning",
+            "lint/complexity": "warning",
+            "lint/correctness": "error",
+            "lint/performance": "warning",
+            "lint/security": "error",
+            "lint/style": "warning",
+            "lint/suspicious": "warning",
+        }),
         support = [
             row(
                 capability = "format",
@@ -956,7 +965,7 @@ TOOLS = [
             "format": ["html_template"],
             "lint": ["html_template"],
         },
-        config = config(suffixes = ["djlint.toml", ".djlintrc"]),
+        config = config(suffixes = ["djlint.toml", ".djlintrc"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1060,6 +1069,7 @@ TOOLS = [
             family = "js",
             tier_active = True,
         ),
+        severity = severity(default = "warning", categories = {"security/": "error"}),
         support = [
             row(
                 capability = "lint",
@@ -1999,7 +2009,7 @@ TOOLS = [
         adapters = {
             "format": ["api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "json5", "less", "php", "scss", "svelte", "vue", "xml"],
         },
-        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"]),
+        config = config(suffixes = [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2213,7 +2223,7 @@ TOOLS = [
     tool(
         id = "remark",
         adapters = {"format": ["mdx"]},
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2605,7 +2615,9 @@ TOOLS = [
             extends_syntax = "{ \"extends\": [\"./{base}\"] }\n",
             init_order = 4,
             extensions = [".css"],
+            tier_active = True,
         ),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2898,7 +2910,9 @@ TOOLS = [
             tier_dir = "tsconfig",
             init_order = 3,
             family = "js",
+            tier_active = True,
         ),
+        severity = severity(default = "error"),
     ),
     tool(
         id = "ty",

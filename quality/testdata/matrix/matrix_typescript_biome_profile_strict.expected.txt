@@ -5,9 +5,9 @@ stage biome classes=typescript sources=matrix/biome_profile.ts
 completed_rounds 1
 convergence STABLE
 initial 2
-initial WARNING biome lint/correctness/noUnusedVariables matrix/biome_profile.ts 60 66 fixable=false "This variable unused is unused."
-initial ERROR biome lint/complexity/noForEach matrix/biome_profile.ts 89 139 fixable=false "Prefer for...of instead of forEach."
+initial ERROR biome lint/correctness/noUnusedVariables matrix/biome_profile.ts 60 66 fixable=false "This variable unused is unused."
+initial WARNING biome lint/complexity/noForEach matrix/biome_profile.ts 89 139 fixable=false "Prefer for...of instead of forEach."
 terminal 2
-terminal WARNING biome lint/correctness/noUnusedVariables matrix/biome_profile.ts 60 66 fixable=false "This variable unused is unused."
-terminal ERROR biome lint/complexity/noForEach matrix/biome_profile.ts 89 139 fixable=false "Prefer for...of instead of forEach."
+terminal ERROR biome lint/correctness/noUnusedVariables matrix/biome_profile.ts 60 66 fixable=false "This variable unused is unused."
+terminal WARNING biome lint/complexity/noForEach matrix/biome_profile.ts 89 139 fixable=false "Prefer for...of instead of forEach."
 replacements 0

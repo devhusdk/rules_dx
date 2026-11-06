@@ -366,7 +366,7 @@ fn plan_framework_files(entry: &Entry, extensions: &BTreeSet<String>) -> Vec<Sca
             .iter()
             .map(|framework| {
                 format!(
-                    "import {0} from \"./frameworks/{0}.mjs\";\n",
+                    "import {0}, {{ strict as {0}Strict }} from \"./frameworks/{0}.mjs\";\n",
                     framework.name
                 )
             })
@@ -375,7 +375,13 @@ fn plan_framework_files(entry: &Entry, extensions: &BTreeSet<String>) -> Vec<Sca
             .iter()
             .map(|framework| format!("  ...{},\n", framework.name))
             .collect();
-        format!("{imports}\nexport default [\n{spread}];\n")
+        let strict: String = found
+            .iter()
+            .map(|framework| format!("  ...{}Strict,\n", framework.name))
+            .collect();
+        format!(
+            "{imports}\nexport default [\n{spread}];\n\nexport const strict = [\n{strict}];\n"
+        )
     };
     files.push(ScaffoldFile {
         path: ".dx/config/eslint/frameworks.mjs".to_owned(),
@@ -477,7 +483,7 @@ mod tests {
         assert!(
             index
                 .content
-                .contains("import vue from \"./frameworks/vue.mjs\";")
+                .contains("import vue, { strict as vueStrict } from \"./frameworks/vue.mjs\";")
         );
         assert!(index.content.contains("  ...vue,\n"));
         assert_eq!(index.content.matches("import ").count(), 1);
@@ -508,7 +514,7 @@ mod tests {
             .iter()
             .find(|file| file.path == ".dx/config/eslint/frameworks.mjs")
             .expect("frameworks.mjs");
-        assert!(index.content.ends_with("export default [];\n"));
+        assert!(index.content.ends_with("export default [];\nexport const strict = [];\n"));
     }
 
     #[test]

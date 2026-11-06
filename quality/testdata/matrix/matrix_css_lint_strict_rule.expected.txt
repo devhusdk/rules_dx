@@ -4,8 +4,10 @@ stages 1
 stage stylelint classes=css sources=matrix/stylelint_strict_rule.css
 completed_rounds 1
 convergence STABLE
-initial 1
-initial ERROR stylelint selector-class-pattern matrix/stylelint_strict_rule.css 0 0 fixable=false "Expected class selector \".Sample\" to be kebab-case (selector-class-pattern)"
-terminal 1
-terminal ERROR stylelint selector-class-pattern matrix/stylelint_strict_rule.css 0 0 fixable=false "Expected class selector \".Sample\" to be kebab-case (selector-class-pattern)"
+initial 2
+initial WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_strict_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
+initial WARNING stylelint length-zero-no-unit matrix/stylelint_strict_rule.css 51 51 fixable=false "Disallowed unit (length-zero-no-unit)"
+terminal 2
+terminal WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_strict_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
+terminal WARNING stylelint length-zero-no-unit matrix/stylelint_strict_rule.css 51 51 fixable=false "Disallowed unit (length-zero-no-unit)"
 replacements 0

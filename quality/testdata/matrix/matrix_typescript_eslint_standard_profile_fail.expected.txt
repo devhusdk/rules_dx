@@ -5,7 +5,7 @@ stage eslint classes=typescript sources=quality/testdata/eslint_profile/a.ts
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
+initial WARNING eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
 terminal 1
-terminal ERROR eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
+terminal WARNING eslint @typescript-eslint/no-unused-vars quality/testdata/eslint_profile/a.ts 61 67 fixable=false "'unused' is assigned a value but never used."
 replacements 0

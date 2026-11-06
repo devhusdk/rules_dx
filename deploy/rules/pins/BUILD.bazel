@@ -3,6 +3,7 @@ load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "japicmp_pins.bzl",
     "repos.bzl",
     "semver_checks_pins.bzl",
 ])
@@ -37,4 +38,9 @@ alias(
         ":semver_checks_" + key: ":semver_checks_" + key + "_bin"
         for key in SEMVER_CHECKS_PLATFORMS
     } | {"//conditions:default": ":semver_checks_none"}),
+)
+
+alias(
+    name = "japicmp",
+    actual = "@japicmp_jar//file",
 )

@@ -100,6 +100,21 @@ pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
         .map(|(_, tag)| tag)
 }
 
+/// Returns the highest release below `next` listed in a `maven-metadata.xml` body.
+pub fn previous_release(metadata: &str, next: &str) -> Option<String> {
+    let next = parse_version(next)?;
+    metadata
+        .split("<version>")
+        .skip(1)
+        .filter_map(|part| {
+            let version = part.split("</version>").next()?.trim();
+            let parsed = parse_version(version)?;
+            (!version.contains('-') && parsed < next).then(|| (parsed, version.to_owned()))
+        })
+        .max()
+        .map(|(_, version)| version)
+}
+
 /// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `Cargo.toml`.
 /// Symlinks and submodules are skipped. The index and working tree are not touched.
 pub fn export_git_dir(
@@ -205,6 +220,15 @@ mod tests {
         let tags = "v1.2.0\nv1.10.0\nv2.0.0\nnightly\n";
         assert_eq!(previous_tag(tags, "2.0.0").as_deref(), Some("v1.10.0"));
         assert_eq!(previous_tag(tags, "1.0.0"), None);
+    }
+
+    #[test]
+    fn previous_release_picks_highest_below_next() {
+        let xml = "<versions><version>1.2.0</version><version>1.10.0</version><version>2.0.0</version><version>2.1.0-SNAPSHOT</version></versions>";
+        assert_eq!(previous_release(xml, "2.0.0").as_deref(), Some("1.10.0"));
+        assert_eq!(previous_release(xml, "3.0.0").as_deref(), Some("2.0.0"));
+        assert_eq!(previous_release(xml, "1.0.0"), None);
+        assert_eq!(previous_release("", "1.0.0"), None);
     }
 
     fn git_in(dir: &std::path::Path, args: &[&str]) {

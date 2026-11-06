@@ -133,8 +133,18 @@ def _maven_config_impl(ctx):
     if pom_error != "":
         fail(pom_error + " (in " + str(ctx.label) + ")")
 
+    java = ctx.toolchains["@bazel_tools//tools/jdk:runtime_toolchain_type"].java_runtime
+    java_exes = [f for f in java.files.to_list() if f.path.endswith("/bin/java") or f.path.endswith("/bin/java.exe")]
+    japicmp = ctx.file._japicmp
+    api_checked = ctx.attr.api_compat != "off"
+    if api_checked and len(java_exes) != 1:
+        fail("maven_deploy " + str(ctx.label) + ": the Java runtime has " + str(len(java_exes)) + " bin/java files, want exactly one")
+
     values = {
+        "api_compat": ctx.attr.api_compat,
         "artifact": ctx.attr.artifact,
+        "japicmp_rloc": rlocation_path(ctx, japicmp) if api_checked else "",
+        "java_rloc": rlocation_path(ctx, java_exes[0]) if api_checked else "",
         "group": ctx.attr.group,
         "jar_rloc": rlocation_path(ctx, jar_file),
         "pom_rloc": rlocation_path(ctx, pom_file),
@@ -165,12 +175,25 @@ def _maven_config_impl(ctx):
         values[kind + "_rloc"] = rlocation_path(ctx, extra)
         pinned.append(extra)
 
-    return deploy_config(ctx, "maven", values, ctx.runfiles(files = pinned))
+    runfiles = ctx.runfiles(files = pinned)
+    if api_checked:
+        runfiles = runfiles.merge(ctx.runfiles(files = [japicmp], transitive_files = java.files))
+    return deploy_config(ctx, "maven", values, runfiles)
 
 _maven_config = rule(
     implementation = _maven_config_impl,
     doc = "Writes the deploy config for one Maven deployment.",
+    toolchains = ["@bazel_tools//tools/jdk:runtime_toolchain_type"],
     attrs = {
+        "api_compat": attr.string(
+            doc = "Public API check against the latest published release: off, warn or fail.",
+            values = ["off", "warn", "fail"],
+            default = "fail",
+        ),
+        "_japicmp": attr.label(
+            default = Label("//deploy/rules/pins:japicmp"),
+            allow_single_file = True,
+        ),
         "artifact": attr.string(
             doc = "Maven artifact id the jar and pom are published under.",
             mandatory = True,
@@ -208,8 +231,12 @@ _maven_config = rule(
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release", sources = None, javadoc = None, sbom = None):
-    """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment."""
+def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release", sources = None, javadoc = None, sbom = None, api_compat = "fail"):
+    """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
+
+    api_compat runs japicmp against the latest release on Maven Central below
+    version (off, warn, fail); a breaking change fails unless the bump is major.
+    """
     group_error = maven_group_error(group)
     if group_error != "":
         fail(group_error + " (in " + native.package_name() + ":" + name + ")")
@@ -226,6 +253,7 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
     config_target = name + "_config"
     _maven_config(
         name = config_target,
+        api_compat = api_compat,
         artifact = artifact,
         group = group,
         jar = jar,

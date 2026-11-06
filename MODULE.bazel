@@ -1853,6 +1853,9 @@ _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "h
 semver_checks = use_extension("//deploy/rules/pins:repos.bzl", "semver_checks")
 use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_linux_x86_64", "cargo_semver_checks_macos_arm64", "cargo_semver_checks_windows_x86_64")
 
+japicmp = use_extension("//deploy/rules/pins:repos.bzl", "japicmp")
+use_repo(japicmp, "japicmp_jar")
+
 cosign = use_extension("//deploy/release:repos.bzl", "cosign", dev_dependency = True)
 use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 

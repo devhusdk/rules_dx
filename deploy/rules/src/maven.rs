@@ -7,8 +7,11 @@ use pgp::composed::{
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
+use crate::api_compat::{breaking_refusal, previous_release, required_bump, ApiCompatMode};
 use crate::http;
-use crate::run::{env_or_empty, placeholder_refusal, OwnerGate};
+use crate::run::{
+    env_or_empty, placeholder_refusal, scrubbed_command, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::{copy_verified, deploy_profile, tempfile_stage_dir, zip_archive, DeployRun};
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
@@ -650,8 +653,141 @@ pub fn maven_live_gate(
     })
 }
 
+/// Where published artifacts are read from; the publisher API only accepts uploads.
+const MAVEN_CENTRAL_READ_URL: &str = "https://repo1.maven.org/maven2";
+
+fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
+    match http::publish_agent().get(url).call() {
+        Ok(mut response) => response
+            .body_mut()
+            .with_config()
+            .limit(limit)
+            .read_to_vec()
+            .map(Some)
+            .map_err(|error| format!("cannot read {url}: {error}")),
+        Err(ureq::Error::StatusCode(404)) => Ok(None),
+        Err(error) => Err(format!("cannot query {url}: {error}")),
+    }
+}
+
+/// Counts the incompatible entries in japicmp output.
+fn count_incompatible(output: &str) -> usize {
+    output
+        .lines()
+        .map(str::trim_start)
+        .filter(|line| line.starts_with("---!") || line.starts_with("***!"))
+        .filter(|line| !line.contains("MODIFIED CLASS") && !line.contains("MODIFIED INTERFACE"))
+        .count()
+}
+
+/// Compares the jar with the latest published release below `version` using japicmp.
+/// A missing baseline or an unreachable repository skips with a note.
+fn maven_api_check(
+    java: &Path,
+    japicmp: &Path,
+    mode: ApiCompatMode,
+    (group, artifact, version): (&str, &str, &str),
+    jar: &Path,
+    base_url: &str,
+) -> Result<(), String> {
+    let dir = format!(
+        "{}/{}/{}",
+        base_url.trim_end_matches('/'),
+        maven_group_path(group),
+        artifact
+    );
+    let metadata = match fetch(&format!("{dir}/maven-metadata.xml"), 1 << 20) {
+        Ok(Some(body)) => String::from_utf8_lossy(&body).into_owned(),
+        Ok(None) => {
+            println!(
+                "api compat: {group}:{artifact} is not published yet; skipped (first release)"
+            );
+            return Ok(());
+        }
+        Err(error) => {
+            println!("api compat: {error}; skipped");
+            return Ok(());
+        }
+    };
+    let Some(previous) = previous_release(&metadata, version) else {
+        println!("api compat: no release below {version}; skipped (first release)");
+        return Ok(());
+    };
+    let url = format!("{dir}/{previous}/{artifact}-{previous}.jar");
+    let baseline = match fetch(&url, 512 << 20) {
+        Ok(Some(body)) => body,
+        Ok(None) => {
+            println!("api compat: {url} not found; skipped");
+            return Ok(());
+        }
+        Err(error) => {
+            println!("api compat: {error}; skipped");
+            return Ok(());
+        }
+    };
+    maven_api_compare(java, japicmp, mode, (&previous, version), jar, &baseline)
+}
+
+/// Runs japicmp on the baseline jar bytes and the new jar.
+fn maven_api_compare(
+    java: &Path,
+    japicmp: &Path,
+    mode: ApiCompatMode,
+    (previous, version): (&str, &str),
+    jar: &Path,
+    baseline: &[u8],
+) -> Result<(), String> {
+    let staging =
+        tempfile_stage_dir("maven-api-").map_err(|error| format!("maven_deploy: {error}"))?;
+    let baseline_jar = staging.join("baseline.jar");
+    let ran = std::fs::write(&baseline_jar, baseline)
+        .map_err(|error| format!("maven_deploy: {error}"))
+        .and_then(|()| {
+            let mut cmd = scrubbed_command(java, &[PUBLISH_CHILD_ENV_KEEP], &[]);
+            cmd.arg("-jar")
+                .arg(japicmp)
+                .arg("--old")
+                .arg(&baseline_jar)
+                .arg("--new")
+                .arg(jar)
+                .args([
+                    "--only-incompatible",
+                    "--error-on-binary-incompatibility",
+                    "--error-on-source-incompatibility",
+                    "--ignore-missing-classes",
+                ]);
+            cmd.output()
+                .map_err(|error| format!("maven_deploy: {error}"))
+        });
+    let _ = std::fs::remove_dir_all(&staging);
+    let output = ran?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let breaking = if output.status.success() {
+        0
+    } else {
+        count_incompatible(&text).max(1)
+    };
+    println!("api compat: {breaking} breaking changes against {previous}");
+    if breaking > 0 {
+        for line in text.lines().filter(|line| !line.trim().is_empty()).take(40) {
+            println!("japicmp: {line}");
+        }
+    }
+    match breaking_refusal(mode, required_bump(previous, version), breaking) {
+        Some(reason) => Err(format!(
+            "maven_deploy: api compat: {reason} ({previous} -> {version})"
+        )),
+        None => Ok(()),
+    }
+}
+
 /// The values a generated Maven launcher passes to [`maven_main`].
 /// An empty rlocation means the optional file is absent.
+#[derive(Default)]
 pub struct MavenLaunch<'a> {
     pub jar_rloc: &'a str,
     pub pom_rloc: &'a str,
@@ -661,6 +797,10 @@ pub struct MavenLaunch<'a> {
     pub artifact: &'a str,
     pub version: &'a str,
     pub repository_url: &'a str,
+    /// `off`, `warn` or `fail`; empty means off.
+    pub api_compat: &'a str,
+    pub japicmp_rloc: &'a str,
+    pub java_rloc: &'a str,
 }
 
 /// Runs the Maven deploy tool.
@@ -674,6 +814,9 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         artifact,
         version,
         repository_url,
+        api_compat,
+        japicmp_rloc,
+        java_rloc,
     } = *spec;
     if argv.len() > 2 {
         eprintln!(
@@ -708,6 +851,32 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             return 1;
         };
         extra.push((classifier, path));
+    }
+    let mode = if api_compat.is_empty() {
+        Some(ApiCompatMode::Off)
+    } else {
+        ApiCompatMode::parse(api_compat)
+    };
+    let Some(mode) = mode else {
+        eprintln!("maven_deploy: invalid api_compat '{api_compat}'");
+        return 1;
+    };
+    if mode != ApiCompatMode::Off {
+        let tools = (run.resolve(java_rloc), run.resolve(japicmp_rloc));
+        let (Some(java), Some(japicmp)) = tools else {
+            return 1;
+        };
+        if let Err(error) = maven_api_check(
+            &java,
+            &japicmp,
+            mode,
+            (group, artifact, version),
+            &jar,
+            MAVEN_CENTRAL_READ_URL,
+        ) {
+            eprintln!("{error}");
+            return 1;
+        }
     }
     let classified: Vec<(&str, &Path)> = extra.iter().map(|(c, p)| (*c, p.as_path())).collect();
     let files = MavenFiles {
@@ -1470,6 +1639,7 @@ pub(crate) mod tests {
                     artifact: "maven_demo",
                     version: "0.0.0",
                     repository_url: MAVEN_DEFAULT_REPOSITORY_URL,
+                    ..Default::default()
                 },
                 &argv,
             )
@@ -1498,6 +1668,49 @@ pub(crate) mod tests {
         vars.pop();
         vars.push(("MAVEN_GPG_PASSPHRASE", Some("wrong")));
         assert_eq!(with_env(&vars, run), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn maven_api_compare_fails_on_breaking_unless_major() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = tempfile_stage_dir("maven-api-test-").expect("scratch");
+        let java = scratch.join("java");
+        let log = scratch.join("args");
+        std::fs::write(
+            &java,
+            format!(
+                "#!/bin/sh\necho \"$@\" > {}\necho '---! REMOVED METHOD: PUBLIC(-) void gone()'\nexit 1\n",
+                log.display()
+            ),
+        )
+        .expect("fake java");
+        std::fs::set_permissions(&java, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        let japicmp = scratch.join("japicmp.jar");
+        let jar = scratch.join("new.jar");
+        let run = |previous: &str, version: &str, mode| {
+            maven_api_compare(&java, &japicmp, mode, (previous, version), &jar, b"old")
+        };
+        let refused = run("1.2.0", "1.3.0", ApiCompatMode::Fail).expect_err("minor refused");
+        assert!(refused.contains("1.2.0 -> 1.3.0"), "{refused}");
+        let logged = std::fs::read_to_string(&log).expect("args");
+        for flag in [
+            "--only-incompatible",
+            "--error-on-binary-incompatibility",
+            "--error-on-source-incompatibility",
+            "--ignore-missing-classes",
+        ] {
+            assert!(logged.contains(flag), "{logged}");
+        }
+        assert!(run("1.2.0", "2.0.0", ApiCompatMode::Fail).is_ok());
+        assert!(run("1.2.0", "1.3.0", ApiCompatMode::Warn).is_ok());
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    #[test]
+    fn count_incompatible_skips_class_headers() {
+        let out = "***! MODIFIED CLASS: PUBLIC a.B\n    ---! REMOVED METHOD: PUBLIC(-) void x()\n    ***! MODIFIED METHOD: PUBLIC void y()\n";
+        assert_eq!(count_incompatible(out), 2);
     }
 
     #[test]

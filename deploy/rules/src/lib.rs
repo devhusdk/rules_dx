@@ -111,6 +111,7 @@ mod tests {
                     artifact: "demo",
                     version: "1.0.0",
                     repository_url: "https://maven.invalid",
+                    ..Default::default()
                 },
                 &argv
             ),
@@ -178,6 +179,7 @@ mod tests {
                             artifact: "demo",
                             version: "1.0.0",
                             repository_url: "https://maven.invalid",
+                            ..Default::default()
                         },
                         &argv
                     ),
@@ -376,6 +378,7 @@ mod tests {
                             artifact: "demo",
                             version: "0.0.0",
                             repository_url: "https://maven.invalid",
+                            ..Default::default()
                         },
                         &argv
                     ),
@@ -647,6 +650,7 @@ mod tests {
                             artifact: "maven_demo",
                             version: "1.0.0",
                             repository_url: "https://maven.invalid",
+                            ..Default::default()
                         },
                         &argv
                     ),
@@ -864,6 +868,7 @@ mod tests {
             artifact: "",
             version: "",
             repository_url: "",
+            ..Default::default()
         };
         let _ = crate::OctopusLaunch {
             package_rloc: "",

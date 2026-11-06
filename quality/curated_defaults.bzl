@@ -1,7 +1,7 @@
 """Curated quality defaults."""
 
 
-# Not curated yet: ocaml, swift and powershell (#8045, #8047).
+# Not curated yet: swift (its linter still stages a Linux binary on macOS, #8273).
 # Julia lints with julialint only. Its extra fetch over typos is the dx_julia_lint package set
 # (21 packages, about 4.2 MB); the 1.12.5 runtime (about 288 MB on linux_x86_64) is already
 # fetched to precompile any julia_library (#8048). JET and JuliaFormatter stay opt-in.
@@ -166,6 +166,20 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": [],
         "lint": ["deadnix", "statix", "typos"],
+        "typecheck": [],
+        "unused": [],
+    },
+    "ocaml": {
+        "audit": [],
+        "format": ["topiary"],
+        "lint": ["typos", "zanuda"],
+        "typecheck": [],
+        "unused": [],
+    },
+    "powershell": {
+        "audit": [],
+        "format": ["psscriptanalyzer"],
+        "lint": ["psscriptanalyzer", "typos"],
         "typecheck": [],
         "unused": [],
     },

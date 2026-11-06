@@ -213,6 +213,26 @@ consumer_policy_tests(
             "subject": "//dart/tests/fixtures/dart-app/cli:inventory_cli",
         },
         {
+            "case": "default_ocaml",
+            "expected_dx_results": [
+                "clean-real-format-ocaml.pb",
+                "clean-real-lint-ocaml.pb",
+                "clean-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//quality/testdata/ocaml_owned:clean",
+        },
+        {
+            "case": "default_powershell",
+            "expected_dx_results": [
+                "hello-real-format-powershell.pb",
+                "hello-real-lint-powershell.pb",
+                "hello-real-lint-text.pb",
+            ],
+            "policy": "//quality:default_workspace_policy",
+            "subject": "//powershell/tests/fixtures/hello:hello",
+        },
+        {
             "case": "default_haskell",
             "expected_dx_results": [
                 "cli-real-format-haskell.pb",

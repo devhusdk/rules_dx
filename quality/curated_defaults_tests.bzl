@@ -179,6 +179,28 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "ocaml curated defaults are topiary + zanuda",
+                CURATED_DEFAULTS["ocaml"],
+                {
+                    "audit": [],
+                    "format": ["topiary"],
+                    "lint": ["typos", "zanuda"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
+                "powershell curated defaults are PSScriptAnalyzer",
+                CURATED_DEFAULTS["powershell"],
+                {
+                    "audit": [],
+                    "format": ["psscriptanalyzer"],
+                    "lint": ["psscriptanalyzer", "typos"],
+                    "typecheck": [],
+                    "unused": [],
+                },
+            ),
+            expect_equal(
                 "d curated defaults are dfmt + D-Scanner",
                 CURATED_DEFAULTS["d"],
                 {

@@ -87,8 +87,9 @@ Import-Module Pester -RequiredVersion 5.7.1
 
 `psscriptanalyzer` formats and lints. Format runs `Invoke-Formatter`, and
 `dx check --apply` rewrites scripts that would change. A script that does not parse is
-reported and never rewritten. Lint is check-only. Select both in the
-`powershell` family. See the Quality page of the command reference for the
+reported and never rewritten. Lint is check-only. The default policy selects both for the
+`powershell` family; on platforms without a PSScriptAnalyzer build they skip with a note. To
+change the selection, write a `quality_family`. See the Quality page of the command reference for the
 config rules.
 
 ```python

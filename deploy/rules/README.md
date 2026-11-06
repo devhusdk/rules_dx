@@ -745,7 +745,8 @@ oci_deploy(
 - `platforms`: defaults to `["linux/amd64"]`. One platform gives an
   `oci_image` and an `<name>_load` target that `dx run` loads into a local
   runtime. Several platforms give an `oci_image_index` that builds the binary
-  once per platform; `oci_deploy` takes one `platform` of it.
+  once per platform; `oci_deploy` takes one `platform` of it, and
+  `<name>_load` loads the image of the first platform.
 
 # oci_deploy
 

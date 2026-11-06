@@ -656,6 +656,12 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
           bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/rules:pypi_probe_verify
+      - name: Analyze the gRPC C++ targets (#7989)
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2086
+          bazel build --nobuild --noshow_progress "$@" //gazelle/protobuf/tests/roundtrip/grpc_app:all
       - name: Write job summary
         if: always()
         env:
@@ -664,7 +670,7 @@ jobs:
           RUNNER_LABEL: ${{ matrix.runner }}
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python, JavaScript, and YAML tools, and the Zig example and hello fixture on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python, JavaScript, and YAML tools, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets." >> "$GITHUB_STEP_SUMMARY"
       - name: Record the runner image
         if: always()
         shell: bash

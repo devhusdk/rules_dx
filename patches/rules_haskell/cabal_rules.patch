@@ -142,7 +142,7 @@ index 03ccd67..991b465 100644
      fragments = ["cpp"],
      doc = """\
 diff --git a/haskell/private/cabal_wrapper.py b/haskell/private/cabal_wrapper.py
-index 6e2a40e..b51f727 100755
+index 6e2a40e..979cbfd 100755
 --- a/haskell/private/cabal_wrapper.py
 +++ b/haskell/private/cabal_wrapper.py
 @@ -95,7 +95,7 @@ def canonicalize_path(path):
@@ -154,11 +154,14 @@ index 6e2a40e..b51f727 100755
  os.environ["RULES_HASKELL_GHC_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PATH", ""))
  os.environ["RULES_HASKELL_GHC_PKG_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PKG_PATH", ""))
  os.environ["RULES_HASKELL_LIBDIR_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_LIBDIR_PATH", ""))
-@@ -295,6 +295,7 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
+@@ -295,6 +295,10 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]
-+    runghc_args += ["--ghc-arg=" + flag.replace("$CC", cc).replace("$LD", ld) for flag in toolchain_info["ghc_cc_args"]]
++    ghc_cc_args = toolchain_info["ghc_cc_args"]
++    if "-pgmlm" in ghc_cc_args:
++        ghc_cc_args = ghc_cc_args[:ghc_cc_args.index("-pgmlm")]
++    runghc_args += ["--ghc-arg=" + flag.replace("$CC", cc).replace("$LD", ld) for flag in ghc_cc_args]
  
      if not deps_package_db:
          path_args.extend(["--package-db=" + os.path.dirname(db) for db in deps_package_databases])

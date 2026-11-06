@@ -1,0 +1,121 @@
+{
+ "traceEvents": [
+  {
+   "name": "thread_name",
+   "ph": "M",
+   "pid": 1,
+   "tid": 0,
+   "args": {
+    "name": "Critical Path"
+   }
+  },
+  {
+   "name": "thread_sort_index",
+   "ph": "M",
+   "pid": 1,
+   "tid": 0,
+   "args": {
+    "sort_index": 0
+   }
+  },
+  {
+   "name": "thread_name",
+   "ph": "M",
+   "pid": 1,
+   "tid": 54,
+   "args": {
+    "name": "Main Thread"
+   }
+  },
+  {
+   "cat": "critical path component",
+   "name": "action 'Writing script external/llvm++llvm+llvm-project/libcxx/libcxx.cppmap'",
+   "ph": "X",
+   "ts": 1842116,
+   "dur": 41759,
+   "pid": 1,
+   "args": {
+    "tid": 54
+   },
+   "tid": 0
+  },
+  {
+   "cat": "critical path component",
+   "name": "action 'Compiling libcxx/src/locale.cpp'",
+   "ph": "X",
+   "ts": 6183841,
+   "dur": 2850895,
+   "pid": 1,
+   "args": {
+    "tid": 54
+   },
+   "tid": 0
+  },
+  {
+   "cat": "critical path component",
+   "name": "action 'Creating static library external/llvm++llvm+llvm-project/libcxx/libcxx.static.stage0_asan_inheriting_/liblibcxx.static.stage0_asan_inheriting.a'",
+   "ph": "X",
+   "ts": 9036081,
+   "dur": 204923,
+   "pid": 1,
+   "args": {
+    "tid": 54
+   },
+   "tid": 0
+  },
+  {
+   "cat": "action processing",
+   "name": "BazelWorkspaceStatusAction stable-status.txt",
+   "ph": "X",
+   "ts": 369047,
+   "dur": 1024,
+   "pid": 1,
+   "args": {
+    "mnemonic": "BazelWorkspaceStatusAction"
+   },
+   "tid": 3086
+  },
+  {
+   "cat": "action processing",
+   "name": "Compiling external/llvm+/runtimes/glibc/build/ld.s",
+   "ph": "X",
+   "ts": 1880715,
+   "dur": 215345,
+   "pid": 1,
+   "args": {
+    "mnemonic": "CppCompile"
+   },
+   "tid": 3624
+  },
+  {
+   "cat": "action processing",
+   "name": "RunBinary external/llvm+/runtimes/libunwind/libgcc_s.a",
+   "ph": "X",
+   "ts": 1869297,
+   "dur": 226763,
+   "pid": 1,
+   "args": {
+    "mnemonic": "RunBinary"
+   },
+   "tid": 3605
+  },
+  {
+   "cat": "Fetching repository",
+   "name": "@@platforms+host_platform+host_platform",
+   "ph": "X",
+   "ts": 333694,
+   "dur": 7,
+   "pid": 1,
+   "tid": 3064
+  },
+  {
+   "cat": "Fetching repository",
+   "name": "@@platforms+host_platform+host_platform",
+   "ph": "X",
+   "ts": 334158,
+   "dur": 782,
+   "pid": 1,
+   "tid": 3065
+  }
+ ]
+}

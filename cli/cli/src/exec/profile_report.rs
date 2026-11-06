@@ -475,6 +475,23 @@ mod tests {
     }
 
     #[test]
+    fn real_bazel_output_gives_a_full_report() {
+        let trace = include_str!("testdata/bazel_profile.json");
+        let metrics = include_str!("testdata/bazel_build_metrics.json");
+        let mut report = build(trace, None, None).expect("report");
+        report.totals = dx_bep::collect_build_totals(metrics.as_bytes());
+        assert!(!report.critical.is_empty());
+        assert!(report.critical_micros > 0);
+        assert!(!report.slowest.is_empty());
+        assert!(report.fetches > 0);
+        let totals = report.totals.as_ref().expect("totals");
+        assert!(totals.critical_path_ms.unwrap_or(0) > 0);
+        assert!(totals.mnemonics.iter().all(|row| row.cpu_ms <= totals.mnemonics[0].cpu_ms));
+        assert!(totals.mnemonics[0].cpu_ms > 0, "{totals:?}");
+        assert!(report.text().contains("critical path"), "{}", report.text());
+    }
+
+    #[test]
     fn report_rejects_a_truncated_trace() {
         assert!(build(r#"{"traceEvents":[{"cat":"#, None, None).is_err());
     }

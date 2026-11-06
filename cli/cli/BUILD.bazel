@@ -336,6 +336,8 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "src/exec/testdata/bazel_build_metrics.json",
+        "src/exec/testdata/bazel_profile.json",
         "src/exec/unsupported.json",
         "//docs:cli/commands/init.md",
     ],

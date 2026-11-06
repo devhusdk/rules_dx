@@ -3,6 +3,7 @@ load("//deploy/rules:github.bzl", "github_deploy")
 load("//deploy/rules:oci.bzl", "oci_deploy")
 load("//deploy/rules:pypi.bzl", "pypi_deploy")
 load("//deploy/rules:sbom.bzl", "dx_sbom")
+load(":sbom_tests.bzl", "plain_file_sbom_tests")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library")
 
 package(default_visibility = ["//deploy/rules:__pkg__"])
@@ -83,3 +84,5 @@ sh_test(
     srcs = ["deployment_check.sh"],
     data = [":app_wheel"],
 )
+
+plain_file_sbom_tests(name = "plain_file_sbom_test")

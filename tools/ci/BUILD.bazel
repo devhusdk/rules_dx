@@ -105,7 +105,12 @@ rust_binary(
 rust_test(
     name = "evidence_inputs_test",
     srcs = ["evidence_inputs_test.rs"],
-    deps = [":evidence_inputs"],
+    data = ["//.github:workflows/evidence.yml"],
+    deps = [
+        ":evidence_inputs",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
 )
 
 # keep

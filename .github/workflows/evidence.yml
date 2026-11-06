@@ -91,8 +91,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          repo-contents-cache: ${{ runner.os == 'Windows' }}
       - name: Validate workflow inputs
         id: inputs
         env:
@@ -297,31 +295,6 @@ jobs:
             bazel "--output_base=$base" shutdown
             exit "$differ"
           fi
-      - name: TEMP measure the repo caches
-        if: ${{ always() && runner.os == 'Windows' && steps.inputs.outcome == 'success' }}
-        env:
-          DX_SCOPE: ${{ steps.inputs.outputs.scope }}
-        run: |
-          read -ra patterns <<< "$DX_SCOPE"
-          rc="$(bazel info repository_cache | tr -d '\r')"
-          echo "repo cache $rc"
-          du -sh "$rc/content_addressable" "$rc/contents" || true
-          find "$rc/contents" -mindepth 2 -maxdepth 2 -name '*.recorded_inputs' | wc -l
-          start=$(date +%s)
-          bytes="$(tar -cf - -C "$rc" --exclude=contents/gc_lock --exclude=contents/_trash contents | zstd -T0 | wc -c)"
-          echo "contents tar.zst bytes=$bytes seconds=$(( $(date +%s) - start ))"
-          bytes="$(tar -cf - -C "$rc" content_addressable | zstd -T0 | wc -c)"
-          echo "content_addressable tar.zst bytes=$bytes"
-          bazel shutdown
-          touch "$RUNNER_TEMP/stamp2"
-          sleep 2
-          start=$(date +%s)
-          bazel --output_base=D:/_b2 test --noshow_progress --test_output=errors "${patterns[@]}" 2>&1 | grep -E "Analyzed|Elapsed|processes" || true
-          echo "warm contents fresh output base seconds=$(( $(date +%s) - start ))"
-          find "$rc/content_addressable" -name file -newer "$RUNNER_TEMP/stamp2" > "$RUNNER_TEMP/touched.txt"
-          echo "content_addressable entries touched by warm run: $(wc -l < "$RUNNER_TEMP/touched.txt")"
-          tr '\n' '\0' < "$RUNNER_TEMP/touched.txt" | du -ch --files0-from=- | tail -1
-          bazel --output_base=D:/_b2 shutdown
       - name: Qualify cc/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
         run: |

@@ -208,14 +208,16 @@ fn validate_platforms(workflow_texts: &[(String, String)]) -> Vec<&'static str> 
 }
 
 /// Platforms a restore-only job can run on: every validate runner when `runs-on`
-/// is `fromJSON(needs.validate.outputs.runners)[matrix.<key>]`, else `job_platforms`.
+/// maps `matrix.platform` to a runner, else `job_platforms`.
 fn restore_job_platforms(
     body: &serde_json::Value,
     validate: &[&'static str],
 ) -> Option<Vec<&'static str>> {
     if body["runs-on"]
         .as_str()
-        .is_some_and(|runs_on| runs_on.contains(VALIDATE_RUNNERS))
+        .is_some_and(|runs_on| {
+            runs_on.contains(VALIDATE_RUNNERS) || runs_on.contains("[matrix.platform]")
+        })
     {
         return Some(validate.to_vec());
     }

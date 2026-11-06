@@ -130,6 +130,7 @@ pub mod typos;
 pub mod typstyle;
 pub mod vale;
 pub mod vulture;
+pub mod weeder;
 pub mod xmllint;
 pub mod xref;
 pub mod yamlfmt;
@@ -163,6 +164,7 @@ pub use csharpier::parse_csharpier;
 pub use cue::{parse_cue, parse_cue_vet};
 pub use dart_analyze::{parse_dart_analyze, DartAnalyzeView};
 pub use dart_format::parse_dart_format;
+pub use deadcode::parse_deadcode;
 pub use deadnix::parse_deadnix;
 pub use debride::parse_debride;
 pub use detekt::parse_detekt;
@@ -266,8 +268,8 @@ pub use ty::parse_ty;
 pub use typos::parse_typos;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
-pub use deadcode::parse_deadcode;
 pub use vulture::{parse_vulture, parse_vulture_unused, UnusedRoots};
+pub use weeder::parse_weeder;
 pub use xmllint::parse_xmllint;
 pub use xref::parse_xref;
 pub use yamlfmt::parse_yamlfmt;
@@ -2669,6 +2671,14 @@ mod tests {
         super::hadolint::parse_hadolint(input, input, code, files)
     }
 
+    fn fuzz_weeder(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::weeder::parse_weeder(input, input, code, files)
+    }
+
     fn fuzz_hlint(
         input: &[u8],
         code: Option<i32>,
@@ -3070,6 +3080,7 @@ mod tests {
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
         ("hlint", fuzz_hlint),
+        ("weeder", fuzz_weeder),
         ("jet", fuzz_jet),
         ("jsonnet_lint", fuzz_jsonnet_lint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
@@ -3223,6 +3234,7 @@ mod tests {
         ("hadolint", include_str!("hadolint.rs")),
         ("helm", include_str!("helm.rs")),
         ("hlint", include_str!("hlint.rs")),
+        ("weeder", include_str!("weeder.rs")),
         ("jet", include_str!("jet.rs")),
         ("jsonnet_lint", include_str!("jsonnet_lint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),

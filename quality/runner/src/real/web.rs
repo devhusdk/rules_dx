@@ -5,6 +5,10 @@ use quality_adapter::{commands, parsers};
 use super::check::ToolDef;
 use super::*;
 
+/// The standard tier's kinds, used when the consumer binds no markdown_check config.
+const MARKDOWN_CHECK_DEFAULT_KINDS: &str =
+    include_str!("../../../tiers/markdown_check/standard.txt");
+
 /// Web, docs and config linters that build their own invocation and parse.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
@@ -24,7 +28,16 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 .iter()
                 .map(|(workspace, absolute)| (workspace.as_str(), absolute.as_path()))
                 .collect();
-            let invocation = commands::markdown_check(&tool.binary, &specs, &sibling_specs);
+            let kinds = match call.config {
+                Some(path) => std::fs::read_to_string(path)
+                    .map_err(|err| execution(tool_id, format!("read {}: {err}", path.display())))?,
+                None => MARKDOWN_CHECK_DEFAULT_KINDS.to_owned(),
+            };
+            let kinds: Vec<&str> = kinds
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .collect();
+            let invocation = commands::markdown_check(&tool.binary, &specs, &sibling_specs, &kinds);
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
             let workspaces: Vec<&str> = pairs
                 .iter()

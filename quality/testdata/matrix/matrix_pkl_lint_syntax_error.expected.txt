@@ -5,7 +5,7 @@ stage pkl_lsp classes=pkl sources=matrix/pkl_lint_broken.pkl
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR pkl_lsp - matrix/pkl_lint_broken.pkl 8 8 fixable=false "Invalid syntax."
+initial WARNING pkl_lsp - matrix/pkl_lint_broken.pkl 8 8 fixable=false "Invalid syntax."
 terminal 1
-terminal ERROR pkl_lsp - matrix/pkl_lint_broken.pkl 8 8 fixable=false "Invalid syntax."
+terminal WARNING pkl_lsp - matrix/pkl_lint_broken.pkl 8 8 fixable=false "Invalid syntax."
 replacements 0

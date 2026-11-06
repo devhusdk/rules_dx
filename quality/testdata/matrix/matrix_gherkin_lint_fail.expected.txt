@@ -5,7 +5,7 @@ stage gplint classes=gherkin sources=matrix/gplint_dirty.feature
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR gplint no-unnamed-features matrix/gplint_dirty.feature 0 0 fixable=false "Missing Feature name"
+initial WARNING gplint no-unnamed-features matrix/gplint_dirty.feature 0 0 fixable=false "Missing Feature name"
 terminal 1
-terminal ERROR gplint no-unnamed-features matrix/gplint_dirty.feature 0 0 fixable=false "Missing Feature name"
+terminal WARNING gplint no-unnamed-features matrix/gplint_dirty.feature 0 0 fixable=false "Missing Feature name"
 replacements 0

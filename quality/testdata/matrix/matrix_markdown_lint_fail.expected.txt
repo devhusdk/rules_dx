@@ -6,7 +6,7 @@ stage vale classes=markdown sources=matrix/markdown_dirty.md
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR markdown_check heading-hierarchy matrix/markdown_dirty.md 16 16 fixable=false "multiple H1 headings: exactly one H1 is required"
+initial WARNING markdown_check heading-hierarchy matrix/markdown_dirty.md 16 16 fixable=false "multiple H1 headings: exactly one H1 is required"
 terminal 1
-terminal ERROR markdown_check heading-hierarchy matrix/markdown_dirty.md 16 16 fixable=false "multiple H1 headings: exactly one H1 is required"
+terminal WARNING markdown_check heading-hierarchy matrix/markdown_dirty.md 16 16 fixable=false "multiple H1 headings: exactly one H1 is required"
 replacements 0

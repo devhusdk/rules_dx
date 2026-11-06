@@ -491,6 +491,8 @@ TOOLS = [
     tool(
         id = "chktex",
         adapters = {"lint": ["latex"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1229,7 +1231,8 @@ TOOLS = [
     tool(
         id = "gplint",
         adapters = {"lint": ["gherkin"]},
-        config = config(suffixes = [".gplintrc", ".json"]),
+        config = config(suffixes = [".gplintrc", ".json"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1342,6 +1345,8 @@ TOOLS = [
     tool(
         id = "jsonnet_lint",
         adapters = {"lint": ["jsonnet"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1357,6 +1362,7 @@ TOOLS = [
     tool(
         id = "jsonnetfmt",
         adapters = {"format": ["jsonnet"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1492,7 +1498,7 @@ TOOLS = [
     tool(
         id = "latexindent",
         adapters = {"format": ["latex"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1518,6 +1524,8 @@ TOOLS = [
     tool(
         id = "lychee",
         adapters = {"lint": ["asciidoc", "html", "markdown", "mdx", "rst"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -1569,6 +1577,8 @@ TOOLS = [
     tool(
         id = "markdown_check",
         adapters = {"lint": ["markdown"]},
+        config = config(suffixes = [".txt"], tier_active = True),
+        severity = severity(default = "warning"),
     ),
     tool(
         id = "mbake",
@@ -1682,6 +1692,7 @@ TOOLS = [
             "format": ["rego"],
             "typecheck": ["rego"],
         },
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -1833,6 +1844,8 @@ TOOLS = [
     tool(
         id = "pkl_lsp",
         adapters = {"lint": ["pkl"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2045,7 +2058,8 @@ TOOLS = [
     tool(
         id = "redocly",
         adapters = {"lint": ["api_spec"]},
-        config = config(suffixes = [".yaml", ".yml"]),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2625,6 +2639,8 @@ TOOLS = [
     tool(
         id = "tinymist",
         adapters = {"lint": ["typst"]},
+        config = config(kind = "none", tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",
@@ -2768,6 +2784,7 @@ TOOLS = [
     tool(
         id = "typstyle",
         adapters = {"format": ["typst"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2783,7 +2800,7 @@ TOOLS = [
     tool(
         id = "vale",
         adapters = {"lint": ["asciidoc", "markdown", "rst"]},
-        config = config(suffixes = [".ini"]),
+        config = config(suffixes = [".ini"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -2842,6 +2859,7 @@ TOOLS = [
     tool(
         id = "xmllint",
         adapters = {"lint": ["xml"]},
+        config = config(kind = "none", tier_active = True),
         support = [
             row(
                 capability = "lint",

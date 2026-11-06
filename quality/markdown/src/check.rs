@@ -98,7 +98,7 @@ pub fn kind_id(kind: FindingKind) -> &'static str {
 }
 
 fn usage() -> String {
-    "usage: quality_markdown --source WS_PATH=EXEC_PATH [--source ...] [--sibling WS_PATH=EXEC_PATH ...]".into()
+    "usage: quality_markdown --source WS_PATH=EXEC_PATH [--source ...] [--sibling WS_PATH=EXEC_PATH ...] [--kind KIND ...]".into()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -114,6 +114,8 @@ struct Cli {
     source: Vec<Mapping>,
     #[arg(long, allow_hyphen_values = true, value_parser = parse_sibling_mapping)]
     sibling: Vec<Mapping>,
+    #[arg(long)]
+    kind: Vec<String>,
 }
 
 enum EmptyRejection {
@@ -219,6 +221,26 @@ fn parse_mapping(flag: &'static str, raw: &str) -> Result<Mapping, String> {
     }
 }
 
+fn parse_kinds(raw: &[String]) -> Result<Vec<FindingKind>, String> {
+    if raw.is_empty() {
+        return Ok(ALL_KINDS.to_vec());
+    }
+    raw.iter()
+        .map(|name| {
+            ALL_KINDS
+                .into_iter()
+                .find(|kind| kind_id(*kind) == name)
+                .ok_or_else(|| format!("unknown kind {name:?}"))
+        })
+        .collect()
+}
+
+const ALL_KINDS: [FindingKind; 3] = [
+    FindingKind::HeadingHierarchy,
+    FindingKind::MissingCodeFenceLanguage,
+    FindingKind::UnclosedCodeFence,
+];
+
 fn parse_source_mapping(raw: &str) -> Result<Mapping, String> {
     parse_mapping("--source", raw)
 }
@@ -239,6 +261,14 @@ pub fn run_cli(
             for line in &lines {
                 print_err(line);
             }
+            return 2;
+        }
+    };
+    let kinds = match parse_kinds(&cli.kind) {
+        Ok(kinds) => kinds,
+        Err(message) => {
+            print_err(&message);
+            print_err(&usage());
             return 2;
         }
     };
@@ -278,7 +308,7 @@ pub fn run_cli(
     for ws in &ordered_ws {
         let text = texts.get(ws).map(String::as_str).unwrap_or_default();
         let outcome = check_markdown(text);
-        for finding in &outcome.findings {
+        for finding in outcome.findings.iter().filter(|f| kinds.contains(&f.kind)) {
             let line = FindingLine {
                 path: ws.as_str(),
                 line: finding.line,

@@ -44,7 +44,10 @@ rust_library(
         normal = True,
     ),
     compile_data = [
+        "//quality/tiers/gplint:standard.json",
         "//quality/tiers/hlint:standard.yaml",
+        "//quality/tiers/markdown_check:standard.txt",
+        "//quality/tiers/redocly:standard.yaml",
         "//quality/tools/jvm:pmd_default.xml",
         "//quality/tools/jvm:scalafmt_default.conf",
         "//quality/tools/lua:lua54.yml",
@@ -190,7 +193,10 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "//quality/tiers/gplint:standard.json",
         "//quality/tiers/hlint:standard.yaml",
+        "//quality/tiers/markdown_check:standard.txt",
+        "//quality/tiers/redocly:standard.yaml",
         "//quality/tools/jvm:pmd_default.xml",
         "//quality/tools/jvm:scalafmt_default.conf",
         "//quality/tools/lua:lua54.yml",

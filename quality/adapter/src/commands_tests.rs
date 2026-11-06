@@ -150,11 +150,14 @@ fn markdown_check_maps_workspace_to_absolute() {
             ("README.md", Path::new("/scratch/README.md")),
         ],
         &[("LICENSE", Path::new("/scratch/LICENSE"))],
+        &["heading-hierarchy"],
     );
     assert_eq!(
         argv_strings(&invocation),
         vec![
             BIN,
+            "--kind",
+            "heading-hierarchy",
             "--source",
             "doc/guide.md=/scratch/doc/guide.md",
             "--source",

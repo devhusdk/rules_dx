@@ -116,16 +116,7 @@ const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const CUE_STATE_REL: &str = ".dx-cue-state";
 const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
 /// The curated Redocly policy: spec structure plus the correctness rules, all as errors.
-const REDOCLY_DEFAULTS_BYTES: &[u8] = b"extends:
-  - spec
-rules:
-  no-unresolved-refs: error
-  operation-operationId-unique: error
-  path-parameters-defined: error
-  no-identical-paths: error
-  operation-parameters-unique: error
-telemetry: off
-";
+const REDOCLY_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/redocly/standard.yaml");
 /// The curated gplint rules cover meaning only. Layout belongs to prettier, and rules that
 /// compare files (`no-dupe-feature-names`, `no-dupe-scenario-names` in `anywhere` mode) would
 /// make a result depend on which files share a batch, so none of those are listed.
@@ -149,22 +140,7 @@ const SCALAFIX_DEFAULTS_REL: &str = "dx-scalafix-default/.scalafix.conf";
 const SCALAFIX_DEFAULTS_BYTES: &[u8] = b"rules = [RemoveUnused]\n";
 
 const GPLINT_DEFAULTS_REL: &str = "dx-gplint-default/gplint.json";
-const GPLINT_DEFAULTS_BYTES: &[u8] = br#"{
-  "no-background-only-scenario": "error",
-  "no-dupe-scenario-names": ["error", "in-feature"],
-  "no-duplicate-tags": "error",
-  "no-empty-background": "error",
-  "no-empty-file": "error",
-  "no-examples-in-scenarios": "error",
-  "no-files-without-scenarios": "error",
-  "no-homogenous-tags": "error",
-  "no-scenario-outlines-without-examples": "error",
-  "no-superfluous-tags": "error",
-  "no-unnamed-features": "error",
-  "no-unnamed-scenarios": "error",
-  "no-unused-variables": "error"
-}
-"#;
+const GPLINT_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/gplint/standard.json");
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
   "rules": {

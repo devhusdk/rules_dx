@@ -39,6 +39,21 @@ def _vale_profile_case(name, profile, family, path, text):
         "windows_arm64": True,
     }
 
+def _clean_tier_case(profile):
+    name = "matrix_markdown_lint_clean_" + profile
+    path = "matrix/clean_%s.md" % profile
+    case = _vale_profile_case(name, profile, "markdown", path, "# Clean\n\n```sh\nls\n```\n\n## Part\n")
+    case["stages"] = ["markdown_check;markdown;" + path] + case["stages"]
+    case["tool_names"] = ["markdown_check", "vale"]
+    case["tool_binaries"] = ["//quality/markdown:quality_markdown", "@dx_tools//:vale"]
+    case["config_tools"] = ["vale", "markdown_check"]
+    kinds = "//quality/tiers/markdown_check:%s.txt" % profile
+    case["config_files"] = case["config_files"] + [kinds]
+    case["toolfile_tools"] = case["toolfile_tools"] + ["markdown_check"]
+    case["toolfile_srcs"] = case["toolfile_srcs"] + [kinds]
+    case["toolfile_rels"] = case["toolfile_rels"] + [""]
+    return case
+
 MARKDOWN_CASES = [
     {
         "name": "matrix_markdown_lint_pass",
@@ -294,5 +309,7 @@ MARKDOWN_CASES = [
     },
     _vale_profile_case("matrix_markdown_lint_profile_standard", "standard", "markdown", "matrix/vale_profile_standard.md", "# Profile\n\nThe ball was kicked.\n"),
     _vale_profile_case("matrix_markdown_lint_profile_strict", "strict", "markdown", "matrix/vale_profile_strict.md", "# Profile\n\nThe ball was kicked.\n"),
+    _clean_tier_case("standard"),
+    _clean_tier_case("strict"),
     _vale_profile_case("matrix_rst_lint_profile_strict", "strict", "rst", "matrix/vale_profile_strict.rst", "Profile\n=======\n\nThe ball was kicked.\n"),
 ]

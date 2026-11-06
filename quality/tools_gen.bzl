@@ -142,7 +142,11 @@ def severity_rust():
         if severity.default == None and not severity.categories:
             continue
         default = "None" if severity.default == None else "Some(%s)" % _level(severity.default)
-        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n            categories: &[\n" % (_str(tool.id), default)
+        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n" % (_str(tool.id), default)
+        if not severity.categories:
+            out += "            categories: &[],\n        },\n    ),\n"
+            continue
+        out += "            categories: &[\n"
         for key in sorted(severity.categories.keys()):
             out += "                (%s, %s),\n" % (_str(key), _level(severity.categories[key]))
         out += "            ],\n        },\n    ),\n"

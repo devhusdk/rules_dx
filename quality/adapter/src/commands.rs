@@ -773,9 +773,14 @@ pub fn markdown_check(
     binary: &Path,
     sources: &[(&str, &Path)],
     siblings: &[(&str, &Path)],
+    kinds: &[&str],
 ) -> Invocation {
-    let mut argv = Vec::with_capacity(1 + 2 * (sources.len() + siblings.len()));
+    let mut argv = Vec::with_capacity(1 + 2 * (sources.len() + siblings.len() + kinds.len()));
     argv.push(binary.as_os_str().to_owned());
+    for kind in kinds {
+        argv.push(OsString::from("--kind"));
+        argv.push(OsString::from(kind));
+    }
     for (workspace, absolute) in sources {
         argv.push(OsString::from("--source"));
         let mut mapping = OsString::from(workspace);

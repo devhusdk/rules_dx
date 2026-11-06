@@ -5,7 +5,7 @@ stage vale classes=asciidoc sources=matrix/asciidoc_dirty.adoc
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR vale Dx.Markers matrix/asciidoc_dirty.adoc 31 35 fixable=false "Remove 'TODO' markers before merging."
+initial WARNING vale Dx.Markers matrix/asciidoc_dirty.adoc 31 35 fixable=false "Remove 'TODO' markers before merging."
 terminal 1
-terminal ERROR vale Dx.Markers matrix/asciidoc_dirty.adoc 31 35 fixable=false "Remove 'TODO' markers before merging."
+terminal WARNING vale Dx.Markers matrix/asciidoc_dirty.adoc 31 35 fixable=false "Remove 'TODO' markers before merging."
 replacements 0

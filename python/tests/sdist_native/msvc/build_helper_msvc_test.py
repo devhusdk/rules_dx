@@ -35,6 +35,13 @@ def main() -> None:
     assert env["MSSdk"] == "1"
     assert env["INCLUDE"] == os.getcwd() + "/sdk/include", env["INCLUDE"]
 
+    cwd = os.getcwd()
+    root = helper._msvc_worktree_root("bazel-out/a/bin/one.whl")
+    assert root.startswith(cwd), root
+    assert len(root) <= len(cwd) + 20, root
+    assert root == helper._msvc_worktree_root("bazel-out/a/bin/one.whl")
+    assert root != helper._msvc_worktree_root("bazel-out/a/bin/two.whl")
+
 
 if __name__ == "__main__":
     main()

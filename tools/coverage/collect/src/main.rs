@@ -144,7 +144,11 @@ fn export(ctx: &Context, cov: &Path, objects: &[PathBuf], profile: &Path) -> Str
     }
     let report =
         String::from_utf8(out.stdout).unwrap_or_else(|_| fail("llvm-cov export wrote non-UTF-8"));
-    collect::rewrite_paths(&report, &ctx.execroot)
+    let report = collect::rewrite_paths(&report, &ctx.execroot);
+    for source in report.lines().filter(|line| line.starts_with("SF:")) {
+        debug_log!("{source}");
+    }
+    report
 }
 
 // LCOV_EXCL_START - reason: process orchestration over env and the gcc gcov tool, issue: 5889
@@ -262,7 +266,9 @@ fn main() {
         ))
     });
     let report = if objects.is_empty() {
-        eprintln!("dx coverage collector: no instrumented objects to export; writing an empty report");
+        eprintln!(
+            "dx coverage collector: no instrumented objects to export; writing an empty report"
+        );
         String::new()
     } else {
         export(&ctx, &cov, &objects, &merged)

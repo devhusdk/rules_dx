@@ -54,12 +54,32 @@ pub fn export_args(profdata: &Path, root: &Path, objects: &[PathBuf]) -> Vec<Str
     args
 }
 
+/// Makes every SF: path relative to the execroot with forward slashes, as the
+/// coverage manifest spells it. llvm-cov on Windows writes backslashes.
 pub fn rewrite_paths(report: &str, root: &Path) -> String {
-    let root = root.display().to_string();
+    let root = root.display().to_string().replace('\\', "/");
     report
-        .replace("/proc/self/cwd/", "")
-        .replace(&format!("{root}/"), "")
-        .replace(&root, "")
+        .split_inclusive('\n')
+        .map(|line| match line.strip_prefix("SF:") {
+            Some(path) => {
+                let end = &path[path.trim_end().len()..];
+                format!("SF:{}{end}", source_path(path.trim_end(), &root))
+            }
+            None => line.to_string(),
+        })
+        .collect()
+}
+
+fn source_path(path: &str, root: &str) -> String {
+    let path = path.replace('\\', "/");
+    let path = path.strip_prefix("/proc/self/cwd/").unwrap_or(&path);
+    let path = match path.get(..root.len()) {
+        Some(prefix) if !root.is_empty() && prefix.eq_ignore_ascii_case(root) => {
+            path[root.len()..].trim_start_matches('/')
+        }
+        _ => path,
+    };
+    path.strip_prefix("./").unwrap_or(path).to_string()
 }
 
 #[cfg(test)]
@@ -147,6 +167,15 @@ mod tests {
         assert_eq!(
             rewrite_paths(report, Path::new("/exec/root")),
             "SF:a.c\nSF:b.rs\nSF:c.cc\n"
+        );
+    }
+
+    #[test]
+    fn writes_windows_sources_relative_with_forward_slashes() {
+        let report = "SF:D:/x/_main\\cli\\digest\\src\\lib.rs\r\nDA:1,1\r\nSF:d:\\x\\_main\\a.rs\nSF:.\\b.rs\n";
+        assert_eq!(
+            rewrite_paths(report, Path::new("D:/x/_main")),
+            "SF:cli/digest/src/lib.rs\r\nDA:1,1\r\nSF:a.rs\nSF:b.rs\n"
         );
     }
 }

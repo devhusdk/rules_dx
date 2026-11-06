@@ -615,6 +615,7 @@ config_setting(
 alias(
     name = "msvc_vcruntime",
     actual = "@dx_msvc//:msvc_vcruntime",
+    tags = ["manual"],
     visibility = ["//visibility:public"],
 )
 

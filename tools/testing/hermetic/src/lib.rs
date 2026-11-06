@@ -204,6 +204,12 @@ pub const REQUIRED_PROBES: &[&str] = &[
 /// Probes that run dx itself inside the isolation, once the manifest names coverage patterns.
 pub const DX_PROBES: &[&str] = &["dx_generate_check", "dx_coverage"];
 
+/// Labels the network-denied dx probes analyse, so a network-allowed probe
+/// fetches the repositories they need first.
+pub fn dx_fetch_targets(repo_name: &str) -> Vec<String> {
+    vec![format!("@{repo_name}//dx:generate_check")]
+}
+
 const BUILD_FLAGS: &[&str] = &[
     "--noshow_progress",
     "--color=no",
@@ -1736,7 +1742,11 @@ fn run_all(
             output_root: &cold,
             repos: &repos,
             command: "build",
-            targets: coverage.clone(),
+            targets: coverage
+                .iter()
+                .cloned()
+                .chain(dx_fetch_targets(&session.manifest.repo_name))
+                .collect(),
             extra: vec![
                 "--nobuild".to_owned(),
                 "--collect_code_coverage".to_owned(),

@@ -1480,6 +1480,11 @@ fn macos_evidence_is_checked_against_macos_markers() {
 }
 
 #[test]
+fn dx_fetch_targets_names_generate_check_in_consumer_repo() {
+    assert_eq!(dx_fetch_targets("my_dx"), ["@my_dx//dx:generate_check"]);
+}
+
+#[test]
 fn copy_test_logs_keeps_layout_and_returns_heads() {
     let dir = tempfile::tempdir().unwrap();
     let logs = dir.path().join("bazel-testlogs");

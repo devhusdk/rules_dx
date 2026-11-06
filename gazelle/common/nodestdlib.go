@@ -3,7 +3,7 @@ package common
 import "strings"
 
 var nodeBuiltins = map[string]struct{}{
-	"assert": {}, "async_hooks": {}, "buffer": {}, "child_process": {},
+	"assert": {}, "assert/strict": {}, "dns/promises": {}, "async_hooks": {}, "buffer": {}, "child_process": {},
 	"cluster": {}, "console": {}, "constants": {}, "crypto": {},
 	"dgram": {}, "diagnostics_channel": {}, "dns": {}, "domain": {},
 	"events": {}, "fs": {}, "fs/promises": {}, "http": {}, "http2": {},

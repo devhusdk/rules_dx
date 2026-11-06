@@ -83,7 +83,7 @@ pub fn parse_test_xml(
 }
 
 fn deserialize_report(text: &str) -> Result<quick_junit::Report, ReportError> {
-    let normalized = normalize_document(text);
+    let normalized = normalize_document(&decode_numeric_references(text));
     match quick_junit::Report::deserialize_from_str(&normalized) {
         Ok(report) => {
             if report.test_suites.is_empty() && normalized.contains("<testcase") {
@@ -108,6 +108,48 @@ fn deserialize_report(text: &str) -> Result<quick_junit::Report, ReportError> {
             }
         }
     }
+}
+
+/// Replaces numeric character references such as `&#xA;` with their characters, which quick_junit rejects.
+fn decode_numeric_references(text: &str) -> Cow<'_, str> {
+    if !text.contains("&#") {
+        return Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("&#") {
+        out.push_str(&rest[..start]);
+        let tail = &rest[start + 2..];
+        let decoded = tail.find(';').filter(|end| *end <= 8).and_then(|end| {
+            let digits = &tail[..end];
+            let code = match digits.strip_prefix(['x', 'X']) {
+                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
+                None => digits.parse::<u32>().ok()?,
+            };
+            let c =
+                char::from_u32(code).filter(|c| matches!(c, '\t' | '\n' | '\r') || *c >= ' ')?;
+            Some((c, end))
+        });
+        match decoded {
+            Some((c, end)) => {
+                match c {
+                    '&' => out.push_str("&amp;"),
+                    '<' => out.push_str("&lt;"),
+                    '>' => out.push_str("&gt;"),
+                    '"' => out.push_str("&quot;"),
+                    '\'' => out.push_str("&apos;"),
+                    _ => out.push(c),
+                }
+                rest = &tail[end + 1..];
+            }
+            None => {
+                out.push_str("&#");
+                rest = tail;
+            }
+        }
+    }
+    out.push_str(rest);
+    Cow::Owned(out)
 }
 
 fn strip_leading_decl(text: &str) -> &str {
@@ -272,6 +314,19 @@ mod tests {
         assert_eq!(
             normalize_document("<testcase timestamp='ignored' name='kept'/>"),
             r#"<testcase name="kept"/>"#
+        );
+    }
+
+    #[test]
+    fn numeric_character_references_are_decoded() {
+        let xml = b"<testsuite><testcase name=\"a\"><failure message=\"x&#10;yz\">got&#xA;want &#38;&#x3C;&#10;done</failure></testcase></testsuite>";
+        let cases = parse_test_xml(xml, 0, 1).expect("parses");
+        let failure = cases[0].failure.as_ref().expect("failure");
+        assert_eq!(failure.text, "got\nwant &<\ndone");
+        assert_eq!(failure.message.as_deref(), Some("x\nyz"));
+        assert_eq!(
+            decode_numeric_references("&#zz; &#1; &#x41"),
+            "&#zz; &#1; &#x41"
         );
     }
 

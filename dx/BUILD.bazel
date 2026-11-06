@@ -4,14 +4,22 @@ load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
 
 package(default_visibility = ["//visibility:private"])
 
+# dx's own config tree and installed packages are never generated.
+GENERATE_EXCLUDES = [
+    "-exclude=.dx",
+    "-exclude=**/node_modules",
+]
+
 gazelle(
     name = "generate",
+    args = GENERATE_EXCLUDES,
     gazelle = "@dx_gazelle//:gazelle",
     visibility = VIS_DX_COMMANDS,
 )
 
 gazelle(
     name = "generate_check",
+    args = GENERATE_EXCLUDES,
     gazelle = "@dx_gazelle//:gazelle",
     mode = "diff",
     visibility = VIS_DX_COMMANDS,

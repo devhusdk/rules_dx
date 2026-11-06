@@ -22,7 +22,7 @@ def node_jest_upstream_attrs(node_modules, kwargs):
     return {
         "node_modules": node_modules,
         "fixed_args": user_args + select({
-            "@platforms//os:windows": NODE_JEST_WINDOWS_ARGS,
+            Label("@platforms//os:windows"): NODE_JEST_WINDOWS_ARGS,
             "//conditions:default": [],
         }),
     }

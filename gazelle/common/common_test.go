@@ -353,8 +353,13 @@ func TestIsNodeBuiltin(t *testing.T) {
 			t.Errorf("node builtin not recognized: %q", name)
 		}
 	}
-	if !IsNodeBuiltin("fs/promises") {
-		t.Error("node builtin subpath fs/promises not recognized")
+	for _, name := range []string{
+		"assert/strict", "node:assert/strict", "dns/promises", "node:dns/promises", "fs/promises", "stream/promises",
+		"timers/promises", "util/types", "path/posix", "path/win32", "readline/promises", "stream/consumers", "stream/web",
+	} {
+		if !IsNodeBuiltin(name) {
+			t.Errorf("node builtin subpath not recognized: %q", name)
+		}
 	}
 	for _, name := range []string{
 		"", "node:", "node:node:fs", "test", "sqlite", "sea", "ffi", "test/reporters", "helper", "fs-extra", "react",

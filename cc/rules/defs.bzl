@@ -183,7 +183,7 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
     kwargs = _cc_kwargs(kwargs, srcs)
     linkopts = kwargs.pop("linkopts", None) or []
     build_id = select({
-        "@platforms//os:linux": ["-Wl,--build-id=sha1"],
+        Label("@platforms//os:linux"): ["-Wl,--build-id=sha1"],
         "//conditions:default": [],
     })
     dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = build_id + linkopts, **kwargs)
@@ -198,8 +198,8 @@ def cc_test(name, srcs = None, visibility = None, **kwargs):
     })
     if "linkstatic" not in kwargs:
         kwargs["linkstatic"] = select({
-            "@platforms//os:macos": True,
-            "@platforms//os:windows": True,
+            Label("@platforms//os:macos"): True,
+            Label("@platforms//os:windows"): True,
             "//conditions:default": False,
         })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)

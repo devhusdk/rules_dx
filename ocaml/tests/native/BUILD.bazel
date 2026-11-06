@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library")
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
 load("//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test")
 load(":defs.bzl", "sys_cell_test")
 
@@ -6,6 +6,22 @@ cc_library(
     name = "stub",
     srcs = ["stub.c"],
     hdrs = ["stub.h"],
+)
+
+cc_test(
+    name = "stub_test",
+    size = "small",
+    srcs = ["stub_test.c"],
+    linkstatic = True,
+    deps = [":stub"],
+)
+
+cc_test(
+    name = "checksum_c_test",
+    size = "small",
+    srcs = ["checksum_c_test.c"],
+    linkstatic = True,
+    deps = ["//ocaml/tests/fixtures/ocaml-app/checksum/native:checksum_c"],
 )
 
 ocaml_module(

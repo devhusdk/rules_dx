@@ -1,4 +1,4 @@
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_module")
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_module", "ocaml_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -30,6 +30,14 @@ ocaml_module(
 
 ocaml_binary(
     name = "stockctl",
+    main = ":main",
+)
+
+ocaml_test(
+    name = "stockctl_test",
+    size = "small",
+    args = ["$(rootpath :good.txt)"],
+    data = ["good.txt"],
     main = ":main",
 )
 

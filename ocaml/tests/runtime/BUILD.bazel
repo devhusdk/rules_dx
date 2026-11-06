@@ -40,6 +40,13 @@ ocaml_binary(
     main = ":main",
 )
 
+ocaml_test(
+    name = "app_test",
+    size = "small",
+    data = ["data.txt"],
+    main = ":main",
+)
+
 ocaml_module(
     name = "greet_test_main",
     testonly = True,

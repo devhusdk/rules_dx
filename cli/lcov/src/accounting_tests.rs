@@ -383,7 +383,12 @@ fn whole_file_exclusion_accounts_an_absent_source() {
 
 #[test]
 fn whole_file_exclusion_reads_each_comment_syntax() {
-    for (path, comment) in [("a.py", "#"), ("a.erl", "%"), ("a.hs", "--")] {
+    for (path, comment) in [
+        ("a.py", "#"),
+        ("a.erl", "%"),
+        ("a.hs", "--"),
+        ("a.ml", "(*"),
+    ] {
         let source = format!(
             "{comment} {} - reason: glue, issue: 1.\nx = 1\n{comment} {} - reason: end, issue: 1.\n",
             marker("_START"),

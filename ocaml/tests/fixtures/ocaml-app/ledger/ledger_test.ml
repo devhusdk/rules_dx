@@ -15,6 +15,11 @@ let () =
   | _ -> fail "line 2 must be malformed"
 
 let () =
+  match Ledger.parse "lamp 4 @1250\n" with
+  | Error (Ledger.Malformed (1, _)) -> ()
+  | _ -> fail "an unexpected character must be malformed"
+
+let () =
   match Ledger.parse "bulb 5000 10\n" with
   | Error (Ledger.Over_limit "bulb") -> ()
   | _ -> fail "an oversized quantity must be over the limit"

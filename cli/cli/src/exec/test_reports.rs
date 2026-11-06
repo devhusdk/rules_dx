@@ -1940,6 +1940,22 @@ mod tests {
     }
 
     #[test]
+    fn coverage_merges_the_lcov_an_ocaml_test_writes() {
+        let lcov = "SF:ocaml/tests/runtime/greet.ml\nDA:1,1\nDA:3,0\nLF:2\nLH:1\nend_of_record\n";
+        let harness = coverage_harness("cov-ocaml-bisect", lcov.as_bytes());
+        let harness = with_sources(
+            harness,
+            "v1 cell linux_x86_64\nprod source ocaml/tests/runtime/greet.ml\n",
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=50"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("50.00% (1/2 lines) meets minimum 50%"),
+            "{err}"
+        );
+    }
+
+    #[test]
     fn coverage_min_coverage_fails_below_threshold() {
         let harness = coverage_harness("cov-threshold-low", HALF_LCOV.as_bytes());
         let harness = with_sources(harness, PY_SOURCES);

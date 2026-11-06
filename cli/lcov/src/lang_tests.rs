@@ -50,12 +50,14 @@ fn covered_languages_include_wrapped_langs() {
         "elf.jl",
         "elf.erl",
         "elf.hrl",
+        "elf.ml",
         "elf.zig",
     ] {
         assert!(is_covered_language(path), "{path}");
     }
     for path in [
         "elf.pyi",
+        "elf.mli",
         "elf.bzl",
         "elf.sh",
         "elf.md",
@@ -76,6 +78,7 @@ fn every_covered_language_is_scanned_with_its_own_comment_marker() {
             LineComment::Hash => "#",
             LineComment::Percent => "%",
             LineComment::DashDash => "--",
+            LineComment::ParenStar => "(*",
         }
     }
     for (extension, syntax) in COVERED_LANGUAGES {

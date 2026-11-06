@@ -304,6 +304,21 @@ fn dash_comment_markers_are_honored_for_haskell() {
 }
 
 #[test]
+fn paren_comment_markers_are_honored_for_ocaml() {
+    let source = file_lines(&[
+        "let f = 1".to_string(),
+        format!(
+            "let g = 2 (* {} - issue: 1055 - reason: fixture. *)",
+            marker("_LINE")
+        ),
+        "let h = \"(*\"".to_string(),
+    ]);
+    let ignores = find_ignores("t.ml", &source).unwrap();
+    assert_eq!(ignores.singles[&2], "fixture.".to_string());
+    assert!(!is_ignored(&ignores, 3));
+}
+
+#[test]
 fn percent_comment_markers_are_honored_for_erlang() {
     for (path, prefix) in [("t.erl", "%"), ("t.erl", "%%"), ("t.hrl", "%")] {
         let source = file_lines(&[

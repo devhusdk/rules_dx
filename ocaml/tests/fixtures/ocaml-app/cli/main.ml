@@ -4,9 +4,11 @@ let read_file path =
   close_in ic;
   text
 
+(* LCOV_EXCL_START - reason: exit paths run in exit_codes_test, a sh_test with no collector, issue: 8259 *)
 let usage () =
   prerr_endline "usage: stockctl FILE";
   exit 2
+(* LCOV_EXCL_STOP - reason: end of range, issue: 8259 *)
 
 let () =
   match Array.to_list Sys.argv with
@@ -16,6 +18,7 @@ let () =
           let report = Ledger.report items in
           print_endline report;
           Printf.printf "checksum %08x\n" (Checksum.of_string report)
+      (* LCOV_EXCL_START - reason: exit paths run in exit_codes_test, a sh_test with no collector, issue: 8259 *)
       | Error (Ledger.Malformed (line, why)) ->
           Printf.eprintf "stockctl: line %d: %s\n" line why;
           exit 2
@@ -23,3 +26,4 @@ let () =
           Printf.eprintf "stockctl: %s is over the limit of %d\n" name Ledger.limit;
           exit 4)
   | _ -> usage ()
+(* LCOV_EXCL_STOP - reason: end of range, issue: 8259 *)

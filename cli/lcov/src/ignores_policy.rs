@@ -4,7 +4,13 @@ pub const MAX_REASON_LEN: usize = 120;
 
 fn key_value(line: &str, key: &str) -> Option<String> {
     let offset = line.find(key)?;
-    let value = line[offset + key.len()..].trim().to_string();
+    let value = line[offset + key.len()..].trim();
+    // An OCaml marker closes its comment on the same line.
+    let value = value
+        .strip_suffix("*)")
+        .unwrap_or(value)
+        .trim_end()
+        .to_string();
     if value.is_empty() {
         None
     } else {

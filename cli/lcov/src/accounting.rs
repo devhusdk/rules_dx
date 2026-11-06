@@ -304,6 +304,7 @@ fn whole_file_excluded(path: &str, source: &str) -> bool {
         Some(LineComment::Hash) => "#",
         Some(LineComment::Percent) => "%",
         Some(LineComment::DashDash) => "--",
+        Some(LineComment::ParenStar) => "(*",
         _ => "//",
     };
     source.lines().enumerate().all(|(index, line)| {

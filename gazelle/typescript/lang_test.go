@@ -671,6 +671,37 @@ func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
 	}
 }
 
+func TestResolveParentDirImport(t *testing.T) {
+	files := map[string]string{
+		"pkg/demo/a.ts": "import x from \"..\";\n",
+	}
+	result := generateFixture(t, files, []string{"a.ts"})
+	if len(result.Imports) == 0 {
+		t.Fatal("no imports generated")
+	}
+	l := newLang()
+	index := resolverIndex(l, struct{ pkg, name, ext string }{"pkg", "index", ""})
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(projectKind, "a")
+	l.Resolve(cfg, index, nil, r, result.Imports[0], label.New("", "pkg/demo", "a"))
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v", l.Errors())
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg:index" {
+		t.Errorf("deps = %q", got)
+	}
+
+	escape := generateFixture(t, map[string]string{
+		"pkg/demo/a.ts": "import x from \"../../..\";\n",
+	}, []string{"a.ts"})
+	l = newLang()
+	r = rule.NewRule(projectKind, "a")
+	l.Resolve(cfg, resolverIndex(l), nil, r, escape.Imports[0], label.New("", "pkg/demo", "a"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "unresolved import") {
+		t.Errorf("errors = %v, want one unresolved import", l.Errors())
+	}
+}
+
 func TestResolveIndexDottedAndAssets(t *testing.T) {
 	files := map[string]string{
 		"pkg/demo/app.ts": "import c from \"./components\";\nimport p from \"./config.prod\";\nimport d from \"./data.json\";\nimport s from \"./styles.module.css\";\nimport x from \"./x\";\n",

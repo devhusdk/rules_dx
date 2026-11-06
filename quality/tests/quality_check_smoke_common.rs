@@ -61,7 +61,9 @@ ruff_config(
 pub const RUFF_TOML: &str = "line-length = 88\n";
 
 pub fn library(name: &str) -> String {
-    format!("python_library(\n    name = \"{name}\",\n    srcs = [\"{name}.py\"],\n)\n")
+    format!(
+        "python_library(\n    name = \"{name}\",\n    srcs = [\"{name}.py\"],\n)\n"
+    )
 }
 
 pub fn package(names: &[&str]) -> String {

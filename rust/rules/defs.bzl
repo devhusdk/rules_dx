@@ -26,7 +26,6 @@ _LIBSTDCXX_READY = Label("//rust/rules:libstdcxx_ready")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/rules:unwind")
 _MSVC = Label("//rust/rules:msvc")
-_CL_EXE = Label("//cc/toolchains:msvc_selected")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _MSVC_OPT = Label("//rust/rules:msvc_opt")
 
@@ -85,7 +84,7 @@ _rust_binary_transition = transition(
 
 _LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
-    "msvc": attr.bool(doc = "Whether cl.exe is the selected C++ compiler."),
+    "msvc": attr.bool(doc = "Whether the target uses the MSVC ABI (cl.exe or clang-cl)."),
     "crt_static": attr.bool(doc = "Whether the target's own rustc_flags set +crt-static."),
 }
 
@@ -94,7 +93,7 @@ def _libstdcxx_forward(rustc_flags = None):
     crt_static = type(rustc_flags) == "list" and any(["+crt-static" in flag for flag in rustc_flags])
     return {
         "libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False}),
-        "msvc": select({_CL_EXE: True, "//conditions:default": False}),
+        "msvc": select({_MSVC: True, "//conditions:default": False}),
         "crt_static": crt_static,
     }
 

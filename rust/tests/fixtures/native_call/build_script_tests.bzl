@@ -378,6 +378,10 @@ _CRT_CONFIG = {
     _COMPILER: "msvc",
     _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
 }
+_CRT_CONFIG_LLVM = {
+    _COMPILER: "llvm",
+    _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
+}
 
 def _crt_ok_impl(ctx):
     env = analysistest.begin(ctx)
@@ -392,9 +396,11 @@ def _crt_bad_impl(ctx):
 _crt_ok_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG)
 _crt_target_flag_test = analysistest.make(_crt_ok_impl, config_settings = {_COMPILER: "msvc"})
 _crt_bad_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG, expect_failure = True)
+_crt_ok_llvm_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG_LLVM)
+_crt_bad_llvm_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG_LLVM, expect_failure = True)
 
 def rust_msvc_crt_tests(name, ok, bad, target_flag):
-    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones on MSVC.
+    """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones under cl.exe and clang-cl.
 
     Args:
         name: Name of the test suite.
@@ -405,14 +411,23 @@ def rust_msvc_crt_tests(name, ok, bad, target_flag):
     ok_name = name + "_ok"
     bad_name = name + "_bad"
     target_flag_name = name + "_target_flag"
-    for test, rule, target in [(ok_name, _crt_ok_test, ok), (bad_name, _crt_bad_test, bad), (target_flag_name, _crt_target_flag_test, target_flag)]:
+    ok_llvm_name = name + "_ok_llvm"
+    bad_llvm_name = name + "_bad_llvm"
+    cases = [
+        (ok_name, _crt_ok_test, ok),
+        (bad_name, _crt_bad_test, bad),
+        (target_flag_name, _crt_target_flag_test, target_flag),
+        (ok_llvm_name, _crt_ok_llvm_test, ok),
+        (bad_llvm_name, _crt_bad_llvm_test, bad),
+    ]
+    for test, rule, target in cases:
         rule(
             name = test,
             size = "small",
             target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
         )
-    native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name])
+    native.test_suite(name = name, tests = [ok_name, bad_name, target_flag_name, ok_llvm_name, bad_llvm_name])
 
 def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
     """Asserts +crt-static Rust shared and static libraries reject /MD C deps on MSVC.

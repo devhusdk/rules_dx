@@ -151,6 +151,32 @@ func TestGenerateMixedPackagesFail(t *testing.T) {
 	wantRefusal(t, got, "kotlin: pkg/demo: mixed packages alpha, beta in one directory;")
 }
 
+func TestGenerateMainKeepsHandwrittenBinary(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.kt", "package demo\n\nclass Demo\n")
+	writeFixture(t, root, "pkg/demo/Main.kt", "package demo\n\nobject Main {\n  @JvmStatic fun main(args: Array<String>) {}\n}\n")
+	existing := &rule.File{}
+	bin := rule.NewRule("kotlin_binary", "cli")
+	bin.SetAttr("srcs", []string{"Main.kt"})
+	existing.Rules = append(existing.Rules, bin)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.kt", "Main.kt"},
+		File:         existing,
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind {
+		t.Fatalf("generated %d rules, want only the library", len(result.Gen))
+	}
+	if got := result.Gen[0].AttrStrings("srcs"); strings.Join(got, ",") != "Demo.kt" {
+		t.Errorf("srcs = %v, want only Demo.kt", got)
+	}
+	if len(result.Empty) != 0 {
+		t.Errorf("swept %d rules, want the handwritten binary kept", len(result.Empty))
+	}
+}
+
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.kt", "Main.kt"}
 	got := refuseFixture(t, map[string]string{

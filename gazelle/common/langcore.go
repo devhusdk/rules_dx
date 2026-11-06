@@ -486,6 +486,24 @@ type dirLibrary struct {
 	imports []string
 }
 
+// mainOwners returns the sources that a handwritten rule of the given kind
+// lists in srcs.
+func mainOwners(file *rule.File, kind string) map[string]bool {
+	owned := make(map[string]bool)
+	if file == nil || kind == "" {
+		return owned
+	}
+	for _, r := range file.Rules {
+		if r.Kind() != kind {
+			continue
+		}
+		for _, src := range r.AttrStrings("srcs") {
+			owned[strings.TrimPrefix(src, ":")] = true
+		}
+	}
+	return owned
+}
+
 // generateDirLibrary builds the directory library rule and its imports.
 func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources, headers []string, rep Reporter) (dirLibrary, bool) {
 	var hints []string
@@ -504,6 +522,8 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 	if isMain == nil {
 		isMain = func(string) bool { return true }
 	}
+	owned := mainOwners(args.File, spec.MainRule)
+	skipped := make(map[string]bool)
 	packages := make(map[string]bool)
 	seen := make(map[string]bool)
 	contents := make(map[string][]byte, len(sources))
@@ -516,6 +536,10 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 		}
 		contents[file] = content
 		if isMain(file) && spec.DefinesMain(content) {
+			if owned[file] {
+				skipped[file] = true
+				continue
+			}
 			rep.Fail(InPackage(args.Rel), "%s: %s: %s defines main; thin %s entries stay handwritten, so split %s into their own directory before adopting generation", spec.LanguageName, args.Rel, file, spec.MainRule, spec.MainPhrase)
 			continue
 		}
@@ -580,6 +604,15 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 		imports = append(imports, root)
 	}
 	sort.Strings(imports)
+	if len(skipped) > 0 {
+		kept := make([]string, 0, len(sources))
+		for _, src := range sources {
+			if !skipped[src] {
+				kept = append(kept, src)
+			}
+		}
+		sources = kept
+	}
 	ordered := sources
 	if spec.OrderSrcs != nil {
 		ordered, err = spec.OrderSrcs(name, sources, contents)

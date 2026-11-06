@@ -207,6 +207,32 @@ func TestGenerateTestMainAllowed(t *testing.T) {
 	}
 }
 
+func TestGenerateMainKeepsHandwrittenBinary(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.java", "package demo;\n\npublic class Demo {}\n")
+	writeFixture(t, root, "pkg/demo/Main.java", "package demo;\n\npublic class Main {\n  public static void main(String[] args) {}\n}\n")
+	existing := &rule.File{}
+	bin := rule.NewRule("java_binary", "cli")
+	bin.SetAttr("srcs", []string{"Main.java"})
+	existing.Rules = append(existing.Rules, bin)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.java", "Main.java"},
+		File:         existing,
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind {
+		t.Fatalf("generated %d rules, want only the library", len(result.Gen))
+	}
+	if got := result.Gen[0].AttrStrings("srcs"); strings.Join(got, ",") != "Demo.java" {
+		t.Errorf("srcs = %v, want only Demo.java", got)
+	}
+	if len(result.Empty) != 0 {
+		t.Errorf("swept %d rules, want the handwritten binary kept", len(result.Empty))
+	}
+}
+
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.java", "Main.java"}
 	got := refuseFixture(t, map[string]string{

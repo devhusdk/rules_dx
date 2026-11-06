@@ -19,6 +19,7 @@ kotlin_werror_opts(
 )
 
 exports_files([
+    "mutate.bzl",
     "bench.bzl",
     "defs.bzl",
 ])
@@ -161,6 +162,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "mutate.bzl",
     ],
     tags = ["corpus"],
 )

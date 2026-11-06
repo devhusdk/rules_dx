@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 _ON = {"treat_warnings_as_errors": True}
 
 exports_files([
+    "mutate.bzl",
     "JmhRunner.java",
     "bench.bzl",
     "defs.bzl",
@@ -250,6 +251,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "mutate.bzl",
     ],
     tags = ["corpus"],
 )

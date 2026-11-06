@@ -6,6 +6,7 @@ load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfi
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "mutate.bzl",
     "defs.bzl",
 ])
 
@@ -516,6 +517,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "mutate.bzl",
         "proto.bzl",
     ],
     tags = ["corpus"],

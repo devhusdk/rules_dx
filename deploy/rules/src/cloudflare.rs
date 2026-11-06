@@ -1169,7 +1169,10 @@ exit 7
     #[test]
     fn main_without_live_checks_and_uploads_nothing() {
         let (code, out, err, uploaded) = run_gated(
-            &[("CLOUDFLARE_API_TOKEN", TOKEN), ("DX_BUILD_MODE", "release")],
+            &[
+                ("CLOUDFLARE_API_TOKEN", TOKEN),
+                ("DX_BUILD_MODE", "release"),
+            ],
             &SITE,
         );
         assert_eq!(code, 0, "{err}");

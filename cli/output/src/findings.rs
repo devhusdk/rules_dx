@@ -483,6 +483,31 @@ mod tests {
     }
 
     #[test]
+    fn related_range_needs_a_path_and_package_fixed_is_nonempty() {
+        let mut event = finding();
+        event.related = vec![RelatedEvent {
+            role: "label".to_owned(),
+            message: "m".to_owned(),
+            path: None,
+            range: Some((1, 2)),
+            replacement: None,
+            applicability: None,
+        }];
+        assert_eq!(
+            diagnostic_event(&event).expect_err("related range without path"),
+            OutputError::RangeWithoutPath
+        );
+        let mut event = finding();
+        event.package = Some(package(Some(vec![String::new()]), None));
+        assert_eq!(
+            diagnostic_event(&event).expect_err("empty fixed"),
+            OutputError::EmptyField {
+                field: "package fixed"
+            }
+        );
+    }
+
+    #[test]
     fn new_builds_a_valid_terminal_diagnostic() {
         let event = DiagnosticEvent::new(Severity::Error, "vuln", "m");
         assert_eq!(event.snapshot, Snapshot::Terminal);

@@ -384,10 +384,10 @@ mod tests {
             }
             let output = cmd.output().expect("spawn diagnostics child");
             let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+            let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
             assert!(
                 output.status.success(),
-                "child {spec} failed: {stderr}{}",
-                String::from_utf8_lossy(&output.stdout)
+                "child {spec} failed: {stderr}{stdout}"
             );
             assert!(
                 stderr.contains("dx-probe-warn"),
@@ -499,10 +499,10 @@ mod tests {
                 .expect("spawn env child")
         };
         let poisoned = spawn("panic");
+        let poisoned_out = String::from_utf8_lossy(&poisoned.stdout).into_owned();
         assert!(
             !poisoned.status.success(),
-            "panicking child must fail: {}",
-            String::from_utf8_lossy(&poisoned.stdout)
+            "panicking child must fail: {poisoned_out}"
         );
         assert_eq!(
             std::env::var_os("NO_COLOR"),
@@ -510,17 +510,10 @@ mod tests {
             "child NO_COLOR mutation dies with the child"
         );
         let ok = spawn("empty");
-        assert!(
-            ok.status.success(),
-            "child failed: {}{}",
-            String::from_utf8_lossy(&ok.stdout),
-            String::from_utf8_lossy(&ok.stderr)
-        );
-        assert!(
-            sentinel.exists(),
-            "child ran the assertions: {}",
-            String::from_utf8_lossy(&ok.stdout)
-        );
+        let ok_out = String::from_utf8_lossy(&ok.stdout).into_owned();
+        let ok_err = String::from_utf8_lossy(&ok.stderr).into_owned();
+        assert!(ok.status.success(), "child failed: {ok_out}{ok_err}");
+        assert!(sentinel.exists(), "child ran the assertions: {ok_out}");
         assert_eq!(
             std::env::var_os("NO_COLOR"),
             before,

@@ -679,6 +679,16 @@ pub fn error_event(
     flag: Option<&str>,
     phase: Option<&str>,
 ) -> Result<Value, OutputError> {
+    error_map(code, message, path, flag, phase).map(Value::Object)
+}
+
+fn error_map(
+    code: &str,
+    message: &str,
+    path: Option<&str>,
+    flag: Option<&str>,
+    phase: Option<&str>,
+) -> Result<serde_json::Map<String, Value>, OutputError> {
     nonempty("code", code)?;
     nonempty("message", message)?;
     if let Some(path) = path {
@@ -702,7 +712,7 @@ pub fn error_event(
     if let Some(phase) = phase {
         map.insert("phase".to_owned(), Value::String(phase.to_owned()));
     }
-    Ok(Value::Object(map))
+    Ok(map)
 }
 
 /// The class, child status and diagnostic tail of one failure.
@@ -721,18 +731,16 @@ pub fn failure_event(
     facts: &FailureFacts<'_>,
 ) -> Result<Value, OutputError> {
     nonempty("cause", facts.cause)?;
-    let mut event = error_event(code, message, None, None, phase)?;
-    if let Value::Object(map) = &mut event {
-        map.insert("cause".to_owned(), Value::String(facts.cause.to_owned()));
-        if let Some(status) = facts.status {
-            map.insert("status".to_owned(), Value::from(status));
-        }
-        if let Some(excerpt) = facts.excerpt {
-            map.insert("excerpt".to_owned(), Value::String(excerpt.text.clone()));
-            map.insert("truncated".to_owned(), Value::Bool(excerpt.truncated));
-        }
+    let mut map = error_map(code, message, None, None, phase)?;
+    map.insert("cause".to_owned(), Value::String(facts.cause.to_owned()));
+    if let Some(status) = facts.status {
+        map.insert("status".to_owned(), Value::from(status));
     }
-    Ok(event)
+    if let Some(excerpt) = facts.excerpt {
+        map.insert("excerpt".to_owned(), Value::String(excerpt.text.clone()));
+        map.insert("truncated".to_owned(), Value::Bool(excerpt.truncated));
+    }
+    Ok(Value::Object(map))
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1425,6 +1433,19 @@ mod tests {
     }
 
     #[test]
+    fn writer_and_correlation_reject_objects_without_a_named_event() {
+        let nameless = serde_json::json!({"schema": {"major": 3}, "event": 7});
+        assert_eq!(
+            write_event(&mut Vec::new(), &nameless).expect_err("event not a string"),
+            OutputError::NotAnEvent
+        );
+        assert_eq!(
+            with_correlation(nameless, "run-1").expect_err("event not a string"),
+            OutputError::NotAnEvent
+        );
+    }
+
+    #[test]
     fn writer_rejects_schemaless_object() {
         let fake = serde_json::json!({"event": "command_started"});
         assert_eq!(
@@ -2091,13 +2112,11 @@ mod tests {
                 ))
             }
             fn flush(&mut self) -> std::io::Result<()> {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::BrokenPipe,
-                    "broken pipe",
-                ))
+                Ok(())
             }
         }
         let event = command_started("status", "default").expect("started");
+        std::io::Write::flush(&mut BrokenPipe).expect("flush");
         let error = write_event(&mut BrokenPipe, &event).expect_err("broken pipe");
         assert!(error.is_broken_pipe());
     }

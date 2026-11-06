@@ -147,7 +147,21 @@ _JS_CLASSES = {
 }
 
 def _knip_hook(target, ctx, _resolved, _capability, _what, _shared):
-    return unused_roots_context(target, ctx, _JS_EXTENSIONS)
+    roots = unused_roots_context(target, ctx, _JS_EXTENSIONS)
+    upstream = getattr(ctx.rule.attr, "upstream", None)
+    if upstream == None or DefaultInfo not in upstream:
+        return roots
+    manifests = {}
+    for f in upstream[DefaultInfo].default_runfiles.files.to_list():
+        rel = native_config_scratch_rel(f.short_path)
+        if f.is_source and f.basename == "package.json" and rel != None:
+            manifests[rel] = f
+    return real_context(
+        tool_files = roots.tool_files,
+        inputs = roots.inputs,
+        late_tool_files = sorted(manifests.items()),
+        late_inputs = manifests.values(),
+    )
 
 def _harness_sources(target, capability, direct_sources):
     return unused_closure_sources(target, capability, direct_sources, _JS_CLASSES)

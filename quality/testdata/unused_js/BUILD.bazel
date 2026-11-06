@@ -1,0 +1,50 @@
+load("//javascript/rules:defs.bzl", "javascript_binary", "javascript_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "js_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "javascript",
+    unused = ["knip"],
+)
+
+workspace_policy(
+    name = "js_policy",
+    families = [":js_family"],
+)
+
+javascript_library(
+    name = "private_lib",
+    srcs = ["private_lib.js"],
+)
+
+javascript_library(
+    name = "public_lib",
+    srcs = ["public_lib.js"],
+    visibility = ["//visibility:public"],
+)
+
+javascript_library(
+    name = "keep_lib",
+    srcs = ["keep_lib.js"],
+    tags = ["dx-keep"],
+)
+
+javascript_binary(
+    name = "app",
+    srcs = ["app.js"],
+    data = [
+        "package.json",
+        ":keep_lib",
+        ":private_lib",
+        ":public_lib",
+    ],
+    entry_point = "app.js",
+)

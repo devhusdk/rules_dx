@@ -13,7 +13,7 @@ DxUnusedRootsInfo = provider(
     },
 )
 
-LINKS = ["deps", "upstream", "venv"]
+LINKS = ["data", "deps", "upstream", "venv"]
 KEEP_TAG = "dx-keep"
 PUBLIC_VISIBILITY = "//visibility:public"
 
@@ -27,6 +27,7 @@ def unused_main_files(kind, main, srcs):
     """Returns the entry-point files of one rule: its main, or its srcs for binaries and tests without one."""
     if len(main) > 0:
         return list(main)
+    kind = kind.removesuffix("_forward")
     if kind.endswith("_binary") or kind.endswith("_test"):
         return list(srcs)
     return []

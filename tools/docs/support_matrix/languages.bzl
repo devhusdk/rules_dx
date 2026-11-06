@@ -18,13 +18,14 @@ load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
+load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
 
 PLATFORMS = [
-    {"cpu": "x86_64", "id": "linux_x86_64", "os": "linux"},
-    {"cpu": "arm64", "id": "linux_arm64", "os": "linux"},
-    {"cpu": "arm64", "id": "macos_arm64", "os": "macos"},
-    {"cpu": "x86_64", "id": "windows_x86_64", "os": "windows"},
-    {"cpu": "arm64", "id": "windows_arm64", "os": "windows"},
+    {"constraints": [], "cpu": "x86_64", "id": "linux_x86_64", "os": "linux"},
+    {"constraints": [], "cpu": "arm64", "id": "linux_arm64", "os": "linux"},
+    {"constraints": [], "cpu": "arm64", "id": "macos_arm64", "os": "macos"},
+    {"constraints": WINDOWS_MSVC_HOST_CONSTRAINTS, "cpu": "x86_64", "id": "windows_x86_64", "os": "windows"},
+    {"constraints": WINDOWS_MSVC_HOST_CONSTRAINTS, "cpu": "arm64", "id": "windows_arm64", "os": "windows"},
 ]
 
 SECTIONS = ["languages", "targets", "compilers", "formats"]

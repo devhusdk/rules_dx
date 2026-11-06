@@ -795,6 +795,7 @@ pub struct Platform {
     pub id: String,
     pub os: String,
     pub cpu: String,
+    pub constraints: Vec<String>,
 }
 
 fn cpu_alias(cpu: &str) -> &str {
@@ -823,7 +824,7 @@ fn constraint_holds(constraint: &str, platform: &Platform) -> bool {
     if let Some(cpu) = constraint.strip_prefix("@platforms//cpu:") {
         return cpu_alias(cpu) == cpu_alias(&platform.cpu);
     }
-    false
+    platform.constraints.iter().any(|have| have == constraint)
 }
 
 /// Reports whether a test with `parts` constraints is compatible with `platform`.
@@ -873,6 +874,8 @@ pub fn compatible(parts: &[Part], platform: &Platform) -> Result<bool, String> {
 mod tests {
     use super::*;
 
+    const MSVC: &str = "@llvm//constraints/windows/abi:msvc";
+
     struct Files(BTreeMap<String, String>);
 
     impl Loader for Files {
@@ -895,6 +898,23 @@ mod tests {
                         "@platforms//os:windows".to_owned(),
                         "@platforms//cpu:x86_64".to_owned(),
                     ],
+                ]);
+            }
+            if label == "//d/rules:defs.bzl" && symbol == "D_COMPATIBLE_WITH" {
+                let cell = |os: &str, cpu: &str, extra: &[&str]| {
+                    let mut cell = vec![
+                        format!("@platforms//os:{os}"),
+                        format!("@platforms//cpu:{cpu}"),
+                    ];
+                    cell.extend(extra.iter().map(|value| (*value).to_owned()));
+                    cell
+                };
+                return Some(vec![
+                    cell("linux", "x86_64", &[]),
+                    cell("linux", "aarch64", &[]),
+                    cell("macos", "aarch64", &[]),
+                    cell("windows", "x86_64", &[MSVC]),
+                    cell("windows", "aarch64", &[MSVC]),
                 ]);
             }
             (label == "//d:defs.bzl" && symbol == "D").then(|| {
@@ -929,10 +949,16 @@ mod tests {
 
     fn platform(id: &str) -> Platform {
         let (os, cpu) = id.split_once('_').expect("os_cpu");
+        let constraints = if os == "windows" {
+            vec![MSVC.to_owned()]
+        } else {
+            Vec::new()
+        };
         Platform {
             id: id.to_owned(),
             os: os.to_owned(),
             cpu: cpu.to_owned(),
+            constraints,
         }
     }
 
@@ -1110,6 +1136,31 @@ mod tests {
         )
         .expect("facts");
         assert_eq!(on(&found), ["linux_x86_64", "linux_arm64", "macos_arm64"]);
+    }
+
+    #[test]
+    fn msvc_holds_only_on_windows() {
+        let found = facts(
+            &format!("rust_test(name = \"t\", target_compatible_with = [\"{MSVC}\"])\n"),
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["windows_x86_64", "windows_arm64"]);
+    }
+
+    #[test]
+    fn d_cells_on_the_msvc_abi_cover_every_platform() {
+        let found = facts("d_test(name = \"t\")\n", "t").expect("facts");
+        assert_eq!(
+            on(&found),
+            [
+                "linux_x86_64",
+                "linux_arm64",
+                "macos_arm64",
+                "windows_x86_64",
+                "windows_arm64",
+            ]
+        );
     }
 
     #[test]

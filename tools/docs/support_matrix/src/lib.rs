@@ -26,6 +26,9 @@ pub struct PlatformFact {
     pub id: String,
     pub os: String,
     pub cpu: String,
+    /// Constraint values the CI host platform adds beyond os and cpu.
+    #[serde(default)]
+    pub constraints: Vec<String>,
 }
 
 /// One row of the language list.
@@ -297,6 +300,7 @@ pub fn row_platforms(
                 id: platform.id.clone(),
                 os: platform.os.clone(),
                 cpu: platform.cpu.clone(),
+                constraints: platform.constraints.clone(),
             })
             .collect(),
         dogfood,

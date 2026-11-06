@@ -19,7 +19,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C and C++ | none | `conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set |
 | C# | none | `nuget` |
 | CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS; `windows_arm64`: not tested yet | none: the CUDA toolkit is a pinned download |
-| D | `windows_x86_64`, `windows_arm64`: not tested yet | `dub` (pinned, no advisories) |
+| D | none | `dub` (pinned, no advisories) |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` |
 | Elixir | none | `hex` |
 | Erlang | none | `hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it |

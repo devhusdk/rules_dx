@@ -114,8 +114,8 @@ A package without a matching entry fails the fetch and prints the entry to commi
 | Linux x86_64 | yes | yes |
 | Linux arm64 | yes | yes |
 | macOS arm64 | yes | yes |
-| Windows x86_64 | yes | no |
-| Windows arm64 | via emulation | no |
+| Windows x86_64 | yes | yes |
+| Windows arm64 | via emulation | yes |
 
 The Windows archives are `.7z` files that use BCJ2, which Bazel cannot unpack, so they are
 extracted with the pinned 7-Zip in `//libs/starlark:seven_zip.bzl`. LDC has no native Windows

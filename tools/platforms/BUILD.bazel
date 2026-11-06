@@ -1,11 +1,12 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+load(":defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
 platform(
     name = "windows_msvc_host",
-    constraint_values = ["@llvm//constraints/windows/abi:msvc"],
+    constraint_values = WINDOWS_MSVC_HOST_CONSTRAINTS,
     parents = ["@platforms//host"],
     required_settings = ["@llvm//toolchain:runtimes_all"],
 )
@@ -22,6 +23,9 @@ toolchain(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
     tags = ["corpus"],
 )

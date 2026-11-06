@@ -464,8 +464,15 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
     let events = std::fs::File::open(&bep)
         .map_err(|error| format!("failed to read build events: {error}"))
         .and_then(|file| {
-            collect_test_events(BufReader::new(file), || None)
-                .map_err(|error| format!("invalid build events: {error}"))
+            collect_test_events(BufReader::new(file), || {
+                Some(super::test_reports::output_locations(
+                    invocation,
+                    workspace,
+                    WorkflowVerb::Bench,
+                    query_runner,
+                ))
+            })
+            .map_err(|error| format!("invalid build events: {error}"))
         });
     let _ = std::fs::remove_file(&bep);
     let events = match events {
@@ -709,6 +716,42 @@ mod tests {
         assert_eq!(last["schema"], SCHEMA);
         assert_eq!(last["targets"][0]["label"], "//app:parse_bench");
         assert_eq!(last["targets"][0]["results"][0]["mean"], 1.5);
+    }
+
+    #[test]
+    fn bench_reads_bytestream_test_outputs_through_info_roots() {
+        let harness = Harness::new("bench-bytestream");
+        harness.query.script_stdout("//app:parse_bench\n");
+        let testlogs = harness.temp.join("testlogs");
+        harness
+            .query
+            .script_info(&format!("bazel-testlogs: {}\n", testlogs.display()));
+        let dir = testlogs.join("app").join("parse_bench");
+        std::fs::create_dir_all(&dir).expect("testlogs dir");
+        std::fs::write(
+            dir.join("test.outputs__outputs.zip"),
+            zip_with(BENCH_FILE, HAND_MADE.as_bytes()),
+        )
+        .expect("outputs.zip");
+        let line = serde_json::json!({
+            "id": {"testResult": {"label": "//app:parse_bench", "run": 1, "shard": 1, "attempt": 1}},
+            "testResult": {
+                "status": "PASSED",
+                "testActionOutput": [{
+                    "name": "test.outputs__outputs.zip",
+                    "uri": "bytestream://remote.buildbuddy.io/blobs/abc/10",
+                }],
+            },
+        })
+        .to_string();
+        let harness = Harness {
+            raw_bep: Some(vec![line]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["bench"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("parse  1.5"), "{out}");
+        assert!(harness.workspace.join(".dx/local/bench/last.json").exists());
     }
 
     #[test]

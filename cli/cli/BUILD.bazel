@@ -188,6 +188,7 @@ filegroup(
     name = "dx_pdb",
     srcs = [":dx"],
     output_group = "pdb_file",
+    visibility = ["//visibility:public"],
 )
 
 github_deploy(

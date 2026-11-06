@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -386,9 +387,6 @@ func TestLanguageInterfaceNoOps(t *testing.T) {
 	l.RegisterFlags(nil, "update", testConfig())
 	if err := l.CheckFlags(nil, testConfig()); err != nil {
 		t.Errorf("CheckFlags() = %v, want nil", err)
-	}
-	if got := l.KnownDirectives(); got != nil {
-		t.Errorf("KnownDirectives() = %v, want nil", got)
 	}
 	l.Configure(testConfig(), "app", nil)
 	if len(l.errors) != 0 {
@@ -913,5 +911,45 @@ func TestFailureManifestCarriesPackages(t *testing.T) {
 	want := []string{"lang: unknown=unset", "lang: root=", "lang: a=a"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("manifest error packages = %v, want %v", got, want)
+	}
+}
+
+func TestConfigureFixtureTestonlyIsInherited(t *testing.T) {
+	l := &dispatchLang{}
+	if !slices.Contains(l.KnownDirectives(), common.FixtureTestonlyDirective) {
+		t.Fatalf("KnownDirectives() = %v, want %s", l.KnownDirectives(), common.FixtureTestonlyDirective)
+	}
+	root := testConfig()
+	f := rule.EmptyFile("BUILD.bazel", "")
+	f.Directives = []rule.Directive{{Key: common.FixtureTestonlyDirective, Value: "true"}}
+	l.Configure(root, "", f)
+	child := root.Clone()
+	l.Configure(child, "pkg/tests/fixtures/demo", nil)
+	if !common.FixtureTestonly(child, "pkg/tests/fixtures/demo") {
+		t.Error("child config lost # gazelle:dx_fixture_testonly true")
+	}
+	off := rule.EmptyFile("BUILD.bazel", "pkg")
+	off.Directives = []rule.Directive{{Key: common.FixtureTestonlyDirective, Value: "false"}}
+	grandchild := child.Clone()
+	l.Configure(grandchild, "pkg", off)
+	if common.FixtureTestonly(grandchild, "pkg/tests/fixtures/demo") || !common.FixtureTestonly(child, "pkg/tests/fixtures/demo") {
+		t.Error("false in a child package must turn the marking off there only")
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want none", l.errors)
+	}
+}
+
+func TestConfigureRejectsBadFixtureTestonly(t *testing.T) {
+	l := &dispatchLang{}
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	f.Directives = []rule.Directive{{Key: common.FixtureTestonlyDirective, Value: "yes please"}}
+	c := testConfig()
+	l.Configure(c, "pkg", f)
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "dx_fixture_testonly: //pkg: want true or false") {
+		t.Errorf("errors = %v, want the bad value reported", l.errors)
+	}
+	if common.FixtureTestonly(c, "pkg/tests") {
+		t.Error("a bad value turned the marking on")
 	}
 }

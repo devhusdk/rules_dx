@@ -39,8 +39,10 @@ func generate(t *testing.T, lang language.Language, rel string, file *rule.File,
 	root := t.TempDir()
 	dir := filepath.Join(root, filepath.FromSlash(rel))
 	regular := writeTree(t, dir, files)
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, true)
 	return lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       c,
 		Dir:          dir,
 		Rel:          rel,
 		File:         file,

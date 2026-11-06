@@ -400,7 +400,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 	for range corpus.gen {
 		result.Imports = append(result.Imports, targetImports{})
 	}
-	if isFixturePath(args.Rel) {
+	if common.FixtureTestonly(args.Config, args.Rel) {
 		for _, r := range result.Gen {
 			r.SetAttr("testonly", true)
 		}

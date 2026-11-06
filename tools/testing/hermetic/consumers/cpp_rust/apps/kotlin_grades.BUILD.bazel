@@ -13,7 +13,6 @@ genrule(
 
 kotlin_library(
     name = "grades",
-    testonly = True,
     srcs = [
         "GradeException.kt",
         "GradeReader.kt",

@@ -36,8 +36,10 @@ func generate(t *testing.T, rel, build string, files map[string]string, regular 
 			t.Fatal(err)
 		}
 	}
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, true)
 	return NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       c,
 		Dir:          filepath.Join(root, filepath.FromSlash(rel)),
 		Rel:          rel,
 		File:         f,

@@ -792,8 +792,6 @@ func addImport(sets [2]map[string]bool, root string, test bool) {
 	sets[index][root] = true
 }
 
-func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
-
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	desired := make(map[string]bool, len(result.Gen))
 	for _, r := range result.Gen {

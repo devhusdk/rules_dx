@@ -7,6 +7,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 load("//quality:policy.bzl", "workspace_policy")
 
+# gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_adopt //cli/adopt:dx_adopt
 # gazelle:resolve rust dx_apply //cli/apply:dx_apply
 # gazelle:resolve rust dx_atomic_fs //cli/atomic_fs:dx_atomic_fs

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
@@ -172,6 +173,25 @@ func UnionStrings(a, b []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// FixtureTestonlyDirective opts a repository into marking libraries under
+// tests/, fixtures/ or testdata/ testonly. Only rules_dx sets it.
+const FixtureTestonlyDirective = "dx_fixture_testonly"
+
+func SetFixtureTestonly(c *config.Config, on bool) {
+	if c.Exts == nil {
+		c.Exts = map[string]interface{}{}
+	}
+	c.Exts[FixtureTestonlyDirective] = on
+}
+
+func FixtureTestonly(c *config.Config, rel string) bool {
+	if c == nil {
+		return false
+	}
+	on, _ := c.Exts[FixtureTestonlyDirective].(bool)
+	return on && IsFixturePath(rel)
 }
 
 func IsFixturePath(rel string) bool {

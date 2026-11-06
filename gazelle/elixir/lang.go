@@ -220,7 +220,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		if mix.Mod != "" {
 			r.SetAttr("app_module", mix.Mod)
 		}
-		if common.IsFixturePath(args.Rel) {
+		if common.FixtureTestonly(args.Config, args.Rel) {
 			r.SetAttr("testonly", true)
 		}
 		result.Gen = append(result.Gen, r)

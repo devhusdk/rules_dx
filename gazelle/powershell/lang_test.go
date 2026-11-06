@@ -18,6 +18,11 @@ import (
 
 func generateArgs(t *testing.T, lang language.Language, rel string, file *rule.File, files map[string]string) language.GenerateResult {
 	t.Helper()
+	return generateWith(t, true, lang, rel, file, files)
+}
+
+func generateWith(t *testing.T, fixtureTestonly bool, lang language.Language, rel string, file *rule.File, files map[string]string) language.GenerateResult {
+	t.Helper()
 	root := t.TempDir()
 	dir := filepath.Join(root, filepath.FromSlash(rel))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -30,8 +35,10 @@ func generateArgs(t *testing.T, lang language.Language, rel string, file *rule.F
 		}
 		regular = append(regular, name)
 	}
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, fixtureTestonly)
 	return lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       c,
 		Dir:          dir,
 		Rel:          rel,
 		File:         file,
@@ -88,6 +95,13 @@ func TestGenerateFixtureLibraryIsTestonly(t *testing.T) {
 	result := generateArgs(t, NewLanguage(), "tests/fixtures/greet", nil, greetPackage)
 	if !result.Gen[0].AttrBool("testonly") || result.Gen[1].Attr("testonly") != nil {
 		t.Errorf("testonly = %v / %v, want library only", result.Gen[0].AttrBool("testonly"), result.Gen[1].Attr("testonly"))
+	}
+}
+
+func TestGenerateFixtureLibraryWithoutDirectiveIsNotTestonly(t *testing.T) {
+	result := generateWith(t, false, NewLanguage(), "tests/fixtures/greet", nil, greetPackage)
+	if result.Gen[0].Attr("testonly") != nil {
+		t.Error("fixture library is testonly without # gazelle:dx_fixture_testonly")
 	}
 }
 

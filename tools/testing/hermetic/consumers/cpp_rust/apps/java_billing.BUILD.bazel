@@ -13,7 +13,6 @@ genrule(
 
 java_library(
     name = "billing",
-    testonly = True,
     srcs = [
         "Invoice.java",
         "InvoiceException.java",

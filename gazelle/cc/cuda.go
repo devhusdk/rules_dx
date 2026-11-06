@@ -122,7 +122,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 		r.SetAttr("hdrs", hdrs)
 	}
 	r.SetAttr("platforms", platforms)
-	if common.IsFixturePath(args.Rel) {
+	if common.FixtureTestonly(args.Config, args.Rel) {
 		r.SetAttr("testonly", true)
 	}
 	return language.GenerateResult{Gen: []*rule.Rule{r}, Imports: []any{common.WrapImportSet(imports)}}

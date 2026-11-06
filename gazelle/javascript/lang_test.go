@@ -166,8 +166,10 @@ func TestGenerateFailures(t *testing.T) {
 func TestGenerateFixturePathMarksTestonly(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/fixtures/demo/demo.js", "export const x = 1;\n")
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, true)
 	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       c,
 		Dir:          filepath.Join(root, "pkg", "fixtures", "demo"),
 		Rel:          "pkg/fixtures/demo",
 		RegularFiles: []string{"demo.js"},

@@ -303,15 +303,13 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 		}
 	}
-	if isFixturePath(args.Rel) {
+	if common.FixtureTestonly(args.Config, args.Rel) {
 		for _, r := range result.Gen {
 			r.SetAttr("testonly", true)
 		}
 	}
 	return mergeStale(args.File, result)
 }
-
-func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, typescriptKinds, func(r *rule.Rule) bool {

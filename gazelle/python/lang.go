@@ -359,7 +359,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		if hints := withRuffHint(args.Config, existingRule(args.File, r.Kind(), r.Name()), ruff, args.Rel); len(hints) > 0 {
 			r.SetAttr("aspect_hints", hints)
 		}
-		if isFixturePath(args.Rel) {
+		if common.FixtureTestonly(args.Config, args.Rel) {
 			r.SetAttr("testonly", true)
 		}
 	}
@@ -404,8 +404,6 @@ func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 	}
 	return common.CheckClaims(file, other, filled, nil)
 }
-
-func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, pythonKinds, func(r *rule.Rule) bool {

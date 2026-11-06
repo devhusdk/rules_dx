@@ -152,8 +152,10 @@ func TestGenerateFixturePathMarksTestonly(t *testing.T) {
 	} {
 		writeFixture(t, root, name, content)
 	}
+	c := &config.Config{RepoRoot: root}
+	common.SetFixtureTestonly(c, true)
 	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
+		Config:       c,
 		Dir:          filepath.Join(root, "pkg", "fixtures", "demo"),
 		Rel:          "pkg/fixtures/demo",
 		RegularFiles: []string{"demo.py", "helper.py"},

@@ -71,6 +71,7 @@ Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They ap
 | `dx_policy_config <tool> <label>` | Name the config target the root `workspace_policy` binds for a tool (`ruff`, `buildifier`, `taplo`, `vale`, `rustfmt`). Generated targets skip the `aspect_hints` entry for that label; nested override configs still get one. Inherited by child packages. |
 | `dx_corpus true\|false` | Turn the Rust corpus targets on or off. |
 | `dx_cuda_platforms <spec> <spec>...` | Set `platforms` of a generated `cuda_library`. Required for `.cu` and `.cuh` files. |
+| `dx_fixture_testonly true\|false` | Mark generated libraries under a `tests/`, `fixtures/` or `testdata/` directory `testonly`. Off by default. Inherited by child packages. |
 | `lang <languages>` | Must list `dx_dispatch`, for example `go,dx_dispatch`. |
 
 When `.dx/config/BUILD.bazel` from `dx init` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.

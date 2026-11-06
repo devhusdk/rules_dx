@@ -129,7 +129,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		}
 		r := rule.NewRule(LibraryKind, name)
 		r.SetAttr("srcs", modules)
-		if common.IsFixturePath(args.Rel) {
+		if common.FixtureTestonly(args.Config, args.Rel) {
 			r.SetAttr("testonly", true)
 		}
 		result.Gen = append(result.Gen, r)

@@ -146,7 +146,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if rep.Failed() {
 		return language.GenerateResult{}
 	}
-	if common.IsFixturePath(args.Rel) {
+	if common.FixtureTestonly(args.Config, args.Rel) {
 		for _, r := range result.Gen {
 			r.SetAttr("testonly", true)
 		}

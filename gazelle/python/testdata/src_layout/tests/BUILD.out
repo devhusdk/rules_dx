@@ -11,7 +11,6 @@ python_library(
 
 python_test(
     name = "test_basic",
-    testonly = True,
     srcs = ["test_basic.py"],
     imports = ["."],
     deps = [

@@ -274,7 +274,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, spec.Wrap(append([]ImportRef(nil), p.imports...)))
 	}
-	if IsFixturePath(args.Rel) {
+	if FixtureTestonly(args.Config, args.Rel) {
 		for _, r := range result.Gen {
 			r.SetAttr("testonly", true)
 		}
@@ -440,7 +440,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	}
 	result := language.GenerateResult{}
 	if hasLib {
-		if IsFixturePath(args.Rel) {
+		if FixtureTestonly(args.Config, args.Rel) {
 			lib.rule.SetAttr("testonly", true)
 		}
 		result.Gen = append(result.Gen, lib.rule)

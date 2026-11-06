@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -93,7 +94,7 @@ func (l *dispatchLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 
 func (l *dispatchLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
-func (*dispatchLang) KnownDirectives() []string { return nil }
+func (*dispatchLang) KnownDirectives() []string { return []string{common.FixtureTestonlyDirective} }
 
 func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 	if f == nil {
@@ -105,6 +106,19 @@ func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 				l.fail(common.InPackage(rel), "lang: //%s: # gazelle:lang %s drops %s; add %s to the list", rel, strings.Join(c.Langs, ","), languageName, languageName)
 				break
 			}
+		}
+	}
+	for _, d := range f.Directives {
+		if d.Key != common.FixtureTestonlyDirective {
+			continue
+		}
+		on, err := strconv.ParseBool(d.Value)
+		if err != nil {
+			l.fail(common.InPackage(rel), "%s: //%s: want true or false, got %q", common.FixtureTestonlyDirective, rel, d.Value)
+			continue
+		}
+		if c != nil {
+			common.SetFixtureTestonly(c, on)
 		}
 	}
 	known := ignoreLanguages()

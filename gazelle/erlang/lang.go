@@ -280,7 +280,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if nifName != "" {
 		r.SetAttr("nifs", []string{":" + nifName})
 	}
-	if common.IsFixturePath(args.Rel) {
+	if common.FixtureTestonly(args.Config, args.Rel) {
 		r.SetAttr("testonly", true)
 	}
 	if nifName != "" {

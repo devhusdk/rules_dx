@@ -193,7 +193,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	lib := rule.NewRule(LibraryKind, name)
 	lib.SetAttr("srcs", srcs)
 	lib.SetAttr("data", []string{ProjectFile})
-	if common.IsFixturePath(args.Rel) {
+	if common.FixtureTestonly(args.Config, args.Rel) {
 		lib.SetAttr("testonly", true)
 	}
 	result.Gen = append(result.Gen, lib)

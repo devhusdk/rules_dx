@@ -7,7 +7,6 @@ _PUBLIC = ["//visibility:public"]
 
 kotlin_library(
     name = "cli",
-    testonly = True,
     srcs = ["Cli.kt"],
     visibility = _PUBLIC,
     deps = ["//kotlin/tests/fixtures/kotlin-app/grades"],
@@ -15,7 +14,6 @@ kotlin_library(
 
 kotlin_binary(
     name = "grades",
-    testonly = True,
     srcs = ["Main.kt"],
     main_class = "cli.MainKt",
     deps = [":cli"],

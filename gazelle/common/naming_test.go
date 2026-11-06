@@ -191,3 +191,20 @@ func TestRootTargetName(t *testing.T) {
 		t.Error("PackageTargetName(pkg/---) succeeded, want an empty-name error")
 	}
 }
+
+func TestFixtureTestonly(t *testing.T) {
+	if FixtureTestonly(nil, "tests/fixtures/demo") {
+		t.Error("nil config marks testonly")
+	}
+	c := config.New()
+	if FixtureTestonly(c, "tests/fixtures/demo") {
+		t.Error("fixture path is testonly without the directive")
+	}
+	SetFixtureTestonly(c, true)
+	if !FixtureTestonly(c, "java/tests/fixtures/app") {
+		t.Error("fixture path is not testonly with the directive")
+	}
+	if FixtureTestonly(c, "java/src/app") {
+		t.Error("non-fixture path is testonly with the directive")
+	}
+}

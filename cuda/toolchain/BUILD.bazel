@@ -1,8 +1,10 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//libs/starlark:cells.bzl", "cell_settings", "cells_compatible_with")
 load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":check.bzl", "cuda_toolkit_check")
+load(":settings.bzl", "CUDA_CELL_SETTINGS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -11,9 +13,18 @@ cell_settings(
     cells = CUDA_CELLS,
 )
 
+selects.config_setting_group(
+    name = "cell_windows_x86_64_msvc",
+    match_all = [
+        ":cell_windows_x86_64",
+        "//cc/toolchains:msvc_selected",
+    ],
+)
+
 exports_files([
     "check.bzl",
     "repos.bzl",
+    "settings.bzl",
     "transition.bzl",
 ])
 
@@ -42,6 +53,7 @@ cuda_toolkit_check(
         CUDA_CELLS,
         "//cuda/toolchain",
         cuda_qualified_cells(),
+        settings = CUDA_CELL_SETTINGS,
     ),
 )
 
@@ -52,6 +64,7 @@ real_source_target(
         "BUILD.bazel",
         "check.bzl",
         "repos.bzl",
+        "settings.bzl",
         "transition.bzl",
     ],
     tags = ["corpus"],

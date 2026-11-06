@@ -18,6 +18,7 @@ def _checks():
         expect_equal("unsupported default names the language", [str(label) for label in cell_cases(_PACKAGE, _PINNED.keys(), True)[_DEFAULT]], [str(Label("@platforms//:incompatible")), str(unsupported_constraint(_PACKAGE))]),
         expect_equal("settings live in the given package", str(cell_setting(_PACKAGE, "linux_arm64")), str(Label("//libs/starlark/tests:cell_linux_arm64"))),
         expect_equal("unknown cells are reported", unknown_cells(_PINNED, ["linux_amd64", "linux_riscv64"]), ["linux_riscv64"]),
+        expect_equal("a setting replaces the cell setting", sorted([str(key) for key in cell_cases(_PACKAGE, _PINNED.keys(), False, {"linux_arm64": Label("//libs/starlark/tests:other")}) if key != _DEFAULT]), sorted([str(Label("//libs/starlark/tests:cell_linux_amd64")), str(Label("//libs/starlark/tests:other"))])),
         expect_equal("no cells is always incompatible", list(cell_cases(_PACKAGE, []).keys()), [_DEFAULT]),
     ]
 

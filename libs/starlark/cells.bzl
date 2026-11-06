@@ -50,24 +50,25 @@ def unsupported_value(name):
         visibility = ["//visibility:public"],
     )
 
-def cell_cases(package, cells, unsupported = False):
+def cell_cases(package, cells, unsupported = False, settings = {}):
     """Returns the select cases that accept only the given cells.
 
     Args:
         package: Package that declares the settings.
         cells: Cell keys to accept.
         unsupported: Also require the package's unsupported constraint in the default, so dx can name the language.
+        settings: Maps a cell to the setting to use instead of the package's cell setting.
 
     Returns:
         Select cases, with an incompatible default.
     """
-    cases = {cell_setting(package, cell): [] for cell in sorted(cells)}
+    cases = {settings.get(cell, cell_setting(package, cell)): [] for cell in sorted(cells)}
     cases["//conditions:default"] = [_INCOMPATIBLE]
     if unsupported:
         cases["//conditions:default"].append(unsupported_constraint(package))
     return cases
 
-def cells_compatible_with(pinned, package, cells, unsupported = False):
+def cells_compatible_with(pinned, package, cells, unsupported = False, settings = {}):
     """Returns a target_compatible_with select for the given cells.
 
     Args:
@@ -75,6 +76,7 @@ def cells_compatible_with(pinned, package, cells, unsupported = False):
         package: Package that declares the settings.
         cells: Cell keys to accept.
         unsupported: Also require the package's unsupported constraint on other platforms.
+        settings: Maps a cell to the setting to use instead of the package's cell setting.
 
     Returns:
         A select that fails analysis-compat for every other platform.
@@ -82,7 +84,7 @@ def cells_compatible_with(pinned, package, cells, unsupported = False):
     unknown = unknown_cells(pinned, cells)
     if unknown:
         fail("unknown cells: " + ", ".join(unknown))
-    return select(cell_cases(package, cells, unsupported))
+    return select(cell_cases(package, cells, unsupported, settings))
 
 def cell_settings(name, cells):
     """Declares one config_setting per cell, named name_<cell>.

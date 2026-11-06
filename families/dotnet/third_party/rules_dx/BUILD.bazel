@@ -30,6 +30,7 @@ exports_files([
     "rules_rust.exec_cc_toolchain_env.patch",
     "rules_rust.msvc_pdb_output.patch",
     "rules_rust.pipelined_rmeta_path.patch",
+    "rules_rust.rust_lld_msvc_libpath.patch",
     "windows_support.host_tools.patch",
     "windows_support.hostarm64_packages.patch",
     "windows_support.rules_dx_hosts.patch",

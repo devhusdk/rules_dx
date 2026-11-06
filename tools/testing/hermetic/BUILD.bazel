@@ -93,7 +93,7 @@ rust_binary(
     testonly = True,
     srcs = ["verify.rs"],
     edition = "2021",
-    target_compatible_with = HERMETIC_COMPATIBLE_WITH,
+    target_compatible_with = LINUX_MACOS_WINDOWS,
     deps = [
         ":hermetic",
         "//tools/testing:dx_testing",

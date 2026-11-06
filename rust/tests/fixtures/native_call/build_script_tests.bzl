@@ -284,6 +284,18 @@ def _link_windows_impl(ctx):
     name = linker.replace("\\", "/").split("/")[-1]
     asserts.true(env, name.startswith("rust-lld"), "linker is not rust-lld: {}".format(linker))
     asserts.false(env, "clang-cl" in linker, "linker is clang-cl: {}".format(linker))
+    action = _rustc_action(env)
+    _, link_args = _link_args(action)
+    libpaths = [arg[len("-LIBPATH:"):] for arg in link_args if arg.startswith("-LIBPATH:")]
+    inputs = [f.path for f in action.inputs.to_list()]
+    for suffix in ["/um/x64", "/ucrt/x64"]:
+        dirs = [d for d in libpaths if d.endswith(suffix)]
+        asserts.true(env, len(dirs) > 0, "no Windows SDK {} lib dir in the link args: {}".format(suffix, link_args))
+        for d in dirs:
+            asserts.true(env, d.startswith("external/"), "Windows SDK lib dir is outside the execroot: {}".format(d))
+            asserts.true(env, [p for p in inputs if p.startswith(d + "/")] != [], "Windows SDK lib dir is not an action input: {}".format(d))
+    for part in action.argv:
+        asserts.false(env, "/clang:" in part, "clang-cl arg passed to rust-lld: {}".format(part))
     return analysistest.end(env)
 
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)

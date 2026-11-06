@@ -1,0 +1,28 @@
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -375,6 +375,14 @@
+     """
+     return ctx.fragments.cpp.linkopts
+ 
++def _msvc_libpath_dir(arg):
++    """Returns the directory of a `/LIBPATH:`, `-LIBPATH:` or clang-cl `/clang:/LIBPATH:` arg, else None."""
++    if arg[:7].lower() == "/clang:":
++        arg = arg[7:]
++    if arg[:9].lower() in ("/libpath:", "-libpath:"):
++        return arg[9:]
++    return None
++
+ def get_linker_and_args(ctx, crate_type, toolchain, cc_toolchain, feature_configuration, rpaths, add_flags_for_binary = False):
+     """Gathers cc_common linker information
+ 
+@@ -478,6 +486,10 @@
+                     filtered_args.append(version)
+                     # Keep library search path flags
+ 
++                elif toolchain.target_abi == "msvc" and _msvc_libpath_dir(processed_arg) != None:
++                    # The MSVC cc toolchain carries the CRT and SDK lib dirs as linker args.
++                    filtered_args.append("-LIBPATH:" + _msvc_libpath_dir(processed_arg))
++
+                 elif processed_arg.startswith("-L"):
+                     filtered_args.append(processed_arg)
+                     # Keep sysroot flags (as single or two-part arguments)

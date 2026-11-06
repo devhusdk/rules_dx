@@ -29,6 +29,23 @@ pub fn family_modules(families: &[String], source: &Path) -> String {
     text
 }
 
+/// Drops the `module()` line and any comment or blank lines before it.
+fn without_module_line(snippet: &str) -> String {
+    let mut lines = snippet.lines().peekable();
+    while let Some(line) = lines.peek() {
+        if line.starts_with("module(") {
+            lines.next();
+            let rest: Vec<&str> = lines.collect();
+            return rest.join("\n").trim_start().to_owned() + "\n";
+        }
+        if !line.starts_with('#') && !line.trim().is_empty() {
+            break;
+        }
+        lines.next();
+    }
+    snippet.to_owned()
+}
+
 /// Builds the consumer MODULE.bazel from the `MODULE.bazel` a fresh `dx init` wrote.
 ///
 /// Its `module()` line is replaced by one named `module`.
@@ -41,10 +58,8 @@ pub fn compose_module(
     fragment: &str,
     rules_dx: &Path,
 ) -> Result<String, String> {
-    let snippet = snippet
-        .strip_prefix("module(")
-        .and_then(|rest| rest.split_once('\n'))
-        .map_or(snippet, |(_, rest)| rest.trim_start());
+    let snippet = without_module_line(snippet);
+    let snippet = snippet.as_str();
     let needle = "bazel_dep(name = \"rules_dx\", ";
     if snippet.matches(needle).count() != 1 {
         return Err(format!(
@@ -104,6 +119,17 @@ mod tests {
     #[test]
     fn module_replaces_the_init_module_line() {
         let written = format!("module(name = \"my_project\")\n\n{SNIPPET}");
+        let module = compose_module(&written, "m", "rules_dx", "", Path::new("/s")).unwrap();
+        assert!(
+            module.starts_with("module(name = \"m\")\n\nbazel_dep("),
+            "{module}"
+        );
+        assert_eq!(module.matches("module(name").count(), 1);
+    }
+
+    #[test]
+    fn module_replaces_the_init_module_line_after_a_comment_header() {
+        let written = format!("# dx: yours; dx adds its missing lines\nmodule(name = \"my_project\")\n\n{SNIPPET}");
         let module = compose_module(&written, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert!(
             module.starts_with("module(name = \"m\")\n\nbazel_dep("),

@@ -20,6 +20,11 @@ pub(crate) const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
 pub(crate) const CODE_DISK_FULL: &str = "disk_full";
 pub(crate) const CODE_SERVER_CRASHED: &str = "server_crashed";
 pub(crate) const CODE_SERVER_OUT_OF_MEMORY: &str = "server_out_of_memory";
+pub(crate) const CODE_LOCKFILE_DRIFT: &str = "lockfile_drift";
+pub(crate) const CODE_STALE_GENERATED: &str = "stale_generated";
+pub(crate) const CODE_FETCH_FAILED: &str = "fetch_failed";
+pub(crate) const CODE_NO_TOOLCHAIN: &str = "no_toolchain";
+pub(crate) const CODE_MODULE_NOT_FOUND: &str = "module_not_found";
 
 /// The class of one failure, reported as the `cause` of its `error` event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,7 +83,8 @@ impl Cause {
             "query_launch_failed" => Cause::QueryLaunch,
             "query_failed" => Cause::Query,
             "analysis_failed" => Cause::Analysis,
-            "bazel_failed" => Cause::Bazel,
+            "bazel_failed" | "lockfile_drift" | "stale_generated" | "fetch_failed"
+            | "no_toolchain" | "module_not_found" => Cause::Bazel,
             "tests_failed" => Cause::Test,
             "application_failed" => Cause::Application,
             "launch_failed" | "unsupported_platform" => Cause::ToolUnavailable,
@@ -321,6 +327,10 @@ pub fn report_failure(
     }
     if failure.shows_usage() {
         let _ = writeln!(err, "{}", usage_text());
+    } else if let Some(hint) =
+        super::bazel_hint::recorded().filter(|hint| hint.code == failure.code)
+    {
+        let _ = writeln!(err, "{}", hint.next);
     } else if let Some(next) = super::guidance::next_action(&failure.code) {
         let _ = writeln!(err, "{next}");
     }

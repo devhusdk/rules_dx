@@ -20,6 +20,7 @@ pub mod lifecycle;
 pub mod procs;
 pub mod rc;
 mod runner;
+mod stderr_tail;
 pub mod slot_pool;
 
 pub use rc::{
@@ -29,6 +30,7 @@ pub use rc::{
     DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE, PRESET_LOCAL_RESOURCES,
 };
 pub use runner::{BinaryRunner, Holding};
+pub use stderr_tail::last_bazel_stderr;
 
 /// This thread's `errno`, for a signal handler to save on entry and restore on exit.
 #[cfg(unix)]

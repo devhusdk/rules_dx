@@ -9,7 +9,7 @@ use crate::lifecycle::{
     self, CleanupBudget, EnvPolicy, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
     StreamStdin,
 };
-use crate::{ChildStatus, Runner};
+use crate::{stderr_tail, ChildStatus, Runner};
 
 const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
     graceful: Duration::from_secs(10),
@@ -51,9 +51,19 @@ fn stream_spec(
         } else {
             StreamOutput::Forward(Box::new(io::stderr()))
         },
-        stderr: StreamOutput::Inherit,
+        stderr: bazel_stderr(argv),
         group: lifecycle::stream_group(),
         held,
+    }
+}
+
+fn bazel_stderr(argv: &[String]) -> StreamOutput {
+    stderr_tail::clear();
+    match argv.first() {
+        Some(program) if stderr_tail::wanted(program.as_ref()) => {
+            StreamOutput::Forward(Box::new(stderr_tail::Tee))
+        }
+        _ => StreamOutput::Inherit,
     }
 }
 

@@ -162,7 +162,7 @@ pub(crate) fn bazel_failure_code(bazel_code: i32) -> &'static str {
     } else if bazel_code == crate::bazel_restart::RESTART_EXIT {
         CODE_SERVER_CRASHED
     } else {
-        CODE_BAZEL_FAILED
+        super::bazel_hint::refine(CODE_BAZEL_FAILED)
     }
 }
 

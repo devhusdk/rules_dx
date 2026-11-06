@@ -22,6 +22,7 @@ mod failure_reports;
 pub mod first_run;
 mod fuzz;
 mod generate;
+mod bazel_hint;
 mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;

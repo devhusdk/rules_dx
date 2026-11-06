@@ -1,3 +1,4 @@
+use super::bazel_hint::{recorded, refine};
 use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::common::*;
@@ -539,12 +540,20 @@ fn run_quality_request(
                 "run the command again, or raise the Bazel server heap if it ran out of memory",
             )
         } else if compile_only {
-            (CODE_BAZEL_FAILED, "build", "fix the compile errors above")
+            (
+                refine(CODE_BAZEL_FAILED),
+                "build",
+                "fix the compile errors above",
+            )
         } else if build_stage {
-            (CODE_BAZEL_FAILED, "build", "fix the build errors above")
+            (
+                refine(CODE_BAZEL_FAILED),
+                "build",
+                "fix the build errors above",
+            )
         } else {
             (
-                CODE_ANALYSIS_FAILED,
+                refine(CODE_ANALYSIS_FAILED),
                 "analysis",
                 "fix the Bazel error above",
             )
@@ -561,7 +570,14 @@ fn run_quality_request(
             }
         } else {
             let _ = writeln!(err, "dx: {code}: {detail}");
-            let _ = writeln!(err, "{}", rerun_hint(request, fix));
+            match recorded().filter(|hint| hint.code == code) {
+                Some(hint) => {
+                    let _ = writeln!(err, "{}", hint.next);
+                }
+                None => {
+                    let _ = writeln!(err, "{}", rerun_hint(request, fix));
+                }
+            }
         }
     }
     collected.complete = collected.complete && bazel_code == 0;

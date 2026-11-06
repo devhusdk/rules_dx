@@ -958,6 +958,8 @@ pub struct Session {
     pub out: PathBuf,
     pub source: PathBuf,
     pub bazelisk: PathBuf,
+    /// The binary every probe runs: bazelisk, or on Windows the Bazel it resolved.
+    pub bazel: PathBuf,
     pub bazelisk_home: PathBuf,
     pub isolation: Isolation,
     pub probes: Vec<Value>,
@@ -1009,7 +1011,7 @@ impl Session {
     /// The bazelisk command line of one probe, without the process wrapper.
     fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
         let mut argv = vec![
-            self.bazelisk.to_string_lossy().into_owned(),
+            self.bazel.to_string_lossy().into_owned(),
             "--nosystem_rc".to_owned(),
             format!("--output_user_root={}", probe.output_root.display()),
             "--max_idle_secs=60".to_owned(),
@@ -1050,7 +1052,7 @@ impl Session {
         if cfg!(windows) {
             let script = format!(
                 "@echo off\r\n\"{}\" --nosystem_rc --output_user_root={} %*\r\n",
-                self.bazelisk.display(),
+                self.bazel.display(),
                 output_root.display()
             );
             write(&dir.join("bazel.cmd"), &script)?;
@@ -1058,7 +1060,7 @@ impl Session {
         }
         let script = format!(
             "#!/bin/sh\nexec {} --nosystem_rc --output_user_root={} \"$@\"\n",
-            shell_quote(&self.bazelisk.to_string_lossy()),
+            shell_quote(&self.bazel.to_string_lossy()),
             shell_quote(&output_root.to_string_lossy())
         );
         let bazel = dir.join("bazel");
@@ -1171,7 +1173,7 @@ impl Session {
 
     fn windows_shutdown(&self, output_root: &Path) -> Vec<String> {
         vec![
-            self.bazelisk.to_string_lossy().into_owned(),
+            self.bazel.to_string_lossy().into_owned(),
             "--nosystem_rc".to_owned(),
             format!("--output_user_root={}", output_root.display()),
             "shutdown".to_owned(),
@@ -1696,6 +1698,47 @@ fn native(path: &Path) -> bool {
         || (head.starts_with(b"\x7fELF") && dx_binfmt::machine(&head).is_some())
 }
 
+fn read_head(path: &Path) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let mut head = Vec::new();
+    std::fs::File::open(path)
+        .and_then(|file| file.take(4096).read_to_end(&mut head))
+        .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
+    Ok(head)
+}
+
+/// Whether Windows can load the image at another base: a PE with relocations stripped
+/// (COFF Characteristics bit 0x1) cannot, and an AppContainer always relocates.
+pub fn relocatable(head: &[u8]) -> bool {
+    let word = |at: usize| {
+        head.get(at..at + 2)
+            .map(|b| u16::from_le_bytes([b[0], b[1]]))
+    };
+    if !head.starts_with(b"MZ") {
+        return true;
+    }
+    let Some(pe) = head
+        .get(0x3c..0x40)
+        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize)
+    else {
+        return true;
+    };
+    if head.get(pe..pe + 4) != Some(b"PE\0\0".as_slice()) {
+        return true;
+    }
+    word(pe + 22).is_none_or(|characteristics| characteristics & 0x1 == 0)
+}
+
+/// The Bazel binary `bazelisk --print_env` resolved, from its `BAZEL_REAL=` line.
+pub fn bazel_real(stdout: &str) -> Result<PathBuf, String> {
+    stdout
+        .lines()
+        .find_map(|line| line.trim_end().strip_prefix("BAZEL_REAL="))
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .ok_or_else(|| "bazelisk --print_env printed no BAZEL_REAL".to_owned())
+}
+
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {
     if let Some(chosen) = chosen.filter(|chosen| !chosen.is_empty()) {
         let mut chosen = PathBuf::from(chosen);
@@ -2003,6 +2046,7 @@ fn run_all(
         workspace,
         out: out.to_path_buf(),
         source,
+        bazel: bazelisk.clone(),
         bazelisk,
         bazelisk_home: root.join("bazelisk"),
         isolation,
@@ -2018,6 +2062,31 @@ fn run_all(
         &session.source,
         &ambient,
     )?;
+    if cfg!(windows) {
+        // An AppContainer relocates every image, and bazelisk's Windows release has its
+        // relocations stripped, so resolve Bazel here and run that inside instead.
+        let printed = capture({
+            let mut command = Command::new(&session.bazelisk);
+            command
+                .env_clear()
+                .envs(session.windows_env(&clean_home, &path))
+                .current_dir(&session.workspace)
+                .arg("--print_env");
+            command
+        })?;
+        if printed.exit != 0 {
+            return Err(format!("bazelisk --print_env failed: {}", printed.stderr));
+        }
+        let bazel = bazel_real(&printed.stdout)?;
+        let head = read_head(&bazel)?;
+        if !relocatable(&head) {
+            return Err(format!(
+                "{} has no relocation table; an AppContainer must relocate it (error 623)",
+                bazel.display()
+            ));
+        }
+        session.bazel = bazel;
+    }
     write(&planted_home.join(".bazelrc"), HOME_RC)?;
     let repos = root.join("repos");
     let empty_repos = root.join("repos-empty");
@@ -2089,6 +2158,7 @@ fn run_all(
     evidence["bazel"] = json!({
         "version": version.stdout.trim(),
         "bazelisk": found,
+        "isolated": session.bazel,
     });
     session.run(Probe {
         name: "hermetic_test".to_owned(),

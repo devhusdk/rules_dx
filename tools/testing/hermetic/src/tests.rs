@@ -823,9 +823,8 @@ fn capture_keeps_exit_and_both_streams() {
     assert!(err.starts_with("cannot start "), "{err}");
 }
 
-#[test]
-fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
-    let session = Session {
+fn fixture_session() -> Session {
+    Session {
         manifest: parse_manifest(
             &json!({
                 "label": "//x:y",
@@ -852,11 +851,15 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
         out: PathBuf::from("/out"),
         source: PathBuf::from("/src"),
         bazelisk: PathBuf::from("/q/bin/bazelisk"),
+        bazel: PathBuf::from("/q/bin/bazelisk"),
         bazelisk_home: PathBuf::from("/q/bazelisk"),
         isolation: Isolation::default(),
         probes: Vec::new(),
-    };
-    let argv = session.bazel_argv(&Probe {
+    }
+}
+
+fn fixture_probe() -> Probe<'static> {
+    Probe {
         name: "hermetic_test".to_owned(),
         net: Net::Denied,
         home: Path::new("/q/home"),
@@ -866,7 +869,12 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
         targets: vec!["//...".to_owned()],
         extra: vec!["--test_output=errors".to_owned()],
         expect: Expect::Pass,
-    });
+    }
+}
+
+#[test]
+fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
+    let argv = fixture_session().bazel_argv(&fixture_probe());
     assert_eq!(
         argv[..5],
         [
@@ -898,6 +906,53 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
         ]
     );
     assert!(argv[7].contains("shutdown"), "{}", argv[7]);
+}
+
+#[test]
+fn probes_run_the_resolved_bazel_when_it_differs_from_bazelisk() {
+    let mut session = fixture_session();
+    session.bazel = PathBuf::from("/q/bazelisk/downloads/bazel.exe");
+    assert_eq!(
+        session.bazel_tail(&fixture_probe())[0],
+        "/q/bazelisk/downloads/bazel.exe"
+    );
+    assert_eq!(
+        session.windows_shutdown(Path::new("/q/cold"))[0],
+        "/q/bazelisk/downloads/bazel.exe"
+    );
+}
+
+#[test]
+fn bazel_real_reads_the_print_env_line() {
+    assert_eq!(
+        bazel_real("BAZELISK_SKIP_WRAPPER=true\r\nBAZEL_REAL=C:\\q\\bazel.exe\r\n").unwrap(),
+        PathBuf::from("C:\\q\\bazel.exe")
+    );
+    for printed in ["BAZELISK_SKIP_WRAPPER=true\n", "BAZEL_REAL=\n"] {
+        assert_eq!(
+            bazel_real(printed).unwrap_err(),
+            "bazelisk --print_env printed no BAZEL_REAL"
+        );
+    }
+}
+
+fn fake_pe(characteristics: u16) -> Vec<u8> {
+    let mut head = b"MZ".to_vec();
+    head.resize(0x3c, 0);
+    head.extend_from_slice(&0x40u32.to_le_bytes());
+    head.extend_from_slice(b"PE\0\0");
+    head.resize(0x40 + 22, 0);
+    head.extend_from_slice(&characteristics.to_le_bytes());
+    head
+}
+
+#[test]
+fn relocatable_rejects_only_a_pe_with_stripped_relocations() {
+    assert!(!relocatable(&fake_pe(0x23)));
+    assert!(relocatable(&fake_pe(0x22)));
+    assert!(relocatable(&fake_elf()));
+    assert!(relocatable(b"MZ"));
+    assert!(relocatable(&fake_pe(0x23)[..0x40 + 22]));
 }
 
 #[test]

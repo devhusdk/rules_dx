@@ -595,10 +595,12 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
+    #[cfg(unix)]
     struct RustRunner {
         files: Vec<PathBuf>,
     }
 
+    #[cfg(unix)]
     impl Runner for RustRunner {
         fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
             Ok(self.files.clone())

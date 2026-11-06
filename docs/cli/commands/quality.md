@@ -328,7 +328,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `gplint` | Lint Gherkin | |
 | `notebook_outputs` | Lint Jupyter notebooks for stored outputs | |
 | `keep_sorted` | Lint `keep-sorted` blocks in text | |
-| `typos` | Spell check source, docs and text, and fix with `--apply`. Add words to a `_typos.toml` at the repo root | |
+| `typos` | Spell check source, docs and text, and fix with `--apply`. File name typos are reported but `--apply` does not rename files. Add words to a `_typos.toml` at the repo root | |
 
 ### Schema languages
 

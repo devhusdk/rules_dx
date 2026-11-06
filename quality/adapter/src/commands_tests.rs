@@ -2485,6 +2485,7 @@ fn file_family_lint_checks_are_check_only() {
         vec![
             BIN,
             "--write-changes",
+            "--no-check-filenames",
             "--format",
             "silent",
             "--",

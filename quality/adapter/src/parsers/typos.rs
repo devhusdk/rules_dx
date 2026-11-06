@@ -51,16 +51,26 @@ pub fn parse_typos(
         let missing = |what: &str| ParseError::shape(TOOL, format!("typo record without {what}"));
         let path = record.path.ok_or_else(|| missing("path"))?;
         let typo = record.typo.ok_or_else(|| missing("typo"))?;
-        let line_num = record
-            .line_num
-            .filter(|n| *n > 0)
-            .ok_or_else(|| missing("line"))?;
-        let offset = record.byte_offset.ok_or_else(|| missing("offset"))?;
+        let (position, name_typo) = match record.line_num {
+            None => (TextPosition { line: 1, column: 1 }, true),
+            Some(0) => return Err(missing("line")),
+            Some(line) => {
+                let offset = record.byte_offset.ok_or_else(|| missing("offset"))?;
+                (
+                    TextPosition {
+                        line,
+                        column: offset + 1,
+                    },
+                    false,
+                )
+            }
+        };
+        let prefix = if name_typo { "file name: " } else { "" };
         let corrections = record.corrections.unwrap_or_default();
         let message = if corrections.is_empty() {
-            format!("`{typo}` is a typo")
+            format!("{prefix}`{typo}` is a typo")
         } else {
-            format!("`{typo}` should be {}", quoted(&corrections))
+            format!("{prefix}`{typo}` should be {}", quoted(&corrections))
         };
         findings.push(finding(
             TOOL,
@@ -68,10 +78,7 @@ pub fn parse_typos(
             String::new(),
             message,
             ToolSeverity::Warning,
-            TextPosition {
-                line: line_num,
-                column: offset + 1,
-            },
+            position,
             ColumnEncoding::Utf8,
         ));
     }
@@ -136,5 +143,34 @@ mod tests {
         assert!(parse_typos(b"{<error", Some(2), &["a.txt"]).is_err());
         assert!(parse_typos(b"{\"type\":\"other\"}\n", Some(2), &["a.txt"]).is_err());
         assert!(parse_typos(&[0xff], Some(2), &["a.txt"]).is_err());
+        let zero = DIRTY.replace("\"line_num\":2", "\"line_num\":0");
+        assert!(parse_typos(zero.as_bytes(), Some(2), &["a.txt"]).is_err());
+    }
+
+    const NAME_TYPO: &str = concat!(
+        "{\"type\":\"typo\",\"path\":\"docs/recieve.md\",\"byte_offset\":0,",
+        "\"typo\":\"recieve\",\"corrections\":[\"receive\"]}\n"
+    );
+
+    #[test]
+    fn typos_reports_file_name_typo_at_first_line() {
+        let found =
+            parse_typos(NAME_TYPO.as_bytes(), Some(2), &["docs/recieve.md"]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, "docs/recieve.md");
+        assert_eq!(
+            found[0].finding.message,
+            "file name: `recieve` should be `receive`"
+        );
+        assert_eq!(found[0].finding.start.line, 1);
+        assert_eq!(found[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn typos_file_name_typo_does_not_drop_others() {
+        let both = format!("{NAME_TYPO}{DIRTY}");
+        let found =
+            parse_typos(both.as_bytes(), Some(2), &["a.txt", "docs/recieve.md"]).expect("parsed");
+        assert_eq!(found.len(), 2);
     }
 }

@@ -1704,8 +1704,8 @@ TOOLS = [
                 state = "supported",
                 transport = "single",
                 unsupported = {
-                    "linux_arm64": "periphery publishes no Linux binary (see #7872)",
-                    "linux_x86_64": "periphery publishes no Linux binary (see #7872)",
+                    "linux_arm64": "periphery 3.8.0 (last MIT release) ships macOS only; Linux builds are commercial periphery-pro (see #7872)",
+                    "linux_x86_64": "periphery 3.8.0 (last MIT release) ships macOS only; Linux builds are commercial periphery-pro (see #7872)",
                     "windows_arm64": "not applicable: periphery has no Windows build",
                     "windows_x86_64": "not applicable: periphery has no Windows build",
                 },

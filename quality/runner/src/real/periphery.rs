@@ -8,6 +8,8 @@ use super::*;
 
 /// Where the Swift family stages the target's index store.
 const INDEX_STORE_REL: &str = "periphery.indexstore";
+/// Periphery needs a project to scan; this config names only the index store.
+const PROJECT_CONFIG: &str = "periphery.json";
 
 pub(super) const TOOL: ToolDef = ToolDef {
     id: "periphery",
@@ -39,7 +41,18 @@ impl RealBackend {
                     .to_owned(),
             ));
         }
-        let invocation = commands::periphery_check(&tool.binary, &store);
+        let config = scratch.root().join(PROJECT_CONFIG);
+        let project = serde_json::json!({
+            "indexstores": [store],
+            "plists": [],
+            "xibs": [],
+            "xcdatamodels": [],
+            "xcmappingmodels": [],
+            "test_targets": [],
+        });
+        std::fs::write(&config, project.to_string())
+            .map_err(|err| execution(tool_id, format!("project config: {err}")))?;
+        let invocation = commands::periphery_check(&tool.binary, &config);
         let out = self.run(tool_id, tool, &invocation, scratch)?;
         let names: Vec<&str> = staged.pairs.iter().map(|(rel, _)| rel.as_str()).collect();
         let mut findings = parsed(

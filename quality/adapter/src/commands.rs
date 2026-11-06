@@ -86,7 +86,7 @@ const PERIPHERY_ARGS: &[&str] = &[
     "--disable-update-check",
     "--quiet",
     "--retain-public",
-    "--index-store-path",
+    "--generic-project-config",
 ];
 const FLAKE8_ARGS: &[&str] = &[
     "--isolated",
@@ -706,11 +706,11 @@ pub fn deadcode_check(binary: &Path, deadcode: &Path) -> Invocation {
     }
 }
 
-/// Periphery scans the whole index store, so the command takes no file arguments.
-pub fn periphery_check(binary: &Path, index_store: &Path) -> Invocation {
+/// Periphery scans the whole index store named by the generic project config, so the command takes no file arguments.
+pub fn periphery_check(binary: &Path, project_config: &Path) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.extend(PERIPHERY_ARGS.iter().map(OsString::from));
-    argv.push(index_store.as_os_str().to_owned());
+    argv.push(project_config.as_os_str().to_owned());
     Invocation {
         argv,
         cwd_rel: String::new(),

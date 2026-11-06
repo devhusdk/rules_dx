@@ -345,8 +345,8 @@ fn pydoclint_check_is_quiet() {
 }
 
 #[test]
-fn periphery_check_scans_the_index_store_without_building() {
-    let invocation = periphery_check(Path::new(BIN), Path::new("/scratch/index"));
+fn periphery_check_scans_the_generic_project_without_building() {
+    let invocation = periphery_check(Path::new(BIN), Path::new("/scratch/periphery.json"));
     assert_eq!(
         argv_strings(&invocation),
         vec![
@@ -358,8 +358,8 @@ fn periphery_check_scans_the_index_store_without_building() {
             "--disable-update-check",
             "--quiet",
             "--retain-public",
-            "--index-store-path",
-            "/scratch/index"
+            "--generic-project-config",
+            "/scratch/periphery.json"
         ]
     );
     assert_eq!(invocation.cwd_rel, "");

@@ -65,8 +65,8 @@ fn periphery_scans_the_staged_store_and_reports_own_files() {
     assert!(argv.contains(&"--retain-public".to_owned()));
     assert!(argv
         .last()
-        .expect("store")
-        .ends_with("periphery.indexstore"));
+        .expect("config")
+        .ends_with("periphery.json"));
     assert!(HOME.with(|slot| slot.borrow().ends_with("dx-periphery/home")));
 }
 

@@ -1,6 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
     if value.startswith("${pwd}/"):
@@ -184,7 +185,7 @@ def build_script_compiler_tests(name, target):
 
 cross_build_script_tool_inputs_test = analysistest.make(
     _tool_inputs_test_impl,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64")), _COMPILER: "llvm"},
 )
 
 def _cross_gcc_impl(ctx):
@@ -328,7 +329,13 @@ def _link_windows_impl(ctx):
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
 
-_link_windows_test = analysistest.make(_link_windows_impl, config_settings = {_COMPILER: "llvm", _LINKER_PREFERENCE: "rust"})
+# The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
+_link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
+    _COMPILER: "llvm",
+    _LINKER_PREFERENCE: "rust",
+    "//command_line_option:features": MSVC_STATIC_CRT,
+    str(Label(MSVC_CRT_FROM_RUST)): True,
+})
 
 def rust_link_windows_test(name, target):
     """Asserts the Rust link step uses rust-lld and not clang-cl on Windows x64.

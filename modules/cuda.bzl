@@ -233,7 +233,7 @@ CUDA_CELLS = {
     ),
     "windows_x86_64": struct(
         rules_cuda_platform = "windows-x86_64",
-        blocker = "saxpy_app builds with nvcc_msvc; the fatbin test helpers read ELF only (#8152)",
+        blocker = "",
         redist = CUDA_VERSION,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         components = _WINDOWS_X86_64_COMPONENTS,

@@ -83,15 +83,13 @@ The accepted `sm_` and `compute_` values are the ones nvcc 13.4 supports:
 
 ## Platforms
 
-Linux x86_64 and Linux arm64 (sbsa) are qualified. CUDA targets are incompatible on other platforms,
-so `bazel build //...` skips them.
+Linux x86_64, Linux arm64 (sbsa) and Windows x86_64 are qualified. CUDA targets are
+incompatible on other platforms, so `bazel build //...` skips them.
 
-Windows x86_64 archives (CUDA 13.4.2 redist) are pinned in `modules/cuda.bzl`
-but blocked until the fatbin test helpers read PE and COFF files (#8152).
-Once qualified, the Windows cell needs `--//cc/toolchains:compiler=msvc`: nvcc on
-Windows only drives `cl.exe`. With the default `llvm` compiler CUDA targets are
-incompatible there, so Windows builds skip them instead of failing.
-saxpy_app already builds there with nvcc and the hermetic cl.exe. Windows arm64 13.4.2 archives are pinned but blocked on
+The Windows x86_64 cell (CUDA 13.4.2 redist) needs `--//cc/toolchains:compiler=msvc`:
+nvcc on Windows only drives `cl.exe`. With the default `llvm` compiler CUDA targets are
+incompatible there, so Windows builds skip them instead of failing. Windows has no
+static cudart, so binaries import `cudart64_*.dll`. Windows arm64 13.4.2 archives are pinned but blocked on
 rules_cuda platform support (#5969) and an MSVC ARM64 host compiler (#4822).
 
 ## Errors

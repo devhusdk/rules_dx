@@ -1428,8 +1428,8 @@ use_repo(
     uv_sdist,
     "dx_pypi_sdist",
     "dx_pypi_sdist_nodeps",
-    "sdist_build__sdist_native__python_geohash__0_9_2",
-    "sdist_build__sdist_native_nodeps__python_geohash__0_9_2",
+    "sdist_build__sdist_native__python_geohash__0_8_5",
+    "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
 )
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")

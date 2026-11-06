@@ -15272,7 +15272,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
-        "bzlTransitiveDigest": "lLTE+GIIA5Wor7ZWQEhi8NZVo2+HscfJ6K4tK/Sw2Lw=",
+        "bzlTransitiveDigest": "PaAdv/+gxd3QHRtGO/fNmeO86Vn16qlo/6olXSjQHRc=",
         "usagesDigest": "0BOTD+RFF/F8wEwkEkeUKp8CTf/m/XNqplFokg6LSlU=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
@@ -15307,7 +15307,7 @@
     },
     "@@windows_support+//windows:extensions.bzl%windows_sdk": {
       "general": {
-        "bzlTransitiveDigest": "lLTE+GIIA5Wor7ZWQEhi8NZVo2+HscfJ6K4tK/Sw2Lw=",
+        "bzlTransitiveDigest": "PaAdv/+gxd3QHRtGO/fNmeO86Vn16qlo/6olXSjQHRc=",
         "usagesDigest": "U8WtU/CzfAY/DN9XIVa8809rYlinZcZBZMnzXjXnUQo=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"

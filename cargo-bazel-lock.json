@@ -1,5 +1,5 @@
 {
-  "checksum": "3f187cb4cb86a98c9e21ab5c2f13fcc2aaea3463e35dab9c1172f8a09373e805",
+  "checksum": "b08ad3a9b86aeb14bde9e0f940d347ad910690c4dd7a9853dc6f7ed362f4e908",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -27113,6 +27113,7 @@
           "Win32_Storage_FileSystem",
           "Win32_System",
           "Win32_System_Console",
+          "Win32_System_Environment",
           "Win32_System_IO",
           "Win32_System_JobObjects",
           "Win32_System_SystemInformation",

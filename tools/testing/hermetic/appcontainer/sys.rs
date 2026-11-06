@@ -10,7 +10,10 @@ use windows_sys::Win32::Security::Authorization::{
 use windows_sys::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeleteAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
 };
-use windows_sys::Win32::Security::{ACL, SECURITY_CAPABILITIES, SID_AND_ATTRIBUTES};
+use windows_sys::Win32::Security::{
+    ACL, SECURITY_CAPABILITIES, SID_AND_ATTRIBUTES, TOKEN_DUPLICATE, TOKEN_QUERY,
+};
+use windows_sys::Win32::System::Environment::{CreateEnvironmentBlock, DestroyEnvironmentBlock};
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
@@ -19,12 +22,12 @@ use windows_sys::Win32::System::JobObjects::{
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
 };
 use windows_sys::Win32::System::Threading::{
-    CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess,
-    InitializeProcThreadAttributeList, ResumeThread, UpdateProcThreadAttribute,
+    CreateProcessW, DeleteProcThreadAttributeList, GetCurrentProcess, GetExitCodeProcess,
+    InitializeProcThreadAttributeList, OpenProcessToken, ResumeThread, UpdateProcThreadAttribute,
     WaitForSingleObject, PROCESS_INFORMATION, STARTUPINFOEXW,
 };
 
-use crate::args::{command_line, Config};
+use crate::args::{command_line, environment, Config};
 
 const ALREADY_EXISTS: i32 = 0x800700B7_u32 as i32;
 const SE_GROUP_ENABLED: u32 = 4;
@@ -64,24 +67,48 @@ fn check(code: u32, what: &str) -> Result<(), String> {
     }
 }
 
-/// The parent's environment as a sorted UTF-16 block.
-fn environment_block() -> Vec<u16> {
-    let mut vars: Vec<(String, String)> = std::env::vars_os()
-        .map(|(name, value)| {
-            (
-                name.to_string_lossy().into_owned(),
-                value.to_string_lossy().into_owned(),
-            )
-        })
-        .collect();
-    vars.sort_by_key(|(name, _)| name.to_uppercase());
-    let mut block = Vec::new();
-    for (name, value) in vars {
-        block.extend(format!("{name}={value}").encode_utf16());
-        block.push(0);
+/// The user's default environment, used to fill in what the parent lacks.
+fn user_defaults() -> Result<Vec<(String, String)>, String> {
+    let mut token: HANDLE = null_mut();
+    if unsafe {
+        OpenProcessToken(
+            GetCurrentProcess(),
+            TOKEN_QUERY | TOKEN_DUPLICATE,
+            &mut token,
+        )
+    } == 0
+    {
+        return Err("cannot open the process token".to_owned());
     }
-    block.push(0);
-    block
+    let mut block: *mut c_void = null_mut();
+    let created = unsafe { CreateEnvironmentBlock(&mut block, token, 0) };
+    unsafe { CloseHandle(token) };
+    if created == 0 {
+        return Err(format!(
+            "cannot read the user environment: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    let mut vars = Vec::new();
+    let mut at = block as *const u16;
+    unsafe {
+        loop {
+            let mut len = 0;
+            while *at.add(len) != 0 {
+                len += 1;
+            }
+            if len == 0 {
+                break;
+            }
+            let entry = String::from_utf16_lossy(std::slice::from_raw_parts(at, len));
+            if let Some(split) = entry.get(1..).and_then(|rest| rest.find('=')) {
+                vars.push((entry[..split + 1].to_owned(), entry[split + 2..].to_owned()));
+            }
+            at = at.add(len + 1);
+        }
+        DestroyEnvironmentBlock(block);
+    }
+    Ok(vars)
 }
 
 fn profile_sid(name: &str) -> Result<*mut c_void, String> {
@@ -248,7 +275,15 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
     }
     startup.lpAttributeList = list;
 
-    let environment = environment_block();
+    let parent: Vec<(String, String)> = std::env::vars_os()
+        .map(|(name, value)| {
+            (
+                name.to_string_lossy().into_owned(),
+                value.to_string_lossy().into_owned(),
+            )
+        })
+        .collect();
+    let (environment, filled) = environment(&parent, &user_defaults()?);
     let mut line = wide(&command_line(&config.command));
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let created = unsafe {
@@ -271,7 +306,11 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
     }
     if created == 0 {
         let err = std::io::Error::last_os_error();
-        return Err(format!("cannot start {}: {err}", config.command[0]));
+        return Err(format!(
+            "cannot start {}: {err} (filled: {})",
+            config.command[0],
+            filled.join(", ")
+        ));
     }
     if unsafe { AssignProcessToJobObject(job, info.hProcess) } == 0 {
         return Err("cannot put the command in the job object".to_owned());

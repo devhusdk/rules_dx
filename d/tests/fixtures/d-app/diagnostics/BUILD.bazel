@@ -9,6 +9,8 @@ _CELLS = [
     "linux_amd64",
     "linux_arm64",
     "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64",
 ]
 
 package(default_visibility = ["//d/tests/fixtures/d-app:__subpackages__"])
@@ -39,10 +41,7 @@ rust_test(
         "DX_MISSING_DEP": "$(rootpath missing_dep.d)",
     },
     tags = ["manual"],
-    target_compatible_with = D_COMPATIBLE_WITH + select({
-        "@platforms//os:windows": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
+    target_compatible_with = D_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )
 

@@ -120,6 +120,8 @@ The reusable workflows write a credential helper that reads the key from the env
 
    ```ini
    common:ci --remote_cache=grpcs://remote.buildbuddy.io
+   common:ci --experimental_remote_downloader=grpcs://remote.buildbuddy.io
+   common:ci --experimental_remote_downloader_local_fallback
    ```
 
    `tools/dx init --apply` writes the rest of `ci` and `ci-pr` to `.dx/bazelrc`: compression, timeouts, retries, local fallback, all CPUs, `--jobs=64`, `--nobuild_runfile_links`, an up-to-date `MODULE.bazel.lock`, and no uploads from pull requests. Under `--config=ci`, `<bin>.runfiles` trees are no longer built, so a script that builds and then runs `bazel-bin/...` relying on runfiles breaks.

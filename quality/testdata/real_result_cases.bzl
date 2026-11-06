@@ -627,6 +627,28 @@ REAL_RESULT_CASES = [
         "contains": ["RT0001", "dotnet_owned:dep"],
         "absent": ["Fatal error"],
     },
+    {
+        "name": "real_result_roslyn_clean_standard",
+        "target": "//quality/testdata/dotnet_owned:clean",
+        "policy": "//quality/testdata/dotnet_owned:policy",
+        "tool": "roslyn",
+        "capability": "lint",
+        "class": "csharp",
+        "config_profile": "standard",
+        "contains": [],
+        "absent": ["CA1", "CA2", "IDE0", "Fatal error"],
+    },
+    {
+        "name": "real_result_roslyn_clean_strict",
+        "target": "//quality/testdata/dotnet_owned:clean",
+        "policy": "//quality/testdata/dotnet_owned:policy",
+        "tool": "roslyn",
+        "capability": "lint",
+        "class": "csharp",
+        "config_profile": "strict",
+        "contains": [],
+        "absent": ["CA1", "CA2", "IDE0", "Fatal error"],
+    },
 ]
 
 def real_result_evidence(case):

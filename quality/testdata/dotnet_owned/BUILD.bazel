@@ -30,3 +30,10 @@ csharp_library(
     srcs = ["UnusedDep.cs"],
     deps = [":dep"],
 )
+
+csharp_library(
+    name = "clean",
+    testonly = True,
+    srcs = ["Clean.cs"],
+    out = "Clean",
+)

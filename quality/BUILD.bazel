@@ -50,7 +50,6 @@ exports_files([
     "real_aspects.bzl",
     "real_core.bzl",
     "registry.bzl",
-    "roslyn_default.globalconfig",
     "roslyn_status.bat",
     "result.proto",
     "sources.bzl",
@@ -600,6 +599,14 @@ fixtures_unit_tests(name = "fixtures_unit")
 js_responsibilities_unit_tests(name = "js_responsibilities_unit")
 
 support_unit_tests(name = "support_unit")
+
+alias(
+    name = "roslyn_default_config",
+    actual = select({
+        "//config:config_profile_strict": "//quality/tiers/roslyn:strict.globalconfig",
+        "//conditions:default": "//quality/tiers/roslyn:standard.globalconfig",
+    }),
+)
 
 alias(
     name = "update_tools",

@@ -125,6 +125,8 @@ def _roslyn_impl(target, ctx):
         mapped.append({"label": str(dep.label), "refs": paths})
         rows += ["%s\tReference\t%s\t" % (path, dep.label) for path in paths]
     ctx.actions.write(declared, "".join([row + "\n" for row in rows]))
+    assembly_info = ctx.actions.declare_file("dx_roslyn/%s/%s/AssemblyInfo.g.cs" % (target.label.name, tfm))
+    ctx.actions.write(assembly_info, '[assembly: global::System.Reflection.AssemblyVersion("1.0.0.0")]\n')
     if "dx-keep" in attrs.tags:
         mapped = []
     ctx.actions.write(deps_map, json.encode({"package": target.label.package, "target": target.label.name.removesuffix("_upstream"), "deps": mapped}))
@@ -149,6 +151,9 @@ def _roslyn_impl(target, ctx):
     args.add_all(analyzers_csharp, format_each = "/analyzer:%s")
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.NetAnalyzers.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll", format = "/analyzer:%s")
+    codestyle = csc.path.replace("/Roslyn/bincore/csc.dll", "/Sdks/Microsoft.NET.Sdk/codestyle/cs")
+    args.add(codestyle + "/Microsoft.CodeAnalysis.CodeStyle.dll", format = "/analyzer:%s")
+    args.add(codestyle + "/Microsoft.CodeAnalysis.CSharp.CodeStyle.dll", format = "/analyzer:%s")
     args.add(sdk_analyzers + "/build/config/analysislevel_" + level + "_default.globalconfig", format = "/analyzerconfig:%s")
     args.add_all(trimmer, format_each = "/analyzer:%s")
     config, config_closure = _bound_config(attrs, ctx.file._default_config)
@@ -162,11 +167,12 @@ def _roslyn_impl(target, ctx):
     args.add("%s/%s.dll" % (out_tree.path, assembly_name), format = "/out:%s")
     args.add(sarif, format = "/errorlog:%s,version=2.1")
     args.add_all(ctx.rule.files.srcs)
+    args.add(assembly_info)
     args.set_param_file_format("multiline")
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, declared] + trimmer,
+        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, declared, assembly_info] + trimmer,
         transitive = [
             config_closure,
             refs,
@@ -222,8 +228,8 @@ roslyn_aspect = aspect(
         ),
         "_default_config": attr.label(
             allow_single_file = True,
-            default = "//quality:roslyn_default.globalconfig",
-            doc = "Default analyzer config. Consumer .editorconfig entries override it.",
+            default = "//quality:roslyn_default_config",
+            doc = "Tier config for the config profile. Consumer .editorconfig entries override it.",
         ),
     },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],

@@ -1,7 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use dx_process::WORKFLOW_STARTUP_OPTS;
 use dx_testing::resolve_runfiles;
+
+fn state(root: &Path) -> PathBuf {
+    dx_path::state::launcher_dir(root)
+}
 
 fn launcher_path(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
@@ -455,11 +459,11 @@ mod sh {
         }
 
         fn inputs(&self) -> String {
-            std::fs::read_to_string(self.root().join(".dx/launcher/inputs")).expect("inputs")
+            std::fs::read_to_string(state(&self.root()).join("inputs")).expect("inputs")
         }
 
         fn state_files(&self) -> Vec<String> {
-            let mut names: Vec<String> = std::fs::read_dir(self.root().join(".dx/launcher"))
+            let mut names: Vec<String> = std::fs::read_dir(state(&self.root()))
                 .expect("state dir")
                 .flatten()
                 .map(|e| e.file_name().to_string_lossy().into_owned())
@@ -571,7 +575,7 @@ mod sh {
     fn source_launcher_runs_the_previous_dx_when_dx_does_not_build() {
         let repo = source_repo("dx-launcher-fallback-");
         repo.run_ok();
-        assert!(repo.root().join(".dx/launcher/dx").exists());
+        assert!(state(&repo.root()).join("dx").exists());
         repo.break_build();
         repo.touch_build_file();
         let (code, out, err) = repo.run();
@@ -669,8 +673,7 @@ mod sh {
     fn source_launcher_tags_its_state_as_a_cache() {
         let repo = source_repo("dx-launcher-tag-");
         repo.run_ok();
-        let tag =
-            std::fs::read_to_string(repo.root().join(".dx/launcher/CACHEDIR.TAG")).expect("tag");
+        let tag = std::fs::read_to_string(state(&repo.root()).join("CACHEDIR.TAG")).expect("tag");
         assert!(
             tag.starts_with("Signature: 8a477f597d28d172789f06886806bc55\n"),
             "{tag}"
@@ -740,7 +743,7 @@ mod sh {
     fn source_launcher_seeds_the_previous_dx_when_dx_is_up_to_date() {
         let repo = source_repo("dx-launcher-seed-");
         repo.run_ok();
-        std::fs::remove_file(repo.root().join(".dx/launcher/dx")).expect("remove the copy");
+        std::fs::remove_file(state(&repo.root()).join("dx")).expect("remove the copy");
         repo.run_ok();
         assert_eq!(repo.builds(), 1, "seeding the copy does not rebuild");
         assert_eq!(
@@ -762,7 +765,7 @@ mod sh {
     fn a_worktree_hook_run_does_not_seed_the_previous_dx() {
         let repo = source_repo("dx-launcher-hook-seed-");
         repo.run_ok();
-        std::fs::remove_file(repo.root().join(".dx/launcher/dx")).expect("remove the copy");
+        std::fs::remove_file(state(&repo.root()).join("dx")).expect("remove the copy");
         let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "hook", "guard"]);
         assert_eq!(
             (code, out.as_str()),
@@ -795,12 +798,15 @@ mod sh {
     fn the_copy_keeps_the_bazel_bin_mtime() {
         let repo = source_repo("dx-launcher-mtime-");
         repo.run_ok();
-        let mtime = |p: &str| {
-            std::fs::metadata(repo.root().join(p))
+        let mtime = |p: PathBuf| {
+            std::fs::metadata(p)
                 .and_then(|m| m.modified())
                 .expect("mtime")
         };
-        assert_eq!(mtime("bazel-bin/cli/cli/dx"), mtime(".dx/launcher/dx"));
+        assert_eq!(
+            mtime(repo.root().join("bazel-bin/cli/cli/dx")),
+            mtime(state(&repo.root()).join("dx"))
+        );
     }
 
     #[test]
@@ -835,7 +841,7 @@ mod sh {
         std::fs::write(&bin, "#!/bin/sh\necho bin \"$@\"\n").expect("bin payload");
         let (_, out, err) = repo.run_in(&root, &["worktree", "add", "x"]);
         assert_eq!(out, "ran worktree add x\n", "{err}");
-        std::fs::remove_file(root.join(".dx/launcher/dx")).expect("remove the copy");
+        std::fs::remove_file(state(&root).join("dx")).expect("remove the copy");
         let (_, out, err) = repo.run_in(&root, &["worktree", "add", "x"]);
         assert_eq!(out, "bin worktree add x\n", "{err}");
         assert_eq!(repo.builds(), 1);
@@ -969,7 +975,7 @@ mod sh {
                 };
                 std::fs::write(path, text).expect("rc file");
             }
-            let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
+            let _ = std::fs::remove_dir_all(state(&root));
             let _ = std::fs::remove_file(&args);
             let mut cmd = repo.command_in(&root, &["status"]);
             cmd.env("STUB_ARGS", &args);
@@ -1063,8 +1069,8 @@ mod sh {
             .expect("slot payload");
         let (code, out, err) = repo.run_in(&slot.join("cli"), &["status"]);
         assert_eq!((code, out.as_str()), (Some(0), "slot status\n"), "{err}");
-        assert!(slot.join(".dx/launcher/built").exists());
-        assert!(!repo.root().join(".dx/launcher").exists());
+        assert!(state(&slot).join("built").exists());
+        assert!(!state(&repo.root()).exists());
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
         repo.run_ok();
         assert_eq!(repo.builds(), 2, "the repo builds its own dx");
@@ -1101,11 +1107,8 @@ mod sh {
         assert!(err.contains("running the fresh dx anyway"), "{err}");
         assert!(!err.contains("bazel build //:dx failed"), "{err}");
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
-        assert!(!repo.root().join(".dx/launcher").exists());
-        assert!(
-            !slot.join(".dx/launcher/built").exists(),
-            "the slot stays stale"
-        );
+        assert!(!state(&repo.root()).exists());
+        assert!(!state(&slot).join("built").exists(), "the slot stays stale");
     }
 
     /// Builds `<base>/<name>/execroot/_main` the way Bazel lays it out: symlinks
@@ -1163,8 +1166,8 @@ mod sh {
         let main = execroot(&repo.base, "ob", &slot, Some(&marker));
         let (code, out, err) = repo.run_in(&slot.join("bazel-bin/cli"), &["status"]);
         assert_eq!((code, out.as_str()), (Some(0), "slot status\n"), "{err}");
-        assert!(slot.join(".dx/launcher/built").exists());
-        assert!(!repo.root().join(".dx/launcher").exists());
+        assert!(state(&slot).join("built").exists());
+        assert!(!state(&repo.root()).exists());
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
         assert_nothing_built_in(&main);
     }
@@ -1204,9 +1207,7 @@ mod sh {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         assert!(started.exists(), "stub build never started");
-        let built = repo
-            .root()
-            .join(format!(".dx/launcher/built.{}", child.id()));
+        let built = state(&repo.root()).join(format!("built.{}", child.id()));
         assert!(built.exists(), "{}", built.display());
         let status = Command::new("kill")
             .args(["-s", sig, &child.id().to_string()])
@@ -1317,7 +1318,7 @@ mod sh {
         let repo = source_repo("dx-launcher-empty-inputs-");
         repo.run_ok();
         assert_eq!(repo.builds(), 1);
-        std::fs::write(repo.root().join(".dx/launcher/inputs"), "").expect("truncate");
+        std::fs::write(state(&repo.root()).join("inputs"), "").expect("truncate");
         repo.run_ok();
         assert_eq!(repo.builds(), 2, "an empty input list rebuilds dx");
         assert_eq!(repo.inputs(), "//:BUILD.bazel\n//cli/cli:BUILD.bazel\n");
@@ -1570,7 +1571,7 @@ mod cmd {
         }
 
         fn state_files(&self) -> Vec<String> {
-            let mut names: Vec<String> = std::fs::read_dir(self.root().join(".dx/launcher"))
+            let mut names: Vec<String> = std::fs::read_dir(state(&self.root()))
                 .expect("state dir")
                 .flatten()
                 .map(|e| e.file_name().to_string_lossy().into_owned())
@@ -1580,7 +1581,7 @@ mod cmd {
         }
 
         fn inputs(&self) -> String {
-            std::fs::read_to_string(self.root().join(".dx/launcher/inputs")).expect("inputs")
+            std::fs::read_to_string(state(&self.root()).join("inputs")).expect("inputs")
         }
     }
 
@@ -1596,7 +1597,7 @@ mod cmd {
         let builds = || repo.builds();
         run_ok(&[]);
         assert_eq!(builds(), 1, "a missing dx is built");
-        assert!(root.join(".dx/launcher/inputs").exists());
+        assert!(state(&root).join("inputs").exists());
         run_ok(&[]);
         assert_eq!(builds(), 1, "an unchanged tree runs dx without Bazel");
         let preset = std::fs::File::options()
@@ -1616,7 +1617,7 @@ mod cmd {
     #[test]
     fn cmd_launcher_sweeps_guid_temps_older_than_a_day() {
         let repo = source_repo("dx-launcher-cmd-sweep-");
-        let state = repo.root().join(".dx/launcher");
+        let state = state(&repo.root());
         std::fs::create_dir_all(&state).expect("state dir");
         let guid = "0f8fad5b-d9cb-469f-a165-70867728950e";
         let recent = "1f8fad5b-d9cb-469f-a165-70867728950e";
@@ -1670,7 +1671,7 @@ mod cmd {
         std::fs::write(ob.join("execroot/DO_NOT_BUILD_HERE"), marker).expect("marker");
         let (code, out) = repo.run_in(&bin, &[]);
         assert_eq!(code, Some(0), "{out}");
-        assert!(slot.join(".dx/launcher/built").exists());
+        assert!(state(&slot).join("built").exists());
         assert!(!main.join(".dx").exists(), "no dx state in the execroot");
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
     }
@@ -1682,13 +1683,13 @@ mod cmd {
         checkout(&slot);
         let (code, out) = repo.run_in(&slot.join("cli"), &[]);
         assert_eq!(code, Some(0), "{out}");
-        assert!(slot.join(".dx/launcher/built").exists());
+        assert!(state(&slot).join("built").exists());
         assert!(slot.join("bazel-bin/cli/cli/dx.exe").exists());
-        assert!(!repo.root().join(".dx/launcher").exists());
+        assert!(!state(&repo.root()).exists());
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        assert!(repo.root().join(".dx/launcher/built").exists());
+        assert!(state(&repo.root()).join("built").exists());
         assert_eq!(repo.builds(), 2, "the repo builds its own dx");
         std::fs::remove_file(slot.join("bazel-bin/cli/cli/dx.exe")).expect("drop slot dx");
         repo.run_in(&slot, &["worktree", "hook", "guard"]);
@@ -1808,7 +1809,7 @@ mod cmd {
         assert!(!line.is_empty(), "the launcher exited before dx ran");
         assert_eq!(
             std::fs::canonicalize(line.trim()).expect("the running dx exists"),
-            std::fs::canonicalize(root.join(".dx/launcher/dx.exe")).expect("the launcher copy"),
+            std::fs::canonicalize(state(&root).join("dx.exe")).expect("the launcher copy"),
             "the running dx is the launcher copy"
         );
         std::fs::remove_file(root.join("bazel-bin/cli/cli/dx.exe"))
@@ -1929,7 +1930,7 @@ mod cmd {
         assert_eq!(code, direct.status.code(), "{out}");
         assert!(out.contains("running the fresh dx anyway"), "{out}");
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
-        assert!(!repo.root().join(".dx/launcher").exists());
+        assert!(!state(&repo.root()).exists());
     }
 
     #[test]
@@ -1980,7 +1981,7 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         let bin = root.join("bazel-bin/cli/cli/dx.exe");
-        let copy = root.join(".dx/launcher/dx.exe");
+        let copy = state(&root).join("dx.exe");
         std::fs::copy(system_exe("whoami.exe"), &bin).expect("rebuild dx");
         let len = |path: &Path| std::fs::metadata(path).expect("metadata").len();
         assert_ne!(len(&copy), len(&bin));
@@ -2040,7 +2041,7 @@ mod cmd {
                 };
                 std::fs::write(path, text.replace('\n', "\r\n")).expect("rc file");
             }
-            let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
+            let _ = std::fs::remove_dir_all(state(&root));
             let _ = std::fs::remove_file(&args);
             let mut vars: Vec<(String, String)> = vec![
                 (
@@ -2155,7 +2156,7 @@ mod cmd {
             ] {
                 let _ = std::fs::remove_file(path);
             }
-            let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
+            let _ = std::fs::remove_dir_all(state(&root));
             let _ = std::fs::remove_file(&args);
             if let Some(text) = home_rc {
                 std::fs::write(home.join(".bazelrc"), text.replace('\n', "\r\n")).expect("home rc");
@@ -2224,7 +2225,7 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert!(out.contains("dx: building //:dx"), "{out}");
-        assert!(root.join(".dx/launcher/dx.exe").exists());
+        assert!(state(&root).join("dx.exe").exists());
         std::fs::write(
             repo.base.join("stub/bazel.cmd"),
             "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  del /q bazel-bin\\cli\\cli\\dx.exe\r\n  exit /b 1\r\n)\r\nexit /b 0\r\n",
@@ -2299,7 +2300,7 @@ mod cmd {
         let root = repo.root();
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        let tag = root.join(".dx/launcher/CACHEDIR.TAG");
+        let tag = state(&root).join("CACHEDIR.TAG");
         let text = std::fs::read_to_string(&tag).expect("tag");
         assert!(
             text.starts_with("Signature: 8a477f597d28d172789f06886806bc55"),
@@ -2313,7 +2314,7 @@ mod cmd {
         let root = repo.root();
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        std::fs::remove_file(root.join(".dx/launcher/dx.exe")).expect("remove the copy");
+        std::fs::remove_file(state(&root).join("dx.exe")).expect("remove the copy");
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 1, "seeding the copy does not rebuild");
@@ -2349,7 +2350,7 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 1);
-        std::fs::write(repo.root().join(".dx/launcher/inputs"), "").expect("truncate");
+        std::fs::write(state(&repo.root()).join("inputs"), "").expect("truncate");
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 2, "an empty input list rebuilds dx");

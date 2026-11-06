@@ -584,24 +584,15 @@ pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(&dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
-    let (first, second, markers) = match rel {
-        LAUNCHER_SH_REL => (
-            "#!/bin/sh",
-            "set -eu",
-            ["DX_PINS=.dx/pins", "DX_PINS=.dx/version"],
-        ),
-        LAUNCHER_CMD_REL => (
-            "@echo off",
-            "setlocal",
-            ["set \"DX_PINS=.dx\\pins\"", "set \"DX_PINS=.dx\\version\""],
-        ),
+    let (first, second, marker) = match rel {
+        LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/pins"),
+        LAUNCHER_CMD_REL => ("@echo off", "setlocal", "set \"DX_PINS=.dx\\pins\""),
         _ => return None,
     };
     if lines.next()? != first || lines.next()? != second {
         return None;
     }
-    let third = lines.next()?;
-    if !markers.contains(&third) {
+    if lines.next()? != marker {
         return None;
     }
     if text != static_launcher(rel) || (rel == LAUNCHER_SH_REL && !is_executable(&dest)) {
@@ -708,8 +699,8 @@ mod tests {
         for script in [&sh, &cmd] {
             for gone in [
                 "bazel-bin",
-                ".dx/launcher",
-                ".dx\\launcher",
+                ".dx/local/launcher",
+                ".dx\\local\\launcher",
                 "//:dx\"",
                 "build //:dx",
                 "--nohome_rc",
@@ -780,18 +771,6 @@ mod tests {
         assert_eq!(seen[0], seen[1]);
         assert_eq!(seen[0].0, sh().into_bytes());
         assert_eq!(seen[0].1, cmd().into_bytes());
-    }
-
-    #[test]
-    fn launchers_carrying_the_old_pin_file_are_stale() {
-        let dir = dx_test_scratch::scratch("dx-launcher-old-pins-");
-        let old = sh().replace("DX_PINS=.dx/pins", "DX_PINS=.dx/version");
-        write_launcher(dir.path(), LAUNCHER_SH_REL, &old, true).expect("sh");
-        let old = cmd().replace("DX_PINS=.dx\\pins", "DX_PINS=.dx\\version");
-        write_launcher(dir.path(), LAUNCHER_CMD_REL, &old, false).expect("cmd");
-        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
-            assert_eq!(launcher_state(dir.path(), rel), Some(LauncherState::Stale));
-        }
     }
 
     #[test]

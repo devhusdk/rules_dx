@@ -16,7 +16,7 @@ dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
 
 | Flag | What it does |
 | --- | --- |
-| `--apply` | Select the setup. Also refreshes the editor files in `.dx/ide/`. |
+| `--apply` | Select the setup. Also refreshes the editor files in `.dx/local/ide/`. |
 | `--shell=direnv` | Print `PATH_add .dx/local/bin` and `watch_file .dx/local/bin`. Runs no Bazel and writes nothing. Ignores `--apply`, the label, and `--output`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |
@@ -29,7 +29,7 @@ Run `dx env --apply` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a c
 
 Without `--apply`, dx reports drift and writes nothing. A missing selection is drift. Managed state lives under `.dx/local/`. `dx clean` reports unselected state.
 
-`--apply` refreshes `.dx/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
+`--apply` refreshes `.dx/local/ide/`: the TypeScript `lib` link, `cc/compile_commands.json` and the `cc/clangd` link for C and C++ trees, `go/gopackagesdriver` for Go trees, and for Rust trees `rust_analyzer/flycheck.exe`, `rust_analyzer/discover_bazel_rust_project.exe` and a `user_config.json` that makes flycheck run clippy. Set `go.toolsEnvVars.GOPACKAGESDRIVER` to the Go wrapper. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
 
 ## Bazel args
 

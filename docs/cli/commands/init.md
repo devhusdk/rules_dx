@@ -70,16 +70,16 @@ other entries stay.
 
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
-`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/`,
+`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/bazelrc/`,
 `/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/explain/`, `/.dx/local/profile/`, `/.dx/local/fuzz/`, `/.dx/local/mutate/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
-warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/ide`, `.dx/local`, `.dx/bazelrc`, `.dx/local/docs`, `.dx/local/explain`, `.dx/local/profile`, `.dx/local/fuzz`, `.dx/local/mutate`, `.dx/local/advisory`, `.dx/local/bench`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
-`dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
-to stderr if it does not list `.dx`. The editor settings point at the managed
+warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/local`, `.dx/bazelrc`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
+`dx init --apply` prints `dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state`
+to stderr if it lists neither `.dx` nor `.dx/local`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they point
 rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx env --apply` copies to
-`.dx/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/ide/`, and the file
-watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
+`.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
+watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
 Flags: `--apply`, `--agents=<list>`.
 Scopes: optional single directory, created by `--apply` when missing.
@@ -133,7 +133,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 
 | Path | dx owns | What `dx init --apply` updates |
 | --- | --- | --- |
-| `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx upgrade --apply` deletes the old `.dx/version`. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
+| `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
 | `tools/dx`, `tools/dx.cmd` | whole | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
 | `third_party/rules_dx/` | whole | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `.dx/bazelrc/performance.bazelrc`, `.dx/bazelrc/resources.bazelrc` | whole | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |

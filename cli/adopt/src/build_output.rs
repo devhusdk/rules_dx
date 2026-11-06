@@ -16,7 +16,7 @@ pub const ALLOW_FILE: &str = ".dx-large-files";
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
 
 /// Lines dx keeps in `.gitignore`; the preset adds the missing ones.
-pub const IGNORE_LINES: [&str; 11] = [
+pub const IGNORE_LINES: [&str; 10] = [
     "target/",
     "/bazel-*",
     "node_modules/",
@@ -24,7 +24,6 @@ pub const IGNORE_LINES: [&str; 11] = [
     "*.pyc",
     ".gradle/",
     "/build/",
-    "/.dx/ide/",
     "/.dx/bazelrc/",
     "/.dx/local/",
     // rules_rust 0.75.0 discover writes last_warnings.log here (WARNINGS_LOG_REL in
@@ -637,7 +636,6 @@ mod tests {
             assert!(IGNORE_LINES.contains(&format!("{dir}/").as_str()), "{dir}");
         }
         for line in [
-            "/.dx/ide/",
             "/.dx/bazelrc/",
             "/.dx/local/",
             // See the comment on IGNORE_LINES.

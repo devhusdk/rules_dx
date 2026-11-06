@@ -54,23 +54,19 @@ pub const ENVRC_CONTENT: &str = concat!(
 );
 
 /// Bazel output base that rust-analyzer discovery runs on.
-pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
+pub const IDE_OUTPUT_BASE: &str = ".dx/local/ide/rust";
 
 /// Bazel output base that rust-analyzer flycheck builds in.
-pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/ide/rust_check";
+pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/local/ide/rust_check";
 
 /// The `.dx` subdirectories Bazel must skip, one per line in a new `.bazelignore`.
 ///
-/// `.dx/ide` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`).
-/// `.dx/local` holds the managed setups, environments and generated trees, symlinks into setup
-/// artifacts that can ship BUILD files. Everything else
+/// `.dx/local` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`), the
+/// managed setups, environments and generated trees, symlinks into setup artifacts that can ship
+/// BUILD files. Everything else
 /// under `.dx` holds only dx files, and `.dx/config` is checked-in source Bazel stages.
 /// A new `.dx` writer that can hold BUILD files or an output base must be added here.
-pub const BAZELIGNORE_LINES: [&str; 3] = [
-    ".dx/ide",
-    ".dx/local",
-    ".dx/bazelrc",
-];
+pub const BAZELIGNORE_LINES: [&str; 2] = [".dx/local", ".dx/bazelrc"];
 
 /// `body` under the one-line header that says what dx does to `path`; `body` alone when the
 /// format has no comments.
@@ -355,7 +351,7 @@ pub fn render_release_caller() -> String {
 fn editor_settings_value() -> serde_json::Value {
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let ide = format!("${{workspaceFolder}}/{}", dx_ide::IDE_DIR);
-    let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
+    let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/local/ide/**": true});
     let settings = serde_json::json!({
         "rust-analyzer.workspace.discoverConfig": {
             "command": [
@@ -494,7 +490,7 @@ pub fn bazelignore_covers_dx(text: &str) -> bool {
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .map(|line| line.strip_prefix("./").unwrap_or(line))
         .map(|line| line.strip_suffix('/').unwrap_or(line))
-        .any(|line| line == dx_path::state::DX_DIR || line == ".dx/ide")
+        .any(|line| line == dx_path::state::DX_DIR || line == dx_path::state::LOCAL_DIR)
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
@@ -969,11 +965,11 @@ mod tests {
             serde_json::from_str(&settings.content).expect("valid JSON");
         assert_eq!(
             parsed["clangd.path"],
-            serde_json::Value::from("${workspaceFolder}/.dx/ide/cc/clangd")
+            serde_json::Value::from("${workspaceFolder}/.dx/local/ide/cc/clangd")
         );
         assert_eq!(
             parsed["clangd.arguments"],
-            serde_json::json!(["--compile-commands-dir=${workspaceFolder}/.dx/ide/cc"])
+            serde_json::json!(["--compile-commands-dir=${workspaceFolder}/.dx/local/ide/cc"])
         );
         assert_eq!(
             parsed["java.configuration.updateBuildConfiguration"],
@@ -1416,11 +1412,11 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
         assert_eq!(
             parsed["python.defaultInterpreterPath"],
-            serde_json::Value::from("${workspaceFolder}/.dx/ide/python/python")
+            serde_json::Value::from("${workspaceFolder}/.dx/local/ide/python/python")
         );
         assert_eq!(
             parsed["clangd.path"],
-            serde_json::Value::from("${workspaceFolder}/.dx/ide/cc/clangd")
+            serde_json::Value::from("${workspaceFolder}/.dx/local/ide/cc/clangd")
         );
         assert!(settings.ends_with('\n'), "{settings}");
         for key in [
@@ -1468,15 +1464,15 @@ mod tests {
 
     #[test]
     fn rust_analyzer_settings_match_rules_rust_setup_shape() {
-        let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
+        let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/local/ide/**": true});
         let discover_argv = serde_json::json!([
-            "${workspaceFolder}/.dx/ide/rust_analyzer/discover_bazel_rust_project.exe",
-            "--bazel_startup_option=--output_base=${workspaceFolder}/.dx/ide/rust",
+            "${workspaceFolder}/.dx/local/ide/rust_analyzer/discover_bazel_rust_project.exe",
+            "--bazel_startup_option=--output_base=${workspaceFolder}/.dx/local/ide/rust",
             "{arg}"
         ]);
         let check_argv = serde_json::json!([
-            "${workspaceFolder}/.dx/ide/rust_analyzer/flycheck.exe",
-            "--output-base=${workspaceFolder}/.dx/ide/rust_check",
+            "${workspaceFolder}/.dx/local/ide/rust_analyzer/flycheck.exe",
+            "--output-base=${workspaceFolder}/.dx/local/ide/rust_check",
             "--saved-file",
             "$saved_file"
         ]);
@@ -1521,10 +1517,10 @@ mod tests {
             (".dx/\n", true),
             ("./.dx\n", true),
             ("  .dx  \n", true),
-            (".dx/ide\n", true),
+            (".dx/ide\n", false),
             ("node_modules\n.dx/\n", true),
             ("# .dx\n", false),
-            (".dx/local\n", false),
+            (".dx/local\n", true),
             (".dxx\n", false),
             ("node_modules\n", false),
         ] {

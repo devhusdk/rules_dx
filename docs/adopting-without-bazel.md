@@ -38,7 +38,7 @@ Python type checking is `ty`. The JavaScript and TypeScript lint default is
 
 ## Editors
 
-Run `dx env --apply`. It fills `.dx/ide/`, which the Python and TypeScript
+Run `dx env --apply`. It fills `.dx/local/ide/`, which the Python and TypeScript
 settings point at. rust-analyzer uses the rules_rust discover targets that
 `dx init` configures. See [Editors](editors.md).
 

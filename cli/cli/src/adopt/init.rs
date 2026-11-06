@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert!(
             err.contains(
-                "dx: .bazelignore lacks .dx/ide; add the dx lines so Bazel skips dx state"
+                "dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state"
             ),
             "{err}"
         );
@@ -692,13 +692,13 @@ mod tests {
             std::fs::read_to_string(root.join(".bazelignore")).expect("read"),
             "node_modules\n"
         );
-        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx/ide\n").expect("seed");
+        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx/local\n").expect("seed");
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
         assert!(!err.contains("lacks .dx"), "{err}");
         assert_eq!(
             std::fs::read_to_string(root.join(".bazelignore")).expect("read"),
-            "node_modules\n.dx/ide\n"
+            "node_modules\n.dx/local\n"
         );
     }
 

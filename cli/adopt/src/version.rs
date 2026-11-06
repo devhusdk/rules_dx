@@ -127,13 +127,7 @@ pub fn write_version_pins(
         AdoptError::WriteVersionPin {
             detail: e.to_string(),
         }
-    })?;
-    match std::fs::remove_file(dir.join("version")) {
-        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(AdoptError::WriteVersionPin {
-            detail: format!(".dx/version: {e}"),
-        }),
-        _ => Ok(()),
-    }
+    })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

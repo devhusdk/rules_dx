@@ -492,18 +492,19 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-status-ide-");
         let root = scratch.path();
         assert!(super::ide_check(root).is_none());
-        std::fs::create_dir_all(root.join(".dx/ide")).expect("dir");
-        let state =
-            |text: &str| std::fs::write(root.join(".dx/ide/state.json"), text).expect("state");
+        std::fs::create_dir_all(root.join(".dx/local/ide")).expect("dir");
+        let state = |text: &str| {
+            std::fs::write(root.join(".dx/local/ide/state.json"), text).expect("state")
+        };
         state(r#"{"digest":"d","plugins":{"typescript":"ok"}}"#);
         let gone = super::ide_check(root).expect("missing");
         assert_eq!(gone.status, "error");
         assert!(
-            gone.detail.contains("missing .dx/ide/typescript/lib"),
+            gone.detail.contains("missing .dx/local/ide/typescript/lib"),
             "{}",
             gone.detail
         );
-        std::fs::create_dir_all(root.join(".dx/ide/typescript/lib")).expect("lib");
+        std::fs::create_dir_all(root.join(".dx/local/ide/typescript/lib")).expect("lib");
         assert_eq!(super::ide_check(root).expect("ok").status, "ok");
         state(r#"{"digest":"d","plugins":{"typescript":"boom"}}"#);
         let bad = super::ide_check(root).expect("error");

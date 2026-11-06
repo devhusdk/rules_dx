@@ -34,7 +34,7 @@ Scopes: none.
 | `tools` | Tools selected by `dx env --apply`. `warn` when none; `error` when a link or `values.json` is missing or corrupt. |
 | `pin` | `.dx/pins` against the `dx` version. `warn` when missing, empty, another version, or lacking a sha256 per release asset once the module version is released: launchers run `dx` through Bazel until `dx init --apply` refreshes it. |
 | `init` | Files `dx init` writes that are missing or out of date. |
-| `ide` | After `.dx/ide/state.json` exists: `ok`, or `error` with the failing plug-ins. Fix with `dx env --apply`. |
+| `ide` | After `.dx/local/ide/state.json` exists: `ok`, or `error` with the failing plug-ins. Fix with `dx env --apply`. |
 | `lease` | Inside a `dx worktree` slot: holder and branch. |
 | `share` | While build slots are held: held slots and the CPUs and memory a new run gets. |
 | `slots` | `warn` for each `slot-N.lock` file dx cannot open. |

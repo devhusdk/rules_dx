@@ -1,4 +1,4 @@
-//! Editor support files under `.dx/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
+//! Editor support files under `.dx/local/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
 
 mod cc;
 mod go;
@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 
 pub use link::link;
 
-pub const IDE_DIR: &str = ".dx/ide";
-pub const STATE_FILE: &str = ".dx/ide/state.json";
+pub const IDE_DIR: &str = ".dx/local/ide";
+pub const STATE_FILE: &str = ".dx/local/ide/state.json";
 /// Paths under `IDE_DIR` that the plug-ins write and editor settings point at.
 pub const OUTPUTS: [&str; 7] = [
     "cc",
@@ -39,7 +39,7 @@ pub struct Plugin {
     pub name: &'static str,
     pub extensions: &'static [&'static str],
     pub labels: &'static [&'static str],
-    /// Paths the plug-in writes, relative to `.dx/ide/<name>`.
+    /// Paths the plug-in writes, relative to `.dx/local/ide/<name>`.
     pub outputs: &'static [&'static str],
     pub write: fn(&Ctx<'_>) -> Result<(), String>,
 }
@@ -84,7 +84,7 @@ const PLUGINS: &[&Plugin] = &[
     &rust_analyzer::PLUGIN,
 ];
 
-/// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
+/// Refreshes `.dx/local/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
 pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, String> {
     refresh_with(workspace, runner, PLUGINS)
 }
@@ -302,6 +302,13 @@ mod tests {
     use super::*;
     use std::cell::Cell;
 
+    #[test]
+    fn ide_dir_is_the_local_ide_dir() {
+        use dx_path::state::{IDE, LOCAL_DIR};
+        assert_eq!(IDE_DIR, format!("{LOCAL_DIR}/{IDE}"));
+        assert_eq!(STATE_FILE, format!("{IDE_DIR}/state.json"));
+    }
+
     struct Fake {
         calls: Cell<usize>,
         lib: PathBuf,
@@ -368,15 +375,15 @@ mod tests {
         let root = scratch.path();
         let runner = cc_runner(root);
         refresh(root, &runner).expect("no cc");
-        assert!(!root.join(".dx/ide/cc").exists());
+        assert!(!root.join(".dx/local/ide/cc").exists());
         std::fs::write(root.join("a.cc"), "").expect("cc");
         let first = refresh(root, &runner).expect("first");
         assert_eq!(first.failed, []);
         assert!(first.ran);
-        let text = std::fs::read_to_string(root.join(".dx/ide/cc/compile_commands.json"))
+        let text = std::fs::read_to_string(root.join(".dx/local/ide/cc/compile_commands.json"))
             .expect("database");
         assert!(text.contains("a.cc"), "{text}");
-        assert!(root.join(".dx/ide/cc/clangd").exists());
+        assert!(root.join(".dx/local/ide/cc/clangd").exists());
         assert!(!refresh(root, &runner).expect("second").ran);
         scratch.close().expect("cleanup");
     }
@@ -436,7 +443,7 @@ mod tests {
             Some(vec![("bad".to_owned(), "boom".to_owned())])
         );
         #[cfg(unix)]
-        assert!(root.join(".dx/ide/typescript/lib").exists());
+        assert!(root.join(".dx/local/ide/typescript/lib").exists());
         assert!(
             refresh_with(root, &runner, &[&bad, &typescript::PLUGIN])
                 .expect("retry")
@@ -454,8 +461,8 @@ mod tests {
         let runner = fake(root);
         refresh(root, &runner).expect("first");
         assert_eq!(missing_outputs(root), Vec::<String>::new());
-        std::fs::remove_file(root.join(".dx/ide/typescript/lib")).expect("delete");
-        assert_eq!(missing_outputs(root), [".dx/ide/typescript/lib"]);
+        std::fs::remove_file(root.join(".dx/local/ide/typescript/lib")).expect("delete");
+        assert_eq!(missing_outputs(root), [".dx/local/ide/typescript/lib"]);
         assert!(refresh(root, &runner).expect("second").ran);
         assert_eq!(missing_outputs(root), Vec::<String>::new());
         scratch.close().expect("cleanup");
@@ -466,11 +473,11 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-ide-ts-");
         let root = scratch.path();
         let runner = fake(root);
-        std::fs::create_dir_all(root.join(".dx/ide/typescript")).expect("stale");
-        std::fs::create_dir_all(root.join(".dx/ide/rust")).expect("rust");
+        std::fs::create_dir_all(root.join(".dx/local/ide/typescript")).expect("stale");
+        std::fs::create_dir_all(root.join(".dx/local/ide/rust")).expect("rust");
         refresh(root, &runner).expect("empty tree");
-        assert!(!root.join(".dx/ide/typescript").exists());
-        assert!(root.join(".dx/ide/rust").exists());
+        assert!(!root.join(".dx/local/ide/typescript").exists());
+        assert!(root.join(".dx/local/ide/rust").exists());
         assert_eq!(runner.calls.get(), 0);
         std::fs::create_dir_all(root.join("src")).expect("src");
         std::fs::write(root.join("src/app.tsx"), "").expect("tsx");
@@ -478,7 +485,7 @@ mod tests {
         assert_eq!(runner.calls.get(), 1);
         #[cfg(unix)]
         assert_eq!(
-            std::fs::read_link(root.join(".dx/ide/typescript/lib")).expect("link"),
+            std::fs::read_link(root.join(".dx/local/ide/typescript/lib")).expect("link"),
             runner.lib.join("lib")
         );
         scratch.close().expect("cleanup");
@@ -500,7 +507,7 @@ mod tests {
         };
         assert!(refresh(root, &runner).expect("first").ran);
         assert_eq!(
-            std::fs::read_link(root.join(".dx/ide/python/python")).expect("link"),
+            std::fs::read_link(root.join(".dx/local/ide/python/python")).expect("link"),
             interpreter
         );
         assert!(!refresh(root, &runner).expect("second").ran);
@@ -519,12 +526,12 @@ mod tests {
         std::fs::write(home.join("bin/java"), "").expect("java");
         runner.lib = home.join("bin/java");
         refresh(root, &runner).expect("no java");
-        assert!(!root.join(".dx/ide/jdk").exists());
+        assert!(!root.join(".dx/local/ide/jdk").exists());
         std::fs::write(root.join("App.kt"), "").expect("kt");
         let first = refresh(root, &runner).expect("first");
         assert_eq!(first.failed, []);
         assert_eq!(
-            std::fs::read_link(root.join(".dx/ide/jdk/home")).expect("link"),
+            std::fs::read_link(root.join(".dx/local/ide/jdk/home")).expect("link"),
             home
         );
         assert!(!refresh(root, &runner).expect("second").ran);
@@ -542,7 +549,7 @@ mod tests {
         runner.lib = root.join("store").join("gopackagesdriver");
         let first = refresh(root, &runner).expect("first");
         assert_eq!(first.failed, []);
-        let path = root.join(".dx/ide/go/gopackagesdriver");
+        let path = root.join(".dx/local/ide/go/gopackagesdriver");
         let text = std::fs::read_to_string(&path).expect("wrapper");
         assert!(text.contains("BUILD_WORKSPACE_DIRECTORY="), "{text}");
         assert!(text.contains("store/gopackagesdriver"), "{text}");
@@ -584,14 +591,14 @@ mod tests {
         let discover = store.join("discover_bazel_rust_project");
         std::fs::write(&flycheck, "fly").expect("flycheck");
         std::fs::write(&discover, "disc").expect("discover");
-        std::fs::create_dir_all(root.join(".dx/ide/rust")).expect("base");
-        std::fs::write(root.join(".dx/ide/rust/keep"), "").expect("keep");
+        std::fs::create_dir_all(root.join(".dx/local/ide/rust")).expect("base");
+        std::fs::write(root.join(".dx/local/ide/rust/keep"), "").expect("keep");
         let runner = RustRunner {
             files: vec![flycheck, discover],
         };
         let first = refresh(root, &runner).expect("first");
         assert_eq!(first.failed, []);
-        let dir = root.join(".dx/ide/rust_analyzer");
+        let dir = root.join(".dx/local/ide/rust_analyzer");
         for (name, text) in [
             ("flycheck.exe", "fly"),
             ("discover_bazel_rust_project.exe", "disc"),
@@ -606,7 +613,7 @@ mod tests {
             std::fs::read_to_string(dir.join("user_config.json")).expect("config"),
             "{\"clippy\": true}\n"
         );
-        assert!(root.join(".dx/ide/rust/keep").exists());
+        assert!(root.join(".dx/local/ide/rust/keep").exists());
         assert!(!refresh(root, &runner).expect("second").ran);
         scratch.close().expect("cleanup");
     }

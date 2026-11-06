@@ -349,7 +349,7 @@ pub(super) fn apply(
         .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
     {
         notes.push(format!(
-            "{prefix}.bazelignore lacks .dx/ide; add the dx lines so Bazel skips dx state"
+            "{prefix}.bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state"
         ));
     }
     if dx_adopt::dx_config_git_ignored(root) {

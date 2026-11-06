@@ -759,31 +759,6 @@ mod tests {
     }
 
     #[test]
-    fn upgrade_replaces_an_old_launcher_and_deletes_dx_version() {
-        let (_scratch, root) = pinned("dx-adopt-upgrade-oldpins-", OLD);
-        dx_adopt::write_launcher_files(&root, &mut dx_adopt::Applied::default())
-            .expect("launchers");
-        let launcher = root.join("tools/dx");
-        let text = std::fs::read_to_string(&launcher).expect("launcher");
-        let old = text.replace("DX_PINS=.dx/pins", "DX_PINS=.dx/version");
-        assert_ne!(old, text);
-        std::fs::write(&launcher, old).expect("old launcher");
-        std::fs::write(root.join(".dx/version"), format!("{OLD}\n")).expect("old pins");
-        assert_eq!(
-            dx_adopt::launcher_state(&root, "tools/dx"),
-            Some(dx_adopt::LauncherState::Stale)
-        );
-        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(!root.join(".dx/version").exists());
-        assert_eq!(
-            dx_adopt::launcher_state(&root, "tools/dx"),
-            Some(dx_adopt::LauncherState::Current)
-        );
-        assert_eq!(read_pin(&root), module());
-    }
-
-    #[test]
     fn upgrade_moves_forward_and_back() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-round-", OLD);
         assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);

@@ -27,6 +27,8 @@ pub const FUZZ: &str = "fuzz";
 pub const MUTATE: &str = "mutate";
 pub const BENCH: &str = "bench";
 pub const ADVISORY: &str = "advisory";
+pub const IDE: &str = "ide";
+pub const LAUNCHER: &str = "launcher";
 
 /// Entries that live under [`local_dir`].
 pub const LOCAL_ENTRIES: [&str; 11] = [
@@ -51,6 +53,14 @@ pub fn local_dir(workspace: &Path) -> PathBuf {
     dx_dir(workspace).join("local")
 }
 
+pub fn ide_dir(workspace: &Path) -> PathBuf {
+    local_dir(workspace).join(IDE)
+}
+
+pub fn launcher_dir(workspace: &Path) -> PathBuf {
+    local_dir(workspace).join(LAUNCHER)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,5 +80,14 @@ mod tests {
         assert_eq!(tail[1].as_os_str(), ".dx");
         assert!(dir.starts_with(ws));
         assert_eq!(LOCAL_DIR, format!("{DX_DIR}/local"));
+    }
+
+    #[test]
+    fn ide_and_launcher_dirs_live_under_local() {
+        let ws = Path::new("ws");
+        assert_eq!(ide_dir(ws), local_dir(ws).join("ide"));
+        assert_eq!(launcher_dir(ws), local_dir(ws).join("launcher"));
+        assert!(!LOCAL_ENTRIES.contains(&IDE));
+        assert!(!LOCAL_ENTRIES.contains(&LAUNCHER));
     }
 }

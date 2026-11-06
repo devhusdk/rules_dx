@@ -1,4 +1,4 @@
-//! Refreshes `.dx/ide/` after `dx env --apply` and `dx upgrade`. Never changes the exit code.
+//! Refreshes `.dx/local/ide/` after `dx env --apply` and `dx upgrade`. Never changes the exit code.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -82,7 +82,7 @@ impl dx_ide::Runner for BazelBuild<'_> {
     }
 }
 
-/// Refreshes `.dx/ide/` and returns the warning line when it fails.
+/// Refreshes `.dx/local/ide/` and returns the warning line when it fails.
 pub(crate) fn refresh(
     workspace: &Path,
     query_runner: &dyn QueryRunner,

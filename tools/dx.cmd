@@ -2,7 +2,7 @@
 setlocal
 set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
-set "DX_STATE=%~dp0..\.dx\launcher"
+set "DX_STATE=%~dp0..\.dx\local\launcher"
 set "DX_COPY="
 set "DX_SYNC=$c=Join-Path $env:DX_STATE 'dx.exe'; $o=$c + '.old.*'; function M { try { $x=[IO.FileInfo]::new($c); $y=[IO.FileInfo]::new($env:BIN); return ($x.Exists -and $y.Exists -and $x.Length -eq $y.Length -and $x.LastWriteTimeUtc -eq $y.LastWriteTimeUtc) } catch { return $false } }; Remove-Item -Path $o -Force -ErrorAction SilentlyContinue; $k=[datetime]::UtcNow.AddHours(-24); Get-ChildItem -LiteralPath $env:DX_STATE -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^(dx\.exe|built|inputs|query|dc)\.[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' -and $_.LastWriteTimeUtc -lt $k } | Remove-Item -Force -ErrorAction SilentlyContinue; if (M) { exit 0 }; if (-not [IO.File]::Exists($env:BIN)) { exit 2 }; $g=[guid]::NewGuid().ToString(); $n=$c + '.' + $g; try { [IO.File]::Copy($env:BIN, $n); if (-not (M)) { if ([IO.File]::Exists($c)) { [IO.File]::Move($c, $c + '.old.' + $g) }; [IO.File]::Move($n, $c) } } catch { }; Remove-Item -LiteralPath $n -Force -ErrorAction SilentlyContinue; Remove-Item -Path $o -Force -ErrorAction SilentlyContinue; if (M) { exit 0 }; exit 2"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%DX_STATE%\dx.exe" set "BIN=%DX_STATE%\dx.exe"

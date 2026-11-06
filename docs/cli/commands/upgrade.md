@@ -33,7 +33,7 @@ Scopes: none. Positional scopes are rejected.
 8. The `third_party/rules_dx/` overrides.
 9. Stale preset layers under `.dx/`. `.bazelrc` is untouched.
 10. Missing dx entries in existing hooks files, and the `AGENTS.md` import in an existing `CLAUDE.md`.
-11. Editor files in `.dx/ide/`. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
+11. Editor files in `.dx/local/ide/`. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
 
 Steps 1 and 2 are skipped when `rules_dx` is already at `--to`. No step creates a launcher, `AGENTS.md`, `CLAUDE.md`, `.vscode/settings.json` or `ci.yml`.
 

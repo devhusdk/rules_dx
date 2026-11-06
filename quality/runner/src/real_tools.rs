@@ -2198,7 +2198,8 @@ fn buf_breaking_fake(
 
 #[test]
 fn buf_breaking_runs_only_with_a_base_image_and_honours_reserved() {
-    const BASE: &str = "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n  string name = 2;\n}\n";
+    const BASE: &str =
+        "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n  string name = 2;\n}\n";
     const REMOVED: &str = "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n}\n";
     const RESERVED: &str = "syntax = \"proto3\";\n\npackage hello.v1;\n\nmessage Hello {\n  reserved 2;\n  reserved \"name\";\n}\n";
     let image = tempfile::tempdir().expect("scratch");

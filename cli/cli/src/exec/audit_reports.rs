@@ -135,28 +135,18 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 }
 
 #[test]
-fn the_strict_base_fails_a_license_the_standard_base_only_reviews() {
-    let internal = "[distribution]\ninternal = [\"//rust/tests/fixtures/hello:internal\"]\n";
-    for (profile, code) in [("standard", 0), ("strict", 1)] {
-        let (seen, out, err) = run_with(
-            &[
-                "license",
-                "//rust/tests/fixtures/hello:internal",
-                "--report=sarif=-",
-            ],
-            &AuditRunner::clean(),
-            &|harness| {
-                write_demo_license(harness, "MPL-2.0");
-                let base = dx_audit::profile_base::base_rel("licenses", profile_of(profile));
-                let text = dx_audit::profile_base::base_text("licenses", profile_of(profile));
-                harness.write_source(&base, text.expect("base"));
-                harness.write_source(
-                    "licenses.toml",
-                    &format!("extends = \"{base}\"\n{internal}"),
-                );
-            },
-        );
-        assert_eq!(seen, code, "MPL-2.0 under {profile}: {out}{err}");
+fn the_strict_base_denies_a_license_the_standard_base_only_reviews() {
+    for (profile, reviewed) in [("standard", true), ("strict", false)] {
+        let harness = Harness::new("license-base");
+        let base = dx_audit::profile_base::base_rel("licenses", profile_of(profile));
+        let text = dx_audit::profile_base::base_text("licenses", profile_of(profile));
+        harness.write_source(&base, text.expect("base"));
+        harness.write_source("licenses.toml", &format!("extends = \"{base}\"\n"));
+        let tables = super::load_license_policy(&harness.workspace)
+            .expect("policy")
+            .tables;
+        assert_eq!(tables.review.contains("MPL-2.0"), reviewed, "{profile}");
+        assert_eq!(tables.deny.contains("MPL-2.0"), !reviewed, "{profile}");
     }
 }
 

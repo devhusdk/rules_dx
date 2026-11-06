@@ -156,9 +156,14 @@ impl starlark::Loader for BuildLoader<'_> {
 }
 
 fn split_label(label: &str) -> Result<(String, &str), String> {
-    let external = ["@rules_dx_android", "@rules_dx_apple", "@rules_dx_dotnet"]
-        .into_iter()
-        .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
+    let external = [
+        "@rules_dx_android",
+        "@rules_dx_apple",
+        "@rules_dx_beam",
+        "@rules_dx_dotnet",
+    ]
+    .into_iter()
+    .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
     let (prefix, rest) = match external {
         Some((repo, rest)) => (format!("{repo}/"), rest),
         None => (String::new(), label.strip_prefix("//").unwrap_or("")),

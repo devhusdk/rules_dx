@@ -546,7 +546,7 @@ dub.lock(
 ```
 
 - `dub.json` or `dub.sdl` must sit beside `dub.selections.json`.
-- A dub set is pinned: the D toolchain ships no `dub`, so `dx update` does not resolve packages. Edit the manifest, run `dub upgrade` and refresh `dub.digests.json` by hand.
+- A dub set is pinned: the D toolchain ships no `dub`, so `dx update` does not resolve packages. `dx update --outdated` compares each selection of `dub.selections.json` with the newest release from the `code.dlang.org` API (`/api/packages/<name>/latest`); branch pins such as `~master` are skipped, and no apply command is printed. Edit the manifest, run `dub upgrade` and refresh `dub.digests.json` by hand.
 - `dx security` and `dx license` list the packages of `dub.selections.json`. OSV and the GitHub Advisory Database have no DUB ecosystem, so there is no advisory source.
 - The layout check fails when `dub.digests.json` names other versions than `dub.selections.json`.
 

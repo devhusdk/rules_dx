@@ -7,8 +7,8 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 use dx_update::discover::{
-    Candidate, Fetch, Findings, Registry, bcr, cabal, cargo, composer, containers, cpan, github,
-    go, hex, julia, maven, npm, nuget, opam, pub_dev, pypi, ruby, swiftpm,
+    Candidate, Fetch, Findings, Registry, bcr, cabal, cargo, composer, containers, cpan, dub,
+    github, go, hex, julia, maven, npm, nuget, opam, pub_dev, pypi, ruby, swiftpm,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -418,6 +418,27 @@ pub(super) fn collect(
                     ),
                 );
             }
+            Ecosystem::Dub => {
+                registries.insert(name.to_owned(), Registry::CodeDlang);
+                let locks: Vec<String> = target
+                    .set
+                    .locks
+                    .iter()
+                    .filter(|lock| lock.ends_with("dub.selections.json"))
+                    .cloned()
+                    .collect();
+                merge(
+                    &mut found,
+                    dub::outdated(
+                        name,
+                        &read_texts(workspace, name, &locks, &mut read_errors),
+                        only,
+                        prereleases,
+                        dub::DEFAULT_BASE,
+                        fetch,
+                    ),
+                );
+            }
             Ecosystem::Pub => {
                 registries.insert(name.to_owned(), Registry::PubDev);
                 let texts = read_texts(workspace, name, &target.set.locks, &mut read_errors);
@@ -610,7 +631,10 @@ fn merge(into: &mut Findings, from: Findings) {
     into.overridden.extend(from.overridden);
 }
 
-fn command_for(candidate: &Candidate, _ecosystem: Ecosystem) -> Option<String> {
+fn command_for(candidate: &Candidate, ecosystem: Ecosystem) -> Option<String> {
+    if ecosystem == Ecosystem::Dub {
+        return None;
+    }
     Some(format!(
         "dx update {}:{} {}",
         candidate.set, candidate.package, candidate.latest
@@ -742,8 +766,9 @@ fn emit_text(
             candidate.package,
             candidate.current,
             candidate.latest,
-            command_for(candidate, ecosystem_of(ecosystems, candidate))
-                .unwrap_or_else(|| "edit Gemfile, then bundle lock".to_owned())
+            command_for(candidate, ecosystem_of(ecosystems, candidate)).unwrap_or_else(|| {
+                "edit dub.json, run dub upgrade, then refresh dub.digests.json".to_owned()
+            })
         ))?;
     }
     for set in unsupported {

@@ -6,6 +6,7 @@ pub mod cargo;
 pub mod composer;
 pub mod containers;
 pub mod cpan;
+pub mod dub;
 pub mod github;
 pub mod go;
 pub mod hex;
@@ -116,6 +117,7 @@ pub enum Registry {
     SwiftUrl,
     Opam,
     PubDev,
+    CodeDlang,
     Hex,
     JuliaGeneral,
     GitHub,
@@ -145,6 +147,7 @@ impl Registry {
             Registry::SwiftUrl => format!("https://{package}/tags"),
             Registry::Opam => format!("https://opam.ocaml.org/packages/{package}"),
             Registry::PubDev => format!("https://pub.dev/packages/{package}"),
+            Registry::CodeDlang => format!("https://code.dlang.org/packages/{package}"),
             Registry::Hex => format!("https://hex.pm/packages/{package}"),
             Registry::JuliaGeneral => format!("https://juliahub.com/ui/Packages/General/{package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),

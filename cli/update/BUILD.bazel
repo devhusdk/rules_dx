@@ -21,6 +21,7 @@ dx_rust_crate(
         "src/discover/composer.rs",
         "src/discover/containers.rs",
         "src/discover/cpan.rs",
+        "src/discover/dub.rs",
         "src/discover/github.rs",
         "src/discover/go.rs",
         "src/discover/hex.rs",

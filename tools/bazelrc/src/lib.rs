@@ -139,6 +139,11 @@ const JVM_FLAGS: [Flag; 3] = [
     ),
 ];
 
+const CI_CORRECTNESS_FLAGS: [Flag; 1] = [(
+    "common:ci --lockfile_mode=error",
+    "Under --config=ci, fail when MODULE.bazel.lock is out of date.",
+)];
+
 const TELEMETRY_FLAGS: [Flag; 1] = [(
     "common --repo_env=DO_NOT_TRACK=1",
     "Opt out of aspect_tools_telemetry usage reports.",
@@ -206,6 +211,42 @@ const RESOURCE_FLAGS: [Flag; 12] = [
     ),
 ];
 
+const CI_REMOTE_FLAGS: [Flag; 7] = [
+    (
+        "common:ci --remote_cache_compression",
+        "Under --config=ci, compress remote cache transfers.",
+    ),
+    (
+        "common:ci --experimental_remote_cache_compression_threshold=100",
+        "Under --config=ci, send blobs under 100 bytes uncompressed.",
+    ),
+    (
+        "common:ci --remote_timeout=10m",
+        "Under --config=ci, allow a remote cache call 10 minutes.",
+    ),
+    (
+        "common:ci --remote_local_fallback",
+        "Under --config=ci, build locally when the remote cache fails.",
+    ),
+    (
+        "common:ci --remote_retries=5",
+        "Under --config=ci, retry a failed remote cache call 5 times.",
+    ),
+    (
+        "common:ci --experimental_remote_cache_eviction_retries=5",
+        "Under --config=ci, rebuild 5 times when the remote cache evicts an input.",
+    ),
+    (
+        "common:ci-pr --noremote_upload_local_results",
+        "Under --config=ci-pr, read the remote cache without writing to it.",
+    ),
+];
+
+const CI_RESOURCE_FLAGS: [Flag; 1] = [(
+    "common:ci --local_resources=cpu=HOST_CPUS",
+    "Under --config=ci, schedule local actions on every CPU.",
+)];
+
 /// One generated preset file. A workspace imports every layer it wants from its root `.bazelrc`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Layer {
@@ -257,9 +298,10 @@ impl Layer {
                 &JVM_FLAGS,
                 &TELEMETRY_FLAGS,
                 &DIAGNOSTICS_FLAGS,
+                &CI_CORRECTNESS_FLAGS,
             ],
-            Layer::Performance => &[&BUILD_PROFILES],
-            Layer::Resources => &[&RESOURCE_FLAGS],
+            Layer::Performance => &[&BUILD_PROFILES, &CI_REMOTE_FLAGS],
+            Layer::Resources => &[&RESOURCE_FLAGS, &CI_RESOURCE_FLAGS],
         }
     }
 
@@ -551,11 +593,19 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
 }
 
 /// Preset lines a root `.bazelrc` may repeat: the rendered flag lines minus the telemetry opt-out,
-/// which the quickstart asks users to set before `dx init` runs, and the JDK lines, which older
-/// READMEs told JVM users to copy into their root.
+/// which the quickstart asks users to set before `dx init` runs, the JDK lines, which older
+/// READMEs told JVM users to copy into their root, and the `ci` config lines, which the remote
+/// cache guide had users copy.
 pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
     let mut lines = rendered_flag_lines(rendered);
-    for (line, _) in TELEMETRY_FLAGS.iter().chain(JVM_FLAGS.iter()) {
+    let exempt = [
+        &TELEMETRY_FLAGS[..],
+        &JVM_FLAGS,
+        &CI_CORRECTNESS_FLAGS,
+        &CI_REMOTE_FLAGS,
+        &CI_RESOURCE_FLAGS,
+    ];
+    for (line, _) in exempt.iter().flat_map(|group| group.iter()) {
         lines.remove(*line);
     }
     lines
@@ -886,6 +936,7 @@ mod tests {
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",
+                "common:ci --lockfile_mode=error",
             ]
         );
         assert_eq!(
@@ -898,6 +949,13 @@ mod tests {
                 "build:dx_build_release --host_compilation_mode=opt",
                 "build:dx_dev_remote --compilation_mode=fastbuild",
                 "build:dx_toolchain --compilation_mode=fastbuild",
+                "common:ci --remote_cache_compression",
+                "common:ci --experimental_remote_cache_compression_threshold=100",
+                "common:ci --remote_timeout=10m",
+                "common:ci --remote_local_fallback",
+                "common:ci --remote_retries=5",
+                "common:ci --experimental_remote_cache_eviction_retries=5",
+                "common:ci-pr --noremote_upload_local_results",
             ]
         );
         assert_eq!(
@@ -915,6 +973,7 @@ mod tests {
                 "common --repo_contents_cache_gc_max_age=60d",
                 "build --experimental_shrink_worker_pool",
                 "build --experimental_total_worker_memory_limit_mb=4096",
+                "common:ci --local_resources=cpu=HOST_CPUS",
             ]
         );
     }
@@ -984,8 +1043,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 39);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 39);
+        assert_eq!(total, 48);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 48);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1095,7 +1154,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 39);
+        assert_eq!(flags.len(), 48);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }
@@ -1124,6 +1183,30 @@ mod tests {
         let rendered = render_all(DEFAULT_REPO);
         let root = "build --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\nbuild --tool_java_language_version=17\n";
         assert!(owned_collisions_in_content(root, &rendered).is_empty());
+    }
+
+    #[test]
+    fn ci_config_lines_are_not_a_collision() {
+        let rendered = render_all(DEFAULT_REPO);
+        let root = "common:ci --remote_cache=grpcs://remote.buildbuddy.io\ncommon:ci --remote_cache_compression\ncommon:ci --remote_timeout=10m\ncommon:ci --remote_local_fallback\ncommon:ci --remote_retries=5\ncommon:ci-pr --noremote_upload_local_results\n";
+        assert!(owned_collisions_in_content(root, &rendered).is_empty());
+    }
+
+    #[test]
+    fn ci_flags_name_no_cache_and_apply_only_under_a_ci_config() {
+        let ci = [
+            &CI_CORRECTNESS_FLAGS[..],
+            &CI_REMOTE_FLAGS,
+            &CI_RESOURCE_FLAGS,
+        ];
+        for (line, _) in ci.iter().flat_map(|group| group.iter()) {
+            let command = line.split_once(' ').expect("flag").0;
+            assert!(
+                command == "common:ci" || command == "common:ci-pr",
+                "{line}"
+            );
+            assert!(!line.contains("://"), "{line}");
+        }
     }
 
     #[test]

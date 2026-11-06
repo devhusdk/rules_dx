@@ -113,18 +113,13 @@ Common failures:
      REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
    ```
 
-3. With a remote cache, define `ci` and `ci-pr` in `.bazelrc`:
+3. With a remote cache, add its URL to the `ci` config in `.bazelrc`:
 
    ```ini
    common:ci --remote_cache=grpcs://remote.buildbuddy.io
-   common:ci --remote_cache_compression
-   common:ci --remote_timeout=10m
-   common:ci --remote_local_fallback
-   common:ci --remote_retries=5
-   common:ci --experimental_remote_cache_eviction_retries=5
-   common:ci --experimental_remote_cache_compression_threshold=100
-   common:ci-pr --noremote_upload_local_results
    ```
+
+   `tools/dx init --apply` writes the rest of `ci` and `ci-pr` to `.dx/bazelrc`: compression, timeouts, retries, local fallback, all CPUs, an up-to-date `MODULE.bazel.lock`, and no uploads from pull requests.
 
    Without a remote cache, no config is passed.
 

@@ -22,3 +22,24 @@ build:dx_dev_remote --compilation_mode=fastbuild
 
 # The dx_toolchain config builds toolchains unoptimized.
 build:dx_toolchain --compilation_mode=fastbuild
+
+# Under --config=ci, compress remote cache transfers.
+common:ci --remote_cache_compression
+
+# Under --config=ci, send blobs under 100 bytes uncompressed.
+common:ci --experimental_remote_cache_compression_threshold=100
+
+# Under --config=ci, allow a remote cache call 10 minutes.
+common:ci --remote_timeout=10m
+
+# Under --config=ci, build locally when the remote cache fails.
+common:ci --remote_local_fallback
+
+# Under --config=ci, retry a failed remote cache call 5 times.
+common:ci --remote_retries=5
+
+# Under --config=ci, rebuild 5 times when the remote cache evicts an input.
+common:ci --experimental_remote_cache_eviction_retries=5
+
+# Under --config=ci-pr, read the remote cache without writing to it.
+common:ci-pr --noremote_upload_local_results

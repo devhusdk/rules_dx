@@ -270,10 +270,13 @@ fn run() -> i32 {
         );
     }
     if cfg!(windows) && dx_plan::args::help::runs_bazel(invocation.command) {
+        use dx_process::bazel_sh::{BazelSh, resolve_bazel_sh};
         let exists = |path: &Path| path.is_file();
-        match dx_process::bazel_sh::resolve_bazel_sh(&|name| std::env::var_os(name), &exists) {
-            Ok(Some(bash)) => unsafe { std::env::set_var("BAZEL_SH", bash) },
-            Ok(None) => {}
+        let read = |path: &Path| std::fs::read(path).ok();
+        match resolve_bazel_sh(&|name| std::env::var_os(name), &exists, &read) {
+            Ok(BazelSh::Set(bash)) => unsafe { std::env::set_var("BAZEL_SH", bash) },
+            Ok(BazelSh::Unset) => unsafe { std::env::remove_var("BAZEL_SH") },
+            Ok(BazelSh::Keep) => {}
             Err(error) => {
                 let message = error.to_string();
                 return startup_failure(

@@ -406,10 +406,12 @@ fn verify_installed(bin_dir: &Path, staged: &[(String, PathBuf)]) -> Result<bool
         detail: format!("cannot list installed tree: {e}"),
     })?;
     for entry in entries {
+        // LCOV_EXCL_START - reason: read_dir entry errors need a failing filesystem, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         let entry = entry.map_err(|e| Error::Unmanaged {
             path: bin_dir.to_path_buf(),
             detail: format!("cannot list installed tree: {e}"),
         })?;
+        // LCOV_EXCL_STOP - reason: end read_dir entry errors, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         let name = entry.file_name();
         let known = name == MARKER_FILE_NAME
             || staged

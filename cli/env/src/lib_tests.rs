@@ -787,12 +787,7 @@ fn busy_lock_fails_after_deadline() {
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let mut opts = options(&root, staged_bin, metadata);
     opts.lock_timeout = Duration::from_millis(1);
-    let calls = std::cell::Cell::new(0u32);
-    let counting = |dir: &Path| {
-        calls.set(calls.get() + 1);
-        probe_symlink(dir)
-    };
-    let error = refresh(&opts, &counting).unwrap_err();
+    let error = refresh(&opts, &probe_symlink).unwrap_err();
     assert!(matches!(error, Error::Busy { .. }));
     let pid = format!("pid {}", std::process::id());
     let text = error.to_string();
@@ -801,7 +796,7 @@ fn busy_lock_fails_after_deadline() {
         text.ends_with("wait for it to finish, then retry"),
         "{text}"
     );
-    assert_eq!(calls.get(), 0);
+    assert!(!root.join("ws").join(".dx").join("symlink.probe").exists());
     drop(_held);
     let _ = fs::remove_dir_all(&root);
 }
@@ -1049,5 +1044,37 @@ fn refresh_succeeds_with_stale_probe() {
     fs::write(dx.join("symlink.probe"), "stale").expect("stale probe");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
     assert!(fs::symlink_metadata(dx.join("symlink.probe")).is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn empty_logical_names_are_rejected() {
+    let text = tools_json(serde_json::json!([
+        {"bin_name": "dx", "owner": "o", "aliases": [""], "host_names": ["dx", ""]},
+    ]));
+    let error = parse_staged(&text, false).unwrap_err();
+    assert!(error.to_string().contains("non-empty"), "{error}");
+}
+
+#[test]
+fn probe_fails_when_the_stale_probe_cannot_be_removed() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-probe-stuck-");
+    let root = scratch.path().to_path_buf();
+    let stuck = root.join("symlink.probe");
+    fs::create_dir_all(stuck.join("inner")).expect("non-empty probe dir");
+    assert!(probe_symlink(&root).is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn verify_installed_reports_an_unlistable_tree() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-verify-missing-");
+    let root = scratch.path().to_path_buf();
+    let error = verify_installed(&root.join("missing"), &[]).unwrap_err();
+    assert!(matches!(error, Error::Unmanaged { .. }));
+    assert!(
+        error.to_string().contains("cannot list installed tree"),
+        "{error}"
+    );
     let _ = fs::remove_dir_all(&root);
 }

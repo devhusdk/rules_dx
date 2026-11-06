@@ -377,6 +377,7 @@ mod tests {
         let text = String::from_utf8(out).expect("utf8");
         assert_eq!(text, format!("dx env: {ABOUT}\n{USAGE}\n"));
         assert_eq!(help(&mut FailingWriter), 1);
+        std::io::Write::flush(&mut FailingWriter).expect("flush is a no-op");
     }
 
     #[test]

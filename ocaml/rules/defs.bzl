@@ -92,8 +92,9 @@ def _cmt_providers(ctx, upstream):
     cmtis = groups.cmti.to_list() if hasattr(groups, "cmti") else []
     return [OCamlCmtInfo(owned = cmt_entries(ctx.files.srcs, cmts, cmtis))]
 
-def _library_forward_rule(provider, name, extra_providers = None):
+def _library_forward_rule(provider, name, extra_providers = None, extra_attrs = None):
     return dx_library_forward_rule(
+        extra_attrs = extra_attrs,
         extra_providers = extra_providers,
         provides = [provider, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo] + ([OCamlCmtInfo] if extra_providers else []),
         required_providers = [(provider, name), (_OCamlDepsProvider, "OCamlDepsProvider")],
@@ -107,7 +108,7 @@ def _library_forward_rule(provider, name, extra_providers = None):
         upstream_cfg = _toolchain,
     )
 
-_module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider", _cmt_providers)
+_module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider", _cmt_providers, {"instrument_coverage": attr.bool(default = True)})
 
 _signature_forward = _library_forward_rule(_OCamlSignatureProvider, "OCamlSignatureProvider", _cmt_providers)
 
@@ -347,12 +348,12 @@ def default_module_name(name, sig):
         return name
     return None
 
-def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs):
+def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs, forward_extra = {}):
     kwargs = with_defaults(kwargs)
     upstream = dict(kwargs)
     upstream["tags"] = upstream_tags(kwargs.get("tags"))
     upstream_rule(name = name + "_upstream", visibility = ["//visibility:private"], **upstream)
-    forward_rule(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **dx_wrap_forward_kwargs(kwargs))
+    forward_rule(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **dict(dx_wrap_forward_kwargs(kwargs), **forward_extra))
 
 def coverage_kwargs(kwargs, struct, package):
     """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64."""
@@ -376,7 +377,7 @@ def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverag
     kwargs["opts"] = profile_warning_opts(bin_annot_opts(kwargs.get("opts"))) + werror
     if instrument_coverage:
         kwargs = coverage_kwargs(kwargs, struct, native.package_name())
-    _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct))
+    _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct), {"instrument_coverage": instrument_coverage})
 
 def ocaml_signature(name, src, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_signature rule."""

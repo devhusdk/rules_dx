@@ -151,3 +151,8 @@ sh_test(
     args = ["$(rootpath :collect)"],
     data = [":collect"],
 )
+
+filegroup(
+    name = "bisect_licenses",
+    srcs = ["@dx_ocaml_bisect_duniverse//:licenses"],
+)

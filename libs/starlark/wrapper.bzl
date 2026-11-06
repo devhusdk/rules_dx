@@ -366,7 +366,7 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
             src_attrs = ["srcs"] + (list(extra_quality_attrs) if extra_quality_attrs else [])
             out.append(coverage_common.instrumented_files_info(
                 ctx,
-                source_attributes = src_attrs,
+                source_attributes = src_attrs if getattr(ctx.attr, "instrument_coverage", True) else [],
                 dependency_attributes = ["upstream"],
             ))
         if OutputGroupInfo in upstream:

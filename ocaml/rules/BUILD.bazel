@@ -324,6 +324,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "providers.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

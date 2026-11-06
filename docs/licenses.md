@@ -13,6 +13,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | avro_tools | 1.12.2 | Apache-2.0 |
 | bicep | 0.48.1 | MIT |
 | biome | 2.5.12 | Apache-2.0, MIT |
+| bisect_ppx | 2.8.3 | MIT |
 | buf | 1.72.0 | Apache-2.0 |
 | buildifier | 8.5.1 | Apache-2.0 |
 | checkmake | 0.3.2 | MIT |

@@ -1,6 +1,5 @@
 # Needs the rubocop and rubocop-performance gems in the Gemfile that provides rubocop.
 plugins:
   - rubocop-performance
-
 AllCops:
   NewCops: enable

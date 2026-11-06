@@ -923,15 +923,23 @@ fn probes_run_the_resolved_bazel_when_it_differs_from_bazelisk() {
 }
 
 #[test]
-fn bazel_real_reads_the_print_env_line() {
+fn bazel_real_prefers_the_wrapper_line_then_the_first_path_entry() {
     assert_eq!(
         bazel_real("BAZELISK_SKIP_WRAPPER=true\r\nBAZEL_REAL=C:\\q\\bazel.exe\r\n").unwrap(),
         PathBuf::from("C:\\q\\bazel.exe")
     );
-    for printed in ["BAZELISK_SKIP_WRAPPER=true\n", "BAZEL_REAL=\n"] {
+    assert_eq!(
+        bazel_real("Path=/q/bazelisk/bin;C:\\Windows\r\nBAZELISK_SKIP_WRAPPER=true\r\n").unwrap(),
+        Path::new("/q/bazelisk/bin").join(format!("bazel{}", std::env::consts::EXE_SUFFIX))
+    );
+    for printed in [
+        "BAZELISK_SKIP_WRAPPER=true\n",
+        "BAZEL_REAL=\nPATH=\n",
+        "PATH=;C:\\Windows\n",
+    ] {
         assert_eq!(
             bazel_real(printed).unwrap_err(),
-            "bazelisk --print_env printed no BAZEL_REAL"
+            "bazelisk --print_env printed neither BAZEL_REAL nor PATH"
         );
     }
 }

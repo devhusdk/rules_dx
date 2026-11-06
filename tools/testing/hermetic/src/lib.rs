@@ -1726,14 +1726,25 @@ pub fn relocatable(head: &[u8]) -> bool {
         .is_none_or(|characteristics| characteristics[0] & 0x1 == 0)
 }
 
-/// The Bazel binary `bazelisk --print_env` resolved, from its `BAZEL_REAL=` line.
+/// The Bazel binary `bazelisk --print_env` resolved: `BAZEL_REAL` when a wrapper is
+/// configured, otherwise the directory bazelisk puts first on the `PATH` it prints.
 pub fn bazel_real(stdout: &str) -> Result<PathBuf, String> {
-    stdout
-        .lines()
-        .find_map(|line| line.trim_end().strip_prefix("BAZEL_REAL="))
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from)
-        .ok_or_else(|| "bazelisk --print_env printed no BAZEL_REAL".to_owned())
+    let value = |key: &str| {
+        stdout.lines().find_map(|line| {
+            let (name, value) = line.trim_end().split_once('=')?;
+            Some(value)
+                .filter(|value| name.eq_ignore_ascii_case(key) && !value.is_empty())
+                .map(str::to_owned)
+        })
+    };
+    if let Some(real) = value("BAZEL_REAL") {
+        return Ok(PathBuf::from(real));
+    }
+    value("PATH")
+        .and_then(|path| path.split(';').next().map(str::to_owned))
+        .filter(|dir| !dir.is_empty())
+        .map(|dir| Path::new(&dir).join(format!("bazel{}", std::env::consts::EXE_SUFFIX)))
+        .ok_or_else(|| "bazelisk --print_env printed neither BAZEL_REAL nor PATH".to_owned())
 }
 
 fn find_bazelisk(chosen: Option<&str>, path: &str) -> Result<PathBuf, String> {
@@ -2075,6 +2086,12 @@ fn run_all(
             return Err(format!("bazelisk --print_env failed: {}", printed.stderr));
         }
         let bazel = bazel_real(&printed.stdout)?;
+        if !bazel.is_file() {
+            return Err(format!(
+                "bazelisk --print_env resolved {}, which does not exist",
+                bazel.display()
+            ));
+        }
         let head = read_head(&bazel)?;
         if !relocatable(&head) {
             return Err(format!(

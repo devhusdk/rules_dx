@@ -8,6 +8,7 @@ HUB_NAME = "dx_msvc"
 LICENSE = "visual-studio-build-tools"
 LICENSE_URL = "https://visualstudio.microsoft.com/license-terms/"
 VCRUNTIME_DLLS = ["vcruntime140", "vcruntime140_1", "msvcp140"]
+VCVARS_STUBS = ["VC/Auxiliary/Build/vcvarsall.bat", "VC/Auxiliary/Build/vcvars64.bat"]
 
 NO_REDIST = "dx_msvc: msvc_runtime has no VC/Redist/MSVC folder; the Visual C++ runtime cannot ship"
 
@@ -163,6 +164,8 @@ def _layout_repo_impl(rctx):
         missing = [p for p in [layout.cl, layout.link, layout.lib, layout.ml] if p and not _exists_exact(rctx, p)]
         if missing:
             unavailable[cell_name(host, target)] = missing_error(missing) + _present(rctx, missing[0])
+    for stub in VCVARS_STUBS:
+        rctx.file(stub, "@rem dx_msvc placeholder: nvcc probes for this file; -use-local-env keeps the hermetic environment.\n")
     rctx.file("NOTICE", "Microsoft Visual C++ and Windows SDK files, licensed under {}\nMSVC {}\nWindows SDK {}\n".format(LICENSE_URL, msvc_version, sdk_version))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", hub_build(True, msvc_version, sdk_version, unavailable, redist_version))

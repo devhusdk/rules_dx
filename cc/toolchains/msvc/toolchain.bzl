@@ -77,7 +77,7 @@ def msvc_cc_toolchain(name, msvc_version, sdk_version, tmp = "C:\\Temp", exec_cp
     tool_dirs = {d.split("/bin/")[0] + "/bin" if d.startswith("VC/") else d: True for d in layout.bin_dirs}.keys()
     native.filegroup(
         name = name + "_files",
-        srcs = native.glob([p + "/**" for p in layout.include_dirs + layout.lib_dirs + list(tool_dirs)], allow_empty = True),
+        srcs = native.glob([p + "/**" for p in layout.include_dirs + layout.lib_dirs + list(tool_dirs)] + ["VC/Auxiliary/Build/*.bat"], allow_empty = True),
     )
     cc_toolchain(
         name = name,

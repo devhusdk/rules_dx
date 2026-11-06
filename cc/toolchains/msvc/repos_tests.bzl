@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
-load(":repos.bzl", "HUB_NAME", "LICENSE", "NO_REDIST", "UNACCEPTED", "has_child_exact", "hub_build", "host_dir_name", "layout_links", "missing_error")
+load(":repos.bzl", "HUB_NAME", "LICENSE", "NO_REDIST", "UNACCEPTED", "VCVARS_STUBS", "has_child_exact", "hub_build", "host_dir_name", "layout_links", "missing_error")
 load(":unavailable.bzl", "UNSUPPORTED")
 
 def _checks():
@@ -16,6 +16,7 @@ def _checks():
     sdk = "Windows Kits/10/"
     return [
         expect_equal("hub name", HUB_NAME, "dx_msvc"),
+        expect_equal("vcvars stubs", VCVARS_STUBS, ["VC/Auxiliary/Build/vcvarsall.bat", "VC/Auxiliary/Build/vcvars64.bat"]),
         expect_equal("link destinations", [k.dst for k in links], [
             "VC/Tools/MSVC/14.44.35207/include",
             "VC/Tools/MSVC/14.44.35207/lib",

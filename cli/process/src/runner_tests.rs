@@ -202,3 +202,72 @@ fn holding_run_does_not_inherit_held() {
         "plain runs carry no held handle"
     );
 }
+
+#[test]
+fn new_stops_on_process_interrupts() {
+    let runner = BinaryRunner::new(true, |_| {});
+    assert!(runner.inherit_stdout);
+    assert_eq!((runner.stop)(), crate::interrupted());
+}
+
+#[test]
+fn pinned_tool_reads_the_environment() {
+    assert_eq!(
+        runner().pinned_tool("DX_RUNNER_UNSET_PIN_VAR"),
+        crate::PinnedVar::Unset
+    );
+}
+
+#[test]
+fn run_app_with_withdraw_runs_and_withdraws() {
+    let argv = probe_argv(&["--exit-code=4"]);
+    let ran = runner()
+        .run_app(&argv, &cwd(), &[], Some(&|| false), &[])
+        .expect("run_app");
+    assert_eq!(ran.and_then(|status| status.code), Some(4));
+    let withdrawn = runner()
+        .run_app(&argv, &cwd(), &[], Some(&|| true), &[])
+        .expect("run_app");
+    assert_eq!(withdrawn, None);
+}
+
+#[test]
+fn holding_forwards_every_runner_call() {
+    let inner = runner();
+    let holding = Holding::new(&inner, Vec::new());
+    let ok = probe_argv(&["--exit-code=0"]);
+    let seven = probe_argv(&["--exit-code=7"]);
+    assert_eq!(holding.run(&seven, &cwd(), &[]).expect("run").code, Some(7));
+    assert_eq!(
+        holding
+            .run_hermetic(&seven, &cwd(), &[])
+            .expect("hermetic")
+            .code,
+        Some(7)
+    );
+    let withdrawn = holding
+        .run_withdrawable(&ok, &cwd(), &[], &|| true)
+        .expect("withdrawable");
+    assert_eq!(withdrawn, None);
+    let app = holding
+        .run_app(&seven, &cwd(), &[], None, &[])
+        .expect("run_app");
+    assert_eq!(app.and_then(|status| status.code), Some(7));
+    assert_eq!(
+        holding.pinned_tool("DX_RUNNER_UNSET_PIN_VAR"),
+        crate::PinnedVar::Unset
+    );
+    assert_eq!(holding.tool_version(Path::new("/nonexistent-dx-tool")), None);
+    assert!(holding.free_disk_bytes(&cwd()).is_some());
+}
+
+#[cfg(unix)]
+#[test]
+fn tool_version_returns_the_first_line() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = dx_test_scratch::scratch("dx-runner-version");
+    let tool = scratch.path().join("tool");
+    std::fs::write(&tool, "#!/bin/sh\necho 'tool 1.2.3'\n").expect("write");
+    std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    assert_eq!(runner().tool_version(&tool).as_deref(), Some("tool 1.2.3"));
+}

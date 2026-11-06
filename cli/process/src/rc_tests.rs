@@ -1079,3 +1079,11 @@ fn read_file_is_none_for_a_missing_or_unreadable_path() {
     assert_eq!(read_file(&dir.path().join("absent.bazelrc")), None);
     assert_eq!(read_file(dir.path()), None);
 }
+
+#[test]
+fn verb_mask_ignores_unknown_verbs() {
+    let mask = VerbMask::NONE.with("build").with("not-a-verb");
+    assert!(mask.contains("build"));
+    assert!(!mask.contains("not-a-verb"));
+    assert_eq!(VerbMask::NONE.with("not-a-verb"), VerbMask::NONE);
+}

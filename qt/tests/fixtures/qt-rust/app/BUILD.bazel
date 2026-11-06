@@ -5,6 +5,12 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+# The QML plugin DLL imports QtQmlMeta, which the test does not link.
+_QML_META = select({
+    "@platforms//os:windows": ["@dx_qt//:qml_meta"],
+    "//conditions:default": [],
+})
+
 # Rust std on Windows imports ntdll.
 _NTDLL = select({
     "@platforms//os:windows": ["ntdll.lib"],
@@ -33,7 +39,7 @@ qt_cc_test(
     deps = [
         "//qt/tests/fixtures/qt-rust/model",
         "//qt/tests/fixtures/qt-rust/ui",
-    ],
+    ] + _QML_META,
 )
 
 sh_test(

@@ -351,13 +351,20 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 let invocation =
                     commands::trivy_config_check(&tool.binary, Path::new(name), &cache);
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;
+                // A single-file scan names the target by its file name alone.
+                let base = Path::new(name)
+                    .file_name()
+                    .map_or(name.as_str(), |base| base.to_str().unwrap_or(name));
                 let report = parsers::parse_trivy_config(
                     &out.stdout,
                     &out.stderr,
                     out.code,
-                    &[name.as_str()],
+                    &[name.as_str(), base],
                 );
-                findings.extend(parsed(tool_id, report)?);
+                for mut found in parsed(tool_id, report)? {
+                    found.file = name.clone();
+                    findings.push(found);
+                }
             }
             Ok(findings)
         },

@@ -33,6 +33,11 @@ Used by `dx security`. See [Audit, Update](audit-update.md).
 | `reason` | string | none | Why the risk is accepted. |
 | `expires` | string | none | Date the exception ends. |
 
+Two sets are not dependency sets:
+
+- `set = "oci"` covers a finding from the `oci_deploy` image scan. `package` is the image package and `versions` is `*` or a range holding the installed version.
+- `set = "trivy_config"` covers a `trivy_config` lint finding. `advisory` is the trivy ID, such as `DS-0002`, `package` is the workspace-relative file or `*` for every file, and `versions` must be `*`. `dx lint` drops covered findings until `expires`.
+
 ### security.toml `[[uncovered]]`
 
 | Key | Type | Default | Meaning |

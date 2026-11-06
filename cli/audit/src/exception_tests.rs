@@ -27,6 +27,27 @@ fn valid_exception_passes_and_applies() {
 }
 
 #[test]
+fn live_exceptions_keep_only_unexpired_entries_of_the_set() {
+    let mut expired = sample();
+    expired.expires = "2026-01-01".to_owned();
+    let mut other_set = sample();
+    other_set.set = "oci".to_owned();
+    let policy = SecurityPolicy {
+        exceptions: vec![sample(), expired, other_set],
+        ..SecurityPolicy::default()
+    };
+    assert_eq!(
+        live_exceptions_for_set(&policy, "cargo-lock", "2026-09-14"),
+        vec![&sample()]
+    );
+    assert_eq!(
+        live_exceptions_for_set(&policy, "oci", "2026-09-14").len(),
+        1
+    );
+    assert!(live_exceptions_for_set(&policy, "npm", "2026-09-14").is_empty());
+}
+
+#[test]
 fn empty_reason_fails_validation() {
     let mut exception = sample();
     exception.reason = "  ".to_owned();

@@ -1,0 +1,1 @@
+{"schema_version":1,"chart_root":"matrix/trivy_helm_clean","values":["matrix/trivy_helm_clean/values.yaml"],"release":"rel","namespace":"ns"}

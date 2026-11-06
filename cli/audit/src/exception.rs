@@ -139,6 +139,19 @@ pub fn validate_exception(exception: &RiskException, today: &str) -> Result<(), 
     check_expiry(&exception.expires, today)
 }
 
+/// The exceptions in `set` that are complete and not yet expired on `today`.
+pub fn live_exceptions_for_set<'a>(
+    policy: &'a SecurityPolicy,
+    set: &str,
+    today: &str,
+) -> Vec<&'a RiskException> {
+    policy
+        .exceptions
+        .iter()
+        .filter(|exception| exception.set == set && validate_exception(exception, today).is_ok())
+        .collect()
+}
+
 pub fn validate_uncovered(
     acceptance: &UncoveredAcceptance,
     today: &str,

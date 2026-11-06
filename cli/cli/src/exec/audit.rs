@@ -736,7 +736,7 @@ fn load_license_policy(
     .map_err(|error| AuditError::LicenseInvalid { error })
 }
 
-fn load_security_policy(
+pub(super) fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
     let rel = "security.toml";

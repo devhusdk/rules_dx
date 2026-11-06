@@ -319,7 +319,7 @@ fn run_quality_request(
         out,
         err,
         ci: _,
-        audit_today: _,
+        audit_today,
         actions,
         proc_root: _,
         edit_commit_json: _,
@@ -598,7 +598,7 @@ fn run_quality_request(
         &collected.original_digests,
         &collected.terminal_digests,
     );
-    let (status, _) = project_status(
+    let (mut status, _) = project_status(
         apply,
         &collected.initial,
         &collected.terminal,
@@ -606,6 +606,7 @@ fn run_quality_request(
         request.fail_on,
         !collected.changes.is_empty(),
     );
+    super::quality_security::drop_excepted_findings(workspace, audit_today, &mut status);
     let baseline: Option<BaselineView> = match apply_baseline(
         workspace,
         &status,

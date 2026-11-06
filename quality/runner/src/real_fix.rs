@@ -398,7 +398,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "regal" | "sorbet" | "tsc" | "javac" | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc"
         | "ocaml" | "zig" | "zig_ast_check" | "swift_lint" | "xmllint" | "selene" | "zanuda"
         | "thrift" | "avro_tools" | "tinymist" | "detekt" | "debride" | "lychee" | "knip"
-        | "actionlint" | "zizmor" | "periphery" => Ok(Route::Keep),
+        | "actionlint" | "zizmor" | "periphery" | "trivy_config" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

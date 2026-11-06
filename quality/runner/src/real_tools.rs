@@ -3540,7 +3540,7 @@ fn trivy_config_tool(
     };
     let report = serde_json::json!({
         "SchemaVersion": 2,
-        "Results": [{"Target": file, "Misconfigurations": misconfigurations}],
+        "Results": [{"Target": Path::new(&file).file_name().unwrap().to_string_lossy(), "Misconfigurations": misconfigurations}],
     });
     Ok(ChildOutput {
         code: Some(0),
@@ -3571,6 +3571,20 @@ fn trivy_config_reports_a_dockerfile_without_a_user() {
         )
         .expect("diagnosed")
         .is_empty());
+}
+
+#[test]
+fn trivy_config_lands_a_nested_file_finding_on_its_staged_path() {
+    let backend = backend_for("trivy_config", plain_tool(), trivy_config_tool);
+    let findings = backend
+        .diagnose(
+            "trivy_config",
+            "lint",
+            &single("app/Dockerfile", "FROM scratch\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "app/Dockerfile");
 }
 
 fn trivy_chart_tool(

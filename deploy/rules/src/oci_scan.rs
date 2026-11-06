@@ -4,7 +4,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_audit::exception::{load_security, validate_exception};
+use dx_audit::exception::{live_exceptions_for_set, load_security};
 use serde::Deserialize;
 
 const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
@@ -148,17 +148,12 @@ pub fn apply_exceptions(
         return Ok(findings);
     };
     let policy = load_security(text, read).map_err(|error| error.to_string())?;
-    let live: Vec<_> = policy
-        .exceptions
-        .iter()
-        .filter(|exception| validate_exception(exception, today).is_ok())
-        .collect();
+    let live = live_exceptions_for_set(&policy, "oci", today);
     Ok(findings
         .into_iter()
         .filter(|found| {
             !live.iter().any(|exception| {
-                exception.set == "oci"
-                    && exception.advisory == found.id
+                exception.advisory == found.id
                     && exception.package == found.package
                     && (exception.versions.trim() == "*"
                         || dx_audit::vuln::version_affected(

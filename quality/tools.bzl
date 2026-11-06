@@ -201,7 +201,7 @@ TOOLS = [
     tool(
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
-        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True),
+        config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True, tier_source = "ansible-lint moderate and production profiles"),
         severity = severity(default = "warning", categories = {"internal-error": "error", "load-failure": "error", "syntax-check": "error"}),
         support = [
             row(
@@ -1809,7 +1809,7 @@ TOOLS = [
         adapters = {
             "typecheck": ["php"],
         },
-        config = config(suffixes = [".neon", ".neon.dist"], tier_active = True),
+        config = config(suffixes = [".neon", ".neon.dist"], tier_active = True, tier_source = "phpstan level 6 and phpstan-strict-rules"),
         severity = severity(default = "error", categories = {"phpstan/public.": "info"}),
         support = [
             row(
@@ -2071,7 +2071,7 @@ TOOLS = [
     tool(
         id = "redocly",
         adapters = {"lint": ["api_spec"]},
-        config = config(suffixes = [".yaml", ".yml"], tier_active = True),
+        config = config(suffixes = [".yaml", ".yml"], tier_active = True, tier_source = "redocly spec and all rulesets"),
         severity = severity(default = "warning"),
         support = [
             row(

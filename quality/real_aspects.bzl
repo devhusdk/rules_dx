@@ -84,6 +84,7 @@ _HOOK_ORDER = [
     "fsharplint",
     "jet",
 ] + _JVM_CHECK_TOOLS + ["errcheck", "gotype", "govet", "staticcheck"] + COMPILE_CHECK_TOOLS + [
+    "eslint",
     "tsc",
     "roslyn",
     "csc",

@@ -8,8 +8,10 @@ load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 TscInfo = provider(
     doc = "Output of one non-failing tsc run over a TypeScript project.",
     fields = {
+        "inputs": "depset of File: what the ts_project's tsc action reads, empty for js_library.",
         "status": "File: tsc exit code.",
         "stdout": "File: tsc diagnostics (`--pretty false`), cwd-relative to the bin directory.",
+        "tsconfig": "File: the bin copy of the ts_project's tsconfig, None for js_library.",
     },
 )
 
@@ -91,7 +93,7 @@ def _tsc_js_impl(target, ctx):
         },
         resource_set = dx_heavy_resources,
     )
-    return [TscInfo(stdout = stdout, status = status)]
+    return [TscInfo(stdout = stdout, status = status, inputs = depset(), tsconfig = None)]
 
 def _tsc_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -138,7 +140,7 @@ def _tsc_impl(target, ctx):
         },
         resource_set = dx_heavy_resources,
     )
-    return [TscInfo(stdout = stdout, status = status)]
+    return [TscInfo(stdout = stdout, status = status, inputs = inputs, tsconfig = tsconfig)]
 
 tsc_aspect = aspect(
     implementation = _tsc_impl,

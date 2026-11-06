@@ -1,6 +1,7 @@
 """JavaScript and TypeScript real quality aspects."""
 
 load("//quality:family_hooks.bzl", "default_files_hook", "without")
+load("//quality:native_config.bzl", "native_config_scratch_rel")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//quality:unused_roots.bzl", "unused_closure_sources", "unused_roots_aspect", "unused_roots_context")
@@ -88,6 +89,7 @@ SHARD_SPECS = {
     "real_js_lint": {
         "capability": "lint",
         "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).",
+        "requires": [tsc_aspect],
         "shard": "js",
         "suffix": "-js",
     },
@@ -113,6 +115,20 @@ def _tsc_hook(target, _ctx, resolved, _capability, _what, _shared):
     info = target[TscInfo]
     return real_context(upstream = [info.stdout], late_tool_files = [("dx-tsc/exit", info.status)], late_inputs = [info.stdout, info.status])
 
+def _eslint_hook(target, _ctx, _resolved, _capability, _what, shared):
+    if TscInfo not in target or target[TscInfo].tsconfig == None:
+        return real_context()
+    staged = {}
+    for f in target[TscInfo].inputs.to_list():
+        rel = native_config_scratch_rel(f.short_path)
+        if rel != None and rel not in shared.path_to_file:
+            staged[rel] = f
+    return real_context(
+        late_tool_files = sorted(staged.items()),
+        late_inputs = staged.values(),
+        env = [["DX_ESLINT_TYPED", "1"]],
+    )
+
 def _prettier_hook(target, _ctx, _resolved, _capability, _what, _shared):
     if SqlDialectInfo not in target:
         return real_context()
@@ -136,9 +152,10 @@ def _knip_hook(target, ctx, _resolved, _capability, _what, _shared):
 def _harness_sources(target, capability, direct_sources):
     return unused_closure_sources(target, capability, direct_sources, _JS_CLASSES)
 
-HOOK_ORDER = ["tsc", "prettier", "redocly", "knip"]
+HOOK_ORDER = ["eslint", "tsc", "prettier", "redocly", "knip"]
 
 HOOKS = {
+    "eslint": _eslint_hook,
     "tsc": _tsc_hook,
     "prettier": _prettier_hook,
     "redocly": default_files_hook(["yaml", "yml", "json"]),

@@ -37,6 +37,8 @@ enum Mode {
 struct Entry {
     tool: &'static str,
     family: &'static str,
+    /// Extensions that mean the tool applies, for tools no family owns.
+    extensions: &'static [&'static str],
     ext: &'static str,
     root: &'static str,
     /// The root file of an inherit tool, with `{base}` for the chosen base path.
@@ -90,6 +92,7 @@ const TABLE: &[Entry] = &[
     Entry {
         tool: "ruff",
         family: "python",
+        extensions: &[],
         ext: "toml",
         root: "ruff.toml",
         root_template:
@@ -105,6 +108,7 @@ const TABLE: &[Entry] = &[
     Entry {
         tool: "eslint",
         family: "js",
+        extensions: &[],
         ext: "mjs",
         root: "eslint.config.mjs",
         root_template: "export { default } from \"./{base}\";\n",
@@ -125,6 +129,7 @@ const TABLE: &[Entry] = &[
     Entry {
         tool: "tsconfig",
         family: "js",
+        extensions: &[],
         ext: "json",
         root: "tsconfig.json",
         root_template: "{ \"extends\": \"./{base}\" }\n",
@@ -137,8 +142,24 @@ const TABLE: &[Entry] = &[
         strict: include_str!("../templates/config/tsconfig/strict.json"),
     },
     Entry {
+        tool: "stylelint",
+        family: "",
+        extensions: &[".css"],
+        ext: "json",
+        root: ".stylelintrc.json",
+        root_template: "{ \"extends\": [\"./{base}\"] }\n",
+        comment: None,
+        mode: Mode::Inherit,
+        config_rule: true,
+        configured: &[".stylelintrc*", "stylelint.config.*"],
+        pyproject_table: None,
+        standard: include_str!("../templates/config/stylelint/standard.json"),
+        strict: include_str!("../templates/config/stylelint/strict.json"),
+    },
+    Entry {
         tool: "dart",
         family: "dart",
+        extensions: &[],
         ext: "yaml",
         root: "analysis_options.yaml",
         root_template: "include: {base}\n",
@@ -153,6 +174,7 @@ const TABLE: &[Entry] = &[
     Entry {
         tool: "psscriptanalyzer",
         family: "powershell",
+        extensions: &[],
         ext: "psd1",
         root: "PSScriptAnalyzerSettings.psd1",
         root_template: "",
@@ -167,6 +189,7 @@ const TABLE: &[Entry] = &[
     Entry {
         tool: "hlint",
         family: "haskell",
+        extensions: &[],
         ext: "yaml",
         root: ".hlint.yaml",
         root_template: "",
@@ -181,6 +204,7 @@ const TABLE: &[Entry] = &[
     Entry {
         tool: "dscanner",
         family: "d",
+        extensions: &[],
         ext: "ini",
         root: "dscanner.ini",
         root_template: "",
@@ -252,6 +276,9 @@ fn root_content(entry: &Entry, profile: Profile) -> String {
 }
 
 fn detected(entry: &Entry, extensions: &BTreeSet<String>) -> bool {
+    if entry.extensions.iter().any(|ext| extensions.contains(*ext)) {
+        return true;
+    }
     dx_families::families()
         .iter()
         .filter(|family| family.name == entry.family)
@@ -601,6 +628,30 @@ mod tests {
     }
 
     #[test]
+    fn strict_on_css_writes_stylelint_files() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
+        let files = without_build(plan_profile_files(
+            scratch.path(),
+            &exts(&[".css"]),
+            Some(Profile::Strict),
+        ));
+        let paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            [
+                ".dx/config/stylelint/standard.json",
+                ".dx/config/stylelint/strict.json",
+                ".stylelintrc.json"
+            ]
+        );
+        assert_eq!(
+            files[2].content,
+            "{ \"extends\": [\"./.dx/config/stylelint/strict.json\"] }\n"
+        );
+        assert_eq!(infer_profile_of(&files), Profile::Strict);
+    }
+
+    #[test]
     fn strict_on_typescript_writes_eslint_and_tsconfig_files() {
         let scratch = dx_test_scratch::scratch("dx-adopt-profiles-");
         let files = without_build(plan_profile_files(
@@ -642,7 +693,7 @@ mod tests {
         for file in files.iter().filter(|file| !file.path.starts_with(".dx/")) {
             std::fs::write(scratch.path().join(&file.path), &file.content).expect("write");
         }
-        infer_profile(scratch.path(), &exts(&[".ts"]))
+        infer_profile(scratch.path(), &exts(&[".ts", ".css"]))
     }
 
     #[test]
@@ -802,6 +853,7 @@ mod tests {
         let entry = Entry {
             tool: "demo",
             family: "python",
+            extensions: &[],
             ext: "toml",
             root: "demo.toml",
             root_template: "",

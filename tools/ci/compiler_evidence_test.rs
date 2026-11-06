@@ -10,7 +10,8 @@ const SCRIPT: &str = "tools/ci/compiler_evidence.sh";
 fn facts() -> Value {
     json!({"rows": [
         {"name": "cc_a", "section": "compilers", "ci_tests": ["//p:a1", "//p:a2"], "consumer_tests": ["//q:a3"],
-         "identity": {"compiler": "a", "version": "1.2.3", "probe": "//p:probe_a"}},
+         "identity": {"compiler": "a", "version": "1.2.3", "probe": "//p:probe_a",
+                      "platform_probes": {"linux_arm64": "//p:probe_a_arm64"}}},
         {"name": "cc_b", "section": "compilers", "ci_tests": ["//p:b1"], "consumer_tests": [],
          "identity": {"compiler": "b", "version": "", "probe": ""}},
         {"name": "cc_m", "section": "compilers", "ci_tests": ["//p:m1"], "consumer_tests": [],
@@ -115,6 +116,29 @@ fn skipped_probe_is_not_passed() {
     passed(dir.path(), "//p:a1");
     let lines = run(dir.path());
     assert_eq!(row(&lines, "cc_a")["outcome"], "skipped");
+}
+
+#[test]
+fn platform_probe_replaces_the_probe_on_its_platform() {
+    let dir = scratch("compiler_evidence");
+    passed(dir.path(), "//p:probe_a_arm64");
+    passed(dir.path(), "//p:a1");
+    let lines = run_on(dir.path(), &mut Command::new("bash"), "linux_arm64");
+    let a = row(&lines, "cc_a");
+    assert_eq!(a["probe"], "//p:probe_a_arm64");
+    assert_eq!(a["probe_outcome"], "passed");
+    assert_eq!(a["outcome"], "passed");
+}
+
+#[test]
+fn other_platforms_keep_the_default_probe() {
+    let dir = scratch("compiler_evidence");
+    passed(dir.path(), "//p:probe_a_arm64");
+    passed(dir.path(), "//p:a1");
+    let lines = run(dir.path());
+    let a = row(&lines, "cc_a");
+    assert_eq!(a["probe"], "//p:probe_a");
+    assert_eq!(a["outcome"], "skipped");
 }
 
 #[test]

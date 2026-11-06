@@ -88,14 +88,14 @@ fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
     let rows: Vec<Vec<String>> = rows_in(facts, "compilers")
         .into_iter()
         .map(|row| {
-            let field = |key: &str| match row.identity.get(key).map(String::as_str) {
-                Some("") | None => "no".to_owned(),
-                Some(value) => value.to_owned(),
+            let field = |value: &str| match value {
+                "" => "no".to_owned(),
+                value => value.to_owned(),
             };
             vec![
                 row.title.clone(),
-                field("driver"),
-                field("coverage"),
+                field(&row.identity.driver),
+                field(&row.identity.coverage),
                 unsupported_cell(facts, platforms, row),
                 blocked_cell(facts, row),
             ]

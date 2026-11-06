@@ -529,12 +529,7 @@ jobs:
           [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
           export DX_BIN DX_TESTLOGS DX_PRODUCERS
           facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
-          if [ "$PLATFORM" = linux_arm64 ]; then
-            # identity_gcc only runs on x86_64; the native ARM64 probe reports aarch64-linux-gnu.
-            jq '(.rows[] | select(.identity.probe == "//cc/toolchains:identity_gcc") | .identity.probe) = "//cc/toolchains:identity_gcc_arm64_native"' "$facts" > "$RUNNER_TEMP/facts-arm64.json"
-            facts="$RUNNER_TEMP/facts-arm64.json"
-          fi
-          targets="$(jq -r '.rows[] | select(.section == "compilers") | .identity.probe, .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ')"
+          targets="$(jq -r --arg platform "$PLATFORM" '.rows[] | select(.section == "compilers") | (.identity.platform_probes[$platform] // .identity.probe), .ci_tests[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ')"
           # shellcheck disable=SC2086
           bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets || true
           # shellcheck disable=SC2086

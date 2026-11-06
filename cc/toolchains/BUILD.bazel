@@ -43,6 +43,15 @@ cc_toolchain_identity_subject(
 )
 
 cc_toolchain_identity_subject(
+    name = "identity_under_test_msvc_arm64_native",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
+)
+
+cc_toolchain_identity_subject(
     name = "identity_under_test_msvc_arm64",
     compiler = "msvc",
     platforms = ["//cc/tests/msvc_cross:windows_arm64"],

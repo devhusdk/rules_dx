@@ -475,14 +475,16 @@ NOT_LANGUAGES = [
 PENDING_COMPILERS = {}
 
 # A compiler row and platform that the row targets but whose evidence is still waiting on something, with the reason.
-COMPILER_BLOCKERS = {
-    "cc_msvc": {
-        "windows_arm64": "native cl.exe ARM64 execution not yet confirmed on a Windows arm64 runner",
-    },
-}
+COMPILER_BLOCKERS = {}
 
 # The identity test of each compiler that has one.
 COMPILER_PROBES = {"gcc": "//cc/toolchains:identity_gcc", "llvm": "//cc/toolchains:identity", "msvc": "//cc/toolchains:identity_msvc"}
+
+# The identity test of a compiler on a platform where its COMPILER_PROBES test does not run.
+COMPILER_PLATFORM_PROBES = {
+    "gcc": {"linux_arm64": "//cc/toolchains:identity_gcc_arm64_native"},
+    "msvc": {"windows_arm64": "//cc/toolchains:identity_msvc_arm64_native"},
+}
 
 # The unsupported constraint_value of each row that declares one, written to cli/cli/src/exec/unsupported.json.
 UNSUPPORTED_CONSTRAINTS = {

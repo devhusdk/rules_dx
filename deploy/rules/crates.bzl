@@ -102,7 +102,7 @@ _crates_config = rule(
     },
 )
 
-def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compat = "fail", api_baseline = "registry", sbom = None):
+def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compat = "fail", api_baseline = "registry", tags = [], sbom = None):
     """Publishes staged crate sources as a local-first crates.io deployment.
 
     api_compat runs cargo-semver-checks against the last release (off, warn,
@@ -126,11 +126,13 @@ def crates_deploy(name, crate, version = "0.0.0", profile = "release", api_compa
         version = version,
         api_compat = api_compat,
         api_baseline = api_baseline,
+        tags = tags,
     )
 
     dx_deployment(
         name = name,
         sbom = sbom,
+        tags = tags,
         config = ":" + config_target,
         deploy = DEPLOY_TOOL,
         profile = profile,

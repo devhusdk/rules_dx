@@ -5,6 +5,10 @@ cc_library(
     srcs = ["src/format.cc"],
     hdrs = glob(["include/fmt/*.h"]),
     copts = ["-std=c++17"],
+    defines = select({
+        "@platforms//os:windows": ["FMT_UNICODE=0"],
+        "//conditions:default": [],
+    }),
     features = ["-treat_warnings_as_errors"],
     includes = ["include"],
     visibility = ["//visibility:public"],

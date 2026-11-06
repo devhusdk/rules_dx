@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-const ENTRIES: [&str; 14] = [
+const ENTRIES: [&str; 17] = [
     "setups",
     "current",
     "environments",
@@ -11,6 +11,9 @@ const ENTRIES: [&str; 14] = [
     "explain",
     "docs",
     "profile",
+    "timings",
+    "bench",
+    "advisory",
     "fuzz",
     "ide",
     "launcher",

@@ -1061,7 +1061,6 @@ pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
     approved: "OCI_PUBLISH_APPROVED",
-    live: "OCI_PUBLISH_LIVE",
 };
 
 /// Runs the OCI deploy tool.

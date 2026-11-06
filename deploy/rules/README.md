@@ -6,7 +6,7 @@ validates and prints what would be published, and contacts no registry.
 `<X>_APPROVED=1` and credentials, which dx never sets: a human sets them in
 the shell, CI sets them in `reusable-release.yml`. In an agent session
 `--apply` is refused unless `CI=true`. A plain `bazel run` of a launcher
-publishes only with `<X>_LIVE=1`.
+publishes only with `DX_DEPLOY_LIVE=1`.
 
 `size_budget` is optional, such as `25MB` (decimal `B`, `KB`, `MB` or `GB`).
 Building the deployment fails when its `artifacts` together are larger, and

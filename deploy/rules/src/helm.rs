@@ -32,7 +32,6 @@ pub(crate) const HELM_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
     approved: "OCI_PUBLISH_APPROVED",
-    live: "OCI_PUBLISH_LIVE",
 };
 
 fn chart_yaml_value(text: &str, key: &str) -> Option<String> {
@@ -410,10 +409,10 @@ mod tests {
     fn live_push_needs_the_oci_gate() {
         let fx = fixture(CHART);
         let helm = fake_helm(fx.dir.path(), 0);
-        assert_eq!(run(&fx, &helm, "1.2.3", &[("OCI_PUBLISH_LIVE", "1")]), 1);
+        assert_eq!(run(&fx, &helm, "1.2.3", &[("DX_DEPLOY_LIVE", "1")]), 1);
         assert_eq!(calls(&fx), "");
         let live = [
-            ("OCI_PUBLISH_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("OCI_PUBLISH_APPROVED", "1"),
             ("OCI_REGISTRY_USER", "bot"),
             ("OCI_REGISTRY_TOKEN", "s3cret"),
@@ -434,7 +433,7 @@ mod tests {
         let fx = fixture("name: demo\nversion: 0.0.0\n");
         let helm = fake_helm(fx.dir.path(), 0);
         let live = [
-            ("OCI_PUBLISH_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("OCI_PUBLISH_APPROVED", "1"),
             ("OCI_REGISTRY_USER", "bot"),
             ("OCI_REGISTRY_TOKEN", "t"),

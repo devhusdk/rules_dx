@@ -299,15 +299,13 @@ mod tests {
             }
             for value in ["", "0", "true", "yes", " 1", "1 "] {
                 let mut env = base.clone();
-                env.insert(gate.live, value);
+                env.insert("DX_DEPLOY_LIVE", value);
                 assert!(!gate.requested(|key| lookup(&env, key)), "{value:?}");
             }
             let mut env = base.clone();
-            env.insert(gate.live, "1");
+            env.insert("DX_DEPLOY_LIVE", "1");
             assert!(gate.requested(|key| lookup(&env, key)), "{}", gate.tool);
         }
-        let lives: std::collections::BTreeSet<&str> = gates.iter().map(|gate| gate.live).collect();
-        assert_eq!(lives.len(), gates.len());
     }
 
     #[test]
@@ -328,7 +326,7 @@ mod tests {
                     Some(outdir.join("runfiles").to_string_lossy().as_ref()),
                 ),
                 ("RUNFILES_MANIFEST_FILE", None),
-                ("PYPI_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("PYPI_API_TOKEN", Some("")),
                 ("PYPI_PUBLISH_APPROVED", Some("1")),
             ],
@@ -342,7 +340,7 @@ mod tests {
         );
         with_env(
             &[
-                ("NUGET_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("NUGET_PUBLISH_APPROVED", Some("1")),
             ],
             || {
@@ -354,7 +352,7 @@ mod tests {
         );
         with_env(
             &[
-                ("GH_RELEASE_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("GH_RELEASE_APPROVED", Some("1")),
             ],
             || {
@@ -366,7 +364,7 @@ mod tests {
         );
         with_env(
             &[
-                ("MAVEN_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("MAVEN_PUBLISH_APPROVED", Some("1")),
             ],
             || {
@@ -391,7 +389,7 @@ mod tests {
         );
         with_env(
             &[
-                ("OCI_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("OCI_PUBLISH_APPROVED", Some("1")),
             ],
             || {
@@ -411,7 +409,7 @@ mod tests {
         );
         with_env(
             &[
-                ("CRATES_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("CRATES_PUBLISH_APPROVED", Some("1")),
             ],
             || {
@@ -430,7 +428,7 @@ mod tests {
                     Some(crates_runfiles.to_string_lossy().as_ref()),
                 ),
                 ("RUNFILES_MANIFEST_FILE", None),
-                ("CRATES_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("CRATES_ALLOW_DIRTY", Some("1")),
                 ("CRATES_PUBLISH_APPROVED", None),
                 ("CARGO_REGISTRY_TOKEN", None),
@@ -455,7 +453,7 @@ mod tests {
                     Some(outdir.join("runfiles").to_string_lossy().as_ref()),
                 ),
                 ("RUNFILES_MANIFEST_FILE", None),
-                ("NPM_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("NPM_PUBLISH_APPROVED", Some("1")),
                 ("NPM_TOKEN", None),
                 ("NPM_PUBLISH_DRY_RUN", None),
@@ -466,7 +464,7 @@ mod tests {
         );
         with_env(
             &[
-                ("PROMOTION_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("PROMOTION_APPROVED", Some("1")),
             ],
             || {
@@ -594,13 +592,7 @@ mod tests {
                 ("RUNFILES_MANIFEST_FILE", None),
                 ("DX_BUILD_MODE", Some("dx_dev")),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
-                ("PYPI_PUBLISH_LIVE", None),
-                ("NUGET_PUBLISH_LIVE", None),
-                ("CRATES_PUBLISH_LIVE", None),
-                ("GH_RELEASE_LIVE", None),
-                ("MAVEN_PUBLISH_LIVE", None),
-                ("OCI_PUBLISH_LIVE", None),
-                ("OCTOPUS_PUBLISH_LIVE", None),
+                ("DX_DEPLOY_LIVE", None),
             ],
             || {
                 assert_eq!(
@@ -716,7 +708,7 @@ mod tests {
                     "BUILD_WORKING_DIRECTORY",
                     Some(invocation.to_string_lossy().as_ref()),
                 ),
-                ("GH_RELEASE_LIVE", None),
+                ("DX_DEPLOY_LIVE", None),
             ],
             || {
                 assert_eq!(
@@ -769,7 +761,7 @@ mod tests {
                         Some(workspace.to_string_lossy().as_ref()),
                     ),
                     ("GH_REPO", None),
-                    ("GH_RELEASE_LIVE", Some("1")),
+                    ("DX_DEPLOY_LIVE", Some("1")),
                     ("GH_RELEASE_APPROVED", Some("1")),
                     ("GH_TOKEN", Some("gh-sekret")),
                     ("DX_LEAK_PROBE", Some("1")),

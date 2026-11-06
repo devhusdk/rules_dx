@@ -97,7 +97,6 @@ pub(crate) const CRATES_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["CARGO_REGISTRY_TOKEN"],
     approved: "CRATES_PUBLISH_APPROVED",
-    live: "CRATES_PUBLISH_LIVE",
 };
 
 /// Extra env names cargo keeps beyond the publish base list.

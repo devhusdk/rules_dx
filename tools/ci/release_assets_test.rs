@@ -167,7 +167,7 @@ fn only_the_attest_job_can_write_ids_and_only_the_assets_job_can_write_contents(
 fn the_missing_release_hint_points_to_the_runbook() {
     assert!(workflow().contains("Create the draft first (see RELEASING.md)"));
     let runbook = read_runfiles("RELEASING.md");
-    assert!(runbook.contains("GH_RELEASE_LIVE=1 GH_RELEASE_APPROVED=1"));
+    assert!(runbook.contains("GH_RELEASE_APPROVED=1 tools/dx deploy --apply"));
 }
 
 #[test]

@@ -14,11 +14,9 @@ pub(crate) struct OwnerGate {
     pub(crate) credentials: &'static [&'static str],
     /// Env var that must be exactly 1.
     pub(crate) approved: &'static str,
-    /// Env var that asks for the live path when exactly 1.
-    pub(crate) live: &'static str,
 }
 
-/// Set by dx deploy: 1 publishes, 0 is the dry run; overrides the launcher's own live var.
+/// Set by dx deploy: 1 publishes, anything else is the dry run.
 pub(crate) const DEPLOY_LIVE_ENV: &str = "DX_DEPLOY_LIVE";
 
 /// Reads an env var, empty when unset.
@@ -48,14 +46,9 @@ impl Secrets {
 }
 
 impl OwnerGate {
-    /// True when the live path is requested: DX_DEPLOY_LIVE when set, else the live var, exactly 1.
+    /// True when the live path is requested (DX_DEPLOY_LIVE is exactly 1).
     pub(crate) fn requested(&self, var: impl Fn(&str) -> String) -> bool {
-        let deploy = var(DEPLOY_LIVE_ENV);
-        if deploy.is_empty() {
-            var(self.live) == "1"
-        } else {
-            deploy == "1"
-        }
+        var(DEPLOY_LIVE_ENV) == "1"
     }
 
     /// Returns the refusal message, or None when credentials and approval are present.
@@ -486,7 +479,6 @@ mod tests {
         action: "publish",
         credentials: &["TEST_USER", "TEST_TOKEN"],
         approved: "TEST_APPROVED",
-        live: "TEST_LIVE",
     };
 
     fn lookup<'a>(vars: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> String + 'a {
@@ -533,10 +525,10 @@ mod tests {
 
     #[test]
     fn requested_is_true_only_for_exact_one() {
-        assert!(TEST_GATE.requested(lookup(&[("TEST_LIVE", "1")])));
+        assert!(TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "1")])));
         for value in ["", "0", "true", "yes", " 1", "1 ", "01"] {
             assert!(
-                !TEST_GATE.requested(lookup(&[("TEST_LIVE", value)])),
+                !TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", value)])),
                 "{value:?}"
             );
         }
@@ -544,11 +536,9 @@ mod tests {
     }
 
     #[test]
-    fn dx_deploy_live_overrides_the_launcher_live_var() {
+    fn launcher_live_var_is_ignored() {
+        assert!(!TEST_GATE.requested(lookup(&[("TEST_LIVE", "1")])));
         assert!(!TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "0"), ("TEST_LIVE", "1")])));
-        assert!(TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "1")])));
-        assert!(TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "1"), ("TEST_LIVE", "0")])));
-        assert!(!TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "true")])));
     }
 
     #[test]

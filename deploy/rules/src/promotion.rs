@@ -280,7 +280,6 @@ pub(crate) const PROMOTION_GATE: OwnerGate = OwnerGate {
     action: "promote",
     credentials: &[],
     approved: "PROMOTION_APPROVED",
-    live: "PROMOTION_LIVE",
 };
 
 /// Runs the promotion deploy tool.
@@ -644,7 +643,7 @@ mod tests {
                     ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
                     ("RUNFILES_MANIFEST_FILE", None),
                     ("BUILD_WORKSPACE_DIRECTORY", None),
-                    ("PROMOTION_LIVE", Some("1")),
+                    ("DX_DEPLOY_LIVE", Some("1")),
                     ("PROMOTION_APPROVED", Some("1")),
                     ("PROMOTION_REQUIRE_HEALTH", require),
                     ("PROMOTION_HEALTH_CMD", Some("dx_fake_health")),

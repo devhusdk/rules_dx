@@ -297,7 +297,6 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
     action: "upload",
     credentials: &["PYPI_API_TOKEN"],
     approved: "PYPI_PUBLISH_APPROVED",
-    live: "PYPI_PUBLISH_LIVE",
 };
 
 /// Extra env names twine keeps beyond the publish base list.

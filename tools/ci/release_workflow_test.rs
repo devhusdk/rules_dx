@@ -5,7 +5,7 @@ use dx_testing::{read_runfiles, resolve_runfiles};
 
 const WORKFLOW: &str = ".github/workflows/reusable-release.yml";
 
-/// Returns every gate env var name of one `OwnerGate` field (`approved` or `live`) in deploy/rules/src.
+/// Returns every gate env var name of one `OwnerGate` field (`approved`) in deploy/rules/src.
 fn gate_names(field: &str) -> Vec<String> {
     let run = resolve_runfiles("deploy/rules/src/run.rs");
     let dir = run.parent().expect("run.rs has a directory");
@@ -47,7 +47,6 @@ fn gate_names_are_found() {
     let names = gate_names("approved");
     assert!(names.len() >= 15, "found too few gates: {names:?}");
     assert!(names.contains(&"PUB_PUBLISH_APPROVED".to_owned()));
-    assert!(gate_names("live").contains(&"PUB_PUBLISH_LIVE".to_owned()));
 }
 
 #[test]
@@ -62,12 +61,10 @@ fn publish_step_exports_only_the_approval_gates() {
             "the release job does not export {name}"
         );
     }
-    for name in gate_names("live") {
-        assert!(
-            !words.contains(&name.as_str()),
-            "the release job exports {name}; dx deploy --apply asks for the live path"
-        );
-    }
+    assert!(
+        !words.contains(&"DX_DEPLOY_LIVE"),
+        "the release job exports DX_DEPLOY_LIVE; dx deploy --apply sets it"
+    );
 }
 
 #[test]

@@ -14,7 +14,6 @@ pub(crate) const LUAROCKS_GATE: OwnerGate = OwnerGate {
     action: "upload",
     credentials: &["LUAROCKS_API_KEY"],
     approved: "LUAROCKS_PUBLISH_APPROVED",
-    live: "LUAROCKS_PUBLISH_LIVE",
 };
 
 /// Extra env names `luarocks` needs to find its config and Lua install.
@@ -279,7 +278,7 @@ mod tests {
                 &[
                     ("RUNFILES_DIR", Some(runfiles_dir.as_str())),
                     ("RUNFILES_MANIFEST_FILE", None),
-                    ("LUAROCKS_PUBLISH_LIVE", live),
+                    ("DX_DEPLOY_LIVE", live),
                     ("LUAROCKS_PUBLISH_APPROVED", None),
                     ("LUAROCKS_API_KEY", None),
                 ],

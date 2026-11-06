@@ -15,7 +15,6 @@ pub(crate) const HACKAGE_GATE: OwnerGate = OwnerGate {
     action: "upload",
     credentials: &["HACKAGE_API_TOKEN"],
     approved: "HACKAGE_PUBLISH_APPROVED",
-    live: "HACKAGE_PUBLISH_LIVE",
 };
 
 /// Extra env names `cabal` needs to find its config and package caches.
@@ -327,7 +326,7 @@ mod tests {
                 &[
                     ("RUNFILES_DIR", Some(runfiles_dir.as_str())),
                     ("RUNFILES_MANIFEST_FILE", None),
-                    ("HACKAGE_PUBLISH_LIVE", live),
+                    ("DX_DEPLOY_LIVE", live),
                     ("HACKAGE_PUBLISH_APPROVED", None),
                     ("HACKAGE_API_TOKEN", None),
                 ],

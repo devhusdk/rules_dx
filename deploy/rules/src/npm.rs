@@ -406,7 +406,6 @@ pub(crate) const NPM_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["NPM_TOKEN"],
     approved: "NPM_PUBLISH_APPROVED",
-    live: "NPM_PUBLISH_LIVE",
 };
 
 /// Returns the declaration lines of an api-extractor report; comments, fences and headings are dropped.
@@ -1556,7 +1555,7 @@ mod tests {
                 ("RUNFILES_MANIFEST_FILE", None),
                 ("DX_BUILD_MODE", Some("dx_dev")),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
-                ("NPM_PUBLISH_LIVE", None),
+                ("DX_DEPLOY_LIVE", None),
                 ("NPM_PUBLISH_APPROVED", None),
             ],
             || {
@@ -1772,7 +1771,7 @@ mod tests {
                     ("RUNFILES_MANIFEST_FILE", None),
                     ("BUILD_WORKSPACE_DIRECTORY", None),
                     ("PATH", Some(path.as_str())),
-                    ("NPM_PUBLISH_LIVE", Some("1")),
+                    ("DX_DEPLOY_LIVE", Some("1")),
                     ("NPM_PUBLISH_DRY_RUN", None),
                     ("NPM_TOKEN", Some("sekret")),
                     ("NPM_PUBLISH_APPROVED", approved),
@@ -1811,7 +1810,7 @@ mod tests {
                 ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
                 ("RUNFILES_MANIFEST_FILE", None),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
-                ("NPM_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("NPM_TOKEN", Some("tok")),
                 ("NPM_PUBLISH_APPROVED", Some("1")),
                 ("ACTIONS_ID_TOKEN_REQUEST_URL", None),

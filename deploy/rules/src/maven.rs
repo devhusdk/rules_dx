@@ -593,7 +593,6 @@ pub(crate) const MAVEN_GATE: OwnerGate = OwnerGate {
     action: "staging",
     credentials: &["MAVEN_USERNAME", "MAVEN_PASSWORD"],
     approved: "MAVEN_PUBLISH_APPROVED",
-    live: "MAVEN_PUBLISH_LIVE",
 };
 
 /// Credentials and signing state for one live Maven upload.
@@ -1629,7 +1628,7 @@ pub(crate) mod tests {
         let jar = std::env::var("MAVEN_DEMO_JAR").expect("jar rloc");
         let pom = std::env::var("MAVEN_DEMO_POM").expect("pom rloc");
         let cleared = [
-            "MAVEN_PUBLISH_LIVE",
+            "DX_DEPLOY_LIVE",
             "MAVEN_PUBLISH_APPROVED",
             "MAVEN_USERNAME",
             "MAVEN_PASSWORD",

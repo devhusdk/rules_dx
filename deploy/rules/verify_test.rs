@@ -170,7 +170,7 @@ fn cloudflare_case() {
     let production = data("DX_CLOUDFLARE_PRODUCTION_PROG");
     let token = "dx-test-token-123";
     let env = [
-        ("CLOUDFLARE_PAGES_LIVE", "1"),
+        ("DX_DEPLOY_LIVE", "1"),
         ("CLOUDFLARE_PAGES_APPROVED", "1"),
         ("CLOUDFLARE_API_TOKEN", token),
         ("AMBIENT_SECRET", "ambient"),
@@ -200,7 +200,7 @@ fn cloudflare_case() {
         "DX_CLOUDFLARE_PRODUCTION_CONFIG",
         &[],
         &[
-            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("CLOUDFLARE_PAGES_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", token),
         ],
@@ -217,7 +217,7 @@ fn cloudflare_case() {
         "DX_CLOUDFLARE_DEFAULT_CONFIG",
         &[],
         &[
-            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("CLOUDFLARE_PAGES_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", "bogus-token"),
         ],
@@ -237,7 +237,7 @@ fn cloudflare_case() {
         "DX_CLOUDFLARE_CONFIG",
         &[],
         &[
-            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("CLOUDFLARE_PAGES_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", ""),
         ],
@@ -255,7 +255,7 @@ fn cloudflare_case() {
         "DX_CLOUDFLARE_CONFIG",
         &[],
         &[
-            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("CLOUDFLARE_PAGES_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", "bad-token"),
         ],
@@ -295,7 +295,7 @@ fn cloudflare_case() {
         "DX_CLOUDFLARE_CONFIG",
         &[],
         &[
-            ("CLOUDFLARE_PAGES_LIVE", "1"),
+            ("DX_DEPLOY_LIVE", "1"),
             ("CLOUDFLARE_API_TOKEN", token),
         ],
     )

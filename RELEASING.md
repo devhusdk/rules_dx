@@ -26,10 +26,10 @@ The tag must name the commit you want to release. The `source` job fails if it d
 ## 3. Create the draft
 
 ```
-GH_RELEASE_LIVE=1 GH_RELEASE_APPROVED=1 bazel run //cli/cli:github_draft -- vX.Y.Z
+GH_RELEASE_APPROVED=1 tools/dx deploy --apply //cli/cli:github_draft -- vX.Y.Z
 ```
 
-This creates a draft with release notes only. It carries no binaries. It needs `gh` on `PATH` and logged in, and the tag on GitHub. Without both variables it stages a dry run and publishes nothing.
+This creates a draft with release notes only. It carries no binaries. It needs `gh` on `PATH` and logged in, and the tag on GitHub. Without `--apply` and the approval variable it stages a dry run and publishes nothing.
 
 ## 4. Run the release workflow
 

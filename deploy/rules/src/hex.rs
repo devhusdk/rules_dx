@@ -14,7 +14,6 @@ pub(crate) const HEX_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["HEX_API_KEY"],
     approved: "HEX_PUBLISH_APPROVED",
-    live: "HEX_PUBLISH_LIVE",
 };
 
 /// Extra env names mix and rebar3 keep beyond the publish base list.

@@ -141,7 +141,6 @@ pub(crate) const OCTOPUS_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCTOPUS_API_KEY"],
     approved: "OCTOPUS_PUBLISH_APPROVED",
-    live: "OCTOPUS_PUBLISH_LIVE",
 };
 
 /// Runs one octo step with the key in env only; true on success.

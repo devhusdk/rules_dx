@@ -239,7 +239,6 @@ pub(crate) const NUGET_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["NUGET_API_KEY"],
     approved: "NUGET_PUBLISH_APPROVED",
-    live: "NUGET_PUBLISH_LIVE",
 };
 
 /// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
@@ -427,12 +426,12 @@ mod tests {
             ("RUNFILES_MANIFEST_FILE", None),
             ("NUGET_API_KEY", None),
             ("NUGET_PUBLISH_APPROVED", None),
-            ("NUGET_PUBLISH_LIVE", None),
+            ("DX_DEPLOY_LIVE", None),
         ];
         if live {
             vars[2] = ("NUGET_API_KEY", Some("secret-token"));
             vars[3] = ("NUGET_PUBLISH_APPROVED", Some("1"));
-            vars[4] = ("NUGET_PUBLISH_LIVE", Some("1"));
+            vars[4] = ("DX_DEPLOY_LIVE", Some("1"));
         }
         with_env(&vars, f)
     }

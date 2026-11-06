@@ -15,7 +15,6 @@ pub(crate) const RUBYGEMS_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["RUBYGEMS_API_TOKEN"],
     approved: "RUBYGEMS_PUBLISH_APPROVED",
-    live: "RUBYGEMS_PUBLISH_LIVE",
 };
 
 /// Extra env names gem keeps beyond the publish base list.

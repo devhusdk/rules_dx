@@ -17,7 +17,6 @@ pub(crate) const HOMEBREW_TAP_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["HOMEBREW_TAP_API_TOKEN"],
     approved: "HOMEBREW_TAP_PUBLISH_APPROVED",
-    live: "HOMEBREW_TAP_PUBLISH_LIVE",
 };
 
 /// Env names `gh` keeps besides the token the gate read.
@@ -529,7 +528,7 @@ end
                 ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
                 ("RUNFILES_MANIFEST_FILE", None),
                 ("PATH", Some(bin.to_string_lossy().as_ref())),
-                ("HOMEBREW_TAP_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
                 ("HOMEBREW_TAP_PUBLISH_APPROVED", Some("1")),
                 ("HOMEBREW_TAP_API_TOKEN", Some("tok")),
             ],
@@ -572,7 +571,7 @@ end
             &[
                 ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
                 ("RUNFILES_MANIFEST_FILE", None),
-                ("HOMEBREW_TAP_PUBLISH_LIVE", None),
+                ("DX_DEPLOY_LIVE", None),
             ],
             || homebrew_tap_main(&launch(), &argv),
         );

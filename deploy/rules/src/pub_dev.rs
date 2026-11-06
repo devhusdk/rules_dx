@@ -21,7 +21,6 @@ pub(crate) const PUB_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["PUB_TOKEN"],
     approved: "PUB_PUBLISH_APPROVED",
-    live: "PUB_PUBLISH_LIVE",
 };
 
 /// Extra env names dart and flutter keep beyond the publish base list.
@@ -398,13 +397,13 @@ mod tests {
             ("RUNFILES_MANIFEST_FILE", None),
             ("PUB_TOKEN", None),
             ("PUB_PUBLISH_APPROVED", None),
-            ("PUB_PUBLISH_LIVE", None),
+            ("DX_DEPLOY_LIVE", None),
             ("PATH", Some("")),
         ];
         if live {
             vars[2] = ("PUB_TOKEN", Some("secret-token"));
             vars[3] = ("PUB_PUBLISH_APPROVED", Some("1"));
-            vars[4] = ("PUB_PUBLISH_LIVE", Some("1"));
+            vars[4] = ("DX_DEPLOY_LIVE", Some("1"));
         }
         with_env(&vars, f)
     }
@@ -481,7 +480,7 @@ mod tests {
                 ("RUNFILES_DIR", None),
                 ("PUB_TOKEN", None),
                 ("PUB_PUBLISH_APPROVED", None),
-                ("PUB_PUBLISH_LIVE", Some("1")),
+                ("DX_DEPLOY_LIVE", Some("1")),
             ],
             || {
                 assert_eq!(

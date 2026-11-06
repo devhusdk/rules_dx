@@ -430,7 +430,6 @@ const CLOUDFLARE_GATE: OwnerGate = OwnerGate {
     action: "upload",
     credentials: &["CLOUDFLARE_API_TOKEN"],
     approved: "CLOUDFLARE_PAGES_APPROVED",
-    live: "CLOUDFLARE_PAGES_LIVE",
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -1212,7 +1211,7 @@ exit 7
     fn main_live_without_approval_refuses() {
         let (code, out, err, uploaded) = run_gated(
             &[
-                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("DX_DEPLOY_LIVE", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
             ],
             &SITE,
@@ -1227,7 +1226,7 @@ exit 7
     fn main_live_without_token_refuses() {
         let (code, out, err, uploaded) = run_gated(
             &[
-                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("DX_DEPLOY_LIVE", "1"),
                 ("CLOUDFLARE_PAGES_APPROVED", "1"),
             ],
             &SITE,
@@ -1245,7 +1244,7 @@ exit 7
     fn main_live_needs_exactly_one() {
         let (code, out, err, uploaded) = run_gated(
             &[
-                ("CLOUDFLARE_PAGES_LIVE", "true"),
+                ("DX_DEPLOY_LIVE", "true"),
                 ("CLOUDFLARE_PAGES_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
             ],
@@ -1320,7 +1319,7 @@ exit 7
         let (code, out, err) = run_main(
             &["prog"],
             &[
-                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("DX_DEPLOY_LIVE", "1"),
                 ("CLOUDFLARE_PAGES_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
                 ("CLOUDFLARE_ACCOUNT_ID", ACCOUNT),
@@ -1350,7 +1349,7 @@ exit 7
         let (code, out, err) = run_main(
             &["prog"],
             &[
-                ("CLOUDFLARE_PAGES_LIVE", "1"),
+                ("DX_DEPLOY_LIVE", "1"),
                 ("CLOUDFLARE_PAGES_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
                 ("PATH", "/usr/bin:/bin"),

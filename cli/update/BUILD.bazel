@@ -12,6 +12,7 @@ dx_rust_crate(
     name = "dx_update",
     package_name = "cli/dx_update",
     srcs = [
+        "src/accept.rs",
         "src/backend.rs",
         "src/discover/bcr.rs",
         "src/discover/cabal.rs",

@@ -13,8 +13,8 @@ tools/dx security --report sarif=security.sarif quality/tools/python
 ```
 
 ```text
-dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error|uncovered] [--report sarif=<dest>] [scope...]
-dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [scope...]
+dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error|uncovered] [--report sarif=<dest>] [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [scope...]
+dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [scope...]
 ```
 
 | Flag | What it does |
@@ -128,6 +128,17 @@ text_present = true
 - `MIT`, `Apache-2.0`, `BSD-2-Clause` and `BSD-3-Clause` also need their text, or the finding is `license/missing-notice-text`.
 - `[[inventory]]` needs `package`, `set`, `license`, `versions`. `text_present` says the text ships with the package. `text = "<workspace-relative path>"` names a vendored file, implies `text_present`, and must be a `/`-separated path with no leading `/` or `\` and no empty, `.` or `..` parts. Inventory overrides licenses read from `cargo-bazel-lock.json` and `package-lock.json`. For other sets it is the only source; a package with no entry is `UNKNOWN`.
 - `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`, `expires`. It covers a finding when `package`, `set` and `license` match. Expiry and unmatched rules are as for `security.toml`.
+
+### Accepting a finding
+
+`--accept` runs the audit and appends an `[[exception]]` to `security.toml` (or `licenses.toml`) for each finding it names, instead of reporting the findings. `--reason` and `--expires` are required with it. The entry gets `versions = "=<installed version>"`. `--accept uncovered:<set>` appends an `[[uncovered]]` entry. The edit keeps comments and order; a missing file is created with the `#:schema` line and `schema_version = 1`.
+
+```sh
+tools/dx security --accept GHSA-aaaa-bbbb-cccc:some-package --reason "Reviewed; no reachable code path." --expires 2027-03-01
+tools/dx license --accept some-package --reason "Reviewed by legal." --expires 2027-03-01
+```
+
+An `--accept` that matches no finding fails and leaves the file unchanged. An entry that is already there is not added again.
 
 Add `#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json` (or `licenses.schema.json`) at the top of the file for editor checks.
 

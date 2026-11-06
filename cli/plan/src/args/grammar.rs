@@ -177,6 +177,8 @@ pub(crate) struct Flags {
     pub(crate) max_prs: Option<u16>,
     pub(crate) floor: bool,
     pub(crate) reason: Option<String>,
+    pub(crate) accept: Vec<String>,
+    pub(crate) expires: Option<String>,
     pub(crate) cases: bool,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
@@ -833,6 +835,39 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Append an exception for a finding (needs --reason and --expires).
+    AcceptFlag, {
+        #[arg(long, value_name = "FINDING", action = clap::ArgAction::Append, value_parser = non_empty)]
+        accept: Vec<String>,
+    }
+}
+
+flag_group! {
+    /// Why the accepted finding is allowed (needs --accept).
+    AcceptReasonFlag, {
+        #[arg(long, value_name = "TEXT", overrides_with = "reason", value_parser = non_empty)]
+        reason: Option<String>,
+    }
+}
+
+flag_group! {
+    /// The date the accepted finding must be reviewed again, YYYY-MM-DD (needs --accept).
+    ExpiresFlag, {
+        #[arg(long, value_name = "YYYY-MM-DD", overrides_with = "expires", value_parser = non_empty)]
+        expires: Option<String>,
+    }
+}
+
+composite_group! {
+    /// The flags that accept a finding.
+    AcceptArgs, {
+        accept: AcceptFlag,
+        reason: AcceptReasonFlag,
+        expires: ExpiresFlag,
+    }
+}
+
 composite_group! {
     /// The floor flags.
     FloorArgs, {
@@ -1157,6 +1192,7 @@ command_args! {
         offline: OfflineFlag,
         frozen: FrozenFlag,
         fail_on: SecurityFailOnFlag,
+        accept: AcceptArgs,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1167,6 +1203,7 @@ command_args! {
         offline: OfflineFlag,
         frozen: FrozenFlag,
         fail_on: FailOnFlag,
+        accept: AcceptArgs,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

@@ -297,6 +297,72 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
+    fn accept_writes_an_exception_that_covers_the_finding_and_is_a_no_op_twice() {
+        let harness = consumer_harness("accept", UV_MODULE, true);
+        harness.write_source(
+            "apps/frontend/uv.lock",
+            &lock_with(&registry_package("django", "3.2.0")),
+        );
+        write_advisory(&harness, "pypi", DJANGO_ADVISORY);
+        let before = "# keep this comment\nschema_version = 1\n";
+        harness.write_source("security.toml", before);
+        let runner = clean_runner();
+        let accept = [
+            "security",
+            "--output=json",
+            "pypi-frontend",
+            "--accept",
+            "PYSEC-2021-0001:Django",
+            "--reason",
+            "reviewed",
+            "--expires",
+            "2999-01-01",
+        ];
+        let (code, out, err) = run_with(&accept, &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let written = std::fs::read_to_string(harness.workspace.join("security.toml"))
+            .expect("security.toml");
+        assert!(written.starts_with(before), "{written}");
+        assert!(written.contains("versions = \"=3.2.0\""), "{written}");
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "pypi-frontend"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/PYSEC"), "{out}");
+        let (code, out, err) = run_with(&accept, &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let again = std::fs::read_to_string(harness.workspace.join("security.toml"))
+            .expect("security.toml");
+        assert_eq!(again, written);
+    }
+
+    #[test]
+    fn accept_that_matches_no_finding_fails_and_leaves_the_file_alone() {
+        let harness = consumer_harness("accept-none", UV_MODULE, true);
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &[
+                "security",
+                "--output=json",
+                "pypi-frontend",
+                "--accept",
+                "PYSEC-2021-0001",
+                "--reason",
+                "reviewed",
+                "--expires",
+                "2999-01-01",
+            ],
+            &runner,
+            &harness,
+        );
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(!harness.workspace.join("security.toml").exists());
+    }
+
+    #[test]
     fn consumer_name_and_scope_select_the_same_set() {
         let harness = consumer_harness("select", UV_MODULE, true);
         write_advisory(&harness, "pypi", NO_ADVISORIES);

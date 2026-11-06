@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod accept;
 pub mod backend;
 pub mod discover;
 pub mod edit;

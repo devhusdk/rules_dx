@@ -802,6 +802,8 @@ struct SecurityResult {
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
     code: &'static str,
+    candidates: Vec<VulnCandidate>,
+    uncovered_sets: Vec<String>,
 }
 
 struct LicenseResult {
@@ -810,6 +812,7 @@ struct LicenseResult {
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
     code: &'static str,
+    candidates: Vec<LicenseCandidate>,
 }
 
 /// Returns the pinned Gitleaks path from the environment, else from Bazel.
@@ -1211,6 +1214,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     );
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
+    let mut candidates: Vec<VulnCandidate> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
     let mut incomplete_code = CODE_AUDIT_FAILED;
     let policy = match load_security_policy(workspace) {
@@ -1225,6 +1229,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 diagnostics,
                 detail: error.to_string(),
                 code: error.code(),
+                candidates: Vec::new(),
+                uncovered_sets: Vec::new(),
             };
         }
     };
@@ -1318,6 +1324,12 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             });
         }
         let (findings, unassessed) = dx_audit::vuln::match_packages(&packages, &advisories);
+        candidates.extend(findings.iter().map(|finding| VulnCandidate {
+            advisory: finding.advisory.clone(),
+            package: finding.package.clone(),
+            set: label.clone(),
+            version: finding.version.clone(),
+        }));
         let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions
             .iter()
             .filter(|exception| exception.set == label)
@@ -1456,7 +1468,54 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         diagnostics,
         detail,
         code: incomplete_code,
+        candidates,
+        uncovered_sets: uncovered.iter().map(|name| (*name).to_owned()).collect(),
     }
+}
+
+fn accept_request(invocation: &Invocation) -> Option<(&[String], &str, &str)> {
+    if invocation.accept.is_empty() {
+        return None;
+    }
+    Some((
+        &invocation.accept,
+        invocation.reason.as_deref().unwrap_or_default(),
+        invocation.expires.as_deref().unwrap_or_default(),
+    ))
+}
+
+fn report_accepted(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    accepted: Result<Vec<String>, String>,
+) -> i32 {
+    let lines = match accepted {
+        Ok(lines) => lines,
+        Err(message) => return refusal(invocation.output, out, err, &message),
+    };
+    if invocation.output == OutputMode::Json {
+        for line in lines {
+            let notice = notice_event(&NoticeEvent {
+                related_command: Some(invocation.command.name().to_owned()),
+                ..NoticeEvent::info(CODE_AUDIT_ACCEPTED, line)
+            });
+            if let Err(exit) = emit_built(out, notice) {
+                return exit;
+            }
+        }
+        let finished = command_finished(0, &FinishedCounts::default());
+        return match emit_event(out, &finished) {
+            Ok(()) => 0,
+            Err(exit) => exit,
+        };
+    }
+    for line in lines {
+        if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+            return exit;
+        }
+    }
+    0
 }
 
 pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -1576,6 +1635,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
     let mut licensed: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut any_incomplete = false;
+    let mut accepted: Option<Result<Vec<String>, String>> = None;
     for family in &request.families {
         match *family {
             dx_audit::AuditFamily::Security => {
@@ -1594,6 +1654,19 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     query_runner,
                     startup: &invocation.bazel_startup_options,
                 });
+                if let Some((specs, reason, expires)) = accept_request(invocation) {
+                    accepted = Some(accept_security(
+                        workspace,
+                        &Acceptance {
+                            specs,
+                            reason,
+                            expires,
+                            today: &today,
+                        },
+                        &result.candidates,
+                        &result.uncovered_sets,
+                    ));
+                }
                 sarif_tools.insert("gitleaks".to_owned());
                 sarif_tools.insert("vuln".to_owned());
                 diagnostics.extend(result.diagnostics.clone());
@@ -1609,6 +1682,18 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             dx_audit::AuditFamily::License => {
                 let result = run_license(workspace, &sets, &effective, invocation.fail_on, &today);
+                if let Some((specs, reason, expires)) = accept_request(invocation) {
+                    accepted = Some(accept_license(
+                        workspace,
+                        &Acceptance {
+                            specs,
+                            reason,
+                            expires,
+                            today: &today,
+                        },
+                        &result.candidates,
+                    ));
+                }
                 sarif_tools.insert("license".to_owned());
                 licensed = result.licensed.clone();
                 diagnostics.extend(result.diagnostics.clone());
@@ -1623,6 +1708,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 });
             }
         }
+    }
+    if let Some(accepted) = accepted {
+        return report_accepted(invocation, out, err, accepted);
     }
     let report = dx_audit::outcome::AuditReport::aggregate(outcomes);
     let mut exit = dx_audit::outcome::exit_code(&report);
@@ -1914,6 +2002,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     exit
 }
 
+#[path = "audit_accept.rs"]
+mod audit_accept;
+use audit_accept::*;
 #[path = "audit_license.rs"]
 mod audit_license;
 use audit_license::*;

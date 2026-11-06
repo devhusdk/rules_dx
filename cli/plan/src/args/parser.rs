@@ -350,6 +350,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         max_prs,
         floor,
         reason,
+        accept,
+        expires,
         cases,
         create,
         force,
@@ -631,6 +633,24 @@ fn parse_inner<S: AsRef<OsStr>>(
             ));
         }
     }
+    if matches!(command, Command::Security | Command::License) {
+        if accept.is_empty() {
+            if reason.is_some() {
+                return Err(unsupported(command, "--reason without --accept"));
+            }
+            if expires.is_some() {
+                return Err(unsupported(command, "--expires without --accept"));
+            }
+        } else if reason.is_none() {
+            return Err(ArgsError::MissingValue {
+                option: "--reason <text>".to_owned(),
+            });
+        } else if expires.is_none() {
+            return Err(ArgsError::MissingValue {
+                option: "--expires <YYYY-MM-DD>".to_owned(),
+            });
+        }
+    }
     if matches!(command, Command::Upgrade) && to.is_none() {
         return Err(ArgsError::MissingValue {
             option: "--to <version>".to_owned(),
@@ -779,6 +799,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         max_prs,
         floor,
         reason,
+        accept,
+        expires,
         cases,
         create,
         force,

@@ -316,6 +316,45 @@ fn license_exceptions_only_approve_matching_current_findings() {
 }
 
 #[test]
+fn license_accept_writes_an_exception_that_covers_the_finding() {
+    let mut harness = Harness::new("audit-license-accept");
+    harness.audit_today = Some(TEST_AUDIT_TODAY.to_owned());
+    write_hubs(&harness);
+    write_demo_license(&harness, "GPL-3.0-only");
+    let policy = "# keep this comment\nschema_version = 1\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\n\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = true\n";
+    harness.write_source("licenses.toml", policy);
+    let run = |extra: &[&str]| {
+        let mut argv = vec![
+            "license",
+            "//rust/tests/fixtures/hello:demo",
+            "--output=json",
+        ];
+        argv.extend_from_slice(extra);
+        let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
+        let invocation = dx_plan::args::parse(&words).expect("parse");
+        harness.execute_with(&invocation, &AuditRunner::clean())
+    };
+    let accept = [
+        "--accept",
+        "demo",
+        "--reason",
+        "reviewed",
+        "--expires",
+        "2999-01-01",
+    ];
+    assert_eq!(run(&[]).0, 1);
+    let (code, out, err) = run(&accept);
+    assert_eq!(code, 0, "{out}{err}");
+    let written = std::fs::read_to_string(harness.workspace.join("licenses.toml")).expect("file");
+    assert!(written.starts_with(policy), "{written}");
+    assert!(written.contains("versions = \"=1.0.0\""), "{written}");
+    assert_eq!(run(&[]).0, 0);
+    assert_eq!(run(&accept).0, 0);
+    let again = std::fs::read_to_string(harness.workspace.join("licenses.toml")).expect("file");
+    assert_eq!(again, written);
+}
+
+#[test]
 fn secrets_process_status_and_report_content_are_both_authoritative() {
     let clean =
         r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#;

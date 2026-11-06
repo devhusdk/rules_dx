@@ -314,6 +314,10 @@ pub struct Invocation {
     pub floor: bool,
     /// `dx update --reason`: why the floor is the oldest supported version.
     pub reason: Option<String>,
+    /// `dx security --accept` and `dx license --accept`: the findings to write as exceptions.
+    pub accept: Vec<String>,
+    /// `--accept --expires`: the review date written to each exception.
+    pub expires: Option<String>,
     pub cases: bool,
     pub create: Option<String>,
     pub force: bool,
@@ -744,6 +748,8 @@ mod tests {
             max_prs: None,
             floor: false,
             reason: None,
+            accept: Vec::new(),
+            expires: None,
             cases: false,
             create: None,
             force: false,

@@ -794,6 +794,39 @@ fn fail_on_uncovered_is_a_security_option() {
 }
 
 #[test]
+fn accept_needs_a_reason_and_an_expiry() {
+    for command in ["security", "license"] {
+        let got = parse(&strings(&[
+            command,
+            "--accept",
+            "GHSA-1",
+            "--accept=GHSA-2:pkg",
+            "--reason",
+            "reviewed",
+            "--expires",
+            "2999-01-01",
+        ]))
+        .expect("accept parses");
+        assert_eq!(got.accept, ["GHSA-1", "GHSA-2:pkg"]);
+        assert_eq!(got.reason.as_deref(), Some("reviewed"));
+        assert_eq!(got.expires.as_deref(), Some("2999-01-01"));
+        for words in [
+            vec![command, "--accept", "x"],
+            vec![command, "--accept", "x", "--reason", "r"],
+            vec![command, "--accept", "x", "--expires", "2999-01-01"],
+        ] {
+            assert!(
+                matches!(parse(&strings(&words)), Err(ArgsError::MissingValue { .. })),
+                "{words:?}"
+            );
+        }
+        assert!(parse(&strings(&[command, "--reason", "r"])).is_err());
+        assert!(parse(&strings(&[command, "--expires", "2999-01-01"])).is_err());
+    }
+    assert!(parse(&strings(&["lint", "--accept", "x"])).is_err());
+}
+
+#[test]
 fn fail_on_no_collector_is_a_coverage_option() {
     let got = parse(&strings(&["coverage", "--fail-on=no-collector"])).expect("coverage parses");
     assert!(got.fail_on_no_collector);

@@ -17,6 +17,7 @@ pub(super) fn run_license(
                 detail: error.to_string(),
                 code: CODE_AUDIT_FAILED,
                 licensed: Vec::new(),
+                candidates: Vec::new(),
             };
         }
         Ok(policy) => policy,
@@ -29,6 +30,7 @@ pub(super) fn run_license(
             detail: detail.clone(),
             code: CODE_AUDIT_FAILED,
             licensed: Vec::new(),
+            candidates: Vec::new(),
         };
     }
     for adjustment in &policy.sets {
@@ -40,6 +42,7 @@ pub(super) fn run_license(
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
                 licensed: Vec::new(),
+                candidates: Vec::new(),
             };
         }
     }
@@ -52,10 +55,12 @@ pub(super) fn run_license(
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
                 licensed: Vec::new(),
+                candidates: Vec::new(),
             };
         }
     }
     let tier = tier_for_roots(&policy, roots);
+    let mut candidates: Vec<LicenseCandidate> = Vec::new();
     let mut finding_count: usize = 0;
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut incomplete: Option<String> = None;
@@ -255,6 +260,14 @@ pub(super) fn run_license(
         let notice_outcome =
             dx_audit::license_notice::evaluate_notice(&notice_input, tier, &approved);
         let notice_fails = dx_audit::license_notice::notice_fails(notice_outcome, tier);
+        if fails || approved_hit {
+            candidates.push(LicenseCandidate {
+                package: licensed.name.clone(),
+                set: licensed.set.clone(),
+                license: licensed.license.clone(),
+                version: licensed.version.clone(),
+            });
+        }
         if fails && meets_audit_threshold(level, fail_on) {
             let lock_path = lock_paths
                 .get(&licensed.set)
@@ -403,6 +416,7 @@ pub(super) fn run_license(
         detail,
         code: CODE_AUDIT_FAILED,
         licensed: licensed_all,
+        candidates,
     }
 }
 

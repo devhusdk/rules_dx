@@ -25,6 +25,13 @@ def settings_tests(name):
     )
 
 EXPECTED_WORKSPACE_POLICY_OBSERVATIONS = """subject //config:workspace_policy_under_test
+field config.biome=biome.json
+field config.buildifier=.buildifier.json
+field config.clang_format=.clang-format
+field config.ruff=ruff.toml
+field config.rustfmt=rustfmt.toml
+field config.scalafmt=.scalafmt.conf
+field config.vale=.vale.ini
 field disabled.astro.audit=True
 field disabled.astro.format=False
 field disabled.astro.lint=False
@@ -346,7 +353,7 @@ field family.zig.lint=typos,zig_ast_check
 field family.zig.typecheck=
 field family.zig.unused=
 aspect_field aspect_seen=True
-aspect_field field_count=320
+aspect_field field_count=327
 aspect_field has_subject=True
 aspect_field subject_label=//config:workspace_policy_under_test
 aspect_field transitive_count=0"""

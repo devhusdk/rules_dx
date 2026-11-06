@@ -47,6 +47,7 @@ quality_family(
 
 workspace_policy(
     name = "policy",
+    configs = [":ruff"],
     families = [":python_family"],
 )
 
@@ -61,7 +62,7 @@ pub const RUFF_TOML: &str = "line-length = 88\n";
 
 pub fn library(name: &str) -> String {
     format!(
-        "python_library(\n    name = \"{name}\",\n    srcs = [\"{name}.py\"],\n    aspect_hints = [\"//:ruff\"],\n)\n"
+        "python_library(\n    name = \"{name}\",\n    srcs = [\"{name}.py\"],\n)\n"
     )
 }
 

@@ -20,7 +20,7 @@ FamilyPolicyInfo = provider(
 QualityPolicyInfo = provider(
     doc = "Canonical aggregate workspace policy: family ID to section.",
     fields = {
-        "configs": "Dict[str, DxNativeConfigInfo]: tool ID to the native config every target uses unless its aspect_hints bind one.",
+        "configs": "Dict[str, Target]: tool ID to the native config target (carrying DxNativeConfigInfo) every target uses unless its aspect_hints bind one.",
         "families": "Dict[str, FamilyPolicyInfo]: family ID to its section.",
     },
 )
@@ -162,7 +162,7 @@ def _workspace_policy_impl(ctx):
     families, error = merge_policy(base, sections, ctx.attr.disabled, bool(ctx.attr.extends))
     if error:
         fail(error)
-    entries = [(config[DxNativeConfigInfo].tool_id, config[DxNativeConfigInfo]) for config in ctx.attr.configs]
+    entries = [(config[DxNativeConfigInfo].tool_id, config) for config in ctx.attr.configs]
     configs, config_error = merge_configs(base_configs, entries)
     if config_error:
         fail(config_error)

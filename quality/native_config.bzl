@@ -116,6 +116,22 @@ def collect_native_configs(hints, stage_tools, what, defaults = {}):
             resolved[tool] = defaults[source]
     return resolved
 
+def bound_config_targets(rule_attr, policy_configs, what):
+    """Returns tool ID to the config Target a rule uses: its aspect_hints first, then the policy."""
+    bound = {}
+    for hint_target in getattr(rule_attr, "aspect_hints", []):
+        if DxNativeConfigInfo not in hint_target:
+            continue
+        tool_id = hint_target[DxNativeConfigInfo].tool_id
+        if tool_id in bound:
+            fail("native_config (" + what + "): duplicate aspect_hints " +
+                 "for tool '" + tool_id + "'")
+        bound[tool_id] = hint_target
+    for tool_id, target in policy_configs.items():
+        if tool_id not in bound:
+            bound[tool_id] = target
+    return bound
+
 def missing_required_config_error(tool, capability, configs_by_tool, what):
     """Returns the error for a required tool with no bound config, or ""."""
     if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:

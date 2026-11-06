@@ -5,8 +5,9 @@ load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity")
-load("//quality:native_config.bzl", "DxNativeConfigInfo")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets")
 load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
+load("//quality:policy.bzl", "QualityPolicyInfo")
 
 ClangSyntaxInfo = provider(
     doc = "Syntax-only replays of the compile actions of one C/C++/Objective-C target.",
@@ -295,10 +296,10 @@ def _clang_syntax_impl(target, ctx):
     tidy = ctx.file._clang_tidy
     tidy_config = ctx.file._clang_tidy_default.path
     tidy_closure = depset([ctx.file._clang_tidy_default])
-    for hint in getattr(attrs, "aspect_hints", []):
-        if DxNativeConfigInfo in hint and hint[DxNativeConfigInfo].tool_id == "clang_tidy":
-            tidy_config = hint[DxNativeConfigInfo].config.path
-            tidy_closure = hint[DxNativeConfigInfo].closure
+    tidy_target = bound_config_targets(attrs, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label)).get("clang_tidy")
+    if tidy_target:
+        tidy_config = tidy_target[DxNativeConfigInfo].config.path
+        tidy_closure = tidy_target[DxNativeConfigInfo].closure
     runner = ctx.file._clang_tidy_run
     argvs = []
     envs = []
@@ -403,6 +404,10 @@ clang_syntax_aspect = aspect(
     attr_aspects = ["upstream"],
     toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
     attrs = apple_support.action_required_attrs() | {
+        "_policy": attr.label(
+            default = "//config:workspace",
+            providers = [QualityPolicyInfo],
+        ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
         "_clang_tidy_default": attr.label(default = "//quality:default.clang-tidy", allow_single_file = True),
         "_clang_tidy_run": attr.label(default = "//quality:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),

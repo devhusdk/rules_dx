@@ -122,6 +122,12 @@ workspace_policy(
     families = [":clang_tidy_cc_family"],
 )
 
+workspace_policy(
+    name = "cc_clang_tidy_bound_policy",
+    configs = [":consumer_clang_tidy_config"],
+    families = [":clang_tidy_cc_family"],
+)
+
 quality_family(
     name = "cppcheck_cc_family",
     disabled = [
@@ -886,6 +892,11 @@ workspace_policy(
 real_source_target(
     name = "policy_bound_py",
     python_srcs = ["clean.py"],
+)
+
+real_source_target(
+    name = "policy_bound_c",
+    c_srcs = ["clean.c"],
 )
 
 real_source_target(

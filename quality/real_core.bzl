@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
@@ -398,12 +398,8 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         stage_tools = [stage["tool"] for stage in resolved]
     contexts = {tool: found for tool, found in contexts.items() if tool in stage_tools}
 
-    hints = []
-    if hasattr(ctx.rule.attr, "aspect_hints"):
-        for hint_target in ctx.rule.attr.aspect_hints:
-            if DxNativeConfigInfo in hint_target:
-                hints.append(hint_target[DxNativeConfigInfo])
-    configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label), ctx.attr._policy[QualityPolicyInfo].configs)
+    bound_targets = bound_config_targets(ctx.rule.attr, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label))
+    configs_by_tool = collect_native_configs([], stage_tools, str(target.label), {tool: t[DxNativeConfigInfo] for tool, t in bound_targets.items()})
 
     for stage in resolved:
         config_error = missing_required_config_error(stage["tool"], capability, configs_by_tool, str(target.label))

@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_go//go/private:providers.bzl", "GoStdLib")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs")
 load("//quality:policy.bzl", "QualityPolicyInfo")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
@@ -79,11 +79,8 @@ def _importpath(attrs, ctx):
 
 def _staticcheck_config(target, ctx):
     """Returns the staticcheck.conf bound to the target, or None."""
-    hints = []
-    for hint_target in getattr(ctx.rule.attr, "aspect_hints", []):
-        if DxNativeConfigInfo in hint_target:
-            hints.append(hint_target[DxNativeConfigInfo])
-    bound = collect_native_configs(hints, ["staticcheck"], str(target.label), ctx.attr._policy[QualityPolicyInfo].configs)
+    targets = bound_config_targets(ctx.rule.attr, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label))
+    bound = collect_native_configs([], ["staticcheck"], str(target.label), {tool: t[DxNativeConfigInfo] for tool, t in targets.items()})
     if "staticcheck" not in bound:
         return None
     info = bound["staticcheck"]

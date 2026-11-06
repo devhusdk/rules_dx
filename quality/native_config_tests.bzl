@@ -5,6 +5,8 @@ load(
     ":native_config.bzl",
     "CONFIG_REQUIRED_TOOLS",
     "CONFIG_TOOL_ALIASES",
+    "DxNativeConfigInfo",
+    "bound_config_targets",
     "collect_native_configs",
     "missing_required_config_error",
     "native_config_error",
@@ -21,6 +23,13 @@ _HINTS = [
     struct(tool_id = "eslint"),
     struct(tool_id = "scalafmt"),
 ]
+
+_TARGET_RUFF = {DxNativeConfigInfo: struct(tool_id = "ruff", name = "hint")}
+_TARGET_POLICY_RUFF = {DxNativeConfigInfo: struct(tool_id = "ruff", name = "policy")}
+_TARGET_DART = {DxNativeConfigInfo: struct(tool_id = "dart", name = "dart")}
+
+def _names(targets):
+    return {tool: t[DxNativeConfigInfo].name for tool, t in targets.items()}
 
 # Each entry is pinned to its runner refusal by the file_checks below.
 _RUNNER_CONFIG_REQUIRED_TOOLS = [
@@ -314,6 +323,20 @@ def native_config_unit_tests(name):
                 "collect_native_configs ignores hints outside the stages",
                 collect_native_configs(_HINTS, ["taplo"], "//q:t"),
                 {"taplo": _HINTS[2]},
+            ),
+            expect_equal(
+                "bound_config_targets falls back to the policy and lets a hint win",
+                _names(bound_config_targets(
+                    struct(aspect_hints = [_TARGET_RUFF]),
+                    {"ruff": _TARGET_POLICY_RUFF, "dart": _TARGET_DART},
+                    "//q:t",
+                )),
+                {"ruff": "hint", "dart": "dart"},
+            ),
+            expect_equal(
+                "bound_config_targets uses the policy for a rule without aspect_hints",
+                _names(bound_config_targets(struct(), {"ruff": _TARGET_POLICY_RUFF}, "//q:t")),
+                {"ruff": "policy"},
             ),
             expect_equal(
                 "collect_native_configs uses a default when the target has no hint",

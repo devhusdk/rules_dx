@@ -1,6 +1,7 @@
 """Analysis proofs for the consumer-selected workspace policy."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//quality:clang_syntax.bzl", "clang_syntax_aspect")
 load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",
@@ -310,6 +311,21 @@ _policy_config_test = analysistest.make(
     extra_target_under_test_aspects = [real_python_lint_aspect],
 )
 
+def _policy_clang_tidy_impl(ctx):
+    env = analysistest.begin(ctx)
+    tidy_inputs = []
+    for action in analysistest.target_under_test(env).actions:
+        if action.mnemonic == "ClangTidy":
+            tidy_inputs += [f.basename for f in action.inputs.to_list()]
+    asserts.true(env, ".clang-tidy" in tidy_inputs, "want .clang-tidy in the clang-tidy inputs, got " + str(tidy_inputs))
+    return analysistest.end(env)
+
+_policy_clang_tidy_test = analysistest.make(
+    _policy_clang_tidy_impl,
+    config_settings = {str(Label("//config:workspace")): str(Label("//quality/tests/fixtures/consumer_policy:cc_clang_tidy_bound_policy"))},
+    extra_target_under_test_aspects = [clang_syntax_aspect],
+)
+
 def policy_config_tests(name):
     """Proves a policy's configs bind a target and an aspect_hints config overrides them."""
     pkg = "quality/tests/fixtures/consumer_policy/"
@@ -325,7 +341,12 @@ def policy_config_tests(name):
         expected_config = pkg + "override/ruff.toml",
         target_under_test = "//quality/tests/fixtures/consumer_policy:hinted_py",
     )
-    native.test_suite(name = name, tests = [name + "_policy", name + "_hint"])
+    _policy_clang_tidy_test(
+        name = name + "_clang_tidy",
+        size = "small",
+        target_under_test = "//quality/tests/fixtures/consumer_policy:policy_bound_c",
+    )
+    native.test_suite(name = name, tests = [name + "_policy", name + "_hint", name + "_clang_tidy"])
 
 def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""

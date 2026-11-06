@@ -57,6 +57,15 @@ const NPM: Ecosystem = Ecosystem {
     hub: "npm",
 };
 
+const PNPM: Ecosystem = Ecosystem {
+    dep: "aspect_rules_js",
+    version: dx_versions::ASPECT_RULES_JS_VERSION,
+    bzl: "@aspect_rules_js//npm:extensions.bzl",
+    ext: "pnpm",
+    binding: "pnpm",
+    hub: "pnpm",
+};
+
 fn binds_name(file: &ModuleFile, eco: &Ecosystem) -> bool {
     let bindings: Vec<&str> = file
         .extension_bindings(eco.bzl, eco.ext)
@@ -103,7 +112,8 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
 }
 
 /// The root manifests that `dx generate --apply` can lock: `Cargo.toml` without a `Cargo.lock`
-/// (an empty one counts as missing) and a uv `pyproject.toml` without a `uv.lock`.
+/// (an empty one counts as missing), a uv `pyproject.toml` without a `uv.lock`, and a pnpm
+/// `package.json` without a `pnpm-lock.yaml`.
 pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     let mut out = Vec::new();
     let cargo_lock = std::fs::metadata(root.join(CARGO_LOCK));
@@ -121,11 +131,45 @@ pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
             out.push("pyproject.toml");
         }
     }
+    if wants_pnpm_lock(root) {
+        out.push("package.json");
+    }
     out
+}
+
+fn wants_pnpm_lock(root: &Path) -> bool {
+    let Ok(text) = std::fs::read_to_string(root.join("package.json")) else {
+        return false;
+    };
+    let declared = serde_json::from_str::<serde_json::Value>(&text)
+        .ok()
+        .and_then(|json| json.get("packageManager")?.as_str().map(str::to_owned))
+        .is_some_and(|manager| manager.starts_with("pnpm@"));
+    let other_lock = ["package-lock.json", "yarn.lock", PNPM_LOCK]
+        .iter()
+        .any(|lock| root.join(lock).exists());
+    (declared || root.join("pnpm-workspace.yaml").is_file()) && !other_lock
+}
+
+/// Plans the `pnpm` extension and `@pnpm` repo that `bazel run @pnpm//:pnpm` needs.
+pub fn plan_pnpm_tool(root: &Path) -> Result<LockHubs, AdoptError> {
+    plan_with(root, |plan| plan.pnpm())
 }
 
 /// Plans the stanzas for the lock files at the root of `root`. Writes nothing.
 pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
+    plan_with(root, |plan| {
+        plan.report_missing_locks();
+        plan.cargo()?;
+        plan.uv()?;
+        plan.npm()
+    })
+}
+
+fn plan_with(
+    root: &Path,
+    run: impl FnOnce(&mut Planner) -> Result<(), AdoptError>,
+) -> Result<LockHubs, AdoptError> {
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
         return Ok(LockHubs::default());
     };
@@ -143,10 +187,7 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         text: text.clone(),
         notes: Vec::new(),
     };
-    plan.report_missing_locks();
-    plan.cargo()?;
-    plan.uv()?;
-    plan.npm()?;
+    run(&mut plan)?;
     let edit = (plan.text != text).then(|| ModuleEdit {
         path: MODULE_FILE.to_owned(),
         old: text,
@@ -410,6 +451,13 @@ impl Planner<'_> {
         self.add(&NPM, &tags, &hubs)
     }
 
+    fn pnpm(&mut self) -> Result<(), AdoptError> {
+        if self.files.iter().any(|file| binds_name(file, &PNPM)) {
+            return Ok(());
+        }
+        self.add(&PNPM, &[], &[PNPM.hub])
+    }
+
     fn add(&mut self, eco: &Ecosystem, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
         let declared = self
             .files
@@ -510,6 +558,47 @@ mod tests {
             let text = format!("{project}{tool}");
             assert!(unlocked(&[("pyproject.toml", &text)]).is_empty(), "{tool}");
         }
+    }
+
+    #[test]
+    fn only_pnpm_packages_without_a_lock_are_unlocked() {
+        let pnpm = "{\"packageManager\": \"pnpm@9.1.0\"}";
+        assert_eq!(unlocked(&[("package.json", pnpm)]), ["package.json"]);
+        assert_eq!(
+            unlocked(&[("package.json", "{}"), ("pnpm-workspace.yaml", "")]),
+            ["package.json"]
+        );
+        assert!(unlocked(&[("package.json", "{}")]).is_empty());
+        assert!(unlocked(&[("package.json", "{\"packageManager\": \"yarn@4\"}")]).is_empty());
+        for lock in ["pnpm-lock.yaml", "package-lock.json", "yarn.lock"] {
+            assert!(
+                unlocked(&[("package.json", pnpm), (lock, "")]).is_empty(),
+                "{lock}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_pnpm_tool_gets_an_extension_once() {
+        let dir = scratch("pnpm_tool");
+        write(dir.path(), "MODULE.bazel", MODULE);
+        let plan = plan_pnpm_tool(dir.path()).expect("plan");
+        let edit = plan.edit.expect("edit");
+        assert!(
+            edit.new.contains("bazel_dep(name = \"aspect_rules_js\""),
+            "{}",
+            edit.new
+        );
+        assert!(
+            edit.new.contains("pnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"pnpm\")\nuse_repo(pnpm, \"pnpm\")\n"),
+            "{}",
+            edit.new
+        );
+        write(dir.path(), "MODULE.bazel", &edit.new);
+        assert_eq!(
+            plan_pnpm_tool(dir.path()).expect("again"),
+            LockHubs::default()
+        );
     }
 
     #[test]

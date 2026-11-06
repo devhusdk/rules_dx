@@ -505,23 +505,35 @@ fn configured_pnpm_argv(
     command: &[String],
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
+    let ignore = dependency_sets::npm_ignore_workspace(workspace, set);
+    Ok(pnpm_run_argv(head, offline, &dir, ignore, command))
+}
+
+/// `bazel run @pnpm//:pnpm -- --dir <dir> <command>`, the hermetic pnpm.
+pub fn pnpm_run_argv(
+    head: &dx_process::BazelHead,
+    offline: bool,
+    dir: &str,
+    ignore_workspace: bool,
+    command: &[String],
+) -> Vec<String> {
     let mut run = Vec::new();
     if offline {
         run.push("--repository_disable_download");
     }
     run.extend(["@pnpm//:pnpm", "--", "--dir"]);
-    let ignore = if dependency_sets::npm_ignore_workspace(workspace, set) {
+    let ignore = if ignore_workspace {
         vec!["--ignore-workspace".to_owned()]
     } else {
         Vec::new()
     };
-    Ok([
+    [
         bazel(head, "run", &run),
-        vec![dir],
+        vec![dir.to_owned()],
         ignore,
         command.to_vec(),
     ]
-    .concat())
+    .concat()
 }
 
 /// Refuses a package update in a pinned set; dx never rewrites its lock.

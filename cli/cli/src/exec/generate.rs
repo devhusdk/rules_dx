@@ -64,6 +64,8 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
                     let _ = writeln!(env.err, "dx: {lock} not created: {error}");
                 }
             }
+        } else if *manifest == "package.json" {
+            seed_pnpm_lock(request, env);
         } else {
             seed_uv_lock(request, env);
         }
@@ -99,10 +101,10 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) {
 }
 
 fn lock_for(manifest: &str) -> &'static str {
-    if manifest == "Cargo.toml" {
-        "Cargo.lock"
-    } else {
-        "uv.lock"
+    match manifest {
+        "Cargo.toml" => "Cargo.lock",
+        "package.json" => "pnpm-lock.yaml",
+        _ => "uv.lock",
     }
 }
 
@@ -137,6 +139,33 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>) {
         "uv.lock",
         "uv lock",
         env.runner.run_hermetic(&argv, env.workspace, &pairs),
+    );
+}
+
+/// Makes `@pnpm` visible to the root module, then runs `pnpm install --lockfile-only` with it.
+fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>) {
+    let tool = dx_adopt::plan_pnpm_tool(env.workspace).map(|plan| (plan.notes, plan.edit));
+    wire(
+        env.workspace,
+        true,
+        env.err,
+        "the pnpm tool",
+        "the pnpm tool",
+        tool,
+    );
+    let Some(dir) = env.workspace.to_str() else {
+        let _ = writeln!(env.err, "dx: pnpm-lock.yaml not created: non-UTF-8 path");
+        return;
+    };
+    let command = ["install".to_owned(), "--lockfile-only".to_owned()];
+    let argv =
+        dx_update::backend::pnpm_run_argv(&request.bazel_head(), false, dir, false, &command);
+    report_seed(
+        env.workspace,
+        env.err,
+        "pnpm-lock.yaml",
+        "pnpm install",
+        env.runner.run(&argv, env.workspace, &[]),
     );
 }
 

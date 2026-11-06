@@ -49,7 +49,7 @@ Adopt fixtures under `tests/fixtures/adopt-*` select their own `-adopt` set. `//
 
 ### Security
 
-`dx security` matches each set's lockfile against `.dx/advisory/<family>.json`.
+`dx security` matches each set's lockfile against `.dx/local/advisory/<family>.json`.
 
 - Sets with snapshots: `cargo`, `go`, `maven`, `npm`, `npm-adopt`, `npm-adopt-polyglot`, `npm-tools`, `nuget`. The `npm-*` sets share the `npm` snapshot. Configured `uv` sets use `pypi`, `ruby` sets use `rubygems`.
 - Sets without a snapshot print `no advisory coverage for <sets>`.
@@ -155,7 +155,7 @@ A relative report destination anchors at the workspace root. Colliding destinati
 
 ```sh
 bazel run @rules_dx//cli/advisory_prep --
-bazel run @rules_dx//cli/advisory_prep -- --out .dx/advisory --date 2026-11-03
+bazel run @rules_dx//cli/advisory_prep -- --out .dx/local/advisory --date 2026-11-03
 bazel run @rules_dx//cli/advisory_prep -- --archive cargo=/path/cargo.zip
 ```
 
@@ -164,7 +164,7 @@ It converts one archive per advisory family the dependency locks need and writes
 | Flag | What it does |
 | --- | --- |
 | `--workspace <dir>` | Dependency set locks to read. Default the workspace root. |
-| `--out <dir>` | Snapshot directory. Default `.dx/advisory`. |
+| `--out <dir>` | Snapshot directory. Default `.dx/local/advisory`. |
 | `--date YYYY-MM-DD` | Date every sidecar carries. Default today, UTC. |
 | `--max-time <seconds>` | Limit for one download. Default 600. |
 | `--connect-timeout <seconds>` | Connect limit for one download. Default 30. |
@@ -463,7 +463,7 @@ ruby.bundle_fetch(
 
 - `gemfile_lock` must sit beside the `Gemfile`, or the set is unsupported.
 - `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bundle lock`.
-- `dx security` matches `Gemfile.lock` against `.dx/advisory/rubygems.json`. `dx license` needs `[[inventory]]` with `set = "ruby"`.
+- `dx security` matches `Gemfile.lock` against `.dx/local/advisory/rubygems.json`. `dx license` needs `[[inventory]]` with `set = "ruby"`.
 
 ### julia
 
@@ -492,7 +492,7 @@ composer.lock(
 
 - `composer.json` must sit beside `composer.lock`.
 - `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json`, runs `composer update` and refreshes `composer.digests.json`.
-- `dx security` matches `composer.lock` against `.dx/advisory/packagist.json`.
+- `dx security` matches `composer.lock` against `.dx/local/advisory/packagist.json`.
 ### opam
 
 An opam set is discovered from a `<name>.opam` file with a `<name>.opam.locked` file beside it.
@@ -507,7 +507,7 @@ A swiftpm set comes from a `from_package` tag of `swift_deps` in `MODULE.bazel`,
 - `dx update <set>` resolves `Package.swift` with the managed Swift in a copy and compares the result with `Package.resolved`.
 - `dx update --apply <set>:<package> <version>` edits the `from:` or `exact:` version of the package, named by the last segment of its URL, then runs `swift package update <package>`. A package that is not declared, or pinned by `branch:` or `revision:`, is refused.
 - `dx update --outdated` compares the pins with the newest semver tag on GitHub.
-- `dx security` matches `Package.resolved` against `.dx/advisory/swifturl.json`.
+- `dx security` matches `Package.resolved` against `.dx/local/advisory/swifturl.json`.
 
 ### hex
 
@@ -535,7 +535,7 @@ use_repo(crate, "crates")
 - `--apply` runs `bazel fetch --repo=@<visible hub name>` with `CARGO_BAZEL_REPIN=workspace`, `REPIN=workspace`, `CARGO_BAZEL_REPIN_ONLY=<hub name>` and `CARGO_BAZEL_ISOLATED=true`. A check sets both repin variables to `false`, so a shell `REPIN` cannot turn a check into a write; a stale lock fails with `updater exited <code>`.
 - `--apply <set>:<crate>` repins one crate. Select one crate per cargo set per run. Repin-mode names (`all`, `workspace`, `false`, `0`, `off`) are refused. A crate with several locked versions fails with `updater exited <code>`. A check with a package is unsupported.
 - Bazel evaluates every `crate.from_cargo` hub together, so one stale hub fails the check and update of every cargo set. Update the stale set first.
-- `dx security` matches `Cargo.lock` crates against `.dx/advisory/cargo.json`. `dx license` reads licenses from the declared `*.json` lock; `[[inventory]]` with `set = "cargo"` overrides them.
+- `dx security` matches `Cargo.lock` crates against `.dx/local/advisory/cargo.json`. `dx license` reads licenses from the declared `*.json` lock; `[[inventory]]` with `set = "cargo"` overrides them.
 
 ### maven
 
@@ -553,7 +553,7 @@ use_repo(maven, "maven")
 - A check is unsupported when `fail_if_repin_required` is `False` or computed, the lock is empty or lacks `__INPUT_ARTIFACTS_HASH` and `__RESOLVED_ARTIFACTS_HASH`, or the host sets `REPIN` or `RULES_JVM_EXTERNAL_REPIN`.
 - Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`, `COURSIER_CONFIG_DIR` and `SCALA_CLI_CONFIG` are refused.
 - A set takes no `set:package` for update or check. Use `dx update <set>:<group>:<artifact> <version>` to widen.
-- `dx security` matches the lock's `artifacts` against `.dx/advisory/maven.json`. `dx license` needs `[[inventory]]` with `set = "maven"`.
+- `dx security` matches the lock's `artifacts` against `.dx/local/advisory/maven.json`. `dx license` needs `[[inventory]]` with `set = "maven"`.
 
 ### nuget
 
@@ -566,7 +566,7 @@ paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "mai
 - A check compares generated files with the declared locks byte for byte. A difference, an undeclared generated file or a missing declared file fails the set and lists the paths. `--apply` writes only the differing declared files, and nothing when an undeclared or missing file turns up.
 - `--apply --frozen` runs. `--offline` fails with `offline_required` in both modes.
 - A set takes no `set:package` for update. Edit `paket.dependencies`, run `paket update`, then `dx update <set>`.
-- `dx security` matches `paket.lock` against `.dx/advisory/nuget.json`. `dx license` needs `[[inventory]]` with `set = "nuget"`.
+- `dx security` matches `paket.lock` against `.dx/local/advisory/nuget.json`. `dx license` needs `[[inventory]]` with `set = "nuget"`.
 
 ### cpan
 
@@ -583,7 +583,7 @@ cpan.install(
 - `dx update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN.
 - `dx update <set>:<Module> --apply` runs `carton update <Module>`, then the `cpan_compiler` of the lock's `BUILD.bazel` with `--incremental`, so the snapshot and the lock JSON change together. Without such a compiler it is refused. `--offline` and `--frozen` fail with `offline_required` and `frozen_locked`.
 - `dx update <set>:<Module> <version> --apply` first rewrites the version in the module's `requires` line of `cpanfile`, keeping the operator, then refreshes as above.
-- `dx security` matches the distributions of `cpanfile.snapshot` against `.dx/advisory/cpan.json`. `bazel run @rules_dx//cli/advisory_prep --` builds it from `CPANSA::DB` through the pinned `//perl/tools:cpansa_dump`, not from the host perl.
+- `dx security` matches the distributions of `cpanfile.snapshot` against `.dx/local/advisory/cpan.json`. `bazel run @rules_dx//cli/advisory_prep --` builds it from `CPANSA::DB` through the pinned `//perl/tools:cpansa_dump`, not from the host perl.
 
 ### go
 
@@ -598,7 +598,7 @@ go_deps.from_file(go_mod = "//third_party/go:go.mod")
 - It uses Go's public proxy and checksum database. Private modules are unsupported. A host `GOPROXY`, `GOPRIVATE`, `GONOPROXY`, `GONOSUMDB`, `GONOSUMCHECK`, `GOSUMDB`, `GOINSECURE`, `GOVCS` or `GOAUTH` makes the set unsupported.
 - `--offline` fails with `offline_required` in both modes. `--apply --frozen` fails with `frozen_locked`; a check with `--frozen` runs.
 - A set takes no `set:package` for update. Edit the `require` in `go.mod` and run `dx update <set>`, or run `dx update <set>:<module> <version>`.
-- `dx security` matches `go.mod` requirements against `.dx/advisory/go.json`.
+- `dx security` matches `go.mod` requirements against `.dx/local/advisory/go.json`.
 
 ### cabal
 
@@ -611,7 +611,7 @@ haskell.packages(name = "hackage", deps = "//third_party:haskell_deps.json")
 - A check runs the `haskell_deps_resolve_test` next to `cabal.project`; `--apply` runs its `haskell_deps_resolve`, which keeps both lock files in step. Without those targets the set is unsupported. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
 - A set takes no `set:package` without a version. `dx update <set>:<package> <version> --apply` rewrites the bound in `build-depends` first, then resolves again.
 - `dx update --outdated` compares the freeze pins with `hackage.haskell.org/package/<name>/preferred`.
-- `dx security` matches the `any.<name> ==<version>` pins of `cabal.project.freeze` against `.dx/advisory/hackage.json`. Flags and `installed` boot packages are skipped.
+- `dx security` matches the `any.<name> ==<version>` pins of `cabal.project.freeze` against `.dx/local/advisory/hackage.json`. Flags and `installed` boot packages are skipped.
 
 ### uv
 
@@ -626,4 +626,4 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update
 - Both pass `--no-config --no-cache --no-python-downloads --python <DX_UV_PYTHON>` with an empty environment, so `HOME`, `XDG_CONFIG_HOME`, `UV_*` and user `uv.toml` are ignored. A check with `--offline` adds `--offline`; a lock that needs a download fails with `updater exited 2`.
 - A `uv.toml` in the set directory or a parent inside the workspace, or a `[tool.uv]` key other than `sources`, `workspace`, `dev-dependencies`, `default-groups`, `conflicts`, `package`, `managed`, `override-dependencies` or `constraint-dependencies`, makes the set unsupported.
 - `set:package` is unsupported: the set refreshes as a whole.
-- `dx security` matches every `uv.lock` package against `.dx/advisory/pypi.json` with PEP 440 versions and PEP 503 names. Workspace members are skipped. Packages from git, path, url, directory or a registry other than pypi.org are unassessed and the run exits `1`. A `security.toml` exception uses `set = "<name>"` and a PEP 440 `versions` range.
+- `dx security` matches every `uv.lock` package against `.dx/local/advisory/pypi.json` with PEP 440 versions and PEP 503 names. Workspace members are skipped. Packages from git, path, url, directory or a registry other than pypi.org are unassessed and the run exits `1`. A `security.toml` exception uses `set = "<name>"` and a PEP 440 `versions` range.

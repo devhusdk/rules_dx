@@ -7,7 +7,7 @@ pub fn bep_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
 }
 
 pub fn results_path(workspace: &Path) -> PathBuf {
-    workspace.join(dx_path::state::DX_DIR).join("results.json")
+    dx_path::state::local_dir(workspace).join(dx_path::state::RESULTS)
 }
 
 /// Identifies one run: `{pid}-{nonce}-{suffix}`, the suffix being the random part of the

@@ -38,7 +38,7 @@ dx coverage [--here] [--affected] [--explain] [--profile] [--min-coverage <perce
 | `--debug` | Compile with the `dx_debug` profile (`build`, `test`, `run`, `deploy`). |
 | `--release` | Compile with the `dx_release` profile. No flag uses `dx_dev`. |
 | `--explain` | Save the execution log for [`dx explain`](explain.md). |
-| `--profile` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/profile/<run id>.json.gz` (the last five are kept) and the report `.dx/profile/report.json`; with `--output=json` the report is the message of a `profile_report` notice. |
+| `--profile` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/profile/<run id>.json.gz` (the last five are kept) and the report `.dx/local/profile/report.json`; with `--output=json` the report is the message of a `profile_report` notice. |
 | `--min-coverage <percent>` | `coverage`: fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage`: fail below this whole percent (0-100) on lines changed since the merge-base. |
 | `--report <format>=<path>` | Write a report. Repeatable. `-` is stdout. |
@@ -92,7 +92,7 @@ Relative paths anchor at the workspace root. Parent directories must exist. Two 
 | `lcov` | `coverage` | Combined LCOV. |
 | `sources` | `coverage` | JSON with the owned, absent, and orphan sources. |
 
-With `--output=json` and no `results` report, `dx test` writes `.dx/results.json`.
+With `--output=json` and no `results` report, `dx test` writes `.dx/local/results.json`.
 
 The `results` file has `record_version`, `exit_code`, `run_id`, `complete`, and `results`. `run_id` matches `command_finished.run_id`.
 

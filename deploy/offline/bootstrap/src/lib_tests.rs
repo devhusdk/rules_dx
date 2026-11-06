@@ -189,7 +189,7 @@ fn write_identity(advisory: &Path, set: &str, date: &str) {
     let body = format!(
         "{{\n  \"set\": \"{set}\",\n  \"url\": \"https://osv.dev/{set}.json\",\n  \
          \"sha256\": \"{sum}\",\n  \"retrieved_at\": \"{date}\",\n  \
-         \"path\": \".dx/advisory/{set}.json\"\n}}\n"
+         \"path\": \".dx/local/advisory/{set}.json\"\n}}\n"
     );
     std::fs::write(advisory.join(format!("{set}.meta.json")), body).expect("identity");
 }
@@ -367,7 +367,7 @@ fn the_identity_url_is_a_file_uri_of_the_bundle() {
     options.bundle = Some(root.to_string_lossy().into_owned());
     assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
     let meta =
-        std::fs::read_to_string(root.join("ws/.dx/advisory/cargo.meta.json")).expect("identity");
+        std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json")).expect("identity");
     assert!(meta.contains("%20"), "a space is percent-encoded: {meta}");
     assert!(!meta.contains('\\'), "no backslash in the URL: {meta}");
     assert!(meta.contains("\"url\": \"file://"), "file URL: {meta}");
@@ -439,7 +439,7 @@ fn an_old_bundle_date_survives_bootstrap() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-old-date-", b"launcher");
     assert_eq!(run(&options, "linux", "x86_64", "2026-10-24"), "");
     let meta =
-        std::fs::read_to_string(root.join("ws/.dx/advisory/cargo.meta.json")).expect("identity");
+        std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json")).expect("identity");
     assert!(meta.contains("\"retrieved_at\": \"2026-01-01\""), "{meta}");
     assert!(!meta.contains("2026-10-24"), "{meta}");
 }

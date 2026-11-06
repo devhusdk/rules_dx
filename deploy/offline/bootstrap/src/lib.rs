@@ -270,7 +270,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         .filter(|name| name.ends_with(".meta.json"))
         .collect();
     identities.sort();
-    let populated = dx_path::state::dx_dir(Path::new(&options.workspace)).join("advisory");
+    let populated = dx_path::state::local_dir(Path::new(&options.workspace)).join(dx_path::state::ADVISORY);
     if let Err(error) = std::fs::create_dir_all(&populated) {
         return format!("cannot create {}: {error}", populated.display());
     }
@@ -335,7 +335,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         let meta = format!(
             "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
              \"sha256\": \"{sha}\", \"retrieved_at\": \"{retrieved}\", \
-             \"path\": \".dx/advisory/{named}\"}}"
+             \"path\": \".dx/local/advisory/{named}\"}}"
         );
         if let Err(detail) = publish_set(snapshot, &populated, &set, &meta, write) {
             return detail;

@@ -1,6 +1,6 @@
 # `dx fuzz`
 
-Runs the fuzz targets in scope for a time budget and keeps their crashes under `.dx/fuzz`.
+Runs the fuzz targets in scope for a time budget and keeps their crashes under `.dx/local/fuzz`.
 
 ```sh
 dx fuzz //pkg:parser
@@ -34,7 +34,7 @@ Scopes: labels, patterns, files, or dirs. With no scope, dx fuzz runs `//...`.
 For each target dx runs:
 
 ```sh
-bazel run //pkg:parser_run -- --time <seconds> --out .dx/fuzz/pkg/parser/
+bazel run //pkg:parser_run -- --time <seconds> --out .dx/local/fuzz/pkg/parser/
 ```
 
 The runner resolves `--out` against `BUILD_WORKSPACE_DIRECTORY` and writes crash files named `crash-<hash>` there. It also accepts `--repro <file>` to replay one crash.
@@ -50,10 +50,10 @@ The runner resolves `--out` against `BUILD_WORKSPACE_DIRECTORY` and writes crash
 A crash prints one line on stderr:
 
 ```text
-dx: //pkg:parser crashed; reproduce with: bazel run //pkg:parser_run -- --repro .dx/fuzz/pkg/parser/crash-<hash>
+dx: //pkg:parser crashed; reproduce with: bazel run //pkg:parser_run -- --repro .dx/local/fuzz/pkg/parser/crash-<hash>
 ```
 
-`/.dx/fuzz/` is in the `.gitignore` that `dx init` writes.
+`/.dx/local/` is in the `.gitignore` that `dx init` writes.
 
 Reports: none.
 

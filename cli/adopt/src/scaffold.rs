@@ -63,20 +63,13 @@ pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/ide/rust_check";
 ///
 /// `.dx/ide` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`).
 /// `.dx/local` holds the managed setups, environments and generated trees, symlinks into setup
-/// artifacts that can ship BUILD files. The other entries are scratch output dx writes. Everything else
+/// artifacts that can ship BUILD files. Everything else
 /// under `.dx` holds only dx files, and `.dx/config` is checked-in source Bazel stages.
 /// A new `.dx` writer that can hold BUILD files or an output base must be added here.
-pub const BAZELIGNORE_LINES: [&str; 10] = [
+pub const BAZELIGNORE_LINES: [&str; 3] = [
     ".dx/ide",
     ".dx/local",
     ".dx/bazelrc",
-    ".dx/docs",
-    ".dx/explain",
-    ".dx/profile",
-    ".dx/fuzz",
-    ".dx/mutate",
-    ".dx/advisory",
-    ".dx/bench",
 ];
 
 /// `body` under the one-line header that says what dx does to `path`; `body` alone when the

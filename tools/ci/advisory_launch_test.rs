@@ -167,7 +167,7 @@ fn the_prepare_step_reads_the_checkout_lock_and_writes_the_checkout_output() {
     let advisory = r#"{"id":"GHSA-a","modified":"2026-01-01T00:00:00Z","affected":[{"package":{"ecosystem":"crates.io","name":"aaa"},"versions":["1.0.0"]}]}"#;
     let run = launch(Some(archive("all/GHSA-a.json", advisory)));
     assert!(run.status.success(), "{}", run.stderr);
-    let out = run.workspace.join(".dx/advisory");
+    let out = run.workspace.join(".dx/local/advisory");
     assert!(out.join("cargo.json").is_file(), "{}", run.stderr);
     assert!(out.join("cargo.meta.json").is_file(), "{}", run.stderr);
     assert!(
@@ -181,7 +181,7 @@ fn a_failed_preparation_fails_the_step() {
     let run = launch(None);
     assert!(!run.status.success(), "{}", run.stderr);
     assert!(
-        !run.workspace.join(".dx/advisory/cargo.json").exists(),
+        !run.workspace.join(".dx/local/advisory/cargo.json").exists(),
         "a failed preparation writes no snapshot"
     );
 }

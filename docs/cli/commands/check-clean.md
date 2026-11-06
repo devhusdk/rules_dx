@@ -77,7 +77,7 @@ Reports unselected managed state under `.dx`. It deletes nothing without `--appl
 
 | Flag | What it does |
 | --- | --- |
-| `--apply` | Prune the state. Also deletes the logs `--explain` saved under `.dx/explain`. |
+| `--apply` | Prune the state. Also deletes the logs `--explain` saved under `.dx/local/explain`. |
 | `--prune-unobserved` | Also prune state that process observation cannot see. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--bazel-startup-option` | Global flags. |

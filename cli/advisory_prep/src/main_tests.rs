@@ -179,7 +179,7 @@ fn the_help_names_every_flag_and_the_exit_codes() {
         "--retries",
         "--retry-delay",
         "--archive",
-        ".dx/advisory",
+        ".dx/local/advisory",
         "BUILD_WORKSPACE_DIRECTORY",
         "Exit codes",
     ] {

@@ -933,7 +933,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                     out,
                     err,
                     explain_store::CODE_EXPLAIN_LOG_UNWRITABLE,
-                    &format!("could not create an execution log under .dx/explain: {error}"),
+                    &format!("could not create an execution log under .dx/local/explain: {error}"),
                 );
             }
         }

@@ -71,9 +71,9 @@ other entries stay.
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/`,
-`/.dx/docs/`, `/.dx/results.json`, `/.dx/explain/`, `/.dx/profile/`, `/.dx/fuzz/`, `/.dx/mutate/`, `/.dx/advisory/`, `/.dx/bench/`, `/.dx/local/` and
+`/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/explain/`, `/.dx/local/profile/`, `/.dx/local/fuzz/`, `/.dx/local/mutate/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
 `/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
-warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/ide`, `.dx/local`, `.dx/bazelrc`, `.dx/docs`, `.dx/explain`, `.dx/profile`, `.dx/fuzz`, `.dx/mutate`, `.dx/advisory`, `.dx/bench`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
+warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/ide`, `.dx/local`, `.dx/bazelrc`, `.dx/local/docs`, `.dx/local/explain`, `.dx/local/profile`, `.dx/local/fuzz`, `.dx/local/mutate`, `.dx/local/advisory`, `.dx/local/bench`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
 to stderr if it does not list `.dx`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they point

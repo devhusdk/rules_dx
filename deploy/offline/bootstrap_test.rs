@@ -170,7 +170,7 @@ fn bundle(name: &str) -> Bundle {
             &format!(
                 "{{\n  \"set\": \"{set}\",\n  \"url\": \"https://osv.dev/{set}.json\",\n  \
                  \"sha256\": \"{sha}\",\n  \"retrieved_at\": \"{BUNDLE_DATE}\",\n  \
-                 \"path\": \".dx/advisory/{set}.json\"\n}}\n"
+                 \"path\": \".dx/local/advisory/{set}.json\"\n}}\n"
             ),
         );
     }
@@ -216,7 +216,7 @@ fn run(bundle: &Bundle, home: &Path) -> Run {
 fn identity(home: &Path, set: &str) -> String {
     read(
         &home
-            .join("workspace/.dx/advisory")
+            .join("workspace/.dx/local/advisory")
             .join(format!("{set}.meta.json")),
     )
     .trim()
@@ -253,7 +253,7 @@ fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &s
     for field in [
         format!("\"set\": \"{set}\""),
         format!("\"sha256\": \"{digest}\""),
-        format!("\"path\": \".dx/advisory/{set}.json\""),
+        format!("\"path\": \".dx/local/advisory/{set}.json\""),
         format!("\"retrieved_at\": \"{BUNDLE_DATE}\""),
     ] {
         assert!(
@@ -311,7 +311,7 @@ fn installs_the_host_launcher_and_pins_every_accepted_snapshot() {
         assert_eq!(
             read(
                 &home
-                    .join("workspace/.dx/advisory")
+                    .join("workspace/.dx/local/advisory")
                     .join(format!("{set}.json"))
             ),
             read(&bundle.advisory(&format!("{set}.json"))),
@@ -519,7 +519,7 @@ fn the_demo_offline_bundle_bootstraps() {
     let home = scratch();
     let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
     bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();
-    assert!(home.join("workspace/.dx/advisory/cargo.json").is_file());
+    assert!(home.join("workspace/.dx/local/advisory/cargo.json").is_file());
     assert!(
         identity(&home, "cargo").contains("\"retrieved_at\": \"2026-01-01\""),
         "the demo bundle records its own date: {}",

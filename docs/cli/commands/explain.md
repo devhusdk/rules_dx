@@ -5,7 +5,7 @@ Lists the actions that missed the cache by comparing two Bazel execution logs. I
 ```sh
 dx build --explain //app:lib
 dx explain
-dx explain --old=/path/to/other/worktree/.dx/explain/3.binpb.zst
+dx explain --old=/path/to/other/worktree/.dx/local/explain/3.binpb.zst
 dx explain --output=json
 ```
 
@@ -13,7 +13,7 @@ dx explain --output=json
 dx explain [--old=<log>] [--new=<log>]
 ```
 
-Save a log with `--explain` on `dx build`, `dx test`, `dx coverage`, or `dx check`. Each run writes `.dx/explain/<n>.binpb.zst` and keeps the two newest.
+Save a log with `--explain` on `dx build`, `dx test`, `dx coverage`, or `dx check`. Each run writes `.dx/local/explain/<n>.binpb.zst` and keeps the two newest.
 
 | Flag | What it does |
 | --- | --- |

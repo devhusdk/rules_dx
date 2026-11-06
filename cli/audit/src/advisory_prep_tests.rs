@@ -45,7 +45,7 @@ fn entries_merge_into_one_snapshot_the_audit_can_read() {
         advisory_source("cargo").expect("source")
     );
     assert_eq!(prepared.snapshot.retrieved_at, "2026-09-22");
-    assert_eq!(prepared.snapshot.path, ".dx/advisory/cargo.json");
+    assert_eq!(prepared.snapshot.path, ".dx/local/advisory/cargo.json");
     assert_eq!(
         prepared.snapshot.sha256,
         dx_digest::sha256_hex(&prepared.payload)
@@ -89,7 +89,7 @@ fn the_sidecar_round_trips_and_binds_the_payload_bytes() {
         validate_prepared(&prepared.snapshot, b"[]"),
         Err(PrepError::BadIdentity {
             family: "cargo".to_owned(),
-            detail: "sha256 does not match .dx/advisory/cargo.json".to_owned()
+            detail: "sha256 does not match .dx/local/advisory/cargo.json".to_owned()
         })
     );
 }
@@ -408,7 +408,7 @@ fn yanked_snapshot_lists_sorted_synthetic_advisories_the_audit_can_read() {
         &yanked,
     )
     .expect("builds");
-    assert_eq!(prepared.snapshot.path, ".dx/advisory/cargo-yanked.json");
+    assert_eq!(prepared.snapshot.path, ".dx/local/advisory/cargo-yanked.json");
     assert_eq!(prepared.advisories, 2);
     let text = String::from_utf8(prepared.payload).expect("utf8");
     let parsed = parse_snapshot(&text).expect("parses");

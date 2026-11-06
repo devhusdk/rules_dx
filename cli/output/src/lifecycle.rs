@@ -1077,7 +1077,7 @@ fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FinishedCounts {
     pub results_complete: Option<bool>,
-    /// Ties `.dx/results.json` to the run that wrote it.
+    /// Ties `.dx/local/results.json` to the run that wrote it.
     pub run_id: Option<String>,
     pub diagnostics: Option<[u64; 3]>,
     pub changes: Option<[u64; 2]>,

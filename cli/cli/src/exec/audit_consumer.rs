@@ -184,7 +184,7 @@ source = { registry = "https://pypi.org/simple" }
         let lock = lock_with(&registry_package("django", "3.2.0"));
         harness.write_source("apps/frontend/uv.lock", &lock);
         write_advisory(&harness, "pypi", DJANGO_ADVISORY);
-        let meta_rel = ".dx/advisory/pypi.meta.json";
+        let meta_rel = ".dx/local/advisory/pypi.meta.json";
         let meta = std::fs::read_to_string(harness.workspace.join(meta_rel)).expect("meta");
         let mut value: serde_json::Value = serde_json::from_str(&meta).expect("json");
         value["retrieved_at"] = serde_json::json!("2020-01-01");
@@ -220,7 +220,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_ne!(code, 0, "{out}{err}");
         assert!(out.contains("failed to assess pypi-frontend"), "{out}{err}");
         assert!(out.contains("offline_required"), "{out}{err}");
-        assert!(out.contains(".dx/advisory/pypi.json"), "{out}{err}");
+        assert!(out.contains(".dx/local/advisory/pypi.json"), "{out}{err}");
     }
 
     #[test]
@@ -499,7 +499,7 @@ source = { registry = "https://pypi.org/simple" }
         );
         assert_ne!(code, 0, "{out}{err}");
         assert!(out.contains("failed to assess frontend"), "{out}{err}");
-        assert!(out.contains(".dx/advisory/npm.json"), "{out}{err}");
+        assert!(out.contains(".dx/local/advisory/npm.json"), "{out}{err}");
         assert!(!out.contains("no advisory coverage"), "{out}");
         assert!(!out.contains("audit_security_clean"), "{out}");
     }
@@ -642,7 +642,7 @@ source = { registry = "https://pypi.org/simple" }
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
             assert!(out.contains("failed to assess gems"), "{out}{err}");
-            assert!(out.contains(".dx/advisory/rubygems.json"), "{out}{err}");
+            assert!(out.contains(".dx/local/advisory/rubygems.json"), "{out}{err}");
             assert!(!out.contains("no advisory coverage"), "{out}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {
@@ -733,7 +733,7 @@ source = { registry = "https://pypi.org/simple" }
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
             assert!(out.contains("failed to assess crates"), "{out}{err}");
-            assert!(out.contains(".dx/advisory/cargo.json"), "{out}{err}");
+            assert!(out.contains(".dx/local/advisory/cargo.json"), "{out}{err}");
             assert!(!out.contains("no advisory coverage"), "{out}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {
@@ -933,7 +933,7 @@ source = { registry = "https://pypi.org/simple" }
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
             assert!(out.contains("failed to assess maven"), "{out}{err}");
-            assert!(out.contains(".dx/advisory/maven.json"), "{out}{err}");
+            assert!(out.contains(".dx/local/advisory/maven.json"), "{out}{err}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {
                 assert!(out.contains("offline_required"), "{out}{err}");
@@ -986,7 +986,7 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err) = run_with(&["security", "--output=json", "nuget"], &runner, &harness);
         assert_ne!(code, 0, "{out}{err}");
         assert!(out.contains("failed to assess nuget"), "{out}{err}");
-        assert!(out.contains(".dx/advisory/nuget.json"), "{out}{err}");
+        assert!(out.contains(".dx/local/advisory/nuget.json"), "{out}{err}");
         assert!(!out.contains("audit_security_clean"), "{out}");
     }
 
@@ -1043,7 +1043,7 @@ source = { registry = "https://pypi.org/simple" }
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
             assert!(out.contains("failed to assess go"), "{out}{err}");
-            assert!(out.contains(".dx/advisory/go.json"), "{out}{err}");
+            assert!(out.contains(".dx/local/advisory/go.json"), "{out}{err}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {
                 assert!(out.contains("offline_required"), "{out}{err}");

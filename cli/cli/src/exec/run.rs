@@ -1054,7 +1054,7 @@ mod tests {
         let traced = |argv: &Vec<String>| argv.iter().any(|arg| arg.starts_with("--profile="));
         assert!(traced(&run.argv[0]), "{:?}", run.argv);
         assert!(!traced(&run.argv[1]), "{:?}", run.argv);
-        assert!(harness.workspace.join(".dx").join("profile").is_dir());
+        assert!(harness.workspace.join(".dx/local").join("profile").is_dir());
     }
 
     #[test]

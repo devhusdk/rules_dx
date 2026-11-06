@@ -1,4 +1,4 @@
-//! The numbered execution logs `build`/`test --explain` save under `.dx/explain`.
+//! The numbered execution logs `build`/`test --explain` save under `.dx/local/explain`.
 
 use std::fs::OpenOptions;
 use std::io;
@@ -13,7 +13,7 @@ pub(crate) const CODE_EXPLAIN_LOG_UNWRITABLE: &str = "explain_log_unwritable";
 pub(crate) const KEEP: usize = 2;
 
 pub(crate) fn dir(workspace: &Path) -> PathBuf {
-    workspace.join(dx_path::state::DX_DIR).join("explain")
+    dx_path::state::local_dir(workspace).join(dx_path::state::EXPLAIN)
 }
 
 fn number(name: &str) -> Option<u64> {

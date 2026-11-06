@@ -32,7 +32,7 @@ Each test writes `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json`:
 {"schema":"dx-bench/v1","results":[{"name":"parse","unit":"ms","mean":1.2,"stddev":0.1,"iterations":50}]}
 ```
 
-Text output prints one table per target with name, mean, stddev and unit. `--output=json` prints the merged document, one entry per target. Both modes write it to `.dx/bench/last.json`.
+Text output prints one table per target with name, mean, stddev and unit. `--output=json` prints the merged document, one entry per target. Both modes write it to `.dx/local/bench/last.json`.
 
 `--compare <path|ref>` reads a `dx-bench/v1` document, either one test's `dx-bench.json` or a merged `last.json`. A value that is not a file is a git ref: `dx bench` downloads the `dx-bench-<platform>` artifact of the latest run on that ref with `gh run download` and reads the json file in it. The table gains `baseline` and `delta %` columns, and `--output=json` adds `baseline` and `delta_pct` to each result the baseline covers.
 

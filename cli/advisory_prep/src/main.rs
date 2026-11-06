@@ -29,7 +29,7 @@ dependency sets need, converts each archive into one canonical snapshot plus its
 sidecar, and writes both under --out. Every platform cell reads those files instead of \
 downloading a database of its own. Relative paths anchor at BUILD_WORKSPACE_DIRECTORY (the \
 bazel run workspace root), else the current directory.\n\n--workspace DIR reads the dependency \
-set locks (default the workspace root); --out DIR writes the snapshots (default .dx/advisory \
+set locks (default the workspace root); --out DIR writes the snapshots (default .dx/local/advisory \
 under it); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \

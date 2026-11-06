@@ -529,8 +529,8 @@ fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
     ] {
         let harness = Harness::new(&format!("advisory-corrupt-{variant}"));
         write_advisory(&harness, "cargo", "[]");
-        let snapshot = harness.workspace.join(".dx/advisory/cargo.json");
-        let meta = harness.workspace.join(".dx/advisory/cargo.meta.json");
+        let snapshot = harness.workspace.join(".dx/local/advisory/cargo.json");
+        let meta = harness.workspace.join(".dx/local/advisory/cargo.meta.json");
         match variant {
             "directory" => {
                 std::fs::remove_file(&snapshot).expect("remove snapshot");
@@ -548,7 +548,7 @@ fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
                     value["sha256"] = serde_json::json!("invalid");
                 } else {
                     value["set"] = serde_json::json!("npm");
-                    value["path"] = serde_json::json!(".dx/advisory/npm.json");
+                    value["path"] = serde_json::json!(".dx/local/advisory/npm.json");
                     value["url"] = serde_json::json!(
                         dx_audit::advisory::advisory_source("npm").expect("source")
                     );
@@ -1071,58 +1071,58 @@ fn audit_errors_stay_typed_with_stable_display() {
     );
     let missing = AuditError::AdvisoryMissing {
         set: "cargo".to_owned(),
-        rel: ".dx/advisory/cargo.json".to_owned(),
+        rel: ".dx/local/advisory/cargo.json".to_owned(),
     }
     .to_string();
     assert_eq!(
         missing,
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/advisory/cargo.json (refresh via bazel run @rules_dx//cli/advisory_prep --)"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/local/advisory/cargo.json (refresh via bazel run @rules_dx//cli/advisory_prep --)"
     );
     assert!(missing.contains(dx_audit::advisory::REFRESH_COMMAND));
     assert!(!missing.contains("https://"), "{missing}");
     let snapshot_read = AuditError::AdvisoryRead {
         set: "cargo".to_owned(),
-        rel: ".dx/advisory/cargo.json".to_owned(),
+        rel: ".dx/local/advisory/cargo.json".to_owned(),
         error: std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
     };
     assert_eq!(
         snapshot_read.to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: could not read .dx/advisory/cargo.json: denied"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: could not read .dx/local/advisory/cargo.json: denied"
     );
     assert!(snapshot_read.source().is_some());
     assert_eq!(
         AuditError::AdvisoryUtf8 {
             set: "cargo".to_owned(),
-            rel: ".dx/advisory/cargo.json".to_owned(),
+            rel: ".dx/local/advisory/cargo.json".to_owned(),
         }
         .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: .dx/advisory/cargo.json is not valid UTF-8"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: .dx/local/advisory/cargo.json is not valid UTF-8"
     );
     assert_eq!(
         AuditError::AdvisoryEmpty {
             set: "cargo".to_owned(),
-            rel: ".dx/advisory/cargo.json".to_owned(),
+            rel: ".dx/local/advisory/cargo.json".to_owned(),
         }
         .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: empty .dx/advisory/cargo.json"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: empty .dx/local/advisory/cargo.json"
     );
     assert_eq!(
         AuditError::AdvisoryMissingMeta {
             set: "cargo".to_owned(),
-            meta_rel: ".dx/advisory/cargo.meta.json".to_owned(),
+            meta_rel: ".dx/local/advisory/cargo.meta.json".to_owned(),
         }
         .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/advisory/cargo.meta.json"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: missing .dx/local/advisory/cargo.meta.json"
     );
     let meta_wrapped = AuditError::AdvisoryMeta {
         set: "cargo".to_owned(),
         source: Box::new(AuditError::NotUtf8 {
-            rel: ".dx/advisory/cargo.meta.json".to_owned(),
+            rel: ".dx/local/advisory/cargo.meta.json".to_owned(),
         }),
     };
     assert_eq!(
         meta_wrapped.to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: could not read .dx/advisory/cargo.meta.json: not valid UTF-8"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: could not read .dx/local/advisory/cargo.meta.json: not valid UTF-8"
     );
     assert!(meta_wrapped.source().is_some());
     assert_eq!(
@@ -1156,10 +1156,10 @@ fn audit_errors_stay_typed_with_stable_display() {
     assert_eq!(
         AuditError::AdvisoryShaMismatch {
             set: "cargo".to_owned(),
-            rel: ".dx/advisory/cargo.json".to_owned(),
+            rel: ".dx/local/advisory/cargo.json".to_owned(),
         }
         .to_string(),
-        "advisory_refresh_failed: could not obtain current advisory data for cargo: identity sha256 does not match .dx/advisory/cargo.json"
+        "advisory_refresh_failed: could not obtain current advisory data for cargo: identity sha256 does not match .dx/local/advisory/cargo.json"
     );
     assert_eq!(
         AuditError::AdvisoryParse {

@@ -440,7 +440,7 @@ mod tests {
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(tool_runs(&harness).is_empty());
-        assert!(!harness.workspace.join(".dx/docs").exists());
+        assert!(!harness.workspace.join(".dx/local/docs").exists());
     }
 
     #[test]

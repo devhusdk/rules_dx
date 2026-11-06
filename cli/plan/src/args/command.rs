@@ -439,7 +439,7 @@ pub static COMMANDS: [CommandMeta; 28] = [
         command: Command::Fuzz,
         name: "fuzz",
         scope_policy: "default-//...",
-        describe: "run dx-fuzz targets for a time budget and store crashes under .dx/fuzz",
+        describe: "run dx-fuzz targets for a time budget and store crashes under .dx/local/fuzz",
         usage: "Usage: dx fuzz [--here] [--time <duration>] [--jobs <n>] [scope ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //.... Only targets tagged dx-fuzz run.",
         is_managed: false,

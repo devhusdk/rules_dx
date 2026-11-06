@@ -76,10 +76,10 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             if json {
                 let notice = NoticeEvent {
                     related_command: Some("clean".to_owned()),
-                    path: Some(".dx/explain".to_owned()),
+                    path: Some(".dx/local/explain".to_owned()),
                     ..NoticeEvent::info(
                         CODE_CLEAN_PRUNED,
-                        format!("pruned {removed} execution logs .dx/explain"),
+                        format!("pruned {removed} execution logs .dx/local/explain"),
                     )
                 };
                 if let Err(exit) = emit_built(out, notice_event(&notice)) {
@@ -88,7 +88,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             } else if verbose {
                 if let Err(exit) = check_stdout_write(writeln!(
                     out,
-                    "dx clean: pruned {removed} execution logs from .dx/explain"
+                    "dx clean: pruned {removed} execution logs from .dx/local/explain"
                 )) {
                     return exit;
                 }
@@ -100,7 +100,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
                 out,
                 err,
                 CODE_CLEAN_FAILED,
-                &format!("could not prune .dx/explain: {error}"),
+                &format!("could not prune .dx/local/explain: {error}"),
             );
         }
     }

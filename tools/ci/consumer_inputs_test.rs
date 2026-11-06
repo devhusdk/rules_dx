@@ -475,7 +475,7 @@ fn fuzz_is_off_by_default_and_uploads_crashes_for_thirty_days() {
     let steps = fuzz["steps"].to_string();
     for needle in [
         "dx-fuzz-corpus-",
-        ".dx/fuzz",
+        ".dx/local/fuzz",
         "dx-fuzz-crashes",
         "\"retention-days\":30",
         "-- fuzz --time",

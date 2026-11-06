@@ -28,7 +28,7 @@ Scopes: labels, patterns, files, or dirs. With no scope, dx mutate runs `//...`.
 For each target dx runs:
 
 ```sh
-bazel run //pkg:lib_run -- --time <seconds> --out .dx/mutate/pkg/lib/
+bazel run //pkg:lib_run -- --time <seconds> --out .dx/local/mutate/pkg/lib/
 ```
 
 The runner resolves `--out` against `BUILD_WORKSPACE_DIRECTORY`, stops within the time budget, and writes `mutants.json` there:
@@ -56,7 +56,7 @@ Each target prints one count line and one line per surviving mutant on stdout:
   survived src/lib.rs:12 replace + with -
 ```
 
-`/.dx/mutate/` is in the `.gitignore` that `dx init` writes.
+`/.dx/local/` is in the `.gitignore` that `dx init` writes.
 
 Reports: none.
 

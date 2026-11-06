@@ -947,7 +947,7 @@ mod tests {
             &resolved(&["//a:x"]),
             &[],
             None,
-            Some("/ws/.dx/explain/3.binpb.zst"),
+            Some("/ws/.dx/local/explain/3.binpb.zst"),
             Some(Profile::Dev),
             &[],
         )
@@ -955,7 +955,7 @@ mod tests {
         assert!(
             plan.argv
                 .iter()
-                .any(|arg| arg == "--execution_log_compact_file=/ws/.dx/explain/3.binpb.zst"),
+                .any(|arg| arg == "--execution_log_compact_file=/ws/.dx/local/explain/3.binpb.zst"),
             "{plan:?}"
         );
         for conflicting in [
@@ -969,7 +969,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 None,
-                Some("/ws/.dx/explain/3.binpb.zst"),
+                Some("/ws/.dx/local/explain/3.binpb.zst"),
                 Some(Profile::Dev),
                 &[],
             )

@@ -25,7 +25,7 @@ use dx_audit::advisory_prep::{
     split_cpansa_output, FetchLimits, PrepError, DEFAULT_LIMITS,
 };
 
-pub const DEFAULT_OUT: &str = ".dx/advisory";
+pub const DEFAULT_OUT: &str = ".dx/local/advisory";
 
 /// How one preparation run reaches and writes its snapshots.
 #[derive(Clone, Debug, Eq, PartialEq)]

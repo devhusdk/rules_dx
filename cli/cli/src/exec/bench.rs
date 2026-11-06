@@ -339,7 +339,7 @@ fn regressions(targets: &[TargetResults], baseline: &Baseline, limit: u32) -> Ve
 }
 
 fn write_last(workspace: &Path, document: &serde_json::Value) -> std::io::Result<()> {
-    let dir = workspace.join(dx_path::state::DX_DIR).join("bench");
+    let dir = dx_path::state::local_dir(workspace).join(dx_path::state::BENCH);
     std::fs::create_dir_all(&dir)?;
     let mut text = serde_json::to_string_pretty(document).map_err(std::io::Error::other)?;
     text.push('\n');
@@ -500,7 +500,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
             out,
             err,
             CODE_REPORT_FAILED,
-            &format!("could not write .dx/bench/last.json: {error}"),
+            &format!("could not write .dx/local/bench/last.json: {error}"),
         );
     }
     if let Some(baseline) = &baseline {
@@ -689,7 +689,7 @@ mod tests {
             assert!(bazel.contains(&flag.to_owned()), "{flag} in {bazel:?}");
         }
         assert!(bazel.contains(&"//app:parse_bench".to_owned()), "{bazel:?}");
-        let last = std::fs::read_to_string(harness.workspace.join(".dx/bench/last.json"))
+        let last = std::fs::read_to_string(harness.workspace.join(".dx/local/bench/last.json"))
             .expect("last.json");
         let last: serde_json::Value = serde_json::from_str(&last).expect("json");
         assert_eq!(last["schema"], SCHEMA);

@@ -24,9 +24,9 @@ fn out_dir(label: &str) -> String {
         name
     };
     if package.is_empty() || package == name {
-        format!(".dx/fuzz/{name}/")
+        format!(".dx/local/fuzz/{name}/")
     } else {
-        format!(".dx/fuzz/{package}/{name}/")
+        format!(".dx/local/fuzz/{package}/{name}/")
     }
 }
 
@@ -146,9 +146,9 @@ mod tests {
 
     #[test]
     fn out_dirs_follow_the_package_and_name() {
-        assert_eq!(out_dir("//pkg:parser"), ".dx/fuzz/pkg/parser/");
-        assert_eq!(out_dir("//a/b:c"), ".dx/fuzz/a/b/c/");
-        assert_eq!(out_dir("//:x"), ".dx/fuzz/x/");
+        assert_eq!(out_dir("//pkg:parser"), ".dx/local/fuzz/pkg/parser/");
+        assert_eq!(out_dir("//a/b:c"), ".dx/local/fuzz/a/b/c/");
+        assert_eq!(out_dir("//:x"), ".dx/local/fuzz/x/");
     }
 
     #[test]
@@ -159,19 +159,19 @@ mod tests {
             .outputs
             .borrow_mut()
             .push(labels("//fixture:x\n"));
-        harness.write_source(".dx/fuzz/fixture/x/crash-abc", "boom");
+        harness.write_source(".dx/local/fuzz/fixture/x/crash-abc", "boom");
         let inv = invocation(&["fuzz", "//fixture:x", "--time", "1s"]);
         let mut err = Vec::new();
         let run = harness.probe_streams(&inv, &[Some(77)], &mut Vec::new(), &mut err);
         let err = String::from_utf8(err).expect("stderr");
         assert_eq!(run.code, 1, "{err}");
         assert!(
-            err.contains("dx: //fixture:x crashed; reproduce with: bazel run //fixture:x_run -- --repro .dx/fuzz/fixture/x/crash-abc"),
+            err.contains("dx: //fixture:x crashed; reproduce with: bazel run //fixture:x_run -- --repro .dx/local/fuzz/fixture/x/crash-abc"),
             "{err}"
         );
         let argv = &run.argv[0];
         assert!(argv.contains(&"//fixture:x_run".to_owned()), "{argv:?}");
-        for arg in ["--time", "1", "--out", ".dx/fuzz/fixture/x/"] {
+        for arg in ["--time", "1", "--out", ".dx/local/fuzz/fixture/x/"] {
             assert!(argv.contains(&arg.to_owned()), "{argv:?}");
         }
     }

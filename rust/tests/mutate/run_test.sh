@@ -19,9 +19,9 @@ FAKE
 chmod +x "$work/bin/cargo-mutants"
 
 BUILD_WORKSPACE_DIRECTORY="$work" CARGO_MUTANTS="$work/bin/cargo-mutants" \
-    "$run" pkg --time 5 --out .dx/mutate/pkg/
+    "$run" pkg --time 5 --out .dx/local/mutate/pkg/
 
-json="$work/.dx/mutate/pkg/mutants.json"
+json="$work/.dx/local/mutate/pkg/mutants.json"
 expected='{"killed": 1, "survived": 2, "timed_out": 0, "survivors": [{"file": "src/lib.rs", "line": 3, "mutation": "replace add -> i32 with 0"},{"file": "src/lib.rs", "line": 9, "mutation": "replace \"x\" with y"}]}'
 [ "$(cat "$json")" = "$expected" ] || { echo "unexpected mutants.json:" >&2; cat "$json" >&2; exit 1; }
 

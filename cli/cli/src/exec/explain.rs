@@ -266,7 +266,7 @@ mod tests {
     }
 
     fn save(harness: &Harness, name: &str, bytes: &[u8]) {
-        let dir = harness.workspace.join(".dx").join("explain");
+        let dir = harness.workspace.join(".dx/local").join("explain");
         std::fs::create_dir_all(&dir).expect("store");
         std::fs::write(dir.join(name), bytes).expect("log");
     }
@@ -309,10 +309,10 @@ mod tests {
         let harness = Harness::new("explain-one-sided");
         save(&harness, "4.binpb.zst", &log_with("h1", OUT));
         save(&harness, "5.binpb.zst", &log_with("h2", OUT));
-        let (code, out, err) = harness.run(&["explain", "--old=.dx/explain/5.binpb.zst"]);
+        let (code, out, err) = harness.run(&["explain", "--old=.dx/local/explain/5.binpb.zst"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("input modified src/lib.rs"), "{out}");
-        let (code, out, err) = harness.run(&["explain", "--new=.dx/explain/4.binpb.zst"]);
+        let (code, out, err) = harness.run(&["explain", "--new=.dx/local/explain/4.binpb.zst"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("input modified src/lib.rs"), "{out}");
     }

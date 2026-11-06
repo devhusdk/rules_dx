@@ -5173,7 +5173,7 @@ mod tests {
             )]),
             ..harness
         };
-        std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
+        std::fs::create_dir_all(harness.workspace.join(".dx/local/results.json")).expect("block");
         let (code, out, _) = harness.run(&["test", "--output=json"]);
         assert_eq!(code, 1, "{out}");
         let events = json_events(&out);
@@ -5205,7 +5205,7 @@ mod tests {
             )]),
             ..harness
         };
-        std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
+        std::fs::create_dir_all(harness.workspace.join(".dx/local/results.json")).expect("block");
         let (code, out, _) = harness.run(&["test", "--output=json"]);
         assert_eq!(code, 3, "{out}");
         let events = json_events(&out);
@@ -5229,7 +5229,7 @@ mod tests {
         let events = json_events(&out);
         let finished = events.last().expect("command_finished");
         let run_id = finished["run_id"].as_str().expect("run_id in event");
-        let file = std::fs::read_to_string(harness.workspace.join(".dx/results.json"))
+        let file = std::fs::read_to_string(harness.workspace.join(".dx/local/results.json"))
             .expect("results file");
         let document: serde_json::Value = serde_json::from_str(&file).expect("json");
         assert_eq!(document["run_id"], run_id);
@@ -5261,7 +5261,7 @@ mod tests {
             .expect("results file");
         let document: serde_json::Value = serde_json::from_str(&file).expect("json");
         assert_eq!(document["run_id"], run_id);
-        assert!(!harness.workspace.join(".dx/results.json").exists());
+        assert!(!harness.workspace.join(".dx/local/results.json").exists());
     }
 
     #[test]

@@ -19,6 +19,14 @@ pub const BIN_PREV: &str = "bin.prev";
 pub const LEASES: &str = "leases";
 pub const COMMIT_LOCK: &str = ".commit.lock";
 pub const COMMIT_LOCK_HOLDER: &str = ".commit.lock.holder";
+pub const RESULTS: &str = "results.json";
+pub const EXPLAIN: &str = "explain";
+pub const DOCS: &str = "docs";
+pub const PROFILE: &str = "profile";
+pub const FUZZ: &str = "fuzz";
+pub const MUTATE: &str = "mutate";
+pub const BENCH: &str = "bench";
+pub const ADVISORY: &str = "advisory";
 
 /// Entries that live under [`local_dir`].
 pub const LOCAL_ENTRIES: [&str; 11] = [

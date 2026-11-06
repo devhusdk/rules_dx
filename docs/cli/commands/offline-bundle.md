@@ -1,6 +1,6 @@
 # Offline Bundle
 
-`offline_bundle` assembles a vendored bundle for an airgapped host. The `bootstrap_offline` tool installs Bazel from the bundle and fills `.dx/advisory`. It is not a `dx` command.
+`offline_bundle` assembles a vendored bundle for an airgapped host. The `bootstrap_offline` tool installs Bazel from the bundle and fills `.dx/local/advisory`. It is not a `dx` command.
 
 ```sh
 bazel build //deploy/offline:offline_demo
@@ -52,10 +52,10 @@ bootstrap_offline --bundle DIR [--install-dir DIR] [--workspace DIR]
 | --- | --- |
 | `--bundle DIR` | Bundle tree. Required. |
 | `--install-dir DIR` | Where `bazel` (`bazel.exe` on Windows) is installed. Default `$HOME/.local/bin`, or `%USERPROFILE%\.local\bin`. Required when neither variable is set. |
-| `--workspace DIR` | Workspace that receives `.dx/advisory`. Default the current directory. |
+| `--workspace DIR` | Workspace that receives `.dx/local/advisory`. Default the current directory. |
 | `-h`, `--help` | Prints the usage line and exits `0`. |
 
-It checks every `SHA256SUMS`, installs the launcher for the host, copies each snapshot to `.dx/advisory/<set>.json`, and writes `.dx/advisory/<set>.meta.json` (set, `file://` URL, sha256, retrieval date, `path`).
+It checks every `SHA256SUMS`, installs the launcher for the host, copies each snapshot to `.dx/local/advisory/<set>.json`, and writes `.dx/local/advisory/<set>.meta.json` (set, `file://` URL, sha256, retrieval date, `path`).
 
 The retrieval date is the `retrieved_at` from the bundle, not the install day. `dx security` and `dx license` report `advisory_refresh_failed` for an old bundle until you rebuild it from a fresh snapshot.
 

@@ -98,7 +98,7 @@ fn execute_checked(
         .any(|report| report.destination == Destination::Stdout);
     if results_default {
         let path = results_path(workspace);
-        let _ = std::fs::create_dir_all(workspace.join(dx_path::state::DX_DIR));
+        let _ = std::fs::create_dir_all(dx_path::state::local_dir(workspace));
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),
@@ -179,7 +179,7 @@ fn execute_checked(
                     out,
                     err,
                     explain_store::CODE_EXPLAIN_LOG_UNWRITABLE,
-                    &format!("could not create an execution log under .dx/explain: {error}"),
+                    &format!("could not create an execution log under .dx/local/explain: {error}"),
                 );
             }
         }
@@ -373,7 +373,7 @@ fn execute_checked(
     })
 }
 
-/// Creates `.dx/profile` and returns the trace file Bazel should write.
+/// Creates `.dx/local/profile` and returns the trace file Bazel should write.
 pub(super) fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, String> {
     let dir = profile_report::dir(workspace);
     std::fs::create_dir_all(&dir)
@@ -386,7 +386,7 @@ pub(super) fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result
 }
 
 /// Reads the trace Bazel wrote and reports where the time went: text on stderr, or a notice
-/// pointing at `.dx/profile/report.json` in JSON.
+/// pointing at `.dx/local/profile/report.json` in JSON.
 pub(super) fn announce_profile(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -648,13 +648,13 @@ mod tests {
         assert!(err.is_empty(), "{err}");
         assert!(out.contains("\"failing_cases\""), "{out}");
         assert!(out.contains("boom"), "{out}");
-        assert!(harness.workspace.join(".dx/results.json").is_file());
+        assert!(harness.workspace.join(".dx/local/results.json").is_file());
     }
 
     #[test]
     fn profile_passes_the_trace_flag_and_reports_json_and_text() {
         let harness = Harness::new("build-profile");
-        let dir = harness.workspace.join(".dx").join("profile");
+        let dir = harness.workspace.join(".dx/local").join("profile");
         std::fs::create_dir_all(&dir).expect("dir");
         let id = dx_plan::plan::run_id(std::process::id(), 0, &harness.temp);
         let trace = dir.join(format!("{id}.json.gz"));
@@ -698,7 +698,7 @@ mod tests {
     #[test]
     fn profile_reports_json_and_text_from_the_trace() {
         let harness = Harness::new("build-profile-report");
-        let dir = harness.workspace.join(".dx").join("profile");
+        let dir = harness.workspace.join(".dx/local").join("profile");
         std::fs::create_dir_all(&dir).expect("dir");
         let trace = dir.join("1.json.gz");
         let json =
@@ -751,7 +751,7 @@ mod tests {
     #[test]
     fn explain_saves_the_execution_log_and_keeps_two() {
         let harness = Harness::new("build-explain");
-        let store = harness.workspace.join(".dx").join("explain");
+        let store = harness.workspace.join(".dx/local").join("explain");
         for number in 1..=3 {
             let inv = invocation(&["build", "--explain", "--output=json"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
@@ -797,7 +797,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         let log = harness
             .workspace
-            .join(".dx")
+            .join(".dx/local")
             .join("explain")
             .join("1.binpb.zst");
         assert!(
@@ -815,7 +815,7 @@ mod tests {
         harness.io_error = true;
         let (code, out, _) = harness.run(&["build", "--explain", "--output=json"]);
         assert_eq!(code, 1, "{out}");
-        let store = harness.workspace.join(".dx/explain");
+        let store = harness.workspace.join(".dx/local/explain");
         let left = std::fs::read_dir(&store).map_or(0, |entries| entries.count());
         assert_eq!(left, 0, "{out}");
     }
@@ -1147,7 +1147,7 @@ mod tests {
     #[test]
     fn workflow_json_removes_stale_default_results_before_an_early_failure() {
         let mut harness = Harness::new("wf-stale-results");
-        let stale = harness.workspace.join(".dx/results.json");
+        let stale = harness.workspace.join(".dx/local/results.json");
         std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
         std::fs::write(&stale, "stale").expect("stale results");
         harness.io_error = true;
@@ -1167,7 +1167,7 @@ mod tests {
             ("wf-stale-bogus", &["--report=bogus=x"][..]),
         ] {
             let harness = Harness::new(name);
-            let stale = harness.workspace.join(".dx/results.json");
+            let stale = harness.workspace.join(".dx/local/results.json");
             std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
             std::fs::write(&stale, "stale").expect("stale results");
             let mut args = vec!["test", "--output=json"];
@@ -1184,7 +1184,7 @@ mod tests {
     #[test]
     fn workflow_json_keeps_default_results_when_a_results_report_is_requested() {
         let mut harness = Harness::new("wf-keep-results");
-        let stale = harness.workspace.join(".dx/results.json");
+        let stale = harness.workspace.join(".dx/local/results.json");
         std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
         std::fs::write(&stale, "stale").expect("stale results");
         harness.io_error = true;
@@ -1205,7 +1205,7 @@ mod tests {
     #[test]
     fn workflow_json_build_keeps_stale_results_on_a_report_error() {
         let harness = Harness::new("wf-build-keep-results");
-        let stale = harness.workspace.join(".dx/results.json");
+        let stale = harness.workspace.join(".dx/local/results.json");
         std::fs::create_dir_all(stale.parent().expect("parent")).expect("dx dir");
         std::fs::write(&stale, "stale").expect("stale results");
         let (code, out, _) = harness.run(&["build", "--output=json", "--report=bogus=x"]);

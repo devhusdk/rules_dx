@@ -36,7 +36,7 @@ Args after `--` go to Bazel unchanged.
 Scopes: Bazel labels or patterns (`//...`, `//pkg:target`), or
 workspace-relative files or dirs. No scope means `//...`. A scope with no docs
 targets builds nothing and exits `0`. When the scope has no docs site but has
-Rust libraries, `dx docs` renders their API into `.dx/docs/index` and prints
+Rust libraries, `dx docs` renders their API into `.dx/local/docs/index` and prints
 the path of its `index.html`.
 
 Output: text prints `Running docs build for <scope> (mdBook render)`. With

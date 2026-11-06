@@ -98,7 +98,7 @@ fn the_preparation_runs_the_pinned_native_command_once() {
     for needle in [
         "@rules_dx//cli/advisory_prep -- \\",
         "--workspace \"$GITHUB_WORKSPACE\"",
-        "--out \"$GITHUB_WORKSPACE/.dx/advisory\"",
+        "--out \"$GITHUB_WORKSPACE/.dx/local/advisory\"",
         "--date \"$retrieved_at\"",
     ] {
         assert!(
@@ -128,7 +128,7 @@ fn the_preparation_publishes_one_run_artifact() {
     let prep = steps(WORKFLOW, PREP);
     let upload = action_step(&prep, "actions/upload-artifact");
     assert_eq!(upload["with"]["name"], json!(ARTIFACT));
-    assert_eq!(upload["with"]["path"], json!(".dx/advisory"));
+    assert_eq!(upload["with"]["path"], json!(".dx/local/advisory"));
     assert_eq!(upload["with"]["if-no-files-found"], json!("error"));
 }
 
@@ -165,7 +165,7 @@ fn every_audit_cell_restores_that_artifact_instead_of_downloading() {
     let audit = steps(WORKFLOW, AUDIT);
     let download = action_step(&audit, "actions/download-artifact");
     assert_eq!(download["with"]["name"], json!(ARTIFACT));
-    assert_eq!(download["with"]["path"], json!(".dx/advisory"));
+    assert_eq!(download["with"]["path"], json!(".dx/local/advisory"));
     let script = script_running(AUDIT, "@rules_dx//:dx -- security");
     for absent in [
         "curl",

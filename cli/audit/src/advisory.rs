@@ -88,11 +88,11 @@ pub fn is_accepted_url(url: &str) -> bool {
 }
 
 pub fn snapshot_rel(family: &str) -> String {
-    format!(".dx/advisory/{family}.json")
+    format!(".dx/local/advisory/{family}.json")
 }
 
 pub fn identity_rel(family: &str) -> String {
-    format!(".dx/advisory/{family}.meta.json")
+    format!(".dx/local/advisory/{family}.meta.json")
 }
 
 pub fn parse_identity(text: &str) -> Result<AdvisorySnapshot, String> {
@@ -167,7 +167,7 @@ mod tests {
             url: "https://osv.dev/snapshots/cargo-2026-09-18.json".to_owned(),
             sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
             retrieved_at: "2026-09-18".to_owned(),
-            path: ".dx/advisory/cargo-2026-09-18.json".to_owned(),
+            path: ".dx/local/advisory/cargo-2026-09-18.json".to_owned(),
         }
     }
 
@@ -313,8 +313,8 @@ mod tests {
         for set in ["npm", "npm-adopt", "npm-adopt-polyglot", "npm-tools"] {
             assert_eq!(advisory_family(set), Some("npm"), "{set} is npm");
             let family = advisory_family(set).expect("family");
-            assert_eq!(snapshot_rel(family), ".dx/advisory/npm.json", "{set}");
-            assert_eq!(identity_rel(family), ".dx/advisory/npm.meta.json", "{set}");
+            assert_eq!(snapshot_rel(family), ".dx/local/advisory/npm.json", "{set}");
+            assert_eq!(identity_rel(family), ".dx/local/advisory/npm.meta.json", "{set}");
         }
         assert_eq!(advisory_family("cargo"), Some("cargo"));
         assert_eq!(advisory_family("ruby"), Some("rubygems"));
@@ -326,10 +326,10 @@ mod tests {
                 Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
                 "{key}"
             );
-            assert_eq!(snapshot_rel(key), ".dx/advisory/rubygems.json", "{key}");
+            assert_eq!(snapshot_rel(key), ".dx/local/advisory/rubygems.json", "{key}");
             assert_eq!(
                 identity_rel(key),
-                ".dx/advisory/rubygems.meta.json",
+                ".dx/local/advisory/rubygems.meta.json",
                 "{key}"
             );
         }
@@ -355,16 +355,16 @@ mod tests {
     fn osv_only_sets_are_their_own_family() {
         for set in crate::vuln::VERSION_FAMILIES {
             assert_eq!(advisory_family(set), Some(*set));
-            assert_eq!(snapshot_rel(set), format!(".dx/advisory/{set}.json"));
+            assert_eq!(snapshot_rel(set), format!(".dx/local/advisory/{set}.json"));
         }
     }
 
     #[test]
     fn snapshot_and_identity_rels_are_pinned() {
-        assert_eq!(snapshot_rel("cargo"), ".dx/advisory/cargo.json");
-        assert_eq!(identity_rel("cargo"), ".dx/advisory/cargo.meta.json");
-        assert_eq!(snapshot_rel("go"), ".dx/advisory/go.json");
-        assert_eq!(identity_rel("go"), ".dx/advisory/go.meta.json");
+        assert_eq!(snapshot_rel("cargo"), ".dx/local/advisory/cargo.json");
+        assert_eq!(identity_rel("cargo"), ".dx/local/advisory/cargo.meta.json");
+        assert_eq!(snapshot_rel("go"), ".dx/local/advisory/go.json");
+        assert_eq!(identity_rel("go"), ".dx/local/advisory/go.meta.json");
     }
 
     #[test]

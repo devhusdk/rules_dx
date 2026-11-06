@@ -33,7 +33,7 @@ Commands:
   docs        build and serve the mdBook documentation site, or an API index of the Rust libraries in scope (non-mutating)
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   explain     explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)
-  fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/fuzz
+  fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/local/fuzz
   mutate      run dx-mutate targets for a time budget and report surviving mutants
   release     derive the next version from conventional commits, list the manifests that carry it, and with --apply bump them, commit and tag
   unused      report cross-file unused code over resolved scopes (non-mutating; warnings only unless --fail-on=warning)

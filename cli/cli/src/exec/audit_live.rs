@@ -648,15 +648,15 @@ pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
         write_go_mod(harness);
         let json = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
         let sha = dx_digest::sha256_hex(json.as_bytes());
-        harness.write_source(".dx/advisory/go.json", json);
+        harness.write_source(".dx/local/advisory/go.json", json);
         let meta = serde_json::json!({
             "set": "go",
             "url": "file:///opt/dx-offline/advisory/go.json",
             "sha256": sha,
             "retrieved_at": TEST_AUDIT_TODAY,
-            "path": ".dx/advisory/go.json",
+            "path": ".dx/local/advisory/go.json",
         });
-        harness.write_source(".dx/advisory/go.meta.json", &meta.to_string());
+        harness.write_source(".dx/local/advisory/go.meta.json", &meta.to_string());
     });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
@@ -893,15 +893,15 @@ pub(super) fn audit_live_stale_advisory_fails_without_stale_fallback() {
                 .expect("source")
                 .to_owned();
             let sha = dx_digest::sha256_hex(json.as_bytes());
-            harness.write_source(".dx/advisory/cargo.json", json);
+            harness.write_source(".dx/local/advisory/cargo.json", json);
             let meta = serde_json::json!({
                 "set": "cargo",
                 "url": url,
                 "sha256": sha,
                 "retrieved_at": "2000-01-01",
-                "path": ".dx/advisory/cargo.json",
+                "path": ".dx/local/advisory/cargo.json",
             });
-            harness.write_source(".dx/advisory/cargo.meta.json", &meta.to_string());
+            harness.write_source(".dx/local/advisory/cargo.meta.json", &meta.to_string());
         },
     );
     assert_eq!(code, 1, "{out}{err}");
@@ -947,7 +947,7 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
         &runner,
         &|harness| {
             write_cargo_lock(harness);
-            harness.write_source(".dx/advisory/cargo.json", "[]");
+            harness.write_source(".dx/local/advisory/cargo.json", "[]");
             let url = dx_audit::advisory::advisory_source("cargo")
                 .expect("source")
                 .to_owned();
@@ -956,9 +956,9 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
                 "url": url,
                 "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "retrieved_at": TEST_AUDIT_TODAY,
-                "path": ".dx/advisory/cargo.json",
+                "path": ".dx/local/advisory/cargo.json",
             });
-            harness.write_source(".dx/advisory/cargo.meta.json", &meta.to_string());
+            harness.write_source(".dx/local/advisory/cargo.meta.json", &meta.to_string());
         },
     );
     assert_eq!(code, 1, "{out}{err}");

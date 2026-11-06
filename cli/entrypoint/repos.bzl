@@ -287,7 +287,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess pypi-frontend" "$(location security_json.txt)"
-grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
+grep -q ".dx/local/advisory/pypi.json" "$(location security_json.txt)"
 if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|cpan_deps|vendor|web|pypi-worker)' "$(location security_json.txt)"; then
   echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
@@ -297,7 +297,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess web" "$(location security_npm_json.txt)"
-grep -q ".dx/advisory/npm.json" "$(location security_npm_json.txt)"
+grep -q ".dx/local/advisory/npm.json" "$(location security_npm_json.txt)"
 if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
   echo "security reported a configured npm set as uncovered" >&2
   exit 1
@@ -307,7 +307,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess crates" "$(location security_cargo_json.txt)"
-grep -q ".dx/advisory/cargo.json" "$(location security_cargo_json.txt)"
+grep -q ".dx/local/advisory/cargo.json" "$(location security_cargo_json.txt)"
 if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
   echo "security reported a configured cargo set as uncovered" >&2
   exit 1
@@ -329,7 +329,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess vendor" "$(location security_composer_json.txt)"
-grep -q ".dx/advisory/packagist.json" "$(location security_composer_json.txt)"
+grep -q ".dx/local/advisory/packagist.json" "$(location security_composer_json.txt)"
 if grep -q "no advisory coverage" "$(location security_composer_json.txt)"; then
   echo "security reported a configured composer set as uncovered" >&2
   exit 1
@@ -351,7 +351,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess gems" "$(location security_ruby_json.txt)"
-grep -q ".dx/advisory/rubygems.json" "$(location security_ruby_json.txt)"
+grep -q ".dx/local/advisory/rubygems.json" "$(location security_ruby_json.txt)"
 if grep -q "no advisory coverage" "$(location security_ruby_json.txt)"; then
   echo "security reported a configured ruby set as uncovered" >&2
   exit 1
@@ -361,7 +361,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess cpan_deps" "$(location security_cpan_json.txt)"
-grep -q ".dx/advisory/cpan.json" "$(location security_cpan_json.txt)"
+grep -q ".dx/local/advisory/cpan.json" "$(location security_cpan_json.txt)"
 if grep -q "no advisory coverage" "$(location security_cpan_json.txt)"; then
   echo "security reported a configured cpan set as uncovered" >&2
   exit 1
@@ -371,7 +371,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess swiftpm" "$(location security_swiftpm_json.txt)"
-grep -q ".dx/advisory/swifturl.json" "$(location security_swiftpm_json.txt)"
+grep -q ".dx/local/advisory/swifturl.json" "$(location security_swiftpm_json.txt)"
 if grep -q "no advisory coverage" "$(location security_swiftpm_json.txt)"; then
   echo "security reported a configured swiftpm set as uncovered" >&2
   exit 1

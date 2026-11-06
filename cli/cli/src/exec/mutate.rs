@@ -53,9 +53,9 @@ fn out_dir(label: &str) -> String {
         name
     };
     if package.is_empty() || package == name {
-        format!(".dx/mutate/{name}/")
+        format!(".dx/local/mutate/{name}/")
     } else {
-        format!(".dx/mutate/{package}/{name}/")
+        format!(".dx/local/mutate/{package}/{name}/")
     }
 }
 
@@ -203,7 +203,7 @@ mod tests {
             .borrow_mut()
             .push(labels("//fixture:x\n"));
         if let Some(result) = result {
-            harness.write_source(".dx/mutate/fixture/x/mutants.json", result);
+            harness.write_source(".dx/local/mutate/fixture/x/mutants.json", result);
         }
         let mut words = vec!["mutate", "//fixture:x"];
         words.extend_from_slice(args);
@@ -219,8 +219,8 @@ mod tests {
 
     #[test]
     fn out_dirs_follow_the_package_and_name() {
-        assert_eq!(out_dir("//pkg:lib"), ".dx/mutate/pkg/lib/");
-        assert_eq!(out_dir("//:x"), ".dx/mutate/x/");
+        assert_eq!(out_dir("//pkg:lib"), ".dx/local/mutate/pkg/lib/");
+        assert_eq!(out_dir("//:x"), ".dx/local/mutate/x/");
     }
 
     #[test]

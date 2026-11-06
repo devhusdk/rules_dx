@@ -14,7 +14,7 @@ const CRITICAL_SHOWN: usize = 5;
 const SLOWEST_SHOWN: usize = 10;
 
 pub(crate) fn dir(workspace: &Path) -> PathBuf {
-    workspace.join(dx_path::state::DX_DIR).join("profile")
+    dx_path::state::local_dir(workspace).join(dx_path::state::PROFILE)
 }
 
 pub(crate) fn profile_path(workspace: &Path, run_id: &str) -> PathBuf {

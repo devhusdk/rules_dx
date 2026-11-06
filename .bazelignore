@@ -7,13 +7,6 @@ javascript/tests/fixtures/node-app/registry/node_modules
 .dx/ide
 .dx/local
 .dx/bazelrc
-.dx/docs
-.dx/explain
-.dx/profile
-.dx/fuzz
-.dx/mutate
-.dx/advisory
-.dx/bench
 # Disposable trees, also in .gitignore.
 .cache
 .direnv

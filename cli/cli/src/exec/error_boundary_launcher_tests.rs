@@ -521,7 +521,8 @@ fn assert_bazel_exit_kept(outcome: &Outcome, results: &std::path::Path, code: i3
 #[test]
 fn a_missing_event_file_keeps_bazels_usage_exit() {
     let consumer = Consumer::new();
-    let results = consumer.workspace().join(".dx/results.json");
+    let results = consumer.workspace().join(".dx/local/results.json");
+    fs::create_dir_all(results.parent().expect("parent")).expect("dx dir");
     for (flags, env) in JSON_MODES {
         fs::write(&results, "stale").expect("stale results");
         let mut run_env = env.to_vec();
@@ -534,7 +535,8 @@ fn a_missing_event_file_keeps_bazels_usage_exit() {
 #[test]
 fn a_cut_off_event_file_keeps_bazels_crash_exit() {
     let consumer = Consumer::new();
-    let results = consumer.workspace().join(".dx/results.json");
+    let results = consumer.workspace().join(".dx/local/results.json");
+    fs::create_dir_all(results.parent().expect("parent")).expect("dx dir");
     for (flags, env) in JSON_MODES {
         fs::write(&results, "stale").expect("stale results");
         let mut run_env = env.to_vec();
@@ -600,7 +602,8 @@ fn cancellation_ends_without_a_failure_event() {
 #[test]
 fn a_stopped_test_run_claims_no_results() {
     let consumer = Consumer::new();
-    let results = consumer.workspace().join(".dx/results.json");
+    let results = consumer.workspace().join(".dx/local/results.json");
+    fs::create_dir_all(results.parent().expect("parent")).expect("dx dir");
     for signo in [libc::SIGINT, libc::SIGTERM] {
         fs::create_dir_all(results.parent().expect("dir")).expect("dir");
         fs::write(&results, "stale").expect("stale results");

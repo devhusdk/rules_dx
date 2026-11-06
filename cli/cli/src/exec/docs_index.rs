@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 pub(crate) const CODE_INDEX_FAILED: &str = "docs_index_failed";
 
-const INDEX_DIR: &str = ".dx/docs";
+const INDEX_DIR: &str = ".dx/local/docs";
 
 const BOOK_TOML: &str = "[book]\ntitle = \"API reference\"\nlanguage = \"en\"\nsrc = \"src\"\n";
 
@@ -129,7 +129,7 @@ fn run_tool(
     }
 }
 
-/// Renders the shards into `<workspace>/.dx/docs/index` and returns that tree.
+/// Renders the shards into `<workspace>/.dx/local/docs/index` and returns that tree.
 pub(crate) fn build_index(
     bep: &Path,
     workspace: &Path,
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn aggregate_gets_every_shard_once_in_order() {
         let shards = [PathBuf::from("/w/a/a.shard"), PathBuf::from("/w/b/b.shard")];
-        let argv = aggregate_argv(Path::new("/t/agg"), &shards, Path::new("/w/.dx/docs/work"));
+        let argv = aggregate_argv(Path::new("/t/agg"), &shards, Path::new("/w/.dx/local/docs/work"));
         let argv: Vec<String> = argv.iter().map(|arg| arg.replace('\\', "/")).collect();
         assert_eq!(argv[0], "/t/agg");
         assert_eq!(
@@ -188,7 +188,7 @@ mod tests {
             ["--shard", "/w/a/a.shard", "--shard", "/w/b/b.shard"]
         );
         assert!(
-            argv.contains(&"/w/.dx/docs/work/api".to_owned()),
+            argv.contains(&"/w/.dx/local/docs/work/api".to_owned()),
             "{argv:?}"
         );
     }

@@ -374,7 +374,7 @@ fn the_preparation_writes_one_snapshot_and_sidecar_per_needed_ecosystem() {
     assert_eq!(prepared[0].family, "cargo");
     assert_eq!(prepared[1].family, "cargo-yanked");
     assert_eq!(prepared[0].advisories, 2);
-    assert_eq!(prepared[0].path, ".dx/advisory/cargo.json");
+    assert_eq!(prepared[0].path, ".dx/local/advisory/cargo.json");
     let out = workspace.path().join(DEFAULT_OUT);
     let payload_bytes = std::fs::read(out.join("cargo.json")).expect("reads the snapshot");
     assert_eq!(prepared[0].identity, dx_digest::sha256_hex(&payload_bytes));
@@ -382,7 +382,7 @@ fn the_preparation_writes_one_snapshot_and_sidecar_per_needed_ecosystem() {
     let identity = parse_identity(&sidecar).expect("the audit reads the sidecar");
     assert_eq!(identity.sha256, prepared[0].identity);
     assert_eq!(identity.retrieved_at, "2026-09-22");
-    assert_eq!(identity.path, ".dx/advisory/cargo.json");
+    assert_eq!(identity.path, ".dx/local/advisory/cargo.json");
     assert!(identity_matches_bytes(&identity, &payload_bytes));
     assert_eq!(
         parse_snapshot(&String::from_utf8(payload_bytes).expect("utf-8"))

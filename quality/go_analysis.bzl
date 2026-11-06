@@ -153,7 +153,7 @@ def _go_analysis_impl(target, ctx):
     ctx.actions.write(config_file, json.encode(config))
     reports = {}
     for tool in sorted(_DRIVERS):
-        report = ctx.actions.declare_file("dx_%s/%s.json" % (tool, target.label.name))
+        report = ctx.actions.declare_file("dx_go_analysis/%s/%s.json" % (tool, target.label.name))
         (extra_args, extra_inputs) = _tool_arguments(target, ctx, tool)
         ctx.actions.run(
             mnemonic = _MNEMONICS[tool],

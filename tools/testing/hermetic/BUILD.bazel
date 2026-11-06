@@ -254,6 +254,7 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
+    compatible_with = LINUX_MACOS,
 )
 
 hermetic_qualification(

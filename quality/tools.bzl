@@ -255,7 +255,7 @@ TOOLS = [
             "format": ["bicep"],
             "lint": ["bicep"],
         },
-        config = config(suffixes = ["bicepconfig.json"], tier_active = True, stage_native = True),
+        config = config(suffixes = ["bicepconfig.json"], files = ["bicepconfig.json"], tier_active = True, stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -283,7 +283,7 @@ TOOLS = [
             "format": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
             "lint": ["javascript", "json", "jsonc", "jsx", "typescript", "tsx"],
         },
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -377,7 +377,7 @@ TOOLS = [
             "format": ["starlark"],
             "lint": ["starlark"],
         },
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -476,7 +476,7 @@ TOOLS = [
     tool(
         id = "checkstyle",
         adapters = {"lint": ["java"]},
-        config = config(suffixes = [".xml"]),
+        config = config(suffixes = [".xml"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -965,6 +965,7 @@ TOOLS = [
             comment = "//",
             init_order = 2,
             family = "js",
+            tier_active = True,
         ),
         support = [
             row(
@@ -1048,7 +1049,7 @@ TOOLS = [
     tool(
         id = "ffmt",
         adapters = {"format": ["fortran"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], files = ["ffmt.toml"], stage_native = True),
         support = [
             row(
                 capability = "format",
@@ -1255,7 +1256,7 @@ TOOLS = [
     tool(
         id = "graphql_eslint",
         adapters = {"lint": ["graphql"]},
-        config = config(suffixes = [".json"]),
+        config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "lint",
@@ -1488,7 +1489,7 @@ TOOLS = [
     tool(
         id = "kubeconform",
         adapters = {"lint": ["kubernetes"]},
-        config = config(suffixes = [".kubeconform.json"], tier_active = True, stage_native = True),
+        config = config(suffixes = [".kubeconform.json"], files = ["kubernetes.kubeconform.json"], tier_active = True, stage_native = True),
         severity = severity(default = "error"),
         support = [
             row(
@@ -2089,7 +2090,7 @@ TOOLS = [
     tool(
         id = "regal",
         adapters = {"lint": ["rego"]},
-        config = config(suffixes = [".yaml", ".yml"], tier_active = True, stage_native = True),
+        config = config(suffixes = [".yaml", ".yml"], files = [".regal/config.yaml"], tier_active = True, stage_native = True),
         severity = severity(default = "warning"),
         support = [
             row(
@@ -2175,6 +2176,7 @@ TOOLS = [
             pyproject_table = "ruff",
             init_order = 1,
             family = "python",
+            tier_active = True,
         ),
         support = [
             row(
@@ -2390,7 +2392,7 @@ TOOLS = [
             "format": ["sql"],
             "lint": ["sql"],
         },
-        config = config(suffixes = [".sqlfluff", ".cfg", ".ini"]),
+        config = config(suffixes = [".sqlfluff", ".cfg", ".ini"], tier_active = True),
         support = [
             row(
                 capability = "format",
@@ -2438,7 +2440,7 @@ TOOLS = [
     tool(
         id = "staticcheck",
         adapters = {"lint": ["go"]},
-        config = config(suffixes = [".conf"], tier_active = True, stage_native = True),
+        config = config(suffixes = [".conf"], files = ["staticcheck.conf"], tier_active = True, stage_native = True),
         severity = severity(categories = {
             "QF": "info",
             "S": "warning",
@@ -2760,7 +2762,7 @@ TOOLS = [
     tool(
         id = "ty",
         adapters = {"typecheck": ["jupyter", "python", "python_stub"]},
-        config = config(suffixes = [".toml"]),
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "typecheck",

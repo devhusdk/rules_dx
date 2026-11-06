@@ -1,0 +1,4 @@
+exports_files(
+    ["generated_policy.bzl"],
+    visibility = ["//quality:__subpackages__"],
+)

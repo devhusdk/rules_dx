@@ -70,6 +70,22 @@ def _native_config_suffix_error(tool_id, config_path, wants):
     return ("native_config (" + tool_id + "): src must end in one of " +
             ", ".join(quoted) + ", got " + config_path)
 
+_STAGED_CONFIG_FILES = {tool.id: tool.config.files[0] for tool in TOOLS if tool.config.stage_native and tool.config.files}
+
+_TIER_ACTIVE_DIRS = {tool.id: tool.config.tier_dir or tool.id for tool in TOOLS if tool.config.tier_active}
+
+def tier_active_dirs():
+    """Returns tool ID to its directory under quality/tiers for every tier-active tool."""
+    return _TIER_ACTIVE_DIRS
+
+def staged_config_rel(tool_id, config_rel):
+    """Returns where a bound config is staged: files[0] next to it for stage_native tools, else unchanged."""
+    name = _STAGED_CONFIG_FILES.get(CONFIG_TOOL_ALIASES.get(tool_id, tool_id))
+    if name == None:
+        return config_rel
+    directory, slash, _ = config_rel.rpartition("/")
+    return directory + slash + name
+
 def native_config_scratch_rel(short_path):
     """Maps a short_path to a scratch-relative path ('../repo/p' -> '_external/repo/p'), or None if it still escapes."""
     rel = short_path

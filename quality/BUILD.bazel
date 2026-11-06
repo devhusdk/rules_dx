@@ -21,8 +21,9 @@ load(":nvcc_syntax_tests.bzl", "nvcc_syntax_unit_tests")
 load(":parity_tests.bzl", "parity_unit_tests")
 load(":pipeline_tests.bzl", "pipeline_unit_tests")
 load(":policy.bzl", "quality_family", "workspace_policy")
+load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 load(":policy_subject.bzl", "policy_subject")
-load(":policy_tests.bzl", "policy_analysis_tests", "policy_unit_tests")
+load(":policy_tests.bzl", "policy_analysis_tests", "policy_profile_analysis_tests", "policy_unit_tests")
 load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests", "rustc_request_analysis_tests", "unsupported_platform_analysis_tests")
 load(":registry_tests.bzl", "registry_unit_tests")
 load(":sources_tests.bzl", "sources_registry_tests")
@@ -145,7 +146,29 @@ policy_subject(
     policy = ":fixture_disable_policy",
 )
 
+quality_family(
+    name = "strict_python_family",
+    family_id = "python",
+    lint = ["lint-a"],
+    profile = "strict",
+)
+
+dx_generated_policy(
+    name = "fixture_generated_policy",
+    bases = {"ruff": "//quality/tiers/ruff:strict"},
+    configs = [":corpus_vale_config"],
+    families = [":strict_python_family"],
+    profile = "standard",
+)
+
+policy_subject(
+    name = "generated_policy_under_test",
+    policy = ":fixture_generated_policy",
+)
+
 policy_unit_tests(name = "policy_unit")
+
+policy_profile_analysis_tests(name = "policy_profile_analysis")
 
 curated_defaults_unit_tests(name = "curated_defaults_unit")
 

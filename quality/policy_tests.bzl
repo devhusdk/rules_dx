@@ -216,3 +216,37 @@ def policy_analysis_tests(name):
         ],
         expected_observations = EXPECTED_POLICY_OBSERVATIONS,
     )
+
+EXPECTED_PROFILE_OBSERVATIONS = """subject //quality:generated_policy_under_test
+field config.biome=quality/tiers/biome/standard.json
+field config.buildifier=quality/tiers/buildifier/standard.json
+field config.checkstyle=quality/tiers/checkstyle/standard.xml
+field config.eslint=quality/tiers/eslint/standard.mjs
+field config.graphql_eslint=quality/tiers/graphql_eslint/standard.json
+field config.ruff=quality/tiers/ruff/strict.toml
+field config.sqlfluff=quality/tiers/sqlfluff/standard.cfg
+field config.ty=quality/tiers/ty/standard.toml
+field config.vale=quality/corpus_vale.ini
+field disabled.python.audit=False
+field disabled.python.format=False
+field disabled.python.lint=False
+field disabled.python.typecheck=False
+field family.python.audit=
+field family.python.format=
+field family.python.lint=lint-a
+field family.python.typecheck=
+field profile.python=strict
+aspect_field aspect_seen=True
+aspect_field field_count=18
+aspect_field has_subject=True
+aspect_field subject_label=//quality:generated_policy_under_test
+aspect_field transitive_count=0
+"""
+
+def policy_profile_analysis_tests(name):
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = [":generated_policy_under_test"],
+        expected_observations = EXPECTED_PROFILE_OBSERVATIONS,
+    )

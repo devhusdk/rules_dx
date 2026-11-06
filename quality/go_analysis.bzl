@@ -84,8 +84,6 @@ def _staticcheck_config(target, ctx):
     if "staticcheck" not in bound:
         return None
     info = bound["staticcheck"]
-    if info.config.basename != "staticcheck.conf":
-        fail("staticcheck config for %s must be named staticcheck.conf, got %s" % (target.label, info.config.basename))
     return info
 
 def _tool_arguments(target, ctx, tool):

@@ -1,0 +1,24 @@
+load("//quality:native_config.bzl", "buildifier_config")
+
+exports_files(
+    glob(["**"], exclude = ["BUILD.bazel"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "files",
+    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    visibility = ["//visibility:public"],
+)
+
+buildifier_config(
+    name = "standard",
+    src = "standard.json",
+    visibility = ["//visibility:public"],
+)
+
+buildifier_config(
+    name = "strict",
+    src = "strict.json",
+    visibility = ["//visibility:public"],
+)

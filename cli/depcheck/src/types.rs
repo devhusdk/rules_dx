@@ -73,6 +73,7 @@ pub enum Ecosystem {
     Ruby,
     Perl,
     Zig,
+    Julia,
 }
 
 impl std::str::FromStr for Ecosystem {
@@ -101,6 +102,7 @@ impl Ecosystem {
             "ruby" => Some(Self::Ruby),
             "perl" => Some(Self::Perl),
             "zig" => Some(Self::Zig),
+            "julia" => Some(Self::Julia),
             _ => None,
         }
     }
@@ -121,6 +123,7 @@ impl Ecosystem {
             Self::Ruby => "ruby",
             Self::Perl => "perl",
             Self::Zig => "zig",
+            Self::Julia => "julia",
         }
     }
 

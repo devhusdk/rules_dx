@@ -13,6 +13,7 @@ rust_library(
         "src/ecosystem/dotnet.rs",
         "src/ecosystem/go.rs",
         "src/ecosystem/js.rs",
+        "src/ecosystem/julia.rs",
         "src/ecosystem/jvm.rs",
         "src/ecosystem/mod.rs",
         "src/ecosystem/perl.rs",
@@ -80,6 +81,7 @@ rust_test(
         ":go_testdata",
         ":java_testdata",
         ":js_testdata",
+        ":julia_testdata",
         ":kotlin_testdata",
         ":perl_testdata",
         ":python_testdata",
@@ -256,6 +258,7 @@ rust_test(
         "ruby",
         "perl",
         "zig",
+        "julia",
     ]
 ]
 

@@ -151,6 +151,7 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
             .collect()),
         Ecosystem::Ruby => Ok(crate::parse_paren_lock(lock)?.into_keys().collect()),
         Ecosystem::Perl => Ok(crate::parse_perl_lock(lock)?.into_keys().collect()),
+        Ecosystem::Julia => Ok(crate::parse_julia_lock(lock)?.into_keys().collect()),
         Ecosystem::Zig => Ok(crate::parse_zig_lock(lock)?.into_keys().collect()),
         _ => Ok(Vec::new()),
     }
@@ -184,6 +185,7 @@ pub fn find_missing(
         Ecosystem::Ruby => "Gemfile",
         Ecosystem::Perl => "cpanfile",
         Ecosystem::Zig => "build.zig.zon",
+        Ecosystem::Julia => "Project.toml",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

@@ -696,6 +696,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Ruby => "Gemfile",
         Ecosystem::Perl => "cpanfile",
         Ecosystem::Zig => "build.zig.zon",
+        Ecosystem::Julia => "Project.toml",
     }
 }
 
@@ -711,6 +712,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Ruby => "Gemfile.lock",
         Ecosystem::Perl => "cpanfile.snapshot",
         Ecosystem::Zig => "build.zig.zon.lock",
+        Ecosystem::Julia => "Manifest.toml",
     }
 }
 
@@ -730,6 +732,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Ruby => "ruby",
         Ecosystem::Perl => "perl",
         Ecosystem::Zig => "zig",
+        Ecosystem::Julia => "julia",
     }
 }
 
@@ -1222,6 +1225,7 @@ fn ecosystem_parse_covers_every_name() {
         ("ruby", Ecosystem::Ruby),
         ("perl", Ecosystem::Perl),
         ("zig", Ecosystem::Zig),
+        ("julia", Ecosystem::Julia),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2564,4 +2568,74 @@ fn zig_usage_covers_dependency_calls_and_imports() {
     assert!(hits["imp"].src);
     assert!(hits["tst"].test && !hits["tst"].src);
     assert!(!hits["other"].src);
+}
+
+#[test]
+fn julia_manifest_reads_deps_extras_and_weakdeps() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let project = dir.path().join("Project.toml");
+    write_file(
+        &project,
+        "name = \"P\"\n[deps]\nA = \"1\"\n[weakdeps]\nW = \"2\"\n[extras]\nTest = \"3\"\n[targets]\ntest = [\"Test\"]\n",
+    );
+    let deps = parse_julia_manifest(&project).expect("parse");
+    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
+    assert_eq!(names, ["A", "Test", "W"]);
+    assert_eq!(deps["A"].category, "prod");
+    assert!(deps["W"].optional);
+    assert_eq!(deps["Test"].category, "dev");
+}
+
+#[test]
+fn julia_lock_reads_both_manifest_formats() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let v2 = dir.path().join("v2.toml");
+    write_file(
+        &v2,
+        "manifest_format = \"2.0\"\n[[deps.A]]\nversion = \"1.2.3\"\n[[deps.Dates]]\nuuid = \"x\"\n",
+    );
+    let v1 = dir.path().join("v1.toml");
+    write_file(&v1, "[[A]]\nversion = \"1.2.3\"\n");
+    for lock in [&v2, &v1] {
+        let versions = parse_julia_lock(lock).expect("parse");
+        assert_eq!(versions["A"], "1.2.3");
+    }
+    assert_eq!(parse_julia_lock(&v2).expect("parse")["Dates"], "stdlib");
+}
+
+#[test]
+fn julia_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("julia/mixed");
+    let manifest = base.join("Project.toml");
+    let lock = base.join("Manifest.toml");
+    assert_eq!(consistency(Ecosystem::Julia, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Julia, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["CSV"]);
+    let missing = find_missing(Ecosystem::Julia, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("Known", "src/Hello.jl", 3)]);
+}
+
+#[test]
+fn julia_usage_covers_using_import_and_lists() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("a.jl"),
+        "using A, B\nimport C: x\nusing D.Sub\nimport EE\n",
+    );
+    write_file(&dir.path().join("test/runtests.jl"), "using T\n");
+    let names: Vec<String> = ["A", "B", "C", "D", "E", "T"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Julia, dir.path(), &names).expect("usages");
+    for name in ["A", "B", "C", "D"] {
+        assert!(hits[name].src, "{name}");
+    }
+    assert!(!hits["E"].src);
+    assert!(hits["T"].test && !hits["T"].src);
 }

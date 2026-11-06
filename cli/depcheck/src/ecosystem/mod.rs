@@ -2,6 +2,7 @@ pub mod cc;
 pub mod dotnet;
 pub mod go;
 pub mod js;
+pub mod julia;
 pub mod jvm;
 pub mod perl;
 pub mod python;

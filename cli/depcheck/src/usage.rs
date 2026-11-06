@@ -76,6 +76,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Ruby => {
             name.ends_with("_spec.rb") || name.ends_with("_test.rb") || s.contains("/tests/")
         }
+        Ecosystem::Julia => name == "runtests.jl" || s.contains("/test/") || s.contains("/tests/"),
         Ecosystem::Zig => {
             name.ends_with("_test.zig") || s.contains("/test/") || s.contains("/tests/")
         }
@@ -87,7 +88,7 @@ fn source_suffixes() -> BTreeSet<&'static str> {
     [
         ".rs", ".py", ".js", ".ts", ".mjs", ".cjs", ".jsx", ".tsx", ".go", ".java", ".kt", ".kts",
         ".scala", ".cs", ".fs", ".fsi", ".fsx", ".cc", ".cpp", ".cxx", ".c", ".h", ".hpp", ".rb",
-        ".pl", ".pm", ".t", ".psgi", ".zig",
+        ".pl", ".pm", ".t", ".psgi", ".zig", ".jl",
     ]
     .into_iter()
     .collect()
@@ -115,6 +116,10 @@ fn skip_names() -> BTreeSet<&'static str> {
         "cpanfile.snapshot",
         "build.zig.zon",
         "build.zig.zon.lock",
+        "Project.toml",
+        "JuliaProject.toml",
+        "Manifest.toml",
+        "JuliaManifest.toml",
     ]
     .into_iter()
     .collect()
@@ -257,6 +262,12 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r"import\(\s*{spec}\s*\)"),
                 format!(r"(?m)^\s*import\s+{spec}"),
             ]
+        }
+        Ecosystem::Julia => {
+            let name = regex_escape(dep);
+            vec![format!(
+                r"(?m)^\s*(?:using|import)\s+(?:[^\n#:]*,\s*)?{name}\b(?:\s*[:,]|\s*(?:#.*)?$|\.)"
+            )]
         }
         Ecosystem::Zig => {
             let name = regex_escape(dep);

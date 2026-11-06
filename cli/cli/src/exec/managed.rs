@@ -141,7 +141,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             if let Err(exit) = emit_built(
                 out,
                 bazel_exit_event(
-                    CODE_BAZEL_FAILED,
+                    bazel_failure_code(bazel_code),
                     &format!(
                         "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
                     ),

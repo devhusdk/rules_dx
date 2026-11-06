@@ -151,7 +151,7 @@ impl Launcher<'_> {
             if let Err(exit) = emit_built(
                 out,
                 bazel_exit_event(
-                    CODE_BAZEL_FAILED,
+                    bazel_failure_code(code),
                     &format!(
                         "bazel build {} exited {code} (see stderr diagnostics)",
                         targets.join(" ")

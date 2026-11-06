@@ -26,8 +26,12 @@ fn finish_incomplete_generate(
 ) -> i32 {
     if output == OutputMode::Json {
         if code != 0
-            && let Err(exit) =
-                emit_bazel_exit(out, CODE_BAZEL_FAILED, &bazel_failed_message(code), code)
+            && let Err(exit) = emit_bazel_exit(
+                out,
+                bazel_failure_code(code),
+                &bazel_failed_message(code),
+                code,
+            )
         {
             return kept_child(err, code, exit);
         }
@@ -447,7 +451,7 @@ fn run_generate_request(
         if let (GazelleStatus::Failed(failed), true) = (gazelle, projected.errors.is_empty())
             && let Err(exit) = emit_bazel_exit(
                 env.out,
-                CODE_BAZEL_FAILED,
+                bazel_failure_code(failed),
                 &bazel_failed_message(failed),
                 failed,
             )

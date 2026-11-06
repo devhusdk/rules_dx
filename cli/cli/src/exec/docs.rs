@@ -183,7 +183,7 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
             if let Err(exit) = emit_built(
                 out,
                 bazel_exit_event(
-                    CODE_BAZEL_FAILED,
+                    bazel_failure_code(bazel_code),
                     &format!(
                         "Bazel docs build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
                     ),

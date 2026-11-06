@@ -460,7 +460,6 @@ mod tests {
         assert!(scan_recorded(Some(&toml)).is_empty());
     }
 
-    #[test]
     fn cache_in(dir: &Path, sidecar: Option<&str>, metadata: bool) -> PathBuf {
         let cache = dir.join("trivy");
         std::fs::create_dir_all(cache.join("db")).expect("cache dir");

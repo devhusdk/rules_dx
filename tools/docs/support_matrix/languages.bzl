@@ -152,7 +152,6 @@ COVERAGE_COLLECTORS = {
 # A note on where a row's coverage collector runs.
 COVERAGE_NOTES = {
     "fortran": "kcov runs on Linux only",
-    "ocaml": "bisect_ppx runs on Linux x86_64 only",
     "zig": "kcov runs on Linux only",
 }
 

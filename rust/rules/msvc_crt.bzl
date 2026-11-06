@@ -12,6 +12,35 @@ DxMsvcCrtInfo = provider(
 
 _DYNAMIC = ["/MD", "/MDd"]
 
+MSVC_CRT_FROM_RUST = "//rust/rules:msvc_crt_from_rust"
+MSVC_STATIC_CRT = ["-dynamic_link_msvcrt", "static_link_msvcrt"]
+_FEATURES = "//command_line_option:features"
+
+def msvc_crt_static_settings(features):
+    """Returns the features and flag after a Rust target forces the static CRT on its subtree."""
+    return {
+        _FEATURES: features + [f for f in MSVC_STATIC_CRT if f not in features],
+        MSVC_CRT_FROM_RUST: True,
+    }
+
+def msvc_crt_reset_settings(features, from_rust):
+    """Returns the features and flag for a cc_binary: drop the static CRT only when Rust forced it."""
+    if not from_rust:
+        return {_FEATURES: features, MSVC_CRT_FROM_RUST: from_rust}
+    return {
+        _FEATURES: [f for f in features if f not in MSVC_STATIC_CRT],
+        MSVC_CRT_FROM_RUST: False,
+    }
+
+def _crt_reset_impl(settings, _attr):
+    return msvc_crt_reset_settings(settings[_FEATURES], settings[MSVC_CRT_FROM_RUST])
+
+dx_msvc_crt_reset_transition = transition(
+    implementation = _crt_reset_impl,
+    inputs = [_FEATURES, MSVC_CRT_FROM_RUST],
+    outputs = [_FEATURES, MSVC_CRT_FROM_RUST],
+)
+
 def _crt_static(argv):
     for arg in argv:
         if arg.startswith(("-Ctarget-feature=", "--codegen=target-feature=")) and "+crt-static" in arg:

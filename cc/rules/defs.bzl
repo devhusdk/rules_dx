@@ -7,7 +7,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_append_flags", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_validate")
+load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [
@@ -47,6 +47,7 @@ _cc_binary_forward = dx_executable_forward_rule(
     runtime = "besteffort",
     upstream_aspects = [dx_msvc_crt_aspect],
     validate = dx_msvc_crt_validate,
+    cfg = dx_msvc_crt_reset_transition,
 )
 
 _LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format"]

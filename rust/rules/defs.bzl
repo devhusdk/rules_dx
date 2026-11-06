@@ -10,7 +10,7 @@ load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_fo
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
-load(":msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_validate")
+load(":msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 
 _DX_FORWARD_PROVIDES = [
     _rust_common.crate_info,
@@ -30,7 +30,6 @@ MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib"]
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 _CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
-_MSVC_STATIC_CRT = ["-dynamic_link_msvcrt", "static_link_msvcrt"]
 
 _COVERAGE = "//command_line_option:collect_code_coverage"
 
@@ -43,16 +42,17 @@ _PLATFORMS = "//command_line_option:platforms"
 def _cpp_runtime_transition_impl(settings, attr):
     """Turns off static C++ runtime linking on libstdc++ platforms."""
     features = settings["//command_line_option:features"]
+    from_rust = settings[MSVC_CRT_FROM_RUST]
     if attr.libstdcxx and _NO_STATIC_CPP_RUNTIMES not in features:
         features = features + [_NO_STATIC_CPP_RUNTIMES]
     if attr.msvc and (attr.crt_static or _CRT_STATIC_FLAG in settings[_EXTRA_RUSTC_FLAG]):
-        features = features + [f for f in _MSVC_STATIC_CRT if f not in features]
-    return {"//command_line_option:features": features}
+        return msvc_crt_static_settings(features)
+    return {"//command_line_option:features": features, MSVC_CRT_FROM_RUST: from_rust}
 
 _cpp_runtime_transition = transition(
     implementation = _cpp_runtime_transition_impl,
-    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG],
-    outputs = ["//command_line_option:features"],
+    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, MSVC_CRT_FROM_RUST],
+    outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST],
 )
 
 def _rust_binary_transition_impl(settings, attr):
@@ -67,8 +67,8 @@ def _rust_binary_transition_impl(settings, attr):
 
 _rust_binary_transition = transition(
     implementation = _rust_binary_transition_impl,
-    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, _PLATFORMS, _COVERAGE],
-    outputs = ["//command_line_option:features", _PLATFORMS, _COVERAGE],
+    inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, MSVC_CRT_FROM_RUST, _PLATFORMS, _COVERAGE],
+    outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST, _PLATFORMS, _COVERAGE],
 )
 
 _LIBSTDCXX_ATTRS = {

@@ -427,7 +427,7 @@ def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_a
         out.append(upstream[OutputGroupInfo])
     return out
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, quality_tools = None, validate = None):
+def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None, quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, quality_tools = None, validate = None, cfg = None):
     """Creates the executable or test forwarding rule for one wrapper."""
 
     def _impl(ctx):
@@ -461,11 +461,14 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
     attrs.update(_dx_tool_attrs(quality_tools))
     if kind == "test" or kind == "executable":
         attrs.update(dx_forward_data_attr())
+    if cfg != None:
+        attrs["_allowlist_function_transition"] = attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"))
     if kind == "executable":
         return rule(
             implementation = _impl,
             doc = "Forwards one " + what + " executable with dx quality sources.",
             executable = True,
+            cfg = cfg,
             provides = provides,
             attrs = attrs,
             toolchains = toolchains if toolchains != None else [],

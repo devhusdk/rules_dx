@@ -12,31 +12,15 @@ _EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
 _PLATFORMS = "//command_line_option:platforms"
 _MODE = "//command_line_option:compilation_mode"
 
-_STATIC_CRT = ["static_link_msvcrt", "-dynamic_link_msvcrt"]
-
-def toolchain_features(inherited, extra):
-    """Returns the features for a target built under a selected toolchain.
-
-    A static Rust test turns on the static CRT for everything it builds
-    (_cpp_runtime_transition in rust/rules/defs.bzl), so drop it here unless extra asks for it.
-    That also drops a command line --features=static_link_msvcrt; pass it in
-    extra_features instead.
-
-    Args:
-      inherited: features from the incoming configuration.
-      extra: features the target asks for.
-
-    Returns:
-      The feature list.
-    """
-    features = [f for f in inherited if f not in _STATIC_CRT or f in extra]
+def _features(inherited, extra):
+    features = list(inherited)
     for f in extra:
         if f not in features:
             features.append(f)
     return features
 
 def _impl(settings, attr):
-    features = toolchain_features(settings[_FEATURES], getattr(attr, "extra_features", []))
+    features = _features(settings[_FEATURES], getattr(attr, "extra_features", []))
     extra_toolchains = list(getattr(attr, "extra_toolchains", []))
     for t in settings[_EXTRA_TOOLCHAINS]:
         if t not in extra_toolchains:
@@ -96,7 +80,7 @@ cc_toolchain_test = rule(
 )
 
 def _files_transition_impl(settings, attr):
-    features = toolchain_features(settings[_FEATURES], getattr(attr, "extra_features", []))
+    features = _features(settings[_FEATURES], getattr(attr, "extra_features", []))
     return {
         _COMPILER: attr.compiler,
         _FEATURES: features,

@@ -1,7 +1,13 @@
 load("@rules_cc//cc:defs.bzl", "cc_import")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
+
+bool_flag(
+    name = "msvc_crt_from_rust",
+    build_setting_default = False,
+)
 
 config_setting(
     name = "browser_linux_x86_64",

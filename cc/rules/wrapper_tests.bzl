@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
-load("//cc/toolchains:select.bzl", "toolchain_features")
+load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "msvc_crt_static_settings")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -38,8 +38,9 @@ def cc_wrapper_contract_tests(name):
             expect_equal("quote in local_defines drops the params file", cc_param_file_features({"local_defines": ['NAME="x"']}, ["a.cc"], None), ["-compiler_param_file"]),
             expect_equal("plain target keeps the params file", cc_param_file_features({"copts": ["-O2"]}, ["a.cc"], ["a.h"]), []),
             expect_equal("select is not inspected", cc_param_file_features({"copts": select({"//conditions:default": ["-DA B"]})}, ["a.cc"], None), []),
-            expect_equal("selected toolchain drops an inherited static CRT", toolchain_features(["a", "static_link_msvcrt", "-dynamic_link_msvcrt"], ["b"]), ["a", "b"]),
-            expect_equal("extra_features keeps the static CRT", toolchain_features(["static_link_msvcrt", "-dynamic_link_msvcrt"], ["-dynamic_link_msvcrt", "static_link_msvcrt"]), ["static_link_msvcrt", "-dynamic_link_msvcrt"]),
+            expect_equal("rust marks the static CRT", msvc_crt_static_settings(["a"]), {"//command_line_option:features": ["a", "-dynamic_link_msvcrt", "static_link_msvcrt"], MSVC_CRT_FROM_RUST: True}),
+            expect_equal("cc_binary under rust drops the static CRT", msvc_crt_reset_settings(["a", "-dynamic_link_msvcrt", "static_link_msvcrt"], True), {"//command_line_option:features": ["a"], MSVC_CRT_FROM_RUST: False}),
+            expect_equal("cc_binary keeps a command line static CRT", msvc_crt_reset_settings(["static_link_msvcrt"], False), {"//command_line_option:features": ["static_link_msvcrt"], MSVC_CRT_FROM_RUST: False}),
             expect_equal("msvc coverage reported", "msvc-cl" in cc_coverage_unsupported("msvc-cl"), True),
         ],
     )

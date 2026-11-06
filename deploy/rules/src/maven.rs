@@ -1708,6 +1708,38 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn maven_api_compare_with_real_japicmp() {
+        let Some(java) = std::env::var("MAVEN_API_JAVA")
+            .ok()
+            .filter(|v| !v.is_empty())
+        else {
+            println!("skipped: run under Bazel for the managed JDK and the japicmp pin");
+            return;
+        };
+        let resolve = |name: &str| {
+            let rloc = std::env::var(name).expect(name);
+            resolve_runfile(&rloc).expect(name)
+        };
+        let java = resolve_runfile(java.trim_start_matches("../")).expect("java");
+        let japicmp = resolve("JAPICMP_JAR");
+        let old_jar = std::fs::read(resolve("MAVEN_API_OLD_JAR")).expect("old jar");
+        let new_jar = resolve("MAVEN_API_NEW_JAR");
+        let run = |previous: &str, version: &str| {
+            maven_api_compare(
+                &java,
+                &japicmp,
+                ApiCompatMode::Fail,
+                (previous, version),
+                &new_jar,
+                &old_jar,
+            )
+        };
+        let refused = run("1.2.0", "1.3.0").expect_err("removed method refused at a minor bump");
+        assert!(refused.contains("1.2.0 -> 1.3.0"), "{refused}");
+        run("1.2.0", "2.0.0").expect("a major bump allows the removal");
+    }
+
+    #[test]
     fn count_incompatible_skips_class_headers() {
         let out = "***! MODIFIED CLASS: PUBLIC a.B\n    ---! REMOVED METHOD: PUBLIC(-) void x()\n    ***! MODIFIED METHOD: PUBLIC void y()\n";
         assert_eq!(count_incompatible(out), 2);

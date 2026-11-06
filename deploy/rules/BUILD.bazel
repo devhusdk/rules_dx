@@ -285,8 +285,12 @@ rust_test(
         "testdata/maven/gnupg/payload.txt.asc",
         "testdata/maven/gnupg/pubkey.asc",
         "testdata/maven/maven_demo-0.0.0.pom",
+        ":maven_api_new_lib",
+        ":maven_api_old_lib",
         ":maven_demo_lib",
         "//deploy/rules/pins:cargo_semver_checks",
+        "//deploy/rules/pins:japicmp",
+        "@rules_java//toolchains:current_java_runtime",
         "@rules_rust//cargo:current_cargo_toolchain",
         "@rules_rust//rust/toolchain:current_rust_stdlib_files",
         "@rules_rust//rust/toolchain:current_rustc_files",
@@ -297,6 +301,10 @@ rust_test(
         "DX_TEST_CARGO": "$(rlocationpath @rules_rust//cargo:current_cargo_toolchain)",
         "DX_TEST_RUSTC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustc_files)",
         "DX_TEST_RUSTDOC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustdoc_files)",
+        "JAPICMP_JAR": "$(rlocationpath //deploy/rules/pins:japicmp)",
+        "MAVEN_API_JAVA": "$(JAVA_ROOTPATH)",
+        "MAVEN_API_NEW_JAR": "$(rlocationpath :maven_api_new_lib)",
+        "MAVEN_API_OLD_JAR": "$(rlocationpath :maven_api_old_lib)",
         "MAVEN_DEMO_JAR": "$(rlocationpath :maven_demo_lib)",
         "MAVEN_DEMO_POM": "$(rlocationpath testdata/maven/maven_demo-0.0.0.pom)",
         "MAVEN_GNUPG_PAYLOAD": "$(rlocationpath testdata/maven/gnupg/payload.txt)",
@@ -308,6 +316,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 rustfmt_test(
@@ -1721,6 +1730,16 @@ luarocks_unit_tests(name = "luarocks_unit")
 deploy_analysis_test(
     name = "luarocks_analysis",
     subject = "luarocks_demo",
+)
+
+java_library(
+    name = "maven_api_old_lib",
+    srcs = ["testdata/maven/api_old/Api.java"],
+)
+
+java_library(
+    name = "maven_api_new_lib",
+    srcs = ["testdata/maven/api_new/Api.java"],
 )
 
 java_library(

@@ -110,11 +110,7 @@ mod tests {
 
     fn write_all_layers(root: &std::path::Path) {
         for (layer, path) in dx_preset::preset_paths(root, dx_preset::REPO_DIR) {
-            std::fs::write(
-                path,
-                dx_preset::render_layer(layer, dx_preset::DEFAULT_REPO),
-            )
-            .expect("layer");
+            std::fs::write(path, dx_preset::render_repo_layer(layer)).expect("layer");
         }
     }
 
@@ -230,7 +226,7 @@ mod tests {
         assert_eq!(err, "");
         assert_eq!(
             std::fs::read_to_string(fragment(dir.path())).expect("fragment"),
-            dx_preset::render_layer(dx_preset::Layer::Correctness, dx_preset::DEFAULT_REPO)
+            dx_preset::render_repo_layer(dx_preset::Layer::Correctness)
         );
     }
 

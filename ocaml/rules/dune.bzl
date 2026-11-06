@@ -40,6 +40,21 @@ exec $REAL_AS "${{args[@]}}"
 ASM
 chmod +x "$SCRATCH/bin/as"
 export CONDA_OCAML_AS="$SCRATCH/bin/as"
+# ocamlopt calls the archiver as ar does ("rc out objects"); the macOS toolchain archives with libtool, which wants "-static -o out objects".
+case "$CONDA_OCAML_AR" in
+  *libtool*)
+    export REAL_AR="$CONDA_OCAML_AR"
+    cat > "$SCRATCH/bin/ar" <<'ARW'
+#!/bin/bash
+shift
+out="$1"
+shift
+exec $REAL_AR -static -o "$out" "$@"
+ARW
+    chmod +x "$SCRATCH/bin/ar"
+    export CONDA_OCAML_AR="$SCRATCH/bin/ar"
+    ;;
+esac
 export DUNE_CACHE=disabled
 export HOME="$SCRATCH/home" XDG_CACHE_HOME="$SCRATCH/home/.cache" XDG_CONFIG_HOME="$SCRATCH/home/.config" XDG_DATA_HOME="$SCRATCH/home/.local"
 export TMPDIR="$SCRATCH/tmp"

@@ -163,6 +163,10 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
             .collect()),
         Ecosystem::Fortran => Ok(crate::parse_fortran_lock(lock)?.into_keys().collect()),
         Ecosystem::D => Ok(crate::parse_d_lock(lock)?.into_keys().collect()),
+        Ecosystem::Haskell => Ok(crate::parse_haskell_lock(lock)?
+            .into_keys()
+            .filter(|name| name != "base")
+            .collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -202,6 +206,7 @@ pub fn find_missing(
         Ecosystem::Erlang => "rebar.config",
         Ecosystem::Fortran => "fpm.toml",
         Ecosystem::D => "dub.json",
+        Ecosystem::Haskell => "package.cabal",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;

@@ -27,6 +27,7 @@ pub use ecosystem::dlang::{parse_d_lock, parse_d_manifest};
 pub use ecosystem::dotnet::parse_dotnet_manifest;
 pub use ecosystem::fortran::{parse_fortran_lock, parse_fortran_manifest};
 pub use ecosystem::go::{parse_go_lock, parse_go_manifest};
+pub use ecosystem::haskell::{parse_haskell_lock, parse_haskell_manifest};
 pub use ecosystem::js::{parse_js_manifest, parse_pnpm_lock};
 pub use ecosystem::julia::{parse_julia_lock, parse_julia_manifest};
 pub use ecosystem::jvm::{parse_jvm_lock, parse_jvm_manifest, parse_maven_artifacts_list};

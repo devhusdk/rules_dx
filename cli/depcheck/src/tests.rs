@@ -706,6 +706,7 @@ fn manifest_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Erlang => "rebar.config",
         Ecosystem::Fortran => "fpm.toml",
         Ecosystem::D => "dub.json",
+        Ecosystem::Haskell => "hello.cabal",
     }
 }
 
@@ -728,6 +729,7 @@ fn lock_name(eco: Ecosystem) -> &'static str {
         Ecosystem::Erlang => "rebar.lock",
         Ecosystem::Fortran => "fpm.lock",
         Ecosystem::D => "dub.selections.json",
+        Ecosystem::Haskell => "cabal.project.freeze",
     }
 }
 
@@ -754,6 +756,7 @@ fn eco_dir(eco: Ecosystem) -> &'static str {
         Ecosystem::Erlang => "erlang",
         Ecosystem::Fortran => "fortran",
         Ecosystem::D => "d",
+        Ecosystem::Haskell => "haskell",
     }
 }
 
@@ -1253,6 +1256,7 @@ fn ecosystem_parse_covers_every_name() {
         ("erlang", Ecosystem::Erlang),
         ("fortran", Ecosystem::Fortran),
         ("d", Ecosystem::D),
+        ("haskell", Ecosystem::Haskell),
     ] {
         assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
     }
@@ -2959,4 +2963,78 @@ fn d_and_fortran_usage_patterns() {
     let hits = find_usages(Ecosystem::Fortran, dir.path(), &names).expect("usages");
     assert!(hits["stdlib"].src);
     assert!(hits["iso-c-binding"].src);
+}
+
+#[test]
+fn haskell_manifest_reads_components_and_ranges() {
+    let root = testdata_root().join("haskell/mixed/hello.cabal");
+    let deps = parse_haskell_manifest(&root).expect("parse");
+    assert!(!deps.contains_key("base") && !deps.contains_key("hello"));
+    assert_eq!(deps["aeson"].spec, "~2.1");
+    assert_eq!(deps["containers"].spec, ">=0.6, <0.7");
+    assert_eq!(deps["text"].spec, "~2.0");
+    assert_eq!(deps["containers"].category, "prod");
+    assert_eq!(deps["hspec"].category, "dev");
+}
+
+#[test]
+fn haskell_lock_reads_freeze_and_stack() {
+    let root = testdata_root().join("haskell/mixed/cabal.project.freeze");
+    let lock = parse_haskell_lock(&root).expect("parse");
+    assert_eq!(lock["text"], "2.0.2");
+    assert_eq!(lock["hspec"], "2.10.10");
+    let dir = tempfile::tempdir().expect("scratch");
+    let stack = dir.path().join("stack.yaml.lock");
+    write_file(
+        &stack,
+        "packages:\n- completed:\n    hackage: acme-widgets-1.2.3@sha256:abc,100\n    pantry-tree:\n      size: 1\n",
+    );
+    assert_eq!(
+        parse_haskell_lock(&stack).expect("parse")["acme-widgets"],
+        "1.2.3"
+    );
+}
+
+#[test]
+fn haskell_fixture_reports_unused_and_missing() {
+    let base = testdata_root().join("haskell/mixed");
+    let manifest = base.join("hello.cabal");
+    let lock = base.join("cabal.project.freeze");
+    assert_eq!(consistency(Ecosystem::Haskell, "mixed"), 0);
+    let unused = find_unused(Ecosystem::Haskell, &manifest, &base, &[]).expect("unused");
+    let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
+    assert_eq!(names, ["aeson"]);
+    let missing = find_missing(Ecosystem::Haskell, &manifest, &lock, &base, &[]).expect("missing");
+    let found: Vec<(&str, &str, usize)> = missing
+        .iter()
+        .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
+        .collect();
+    assert_eq!(found, [("bytestring", "src/Hello.hs", 3)]);
+}
+
+#[test]
+fn haskell_usage_covers_import_forms() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("A.hs"),
+        "import qualified Data.Text.IO as T\n",
+    );
+    write_file(&dir.path().join("B.hs"), "import Data.Map (Map)\n");
+    write_file(
+        &dir.path().join("C.hs"),
+        "import \"acme-widgets\" Acme.Widgets\n",
+    );
+    write_file(&dir.path().join("test/D.hs"), "import Test.Hspec\n");
+    write_file(
+        &dir.path().join("E.hs"),
+        "import Data.TextFoo\n-- import Data.Set\n",
+    );
+    let names: Vec<String> = ["text", "containers", "acme-widgets", "hspec"]
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
+    let hits = find_usages(Ecosystem::Haskell, dir.path(), &names).expect("usages");
+    assert!(hits["text"].src && hits["containers"].src && hits["acme-widgets"].src);
+    assert!(hits["hspec"].test && !hits["hspec"].src);
+    assert!(is_test_file(Ecosystem::Haskell, Path::new("test/Spec.hs")));
 }

@@ -89,6 +89,13 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         Ecosystem::Fortran | Ecosystem::D => {
             s.contains("/test/") || s.contains("/tests/") || name.contains("_test.")
         }
+        Ecosystem::Haskell => {
+            name.ends_with("Spec.hs")
+                || name.ends_with("Test.hs")
+                || name.ends_with("Tests.hs")
+                || s.contains("/test/")
+                || s.contains("/tests/")
+        }
         Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
         Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
@@ -142,6 +149,8 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         ".f",
         ".d",
         ".di",
+        ".hs",
+        ".lhs",
     ]
     .into_iter()
     .collect()
@@ -185,6 +194,8 @@ fn skip_names() -> BTreeSet<&'static str> {
         "dub.json",
         "dub.sdl",
         "dub.selections.json",
+        "cabal.project.freeze",
+        "stack.yaml.lock",
     ]
     .into_iter()
     .collect()
@@ -445,6 +456,15 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 roots.join("|")
             )]
         }
+        Ecosystem::Haskell => {
+            let head = r#"(?m)^\s*import\s+(?:safe\s+)?(?:qualified\s+)?"#;
+            let package = format!(r#"(?:"{}"\s+(?:qualified\s+)?)?"#, regex_escape(dep));
+            crate::ecosystem::haskell::module_prefixes(dep)
+                .iter()
+                .map(|module| format!(r"{head}(?:{package}){}(?:[.\s(]|$)", regex_escape(module)))
+                .chain([format!(r#"{head}"{}"\s+[A-Z]"#, regex_escape(dep))])
+                .collect()
+        }
         Ecosystem::Ruby => vec![
             format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
             format!(
@@ -492,6 +512,9 @@ pub(crate) fn find_first_imports(
         let mut forms = vec![name.clone(), name.replace('-', "_"), name.replace('_', "-")];
         forms.extend(elixir_modules(name));
         forms.extend(module_forms(eco, name));
+        if eco == Ecosystem::Haskell {
+            forms.extend(crate::ecosystem::haskell::module_prefixes(name));
+        }
         let hits: Vec<&(String, String)> = texts
             .iter()
             .filter(|(_, text)| {

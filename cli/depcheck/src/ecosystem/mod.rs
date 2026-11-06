@@ -5,6 +5,7 @@ pub mod dlang;
 pub mod dotnet;
 pub mod fortran;
 pub mod go;
+pub mod haskell;
 pub mod js;
 pub mod julia;
 pub mod jvm;

@@ -16,6 +16,7 @@ rust_library(
         "src/ecosystem/dotnet.rs",
         "src/ecosystem/fortran.rs",
         "src/ecosystem/go.rs",
+        "src/ecosystem/haskell.rs",
         "src/ecosystem/js.rs",
         "src/ecosystem/julia.rs",
         "src/ecosystem/jvm.rs",
@@ -87,6 +88,7 @@ rust_test(
         ":erlang_testdata",
         ":fsharp_testdata",
         ":go_testdata",
+        ":haskell_testdata",
         ":java_testdata",
         ":js_testdata",
         ":julia_testdata",
@@ -276,6 +278,7 @@ rust_test(
         "erlang",
         "fortran",
         "d",
+        "haskell",
     ]
 ]
 

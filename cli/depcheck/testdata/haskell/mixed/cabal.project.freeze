@@ -1,0 +1,8 @@
+active-repositories: hackage.haskell.org:merge
+constraints: any.aeson ==2.1.2.1,
+             any.base ==4.18.2.1,
+             any.bytestring ==0.11.5.3,
+             any.containers ==0.6.7,
+             any.hspec ==2.10.10,
+             any.text ==2.0.2
+index-state: hackage.haskell.org 2024-01-01T00:00:00Z

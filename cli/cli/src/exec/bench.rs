@@ -211,6 +211,8 @@ fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, String> {
     Ok(file.results)
 }
 
+const MAX_BENCH_BYTES: u64 = 16 << 20;
+
 /// Reads `dx-bench.json` out of the undeclared outputs zip one test result reports.
 fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, String> {
     let zip = result
@@ -218,17 +220,9 @@ fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, String> {
         .iter()
         .find(|file| file.name.ends_with("outputs.zip"))
         .ok_or_else(|| format!("{BENCH_FILE} was not written"))?;
-    let scratch = tempfile::tempdir().map_err(|error| error.to_string())?;
-    let dest = scratch.path().join("outputs");
-    dx_archive::extract(
-        &zip.exec_path,
-        dx_archive::Format::Zip,
-        &dest,
-        dx_archive::Limits::default(),
-    )
-    .map_err(|error| format!("cannot read the test outputs: {error}"))?;
-    let bytes = std::fs::read(dest.join(BENCH_FILE))
-        .map_err(|_| format!("{BENCH_FILE} was not written"))?;
+    let bytes = dx_archive::read_zip_member(&zip.exec_path, BENCH_FILE, MAX_BENCH_BYTES)
+        .map_err(|error| format!("cannot read the test outputs: {error}"))?
+        .ok_or_else(|| format!("{BENCH_FILE} was not written"))?;
     parse_bench_file(&bytes)
 }
 
@@ -615,40 +609,47 @@ mod tests {
         !crc
     }
 
-    /// A zip holding one stored file, like the outputs.zip Bazel writes.
-    fn zip_with(name: &str, content: &[u8]) -> Vec<u8> {
-        let crc = crc32(content);
-        let size = content.len() as u32;
+    /// A zip of stored entries, like the outputs.zip Bazel writes; names ending in '/' are directories.
+    fn zip_of(entries: &[(&str, &[u8])]) -> Vec<u8> {
         let mut zip = Vec::new();
-        let mut local = Vec::new();
-        local.extend(0x0403_4b50u32.to_le_bytes());
-        local.extend([20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        local.extend(crc.to_le_bytes());
-        local.extend(size.to_le_bytes());
-        local.extend(size.to_le_bytes());
-        local.extend((name.len() as u16).to_le_bytes());
-        local.extend([0, 0]);
-        local.extend(name.as_bytes());
-        local.extend(content);
-        zip.extend(&local);
         let mut central = Vec::new();
-        central.extend(0x0201_4b50u32.to_le_bytes());
-        central.extend([20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        central.extend(crc.to_le_bytes());
-        central.extend(size.to_le_bytes());
-        central.extend(size.to_le_bytes());
-        central.extend((name.len() as u16).to_le_bytes());
-        central.extend([0; 12]);
-        central.extend(0u32.to_le_bytes());
-        central.extend(name.as_bytes());
+        for (name, content) in entries {
+            let crc = crc32(content);
+            let size = content.len() as u32;
+            let offset = zip.len() as u32;
+            zip.extend(0x0403_4b50u32.to_le_bytes());
+            zip.extend([20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            zip.extend(crc.to_le_bytes());
+            zip.extend(size.to_le_bytes());
+            zip.extend(size.to_le_bytes());
+            zip.extend((name.len() as u16).to_le_bytes());
+            zip.extend([0, 0]);
+            zip.extend(name.as_bytes());
+            zip.extend(*content);
+            central.extend(0x0201_4b50u32.to_le_bytes());
+            central.extend([20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            central.extend(crc.to_le_bytes());
+            central.extend(size.to_le_bytes());
+            central.extend(size.to_le_bytes());
+            central.extend((name.len() as u16).to_le_bytes());
+            central.extend([0; 12]);
+            central.extend(offset.to_le_bytes());
+            central.extend(name.as_bytes());
+        }
         let offset = zip.len() as u32;
         zip.extend(&central);
         zip.extend(0x0605_4b50u32.to_le_bytes());
-        zip.extend([0, 0, 0, 0, 1, 0, 1, 0]);
+        zip.extend([0, 0, 0, 0]);
+        zip.extend((entries.len() as u16).to_le_bytes());
+        zip.extend((entries.len() as u16).to_le_bytes());
         zip.extend((central.len() as u32).to_le_bytes());
         zip.extend(offset.to_le_bytes());
         zip.extend([0, 0]);
         zip
+    }
+
+    fn zip_with(name: &str, content: &[u8]) -> Vec<u8> {
+        zip_of(&[(name, content)])
     }
 
     const HAND_MADE: &str = r#"{"schema":"dx-bench/v1","results":[{"name":"parse","unit":"ms","mean":1.5,"stddev":0.25,"iterations":50}]}"#;

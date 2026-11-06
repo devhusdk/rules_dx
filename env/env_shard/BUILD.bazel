@@ -18,7 +18,6 @@ rust_library(
     ),
     crate_name = "env_shard",
     crate_root = "src/lib.rs",
-    edition = "2024",
     deps = all_crate_deps(
         package_name = "env/env_shard",
         normal = True,
@@ -38,7 +37,6 @@ rust_binary(
     ),
     crate_name = "env_shard_writer",
     crate_root = "src/main.rs",
-    edition = "2024",
     deps = all_crate_deps(
         package_name = "env/env_shard",
         normal = True,
@@ -98,8 +96,8 @@ rust_test(
         normal_dev = True,
     ) + [
         ":env_shard",
-        "//env:plan_proto_rs",
         "//libs/shard_writer:dx_shard_writer",
+        "//env:plan_proto_rs",
     ],
 )
 

@@ -4,7 +4,6 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 python_library(
     name = "rule_names",
     srcs = ["rule_names.py"],
-    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     visibility = ["//visibility:public"],
 )

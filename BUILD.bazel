@@ -489,7 +489,3 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = [".gitleaks.toml"],
 )
-# gazelle:dx_external maven third_party/jvm/rules_android_maven_install.json rules_android_maven
-# gazelle:dx_external maven third_party/jvm/scala3_test_install.json dx_scala3_test
-# gazelle:dx_external maven third_party/jvm/scalafix_install.json dx_scalafix
-# gazelle:dx_external maven third_party/jvm/dokka_install.json dx_dokka

@@ -60,6 +60,7 @@ rust_test(
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
     },
     deps = [
+        "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",

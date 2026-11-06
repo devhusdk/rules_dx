@@ -51,6 +51,10 @@ dx_rust_crate(
         "src/lifecycle_unix.rs",
         "src/terminal.rs",
     ],
+    windows_srcs = [
+        "src/lifecycle_windows.rs",
+        "src/procs_windows.rs",
+    ],
     deps = [
         "libc",
         "thiserror",

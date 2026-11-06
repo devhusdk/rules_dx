@@ -21,7 +21,6 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "shellcheck",
         "yamllint",
         "hadolint",
-        "statix",
         "deadnix",
         "kubeconform",
         "checkmake",
@@ -75,10 +74,6 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         (
             "hadolint",
             r#"[{"code":"DL4006","column":1,"file":"src/a.scala","level":"warning","line":1,"message":"finding"}]"#,
-        ),
-        (
-            "statix",
-            r#"{"file":"src/a.scala","report":[{"note":"finding","code":2,"severity":"Warn","diagnostics":[{"at":{"from":{"line":1,"column":1},"to":{"line":1,"column":2}},"message":"finding","suggestion":null}]}]}"#,
         ),
         (
             "deadnix",
@@ -213,7 +208,6 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "cue",
         "csharpier",
         "dart",
-        "dfmt",
         "djlint",
         "erlfmt",
         "fantomas",
@@ -283,7 +277,6 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
         ("shellcheck", ""),
         ("hadolint", "[]"),
-        ("statix", ""),
         ("deadnix", ""),
         ("kubeconform", r#"{"resources":[]}"#),
         ("checkmake", ""),
@@ -335,63 +328,6 @@ pub(super) fn erlfmt_fix_keeps_a_file_it_reported_an_error_for() {
         .apply_fix("erlfmt", "a.erl", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
-}
-
-fn dfmt_behavior(
-    argv: &[OsString],
-    cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert_eq!(argv[1], OsString::from("--config"));
-    assert_eq!(argv[2], OsString::from("dx-dfmt-default"));
-    let staged = std::fs::read_to_string(cwd.join("dx-dfmt-default/.editorconfig"))
-        .expect("the staged dfmt default");
-    assert!(staged.starts_with("root = true\n"), "{staged}");
-    let file = last_file(argv);
-    let text = std::fs::read_to_string(&file).expect("read staged file");
-    let broken = text.contains("broken");
-    let warned = text.contains("warned");
-    let inplace = argv[3] == OsString::from("--inplace");
-    let formatted = text.replace("(){", "()\n{");
-    let stderr = if broken {
-        format!("{file}(2:5)[error]: Primary expression expected\n").into_bytes()
-    } else if warned {
-        format!("{file}(1:1)[warn]: Empty declaration\n").into_bytes()
-    } else {
-        Vec::new()
-    };
-    if inplace {
-        std::fs::write(&file, &formatted).expect("fix writes back");
-        return Ok(ChildOutput {
-            code: Some(0),
-            stdout: Vec::new(),
-            stderr,
-        });
-    }
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: formatted.into_bytes(),
-        stderr,
-    })
-}
-
-#[test]
-pub(super) fn dfmt_checks_one_file_at_a_time_and_never_trusts_a_run_that_printed_an_error() {
-    let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);
-    let clean = backend
-        .diagnose("dfmt", "format", &single("a.d", "void f()\n{}\n"))
-        .expect("check");
-    assert!(clean.is_empty());
-    let dirty = backend
-        .diagnose("dfmt", "format", &single("a.d", "void f(){}\n"))
-        .expect("check");
-    assert_eq!(dirty.len(), 1);
-    let broken = backend
-        .diagnose("dfmt", "format", &single("a.d", "void f(){\nbroken }\n"))
-        .expect("check");
-    assert_eq!(broken.len(), 1);
-    assert_eq!(broken[0].rule_id, "syntax");
 }
 
 fn jsonnet_lint_behavior(
@@ -1057,89 +993,6 @@ pub(super) fn tinymist_lints_each_file_and_never_trusts_a_failed_run() {
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].rule_id, "tinymist/lint");
     assert!(lint("crash\n").is_err());
-}
-
-fn dscanner_behavior(
-    argv: &[OsString],
-    cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    assert_eq!(argv[2], OsString::from("--config"));
-    assert_eq!(argv[3], OsString::from("dx-dscanner-default/dscanner.ini"));
-    let staged = std::fs::read_to_string(cwd.join("dx-dscanner-default/dscanner.ini"))
-        .expect("the staged dscanner default");
-    assert!(
-        staged.starts_with("[analysis.config.StaticAnalysisConfig]\n"),
-        "{staged}"
-    );
-    assert!(
-        staged.contains("unused_variable_check=\"enabled\"\n"),
-        "{staged}"
-    );
-    assert!(
-        staged.contains("unused_parameter_check=\"enabled\"\n"),
-        "{staged}"
-    );
-    let file = last_file(argv);
-    let text = std::fs::read_to_string(&file).expect("read staged file");
-    let (code, stdout) = if text.contains("silent") {
-        (1, String::new())
-    } else if text.contains("phantom") {
-        (0, format!("dx\t{file}\t1\t1\t1\t2\twarn\tx\tm\n"))
-    } else if text.contains("broken") {
-        (
-            1,
-            format!("dx\t{file}\t2\t5\t2\t5\terror\t\tPrimary expression expected\n"),
-        )
-    } else if text.contains("unused") {
-        (
-            1,
-            format!(
-                "dx\t{file}\t1\t9\t1\t10\twarn\tunused_variable_check\tVariable x is never used.\n"
-            ),
-        )
-    } else {
-        (0, String::new())
-    };
-    Ok(ChildOutput {
-        code: Some(code),
-        stdout: stdout.into_bytes(),
-        stderr: Vec::new(),
-    })
-}
-
-#[test]
-pub(super) fn dscanner_lints_a_batch_and_never_trusts_an_exit_that_disagrees_with_its_output() {
-    let backend = backend_for("dscanner", plain_tool(), dscanner_behavior);
-    let lint = |text: &str| backend.diagnose("dscanner", "lint", &single("a.d", text));
-    assert!(lint("void f()\n{}\n").expect("check").is_empty());
-    let warned = lint("void f() { int unused; }\n").expect("check");
-    assert_eq!(warned.len(), 1);
-    assert_eq!(warned[0].rule_id, "unused_variable_check");
-    let broken = lint("void f(){\nbroken }\n").expect("check");
-    assert_eq!(broken.len(), 1);
-    assert_eq!(broken[0].rule_id, "syntax");
-    assert!(lint("silent\n").is_err());
-    assert!(lint("phantom\n").is_err());
-}
-
-#[test]
-pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
-    let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);
-    let fixed = backend
-        .apply_fix("dfmt", "a.d", "void f(){}\n", "format")
-        .expect("fix round");
-    assert_eq!(fixed, "void f()\n{}\n");
-    let broken = "void f(){\nbroken }\n";
-    let kept = backend
-        .apply_fix("dfmt", "a.d", broken, "format")
-        .expect("fix round");
-    assert_eq!(kept, broken);
-    let fixed = backend
-        .apply_fix("dfmt", "a.d", "void f(){} // warned\n", "format")
-        .expect("fix round");
-    assert_eq!(fixed, "void f()\n{} // warned\n");
 }
 
 fn perltidy_behavior(

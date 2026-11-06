@@ -811,22 +811,6 @@ TOOLS = [
         ],
     ),
     tool(
-        id = "dfmt",
-        adapters = {"format": ["d"]},
-        support = [
-            row(
-                capability = "format",
-                classes = ["d"],
-                context = "target_coupled",
-                family = "d",
-                fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
-            ),
-        ],
-    ),
-    tool(
         id = "dialyzer",
         adapters = {"typecheck": ["erlang", "elixir"]},
         support = [
@@ -883,30 +867,6 @@ TOOLS = [
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
                 state = "supported",
                 transport = "single",
-            ),
-        ],
-    ),
-    tool(
-        id = "dscanner",
-        adapters = {"lint": ["d"]},
-        config = config(
-            suffixes = [".ini"],
-            files = ["dscanner.ini"],
-            ext = "ini",
-            comment = ";",
-            init_order = 8,
-            family = "d",
-        ),
-        support = [
-            row(
-                capability = "lint",
-                classes = ["d"],
-                context = "target_coupled",
-                family = "d",
-                fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "batched",
             ),
         ],
     ),
@@ -2464,23 +2424,6 @@ TOOLS = [
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
                 state = "known",
                 transport = "batched",
-            ),
-        ],
-    ),
-    tool(
-        id = "statix",
-        adapters = {"lint": ["nix"]},
-        config = config(suffixes = [".toml"]),
-        support = [
-            row(
-                capability = "lint",
-                classes = ["nix"],
-                context = "owned",
-                family = "nix",
-                fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "supported",
-                transport = "single",
             ),
         ],
     ),

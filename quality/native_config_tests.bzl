@@ -232,7 +232,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, detekt, djlint, dscanner, elvis, eslint, ffmt, fortitude, fsharplint, gersemi, gplint, graphql_eslint, hadolint, hlint, ktlint, kubeconform, latexindent, luals, mbake, perlcritic, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, roslyn, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, sqlfluff, standardrb, staticcheck, statix, stylelint, stylua, swift_format, taplo, tflint, vale, yamlfmt, yamllint",
+                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, detekt, djlint, elvis, eslint, ffmt, fortitude, fsharplint, gersemi, gplint, graphql_eslint, hadolint, hlint, ktlint, kubeconform, latexindent, luals, mbake, perlcritic, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, roslyn, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, sqlfluff, standardrb, staticcheck, stylelint, stylua, swift_format, taplo, tflint, ty, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error accepts ktlint .editorconfig and rejects other suffixes",

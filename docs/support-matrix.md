@@ -83,7 +83,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | C and C++ | `clang_tidy`, `cppcheck`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | none |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
-| D | `dscanner`, `typos` | `dfmt` | `ldc` | no | `ldc --coverage` | `dscanner unused_variable_check, unused_parameter_check` |
+| D | `typos` | no | `ldc` | no | `ldc --coverage` | none |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `package:test` | `dart unused_element` |
 | Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321) | no | `cover` | no |
 | Erlang | `elvis` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned), `typos` | `erlfmt` (not on `windows_x86_64`: No OTP Windows cell is pinned; `windows_arm64`: No OTP Windows cell is pinned) | `dialyzer` | no | `cover` | no |
@@ -135,7 +135,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | no | no | n/a | n/a | n/a |
-| Nix | `deadnix`, `statix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
+| Nix | `deadnix`, `typos` | `nixfmt` (not on `linux_arm64`: nixfmt ships only a Linux x86_64 binary; `macos_arm64`: nixfmt ships only a Linux x86_64 binary; `windows_x86_64`: nixfmt ships only a Linux x86_64 binary; `windows_arm64`: nixfmt ships only a Linux x86_64 binary) | n/a | n/a | n/a | `deadnix` |
 | OCI images | no | no | no | n/a | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |

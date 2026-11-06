@@ -25,10 +25,8 @@ pub mod deadcode;
 pub mod deadnix;
 pub mod debride;
 pub mod detekt;
-pub mod dfmt;
 pub mod dialyzer;
 pub mod djlint;
-pub mod dscanner;
 pub mod elvis;
 pub mod erlfmt;
 pub mod eslint;
@@ -109,7 +107,6 @@ pub mod spotbugs;
 pub mod sqlfluff;
 pub mod standardrb;
 pub mod staticcheck;
-pub mod statix;
 pub mod stylelint;
 pub mod stylua;
 pub mod swift_format;
@@ -166,10 +163,8 @@ pub use deadcode::parse_deadcode;
 pub use deadnix::parse_deadnix;
 pub use debride::parse_debride;
 pub use detekt::parse_detekt;
-pub use dfmt::parse_dfmt;
 pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
-pub use dscanner::parse_dscanner;
 pub use elvis::parse_elvis;
 pub use erlfmt::parse_erlfmt;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
@@ -246,7 +241,6 @@ pub use spotbugs::parse_spotbugs;
 pub use sqlfluff::parse_sqlfluff;
 pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
-pub use statix::parse_statix;
 pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
 pub use swift_format::parse_swift_format;
@@ -2260,34 +2254,12 @@ mod tests {
         super::qmlformat::parse_qmlformat(input, code, b"", files.first().copied().unwrap_or(""))
     }
 
-    fn fuzz_dfmt(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::dfmt::parse_dfmt(
-            input,
-            input,
-            code,
-            input,
-            files.first().copied().unwrap_or(""),
-        )
-    }
-
     fn fuzz_detekt(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::detekt::parse_detekt(input, code, files)
-    }
-
-    fn fuzz_dscanner(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::dscanner::parse_dscanner(input, code, files)
     }
 
     fn fuzz_credo(
@@ -2504,14 +2476,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::debride::parse_debride(input, input, code, files)
-    }
-
-    fn fuzz_statix(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::statix::parse_statix(input, input, code, files)
     }
 
     fn fuzz_ansible_lint(
@@ -3030,9 +2994,7 @@ mod tests {
         ("cue_vet", fuzz_cue_vet),
         ("deadnix", fuzz_deadnix),
         ("debride", fuzz_debride),
-        ("dfmt", fuzz_dfmt),
         ("detekt", fuzz_detekt),
-        ("dscanner", fuzz_dscanner),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
         ("dialyzer", fuzz_dialyzer),
@@ -3134,7 +3096,6 @@ mod tests {
         ("sqlfluff", fuzz_sqlfluff),
         ("standardrb", fuzz_standardrb),
         ("staticcheck", fuzz_staticcheck),
-        ("statix", fuzz_statix),
         ("stylelint", fuzz_stylelint),
         ("stylua", fuzz_stylua),
         ("swift_format", fuzz_swift_format),
@@ -3184,9 +3145,7 @@ mod tests {
         ("cue", include_str!("cue.rs")),
         ("deadnix", include_str!("deadnix.rs")),
         ("debride", include_str!("debride.rs")),
-        ("dfmt", include_str!("dfmt.rs")),
         ("detekt", include_str!("detekt.rs")),
-        ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("dialyzer", include_str!("dialyzer.rs")),
         ("flang", include_str!("flang.rs")),
@@ -3277,7 +3236,6 @@ mod tests {
         ("sqlfluff", include_str!("sqlfluff.rs")),
         ("standardrb", include_str!("standardrb.rs")),
         ("staticcheck", include_str!("staticcheck.rs")),
-        ("statix", include_str!("statix.rs")),
         ("stylelint", include_str!("stylelint.rs")),
         ("stylua", include_str!("stylua.rs")),
         ("swift_format", include_str!("swift_format.rs")),

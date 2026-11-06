@@ -100,27 +100,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
-        id: "dscanner",
-        run: |backend, call| {
-            // dscanner silently skips a file it cannot read, so read each one first.
-            for (workspace, absolute) in &call.staged.pairs {
-                std::fs::read(absolute)
-                    .map_err(|err| execution(call.tool_id, format!("read {workspace}: {err}")))?;
-            }
-            let (refs, names) = paths(call);
-            let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            let out = run(
-                backend,
-                call,
-                &commands::dscanner_check(&call.tool.binary, &refs),
-            )?;
-            parsed(
-                call.tool_id,
-                parsers::parse_dscanner(&out.stdout, out.code, &strs),
-            )
-        },
-    },
-    ToolDef {
         id: "perlcritic",
         run: |backend, call| {
             // perlcritic exits 3 on a file it cannot read, so it is never a clean run.

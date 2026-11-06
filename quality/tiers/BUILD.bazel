@@ -25,7 +25,6 @@ filegroup(
         "//quality/tiers/credo:files",
         "//quality/tiers/dart:files",
         "//quality/tiers/detekt:files",
-        "//quality/tiers/dscanner:files",
         "//quality/tiers/elvis:files",
         "//quality/tiers/eslint:files",
         "//quality/tiers/fortitude:files",

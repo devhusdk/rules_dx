@@ -97,7 +97,7 @@ DEAD_CODE = {
     "cc": ["none"],
     "csharp": ["roslyn IDE0051, IDE0052, IDE0060, IDE0005"],
     "cuda": ["none"],
-    "d": ["dscanner unused_variable_check, unused_parameter_check"],
+    "d": ["none"],
     "dart": ["dart unused_element"],
     "fortran": ["fortitude C191 unreachable-statement"],
     "go": ["staticcheck U1000"],

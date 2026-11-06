@@ -1664,33 +1664,6 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&zig_fmt_fix(Path::new(BIN), &[zig])),
         vec![BIN, "fmt", "--color", "off", "/scratch/sample.zig"]
     );
-    let d = Path::new("/scratch/sample.d");
-    assert_eq!(
-        argv_strings(&dfmt_check(Path::new(BIN), d)),
-        vec![BIN, "--config", "dx-dfmt-default", "/scratch/sample.d"]
-    );
-    assert_eq!(
-        argv_strings(&dfmt_fix(Path::new(BIN), &[d])),
-        vec![
-            BIN,
-            "--config",
-            "dx-dfmt-default",
-            "--inplace",
-            "/scratch/sample.d"
-        ]
-    );
-    assert_eq!(
-        argv_strings(&dscanner_check(Path::new(BIN), &[d])),
-        vec![
-            BIN,
-            "--styleCheck",
-            "--config",
-            "dx-dscanner-default/dscanner.ini",
-            "--errorFormat",
-            DSCANNER_FORMAT,
-            "/scratch/sample.d"
-        ]
-    );
     let perl = Path::new("/scratch/sample.pl");
     assert_eq!(
         argv_strings(&perlcritic_check(Path::new(BIN), &[perl], None)),
@@ -2595,31 +2568,6 @@ fn file_family_lint_checks_are_check_only() {
 #[test]
 fn nix_tools_pin_their_flags() {
     let nix = Path::new("/scratch/-a.nix");
-    let config = Path::new("/scratch/statix.toml");
-    assert_eq!(
-        argv_strings(&statix_check(Path::new(BIN), nix, config)),
-        vec![
-            BIN,
-            "check",
-            "-o",
-            "json",
-            "--config",
-            "/scratch/statix.toml",
-            "--",
-            "/scratch/-a.nix"
-        ]
-    );
-    assert_eq!(
-        argv_strings(&statix_fix(Path::new(BIN), nix, config)),
-        vec![
-            BIN,
-            "fix",
-            "--config",
-            "/scratch/statix.toml",
-            "--",
-            "/scratch/-a.nix"
-        ]
-    );
     assert_eq!(
         argv_strings(&deadnix_check(Path::new(BIN), &[nix])),
         vec![BIN, "--fail", "-o", "json", "--", "/scratch/-a.nix"]
@@ -2628,7 +2576,6 @@ fn nix_tools_pin_their_flags() {
         argv_strings(&deadnix_fix(Path::new(BIN), &[nix])),
         vec![BIN, "--edit", "--", "/scratch/-a.nix"]
     );
-    assert_eq!(statix_check(Path::new(BIN), nix, config).cwd_rel, "");
 }
 
 #[test]
@@ -2852,7 +2799,6 @@ fn file_independent_tools_batch() {
         "staticcheck",
         "biome",
         "eslint",
-        "statix",
         "vulture",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");

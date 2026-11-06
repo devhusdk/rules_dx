@@ -310,12 +310,6 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
-        tool: "statix",
-        config: FixConfig::Optional,
-        keep_exit_one: false,
-        crash_stderr: None,
-    },
-    FixSpec {
         tool: "deadnix",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -388,17 +382,16 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
     };
     match tool_id {
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "clippy" | "roslyn" | "csc"
-        | "fsc" | "fsharplint" | "checkstyle" | "dscanner" | "fortitude" | "pkl_lsp"
-        | "perlcritic" | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy"
-        | "cppcheck" | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint"
-        | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "hlint" | "redocly"
-        | "kubeconform" | "helm" | "capnp" | "checkmake" | "flatc" | "tflint" | "cfn_lint"
-        | "chktex" | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype" | "jet"
-        | "julialint" | "luals" | "phpcs" | "phpstan" | "regal" | "sorbet" | "tsc" | "javac"
-        | "kotlinc" | "scalac" | "flang" | "ghc" | "ldc" | "ocaml" | "zig" | "zig_ast_check"
-        | "swift_lint" | "xmllint" | "selene" | "zanuda" | "thrift" | "avro_tools" | "tinymist"
-        | "detekt" | "lychee" | "actionlint" | "zizmor" | "periphery" | "trivy_config"
-        | "weeder" => Ok(Route::Keep),
+        | "fsc" | "fsharplint" | "checkstyle" | "fortitude" | "pkl_lsp" | "perlcritic"
+        | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck"
+        | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint" | "rubocop"
+        | "yamllint" | "shellcheck" | "hadolint" | "hlint" | "redocly" | "kubeconform" | "helm"
+        | "capnp" | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "chktex" | "cmakelint"
+        | "credo" | "dialyzer" | "elvis" | "gotype" | "jet" | "julialint" | "luals" | "phpcs"
+        | "phpstan" | "regal" | "sorbet" | "tsc" | "javac" | "kotlinc" | "scalac" | "flang"
+        | "ghc" | "ldc" | "ocaml" | "zig" | "zig_ast_check" | "swift_lint" | "xmllint"
+        | "selene" | "zanuda" | "thrift" | "avro_tools" | "tinymist" | "detekt" | "lychee"
+        | "actionlint" | "zizmor" | "periphery" | "trivy_config" | "weeder" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -433,7 +426,6 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "sqlfluff" => Ok(Route::Sqlfluff),
         "scalafix" => Ok(Route::Scalafix),
         "ansible_lint" => Ok(Route::AnsibleLint),
-        "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
         "swift_format" => Ok(Route::SwiftFormat),
@@ -602,8 +594,8 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        // statix, opa, bicep and latexindent fix exactly one target per run.
-        let batches = if matches!(tool_id, "statix" | "opa" | "latexindent" | "bicep") {
+        // opa, bicep and latexindent fix exactly one target per run.
+        let batches = if matches!(tool_id, "opa" | "latexindent" | "bicep") {
             refs.iter().map(|file| vec![*file]).collect()
         } else {
             commands::plan_invocation_batches(&refs, |batch| {
@@ -952,16 +944,6 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
-            Route::Rewrite(_) if tool_id == "dfmt" => {
-                // dfmt prints `[warn]` lines for valid code; only an `[error]`
-                // line or a non-zero exit means the file was not formatted.
-                let errored = String::from_utf8_lossy(&out.stderr).contains("[error]");
-                if out.code == Some(0) && !errored {
-                    Outcome::Fixed
-                } else {
-                    Outcome::Kept
-                }
-            }
             Route::Rewrite(_) if tool_id == "notebook_outputs" => {
                 if out.code == Some(0) {
                     Outcome::Fixed
@@ -1126,15 +1108,6 @@ impl super::RealBackend {
                             .map_err(|err| execution(tool_id, err.to_string()))?)
                     }
                     "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs, config.as_deref())),
-                    "statix" => match (refs, config.as_deref()) {
-                        ([file], Some(config)) => {
-                            Ok(commands::statix_fix(&tool.binary, file, config))
-                        }
-                        _ => Err(execution(
-                            tool_id,
-                            "statix fixes one file with a config".to_owned(),
-                        )),
-                    },
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,

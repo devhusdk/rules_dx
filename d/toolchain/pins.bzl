@@ -121,11 +121,7 @@ LDC_CELLS = {
     ),
 }
 
-DFMT_VERSION = "0.15.2"
-
 LIBDPARSE_VERSION = "0.25.1"
-
-DSCANNER_VERSION = "0.16.0-beta.5"
 
 DCD_VERSION = "0.16.2"
 
@@ -174,41 +170,6 @@ TOOL_SOURCES = {
         sha256 = "3c333269fdd8b3b2f7278d4f3a5693ec8450547c2091312a805b9605149b205a",
         strip_prefix = "DCD-" + DCD_VERSION,
         url = "https://github.com/dlang-community/DCD/archive/refs/tags/v" + DCD_VERSION + ".tar.gz",
-    ),
-    "dx_d_dfmt": struct(
-        dropped = ["tests", "dub.json", "makefile"],
-        files = {"githash.txt": "v" + DFMT_VERSION + "\n"},
-        sha256 = "baf8da47a743b0f4a27629bd42b3389a82e91e4d4f88b4ce9487dc15b1518f1f",
-        strip_prefix = "dfmt-" + DFMT_VERSION,
-        url = "https://github.com/dlang-community/dfmt/archive/refs/tags/v" + DFMT_VERSION + ".tar.gz",
-    ),
-    "dx_d_dscanner": struct(
-        dropped = [
-            "DCD",
-            "Dockerfile",
-            "appveyor.yml",
-            "build.bat",
-            "containers",
-            "d-test-utils",
-            "dsc.sublime-project",
-            "dub.json",
-            "dub.selections.json",
-            "dubhash.d",
-            "inifiled",
-            "libddoc",
-            "libdparse",
-            "makefile",
-            "release-windows.sh",
-            "release.sh",
-            "scripts",
-            "setup-ldc-windows.sh",
-            "sonar-project.properties",
-            "tests",
-        ],
-        files = {"githash.txt": "v" + DSCANNER_VERSION + "\n"},
-        sha256 = "6397d15eb3e2dc6b82dba4c830793db9299b6f4025099f16b0c5482bd39651a2",
-        strip_prefix = "D-Scanner-" + DSCANNER_VERSION,
-        url = "https://github.com/dlang-community/D-Scanner/archive/refs/tags/v" + DSCANNER_VERSION + ".tar.gz",
     ),
     "dx_d_inifiled": struct(
         dropped = ["test", "package.json"],

@@ -16,12 +16,6 @@ TOOLS = {
         "resources": "light",
         "shard": "nix",
     },
-    "statix": {
-        "attr": attr.label(default = "//quality/tools/rust:statix", cfg = "exec", executable = True),
-        "kind": "executable",
-        "resources": "light",
-        "shard": "nix",
-    },
 }
 
 SHARD_SPECS = {
@@ -33,7 +27,7 @@ SHARD_SPECS = {
     },
     "real_nix_lint": {
         "capability": "lint",
-        "doc": "Additive Nix lint family aspect (statix, deadnix).",
+        "doc": "Additive Nix lint family aspect (deadnix).",
         "shard": "nix",
         "suffix": "-nix",
     },

@@ -184,7 +184,7 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "d curated defaults are typos only; dfmt and D-Scanner are stale",
+                "d curated defaults are typos only",
                 CURATED_DEFAULTS["d"],
                 {
                     "audit": [],
@@ -204,7 +204,7 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "nix curated defaults are deadnix lint only; statix is stale and nixfmt is single-platform",
+                "nix curated defaults are deadnix lint only; nixfmt is single-platform",
                 CURATED_DEFAULTS["nix"],
                 {
                     "audit": [],

@@ -342,25 +342,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
-        id: "dfmt",
-        run: |backend, call| {
-            // One process per file: with two or more files dfmt edits them in place.
-            let mut findings = Vec::new();
-            for (workspace, absolute) in &call.staged.pairs {
-                let invocation = commands::dfmt_check(&call.tool.binary, absolute.as_path());
-                let out = run(backend, call, &invocation)?;
-                let input = std::fs::read(absolute)
-                    .map_err(|err| execution(call.tool_id, format!("read {workspace}: {err}")))?;
-                let name = absolute.to_string_lossy();
-                findings.extend(parsed(
-                    call.tool_id,
-                    parsers::parse_dfmt(&out.stdout, &out.stderr, out.code, &input, &name),
-                )?);
-            }
-            Ok(findings)
-        },
-    },
-    ToolDef {
         id: "tinymist",
         run: |backend, call| {
             // One process per file: each run compiles one entry file.

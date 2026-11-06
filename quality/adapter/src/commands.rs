@@ -229,25 +229,6 @@ const OPA_FMT_FIX_ARGS: &[&str] = &["fmt", "-w"];
 const OPA_CHECK_ARGS: &[&str] = &["check", "--format", "json", "--max-errors=-1"];
 const ZIG_AST_CHECK_ARGS: &[&str] = &["ast-check", "--color", "off"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
-/// The scratch directory holding the `.editorconfig` dfmt is pointed at; dfmt otherwise searches
-/// upward from each source file.
-pub const DFMT_CONFIG_DIR: &str = "dx-dfmt-default";
-const DFMT_CHECK_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR];
-const DFMT_FIX_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR, "--inplace"];
-/// The scratch path of the `dscanner.ini` dscanner is pointed at; with `--config` it never reads
-/// `$HOME/.config/dscanner` or a `dscanner.ini` in a parent directory.
-pub const DSCANNER_CONFIG_REL: &str = "dx-dscanner-default/dscanner.ini";
-/// The sentinel, then tab-separated fields; the message is last because upstream substitutes it
-/// before `{type}` and `{name}`.
-pub const DSCANNER_FORMAT: &str =
-    "dx\t{filepath}\t{line}\t{column}\t{endLine}\t{endColumn}\t{type}\t{name}\t{message}";
-const DSCANNER_CHECK_ARGS: &[&str] = &[
-    "--styleCheck",
-    "--config",
-    DSCANNER_CONFIG_REL,
-    "--errorFormat",
-    DSCANNER_FORMAT,
-];
 const DART_FORMAT_CHECK_ARGS: &[&str] = &[
     "--suppress-analytics",
     "format",
@@ -371,8 +352,6 @@ const TRIVY_CONFIG_PREFIX: &[&str] = &[
     "--skip-check-update",
     "--disable-telemetry",
 ];
-const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
-const STATIX_FIX_PREFIX: &[&str] = &["fix"];
 const END_OF_FLAGS: &[&str] = &["--"];
 const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
@@ -1830,22 +1809,6 @@ pub fn zig_fmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIG_FMT_FIX_ARGS, files, "")
 }
 
-/// dfmt has no check mode: one file without `--inplace` writes the formatted text to stdout.
-/// Pass exactly one file, since two or more switch dfmt to in-place editing. The relative
-/// `--config` makes the cwd the scratch root.
-pub fn dfmt_check(binary: &Path, file: &Path) -> Invocation {
-    fixed(binary, DFMT_CHECK_ARGS, &[file], "")
-}
-
-pub fn dfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DFMT_FIX_ARGS, files, "")
-}
-
-/// One batched style check. The relative `--config` makes the cwd the scratch root.
-pub fn dscanner_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, DSCANNER_CHECK_ARGS, files, "")
-}
-
 /// `dart format` reads each file's language version from the `.dart_tool/package_config.json`
 /// staged at the scratch root, and `formatter:` options from the `analysis_options.yaml` beside it.
 pub fn dart_format_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -2738,20 +2701,6 @@ pub fn trivy_config_check(binary: &Path, file: &Path, cache_dir: &Path) -> Invoc
     )
 }
 
-/// Always `--config <config>`: without it statix searches upward from the cwd for `statix.toml`.
-/// statix takes one target per call.
-pub fn statix_check(binary: &Path, file: &Path, config: &Path) -> Invocation {
-    required_flag(
-        binary,
-        STATIX_CHECK_PREFIX,
-        "--config",
-        config,
-        END_OF_FLAGS,
-        &[file],
-        "",
-    )
-}
-
 /// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.
 /// `--debug` makes it log the config it loaded, which the parser requires.
 pub fn checkmake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
@@ -2778,18 +2727,6 @@ pub fn cmakelint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocat
         argv,
         cwd_rel: String::new(),
     }
-}
-
-pub fn statix_fix(binary: &Path, file: &Path, config: &Path) -> Invocation {
-    required_flag(
-        binary,
-        STATIX_FIX_PREFIX,
-        "--config",
-        config,
-        END_OF_FLAGS,
-        &[file],
-        "",
-    )
 }
 
 pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {

@@ -5,7 +5,7 @@ load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//quality:sources.bzl", "QualitySourcesInfo")
 
 DInfo = _DInfo
 
@@ -13,19 +13,14 @@ D_CELLS = sorted(LDC_CELLS.keys())
 
 D_COMPATIBLE_WITH = cells_compatible_with(LDC_CELLS, "//d/toolchain", D_CELLS, unsupported = True)
 
-D_QUALITY_TOOLS = {
-    "dfmt": Label("//d/tools:dfmt"),
-    "dscanner": Label("//d/tools:dscanner"),
-}
-
-_D_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
+_D_EXEC_PROVIDES = DX_EXEC_PROVIDES
 
 _SPECS = [("d", "d")]
 
 _EXTS = [".d", ".di"]
 
 _d_library_forward = dx_library_forward_rule(
-    provides = [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+    provides = [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(_DInfo, "DInfo")],
     quality_specs = _SPECS,
     what = "d_library",
@@ -33,7 +28,6 @@ _d_library_forward = dx_library_forward_rule(
     upstream_providers = [[_DInfo]],
     runtime = "besteffort",
     instrument_srcs = True,
-    quality_tools = D_QUALITY_TOOLS,
 )
 
 _d_binary_forward = dx_executable_forward_rule(
@@ -45,7 +39,6 @@ _d_binary_forward = dx_executable_forward_rule(
     allow_files = _EXTS,
     upstream_providers = None,
     runtime = "besteffort",
-    quality_tools = D_QUALITY_TOOLS,
 )
 
 def _d_test_coverage(ctx, upstream):
@@ -90,7 +83,6 @@ _d_forward_test = dx_executable_forward_rule(
     },
     runtime = "besteffort",
     coverage_providers = _d_test_coverage,
-    quality_tools = D_QUALITY_TOOLS,
 )
 
 def d_quality_srcs(srcs, string_srcs = None):

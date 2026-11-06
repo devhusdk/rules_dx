@@ -112,17 +112,6 @@ const ELVIS_DEFAULTS_BYTES: &[u8] = b"[{config, [
     #{files => [\"**/*.hrl\"], ruleset => hrl_files, allow_no_files => true}
 ]}].
 ";
-/// dfmt is always pointed at this directory (see `commands::DFMT_CONFIG_DIR`): `root = true`
-/// stops its upward search for `.editorconfig`, so a home-directory file never reaches it.
-const DFMT_DEFAULTS_FILE: &str = ".editorconfig";
-const DFMT_DEFAULTS_BYTES: &[u8] = b"root = true\n\n[*.d]\nend_of_line = lf\n";
-/// dscanner is always pointed at this file (see `commands::DSCANNER_CONFIG_REL`); a bound config
-/// is staged there instead. Upstream leaves the unused variable and parameter checks off, so the
-/// default turns them on; the rest stay at their upstream defaults.
-const DSCANNER_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tiers/dscanner/standard.ini");
-const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
-/// An empty `statix.toml` keeps every lint on and stops statix searching upward for one.
-const STATIX_DEFAULTS_BYTES: &[u8] = b"";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const CUE_STATE_REL: &str = ".dx-cue-state";

@@ -1134,7 +1134,7 @@ use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d/toolchain:repos.bzl", "d")
-use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_dfmt", "dx_d_dscanner", "dx_d_inifiled", "dx_d_ldc_linux_amd64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_amd64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 
@@ -2012,14 +2012,6 @@ _http_archive(
     sha256 = "4cbba86af11f72de0c7514e09d59c7927ed25df7cebdad087f6d3623213b95bf",
     strip_prefix = "kcov-43",
     urls = ["https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz"],
-)
-
-_http_archive(
-    name = "dx_statix_src",
-    build_file = "//quality/tools/rust:statix.BUILD.bazel",
-    sha256 = "97c97e9b2fc855cb36178234fc787990a65ff92b3ebaadc6356b3711f5b0a742",
-    strip_prefix = "statix-52530001bdbc8e94aae0d406a929c7ad7f09d9d1",
-    urls = ["https://github.com/molybdenumsoftware/statix/archive/52530001bdbc8e94aae0d406a929c7ad7f09d9d1.tar.gz"],
 )
 
 _http_archive(

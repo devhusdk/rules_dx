@@ -180,7 +180,7 @@ Every tool runs from a managed executable. To use your own build, pass its targe
 tools/dx lint -- --@rules_dx//config:tool_<name>=//tools:my_tool
 ```
 
-Tools with an override flag: `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `julialint`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
+Tools with an override flag: `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `swift_format`, `swift_lint`, `dart`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `julialint`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`, `nixfmt`, `flatc`.
 
 The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates must be a single executable file. The others must be executable targets. Anything else fails analysis with the tool named.
 
@@ -203,8 +203,6 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `zig_fmt` | Format Zig | |
 | `zig_ast_check` | Lint Zig | |
 | `zig` | Typecheck Zig | |
-| `dfmt` | Format D | |
-| `dscanner` | Lint D | |
 | `ldc` | Typecheck D | |
 | `ffmt` | Format Fortran | |
 | `fortitude` | Lint Fortran | |
@@ -319,7 +317,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `cfn_lint` | Lint CloudFormation | |
 | `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations; opt-in | |
 | `nixfmt` | Format Nix | all but `linux_x86_64` |
-| `deadnix`, `statix` | Lint Nix | |
+| `deadnix` | Lint Nix | |
 | `opa` | Format and typecheck Rego | |
 | `regal` | Lint Rego | |
 | `cue` | Format and typecheck CUE | |
@@ -432,8 +430,6 @@ Declare a config with the `*_config` rule from `@rules_dx//quality:native_config
 | `remark` | no | `.json` | `.remarkrc` files and remark plugins | `remark_config` |
 | `prettier` (SQL, XML, Gherkin) | no | `.prettierrc` | `.prettierrc`, `.editorconfig` and other user configs | `prettier_config` |
 | `prettier` (Vue, Svelte, Astro) | no | none | `.prettierrc`, `.editorconfig` and other user configs | none |
-| `dfmt` | no | none | `.editorconfig` | none |
-| `dscanner` | no | none | `dscanner.ini` | none |
 | `perltidy` | no | none | `.perltidyrc`, `$PERLTIDY` | none |
 | `perlcritic` | no | none | `.perlcriticrc`, `$PERLCRITIC` | none |
 | OCaml formatting | no | none | `.ocamlformat` | none |

@@ -324,13 +324,6 @@ label_flag(
 filegroup(name = "no_dart")
 
 label_flag(
-    name = "tool_dfmt",
-    build_setting_default = ":no_dfmt",
-)
-
-filegroup(name = "no_dfmt")
-
-label_flag(
     name = "tool_phpcs",
     build_setting_default = "//php/tools:phpcs",
 )
@@ -353,13 +346,6 @@ label_flag(
 )
 
 filegroup(name = "no_perltidy")
-
-label_flag(
-    name = "tool_dscanner",
-    build_setting_default = ":no_dscanner",
-)
-
-filegroup(name = "no_dscanner")
 
 label_flag(
     name = "tool_julia_format",

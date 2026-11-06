@@ -2,7 +2,7 @@ load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "D_QUALITY_TOOLS", "d_kwargs", "d_quality_srcs")
+load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_kwargs", "d_quality_srcs")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -37,14 +37,6 @@ dx_wrapper_contract_tests(
             "d tests have a coverage collector",
             D_COVERAGE_COLLECTOR,
             True,
-        ),
-        expect_equal(
-            "wrappers carry dfmt and dscanner",
-            sorted(D_QUALITY_TOOLS.keys()),
-            [
-                "dfmt",
-                "dscanner",
-            ],
         ),
         expect_equal(
             "modules and interface files are owned in order",

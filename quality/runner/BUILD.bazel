@@ -45,7 +45,6 @@ rust_library(
         normal = True,
     ),
     compile_data = [
-        "//quality/tiers/dscanner:standard.ini",
         "//quality/tiers/hlint:standard.yaml",
         "//quality/tools/jvm:pmd_default.xml",
         "//quality/tools/jvm:scalafmt_default.conf",
@@ -197,7 +196,6 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
-        "//quality/tiers/dscanner:standard.ini",
         "//quality/tiers/hlint:standard.yaml",
         "//quality/tools/jvm:pmd_default.xml",
         "//quality/tools/jvm:scalafmt_default.conf",

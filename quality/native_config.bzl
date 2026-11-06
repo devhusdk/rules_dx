@@ -308,7 +308,6 @@ cfn_lint_config = _make_native_config_rule("cfn_lint")
 
 hadolint_config = _make_native_config_rule("hadolint")
 hlint_config = _make_native_config_rule("hlint")
-dscanner_config = _make_native_config_rule("dscanner")
 regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 gersemi_config = _make_native_config_rule("gersemi")
@@ -336,4 +335,3 @@ rubocop_config = _make_native_config_rule("rubocop")
 
 standardrb_config = _make_native_config_rule("standardrb")
 
-statix_config = _make_native_config_rule("statix")

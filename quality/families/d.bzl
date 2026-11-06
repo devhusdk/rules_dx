@@ -4,20 +4,6 @@ load("//quality:compile_check.bzl", "compile_check_aspect", "compile_check_hook"
 load("//quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
-    "dfmt": {
-        "attr": attr.label(default = "//config:tool_dfmt", allow_files = True, cfg = "exec"),
-        "kind": "setting",
-        "resources": "light",
-        "shard": "d",
-        "target_tool": True,
-    },
-    "dscanner": {
-        "attr": attr.label(default = "//config:tool_dscanner", allow_files = True, cfg = "exec"),
-        "kind": "setting",
-        "resources": "medium",
-        "shard": "d",
-        "target_tool": True,
-    },
     "ldc": {
         "kind": "upstream",
         "resources": "heavy",
@@ -35,13 +21,13 @@ SHARD_SPECS = {
     },
     "real_d_format": {
         "capability": "format",
-        "doc": "Additive D format family aspect (dfmt).",
+        "doc": "Additive D format family aspect (typos).",
         "shard": "d",
         "suffix": "-d",
     },
     "real_d_lint": {
         "capability": "lint",
-        "doc": "Additive D lint family aspect (D-Scanner).",
+        "doc": "Additive D lint family aspect (typos).",
         "shard": "d",
         "suffix": "-d",
     },

@@ -64,10 +64,10 @@ fn an_unknown_tool_gets_a_hint() {
 #[test]
 fn two_profiles_on_one_shared_tool_conflict() {
     let error = problem(
-        "schema_version = 1\n[families.go]\nprofile = \"strict\"\nlint = [\"clang_tidy\"]\n[families.rust]\nlint = [\"clang_tidy\"]\n",
+        "schema_version = 1\n[families.go]\nprofile = \"strict\"\nlint = [\"cppcheck\"]\n[families.rust]\nlint = [\"cppcheck\"]\n",
     );
     let text = error.to_string();
-    assert!(text.contains("`clang_tidy`"), "{text}");
+    assert!(text.contains("`cppcheck`"), "{text}");
     assert!(
         text.contains("`go` (strict)") && text.contains("`rust` (standard)"),
         "{text}"

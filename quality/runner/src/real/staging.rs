@@ -221,32 +221,6 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
             });
         }
-        if tool_id == "dfmt" {
-            mirrors.push(MirrorFile {
-                mirror_rel: Path::new(commands::DFMT_CONFIG_DIR).join(DFMT_DEFAULTS_FILE),
-                contents: MirrorContents::Bytes(DFMT_DEFAULTS_BYTES.to_vec()),
-            });
-        }
-        if tool_id == "dscanner" {
-            let bound = tool.config_rel.as_deref().and_then(|rel| {
-                tool.tool_files
-                    .iter()
-                    .find(|(file, _)| file == rel)
-                    .map(|(_, bytes)| bytes.clone())
-            });
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(commands::DSCANNER_CONFIG_REL),
-                contents: MirrorContents::Bytes(
-                    bound.unwrap_or_else(|| DSCANNER_DEFAULTS_BYTES.to_vec()),
-                ),
-            });
-        }
-        if tool_id == "statix" && tool.config_rel.is_none() {
-            mirrors.push(MirrorFile {
-                mirror_rel: PathBuf::from(STATIX_DEFAULTS_REL),
-                contents: MirrorContents::Bytes(STATIX_DEFAULTS_BYTES.to_vec()),
-            });
-        }
         if tool_id == "gplint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(GPLINT_DEFAULTS_REL),
@@ -455,13 +429,6 @@ impl RealBackend {
         }
         if tool_id == "redocly" {
             let rel = tool.config_rel.as_deref().unwrap_or(REDOCLY_DEFAULTS_REL);
-            return scratch
-                .resolve(Path::new(rel))
-                .map(Some)
-                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
-        }
-        if tool_id == "statix" {
-            let rel = tool.config_rel.as_deref().unwrap_or(STATIX_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

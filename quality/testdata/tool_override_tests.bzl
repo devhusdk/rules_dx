@@ -1,7 +1,6 @@
 """Analysis proofs for the declared ruff tool override."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
@@ -10,8 +9,6 @@ load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",
     "real_cc_lint_aspect",
-    "real_d_format_aspect",
-    "real_d_lint_aspect",
     "real_dart_format_aspect",
     "real_elixir_format_aspect",
     "real_elixir_lint_aspect",
@@ -51,15 +48,9 @@ _ZIG_LINT_POLICY = _CANONICAL + "//quality/testdata:zig_lint_policy"
 _ZIG_AST_CHECK_SETTING = _CANONICAL + "//config:tool_zig_ast_check"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
-_D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
-_DFMT_SETTING = _CANONICAL + "//config:tool_dfmt"
-_DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
-_DSCANNER_SETTING = _CANONICAL + "//config:tool_dscanner"
 _PERLCRITIC_SETTING = _CANONICAL + "//config:tool_perlcritic"
 _PERLCRITIC_TOOL = _CANONICAL + "//perl/tools:perlcritic"
 _PERL_LINT_POLICY = _CANONICAL + "//quality/testdata:perl_lint_policy"
-_DSCANNER_TOOL = _CANONICAL + "//d/tools:dscanner"
-_D_LINT_POLICY = _CANONICAL + "//quality/testdata:d_lint_policy"
 _DART_POLICY = _CANONICAL + "//quality/testdata:dart_policy"
 _DART_SETTING = _CANONICAL + "//config:tool_dart"
 _DART_TOOL = _CANONICAL + "//dart/tools:dart"
@@ -158,29 +149,6 @@ qml_lint_subject = rule(
     attrs = {
         "target": attr.label(
             aspects = [real_cc_lint_aspect],
-            mandatory = True,
-        ),
-    },
-)
-
-def _d_subject_impl(ctx):
-    """Exposes the resolved dfmt binary and the format results beside the real aspect."""
-    tool = ctx.attr._dfmt[DefaultInfo].files_to_run.executable
-    wrapper = ctx.attr.target[QualityToolsInfo].tools["dfmt"].executable
-    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
-    fields = {
-        "dfmt": tool.short_path if tool else "",
-        "results": ",".join([f.short_path for f in results]),
-        "wrapper": wrapper.short_path if wrapper else "",
-    }
-    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
-
-d_subject = rule(
-    implementation = _d_subject_impl,
-    attrs = {
-        "_dfmt": attr.label(default = "//config:tool_dfmt"),
-        "target": attr.label(
-            aspects = [real_d_format_aspect],
             mandatory = True,
         ),
     },
@@ -527,119 +495,6 @@ _qmllint_unset_test = analysistest.make(
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
     config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
-
-def _dfmt_default_impl(ctx):
-    """Asserts an unset flag falls back to the wrapper's dfmt."""
-    env = analysistest.begin(ctx)
-    fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.equals(env, "", fields["dfmt"])
-    asserts.true(env, fields["wrapper"].endswith("/dfmt") or fields["wrapper"].endswith("/dfmt.exe"), "want dfmt, got " + fields["wrapper"])
-    asserts.true(env, fields["results"] != "", "want a format stage result for the D target")
-    return analysistest.end(env)
-
-_dfmt_default_test = analysistest.make(
-    _dfmt_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _D_POLICY},
-)
-
-def _dfmt_wired_impl(ctx):
-    """Asserts the flag wires dfmt and a format stage result."""
-    env = analysistest.begin(ctx)
-    fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["dfmt"].endswith("/dfmt") or fields["dfmt"].endswith("/dfmt.exe"), "want dfmt, got " + fields["dfmt"])
-    asserts.true(env, fields["results"] != "", "want a format stage result for the D target")
-    return analysistest.end(env)
-
-_dfmt_set_test = analysistest.make(
-    _dfmt_wired_impl,
-    config_settings = {
-        _WORKSPACE_SETTING: _D_POLICY,
-        _DFMT_SETTING: _DFMT_TOOL,
-    },
-)
-
-def dfmt_flag_tests(name, subject):
-    """Instantiates the dfmt flag proofs; D targets build on linux x86_64 only."""
-    _dfmt_default_test(
-        name = name + "_default_test",
-        size = "small",
-        target_compatible_with = D_COMPATIBLE_WITH,
-        target_under_test = subject,
-    )
-    _dfmt_set_test(
-        name = name + "_set_test",
-        size = "small",
-        target_compatible_with = D_COMPATIBLE_WITH,
-        target_under_test = subject,
-    )
-
-def _d_lint_subject_impl(ctx):
-    """Exposes the resolved dscanner binary and the lint results beside the real aspect."""
-    tool = ctx.attr._dscanner[DefaultInfo].files_to_run.executable
-    wrapper = ctx.attr.target[QualityToolsInfo].tools["dscanner"].executable
-    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
-    fields = {
-        "dscanner": tool.short_path if tool else "",
-        "results": ",".join([f.short_path for f in results]),
-        "wrapper": wrapper.short_path if wrapper else "",
-    }
-    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
-
-d_lint_subject = rule(
-    implementation = _d_lint_subject_impl,
-    attrs = {
-        "_dscanner": attr.label(default = "//config:tool_dscanner"),
-        "target": attr.label(
-            aspects = [real_d_lint_aspect],
-            mandatory = True,
-        ),
-    },
-)
-
-def _dscanner_default_impl(ctx):
-    """Asserts an unset flag falls back to the wrapper's dscanner."""
-    env = analysistest.begin(ctx)
-    fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.equals(env, "", fields["dscanner"])
-    asserts.true(env, fields["wrapper"].endswith("/dscanner") or fields["wrapper"].endswith("/dscanner.exe"), "want dscanner, got " + fields["wrapper"])
-    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
-    return analysistest.end(env)
-
-_dscanner_default_test = analysistest.make(
-    _dscanner_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _D_LINT_POLICY},
-)
-
-def _dscanner_wired_impl(ctx):
-    """Asserts the flag wires dscanner and a lint stage result."""
-    env = analysistest.begin(ctx)
-    fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["dscanner"].endswith("/dscanner") or fields["dscanner"].endswith("/dscanner.exe"), "want dscanner, got " + fields["dscanner"])
-    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
-    return analysistest.end(env)
-
-_dscanner_set_test = analysistest.make(
-    _dscanner_wired_impl,
-    config_settings = {
-        _WORKSPACE_SETTING: _D_LINT_POLICY,
-        _DSCANNER_SETTING: _DSCANNER_TOOL,
-    },
-)
-
-def dscanner_flag_tests(name, subject):
-    """Instantiates the dscanner flag proofs; D targets build on linux x86_64 only."""
-    _dscanner_default_test(
-        name = name + "_default_test",
-        size = "small",
-        target_compatible_with = D_COMPATIBLE_WITH,
-        target_under_test = subject,
-    )
-    _dscanner_set_test(
-        name = name + "_set_test",
-        size = "small",
-        target_compatible_with = D_COMPATIBLE_WITH,
-        target_under_test = subject,
-    )
 
 def _perl_lint_subject_impl(ctx):
     """Exposes the resolved perlcritic binary and the lint results beside the real aspect."""

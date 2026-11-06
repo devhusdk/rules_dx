@@ -62,8 +62,6 @@ go_test(
     data = [
         "@dx_d_containers//:d_srcs",
         "@dx_d_dcd//:d_srcs",
-        "@dx_d_dfmt//:d_srcs",
-        "@dx_d_dscanner//:d_srcs",
         "@dx_d_inifiled//:d_srcs",
         "@dx_d_libddoc//:d_srcs",
         "@dx_d_libdparse//:d_srcs",
@@ -73,8 +71,6 @@ go_test(
         "D_CORPUS_FILES": " ".join([
             "$(rlocationpaths @dx_d_containers//:d_srcs)",
             "$(rlocationpaths @dx_d_dcd//:d_srcs)",
-            "$(rlocationpaths @dx_d_dfmt//:d_srcs)",
-            "$(rlocationpaths @dx_d_dscanner//:d_srcs)",
             "$(rlocationpaths @dx_d_inifiled//:d_srcs)",
             "$(rlocationpaths @dx_d_libddoc//:d_srcs)",
             "$(rlocationpaths @dx_d_libdparse//:d_srcs)",

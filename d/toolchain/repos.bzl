@@ -129,26 +129,6 @@ d_library(
 )
 """
 
-_DFMT_BUILD = """load("@rules_d//d:defs.bzl", "d_binary")
-load("@rules_dx//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
-
-package(default_visibility = ["//visibility:public"])
-
-filegroup(
-    name = "githash",
-    srcs = ["githash.txt"],
-)
-
-d_binary(
-    name = "dfmt",
-    srcs = glob(["src/**/*.d"]),
-    imports = ["src"],
-    string_srcs = [":githash"],
-    target_compatible_with = D_COMPATIBLE_WITH,
-    deps = ["@dx_d_libdparse//:dparse"],
-)
-"""
-
 _CONTAINERS_BUILD = """load("@rules_d//d:defs.bzl", "d_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -207,37 +187,9 @@ d_library(
 )
 """
 
-_DSCANNER_BUILD = """load("@rules_d//d:defs.bzl", "d_binary")
-load("@rules_dx//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
-
-package(default_visibility = ["//visibility:public"])
-
-filegroup(
-    name = "githash",
-    srcs = ["githash.txt"],
-)
-
-d_binary(
-    name = "dscanner",
-    srcs = glob(["src/**/*.d"]),
-    imports = ["src"],
-    string_srcs = [":githash"],
-    target_compatible_with = D_COMPATIBLE_WITH,
-    deps = [
-        "@dx_d_containers//:containers",
-        "@dx_d_dcd//:dsymbol",
-        "@dx_d_inifiled//:inifiled",
-        "@dx_d_libddoc//:ddoc",
-        "@dx_d_libdparse//:dparse",
-    ],
-)
-"""
-
 TOOL_BUILDS = {
     "dx_d_containers": _CONTAINERS_BUILD,
     "dx_d_dcd": _DSYMBOL_BUILD,
-    "dx_d_dfmt": _DFMT_BUILD,
-    "dx_d_dscanner": _DSCANNER_BUILD,
     "dx_d_inifiled": _INIFILED_BUILD,
     "dx_d_libddoc": _DDOC_BUILD,
     "dx_d_libdparse": _LIBDPARSE_BUILD,
@@ -248,8 +200,6 @@ TOOL_BUILDS = {
 TOOL_SRC_ROOTS = {
     "dx_d_containers": ["src"],
     "dx_d_dcd": ["dsymbol/src"],
-    "dx_d_dfmt": ["src"],
-    "dx_d_dscanner": ["src"],
     "dx_d_inifiled": ["source"],
     "dx_d_libddoc": ["common/source", "src"],
     "dx_d_libdparse": ["src"],

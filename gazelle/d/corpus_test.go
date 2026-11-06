@@ -16,8 +16,8 @@ func TestCorpus(t *testing.T) {
 		t.Skip("D_CORPUS_FILES is not set; run through Bazel")
 	}
 	files := strings.Fields(list)
-	if len(files) < 100 {
-		t.Fatalf("corpus holds %d files, want at least 100", len(files))
+	if len(files) < 50 {
+		t.Fatalf("corpus holds %d files, want at least 50", len(files))
 	}
 	for _, file := range files {
 		content, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), filepath.FromSlash(file)))

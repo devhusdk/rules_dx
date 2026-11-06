@@ -1002,10 +1002,6 @@ impl RealBackend {
                 "shellcheck" => parsers::parse_shellcheck(&bytes, Some(0), &workspaces),
                 "checkmake" => parsers::parse_checkmake(&bytes, &[], Some(0), &workspaces, None),
                 "hadolint" => parsers::parse_hadolint(&bytes, &[], Some(0), &workspaces),
-                "statix" => {
-                    let code = i32::from(!String::from_utf8_lossy(&bytes).trim().is_empty());
-                    parsers::parse_statix(&bytes, &[], Some(code), &workspaces)
-                }
                 "deadnix" => parsers::parse_deadnix(&bytes, &[], Some(0), &workspaces),
                 "kubeconform" => {
                     let targets: Vec<parsers::KubeconformTarget<'_>> = workspaces

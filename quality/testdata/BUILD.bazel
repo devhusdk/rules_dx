@@ -25,15 +25,11 @@ load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(
     ":tool_override_tests.bzl",
     "credo_flag_tests",
-    "d_lint_subject",
-    "d_subject",
     "dart_config_deps_test",
     "dart_format_flag_tests",
     "dart_subject",
-    "dfmt_flag_tests",
     "dialyzer_elixir_flag_tests",
     "dialyzer_flag_tests",
-    "dscanner_flag_tests",
     "elixir_lint_subject",
     "elixir_subject",
     "elvis_flag_tests",
@@ -1600,60 +1596,6 @@ elixir_lint_subject(
 credo_flag_tests(
     name = "credo_flag",
     subject = ":elixir_lint_subject",
-)
-
-quality_family(
-    name = "d_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "d",
-    format = ["dfmt"],
-)
-
-workspace_policy(
-    name = "d_policy",
-    families = [":d_family"],
-)
-
-d_subject(
-    name = "d_subject",
-    testonly = True,
-    target = "//d/tests/fixtures/hello:greet",
-)
-
-dfmt_flag_tests(
-    name = "dfmt_flag",
-    subject = ":d_subject",
-)
-
-quality_family(
-    name = "d_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "d",
-    lint = ["dscanner"],
-)
-
-workspace_policy(
-    name = "d_lint_policy",
-    families = [":d_lint_family"],
-)
-
-d_lint_subject(
-    name = "d_lint_subject",
-    testonly = True,
-    target = "//d/tests/fixtures/hello:greet",
-)
-
-dscanner_flag_tests(
-    name = "dscanner_flag",
-    subject = ":d_lint_subject",
 )
 
 quality_family(

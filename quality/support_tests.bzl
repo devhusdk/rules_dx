@@ -1,6 +1,5 @@
 """Unit tests for explicit tool support records."""
 
-load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
 load("//elixir/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
@@ -205,9 +204,7 @@ def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),
         "dialyzer": _canonical([c for c in ERLANG_CELLS.keys() if c not in OTP_DIALYZER_UNPORTED_CELLS]),
-        "dfmt": _canonical(LDC_CELLS.keys()),
         "dart": sorted(RULES_DART_PLATFORMS.keys()),
-        "dscanner": _canonical(LDC_CELLS.keys()),
         "elvis": _canonical(ERLANG_CELLS.keys()),
         "erlfmt": _canonical(ERLANG_CELLS.keys()),
         "julia_format": sorted(JULIA_PLATFORMS.keys()),
@@ -219,10 +216,10 @@ def _toolchain_platforms():
     }
 
 # Tools listed in #4665.
-_CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "statix", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint"]
+_CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint"]
 
 # Records that must name every platform as either supported or unsupported with a reason.
-_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "debride", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
+_COMPLETE_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "clang_format", "cppcheck", "credo", "cue", "dart", "deadnix", "debride", "djlint", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "terraform", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
@@ -314,7 +311,7 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "nix and rego claims are proven",
-                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["deadnix", "nixfmt", "opa", "regal", "statix"]], RUNNER_MATRIX_CASES),
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["deadnix", "nixfmt", "opa", "regal"]], RUNNER_MATRIX_CASES),
                 [],
             ),
             expect_equal(
@@ -370,11 +367,6 @@ def support_unit_tests(name):
             expect_equal(
                 "php claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["phpcs", "phpstan"]], RUNNER_MATRIX_CASES),
-                [],
-            ),
-            expect_equal(
-                "dfmt and dscanner claims are proven",
-                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["dfmt", "dscanner"]], RUNNER_MATRIX_CASES),
                 [],
             ),
             expect_equal(

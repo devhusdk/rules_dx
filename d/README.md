@@ -60,18 +60,6 @@ An import resolves to `@dub//<package>` when its first segment is the name of a 
 `# gazelle:d_dub_hub <name>` in a BUILD file to name the hub repo other than `dub`, for example
 `dub_packages`. `# gazelle:resolve d <module> <label>` overrides one import.
 
-## Formatting
-
-`dfmt` checks and fixes D formatting by default. The D wrappers carry the
-pinned dfmt, so no flag is needed. See "D formatting" in
-`docs/cli/commands/quality.md`.
-
-## Linting
-
-`dscanner` lints D sources by default. The D wrappers carry the pinned
-D-Scanner, so no flag is needed. See "D linting" in
-`docs/cli/commands/quality.md`.
-
 ## Coverage
 
 `bazel coverage` and `dx coverage` build D libraries and tests with `-cov`, run each test under a small launcher, and convert the `.lst` files ldc writes into LCOV. Coverage covers the sources of targets that match `--instrumentation_filter`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.

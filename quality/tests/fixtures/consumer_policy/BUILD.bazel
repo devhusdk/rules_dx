@@ -464,10 +464,7 @@ quality_family(
     disabled = ["typecheck"],
     family_id = "nix",
     format = ["nixfmt"],
-    lint = [
-        "deadnix",
-        "statix",
-    ],
+    lint = ["deadnix"],
 )
 
 workspace_policy(

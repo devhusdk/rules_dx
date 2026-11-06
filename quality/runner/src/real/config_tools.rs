@@ -277,32 +277,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
-        id: "statix",
-        run: |backend, call| {
-            let tool_id = call.tool_id;
-            let tool = call.tool;
-            let pairs = &call.staged.pairs;
-            let scratch = &call.staged.scratch;
-            let config = call.config;
-            let (_, names) = super::single_run::paths(call);
-            let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            if !tool.upstream_diagnostics.is_empty() {
-                return backend.check_file_family_delegated(tool_id, tool, pairs);
-            }
-            let Some(config) = config else {
-                return Err(execution(tool_id, "statix needs a config path".to_owned()));
-            };
-            let mut findings = Vec::new();
-            for name in &strs {
-                let invocation = commands::statix_check(&tool.binary, Path::new(name), config);
-                let out = backend.run(tool_id, tool, &invocation, scratch)?;
-                let report = parsers::parse_statix(&out.stdout, &out.stderr, out.code, &[*name]);
-                findings.extend(parsed(tool_id, report)?);
-            }
-            Ok(findings)
-        },
-    },
-    ToolDef {
         id: "trivy_config",
         run: |backend, call| {
             let tool_id = call.tool_id;

@@ -1562,16 +1562,18 @@ fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
         pf.join("nodejs"),
         pf.join("Java").join("jdk-21").join("bin"),
         pf.join("LLVM").join("bin"),
+        pf.join("Eclipse Adoptium").join("jdk-17").join("bin"),
         local.join("Programs").join("Python").join("Python311"),
         pf.join("Other"),
     ] {
         std::fs::create_dir_all(&dir).unwrap();
     }
     let dirs = windows_tool_dirs(Some(&pf), Some(&local));
-    let canon = |path: PathBuf| std::fs::canonicalize(path).unwrap();
+    let canon = |path: PathBuf| canonical(&path).unwrap();
     let want = [
         canon(pf.join("Python312")),
         canon(pf.join("Java").join("jdk-21").join("bin")),
+        canon(pf.join("Eclipse Adoptium").join("jdk-17").join("bin")),
         canon(pf.join("nodejs")),
         canon(pf.join("LLVM").join("bin")),
         canon(local.join("Programs").join("Python").join("Python311")),
@@ -1579,6 +1581,14 @@ fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
     let _ = std::fs::remove_dir_all(&root);
     assert_eq!(dirs, want);
     assert!(windows_tool_dirs(None, None).is_empty());
+}
+
+#[test]
+fn canonical_paths_have_no_verbatim_prefix() {
+    let dir = std::env::temp_dir();
+    let real = canonical(&dir).unwrap();
+    assert!(!real.to_string_lossy().starts_with(r"\\?\"));
+    assert!(canonical(&dir.join("dx-hermetic-missing-path")).is_none());
 }
 
 #[test]

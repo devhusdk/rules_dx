@@ -217,6 +217,7 @@ pub fn windows_tool_dirs(
     if let Some(root) = program_files {
         versioned_under(root.to_path_buf(), "Python", "");
         versioned_under(root.join("Java"), "jdk", "bin");
+        versioned_under(root.join("Eclipse Adoptium"), "jdk", "bin");
         versioned_under(root.to_path_buf(), "nodejs", "");
         versioned_under(root.to_path_buf(), "LLVM", "bin");
     }
@@ -224,15 +225,35 @@ pub fn windows_tool_dirs(
         versioned_under(local.join("Programs").join("Python"), "Python", "");
     }
     dirs.into_iter()
-        .filter_map(|dir| std::fs::canonicalize(dir).ok())
+        .filter_map(|dir| canonical(&dir))
         .filter(|dir| dir.is_dir())
         .collect()
 }
 
+/// Resolves symlinks and drops the `\\?\` prefix Windows adds, so paths compare equal.
+fn canonical(path: &Path) -> Option<PathBuf> {
+    let real = std::fs::canonicalize(path).ok()?;
+    let text = real.to_string_lossy();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if !rest.starts_with("UNC\\") => Some(PathBuf::from(rest)),
+        _ => Some(real),
+    }
+}
+
+/// Reads a directory variable, falling back to the default location when Bazel's test environment lacks it.
+fn windows_dir(name: &str, fallback: impl FnOnce() -> Option<PathBuf>) -> Option<PathBuf> {
+    std::env::var_os(name).map(PathBuf::from).or_else(fallback)
+}
+
 /// The directories the Windows host keeps compilers and interpreters in.
 fn windows_host_dirs() -> Vec<PathBuf> {
-    let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
-    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_owned());
+    let program_files = windows_dir("ProgramFiles", || {
+        Some(PathBuf::from(format!(r"{drive}\Program Files")))
+    });
+    let local = windows_dir("LOCALAPPDATA", || {
+        std::env::var_os("USERPROFILE").map(|home| PathBuf::from(home).join(r"AppData\Local"))
+    });
     windows_tool_dirs(program_files.as_deref(), local.as_deref())
 }
 
@@ -643,7 +664,7 @@ pub fn ambient_tools(dirs: &[PathBuf], names: &[&str]) -> Vec<(String, PathBuf)>
             }
             for entry in entries {
                 let file = format!("{entry}{}", std::env::consts::EXE_SUFFIX);
-                let Ok(real) = std::fs::canonicalize(dir.join(&file)) else {
+                let Some(real) = canonical(&dir.join(&file)) else {
                     continue;
                 };
                 if real.is_file() && !found.iter().any(|(_, seen)| *seen == real) {
